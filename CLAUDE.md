@@ -11,6 +11,7 @@
 > | [docs/superpowers/specs/2026-09-20-runtime-execution-model-draft.md](./docs/superpowers/specs/2026-09-20-runtime-execution-model-draft.md) | **Draft, not baseline.** Runtime/execution proposal with 7 open decisions |
 > | [docs/future/shadows-team-direction.md](./docs/future/shadows-team-direction.md) | Non-binding future team/server direction |
 > | [docs/evidence/persistence/](./docs/evidence/persistence/) | Archived persistence comparison evidence |
+> | [docs/evidence/harness/](./docs/evidence/harness/) | Measured Claude harness stream contract and web-serving spike |
 >
 > **Documentation rules:**
 > - The reviewed spec is the only active architecture and decision source.

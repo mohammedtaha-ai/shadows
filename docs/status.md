@@ -16,6 +16,10 @@
   is unchanged.
 - The runtime/execution draft is tracked but is **not** baseline. Seven design
   decisions in it are open. None block the first milestone.
+- The Claude harness stream contract is now measured, not assumed: four stream
+  classes, of which only `assistant`, `user` and `result` are durable. Serving
+  the web client needs no framework. `claude.exe` spawns a process tree, which
+  confirms the Job Object requirement by observation.
 
 ## Next deliverable
 
@@ -72,8 +76,9 @@ The daemon must not open a browser automatically.
 - [x] first runnable milestone and external `gcode` boundary recorded;
 - [x] `TaskState` vocabulary contradiction resolved; runtime draft tracked and
       labelled non-baseline;
-- [ ] spike the two unknowns Milestone 0 has no design for: serving the web
-      client, and the concrete Claude harness invocation/stream contract;
+- [x] spiked the two unknowns Milestone 0 had no design for: serving the web
+      client, and the concrete Claude harness invocation/stream contract
+      (`docs/evidence/harness/SERVE_STREAM_SPIKE.md`);
 - [ ] validate file-backed SQLite WAL under concurrent writers, then fix the
       writer strategy;
 - [ ] write the focused Milestone 0 implementation plan;
