@@ -18,8 +18,14 @@
   decisions in it are open. None block the first milestone.
 - The Claude harness stream contract is now measured, not assumed: four stream
   classes, of which only `assistant`, `user` and `result` are durable. Serving
-  the web client needs no framework. `claude.exe` spawns a process tree, which
-  confirms the Job Object requirement by observation.
+  the web client needs no framework.
+- The harness binary has no single identity on this machine: the desktop
+  application bundles its own `claude-code`, at more than one version, separate
+  from whatever is on `PATH`. The harness path must be explicit configuration
+  and its version recorded per Operation.
+- Whether `claude --print` spawns a process tree under a command-executing tool
+  is **still open**. An earlier claim that it was observed has been withdrawn;
+  the Job Object decision stands on its original reasoning.
 
 ## Next deliverable
 

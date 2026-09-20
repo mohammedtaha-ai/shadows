@@ -138,17 +138,36 @@ for *what the model remembers*, and the shadows log is the source of truth for
 *what the user sees and what survives a daemon restart*. Do not try to make one
 reconstruct the other.
 
-## Finding 4 — `claude.exe` spawns a process tree
+## Finding 4 — WITHDRAWN. The process-tree claim was not measured
 
-Observed during a live turn: a single interactive `claude.exe` had seventeen
-`claude.exe` children. The spike's own child had none during a pure-text turn,
-but the interactive case settles the question.
+An earlier version of this report claimed that a single `claude.exe` was
+observed with seventeen `claude.exe` children, and presented that as
+observational confirmation of the Job Object decision. **That claim is
+withdrawn.** It was two mistakes stacked:
 
-This is direct confirmation of the existing spec decision: killing the direct
-child PID is not termination. Windows Job Objects with breakaway prevented are
-required, and the spec was right to refuse Unix process-group membership as
-proof. No change needed — the decision is now backed by observation rather than
-by reasoning alone.
+1. The process filter matched on the name `claude`, and this machine runs two
+   unrelated executables that both match: the Claude desktop application
+   (Electron, which runs a couple of dozen processes by design) and the Claude
+   Code CLI. The seventeen were almost certainly the desktop application.
+2. The apparent nesting came from Task Manager, whose Processes tab groups by
+   *application*, not by parent. Reading that indentation as parentage is not
+   evidence of anything. Only walking `ParentProcessId` is.
+
+What was actually measured, scoped correctly by descending from the spike
+server's own PID: the spawned child had **zero** children during a text-only
+turn and during a turn using `Read`. Neither of those tools spawns anything, so
+this neither proves nor disproves a tree.
+
+**The open question is narrower than it looked.** Does `claude --print` spawn
+child processes when it runs a tool that executes commands, such as `Bash`? A
+turn that actually invokes `Bash`, with the tree walked by `ParentProcessId`
+from the spike server's PID, would settle it in minutes.
+
+**The spec decision does not depend on this.** Job Objects with breakaway
+prevented remain correct, on the reasoning already recorded: the harness runs
+tools that execute arbitrary commands, and persisted raw PIDs are unsafe after
+restart because of PID reuse. What changed is only that this report no longer
+claims to have measured it.
 
 ## Finding 5 — Three operational details that would have cost a day each
 
@@ -165,6 +184,25 @@ by reasoning alone.
 3. **`rate_limit_event` carries five-hour and seven-day utilisation.** Free
    operational signal, worth surfacing rather than discarding.
 
+## Finding 6 — The harness binary has no single identity on this machine
+
+The probe invoked whatever `claude` resolved to on `PATH`:
+`~/.local/bin/claude.exe`, version 2.1.278. That is **not** the binary the
+Claude desktop application uses. The desktop application ships its own copy
+under `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude-code`,
+and keeps more than one version of it side by side — plausibly a new version
+alongside the previous one while the new one settles.
+
+So the stream contract documented above is the contract of *one* installation
+at *one* version. A different install, or a silent auto-update, can change
+`system/*` subtypes or add fields without any signal to us.
+
+**Recommendation.** `shadows` must not resolve its harness through `PATH`. The
+harness executable path is explicit configuration, and the harness version is
+read when an Operation starts and recorded with it. Without that, the contract
+can change underneath a running install and the first symptom is a blank page
+rather than an error.
+
 ## Recommendations for the Milestone 0 plan
 
 1. Serve the web client as an `include_str!` page from `protocol/`. No
@@ -176,10 +214,15 @@ by reasoning alone.
    the thread. State the two-records consequence explicitly in the plan.
 5. Detect turn end from the `result` line, cross-checked against process exit.
 6. Null the child stdin; forward `system/api_retry` and `rate_limit_event`.
-7. Keep the Job Object work as designed — Finding 4 confirms it is necessary.
+7. Keep the Job Object work as designed. Finding 4 does not support it by
+   measurement, but the original reasoning stands on its own.
+8. Resolve the harness executable from explicit configuration, never `PATH`,
+   and record its version on every Operation.
 
 ## Not answered by this probe
 
+- Whether `claude --print` spawns a process tree when a command-executing tool
+  such as `Bash` runs. See Finding 4; cheap to settle, not settled here.
 - Behaviour when the child is killed mid-turn, and what the `result` line looks
   like on a cancelled turn. Belongs with the process-tree containment work.
 - Whether `thinking` blocks should be persisted as `ThreadEntry` rows. They
