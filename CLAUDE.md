@@ -8,12 +8,14 @@
 > | [docs/status.md](./docs/status.md) | Current project status, open items |
 > | [docs/decisions/](./docs/decisions/) | Authoritative local ADR set |
 > | [docs/superpowers/specs/shadows_design_spec_reviewed.md](./docs/superpowers/specs/shadows_design_spec_reviewed.md) | Canonical design candidate |
-> | [sandbox/SPIKE_REPORT.md](./sandbox/SPIKE_REPORT.md) | Persistence spike report (SQLx vs SeaORM) |
+> | [docs/future/shadows-team-direction.md](./docs/future/shadows-team-direction.md) | Non-binding future team/server direction |
+> | [docs/evidence/persistence/](./docs/evidence/persistence/) | Archived persistence comparison evidence |
 >
 > **Documentation rules:**
 > - Accepted architecture decisions live locally in `docs/decisions/`.
 > - The reviewed spec is canonical; `2026-09-20-shadows-design.md` is obsolete review history.
 > - Plans/specs must remain consistent with local ADRs.
+> - Future-direction documents are non-binding and must not expand local v1 scope.
 > - CLAUDE.md stays compact: links + rules + architecture. No long backlogs.
 
 ## Project
@@ -52,7 +54,7 @@ storage/         protocol/       cli/
 
 ### Persistence (spike outcome)
 
-**Winner: SQLx 0.9 only.** The delta validated SQLx and SeaORM 2.0.3 end-to-end against PostgreSQL 16.15; SQLx retained the edge and SeaQuery had no demonstrated use case. See `sandbox/persistence-delta/DELTA_VALIDATION.md`.
+**Winner: SQLx 0.9 only.** The delta validated SQLx and SeaORM 2.0.3 end-to-end against PostgreSQL 16.15; SQLx retained the edge and SeaQuery had no demonstrated use case. See `docs/evidence/persistence/DELTA_VALIDATION.md`.
 
 ## Rules (project-specific)
 

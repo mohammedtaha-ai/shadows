@@ -41,7 +41,7 @@ storage/         protocol/       cli/
 
 ### Persistence spike outcome
 
-**Winner: SQLx 0.9** (over SeaORM). SeaORM's Postgres path was stubbed in the spike; SQLx passed 7/7 Postgres scenarios end-to-end via Docker. See `sandbox/SPIKE_REPORT.md` for full evidence.
+**Winner: SQLx 0.9** (over SeaORM). SeaORM's Postgres path was stubbed in the original spike; SQLx passed 7/7 Postgres scenarios end-to-end via Docker. See `docs/evidence/persistence/SPIKE_REPORT.md` for the archived original evidence. The later delta validation is recorded separately in `docs/evidence/persistence/DELTA_VALIDATION.md`.
 
 ### ProcessSpec boundary
 

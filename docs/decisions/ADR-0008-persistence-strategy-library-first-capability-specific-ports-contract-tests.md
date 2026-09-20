@@ -13,7 +13,7 @@
 
 ## Context
 
-Shadows v1 needs SQLite persistence while preserving a credible path to PostgreSQL without changing the domain/application model. The persistence delta under `sandbox/persistence-delta/` compared current SeaORM 2.0.3 and SQLx 0.9.0 against the same real PostgreSQL 16.15 semantics, closing the earlier spike's two evidence gaps: SeaORM PostgreSQL was exercised end-to-end, and both candidates used current releases and official migration paths.
+Shadows v1 needs SQLite persistence while preserving a credible path to PostgreSQL without changing the domain/application model. The persistence delta documented in `docs/evidence/persistence/DELTA_VALIDATION.md` compared current SeaORM 2.0.3 and SQLx 0.9.0 against the same real PostgreSQL 16.15 semantics, closing the earlier spike's two evidence gaps: SeaORM PostgreSQL was exercised end-to-end, and both candidates used current releases and official migration paths.
 
 This ADR retains the earlier principles: library-first, pure domain types, backend semantics contained by storage, capability-specific boundaries, and behavioral contract tests as the portability proof.
 
@@ -94,7 +94,7 @@ The decision favors SQLx because:
 - neither the old SQLx spike nor the delta produced a concrete SeaQuery use case;
 - no persistence type leaked into the shared domain contract.
 
-Detailed evidence remains in `sandbox/persistence-delta/DELTA_VALIDATION.md`. The throwaway spike code is retained as decision evidence during foundation work and must not be copied into production or treated as the production structure.
+Detailed reports remain under `docs/evidence/persistence/`. The throwaway spike code was removed after the decision to prevent it from being mistaken for production structure; it remains recoverable from Git history.
 
 ## Alternatives considered
 

@@ -2803,6 +2803,10 @@ When this spec and an accepted ADR conflict, resolve the conflict explicitly rat
 
 # Section 9 — Explicit Non-Decisions / Deferred Items
 
+The non-binding long-term collaboration direction is documented separately in
+[`docs/future/shadows-team-direction.md`](../../future/shadows-team-direction.md).
+It does not add Team/Server/sync types or requirements to local v1.
+
 The current design intentionally does **not** decide:
 
 - separate domain/storage crates;

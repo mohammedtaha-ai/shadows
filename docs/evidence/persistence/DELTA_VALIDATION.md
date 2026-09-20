@@ -1,5 +1,9 @@
 # Delta Validation Result
 
+> **Archived evidence:** The throwaway validation implementation was removed
+> after the persistence decision and remains recoverable from Git history. This
+> report preserves the executed environment, results, and decision rationale.
+
 ## Versions tested
 
 - SeaORM: `2.0.3` (`rust-version = 1.94.0`)

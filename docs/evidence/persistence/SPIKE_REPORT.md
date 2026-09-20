@@ -1,6 +1,14 @@
 # Persistence Spike Report — SeaORM vs SQLx + SeaQuery
 
-> **Scope:** Throwaway prototype comparison for `shadows` v1. All code lives under `sandbox/`. Production `shadows/` was not modified. **All code is throwaway.**
+> **Archived evidence:** This report records the original throwaway prototype.
+> The referenced `sandbox/` source was removed after the persistence decision
+> and remains recoverable from Git history. It is not production structure.
+> Its `SQLx + SeaQuery` recommendation is superseded by
+> [DELTA_VALIDATION.md](./DELTA_VALIDATION.md), whose final decision is
+> **SQLx 0.9 only**.
+
+> **Original scope:** Throwaway prototype comparison for `shadows` v1. All code
+> lived under `sandbox/`. Production `shadows/` was not modified.
 
 ## 1. Environment
 
@@ -337,4 +345,5 @@ test result: ok. 7 passed; 0 failed
  4 .toml files (workspace + 3 crates)
 ```
 
-All under `E:\Globalprojects\shadows\sandbox\`. No file outside `sandbox/` was modified.
+At the time of the original spike, all files were under
+`E:\Globalprojects\shadows\sandbox\`; no production file was modified.

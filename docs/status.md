@@ -24,7 +24,7 @@ _Created via /mxInitProject · Updated via /mxSave 2026-09-20_
 ## Persistence Spike Outcome
 
 - **Decision:** SQLx 0.9 only; no SeaQuery until a demonstrated dynamic-query use case.
-- **Evidence:** `sandbox/persistence-delta/DELTA_VALIDATION.md`
+- **Evidence:** `docs/evidence/persistence/DELTA_VALIDATION.md`
 - **PostgreSQL parity:** SQLx 0.9 and SeaORM 2.0.3 exercised end-to-end on PostgreSQL 16.15.
 - **Concurrent migrations:** SQLx 4/4 successful; SeaORM 1/4 successful without extra serialization.
 - **Domain isolation:** verified; persistence types remain outside domain contracts.
@@ -44,6 +44,14 @@ were aligned with the canonical spec on 2026-09-20.
 - [ ] Write the implementation plan with layered readiness milestones.
 - [ ] Implement only after the plan review gate.
 
+## Future Direction
+
+- `docs/future/shadows-team-direction.md` records a non-binding direction for a
+  separate PostgreSQL-backed team/organization service while `shadows` remains
+  a standalone SQLite local engine.
+- Team Server, synchronization, leases, offline collaboration, and shared
+  protocol extraction remain explicitly outside local v1.
+
 ## Architecture Shadow Lessons Applied
 
 From `E:\Globalprojects\shadow` (predecessor project, NOT part of shadows):
@@ -55,6 +63,8 @@ From `E:\Globalprojects\shadow` (predecessor project, NOT part of shadows):
 - R13 (no way to clear proposed memory) → Memory module deferred to v2 (out of scope for v1)
 - 24-entry PROCESS_AUTHORITY allowlist → use module visibility + strict ownership, no allowlist
 
-## Sandbox
+## Archived Evidence
 
-`sandbox/` contains throwaway spike and delta-validation code. It is decision evidence, not production structure.
+Persistence comparison reports are retained under `docs/evidence/persistence/`.
+The throwaway implementations were removed after the decision and remain
+recoverable from Git history.
