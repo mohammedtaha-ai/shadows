@@ -1,70 +1,87 @@
 # Project Status
 
-_Created via /mxInitProject · Updated via /mxSave 2026-09-20_
+**Updated:** 2026-09-21
 
-## Implemented Features
+## Current truth
 
-- (none yet — architecture phase only)
+- `shadows` is a clean rewrite in architecture/documentation phase; no product
+  code exists yet.
+- One canonical specification remains:
+  `docs/superpowers/specs/shadows_design_spec_reviewed.md`.
+- Nineteen overlapping ADRs were consolidated into four short decision maps.
+- SQLx 0.9 + SQLite remains the local persistence choice.
+- The old `shadow` repository is reference material, not an implementation base.
+- `TaskState::Running` was replaced by `TaskState::InProgress`. Task progress
+  and Operation runtime status are separate axes; `OperationStatus::Running`
+  is unchanged.
+- The runtime/execution draft is tracked but is **not** baseline. Seven design
+  decisions in it are open. None block the first milestone.
 
-## Architecture Design
+## Next deliverable
 
-| Section | Topic | Status |
-|---|---|---|
-| 2 | Architecture overview (15 modules, ownership rules) | ✅ Approved |
-| 3.1 | Data Flow (12 flows, including MCP) | ✅ Approved (after 9 corrections) |
-| 3.2 | Error Handling (AppFailure, OperationOutcome, idempotency, retry) | ✅ Approved (after 4 fixes) |
-| 3.2.1 | Dependency / Library Strategy | ✅ Approved |
-| 3.3 | Testing Strategy (10 layers, CI shape) | ✅ Approved |
-| 4.1 | Core Domain Model (entities, IDs, states) | ✅ Approved |
-| 4.2 | Relationships + Invariants (shadow lessons applied) | ✅ Approved (after 8 fixes + Persistence Ordering invariant) |
-| 4.3 | Persistence delta (SeaORM 2.0.3 vs SQLx 0.9) | ✅ Completed — winner: SQLx only |
-| 4.4 | Capability-oriented persistence API | ✅ Canonical candidate updated |
-| 5 | SQLite schema proposal | ✅ Canonical candidate updated; DDL pending |
+Build the first runnable browser Planner vertical slice:
 
-## Persistence Spike Outcome
+```text
+shadows serve
+  -> manually open any browser
+  -> select a local project
+  -> create/resume a PlanningThread
+  -> start one real Claude turn
+  -> stream output
+  -> Stop and confirm process-tree termination
+  -> restart and recover durable state
+```
 
-- **Decision:** SQLx 0.9 only; no SeaQuery until a demonstrated dynamic-query use case.
-- **Evidence:** `docs/evidence/persistence/DELTA_VALIDATION.md`
-- **PostgreSQL parity:** SQLx 0.9 and SeaORM 2.0.3 exercised end-to-end on PostgreSQL 16.15.
-- **Concurrent migrations:** SQLx 4/4 successful; SeaORM 1/4 successful without extra serialization.
-- **Domain isolation:** verified; persistence types remain outside domain contracts.
-- **Toolchain consequence:** Rust 1.94 is the current dependency floor from SQLx 0.9.
+The daemon must not open a browser automatically.
 
-## Decisions
+## Scope for this milestone
 
-The authoritative consolidated ADR set is local in `docs/decisions/`.
-Resolve decisions by title/topic rather than historical pre-consolidation numbers.
-Workflow lineage, operation recovery, process containment, and cancellation ADRs
-were aligned with the canonical spec on 2026-09-20.
+- one Rust crate and daemon/CLI binary;
+- independent Web client;
+- SQLx + minimal SQLite schema;
+- Project, PlanningThread, ThreadEntry, Operation, command idempotency, and
+  durable event/recovery data;
+- one Claude harness;
+- HTTP commands + SSE streaming;
+- structured diagnostic logs;
+- real Windows debug acceptance, with Linux evidence reported separately.
 
-## Open Items
+## External tools
 
-- [ ] Write SQLx migration DDL from the accepted SQLite schema proposal.
-- [ ] Run production-like file-backed SQLite WAL concurrency validation.
-- [ ] Write the implementation plan with layered readiness milestones.
-- [ ] Implement only after the plan review gate.
+- `gcode` is used as an optional external binary through the normal tool/process
+  boundary.
+- Do not vendor or depend on `gobby-cli`, `gcore`, PostgreSQL, FalkorDB, or
+  Qdrant.
+- `ghook` and `gwiki` are not part of the first milestone.
 
-## Future Direction
+## Explicitly deferred
 
-- `docs/future/shadows-team-direction.md` records a non-binding direction for a
-  separate PostgreSQL-backed team/organization service while `shadows` remains
-  a standalone SQLite local engine.
-- Team Server, synchronization, leases, offline collaboration, and shared
-  protocol extraction remain explicitly outside local v1.
+- full Workflow DAG and scheduler;
+- execution and deterministic verification;
+- AI Reviewer;
+- MCP-attached agents;
+- ResearchArtifact/search;
+- PostgreSQL adapter, team server, and synchronization;
+- schema and test layers belonging only to those deferred features.
 
-## Architecture Shadow Lessons Applied
+## Immediate documentation state
 
-From `E:\Globalprojects\shadow` (predecessor project, NOT part of shadows):
+- [x] canonical design baseline retained;
+- [x] obsolete earlier spec removed from the working tree;
+- [x] ADR set compressed to four topic-based maps;
+- [x] first runnable milestone and external `gcode` boundary recorded;
+- [x] `TaskState` vocabulary contradiction resolved; runtime draft tracked and
+      labelled non-baseline;
+- [ ] spike the two unknowns Milestone 0 has no design for: serving the web
+      client, and the concrete Claude harness invocation/stream contract;
+- [ ] validate file-backed SQLite WAL under concurrent writers, then fix the
+      writer strategy;
+- [ ] write the focused Milestone 0 implementation plan;
+- [ ] create `docs/codebase/roadmap/` once that plan exists;
+- [ ] implement only after that plan is reviewed;
+- [ ] settle the runtime draft's seven open decisions before workflow or
+      scheduler work begins.
 
-- R14 (FTS5 in domain crate) → DB-specific syntax isolation rule
-- R14 (rowid ordering) → `durable_seq` explicit ordering invariant
-- R14 (SQLite migration authority) → migration authority lives in `storage/sqlite/`
-- R11 (Windows/Linux split defects) → process group / Job Object semantics (cancellation)
-- R13 (no way to clear proposed memory) → Memory module deferred to v2 (out of scope for v1)
-- 24-entry PROCESS_AUTHORITY allowlist → use module visibility + strict ownership, no allowlist
-
-## Archived Evidence
-
-Persistence comparison reports are retained under `docs/evidence/persistence/`.
-The throwaway implementations were removed after the decision and remain
-recoverable from Git history.
+Persistence comparison evidence remains archived under
+`docs/evidence/persistence/` and is not a prerequisite for seeing the first
+product path run.

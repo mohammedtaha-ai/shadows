@@ -1,37 +1,38 @@
 # Shadows — Design Specification
 
 - **Date:** 2026-09-20
-- **Status:** Canonical design candidate complete through persistence/schema proposal and local-ADR consistency pass. Pending: SQLx migration DDL, production-like SQLite concurrency validation, and implementation plan.
+- **Status:** Accepted architecture baseline. Delivery begins with the first runnable browser Planner vertical slice; the wider schema and later subsystems are not prerequisites for that slice.
 - **Slug:** `shadows`
-- **Stack:** Rust **1.94+** minimum for the selected SQLx 0.9 line; development validation performed on Rust 1.96. Single Rust crate, library + binary.
+- **Stack:** Rust **1.94+** minimum for the selected SQLx 0.9 line; development validation performed on Rust 1.96. Single Rust crate, library + binary, plus an independent browser client.
 - **Purpose:** Local-first AI software-delivery orchestration runtime for planning, workflow, context, execution, verification, and durable continuity across interchangeable agent harnesses.
 
-> This specification is the authoritative design baseline for implementation unless superseded by a later accepted decision. It intentionally avoids recreating the old `shadow` project's crate explosion and patch-driven architecture.
+> This specification is the single authoritative design and decision baseline. It intentionally avoids recreating the old `shadow` project's crate explosion, duplicated decision ledgers, and patch-driven architecture.
 
 ---
 
 ## 0. Design Principles
 
-1. **Modular monolith first.** Module boundaries are cheap; crate boundaries are expensive. Split crates only for a concrete build, distribution, reuse, or compile-time isolation reason.
-2. **Library-first, not dependency-first.** Prefer mature libraries where they solve the problem; do not add wrappers or dependencies without a real need.
-3. **Abstract volatility, not possibility.** Introduce seams where change is already known: storage backend, agent harness, process runtime, protocol adapter, secrets resolution.
-4. **Durable current state + durable journal.** Entity/state tables are authoritative current truth. The durable event journal provides history, provenance, replay, and resync. Shadows is **not** full event sourcing.
-5. **Native agent sessions are caches, not truth.** Claude/Codex-native session IDs are optional optimization metadata.
-6. **Planner ≠ Executor ≠ Reviewer ≠ Orchestrator.**
-7. **Role ≠ Harness ≠ Provider ≠ Model.**
-8. **The model cannot authorize itself.** Authority comes from Shadows policy/configuration.
-9. **Frozen workflow versions are immutable.** Design changes create a new version; old versions are never edited in place.
-10. **Every side effect is attributable.** Durable work carries operation/task/runtime/actor/causation provenance as applicable.
-11. **Execution is not completion.** Deterministic verification and workflow gates decide completion.
-12. **Repository content is untrusted input.**
-13. **Ordering is explicit.** Never use physical insertion order or SQLite `rowid` as a domain ordering key.
-14. **Secrets are references until spawn.** Secret values never live in durable config/state or logs.
+1. **Runnable vertical slice first.** A user-visible end-to-end path is delivered before building later platform layers.
+2. **Modular monolith first.** Module boundaries are cheap; crate boundaries are expensive. Split crates only for a concrete build, distribution, reuse, or compile-time isolation reason.
+3. **Library-first, not dependency-first.** Prefer mature libraries where they solve the problem; do not add wrappers or dependencies without a real need.
+4. **Abstract volatility, not possibility.** Introduce seams where change is already known: storage backend, agent harness, process runtime, protocol adapter, secrets resolution.
+5. **Durable current state + durable journal.** Entity/state tables are authoritative current truth. The durable event journal provides history, provenance, replay, and resync. Shadows is **not** full event sourcing.
+6. **Native agent sessions are caches, not truth.** Claude/Codex-native session IDs are optional optimization metadata.
+7. **Planner ≠ Executor ≠ Reviewer ≠ Orchestrator.**
+8. **Role ≠ Harness ≠ Provider ≠ Model.**
+9. **The model cannot authorize itself.** Authority comes from Shadows policy/configuration.
+10. **Frozen workflow versions are immutable.** Design changes create a new version; old versions are never edited in place.
+11. **Every side effect is attributable.** Durable work carries operation/task/runtime/actor/causation provenance as applicable.
+12. **Execution is not completion.** Deterministic verification and workflow gates decide completion.
+13. **Repository content is untrusted input.**
+14. **Ordering is explicit.** Never use physical insertion order or SQLite `rowid` as a domain ordering key.
+15. **Secrets are references until spawn.** Secret values never live in durable config/state or logs.
 
 ---
 
 # Section 1 — Architecture Overview
 
-`shadows` starts as one Rust crate exposing a library and a binary.
+`shadows` starts as one Rust crate exposing a library and a binary. The product client is an independent browser application that communicates only through the local protocol.
 
 The binary has two primary modes:
 
@@ -39,6 +40,27 @@ The binary has two primary modes:
 shadows serve    # long-running local daemon/runtime
 shadows ...      # CLI client
 ```
+
+`shadows serve` exposes the local API and product Web client at one local address. It prints the address and never opens a browser automatically; the user chooses which browser to use.
+
+## 1.0 First runnable product boundary
+
+Before the wider architecture is implemented, Shadows must prove one complete product path:
+
+```text
+shadows serve
+  -> user manually opens the local Web client
+  -> selects a local-directory project
+  -> creates or resumes a PlanningThread
+  -> starts one real Claude Planner turn
+  -> receives live output
+  -> stops the turn
+  -> process layer confirms the complete child tree is gone
+  -> Operation becomes Cancelled
+  -> daemon restart restores the durable thread and terminal operation
+```
+
+Only modules and tables needed by this path are implemented initially. Workflow scheduling, execution DAGs, deterministic verification, MCP, ResearchArtifact, team sync, PostgreSQL, and the complete proposed schema remain later work and do not block the runnable milestone.
 
 ## 1.1 Core top-level modules
 
@@ -779,7 +801,28 @@ The first maps to normal client auth semantics. The second is infrastructure/age
 | DAG library | none initially | ADD only if it materially reduces scheduler complexity |
 | Dynamic SQL builder | none initially | SeaQuery only if real dynamic composition appears |
 
+### 3.6.1 External developer tools
+
+`gcode` is integrated, if needed, as an optional external executable. Shadows
+invokes it through its ordinary tool/process boundary and consumes a bounded,
+version-checked output contract. The Shadows repository does not vendor or take
+a Rust dependency on `gobby-cli` or `gcore`, and does not inherit Gobby's
+PostgreSQL, FalkorDB, Qdrant, home-directory, daemon, or configuration model.
+
+An unavailable or incompatible `gcode` disables that optional search
+capability; it does not prevent the Planner from starting. `ghook` and `gwiki`
+are outside the first runnable milestone. Any future hook adapter is a small
+Shadows-owned protocol adapter rather than a copied Gobby dispatcher.
+
 ## 3.7 Testing strategy
+
+These layers describe the eventual system. They activate only when the feature
+they protect exists. The first runnable milestone uses focused unit tests plus
+one real Windows browser/Claude Start/stream/Stop/restart acceptance path; it
+does not wait for scheduler property tests, MCP compatibility, research FTS,
+or mutation testing. Linux process-containment and core gates are required
+before calling the runtime cross-platform, not before the first Windows debug
+run.
 
 ### Layer 1 — Unit tests
 
@@ -1107,12 +1150,19 @@ struct Task {
 enum TaskState {
     Pending,
     Ready,
-    Running,
+    InProgress,
     Completed,
     Failed,
     Blocked,
 }
 ```
+
+`InProgress` is business progress, not an OS fact. It begins when dispatch
+atomically claims a `Ready` task and creates its `Pending` execution
+`Operation`, and it continues through agent execution and required
+verification. Whether a process has actually spawned is described by
+`OperationStatus` alone, which keeps its own `Running`. A `Pending` Operation
+must never force the Task model to claim that a process is already running.
 
 Task state is persisted because deriving scheduler state correctly from multiple attempts, verification, blocking, and recovery is complex.
 
@@ -1412,7 +1462,7 @@ Example:
 
 ```text
 create ExecutionRun(Pending)
-+ Task Ready -> Running
++ Task Ready -> InProgress
 + OperationCreated
 + TaskTransitioned
 = one transaction
@@ -1921,7 +1971,7 @@ created_at     TEXT NOT NULL
 updated_at     TEXT NOT NULL
 
 UNIQUE(id, workflow_id)
-CHECK state IN ('Pending','Ready','Running','Completed','Failed','Blocked')
+CHECK state IN ('Pending','Ready','InProgress','Completed','Failed','Blocked')
 ```
 
 `Task.state` is persisted authoritative scheduler state.
@@ -2473,7 +2523,7 @@ no process effect.
 For a ready task:
 
 ```text
-Task Ready -> Running
+Task Ready -> InProgress
 + insert ExecutionRun(Pending)
 + OperationCreated
 + TaskTransitioned
@@ -2494,7 +2544,7 @@ If spawn fails:
 
 ```text
 Operation Pending -> Failed(stage=Spawn)
-+ Task Running -> Failed or Ready according to explicit retry policy
++ Task InProgress -> Failed or Ready according to explicit retry policy
 + events
 = one transaction
 ```
@@ -2503,7 +2553,7 @@ Operation Pending -> Failed(stage=Spawn)
 
 ```text
 ExecutionRun Running -> Completed(Success)
-Task remains Running
+Task remains InProgress
 ```
 
 until required verification completes.
@@ -2512,7 +2562,7 @@ Final required passing verdict:
 
 ```text
 insert Verdict
-+ Task Running -> Completed
++ Task InProgress -> Completed
 + TaskTransitioned
 + verification event(s)
 = one transaction
@@ -2542,14 +2592,14 @@ Base transitions:
 Pending -> Ready
 Pending -> Blocked
 
-Ready -> Running
+Ready -> InProgress
 Ready -> Blocked
 
-Running -> Completed
-Running -> Failed
-Running -> Blocked
+InProgress -> Completed
+InProgress -> Failed
+InProgress -> Blocked
 
-Running -> Ready      # interrupted/retry policy explicitly permits re-dispatch
+InProgress -> Ready   # interrupted/retry policy explicitly permits re-dispatch
 
 Failed -> Ready       # explicit retry command/policy only
 Blocked -> Ready      # explicit unblock only
@@ -2559,13 +2609,22 @@ Completed -> Ready    # explicit re-run only; never automatic
 Interpretation:
 
 - `Pending`: dependencies/gates not yet satisfied.
-- `Ready`: schedulable, no active execution attempt.
-- `Running`: an attempt is active **or** execution succeeded and required task verification is still pending.
+- `Ready`: schedulable, no active execution attempt. A task waiting only on
+  runtime capacity or a conflicting write scope stays `Ready`; waiting is not
+  `Blocked`.
+- `InProgress`: dispatch has claimed the task. An attempt may be `Pending`,
+  spawned and `Running`, or already finished while required Task-phase
+  verification is still outstanding.
 - `Completed`: successful execution and required Task-phase checks passed.
 - `Failed`: execution/check policy made the task terminally failed for the current scheduling decision.
 - `Blocked`: required capability/ancestor/policy makes progress impossible until explicit change.
 
 Execution-attempt history is represented by multiple `ExecutionRun` operations for the same task.
+
+The default Task transition after an attempt ends `Failed`, `Cancelled`, or
+`Interrupted` — and which layer chooses it — is **not decided**. See open
+decision 1 in
+[`2026-09-20-runtime-execution-model-draft.md`](./2026-09-20-runtime-execution-model-draft.md).
 
 ---
 
@@ -2666,7 +2725,13 @@ Then decide whether write transactions require an explicit `BEGIN IMMEDIATE` str
 
 Use SQLx official migration machinery.
 
-Proposed logical split:
+The first migration contains only the first runnable milestone's durable
+requirements: project, planning thread, thread entry, operation, command record,
+runtime instance, and durable event data. Tables for Workflow, Task, Decision,
+ResearchArtifact, VerificationRun, and Verdict are added only with those
+features.
+
+The eventual logical split may become:
 
 ```text
 0001_core.sql
@@ -2696,24 +2761,31 @@ concurrent startup
 
 ## 6.2 Implementation order
 
-1. domain IDs/types/state machines
-2. storage error mapping and connection setup
-3. core schema migrations
-4. storage contract tests
-5. command idempotency
-6. durable journal/cursor
-7. PlanningThread + entries + snapshot
-8. workflow/task persistence
-9. operation lifecycle + recovery
-10. scheduler integration
-11. process/agent harness integration
-12. verification
-13. HTTP/SSE
-14. MCP
-15. Context Compiler
-16. CLI surface
+### Milestone 0 — runnable browser Planner
 
-This order may be refined in the implementation plan; it is not a mandate to implement every future feature in v1.
+1. scaffold the single Rust crate, `shadows serve`, structured tracing, and the independent Web client;
+2. open SQLite through SQLx with only the milestone schema;
+3. implement local-directory Project and durable PlanningThread/ThreadEntry;
+4. implement the managed process primitive and one Claude harness;
+5. implement durable Planner Operation start, live SSE output, semantic stop, and restart reconciliation;
+6. connect the browser UI to create/resume a thread, Start, show output, and Stop;
+7. run the real Windows debug acceptance path and record exactly what remains unverified on Linux.
+
+The milestone is incomplete until the user can operate this path from a browser.
+Persistence-only or protocol-only completion is not an acceptable substitute.
+
+### Later milestones
+
+After Milestone 0 works, add features in user-visible slices rather than
+constructing the entire platform upfront:
+
+1. Workflow draft/freeze and task display;
+2. scheduler and execution;
+3. deterministic verification;
+4. context compilation and Claude/Codex continuity;
+5. MCP-attached agents;
+6. research artifacts/search;
+7. AI Reviewer and team features when separately designed.
 
 ## 6.3 Required persistence evidence
 
@@ -2766,38 +2838,22 @@ Future PostgreSQL work must run the same semantic storage-contract suite.
 
 # Section 8 — Decision Reference Policy
 
-The project has undergone ADR consolidation/renumbering.
+This specification is the complete authoritative architecture baseline. The
+nineteen early ADR files were consolidated into four compact navigation maps:
 
-Therefore this specification **does not treat old ADR numbers as stable identifiers**.
+1. `ADR-0001-foundation-and-ownership.md`
+2. `ADR-0002-storage-events-and-continuity.md`
+3. `ADR-0003-agents-processes-and-operations.md`
+4. `ADR-0004-product-delivery-and-deferred-systems.md`
 
-The authoritative decision set is the local `docs/decisions/` directory.
-Implementation work should resolve current decisions by title/topic rather
-than assuming pre-consolidation numbers such as `ADR-0033` are still current.
+The consolidated ADRs summarize related decisions and point back here for full
+semantics. They are not independent specifications. If a summary and this spec
+diverge, fix the summary; this spec remains authoritative.
 
-Decision topics that must remain represented in the authoritative ADR set include:
-
-```text
-Library-first / modular-monolith foundation
-Agent seam: Role != Harness != Provider != Model
-Shadows-owned durable truth
-Project-level Decisions
-ResearchArtifact durability
-Operation two-phase spawn
-Verification phases and Reviewer separation
-Secrets by reference
-Mechanical architecture tests
-Module-local error ownership
-Durable event journal
-Pure scheduler
-MCP-attached external agents
-Frozen workflow + supersession/version lineage
-process/ ownership
-Semantic cancellation
-Persistence backend isolation + explicit ordering
-SQLx 0.9 persistence decision
-```
-
-When this spec and an accepted ADR conflict, resolve the conflict explicitly rather than silently choosing one.
+Do not create an ADR for a struct shape, library call, test correction, or
+ordinary implementation detail. A future ADR is justified only when a new
+decision has credible alternatives, long-term consequences, and explicitly
+supersedes part of this baseline.
 
 ---
 
@@ -2806,6 +2862,17 @@ When this spec and an accepted ADR conflict, resolve the conflict explicitly rat
 The non-binding long-term collaboration direction is documented separately in
 [`docs/future/shadows-team-direction.md`](../../future/shadows-team-direction.md).
 It does not add Team/Server/sync types or requirements to local v1.
+
+## Runtime model still under review
+
+[`2026-09-20-runtime-execution-model-draft.md`](./2026-09-20-runtime-execution-model-draft.md)
+proposes the detailed runtime and execution model. Only its accepted items have
+been merged here: the `TaskState::InProgress` vocabulary and the separation of
+Task progress from Operation runtime status. Its RuntimeInstance lifecycle,
+workspace modes, write-scope conflict rules, and failure matrix remain a draft
+and are not baseline. Its seven open decisions are unresolved and must be
+settled before it merges. None of them block the first runnable milestone,
+which has no workflow, scheduler, or verification.
 
 The current design intentionally does **not** decide:
 
@@ -2829,7 +2896,21 @@ Readiness is incremental. Feature work may build on a completed earlier layer
 without waiting for every later layer; dependencies between milestones remain
 explicit.
 
-## 10.1 Persistence Foundation Ready
+## 10.1 First Runnable Browser Planner
+
+```text
+[ ] `shadows serve` starts and prints one local address without opening a browser
+[ ] the user can manually open the Web client in any browser
+[ ] a local-directory project can be selected without exposing a path as project identity
+[ ] a PlanningThread can be created and resumed
+[ ] one real Claude Planner turn starts and streams output
+[ ] Stop terminates and reaps the managed process tree before durable Cancelled
+[ ] daemon restart restores the durable thread and terminal operation
+[ ] structured logs correlate project, thread, and operation without sensitive payloads
+[ ] the exact Windows acceptance run is recorded; Linux gaps are named honestly
+```
+
+## 10.2 Persistence Foundation Ready
 
 ```text
 [ ] accepted SQLx migrations exist
@@ -2844,7 +2925,7 @@ explicit.
 [ ] storage architecture import checks pass
 ```
 
-## 10.2 Runtime / Execution Ready
+## 10.3 Runtime / Execution Ready
 
 ```text
 [ ] scheduler is deterministic/pure
@@ -2857,7 +2938,7 @@ explicit.
 [ ] provider/harness environment isolation passes
 ```
 
-## 10.3 Protocol / MCP Ready
+## 10.4 Protocol / MCP Ready
 
 ```text
 [ ] HTTP command idempotency contract passes
@@ -2867,7 +2948,7 @@ explicit.
 [ ] MCP mutations use the same application semantics
 ```
 
-## 10.4 Continuity Ready
+## 10.5 Continuity Ready
 
 ```text
 [ ] durable PlanningThread entries pass
