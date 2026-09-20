@@ -1,0 +1,22 @@
+# Rust build output
+target/
+**/target/
+
+# Local databases and runtime artifacts
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.log
+
+# Local environment and editor files
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+*.swp
+
+# Delta-validation measurements
+sandbox/persistence-delta/results/

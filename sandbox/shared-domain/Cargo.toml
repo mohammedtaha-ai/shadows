@@ -1,0 +1,16 @@
+[package]
+name = "shadows-domain"
+edition = "2021"
+rust-version = "1.87"
+version = "0.0.0"
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+time = { version = "0.3", features = ["serde", "formatting", "parsing"] }
+serde_json = "1"
+thiserror = "2"
+
+[lib]
+path = "src/mod.rs"
