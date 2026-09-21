@@ -120,3 +120,50 @@ fn the_fingerprint_changes_when_a_value_changes() {
         fingerprint("k", &serde_json::json!({ "a": 2 }))
     );
 }
+
+/// Spec section 6.19 names three things storage compares before it calls a
+/// submission a replay: command kind, **schema version**, and fingerprint. A
+/// bumped schema version means the request was normalised by different rules,
+/// so byte-equal params no longer prove the requests are the same one — the
+/// only safe answer is CommandConflict. Without this, a version bump silently
+/// replays an outcome computed under the old normalisation.
+#[tokio::test]
+async fn the_same_command_id_under_a_different_schema_version_is_a_conflict() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
+
+    storage
+        .create_project(&ctx("cmd-1", &params), "demo", "Demo")
+        .await
+        .unwrap();
+
+    let mut bumped = ctx("cmd-1", &params);
+    bumped.command_schema_ver = 2;
+    assert_eq!(
+        bumped.request_fingerprint,
+        ctx("cmd-1", &params).request_fingerprint,
+        "the version is the only difference; the fingerprint must still match"
+    );
+
+    let err = storage
+        .create_project(&bumped, "demo", "Demo")
+        .await
+        .expect_err("a reused command id under a new schema version must be refused");
+    assert!(matches!(
+        err,
+        shadows::storage::StorageError::CommandConflict
+    ));
+
+    let projects: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(projects, 1, "a conflict must not create a second project");
+
+    let events: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM durable_event")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(events, 1, "a conflict must not append a second event");
+}
