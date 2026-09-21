@@ -27,6 +27,20 @@ pub enum StorageError {
     Database(#[from] sqlx::Error),
 }
 
+/// The write connection, plus whether it currently sits inside an open
+/// transaction. `txn_open` exists for recovery: if a `write_txn` call panics,
+/// or its future is dropped (cancellation — an aborted request, a `select!`,
+/// a timeout) while `BEGIN IMMEDIATE` has run but `COMMIT`/`ROLLBACK` has
+/// not, `Drop` cannot run the async `ROLLBACK` needed to close it out. The
+/// flag survives that failure (it lives behind the same mutex as the
+/// connection, so it is never observed half-written), and the next
+/// `write_txn` call recovers by rolling back before doing anything else —
+/// see `Storage::write_txn`.
+struct WriteConn {
+    conn: SqliteConnection,
+    txn_open: bool,
+}
+
 /// Task 3 adds a serialized write connection alongside `read` (spec §6.23,
 /// evidence `docs/evidence/persistence/WAL_VALIDATION.md`). `write` is one
 /// connection, not a pool, guarded by an async mutex: the evidence found that
@@ -37,7 +51,7 @@ pub enum StorageError {
 /// concurrency (scenarios K and L).
 pub struct Storage {
     read: SqlitePool,
-    write: Mutex<SqliteConnection>,
+    write: Mutex<WriteConn>,
 }
 
 impl Storage {
@@ -61,7 +75,10 @@ impl Storage {
 
         Ok(Self {
             read,
-            write: Mutex::new(write),
+            write: Mutex::new(WriteConn {
+                conn: write,
+                txn_open: false,
+            }),
         })
     }
 
@@ -69,23 +86,79 @@ impl Storage {
         &self.read
     }
 
-    /// Every write goes through here. `BEGIN IMMEDIATE` takes the write lock up
-    /// front so no transaction has to upgrade mid-flight; the mutex is what
-    /// removes contention entirely. Both are required — see §6.23.
+    /// Every write goes through here. Two invariants, each pinned down by its
+    /// own test in `tests/storage_contract.rs`:
+    ///
+    /// - The write connection is single and mutex-guarded, not pooled. That is
+    ///   what `concurrent_read_then_write_transactions_all_succeed` regresses:
+    ///   it would fail against a connection pool. It would *not* fail against
+    ///   a plain deferred `BEGIN`, because by the time any closure runs, the
+    ///   mutex has already excluded every other writer this process owns —
+    ///   the mutex alone is enough to pass that test.
+    /// - `BEGIN IMMEDIATE` takes the write lock up front so no transaction has
+    ///   to upgrade mid-flight. That matters against a writer this process
+    ///   does *not* own — a second daemon, a CLI client, or any other
+    ///   connection to the same file, which the mutex cannot see.
+    ///   `write_txn_waits_out_an_external_writer_holding_begin_immediate` is
+    ///   the test for that: it holds the write lock from an independent
+    ///   connection and checks `write_txn` waits out `busy_timeout` and then
+    ///   succeeds rather than failing immediately.
+    ///
+    /// See spec §6.23 and `docs/evidence/persistence/WAL_VALIDATION.md`.
+    ///
+    /// Recovery at entry: if the *previous* call left `txn_open` set — it
+    /// panicked or was cancelled after `BEGIN IMMEDIATE` but before
+    /// `COMMIT`/`ROLLBACK` — this call rolls back before proceeding.
+    /// `write_txn_recovers_after_a_panicking_transaction` covers this.
     pub async fn write_txn<F, T>(&self, f: F) -> Result<T, StorageError>
     where
         F: for<'a> FnOnce(&'a mut SqliteConnection) -> BoxFuture<'a, Result<T, StorageError>>,
     {
         use sqlx::Executor;
-        let mut conn = self.write.lock().await;
-        conn.execute("BEGIN IMMEDIATE").await?;
-        match f(&mut conn).await {
+        let mut guard = self.write.lock().await;
+
+        if guard.txn_open {
+            tracing::warn!(
+                "write connection had an open transaction on entry (a previous \
+                 write_txn panicked or was cancelled); rolling back before proceeding"
+            );
+            match guard.conn.execute("ROLLBACK").await {
+                Ok(_) => guard.txn_open = false,
+                Err(e) => {
+                    tracing::error!(
+                        error = %e,
+                        "failed to roll back a recovered transaction; the write \
+                         connection may be poisoned"
+                    );
+                    return Err(e.into());
+                }
+            }
+        }
+
+        // Set before `BEGIN` runs, not after: if this call itself panics or is
+        // cancelled while awaiting `BEGIN IMMEDIATE`, the flag must still be
+        // there to trigger recovery on the next call, in case the statement
+        // took effect on the connection before we lost the chance to observe
+        // its result.
+        guard.txn_open = true;
+        guard.conn.execute("BEGIN IMMEDIATE").await?;
+
+        match f(&mut guard.conn).await {
             Ok(v) => {
-                conn.execute("COMMIT").await?;
+                guard.conn.execute("COMMIT").await?;
+                guard.txn_open = false;
                 Ok(v)
             }
             Err(e) => {
-                let _ = conn.execute("ROLLBACK").await;
+                if let Err(rollback_err) = guard.conn.execute("ROLLBACK").await {
+                    tracing::error!(
+                        error = %rollback_err,
+                        "rollback failed after a write_txn error; the write \
+                         connection may be poisoned"
+                    );
+                } else {
+                    guard.txn_open = false;
+                }
                 Err(e)
             }
         }

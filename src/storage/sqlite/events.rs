@@ -18,11 +18,17 @@ pub(in crate::storage) async fn append_event(
     event: &DurableEvent,
     now: &str,
 ) -> Result<i64, StorageError> {
+    let (causation_kind, causation_ref) = match &event.causation {
+        Some(c) => (Some(c.kind.as_str()), Some(c.reference.as_str())),
+        None => (None, None),
+    };
+
     let seq: i64 = sqlx::query_scalar(
         "INSERT INTO durable_event
            (event_id, kind, project_id, thread_id, operation_id,
-            actor_kind, actor_id, payload_json, created_at)
-         VALUES (?,?,?,?,?,?,?,?,?)
+            actor_kind, actor_id, causation_kind, causation_ref, correlation_id,
+            payload_json, created_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
          RETURNING seq",
     )
     .bind(&event.event_id)
@@ -32,6 +38,9 @@ pub(in crate::storage) async fn append_event(
     .bind(&event.operation_id)
     .bind(&event.actor.kind)
     .bind(&event.actor.id)
+    .bind(causation_kind)
+    .bind(causation_ref)
+    .bind(&event.correlation_id)
     .bind(&event.payload_json)
     .bind(now)
     .fetch_one(&mut *conn)

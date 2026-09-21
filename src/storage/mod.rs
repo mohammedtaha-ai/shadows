@@ -2,8 +2,13 @@ mod sqlite;
 
 pub use sqlite::{Storage, StorageError};
 
-/// Test-only access to a private capability. Not compiled into the library for
-/// consumers, and not a public API.
+/// Test-only access to a private capability. Compiled in only when the
+/// `test-support` feature is enabled — enabled automatically for `cargo test`
+/// via the self dev-dependency in `Cargo.toml`, and off in an ordinary
+/// `cargo build`/`cargo run`, so this capability does not ship. Even then it
+/// is not a public API: `#[doc(hidden)]` only suppresses documentation, the
+/// `cfg` is what keeps it out of ordinary builds.
+#[cfg(feature = "test-support")]
 #[doc(hidden)]
 pub mod test_support {
     use sqlx::SqliteConnection;

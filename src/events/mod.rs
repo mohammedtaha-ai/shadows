@@ -28,6 +28,18 @@ impl Actor {
     }
 }
 
+/// `durable_event` carries `causation_kind` and `causation_ref` as a pair:
+/// its own `CHECK ((causation_kind IS NULL) = (causation_ref IS NULL))`
+/// requires both or neither. Modeling them as one `Option<Causation>` here
+/// rather than two independent `Option<String>` fields makes the invalid
+/// state (kind without reference, or reference without kind) unrepresentable
+/// in Rust, instead of merely unrepresentable in the schema.
+#[derive(Debug, Clone)]
+pub struct Causation {
+    pub kind: String,
+    pub reference: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct DurableEvent {
     pub event_id: String,
@@ -36,6 +48,7 @@ pub struct DurableEvent {
     pub thread_id: Option<String>,
     pub operation_id: Option<String>,
     pub actor: Actor,
+    pub causation: Option<Causation>,
     pub correlation_id: Option<String>,
     pub payload_json: String,
 }
@@ -49,6 +62,7 @@ impl DurableEvent {
             thread_id: None,
             operation_id: None,
             actor,
+            causation: None,
             correlation_id: None,
             payload_json: "{}".into(),
         }
@@ -63,6 +77,17 @@ impl DurableEvent {
     }
     pub fn with_operation(mut self, id: impl Into<String>) -> Self {
         self.operation_id = Some(id.into());
+        self
+    }
+    pub fn with_causation(mut self, kind: impl Into<String>, reference: impl Into<String>) -> Self {
+        self.causation = Some(Causation {
+            kind: kind.into(),
+            reference: reference.into(),
+        });
+        self
+    }
+    pub fn with_correlation(mut self, id: impl Into<String>) -> Self {
+        self.correlation_id = Some(id.into());
         self
     }
     pub fn with_payload(mut self, v: serde_json::Value) -> Self {

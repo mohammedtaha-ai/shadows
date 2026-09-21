@@ -1,5 +1,9 @@
+use std::str::FromStr;
+use std::time::Duration;
+
 use shadows::events::{Actor, DurableEvent};
 use shadows::storage::Storage;
+use sqlx::Connection;
 
 #[tokio::test]
 async fn fresh_database_migrates_and_applies_the_connection_policy() {
@@ -140,4 +144,194 @@ async fn concurrent_read_then_write_transactions_all_succeed() {
         .await
         .unwrap();
     assert_eq!(count, 400);
+}
+
+/// Finding 2, fix round 1: `write_txn` has no `Drop`-based cleanup (`Drop`
+/// cannot run an async `ROLLBACK`), so a panic inside the closure must not
+/// leave the single write connection stuck inside an open transaction
+/// forever. `tokio::spawn` catches the panic so the test process keeps
+/// running — this is the same failure mode as any other panic in the
+/// closure, since `write_txn` itself does no catching of its own.
+#[tokio::test]
+async fn write_txn_recovers_after_a_panicking_transaction() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+
+    let storage2 = storage.clone();
+    let handle = tokio::spawn(async move {
+        let _: Result<(), shadows::storage::StorageError> = storage2
+            .write_txn(|conn| {
+                Box::pin(async move {
+                    sqlx::query(
+                        "INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)",
+                    )
+                    .bind("p-panic")
+                    .bind("panic")
+                    .bind("x")
+                    .bind("2026-09-21T00:00:00Z")
+                    .execute(&mut *conn)
+                    .await?;
+                    panic!("simulated failure mid-transaction")
+                })
+            })
+            .await;
+    });
+    assert!(handle.await.is_err(), "the spawned task must have panicked");
+
+    // The write connection must recover: an ordinary write_txn afterwards
+    // still succeeds and commits, proving the mutex was released and the
+    // connection is not stuck inside the panicking call's open transaction.
+    storage
+        .write_txn(|conn| {
+            Box::pin(async move {
+                sqlx::query("INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)")
+                    .bind("p-after")
+                    .bind("after")
+                    .bind("x")
+                    .bind("2026-09-21T00:00:00Z")
+                    .execute(&mut *conn)
+                    .await?;
+                Ok(())
+            })
+        })
+        .await
+        .expect("write_txn must recover after a prior panic left a transaction open");
+
+    let panic_row: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project WHERE id = 'p-panic'")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(
+        panic_row, 0,
+        "the panicking transaction's insert must have been rolled back"
+    );
+
+    let after_row: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project WHERE id = 'p-after'")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(after_row, 1, "the recovery write_txn must have committed");
+}
+
+/// Finding 4, fix round 1: the mutex alone serializes every writer this
+/// process owns, so `concurrent_read_then_write_transactions_all_succeed`
+/// would pass even with a plain deferred `BEGIN`. `BEGIN IMMEDIATE` earns its
+/// place against a writer this process does *not* own — a second daemon, a
+/// CLI client, or any other connection to the same file, which the mutex
+/// cannot see. This test opens an independent connection, has it hold the
+/// write lock, and checks `write_txn` waits out `busy_timeout` and then
+/// succeeds rather than failing immediately — the shape
+/// `docs/evidence/persistence/WAL_VALIDATION.md` measured.
+#[tokio::test]
+async fn write_txn_waits_out_an_external_writer_holding_begin_immediate() {
+    let tmp = tempfile::tempdir().unwrap();
+    let db_path = tmp.path().join("s.sqlite3");
+    let storage = std::sync::Arc::new(Storage::open(&db_path).await.unwrap());
+
+    // A second, independent connection to the same file — standing in for a
+    // second daemon or CLI client, not anything write_txn owns.
+    let url = format!("sqlite://{}", db_path.to_string_lossy().replace('\\', "/"));
+    let opts = sqlx::sqlite::SqliteConnectOptions::from_str(&url)
+        .unwrap()
+        .busy_timeout(Duration::from_millis(5000));
+    let mut external = sqlx::SqliteConnection::connect_with(&opts).await.unwrap();
+
+    use sqlx::Executor;
+    external.execute("BEGIN IMMEDIATE").await.unwrap();
+    external
+        .execute(
+            "INSERT INTO project (id, slug, name, created_at) \
+             VALUES ('p-ext','ext','x','2026-09-21T00:00:00Z')",
+        )
+        .await
+        .unwrap();
+
+    // Release the external writer's lock shortly after write_txn starts
+    // waiting for it.
+    let release = tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        external.execute("COMMIT").await.unwrap();
+    });
+
+    storage
+        .write_txn(|conn| {
+            Box::pin(async move {
+                sqlx::query("INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)")
+                    .bind("p-after-external")
+                    .bind("after")
+                    .bind("x")
+                    .bind("2026-09-21T00:00:00Z")
+                    .execute(&mut *conn)
+                    .await?;
+                Ok(())
+            })
+        })
+        .await
+        .expect("write_txn must wait out busy_timeout and then succeed against an external writer");
+
+    release.await.unwrap();
+
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(
+        count, 2,
+        "both the external writer's insert and ours must be present"
+    );
+}
+
+/// Finding 3, fix round 1: `causation` and `correlation_id` must round-trip
+/// through `append_event` — a future edit to the INSERT column list that
+/// silently drops one of the three provenance columns must fail this test.
+#[tokio::test]
+async fn event_provenance_round_trips_through_append_event() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+
+    storage
+        .write_txn(|conn| {
+            Box::pin(async move {
+                sqlx::query("INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)")
+                    .bind("p-1")
+                    .bind("demo")
+                    .bind("Demo")
+                    .bind("2026-09-21T00:00:00Z")
+                    .execute(&mut *conn)
+                    .await?;
+                shadows::storage::test_support::append_event_for_test(
+                    conn,
+                    &DurableEvent::new("ProjectCreated", Actor::system())
+                        .with_project("p-1")
+                        .with_payload(serde_json::json!({}))
+                        .with_causation("Command", "cmd-1")
+                        .with_correlation("corr-1"),
+                    "2026-09-21T00:00:00Z",
+                )
+                .await?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+
+    let causation_kind: Option<String> =
+        sqlx::query_scalar("SELECT causation_kind FROM durable_event WHERE project_id = 'p-1'")
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+    let causation_ref: Option<String> =
+        sqlx::query_scalar("SELECT causation_ref FROM durable_event WHERE project_id = 'p-1'")
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+    let correlation_id: Option<String> =
+        sqlx::query_scalar("SELECT correlation_id FROM durable_event WHERE project_id = 'p-1'")
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+
+    assert_eq!(causation_kind.as_deref(), Some("Command"));
+    assert_eq!(causation_ref.as_deref(), Some("cmd-1"));
+    assert_eq!(correlation_id.as_deref(), Some("corr-1"));
 }
