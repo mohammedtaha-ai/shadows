@@ -21,7 +21,7 @@ per-task ledger, rulings, and review history are in the git-ignored
 - Task 5 is on `milestone-0/product-path`: local-directory Project on top of the
   external-command idempotency machinery (`CommandContext`, request fingerprint,
   `classify`, `record_command`) that every later mutating command reuses.
-- 17 tests across five suites. CI runs two jobs with different authority:
+- 17 tests across four suites. CI runs two jobs with different authority:
   Windows is the acceptance gate (fmt, clippy `-D warnings`, full test run),
   Linux is a compile gate only — the platform risk below is why.
 
