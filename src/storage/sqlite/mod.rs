@@ -2,9 +2,8 @@ use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
 
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
-use sqlx::{SqliteConnection, SqlitePool};
-use tokio::sync::Mutex;
+use sqlx::SqlitePool;
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
@@ -24,19 +23,11 @@ pub enum StorageError {
     Database(#[from] sqlx::Error),
 }
 
-/// All writes are serialized through `write`. All reads use `read`.
-///
-/// This is not caution, it is measurement. Deferred `BEGIN` succeeded on 3-27%
-/// of read-then-write transactions and `busy_timeout` did not rescue it;
-/// `BEGIN IMMEDIATE` on its own left 25-55 failures per 1600 transactions; one
-/// serialized write connection had zero failures at higher throughput.
-/// See `docs/evidence/persistence/WAL_VALIDATION.md`.
+/// Task 3 adds a serialized write connection alongside `read` (spec §6.23,
+/// evidence `docs/evidence/persistence/WAL_VALIDATION.md`). Task 2 only
+/// opens the database and exposes the read pool.
 pub struct Storage {
     read: SqlitePool,
-    // Consumed by `write_txn` in Task 3. Held here now so the writer
-    // connection's lifecycle matches the read pool's from the start.
-    #[allow(dead_code)]
-    write: Mutex<SqliteConnection>,
 }
 
 impl Storage {
@@ -47,21 +38,16 @@ impl Storage {
             .create_if_missing(true)
             .foreign_keys(true)
             .journal_mode(SqliteJournalMode::Wal)
-            .synchronous(SqliteSynchronous::Normal)
             .busy_timeout(Duration::from_millis(5000));
 
         let read = SqlitePoolOptions::new()
             .max_connections(8)
-            .connect_with(opts.clone())
+            .connect_with(opts)
             .await?;
 
         sqlx::migrate!("./migrations").run(&read).await?;
 
-        let write = sqlx::ConnectOptions::connect(&opts).await?;
-        Ok(Self {
-            read,
-            write: Mutex::new(write),
-        })
+        Ok(Self { read })
     }
 
     pub fn reader(&self) -> &SqlitePool {
