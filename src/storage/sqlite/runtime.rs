@@ -1,4 +1,4 @@
-use super::{Storage, StorageError, events::append_event};
+use super::{Storage, StorageError, events::append_event, now};
 use crate::events::{Actor, DurableEvent};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,12 +22,6 @@ pub struct ReconcileReport {
     /// Operations found under a `Graceful` runtime. Spec §8.5 says that cannot
     /// happen; if it does, §8.6 requires it be reported, not silently handled.
     pub anomalies: Vec<String>,
-}
-
-fn now() -> String {
-    time::OffsetDateTime::now_utc()
-        .format(&time::format_description::well_known::Rfc3339)
-        .expect("RFC3339 formatting cannot fail")
 }
 
 impl Storage {

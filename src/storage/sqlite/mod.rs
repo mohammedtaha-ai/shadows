@@ -8,9 +8,16 @@ use sqlx::{Connection, SqliteConnection, SqlitePool};
 use tokio::sync::Mutex;
 
 pub(super) mod events;
+mod project;
 mod runtime;
 
 pub use runtime::{ReconcileReport, StopKind};
+
+pub(super) fn now() -> String {
+    time::OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .expect("RFC3339 formatting cannot fail")
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
