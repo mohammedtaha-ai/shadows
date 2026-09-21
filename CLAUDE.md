@@ -5,22 +5,22 @@
 > | Document | Purpose |
 > |----------|---------|
 > | [CLAUDE.md](./CLAUDE.md) | Architecture, conventions, rules (this file) |
-> | [docs/superpowers/specs/shadows-spec.md](./docs/superpowers/specs/shadows-spec.md) | **The design and decision source. There is no second one.** |
+> | [docs/superpowers/specs/README.md](./docs/superpowers/specs/README.md) | **Index of the authoritative design sections and their owners.** |
 > | [docs/status.md](./docs/status.md) | Where the project is right now. Decides nothing. |
 > | [docs/evidence/](./docs/evidence/) | Dated measurement records. Facts, not decisions. |
 >
 > **Documentation rules:**
-> - The spec is amended **in place**. Never revise a decision by adding a
->   second document, and never summarise it into a parallel file that can drift.
+> - The specs are split by topic. Every decision has exactly one owner file and
+>   is amended **in place**. Other files refer to it; they do not copy it.
 > - Do not create an ADR, a design note, or a plan document for a struct shape,
->   a library call, a test correction, or an implementation detail. Amend the spec.
-> - A question the project cannot answer yet is an **OPEN** block inside the spec,
+>   a library call, a test correction, or an implementation detail. Amend its owner spec.
+> - A question the project cannot answer yet is an **OPEN** block inside its owner spec,
 >   at the point it bites, naming the trigger that closes it. An OPEN block with
 >   no trigger is rot, not a question.
 > - Evidence files are dated facts. They never expire and are never design
->   authority. When a measurement changes a decision, change the decision in the spec.
+>   authority. When a measurement changes a decision, amend its owner spec.
 > - Earlier specs, the runtime draft, and the four consolidated ADRs were absorbed
->   into the spec and deleted. They remain in Git history and are not
+>   into the topic specs and deleted. They remain in Git history and are not
 >   active references.
 > - CLAUDE.md stays compact: links + rules + architecture. No long backlogs.
 
@@ -81,4 +81,4 @@ The first milestone is deliberately vertical: start `shadows serve`, manually op
 
 ## Decisions
 
-[`docs/superpowers/specs/shadows-spec.md`](./docs/superpowers/specs/shadows-spec.md) owns the complete architecture semantics and is the only place a decision lives. The rules above are a working summary of what it says about module boundaries; where this file and the spec disagree, the spec is right and this file is the defect.
+[`docs/superpowers/specs/README.md`](./docs/superpowers/specs/README.md) maps every design section to its sole owner file. Together those owner files hold the complete architecture semantics. The rules above are a working summary; where this file and an owner spec disagree, the owner spec is right and this file is the defect.
