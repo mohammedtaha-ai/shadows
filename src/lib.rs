@@ -3,6 +3,7 @@ pub mod command;
 pub mod config;
 pub mod error;
 pub mod events;
+pub mod process;
 pub mod project;
 pub mod runtime;
 pub mod storage;

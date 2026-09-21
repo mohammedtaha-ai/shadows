@@ -23,6 +23,21 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[[bin]]
+name = "tree_probe"
+path = "src/bin/tree_probe.rs"
+
 [features]
 # Compiles in `storage::test_support`, a hook onto an otherwise-private
 # capability (`append_event` without a state write) that must never ship in
