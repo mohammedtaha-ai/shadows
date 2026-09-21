@@ -2,8 +2,12 @@
 
 **Date:** 2026-09-21
 **Status:** Complete. Questions answered; code is throwaway.
-**Probe code:** `sandbox/serve-stream-spike/` — labelled throwaway, not a
-workspace member, deleted once this report is accepted.
+**Probe code:** was `sandbox/serve-stream-spike/` — labelled throwaway, and
+deleted as promised once this report was accepted. It is in Git history:
+`git show c47bf38:sandbox/serve-stream-spike/src/main.rs`, or
+`git log --all -- sandbox/serve-stream-spike` for every revision of it.
+Everything this report establishes is stated here; nothing requires reading
+that code.
 
 ## Question
 

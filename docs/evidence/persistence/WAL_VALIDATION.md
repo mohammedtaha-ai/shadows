@@ -2,8 +2,11 @@
 
 **Date:** 2026-09-21
 **Status:** Complete. Both questions answered; probe code is throwaway.
-**Probe code:** `sandbox/wal-validation/` — throwaway, not a workspace member.
-**Raw output:** `sandbox/wal-validation/results.txt`
+**Probe code:** was `sandbox/wal-validation/` — throwaway, deleted after this
+report was accepted. It is in Git history: `git show b8f05df:sandbox/wal-validation/src/main.rs`,
+or `git log --all -- sandbox/wal-validation` for every revision of it.
+**Raw output:** [`wal-validation-results.txt`](./wal-validation-results.txt), beside this
+file. The probe's source was throwaway; its measurements are not.
 
 ## Questions
 

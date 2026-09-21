@@ -323,6 +323,8 @@ Architecture tests are defense-in-depth, not semantic proof.
 
 Do **not** maintain a giant blacklist of SQL keywords such as `rowid`, `strftime`, or FTS syntax across the entire source tree. Semantic portability is established by storage contract tests, backend-specific containment, code review, and future SQLite/PostgreSQL parity tests.
 
+Because storage contract tests are named here as an enforcement mechanism, they are the one place outside `storage/` that may import the backend driver and issue backend-specific statements. A contract test asserting `PRAGMA journal_mode` is that mechanism working, not a breach of it. The rule it must still obey: a contract test may read backend state, and may not become the reason a backend-specific accessor is added to a product API. Putting `journal_mode()` on the public surface to keep `sqlx` out of a test would move SQLite vocabulary from a test, where it is contained, into the product, where it is permanent.
+
 ## 2.10 Disconnect / reconnect / resync
 
 `ClientConnection` is runtime transport state only. It does not own durable thread identity.

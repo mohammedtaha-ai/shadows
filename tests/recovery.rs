@@ -1,0 +1,143 @@
+use shadows::storage::{StopKind, Storage};
+
+async fn seed_operation(storage: &Storage, op_id: &str, runtime_id: &str, status: &str) {
+    let started = if status == "Pending" {
+        None
+    } else {
+        Some("2026-09-21T00:00:00Z")
+    };
+    storage
+        .write_txn(|conn| {
+            let (op_id, runtime_id, status) = (op_id.to_string(), runtime_id.to_string(), status.to_string());
+            Box::pin(async move {
+                sqlx::query(
+                    "INSERT INTO operation (id, kind, status_kind, runtime_instance_id, created_at, started_at)
+                     VALUES (?, 'PlannerTurn', ?, ?, '2026-09-21T00:00:00Z', ?)",
+                )
+                .bind(&op_id).bind(&status).bind(&runtime_id).bind(started)
+                .execute(&mut *conn).await?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+}
+
+/// Spec §8.6. A runtime that was lost leaves its operations non-terminal; the
+/// next runtime resolves them to Interrupted by exact CAS, and never claims
+/// they succeeded, failed, or were cancelled.
+#[tokio::test]
+async fn a_lost_runtimes_operations_become_interrupted() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+
+    let old = storage
+        .register_runtime_instance("0.1.0-old")
+        .await
+        .unwrap();
+    seed_operation(&storage, "op-pending", &old, "Pending").await;
+    seed_operation(&storage, "op-running", &old, "Running").await;
+    // `old` is never stopped: it was lost.
+
+    let new = storage
+        .register_runtime_instance("0.1.0-new")
+        .await
+        .unwrap();
+    let report = storage.reconcile_orphans(&new).await.unwrap();
+
+    assert_eq!(report.interrupted.len(), 2);
+    assert!(report.anomalies.is_empty());
+
+    let rows: Vec<(String, String, Option<String>)> =
+        sqlx::query_as("SELECT id, status_kind, interrupt_reason FROM operation ORDER BY id")
+            .fetch_all(storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(rows[0].1, "Interrupted");
+    assert_eq!(
+        rows[0].2.as_deref(),
+        Some("PreviousRuntimeEndedBeforeStart")
+    );
+    assert_eq!(rows[1].1, "Interrupted");
+    assert_eq!(rows[1].2.as_deref(), Some("PreviousRuntimeEndedDuringRun"));
+}
+
+/// Spec §8.5 and §8.6. An Escalated shutdown records `stopped_at` on purpose
+/// and leaves work non-terminal. Recovery selects by ownership, not by
+/// `stopped_at`, so that work must still be reconciled. This is the bug the
+/// review caught; the test is what stops it coming back.
+#[tokio::test]
+async fn an_escalated_shutdowns_operations_are_not_stranded() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+
+    let old = storage
+        .register_runtime_instance("0.1.0-old")
+        .await
+        .unwrap();
+    seed_operation(&storage, "op-abandoned", &old, "Running").await;
+    storage
+        .stop_runtime_instance(&old, StopKind::Escalated)
+        .await
+        .unwrap();
+
+    let new = storage
+        .register_runtime_instance("0.1.0-new")
+        .await
+        .unwrap();
+    let report = storage.reconcile_orphans(&new).await.unwrap();
+
+    assert_eq!(report.interrupted, vec!["op-abandoned".to_string()]);
+    let status: String =
+        sqlx::query_scalar("SELECT status_kind FROM operation WHERE id='op-abandoned'")
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(status, "Interrupted");
+}
+
+/// Spec §8.5: `Graceful` is a claim only written when true. §8.6: finding one
+/// that owns a non-terminal Operation is a defect, reconciled and reported,
+/// never stranded and never passed over silently.
+#[tokio::test]
+async fn a_graceful_runtime_owning_unfinished_work_is_reported_as_an_anomaly() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+
+    let old = storage
+        .register_runtime_instance("0.1.0-old")
+        .await
+        .unwrap();
+    seed_operation(&storage, "op-leaked", &old, "Running").await;
+    storage
+        .stop_runtime_instance(&old, StopKind::Graceful)
+        .await
+        .unwrap();
+
+    let new = storage
+        .register_runtime_instance("0.1.0-new")
+        .await
+        .unwrap();
+    let report = storage.reconcile_orphans(&new).await.unwrap();
+
+    assert_eq!(report.interrupted, vec!["op-leaked".to_string()]);
+    assert_eq!(report.anomalies, vec!["op-leaked".to_string()]);
+}
+
+/// The current runtime's own live work is never reconciled out from under it.
+#[tokio::test]
+async fn the_current_runtimes_own_operations_are_left_alone() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+
+    let me = storage.register_runtime_instance("0.1.0").await.unwrap();
+    seed_operation(&storage, "op-mine", &me, "Running").await;
+
+    let report = storage.reconcile_orphans(&me).await.unwrap();
+    assert!(report.interrupted.is_empty());
+    let status: String = sqlx::query_scalar("SELECT status_kind FROM operation WHERE id='op-mine'")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(status, "Running");
+}

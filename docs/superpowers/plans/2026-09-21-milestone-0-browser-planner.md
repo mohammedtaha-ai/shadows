@@ -60,7 +60,6 @@ src/tracing.rs                      subscriber init, correlation field helpers
 src/config.rs                       Config: db path, bind address, harness path
 src/cli/mod.rs                      serve command wiring
 src/runtime/mod.rs                  Runtime: owns instance id, startup, shutdown
-src/runtime/recovery.rs             orphan reconciliation at startup
 src/project/mod.rs                  Project domain type + local-directory selection
 src/thread/mod.rs                   PlanningThread, ThreadEntry domain types
 src/command/mod.rs                  CommandContext, CommandId, request fingerprint
@@ -79,11 +78,14 @@ src/storage/sqlite/thread.rs        thread + entry capabilities, ordinal allocat
 src/storage/sqlite/operation.rs     operation capabilities, CAS transitions
 src/storage/sqlite/runtime.rs       runtime_instance + orphan scan
 src/storage/sqlite/events.rs        durable_event append (private), cursor reads
-src/protocol/mod.rs                 axum router, command handlers
+src/protocol/mod.rs                 axum router wiring, AppState, Failure -> HTTP
+src/protocol/handlers.rs            the route handlers and their request types
 src/protocol/sse.rs                 SSE stream: durable replay then live handoff
 src/protocol/index.html             the entire web client
 migrations/0001_milestone0.sql      the seven milestone tables and their indexes
-tests/storage_contract.rs           atomicity, idempotency, ordinal, CAS
+tests/storage_contract.rs           connection policy, write serialization, atomicity
+tests/project_contract.rs           project identity and command idempotency
+tests/thread_contract.rs            thread identity and ordinal allocation
 tests/recovery.rs                   crash recovery and orphan reconciliation
 tests/containment.rs                daemon -> child -> grandchild termination
 tests/harness_stream.rs             stream classification against captured fixtures
@@ -956,7 +958,14 @@ git commit -m "feat(storage): serialized write transactions with atomic state an
 ## Task 4: Runtime instance lifecycle and startup orphan reconciliation
 
 **Files:**
-- Create: `src/runtime/mod.rs`, `src/runtime/recovery.rs`, `src/storage/sqlite/runtime.rs`
+- Create: `src/runtime/mod.rs`, `src/storage/sqlite/runtime.rs`
+
+**No `src/runtime/recovery.rs`.** An earlier draft of this Files block listed one, and
+no step ever defined its contents. There is nothing for it to hold: the recovery
+predicate is a storage capability — spec §8.6 puts the ownership scan in SQL, and
+`Storage::reconcile_orphans` in `storage/sqlite/runtime.rs` is it — while `Runtime::start`
+only calls it and reports. A `recovery.rs` here would be a file created to satisfy a plan
+line, which CLAUDE.md names as a defect outright.
 - Modify: `src/lib.rs`, `src/storage/mod.rs`
 - Test: `tests/recovery.rs`
 
@@ -1315,7 +1324,15 @@ git commit -m "feat(runtime): register the instance and reconcile orphans by own
 **Files:**
 - Create: `src/command/mod.rs`, `src/project/mod.rs`, `src/storage/sqlite/project.rs`
 - Modify: `src/lib.rs`, `src/storage/mod.rs`, `Cargo.toml` (add `sha2`)
-- Test: `tests/storage_contract.rs`
+- Test: `tests/project_contract.rs` — **not** `tests/storage_contract.rs`
+
+**Why a new test file.** `tests/storage_contract.rs` is a named accretion point in
+CLAUDE.md, and it crossed 300 lines during Task 3 holding one responsibility: the
+connection and transaction contracts — pool policy, write serialization, atomicity,
+recovery, provenance. Project identity and command idempotency are a different
+responsibility, and appending them here is how that file reaches 500 lines by Task 6.
+The split is by domain, which is what CLAUDE.md prescribes for this file. Name its one
+job without using "and": the project capability's durable contract.
 
 **Interfaces:**
 - Consumes: `Storage::write_txn`, `append_event` from Task 3.
@@ -1613,7 +1630,13 @@ git commit -m "feat(project): create a local project under external command idem
 **Files:**
 - Create: `src/thread/mod.rs`, `src/storage/sqlite/thread.rs`
 - Modify: `src/lib.rs`, `src/storage/mod.rs`
-- Test: `tests/storage_contract.rs`
+- Test: `tests/thread_contract.rs` — **not** `tests/storage_contract.rs`
+
+**Why a new test file.** Same reason as Task 5: `tests/storage_contract.rs` owns the
+connection and transaction contracts and nothing else. Thread identity and ordinal
+allocation are their own responsibility — ordinal allocation in particular is a
+concurrency contract worth finding in a file named for it. Name its one job without
+using "and": the thread capability's durable contract.
 
 **Interfaces:**
 - Consumes: `CommandContext` from Task 5; `classify` and `record_command` from Task 5.
@@ -3392,9 +3415,24 @@ git commit -m "feat(planner): cancellation requires confirmed termination before
 ## Task 11: Durable replay with a no-gap handoff to live
 
 **Files:**
-- Create: `src/storage/sqlite/events_read.rs`, `src/protocol/mod.rs`, `src/protocol/sse.rs`
+- Create: `src/storage/sqlite/events_read.rs`, `src/protocol/mod.rs`, `src/protocol/handlers.rs`, `src/protocol/sse.rs`
 - Modify: `src/lib.rs`, `src/storage/mod.rs`, `src/cli/mod.rs`
 - Test: `tests/resync.rs`
+
+**Where the code below goes.** This task's steps present the protocol code as one
+block, but it does not land as one file. `protocol/` is a named accretion point in
+CLAUDE.md — every feature this project ever adds puts a route here — so the split
+happens on the way in, not after it hurts:
+
+| File | Its one job |
+|---|---|
+| `src/protocol/mod.rs` | wiring: `AppState`, `router()`, the `Failure` → HTTP mapping, and `index` |
+| `src/protocol/handlers.rs` | what each route does: the seven handlers, their request structs, and the `ctx` helper |
+| `src/protocol/sse.rs` | the durable-replay-then-live stream |
+
+`handlers.rs` items are `pub(super)` — `router()` is the only thing that names them.
+Splitting by responsibility is the point; do not instead create a `protocol/types.rs`
+or `protocol/utils.rs`, which is the same pile under a new name.
 
 **Interfaces:**
 - Consumes: `EventCursor` (Task 3); `Storage` (Tasks 2–10); `LiveHandles`, `PlannerTurn` (Task 10).
