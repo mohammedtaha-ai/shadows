@@ -2,97 +2,63 @@
 
 **Updated:** 2026-09-21
 
-## Current truth
+This file says where the project is. It decides nothing — the design and every
+decision live in [`spec.md`](./spec.md), and this file must never restate them.
 
-- `shadows` is a clean rewrite in architecture/documentation phase; no product
-  code exists yet.
-- One canonical specification remains:
-  `docs/superpowers/specs/shadows_design_spec_reviewed.md`.
-- Nineteen overlapping ADRs were consolidated into four short decision maps.
-- SQLx 0.9 + SQLite remains the local persistence choice.
-- The old `shadow` repository is reference material, not an implementation base.
-- `TaskState::Running` was replaced by `TaskState::InProgress`. Task progress
-  and Operation runtime status are separate axes; `OperationStatus::Running`
-  is unchanged.
-- The runtime/execution draft is tracked but is **not** baseline. Seven design
-  decisions in it are open. None block the first milestone.
-- The Claude harness stream contract is now measured, not assumed: four stream
-  classes, of which only `assistant`, `user` and `result` are durable. Serving
-  the web client needs no framework.
-- The harness binary has no single identity on this machine: the desktop
-  application bundles its own `claude-code`, at more than one version, separate
-  from whatever is on `PATH`. The harness path must be explicit configuration
-  and its version recorded per Operation.
-- Whether `claude --print` spawns a process tree under a command-executing tool
-  is **still open**. An earlier claim that it was observed has been withdrawn;
-  the Job Object decision stands on its original reasoning.
+## Where we are
 
-## Next deliverable
+Architecture phase. No product code exists yet.
 
-Build the first runnable browser Planner vertical slice:
+Documentation was consolidated on 2026-09-21: the reviewed spec, the runtime
+execution draft, and four consolidated ADRs became one `spec.md`. There is now
+one design document, one status file, and dated evidence. Nothing else.
 
-```text
-shadows serve
-  -> manually open any browser
-  -> select a local project
-  -> create/resume a PlanningThread
-  -> start one real Claude turn
-  -> stream output
-  -> Stop and confirm process-tree termination
-  -> restart and recover durable state
-```
+## What has been measured
 
-The daemon must not open a browser automatically.
+- **Persistence.** SQLx 0.9 + SQLite chosen; the delta validated SQLx and
+  SeaORM 2.0.3 against PostgreSQL 16. `evidence/persistence/`.
+- **Harness stream contract.** Measured against Claude Code 2.1.278: four stream
+  classes, of which only `assistant`, `user`, and `result` are durable; turn end
+  is an explicit `result` line; durable lines arrive with a harness-assigned
+  uuid; `--session-id`/`--resume` give continuity across processes. Serving the
+  web client needs no framework. `evidence/harness/`.
+- **Harness binary identity.** The machine carries more than one `claude-code`
+  installation at different versions. The measured contract belongs to one of
+  them. Spec §1.4 now requires an explicitly configured path and a recorded
+  version.
 
-## Scope for this milestone
+## What is not measured, and was wrongly claimed to be
 
-- one Rust crate and daemon/CLI binary;
-- independent Web client;
-- SQLx + minimal SQLite schema;
-- Project, PlanningThread, ThreadEntry, Operation, command idempotency, and
-  durable event/recovery data;
-- one Claude harness;
-- HTTP commands + SSE streaming;
-- structured diagnostic logs;
-- real Windows debug acceptance, with Linux evidence reported separately.
+Whether `claude --print` spawns a process tree when a command-executing tool
+runs. An earlier claim that this was observed has been withdrawn: the process
+filter matched on the name `claude`, which on this machine also matches the
+Electron desktop application, and Task Manager groups by application rather than
+by parent. The Job Object decision (spec §1.5) stands on its own reasoning.
 
-## External tools
+Settling it needs one turn that actually invokes `Bash`, with the tree walked by
+`ParentProcessId` from the daemon's own PID.
 
-- `gcode` is used as an optional external binary through the normal tool/process
-  boundary.
-- Do not vendor or depend on `gobby-cli`, `gcore`, PostgreSQL, FalkorDB, or
-  Qdrant.
-- `ghook` and `gwiki` are not part of the first milestone.
+## Next
 
-## Explicitly deferred
+1. **SQLite file-backed WAL under concurrent writers.** Closes the one OPEN
+   question that has a scheduled experiment rather than a distant trigger
+   (spec §6.23), and settles `durable_seq` ordering under contention.
+2. **Write the Milestone 0 implementation plan.** Its order and acceptance are
+   spec §11.1; the plan turns those into executable tasks.
+3. **Create `docs/codebase/roadmap/`** once that plan exists — a living code map
+   an agent reads before writing, and updates when it finishes.
+4. **Implement**, only after the plan is reviewed.
 
-- full Workflow DAG and scheduler;
-- execution and deterministic verification;
-- AI Reviewer;
-- MCP-attached agents;
-- ResearchArtifact/search;
-- PostgreSQL adapter, team server, and synchronization;
-- schema and test layers belonging only to those deferred features.
+## Standing risks
 
-## Immediate documentation state
-
-- [x] canonical design baseline retained;
-- [x] obsolete earlier spec removed from the working tree;
-- [x] ADR set compressed to four topic-based maps;
-- [x] first runnable milestone and external `gcode` boundary recorded;
-- [x] `TaskState` vocabulary contradiction resolved; runtime draft tracked and
-      labelled non-baseline;
-- [x] spiked the two unknowns Milestone 0 had no design for: serving the web
-      client, and the concrete Claude harness invocation/stream contract
-      (`docs/evidence/harness/SERVE_STREAM_SPIKE.md`);
-- [ ] validate file-backed SQLite WAL under concurrent writers, then fix the
-      writer strategy;
-- [ ] write the focused Milestone 0 implementation plan;
-- [ ] create `docs/codebase/roadmap/` once that plan exists;
-- [ ] implement only after that plan is reviewed;
-- [ ] settle the runtime draft's seven open decisions before workflow or
-      scheduler work begins.
-
-Persistence comparison evidence remains archived under
-`docs/evidence/persistence/` and is not a prerequisite for seeing the first
-product path run.
+- **Everything is horizontal until the vertical runs.** The previous `shadow`
+  repository reached 72k lines of Rust and 46k lines of documentation before
+  anyone ran the product path end to end; the first attempt found a reversed
+  argument pair that 413 commits had not caught. No module here is finished
+  until the vertical path reaches it.
+- **Windows is the development target and Linux is not yet exercised.** Process
+  environment, path handling, and file bytes read at compile time behave
+  differently on each. A single-platform run is never evidence about the other.
+- **Remove mx.** Its hooks are disabled, not deleted. The hook scripts, `mx*`
+  skills, permission lines, the `mxai-knowledge` MCP server, and the mx block in
+  the global `CLAUDE.md` still need removing once the other project migrates.

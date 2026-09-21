@@ -5,21 +5,23 @@
 > | Document | Purpose |
 > |----------|---------|
 > | [CLAUDE.md](./CLAUDE.md) | Architecture, conventions, rules (this file) |
-> | [docs/status.md](./docs/status.md) | Current project status, open items |
-> | [docs/superpowers/specs/shadows_design_spec_reviewed.md](./docs/superpowers/specs/shadows_design_spec_reviewed.md) | The single authoritative design and decision source |
-> | [docs/decisions/](./docs/decisions/) | Four compact decision maps for navigation |
-> | [docs/superpowers/specs/2026-09-20-runtime-execution-model-draft.md](./docs/superpowers/specs/2026-09-20-runtime-execution-model-draft.md) | **Draft, not baseline.** Runtime/execution proposal with 7 open decisions |
-> | [docs/future/shadows-team-direction.md](./docs/future/shadows-team-direction.md) | Non-binding future team/server direction |
-> | [docs/evidence/persistence/](./docs/evidence/persistence/) | Archived persistence comparison evidence |
-> | [docs/evidence/harness/](./docs/evidence/harness/) | Measured Claude harness stream contract and web-serving spike |
+> | [docs/spec.md](./docs/spec.md) | **The design and decision source. There is no second one.** |
+> | [docs/status.md](./docs/status.md) | Where the project is right now. Decides nothing. |
+> | [docs/evidence/](./docs/evidence/) | Dated measurement records. Facts, not decisions. |
 >
 > **Documentation rules:**
-> - The reviewed spec is the only active architecture and decision source.
-> - The runtime draft is a proposal. Do not implement from it. Only its `TaskState::InProgress` vocabulary has been merged into the spec.
-> - The four consolidated ADRs summarize the baseline; the spec carries the full semantics and wins if a summary becomes stale.
-> - Do not create an ADR for every implementation detail. Amend the spec when the baseline changes; create a new ADR only for a later decision that explicitly supersedes part of the accepted baseline.
-> - The deleted earlier spec and replaced ADR files remain recoverable from Git history; they are not active references.
-> - Future-direction documents are non-binding and must not expand local v1 scope.
+> - `docs/spec.md` is amended **in place**. Never revise a decision by adding a
+>   second document, and never summarise it into a parallel file that can drift.
+> - Do not create an ADR, a design note, or a plan document for a struct shape,
+>   a library call, a test correction, or an implementation detail. Amend the spec.
+> - A question the project cannot answer yet is an **OPEN** block inside the spec,
+>   at the point it bites, naming the trigger that closes it. An OPEN block with
+>   no trigger is rot, not a question.
+> - Evidence files are dated facts. They never expire and are never design
+>   authority. When a measurement changes a decision, change the decision in the spec.
+> - Earlier specs, the runtime draft, and the four consolidated ADRs were absorbed
+>   into `docs/spec.md` and deleted. They remain in Git history and are not
+>   active references.
 > - CLAUDE.md stays compact: links + rules + architecture. No long backlogs.
 
 ## Project
@@ -79,4 +81,4 @@ The first milestone is deliberately vertical: start `shadows serve`, manually op
 
 ## Decisions
 
-The canonical spec owns complete architecture semantics. Four compact ADRs group the accepted decisions for navigation; they are summaries, not a second specification.
+[`docs/spec.md`](./docs/spec.md) owns the complete architecture semantics and is the only place a decision lives. The rules above are a working summary of what it says about module boundaries; where this file and the spec disagree, the spec is right and this file is the defect.

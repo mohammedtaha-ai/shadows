@@ -1,17 +1,45 @@
 # Shadows — Design Specification
 
-- **Date:** 2026-09-20
+- **Date:** 2026-09-21
 - **Status:** Accepted architecture baseline. Delivery begins with the first runnable browser Planner vertical slice; the wider schema and later subsystems are not prerequisites for that slice.
 - **Slug:** `shadows`
 - **Stack:** Rust **1.94+** minimum for the selected SQLx 0.9 line; development validation performed on Rust 1.96. Single Rust crate, library + binary, plus an independent browser client.
 - **Purpose:** Local-first AI software-delivery orchestration runtime for planning, workflow, context, execution, verification, and durable continuity across interchangeable agent harnesses.
 
-> This specification is the single authoritative design and decision baseline. It intentionally avoids recreating the old `shadow` project's crate explosion, duplicated decision ledgers, and patch-driven architecture.
+> This specification is the single authoritative design and decision source. There is no second one. It intentionally avoids recreating the old `shadow` project's crate explosion, duplicated decision ledgers, and patch-driven architecture.
+
+---
+
+## How this document is maintained
+
+**One document.** Decisions are amended **in place**. A decision is never revised
+by adding a second document that contradicts the first, and never summarised into
+a parallel file that can drift. The old `shadow` repository ended with three
+simultaneously-in-force documents disagreeing about the same decision and a
+status file explaining which one to believe; that failure mode is the reason this
+document has no companions.
+
+**Three kinds of statement live here, and they are marked differently:**
+
+- Ordinary prose is **decided**. Implement it.
+- A block marked **OPEN** is a question this project cannot answer yet. Every
+  OPEN block names the trigger that closes it and why it does not block current
+  work. An OPEN block without a trigger is rot, not a question.
+- `docs/status.md` holds where the project currently is. It is operational, it
+  changes often, and it decides nothing.
+
+**Measurement records live in `docs/evidence/` and are not part of this
+document.** They are dated facts, not decisions: they do not expire, do not
+contradict anything, and are never cited as design authority. When a measurement
+changes a decision, the decision changes *here*.
+
+**Do not create an ADR, a design note, or a plan document for a struct shape, a
+library call, a test correction, or an ordinary implementation detail.** Amend
+this file.
 
 ---
 
 ## 0. Design Principles
-
 1. **Runnable vertical slice first.** A user-visible end-to-end path is delivered before building later platform layers.
 2. **Modular monolith first.** Module boundaries are cheap; crate boundaries are expensive. Split crates only for a concrete build, distribution, reuse, or compile-time isolation reason.
 3. **Library-first, not dependency-first.** Prefer mature libraries where they solve the problem; do not add wrappers or dependencies without a real need.
@@ -159,6 +187,21 @@ trait AgentHarness {
 
 `AgentRunHandle` is runtime-only. Durable lifecycle is represented by `Operation`.
 
+### Harness identity is explicit configuration
+
+A harness executable is resolved from explicit configuration, never from `PATH`.
+The resolved path and the harness's self-reported version are read when an
+Operation starts and recorded with it.
+
+This is not defensive habit. The measured harness stream contract
+(`docs/evidence/harness/SERVE_STREAM_SPIKE.md`) is the contract of one
+installation at one version, and a machine can carry several: on the validation
+machine the Claude desktop application bundles its own copy, at more than one
+version, entirely separate from whatever `PATH` resolves. An auto-update can
+therefore change the output contract underneath a running install. Without a
+recorded path and version the first symptom is a blank page rather than an error,
+and nothing in the durable record says which binary produced which turn.
+
 ## 1.5 Process boundary
 
 ```text
@@ -187,6 +230,37 @@ provider-specific environment
 secret values
 working directory / worktree
 ```
+
+`process/` receives only OS-level intent:
+
+```text
+executable
+argv
+cwd
+explicit environment
+stdio policy
+timeout
+containment policy
+resource limits when supported
+```
+
+The child environment is built explicitly; secret values are resolved only at
+spawn and never persisted, traced, or placed in command-line arguments.
+
+`HOME`, `USERPROFILE`, `APPDATA`, temporary directories, and provider
+configuration locations follow the selected isolation profile rather than leaking
+from the daemon by accident. Clearing the environment wholesale is not the same
+as isolating it: on Windows a child that loses `SystemRoot`, `SystemDrive`,
+`ComSpec`, or `PATHEXT` fails in ways that never appear on Linux.
+
+Persisted diagnostics about a spawn may include executable identity and version,
+argument count, workspace identity, profile name, and environment key names. They
+must not include prompt text, model output, secret values, complete environments,
+or sensitive argument values.
+
+A child's stdin is closed unless the harness contract requires streaming input.
+An open stdin that never receives data costs a fixed stall on every turn.
+
 
 ### Managed-process containment invariant
 
@@ -612,6 +686,15 @@ A missing native session must never make durable continuity impossible.
 
 The Context Compiler, not `ThreadSnapshot` itself, selects and budgets what an agent receives.
 
+> **OPEN — closed when continuity across harnesses is built.**
+> The exact ranking and summarisation algorithm the Context Compiler uses to
+> select and budget context is undecided. What is decided is the boundary: the
+> Compiler is distinct from `ThreadSnapshot`, it reads durable truth, and it is
+> deterministic, budgeted, and scoped (§11.5). The algorithm depends on real
+> thread histories and real context budgets, neither of which exists yet.
+> Nothing in the first runnable milestone reaches it — one Planner turn compiles
+> a thread small enough that selection is not yet a problem.
+
 ## 2.12 External agent via MCP
 
 MCP is a first-class adapter, separate from managed harnesses and HTTP.
@@ -984,7 +1067,7 @@ A requirement-test matrix may point from requirements/ADRs to executable evidenc
 
 ---
 
-# Section 4 — Core Domain and Persistence Model
+# Section 4 — Core Domain Model and Invariants
 
 ## 4.1 Identity types
 
@@ -1527,9 +1610,10 @@ The journal is authoritative history/provenance/resync ordering, not a replaceme
 
 ---
 
-# Section 4.4 — Persistence Model / API
+# Section 5 — Persistence Model and API
 
-## 4.4.1 Concrete Storage
+
+## 5.1 Concrete Storage
 
 Start with:
 
@@ -1545,7 +1629,7 @@ SQLx types are private to `storage/`.
 
 `storage::Error` is mapped to `AppFailure` once in the application layer.
 
-## 4.4.2 External vs internal writes
+## 5.2 External vs internal writes
 
 ```rust
 enum WriteOrigin {
@@ -1578,7 +1662,7 @@ no CommandRecord
 
 Storage does not interpret generic business commands.
 
-## 4.4.3 Stable identity for internal creates
+## 5.3 Stable identity for internal creates
 
 For any retryable internal durable creation, the owning application module generates the entity ID **before** calling storage.
 
@@ -1603,7 +1687,7 @@ caller retries
 new random UUID creates duplicate logical work
 ```
 
-## 4.4.4 Causation
+## 5.4 Causation
 
 ```rust
 enum CausationRef {
@@ -1616,7 +1700,7 @@ enum CausationRef {
 
 Do not invent fake operations solely to obtain a causation ID.
 
-## 4.4.5 Representative storage capabilities
+## 5.5 Representative storage capabilities
 
 ### External idempotent
 
@@ -1692,7 +1776,7 @@ current_cursor
 
 The exact Rust method list may be refined during implementation, but the semantic boundaries above are fixed.
 
-## 4.4.6 No public append_event
+## 5.6 No public append_event
 
 Durable events are appended only inside use-case transaction bodies.
 
@@ -1706,7 +1790,7 @@ subscribe_after
 
 A raw public `append_event` would allow event/state divergence.
 
-## 4.4.7 Thread snapshot vs agent context
+## 5.7 Thread snapshot vs agent context
 
 `ThreadSnapshot` is authoritative resync state, not the prompt sent directly to an agent.
 
@@ -1741,11 +1825,12 @@ The Context Compiler derives role-specific `AgentContext` from durable truth und
 
 ---
 
-# Section 5 — SQLite Schema Proposal
+# Section 6 — SQLite Schema
+
 
 No migration SQL is written until this schema proposal is accepted.
 
-## 5.1 Table set
+## 6.1 Table set
 
 **17 ordinary tables + 1 FTS5 virtual table:**
 
@@ -1776,7 +1861,7 @@ research_fts             # FTS5 virtual table
 
 FTS synchronization uses triggers; triggers are not tables.
 
-## 5.2 Common encodings
+## 6.2 Common encodings
 
 | Domain value | SQLite representation |
 |---|---|
@@ -1790,7 +1875,7 @@ The domain must not expose these persistence encodings.
 
 ---
 
-## 5.3 `project`
+## 6.3 `project`
 
 ```text
 id                  TEXT PRIMARY KEY
@@ -1802,7 +1887,7 @@ created_at          TEXT NOT NULL
 
 ---
 
-## 5.4 `planning_thread`
+## 6.4 `planning_thread`
 
 ```text
 id                  TEXT PRIMARY KEY
@@ -1821,7 +1906,7 @@ Index:
 
 ---
 
-## 5.5 `thread_entry`
+## 6.5 `thread_entry`
 
 ```text
 id           TEXT PRIMARY KEY
@@ -1852,7 +1937,7 @@ No `MAX(ordinal)+1`.
 
 ---
 
-## 5.6 `decision`
+## 6.6 `decision`
 
 ```text
 id               TEXT PRIMARY KEY
@@ -1884,7 +1969,7 @@ Thread relevance is derived from explicit thread-entry/workflow references unles
 
 ---
 
-## 5.7 `research_artifact`
+## 6.7 `research_artifact`
 
 ```text
 id          TEXT PRIMARY KEY
@@ -1899,7 +1984,7 @@ No domain ordering depends on SQLite `rowid`.
 
 ---
 
-## 5.8 `workflow`
+## 6.8 `workflow`
 
 ```text
 id                   TEXT PRIMARY KEY
@@ -1959,7 +2044,7 @@ not `source_plan_json`.
 
 ---
 
-## 5.9 `task`
+## 6.9 `task`
 
 ```text
 id             TEXT PRIMARY KEY
@@ -1978,7 +2063,7 @@ CHECK state IN ('Pending','Ready','InProgress','Completed','Failed','Blocked')
 
 ---
 
-## 5.10 `task_parent`
+## 6.10 `task_parent`
 
 Use workflow-aware composite integrity:
 
@@ -2010,7 +2095,7 @@ Acyclicity is a domain/scheduler validation rule, not expressible as a simple SQ
 
 ---
 
-## 5.11 `gate`
+## 6.11 `gate`
 
 ```text
 id             TEXT PRIMARY KEY
@@ -2030,7 +2115,7 @@ FK (after_task_id, workflow_id)
 
 ---
 
-## 5.12 `verification_check`
+## 6.12 `verification_check`
 
 ```text
 id            TEXT PRIMARY KEY
@@ -2089,19 +2174,29 @@ decision may narrow Regression or Final ownership if real semantics require it.
 
 ---
 
-## 5.13 `runtime_instance`
+## 6.13 `runtime_instance`
 
 ```text
-id          TEXT PRIMARY KEY
-version     TEXT NOT NULL
-started_at  TEXT NOT NULL
+id            TEXT PRIMARY KEY
+version       TEXT NOT NULL
+started_at    TEXT NOT NULL
+stopped_at    TEXT NULL
+stop_kind     TEXT NULL
+              CHECK (stop_kind IS NULL OR stop_kind IN ('Graceful','Escalated'))
+CHECK ((stopped_at IS NULL) = (stop_kind IS NULL))
 ```
 
 A runtime is global daemon provenance, not project-owned.
 
+`stopped_at` and `stop_kind` are what let startup distinguish a runtime that
+ended on purpose from one that was lost. A row with `stopped_at IS NULL` that is
+not the current runtime was lost uncleanly, and its non-terminal Operations are
+reconciled per §8.6. The CHECK keeps the two columns from disagreeing. See §8.1
+for why there is no separate lifecycle enum.
+
 ---
 
-## 5.14 `operation`
+## 6.14 `operation`
 
 ```text
 id                   TEXT PRIMARY KEY
@@ -2241,7 +2336,7 @@ This prevents a simultaneous Pending and Running execution attempt for the same 
 
 ---
 
-## 5.15 `agent_invocation`
+## 6.15 `agent_invocation`
 
 ```text
 id                 TEXT PRIMARY KEY
@@ -2274,7 +2369,7 @@ No reverse `operation.agent_invocation_id` column exists.
 
 ---
 
-## 5.16 `verification_run`
+## 6.16 `verification_run`
 
 Lifecycle is owned by its associated `Operation`.
 
@@ -2297,7 +2392,7 @@ fields exist here.
 
 ---
 
-## 5.17 `verdict`
+## 6.17 `verdict`
 
 One final verdict per run in v1:
 
@@ -2314,7 +2409,7 @@ Infrastructure failure belongs to the verification `Operation`; it is not encode
 
 ---
 
-## 5.18 `durable_event`
+## 6.18 `durable_event`
 
 One row per event; the same row may be visible in several scopes.
 
@@ -2397,7 +2492,7 @@ No domain logic relies on contiguous `seq` values.
 
 ---
 
-## 5.19 `command_record`
+## 6.19 `command_record`
 
 Use a stable logical outcome shape rather than a growing `outcome_kind` per entity type:
 
@@ -2481,7 +2576,7 @@ resource identity. Raw JSON byte order is never the fingerprint input.
 
 ---
 
-## 5.20 Cross-table atomic invariants
+## 6.20 Cross-table atomic invariants
 
 These are implemented as use-case-specific storage transactions.
 
@@ -2584,7 +2679,7 @@ Then task retry/requeue state is updated in the same use-case transaction when t
 
 ---
 
-## 5.21 Task lifecycle v1
+## 6.21 Task lifecycle v1
 
 Base transitions:
 
@@ -2621,14 +2716,13 @@ Interpretation:
 
 Execution-attempt history is represented by multiple `ExecutionRun` operations for the same task.
 
-The default Task transition after an attempt ends `Failed`, `Cancelled`, or
-`Interrupted` — and which layer chooses it — is **not decided**. See open
-decision 1 in
-[`2026-09-20-runtime-execution-model-draft.md`](./2026-09-20-runtime-execution-model-draft.md).
+> **OPEN — closed when the scheduler exists and has run real work.**
+> The default Task transition after an attempt ends `Failed`, `Cancelled`, or
+> `Interrupted`, and which layer chooses it, is not decided. See §8.9.
 
 ---
 
-## 5.22 FTS5 strategy
+## 6.22 FTS5 strategy
 
 FTS5 remains SQLite-backend-specific.
 
@@ -2677,7 +2771,7 @@ A future PostgreSQL adapter may use `tsvector` without changing domain/applicati
 
 ---
 
-## 5.23 SQLite connection policy
+## 6.23 SQLite connection policy
 
 Required v1 connection configuration:
 
@@ -2717,11 +2811,17 @@ atomic use-case transactions
 
 Then decide whether write transactions require an explicit `BEGIN IMMEDIATE` strategy or another writer-serialization mechanism.
 
+> **OPEN — closed by the file-backed WAL validation described immediately above.**
+> The final SQLite writer strategy is undecided: whether write transactions take
+> an explicit `BEGIN IMMEDIATE`, or another serialization mechanism, or neither.
+> This is the one open question with a scheduled experiment rather than a distant
+> trigger, and it also settles whether `durable_seq` assignment order matches
+> commit order under contention (§6.18).
+
 ---
 
-# Section 6 — Migrations and Implementation Work Remaining
+# Section 7 — Migrations
 
-## 6.1 SQLx migrations
 
 Use SQLx official migration machinery.
 
@@ -2758,60 +2858,345 @@ supported old fixture -> latest
 failed migration safety
 concurrent startup
 ```
+---
 
-## 6.2 Implementation order
+# Section 8 — Runtime and Execution Model
 
-### Milestone 0 — runnable browser Planner
+This section describes how Shadows actually runs work: what a runtime instance
+is, how dispatch claims a task, what happens around spawn, what shutdown means,
+and how a restart reconciles what a previous runtime left behind.
 
-1. scaffold the single Rust crate, `shadows serve`, structured tracing, and the independent Web client;
-2. open SQLite through SQLx with only the milestone schema;
-3. implement local-directory Project and durable PlanningThread/ThreadEntry;
-4. implement the managed process primitive and one Claude harness;
-5. implement durable Planner Operation start, live SSE output, semantic stop, and restart reconciliation;
-6. connect the browser UI to create/resume a thread, Start, show output, and Stop;
-7. run the real Windows debug acceptance path and record exactly what remains unverified on Linux.
+It does not restate decisions made elsewhere. Cancellation's two-transaction
+shape is §2.3, two-phase spawn is §2.7, process-tree containment is §1.5, the
+scheduler's purity is §2.6, and the durable tables are §6. This section adds only
+what those do not already decide.
 
-The milestone is incomplete until the user can operate this path from a browser.
-Persistence-only or protocol-only completion is not an acceptable substitute.
+## 8.1 RuntimeInstance lifecycle
 
-### Later milestones
+One `RuntimeInstance` row is created when `shadows serve` starts, and it owns
+every Operation that runtime dispatches. Ownership is what makes recovery
+decidable: an Operation's owning runtime is either this one or a previous one,
+and the two cases are handled differently.
 
-After Milestone 0 works, add features in user-visible slices rather than
-constructing the entire platform upfront:
+Startup, before any work is accepted, performs configuration load, storage
+migration, **acquisition of exclusive local-runtime ownership**, process
+containment setup, and recovery of what a previous runtime left behind (§8.6).
+Exclusive ownership is not an optimisation; §8.6 depends on it.
 
-1. Workflow draft/freeze and task display;
-2. scheduler and execution;
-3. deterministic verification;
-4. context compilation and Claude/Codex continuity;
-5. MCP-attached agents;
-6. research artifacts/search;
-7. AI Reviewer and team features when separately designed.
+Runtime rows are diagnostic and recovery provenance. They are **not leases**, and
+they do not enable remote or active-active execution.
 
-## 6.3 Required persistence evidence
-
-Before considering persistence foundation complete:
+**There is no RuntimeInstance state enum.** Lifecycle is derived from
+`started_at`, `stopped_at`, and `stop_kind` (§6.13):
 
 ```text
-atomic state+event+command
-idempotent replay under concurrency
-same idempotency key + different request -> CommandConflict
-transaction rollback fault injection
-event ordering/cursors
-thread ordinal allocation under concurrency
-active ExecutionRun uniqueness
-crash recovery from Pending and Running
-consistent snapshot+cursor
-bounded snapshot under large history + stable pagination
-file-backed WAL concurrency
-FTS trigger parity
-migration upgrade
+stopped_at IS NULL, and this is the current runtime   -> active
+stopped_at IS NULL, and it is not                     -> lost uncleanly
+stopped_at set, stop_kind = Graceful                  -> stopped, work concluded
+stopped_at set, stop_kind = Escalated                 -> stopped, work abandoned
 ```
 
-Future PostgreSQL work must run the same semantic storage-contract suite.
+An enum would be a second copy of a fact the timestamps already carry, and two
+copies of one fact eventually disagree. A `Draining` state in particular has no
+durable meaning: draining is something a runtime is *doing*, not something a
+later runtime recovers from. What the next runtime needs to know is whether this
+one concluded its work, and `stop_kind` answers that directly.
+
+## 8.2 Dispatch
+
+Dispatch is the step between the scheduler's decision and any side effect. The
+scheduler is pure (§2.6) and its decision may be stale by the time dispatch runs,
+so dispatch treats it as a proposal and **revalidates inside the claiming
+transaction**:
+
+```text
+workflow version is still runnable
+task is still Ready
+dependencies and gates still permit execution
+no active execution Operation exists for the task
+effective scope is inside declared scope
+workspace policy has capacity
+no active conflicting write scope exists
+```
+
+If every check still holds, one transaction claims the work:
+
+```text
+TX
+  Task Ready -> InProgress          (exact CAS on the observed state)
+  + Operation(Pending, kind = ExecutionRun) owned by this runtime
+  + AgentInvocation, frozen
+  + TaskTransitioned and OperationCreated durable events
+  (+ CommandRecord when externally commanded)
+COMMIT
+```
+
+No `OperationStarted` event is emitted here. Nothing has spawned.
+
+**`AgentInvocation` is frozen at claim time, not read at spawn time:**
+
+```text
+operation_id
+role
+harness kind, profile, and resolved executable identity + version   (§1.4)
+model / provider selection when applicable
+context reference or digest
+effective read / write / network permissions
+execution workspace identity
+timeout / budget
+```
+
+It must never persist resolved secret values or raw child environment values.
+Reading any of these later would let a configuration change between claim and
+spawn alter what the durable record says was run.
+
+A failed CAS is not an error. It means another dispatch won or the task moved,
+and the correct response is to re-decide rather than retry the write.
+
+**Waiting is not blocking.** If capacity or a conflicting write scope prevents
+dispatch, the Task stays `Ready` and is reconsidered deterministically later. It
+does not become `Blocked`, and no speculative `Pending` Operation is created.
+
+## 8.3 Prepare, harness selection, and spawn
+
+Between claiming work and spawning it there is a **Prepare** step: resolving the
+harness executable, validating that the harness supports what the invocation
+froze, building the child environment, and readying the workspace.
+
+```text
+frozen AgentInvocation
+    -> select AgentHarness
+    -> validate harness capabilities against the frozen invocation
+    -> translate to ProcessSpec
+    -> resolve secrets at the last responsible moment
+    -> process::spawn(ProcessSpec)
+    -> register ProcessHandle under operation_id
+    -> exact CAS Pending -> Running
+```
+
+Prepare can fail, and its failure is not a spawn failure — the process never
+existed. It transitions `Pending -> Failed { stage: Prepare }`, keeping "we could
+not get ready" distinct from "the OS refused to start it" in the durable record
+and in diagnostics. Spawn failure itself follows §2.7 unchanged.
+
+**An unsupported capability produces a structured `Blocked` operation outcome
+before spawn.** It never results in silently widening permissions, and a harness
+never widens the effective scope or permissions the invocation froze.
+
+Every managed process belongs to exactly one Operation and exactly one
+RuntimeInstance. No Operation becomes `Running` before its handle is registered
+and the durable compare-and-swap commits — a registered handle without a
+committed transition, or a committed transition without a registered handle, is
+a state the runtime must not produce.
+
+Planner and Executor roles always go through `AgentHarness`. Deterministic
+verifier commands construct a `ProcessSpec` through the verification boundary
+instead, without pretending to be an AI agent.
+
+**A persisted raw PID is never killed after a restart.** The operating system
+reuses PIDs, so a number recorded by a previous runtime may now belong to an
+unrelated process. Termination always goes through the containment handle that
+owns the tree (§1.5), never through a PID read from the database. A runtime that
+does not hold the handle cannot terminate the tree and must not pretend it can;
+see §8.6.
+
+## 8.4 The cancel / exit interlock
+
+Handle registration, natural process exit, and cancellation all race for one
+Operation. They are serialized per Operation, and exactly one of them writes the
+terminal transition. The required behaviour, case by case:
+
+1. **Cancel arrives before spawn begins.** Do not spawn. Confirm no handle or
+   tree exists. `Pending -> Cancelled`.
+2. **Cancel arrives while spawn is in progress.** If spawn returns a handle,
+   register it for termination only; never commit `Running`. Terminate and reap
+   the tree, then transition to `Cancelled`.
+3. **Cancel arrives after `Running`.** Terminate and reap the registered tree,
+   then transition to `Cancelled`.
+4. **The process exits naturally before cancellation takes termination
+   ownership.** Persist `Completed` or `Failed` from the real exit. The cancel
+   command observes `AlreadyTerminal` (§2.3). Shadows does not claim to have
+   stopped something that had already stopped.
+5. **Cancellation takes termination ownership before a natural exit is
+   observed.** A late completion must not overwrite `Cancelled`.
+6. **Termination fails or cannot be confirmed.** Preserve the cancellation
+   request and **do not write `Cancelled`.** The Operation stays non-terminal
+   until termination is confirmed or an honest `Interrupted` becomes possible.
+7. **The client disconnects.** Nothing is cancelled. The Operation continues and
+   durable truth is unchanged.
+
+There is no `Cancelling` lifecycle state in v1. A client may display "Stopping"
+whenever cancellation metadata exists on a non-terminal Operation; that is a
+rendering decision, not a durable state.
+
+## 8.5 Daemon shutdown
+
+Shutdown reuses the cancellation path in §2.3 and §8.4. There is no separate
+drain mode and no per-operation shutdown policy.
+
+```text
+stop signal
+  -> request cancellation on every non-terminal Operation owned by this runtime
+  -> containment terminates each managed tree
+  -> confirmed termination -> terminal Cancelled
+  -> runtime_instance.stopped_at set, stop_kind = Graceful
+  -> exit
+```
+
+A second stop signal escalates: the runtime stops waiting for confirmation, sets
+`stop_kind = Escalated`, and exits. Operations that never reached confirmed
+termination are **left non-terminal** and become `Interrupted` at the next
+startup (§8.6).
+
+Both properties that matter here follow from reusing one mechanism instead of
+adding a second. A bounded drain would still need the cancellation path when its
+bound expired, so it buys a second code path and a timeout constant in exchange
+for nothing. And escalation never invents a terminal state it cannot prove:
+`Cancelled` keeps meaning confirmed termination exactly as §2.3 requires, and an
+unconfirmed operation is recorded as interrupted rather than as cancelled.
+
+## 8.6 Crash recovery and orphan reconciliation
+
+Once exclusive runtime ownership is acquired (§8.1), startup scans non-terminal
+Operations owned by `runtime_instance` rows with `stopped_at IS NULL` that are
+not this runtime. Those runtimes were lost.
+
+```text
+old Pending -> Interrupted { reason: RuntimeLostBeforeStart }
+old Running -> Interrupted { reason: RuntimeLostDuringRun }
+```
+
+Each transition uses an exact compare-and-swap on operation id, expected status,
+and previous runtime instance, and appends its durable event in the same
+transaction.
+
+`Interrupted` is a factual statement: this attempt did not conclude, and Shadows
+cannot say whether its effects landed. It is never converted into success or
+failure, and it never triggers an automatic retry. Whether a new attempt happens
+is decided by the owning workflow or by a later user command, which creates a
+**new** Operation with causal linkage to the previous one. Terminal states never
+transition again.
+
+**Recovery is a database operation and is not process cleanup.** Before recording
+the interruption of an old `Running` Operation, the runtime must have evidence
+that the old runtime cannot still own a live tree: exclusive daemon ownership
+plus the platform containment contract of §1.5. **If that evidence is
+unavailable, startup fails closed** rather than allowing two owners. A runtime
+that reconciles rows while another runtime's children are still alive has
+recorded a lie.
+
+An old Operation is never adopted as though its process handle survived. The
+handle died with its runtime; only the durable row remains.
+
+If a cancellation request was durable when the runtime died, it stays visible on
+the interrupted record. The outcome is `Interrupted`, not `Cancelled`, because
+the final process outcome and its exact cause are unknown after a crash.
+
+## 8.7 Observability and tracing boundaries
+
+Stable correlation fields, present on every runtime span where they apply:
+
+```text
+runtime_instance_id
+project_id
+thread_id
+workflow_id
+task_id
+operation_id
+agent_invocation_id
+correlation_id
+```
+
+Spans and events the runtime emits:
+
+```text
+runtime.start / stop
+scheduler.decision
+dispatch.claimed / dispatch.rejected
+workspace.prepare
+agent.invocation.start
+process.spawn / exit / terminate / reaped
+operation.transition.committed
+verification.start / verdict
+recovery.reconcile
+```
+
+**A durable state-transition log is emitted only after its transaction commits.**
+A line emitted before commit describes something that may never have happened.
+
+**Logs diagnose; responses, durable state, and process lifetime prove.** A
+transient process log is never evidence that a durable transition occurred, and
+the absence of a log is never evidence that one did not.
+
+Never log secrets, complete environments, raw prompts, model output, provider
+payloads, bootstrap credentials, or sensitive filesystem paths by default. Debug
+mode may add diagnostic detail; it does not disable redaction.
+
+Operational events originating in the harness rather than in Shadows — retries,
+rate-limit signals, and the like — are forwarded to the client rather than
+discarded. A harness that stalls silently while retrying is indistinguishable
+from a hung daemon if nothing surfaces the retry.
+
+## 8.8 Failure and crash matrix
+
+| Point | Required result |
+|---|---|
+| Before the dispatch transaction | No Task or Operation mutation. The scheduler re-decides. |
+| Dispatch transaction rolls back | Task remains `Ready`; no Operation exists. |
+| Prepare fails | `Pending -> Failed { stage: Prepare }`. No process existed. |
+| Spawn fails | `Pending -> Failed { stage: Spawn }` (§2.7). Task resolution follows explicit workflow policy. |
+| Spawn succeeds but the `Running` CAS fails because cancel won | Terminate and reap the tree; never claim `Running` (§8.4 case 2). |
+| Runtime dies after the claim, before spawn | No child existed. Next startup: `Pending -> Interrupted`. |
+| Runtime dies after spawn, before `Running` commits | Containment kills the tree. Next startup: `Pending -> Interrupted`. |
+| Runtime dies while `Running` | Containment kills the tree. Next startup: `Running -> Interrupted`. |
+| Cancel committed, termination cannot be confirmed | Preserve the request; never write `Cancelled` (§8.4 case 6). |
+| Cancel committed, then the runtime dies before the tree dies | Containment kills the tree. Next startup reconciles to `Interrupted`, because the requesting runtime never confirmed termination. |
+| Process exits normally while a cancel is in flight | Natural exit wins (§8.4 case 4). |
+| Process exits but the terminal commit fails | Retain the runtime result and retry persistence while the runtime lives. After runtime loss, reconcile honestly as `Interrupted` if the outcome never committed. |
+| Crash during a terminal transition | Rolled back. The Operation is still non-terminal and reconciles at startup. |
+| Client or SSE disconnects | The Operation continues; durable truth is unchanged. |
+| Live-event publication fails after commit | The durable journal remains truth; the client resyncs (§2.10). |
+| Verification fails | Evidence persists; the Task does not complete. |
+| Conflicting write scope | Task remains `Ready` and waits. No speculative Operation. |
+
+## 8.9 Runtime questions this project cannot answer yet
+
+Each item below names what closes it. None are reachable from the first runnable
+milestone, which has no workflow, no scheduler, no Executor, and no verification.
+
+> **OPEN — closed when the scheduler exists and has run real work.**
+> After an execution attempt ends `Failed`, `Cancelled`, or `Interrupted`, does
+> the Task become `Ready`, `Failed`, or `Blocked` by default, and which layer
+> makes that choice? This is the same question as "what is the automatic retry
+> policy", stated from the Task side. Deciding it now would mean guessing at
+> failure distributions nobody has observed. The refusal in §8.6 to convert
+> `Interrupted` into success or failure already rules out the dangerous answers.
+
+> **OPEN — closed when parallel execution is built.**
+> What conservative path-scope representation proves two write scopes disjoint,
+> and what deterministic fairness key orders Tasks waiting on the same scope?
+> Both are properties of a real workload. What is already decided regardless of
+> the representation: conflicting writers never run concurrently, effective scope
+> is a subset of declared scope (§4.3), and a Task waiting on a conflict stays
+> `Ready` (§8.2).
+
+> **OPEN — closed when an Executor role exists.**
+> Which workspace modes are available — direct checkout, branch, worktree — what
+> their capacity rules are, and what a Planner or Research operation may read
+> while an Executor owns the checkout. Already decided: branch switching is
+> exclusive to its Project checkout, and worktree isolation is an available
+> mechanism rather than a product requirement. Milestone 0 has one mode — read
+> the project directory in place — and no Executor to conflict with.
+
+> **OPEN — closed when deterministic verification is built.**
+> What workflow-policy transition follows a required `VerificationRun` that
+> failed or was cancelled. §2.8 already fixes that verification is separate from
+> AI review and that execution completion does not imply Task completion; what
+> remains is the policy, which depends on gate semantics not yet exercised.
 
 ---
 
-# Section 7 — Cross-cutting Rules
+# Section 9 — Cross-cutting Rules
 
 1. **Domain types stay storage-agnostic.** No SQLx/SQLite/PostgreSQL types in domain/application signatures.
 2. **SQL is allowed inside storage.** It is not limited to migration files.
@@ -2836,43 +3221,11 @@ Future PostgreSQL work must run the same semantic storage-contract suite.
 
 ---
 
-# Section 8 — Decision Reference Policy
+# Section 10 — Out of Scope for v1
 
-This specification is the complete authoritative architecture baseline. The
-nineteen early ADR files were consolidated into four compact navigation maps:
+Shadows deliberately does not build the following. These are not open questions;
+they are decisions to leave things out.
 
-1. `ADR-0001-foundation-and-ownership.md`
-2. `ADR-0002-storage-events-and-continuity.md`
-3. `ADR-0003-agents-processes-and-operations.md`
-4. `ADR-0004-product-delivery-and-deferred-systems.md`
-
-The consolidated ADRs summarize related decisions and point back here for full
-semantics. They are not independent specifications. If a summary and this spec
-diverge, fix the summary; this spec remains authoritative.
-
-Do not create an ADR for a struct shape, library call, test correction, or
-ordinary implementation detail. A future ADR is justified only when a new
-decision has credible alternatives, long-term consequences, and explicitly
-supersedes part of this baseline.
-
----
-
-# Section 9 — Explicit Non-Decisions / Deferred Items
-
-The non-binding long-term collaboration direction is documented separately in
-[`docs/future/shadows-team-direction.md`](../../future/shadows-team-direction.md).
-It does not add Team/Server/sync types or requirements to local v1.
-
-## Runtime model still under review
-
-[`2026-09-20-runtime-execution-model-draft.md`](./2026-09-20-runtime-execution-model-draft.md)
-proposes the detailed runtime and execution model. Only its accepted items have
-been merged here: the `TaskState::InProgress` vocabulary and the separation of
-Task progress from Operation runtime status. Its RuntimeInstance lifecycle,
-workspace modes, write-scope conflict rules, and failure matrix remain a draft
-and are not baseline. Its seven open decisions are unresolved and must be
-settled before it merges. None of them block the first runnable milestone,
-which has no workflow, scheduler, or verification.
 
 The current design intentionally does **not** decide:
 
@@ -2880,23 +3233,48 @@ The current design intentionally does **not** decide:
 - PostgreSQL production adapter implementation date;
 - SeaQuery adoption;
 - active-active multi-runtime support;
-- automatic retry policy;
-- exact Context Compiler ranking/summarization algorithm;
 - reviewer implementation timing;
-- final SQLite writer strategy before the file-backed WAL validation;
 - secret hardening crates until lifecycle requirements justify them;
 - a generic DB abstraction layer;
 - a generic transaction-composition DSL.
 
+Three items that used to sit in this list have moved, because they are open
+questions rather than exclusions: automatic retry policy is §8.9, the Context
+Compiler's ranking algorithm is §2.11, and the SQLite writer strategy is §6.23.
+
+The non-binding long-term collaboration direction — a future team server,
+multi-user accounts, and synchronisation — is **out of scope for v1 and adds no
+types or requirements to it**. It is recorded in the project's history rather
+than in this document, so that a future intention cannot be mistaken for a
+current requirement.
+
 ---
 
-# Section 10 — Layered Readiness Milestones
+# Section 11 — Readiness Milestones
+
 
 Readiness is incremental. Feature work may build on a completed earlier layer
 without waiting for every later layer; dependencies between milestones remain
 explicit.
 
-## 10.1 First Runnable Browser Planner
+## 11.1 First Runnable Browser Planner
+
+Order of work:
+
+
+1. scaffold the single Rust crate, `shadows serve`, structured tracing, and the independent Web client;
+2. open SQLite through SQLx with only the milestone schema;
+3. implement local-directory Project and durable PlanningThread/ThreadEntry;
+4. implement the managed process primitive and one Claude harness;
+5. implement durable Planner Operation start, live SSE output, semantic stop, and restart reconciliation;
+6. connect the browser UI to create/resume a thread, Start, show output, and Stop;
+7. run the real Windows debug acceptance path and record exactly what remains unverified on Linux.
+
+The milestone is incomplete until the user can operate this path from a browser.
+Persistence-only or protocol-only completion is not an acceptable substitute.
+
+Acceptance:
+
 
 ```text
 [ ] `shadows serve` starts and prints one local address without opening a browser
@@ -2910,7 +3288,8 @@ explicit.
 [ ] the exact Windows acceptance run is recorded; Linux gaps are named honestly
 ```
 
-## 10.2 Persistence Foundation Ready
+## 11.2 Persistence Foundation Ready
+
 
 ```text
 [ ] accepted SQLx migrations exist
@@ -2925,7 +3304,19 @@ explicit.
 [ ] storage architecture import checks pass
 ```
 
-## 10.3 Runtime / Execution Ready
+Additionally, before the persistence foundation is considered complete:
+
+```text
+transaction rollback fault injection
+active ExecutionRun uniqueness
+crash recovery from Pending and Running
+FTS trigger parity
+```
+
+Future PostgreSQL work must run the same semantic storage-contract suite.
+
+## 11.3 Runtime / Execution Ready
+
 
 ```text
 [ ] scheduler is deterministic/pure
@@ -2938,7 +3329,8 @@ explicit.
 [ ] provider/harness environment isolation passes
 ```
 
-## 10.4 Protocol / MCP Ready
+## 11.4 Protocol / MCP Ready
+
 
 ```text
 [ ] HTTP command idempotency contract passes
@@ -2948,7 +3340,8 @@ explicit.
 [ ] MCP mutations use the same application semantics
 ```
 
-## 10.5 Continuity Ready
+## 11.5 Continuity Ready
+
 
 ```text
 [ ] durable PlanningThread entries pass
@@ -2957,6 +3350,20 @@ explicit.
 [ ] native_session_id remains optional
 [ ] snapshot/history pagination passes under large history
 ```
+
+## 11.6 Later feature slices
+
+
+After Milestone 0 works, add features in user-visible slices rather than
+constructing the entire platform upfront:
+
+1. Workflow draft/freeze and task display;
+2. scheduler and execution;
+3. deterministic verification;
+4. context compilation and Claude/Codex continuity;
+5. MCP-attached agents;
+6. research artifacts/search;
+7. AI Reviewer and team features when separately designed.
 
 ---
 
