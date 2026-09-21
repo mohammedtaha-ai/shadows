@@ -623,6 +623,36 @@ actor_kind NULL <=> actor_id NULL
 causation_kind NULL <=> causation_ref NULL
 ```
 
+### `seq` ordering, and why it is backend-specific
+
+`seq` is assigned at INSERT, not at COMMIT. The §2.10 no-gap handoff therefore
+depends on assignment order matching commit order, which is a property of the
+backend rather than of this schema.
+
+**On SQLite it holds, and it holds structurally.** SQLite permits one write
+transaction at a time. The INSERT that assigns `seq` can only execute while the
+transaction holds the write lock, and the commit happens before that lock is
+released, so a lower `seq` always commits before a higher one. A reader cannot
+observe N+1 while N is invisible. Measured: zero visibility inversions across
+21,798 reader polls under up to 32 concurrent writers
+(`docs/evidence/persistence/WAL_VALIDATION.md`).
+
+A rolled-back transaction's `seq` is **reused**, because `AUTOINCREMENT` keeps
+its high-water mark in the ordinary `sqlite_sequence` table, whose update is part
+of the transaction and rolls back with it. Rollbacks therefore leave no holes for
+a replaying cursor. (`AUTOINCREMENT`'s no-reuse guarantee concerns rows that were
+deleted, not transactions that never committed.)
+
+> **OPEN — closed when the PostgreSQL adapter is designed.**
+> **None of the above transfers to PostgreSQL.** A PostgreSQL sequence is
+> non-transactional and is assigned outside any commit ordering, so two
+> transactions can take values in one order and commit in the other, and a reader
+> *can* observe the higher value first. §1.6 makes PostgreSQL compatibility a
+> design requirement, so that adapter must assign its ordering key inside the
+> commit-ordered section or use a different ordering mechanism. Which one is not
+> decided, and nothing in v1 depends on it. Do not assume the SQLite property
+> when writing backend-neutral cursor code.
+
 ### Scope semantics
 
 ```text
@@ -979,23 +1009,51 @@ wal_autocheckpoint
 
 Stay conservative by default.
 
-Before storage implementation is considered complete, run a production-like validation with:
+### Writer strategy
+
+Measured, not assumed: `docs/evidence/persistence/WAL_VALIDATION.md`.
 
 ```text
-file-backed SQLite
-WAL
-multiple readers
-concurrent writers
-atomic use-case transactions
+all write transactions are serialized through one write connection
+every write transaction opens with BEGIN IMMEDIATE
+busy_timeout remains set as a backstop
+reads use a separate pool and are unaffected
 ```
 
-Then decide whether write transactions require an explicit `BEGIN IMMEDIATE` strategy or another writer-serialization mechanism.
+Three findings fix this, each from a pair of otherwise-identical runs.
 
-> **OPEN — closed by the file-backed WAL validation described immediately above.**
-> The final SQLite writer strategy is undecided: whether write transactions take
-> an explicit `BEGIN IMMEDIATE`, or another serialization mechanism, or neither.
-> This is the one open question with a scheduled experiment rather than a distant
-> trigger, and it also settles whether `durable_seq` assignment order matches
-> commit order under contention (§6.18).
+**Deferred `BEGIN` fails, and `busy_timeout` does not rescue it.** A transaction
+that reads and then writes must upgrade to a write lock mid-transaction, and a
+busy handler cannot wait there because the transaction already holds a read
+snapshot. Deferred mode succeeded on 3–27 % of transactions, and raising
+`busy_timeout` from 0 to 5000 ms moved that by eight transactions out of 1200.
+SQLite reported `SQLITE_BUSY_SNAPSHOT` (517) in every deferred run and in no
+other run, which identifies the upgrade failure directly rather than by
+inference. No `busy_timeout` value fixes this.
+
+**`BEGIN IMMEDIATE` alone is not enough either.** It moves contention to `BEGIN`,
+where a busy handler *can* wait — so the two are required together. With
+`busy_timeout = 0`, `IMMEDIATE` succeeded on 34 of 1600 transactions; with 5000
+ms, on 1575.
+
+**One write connection beat `IMMEDIATE` on both reliability and throughput.**
+Zero failures out of 1600 and 1920, against 25–55 failures for `IMMEDIATE`, and
+at higher throughput. SQLite's busy handler resolves contention by sleeping and
+retrying, which discards work; an application-level write queue discards none.
+The residual `IMMEDIATE` failures also cost more than their rate suggests: each
+is a transaction the application must detect and retry, which the single write
+connection removes the need for entirely.
+
+`BEGIN IMMEDIATE` is kept even though a single write connection makes the upgrade
+race unreachable today. It costs nothing uncontended, and it stops a second write
+connection — a migration, a maintenance task, a future backend — from silently
+reintroducing `SQLITE_BUSY_SNAPSHOT`.
+
+Readers were never blocked: zero reader errors across 21,798 polls taken while
+writers worked, including under 32 concurrent writers.
+
+**Windows only.** SQLite's locking primitives differ by platform, and this
+validation has no Linux evidence. Re-run it before calling the storage layer
+cross-platform.
 
 ---

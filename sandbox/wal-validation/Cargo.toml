@@ -1,0 +1,20 @@
+[package]
+name = "wal-validation"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Throwaway probe crate. See ./README.md and
+# docs/evidence/persistence/WAL_VALIDATION.md at the repo root.
+# NOT a workspace member — kept standalone on purpose.
+
+[[bin]]
+name = "wal-validation"
+path = "src/main.rs"
+
+[dependencies]
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite", "macros"] }
+tokio = { version = "1", features = ["full"] }
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,0 +1,112 @@
+=== Scenario: A: deferred BEGIN, 8 writers, busy_timeout=5000 (spec default), no think time ===
+  writers=8 txns_per_writer=150 begin_immediate=false busy_timeout_ms=5000 pool_size=16 synchronous=NORMAL readers=0 think_micros_max=0
+  attempted=1200 succeeded=322 failed=878 elapsed=175.2518ms
+  errors:
+       717x  code=5 msg=database is locked
+       161x  code=517 msg=database is locked
+  rolled_back/skipped seq gaps observed (max_seq - row_count): 0
+  Q2: assign-order-monotonic-in-seq=true commit-order-monotonic-in-seq=false assign_order==commit_order=false
+
+=== Scenario: B: deferred BEGIN, 8 writers, busy_timeout=5000, WITH think time (read-then-write window) ===
+  writers=8 txns_per_writer=150 begin_immediate=false busy_timeout_ms=5000 pool_size=16 synchronous=NORMAL readers=0 think_micros_max=3000
+  attempted=1200 succeeded=120 failed=1080 elapsed=2.3611039s
+  errors:
+       873x  code=5 msg=database is locked
+       207x  code=517 msg=database is locked
+  rolled_back/skipped seq gaps observed (max_seq - row_count): 0
+  Q2: assign-order-monotonic-in-seq=true commit-order-monotonic-in-seq=true assign_order==commit_order=true
+
+=== Scenario: C: deferred BEGIN, 16 writers, busy_timeout=5000, WITH think time ===
+  writers=16 txns_per_writer=100 begin_immediate=false busy_timeout_ms=5000 pool_size=32 synchronous=NORMAL readers=0 think_micros_max=3000
+  attempted=1600 succeeded=85 failed=1515 elapsed=1.5736186s
+  errors:
+      1273x  code=5 msg=database is locked
+       242x  code=517 msg=database is locked
+  rolled_back/skipped seq gaps observed (max_seq - row_count): 0
+  Q2: assign-order-monotonic-in-seq=true commit-order-monotonic-in-seq=true assign_order==commit_order=true
+
+=== Scenario: D: BEGIN IMMEDIATE, 16 writers, busy_timeout=5000, WITH think time ===
+  writers=16 txns_per_writer=100 begin_immediate=true busy_timeout_ms=5000 pool_size=32 synchronous=NORMAL readers=0 think_micros_max=3000
+  attempted=1600 succeeded=1575 failed=25 elapsed=25.0114665s
+  errors:
+        25x  code=5 msg=database is locked
+  rolled_back/skipped seq gaps observed (max_seq - row_count): 0
+  Q2: assign-order-monotonic-in-seq=true commit-order-monotonic-in-seq=false assign_order==commit_order=false
+
+=== Scenario: E: BEGIN IMMEDIATE, 16 writers, busy_timeout=0 (no tolerance), WITH think time ===
+  writers=16 txns_per_writer=100 begin_immediate=true busy_timeout_ms=0 pool_size=32 synchronous=NORMAL readers=0 think_micros_max=3000
+  attempted=1600 succeeded=34 failed=1566 elapsed=496.7724ms
+  errors:
+      1566x  code=5 msg=database is locked
+  rolled_back/skipped seq gaps observed (max_seq - row_count): 0
+  Q2: assign-order-monotonic-in-seq=true commit-order-monotonic-in-seq=true assign_order==commit_order=true
+
+=== Scenario: F: deferred BEGIN, 8 writers, busy_timeout=0 (isolate upgrade failure from timeout tolerance), WITH think time ===
+  writers=8 txns_per_writer=150 begin_immediate=false busy_timeout_ms=0 pool_size=16 synchronous=NORMAL readers=0 think_micros_max=3000
+  attempted=1200 succeeded=112 failed=1088 elapsed=2.3704946s
+  errors:
+       859x  code=5 msg=database is locked
+       229x  code=517 msg=database is locked
+  rolled_back/skipped seq gaps observed (max_seq - row_count): 0
+  Q2: assign-order-monotonic-in-seq=true commit-order-monotonic-in-seq=true assign_order==commit_order=true
+
+=== Scenario: G: BEGIN IMMEDIATE, 8 writers + 4 concurrent readers, busy_timeout=5000, WITH think time (readers not blocked?) ===
+  writers=8 txns_per_writer=150 begin_immediate=true busy_timeout_ms=5000 pool_size=16 synchronous=NORMAL readers=4 think_micros_max=3000
+  attempted=1200 succeeded=1192 failed=8 elapsed=17.768101s
+  errors:
+         8x  code=5 msg=database is locked
+  rolled_back/skipped seq gaps observed (max_seq - row_count): 0
+  Q2: assign-order-monotonic-in-seq=true commit-order-monotonic-in-seq=false assign_order==commit_order=false
+  Q2 reader: polls=4617 visibility_inversions_observed=0 reader_errors=0
+
+=== Scenario: H: deferred BEGIN, 8 writers + 4 concurrent readers, busy_timeout=5000, WITH think time (Q2 visibility-inversion probe) ===
+  writers=8 txns_per_writer=150 begin_immediate=false busy_timeout_ms=5000 pool_size=16 synchronous=NORMAL readers=4 think_micros_max=3000
+  attempted=1200 succeeded=124 failed=1076 elapsed=2.3604797s
+  errors:
+       849x  code=5 msg=database is locked
+       227x  code=517 msg=database is locked
+  rolled_back/skipped seq gaps observed (max_seq - row_count): 0
+  Q2: assign-order-monotonic-in-seq=true commit-order-monotonic-in-seq=true assign_order==commit_order=true
+  Q2 reader: polls=616 visibility_inversions_observed=0 reader_errors=0
+
+=== Scenario: I: BEGIN IMMEDIATE, 32 writers (high contention), busy_timeout=5000, WITH think time ===
+  writers=32 txns_per_writer=60 begin_immediate=true busy_timeout_ms=5000 pool_size=64 synchronous=NORMAL readers=4 think_micros_max=3000
+  attempted=1920 succeeded=1865 failed=55 elapsed=22.6540448s
+  errors:
+        55x  code=5 msg=database is locked
+  rolled_back/skipped seq gaps observed (max_seq - row_count): 0
+  Q2: assign-order-monotonic-in-seq=true commit-order-monotonic-in-seq=false assign_order==commit_order=false
+  Q2 reader: polls=5934 visibility_inversions_observed=0 reader_errors=0
+
+=== Scenario: J: deferred BEGIN, 32 writers (high contention), busy_timeout=5000, WITH think time ===
+  writers=32 txns_per_writer=60 begin_immediate=false busy_timeout_ms=5000 pool_size=64 synchronous=NORMAL readers=4 think_micros_max=3000
+  attempted=1920 succeeded=62 failed=1858 elapsed=987.095ms
+  errors:
+      1572x  code=5 msg=database is locked
+       286x  code=517 msg=database is locked
+  rolled_back/skipped seq gaps observed (max_seq - row_count): 0
+  Q2: assign-order-monotonic-in-seq=true commit-order-monotonic-in-seq=true assign_order==commit_order=true
+  Q2 reader: polls=274 visibility_inversions_observed=0 reader_errors=0
+
+=== Scenario: K: single write connection, deferred BEGIN, 16 logical writers + 4 concurrent readers, busy_timeout=5000 ===
+  writers=16 txns_per_writer=100 begin_immediate=false busy_timeout_ms=5000 pool_size=16 synchronous=NORMAL readers=4 think_micros_max=3000
+  attempted=1600 succeeded=1600 failed=0 elapsed=18.458579s
+  rolled_back/skipped seq gaps observed (max_seq - row_count): 0
+  Q2: assign-order-monotonic-in-seq=true commit-order-monotonic-in-seq=true assign_order==commit_order=true
+  Q2 reader: polls=4857 visibility_inversions_observed=0 reader_errors=0
+
+=== Scenario: L: single write connection, deferred BEGIN, 32 logical writers (high contention) + 4 concurrent readers, busy_timeout=5000 ===
+  writers=32 txns_per_writer=60 begin_immediate=false busy_timeout_ms=5000 pool_size=64 synchronous=NORMAL readers=4 think_micros_max=3000
+  attempted=1920 succeeded=1920 failed=0 elapsed=20.8427204s
+  rolled_back/skipped seq gaps observed (max_seq - row_count): 0
+  Q2: assign-order-monotonic-in-seq=true commit-order-monotonic-in-seq=true assign_order==commit_order=true
+  Q2 reader: polls=5500 visibility_inversions_observed=0 reader_errors=0
+
+(sqlite db files left in "C:\\Users\\Mohammed\\AppData\\Local\\Temp\\wal-validation-probe" for inspection; delete manually)
+=== Rollback-gap probe (direct, single connection, no contention) ===
+  seq_a (committed) = 1
+  seq_b (rolled back, never committed) = 2
+  seq_c (committed, after rollback) = 2
+  row_count in table = 2
+  seq_c reused seq_b? true   (AUTOINCREMENT should NOT reuse -> expect seq_c > seq_b, and seq_b never appears as a row)
+  gap in visible seq numbers left by the rollback: 0 (seq_c - seq_a - 1, i.e. how many numbers were consumed and skipped)

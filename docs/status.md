@@ -29,6 +29,12 @@ measurements.
   installation at different versions. The measured contract belongs to one of
   them. Spec §1.4 now requires an explicitly configured path and a recorded
   version.
+- **SQLite writer strategy and `durable_seq` ordering.** Deferred `BEGIN` fails
+  on 73–97 % of read-then-write transactions with `SQLITE_BUSY_SNAPSHOT`, and
+  `busy_timeout` does not rescue it. One write connection plus `BEGIN IMMEDIATE`
+  gives zero failures at higher throughput than `BEGIN IMMEDIATE` alone. No
+  visibility inversion in 21,798 reader polls, and none is structurally possible
+  on SQLite. Spec §6.23 and §6.18 amended. `evidence/persistence/`.
 
 ## What is not measured, and was wrongly claimed to be
 
@@ -43,14 +49,11 @@ Settling it needs one turn that actually invokes `Bash`, with the tree walked by
 
 ## Next
 
-1. **SQLite file-backed WAL under concurrent writers.** Closes the one OPEN
-   question that has a scheduled experiment rather than a distant trigger
-   (spec §6.23), and settles `durable_seq` ordering under contention.
-2. **Write the Milestone 0 implementation plan.** Its order and acceptance are
+1. **Write the Milestone 0 implementation plan.** Its order and acceptance are
    spec §11.1; the plan turns those into executable tasks.
-3. **Create `docs/codebase/roadmap/`** once that plan exists — a living code map
+2. **Create `docs/codebase/roadmap/`** once that plan exists — a living code map
    an agent reads before writing, and updates when it finishes.
-4. **Implement**, only after the plan is reviewed.
+3. **Implement**, only after the plan is reviewed.
 
 ## Standing risks
 
@@ -59,7 +62,9 @@ Settling it needs one turn that actually invokes `Bash`, with the tree walked by
   anyone ran the product path end to end; the first attempt found a reversed
   argument pair that 413 commits had not caught. No module here is finished
   until the vertical path reaches it.
-- **Windows is the development target and Linux is not yet exercised.** Process
+- **Windows is the development target and Linux is not yet exercised.** The WAL
+  validation in particular ran only on Windows, and SQLite's locking primitives
+  differ by platform. Process
   environment, path handling, and file bytes read at compile time behave
   differently on each. A single-platform run is never evidence about the other.
 - **Remove mx.** Its hooks are disabled, not deleted. The hook scripts, `mx*`
