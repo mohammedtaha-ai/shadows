@@ -8,6 +8,25 @@
 
 Domain IDs are UUID-v4 newtypes unless a later decision explicitly changes one:
 
+> **OPEN — Milestone 0 carries `String` ids, deliberately.**
+>
+> Task 3 landed `DurableEvent` with `event_id`, `project_id`, `thread_id`,
+> `operation_id`, and `correlation_id` as `String`, contradicting this rule. It is
+> recorded here rather than left as a silent divergence.
+>
+> The reason is structural, not convenience: `DurableEvent` references entities whose
+> modules do not exist yet. `ProjectId` belongs in `project/`, `ThreadId` in `thread/`,
+> `OperationId` in `operation/` — created in Milestone 0 Tasks 5, 6, and 9. Defining
+> them anywhere else to satisfy the rule earlier would break a rule that costs more:
+> no module is created before the task that fills it.
+>
+> **Trigger that closes this:** Task 9, which creates the last of those modules and is
+> also the first task whose signatures place two ids of different kinds adjacent —
+> `mark_operation_started(op_id, expected_runtime)` takes two `String`s that the
+> compiler cannot tell apart. That is where `String` stops being cosmetic and starts
+> being a defect the type system was supposed to catch. Task 9's dispatch carries this
+> block; the newtypes land with it and sweep the earlier signatures.
+
 ```text
 ProjectId
 ThreadId
