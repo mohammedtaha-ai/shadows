@@ -1,0 +1,56 @@
+name: CI
+
+# Two platforms, two different jobs, on purpose.
+#
+# Windows is the acceptance gate: Milestone 0 claims Windows and nothing else
+# (plan Task 13), so Windows runs the full suite and its failure is a real
+# failure.
+#
+# Linux is the COMPILE gate only. It proves the crate still builds, lints, and
+# passes its platform-neutral tests on a Unix target. It does NOT certify
+# process-tree containment there: `src/process/containment_unix.rs` covers
+# deliberate termination only, and the parent-death half of spec §1.5 is a
+# known, recorded gap. Tests that would assert that gap are `#[ignore]`d with
+# the reason in the source. Never silence one to make this job green — a green
+# job that hides a gap is exactly the failure this project exists to avoid.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    name: Windows — acceptance gate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --check
+      - name: Lint
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Test
+        run: cargo test
+
+  linux:
+    name: Linux — compile gate only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --check
+      - name: Lint
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Test (ignored tests stay ignored; see the note at the top)
+        run: cargo test
