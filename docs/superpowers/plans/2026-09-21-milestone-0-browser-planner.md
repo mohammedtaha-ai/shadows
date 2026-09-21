@@ -79,7 +79,8 @@ src/storage/sqlite/thread.rs        thread + entry capabilities, ordinal allocat
 src/storage/sqlite/operation.rs     operation capabilities, CAS transitions
 src/storage/sqlite/runtime.rs       runtime_instance + orphan scan
 src/storage/sqlite/events.rs        durable_event append (private), cursor reads
-src/protocol/mod.rs                 axum router, command handlers
+src/protocol/mod.rs                 axum router wiring, AppState, Failure -> HTTP
+src/protocol/handlers.rs            the route handlers and their request types
 src/protocol/sse.rs                 SSE stream: durable replay then live handoff
 src/protocol/index.html             the entire web client
 migrations/0001_milestone0.sql      the seven milestone tables and their indexes
@@ -3392,9 +3393,24 @@ git commit -m "feat(planner): cancellation requires confirmed termination before
 ## Task 11: Durable replay with a no-gap handoff to live
 
 **Files:**
-- Create: `src/storage/sqlite/events_read.rs`, `src/protocol/mod.rs`, `src/protocol/sse.rs`
+- Create: `src/storage/sqlite/events_read.rs`, `src/protocol/mod.rs`, `src/protocol/handlers.rs`, `src/protocol/sse.rs`
 - Modify: `src/lib.rs`, `src/storage/mod.rs`, `src/cli/mod.rs`
 - Test: `tests/resync.rs`
+
+**Where the code below goes.** This task's steps present the protocol code as one
+block, but it does not land as one file. `protocol/` is a named accretion point in
+CLAUDE.md — every feature this project ever adds puts a route here — so the split
+happens on the way in, not after it hurts:
+
+| File | Its one job |
+|---|---|
+| `src/protocol/mod.rs` | wiring: `AppState`, `router()`, the `Failure` → HTTP mapping, and `index` |
+| `src/protocol/handlers.rs` | what each route does: the seven handlers, their request structs, and the `ctx` helper |
+| `src/protocol/sse.rs` | the durable-replay-then-live stream |
+
+`handlers.rs` items are `pub(super)` — `router()` is the only thing that names them.
+Splitting by responsibility is the point; do not instead create a `protocol/types.rs`
+or `protocol/utils.rs`, which is the same pile under a new name.
 
 **Interfaces:**
 - Consumes: `EventCursor` (Task 3); `Storage` (Tasks 2–10); `LiveHandles`, `PlannerTurn` (Task 10).
