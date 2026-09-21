@@ -1,5 +1,9 @@
 # Section 9 — Cross-cutting Rules
 
+> Part of the [Shadows design specification](./README.md). Section numbers are
+> stable across files, and every `§x.y` reference resolves through the ownership
+> map there — many of them point into a different file.
+
 1. **Domain types stay storage-agnostic.** No SQLx/SQLite/PostgreSQL types in domain/application signatures.
 2. **SQL is allowed inside storage.** It is not limited to migration files.
 3. **Backend-specific syntax remains backend-local.**

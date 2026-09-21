@@ -1,5 +1,9 @@
 # Section 2 — Data Flow
 
+> Part of the [Shadows design specification](./README.md). Section numbers are
+> stable across files, and every `§x.y` reference resolves through the ownership
+> map there — many of them point into a different file.
+
 ## 2.1 Create / Resume PlanningThread
 
 A user creates a planning thread through an external command:

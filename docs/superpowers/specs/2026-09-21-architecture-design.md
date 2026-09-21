@@ -1,5 +1,9 @@
 # Section 1 — Architecture Overview
 
+> Part of the [Shadows design specification](./README.md). Section numbers are
+> stable across files, and every `§x.y` reference resolves through the ownership
+> map there — many of them point into a different file.
+
 `shadows` starts as one Rust crate exposing a library and a binary. The product client is an independent browser application that communicates only through the local protocol.
 
 The binary has two primary modes:

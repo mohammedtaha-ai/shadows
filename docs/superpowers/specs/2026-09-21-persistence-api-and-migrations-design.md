@@ -1,5 +1,8 @@
 # Section 5 — Persistence Model and API
 
+> Part of the [Shadows design specification](./README.md). Section numbers are
+> stable across files, and every `§x.y` reference resolves through the ownership
+> map there — many of them point into a different file.
 
 ## 5.1 Concrete Storage
 

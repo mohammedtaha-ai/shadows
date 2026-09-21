@@ -1,5 +1,9 @@
 # Section 3 — Errors, Dependencies, and Testing
 
+> Part of the [Shadows design specification](./README.md). Section numbers are
+> stable across files, and every `§x.y` reference resolves through the ownership
+> map there — many of them point into a different file.
+
 ## 3.1 Module-local errors
 
 Each module owns typed errors using `thiserror`.

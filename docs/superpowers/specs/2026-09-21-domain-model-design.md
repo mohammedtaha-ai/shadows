@@ -1,5 +1,9 @@
 # Section 4 — Core Domain Model and Invariants
 
+> Part of the [Shadows design specification](./README.md). Section numbers are
+> stable across files, and every `§x.y` reference resolves through the ownership
+> map there — many of them point into a different file.
+
 ## 4.1 Identity types
 
 Domain IDs are UUID-v4 newtypes unless a later decision explicitly changes one:

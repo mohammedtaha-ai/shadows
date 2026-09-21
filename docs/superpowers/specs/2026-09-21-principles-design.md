@@ -1,4 +1,9 @@
-## 0. Design Principles
+# Section 0 — Design Principles
+
+> Part of the [Shadows design specification](./README.md). Section numbers are
+> stable across files, and every `§x.y` reference resolves through the ownership
+> map there — many of them point into a different file.
+
 1. **Runnable vertical slice first.** A user-visible end-to-end path is delivered before building later platform layers.
 2. **Modular monolith first.** Module boundaries are cheap; crate boundaries are expensive. Split crates only for a concrete build, distribution, reuse, or compile-time isolation reason.
 3. **Library-first, not dependency-first.** Prefer mature libraries where they solve the problem; do not add wrappers or dependencies without a real need.

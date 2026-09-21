@@ -1,5 +1,9 @@
 # Section 8 — Runtime and Execution Model
 
+> Part of the [Shadows design specification](./README.md). Section numbers are
+> stable across files, and every `§x.y` reference resolves through the ownership
+> map there — many of them point into a different file.
+
 This section describes how Shadows actually runs work: what a runtime instance
 is, how dispatch claims a task, what happens around spawn, what shutdown means,
 and how a restart reconciles what a previous runtime left behind.
