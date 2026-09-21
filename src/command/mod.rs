@@ -30,7 +30,10 @@ fn canonical(v: &serde_json::Value) -> String {
             keys.sort();
             let inner: Vec<String> = keys
                 .iter()
-                .map(|k| format!("{}:{}", k, canonical(&map[*k])))
+                .map(|k| {
+                    let key_json = serde_json::to_string(*k).expect("string keys always serialise");
+                    format!("{}:{}", key_json, canonical(&map[*k]))
+                })
                 .collect();
             format!("{{{}}}", inner.join(","))
         }

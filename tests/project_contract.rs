@@ -100,3 +100,23 @@ fn the_fingerprint_ignores_key_order_but_not_command_kind() {
         fingerprint("thread.create", &a)
     );
 }
+
+/// Regression for the canonicalisation collision: an unescaped key can
+/// impersonate the separator structure, so `{"a":1,"bc":2}` and
+/// `{"a:1,bc":2}` must not hash to the same fingerprint.
+#[test]
+fn the_fingerprint_does_not_let_a_key_impersonate_the_separator_structure() {
+    let a = serde_json::json!({ "a": 1, "bc": 2 });
+    let b = serde_json::json!({ "a:1,bc": 2 });
+    assert_ne!(fingerprint("k", &a), fingerprint("k", &b));
+}
+
+/// A single value change, all keys and command kind held constant, must
+/// change the fingerprint. Nothing else in the suite pins this down.
+#[test]
+fn the_fingerprint_changes_when_a_value_changes() {
+    assert_ne!(
+        fingerprint("k", &serde_json::json!({ "a": 1 })),
+        fingerprint("k", &serde_json::json!({ "a": 2 }))
+    );
+}
