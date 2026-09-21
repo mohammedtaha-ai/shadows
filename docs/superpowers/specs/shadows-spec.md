@@ -2189,10 +2189,14 @@ CHECK ((stopped_at IS NULL) = (stop_kind IS NULL))
 A runtime is global daemon provenance, not project-owned.
 
 `stopped_at` and `stop_kind` are what let startup distinguish a runtime that
-ended on purpose from one that was lost. A row with `stopped_at IS NULL` that is
-not the current runtime was lost uncleanly, and its non-terminal Operations are
-reconciled per §8.6. The CHECK keeps the two columns from disagreeing. See §8.1
-for why there is no separate lifecycle enum.
+ended on purpose from one that was lost, and why it ended. A row with
+`stopped_at IS NULL` that is not the current runtime was lost uncleanly. The
+CHECK keeps the two columns from disagreeing.
+
+These columns do not gate recovery. Reconciliation selects on ownership alone —
+every non-terminal Operation owned by a runtime other than the current one
+(§8.6) — so a runtime that stopped on purpose without confirming termination
+does not strand its work. See §8.1 for why there is no separate lifecycle enum.
 
 ---
 
@@ -2896,6 +2900,11 @@ stopped_at set, stop_kind = Graceful                  -> stopped, work concluded
 stopped_at set, stop_kind = Escalated                 -> stopped, work abandoned
 ```
 
+`stop_kind` records how a runtime ended. It does **not** decide whether that
+runtime's Operations are reconciled: recovery looks at ownership alone (§8.6),
+because `Escalated` and unclean loss both leave work unfinished and only the
+reason differs.
+
 An enum would be a second copy of a fact the timestamps already carry, and two
 copies of one fact eventually disagree. A `Draining` state in particular has no
 durable meaning: draining is something a runtime is *doing*, not something a
@@ -3043,10 +3052,16 @@ stop signal
   -> exit
 ```
 
+**`stop_kind = Graceful` is a claim, and it is only written when it is true:
+every Operation this runtime owned is terminal.** A runtime that cannot reach
+that state does not get to record `Graceful`. This is the guarantee §8.6 relies
+on, and §8.6 checks it rather than assuming it.
+
 A second stop signal escalates: the runtime stops waiting for confirmation, sets
 `stop_kind = Escalated`, and exits. Operations that never reached confirmed
-termination are **left non-terminal** and become `Interrupted` at the next
-startup (§8.6).
+termination are **left non-terminal on purpose** and become `Interrupted` at the
+next startup (§8.6). Recovery selects them by ownership, not by `stopped_at`, so
+recording a clean exit time does not hide them.
 
 Both properties that matter here follow from reusing one mechanism instead of
 adding a second. A bounded drain would still need the cancellation path when its
@@ -3057,14 +3072,40 @@ unconfirmed operation is recorded as interrupted rather than as cancelled.
 
 ## 8.6 Crash recovery and orphan reconciliation
 
-Once exclusive runtime ownership is acquired (§8.1), startup scans non-terminal
-Operations owned by `runtime_instance` rows with `stopped_at IS NULL` that are
-not this runtime. Those runtimes were lost.
+Once exclusive runtime ownership is acquired (§8.1), startup scans **every
+non-terminal Operation whose owning runtime is not this one**, regardless of how
+that runtime ended.
 
 ```text
-old Pending -> Interrupted { reason: RuntimeLostBeforeStart }
-old Running -> Interrupted { reason: RuntimeLostDuringRun }
+old Pending -> Interrupted { reason: PreviousRuntimeEndedBeforeStart }
+old Running -> Interrupted { reason: PreviousRuntimeEndedDuringRun }
 ```
+
+The predicate is deliberately not `stopped_at IS NULL`. Three different endings
+can leave an Operation non-terminal, and only one of them is an unclean loss:
+
+```text
+stopped_at IS NULL             lost uncleanly; operations stranded by a crash
+stop_kind = Escalated          stopped on purpose without confirming termination (§8.5)
+stop_kind = Graceful           must own no non-terminal Operations
+```
+
+Filtering on `stopped_at IS NULL` would strand every Operation an `Escalated`
+shutdown left behind — permanently, because no later runtime would ever look at
+them again. Filtering on ownership alone cannot have that failure mode, and it
+cannot be defeated by a `stop_kind` value added later.
+
+The reason codes name the *phase* the attempt reached, not how the runtime
+ended. How it ended is already recorded on the runtime row, and recording it
+twice would create two facts that can disagree.
+
+**A `Graceful` runtime owning a non-terminal Operation is a defect, not a case
+to handle silently.** Graceful shutdown does not complete until every Operation
+it owns is terminal (§8.5), so such a row means that guarantee was violated.
+Recovery still reconciles it to `Interrupted` — leaving it stranded would be
+worse — and emits a `recovery.anomaly` event naming the runtime and the
+Operation. Recovery is the only place this invariant can be observed, so it is
+the only place it can be reported.
 
 Each transition uses an exact compare-and-swap on operation id, expected status,
 and previous runtime instance, and appends its durable event in the same
@@ -3119,6 +3160,7 @@ process.spawn / exit / terminate / reaped
 operation.transition.committed
 verification.start / verdict
 recovery.reconcile
+recovery.anomaly
 ```
 
 **A durable state-transition log is emitted only after its transaction commits.**
@@ -3158,6 +3200,9 @@ from a hung daemon if nothing surfaces the retry.
 | Live-event publication fails after commit | The durable journal remains truth; the client resyncs (§2.10). |
 | Verification fails | Evidence persists; the Task does not complete. |
 | Conflicting write scope | Task remains `Ready` and waits. No speculative Operation. |
+| Graceful shutdown | Every owned Operation reaches a terminal state before `stop_kind = Graceful` is written (§8.5). |
+| Escalated shutdown | Unconfirmed Operations are left non-terminal on purpose. Next startup reconciles them by ownership: `Interrupted` (§8.6). |
+| A `Graceful` runtime is found owning a non-terminal Operation | The §8.5 guarantee was violated. Reconcile to `Interrupted` and emit `recovery.anomaly`; never leave it stranded. |
 
 ## 8.9 Runtime questions this project cannot answer yet
 

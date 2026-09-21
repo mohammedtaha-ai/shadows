@@ -3,15 +3,16 @@
 **Updated:** 2026-09-21
 
 This file says where the project is. It decides nothing — the design and every
-decision live in [`spec.md`](./spec.md), and this file must never restate them.
+decision live in [`spec.md`](./superpowers/specs/shadows-spec.md), and this file must never restate them.
 
 ## Where we are
 
 Architecture phase. No product code exists yet.
 
 Documentation was consolidated on 2026-09-21: the reviewed spec, the runtime
-execution draft, and four consolidated ADRs became one `spec.md`. There is now
-one design document, one status file, and dated evidence. Nothing else.
+execution draft, and four consolidated ADRs became one spec under
+`docs/superpowers/specs/`. There is now one design source, one status file, and
+dated evidence. Nothing else.
 
 ## What has been measured
 

@@ -1,0 +1,45 @@
+# Line endings are LF in the repository, on every platform.
+#
+# This exists because of a specific failure in the previous `shadow` project:
+# Git converted a checked-in .sql fixture to CRLF, `include_str!` handed back
+# CRLF, mutation patterns written with `\n` matched nothing, `str::replace`
+# silently returned its input, and four schema tests failed at once — but only
+# after the files had been through Git once, so they were green until then.
+#
+# That project HAD a .gitattributes. Its one rule named a directory path that
+# stopped existing during a refactor, so it matched nothing and failed open,
+# silently, for months.
+#
+# The rule here is therefore deliberate: match by extension and by a global
+# default, never by path. A path can stop existing. An extension cannot.
+
+* text=auto eol=lf
+
+# Text formats where byte-exactness matters to code that reads them.
+*.rs    text eol=lf
+*.sql   text eol=lf
+*.toml  text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.html  text eol=lf
+*.css   text eol=lf
+*.js    text eol=lf
+*.sh    text eol=lf
+
+# Windows scripts need CRLF to run.
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# Never touched.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.db    binary
+*.sqlite binary
+*.sqlite3 binary
