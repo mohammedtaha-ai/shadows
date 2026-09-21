@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-09-21
+**Updated:** 2026-09-22
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,7 +9,24 @@ restate them.
 
 ## Where we are
 
-Architecture phase. No product code exists yet.
+Implementing Milestone 0, task by task. **Tasks 1-5 of 13 are complete.** The
+plan is `superpowers/plans/2026-09-21-milestone-0-browser-planner.md`; its
+per-task ledger, rulings, and review history are in the git-ignored
+`.superpowers/sdd/` workspace beside it.
+
+- Tasks 1-4 are merged to `main` at `68dc2ff` (PR #1): the crate scaffold and
+  `shadows serve`, SQLite open with the seven-table migration, serialized write
+  transactions committing state and durable events atomically, and runtime
+  instance lifecycle with startup orphan reconciliation by ownership.
+- Task 5 is on `milestone-0/product-path`: local-directory Project on top of the
+  external-command idempotency machinery (`CommandContext`, request fingerprint,
+  `classify`, `record_command`) that every later mutating command reuses.
+- 17 tests across five suites. CI runs two jobs with different authority:
+  Windows is the acceptance gate (fmt, clippy `-D warnings`, full test run),
+  Linux is a compile gate only — the platform risk below is why.
+
+Nothing in the vertical path runs yet: no process spawns, no harness, no
+Operation, no HTTP surface beyond an empty router. Tasks 7-13 are that path.
 
 Documentation was consolidated on 2026-09-21 and then split by topic under
 `docs/superpowers/specs/`. Each decision has one owner file, the directory
@@ -49,11 +66,12 @@ Settling it needs one turn that actually invokes `Bash`, with the tree walked by
 
 ## Next
 
-1. **Write the Milestone 0 implementation plan.** Its order and acceptance are
-   spec §11.1; the plan turns those into executable tasks.
-2. **Create `docs/codebase/roadmap/`** once that plan exists — a living code map
-   an agent reads before writing, and updates when it finishes.
-3. **Implement**, only after the plan is reviewed.
+1. **Task 6** — PlanningThread and ThreadEntry with transactional ordinal
+   allocation, consuming Task 5's `classify` and `record_command`.
+2. **Tasks 7-13**, then PR #2. Task 7 is where the milestone stops being
+   storage: the managed process primitive and process-tree containment.
+3. **Create `docs/codebase/roadmap/`** — a living code map an agent reads before
+   writing and updates when it finishes. Proposed, not yet approved.
 
 ## Standing risks
 

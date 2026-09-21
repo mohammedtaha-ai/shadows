@@ -1340,7 +1340,7 @@ job without using "and": the project capability's durable contract.
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/storage_contract.rs`:
+Create `tests/project_contract.rs`:
 
 ```rust
 use shadows::command::{fingerprint, CommandContext};
@@ -1419,7 +1419,7 @@ fn the_fingerprint_ignores_key_order_but_not_command_kind() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test --test storage_contract`
+Run: `cargo test --test project_contract`
 Expected: FAIL — `shadows::command` and `create_project` do not exist.
 
 - [ ] **Step 3: Write `src/command/mod.rs`**
@@ -1613,13 +1613,16 @@ Move `now()` out of `runtime.rs` into `src/storage/sqlite/mod.rs` as `pub(super)
 
 - [ ] **Step 6: Run tests to verify they pass**
 
-Run: `cargo test --test storage_contract`
-Expected: PASS, all five tests.
+Run: `cargo test --test project_contract`
+Expected: PASS, all six tests. The sixth was added during review: spec §6.19
+compares command kind, **schema version**, and fingerprint, and `classify` at
+first compared only two of the three. `tests/project_contract.rs` is the
+authority on what it asserts; this plan does not restate it.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/command src/project src/storage src/lib.rs Cargo.toml tests/storage_contract.rs
+git add src/command src/project src/storage src/lib.rs Cargo.toml tests/project_contract.rs
 git commit -m "feat(project): create a local project under external command idempotency"
 ```
 
@@ -1644,7 +1647,7 @@ using "and": the thread capability's durable contract.
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/storage_contract.rs`:
+Create `tests/thread_contract.rs`:
 
 ```rust
 /// Spec section 6.5: ordinals are allocated by UPDATE ... RETURNING in the same
@@ -1716,7 +1719,7 @@ async fn entries_are_read_in_ordinal_order() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test --test storage_contract`
+Run: `cargo test --test thread_contract`
 Expected: FAIL — `create_planning_thread` and `append_thread_entry` do not exist.
 
 - [ ] **Step 3: Write `src/thread/mod.rs`**
@@ -1903,13 +1906,13 @@ async fn load_thread(
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `cargo test --test storage_contract`
+Run: `cargo test --test thread_contract`
 Expected: PASS, all seven tests.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/thread src/storage src/lib.rs tests/storage_contract.rs
+git add src/thread src/storage src/lib.rs tests/thread_contract.rs
 git commit -m "feat(thread): planning threads and entries with transactional ordinal allocation"
 ```
 
