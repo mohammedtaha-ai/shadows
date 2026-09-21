@@ -213,15 +213,27 @@ async fn write_txn_recovers_after_a_panicking_transaction() {
     assert_eq!(after_row, 1, "the recovery write_txn must have committed");
 }
 
-/// Finding 4, fix round 1: the mutex alone serializes every writer this
-/// process owns, so `concurrent_read_then_write_transactions_all_succeed`
-/// would pass even with a plain deferred `BEGIN`. `BEGIN IMMEDIATE` earns its
-/// place against a writer this process does *not* own — a second daemon, a
-/// CLI client, or any other connection to the same file, which the mutex
-/// cannot see. This test opens an independent connection, has it hold the
-/// write lock, and checks `write_txn` waits out `busy_timeout` and then
-/// succeeds rather than failing immediately — the shape
-/// `docs/evidence/persistence/WAL_VALIDATION.md` measured.
+/// Finding 4, fix round 2: `BEGIN IMMEDIATE` must be told apart from a
+/// deferred `BEGIN`, not just from failing outright. Per
+/// `docs/evidence/persistence/WAL_VALIDATION.md` lines 37-39, a write-only
+/// transaction cannot produce the lock-upgrade failure (`SQLITE_BUSY_SNAPSHOT`,
+/// code 517) that only a deferred `BEGIN` exhibits — a lone `INSERT` under a
+/// deferred `BEGIN` hits ordinary `SQLITE_BUSY` instead, which `busy_timeout`
+/// resolves exactly as it does for `BEGIN IMMEDIATE`. So the closure here
+/// reads first (pinning a snapshot) and only then writes, and it sleeps
+/// between the two so that, under a deferred `BEGIN`, the external writer's
+/// commit lands *between* the read and the write — the sleep is what forces
+/// the straddle deterministically instead of hoping the two race in the
+/// right order.
+///
+/// Under `BEGIN IMMEDIATE` (this code's real behaviour) the entire call,
+/// including this closure, cannot start until the external writer's lock is
+/// released — the write lock is already ours by the time the closure's
+/// `SELECT` runs, so there is nothing to straddle and the transaction must
+/// succeed. Verified empirically: temporarily changing `BEGIN IMMEDIATE` to
+/// `BEGIN` in `Storage::write_txn` makes this specific test fail with
+/// `SQLITE_BUSY_SNAPSHOT` (517), while every other test in this file still
+/// passes — see the fix-round-2 report for the transcript.
 #[tokio::test]
 async fn write_txn_waits_out_an_external_writer_holding_begin_immediate() {
     let tmp = tempfile::tempdir().unwrap();
@@ -256,6 +268,18 @@ async fn write_txn_waits_out_an_external_writer_holding_begin_immediate() {
     storage
         .write_txn(|conn| {
             Box::pin(async move {
+                // Read the table the external writer touched — establishing
+                // a snapshot — before writing to it.
+                let _: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
+                    .fetch_one(&mut *conn)
+                    .await?;
+                // Force the external writer's commit (at 200ms) to land
+                // between this read and the write below. Under BEGIN
+                // IMMEDIATE this sleep happens after the lock is already
+                // ours, so it changes nothing; under a deferred BEGIN it is
+                // what guarantees the snapshot goes stale before the write
+                // is attempted.
+                tokio::time::sleep(Duration::from_millis(300)).await;
                 sqlx::query("INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)")
                     .bind("p-after-external")
                     .bind("after")

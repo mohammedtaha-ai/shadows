@@ -87,24 +87,23 @@ impl Storage {
     }
 
     /// Every write goes through here. Two invariants, each pinned down by its
-    /// own test in `tests/storage_contract.rs`:
+    /// own test in `tests/storage_contract.rs`, and by nothing else:
     ///
-    /// - The write connection is single and mutex-guarded, not pooled. That is
-    ///   what `concurrent_read_then_write_transactions_all_succeed` regresses:
-    ///   it would fail against a connection pool. It would *not* fail against
-    ///   a plain deferred `BEGIN`, because by the time any closure runs, the
-    ///   mutex has already excluded every other writer this process owns —
-    ///   the mutex alone is enough to pass that test.
-    /// - `BEGIN IMMEDIATE` takes the write lock up front so no transaction has
-    ///   to upgrade mid-flight. That matters against a writer this process
-    ///   does *not* own — a second daemon, a CLI client, or any other
-    ///   connection to the same file, which the mutex cannot see.
+    /// - The write connection is single, not pooled: this is required so the
+    ///   mutex below can serialize every writer this process owns.
+    ///   `concurrent_read_then_write_transactions_all_succeed` is the test for
+    ///   this — it would fail against a connection pool.
+    /// - `BEGIN IMMEDIATE` (plus `busy_timeout`) is required against a writer
+    ///   this process does *not* own — a second daemon, a CLI client, or any
+    ///   other connection to the same file, which the mutex cannot see.
     ///   `write_txn_waits_out_an_external_writer_holding_begin_immediate` is
-    ///   the test for that: it holds the write lock from an independent
-    ///   connection and checks `write_txn` waits out `busy_timeout` and then
-    ///   succeeds rather than failing immediately.
-    ///
-    /// See spec §6.23 and `docs/evidence/persistence/WAL_VALIDATION.md`.
+    ///   the test for this: its closure reads before it writes, so that,
+    ///   against a *deferred* `BEGIN`, an external writer's commit landing in
+    ///   between would produce `SQLITE_BUSY_SNAPSHOT` — the lock-upgrade
+    ///   failure `busy_timeout` cannot rescue (spec §6.23,
+    ///   `docs/evidence/persistence/WAL_VALIDATION.md`). `BEGIN IMMEDIATE`
+    ///   avoids that failure entirely by taking the write lock, and waiting
+    ///   out `busy_timeout` for it, before the closure's read ever runs.
     ///
     /// Recovery at entry: if the *previous* call left `txn_open` set — it
     /// panicked or was cancelled after `BEGIN IMMEDIATE` but before
