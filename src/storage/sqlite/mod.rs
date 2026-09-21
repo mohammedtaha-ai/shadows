@@ -10,6 +10,7 @@ use tokio::sync::Mutex;
 pub(super) mod events;
 mod project;
 mod runtime;
+mod thread;
 
 pub use runtime::{ReconcileReport, StopKind};
 

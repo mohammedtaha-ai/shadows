@@ -6,4 +6,5 @@ pub mod events;
 pub mod project;
 pub mod runtime;
 pub mod storage;
+pub mod thread;
 pub mod tracing;
