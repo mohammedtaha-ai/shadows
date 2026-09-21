@@ -10,7 +10,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     println!("shadows serve listening on http://{addr}");
     tracing::info!(%addr, "daemon bound");
 
-    let app = axum::Router::new().route("/health", axum::routing::get(|| async { "ok" }));
+    let app = axum::Router::new();
     axum::serve(listener, app).await?;
     Ok(())
 }
