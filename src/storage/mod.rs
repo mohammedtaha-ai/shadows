@@ -1,6 +1,6 @@
 mod sqlite;
 
-pub use sqlite::{Storage, StorageError};
+pub use sqlite::{ReconcileReport, StopKind, Storage, StorageError};
 
 /// Test-only access to a private capability. Compiled in only when the
 /// `test-support` feature is enabled — enabled automatically for `cargo test`

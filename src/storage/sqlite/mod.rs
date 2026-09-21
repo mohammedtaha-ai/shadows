@@ -8,6 +8,9 @@ use sqlx::{Connection, SqliteConnection, SqlitePool};
 use tokio::sync::Mutex;
 
 pub(super) mod events;
+mod runtime;
+
+pub use runtime::{ReconcileReport, StopKind};
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
