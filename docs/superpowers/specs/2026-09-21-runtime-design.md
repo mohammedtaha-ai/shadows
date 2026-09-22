@@ -291,6 +291,10 @@ agent_invocation_id
 correlation_id
 ```
 
+Work that outlives the request that started it runs under its own root span,
+never as a child of the request's: a Planner turn's lines carry `planner.turn`
+and its ids, not the `http` span of a POST that answered 202 long before.
+
 Spans and events the runtime emits:
 
 ```text

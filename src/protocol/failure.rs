@@ -11,12 +11,21 @@ use crate::error::ErrorCode;
 use crate::project::DirectoryError;
 use crate::storage::StorageError;
 
-/// A failed request: its status, the stable code a client matches on (spec
-/// §3.4), and a human message nobody should match on.
+/// A failed request: its status and the body it answers with.
 pub struct Failure {
     status: StatusCode,
     code: ErrorCode,
     message: String,
+}
+
+/// The body of every error this API answers with itself: the stable code a
+/// client matches on (spec §3.4), and a human message nobody should match on.
+/// A request axum rejects before a handler runs (malformed JSON, a missing
+/// query parameter) is answered by axum in plain text, not with this.
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub struct ErrorBody {
+    pub code: ErrorCode,
+    pub message: String,
 }
 
 impl From<StorageError> for Failure {
@@ -77,7 +86,10 @@ impl axum::response::IntoResponse for Failure {
         }
         (
             self.status,
-            Json(serde_json::json!({ "code": self.code, "message": self.message })),
+            Json(ErrorBody {
+                code: self.code,
+                message: self.message,
+            }),
         )
             .into_response()
     }

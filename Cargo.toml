@@ -27,6 +27,11 @@ tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1", features = ["v4", "serde"] }
+# Spec §1: the protocol is described, not copied. The OpenAPI document is
+# generated from the routes and their types; `utoipa-axum` 0.2 is the line
+# built for axum 0.8.
+utoipa = { version = "5", features = ["uuid"] }
+utoipa-axum = "0.2"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

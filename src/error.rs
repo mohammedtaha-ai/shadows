@@ -2,7 +2,7 @@ use std::fmt;
 
 /// Stable codes clients pattern-match on. Never match on human text.
 /// Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
     ProcessSpawnFailed,

@@ -69,8 +69,17 @@ impl PlannerTurn {
             .await?;
         // Spec §8.7's correlation fields, carried by every line this turn logs
         // — here, in the watcher, in `stop`, and in `process/` beneath them.
-        let span =
-            tracing::info_span!("planner.turn", operation_id = %op_id, thread_id = %thread_id);
+        //
+        // A root span, not a child of whatever is current. The caller is
+        // usually an HTTP request whose span ends at its 202, while this turn
+        // runs on for minutes: as a child, every line of it would name a
+        // request that was over.
+        let span = tracing::info_span!(
+            parent: None,
+            "planner.turn",
+            operation_id = %op_id,
+            thread_id = %thread_id
+        );
 
         let cwd = match workspace(&context) {
             Ok(dir) => dir,

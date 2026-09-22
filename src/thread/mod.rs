@@ -16,7 +16,7 @@ newtype_id! {
     ThreadEntryId
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct PlanningThread {
     pub id: ThreadId,
     pub project_id: ProjectId,
@@ -38,7 +38,7 @@ pub struct TurnContext {
     pub harness_session_id: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct ThreadEntry {
     pub id: ThreadEntryId,
     pub thread_id: ThreadId,
@@ -72,7 +72,7 @@ pub struct NewThreadEntry<'a> {
     pub refs: &'a [EntryRef],
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub enum EntryRef {
     /// Typed, because `operation/` exists. The three below reference entities
     /// whose modules Milestone 0 never creates, and §4.1's rule is that no module

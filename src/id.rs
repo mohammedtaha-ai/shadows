@@ -77,6 +77,24 @@ macro_rules! newtype_id {
                 f.write_str(&self.0)
             }
         }
+
+        /// In the OpenAPI document (spec §1) an id is what it is on the wire:
+        /// a UUID string, under its own name so a generated client can keep
+        /// the kinds apart too. Written by hand rather than derived, because
+        /// deriving would describe the private field and needs no access to
+        /// it here — nothing in this impl can turn text into an id.
+        impl ::utoipa::PartialSchema for $name {
+            fn schema() -> ::utoipa::openapi::RefOr<::utoipa::openapi::schema::Schema> {
+                ::utoipa::openapi::ObjectBuilder::new()
+                    .schema_type(::utoipa::openapi::schema::Type::String)
+                    .format(Some(::utoipa::openapi::SchemaFormat::KnownFormat(
+                        ::utoipa::openapi::KnownFormat::Uuid,
+                    )))
+                    .into()
+            }
+        }
+
+        impl ::utoipa::ToSchema for $name {}
     };
 }
 

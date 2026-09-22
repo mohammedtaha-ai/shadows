@@ -2,21 +2,26 @@
 //! which handler, and which origins may call at all.
 //!
 //! CLAUDE.md names `protocol/` an accretion point: every feature this project
-//! ever adds puts a route here. So the split is made on the way in — this file
-//! holds the wiring, `handlers.rs` holds what each route does, `sse.rs` holds
-//! the replay-then-live stream, `failure.rs` holds the transport mapping,
-//! `fs.rs` holds the disk routes for choosing a project directory.
+//! ever adds puts a route here. So routes are split by domain, and this file
+//! only wires them: `project.rs` (projects and their threads),
+//! `conversation.rs` (entries, starting and stopping a turn), `sse.rs` (the
+//! replay-then-live stream), `fs.rs` (choosing a project directory),
+//! `openapi.rs` (the document describing all of it), `failure.rs` (the
+//! transport mapping). A new feature adds a file or a route to one of them.
 //!
 //! This module is also the sole owner of HTTP and SSE types (CLAUDE.md). None
 //! of them appear in a domain or application signature; a handler is where
 //! `axum` stops.
 
+mod conversation;
 mod failure;
 mod fs;
-mod handlers;
+mod openapi;
+mod project;
 pub mod sse;
 
 pub use failure::Failure;
+pub use openapi::document as openapi_document;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -24,9 +29,10 @@ use std::time::Duration;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{HeaderValue, Method, Request, Response, header};
-use axum::routing::{get, post};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
+use utoipa_axum::router::OpenApiRouter;
+use utoipa_axum::routes;
 
 use crate::agent::StreamItem;
 use crate::agent::claude::ClaudeHarness;
@@ -58,20 +64,8 @@ pub struct AppState {
 /// served from its own origin and reaches this API cross-origin.
 pub fn router(state: AppState) -> Router {
     let cors = cors(&state.allowed_origins);
-    Router::new()
-        .route(
-            "/api/projects",
-            get(handlers::list_projects).post(handlers::create_project),
-        )
-        .route(
-            "/api/projects/{id}/threads",
-            get(handlers::list_threads).post(handlers::create_thread),
-        )
-        .route("/api/threads/{id}/entries", get(handlers::list_entries))
-        .route("/api/threads/{id}/turns", post(handlers::start_turn))
-        .route("/api/operations/{id}/stop", post(handlers::stop_turn))
-        .route("/api/subscribe", get(sse::subscribe))
-        .route("/api/fs/dirs", get(fs::list_dirs).post(fs::create_dir))
+    let (routes, _document) = routes().split_for_parts();
+    routes
         .with_state(state)
         // Inside the trace layer, so a refused or answered preflight is
         // logged like any other request.
@@ -101,6 +95,21 @@ pub fn router(state: AppState) -> Router {
                 // failure line would repeat it without one.
                 .on_failure(()),
         )
+}
+
+/// The route table, and with it the OpenAPI document's paths: a route exists
+/// here or not at all, so the document cannot list a route the router lacks
+/// or miss one it has. Each `routes!` groups the methods of one path.
+fn routes() -> OpenApiRouter<AppState> {
+    OpenApiRouter::with_openapi(openapi::base())
+        .routes(routes!(project::list_projects, project::create_project))
+        .routes(routes!(project::list_threads, project::create_thread))
+        .routes(routes!(conversation::list_entries))
+        .routes(routes!(conversation::start_turn))
+        .routes(routes!(conversation::stop_turn))
+        .routes(routes!(sse::subscribe))
+        .routes(routes!(fs::list_dirs, fs::create_dir))
+        .routes(routes!(openapi::serve))
 }
 
 fn content_length(headers: &axum::http::HeaderMap) -> Option<u64> {

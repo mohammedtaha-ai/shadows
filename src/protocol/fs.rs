@@ -16,16 +16,35 @@ use axum::extract::Query;
 use axum::http::StatusCode;
 
 use super::Failure;
+use super::failure::ErrorBody;
 use crate::project::DirectoryError;
 use crate::project::browse::{self, DirectoryEntry, DirectoryListing};
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 pub(super) struct DirsQuery {
     /// Absolute path to list. Absent or empty: the roots to start from.
     #[serde(default)]
     path: Option<String>,
 }
 
+/// A directory's immediate subdirectories, or the roots to start from.
+///
+/// Exposes the machine's directory names to any client the CORS list admits;
+/// see spec §1's OPEN block on remote access.
+#[utoipa::path(
+    get,
+    path = "/api/fs/dirs",
+    tag = "filesystem",
+    params(DirsQuery),
+    responses(
+        (status = 200, body = DirectoryListing),
+        (status = 400, description = "PATH_INVALID, PATH_NOT_A_DIRECTORY", body = ErrorBody),
+        (status = 403, description = "PATH_ACCESS_DENIED", body = ErrorBody),
+        (status = 404, description = "PATH_NOT_FOUND", body = ErrorBody),
+        (status = 500, description = "PATH_UNAVAILABLE", body = ErrorBody),
+    )
+)]
 pub(super) async fn list_dirs(
     Query(q): Query<DirsQuery>,
 ) -> Result<Json<DirectoryListing>, Failure> {
@@ -34,14 +53,29 @@ pub(super) async fn list_dirs(
     Ok(Json(listing))
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct CreateDir {
     /// Absolute path to an existing directory.
     parent: String,
-    /// One new path component.
+    /// One new path component that Windows would accept.
     name: String,
 }
 
+/// Creates one new directory to choose as a project's.
+#[utoipa::path(
+    post,
+    path = "/api/fs/dirs",
+    tag = "filesystem",
+    request_body = CreateDir,
+    responses(
+        (status = 201, body = DirectoryEntry),
+        (status = 400, description = "PATH_INVALID, PATH_NOT_A_DIRECTORY", body = ErrorBody),
+        (status = 403, description = "PATH_ACCESS_DENIED", body = ErrorBody),
+        (status = 404, description = "PATH_NOT_FOUND: no such parent", body = ErrorBody),
+        (status = 409, description = "PATH_ALREADY_EXISTS", body = ErrorBody),
+        (status = 500, description = "PATH_UNAVAILABLE", body = ErrorBody),
+    )
+)]
 pub(super) async fn create_dir(
     Json(body): Json<CreateDir>,
 ) -> Result<(StatusCode, Json<DirectoryEntry>), Failure> {

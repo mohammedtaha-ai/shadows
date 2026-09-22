@@ -15,10 +15,13 @@ use crate::operation::OperationId;
 use crate::storage::Storage;
 use crate::thread::ThreadId;
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct SubscribeQuery {
+    /// The thread to watch.
     pub thread_id: ThreadId,
-    /// The last durable sequence this client has already applied.
+    /// The last durable sequence this client has already applied; 0 replays
+    /// the thread from its start.
     #[serde(default)]
     pub after: i64,
 }
@@ -40,6 +43,18 @@ pub struct SubscribeQuery {
 /// `seq` is structural rather than left to the client. The bus's `Entry` items
 /// are therefore not forwarded: the same entry arrives as its durable
 /// `ThreadEntryAppended` event. Bus items for another thread are dropped.
+#[utoipa::path(
+    get,
+    path = "/api/subscribe",
+    tag = "stream",
+    params(SubscribeQuery),
+    responses((
+        status = 200,
+        content_type = "text/event-stream",
+        body = String,
+        description = STREAM_DESCRIPTION,
+    ))
+)]
 pub async fn subscribe(
     State(state): State<AppState>,
     Query(q): Query<SubscribeQuery>,
@@ -140,6 +155,24 @@ async fn stream(
 }
 
 const CLIENT_GONE: &str = "client gone";
+
+/// OpenAPI cannot type the frames of an event stream, so the document
+/// describes them here, next to the code that sends them.
+const STREAM_DESCRIPTION: &str = "Server-sent events for one thread (spec §2.10): \
+the durable journal after `after`, then `caught-up`, then live. Each frame's \
+`event:` names its kind and its `data:` is JSON unless stated.\n\n\
+- `durable` — `{seq, kind, payload}`: one journal event, `payload` a JSON string. \
+Sent once each, in `seq` order, in the replay and live alike; remember the \
+highest `seq` and resubscribe with it as `after`.\n\
+- `caught-up` — data is the last replayed `seq` as plain text. The replay is over.\n\
+- `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n\
+- `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n\
+- `meta` — `{op, label}`: any other harness line, by label. Transient.\n\
+- `lagged` — empty: this client fell behind and transient frames were dropped; \
+durable ones were not.\n\
+- `fatal` — data is a message as plain text: the journal could not be read and \
+the stream ends.\n\n\
+The stream also ends when the daemon stops. Reconnect with the last `seq`.";
 
 /// Sends every journal event for `thread_id` after `last_seq`, advancing it.
 /// `Err` means the stream is over and says why: the client left, or storage

@@ -12,7 +12,7 @@ newtype_id! {
     ProjectId
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct Project {
     pub id: ProjectId,
     pub slug: String,

@@ -42,7 +42,25 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
     let (state, _stopping) = app_state(&tmp).await;
     let thread = seed_thread(&state.runtime).await;
 
-    let completed = start(&state, &thread, PROMPT).await;
+    // Through the router, as a client starts one: the turn outlives the
+    // request that started it, and its lines must not claim otherwise.
+    let response = router(state.clone())
+        .oneshot(
+            Request::post(format!("/api/threads/{thread}/turns"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "prompt": PROMPT }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::ACCEPTED);
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let started: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let completed = OperationId::from_literal(started["operation_id"].as_str().unwrap());
     wait_for_terminal(&state.runtime, &completed).await;
 
     let stopped = start(&state, &thread, "hang").await;
@@ -92,6 +110,25 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
             text.lines()
                 .any(|l| l.contains("process.spawn") && l.contains(op)),
             "process.spawn does not name its operation {op}:\n{text}"
+        );
+    }
+    // The HTTP-started turn's lines are under `planner.turn` alone. Nested
+    // under the request's `http{...}` span, every one of them would name a
+    // POST that returned 202 long before the line was written.
+    let turn_lines: Vec<&str> = text
+        .lines()
+        .filter(|l| l.contains("planner.turn{") && l.contains(completed.as_str()))
+        .collect();
+    assert!(
+        turn_lines
+            .iter()
+            .any(|l| l.contains("planner.first_output")),
+        "no planner line for the HTTP-started turn in:\n{text}"
+    );
+    for line in &turn_lines {
+        assert!(
+            !line.contains("http{"),
+            "a turn line inherited the request span: {line}"
         );
     }
     assert!(

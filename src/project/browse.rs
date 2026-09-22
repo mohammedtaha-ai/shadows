@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use super::directory::{DirectoryError, canonical_dir, utf8};
 
 /// One directory a person could open or choose.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 pub struct DirectoryEntry {
     pub name: String,
     /// Absolute and canonical; sending it back names exactly this directory.
@@ -27,7 +27,7 @@ pub struct DirectoryEntry {
 }
 
 /// A directory's immediate subdirectories, or the roots when `path` is `None`.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 pub struct DirectoryListing {
     /// The directory listed, canonical. `None` for the roots.
     pub path: Option<String>,

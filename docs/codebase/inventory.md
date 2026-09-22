@@ -186,7 +186,7 @@ impl DurableEvent {
 }
 ```
 
-## `src/id.rs` — 83 lines
+## `src/id.rs` — 101 lines
 
 ```rust
 pub(crate) use newtype_id;
@@ -268,7 +268,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/planner/spawn.rs` — 218 lines
+## `src/planner/spawn.rs` — 227 lines
 
 ```rust
 pub struct PlannerTurnRequest {
@@ -370,14 +370,30 @@ pub struct Project {
 }
 ```
 
-## `src/protocol/failure.rs` — 84 lines
+## `src/protocol/conversation.rs` — 119 lines
+
+```rust
+pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
+pub(super) struct StartTurn {}
+// + 1 private field
+pub(super) struct TurnStarted {}
+// + 1 private field
+pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<ThreadId>, Json(body): Json<StartTurn>) -> Result<(StatusCode, Json<TurnStarted>), Failure>
+pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
+```
+
+## `src/protocol/failure.rs` — 96 lines
 
 ```rust
 pub struct Failure {}
 // + 3 private fields
+pub struct ErrorBody {
+    pub code: ErrorCode,
+    pub message: String,
+}
 ```
 
-## `src/protocol/fs.rs` — 64 lines
+## `src/protocol/fs.rs` — 98 lines
 
 ```rust
 pub(super) struct DirsQuery {}
@@ -388,28 +404,11 @@ pub(super) struct CreateDir {}
 pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCode, Json<DirectoryEntry>), Failure>
 ```
 
-## `src/protocol/handlers.rs` — 157 lines
-
-```rust
-pub(super) struct CreateProject {}
-// + 4 private fields
-pub(super) async fn list_projects(State(s): State<AppState>) -> Result<Json<serde_json::Value>, Failure>
-pub(super) async fn create_project(State(s): State<AppState>, Json(body): Json<CreateProject>) -> Result<Json<serde_json::Value>, Failure>
-pub(super) async fn list_threads(State(s): State<AppState>, Path(project_id): Path<ProjectId>) -> Result<Json<serde_json::Value>, Failure>
-pub(super) struct CreateThread {}
-// + 2 private fields
-pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<serde_json::Value>, Failure>
-pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<serde_json::Value>, Failure>
-pub(super) struct StartTurn {}
-// + 1 private field
-pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<ThreadId>, Json(body): Json<StartTurn>) -> Result<(axum::http::StatusCode, Json<serde_json::Value>), Failure>
-pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<serde_json::Value>, Failure>
-```
-
-## `src/protocol/mod.rs` — 134 lines
+## `src/protocol/mod.rs` — 143 lines
 
 ```rust
 pub use failure::Failure;
+pub use openapi::document as openapi_document;
 pub struct AppState {
     pub runtime: Arc<Runtime>,
     pub storage: Arc<Storage>,
@@ -422,7 +421,28 @@ pub struct AppState {
 pub fn router(state: AppState) -> Router
 ```
 
-## `src/protocol/sse.rs` — 205 lines
+## `src/protocol/openapi.rs` — 80 lines
+
+```rust
+pub(super) fn base() -> utoipa::openapi::OpenApi
+pub fn document() -> String
+pub(super) async fn serve() -> ([(header::HeaderName, &'static str); 1], String)
+```
+
+## `src/protocol/project.rs` — 143 lines
+
+```rust
+pub(super) struct CreateProject {}
+// + 4 private fields
+pub(super) async fn list_projects(State(s): State<AppState>) -> Result<Json<Vec<Project>>, Failure>
+pub(super) async fn create_project(State(s): State<AppState>, Json(body): Json<CreateProject>) -> Result<Json<Project>, Failure>
+pub(super) async fn list_threads(State(s): State<AppState>, Path(project_id): Path<ProjectId>) -> Result<Json<Vec<PlanningThread>>, Failure>
+pub(super) struct CreateThread {}
+// + 2 private fields
+pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<PlanningThread>, Failure>
+```
+
+## `src/protocol/sse.rs` — 238 lines
 
 ```rust
 pub struct SubscribeQuery {

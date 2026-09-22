@@ -34,7 +34,7 @@ impl FailureStage {
 /// Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
 /// `ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged
 /// for reviewability, that follows this task (spec §4.1 OPEN block).
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct Operation {
     pub id: OperationId,
     pub kind: String,
