@@ -60,7 +60,7 @@ Nothing reachable from outside this file.
 
 Nothing reachable from outside this file.
 
-## `src/cli/mod.rs` — 108 lines
+## `src/cli/mod.rs` — 113 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -191,6 +191,14 @@ Nothing reachable from outside this file.
 ## `src/operation/mod.rs` — 52 lines
 
 ```rust
+pub struct OperationId(String);
+impl OperationId {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+    pub fn from_literal(id: impl Into<String>) -> Self
+}
+
 pub enum FailureStage {
     Prepare,
     Spawn,
@@ -288,6 +296,14 @@ pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle>
 ## `src/project/mod.rs` — 16 lines
 
 ```rust
+pub struct ProjectId(String);
+impl ProjectId {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+    pub fn from_literal(id: impl Into<String>) -> Self
+}
+
 pub struct Project {
     pub id: ProjectId,
     pub slug: String,
@@ -314,7 +330,7 @@ pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<serde_json::Value>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 95 lines
+## `src/protocol/mod.rs` — 100 lines
 
 ```rust
 pub struct AppState {
@@ -324,12 +340,13 @@ pub struct AppState {
     pub harness: Arc<ClaudeHarness>,
     pub bus: tokio::sync::broadcast::Sender<(OperationId, StreamItem)>,
     pub project_root: std::path::PathBuf,
+    pub shutdown: tokio::sync::watch::Receiver<bool>,
 }
 pub fn router(state: AppState) -> Router
 pub struct Failure(crate::storage::StorageError);
 ```
 
-## `src/protocol/sse.rs` — 127 lines
+## `src/protocol/sse.rs` — 134 lines
 
 ```rust
 pub struct SubscribeQuery {
@@ -342,6 +359,14 @@ pub async fn subscribe(State(state): State<AppState>, Query(q): Query<SubscribeQ
 ## `src/runtime/mod.rs` — 51 lines
 
 ```rust
+pub struct RuntimeInstanceId(String);
+impl RuntimeInstanceId {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+    pub fn from_literal(id: impl Into<String>) -> Self
+}
+
 pub struct Runtime {
     pub instance_id: RuntimeInstanceId,
     pub storage: Arc<Storage>,
@@ -463,6 +488,22 @@ impl Storage {
 ## `src/thread/mod.rs` — 69 lines
 
 ```rust
+pub struct ThreadId(String);
+impl ThreadId {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+    pub fn from_literal(id: impl Into<String>) -> Self
+}
+
+pub struct ThreadEntryId(String);
+impl ThreadEntryId {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+    pub fn from_literal(id: impl Into<String>) -> Self
+}
+
 pub struct PlanningThread {
     pub id: ThreadId,
     pub project_id: ProjectId,

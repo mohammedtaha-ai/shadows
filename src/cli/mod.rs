@@ -26,6 +26,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
 
     let version = harness_version(&config.harness_path).await;
     let (bus, _) = tokio::sync::broadcast::channel(4096);
+    let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {
         runtime: runtime.clone(),
         storage,
@@ -33,6 +34,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         harness: Arc::new(ClaudeHarness::new(config.harness_path.clone(), version)),
         bus,
         project_root: std::env::current_dir()?,
+        shutdown,
     };
 
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
@@ -69,6 +71,9 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
                 StopKind::Escalated
             };
             let _ = shutdown_runtime.stop(kind).await;
+            // Last: open live streams end here, so a graceful HTTP shutdown
+            // is not left waiting on a response that never finishes.
+            stopping.send_replace(true);
         })
         .await?;
     Ok(())

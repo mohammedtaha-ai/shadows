@@ -5,8 +5,19 @@
 //! visibility is `Inherited` (no `pub`) is private to its module and is left
 //! out. Inline `mod` blocks are walked, because a `pub fn` inside a private
 //! inline module is not reachable and must not appear.
+//!
+//! One macro is expanded rather than skipped: `newtype_id!` (`src/id.rs`), which
+//! declares every domain id and its constructors. Left unexpanded, `ThreadId`
+//! and its siblings would be missing from a document that claims to list every
+//! reachable declaration — the very types a caller most often needs the shape
+//! of. The expansion is the macro's own single rule with `$name` substituted,
+//! read from the tree, so the map follows the macro when it changes. Any other
+//! macro invocation is still invisible; a second item-declaring macro is the
+//! trigger to generalise this.
 
 use std::path::Path;
+
+use proc_macro2::{Group, TokenStream, TokenTree};
 
 /// A declaration worth listing, with the impl block it belongs to when it has
 /// one. `owner` is the printed self type, so `Storage` groups its methods.
@@ -35,6 +46,7 @@ pub fn scan(root: &Path) -> Vec<FileEntry> {
     let mut files = Vec::new();
     collect(root, &mut files);
     files.sort();
+    let newtype_id = newtype_id_template(&root.join("id.rs"));
 
     files
         .iter()
@@ -45,7 +57,7 @@ pub fn scan(root: &Path) -> Vec<FileEntry> {
                 .unwrap_or_else(|e| panic!("parsing {}: {e}", abs.display()));
 
             let mut decls = Vec::new();
-            walk(&parsed.items, &mut decls);
+            walk(&parsed.items, &newtype_id, &mut decls);
 
             FileEntry {
                 path: relative(root, abs),
@@ -77,16 +89,35 @@ fn relative(root: &Path, abs: &Path) -> String {
         .replace('\\', "/")
 }
 
-fn walk(items: &[syn::Item], out: &mut Vec<Decl>) {
+fn walk(items: &[syn::Item], newtype_id: &Option<TokenStream>, out: &mut Vec<Decl>) {
     for item in items {
         match item {
+            syn::Item::Macro(m) if m.mac.path.is_ident("newtype_id") => {
+                let template = newtype_id
+                    .as_ref()
+                    .expect("`newtype_id!` is invoked, so src/id.rs must define it");
+                let name = m
+                    .mac
+                    .tokens
+                    .clone()
+                    .into_iter()
+                    .filter_map(|t| match t {
+                        TokenTree::Ident(i) => Some(i),
+                        _ => None,
+                    })
+                    .last()
+                    .expect("`newtype_id!` names its type last");
+                let expanded: syn::File = syn::parse2(substitute(template.clone(), &name))
+                    .expect("`newtype_id!`'s expansion parses as items");
+                walk(&expanded.items, newtype_id, out);
+            }
             // An inline module that is not itself public cannot expose
             // anything, so its contents are skipped rather than flattened.
             syn::Item::Mod(m) => {
                 if let Some((_, inner)) = &m.content
                     && is_reachable(&m.vis)
                 {
-                    walk(inner, out);
+                    walk(inner, newtype_id, out);
                 }
             }
             syn::Item::Impl(imp) => {
@@ -117,6 +148,62 @@ fn walk(items: &[syn::Item], out: &mut Vec<Decl>) {
             }
         }
     }
+}
+
+/// The body of `newtype_id!`'s single rule, or `None` when the tree has no
+/// such macro (then any invocation is a contradiction and `walk` says so).
+fn newtype_id_template(id_rs: &Path) -> Option<TokenStream> {
+    let source = std::fs::read_to_string(id_rs).ok()?;
+    let parsed = syn::parse_file(&source).expect("parsing src/id.rs");
+    parsed.items.iter().find_map(|item| match item {
+        syn::Item::Macro(m) if m.ident.as_ref().is_some_and(|i| i == "newtype_id") => {
+            // `(matcher) => { body }`: the body is the last brace group.
+            m.mac
+                .tokens
+                .clone()
+                .into_iter()
+                .filter_map(|t| match t {
+                    TokenTree::Group(g) if g.delimiter() == proc_macro2::Delimiter::Brace => {
+                        Some(g.stream())
+                    }
+                    _ => None,
+                })
+                .last()
+        }
+        _ => None,
+    })
+}
+
+/// Expands one rule body: `$name` becomes the invoked identifier, and the
+/// `$( ... )*` repetition — the forwarded doc attributes — is dropped, since
+/// the inventory strips attributes anyway.
+fn substitute(body: TokenStream, name: &proc_macro2::Ident) -> TokenStream {
+    let mut out = Vec::new();
+    let mut trees = body.into_iter().peekable();
+    while let Some(tree) = trees.next() {
+        match tree {
+            TokenTree::Punct(p) if p.as_char() == '$' => match trees.next() {
+                Some(TokenTree::Ident(i)) if i == "name" => {
+                    out.push(TokenTree::Ident(name.clone()))
+                }
+                Some(TokenTree::Group(_)) => {
+                    if matches!(trees.peek(), Some(TokenTree::Punct(p)) if p.as_char() == '*') {
+                        trees.next();
+                    }
+                }
+                other => {
+                    panic!("`newtype_id!` uses a metavariable the codemap cannot expand: {other:?}")
+                }
+            },
+            TokenTree::Group(g) => {
+                let mut inner = Group::new(g.delimiter(), substitute(g.stream(), name));
+                inner.set_span(g.span());
+                out.push(TokenTree::Group(inner));
+            }
+            other => out.push(other),
+        }
+    }
+    out.into_iter().collect()
 }
 
 fn visibility(item: &syn::Item) -> Option<&syn::Visibility> {

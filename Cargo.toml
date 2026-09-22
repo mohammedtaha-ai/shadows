@@ -49,6 +49,11 @@ tempfile = "3"
 # neither is a product dependency and neither ships.
 syn = { version = "2", features = ["full", "parsing", "printing", "clone-impls"] }
 prettyplease = "0.2"
+# Token trees for expanding `newtype_id!` in the code map; already syn's own.
+proc-macro2 = "1"
+# `tests/protocol.rs` drives the real router in-process with `oneshot`. Already
+# in the graph through axum; listed here only to name its `util` trait.
+tower = { version = "0.5", features = ["util"] }
 # Enables `test-support` for integration tests (tests/*.rs) without turning
 # it on for `cargo build` or `cargo run`: Cargo's feature resolver unifies
 # features per build/test graph, so this only affects `cargo test`.

@@ -149,6 +149,9 @@ async fn an_event_published_during_the_replay_survives_the_handoff() {
     }
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
     let (bus, _) = tokio::sync::broadcast::channel(64);
+    // Held for the whole test: a dropped sender reads as a stopping daemon,
+    // which ends the live phase this test is waiting on.
+    let (_stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {
         runtime: Arc::new(runtime),
         storage,
@@ -159,6 +162,7 @@ async fn an_event_published_during_the_replay_survives_the_handoff() {
         )),
         bus: bus.clone(),
         project_root: tmp.path().to_path_buf(),
+        shutdown,
     };
 
     let response = subscribe(

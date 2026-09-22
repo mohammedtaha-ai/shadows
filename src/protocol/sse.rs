@@ -79,9 +79,16 @@ pub async fn subscribe(
                 .data(last_seq.to_string())))
             .await;
 
-        // 3. Live. Transient deltas are forwarded and never stored.
+        // 3. Live. Transient deltas are forwarded and never stored. The stream
+        // ends when the daemon stops (see `AppState::shutdown`); the client
+        // resubscribes with its last seq like after any other disconnect.
+        let mut shutdown = state.shutdown.clone();
         loop {
-            match live.recv().await {
+            let received = tokio::select! {
+                received = live.recv() => received,
+                _ = shutdown.wait_for(|stopping| *stopping) => return,
+            };
+            match received {
                 Ok((op_id, item)) => {
                     let ev = match item {
                         StreamItem::Delta { text } => Event::default()

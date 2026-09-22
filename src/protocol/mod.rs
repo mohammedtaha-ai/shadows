@@ -34,6 +34,11 @@ pub struct AppState {
     pub harness: Arc<ClaudeHarness>,
     pub bus: tokio::sync::broadcast::Sender<(OperationId, StreamItem)>,
     pub project_root: std::path::PathBuf,
+    /// Becomes `true` once the daemon is stopping. A live stream has no end of
+    /// its own, and a graceful HTTP shutdown waits for every open response to
+    /// finish — so without this, one open browser tab holds the daemon up
+    /// forever after its stop signal. A dropped sender means the same thing.
+    pub shutdown: tokio::sync::watch::Receiver<bool>,
 }
 
 pub fn router(state: AppState) -> Router {
