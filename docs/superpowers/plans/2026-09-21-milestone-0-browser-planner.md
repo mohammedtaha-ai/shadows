@@ -907,7 +907,9 @@ impl Storage {
                 Ok(v)
             }
             Err(e) => {
-                let _ = conn.execute("ROLLBACK").await;
+                if let Err(e) = conn.execute("ROLLBACK").await {
+                    tracing::error!(error = %e, "rollback failed; the write connection may be poisoned");
+                }
                 Err(e)
             }
         }
@@ -2821,7 +2823,13 @@ async fn every_transition_appends_its_event_atomically() {
     .bind(&op)
     .fetch_all(storage.reader()).await.unwrap();
     assert_eq!(kinds, vec!["OperationCreated", "OperationStarted", "OperationCompleted"]);
-    let _ = before;
+    // Amended after review: `before` was captured and discarded. Scoping the
+    // assertion to this operation's own rows cannot see an event written against
+    // the wrong operation, or none — both leave `kinds` right while the journal
+    // grew by more than three.
+    let after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM durable_event")
+        .fetch_one(storage.reader()).await.unwrap();
+    assert_eq!(after, before + 3);
 }
 ```
 

@@ -31,7 +31,7 @@ impl Storage {
         thread_id: &str,
         runtime_instance_id: &RuntimeInstanceId,
     ) -> Result<OperationId, StorageError> {
-        let id = OperationId::new();
+        let id = OperationId::generate();
         let (id_str, thread_id, runtime_id, ts) = (
             id.as_str().to_string(),
             thread_id.to_string(),

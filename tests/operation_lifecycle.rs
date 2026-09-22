@@ -189,5 +189,18 @@ async fn every_transition_appends_its_event_atomically() {
         kinds,
         vec!["OperationCreated", "OperationStarted", "OperationCompleted"]
     );
-    let _ = before;
+
+    // The `before` count was captured and then discarded. Scoping the assertion
+    // to this operation's own rows cannot see an event written against no
+    // operation at all, or against the wrong one — both of which leave `kinds`
+    // exactly right while the journal has grown by more than these three.
+    let after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM durable_event")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(
+        after,
+        before + 3,
+        "three transitions must append exactly three events to the whole journal"
+    );
 }

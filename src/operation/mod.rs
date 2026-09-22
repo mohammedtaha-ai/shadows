@@ -1,5 +1,3 @@
-use std::fmt;
-
 use crate::runtime::RuntimeInstanceId;
 
 /// UUID-v4 newtype over the operation identity. Spec §4.1: this and
@@ -11,7 +9,13 @@ use crate::runtime::RuntimeInstanceId;
 pub struct OperationId(String);
 
 impl OperationId {
-    pub fn new() -> Self {
+    /// Named `generate` rather than `new` deliberately. A constructor called
+    /// `new` that takes nothing and mints a random UUID reads like a cheap
+    /// empty value, and `clippy::new_without_default` then demands a `Default`
+    /// impl — which would mean `OperationId::default()` silently produces a
+    /// *different* id every call. `generate` says what it does, and leaves the
+    /// type with no way to be created by accident.
+    pub fn generate() -> Self {
         Self(uuid::Uuid::new_v4().to_string())
     }
 
@@ -23,18 +27,6 @@ impl OperationId {
     /// storage. Storage is the only caller; this is not a general parser.
     pub(crate) fn from_stored(id: String) -> Self {
         Self(id)
-    }
-}
-
-impl Default for OperationId {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl fmt::Display for OperationId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
     }
 }
 

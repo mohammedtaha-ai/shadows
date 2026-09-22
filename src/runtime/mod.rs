@@ -1,4 +1,3 @@
-use std::fmt;
 use std::sync::Arc;
 
 use crate::storage::{ReconcileReport, StopKind, Storage, StorageError};
@@ -12,7 +11,13 @@ use crate::storage::{ReconcileReport, StopKind, Storage, StorageError};
 pub struct RuntimeInstanceId(String);
 
 impl RuntimeInstanceId {
-    pub fn new() -> Self {
+    /// Named `generate` rather than `new` deliberately. A constructor called
+    /// `new` that takes nothing and mints a random UUID reads like a cheap
+    /// empty value, and `clippy::new_without_default` then demands a `Default`
+    /// impl — which would mean `RuntimeInstanceId::default()` silently produces a
+    /// *different* id every call. `generate` says what it does, and leaves the
+    /// type with no way to be created by accident.
+    pub fn generate() -> Self {
         Self(uuid::Uuid::new_v4().to_string())
     }
 
@@ -24,18 +29,6 @@ impl RuntimeInstanceId {
     /// storage. Storage is the only caller; this is not a general parser.
     pub(crate) fn from_stored(id: String) -> Self {
         Self(id)
-    }
-}
-
-impl Default for RuntimeInstanceId {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl fmt::Display for RuntimeInstanceId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
     }
 }
 

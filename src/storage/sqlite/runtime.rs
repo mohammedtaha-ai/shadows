@@ -30,7 +30,7 @@ impl Storage {
         &self,
         version: &str,
     ) -> Result<RuntimeInstanceId, StorageError> {
-        let id = RuntimeInstanceId::new();
+        let id = RuntimeInstanceId::generate();
         let ts = now();
         let (id2, version, ts2) = (id.as_str().to_string(), version.to_string(), ts.clone());
         self.write_txn(move |conn| {

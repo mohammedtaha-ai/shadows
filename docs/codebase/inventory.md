@@ -178,12 +178,12 @@ Nothing reachable from outside this file.
 
 Nothing reachable from outside this file.
 
-## `src/operation/mod.rs` — 82 lines
+## `src/operation/mod.rs` — 74 lines
 
 ```rust
 pub struct OperationId(String);
 impl OperationId {
-    pub fn new() -> Self
+    pub fn generate() -> Self
     pub fn as_str(&self) -> &str
     pub(crate) fn from_stored(id: String) -> Self
 }
@@ -247,12 +247,12 @@ pub struct Project {
 }
 ```
 
-## `src/runtime/mod.rs` — 79 lines
+## `src/runtime/mod.rs` — 72 lines
 
 ```rust
 pub struct RuntimeInstanceId(String);
 impl RuntimeInstanceId {
-    pub fn new() -> Self
+    pub fn generate() -> Self
     pub fn as_str(&self) -> &str
     pub(crate) fn from_stored(id: String) -> Self
 }
