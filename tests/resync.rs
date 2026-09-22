@@ -340,6 +340,7 @@ impl Live {
                 "test".into(),
             )),
             bus: bus.clone(),
+            allowed_origins: Vec::new(),
             shutdown,
         };
         Live {

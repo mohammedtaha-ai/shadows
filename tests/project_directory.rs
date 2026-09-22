@@ -32,6 +32,7 @@ async fn app(storage: Arc<Storage>) -> (Router, tokio::sync::watch::Sender<bool>
             "fake-1".into(),
         )),
         bus,
+        allowed_origins: Vec::new(),
         shutdown,
     });
     (app, stopping)

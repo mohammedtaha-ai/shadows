@@ -44,6 +44,7 @@ async fn fixture() -> Fixture {
             "fake-1".into(),
         )),
         bus,
+        allowed_origins: Vec::new(),
         shutdown,
     });
     Fixture {
@@ -85,8 +86,10 @@ async fn create_project(app: &Router, command_id: &str, name: &str) -> (StatusCo
     .await
 }
 
+/// Spec §1: the daemon does not serve or embed a client. There is no page at
+/// `/` to fall back on; a client is served from its own origin.
 #[tokio::test]
-async fn the_index_serves_the_web_client() {
+async fn the_daemon_serves_no_page() {
     let f = fixture().await;
     let response = f
         .app
@@ -94,9 +97,7 @@ async fn the_index_serves_the_web_client() {
         .oneshot(Request::get("/").body(Body::empty()).unwrap())
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    let content_type = response.headers()["content-type"].to_str().unwrap();
-    assert!(content_type.starts_with("text/html"), "{content_type}");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 /// Spec §3.2: the command id is the idempotency key. A replay with the same

@@ -32,7 +32,60 @@ fn serve_prints_one_local_address_and_does_not_open_a_browser() {
         first.starts_with("shadows serve listening on http://127.0.0.1:"),
         "unexpected first line: {first}"
     );
+    let addr = first
+        .trim_start_matches("shadows serve listening on http://")
+        .to_string();
+
+    // What it serves is an API, not a page (spec §1), and with no
+    // `--allow-origin` it admits Vite's dev server under both of its names.
+    let projects = request(&addr, "GET /api/projects HTTP/1.1\r\n");
+    let preflights: Vec<String> = shadows::config::DEFAULT_ALLOWED_ORIGINS
+        .iter()
+        .map(|origin| {
+            request(
+                &addr,
+                &format!(
+                    "OPTIONS /api/projects HTTP/1.1\r\nOrigin: {origin}\r\n\
+                     Access-Control-Request-Method: POST\r\n"
+                ),
+            )
+        })
+        .collect();
 
     child.kill().unwrap();
     child.wait().unwrap();
+
+    assert!(projects.starts_with("HTTP/1.1 200"), "{projects}");
+    for (origin, response) in shadows::config::DEFAULT_ALLOWED_ORIGINS
+        .iter()
+        .zip(&preflights)
+    {
+        assert!(
+            response
+                .to_ascii_lowercase()
+                .contains(&format!("access-control-allow-origin: {origin}")),
+            "{origin} was not allowed by default:\n{response}"
+        );
+    }
+}
+
+/// One request on its own connection; returns the response's status line and
+/// headers.
+fn request(addr: &str, head: &str) -> String {
+    use std::io::{Read, Write};
+    let mut stream = std::net::TcpStream::connect(addr).unwrap();
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(10)))
+        .unwrap();
+    write!(stream, "{head}Host: {addr}\r\nConnection: close\r\n\r\n").unwrap();
+    let mut response = String::new();
+    let mut buf = [0u8; 4096];
+    while !response.contains("\r\n\r\n") {
+        let n = stream.read(&mut buf).unwrap();
+        if n == 0 {
+            break;
+        }
+        response.push_str(&String::from_utf8_lossy(&buf[..n]));
+    }
+    response
 }

@@ -60,7 +60,7 @@ Nothing reachable from outside this file.
 
 Nothing reachable from outside this file.
 
-## `src/cli/mod.rs` — 111 lines
+## `src/cli/mod.rs` — 112 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -80,7 +80,7 @@ pub struct CommandContext {
 pub fn fingerprint(command_kind: &str, params: &serde_json::Value) -> String
 ```
 
-## `src/config.rs` — 56 lines
+## `src/config.rs` — 91 lines
 
 ```rust
 pub struct Config {
@@ -88,11 +88,15 @@ pub struct Config {
     pub bind: SocketAddr,
     pub harness_path: PathBuf,
     pub debug_log: Option<PathBuf>,
+    pub allowed_origins: Vec<String>,
 }
+pub const DEFAULT_ALLOWED_ORIGINS: [&str; 2] = [ "http://localhost:5173", "http://127.0.0.1:5173", ];
 pub fn data_dir(db_path: &Path) -> PathBuf
 pub enum ConfigError {
     HarnessNotAbsolute(String),
+    OriginInvalid(String),
 }
+pub fn allowed_origin(raw: &str) -> Result<String, ConfigError>
 pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError>
 ```
 
@@ -192,7 +196,7 @@ pub(crate) use newtype_id;
 
 Nothing reachable from outside this file.
 
-## `src/main.rs` — 68 lines
+## `src/main.rs` — 85 lines
 
 Nothing reachable from outside this file.
 
@@ -402,7 +406,7 @@ pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<serde_json::Value>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 109 lines
+## `src/protocol/mod.rs` — 134 lines
 
 ```rust
 pub use failure::Failure;
@@ -412,6 +416,7 @@ pub struct AppState {
     pub handles: Arc<LiveHandles>,
     pub harness: Arc<ClaudeHarness>,
     pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
+    pub allowed_origins: Vec<String>,
     pub shutdown: tokio::sync::watch::Receiver<bool>,
 }
 pub fn router(state: AppState) -> Router

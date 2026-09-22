@@ -12,7 +12,15 @@ pub struct Config {
     /// Set in debug mode: the file this run's log lines also go to, which
     /// `serve` prints after its address. Spec §8.7.
     pub debug_log: Option<PathBuf>,
+    /// Spec §1: the browser origins allowed to call this daemon cross-origin,
+    /// each built through [`allowed_origin`]. Every client is on another
+    /// origin — the daemon serves no page of its own.
+    pub allowed_origins: Vec<String>,
 }
+
+/// Vite's dev server, under both names a browser may use for it. What
+/// `--allow-origin` means when it is not given.
+pub const DEFAULT_ALLOWED_ORIGINS: [&str; 2] = ["http://localhost:5173", "http://127.0.0.1:5173"];
 
 /// The daemon's data directory: the one holding its database. Debug mode's
 /// `logs/` directory lives here, beside the data it explains.
@@ -32,6 +40,33 @@ pub enum ConfigError {
          path resolves against whatever directory the daemon happens to be in."
     )]
     HarnessNotAbsolute(String),
+    #[error(
+        "`{0}` is not an origin. An origin is exactly what a browser sends in its \
+         Origin header: `http://` or `https://`, a host, an optional port, and \
+         nothing after it — no path, not even a trailing slash."
+    )]
+    OriginInvalid(String),
+}
+
+/// The only way an allowed origin should be obtained from user input. A
+/// browser compares its `Origin` header byte for byte, so an entry with a
+/// trailing slash or a path would be accepted here and then match nothing,
+/// silently; it is refused at startup instead.
+pub fn allowed_origin(raw: &str) -> Result<String, ConfigError> {
+    let invalid = || ConfigError::OriginInvalid(raw.to_string());
+    let authority = raw
+        .strip_prefix("http://")
+        .or_else(|| raw.strip_prefix("https://"))
+        .ok_or_else(invalid)?;
+    let usable = !authority.is_empty()
+        && authority.is_ascii()
+        && !authority.contains(['/', '?', '#', '@', ' '])
+        && !authority.starts_with(':');
+    if usable {
+        Ok(raw.to_string())
+    } else {
+        Err(invalid())
+    }
 }
 
 /// The only way a `harness_path` should be obtained from user input.

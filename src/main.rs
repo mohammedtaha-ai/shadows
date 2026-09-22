@@ -33,7 +33,22 @@ enum Commands {
         /// `<db directory>/logs/`. The file's path is printed at startup.
         #[arg(long)]
         debug: bool,
+        /// A browser origin allowed to call this daemon, such as
+        /// `http://localhost:5173`. Repeat it for each. Given at all, it
+        /// replaces the default, which is Vite's dev server under both of its
+        /// names.
+        #[arg(
+            long = "allow-origin",
+            value_name = "ORIGIN",
+            value_parser = parse_origin,
+            default_values = shadows::config::DEFAULT_ALLOWED_ORIGINS,
+        )]
+        allow_origin: Vec<String>,
     },
+}
+
+fn parse_origin(raw: &str) -> Result<String, String> {
+    shadows::config::allowed_origin(raw).map_err(|e| e.to_string())
 }
 
 /// Rejects a bare program name or a relative path at parse time, so the failure
@@ -52,6 +67,7 @@ async fn main() -> anyhow::Result<()> {
             bind,
             harness,
             debug,
+            allow_origin,
         } => {
             let data_dir = shadows::config::data_dir(&db);
             // Held until `serve` returns: dropping it flushes the file.
@@ -61,6 +77,7 @@ async fn main() -> anyhow::Result<()> {
                 bind,
                 harness_path: harness,
                 debug_log: log.as_ref().map(|l| l.path().to_path_buf()),
+                allowed_origins: allow_origin,
             })
             .await
         }

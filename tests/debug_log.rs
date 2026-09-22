@@ -135,6 +135,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (AppState, tokio::sync::watch::Se
             "fake-1".into(),
         )),
         bus,
+        allowed_origins: Vec::new(),
         shutdown,
     };
     (state, stopping)

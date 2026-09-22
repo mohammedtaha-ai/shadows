@@ -1,5 +1,5 @@
 //! One job: wiring. What shared state a route may reach, which path reaches
-//! which handler, and how a failure becomes a status code.
+//! which handler, and which origins may call at all.
 //!
 //! CLAUDE.md names `protocol/` an accretion point: every feature this project
 //! ever adds puts a route here. So the split is made on the way in — this file
@@ -23,9 +23,9 @@ use std::time::Duration;
 
 use axum::Router;
 use axum::body::Body;
-use axum::http::{Request, Response};
-use axum::response::Html;
+use axum::http::{HeaderValue, Method, Request, Response, header};
 use axum::routing::{get, post};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 use crate::agent::StreamItem;
@@ -43,6 +43,10 @@ pub struct AppState {
     pub handles: Arc<LiveHandles>,
     pub harness: Arc<ClaudeHarness>,
     pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
+    /// Spec §1: the only origins a browser may call this daemon from. Every
+    /// client is cross-origin, because the daemon serves no page. Validated
+    /// by `config::allowed_origin` before it gets here.
+    pub allowed_origins: Vec<String>,
     /// Becomes `true` once the daemon is stopping. A live stream has no end of
     /// its own, and a graceful HTTP shutdown waits for every open response to
     /// finish — so without this, one open browser tab holds the daemon up
@@ -50,9 +54,11 @@ pub struct AppState {
     pub shutdown: tokio::sync::watch::Receiver<bool>,
 }
 
+/// Spec §1: the daemon serves no page — there is no `GET /`. A client is
+/// served from its own origin and reaches this API cross-origin.
 pub fn router(state: AppState) -> Router {
+    let cors = cors(&state.allowed_origins);
     Router::new()
-        .route("/", get(index))
         .route(
             "/api/projects",
             get(handlers::list_projects).post(handlers::create_project),
@@ -67,6 +73,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/subscribe", get(sse::subscribe))
         .route("/api/fs/dirs", get(fs::list_dirs).post(fs::create_dir))
         .with_state(state)
+        // Inside the trace layer, so a refused or answered preflight is
+        // logged like any other request.
+        .layer(cors)
         // One `http.response` line per request: method, path, status,
         // latency. The path is logged without its query string and no body
         // ever is — a body can hold a prompt; at debug the request's size is
@@ -103,7 +112,23 @@ fn content_length(headers: &axum::http::HeaderMap) -> Option<u64> {
         .ok()
 }
 
-/// The whole web client. Spec §1.0: the daemon serves it and never opens it.
-async fn index() -> Html<&'static str> {
-    Html(include_str!("index.html"))
+/// Cross-origin access for the configured origins only; any other origin's
+/// request gets no `Access-Control-Allow-Origin` and the browser withholds the
+/// response. The methods and headers are exactly what the routes use: `GET`
+/// and `POST`, JSON bodies, and `Last-Event-ID`, which a browser's
+/// `EventSource` sends when it reconnects a stream. No credentials: the API
+/// has none to send (spec §1's OPEN block on remote access).
+fn cors(origins: &[String]) -> CorsLayer {
+    let origins: Vec<HeaderValue> = origins
+        .iter()
+        .filter_map(|o| HeaderValue::from_str(o).ok())
+        .collect();
+    CorsLayer::new()
+        .allow_origin(AllowOrigin::list(origins))
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::HeaderName::from_static("last-event-id"),
+        ])
+        .max_age(Duration::from_secs(600))
 }

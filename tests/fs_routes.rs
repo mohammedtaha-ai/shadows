@@ -28,6 +28,7 @@ async fn app(tmp: &Path) -> (Router, tokio::sync::watch::Sender<bool>) {
         handles: Arc::new(LiveHandles::default()),
         harness: Arc::new(ClaudeHarness::new(tmp.join("claude.exe"), "test".into())),
         bus,
+        allowed_origins: Vec::new(),
         shutdown,
     });
     (app, stopping)
