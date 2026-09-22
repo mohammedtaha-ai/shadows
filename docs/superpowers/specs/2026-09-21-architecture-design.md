@@ -13,7 +13,16 @@ shadows serve    # long-running local daemon/runtime
 shadows ...      # CLI client
 ```
 
-`shadows serve` exposes the local API and product Web client at one local address. It prints the address and never opens a browser automatically; the user chooses which browser to use.
+`shadows serve` exposes the local API only. It prints the address and never opens a browser automatically; the user chooses which browser to use.
+
+**The daemon does not serve or embed the client** (decided 2026-09-23, superseding the single-page `include_str!` recommendation in `docs/evidence/harness/SERVE_STREAM_SPIKE.md` Finding 1). The backend stays on the machine that owns the projects, the processes, and the harness; clients reach it over the protocol, the way a hosted web app reaches a locally running agent. The Web client is the first client, a desktop client is a later one, and a hosted Web client reaching a remote daemon is a later deployment of the same one. Consequences:
+
+- The Web client lives in `web/` in this repository, built and deployed on its own. It is React + TypeScript on Vite, with TanStack Router and TanStack Query, shadcn/ui on Tailwind v4 (theme as CSS variables in one place), Motion for animation, and Streamdown for rendering streamed markdown. Anything else earns its place the day a screen needs it.
+- **The protocol is described, not copied.** The daemon generates an OpenAPI document from its routes (`utoipa` + `utoipa-axum`), and every client's types and HTTP client are generated from it (`openapi-typescript` + `openapi-fetch`). A route change that the client has not followed fails the client's build. The SSE stream (§2.10) is documented there too, but it is consumed by a hand-written hook, because its replay, then live, then dedupe-by-seq contract is ours.
+- The daemon allows cross-origin requests only from origins listed in configuration.
+- Filesystem browsing, for choosing or creating a project directory, is a daemon route: only the daemon can see the machine's disk.
+
+> **OPEN — remote access.** A client on another machine reaching this daemon needs authentication and transport security that do not exist yet. Milestone 0 binds to loopback and has neither. Trigger that closes it: the first deployment where the client and the daemon are not on the same machine. It does not block Milestone 0, whose clients are all local.
 
 ## 1.0 First runnable product boundary
 
