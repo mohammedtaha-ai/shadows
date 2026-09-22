@@ -25,7 +25,27 @@ Domain IDs are UUID-v4 newtypes unless a later decision explicitly changes one:
 > `mark_operation_started(op_id, expected_runtime)` takes two `String`s that the
 > compiler cannot tell apart. That is where `String` stops being cosmetic and starts
 > being a defect the type system was supposed to catch. Task 9's dispatch carries this
-> block; the newtypes land with it and sweep the earlier signatures.
+> block.
+>
+> **Amended at Task 9's dispatch: the close is split into two changes.** Task 9 lands
+> `OperationId` and `RuntimeInstanceId` only, because that pair is the adjacency named
+> above and Task 9's own API is where it would first be reachable. The sweep of
+> `ProjectId`, `ThreadId` and `ThreadEntryId` across `project/`, `thread/`, `events/`,
+> `storage/` and their tests follows as its own change, before Task 10.
+>
+> The reason is reviewability, not scope aversion: a tree-wide rename folded into the
+> operation lifecycle produces one diff in which a reviewer cannot reject the rename
+> while approving the lifecycle, or the reverse. The plan's own task right-sizing rule
+> is that a task is the smallest unit worth a fresh reviewer's gate.
+>
+> Note what is *no longer* a reason to wait. The original deferral was structural —
+> `ProjectId` and `ThreadId` had no module to live in. Tasks 5 and 6 created
+> `project/` and `thread/`, so that argument is spent, and only sequencing remains.
+>
+> **Trigger for the remainder:** immediately after Task 9's review, before Task 10.
+> The sweep also takes in `Storage::append_thread_entry`, which currently takes five
+> consecutive `&str` parameters — found by the generated code map on its first run, and
+> the same defect class in a worse degree than the one this block was opened for.
 
 ```text
 ProjectId
