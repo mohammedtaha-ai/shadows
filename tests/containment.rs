@@ -13,9 +13,21 @@ fn is_alive(pid: u32) -> bool {
     String::from_utf8_lossy(&out.stdout).trim() == "yes"
 }
 
+/// A process that has been killed but not yet reaped keeps its `/proc` entry,
+/// so existence is not life — the zombie state is what tells a corpse from a
+/// running process. Windows has no such state, which is why an existence check
+/// passed there and failed only on Linux.
 #[cfg(unix)]
 fn is_alive(pid: u32) -> bool {
-    std::path::Path::new(&format!("/proc/{pid}")).exists()
+    let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
+        return false;
+    };
+    // Field 2 is `comm`, parenthesised and free to contain spaces and
+    // parentheses; the state character is the first field after the LAST `)`.
+    let Some(rest) = stat.rsplit_once(") ") else {
+        return false;
+    };
+    !matches!(rest.1.chars().next(), Some('Z') | None)
 }
 
 /// Spec §1.5 and §3.7 Layer 4. A managed child and every managed descendant
@@ -64,7 +76,11 @@ async fn terminating_a_managed_tree_kills_the_grandchild_too() {
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
-    panic!("child or grandchild survived termination: child={child} grandchild={grandchild}");
+    panic!(
+        "survived termination: child={child} alive={}, grandchild={grandchild} alive={}",
+        is_alive(child),
+        is_alive(grandchild)
+    );
 }
 
 /// Completion belongs to the managed tree, not only its leader. A harness that
