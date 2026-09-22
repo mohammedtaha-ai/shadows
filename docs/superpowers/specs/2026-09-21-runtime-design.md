@@ -312,6 +312,18 @@ Never log secrets, complete environments, raw prompts, model output, provider
 payloads, bootstrap credentials, or sensitive filesystem paths by default. Debug
 mode may add diagnostic detail; it does not disable redaction.
 
+**Debug mode.** `shadows serve --debug` raises the default filter to
+`shadows=debug` (`RUST_LOG`, when set, still decides) and writes every line to
+stderr **and** to a new plain-text file,
+`<data dir>/logs/shadows-<UTC start>-<pid>.log`, where the data directory is the
+one holding the database. One file per daemon start; `tracing-appender` writes
+it, and the daemon holds its flush guard for its whole lifetime so the lines
+that explain how a run ended reach disk. `serve` prints the file's path on a
+second stdout line, after its address. Without `--debug`: `shadows=info`, stderr
+only, no file. Every HTTP request logs one `http.response` line (method, path
+without query, status, latency); a request's size is logged at debug, its body
+never.
+
 Operational events originating in the harness rather than in Shadows — retries,
 rate-limit signals, and the like — are forwarded to the client rather than
 discarded. A harness that stalls silently while retrying is indistinguishable

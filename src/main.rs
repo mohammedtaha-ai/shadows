@@ -28,6 +28,11 @@ enum Commands {
         /// because an environment variable is still explicit configuration.
         #[arg(long, env = "SHADOWS_HARNESS", value_parser = parse_harness)]
         harness: PathBuf,
+        /// Debug logging (`shadows=debug`, unless `RUST_LOG` says otherwise),
+        /// written to stderr and to a new plain-text file under
+        /// `<db directory>/logs/`. The file's path is printed at startup.
+        #[arg(long)]
+        debug: bool,
     },
 }
 
@@ -41,13 +46,21 @@ fn parse_harness(raw: &str) -> Result<PathBuf, String> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    shadows::tracing::init(cli.verbose);
     match cli.command {
-        Commands::Serve { db, bind, harness } => {
+        Commands::Serve {
+            db,
+            bind,
+            harness,
+            debug,
+        } => {
+            let data_dir = shadows::config::data_dir(&db);
+            // Held until `serve` returns: dropping it flushes the file.
+            let log = shadows::tracing::init(cli.verbose, debug.then_some(data_dir.as_path()))?;
             shadows::cli::serve(Config {
                 db_path: db,
                 bind,
                 harness_path: harness,
+                debug_log: log.as_ref().map(|l| l.path().to_path_buf()),
             })
             .await
         }

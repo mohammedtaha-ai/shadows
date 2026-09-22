@@ -25,9 +25,15 @@ impl Runtime {
         let instance_id = storage.register_runtime_instance(version).await?;
         let report = storage.reconcile_orphans(&instance_id).await?;
 
-        for op in &report.interrupted {
-            tracing::info!(operation_id = %op, "recovery.reconcile");
-        }
+        // Each interrupted operation is already logged once, by its committed
+        // transition (`operation.transition.committed`, to=Interrupted). An
+        // anomaly is a second, different fact about it, so it gets its own line.
+        tracing::info!(
+            runtime_instance_id = %instance_id,
+            interrupted = report.interrupted.len(),
+            anomalies = report.anomalies.len(),
+            "recovery.reconcile"
+        );
         for op in &report.anomalies {
             tracing::error!(
                 operation_id = %op,
@@ -46,6 +52,8 @@ impl Runtime {
     pub async fn stop(&self, kind: StopKind) -> Result<(), StorageError> {
         self.storage
             .stop_runtime_instance(&self.instance_id, kind)
-            .await
+            .await?;
+        tracing::info!(runtime_instance_id = %self.instance_id, stop_kind = ?kind, "runtime.stop");
+        Ok(())
     }
 }

@@ -3,7 +3,8 @@ use crate::operation::{FailureStage, Operation, OperationId};
 use crate::runtime::RuntimeInstanceId;
 use crate::thread::ThreadId;
 
-use super::{Storage, StorageError, now, transition::record};
+use super::transition::{Before, existed, read_before, record};
+use super::{Storage, StorageError, now};
 
 /// The thirteen `operation` columns `get_operation` reads back, in select
 /// order. A row alias, not a domain type: `get_operation` maps it into
@@ -39,31 +40,35 @@ impl Storage {
             runtime_instance_id.clone(),
             now(),
         );
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                sqlx::query(
-                    "INSERT INTO operation
-                       (id, kind, status_kind, thread_id, runtime_instance_id, created_at)
-                     VALUES (?, 'PlannerTurn', 'Pending', ?, ?, ?)",
-                )
-                .bind(op_id.as_str())
-                .bind(thread_id.as_str())
-                .bind(runtime_id.as_str())
-                .bind(&ts)
-                .execute(&mut *conn)
-                .await?;
+        let transition = self
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    sqlx::query(
+                        "INSERT INTO operation
+                           (id, kind, status_kind, thread_id, runtime_instance_id, created_at)
+                         VALUES (?, 'PlannerTurn', 'Pending', ?, ?, ?)",
+                    )
+                    .bind(op_id.as_str())
+                    .bind(thread_id.as_str())
+                    .bind(runtime_id.as_str())
+                    .bind(&ts)
+                    .execute(&mut *conn)
+                    .await?;
 
-                record(
-                    conn,
-                    &op_id,
-                    DurableEvent::new("OperationCreated", Actor::system())
-                        .with_payload(serde_json::json!({ "kind": "PlannerTurn" })),
-                    &ts,
-                )
-                .await
+                    record(
+                        conn,
+                        &op_id,
+                        Before::creating(thread_id),
+                        "Pending",
+                        DurableEvent::new("OperationCreated", Actor::system())
+                            .with_payload(serde_json::json!({ "kind": "PlannerTurn" })),
+                        &ts,
+                    )
+                    .await
+                })
             })
-        })
-        .await?;
+            .await?;
+        transition.log();
         Ok(id)
     }
 
@@ -78,6 +83,7 @@ impl Storage {
         let (op_id, expected_runtime, ts) = (op_id.clone(), expected_runtime.clone(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
+                let before = read_before(conn, &op_id).await?;
                 let affected = sqlx::query(
                     "UPDATE operation SET status_kind = 'Running', started_at = ?
                       WHERE id = ? AND status_kind = 'Pending' AND runtime_instance_id = ?",
@@ -97,13 +103,17 @@ impl Storage {
                 record(
                     conn,
                     &op_id,
+                    existed(before)?,
+                    "Running",
                     DurableEvent::new("OperationStarted", Actor::system()),
                     &ts,
                 )
                 .await
             })
         })
-        .await
+        .await?
+        .log();
+        Ok(())
     }
 
     pub async fn mark_operation_completed(
@@ -114,6 +124,7 @@ impl Storage {
         let (op_id, outcome, ts) = (op_id.clone(), outcome.to_string(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
+                let before = read_before(conn, &op_id).await?;
                 let affected = sqlx::query(
                     "UPDATE operation
                         SET status_kind = 'Completed', outcome_json = ?, finished_at = ?
@@ -134,13 +145,17 @@ impl Storage {
                 record(
                     conn,
                     &op_id,
+                    existed(before)?,
+                    "Completed",
                     DurableEvent::new("OperationCompleted", Actor::system()),
                     &ts,
                 )
                 .await
             })
         })
-        .await
+        .await?
+        .log();
+        Ok(())
     }
 
     pub async fn mark_operation_failed(
@@ -152,6 +167,7 @@ impl Storage {
         let (op_id, reason, ts) = (op_id.clone(), reason.to_string(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
+                let before = read_before(conn, &op_id).await?;
                 let affected = sqlx::query(
                     "UPDATE operation
                         SET status_kind = 'Failed', failure_stage = ?, failure_reason = ?,
@@ -174,14 +190,19 @@ impl Storage {
                 record(
                     conn,
                     &op_id,
+                    existed(before)?,
+                    "Failed",
                     DurableEvent::new("OperationFailed", Actor::system())
                         .with_payload(serde_json::json!({ "stage": stage.as_str() })),
                     &ts,
                 )
                 .await
+                .map(|t| t.with_detail(format!("{}: {reason}", stage.as_str())))
             })
         })
-        .await
+        .await?
+        .log();
+        Ok(())
     }
 
     /// TX #1 of cancellation. Spec §2.3: this records that a stop was asked
@@ -193,37 +214,49 @@ impl Storage {
         requester: Actor,
     ) -> Result<(), StorageError> {
         let (op_id, requester, ts) = (op_id.clone(), requester, now());
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                let affected = sqlx::query(
-                    "UPDATE operation
+        let transition = self
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let before = read_before(conn, &op_id).await?;
+                    let affected = sqlx::query(
+                        "UPDATE operation
                         SET cancel_requested_at = ?, cancel_requested_by_kind = ?,
                             cancel_requested_by_id = ?
                       WHERE id = ? AND status_kind IN ('Pending','Running')
                         AND cancel_requested_at IS NULL",
-                )
-                .bind(&ts)
-                .bind(&requester.kind)
-                .bind(&requester.id)
-                .bind(op_id.as_str())
-                .execute(&mut *conn)
-                .await?
-                .rows_affected();
-                if affected == 0 {
-                    // Already requested, or already terminal. Spec §2.3: a
-                    // repeat is idempotent and runs no process effects.
-                    return Ok(());
-                }
-                record(
-                    conn,
-                    &op_id,
-                    DurableEvent::new("OperationCancellationRequested", requester),
-                    &ts,
-                )
-                .await
+                    )
+                    .bind(&ts)
+                    .bind(&requester.kind)
+                    .bind(&requester.id)
+                    .bind(op_id.as_str())
+                    .execute(&mut *conn)
+                    .await?
+                    .rows_affected();
+                    if affected == 0 {
+                        // Already requested, or already terminal. Spec §2.3: a
+                        // repeat is idempotent and runs no process effects.
+                        return Ok(None);
+                    }
+                    let before = existed(before)?;
+                    // A request leaves the status where it was (spec §2.3).
+                    let status = before.status().to_string();
+                    record(
+                        conn,
+                        &op_id,
+                        before,
+                        &status,
+                        DurableEvent::new("OperationCancellationRequested", requester),
+                        &ts,
+                    )
+                    .await
+                    .map(Some)
+                })
             })
-        })
-        .await
+            .await?;
+        if let Some(transition) = transition {
+            transition.log();
+        }
+        Ok(())
     }
 
     /// TX #2 of cancellation, written ONLY after the process tree is confirmed
@@ -233,6 +266,7 @@ impl Storage {
         let (op_id, ts) = (op_id.clone(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
+                let before = read_before(conn, &op_id).await?;
                 let affected = sqlx::query(
                     "UPDATE operation SET status_kind = 'Cancelled', finished_at = ?
                       WHERE id = ? AND status_kind IN ('Pending','Running')",
@@ -251,13 +285,17 @@ impl Storage {
                 record(
                     conn,
                     &op_id,
+                    existed(before)?,
+                    "Cancelled",
                     DurableEvent::new("OperationCancelled", Actor::system()),
                     &ts,
                 )
                 .await
             })
         })
-        .await
+        .await?
+        .log();
+        Ok(())
     }
 
     pub async fn get_operation(&self, op_id: &OperationId) -> Result<Operation, StorageError> {

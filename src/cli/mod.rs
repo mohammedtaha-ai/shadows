@@ -16,13 +16,9 @@ use crate::storage::{StopKind, Storage};
 /// browser. The user chooses which browser to use.
 pub async fn serve(config: Config) -> anyhow::Result<()> {
     let storage = Arc::new(Storage::open(&config.db_path).await?);
-    let (runtime, report) = Runtime::start(storage.clone()).await?;
+    // `Runtime::start` logs recovery (`recovery.reconcile`).
+    let (runtime, _report) = Runtime::start(storage.clone()).await?;
     let runtime = Arc::new(runtime);
-    tracing::info!(
-        interrupted = report.interrupted.len(),
-        anomalies = report.anomalies.len(),
-        "startup recovery complete"
-    );
 
     let version = harness_version(&config.harness_path).await;
     let (bus, _) = tokio::sync::broadcast::channel(4096);
@@ -40,6 +36,9 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
     let addr = listener.local_addr()?;
     println!("shadows serve listening on http://{addr}");
+    if let Some(path) = &config.debug_log {
+        println!("shadows serve debug log: {}", path.display());
+    }
 
     // Spec §8.5: shutdown reuses the cancellation path. There is no drain mode.
     let shutdown_runtime = runtime.clone();

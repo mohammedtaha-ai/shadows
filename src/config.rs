@@ -9,6 +9,18 @@ pub struct Config {
     /// carries more than one `claude-code` installation at different versions.
     /// Built through [`harness_path`], which is what enforces that.
     pub harness_path: PathBuf,
+    /// Set in debug mode: the file this run's log lines also go to, which
+    /// `serve` prints after its address. Spec §8.7.
+    pub debug_log: Option<PathBuf>,
+}
+
+/// The daemon's data directory: the one holding its database. Debug mode's
+/// `logs/` directory lives here, beside the data it explains.
+pub fn data_dir(db_path: &Path) -> PathBuf {
+    match db_path.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent.to_path_buf(),
+        _ => PathBuf::from("."),
+    }
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]

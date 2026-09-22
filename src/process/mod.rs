@@ -72,6 +72,9 @@ impl ProcessHandle {
     pub async fn wait(&mut self) -> io::Result<std::process::ExitStatus> {
         loop {
             if let Some(status) = self.child.try_wait()? {
+                // The leader is reaped. Spec §8.7 `process.exit`; the caller's
+                // span supplies the operation and thread.
+                tracing::info!(%status, "process.exit");
                 match self.child.start_kill() {
                     Ok(()) => return Ok(status),
                     #[cfg(unix)]
@@ -97,13 +100,22 @@ impl ProcessHandle {
     /// owns it. Spec §8.3: never by signalling a PID read from the database,
     /// because the operating system reuses PIDs.
     pub fn terminate_tree(&mut self) -> io::Result<()> {
+        let pid = self.child.id();
         #[cfg(feature = "test-support")]
-        if self.termination_fails {
-            return Err(io::Error::other(
+        let result = if self.termination_fails {
+            Err(io::Error::other(
                 "termination failure forced by test support",
-            ));
+            ))
+        } else {
+            self.child.start_kill()
+        };
+        #[cfg(not(feature = "test-support"))]
+        let result = self.child.start_kill();
+        match &result {
+            Ok(()) => tracing::info!(pid, "process.terminate"),
+            Err(error) => tracing::warn!(pid, %error, "process.terminate_failed"),
         }
-        self.child.start_kill()
+        result
     }
 
     /// Test-only: makes `terminate_tree` report failure so spec §8.4 case 6
@@ -167,7 +179,23 @@ pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle> {
     #[cfg(unix)]
     wrapped.wrap(ProcessSession);
 
-    let mut child = wrapped.spawn()?;
+    // Spec §8.7 `process.spawn`. The executable and working directory are
+    // logged; the arguments and environment never are — a harness's arguments
+    // carry the prompt, and the environment can carry credentials.
+    let mut child = wrapped.spawn().inspect_err(|error| {
+        tracing::warn!(
+            executable = %spec.executable.display(),
+            cwd = %spec.cwd.display(),
+            %error,
+            "process.spawn_failed"
+        );
+    })?;
+    tracing::info!(
+        pid = child.id(),
+        executable = %spec.executable.display(),
+        cwd = %spec.cwd.display(),
+        "process.spawn"
+    );
     let stdout = child.stdout().take().map(|out| {
         use tokio::io::AsyncBufReadExt;
         BufReader::new(out).lines()

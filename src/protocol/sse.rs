@@ -6,6 +6,7 @@ use axum::extract::{Query, State};
 use axum::response::sse::{Event, Sse};
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
+use tracing::Instrument;
 
 use super::AppState;
 use crate::agent::StreamItem;
@@ -45,93 +46,110 @@ pub async fn subscribe(
 ) -> Sse<ReceiverStream<Result<Event, Infallible>>> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(1024);
     // Both taken before the replay is read; see above.
-    let mut committed = state.storage.watch_committed();
-    let mut live = state.bus.subscribe();
+    let committed = state.storage.watch_committed();
+    let live = state.bus.subscribe();
+    let span = tracing::debug_span!("sse", thread_id = %q.thread_id);
+    tracing::debug!(parent: &span, after = q.after, "sse.subscribe");
 
-    tokio::spawn(async move {
-        // 1. Durable replay.
-        let mut last_seq = q.after;
-        if send_journal_after(&state.storage, &q.thread_id, &mut last_seq, &tx)
-            .await
-            .is_err()
-        {
-            return;
+    tokio::spawn(
+        async move {
+            let why = stream(state, q, committed, live, tx).await;
+            tracing::debug!(why, "sse.closed");
         }
-
-        // 2. Handoff. Tell the client where the durable replay ended.
-        let _ = tx
-            .send(Ok(Event::default()
-                .event("caught-up")
-                .data(last_seq.to_string())))
-            .await;
-
-        // 3. Live. The stream ends when the daemon stops (see
-        // `AppState::shutdown`); the client resubscribes with its last seq
-        // like after any other disconnect.
-        let mut shutdown = state.shutdown.clone();
-        loop {
-            // The select only decides which source woke; acting on it happens
-            // after, so no borrowed `watch::Ref` is held across an await.
-            //
-            // `biased`, journal before bus: a publisher commits (raising the
-            // signal) before it sends the transient item that follows, so
-            // polling the signal first keeps a turn's `turn-end` behind the
-            // durable entry it ends.
-            let received = tokio::select! {
-                biased;
-                _ = shutdown.wait_for(|stopping| *stopping) => return,
-                changed = committed.changed() => {
-                    if changed.is_err() {
-                        return;
-                    }
-                    None
-                }
-                received = live.recv() => Some(received),
-            };
-            let Some(received) = received else {
-                if send_journal_after(&state.storage, &q.thread_id, &mut last_seq, &tx)
-                    .await
-                    .is_err()
-                {
-                    return;
-                }
-                continue;
-            };
-            match received {
-                Ok((thread_id, op_id, item)) => {
-                    if thread_id != q.thread_id {
-                        continue;
-                    }
-                    let Some(ev) = transient_event(&op_id, item) else {
-                        continue;
-                    };
-                    if tx.send(Ok(ev)).await.is_err() {
-                        return;
-                    }
-                }
-                // Spec §8.4 case 7: a client falling behind or
-                // disconnecting never cancels work. It resubscribes with
-                // its last seq.
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
-                    let _ = tx.send(Ok(Event::default().event("lagged").data(""))).await;
-                }
-                Err(_) => return,
-            }
-        }
-    });
+        .instrument(span),
+    );
 
     Sse::new(ReceiverStream::new(rx))
 }
 
+/// The replay, the handoff, and the live phase for one subscriber. Returns why
+/// the stream ended, for the `sse.closed` line.
+async fn stream(
+    state: AppState,
+    q: SubscribeQuery,
+    mut committed: tokio::sync::watch::Receiver<i64>,
+    mut live: tokio::sync::broadcast::Receiver<(ThreadId, OperationId, StreamItem)>,
+    tx: Sender<Result<Event, Infallible>>,
+) -> &'static str {
+    // 1. Durable replay.
+    let mut last_seq = q.after;
+    if let Err(why) = send_journal_after(&state.storage, &q.thread_id, &mut last_seq, &tx).await {
+        return why;
+    }
+
+    // 2. Handoff. Tell the client where the durable replay ended.
+    tracing::debug!(last_seq, "sse.caught_up");
+    let _ = tx
+        .send(Ok(Event::default()
+            .event("caught-up")
+            .data(last_seq.to_string())))
+        .await;
+
+    // 3. Live. The stream ends when the daemon stops (see
+    // `AppState::shutdown`); the client resubscribes with its last seq
+    // like after any other disconnect.
+    let mut shutdown = state.shutdown.clone();
+    loop {
+        // The select only decides which source woke; acting on it happens
+        // after, so no borrowed `watch::Ref` is held across an await.
+        //
+        // `biased`, journal before bus: a publisher commits (raising the
+        // signal) before it sends the transient item that follows, so
+        // polling the signal first keeps a turn's `turn-end` behind the
+        // durable entry it ends.
+        let received = tokio::select! {
+            biased;
+            _ = shutdown.wait_for(|stopping| *stopping) => return "shutdown",
+            changed = committed.changed() => {
+                if changed.is_err() {
+                    return "shutdown: storage closed";
+                }
+                None
+            }
+            received = live.recv() => Some(received),
+        };
+        let Some(received) = received else {
+            if let Err(why) =
+                send_journal_after(&state.storage, &q.thread_id, &mut last_seq, &tx).await
+            {
+                return why;
+            }
+            continue;
+        };
+        match received {
+            Ok((thread_id, op_id, item)) => {
+                if thread_id != q.thread_id {
+                    continue;
+                }
+                let Some(ev) = transient_event(&op_id, item) else {
+                    continue;
+                };
+                if tx.send(Ok(ev)).await.is_err() {
+                    return CLIENT_GONE;
+                }
+            }
+            // Spec §8.4 case 7: a client falling behind or
+            // disconnecting never cancels work. It resubscribes with
+            // its last seq.
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                let _ = tx.send(Ok(Event::default().event("lagged").data(""))).await;
+            }
+            Err(_) => return "shutdown: bus closed",
+        }
+    }
+}
+
+const CLIENT_GONE: &str = "client gone";
+
 /// Sends every journal event for `thread_id` after `last_seq`, advancing it.
-/// `Err` means the stream is over: the client left, or storage failed and a
-/// `fatal` event was sent.
+/// `Err` means the stream is over and says why: the client left, or storage
+/// failed and a `fatal` event was sent.
 async fn send_journal_after(
     storage: &Storage,
     thread_id: &ThreadId,
     last_seq: &mut i64,
     tx: &Sender<Result<Event, Infallible>>,
-) -> Result<(), ()> {
+) -> Result<(), &'static str> {
     loop {
         let batch = match storage
             .read_events_after(EventCursor(*last_seq), thread_id, 500)
@@ -139,10 +157,11 @@ async fn send_journal_after(
         {
             Ok(b) => b,
             Err(e) => {
+                tracing::error!(error = %e, "sse.replay_failed");
                 let _ = tx
                     .send(Ok(Event::default().event("fatal").data(e.to_string())))
                     .await;
-                return Err(());
+                return Err("error: journal read failed");
             }
         };
         if batch.is_empty() {
@@ -157,7 +176,7 @@ async fn send_journal_after(
                 .event("durable")
                 .data(payload.to_string())))
                 .await
-                .map_err(|_| ())?;
+                .map_err(|_| CLIENT_GONE)?;
         }
     }
 }

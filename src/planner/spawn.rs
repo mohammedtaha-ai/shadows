@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use tokio::sync::broadcast;
+use tracing::Instrument;
 
 use super::{LiveHandles, LiveTurn, PlannerTurn, TurnWatch, watch_turn};
 use crate::agent::claude::ClaudeHarness;
@@ -65,6 +66,10 @@ impl PlannerTurn {
             .storage
             .create_pending_operation(&thread_id, &runtime.instance_id)
             .await?;
+        // Spec §8.7's correlation fields, carried by every line this turn logs
+        // — here, in the watcher, in `stop`, and in `process/` beneath them.
+        let span =
+            tracing::info_span!("planner.turn", operation_id = %op_id, thread_id = %thread_id);
 
         let invocation = AgentInvocation {
             operation_id: op_id.clone(),
@@ -79,6 +84,13 @@ impl PlannerTurn {
         // Prepare: resolve, build the environment, ready the workspace. A
         // failure here is not a spawn failure — no process ever existed.
         let spec = harness.to_process_spec(&invocation);
+        // The prompt's length, never its text (spec §8.7).
+        tracing::info!(
+            parent: &span,
+            prompt_len = invocation.prompt.len(),
+            resume = invocation.resume_session_id.is_some(),
+            "agent.invocation.start"
+        );
         if !spec.executable.exists() && spec.executable.components().count() > 1 {
             runtime
                 .storage
@@ -94,7 +106,7 @@ impl PlannerTurn {
             return Ok(op_id);
         }
 
-        let mut handle = match spawn(spec) {
+        let mut handle = match span.in_scope(|| spawn(spec)) {
             Ok(h) => h,
             Err(e) => {
                 runtime
@@ -118,6 +130,7 @@ impl PlannerTurn {
                     handle,
                     turn_end_seen: turn_end_seen.clone(),
                     terminated_by_stop: false,
+                    span: span.clone(),
                 },
             );
         }
@@ -135,8 +148,8 @@ impl PlannerTurn {
         {
             let orphan = handles.0.lock().await.remove(&op_id);
             if let Some(mut turn) = orphan {
-                let _ = turn.handle.terminate_tree();
-                let _ = turn.handle.wait().await;
+                let _ = span.in_scope(|| turn.handle.terminate_tree());
+                let _ = turn.handle.wait().instrument(span).await;
             }
             return Err(error);
         }
@@ -150,6 +163,7 @@ impl PlannerTurn {
                 thread_id,
                 agent_role: invocation.role,
                 turn_end_seen,
+                span,
             },
             lines,
             bus,

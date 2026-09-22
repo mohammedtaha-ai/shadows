@@ -14,10 +14,14 @@ mod handlers;
 pub mod sse;
 
 use std::sync::Arc;
+use std::time::Duration;
 
+use axum::body::Body;
+use axum::http::{Request, Response};
 use axum::response::Html;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use tower_http::trace::TraceLayer;
 
 use crate::agent::StreamItem;
 use crate::agent::claude::ClaudeHarness;
@@ -58,6 +62,40 @@ pub fn router(state: AppState) -> Router {
         .route("/api/operations/{id}/stop", post(handlers::stop_turn))
         .route("/api/subscribe", get(sse::subscribe))
         .with_state(state)
+        // One `http.response` line per request: method, path, status,
+        // latency. The path is logged without its query string and no body
+        // ever is — a body can hold a prompt; at debug the request's size is
+        // added, from `Content-Length`, never its contents. For
+        // `/api/subscribe` the latency is time to the stream's headers, not
+        // its lifetime; `sse.closed` records when it ends.
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|req: &Request<Body>| {
+                    tracing::info_span!("http", method = %req.method(), path = %req.uri().path())
+                })
+                .on_request(|req: &Request<Body>, _: &tracing::Span| {
+                    tracing::debug!(bytes = content_length(req.headers()), "http.request");
+                })
+                .on_response(|res: &Response<Body>, latency: Duration, _: &tracing::Span| {
+                    tracing::info!(
+                        status = res.status().as_u16(),
+                        latency_ms = u64::try_from(latency.as_millis()).unwrap_or(u64::MAX),
+                        "http.response"
+                    );
+                })
+                // A 5xx is logged by `Failure` with its cause; the default
+                // failure line would repeat it without one.
+                .on_failure(()),
+        )
+}
+
+fn content_length(headers: &axum::http::HeaderMap) -> Option<u64> {
+    headers
+        .get(axum::http::header::CONTENT_LENGTH)?
+        .to_str()
+        .ok()?
+        .parse()
+        .ok()
 }
 
 /// The whole web client. Spec §1.0: the daemon serves it and never opens it.
@@ -92,6 +130,10 @@ impl axum::response::IntoResponse for Failure {
                 ErrorCode::StorageUnavailable,
             ),
         };
+        if status.is_server_error() {
+            // Inside the request's `http` span, so the line names the route.
+            tracing::error!(error = %self.0, "http.failure");
+        }
         (
             status,
             Json(serde_json::json!({ "code": code, "message": self.0.to_string() })),

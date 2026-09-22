@@ -60,7 +60,7 @@ Nothing reachable from outside this file.
 
 Nothing reachable from outside this file.
 
-## `src/cli/mod.rs` — 113 lines
+## `src/cli/mod.rs` — 112 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -80,14 +80,16 @@ pub struct CommandContext {
 pub fn fingerprint(command_kind: &str, params: &serde_json::Value) -> String
 ```
 
-## `src/config.rs` — 44 lines
+## `src/config.rs` — 56 lines
 
 ```rust
 pub struct Config {
     pub db_path: PathBuf,
     pub bind: SocketAddr,
     pub harness_path: PathBuf,
+    pub debug_log: Option<PathBuf>,
 }
+pub fn data_dir(db_path: &Path) -> PathBuf
 pub enum ConfigError {
     HarnessNotAbsolute(String),
 }
@@ -184,7 +186,7 @@ pub(crate) use newtype_id;
 
 Nothing reachable from outside this file.
 
-## `src/main.rs` — 55 lines
+## `src/main.rs` — 68 lines
 
 Nothing reachable from outside this file.
 
@@ -225,12 +227,12 @@ pub struct Operation {
 }
 ```
 
-## `src/planner/mod.rs` — 447 lines
+## `src/planner/mod.rs` — 462 lines
 
 ```rust
 pub use spawn::PlannerTurnRequest;
 pub(crate) struct LiveTurn {}
-// + 3 private fields
+// + 4 private fields
 pub struct LiveHandles(pub(crate) Mutex<HashMap<OperationId, LiveTurn>>);
 impl LiveHandles {
     pub async fn contains(&self, op_id: &OperationId) -> bool
@@ -247,6 +249,7 @@ pub(crate) struct TurnWatch {
     pub(crate) thread_id: ThreadId,
     pub(crate) agent_role: String,
     pub(crate) turn_end_seen: Arc<AtomicBool>,
+    pub(crate) span: tracing::Span,
 }
 pub(crate) fn watch_turn(watch: TurnWatch, lines: Option<StdoutLines>, bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>)
 impl PlannerTurn {
@@ -254,7 +257,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/planner/spawn.rs` — 160 lines
+## `src/planner/spawn.rs` — 174 lines
 
 ```rust
 pub struct PlannerTurnRequest {
@@ -268,7 +271,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/process/mod.rs` — 182 lines
+## `src/process/mod.rs` — 210 lines
 
 ```rust
 pub struct ProcessSpec {
@@ -330,7 +333,7 @@ pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<serde_json::Value>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 101 lines
+## `src/protocol/mod.rs` — 143 lines
 
 ```rust
 pub struct AppState {
@@ -346,7 +349,7 @@ pub fn router(state: AppState) -> Router
 pub struct Failure(crate::storage::StorageError);
 ```
 
-## `src/protocol/sse.rs` — 186 lines
+## `src/protocol/sse.rs` — 205 lines
 
 ```rust
 pub struct SubscribeQuery {
@@ -356,7 +359,7 @@ pub struct SubscribeQuery {
 pub async fn subscribe(State(state): State<AppState>, Query(q): Query<SubscribeQuery>) -> Sse<ReceiverStream<Result<Event, Infallible>>>
 ```
 
-## `src/runtime/mod.rs` — 51 lines
+## `src/runtime/mod.rs` — 59 lines
 
 ```rust
 pub struct RuntimeInstanceId(String);
@@ -432,7 +435,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/operation.rs` — 290 lines
+## `src/storage/sqlite/operation.rs` — 328 lines
 
 ```rust
 impl Storage {
@@ -457,7 +460,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/runtime.rs` — 168 lines
+## `src/storage/sqlite/runtime.rs` — 182 lines
 
 ```rust
 pub enum StopKind {
@@ -486,10 +489,26 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/transition.rs` — 40 lines
+## `src/storage/sqlite/transition.rs` — 132 lines
 
 ```rust
-pub(super) async fn record(conn: &mut SqliteConnection, op_id: &OperationId, event: DurableEvent, ts: &str) -> Result<(), StorageError>
+pub(super) struct Before {}
+// + 2 private fields
+impl Before {
+    pub(super) fn creating(thread: ThreadId) -> Self
+    pub(super) fn status(&self) -> &str
+}
+
+pub(super) fn existed(before: Option<Before>) -> Result<Before, StorageError>
+pub(super) async fn read_before(conn: &mut SqliteConnection, op_id: &OperationId) -> Result<Option<Before>, StorageError>
+pub(super) struct Transition {}
+// + 6 private fields
+impl Transition {
+    pub(super) fn with_detail(mut self, detail: String) -> Self
+    pub(super) fn log(&self)
+}
+
+pub(super) async fn record(conn: &mut SqliteConnection, op_id: &OperationId, before: Before, to: &str, event: DurableEvent, ts: &str) -> Result<Transition, StorageError>
 ```
 
 ## `src/thread/mod.rs` — 69 lines
@@ -542,9 +561,15 @@ pub enum EntryRef {
 }
 ```
 
-## `src/tracing.rs` — 21 lines
+## `src/tracing.rs` — 117 lines
 
 ```rust
-pub fn init(verbose: bool)
+pub struct DebugLog {}
+// + 2 private fields
+impl DebugLog {
+    pub fn path(&self) -> &Path
+}
+
+pub fn init(verbose: bool, debug_data_dir: Option<&Path>) -> anyhow::Result<Option<DebugLog>>
 ```
 

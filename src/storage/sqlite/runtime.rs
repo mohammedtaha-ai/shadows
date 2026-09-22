@@ -1,4 +1,5 @@
-use super::{Storage, StorageError, events::append_event, now, transition::record};
+use super::transition::{existed, read_before, record};
+use super::{Storage, StorageError, events::append_event, now};
 use crate::events::{Actor, DurableEvent};
 use crate::operation::OperationId;
 use crate::runtime::RuntimeInstanceId;
@@ -107,62 +108,75 @@ impl Storage {
         current: &RuntimeInstanceId,
     ) -> Result<ReconcileReport, StorageError> {
         let (current, ts) = (current.as_str().to_string(), now());
-        self.write_txn(move |conn| {
-            Box::pin(async move {
-                let rows: Vec<(String, String, Option<String>)> = sqlx::query_as(
-                    "SELECT o.id, o.status_kind, r.stop_kind
-                       FROM operation o
-                       JOIN runtime_instance r ON r.id = o.runtime_instance_id
-                      WHERE o.status_kind IN ('Pending','Running')
-                        AND o.runtime_instance_id <> ?
-                      ORDER BY o.id",
-                )
-                .bind(&current)
-                .fetch_all(&mut *conn)
-                .await?;
-
-                let mut report = ReconcileReport::default();
-                for (op_id, status, stop_kind) in rows {
-                    let op_id = OperationId::from_stored(op_id);
-                    let reason = match status.as_str() {
-                        "Pending" => "PreviousRuntimeEndedBeforeStart",
-                        _ => "PreviousRuntimeEndedDuringRun",
-                    };
-                    // Exact CAS on id, expected status, and previous runtime.
-                    let affected = sqlx::query(
-                        "UPDATE operation
-                            SET status_kind = 'Interrupted',
-                                interrupt_reason = ?,
-                                finished_at = ?
-                          WHERE id = ? AND status_kind = ? AND runtime_instance_id <> ?",
+        let (report, transitions) = self
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let rows: Vec<(String, String, Option<String>)> = sqlx::query_as(
+                        "SELECT o.id, o.status_kind, r.stop_kind
+                           FROM operation o
+                           JOIN runtime_instance r ON r.id = o.runtime_instance_id
+                          WHERE o.status_kind IN ('Pending','Running')
+                            AND o.runtime_instance_id <> ?
+                          ORDER BY o.id",
                     )
-                    .bind(reason)
-                    .bind(&ts)
-                    .bind(op_id.as_str())
-                    .bind(&status)
                     .bind(&current)
-                    .execute(&mut *conn)
-                    .await?
-                    .rows_affected();
-                    if affected == 0 {
-                        continue;
-                    }
-                    record(
-                        conn,
-                        &op_id,
-                        DurableEvent::new("OperationInterrupted", Actor::system())
-                            .with_payload(serde_json::json!({ "reason": reason })),
-                        &ts,
-                    )
+                    .fetch_all(&mut *conn)
                     .await?;
-                    report.interrupted.push(op_id.clone());
-                    if stop_kind.as_deref() == Some("Graceful") {
-                        report.anomalies.push(op_id);
+
+                    let mut report = ReconcileReport::default();
+                    let mut transitions = Vec::new();
+                    for (op_id, status, stop_kind) in rows {
+                        let op_id = OperationId::from_stored(op_id);
+                        let reason = match status.as_str() {
+                            "Pending" => "PreviousRuntimeEndedBeforeStart",
+                            _ => "PreviousRuntimeEndedDuringRun",
+                        };
+                        let before = read_before(conn, &op_id).await?;
+                        // Exact CAS on id, expected status, and previous runtime.
+                        let affected = sqlx::query(
+                            "UPDATE operation
+                                SET status_kind = 'Interrupted',
+                                    interrupt_reason = ?,
+                                    finished_at = ?
+                              WHERE id = ? AND status_kind = ? AND runtime_instance_id <> ?",
+                        )
+                        .bind(reason)
+                        .bind(&ts)
+                        .bind(op_id.as_str())
+                        .bind(&status)
+                        .bind(&current)
+                        .execute(&mut *conn)
+                        .await?
+                        .rows_affected();
+                        if affected == 0 {
+                            continue;
+                        }
+                        transitions.push(
+                            record(
+                                conn,
+                                &op_id,
+                                existed(before)?,
+                                "Interrupted",
+                                DurableEvent::new("OperationInterrupted", Actor::system())
+                                    .with_payload(serde_json::json!({ "reason": reason })),
+                                &ts,
+                            )
+                            .await?
+                            .with_detail(reason.to_string()),
+                        );
+                        report.interrupted.push(op_id.clone());
+                        if stop_kind.as_deref() == Some("Graceful") {
+                            report.anomalies.push(op_id);
+                        }
                     }
-                }
-                Ok(report)
+                    Ok((report, transitions))
+                })
             })
-        })
-        .await
+            .await?;
+        // Logged after COMMIT, never inside the transaction (spec §8.7).
+        for transition in &transitions {
+            transition.log();
+        }
+        Ok(report)
     }
 }

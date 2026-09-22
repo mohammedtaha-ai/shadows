@@ -42,6 +42,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use tokio::sync::{Mutex, broadcast};
+use tracing::Instrument;
 
 use crate::agent::claude::ClaudeHarness;
 use crate::agent::{AgentHarness, StreamItem};
@@ -84,6 +85,8 @@ pub(crate) struct LiveTurn {
     /// of a process *we* killed and record a `Run` failure for a turn that
     /// reported success.
     terminated_by_stop: bool,
+    /// The turn's `planner.turn` span, so `stop`'s lines carry its ids too.
+    span: tracing::Span,
 }
 
 /// Live handles for operations this runtime owns. Spec §8.3: termination goes
@@ -156,6 +159,7 @@ pub(crate) struct TurnWatch {
     /// the ending. Shared rather than re-read from the map because the watcher
     /// must publish the fact without taking the map's lock on every line.
     pub(crate) turn_end_seen: Arc<AtomicBool>,
+    pub(crate) span: tracing::Span,
 }
 
 /// Reads one turn's stream to its end, then names and persists that ending.
@@ -177,9 +181,11 @@ pub(crate) fn watch_turn(
         thread_id: reader_thread,
         agent_role,
         turn_end_seen,
+        span,
     } = watch;
     tokio::spawn(async move {
         let mut turn_end: Option<serde_json::Value> = None;
+        let mut first_output = true;
         if let Some(mut lines) = lines {
             loop {
                 let line = match lines.next_line().await {
@@ -200,6 +206,9 @@ pub(crate) fn watch_turn(
                         break;
                     }
                 };
+                if std::mem::take(&mut first_output) {
+                    tracing::info!(bytes = line.len(), "planner.first_output");
+                }
                 let item = reader_harness.classify(&line);
                 match &item {
                     // Durable: write before forwarding. The UI may drop a
@@ -266,6 +275,7 @@ pub(crate) fn watch_turn(
                         // that anyone who has seen the turn end knows the
                         // interlock has seen it too.
                         turn_end_seen.store(true, Ordering::SeqCst);
+                        tracing::info!(%subtype, "planner.turn_end");
                     }
                     _ => {}
                 }
@@ -366,7 +376,7 @@ pub(crate) fn watch_turn(
                 "planner.terminal_transition_failed: a finished turn was left non-terminal"
             );
         }
-    });
+    }.instrument(span));
 }
 
 impl PlannerTurn {
@@ -395,8 +405,11 @@ impl PlannerTurn {
             // or will record its real outcome), or this runtime never
             // registered one for it. Either way termination cannot be
             // confirmed here, so Cancelled must not be written.
+            tracing::info!(operation_id = %op_id, "planner.stop: no live handle, nothing to terminate");
             return Ok(());
         };
+        let span = turn.span.clone();
+        tracing::info!(parent: &span, "planner.stop");
 
         // §8.4 case 4. The process exited between the request and this lock,
         // so there is no tree to terminate and nothing Shadows can claim to
@@ -406,6 +419,7 @@ impl PlannerTurn {
         // that reported its result and is still alive is a live tree, and
         // case 3 below is what it gets.
         if turn.handle.has_exited() {
+            tracing::info!(parent: &span, "planner.stop: already exited; the reader names the ending");
             map.insert(op_id.clone(), turn);
             return Ok(());
         }
@@ -415,7 +429,7 @@ impl PlannerTurn {
         // would drop the one handle that can still reach the tree — the
         // process would keep running, unterminable, and no one would ever
         // resolve the operation.
-        if turn.handle.terminate_tree().is_err() {
+        if span.in_scope(|| turn.handle.terminate_tree()).is_err() {
             map.insert(op_id.clone(), turn);
             return Ok(());
         }
@@ -441,7 +455,8 @@ impl PlannerTurn {
         // process ourselves, so its status reports the kill, not an outcome
         // of the turn, and Cancelled records that the operation was stopped,
         // not what its exit code was.
-        let _ = turn.handle.wait().await;
+        let _ = turn.handle.wait().instrument(span.clone()).await;
+        tracing::info!(parent: &span, "planner.stop: tree reaped");
         runtime.storage.mark_operation_cancelled(op_id).await
     }
 }
