@@ -154,6 +154,14 @@ pub(crate) struct TurnWatch {
     pub(crate) harness: Arc<ClaudeHarness>,
     pub(crate) thread_id: ThreadId,
     pub(crate) agent_role: String,
+    /// The session this turn started, when it started one. Recorded on the
+    /// thread at the turn-end, the harness's statement that the turn — and
+    /// so its session — exists in the harness's store. Earlier would be
+    /// wrong: a spawn failure, crash, or Stop before then can leave no
+    /// session, and a recorded id `--resume` rejects would fail every later
+    /// turn on the thread. The price is that a first turn stopped mid-stream
+    /// is forgotten by the model; the thread's entries still show it.
+    pub(crate) new_session: Option<String>,
     /// The same flag the registration holds. The watcher sets it the moment it
     /// classifies this turn's `TurnEnd`; `stop` reads it to decide who names
     /// the ending. Shared rather than re-read from the map because the watcher
@@ -180,6 +188,7 @@ pub(crate) fn watch_turn(
         harness: reader_harness,
         thread_id: reader_thread,
         agent_role,
+        mut new_session,
         turn_end_seen,
         span,
     } = watch;
@@ -276,6 +285,16 @@ pub(crate) fn watch_turn(
                         // interlock has seen it too.
                         turn_end_seen.store(true, Ordering::SeqCst);
                         tracing::info!(%subtype, "planner.turn_end");
+                        if let Some(session) = new_session.take()
+                            && let Err(error) = reader_runtime
+                                .storage
+                                .record_harness_session(&reader_thread, &session)
+                                .await
+                        {
+                            // The turn itself is unaffected; the thread's
+                            // next turn starts a new session instead.
+                            tracing::error!(%error, "planner.record_session_failed");
+                        }
                     }
                     _ => {}
                 }

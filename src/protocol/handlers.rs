@@ -105,8 +105,6 @@ pub(super) async fn list_entries(
 #[derive(serde::Deserialize)]
 pub(super) struct StartTurn {
     prompt: String,
-    #[serde(default)]
-    resume_session_id: Option<String>,
 }
 
 /// Spec §3.3: a long-running command returns 202 and an operation id. The
@@ -137,7 +135,6 @@ pub(super) async fn start_turn(
         PlannerTurnRequest {
             thread_id,
             prompt: body.prompt,
-            resume_session_id: body.resume_session_id,
         },
         s.bus.clone(),
     )

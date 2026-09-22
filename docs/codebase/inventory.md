@@ -232,7 +232,7 @@ pub struct Operation {
 }
 ```
 
-## `src/planner/mod.rs` — 462 lines
+## `src/planner/mod.rs` — 481 lines
 
 ```rust
 pub use spawn::PlannerTurnRequest;
@@ -253,6 +253,7 @@ pub(crate) struct TurnWatch {
     pub(crate) harness: Arc<ClaudeHarness>,
     pub(crate) thread_id: ThreadId,
     pub(crate) agent_role: String,
+    pub(crate) new_session: Option<String>,
     pub(crate) turn_end_seen: Arc<AtomicBool>,
     pub(crate) span: tracing::Span,
 }
@@ -262,13 +263,12 @@ impl PlannerTurn {
 }
 ```
 
-## `src/planner/spawn.rs` — 215 lines
+## `src/planner/spawn.rs` — 218 lines
 
 ```rust
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
     pub prompt: String,
-    pub resume_session_id: Option<String>,
 }
 impl PlannerTurn {
     pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, harness: Arc<ClaudeHarness>, request: PlannerTurnRequest, bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>) -> Result<OperationId, StorageError>
@@ -353,7 +353,7 @@ pub struct Failure {}
 // + 3 private fields
 ```
 
-## `src/protocol/handlers.rs` — 160 lines
+## `src/protocol/handlers.rs` — 157 lines
 
 ```rust
 pub(super) struct CreateProject {}
@@ -366,7 +366,7 @@ pub(super) struct CreateThread {}
 pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<serde_json::Value>, Failure>
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<serde_json::Value>, Failure>
 pub(super) struct StartTurn {}
-// + 2 private fields
+// + 1 private field
 pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<ThreadId>, Json(body): Json<StartTurn>) -> Result<(axum::http::StatusCode, Json<serde_json::Value>), Failure>
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<serde_json::Value>, Failure>
 ```
@@ -515,7 +515,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/thread.rs` — 240 lines
+## `src/storage/sqlite/thread.rs` — 272 lines
 
 ```rust
 impl Storage {
@@ -523,6 +523,7 @@ impl Storage {
     pub async fn append_thread_entry(&self, thread_id: &ThreadId, entry: NewThreadEntry<'_>) -> Result<ThreadEntry, StorageError>
     pub async fn list_thread_entries(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>
     pub async fn turn_context(&self, thread_id: &ThreadId) -> Result<TurnContext, StorageError>
+    pub async fn record_harness_session(&self, thread_id: &ThreadId, session_id: &str) -> Result<bool, StorageError>
     pub async fn list_threads_for_project(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>
 }
 ```
@@ -549,7 +550,7 @@ impl Transition {
 pub(super) async fn record(conn: &mut SqliteConnection, op_id: &OperationId, before: Before, to: &str, event: DurableEvent, ts: &str) -> Result<Transition, StorageError>
 ```
 
-## `src/thread/mod.rs` — 81 lines
+## `src/thread/mod.rs` — 84 lines
 
 ```rust
 pub struct ThreadId(String);
@@ -577,6 +578,7 @@ pub struct PlanningThread {
 }
 pub struct TurnContext {
     pub project_directory: Option<PathBuf>,
+    pub harness_session_id: Option<String>,
 }
 pub struct ThreadEntry {
     pub id: ThreadEntryId,

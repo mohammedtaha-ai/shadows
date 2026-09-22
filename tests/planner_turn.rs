@@ -130,7 +130,6 @@ async fn a_completed_turn_persists_the_stream_and_releases_its_handle() {
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: "quick".into(),
-            resume_session_id: None,
         },
         bus,
     )
@@ -185,7 +184,6 @@ async fn cancelling_a_running_turn_confirms_termination_before_writing_cancelled
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: "hang".into(),
-            resume_session_id: None,
         },
         bus,
     )
@@ -259,7 +257,6 @@ async fn unconfirmed_termination_keeps_the_handle_and_leaves_the_operation_non_t
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: "hang".into(),
-            resume_session_id: None,
         },
         bus,
     )
@@ -308,7 +305,6 @@ async fn a_failing_turn_end_is_not_completed_even_on_a_clean_exit() {
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: "failing-turn-end".into(),
-            resume_session_id: None,
         },
         bus,
     )
@@ -350,7 +346,6 @@ async fn a_cancelled_turn_that_had_already_ended_keeps_its_outcome_and_loses_its
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: "slow-exit".into(),
-            resume_session_id: None,
         },
         bus,
     )
@@ -427,7 +422,6 @@ async fn a_child_that_dies_without_a_turn_end_is_failed_at_the_run_stage() {
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: "crash".into(),
-            resume_session_id: None,
         },
         bus,
     )

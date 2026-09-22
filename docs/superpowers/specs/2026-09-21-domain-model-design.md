@@ -92,9 +92,20 @@ struct PlanningThread {
     project_id: ProjectId,
     title: String,
     status: PlanningThreadStatus, // Open | Closed
+    harness_session_id: Option<String>,
     created_at: Timestamp,
 }
 ```
+
+`harness_session_id` is the harness session the thread's turns continue
+(evidence `SERVE_STREAM_SPIKE.md` Finding 3: `--session-id` on the first turn,
+`--resume` with the same id after). The daemon chooses it and records it when a
+turn that started it reaches the harness's turn-end — not at spawn, because a
+turn that fails or is stopped earlier may leave no session, and a recorded id
+that `--resume` rejects would fail every later turn. Clients never supply or see
+it. The harness store is the source of truth for what the model remembers; the
+thread's entries are the source of truth for what the user sees (see
+*Continuity* below).
 
 ### ThreadEntry
 

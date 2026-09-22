@@ -31,20 +31,18 @@ use crate::thread::{ThreadId, TurnContext};
 /// `PlannerTurn::start` otherwise takes eight parameters, which is both a
 /// clippy lint (`too_many_arguments`, refused here rather than suppressed —
 /// see CLAUDE.md) and the exact shape of mistake this project's
-/// `NewThreadEntry` precedent exists to close: same-typed neighbours
-/// (`thread_id`, `prompt`, `resume_session_id` are all string-ish) that the
+/// `NewThreadEntry` precedent exists to close: same-typed neighbours that the
 /// compiler cannot tell apart at a positional call site.
 ///
-/// There is no working directory here, on purpose: a turn runs in its thread's
-/// project directory, which Prepare reads from durable state
-/// ([`TurnContext`]). A caller that could name the directory could run a turn
-/// anywhere on the disk.
+/// There is no working directory and no session here, on purpose: a turn runs
+/// in its thread's project directory and continues its thread's harness
+/// session, both read from durable state ([`TurnContext`]). A caller that could
+/// name the directory could run a turn anywhere on the disk; one that had to
+/// name the session would have to have been told it.
 #[derive(Debug, Clone)]
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
     pub prompt: String,
-    /// Present on a resumed turn. Continuity belongs to the harness, not to us.
-    pub resume_session_id: Option<String>,
 }
 
 impl PlannerTurn {
@@ -58,11 +56,7 @@ impl PlannerTurn {
         request: PlannerTurnRequest,
         bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
     ) -> Result<OperationId, StorageError> {
-        let PlannerTurnRequest {
-            thread_id,
-            prompt,
-            resume_session_id,
-        } = request;
+        let PlannerTurnRequest { thread_id, prompt } = request;
 
         // Read before TX #1, so a turn on a thread that does not exist is
         // refused with nothing created for it.
@@ -89,15 +83,23 @@ impl PlannerTurn {
             }
         };
 
+        // Evidence Finding 3: `--session-id` on a thread's first turn,
+        // `--resume` with that same id on every turn after. A thread with no
+        // recorded session starts a fresh one; the watcher records it once the
+        // harness has reached its turn-end, and not before — see `TurnWatch`.
         let invocation = AgentInvocation {
             operation_id: op_id.clone(),
             role: "Planner".into(),
             model: "sonnet".into(),
             prompt,
             cwd,
-            resume_session_id,
+            resume_session_id: context.harness_session_id,
             session_id: uuid::Uuid::new_v4().to_string(),
         };
+        let new_session = invocation
+            .resume_session_id
+            .is_none()
+            .then(|| invocation.session_id.clone());
 
         // Prepare: resolve, build the environment, ready the workspace. A
         // failure here is not a spawn failure — no process ever existed.
@@ -180,6 +182,7 @@ impl PlannerTurn {
                 harness,
                 thread_id,
                 agent_role: invocation.role,
+                new_session,
                 turn_end_seen,
                 span,
             },

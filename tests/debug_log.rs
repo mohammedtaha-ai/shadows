@@ -112,7 +112,6 @@ async fn start(state: &AppState, thread: &shadows::thread::ThreadId, prompt: &st
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: prompt.into(),
-            resume_session_id: None,
         },
         state.bus.clone(),
     )

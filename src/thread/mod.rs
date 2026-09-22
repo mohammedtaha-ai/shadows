@@ -33,6 +33,9 @@ pub struct TurnContext {
     /// The owning project's directory. `None` for a project created before
     /// projects owned one — see `Project::directory`.
     pub project_directory: Option<PathBuf>,
+    /// The harness session this thread's turns continue, once one of them
+    /// has reached its turn-end. `None` means the next turn starts a session.
+    pub harness_session_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
