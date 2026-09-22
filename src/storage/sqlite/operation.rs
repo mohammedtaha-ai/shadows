@@ -3,7 +3,7 @@ use crate::operation::{FailureStage, Operation, OperationId};
 use crate::runtime::RuntimeInstanceId;
 use crate::thread::ThreadId;
 
-use super::{Storage, StorageError, events::append_event, now};
+use super::{Storage, StorageError, now, transition::record};
 
 /// The thirteen `operation` columns `get_operation` reads back, in select
 /// order. A row alias, not a domain type: `get_operation` maps it into
@@ -53,16 +53,14 @@ impl Storage {
                 .execute(&mut *conn)
                 .await?;
 
-                append_event(
+                record(
                     conn,
-                    &DurableEvent::new("OperationCreated", Actor::system())
-                        .with_thread(&thread_id)
-                        .with_operation(&op_id)
+                    &op_id,
+                    DurableEvent::new("OperationCreated", Actor::system())
                         .with_payload(serde_json::json!({ "kind": "PlannerTurn" })),
                     &ts,
                 )
-                .await?;
-                Ok(())
+                .await
             })
         })
         .await?;
@@ -96,13 +94,13 @@ impl Storage {
                         found: "another status or another owner".into(),
                     });
                 }
-                append_event(
+                record(
                     conn,
-                    &DurableEvent::new("OperationStarted", Actor::system()).with_operation(&op_id),
+                    &op_id,
+                    DurableEvent::new("OperationStarted", Actor::system()),
                     &ts,
                 )
-                .await?;
-                Ok(())
+                .await
             })
         })
         .await
@@ -133,14 +131,13 @@ impl Storage {
                         found: "another status".into(),
                     });
                 }
-                append_event(
+                record(
                     conn,
-                    &DurableEvent::new("OperationCompleted", Actor::system())
-                        .with_operation(&op_id),
+                    &op_id,
+                    DurableEvent::new("OperationCompleted", Actor::system()),
                     &ts,
                 )
-                .await?;
-                Ok(())
+                .await
             })
         })
         .await
@@ -174,15 +171,14 @@ impl Storage {
                         found: "already terminal".into(),
                     });
                 }
-                append_event(
+                record(
                     conn,
-                    &DurableEvent::new("OperationFailed", Actor::system())
-                        .with_operation(&op_id)
+                    &op_id,
+                    DurableEvent::new("OperationFailed", Actor::system())
                         .with_payload(serde_json::json!({ "stage": stage.as_str() })),
                     &ts,
                 )
-                .await?;
-                Ok(())
+                .await
             })
         })
         .await
@@ -218,14 +214,13 @@ impl Storage {
                     // repeat is idempotent and runs no process effects.
                     return Ok(());
                 }
-                append_event(
+                record(
                     conn,
-                    &DurableEvent::new("OperationCancellationRequested", requester)
-                        .with_operation(&op_id),
+                    &op_id,
+                    DurableEvent::new("OperationCancellationRequested", requester),
                     &ts,
                 )
-                .await?;
-                Ok(())
+                .await
             })
         })
         .await
@@ -253,14 +248,13 @@ impl Storage {
                         found: "already terminal".into(),
                     });
                 }
-                append_event(
+                record(
                     conn,
-                    &DurableEvent::new("OperationCancelled", Actor::system())
-                        .with_operation(&op_id),
+                    &op_id,
+                    DurableEvent::new("OperationCancelled", Actor::system()),
                     &ts,
                 )
-                .await?;
-                Ok(())
+                .await
             })
         })
         .await

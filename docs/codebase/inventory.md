@@ -406,7 +406,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/mod.rs` — 228 lines
+## `src/storage/sqlite/mod.rs` — 229 lines
 
 ```rust
 pub use events_read::StoredEvent;
@@ -432,7 +432,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/operation.rs` — 296 lines
+## `src/storage/sqlite/operation.rs` — 290 lines
 
 ```rust
 impl Storage {
@@ -484,6 +484,12 @@ impl Storage {
     pub async fn list_thread_entries(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>
     pub async fn list_threads_for_project(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>
 }
+```
+
+## `src/storage/sqlite/transition.rs` — 40 lines
+
+```rust
+pub(super) async fn record(conn: &mut SqliteConnection, op_id: &OperationId, event: DurableEvent, ts: &str) -> Result<(), StorageError>
 ```
 
 ## `src/thread/mod.rs` — 69 lines

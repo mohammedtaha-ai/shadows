@@ -13,6 +13,7 @@ mod operation;
 mod project;
 mod runtime;
 mod thread;
+mod transition;
 
 pub use events_read::StoredEvent;
 pub use runtime::{ReconcileReport, StopKind};

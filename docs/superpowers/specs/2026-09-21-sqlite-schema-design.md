@@ -714,6 +714,13 @@ Operation cursor = rows where operation_id = ?
 
 Global does **not** mean “all scope FKs are NULL”.
 
+An event is written with **every** scope its subject has, not only the narrowest.
+In particular every operation event — creation and each later transition — carries
+its operation's `thread_id` as well as `operation_id`, read from the operation row
+inside the same write transaction; an event scoped only to its operation is
+invisible to the thread cursor a client follows. An operation with no thread
+leaves `thread_id` NULL.
+
 ### Event cursor
 
 Public:

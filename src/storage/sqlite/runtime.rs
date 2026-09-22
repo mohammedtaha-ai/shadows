@@ -1,4 +1,4 @@
-use super::{Storage, StorageError, events::append_event, now};
+use super::{Storage, StorageError, events::append_event, now, transition::record};
 use crate::events::{Actor, DurableEvent};
 use crate::operation::OperationId;
 use crate::runtime::RuntimeInstanceId;
@@ -147,10 +147,10 @@ impl Storage {
                     if affected == 0 {
                         continue;
                     }
-                    append_event(
+                    record(
                         conn,
-                        &DurableEvent::new("OperationInterrupted", Actor::system())
-                            .with_operation(&op_id)
+                        &op_id,
+                        DurableEvent::new("OperationInterrupted", Actor::system())
                             .with_payload(serde_json::json!({ "reason": reason })),
                         &ts,
                     )

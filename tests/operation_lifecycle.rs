@@ -340,3 +340,123 @@ async fn unconfirmed_termination_leaves_the_operation_non_terminal() {
         "the request stays visible on the interrupted record"
     );
 }
+
+/// Spec §6.18 scope semantics. Every operation event carries its operation's
+/// thread, not only its operation — otherwise the thread cursor a client
+/// follows (§2.10) never selects it. All seven operation event kinds are
+/// produced here, across four operations, and every one must name the thread.
+#[tokio::test]
+async fn every_operation_event_is_scoped_to_its_thread() {
+    let (_t, storage, runtime, thread) = fixture().await;
+
+    let completed = storage
+        .create_pending_operation(&thread, &runtime)
+        .await
+        .unwrap();
+    storage
+        .mark_operation_started(&completed, &runtime)
+        .await
+        .unwrap();
+    storage
+        .mark_operation_completed(&completed, serde_json::json!({}))
+        .await
+        .unwrap();
+
+    let failed = storage
+        .create_pending_operation(&thread, &runtime)
+        .await
+        .unwrap();
+    storage
+        .mark_operation_failed(&failed, FailureStage::Spawn, "no such file")
+        .await
+        .unwrap();
+
+    let cancelled = storage
+        .create_pending_operation(&thread, &runtime)
+        .await
+        .unwrap();
+    storage
+        .request_cancellation(&cancelled, Actor::user("local"))
+        .await
+        .unwrap();
+    storage.mark_operation_cancelled(&cancelled).await.unwrap();
+
+    let interrupted = storage
+        .create_pending_operation(&thread, &runtime)
+        .await
+        .unwrap();
+    storage
+        .mark_operation_started(&interrupted, &runtime)
+        .await
+        .unwrap();
+    let next = storage.register_runtime_instance("next").await.unwrap();
+    storage.reconcile_orphans(&next).await.unwrap();
+
+    let rows: Vec<(String, Option<String>)> = sqlx::query_as(
+        "SELECT kind, thread_id FROM durable_event WHERE operation_id IS NOT NULL ORDER BY seq",
+    )
+    .fetch_all(storage.reader())
+    .await
+    .unwrap();
+    let mut kinds: Vec<&str> = rows.iter().map(|(k, _)| k.as_str()).collect();
+    kinds.sort();
+    kinds.dedup();
+    assert_eq!(
+        kinds,
+        vec![
+            "OperationCancellationRequested",
+            "OperationCancelled",
+            "OperationCompleted",
+            "OperationCreated",
+            "OperationFailed",
+            "OperationInterrupted",
+            "OperationStarted",
+        ],
+        "every operation event kind was produced"
+    );
+    for (kind, thread_id) in &rows {
+        assert_eq!(
+            thread_id.as_deref(),
+            Some(thread.as_str()),
+            "{kind} must carry its operation's thread"
+        );
+    }
+}
+
+/// Migration 0002 backfills the thread onto operation events written before
+/// the write path carried it. Reproduced by clearing the column on existing
+/// rows and forgetting that 0002 ran, so the next open applies it again.
+#[tokio::test]
+async fn migration_backfills_the_thread_onto_existing_operation_events() {
+    let (tmp, storage, runtime, thread) = fixture().await;
+    let op = storage
+        .create_pending_operation(&thread, &runtime)
+        .await
+        .unwrap();
+    storage.mark_operation_started(&op, &runtime).await.unwrap();
+    sqlx::query("UPDATE durable_event SET thread_id = NULL WHERE operation_id IS NOT NULL")
+        .execute(storage.reader())
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM _sqlx_migrations WHERE version = 2")
+        .execute(storage.reader())
+        .await
+        .unwrap();
+    drop(storage);
+
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let threads: Vec<Option<String>> = sqlx::query_scalar(
+        "SELECT thread_id FROM durable_event WHERE operation_id = ? ORDER BY seq",
+    )
+    .bind(op.as_str())
+    .fetch_all(storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(threads.len(), 2, "created and started");
+    assert!(
+        threads
+            .iter()
+            .all(|t| t.as_deref() == Some(thread.as_str())),
+        "every existing operation event was backfilled: {threads:?}"
+    );
+}

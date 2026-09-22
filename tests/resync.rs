@@ -266,6 +266,53 @@ async fn a_subscriber_receives_only_its_own_threads_live_items() {
     );
 }
 
+/// Spec §6.18 scope semantics, seen from the client: an operation's
+/// transitions reach its thread's stream as `durable` events — the start in the
+/// replay, the terminal transition live.
+#[tokio::test]
+async fn operation_transitions_reach_their_threads_stream() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let (_project, thread) = seed(&storage).await;
+    let live = Live::start(&tmp, storage.clone()).await;
+    let runtime = &live.state.runtime.instance_id;
+    let op = storage
+        .create_pending_operation(&thread.id, runtime)
+        .await
+        .unwrap();
+    storage.mark_operation_started(&op, runtime).await.unwrap();
+
+    let mut stream = live.open(&thread.id).await;
+    let replayed = stream.read_until("event: caught-up").await;
+    assert!(
+        durable_kinds(&replayed).contains(&"OperationStarted".to_string()),
+        "the start replays on the thread's stream: {replayed}"
+    );
+
+    storage
+        .mark_operation_completed(&op, serde_json::json!({}))
+        .await
+        .unwrap();
+    let text = stream.read_until("OperationCompleted").await;
+    assert_eq!(
+        durable_kinds(&text).last().map(String::as_str),
+        Some("OperationCompleted"),
+        "the terminal transition arrives live as a durable event: {text}"
+    );
+}
+
+/// Every `durable` event's `kind`, in the order the stream delivered them.
+fn durable_kinds(text: &str) -> Vec<String> {
+    text.split("\n\n")
+        .filter(|frame| frame.lines().any(|l| l == "event: durable"))
+        .filter_map(|frame| frame.lines().find_map(|l| l.strip_prefix("data: ")))
+        .map(|data| {
+            let event: serde_json::Value = serde_json::from_str(data).unwrap();
+            event["kind"].as_str().unwrap().to_string()
+        })
+        .collect()
+}
+
 /// The daemon's state as `subscribe` sees it, with a bus the test publishes on.
 struct Live {
     state: AppState,
