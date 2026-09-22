@@ -30,6 +30,7 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/events/` | the durable event record's shape | `src/events/mod.rs` |
 | `src/id.rs` | the UUID id newtype pattern | `src/id.rs` |
 | `src/operation/` | the operation lifecycle's shape | `src/operation/mod.rs` |
+| `src/planner/` | the Planner turn's spawn-through-termination lifecycle | `src/planner/mod.rs` |
 | `src/process/` | OS process ownership with whole-tree containment | `src/process/mod.rs` |
 | `src/project/` | project identity | `src/project/mod.rs` |
 | `src/runtime/` | the runtime instance's lifecycle | `src/runtime/mod.rs` |

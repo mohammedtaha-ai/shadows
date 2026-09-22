@@ -188,6 +188,84 @@ impl Storage {
         .await
     }
 
+    /// TX #1 of cancellation. Spec §2.3: this records that a stop was asked
+    /// for. It does not stop anything and it does not make the operation
+    /// terminal.
+    pub async fn request_cancellation(
+        &self,
+        op_id: &OperationId,
+        requester: Actor,
+    ) -> Result<(), StorageError> {
+        let (op_id, requester, ts) = (op_id.clone(), requester, now());
+        self.write_txn(move |conn| {
+            Box::pin(async move {
+                let affected = sqlx::query(
+                    "UPDATE operation
+                        SET cancel_requested_at = ?, cancel_requested_by_kind = ?,
+                            cancel_requested_by_id = ?
+                      WHERE id = ? AND status_kind IN ('Pending','Running')
+                        AND cancel_requested_at IS NULL",
+                )
+                .bind(&ts)
+                .bind(&requester.kind)
+                .bind(&requester.id)
+                .bind(op_id.as_str())
+                .execute(&mut *conn)
+                .await?
+                .rows_affected();
+                if affected == 0 {
+                    // Already requested, or already terminal. Spec §2.3: a
+                    // repeat is idempotent and runs no process effects.
+                    return Ok(());
+                }
+                append_event(
+                    conn,
+                    &DurableEvent::new("OperationCancellationRequested", requester)
+                        .with_operation(&op_id),
+                    &ts,
+                )
+                .await?;
+                Ok(())
+            })
+        })
+        .await
+    }
+
+    /// TX #2 of cancellation, written ONLY after the process tree is confirmed
+    /// gone. Spec §2.3. The CAS refuses to overwrite a terminal state, which is
+    /// what makes a natural exit win the race (§8.4 case 4 and 5).
+    pub async fn mark_operation_cancelled(&self, op_id: &OperationId) -> Result<(), StorageError> {
+        let (op_id, ts) = (op_id.clone(), now());
+        self.write_txn(move |conn| {
+            Box::pin(async move {
+                let affected = sqlx::query(
+                    "UPDATE operation SET status_kind = 'Cancelled', finished_at = ?
+                      WHERE id = ? AND status_kind IN ('Pending','Running')",
+                )
+                .bind(&ts)
+                .bind(op_id.as_str())
+                .execute(&mut *conn)
+                .await?
+                .rows_affected();
+                if affected == 0 {
+                    return Err(StorageError::TransitionConflict {
+                        expected: "Pending or Running".into(),
+                        found: "already terminal".into(),
+                    });
+                }
+                append_event(
+                    conn,
+                    &DurableEvent::new("OperationCancelled", Actor::system())
+                        .with_operation(&op_id),
+                    &ts,
+                )
+                .await?;
+                Ok(())
+            })
+        })
+        .await
+    }
+
     pub async fn get_operation(&self, op_id: &OperationId) -> Result<Operation, StorageError> {
         let r: OperationRow = sqlx::query_as(
             "SELECT id, kind, status_kind, thread_id, runtime_instance_id, outcome_json,

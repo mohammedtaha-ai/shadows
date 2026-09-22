@@ -6,6 +6,7 @@ pub mod error;
 pub mod events;
 pub mod id;
 pub mod operation;
+pub mod planner;
 pub mod process;
 pub mod project;
 pub mod runtime;

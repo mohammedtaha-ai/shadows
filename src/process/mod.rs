@@ -35,8 +35,14 @@ impl ProcessHandle {
         self.child.id()
     }
 
-    pub fn stdout_lines(&mut self) -> Option<&mut Lines<BufReader<ChildStdout>>> {
-        self.stdout.as_mut()
+    /// Takes ownership of the captured stdout reader, leaving the handle
+    /// without one. Spec §8.3's stream reader must outlive the call that
+    /// registers this handle in `LiveHandles` (a `'static` task reading lines
+    /// while the handle itself is moved into a shared map), which an
+    /// accessor that only lends `&mut` cannot support — see Task 7's deferred
+    /// minor M2.
+    pub fn take_stdout_lines(&mut self) -> Option<Lines<BufReader<ChildStdout>>> {
+        self.stdout.take()
     }
 
     /// Completion is the LEADER's exit, and whatever the leader left behind is

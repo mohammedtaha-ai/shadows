@@ -52,6 +52,10 @@ pub trait AgentHarness {
 }
 ```
 
+## `src/bin/fake_claude.rs` — 39 lines
+
+Nothing reachable from outside this file.
+
 ## `src/bin/tree_probe.rs` — 39 lines
 
 Nothing reachable from outside this file.
@@ -176,7 +180,7 @@ impl DurableEvent {
 pub(crate) use newtype_id;
 ```
 
-## `src/lib.rs` — 14 lines
+## `src/lib.rs` — 15 lines
 
 Nothing reachable from outside this file.
 
@@ -213,7 +217,28 @@ pub struct Operation {
 }
 ```
 
-## `src/process/mod.rs` — 135 lines
+## `src/planner/mod.rs` — 276 lines
+
+```rust
+pub struct LiveHandles(pub(crate) Mutex<HashMap<OperationId, ProcessHandle>>);
+impl LiveHandles {
+    pub async fn contains(&self, op_id: &OperationId) -> bool
+}
+
+pub struct PlannerTurnRequest {
+    pub thread_id: ThreadId,
+    pub prompt: String,
+    pub cwd: PathBuf,
+    pub resume_session_id: Option<String>,
+}
+pub struct PlannerTurn;
+impl PlannerTurn {
+    pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, harness: Arc<ClaudeHarness>, request: PlannerTurnRequest, bus: broadcast::Sender<(OperationId, StreamItem)>) -> Result<OperationId, StorageError>
+    pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, op_id: &OperationId) -> Result<(), StorageError>
+}
+```
+
+## `src/process/mod.rs` — 141 lines
 
 ```rust
 pub struct ProcessSpec {
@@ -227,7 +252,7 @@ pub struct ProcessHandle {}
 // + 2 private fields
 impl ProcessHandle {
     pub fn id(&self) -> Option<u32>
-    pub fn stdout_lines(&mut self) -> Option<&mut Lines<BufReader<ChildStdout>>>
+    pub fn take_stdout_lines(&mut self) -> Option<Lines<BufReader<ChildStdout>>>
     pub async fn wait(&mut self) -> io::Result<std::process::ExitStatus>
     pub fn terminate_tree(&mut self) -> io::Result<()>
 }
@@ -296,7 +321,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/operation.rs` — 218 lines
+## `src/storage/sqlite/operation.rs` — 296 lines
 
 ```rust
 impl Storage {
@@ -304,6 +329,8 @@ impl Storage {
     pub async fn mark_operation_started(&self, op_id: &OperationId, expected_runtime: &RuntimeInstanceId) -> Result<(), StorageError>
     pub async fn mark_operation_completed(&self, op_id: &OperationId, outcome: serde_json::Value) -> Result<(), StorageError>
     pub async fn mark_operation_failed(&self, op_id: &OperationId, stage: FailureStage, reason: &str) -> Result<(), StorageError>
+    pub async fn request_cancellation(&self, op_id: &OperationId, requester: Actor) -> Result<(), StorageError>
+    pub async fn mark_operation_cancelled(&self, op_id: &OperationId) -> Result<(), StorageError>
     pub async fn get_operation(&self, op_id: &OperationId) -> Result<Operation, StorageError>
 }
 ```

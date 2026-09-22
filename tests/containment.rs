@@ -46,7 +46,7 @@ async fn terminating_a_managed_tree_kills_the_grandchild_too() {
     .expect("spawn should succeed");
 
     // tree_probe prints its grandchild's pid on its first stdout line.
-    let lines = handle.stdout_lines().expect("stdout was captured");
+    let mut lines = handle.take_stdout_lines().expect("stdout was captured");
     let first = tokio::time::timeout(Duration::from_secs(10), async { lines.next_line().await })
         .await
         .expect("probe should report within 10s")
@@ -97,7 +97,7 @@ async fn waiting_for_the_leader_reaps_any_remaining_grandchild() {
     })
     .expect("spawn should succeed");
 
-    let lines = handle.stdout_lines().expect("stdout was captured");
+    let mut lines = handle.take_stdout_lines().expect("stdout was captured");
     let first = tokio::time::timeout(Duration::from_secs(10), async { lines.next_line().await })
         .await
         .expect("probe should report within 10s")

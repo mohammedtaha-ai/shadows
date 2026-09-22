@@ -31,6 +31,10 @@ libc = "0.2"
 name = "tree_probe"
 path = "src/bin/tree_probe.rs"
 
+[[bin]]
+name = "fake_claude"
+path = "src/bin/fake_claude.rs"
+
 [features]
 # Compiles in `storage::test_support`, a hook onto an otherwise-private
 # capability (`append_event` without a state write) that must never ship in

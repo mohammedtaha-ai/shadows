@@ -1,3 +1,4 @@
+use shadows::events::Actor;
 use shadows::operation::FailureStage;
 use shadows::runtime::RuntimeInstanceId;
 use shadows::storage::{Storage, StorageError};
@@ -203,5 +204,139 @@ async fn every_transition_appends_its_event_atomically() {
         after,
         before + 3,
         "three transitions must append exactly three events to the whole journal"
+    );
+}
+
+/// Spec §2.3. The request and the terminal state are two separate facts in two
+/// separate transactions. A request alone leaves the operation non-terminal.
+#[tokio::test]
+async fn a_cancellation_request_does_not_make_an_operation_terminal() {
+    let (_t, storage, runtime, thread) = fixture().await;
+    let op = storage
+        .create_pending_operation(&thread, &runtime)
+        .await
+        .unwrap();
+    storage.mark_operation_started(&op, &runtime).await.unwrap();
+
+    storage
+        .request_cancellation(&op, Actor::user("local"))
+        .await
+        .unwrap();
+
+    let loaded = storage.get_operation(&op).await.unwrap();
+    assert_eq!(
+        loaded.status_kind, "Running",
+        "a request is not a terminal state"
+    );
+    assert!(loaded.cancel_requested_at.is_some());
+    assert!(loaded.finished_at.is_none());
+}
+
+/// Spec §2.3. Terminal Cancelled is written only after termination is
+/// confirmed, and it is what closes the operation.
+#[tokio::test]
+async fn cancelled_is_written_after_confirmation_and_closes_the_operation() {
+    let (_t, storage, runtime, thread) = fixture().await;
+    let op = storage
+        .create_pending_operation(&thread, &runtime)
+        .await
+        .unwrap();
+    storage.mark_operation_started(&op, &runtime).await.unwrap();
+    storage
+        .request_cancellation(&op, Actor::user("local"))
+        .await
+        .unwrap();
+
+    storage.mark_operation_cancelled(&op).await.unwrap();
+
+    let loaded = storage.get_operation(&op).await.unwrap();
+    assert_eq!(loaded.status_kind, "Cancelled");
+    assert!(loaded.finished_at.is_some());
+    assert!(
+        loaded.cancel_requested_at.is_some(),
+        "the request is retained as history"
+    );
+
+    let kinds: Vec<String> =
+        sqlx::query_scalar("SELECT kind FROM durable_event WHERE operation_id = ? ORDER BY seq")
+            .bind(op.as_str())
+            .fetch_all(storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(
+        kinds,
+        vec![
+            "OperationCreated",
+            "OperationStarted",
+            "OperationCancellationRequested",
+            "OperationCancelled"
+        ]
+    );
+}
+
+/// Spec §8.4 case 4. A process that exited on its own before cancellation took
+/// termination ownership is Completed by its own exit, not Cancelled. Shadows
+/// does not claim to have stopped something that had already stopped.
+#[tokio::test]
+async fn a_natural_exit_wins_over_an_in_flight_cancellation() {
+    let (_t, storage, runtime, thread) = fixture().await;
+    let op = storage
+        .create_pending_operation(&thread, &runtime)
+        .await
+        .unwrap();
+    storage.mark_operation_started(&op, &runtime).await.unwrap();
+    storage
+        .request_cancellation(&op, Actor::user("local"))
+        .await
+        .unwrap();
+
+    // The process exits before containment takes ownership.
+    storage
+        .mark_operation_completed(&op, serde_json::json!({ "ok": true }))
+        .await
+        .unwrap();
+
+    let loaded = storage.get_operation(&op).await.unwrap();
+    assert_eq!(loaded.status_kind, "Completed");
+    assert!(
+        loaded.cancel_requested_at.is_some(),
+        "a terminal non-cancelled status may retain request metadata as history"
+    );
+
+    // Spec §8.4 case 5 in reverse: the late Cancelled must not overwrite it.
+    let late = storage.mark_operation_cancelled(&op).await;
+    assert!(matches!(late, Err(StorageError::TransitionConflict { .. })));
+}
+
+/// Spec §8.4 case 6. If termination cannot be confirmed, the request is
+/// preserved and Cancelled is NOT written. The operation stays non-terminal
+/// until recovery can make an honest Interrupted transition.
+#[tokio::test]
+async fn unconfirmed_termination_leaves_the_operation_non_terminal() {
+    let (_t, storage, runtime, thread) = fixture().await;
+    let op = storage
+        .create_pending_operation(&thread, &runtime)
+        .await
+        .unwrap();
+    storage.mark_operation_started(&op, &runtime).await.unwrap();
+    storage
+        .request_cancellation(&op, Actor::user("local"))
+        .await
+        .unwrap();
+
+    // Termination failed: the daemon simply does not call mark_operation_cancelled.
+    let loaded = storage.get_operation(&op).await.unwrap();
+    assert_eq!(loaded.status_kind, "Running");
+
+    // A later runtime resolves it honestly, and to Interrupted, not Cancelled,
+    // because the final process outcome is unknown after a crash.
+    let next = storage.register_runtime_instance("next").await.unwrap();
+    let report = storage.reconcile_orphans(&next).await.unwrap();
+    assert_eq!(report.interrupted, vec![op.clone()]);
+    let after = storage.get_operation(&op).await.unwrap();
+    assert_eq!(after.status_kind, "Interrupted");
+    assert!(
+        after.cancel_requested_at.is_some(),
+        "the request stays visible on the interrupted record"
     );
 }
