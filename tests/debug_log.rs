@@ -112,7 +112,6 @@ async fn start(state: &AppState, thread: &shadows::thread::ThreadId, prompt: &st
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: prompt.into(),
-            cwd: state.project_root.clone(),
             resume_session_id: None,
         },
         state.bus.clone(),
@@ -137,7 +136,6 @@ async fn app_state(tmp: &tempfile::TempDir) -> (AppState, tokio::sync::watch::Se
             "fake-1".into(),
         )),
         bus,
-        project_root: tmp.path().to_path_buf(),
         shutdown,
     };
     (state, stopping)
@@ -155,7 +153,12 @@ async fn seed_thread(runtime: &Runtime) -> shadows::thread::ThreadId {
     };
     let project = runtime
         .storage
-        .create_project(&ctx, "demo", "Demo")
+        .create_project(
+            &ctx,
+            "demo",
+            "Demo",
+            &shadows::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+        )
         .await
         .unwrap();
     let tctx = CommandContext {

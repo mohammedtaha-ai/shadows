@@ -59,7 +59,13 @@ slug                TEXT NOT NULL UNIQUE
 name                TEXT NOT NULL
 default_config_ref  TEXT NULL
 created_at          TEXT NOT NULL
+directory           TEXT NULL
 ```
+
+`directory` (§4.2) arrived in migration 0003 and is NULL only on rows written
+before it. SQLite cannot add a NOT NULL column without a default, and a default
+would be an invented directory, so two triggers hold the rule for new rows
+instead: a NULL `directory` can be neither inserted nor written over one.
 
 ---
 

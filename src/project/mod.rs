@@ -1,3 +1,7 @@
+pub mod directory;
+
+pub use directory::{DirectoryError, ProjectDirectory};
+
 use crate::id::newtype_id;
 
 newtype_id! {
@@ -12,5 +16,11 @@ pub struct Project {
     pub id: ProjectId,
     pub slug: String,
     pub name: String,
+    /// Spec §4.2: the directory this project's turns run in, as
+    /// [`ProjectDirectory`] resolved it. `None` only for a project created
+    /// before projects owned one (`migrations/0003_project_directory.sql`);
+    /// a turn on such a project fails at Prepare rather than running in the
+    /// daemon's own working directory.
+    pub directory: Option<String>,
     pub created_at: String,
 }

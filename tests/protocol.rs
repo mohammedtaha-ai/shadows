@@ -44,7 +44,6 @@ async fn fixture() -> Fixture {
             "fake-1".into(),
         )),
         bus,
-        project_root: tmp.path().to_path_buf(),
         shutdown,
     });
     Fixture {
@@ -78,7 +77,10 @@ async fn create_project(app: &Router, command_id: &str, name: &str) -> (StatusCo
         app,
         "POST",
         "/api/projects",
-        Some(json!({ "command_id": command_id, "slug": "demo", "name": name })),
+        Some(json!({
+            "command_id": command_id, "slug": "demo", "name": name,
+            "directory": std::env::temp_dir(),
+        })),
     )
     .await
 }

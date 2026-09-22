@@ -25,7 +25,7 @@ use crate::operation::{FailureStage, OperationId};
 use crate::process::spawn;
 use crate::runtime::Runtime;
 use crate::storage::StorageError;
-use crate::thread::ThreadId;
+use crate::thread::{ThreadId, TurnContext};
 
 /// What a caller asks for, bundled rather than passed positionally.
 /// `PlannerTurn::start` otherwise takes eight parameters, which is both a
@@ -34,11 +34,15 @@ use crate::thread::ThreadId;
 /// `NewThreadEntry` precedent exists to close: same-typed neighbours
 /// (`thread_id`, `prompt`, `resume_session_id` are all string-ish) that the
 /// compiler cannot tell apart at a positional call site.
+///
+/// There is no working directory here, on purpose: a turn runs in its thread's
+/// project directory, which Prepare reads from durable state
+/// ([`TurnContext`]). A caller that could name the directory could run a turn
+/// anywhere on the disk.
 #[derive(Debug, Clone)]
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
     pub prompt: String,
-    pub cwd: PathBuf,
     /// Present on a resumed turn. Continuity belongs to the harness, not to us.
     pub resume_session_id: Option<String>,
 }
@@ -57,9 +61,12 @@ impl PlannerTurn {
         let PlannerTurnRequest {
             thread_id,
             prompt,
-            cwd,
             resume_session_id,
         } = request;
+
+        // Read before TX #1, so a turn on a thread that does not exist is
+        // refused with nothing created for it.
+        let context = runtime.storage.turn_context(&thread_id).await?;
 
         // TX #1: the durable attempt exists before anything spawns.
         let op_id = runtime
@@ -70,6 +77,17 @@ impl PlannerTurn {
         // — here, in the watcher, in `stop`, and in `process/` beneath them.
         let span =
             tracing::info_span!("planner.turn", operation_id = %op_id, thread_id = %thread_id);
+
+        let cwd = match workspace(&context) {
+            Ok(dir) => dir,
+            Err(reason) => {
+                runtime
+                    .storage
+                    .mark_operation_failed(&op_id, FailureStage::Prepare, &reason)
+                    .await?;
+                return Ok(op_id);
+            }
+        };
 
         let invocation = AgentInvocation {
             operation_id: op_id.clone(),
@@ -171,4 +189,27 @@ impl PlannerTurn {
 
         Ok(op_id)
     }
+}
+
+/// Prepare's workspace step (spec §8.3). Milestone 0 has one workspace mode —
+/// the project directory, read in place — so readying it means checking that
+/// the project has one and that it is still a directory. It was checked when
+/// the project was created, and can have been deleted or moved since.
+///
+/// `Err` is the operation's failure reason. There is no fallback to the
+/// daemon's own working directory: a turn that ran somewhere nobody chose
+/// would look like success.
+fn workspace(context: &TurnContext) -> Result<PathBuf, String> {
+    let Some(dir) = &context.project_directory else {
+        return Err(
+            "the project has no directory: it was created before projects owned one".into(),
+        );
+    };
+    if !dir.is_dir() {
+        return Err(format!(
+            "the project directory is missing or no longer a directory: {}",
+            dir.display()
+        ));
+    }
+    Ok(dir.clone())
 }

@@ -6,8 +6,15 @@
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::Actor;
 use shadows::operation::OperationId;
+use shadows::project::ProjectDirectory;
 use shadows::storage::Storage;
 use shadows::thread::{EntryRef, NewThreadEntry};
+
+/// Any directory that exists: these tests are about threads, not about where
+/// a turn runs.
+fn dir() -> ProjectDirectory {
+    ProjectDirectory::resolve(&std::env::temp_dir()).unwrap()
+}
 
 fn ctx(command_id: &str, params: &serde_json::Value) -> CommandContext {
     ctx_kind(command_id, "project.create", params)
@@ -33,7 +40,7 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
     let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
     let project = storage
-        .create_project(&ctx("cmd-p", &params), "demo", "Demo")
+        .create_project(&ctx("cmd-p", &params), "demo", "Demo", &dir())
         .await
         .unwrap();
     let thread = storage
@@ -101,7 +108,7 @@ async fn entries_are_read_in_ordinal_order() {
     let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
     let project = storage
-        .create_project(&ctx("cmd-p", &params), "demo", "Demo")
+        .create_project(&ctx("cmd-p", &params), "demo", "Demo", &dir())
         .await
         .unwrap();
     let thread = storage
@@ -146,7 +153,7 @@ async fn entry_refs_round_trip_through_storage() {
     let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
     let project = storage
-        .create_project(&ctx("cmd-p", &params), "demo", "Demo")
+        .create_project(&ctx("cmd-p", &params), "demo", "Demo", &dir())
         .await
         .unwrap();
     let thread = storage
@@ -190,7 +197,7 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
     let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
     let project = storage
-        .create_project(&ctx("cmd-p", &params), "demo", "Demo")
+        .create_project(&ctx("cmd-p", &params), "demo", "Demo", &dir())
         .await
         .unwrap();
     let thread = storage

@@ -12,7 +12,7 @@ use crate::command::{CommandContext, fingerprint};
 use crate::events::Actor;
 use crate::operation::OperationId;
 use crate::planner::{PlannerTurn, PlannerTurnRequest};
-use crate::project::ProjectId;
+use crate::project::{ProjectDirectory, ProjectId};
 use crate::thread::{NewThreadEntry, ThreadId};
 
 /// Every route that mutates carries the caller's command id (spec §3.2), and
@@ -35,6 +35,9 @@ pub(super) struct CreateProject {
     command_id: String,
     slug: String,
     name: String,
+    /// Absolute path to an existing directory. Stored canonical; see
+    /// `ProjectDirectory`.
+    directory: String,
 }
 
 pub(super) async fn list_projects(
@@ -47,10 +50,17 @@ pub(super) async fn create_project(
     State(s): State<AppState>,
     Json(body): Json<CreateProject>,
 ) -> Result<Json<serde_json::Value>, Failure> {
-    let params = serde_json::json!({ "slug": body.slug, "name": body.name });
+    // Resolved before the fingerprint is taken, so two spellings of one
+    // folder are one request, and a bad path is refused before any write.
+    let directory = ProjectDirectory::resolve(std::path::Path::new(&body.directory))?;
+    let params = serde_json::json!({
+        "slug": body.slug, "name": body.name, "directory": directory.as_str(),
+    });
     let c = ctx(body.command_id, "project.create", params);
     Ok(Json(serde_json::json!(
-        s.storage.create_project(&c, &body.slug, &body.name).await?
+        s.storage
+            .create_project(&c, &body.slug, &body.name, &directory)
+            .await?
     )))
 }
 
@@ -127,7 +137,6 @@ pub(super) async fn start_turn(
         PlannerTurnRequest {
             thread_id,
             prompt: body.prompt,
-            cwd: s.project_root.clone(),
             resume_session_id: body.resume_session_id,
         },
         s.bus.clone(),

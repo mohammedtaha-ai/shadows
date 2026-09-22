@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::events::Actor;
 use crate::id::newtype_id;
 use crate::operation::OperationId;
@@ -21,6 +23,16 @@ pub struct PlanningThread {
     pub title: String,
     pub status: String,
     pub created_at: String,
+}
+
+/// What a thread's next turn inherits from durable state, read by the
+/// Planner's Prepare step (spec §8.3) rather than supplied by the caller: a
+/// client that could name a turn's directory could run it anywhere.
+#[derive(Debug, Clone)]
+pub struct TurnContext {
+    /// The owning project's directory. `None` for a project created before
+    /// projects owned one — see `Project::directory`.
+    pub project_directory: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]

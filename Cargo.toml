@@ -9,6 +9,9 @@ publish = false
 anyhow = "1"
 axum = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
+# `std::fs::canonicalize` answers `\\?\C:\...` on Windows: a path no person
+# typed and most tools refuse. `dunce` strips that prefix where it is safe to.
+dunce = "1"
 futures-core = "0.3"
 process-wrap = { version = "10", features = ["tokio1"] }
 serde = { version = "1", features = ["derive"] }

@@ -4,23 +4,26 @@
 //! CLAUDE.md names `protocol/` an accretion point: every feature this project
 //! ever adds puts a route here. So the split is made on the way in — this file
 //! holds the wiring, `handlers.rs` holds what each route does, `sse.rs` holds
-//! the replay-then-live stream.
+//! the replay-then-live stream, `failure.rs` holds the transport mapping.
 //!
 //! This module is also the sole owner of HTTP and SSE types (CLAUDE.md). None
 //! of them appear in a domain or application signature; a handler is where
 //! `axum` stops.
 
+mod failure;
 mod handlers;
 pub mod sse;
+
+pub use failure::Failure;
 
 use std::sync::Arc;
 use std::time::Duration;
 
+use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, Response};
 use axum::response::Html;
 use axum::routing::{get, post};
-use axum::{Json, Router};
 use tower_http::trace::TraceLayer;
 
 use crate::agent::StreamItem;
@@ -38,7 +41,6 @@ pub struct AppState {
     pub handles: Arc<LiveHandles>,
     pub harness: Arc<ClaudeHarness>,
     pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
-    pub project_root: std::path::PathBuf,
     /// Becomes `true` once the daemon is stopping. A live stream has no end of
     /// its own, and a graceful HTTP shutdown waits for every open response to
     /// finish — so without this, one open browser tab holds the daemon up
@@ -101,43 +103,4 @@ fn content_length(headers: &axum::http::HeaderMap) -> Option<u64> {
 /// The whole web client. Spec §1.0: the daemon serves it and never opens it.
 async fn index() -> Html<&'static str> {
     Html(include_str!("index.html"))
-}
-
-/// Transport mapping lives here and nowhere else. Spec §3.3: `Blocked` and
-/// `Rejected` are domain outcomes, not HTTP failures, and would be returned as
-/// 200 with the outcome — they are not reachable in Milestone 0.
-pub struct Failure(crate::storage::StorageError);
-
-impl From<crate::storage::StorageError> for Failure {
-    fn from(e: crate::storage::StorageError) -> Self {
-        Failure(e)
-    }
-}
-
-impl axum::response::IntoResponse for Failure {
-    fn into_response(self) -> axum::response::Response {
-        use crate::error::ErrorCode;
-        use crate::storage::StorageError as E;
-        let (status, code) = match &self.0 {
-            E::CommandConflict => (axum::http::StatusCode::CONFLICT, ErrorCode::CommandConflict),
-            E::NotFound(_) => (axum::http::StatusCode::NOT_FOUND, ErrorCode::InvalidCommand),
-            E::TransitionConflict { .. } => (
-                axum::http::StatusCode::CONFLICT,
-                ErrorCode::StorageConstraintViolation,
-            ),
-            _ => (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorCode::StorageUnavailable,
-            ),
-        };
-        if status.is_server_error() {
-            // Inside the request's `http` span, so the line names the route.
-            tracing::error!(error = %self.0, "http.failure");
-        }
-        (
-            status,
-            Json(serde_json::json!({ "code": code, "message": self.0.to_string() })),
-        )
-            .into_response()
-    }
 }

@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use sqlx::SqliteConnection;
 
 use super::project::{classify, record_command};
@@ -5,7 +7,9 @@ use super::{Storage, StorageError, events::append_event, now};
 use crate::command::CommandContext;
 use crate::events::{Actor, DurableEvent};
 use crate::project::ProjectId;
-use crate::thread::{NewThreadEntry, PlanningThread, ThreadEntry, ThreadEntryId, ThreadId};
+use crate::thread::{
+    NewThreadEntry, PlanningThread, ThreadEntry, ThreadEntryId, ThreadId, TurnContext,
+};
 
 impl Storage {
     pub async fn create_planning_thread(
@@ -172,6 +176,23 @@ impl Storage {
                 })
             })
             .collect()
+    }
+
+    /// `NotFound` when the thread does not exist, so a turn on an unknown
+    /// thread is refused before an operation is created for it.
+    pub async fn turn_context(&self, thread_id: &ThreadId) -> Result<TurnContext, StorageError> {
+        let (directory,): (Option<String>,) = sqlx::query_as(
+            "SELECT p.directory
+               FROM planning_thread t JOIN project p ON p.id = t.project_id
+              WHERE t.id = ?",
+        )
+        .bind(thread_id.as_str())
+        .fetch_optional(self.reader())
+        .await?
+        .ok_or(StorageError::NotFound("planning_thread"))?;
+        Ok(TurnContext {
+            project_directory: directory.map(PathBuf::from),
+        })
     }
 
     pub async fn list_threads_for_project(

@@ -16,6 +16,11 @@ pub enum ErrorCode {
     InvalidCursor,
     AgentAuthFailed,
     AgentUnsupportedProfile,
+    PathInvalid,
+    PathNotFound,
+    PathNotADirectory,
+    PathAccessDenied,
+    PathUnavailable,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]

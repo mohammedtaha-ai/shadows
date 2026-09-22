@@ -110,6 +110,11 @@ Between claiming work and spawning it there is a **Prepare** step: resolving the
 harness executable, validating that the harness supports what the invocation
 froze, building the child environment, and readying the workspace.
 
+In Milestone 0 readying the workspace means the thread's project has a directory
+(§4.2) and it is still a directory; the turn runs there. Neither is supplied by the
+client, and there is no fallback to the daemon's working directory: a failure is a
+`Prepare` failure naming which of the two was missing.
+
 ```text
 frozen AgentInvocation
     -> select AgentHarness

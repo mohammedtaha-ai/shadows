@@ -8,6 +8,7 @@ async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) 
     let tmp = tempfile::tempdir().unwrap();
     let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let runtime = storage.register_runtime_instance("test").await.unwrap();
+    let dir = shadows::project::ProjectDirectory::resolve(tmp.path()).unwrap();
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = shadows::command::CommandContext {
         principal_kind: "User".into(),
@@ -17,7 +18,10 @@ async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) 
         command_schema_ver: 1,
         request_fingerprint: shadows::command::fingerprint("project.create", &params),
     };
-    let project = storage.create_project(&ctx, "demo", "Demo").await.unwrap();
+    let project = storage
+        .create_project(&ctx, "demo", "Demo", &dir)
+        .await
+        .unwrap();
     let tctx = shadows::command::CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),

@@ -4,7 +4,14 @@
 //! one job is the connection and transaction contracts.
 
 use shadows::command::{CommandContext, fingerprint};
+use shadows::project::ProjectDirectory;
 use shadows::storage::Storage;
+
+/// Any directory that exists: these tests are about identity and
+/// idempotency, not about where a turn runs.
+fn dir() -> ProjectDirectory {
+    ProjectDirectory::resolve(&std::env::temp_dir()).unwrap()
+}
 
 fn ctx(command_id: &str, params: &serde_json::Value) -> CommandContext {
     ctx_kind(command_id, "project.create", params)
@@ -31,11 +38,11 @@ async fn replaying_an_identical_command_returns_the_stored_outcome() {
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
 
     let first = storage
-        .create_project(&ctx("cmd-1", &params), "demo", "Demo")
+        .create_project(&ctx("cmd-1", &params), "demo", "Demo", &dir())
         .await
         .unwrap();
     let second = storage
-        .create_project(&ctx("cmd-1", &params), "demo", "Demo")
+        .create_project(&ctx("cmd-1", &params), "demo", "Demo", &dir())
         .await
         .unwrap();
 
@@ -64,13 +71,13 @@ async fn the_same_command_id_with_a_different_request_is_a_conflict() {
 
     let first_params = serde_json::json!({ "slug": "demo", "name": "Demo" });
     storage
-        .create_project(&ctx("cmd-1", &first_params), "demo", "Demo")
+        .create_project(&ctx("cmd-1", &first_params), "demo", "Demo", &dir())
         .await
         .unwrap();
 
     let other_params = serde_json::json!({ "slug": "other", "name": "Other" });
     let err = storage
-        .create_project(&ctx("cmd-1", &other_params), "other", "Other")
+        .create_project(&ctx("cmd-1", &other_params), "other", "Other", &dir())
         .await
         .expect_err("a reused command id with a different request must be refused");
     assert!(matches!(
@@ -134,7 +141,7 @@ async fn the_same_command_id_under_a_different_schema_version_is_a_conflict() {
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
 
     storage
-        .create_project(&ctx("cmd-1", &params), "demo", "Demo")
+        .create_project(&ctx("cmd-1", &params), "demo", "Demo", &dir())
         .await
         .unwrap();
 
@@ -147,7 +154,7 @@ async fn the_same_command_id_under_a_different_schema_version_is_a_conflict() {
     );
 
     let err = storage
-        .create_project(&bumped, "demo", "Demo")
+        .create_project(&bumped, "demo", "Demo", &dir())
         .await
         .expect_err("a reused command id under a new schema version must be refused");
     assert!(matches!(

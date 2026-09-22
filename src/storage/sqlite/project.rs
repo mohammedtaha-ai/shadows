@@ -3,7 +3,7 @@ use sqlx::SqliteConnection;
 use super::{Storage, StorageError, events::append_event, now};
 use crate::command::CommandContext;
 use crate::events::{Actor, DurableEvent};
-use crate::project::{Project, ProjectId};
+use crate::project::{Project, ProjectDirectory, ProjectId};
 
 /// `Some(outcome_ref)` when this exact command was already recorded, `None`
 /// when it is new, `Err(CommandConflict)` when the id was reused with a
@@ -91,27 +91,39 @@ impl Storage {
         ctx: &CommandContext,
         slug: &str,
         name: &str,
+        directory: &ProjectDirectory,
     ) -> Result<Project, StorageError> {
-        let (ctx, slug, name, ts) = (ctx.clone(), slug.to_string(), name.to_string(), now());
+        let (ctx, slug, name, directory, ts) = (
+            ctx.clone(),
+            slug.to_string(),
+            name.to_string(),
+            directory.as_str().to_string(),
+            now(),
+        );
         self.write_txn(move |conn| {
             Box::pin(async move {
                 if let Some(existing_id) = classify(conn, &ctx, "Global", "").await? {
                     return load_project(conn, &ProjectId::from_stored(existing_id)).await;
                 }
                 let id = ProjectId::generate();
-                sqlx::query("INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)")
-                    .bind(id.as_str())
-                    .bind(&slug)
-                    .bind(&name)
-                    .bind(&ts)
-                    .execute(&mut *conn)
-                    .await?;
+                sqlx::query(
+                    "INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,?,?)",
+                )
+                .bind(id.as_str())
+                .bind(&slug)
+                .bind(&name)
+                .bind(&directory)
+                .bind(&ts)
+                .execute(&mut *conn)
+                .await?;
 
                 append_event(
                     conn,
                     &DurableEvent::new("ProjectCreated", Actor::user(&ctx.principal_id))
                         .with_project(&id)
-                        .with_payload(serde_json::json!({ "slug": slug, "name": name })),
+                        .with_payload(serde_json::json!({
+                            "slug": slug, "name": name, "directory": directory,
+                        })),
                     &ts,
                 )
                 .await?;
@@ -124,20 +136,24 @@ impl Storage {
     }
 
     pub async fn list_projects(&self) -> Result<Vec<Project>, StorageError> {
-        let rows: Vec<(String, String, String, String)> = sqlx::query_as(
-            "SELECT id, slug, name, created_at FROM project ORDER BY created_at, id",
+        let rows: Vec<ProjectRow> = sqlx::query_as(
+            "SELECT id, slug, name, directory, created_at FROM project ORDER BY created_at, id",
         )
         .fetch_all(self.reader())
         .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(id, slug, name, created_at)| Project {
-                id: ProjectId::from_stored(id),
-                slug,
-                name,
-                created_at,
-            })
-            .collect())
+        Ok(rows.into_iter().map(project).collect())
+    }
+}
+
+type ProjectRow = (String, String, String, Option<String>, String);
+
+fn project((id, slug, name, directory, created_at): ProjectRow) -> Project {
+    Project {
+        id: ProjectId::from_stored(id),
+        slug,
+        name,
+        directory,
+        created_at,
     }
 }
 
@@ -145,16 +161,11 @@ async fn load_project(
     conn: &mut SqliteConnection,
     id: &ProjectId,
 ) -> Result<Project, StorageError> {
-    let row: (String, String, String, String) =
-        sqlx::query_as("SELECT id, slug, name, created_at FROM project WHERE id = ?")
+    let row: ProjectRow =
+        sqlx::query_as("SELECT id, slug, name, directory, created_at FROM project WHERE id = ?")
             .bind(id.as_str())
             .fetch_optional(&mut *conn)
             .await?
             .ok_or(StorageError::NotFound("project"))?;
-    Ok(Project {
-        id: ProjectId::from_stored(row.0),
-        slug: row.1,
-        name: row.2,
-        created_at: row.3,
-    })
+    Ok(project(row))
 }

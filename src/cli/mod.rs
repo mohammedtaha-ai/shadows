@@ -29,7 +29,6 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         handles: Arc::new(LiveHandles::default()),
         harness: Arc::new(ClaudeHarness::new(config.harness_path.clone(), version)),
         bus,
-        project_root: std::env::current_dir()?,
         shutdown,
     };
 

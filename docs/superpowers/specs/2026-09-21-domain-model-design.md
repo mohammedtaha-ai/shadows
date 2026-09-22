@@ -70,10 +70,19 @@ struct Project {
     id: ProjectId,
     slug: ProjectSlug,
     name: String,
+    directory: Option<ProjectDirectory>,
     default_config_ref: Option<ConfigRef>,
     created_at: Timestamp,
 }
 ```
+
+`directory` is where the project's turns run (§8.3). It is chosen by the user,
+checked by the daemon when the project is created (absolute, exists, is a
+directory), and stored canonical — on Windows without the `\\?\` prefix — so two
+spellings of one folder are one directory. It is not the project's identity
+(§11.1). `None` only for a project created before projects owned a directory:
+none can be backfilled, so such a project's turns fail at Prepare rather than
+run in the daemon's working directory.
 
 ### PlanningThread
 
