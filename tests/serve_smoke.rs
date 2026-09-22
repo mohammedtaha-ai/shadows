@@ -13,6 +13,12 @@ fn serve_prints_one_local_address_and_does_not_open_a_browser() {
         .arg(tmp.path().join("shadows.sqlite3"))
         .arg("--bind")
         .arg("127.0.0.1:0")
+        // Required, with no default: spec §1.4 resolves the harness from
+        // explicit configuration and refuses a bare name, which would be a PATH
+        // lookup. Nothing is spawned in this test; the path only has to be
+        // absolute. `tests/harness_config.rs` owns that rule.
+        .arg("--harness")
+        .arg(tmp.path().join("claude.exe"))
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()

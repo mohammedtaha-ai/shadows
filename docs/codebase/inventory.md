@@ -76,7 +76,7 @@ pub struct CommandContext {
 pub fn fingerprint(command_kind: &str, params: &serde_json::Value) -> String
 ```
 
-## `src/config.rs` — 11 lines
+## `src/config.rs` — 44 lines
 
 ```rust
 pub struct Config {
@@ -84,6 +84,10 @@ pub struct Config {
     pub bind: SocketAddr,
     pub harness_path: PathBuf,
 }
+pub enum ConfigError {
+    HarnessNotAbsolute(String),
+}
+pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError>
 ```
 
 ## `src/error.rs` — 64 lines
@@ -170,7 +174,7 @@ impl DurableEvent {
 
 Nothing reachable from outside this file.
 
-## `src/main.rs` — 44 lines
+## `src/main.rs` — 55 lines
 
 Nothing reachable from outside this file.
 

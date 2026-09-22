@@ -21,10 +21,21 @@ enum Commands {
         db: PathBuf,
         #[arg(long, default_value = "127.0.0.1:4318")]
         bind: SocketAddr,
-        /// Path to the Claude Code executable. Spec §1.4 forbids PATH lookup.
-        #[arg(long, default_value = "claude")]
+        /// Absolute path to the Claude Code executable. Required, with no
+        /// default: spec §1.4 resolves the harness from explicit configuration
+        /// and never from `PATH`, and a default of `claude` would have been a
+        /// PATH lookup in every ordinary run. `SHADOWS_HARNESS` is accepted
+        /// because an environment variable is still explicit configuration.
+        #[arg(long, env = "SHADOWS_HARNESS", value_parser = parse_harness)]
         harness: PathBuf,
     },
+}
+
+/// Rejects a bare program name or a relative path at parse time, so the failure
+/// is a startup error naming the rule rather than a turn that silently ran an
+/// unknown binary.
+fn parse_harness(raw: &str) -> Result<PathBuf, String> {
+    shadows::config::harness_path(std::path::Path::new(raw)).map_err(|e| e.to_string())
 }
 
 #[tokio::main]
