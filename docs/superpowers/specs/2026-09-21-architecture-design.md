@@ -228,6 +228,39 @@ A Unix process group alone is not proof that descendants die when the daemon
 crashes. The implementation plan must verify what `process-wrap` provides and
 add platform-specific support where it does not satisfy this invariant.
 
+That verification has now been done, and it split: Windows satisfies the
+invariant and Linux does not.
+
+- **Windows — satisfied.** `process-wrap`'s `JobObject` creates the child
+  suspended, assigns it to the job, and only then resumes it, so no child code
+  runs uncontained. The job carries `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, which
+  is the kill-on-owner-close half: when the daemon dies its job handle closes
+  and the tree goes with it. Breakaway is not permitted, because the job never
+  opts into it.
+- **Linux — NOT satisfied.** `ProcessSession` is `setsid` plus `killpg`. That
+  kills the tree when Shadows asks, which is §8.3's requirement, and it is what
+  `tests/containment.rs` proves. It supplies no parent-death containment
+  whatsoever: kill the daemon with `SIGKILL` and the harness keeps running,
+  which is precisely the case the paragraph above refuses to accept a process
+  group as proof of.
+
+> **OPEN — Linux has no parent-death containment, and nothing fails because of
+> it.** The mechanism is a choice between `PR_SET_PDEATHSIG` on the direct child
+> (which does not reach grandchildren), a cgroup v2 scope the whole tree lives
+> in, or a `pidfd`-watching supervisor. Picking one needs to be done against a
+> real Linux daemon, and this project's development and acceptance target is
+> Windows, so measuring it here would be measuring the wrong thing.
+>
+> **Trigger:** the first time Shadows is run as a daemon on Linux by anyone,
+> or the first Linux acceptance claim — whichever comes first. Until then the
+> Linux job is a compile-and-portable-test gate and is not evidence for this
+> invariant.
+>
+> **Why it does not block Milestone 0:** the milestone's vertical slice runs on
+> Windows, where the invariant holds. Cancellation and shutdown both go through
+> `terminate_tree`, which Linux does satisfy; only daemon *death* is uncovered
+> there.
+
 ## 1.6 Persistence decision
 
 Persistence selection is closed:

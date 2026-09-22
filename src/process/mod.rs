@@ -39,6 +39,15 @@ impl ProcessHandle {
         self.stdout.as_mut()
     }
 
+    /// Completion is the LEADER's exit, and whatever the leader left behind is
+    /// killed once it has exited — `waiting_for_the_leader_reaps_any_remaining_grandchild`
+    /// is that rule.
+    ///
+    /// This is why it polls `try_wait` instead of awaiting `child.wait()`:
+    /// process-wrap's `wait` returns only once every member of the group or job
+    /// has exited, so a harness that leaves a helper running would hang here
+    /// forever instead of completing its turn. Do not "simplify" this loop back
+    /// into `self.child.wait().await`.
     pub async fn wait(&mut self) -> io::Result<std::process::ExitStatus> {
         loop {
             if let Some(status) = self.child.try_wait()? {
@@ -104,6 +113,12 @@ pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle> {
     }
 
     let mut wrapped = CommandWrap::from(cmd);
+    // Load-bearing on Windows, not a convenience. `JobObject` asks
+    // `make_job_object` for `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` only when a
+    // `KillOnDrop` wrapper is registered alongside it, and that flag IS §1.5's
+    // kill-on-owner-close guarantee: without it the harness outlives a killed
+    // daemon. Measured 2026-09-22: removing this line leaves every containment
+    // test green and `clippy -D warnings` clean, so nothing here would tell you.
     wrapped.wrap(KillOnDrop);
     #[cfg(windows)]
     wrapped.wrap(JobObject);
