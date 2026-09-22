@@ -68,8 +68,7 @@ src/planner/mod.rs                  planner turn orchestration (start, stream, s
 src/agent/mod.rs                    AgentHarness trait, AgentInvocation
 src/agent/claude.rs                 Claude harness: flags, stream classification
 src/process/mod.rs                  ProcessSpec, ProcessHandle, spawn, terminate
-src/process/containment_windows.rs  Job Object containment
-src/process/containment_unix.rs     parent-death + tree cleanup
+src/process/mod.rs                  process-wrap containment and ProcessHandle
 src/events/mod.rs                   DurableEvent, EventCursor, live bus
 src/storage/mod.rs                  Storage facade: capabilities only
 src/storage/sqlite/mod.rs           pool setup, connection policy, write serialization
@@ -908,7 +907,9 @@ impl Storage {
                 Ok(v)
             }
             Err(e) => {
-                let _ = conn.execute("ROLLBACK").await;
+                if let Err(e) = conn.execute("ROLLBACK").await {
+                    tracing::error!(error = %e, "rollback failed; the write connection may be poisoned");
+                }
                 Err(e)
             }
         }
@@ -1340,7 +1341,7 @@ job without using "and": the project capability's durable contract.
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/storage_contract.rs`:
+Create `tests/project_contract.rs`:
 
 ```rust
 use shadows::command::{fingerprint, CommandContext};
@@ -1419,7 +1420,7 @@ fn the_fingerprint_ignores_key_order_but_not_command_kind() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test --test storage_contract`
+Run: `cargo test --test project_contract`
 Expected: FAIL — `shadows::command` and `create_project` do not exist.
 
 - [ ] **Step 3: Write `src/command/mod.rs`**
@@ -1613,13 +1614,16 @@ Move `now()` out of `runtime.rs` into `src/storage/sqlite/mod.rs` as `pub(super)
 
 - [ ] **Step 6: Run tests to verify they pass**
 
-Run: `cargo test --test storage_contract`
-Expected: PASS, all five tests.
+Run: `cargo test --test project_contract`
+Expected: PASS, all six tests. The sixth was added during review: spec §6.19
+compares command kind, **schema version**, and fingerprint, and `classify` at
+first compared only two of the three. `tests/project_contract.rs` is the
+authority on what it asserts; this plan does not restate it.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/command src/project src/storage src/lib.rs Cargo.toml tests/storage_contract.rs
+git add src/command src/project src/storage src/lib.rs Cargo.toml tests/project_contract.rs
 git commit -m "feat(project): create a local project under external command idempotency"
 ```
 
@@ -1640,11 +1644,18 @@ using "and": the thread capability's durable contract.
 
 **Interfaces:**
 - Consumes: `CommandContext` from Task 5; `classify` and `record_command` from Task 5.
-- Produces: `thread::{PlanningThread, ThreadEntry}`; `Storage::create_planning_thread(ctx, project_id, title) -> Result<PlanningThread, StorageError>`; `Storage::append_thread_entry(thread_id, kind, author_kind, author_id, body) -> Result<ThreadEntry, StorageError>`; `Storage::list_thread_entries(thread_id) -> Result<Vec<ThreadEntry>, StorageError>`; `Storage::list_threads_for_project(project_id) -> Result<Vec<PlanningThread>, StorageError>`.
+- Produces: `thread::{PlanningThread, ThreadEntry, EntryRef}`; `Storage::create_planning_thread(ctx, project_id, title) -> Result<PlanningThread, StorageError>`; `Storage::append_thread_entry(thread_id, kind, author_kind, author_id, body, refs) -> Result<ThreadEntry, StorageError>`; `Storage::list_thread_entries(thread_id) -> Result<Vec<ThreadEntry>, StorageError>`; `Storage::list_threads_for_project(project_id) -> Result<Vec<PlanningThread>, StorageError>`.
+
+**Review correction.** `ThreadEntry.refs` and `refs_json` are binding parts of
+spec §§4.2 and 6.5, not deferred schema decoration. The reviewed implementation
+therefore accepts `refs: &[EntryRef]`, serializes them inside storage, and maps
+them back on reads. It also carries a failure-path test proving that a rejected
+entry insert rolls back its allocated ordinal. Where the original Task 6 code
+below omits `refs`, this correction and the implementation are authoritative.
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/storage_contract.rs`:
+Create `tests/thread_contract.rs`:
 
 ```rust
 /// Spec section 6.5: ordinals are allocated by UPDATE ... RETURNING in the same
@@ -1668,7 +1679,7 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
             for i in 0..25 {
                 storage
                     .append_thread_entry(&thread_id, "UserMessage", "User", "local",
-                                         &format!("w{w}-i{i}"))
+                                         &format!("w{w}-i{i}"), &[])
                     .await.unwrap();
             }
         }));
@@ -1704,7 +1715,7 @@ async fn entries_are_read_in_ordinal_order() {
         .await.unwrap();
 
     for body in ["first", "second", "third"] {
-        storage.append_thread_entry(&thread.id, "UserMessage", "User", "local", body)
+        storage.append_thread_entry(&thread.id, "UserMessage", "User", "local", body, &[])
             .await.unwrap();
     }
     let entries = storage.list_thread_entries(&thread.id).await.unwrap();
@@ -1716,7 +1727,7 @@ async fn entries_are_read_in_ordinal_order() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test --test storage_contract`
+Run: `cargo test --test thread_contract`
 Expected: FAIL — `create_planning_thread` and `append_thread_entry` do not exist.
 
 - [ ] **Step 3: Write `src/thread/mod.rs`**
@@ -1740,6 +1751,7 @@ pub struct ThreadEntry {
     pub author_kind: String,
     pub author_id: String,
     pub body: String,
+    pub refs: Vec<EntryRef>,
     pub created_at: String,
 }
 ```
@@ -1803,11 +1815,13 @@ impl Storage {
         author_kind: &str,
         author_id: &str,
         body: &str,
+        refs: &[EntryRef],
     ) -> Result<ThreadEntry, StorageError> {
-        let (thread_id, kind, author_kind, author_id, body, ts) = (
+        let (thread_id, kind, author_kind, author_id, body, refs, ts) = (
             thread_id.to_string(), kind.to_string(), author_kind.to_string(),
-            author_id.to_string(), body.to_string(), now(),
+            author_id.to_string(), body.to_string(), refs.to_vec(), now(),
         );
+        let refs_json = serde_json::to_string(&refs)?;
         self.write_txn(move |conn| {
             Box::pin(async move {
                 // Spec section 6.5: allocate inside this transaction. Never MAX+1.
@@ -1825,11 +1839,11 @@ impl Storage {
                 let id = uuid::Uuid::new_v4().to_string();
                 sqlx::query(
                     "INSERT INTO thread_entry
-                       (id, thread_id, ordinal, kind, author_kind, author_id, body, created_at)
-                     VALUES (?,?,?,?,?,?,?,?)",
+                       (id, thread_id, ordinal, kind, author_kind, author_id, body, refs_json, created_at)
+                     VALUES (?,?,?,?,?,?,?,?,?)",
                 )
                 .bind(&id).bind(&thread_id).bind(ordinal).bind(&kind)
-                .bind(&author_kind).bind(&author_id).bind(&body).bind(&ts)
+                .bind(&author_kind).bind(&author_id).bind(&body).bind(&refs_json).bind(&ts)
                 .execute(&mut *conn).await?;
 
                 append_event(
@@ -1844,7 +1858,8 @@ impl Storage {
                 ).await?;
 
                 Ok(ThreadEntry {
-                    id, thread_id, ordinal, kind, author_kind, author_id, body, created_at: ts,
+                    id, thread_id, ordinal, kind, author_kind, author_id, body, refs,
+                    created_at: ts,
                 })
             })
         })
@@ -1855,18 +1870,19 @@ impl Storage {
         &self,
         thread_id: &str,
     ) -> Result<Vec<ThreadEntry>, StorageError> {
-        let rows: Vec<(String, String, i64, String, String, String, String, String)> =
+        let rows: Vec<(String, String, i64, String, String, String, String, String, String)> =
             sqlx::query_as(
-                "SELECT id, thread_id, ordinal, kind, author_kind, author_id, body, created_at
+                "SELECT id, thread_id, ordinal, kind, author_kind, author_id, body, refs_json, created_at
                    FROM thread_entry WHERE thread_id = ? ORDER BY ordinal",
             )
             .bind(thread_id)
             .fetch_all(self.reader())
             .await?;
-        Ok(rows.into_iter().map(|r| ThreadEntry {
+        rows.into_iter().map(|r| Ok(ThreadEntry {
             id: r.0, thread_id: r.1, ordinal: r.2, kind: r.3,
-            author_kind: r.4, author_id: r.5, body: r.6, created_at: r.7,
-        }).collect())
+            author_kind: r.4, author_id: r.5, body: r.6,
+            refs: serde_json::from_str(&r.7)?, created_at: r.8,
+        })).collect()
     }
 
     pub async fn list_threads_for_project(
@@ -1903,13 +1919,14 @@ async fn load_thread(
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `cargo test --test storage_contract`
-Expected: PASS, all seven tests.
+Run: `cargo test --test thread_contract`
+Expected: PASS, all four tests: ordering, concurrent allocation, refs round-trip,
+and rollback of an ordinal when entry insertion fails.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/thread src/storage src/lib.rs tests/storage_contract.rs
+git add src/thread src/storage src/lib.rs tests/thread_contract.rs
 git commit -m "feat(thread): planning threads and entries with transactional ordinal allocation"
 ```
 
@@ -1918,7 +1935,7 @@ git commit -m "feat(thread): planning threads and entries with transactional ord
 ## Task 7: The managed process primitive and process-tree containment
 
 **Files:**
-- Create: `src/process/mod.rs`, `src/process/containment_windows.rs`, `src/process/containment_unix.rs`
+- Create: `src/process/mod.rs`
 - Create: `src/bin/tree_probe.rs` (test-support binary; see note below)
 - Modify: `src/lib.rs`, `Cargo.toml`
 - Test: `tests/containment.rs`
@@ -1928,6 +1945,16 @@ git commit -m "feat(thread): planning threads and entries with transactional ord
 - Produces: `process::ProcessSpec { executable: PathBuf, args: Vec<String>, cwd: PathBuf, env: Vec<(String, String)>, capture_stdout: bool }`; `process::ProcessHandle` with `stdout_lines(&mut self) -> Option<Lines<BufReader<ChildStdout>>>`, `wait(&mut self) -> io::Result<ExitStatus>`, `terminate_tree(&mut self) -> io::Result<()>`, `id(&self) -> Option<u32>`; `process::spawn(spec: ProcessSpec) -> io::Result<ProcessHandle>`.
 
 **Why a test-support binary.** The containment probe in spec §3.7 Layer 4 requires a real `daemon -> child -> grandchild` hierarchy; a direct-child-only test is explicitly insufficient. `tree_probe` spawns a grandchild and then sleeps, so the test has a genuine three-level tree to kill. It is declared as a `[[bin]]` so integration tests can find it through `CARGO_BIN_EXE_tree_probe`. It contains no product logic and ships as part of the test apparatus.
+
+**Review correction.** The first implementation reproduced Job Objects manually
+and attached only after the child had begun executing. That leaves a real
+spawn-to-attach orphan window. Steps 4-6 below record that rejected first pass
+and must not be copied. The binding implementation uses `process-wrap` 10:
+Windows `JobObject` creates the child suspended, assigns it, then resumes it;
+Unix uses `ProcessSession`; `KillOnDrop` covers unwinding. `ProcessHandle::wait`
+observes leader exit with `try_wait`, terminates any remaining managed tree, and
+only then returns the leader status. The old `containment_windows.rs` and
+`containment_unix.rs` files were removed rather than retained as a second path.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2454,7 +2481,12 @@ fn a_real_turn_classifies_into_transient_durable_and_terminal() {
     assert!(durable >= 1, "a real turn produces at least one durable entry");
     assert_eq!(terminal, 1, "exactly one result line, always last");
     assert!(session_id.is_some(), "system/init carries the session id");
-    let _ = deltas;
+    // Assert the transient class too. Amended after implementation: this count
+    // was discarded, and disabling the Delta arm outright left all four tests
+    // green. `tests/harness_stream.rs` also gained a test that the deltas
+    // reassemble into exactly the durable entry text — the evidence report's
+    // decisive property, which nothing here compared.
+    assert!(deltas >= 1, "the transient class must be recognised");
 }
 
 /// Turn end is an explicit line, not a heuristic, and it carries a structured
@@ -2462,7 +2494,7 @@ fn a_real_turn_classifies_into_transient_durable_and_terminal() {
 #[test]
 fn turn_end_is_the_result_line_and_carries_its_verdict() {
     let raw = std::fs::read_to_string("tests/fixtures/claude_turn.jsonl").unwrap();
-    let last = raw.lines().filter(|l| !l.trim().is_empty()).next_back().unwrap();
+    let last = raw.lines().rfind(|l| !l.trim().is_empty()).unwrap();
     match harness().classify(last) {
         StreamItem::TurnEnd { subtype, stop_reason } => {
             assert_eq!(subtype, "success");
@@ -2634,7 +2666,9 @@ fn render_content(content: &Value) -> String {
 - [ ] **Step 6: Run tests to verify they pass**
 
 Run: `cargo test --test harness_stream`
-Expected: PASS, all four tests.
+Expected: PASS, all five tests. The fifth is the delta/durable equality test
+added during review; `tests/harness_stream.rs` is the authority on what it
+asserts, and this plan does not restate it.
 
 - [ ] **Step 7: Commit**
 
@@ -2789,7 +2823,13 @@ async fn every_transition_appends_its_event_atomically() {
     .bind(&op)
     .fetch_all(storage.reader()).await.unwrap();
     assert_eq!(kinds, vec!["OperationCreated", "OperationStarted", "OperationCompleted"]);
-    let _ = before;
+    // Amended after review: `before` was captured and discarded. Scoping the
+    // assertion to this operation's own rows cannot see an event written against
+    // the wrong operation, or none — both leave `kinds` right while the journal
+    // grew by more than three.
+    let after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM durable_event")
+        .fetch_one(storage.reader()).await.unwrap();
+    assert_eq!(after, before + 3);
 }
 ```
 
@@ -3236,6 +3276,23 @@ impl Storage {
 
 This is where the two-phase spawn and the interlock actually run.
 
+**Amended after Task 10's review: the stream reader must consult the real exit.**
+The code below ends a turn by calling `mark_operation_completed` unconditionally,
+so a child that crashed, or exited non-zero, or died before emitting its turn-end
+result was recorded `Completed` with `{"stop_reason": null}`. That contradicts §8.4
+case 4, which says to persist `Completed` **or `Failed`** from the real exit, and it
+is why `FailureStage::Run` existed with no caller. The reader owns the handle once
+it has claimed the outcome, so the exit status is available: a turn that produced a
+turn-end result and exited cleanly is `Completed` with that outcome; a turn that
+ended without one, or with a non-success status, is
+`mark_operation_failed(…, FailureStage::Run, …)` with a reason saying which of the
+two it was. Two further corrections from the same review that the block below does
+not show: `stop` claims ownership of the outcome only once termination is actually
+confirmed (an unconfirmed kill puts the registration back — §8.4 case 6), and it
+declines to write `Cancelled` at all when the turn has already produced its own
+ending (§8.4 case 4). `src/planner/mod.rs` is the built article; this block is the
+intent it was written from.
+
 ```rust
 use std::sync::Arc;
 
@@ -3341,7 +3398,7 @@ impl PlannerTurn {
                             let _ = reader_runtime
                                 .storage
                                 .append_thread_entry(
-                                    &thread_id, "AgentMessage", role, uuid, text,
+                                    &thread_id, "AgentMessage", role, uuid, text, &[],
                                 )
                                 .await;
                         }
@@ -3472,7 +3529,7 @@ async fn reading_after_a_cursor_returns_the_unseen_tail_in_order() {
     let mid = storage.current_cursor().await.unwrap();
 
     for body in ["one", "two", "three"] {
-        storage.append_thread_entry(&thread.id, "UserMessage", "User", "local", body)
+        storage.append_thread_entry(&thread.id, "UserMessage", "User", "local", body, &[])
             .await.unwrap();
     }
 
@@ -3512,7 +3569,7 @@ async fn a_zero_cursor_replays_the_whole_thread() {
         ..ctx
     };
     let thread = storage.create_planning_thread(&tctx, &project.id, "T").await.unwrap();
-    storage.append_thread_entry(&thread.id, "UserMessage", "User", "local", "hi")
+    storage.append_thread_entry(&thread.id, "UserMessage", "User", "local", "hi", &[])
         .await.unwrap();
 
     let all = storage.read_events_after(EventCursor(0), &thread.id, 100).await.unwrap();
@@ -3826,7 +3883,14 @@ async fn start_turn(
     // Record the user's message as a durable entry before the turn starts, so
     // a restart mid-turn still shows what was asked.
     s.storage
-        .append_thread_entry(&thread_id, "UserMessage", "User", "local", &body.prompt)
+        .append_thread_entry(
+            &thread_id,
+            "UserMessage",
+            "User",
+            "local",
+            &body.prompt,
+            &[],
+        )
         .await?;
 
     let op = PlannerTurn::start(
@@ -4318,7 +4382,7 @@ Follow the shape of the existing evidence reports: environment table with exact 
 - each §11.1 checklist line marked pass or fail with what was observed, not with an adjective;
 - the Stop proof: the process listing before and after, and the durable row;
 - the recovery proof: the interrupted row and the surviving entries;
-- **the Linux gap, named exactly.** Spec §1.5's containment contract has a Linux half that Milestone 0 does not implement: `containment_unix.rs` handles deliberate termination through a process group, and spec §1.5 explicitly refuses to accept a process group as proof that descendants die when the daemon crashes. Say that plainly. Do not report the Linux column as passing because the test file compiles.
+- **the Linux gap, named exactly.** Spec §1.5's containment contract has a Linux half that Milestone 0 does not implement: `process-wrap::ProcessSession` handles deliberate termination through a process session, while spec §1.5 explicitly refuses to accept a process group/session as proof that descendants die when the daemon crashes. Say that plainly. Do not report Linux parent-death containment as passing merely because its compile/test CI job is green.
 - anything else observed and not explained.
 
 - [ ] **Step 6: Update `docs/status.md`**
@@ -4344,7 +4408,7 @@ Run against the spec after the plan is written, before execution starts.
 
 **Known incompleteness, stated rather than hidden.**
 
-1. **Linux containment is not implemented.** `containment_unix.rs` covers deliberate termination only. The parent-death half of §1.5 is absent, and `tests/containment.rs` will expose that on Linux. Task 7 Step 7 says not to gate the test off to make the suite green. Milestone 0 claims Windows.
+1. **Linux parent-death containment is not implemented.** `process-wrap::ProcessSession` covers deliberate termination only. The parent-death half of §1.5 is absent and no current test claims otherwise. Milestone 0 claims Windows; Linux CI checks compilation and the portable behavior only.
 2. **`agent_invocation` is not persisted.** §8.2 requires the invocation be frozen durably at claim time, and its table is not in the milestone schema. In Milestone 0 the invocation is in-memory only, so a restart loses which model and flags produced a turn. This is a real gap against §8.2 and it is the first thing the next milestone should close.
 3. **The harness session id is not persisted.** Task 10 generates one per turn and does not store it, so `--resume` continuity works within a running daemon but not across a restart. Spec §2.11 permits this — a missing native session must never make durable continuity impossible, and the `ThreadEntry` log is the durable record — but the user will notice the model losing its own context after a restart. Closing it needs a column that belongs with `agent_invocation`.
 

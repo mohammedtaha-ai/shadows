@@ -6,6 +6,7 @@
 > |----------|---------|
 > | [CLAUDE.md](./CLAUDE.md) | Architecture, conventions, rules (this file) |
 > | [docs/superpowers/specs/README.md](./docs/superpowers/specs/README.md) | **Index of the authoritative design sections and their owners.** |
+> | [docs/codebase/README.md](./docs/codebase/README.md) | **The code map.** What each module owns, and every declaration that exists. Read before writing code. |
 > | [docs/status.md](./docs/status.md) | Where the project is right now. Decides nothing. |
 > | [docs/evidence/](./docs/evidence/) | Dated measurement records. Facts, not decisions. |
 >
@@ -29,6 +30,14 @@
 > - Earlier specs, the runtime draft, and the four consolidated ADRs were absorbed
 >   into the topic specs and deleted. They remain in Git history and are not
 >   active references.
+> - **The code map is generated, never written.** `docs/codebase/inventory.md`
+>   comes out of `src/` and `cargo test --test codemap` fails when it has
+>   drifted, so a code change that moves a signature regenerates it in the same
+>   commit: `UPDATE_CODEMAP=1 cargo test --test codemap`. The one part no
+>   generator can derive — what each module owns — is hand-written in
+>   `docs/codebase/README.md`, and the same test refuses a module with no owner
+>   or a job stated with "and". `tests/codemap/main.rs` owns that decision and
+>   states why line numbers are excluded.
 > - CLAUDE.md stays compact: links + rules + architecture. No long backlogs.
 
 ## Project
@@ -98,6 +107,55 @@ The first milestone is deliberately vertical: start `shadows serve`, manually op
 - **DB-specific syntax isolation:** backend-specific SQL (FTS5, tsvector, `PRAGMA`, `rowid`, `strftime`) stays inside `storage/<backend>/`. Enforced by module boundaries, contract tests, and review — not by a keyword blacklist scanned across the tree (spec §2.9).
 - **Idempotency:** mutating commands carry `CommandId`, command kind, schema version, and normalized request fingerprint. Replay requires fingerprint equality; mismatch is `CommandConflict`.
 - **PLAN_BLOCKED = Operation outcome, NOT HTTP error.** Structured refusal, not transport failure.
+
+## How agents work here
+
+These override the defaults of any execution skill. Token cost is a real
+constraint on this project, and every rule below exists because a round trip,
+a crawl, or a re-read was paid for and bought nothing.
+
+- **The code map is the entry point, not the source tree.** Read
+  `docs/codebase/README.md` (what each module owns) and
+  `docs/codebase/inventory.md` (every declaration that exists) FIRST, then open
+  only the files the task names. Reading the tree to discover what a signature
+  is means the code map failed or you skipped it — say which, in your report.
+  A generated map that nobody reads is a file we maintain for nothing.
+- **A reviewer fixes what it finds.** A review dispatch is one seat: find it,
+  fix it, run the gate, commit, and report what changed and why — not a findings
+  list that costs another dispatch to act on. It still reports everything it
+  found, including what it chose not to change and why. The controller reads the
+  resulting diff; that is the second pair of eyes. What a reviewer may NOT do
+  silently is contradict the plan or a spec — those it reports and leaves.
+- **Compose the dispatch once.** Everything a subagent needs — the task, the
+  interfaces, the rulings, the constraints — goes in the first message. A
+  follow-up message to steer an agent mid-task is a controller planning failure
+  and is paid for in full context re-read. Fix rounds are the exception, because
+  the findings did not exist yet.
+- **Branches are short-lived.** Finish the tasks, open the PR, merge it, delete
+  the branch. Do not carry a second long-lived branch alongside `main` and do
+  not leave merged branches on the remote. A branch nobody is committing to is
+  either merged or abandoned; both cases end with it deleted.
+- **The controller verifies a review; it does not repeat it.** After a reviewer
+  reports, the controller checks that the report is true — the commits exist,
+  the diff says what the report says, the gate and test count are real — and
+  rules on what was left to it. It does not re-read the code for a second deep
+  review. One whole-branch review runs before the PR, and that is the only other.
+
+## Lessons from `shadow`
+
+`shadow` spent 29 days, 413 commits and 67k lines of Rust and ended with
+nothing a person could run: no web client, and a socket on which no business
+method could execute. These three rules are what that cost.
+
+- **Run it before you document it.** A slice is not done until a person has
+  started `shadows serve`, used it in a browser, and read its logs. 35% of
+  `shadow`'s commits were docs about software nobody had run.
+- **One path end to end before any abstraction.** Every `shadow` method was
+  tested alone; the first test that crossed the layers found swapped arguments
+  in minutes. Build the path through every layer first, then widen it.
+- **No layer before its first user.** Protocol versions, nine authorities and
+  six crates existed before one request succeeded. A seam, trait, or version is
+  added when the second caller needs it, not when it might.
 
 ## Decisions
 

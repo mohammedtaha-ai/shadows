@@ -8,24 +8,31 @@
 
 Domain IDs are UUID-v4 newtypes unless a later decision explicitly changes one:
 
-> **OPEN — Milestone 0 carries `String` ids, deliberately.**
+> **CLOSED — 2026-09-22.** Milestone 0 carried `String` ids against this rule while
+> the modules that own them did not yet exist. All five now do, and the ids are
+> newtypes: `ProjectId`, `ThreadId`, `ThreadEntryId`, `OperationId`,
+> `RuntimeInstanceId`, each declared by the shared pattern in `src/id.rs`.
 >
-> Task 3 landed `DurableEvent` with `event_id`, `project_id`, `thread_id`,
-> `operation_id`, and `correlation_id` as `String`, contradicting this rule. It is
-> recorded here rather than left as a silent divergence.
+> The block was opened because `mark_operation_started(op_id, expected_runtime)`
+> took two `String`s the compiler could not tell apart. That call now takes
+> `(&OperationId, &RuntimeInstanceId)`, and passing them swapped is a compile
+> error — verified, not assumed. Two further cases the sweep found and closed the
+> same way: `Storage::list_thread_entries` accepted any `String`, so a project id
+> reached it silently; and `DurableEvent`'s `with_project`/`with_thread`/
+> `with_operation` took `impl Into<String>`, so an event could be scoped to the
+> wrong entity — and since one event row is visible through several scopes
+> (§4.2), that is a row appearing in the wrong replay and missing from the right
+> one, with nothing failing.
 >
-> The reason is structural, not convenience: `DurableEvent` references entities whose
-> modules do not exist yet. `ProjectId` belongs in `project/`, `ThreadId` in `thread/`,
-> `OperationId` in `operation/` — created in Milestone 0 Tasks 5, 6, and 9. Defining
-> them anywhere else to satisfy the rule earlier would break a rule that costs more:
-> no module is created before the task that fills it.
+> One case is **reduced, not closed.** `Storage::append_thread_entry` took five
+> consecutive `&str`. Its fields now arrive as one named struct, so a swap must be
+> written out as `kind: <body text>` instead of happening silently by position.
+> `kind` and `body` are still both `&str`, so the compiler cannot refuse it. The
+> complete fix is `ThreadEntryKind` — see the OPEN block in §4.2.
 >
-> **Trigger that closes this:** Task 9, which creates the last of those modules and is
-> also the first task whose signatures place two ids of different kinds adjacent —
-> `mark_operation_started(op_id, expected_runtime)` takes two `String`s that the
-> compiler cannot tell apart. That is where `String` stops being cosmetic and starts
-> being a defect the type system was supposed to catch. Task 9's dispatch carries this
-> block; the newtypes land with it and sweep the earlier signatures.
+> Why the ids are not `sqlx` types: CLAUDE.md keeps persistence imports out of
+> domain types, so every id converts to a column at the `storage/sqlite/` boundary
+> and nowhere else.
 
 ```text
 ProjectId
@@ -96,6 +103,33 @@ struct ThreadEntry {
 ```
 
 `ThreadEntryOrdinal` is strictly increasing within one thread and is independent from durable-event sequence.
+
+> **Note — `author: Principal` is `events::Actor` in the implementation.**
+>
+> `Actor` already has exactly this shape (`kind` + `id`) and already answers "who
+> did this" for durable events, which is the same question. Declaring a second
+> identical struct would record one decision twice. If the two ever need to
+> diverge — a principal gaining fields an event actor must not carry — that is the
+> point to split them, and this note is where to say so.
+
+> **OPEN — `ThreadEntryKind` has no variants anywhere in this spec.**
+>
+> The field is typed here and its permitted values are never listed, so the
+> implementation carries it as text. That is not laziness: enumerating them in
+> `thread/` would decide a question this spec has not asked, and a wrong early
+> enum is worse than text because migrating stored values costs more than adding
+> the type later.
+>
+> It also leaves one hazard open. `append_thread_entry`'s `kind` and `body` are
+> both `&str`, so the compiler cannot tell them apart; the named-field struct makes
+> a swap visible but not impossible (§4.1). Typing `kind` closes it completely.
+>
+> **Trigger that closes this:** the first feature that branches on an entry's kind
+> rather than storing and displaying it — Milestone 0's web client renders every
+> entry the same way, so the milestone does not reach it. The harness evidence
+> report already names the candidate set it would have to cover: a durable line is
+> an `assistant` or `user` message, and its content blocks are text, thinking,
+> tool_use or tool_result.
 
 ```rust
 enum EntryRef {

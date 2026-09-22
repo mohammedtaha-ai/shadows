@@ -8,10 +8,12 @@ publish = false
 [dependencies]
 anyhow = "1"
 axum = "0.8"
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive", "env"] }
 futures-core = "0.3"
+process-wrap = { version = "10", features = ["tokio1"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
 sqlx = { version = "0.9", features = ["runtime-tokio", "sqlite", "migrate"] }
 thiserror = "2"
 time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
@@ -19,8 +21,20 @@ tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
 tower-http = { version = "0.6", features = ["trace"] }
 tracing = "0.1"
+tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1", features = ["v4", "serde"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[[bin]]
+name = "tree_probe"
+path = "src/bin/tree_probe.rs"
+
+[[bin]]
+name = "fake_claude"
+path = "src/bin/fake_claude.rs"
 
 [features]
 # Compiles in `storage::test_support`, a hook onto an otherwise-private
@@ -31,6 +45,16 @@ test-support = []
 
 [dev-dependencies]
 tempfile = "3"
+# `tests/codemap` generates docs/codebase/inventory.md from the source tree and
+# fails when the checked-in file has drifted. syn parses, prettyplease prints —
+# neither is a product dependency and neither ships.
+syn = { version = "2", features = ["full", "parsing", "printing", "clone-impls"] }
+prettyplease = "0.2"
+# Token trees for expanding `newtype_id!` in the code map; already syn's own.
+proc-macro2 = "1"
+# `tests/protocol.rs` drives the real router in-process with `oneshot`. Already
+# in the graph through axum; listed here only to name its `util` trait.
+tower = { version = "0.5", features = ["util"] }
 # Enables `test-support` for integration tests (tests/*.rs) without turning
 # it on for `cargo build` or `cargo run`: Cargo's feature resolver unifies
 # features per build/test graph, so this only affects `cargo test`.

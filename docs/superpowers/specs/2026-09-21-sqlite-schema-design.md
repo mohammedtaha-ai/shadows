@@ -98,6 +98,31 @@ created_at   TEXT NOT NULL
 UNIQUE(thread_id, ordinal)
 ```
 
+> **OPEN — this table has nowhere to put the harness-side identity of the line an
+> entry came from.**
+>
+> `StreamItem::Entry` carries a `uuid` that its own definition calls "the entry's
+> harness-side identity": the id the harness assigned to the line it streamed. This
+> table's columns are the entry's own `id`, its `ordinal`, and an author
+> (`author_kind` + `author_id`) — and an author is who wrote the message, not which
+> line of which stream it arrived on. There is no column for the latter.
+>
+> Found during Task 10's fix round, by a review that caught the uuid being written
+> into `author_id`, which made every agent message in a turn look like a different
+> author. It is dropped instead: the author is the agent whose turn it is, the same
+> actor on every line, and the uuid is not recorded anywhere. This is the same
+> shape as `agent_invocation`'s missing harness version above — a harness-side fact
+> the schema was never given a home for — and it is recorded rather than closed by
+> inventing a column, for the same reason.
+>
+> **This does not block Milestone 0.** The milestone streams a turn and persists its
+> entries; nothing in it reads an entry back by the harness's id for that line.
+>
+> **Trigger that closes this:** the first feature that must match a stored entry to
+> a harness-side line — resume dedupe (deciding whether a line a resumed session
+> re-emits is already recorded) or replay against a live harness session. Either one
+> needs the identity and cannot be written without deciding where it lives.
+
 Ordinal allocation happens in the same transaction:
 
 ```sql
@@ -528,6 +553,30 @@ native_session_id  TEXT NULL
 created_at         TEXT NOT NULL
 ```
 
+> **OPEN — this table has nowhere to put the resolved harness path and version.**
+>
+> §8.2 requires `AgentInvocation` to freeze "harness kind, profile, and resolved
+> executable identity + version (§1.4)" at claim time, and §1.4 requires both to be
+> recorded because the measured stream contract belongs to one installation at one
+> version and a machine carries several. This table names `harness_kind` and
+> `profile_json` and no column for either the resolved path or the version.
+>
+> Found during Task 9, by an implementer who was told to record the version per
+> Operation and correctly refused to invent a column for it. `Operation` is the wrong
+> owner — §8.2 puts it on the invocation — but the invocation has no home for it
+> either. Two candidates: explicit `harness_path` and `harness_version` columns, or
+> inside `profile_json`. Explicit columns are the better answer if the record is ever
+> to be queried ("which turns ran under the version that changed?"), which §1.4's
+> reasoning implies it will be.
+>
+> **This does not block Milestone 0.** `agent_invocation` is not in
+> `migrations/0001_milestone0.sql` at all — the milestone persists seven tables and
+> this is not one of them, which the plan declares as a known gap.
+>
+> **Trigger that closes this:** the task that first creates the `agent_invocation`
+> table. It cannot be written without answering this, so the question is asked where
+> it bites rather than carried as a worry.
+
 Roles include:
 
 ```text
@@ -664,6 +713,13 @@ Operation cursor = rows where operation_id = ?
 ```
 
 Global does **not** mean “all scope FKs are NULL”.
+
+An event is written with **every** scope its subject has, not only the narrowest.
+In particular every operation event — creation and each later transition — carries
+its operation's `thread_id` as well as `operation_id`, read from the operation row
+inside the same write transaction; an event scoped only to its operation is
+invisible to the thread cursor a client follows. An operation with no thread
+leaves `thread_id` NULL.
 
 ### Event cursor
 

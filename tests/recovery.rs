@@ -1,6 +1,13 @@
+use shadows::operation::OperationId;
+use shadows::runtime::RuntimeInstanceId;
 use shadows::storage::{StopKind, Storage};
 
-async fn seed_operation(storage: &Storage, op_id: &str, runtime_id: &str, status: &str) {
+async fn seed_operation(
+    storage: &Storage,
+    op_id: &str,
+    runtime_id: &RuntimeInstanceId,
+    status: &str,
+) {
     let started = if status == "Pending" {
         None
     } else {
@@ -8,7 +15,8 @@ async fn seed_operation(storage: &Storage, op_id: &str, runtime_id: &str, status
     };
     storage
         .write_txn(|conn| {
-            let (op_id, runtime_id, status) = (op_id.to_string(), runtime_id.to_string(), status.to_string());
+            let (op_id, runtime_id, status) =
+                (op_id.to_string(), runtime_id.as_str().to_string(), status.to_string());
             Box::pin(async move {
                 sqlx::query(
                     "INSERT INTO operation (id, kind, status_kind, runtime_instance_id, created_at, started_at)
@@ -87,7 +95,8 @@ async fn an_escalated_shutdowns_operations_are_not_stranded() {
         .unwrap();
     let report = storage.reconcile_orphans(&new).await.unwrap();
 
-    assert_eq!(report.interrupted, vec!["op-abandoned".to_string()]);
+    let interrupted: Vec<&str> = report.interrupted.iter().map(|i| i.as_str()).collect();
+    assert_eq!(interrupted, vec!["op-abandoned"]);
     let status: String =
         sqlx::query_scalar("SELECT status_kind FROM operation WHERE id='op-abandoned'")
             .fetch_one(storage.reader())
@@ -120,8 +129,12 @@ async fn a_graceful_runtime_owning_unfinished_work_is_reported_as_an_anomaly() {
         .unwrap();
     let report = storage.reconcile_orphans(&new).await.unwrap();
 
-    assert_eq!(report.interrupted, vec!["op-leaked".to_string()]);
-    assert_eq!(report.anomalies, vec!["op-leaked".to_string()]);
+    assert_eq!(
+        report.interrupted,
+        vec![OperationId::from_literal("op-leaked")]
+    );
+    let anomalies: Vec<&str> = report.anomalies.iter().map(|i| i.as_str()).collect();
+    assert_eq!(anomalies, vec!["op-leaked"]);
 }
 
 /// The current runtime's own live work is never reconciled out from under it.

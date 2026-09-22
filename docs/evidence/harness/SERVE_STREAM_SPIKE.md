@@ -117,6 +117,17 @@ usage and cost. The process then exits 0. Shadows does **not** need a heuristic
 for turn end, and does not need to infer success from exit code alone — it has
 both a structured verdict and a process status, and can cross-check them.
 
+**What this measurement does not cover, added 2026-09-22.** Every turn measured
+here ended `subtype: "success"`. No failing turn was provoked, so no other
+`result` subtype was observed and none is recorded anywhere in this repository.
+Code that must tell a successful turn from a failing one therefore tests for
+`success` and treats everything else as failing, rather than matching a list of
+failure subtypes that would be invented rather than measured — a blacklist
+would silently record the first unmeasured failure as a completed turn.
+`src/planner/mod.rs` names this file for that rule. Any subtype learned from
+outside a measurement belongs here, with how it was learned, before code
+branches on it.
+
 ### Entry identity is supplied, not invented
 
 Every durable line already has a stable `uuid` assigned by the harness. This is

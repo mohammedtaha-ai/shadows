@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-09-21
+**Updated:** 2026-09-22
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,7 +9,31 @@ restate them.
 
 ## Where we are
 
-Architecture phase. No product code exists yet.
+Implementing Milestone 0, task by task. **Tasks 1-6 of 13 are complete; Task 7
+is in its reviewed correction pass.** The
+plan is `superpowers/plans/2026-09-21-milestone-0-browser-planner.md`; its
+per-task ledger, rulings, and review history are in the git-ignored
+`.superpowers/sdd/` workspace beside it.
+
+- Tasks 1-4 are merged to `main` at `68dc2ff` (PR #1): the crate scaffold and
+  `shadows serve`, SQLite open with the seven-table migration, serialized write
+  transactions committing state and durable events atomically, and runtime
+  instance lifecycle with startup orphan reconciliation by ownership.
+- Task 5 is on `milestone-0/product-path`: local-directory Project on top of the
+  external-command idempotency machinery (`CommandContext`, request fingerprint,
+  `classify`, `record_command`) that every later mutating command reuses.
+- Task 6 adds PlanningThread and ThreadEntry persistence, transactional ordinal
+  allocation, typed entry references, and rollback evidence for a failed entry
+  insert.
+- Task 7's first pass built the process boundary; its correction replaces the
+  post-spawn manual Job Object attachment with `process-wrap`'s suspended
+  assignment so no child executes before containment.
+- 24 tests across six suites. CI runs two jobs with different authority:
+  Windows is the acceptance gate (fmt, clippy `-D warnings`, full test run),
+  Linux is a compile gate only — the platform risk below is why.
+
+Nothing in the vertical path runs yet: no process spawns, no harness, no
+Operation, no HTTP surface beyond an empty router. Tasks 7-13 are that path.
 
 Documentation was consolidated on 2026-09-21 and then split by topic under
 `docs/superpowers/specs/`. Each decision has one owner file, the directory
@@ -49,11 +73,13 @@ Settling it needs one turn that actually invokes `Bash`, with the tree walked by
 
 ## Next
 
-1. **Write the Milestone 0 implementation plan.** Its order and acceptance are
-   spec §11.1; the plan turns those into executable tasks.
-2. **Create `docs/codebase/roadmap/`** once that plan exists — a living code map
-   an agent reads before writing, and updates when it finishes.
-3. **Implement**, only after the plan is reviewed.
+1. **Finish Task 7's correction review** — atomic Windows Job Object assignment
+   and complete-tree cleanup before `ProcessHandle::wait` returns.
+2. **Tasks 8-13**, then PR #2. Task 8 adds the real Claude harness on top of the
+   corrected process boundary.
+3. ~~Create a living code map.~~ Done: `docs/codebase/`. The inventory is
+   generated from `src/` and `cargo test --test codemap` fails when it drifts, so
+   it cannot go stale without the acceptance gate saying so.
 
 ## Standing risks
 
@@ -62,11 +88,12 @@ Settling it needs one turn that actually invokes `Bash`, with the tree walked by
   anyone ran the product path end to end; the first attempt found a reversed
   argument pair that 413 commits had not caught. No module here is finished
   until the vertical path reaches it.
-- **Windows is the development target and Linux is not yet exercised.** The WAL
-  validation in particular ran only on Windows, and SQLite's locking primitives
-  differ by platform. Process
-  environment, path handling, and file bytes read at compile time behave
-  differently on each. A single-platform run is never evidence about the other.
+- **Windows is the development and acceptance target; Linux is checked only on
+  GitHub CI.** That job compiles, lints, and runs the portable suite, but it does
+  not prove the missing parent-death containment half of §1.5. The WAL
+  validation ran only on Windows, and SQLite locking differs by platform.
+  Process environment, path handling, and compile-time file bytes also differ;
+  never generalize a local Windows result into a Linux acceptance claim.
 - **Remove mx.** Its hooks are disabled, not deleted. The hook scripts, `mx*`
   skills, permission lines, the `mxai-knowledge` MCP server, and the mx block in
   the global `CLAUDE.md` still need removing once the other project migrates.

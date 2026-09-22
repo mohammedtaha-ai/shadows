@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use shadows::events::{Actor, DurableEvent};
+use shadows::project::ProjectId;
 use shadows::storage::Storage;
 use sqlx::Connection;
 
@@ -69,7 +70,7 @@ async fn state_and_event_commit_atomically_or_not_at_all() {
                 shadows::storage::test_support::append_event_for_test(
                     conn,
                     &DurableEvent::new("ProjectCreated", Actor::system())
-                        .with_project("p-1")
+                        .with_project(&ProjectId::from_literal("p-1"))
                         .with_payload(serde_json::json!({})),
                     "2026-09-21T00:00:00Z",
                 )
@@ -326,7 +327,7 @@ async fn event_provenance_round_trips_through_append_event() {
                 shadows::storage::test_support::append_event_for_test(
                     conn,
                     &DurableEvent::new("ProjectCreated", Actor::system())
-                        .with_project("p-1")
+                        .with_project(&ProjectId::from_literal("p-1"))
                         .with_payload(serde_json::json!({}))
                         .with_causation("Command", "cmd-1")
                         .with_correlation("corr-1"),
@@ -358,4 +359,45 @@ async fn event_provenance_round_trips_through_append_event() {
     assert_eq!(causation_kind.as_deref(), Some("Command"));
     assert_eq!(causation_ref.as_deref(), Some("cmd-1"));
     assert_eq!(correlation_id.as_deref(), Some("corr-1"));
+}
+
+/// Spec §2.4: live publication happens after commit. The committed-sequence
+/// signal must not move for a transaction that rolled back — its event never
+/// existed — and must move, to the committed `seq`, once one commits.
+#[tokio::test]
+async fn the_committed_signal_moves_on_commit_and_never_on_rollback() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let mut committed = storage.watch_committed();
+
+    for commit in [false, true] {
+        let outcome = storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let seq = shadows::storage::test_support::append_event_for_test(
+                        conn,
+                        &DurableEvent::new("Probe", Actor::system())
+                            .with_payload(serde_json::json!({})),
+                        "2026-09-21T00:00:00Z",
+                    )
+                    .await?;
+                    if commit {
+                        Ok(seq)
+                    } else {
+                        Err(shadows::storage::StorageError::NotFound("forced"))
+                    }
+                })
+            })
+            .await;
+        match outcome {
+            Err(_) => assert!(
+                !committed.has_changed().unwrap(),
+                "a rolled-back append must not be signalled"
+            ),
+            Ok(seq) => {
+                assert!(committed.has_changed().unwrap(), "a commit is signalled");
+                assert_eq!(*committed.borrow_and_update(), seq);
+            }
+        }
+    }
 }
