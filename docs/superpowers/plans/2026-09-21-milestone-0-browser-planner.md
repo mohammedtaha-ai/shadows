@@ -2479,7 +2479,12 @@ fn a_real_turn_classifies_into_transient_durable_and_terminal() {
     assert!(durable >= 1, "a real turn produces at least one durable entry");
     assert_eq!(terminal, 1, "exactly one result line, always last");
     assert!(session_id.is_some(), "system/init carries the session id");
-    let _ = deltas;
+    // Assert the transient class too. Amended after implementation: this count
+    // was discarded, and disabling the Delta arm outright left all four tests
+    // green. `tests/harness_stream.rs` also gained a test that the deltas
+    // reassemble into exactly the durable entry text — the evidence report's
+    // decisive property, which nothing here compared.
+    assert!(deltas >= 1, "the transient class must be recognised");
 }
 
 /// Turn end is an explicit line, not a heuristic, and it carries a structured
@@ -2487,7 +2492,7 @@ fn a_real_turn_classifies_into_transient_durable_and_terminal() {
 #[test]
 fn turn_end_is_the_result_line_and_carries_its_verdict() {
     let raw = std::fs::read_to_string("tests/fixtures/claude_turn.jsonl").unwrap();
-    let last = raw.lines().filter(|l| !l.trim().is_empty()).next_back().unwrap();
+    let last = raw.lines().rfind(|l| !l.trim().is_empty()).unwrap();
     match harness().classify(last) {
         StreamItem::TurnEnd { subtype, stop_reason } => {
             assert_eq!(subtype, "success");
@@ -2659,7 +2664,9 @@ fn render_content(content: &Value) -> String {
 - [ ] **Step 6: Run tests to verify they pass**
 
 Run: `cargo test --test harness_stream`
-Expected: PASS, all four tests.
+Expected: PASS, all five tests. The fifth is the delta/durable equality test
+added during review; `tests/harness_stream.rs` is the authority on what it
+asserts, and this plan does not restate it.
 
 - [ ] **Step 7: Commit**
 

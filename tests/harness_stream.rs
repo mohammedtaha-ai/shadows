@@ -86,7 +86,47 @@ fn a_real_turn_classifies_into_transient_durable_and_terminal() {
     );
     assert_eq!(terminal, 1, "exactly one result line, always last");
     assert!(session_id.is_some(), "system/init carries the session id");
-    let _ = deltas;
+    assert!(
+        deltas >= 1,
+        "the transient class must be recognised on a real turn. This count was \
+         discarded until a review disabled the Delta arm outright and all four \
+         tests still passed."
+    );
+}
+
+/// The decisive property of the whole stream contract, from the harness evidence
+/// report: a `stream_event` never carries information the following `assistant`
+/// line does not also carry. That is what lets the daemon forward deltas
+/// straight to SSE without touching storage, and write a `ThreadEntry` only when
+/// the durable line arrives.
+///
+/// If this ever stops holding, the daemon is dropping text the user saw stream
+/// past and the durable history no longer matches what was displayed — silently,
+/// because nothing else in this suite compares the two classes against each
+/// other.
+#[test]
+fn the_deltas_reassemble_into_exactly_the_durable_entry_text() {
+    let raw = std::fs::read_to_string("tests/fixtures/claude_turn.jsonl")
+        .expect("fixture must exist; capture it with the command in Step 1");
+    let h = harness();
+
+    let mut streamed = String::new();
+    let mut durable: Vec<String> = Vec::new();
+
+    for line in raw.lines().filter(|l| !l.trim().is_empty()) {
+        match h.classify(line) {
+            StreamItem::Delta { text } => streamed.push_str(&text),
+            StreamItem::Entry { role, text, .. } if role == "assistant" => durable.push(text),
+            _ => {}
+        }
+    }
+
+    assert!(!streamed.is_empty(), "the fixture carries no text deltas");
+    assert_eq!(
+        streamed,
+        durable.concat(),
+        "the streamed text and the durable text diverged, so one of them is a lie"
+    );
 }
 
 /// Turn end is an explicit line, not a heuristic, and it carries a structured
