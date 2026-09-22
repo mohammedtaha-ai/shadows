@@ -131,7 +131,7 @@ pub struct FailureReport {
 }
 ```
 
-## `src/events/mod.rs` — 97 lines
+## `src/events/mod.rs` — 107 lines
 
 ```rust
 pub struct EventCursor(pub i64);
@@ -151,9 +151,9 @@ pub struct Causation {
 pub struct DurableEvent {
     pub event_id: String,
     pub kind: String,
-    pub project_id: Option<String>,
-    pub thread_id: Option<String>,
-    pub operation_id: Option<String>,
+    pub project_id: Option<ProjectId>,
+    pub thread_id: Option<ThreadId>,
+    pub operation_id: Option<OperationId>,
     pub actor: Actor,
     pub causation: Option<Causation>,
     pub correlation_id: Option<String>,
@@ -161,16 +161,22 @@ pub struct DurableEvent {
 }
 impl DurableEvent {
     pub fn new(kind: impl Into<String>, actor: Actor) -> Self
-    pub fn with_project(mut self, id: impl Into<String>) -> Self
-    pub fn with_thread(mut self, id: impl Into<String>) -> Self
-    pub fn with_operation(mut self, id: impl Into<String>) -> Self
+    pub fn with_project(mut self, id: &ProjectId) -> Self
+    pub fn with_thread(mut self, id: &ThreadId) -> Self
+    pub fn with_operation(mut self, id: &OperationId) -> Self
     pub fn with_causation(mut self, kind: impl Into<String>, reference: impl Into<String>) -> Self
     pub fn with_correlation(mut self, id: impl Into<String>) -> Self
     pub fn with_payload(mut self, v: serde_json::Value) -> Self
 }
 ```
 
-## `src/lib.rs` — 13 lines
+## `src/id.rs` — 83 lines
+
+```rust
+pub(crate) use newtype_id;
+```
+
+## `src/lib.rs` — 14 lines
 
 Nothing reachable from outside this file.
 
@@ -178,16 +184,9 @@ Nothing reachable from outside this file.
 
 Nothing reachable from outside this file.
 
-## `src/operation/mod.rs` — 74 lines
+## `src/operation/mod.rs` — 52 lines
 
 ```rust
-pub struct OperationId(String);
-impl OperationId {
-    pub fn generate() -> Self
-    pub fn as_str(&self) -> &str
-    pub(crate) fn from_stored(id: String) -> Self
-}
-
 pub enum FailureStage {
     Prepare,
     Spawn,
@@ -236,27 +235,20 @@ impl ProcessHandle {
 pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle>
 ```
 
-## `src/project/mod.rs` — 10 lines
+## `src/project/mod.rs` — 16 lines
 
 ```rust
 pub struct Project {
-    pub id: String,
+    pub id: ProjectId,
     pub slug: String,
     pub name: String,
     pub created_at: String,
 }
 ```
 
-## `src/runtime/mod.rs` — 72 lines
+## `src/runtime/mod.rs` — 51 lines
 
 ```rust
-pub struct RuntimeInstanceId(String);
-impl RuntimeInstanceId {
-    pub fn generate() -> Self
-    pub fn as_str(&self) -> &str
-    pub(crate) fn from_stored(id: String) -> Self
-}
-
 pub struct Runtime {
     pub instance_id: RuntimeInstanceId,
     pub storage: Arc<Storage>,
@@ -274,7 +266,7 @@ pub use sqlite::{ReconcileReport, StopKind, Storage, StorageError};
 pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
-## `src/storage/sqlite/events.rs` — 49 lines
+## `src/storage/sqlite/events.rs` — 52 lines
 
 ```rust
 pub(in crate::storage) async fn append_event(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
@@ -304,11 +296,11 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/operation.rs` — 221 lines
+## `src/storage/sqlite/operation.rs` — 218 lines
 
 ```rust
 impl Storage {
-    pub async fn create_pending_operation(&self, thread_id: &str, runtime_instance_id: &RuntimeInstanceId) -> Result<OperationId, StorageError>
+    pub async fn create_pending_operation(&self, thread_id: &ThreadId, runtime_instance_id: &RuntimeInstanceId) -> Result<OperationId, StorageError>
     pub async fn mark_operation_started(&self, op_id: &OperationId, expected_runtime: &RuntimeInstanceId) -> Result<(), StorageError>
     pub async fn mark_operation_completed(&self, op_id: &OperationId, outcome: serde_json::Value) -> Result<(), StorageError>
     pub async fn mark_operation_failed(&self, op_id: &OperationId, stage: FailureStage, reason: &str) -> Result<(), StorageError>
@@ -316,7 +308,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/project.rs` — 157 lines
+## `src/storage/sqlite/project.rs` — 160 lines
 
 ```rust
 pub(super) async fn classify(conn: &mut SqliteConnection, ctx: &CommandContext, scope_kind: &str, scope_key: &str) -> Result<Option<String>, StorageError>
@@ -327,7 +319,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/runtime.rs` — 166 lines
+## `src/storage/sqlite/runtime.rs` — 168 lines
 
 ```rust
 pub enum StopKind {
@@ -335,8 +327,8 @@ pub enum StopKind {
     Escalated,
 }
 pub struct ReconcileReport {
-    pub interrupted: Vec<String>,
-    pub anomalies: Vec<String>,
+    pub interrupted: Vec<OperationId>,
+    pub anomalies: Vec<OperationId>,
 }
 impl Storage {
     pub async fn register_runtime_instance(&self, version: &str) -> Result<RuntimeInstanceId, StorageError>
@@ -345,43 +337,48 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/thread.rs` — 231 lines
+## `src/storage/sqlite/thread.rs` — 219 lines
 
 ```rust
 impl Storage {
-    pub async fn create_planning_thread(&self, ctx: &CommandContext, project_id: &str, title: &str) -> Result<PlanningThread, StorageError>
-    pub async fn append_thread_entry(&self, thread_id: &str, kind: &str, author_kind: &str, author_id: &str, body: &str, refs: &[EntryRef]) -> Result<ThreadEntry, StorageError>
-    pub async fn list_thread_entries(&self, thread_id: &str) -> Result<Vec<ThreadEntry>, StorageError>
-    pub async fn list_threads_for_project(&self, project_id: &str) -> Result<Vec<PlanningThread>, StorageError>
+    pub async fn create_planning_thread(&self, ctx: &CommandContext, project_id: &ProjectId, title: &str) -> Result<PlanningThread, StorageError>
+    pub async fn append_thread_entry(&self, thread_id: &ThreadId, entry: NewThreadEntry<'_>) -> Result<ThreadEntry, StorageError>
+    pub async fn list_thread_entries(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>
+    pub async fn list_threads_for_project(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>
 }
 ```
 
-## `src/thread/mod.rs` — 29 lines
+## `src/thread/mod.rs` — 69 lines
 
 ```rust
 pub struct PlanningThread {
-    pub id: String,
-    pub project_id: String,
+    pub id: ThreadId,
+    pub project_id: ProjectId,
     pub title: String,
     pub status: String,
     pub created_at: String,
 }
 pub struct ThreadEntry {
-    pub id: String,
-    pub thread_id: String,
+    pub id: ThreadEntryId,
+    pub thread_id: ThreadId,
     pub ordinal: i64,
     pub kind: String,
-    pub author_kind: String,
-    pub author_id: String,
+    pub author: Actor,
     pub body: String,
     pub refs: Vec<EntryRef>,
     pub created_at: String,
 }
+pub struct NewThreadEntry<'a> {
+    pub kind: &'a str,
+    pub author: Actor,
+    pub body: &'a str,
+    pub refs: &'a [EntryRef],
+}
 pub enum EntryRef {
+    Operation(OperationId),
     Decision(String),
     Research(String),
     Workflow(String),
-    Operation(String),
 }
 ```
 

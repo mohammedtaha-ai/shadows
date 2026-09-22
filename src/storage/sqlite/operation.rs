@@ -1,6 +1,7 @@
 use crate::events::{Actor, DurableEvent};
 use crate::operation::{FailureStage, Operation, OperationId};
 use crate::runtime::RuntimeInstanceId;
+use crate::thread::ThreadId;
 
 use super::{Storage, StorageError, events::append_event, now};
 
@@ -28,14 +29,14 @@ impl Storage {
     /// anything is spawned, so a crash between here and spawn is recoverable.
     pub async fn create_pending_operation(
         &self,
-        thread_id: &str,
+        thread_id: &ThreadId,
         runtime_instance_id: &RuntimeInstanceId,
     ) -> Result<OperationId, StorageError> {
         let id = OperationId::generate();
-        let (id_str, thread_id, runtime_id, ts) = (
-            id.as_str().to_string(),
-            thread_id.to_string(),
-            runtime_instance_id.as_str().to_string(),
+        let (op_id, thread_id, runtime_id, ts) = (
+            id.clone(),
+            thread_id.clone(),
+            runtime_instance_id.clone(),
             now(),
         );
         self.write_txn(move |conn| {
@@ -45,9 +46,9 @@ impl Storage {
                        (id, kind, status_kind, thread_id, runtime_instance_id, created_at)
                      VALUES (?, 'PlannerTurn', 'Pending', ?, ?, ?)",
                 )
-                .bind(&id_str)
-                .bind(&thread_id)
-                .bind(&runtime_id)
+                .bind(op_id.as_str())
+                .bind(thread_id.as_str())
+                .bind(runtime_id.as_str())
                 .bind(&ts)
                 .execute(&mut *conn)
                 .await?;
@@ -56,7 +57,7 @@ impl Storage {
                     conn,
                     &DurableEvent::new("OperationCreated", Actor::system())
                         .with_thread(&thread_id)
-                        .with_operation(&id_str)
+                        .with_operation(&op_id)
                         .with_payload(serde_json::json!({ "kind": "PlannerTurn" })),
                     &ts,
                 )
@@ -76,11 +77,7 @@ impl Storage {
         op_id: &OperationId,
         expected_runtime: &RuntimeInstanceId,
     ) -> Result<(), StorageError> {
-        let (op_id, expected_runtime, ts) = (
-            op_id.as_str().to_string(),
-            expected_runtime.as_str().to_string(),
-            now(),
-        );
+        let (op_id, expected_runtime, ts) = (op_id.clone(), expected_runtime.clone(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
                 let affected = sqlx::query(
@@ -88,8 +85,8 @@ impl Storage {
                       WHERE id = ? AND status_kind = 'Pending' AND runtime_instance_id = ?",
                 )
                 .bind(&ts)
-                .bind(&op_id)
-                .bind(&expected_runtime)
+                .bind(op_id.as_str())
+                .bind(expected_runtime.as_str())
                 .execute(&mut *conn)
                 .await?
                 .rows_affected();
@@ -116,7 +113,7 @@ impl Storage {
         op_id: &OperationId,
         outcome: serde_json::Value,
     ) -> Result<(), StorageError> {
-        let (op_id, outcome, ts) = (op_id.as_str().to_string(), outcome.to_string(), now());
+        let (op_id, outcome, ts) = (op_id.clone(), outcome.to_string(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
                 let affected = sqlx::query(
@@ -126,7 +123,7 @@ impl Storage {
                 )
                 .bind(&outcome)
                 .bind(&ts)
-                .bind(&op_id)
+                .bind(op_id.as_str())
                 .execute(&mut *conn)
                 .await?
                 .rows_affected();
@@ -155,7 +152,7 @@ impl Storage {
         stage: FailureStage,
         reason: &str,
     ) -> Result<(), StorageError> {
-        let (op_id, reason, ts) = (op_id.as_str().to_string(), reason.to_string(), now());
+        let (op_id, reason, ts) = (op_id.clone(), reason.to_string(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
                 let affected = sqlx::query(
@@ -167,7 +164,7 @@ impl Storage {
                 .bind(stage.as_str())
                 .bind(&reason)
                 .bind(&ts)
-                .bind(&op_id)
+                .bind(op_id.as_str())
                 .execute(&mut *conn)
                 .await?
                 .rows_affected();

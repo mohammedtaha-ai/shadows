@@ -1,5 +1,6 @@
 use super::{Storage, StorageError, events::append_event, now};
 use crate::events::{Actor, DurableEvent};
+use crate::operation::OperationId;
 use crate::runtime::RuntimeInstanceId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,10 +20,10 @@ impl StopKind {
 
 #[derive(Debug, Default)]
 pub struct ReconcileReport {
-    pub interrupted: Vec<String>,
+    pub interrupted: Vec<OperationId>,
     /// Operations found under a `Graceful` runtime. Spec §8.5 says that cannot
     /// happen; if it does, §8.6 requires it be reported, not silently handled.
-    pub anomalies: Vec<String>,
+    pub anomalies: Vec<OperationId>,
 }
 
 impl Storage {
@@ -122,6 +123,7 @@ impl Storage {
 
                 let mut report = ReconcileReport::default();
                 for (op_id, status, stop_kind) in rows {
+                    let op_id = OperationId::from_stored(op_id);
                     let reason = match status.as_str() {
                         "Pending" => "PreviousRuntimeEndedBeforeStart",
                         _ => "PreviousRuntimeEndedDuringRun",
@@ -136,7 +138,7 @@ impl Storage {
                     )
                     .bind(reason)
                     .bind(&ts)
-                    .bind(&op_id)
+                    .bind(op_id.as_str())
                     .bind(&status)
                     .bind(&current)
                     .execute(&mut *conn)

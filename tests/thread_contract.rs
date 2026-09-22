@@ -4,8 +4,10 @@
 //! and transaction contracts.
 
 use shadows::command::{CommandContext, fingerprint};
+use shadows::events::Actor;
+use shadows::operation::OperationId;
 use shadows::storage::Storage;
-use shadows::thread::EntryRef;
+use shadows::thread::{EntryRef, NewThreadEntry};
 
 fn ctx(command_id: &str, params: &serde_json::Value) -> CommandContext {
     ctx_kind(command_id, "project.create", params)
@@ -52,11 +54,12 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
                 storage
                     .append_thread_entry(
                         &thread_id,
-                        "UserMessage",
-                        "User",
-                        "local",
-                        &format!("w{w}-i{i}"),
-                        &[],
+                        NewThreadEntry {
+                            kind: "UserMessage",
+                            author: Actor::user("local"),
+                            body: &format!("w{w}-i{i}"),
+                            refs: &[],
+                        },
                     )
                     .await
                     .unwrap();
@@ -69,7 +72,7 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
 
     let ordinals: Vec<i64> =
         sqlx::query_scalar("SELECT ordinal FROM thread_entry WHERE thread_id = ? ORDER BY ordinal")
-            .bind(&thread.id)
+            .bind(thread.id.as_str())
             .fetch_all(storage.reader())
             .await
             .unwrap();
@@ -83,7 +86,7 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
 
     let next: i64 =
         sqlx::query_scalar("SELECT next_entry_ordinal FROM planning_thread WHERE id = ?")
-            .bind(&thread.id)
+            .bind(thread.id.as_str())
             .fetch_one(storage.reader())
             .await
             .unwrap();
@@ -112,7 +115,15 @@ async fn entries_are_read_in_ordinal_order() {
 
     for body in ["first", "second", "third"] {
         storage
-            .append_thread_entry(&thread.id, "UserMessage", "User", "local", body, &[])
+            .append_thread_entry(
+                &thread.id,
+                NewThreadEntry {
+                    kind: "UserMessage",
+                    author: Actor::user("local"),
+                    body,
+                    refs: &[],
+                },
+            )
             .await
             .unwrap();
     }
@@ -148,11 +159,19 @@ async fn entry_refs_round_trip_through_storage() {
         .unwrap();
     let refs = vec![
         EntryRef::Decision("decision-1".into()),
-        EntryRef::Operation("operation-1".into()),
+        EntryRef::Operation(OperationId::from_literal("operation-1")),
     ];
 
     let appended = storage
-        .append_thread_entry(&thread.id, "UserMessage", "User", "local", "hello", &refs)
+        .append_thread_entry(
+            &thread.id,
+            NewThreadEntry {
+                kind: "UserMessage",
+                author: Actor::user("local"),
+                body: "hello",
+                refs: &refs,
+            },
+        )
         .await
         .unwrap();
     assert_eq!(appended.refs, refs);
@@ -191,7 +210,15 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
     .await
     .unwrap();
     storage
-        .append_thread_entry(&thread.id, "UserMessage", "User", "local", "lost", &[])
+        .append_thread_entry(
+            &thread.id,
+            NewThreadEntry {
+                kind: "UserMessage",
+                author: Actor::user("local"),
+                body: "lost",
+                refs: &[],
+            },
+        )
         .await
         .expect_err("the trigger must reject the entry insert");
     sqlx::query("DROP TRIGGER reject_thread_entry")
@@ -200,7 +227,15 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
         .unwrap();
 
     let entry = storage
-        .append_thread_entry(&thread.id, "UserMessage", "User", "local", "kept", &[])
+        .append_thread_entry(
+            &thread.id,
+            NewThreadEntry {
+                kind: "UserMessage",
+                author: Actor::user("local"),
+                body: "kept",
+                refs: &[],
+            },
+        )
         .await
         .unwrap();
     assert_eq!(

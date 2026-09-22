@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use shadows::events::{Actor, DurableEvent};
+use shadows::project::ProjectId;
 use shadows::storage::Storage;
 use sqlx::Connection;
 
@@ -69,7 +70,7 @@ async fn state_and_event_commit_atomically_or_not_at_all() {
                 shadows::storage::test_support::append_event_for_test(
                     conn,
                     &DurableEvent::new("ProjectCreated", Actor::system())
-                        .with_project("p-1")
+                        .with_project(&ProjectId::from_literal("p-1"))
                         .with_payload(serde_json::json!({})),
                     "2026-09-21T00:00:00Z",
                 )
@@ -326,7 +327,7 @@ async fn event_provenance_round_trips_through_append_event() {
                 shadows::storage::test_support::append_event_for_test(
                     conn,
                     &DurableEvent::new("ProjectCreated", Actor::system())
-                        .with_project("p-1")
+                        .with_project(&ProjectId::from_literal("p-1"))
                         .with_payload(serde_json::json!({}))
                         .with_causation("Command", "cmd-1")
                         .with_correlation("corr-1"),

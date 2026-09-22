@@ -28,6 +28,7 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/config.rs` | startup configuration resolved once | `src/config.rs` |
 | `src/error.rs` | the stable failure taxonomy clients match on | `src/error.rs` |
 | `src/events/` | the durable event record's shape | `src/events/mod.rs` |
+| `src/id.rs` | the UUID id newtype pattern | `src/id.rs` |
 | `src/operation/` | the operation lifecycle's shape | `src/operation/mod.rs` |
 | `src/process/` | OS process ownership with whole-tree containment | `src/process/mod.rs` |
 | `src/project/` | project identity | `src/project/mod.rs` |

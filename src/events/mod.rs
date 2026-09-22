@@ -1,3 +1,7 @@
+use crate::operation::OperationId;
+use crate::project::ProjectId;
+use crate::thread::ThreadId;
+
 /// Spec §6.18. `seq` is assigned by the INSERT, which on SQLite can only run
 /// while holding the write lock, so assignment order equals commit order. That
 /// property is SQLite-specific — see the OPEN block in §6.18 before writing
@@ -7,7 +11,7 @@
 )]
 pub struct EventCursor(pub i64);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Actor {
     pub kind: String,
     pub id: String,
@@ -44,9 +48,9 @@ pub struct Causation {
 pub struct DurableEvent {
     pub event_id: String,
     pub kind: String,
-    pub project_id: Option<String>,
-    pub thread_id: Option<String>,
-    pub operation_id: Option<String>,
+    pub project_id: Option<ProjectId>,
+    pub thread_id: Option<ThreadId>,
+    pub operation_id: Option<OperationId>,
     pub actor: Actor,
     pub causation: Option<Causation>,
     pub correlation_id: Option<String>,
@@ -67,16 +71,22 @@ impl DurableEvent {
             payload_json: "{}".into(),
         }
     }
-    pub fn with_project(mut self, id: impl Into<String>) -> Self {
-        self.project_id = Some(id.into());
+    /// Typed, and that is the point: these three builders took
+    /// `impl Into<String>`, so `.with_project(thread_id)` compiled and silently
+    /// scoped an event to the wrong entity. One event row is visible through
+    /// several scopes (§4.2), so a misscoped event is not a cosmetic error — it
+    /// is a row that appears in the wrong replay and is missing from the right
+    /// one, with nothing failing anywhere.
+    pub fn with_project(mut self, id: &ProjectId) -> Self {
+        self.project_id = Some(id.clone());
         self
     }
-    pub fn with_thread(mut self, id: impl Into<String>) -> Self {
-        self.thread_id = Some(id.into());
+    pub fn with_thread(mut self, id: &ThreadId) -> Self {
+        self.thread_id = Some(id.clone());
         self
     }
-    pub fn with_operation(mut self, id: impl Into<String>) -> Self {
-        self.operation_id = Some(id.into());
+    pub fn with_operation(mut self, id: &OperationId) -> Self {
+        self.operation_id = Some(id.clone());
         self
     }
     pub fn with_causation(mut self, kind: impl Into<String>, reference: impl Into<String>) -> Self {

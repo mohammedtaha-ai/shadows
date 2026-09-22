@@ -33,9 +33,12 @@ pub(in crate::storage) async fn append_event(
     )
     .bind(&event.event_id)
     .bind(&event.kind)
-    .bind(&event.project_id)
-    .bind(&event.thread_id)
-    .bind(&event.operation_id)
+    // Converted here rather than by deriving `sqlx::Type` on the id newtypes:
+    // CLAUDE.md keeps domain types free of persistence imports, so the
+    // domain-to-column step belongs at this boundary and nowhere else.
+    .bind(event.project_id.as_ref().map(|i| i.as_str()))
+    .bind(event.thread_id.as_ref().map(|i| i.as_str()))
+    .bind(event.operation_id.as_ref().map(|i| i.as_str()))
     .bind(&event.actor.kind)
     .bind(&event.actor.id)
     .bind(causation_kind)

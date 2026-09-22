@@ -3,7 +3,7 @@ use sqlx::SqliteConnection;
 use super::{Storage, StorageError, events::append_event, now};
 use crate::command::CommandContext;
 use crate::events::{Actor, DurableEvent};
-use crate::project::Project;
+use crate::project::{Project, ProjectId};
 
 /// `Some(outcome_ref)` when this exact command was already recorded, `None`
 /// when it is new, `Err(CommandConflict)` when the id was reused with a
@@ -96,11 +96,11 @@ impl Storage {
         self.write_txn(move |conn| {
             Box::pin(async move {
                 if let Some(existing_id) = classify(conn, &ctx, "Global", "").await? {
-                    return load_project(conn, &existing_id).await;
+                    return load_project(conn, &ProjectId::from_stored(existing_id)).await;
                 }
-                let id = uuid::Uuid::new_v4().to_string();
+                let id = ProjectId::generate();
                 sqlx::query("INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)")
-                    .bind(&id)
+                    .bind(id.as_str())
                     .bind(&slug)
                     .bind(&name)
                     .bind(&ts)
@@ -116,7 +116,7 @@ impl Storage {
                 )
                 .await?;
 
-                record_command(conn, &ctx, "Global", "", "Project", &id, &ts).await?;
+                record_command(conn, &ctx, "Global", "", "Project", id.as_str(), &ts).await?;
                 load_project(conn, &id).await
             })
         })
@@ -132,7 +132,7 @@ impl Storage {
         Ok(rows
             .into_iter()
             .map(|(id, slug, name, created_at)| Project {
-                id,
+                id: ProjectId::from_stored(id),
                 slug,
                 name,
                 created_at,
@@ -141,15 +141,18 @@ impl Storage {
     }
 }
 
-async fn load_project(conn: &mut SqliteConnection, id: &str) -> Result<Project, StorageError> {
+async fn load_project(
+    conn: &mut SqliteConnection,
+    id: &ProjectId,
+) -> Result<Project, StorageError> {
     let row: (String, String, String, String) =
         sqlx::query_as("SELECT id, slug, name, created_at FROM project WHERE id = ?")
-            .bind(id)
+            .bind(id.as_str())
             .fetch_optional(&mut *conn)
             .await?
             .ok_or(StorageError::NotFound("project"))?;
     Ok(Project {
-        id: row.0,
+        id: ProjectId::from_stored(row.0),
         slug: row.1,
         name: row.2,
         created_at: row.3,

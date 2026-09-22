@@ -1,8 +1,9 @@
 use shadows::operation::FailureStage;
 use shadows::runtime::RuntimeInstanceId;
 use shadows::storage::{Storage, StorageError};
+use shadows::thread::ThreadId;
 
-async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, String) {
+async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let runtime = storage.register_runtime_instance("test").await.unwrap();

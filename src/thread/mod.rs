@@ -1,7 +1,23 @@
+use crate::events::Actor;
+use crate::id::newtype_id;
+use crate::operation::OperationId;
+use crate::project::ProjectId;
+
+newtype_id! {
+    /// Spec §4.1.
+    ThreadId
+}
+
+newtype_id! {
+    /// Spec §4.1. Distinct from the entry's `ordinal`, which orders entries
+    /// within one thread and is not an identity.
+    ThreadEntryId
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PlanningThread {
-    pub id: String,
-    pub project_id: String,
+    pub id: ThreadId,
+    pub project_id: ProjectId,
     pub title: String,
     pub status: String,
     pub created_at: String,
@@ -9,21 +25,45 @@ pub struct PlanningThread {
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ThreadEntry {
-    pub id: String,
-    pub thread_id: String,
+    pub id: ThreadEntryId,
+    pub thread_id: ThreadId,
     pub ordinal: i64,
     pub kind: String,
-    pub author_kind: String,
-    pub author_id: String,
+    /// Spec §4.2 calls this field's type `Principal`. Milestone 0 uses
+    /// `events::Actor`, which already has exactly this shape (`kind` + `id`) and
+    /// already answers "who did this" for durable events. Declaring a second
+    /// identical struct would record one decision twice, which this project's
+    /// documentation rules forbid. See the note in §4.2.
+    pub author: Actor,
     pub body: String,
     pub refs: Vec<EntryRef>,
     pub created_at: String,
 }
 
+/// The fields of an entry being appended. A struct rather than five positional
+/// parameters: `append_thread_entry` previously took
+/// `(&str, &str, &str, &str, &str)`, five arguments the compiler could not tell
+/// apart, and the predecessor project `shadow` died partly on one reversed
+/// argument pair that 413 commits did not catch. Naming the fields at the call
+/// site is what makes the mistake unwritable rather than merely unlikely.
+#[derive(Debug, Clone)]
+pub struct NewThreadEntry<'a> {
+    /// Spec §4.2 types this as `ThreadEntryKind`, an enum whose variants the
+    /// spec never enumerates. Inventing them here would be deciding a question
+    /// the spec has not asked, so it stays text — see the note in §4.2.
+    pub kind: &'a str,
+    pub author: Actor,
+    pub body: &'a str,
+    pub refs: &'a [EntryRef],
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum EntryRef {
+    /// Typed, because `operation/` exists. The three below reference entities
+    /// whose modules Milestone 0 never creates, and §4.1's rule is that no module
+    /// is created before the task that fills it.
+    Operation(OperationId),
     Decision(String),
     Research(String),
     Workflow(String),
-    Operation(String),
 }

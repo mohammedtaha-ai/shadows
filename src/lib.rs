@@ -4,6 +4,7 @@ pub mod command;
 pub mod config;
 pub mod error;
 pub mod events;
+pub mod id;
 pub mod operation;
 pub mod process;
 pub mod project;
