@@ -20,10 +20,15 @@
 //! jobs that happen to be adjacent: they are the two sides of one arbitration.
 //! §8.4 requires that exactly one of them writes the terminal transition, and
 //! the rule that decides which one — registration in `LiveHandles`, plus the
-//! one fact that tells "still running" from "already ended on its own" — is
-//! only reviewable if both sides are read together. Splitting them would leave
-//! two files that must be read as one, which CLAUDE.md names as the split that
-//! does not count.
+//! two facts `LiveTurn` carries — is only reviewable if both sides are read
+//! together. Splitting them would leave two files that must be read as one,
+//! which CLAUDE.md names as the split that does not count.
+//!
+//! **Terminating and naming the ending are separate decisions.** `stop`
+//! terminates anything still alive (§8.4 case 3) and only then asks who names
+//! the ending. Fusing the two — declining to kill a live tree because its turn
+//! already reported a result — leaves a harness that hangs after its result
+//! unstoppable, while `stop` returns success.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -41,25 +46,38 @@ use crate::runtime::Runtime;
 use crate::storage::StorageError;
 use crate::thread::{NewThreadEntry, ThreadId};
 
+/// The turn-end subtype the harness evidence measured as a successful turn
+/// (`docs/evidence/harness/SERVE_STREAM_SPIKE.md`). Stated as the one value
+/// that means success rather than as a list of failing values, because the
+/// evidence measured this one and did not enumerate the others: a blacklist
+/// here would be invented, and would silently record the next unmeasured
+/// failure subtype as a completed turn.
+const TURN_END_SUCCESS: &str = "success";
+
 /// One live turn's registration: the containment handle that owns its tree,
-/// and the single fact `stop` needs in order not to invert spec §8.4 case 4.
+/// and the two facts §8.4 needs to answer its two separate questions.
+///
+/// **They are separate questions and the code must not fuse them.** Whether
+/// there is a tree to terminate is `ProcessHandle::has_exited` and nothing
+/// else — §8.4 case 4's precondition is that the process *exited*, not that it
+/// said it was finishing. Whether this turn already produced its own ending is
+/// `turn_end_seen`. A harness can emit its result and then stay alive for a
+/// long time, which is case 3 ("terminate and reap the registered tree"), and
+/// reading `turn_end_seen` as "nothing to kill" makes such a harness
+/// unstoppable while `stop` reports success.
 pub(crate) struct LiveTurn {
     handle: ProcessHandle,
     /// Set by the reader the moment it classifies this turn's `TurnEnd`, which
     /// is strictly before the process exits and before the reader competes for
-    /// the map. It is what lets `stop` tell "this turn is still running and I
-    /// am about to end it" from "this turn already produced its own ending and
-    /// I would only be discarding it".
+    /// the map. It decides who writes the outcome, never whether to terminate.
     turn_end_seen: Arc<AtomicBool>,
-}
-
-impl LiveTurn {
-    /// Spec §8.4 case 4's distinguishing fact. Either signal alone is
-    /// incomplete: a `TurnEnd` is observed before the process has actually
-    /// gone, and a process can die without ever emitting one.
-    fn ended_on_its_own(&mut self) -> bool {
-        self.turn_end_seen.load(Ordering::SeqCst) || self.handle.has_exited()
-    }
+    /// Set by `stop` when it terminated this tree but left the outcome to the
+    /// reader (§8.4 case 3 over a turn that had already ended). It travels with
+    /// the registration rather than in an `Arc`, because only whoever holds the
+    /// registration reads it. Without it the reader would see the exit status
+    /// of a process *we* killed and record a `Run` failure for a turn that
+    /// reported success.
+    terminated_by_stop: bool,
 }
 
 /// Live handles for operations this runtime owns. Spec §8.3: termination goes
@@ -85,6 +103,18 @@ impl LiveHandles {
     #[cfg(feature = "test-support")]
     pub async fn contains(&self, op_id: &OperationId) -> bool {
         self.0.lock().await.contains_key(op_id)
+    }
+
+    /// Test-only. The registered tree's leader pid, so a test can assert that
+    /// a cancelled turn's process is actually gone rather than trusting that
+    /// `stop` said so.
+    #[cfg(feature = "test-support")]
+    pub async fn pid(&self, op_id: &OperationId) -> Option<u32> {
+        self.0
+            .lock()
+            .await
+            .get(op_id)
+            .and_then(|turn| turn.handle.id())
     }
 
     /// Test-only. Arms the registered handle so its next `terminate_tree`
@@ -197,6 +227,7 @@ impl PlannerTurn {
                 LiveTurn {
                     handle,
                     turn_end_seen: turn_end_seen.clone(),
+                    terminated_by_stop: false,
                 },
             );
         }
@@ -341,29 +372,19 @@ impl PlannerTurn {
             // the turn genuinely has not ended — rather than recording an
             // ending that did not happen.
             let status = turn.handle.wait().await;
-            let ended_cleanly = matches!(&status, Ok(code) if code.success());
             let ending = match &status {
                 Ok(code) => format!("{code}"),
                 Err(error) => format!("exit status unreadable: {error}"),
             };
+            // The exit status says something about the turn only when the turn
+            // is what ended it. If `stop` terminated this tree after the turn
+            // had already reported its result (§8.4 case 3 over a finished
+            // turn), the status reports our own kill, and reading it as the
+            // turn's verdict would record a failure we caused.
+            let exit_is_the_turns =
+                turn.terminated_by_stop || matches!(&status, Ok(code) if code.success());
 
             let written = match turn_end {
-                Some(outcome) if ended_cleanly => {
-                    reader_runtime
-                        .storage
-                        .mark_operation_completed(&reader_op, outcome)
-                        .await
-                }
-                Some(_) => {
-                    reader_runtime
-                        .storage
-                        .mark_operation_failed(
-                            &reader_op,
-                            FailureStage::Run,
-                            &format!("the harness emitted its turn-end result, then {ending}"),
-                        )
-                        .await
-                }
                 None => {
                     reader_runtime
                         .storage
@@ -373,6 +394,45 @@ impl PlannerTurn {
                             &format!("the harness ended without a turn-end result: {ending}"),
                         )
                         .await
+                }
+                Some(outcome) => {
+                    // Two verdicts have to agree before this is a success: the
+                    // harness's own and the process's. The evidence report
+                    // (`docs/evidence/harness/SERVE_STREAM_SPIKE.md`) measured
+                    // exactly one subtype, `success`, and says the turn end
+                    // carries "a structured verdict and a process status, and
+                    // can cross-check them" — so the rule is that `success` is
+                    // the one subtype measured to mean success, not a guessed
+                    // blacklist of the failing ones.
+                    let verdict = outcome
+                        .get("subtype")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or_default()
+                        .to_string();
+                    if verdict != TURN_END_SUCCESS {
+                        reader_runtime
+                            .storage
+                            .mark_operation_failed(
+                                &reader_op,
+                                FailureStage::Run,
+                                &format!("the harness reported a failing turn end: {verdict}"),
+                            )
+                            .await
+                    } else if !exit_is_the_turns {
+                        reader_runtime
+                            .storage
+                            .mark_operation_failed(
+                                &reader_op,
+                                FailureStage::Run,
+                                &format!("the harness reported success, then {ending}"),
+                            )
+                            .await
+                    } else {
+                        reader_runtime
+                            .storage
+                            .mark_operation_completed(&reader_op, outcome)
+                            .await
+                    }
                 }
             };
             if let Err(error) = written {
@@ -394,6 +454,11 @@ impl PlannerTurn {
     /// termination cannot be confirmed — no live handle, or the tree refuses
     /// to terminate — Cancelled is not written and the operation is left for
     /// recovery (spec §8.4 case 6).
+    ///
+    /// Terminating and naming the ending are two decisions, taken in that
+    /// order: anything still alive is terminated (§8.4 case 3), and only then
+    /// does the question of who writes the terminal state arise. The branches
+    /// below name the case each one serves.
     pub async fn stop(
         runtime: Arc<Runtime>,
         handles: Arc<LiveHandles>,
@@ -413,13 +478,14 @@ impl PlannerTurn {
             return Ok(());
         };
 
-        // §8.4 case 4. The turn produced its own ending in the window between
-        // the request and this lock. Terminating now would succeed against an
-        // already-dead tree and write Cancelled over an outcome the reader has
-        // already built, which is Shadows claiming to have stopped something
-        // that had already stopped. The registration goes back so the reader
-        // still owns the outcome and persists the real exit.
-        if turn.ended_on_its_own() {
+        // §8.4 case 4. The process exited between the request and this lock,
+        // so there is no tree to terminate and nothing Shadows can claim to
+        // have stopped. The registration goes back: the reader owns the
+        // outcome and persists the real exit. Note what this branch is NOT
+        // asking — whether the stream said the turn was finishing. A harness
+        // that reported its result and is still alive is a live tree, and
+        // case 3 below is what it gets.
+        if turn.handle.has_exited() {
             map.insert(op_id.clone(), turn);
             return Ok(());
         }
@@ -430,6 +496,20 @@ impl PlannerTurn {
         // process would keep running, unterminable, and no one would ever
         // resolve the operation.
         if turn.handle.terminate_tree().is_err() {
+            map.insert(op_id.clone(), turn);
+            return Ok(());
+        }
+
+        // §8.4 case 3 has now been served: the registered tree is terminated.
+        // What remains is who gets to name the ending, and that is the one
+        // question `turn_end_seen` answers. The turn produced its true ending
+        // before cancellation took termination ownership, so that ending wins
+        // — Shadows does not relabel a finished turn as one it stopped. The
+        // registration goes back carrying the fact that the exit about to be
+        // observed is our kill, so the reader records the outcome it already
+        // holds instead of reading that kill as a failing exit.
+        if turn.turn_end_seen.load(Ordering::SeqCst) {
+            turn.terminated_by_stop = true;
             map.insert(op_id.clone(), turn);
             return Ok(());
         }

@@ -52,7 +52,7 @@ pub trait AgentHarness {
 }
 ```
 
-## `src/bin/fake_claude.rs` — 56 lines
+## `src/bin/fake_claude.rs` — 71 lines
 
 Nothing reachable from outside this file.
 
@@ -217,14 +217,15 @@ pub struct Operation {
 }
 ```
 
-## `src/planner/mod.rs` — 447 lines
+## `src/planner/mod.rs` — 527 lines
 
 ```rust
 pub(crate) struct LiveTurn {}
-// + 2 private fields
+// + 3 private fields
 pub struct LiveHandles(pub(crate) Mutex<HashMap<OperationId, LiveTurn>>);
 impl LiveHandles {
     pub async fn contains(&self, op_id: &OperationId) -> bool
+    pub async fn pid(&self, op_id: &OperationId) -> Option<u32>
     pub async fn force_termination_failure(&self, op_id: &OperationId) -> bool
 }
 

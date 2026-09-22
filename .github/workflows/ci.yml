@@ -36,6 +36,28 @@ jobs:
         run: cargo fmt --check
       - name: Lint
         run: cargo clippy --all-targets -- -D warnings
+      - name: Ship build — the test-only seams must not be in it
+        # Three seams exist in this tree only because `test-support` is off in
+        # an ordinary build: `storage::test_support` (a durable event appended
+        # with no state write), `<Id>::from_literal` (an id minted from
+        # arbitrary text), and `ProcessHandle::force_termination_failure`
+        # (termination that reports failure on demand). `cargo test` turns that
+        # feature on through the self dev-dependency, so every other step in
+        # this job builds WITH it and none of them can notice if it became a
+        # default feature or a dependency started requesting it. The whole
+        # suite would stay green while all three shipped.
+        #
+        # So this step builds what ships and then asks Cargo, of the non-dev
+        # graph, whether the feature is on. A failure here means a test-only
+        # seam has entered the product build: fix the gating, never relax the
+        # step.
+        shell: bash
+        run: |
+          cargo build
+          if cargo tree -e features,no-dev --package shadows | grep -q 'test-support'; then
+            echo "::error::test-support is enabled in the shipping build - a test-only seam would ship"
+            exit 1
+          fi
       - name: Test
         run: cargo test
 
@@ -52,5 +74,27 @@ jobs:
         run: cargo fmt --check
       - name: Lint
         run: cargo clippy --all-targets -- -D warnings
+      - name: Ship build — the test-only seams must not be in it
+        # Three seams exist in this tree only because `test-support` is off in
+        # an ordinary build: `storage::test_support` (a durable event appended
+        # with no state write), `<Id>::from_literal` (an id minted from
+        # arbitrary text), and `ProcessHandle::force_termination_failure`
+        # (termination that reports failure on demand). `cargo test` turns that
+        # feature on through the self dev-dependency, so every other step in
+        # this job builds WITH it and none of them can notice if it became a
+        # default feature or a dependency started requesting it. The whole
+        # suite would stay green while all three shipped.
+        #
+        # So this step builds what ships and then asks Cargo, of the non-dev
+        # graph, whether the feature is on. A failure here means a test-only
+        # seam has entered the product build: fix the gating, never relax the
+        # step.
+        shell: bash
+        run: |
+          cargo build
+          if cargo tree -e features,no-dev --package shadows | grep -q 'test-support'; then
+            echo "::error::test-support is enabled in the shipping build - a test-only seam would ship"
+            exit 1
+          fi
       - name: Test (ignored tests stay ignored; see the note at the top)
         run: cargo test
