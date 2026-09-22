@@ -1,5 +1,8 @@
-//! One job: run the two-phase Planner turn spawn and its cancellation
-//! interlock (spec §2.3, §2.7, §8.3).
+//! One job: decide and persist how a live Planner turn ends (spec §2.3, §8.4).
+//!
+//! Starting one is the neighbouring file's job. `spawn.rs` turns a request
+//! into a registered, running operation and hands it here; everything after
+//! that — the stream, the ending, the cancellation interlock — is this file.
 //!
 //! `Cancelled` means Shadows confirmed the managed execution is no longer
 //! running AND persisted the terminal transition (spec §2.3) — never only
@@ -30,18 +33,21 @@
 //! already reported a result — leaves a harness that hangs after its result
 //! unstoppable, while `stop` returns success.
 
+mod spawn;
+
+pub use spawn::PlannerTurnRequest;
+
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use tokio::sync::{Mutex, broadcast};
 
 use crate::agent::claude::ClaudeHarness;
-use crate::agent::{AgentHarness, AgentInvocation, StreamItem};
+use crate::agent::{AgentHarness, StreamItem};
 use crate::events::Actor;
 use crate::operation::{FailureStage, OperationId};
-use crate::process::{ProcessHandle, spawn};
+use crate::process::{ProcessHandle, StdoutLines};
 use crate::runtime::Runtime;
 use crate::storage::StorageError;
 use crate::thread::{NewThreadEntry, ThreadId};
@@ -134,322 +140,236 @@ impl LiveHandles {
     }
 }
 
-/// What a caller asks for, bundled rather than passed positionally.
-/// `PlannerTurn::start` otherwise takes eight parameters, which is both a
-/// clippy lint (`too_many_arguments`, refused here rather than suppressed —
-/// see CLAUDE.md) and the exact shape of mistake this project's
-/// `NewThreadEntry` precedent exists to close: same-typed neighbours
-/// (`thread_id`, `prompt`, `resume_session_id` are all string-ish) that the
-/// compiler cannot tell apart at a positional call site.
-#[derive(Debug, Clone)]
-pub struct PlannerTurnRequest {
-    pub thread_id: ThreadId,
-    pub prompt: String,
-    pub cwd: PathBuf,
-    /// Present on a resumed turn. Continuity belongs to the harness, not to us.
-    pub resume_session_id: Option<String>,
-}
-
 pub struct PlannerTurn;
 
-impl PlannerTurn {
-    /// Returns the operation id as soon as Pending is committed. The turn
-    /// keeps running in a background task; the caller subscribes to `bus`
-    /// separately for the stream.
-    pub async fn start(
-        runtime: Arc<Runtime>,
-        handles: Arc<LiveHandles>,
-        harness: Arc<ClaudeHarness>,
-        request: PlannerTurnRequest,
-        bus: broadcast::Sender<(OperationId, StreamItem)>,
-    ) -> Result<OperationId, StorageError> {
-        let PlannerTurnRequest {
-            thread_id,
-            prompt,
-            cwd,
-            resume_session_id,
-        } = request;
+/// Everything the watcher needs to decide and persist how one live turn ends,
+/// bundled because it is one thing — the turn — and not six parameters.
+pub(crate) struct TurnWatch {
+    pub(crate) op_id: OperationId,
+    pub(crate) runtime: Arc<Runtime>,
+    pub(crate) handles: Arc<LiveHandles>,
+    pub(crate) harness: Arc<ClaudeHarness>,
+    pub(crate) thread_id: ThreadId,
+    pub(crate) agent_role: String,
+    /// The same flag the registration holds. The watcher sets it the moment it
+    /// classifies this turn's `TurnEnd`; `stop` reads it to decide who names
+    /// the ending. Shared rather than re-read from the map because the watcher
+    /// must publish the fact without taking the map's lock on every line.
+    pub(crate) turn_end_seen: Arc<AtomicBool>,
+}
 
-        // TX #1: the durable attempt exists before anything spawns.
-        let op_id = runtime
-            .storage
-            .create_pending_operation(&thread_id, &runtime.instance_id)
-            .await?;
-
-        let invocation = AgentInvocation {
-            operation_id: op_id.clone(),
-            role: "Planner".into(),
-            model: "sonnet".into(),
-            prompt,
-            cwd,
-            resume_session_id,
-            session_id: uuid::Uuid::new_v4().to_string(),
-        };
-
-        // Prepare: resolve, build the environment, ready the workspace. A
-        // failure here is not a spawn failure — no process ever existed.
-        let spec = harness.to_process_spec(&invocation);
-        if !spec.executable.exists() && spec.executable.components().count() > 1 {
-            runtime
-                .storage
-                .mark_operation_failed(
-                    &op_id,
-                    FailureStage::Prepare,
-                    &format!(
-                        "harness executable not found: {}",
-                        spec.executable.display()
-                    ),
-                )
-                .await?;
-            return Ok(op_id);
-        }
-
-        let mut handle = match spawn(spec) {
-            Ok(h) => h,
-            Err(e) => {
-                runtime
-                    .storage
-                    .mark_operation_failed(&op_id, FailureStage::Spawn, &e.to_string())
-                    .await?;
-                return Ok(op_id);
-            }
-        };
-
-        // Spec §8.3: register the handle, THEN commit Running. A committed
-        // transition without a registered handle is a state we must not
-        // produce — `stop` would have nothing to terminate.
-        let lines = handle.take_stdout_lines();
-        let turn_end_seen = Arc::new(AtomicBool::new(false));
-        {
-            let mut map = handles.0.lock().await;
-            map.insert(
-                op_id.clone(),
-                LiveTurn {
-                    handle,
-                    turn_end_seen: turn_end_seen.clone(),
-                    terminated_by_stop: false,
-                },
-            );
-        }
-
-        // TX #2. The child is already running, and the only thing that can
-        // reach it is the registration made two lines above, so returning this
-        // error without undoing that would leave a live harness attached to an
-        // operation id the caller never received: unreachable, unterminable,
-        // and still Pending. The registration is withdrawn and the tree killed
-        // before the error propagates.
-        if let Err(error) = runtime
-            .storage
-            .mark_operation_started(&op_id, &runtime.instance_id)
-            .await
-        {
-            let orphan = handles.0.lock().await.remove(&op_id);
-            if let Some(mut turn) = orphan {
-                let _ = turn.handle.terminate_tree();
-                let _ = turn.handle.wait().await;
-            }
-            return Err(error);
-        }
-
-        let reader_op = op_id.clone();
-        let reader_runtime = runtime.clone();
-        let reader_handles = handles.clone();
-        let reader_harness = harness.clone();
-        let reader_thread = thread_id.clone();
-        let agent_role = invocation.role.clone();
-        tokio::spawn(async move {
-            let mut turn_end: Option<serde_json::Value> = None;
-            if let Some(mut lines) = lines {
-                loop {
-                    let line = match lines.next_line().await {
-                        Ok(Some(line)) => line,
-                        Ok(None) => break,
-                        Err(error) => {
-                            // A read failure is not an ordinary end of stream,
-                            // and the old `while let Ok(Some(_))` could not
-                            // tell them apart. It still breaks — there is
-                            // nothing left to read — but the turn's ending is
-                            // now decided by the exit status below, not by the
-                            // fact that reading stopped.
+/// Reads one turn's stream to its end, then names and persists that ending.
+/// Returns as soon as the background task is spawned.
+///
+/// This is one half of §8.4's arbitration and `PlannerTurn::stop` is the
+/// other, which is why they share a file: the rule that decides which of them
+/// writes the terminal transition is only reviewable with both in view.
+pub(crate) fn watch_turn(
+    watch: TurnWatch,
+    lines: Option<StdoutLines>,
+    bus: broadcast::Sender<(OperationId, StreamItem)>,
+) {
+    let TurnWatch {
+        op_id: reader_op,
+        runtime: reader_runtime,
+        handles: reader_handles,
+        harness: reader_harness,
+        thread_id: reader_thread,
+        agent_role,
+        turn_end_seen,
+    } = watch;
+    tokio::spawn(async move {
+        let mut turn_end: Option<serde_json::Value> = None;
+        if let Some(mut lines) = lines {
+            loop {
+                let line = match lines.next_line().await {
+                    Ok(Some(line)) => line,
+                    Ok(None) => break,
+                    Err(error) => {
+                        // A read failure is not an ordinary end of stream,
+                        // and the old `while let Ok(Some(_))` could not
+                        // tell them apart. It still breaks — there is
+                        // nothing left to read — but the turn's ending is
+                        // now decided by the exit status below, not by the
+                        // fact that reading stopped.
+                        tracing::error!(
+                            operation_id = %reader_op,
+                            %error,
+                            "planner.stream_read_failed: the harness stream ended in an error"
+                        );
+                        break;
+                    }
+                };
+                let item = reader_harness.classify(&line);
+                match &item {
+                    // Durable: write before forwarding. The UI may drop a
+                    // frame; the record may not.
+                    StreamItem::Entry { text, .. } => {
+                        if let Err(error) = reader_runtime
+                            .storage
+                            .append_thread_entry(
+                                &reader_thread,
+                                NewThreadEntry {
+                                    kind: "AgentMessage",
+                                    // The author is the agent whose turn
+                                    // this is, which is the same actor for
+                                    // every line of it. The stream's own
+                                    // per-line `role` ("assistant", or
+                                    // "user" on a tool-result echo) is a
+                                    // label on the transport, not a second
+                                    // author, and its `uuid` is a
+                                    // harness-side line identity, not an
+                                    // actor at all: putting either in
+                                    // `Actor.id` would make every message
+                                    // look like it had a different author.
+                                    // The uuid is dropped rather than
+                                    // stored because `thread_entry` has
+                                    // nowhere to put a harness-side
+                                    // identity — see that table's OPEN
+                                    // block in the schema spec, whose
+                                    // trigger is the first feature that
+                                    // must match a stored entry back to a
+                                    // streamed line.
+                                    author: Actor {
+                                        kind: "Agent".into(),
+                                        id: agent_role.clone(),
+                                    },
+                                    body: text,
+                                    refs: &[],
+                                },
+                            )
+                            .await
+                        {
+                            // Not a shutdown path: this is the durable
+                            // write of the conversation itself. Swallowing
+                            // this would lose a message with nothing
+                            // anywhere saying so, so it is surfaced loudly
+                            // even though the stream keeps running — one
+                            // dropped entry must not also abort the turn
+                            // the user is watching.
                             tracing::error!(
                                 operation_id = %reader_op,
+                                thread_id = %reader_thread,
                                 %error,
-                                "planner.stream_read_failed: the harness stream ended in an error"
+                                "planner.append_thread_entry_failed: a durable turn entry was lost"
                             );
-                            break;
                         }
-                    };
-                    let item = reader_harness.classify(&line);
-                    match &item {
-                        // Durable: write before forwarding. The UI may drop a
-                        // frame; the record may not.
-                        StreamItem::Entry { text, .. } => {
-                            if let Err(error) = reader_runtime
-                                .storage
-                                .append_thread_entry(
-                                    &reader_thread,
-                                    NewThreadEntry {
-                                        kind: "AgentMessage",
-                                        // The author is the agent whose turn
-                                        // this is, which is the same actor for
-                                        // every line of it. The stream's own
-                                        // per-line `role` ("assistant", or
-                                        // "user" on a tool-result echo) is a
-                                        // label on the transport, not a second
-                                        // author, and its `uuid` is a
-                                        // harness-side line identity, not an
-                                        // actor at all: putting either in
-                                        // `Actor.id` would make every message
-                                        // look like it had a different author.
-                                        // The uuid is dropped rather than
-                                        // stored because `thread_entry` has
-                                        // nowhere to put a harness-side
-                                        // identity — see that table's OPEN
-                                        // block in the schema spec, whose
-                                        // trigger is the first feature that
-                                        // must match a stored entry back to a
-                                        // streamed line.
-                                        author: Actor {
-                                            kind: "Agent".into(),
-                                            id: agent_role.clone(),
-                                        },
-                                        body: text,
-                                        refs: &[],
-                                    },
-                                )
-                                .await
-                            {
-                                // Not a shutdown path: this is the durable
-                                // write of the conversation itself. Swallowing
-                                // this would lose a message with nothing
-                                // anywhere saying so, so it is surfaced loudly
-                                // even though the stream keeps running — one
-                                // dropped entry must not also abort the turn
-                                // the user is watching.
-                                tracing::error!(
-                                    operation_id = %reader_op,
-                                    thread_id = %reader_thread,
-                                    %error,
-                                    "planner.append_thread_entry_failed: a durable turn entry was lost"
-                                );
-                            }
-                        }
-                        StreamItem::TurnEnd {
-                            subtype,
-                            stop_reason,
-                        } => {
-                            turn_end = Some(serde_json::json!({
-                                "subtype": subtype, "stop_reason": stop_reason
-                            }));
-                            // Published before the item reaches the bus, so
-                            // that anyone who has seen the turn end knows the
-                            // interlock has seen it too.
-                            turn_end_seen.store(true, Ordering::SeqCst);
-                        }
-                        _ => {}
                     }
-                    let _ = bus.send((reader_op.clone(), item));
+                    StreamItem::TurnEnd {
+                        subtype,
+                        stop_reason,
+                    } => {
+                        turn_end = Some(serde_json::json!({
+                            "subtype": subtype, "stop_reason": stop_reason
+                        }));
+                        // Published before the item reaches the bus, so
+                        // that anyone who has seen the turn end knows the
+                        // interlock has seen it too.
+                        turn_end_seen.store(true, Ordering::SeqCst);
+                    }
+                    _ => {}
                 }
+                let _ = bus.send((reader_op.clone(), item));
             }
+        }
 
-            // The stream ended — either the process exited on its own, or
-            // `stop` killed it and the kill also closed stdout, which looks
-            // identical from here. Which side writes the terminal state is
-            // decided by the registration, not by racing two storage CASes:
-            // whoever's `remove` returns `Some` owns the outcome. `None` means
-            // `stop` took ownership and will write `Cancelled`, so this task
-            // writes nothing (§8.4 case 5).
-            let claimed = reader_handles.0.lock().await.remove(&reader_op);
-            let Some(mut turn) = claimed else {
-                return;
-            };
+        // The stream ended — either the process exited on its own, or
+        // `stop` killed it and the kill also closed stdout, which looks
+        // identical from here. Which side writes the terminal state is
+        // decided by the registration, not by racing two storage CASes:
+        // whoever's `remove` returns `Some` owns the outcome. `None` means
+        // `stop` took ownership and will write `Cancelled`, so this task
+        // writes nothing (§8.4 case 5).
+        let claimed = reader_handles.0.lock().await.remove(&reader_op);
+        let Some(mut turn) = claimed else {
+            return;
+        };
 
-            // Owning the registration means owning the handle, so the real
-            // exit is available and §8.4 case 4's "persist Completed or Failed
-            // from the real exit" can be obeyed instead of assuming success.
-            // `wait` blocks until the leader is gone: a harness that closes
-            // stdout and keeps running holds this task here, which is honest —
-            // the turn genuinely has not ended — rather than recording an
-            // ending that did not happen.
-            let status = turn.handle.wait().await;
-            let ending = match &status {
-                Ok(code) => format!("{code}"),
-                Err(error) => format!("exit status unreadable: {error}"),
-            };
-            // The exit status says something about the turn only when the turn
-            // is what ended it. If `stop` terminated this tree after the turn
-            // had already reported its result (§8.4 case 3 over a finished
-            // turn), the status reports our own kill, and reading it as the
-            // turn's verdict would record a failure we caused.
-            let exit_is_the_turns =
-                turn.terminated_by_stop || matches!(&status, Ok(code) if code.success());
+        // Owning the registration means owning the handle, so the real
+        // exit is available and §8.4 case 4's "persist Completed or Failed
+        // from the real exit" can be obeyed instead of assuming success.
+        // `wait` blocks until the leader is gone: a harness that closes
+        // stdout and keeps running holds this task here, which is honest —
+        // the turn genuinely has not ended — rather than recording an
+        // ending that did not happen.
+        let status = turn.handle.wait().await;
+        let ending = match &status {
+            Ok(code) => format!("{code}"),
+            Err(error) => format!("exit status unreadable: {error}"),
+        };
+        // The exit status says something about the turn only when the turn
+        // is what ended it. If `stop` terminated this tree after the turn
+        // had already reported its result (§8.4 case 3 over a finished
+        // turn), the status reports our own kill, and reading it as the
+        // turn's verdict would record a failure we caused.
+        let exit_is_the_turns =
+            turn.terminated_by_stop || matches!(&status, Ok(code) if code.success());
 
-            let written = match turn_end {
-                None => {
+        let written = match turn_end {
+            None => {
+                reader_runtime
+                    .storage
+                    .mark_operation_failed(
+                        &reader_op,
+                        FailureStage::Run,
+                        &format!("the harness ended without a turn-end result: {ending}"),
+                    )
+                    .await
+            }
+            Some(outcome) => {
+                // Two verdicts have to agree before this is a success: the
+                // harness's own and the process's. The evidence report
+                // (`docs/evidence/harness/SERVE_STREAM_SPIKE.md`) measured
+                // exactly one subtype, `success`, and says the turn end
+                // carries "a structured verdict and a process status, and
+                // can cross-check them" — so the rule is that `success` is
+                // the one subtype measured to mean success, not a guessed
+                // blacklist of the failing ones.
+                let verdict = outcome
+                    .get("subtype")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+                if verdict != TURN_END_SUCCESS {
                     reader_runtime
                         .storage
                         .mark_operation_failed(
                             &reader_op,
                             FailureStage::Run,
-                            &format!("the harness ended without a turn-end result: {ending}"),
+                            &format!("the harness reported a failing turn end: {verdict}"),
                         )
                         .await
+                } else if !exit_is_the_turns {
+                    reader_runtime
+                        .storage
+                        .mark_operation_failed(
+                            &reader_op,
+                            FailureStage::Run,
+                            &format!("the harness reported success, then {ending}"),
+                        )
+                        .await
+                } else {
+                    reader_runtime
+                        .storage
+                        .mark_operation_completed(&reader_op, outcome)
+                        .await
                 }
-                Some(outcome) => {
-                    // Two verdicts have to agree before this is a success: the
-                    // harness's own and the process's. The evidence report
-                    // (`docs/evidence/harness/SERVE_STREAM_SPIKE.md`) measured
-                    // exactly one subtype, `success`, and says the turn end
-                    // carries "a structured verdict and a process status, and
-                    // can cross-check them" — so the rule is that `success` is
-                    // the one subtype measured to mean success, not a guessed
-                    // blacklist of the failing ones.
-                    let verdict = outcome
-                        .get("subtype")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or_default()
-                        .to_string();
-                    if verdict != TURN_END_SUCCESS {
-                        reader_runtime
-                            .storage
-                            .mark_operation_failed(
-                                &reader_op,
-                                FailureStage::Run,
-                                &format!("the harness reported a failing turn end: {verdict}"),
-                            )
-                            .await
-                    } else if !exit_is_the_turns {
-                        reader_runtime
-                            .storage
-                            .mark_operation_failed(
-                                &reader_op,
-                                FailureStage::Run,
-                                &format!("the harness reported success, then {ending}"),
-                            )
-                            .await
-                    } else {
-                        reader_runtime
-                            .storage
-                            .mark_operation_completed(&reader_op, outcome)
-                            .await
-                    }
-                }
-            };
-            if let Err(error) = written {
-                // This task is the sole writer of a naturally-ending turn's
-                // terminal state. Discarding this would leave the operation
-                // Running forever with nothing anywhere saying why.
-                tracing::error!(
-                    operation_id = %reader_op,
-                    %error,
-                    "planner.terminal_transition_failed: a finished turn was left non-terminal"
-                );
             }
-        });
+        };
+        if let Err(error) = written {
+            // This task is the sole writer of a naturally-ending turn's
+            // terminal state. Discarding this would leave the operation
+            // Running forever with nothing anywhere saying why.
+            tracing::error!(
+                operation_id = %reader_op,
+                %error,
+                "planner.terminal_transition_failed: a finished turn was left non-terminal"
+            );
+        }
+    });
+}
 
-        Ok(op_id)
-    }
-
+impl PlannerTurn {
     /// Spec §2.3: request, terminate, confirm, then write Cancelled. If
     /// termination cannot be confirmed — no live handle, or the tree refuses
     /// to terminate — Cancelled is not written and the operation is left for

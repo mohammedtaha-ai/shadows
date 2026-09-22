@@ -217,9 +217,10 @@ pub struct Operation {
 }
 ```
 
-## `src/planner/mod.rs` — 527 lines
+## `src/planner/mod.rs` — 447 lines
 
 ```rust
+pub use spawn::PlannerTurnRequest;
 pub(crate) struct LiveTurn {}
 // + 3 private fields
 pub struct LiveHandles(pub(crate) Mutex<HashMap<OperationId, LiveTurn>>);
@@ -229,20 +230,37 @@ impl LiveHandles {
     pub async fn force_termination_failure(&self, op_id: &OperationId) -> bool
 }
 
+pub struct PlannerTurn;
+pub(crate) struct TurnWatch {
+    pub(crate) op_id: OperationId,
+    pub(crate) runtime: Arc<Runtime>,
+    pub(crate) handles: Arc<LiveHandles>,
+    pub(crate) harness: Arc<ClaudeHarness>,
+    pub(crate) thread_id: ThreadId,
+    pub(crate) agent_role: String,
+    pub(crate) turn_end_seen: Arc<AtomicBool>,
+}
+pub(crate) fn watch_turn(watch: TurnWatch, lines: Option<StdoutLines>, bus: broadcast::Sender<(OperationId, StreamItem)>)
+impl PlannerTurn {
+    pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, op_id: &OperationId) -> Result<(), StorageError>
+}
+```
+
+## `src/planner/spawn.rs` — 160 lines
+
+```rust
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
     pub prompt: String,
     pub cwd: PathBuf,
     pub resume_session_id: Option<String>,
 }
-pub struct PlannerTurn;
 impl PlannerTurn {
     pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, harness: Arc<ClaudeHarness>, request: PlannerTurnRequest, bus: broadcast::Sender<(OperationId, StreamItem)>) -> Result<OperationId, StorageError>
-    pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, op_id: &OperationId) -> Result<(), StorageError>
 }
 ```
 
-## `src/process/mod.rs` — 176 lines
+## `src/process/mod.rs` — 182 lines
 
 ```rust
 pub struct ProcessSpec {
@@ -252,6 +270,7 @@ pub struct ProcessSpec {
     pub env: Vec<(String, String)>,
     pub capture_stdout: bool,
 }
+pub type StdoutLines = Lines<BufReader<ChildStdout>>;
 pub struct ProcessHandle {}
 // + 3 private fields
 impl ProcessHandle {

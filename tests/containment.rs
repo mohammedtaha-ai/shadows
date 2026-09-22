@@ -142,3 +142,55 @@ async fn a_spawned_child_has_no_inherited_stdin() {
         .unwrap();
     assert!(status.success());
 }
+
+/// Spec §8.4 case 4 turns on one fact and one only: had the process already
+/// exited when cancellation arrived. `PlannerTurn::stop` asks `has_exited` and
+/// must get an answer immediately — a wait there would hang cancellation on
+/// the very process it is trying to outlive.
+///
+/// The full-stack window this fact serves (the child has exited, but the turn
+/// watcher has not yet claimed its registration) cannot be entered
+/// deterministically from a test: closing that gap would need a pause knob
+/// inside the interlock, and machinery in the arbitration costs more than it
+/// proves. So the fact is tested where it is defined, and the planner's own
+/// suite covers the two branches that read it.
+#[tokio::test]
+async fn has_exited_answers_immediately_and_tells_the_two_states_apart() {
+    let probe = env!("CARGO_BIN_EXE_tree_probe");
+    let mut running = spawn(ProcessSpec {
+        executable: probe.into(),
+        args: vec!["--sleep".into()],
+        cwd: std::env::temp_dir(),
+        env: Vec::new(),
+        capture_stdout: false,
+    })
+    .expect("spawn should succeed");
+
+    let asked_at = std::time::Instant::now();
+    let answer = running.has_exited();
+    let took = asked_at.elapsed();
+    assert!(!answer, "a child sleeping for ten minutes has not exited");
+    assert!(
+        took < Duration::from_secs(1),
+        "has_exited must answer without waiting; took {took:?}"
+    );
+
+    // The same question about a child that really has ended. `--read-stdin`
+    // returns as soon as it sees EOF on the stdin this crate closes.
+    let mut finished = spawn(ProcessSpec {
+        executable: probe.into(),
+        args: vec!["--read-stdin".into()],
+        cwd: std::env::temp_dir(),
+        env: Vec::new(),
+        capture_stdout: false,
+    })
+    .expect("spawn should succeed");
+    finished.wait().await.expect("the child should exit");
+    assert!(
+        finished.has_exited(),
+        "a reaped child must report that it exited"
+    );
+
+    running.terminate_tree().expect("cleanup should succeed");
+    running.wait().await.expect("the killed child should reap");
+}

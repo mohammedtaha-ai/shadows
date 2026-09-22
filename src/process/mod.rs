@@ -25,6 +25,12 @@ pub struct ProcessSpec {
     pub capture_stdout: bool,
 }
 
+/// A captured child's stdout, read line by line. Named here so callers can
+/// hold one in a signature without importing `tokio::process` themselves —
+/// only `process/` may touch that API (CLAUDE.md), and a type alias is the
+/// difference between honouring that boundary and a caller quietly crossing it.
+pub type StdoutLines = Lines<BufReader<ChildStdout>>;
+
 pub struct ProcessHandle {
     child: Box<dyn ChildWrapper>,
     stdout: Option<Lines<BufReader<ChildStdout>>>,
