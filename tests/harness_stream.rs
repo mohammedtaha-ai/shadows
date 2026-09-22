@@ -1,4 +1,5 @@
 use shadows::agent::{AgentHarness, AgentInvocation, StreamItem, claude::ClaudeHarness};
+use shadows::operation::OperationId;
 
 fn harness() -> ClaudeHarness {
     ClaudeHarness::new("claude".into(), "2.1.278".into())
@@ -9,7 +10,7 @@ fn harness() -> ClaudeHarness {
 #[test]
 fn the_invocation_uses_the_measured_flags_and_the_configured_executable() {
     let spec = harness().to_process_spec(&AgentInvocation {
-        operation_id: "op-1".into(),
+        operation_id: OperationId::from_literal("op-1"),
         role: "Planner".into(),
         model: "sonnet".into(),
         prompt: "hello".into(),
@@ -39,7 +40,7 @@ fn the_invocation_uses_the_measured_flags_and_the_configured_executable() {
 #[test]
 fn a_resumed_turn_uses_resume_instead_of_session_id() {
     let spec = harness().to_process_spec(&AgentInvocation {
-        operation_id: "op-2".into(),
+        operation_id: OperationId::from_literal("op-2"),
         role: "Planner".into(),
         model: "sonnet".into(),
         prompt: "again".into(),

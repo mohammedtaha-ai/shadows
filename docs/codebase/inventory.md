@@ -27,11 +27,11 @@ impl ClaudeHarness {
 }
 ```
 
-## `src/agent/mod.rs` — 53 lines
+## `src/agent/mod.rs` — 58 lines
 
 ```rust
 pub struct AgentInvocation {
-    pub operation_id: String,
+    pub operation_id: OperationId,
     pub role: String,
     pub model: String,
     pub prompt: String,
@@ -52,7 +52,7 @@ pub trait AgentHarness {
 }
 ```
 
-## `src/bin/fake_claude.rs` — 39 lines
+## `src/bin/fake_claude.rs` — 56 lines
 
 Nothing reachable from outside this file.
 
@@ -217,12 +217,15 @@ pub struct Operation {
 }
 ```
 
-## `src/planner/mod.rs` — 276 lines
+## `src/planner/mod.rs` — 447 lines
 
 ```rust
-pub struct LiveHandles(pub(crate) Mutex<HashMap<OperationId, ProcessHandle>>);
+pub(crate) struct LiveTurn {}
+// + 2 private fields
+pub struct LiveHandles(pub(crate) Mutex<HashMap<OperationId, LiveTurn>>);
 impl LiveHandles {
     pub async fn contains(&self, op_id: &OperationId) -> bool
+    pub async fn force_termination_failure(&self, op_id: &OperationId) -> bool
 }
 
 pub struct PlannerTurnRequest {
@@ -238,7 +241,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/process/mod.rs` — 141 lines
+## `src/process/mod.rs` — 176 lines
 
 ```rust
 pub struct ProcessSpec {
@@ -249,12 +252,14 @@ pub struct ProcessSpec {
     pub capture_stdout: bool,
 }
 pub struct ProcessHandle {}
-// + 2 private fields
+// + 3 private fields
 impl ProcessHandle {
     pub fn id(&self) -> Option<u32>
     pub fn take_stdout_lines(&mut self) -> Option<Lines<BufReader<ChildStdout>>>
     pub async fn wait(&mut self) -> io::Result<std::process::ExitStatus>
+    pub fn has_exited(&mut self) -> bool
     pub fn terminate_tree(&mut self) -> io::Result<()>
+    pub fn force_termination_failure(&mut self)
 }
 
 pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle>

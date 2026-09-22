@@ -28,6 +28,15 @@ pub struct ProcessSpec {
 pub struct ProcessHandle {
     child: Box<dyn ChildWrapper>,
     stdout: Option<Lines<BufReader<ChildStdout>>>,
+    /// Test-only. Spec §8.4 case 6 ("termination fails or cannot be
+    /// confirmed") has no reachable test otherwise: on Windows — this
+    /// project's acceptance gate — `start_kill` on a live child does not fail
+    /// on demand, so the branch that must not claim outcome ownership could
+    /// only be reviewed, never exercised. Gated behind `test-support`, which
+    /// `cargo test` enables through the self dev-dependency and `cargo build`
+    /// never does, so the field does not exist in anything that ships.
+    #[cfg(feature = "test-support")]
+    termination_fails: bool,
 }
 
 impl ProcessHandle {
@@ -70,11 +79,32 @@ impl ProcessHandle {
         }
     }
 
+    /// Whether the leader has already exited, without waiting for it. Spec
+    /// §8.4 case 4 needs this fact and not a wait: a cancellation that arrives
+    /// after the process ended on its own must not claim to have stopped it,
+    /// and asking is only useful if it answers immediately.
+    pub fn has_exited(&mut self) -> bool {
+        matches!(self.child.try_wait(), Ok(Some(_)))
+    }
+
     /// Terminates the whole managed tree through the containment handle that
     /// owns it. Spec §8.3: never by signalling a PID read from the database,
     /// because the operating system reuses PIDs.
     pub fn terminate_tree(&mut self) -> io::Result<()> {
+        #[cfg(feature = "test-support")]
+        if self.termination_fails {
+            return Err(io::Error::other(
+                "termination failure forced by test support",
+            ));
+        }
         self.child.start_kill()
+    }
+
+    /// Test-only: makes `terminate_tree` report failure so spec §8.4 case 6
+    /// can be exercised rather than assumed. See the field's comment.
+    #[cfg(feature = "test-support")]
+    pub fn force_termination_failure(&mut self) {
+        self.termination_fails = true;
     }
 }
 
@@ -137,5 +167,10 @@ pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle> {
         BufReader::new(out).lines()
     });
 
-    Ok(ProcessHandle { child, stdout })
+    Ok(ProcessHandle {
+        child,
+        stdout,
+        #[cfg(feature = "test-support")]
+        termination_fails: false,
+    })
 }

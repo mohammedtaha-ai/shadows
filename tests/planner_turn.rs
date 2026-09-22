@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use shadows::agent::StreamItem;
 use shadows::agent::claude::ClaudeHarness;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::operation::{Operation, OperationId};
@@ -108,6 +109,16 @@ async fn a_completed_turn_persists_the_stream_and_releases_its_handle() {
     assert_eq!(loaded.status_kind, "Completed");
     assert!(loaded.finished_at.is_some());
 
+    // Without this the whole TurnEnd branch could be deleted and the suite
+    // would still pass: the default outcome also yields Completed.
+    let outcome: serde_json::Value =
+        serde_json::from_str(loaded.outcome_json.as_deref().expect("an outcome")).unwrap();
+    assert_eq!(
+        outcome,
+        serde_json::json!({ "subtype": "success", "stop_reason": "end_turn" }),
+        "the persisted outcome must be the one the harness's turn-end reported"
+    );
+
     let entries = runtime.storage.list_thread_entries(&thread).await.unwrap();
     assert_eq!(
         entries.len(),
@@ -115,6 +126,11 @@ async fn a_completed_turn_persists_the_stream_and_releases_its_handle() {
         "the fake harness's one durable line must be recorded"
     );
     assert_eq!(entries[0].body, "hello from fake_claude");
+    // Spec §4.2. The author is the agent whose turn this is, the same actor on
+    // every line — not the harness's per-line uuid, which would make every
+    // message look like a different author.
+    assert_eq!(entries[0].author.kind, "Agent");
+    assert_eq!(entries[0].author.id, "Planner");
 
     assert!(
         !handles.contains(&op).await,
@@ -192,4 +208,156 @@ async fn stop_without_a_live_handle_records_the_request_and_stays_non_terminal()
     );
     assert!(loaded.cancel_requested_at.is_some());
     assert!(loaded.finished_at.is_none());
+}
+
+/// Spec §8.4 case 6, the branch the no-handle test cannot reach: a live
+/// registration whose termination fails. `stop` must not take ownership of an
+/// outcome it cannot confirm — if it did, the registration would be gone, the
+/// reader would find nothing to claim, and the still-running tree could never
+/// be terminated again by this runtime.
+#[tokio::test]
+async fn unconfirmed_termination_keeps_the_handle_and_leaves_the_operation_non_terminal() {
+    let (_t, runtime, thread) = fixture().await;
+    let handles = Arc::new(LiveHandles::default());
+    let (bus, _rx) = tokio::sync::broadcast::channel(16);
+
+    let op = PlannerTurn::start(
+        runtime.clone(),
+        handles.clone(),
+        harness(),
+        PlannerTurnRequest {
+            thread_id: thread.clone(),
+            prompt: "hang".into(),
+            cwd: std::env::temp_dir(),
+            resume_session_id: None,
+        },
+        bus,
+    )
+    .await
+    .unwrap();
+
+    wait_for_running(&runtime, &op).await;
+    assert!(
+        handles.force_termination_failure(&op).await,
+        "the turn must still be registered for this test to mean anything"
+    );
+
+    PlannerTurn::stop(runtime.clone(), handles.clone(), &op)
+        .await
+        .unwrap();
+
+    let loaded = runtime.storage.get_operation(&op).await.unwrap();
+    assert_eq!(
+        loaded.status_kind, "Running",
+        "termination was not confirmed, so Cancelled must not be written"
+    );
+    assert!(loaded.cancel_requested_at.is_some());
+    assert!(loaded.finished_at.is_none());
+    assert!(
+        handles.contains(&op).await,
+        "an unconfirmed kill must leave the handle registered — it is the only \
+         thing that can still reach the tree"
+    );
+}
+
+/// Spec §8.4 case 4, in the window the prior implementation inverted: the turn
+/// produced its own ending and the process is still exiting when `stop` takes
+/// the lock. The tiebreak is the natural exit, not whoever got there first, so
+/// the operation is Completed with the harness's own outcome and never
+/// Cancelled. The window is made deterministic by the bus: the test proceeds
+/// only after the turn-end has been observed, which is exactly the state the
+/// arbitration has to get right.
+#[tokio::test]
+async fn a_turn_that_ended_on_its_own_is_never_overwritten_by_a_cancellation() {
+    let (_t, runtime, thread) = fixture().await;
+    let handles = Arc::new(LiveHandles::default());
+    let (bus, mut rx) = tokio::sync::broadcast::channel(16);
+
+    let op = PlannerTurn::start(
+        runtime.clone(),
+        handles.clone(),
+        harness(),
+        PlannerTurnRequest {
+            thread_id: thread.clone(),
+            prompt: "slow-exit".into(),
+            cwd: std::env::temp_dir(),
+            resume_session_id: None,
+        },
+        bus,
+    )
+    .await
+    .unwrap();
+
+    loop {
+        let (_op, item) = rx.recv().await.expect("the stream must reach its turn-end");
+        if matches!(item, StreamItem::TurnEnd { .. }) {
+            break;
+        }
+    }
+    assert!(
+        handles.contains(&op).await,
+        "the process has not exited yet, so this is the contested window"
+    );
+
+    PlannerTurn::stop(runtime.clone(), handles.clone(), &op)
+        .await
+        .unwrap();
+
+    let loaded = wait_for_terminal(&runtime, &op).await;
+    assert_eq!(
+        loaded.status_kind, "Completed",
+        "a turn that ended on its own is not something Shadows stopped"
+    );
+    let outcome: serde_json::Value =
+        serde_json::from_str(loaded.outcome_json.as_deref().expect("an outcome")).unwrap();
+    assert_eq!(
+        outcome,
+        serde_json::json!({ "subtype": "success", "stop_reason": "end_turn" }),
+        "the outcome the reader had already built must not be discarded"
+    );
+    assert!(
+        loaded.cancel_requested_at.is_some(),
+        "the request stays as history on a terminal non-cancelled record"
+    );
+}
+
+/// Spec §8.4 case 4's other half: "persist Completed or **Failed** from the
+/// real exit". A child that dies without a turn-end result did not complete,
+/// and the exit status is the fact that says so.
+#[tokio::test]
+async fn a_child_that_dies_without_a_turn_end_is_failed_at_the_run_stage() {
+    let (_t, runtime, thread) = fixture().await;
+    let handles = Arc::new(LiveHandles::default());
+    let (bus, _rx) = tokio::sync::broadcast::channel(16);
+
+    let op = PlannerTurn::start(
+        runtime.clone(),
+        handles.clone(),
+        harness(),
+        PlannerTurnRequest {
+            thread_id: thread.clone(),
+            prompt: "crash".into(),
+            cwd: std::env::temp_dir(),
+            resume_session_id: None,
+        },
+        bus,
+    )
+    .await
+    .unwrap();
+
+    let loaded = wait_for_terminal(&runtime, &op).await;
+    assert_eq!(
+        loaded.status_kind, "Failed",
+        "a crashed turn is not a completed one"
+    );
+    assert_eq!(loaded.failure_stage.as_deref(), Some("Run"));
+    let reason = loaded.failure_reason.unwrap_or_default();
+    assert!(
+        reason.contains("without a turn-end result"),
+        "the reason must say which of the two failures this was, got: {reason}"
+    );
+    assert!(
+        loaded.outcome_json.is_none(),
+        "a failed turn has no outcome to report"
+    );
 }

@@ -3276,6 +3276,23 @@ impl Storage {
 
 This is where the two-phase spawn and the interlock actually run.
 
+**Amended after Task 10's review: the stream reader must consult the real exit.**
+The code below ends a turn by calling `mark_operation_completed` unconditionally,
+so a child that crashed, or exited non-zero, or died before emitting its turn-end
+result was recorded `Completed` with `{"stop_reason": null}`. That contradicts §8.4
+case 4, which says to persist `Completed` **or `Failed`** from the real exit, and it
+is why `FailureStage::Run` existed with no caller. The reader owns the handle once
+it has claimed the outcome, so the exit status is available: a turn that produced a
+turn-end result and exited cleanly is `Completed` with that outcome; a turn that
+ended without one, or with a non-success status, is
+`mark_operation_failed(…, FailureStage::Run, …)` with a reason saying which of the
+two it was. Two further corrections from the same review that the block below does
+not show: `stop` claims ownership of the outcome only once termination is actually
+confirmed (an unconfirmed kill puts the registration back — §8.4 case 6), and it
+declines to write `Cancelled` at all when the turn has already produced its own
+ending (§8.4 case 4). `src/planner/mod.rs` is the built article; this block is the
+intent it was written from.
+
 ```rust
 use std::sync::Arc;
 

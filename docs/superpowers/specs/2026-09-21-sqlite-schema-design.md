@@ -98,6 +98,31 @@ created_at   TEXT NOT NULL
 UNIQUE(thread_id, ordinal)
 ```
 
+> **OPEN — this table has nowhere to put the harness-side identity of the line an
+> entry came from.**
+>
+> `StreamItem::Entry` carries a `uuid` that its own definition calls "the entry's
+> harness-side identity": the id the harness assigned to the line it streamed. This
+> table's columns are the entry's own `id`, its `ordinal`, and an author
+> (`author_kind` + `author_id`) — and an author is who wrote the message, not which
+> line of which stream it arrived on. There is no column for the latter.
+>
+> Found during Task 10's fix round, by a review that caught the uuid being written
+> into `author_id`, which made every agent message in a turn look like a different
+> author. It is dropped instead: the author is the agent whose turn it is, the same
+> actor on every line, and the uuid is not recorded anywhere. This is the same
+> shape as `agent_invocation`'s missing harness version above — a harness-side fact
+> the schema was never given a home for — and it is recorded rather than closed by
+> inventing a column, for the same reason.
+>
+> **This does not block Milestone 0.** The milestone streams a turn and persists its
+> entries; nothing in it reads an entry back by the harness's id for that line.
+>
+> **Trigger that closes this:** the first feature that must match a stored entry to
+> a harness-side line — resume dedupe (deciding whether a line a resumed session
+> re-emits is already recorded) or replay against a live harness session. Either one
+> needs the identity and cannot be written without deciding where it lives.
+
 Ordinal allocation happens in the same transaction:
 
 ```sql

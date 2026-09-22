@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use crate::operation::OperationId;
 use crate::process::ProcessSpec;
 
 pub mod claude;
@@ -9,7 +10,11 @@ pub mod claude;
 /// what the durable record says was run.
 #[derive(Debug, Clone)]
 pub struct AgentInvocation {
-    pub operation_id: String,
+    /// Spec §4.1: the operation this invocation belongs to, typed. A public
+    /// `String` here is the same hole the newtype sweep closed everywhere
+    /// else — it lets outside code hand this field a thread id, a session id,
+    /// or any other string and compile.
+    pub operation_id: OperationId,
     pub role: String,
     pub model: String,
     pub prompt: String,
