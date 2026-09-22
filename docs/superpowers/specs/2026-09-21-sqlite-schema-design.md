@@ -528,6 +528,30 @@ native_session_id  TEXT NULL
 created_at         TEXT NOT NULL
 ```
 
+> **OPEN — this table has nowhere to put the resolved harness path and version.**
+>
+> §8.2 requires `AgentInvocation` to freeze "harness kind, profile, and resolved
+> executable identity + version (§1.4)" at claim time, and §1.4 requires both to be
+> recorded because the measured stream contract belongs to one installation at one
+> version and a machine carries several. This table names `harness_kind` and
+> `profile_json` and no column for either the resolved path or the version.
+>
+> Found during Task 9, by an implementer who was told to record the version per
+> Operation and correctly refused to invent a column for it. `Operation` is the wrong
+> owner — §8.2 puts it on the invocation — but the invocation has no home for it
+> either. Two candidates: explicit `harness_path` and `harness_version` columns, or
+> inside `profile_json`. Explicit columns are the better answer if the record is ever
+> to be queried ("which turns ran under the version that changed?"), which §1.4's
+> reasoning implies it will be.
+>
+> **This does not block Milestone 0.** `agent_invocation` is not in
+> `migrations/0001_milestone0.sql` at all — the milestone persists seven tables and
+> this is not one of them, which the plan declares as a known gap.
+>
+> **Trigger that closes this:** the task that first creates the `agent_invocation`
+> table. It cannot be written without answering this, so the question is asked where
+> it bites rather than carried as a worry.
+
 Roles include:
 
 ```text
