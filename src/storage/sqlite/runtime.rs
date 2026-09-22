@@ -1,5 +1,6 @@
 use super::{Storage, StorageError, events::append_event, now};
 use crate::events::{Actor, DurableEvent};
+use crate::runtime::RuntimeInstanceId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StopKind {
@@ -25,10 +26,13 @@ pub struct ReconcileReport {
 }
 
 impl Storage {
-    pub async fn register_runtime_instance(&self, version: &str) -> Result<String, StorageError> {
-        let id = uuid::Uuid::new_v4().to_string();
+    pub async fn register_runtime_instance(
+        &self,
+        version: &str,
+    ) -> Result<RuntimeInstanceId, StorageError> {
+        let id = RuntimeInstanceId::new();
         let ts = now();
-        let (id2, version, ts2) = (id.clone(), version.to_string(), ts.clone());
+        let (id2, version, ts2) = (id.as_str().to_string(), version.to_string(), ts.clone());
         self.write_txn(move |conn| {
             Box::pin(async move {
                 sqlx::query(
@@ -55,10 +59,10 @@ impl Storage {
 
     pub async fn stop_runtime_instance(
         &self,
-        id: &str,
+        id: &RuntimeInstanceId,
         kind: StopKind,
     ) -> Result<(), StorageError> {
-        let (id, ts) = (id.to_string(), now());
+        let (id, ts) = (id.as_str().to_string(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
                 let affected = sqlx::query(
@@ -97,8 +101,11 @@ impl Storage {
     /// whose owning runtime is not the current one, regardless of how that
     /// runtime ended. Filtering on `stopped_at IS NULL` would permanently
     /// strand everything an Escalated shutdown left behind.
-    pub async fn reconcile_orphans(&self, current: &str) -> Result<ReconcileReport, StorageError> {
-        let (current, ts) = (current.to_string(), now());
+    pub async fn reconcile_orphans(
+        &self,
+        current: &RuntimeInstanceId,
+    ) -> Result<ReconcileReport, StorageError> {
+        let (current, ts) = (current.as_str().to_string(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
                 let rows: Vec<(String, String, Option<String>)> = sqlx::query_as(

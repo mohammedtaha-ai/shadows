@@ -1,6 +1,12 @@
+use shadows::runtime::RuntimeInstanceId;
 use shadows::storage::{StopKind, Storage};
 
-async fn seed_operation(storage: &Storage, op_id: &str, runtime_id: &str, status: &str) {
+async fn seed_operation(
+    storage: &Storage,
+    op_id: &str,
+    runtime_id: &RuntimeInstanceId,
+    status: &str,
+) {
     let started = if status == "Pending" {
         None
     } else {
@@ -8,7 +14,8 @@ async fn seed_operation(storage: &Storage, op_id: &str, runtime_id: &str, status
     };
     storage
         .write_txn(|conn| {
-            let (op_id, runtime_id, status) = (op_id.to_string(), runtime_id.to_string(), status.to_string());
+            let (op_id, runtime_id, status) =
+                (op_id.to_string(), runtime_id.as_str().to_string(), status.to_string());
             Box::pin(async move {
                 sqlx::query(
                     "INSERT INTO operation (id, kind, status_kind, runtime_instance_id, created_at, started_at)

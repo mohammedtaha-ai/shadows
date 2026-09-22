@@ -170,13 +170,49 @@ impl DurableEvent {
 }
 ```
 
-## `src/lib.rs` — 12 lines
+## `src/lib.rs` — 13 lines
 
 Nothing reachable from outside this file.
 
 ## `src/main.rs` — 55 lines
 
 Nothing reachable from outside this file.
+
+## `src/operation/mod.rs` — 82 lines
+
+```rust
+pub struct OperationId(String);
+impl OperationId {
+    pub fn new() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+}
+
+pub enum FailureStage {
+    Prepare,
+    Spawn,
+    Run,
+}
+impl FailureStage {
+    pub fn as_str(self) -> &'static str
+}
+
+pub struct Operation {
+    pub id: OperationId,
+    pub kind: String,
+    pub status_kind: String,
+    pub thread_id: Option<String>,
+    pub runtime_instance_id: RuntimeInstanceId,
+    pub outcome_json: Option<String>,
+    pub failure_stage: Option<String>,
+    pub failure_reason: Option<String>,
+    pub interrupt_reason: Option<String>,
+    pub cancel_requested_at: Option<String>,
+    pub created_at: String,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
+}
+```
 
 ## `src/process/mod.rs` — 120 lines
 
@@ -211,11 +247,18 @@ pub struct Project {
 }
 ```
 
-## `src/runtime/mod.rs` — 42 lines
+## `src/runtime/mod.rs` — 79 lines
 
 ```rust
+pub struct RuntimeInstanceId(String);
+impl RuntimeInstanceId {
+    pub fn new() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+}
+
 pub struct Runtime {
-    pub instance_id: String,
+    pub instance_id: RuntimeInstanceId,
     pub storage: Arc<Storage>,
 }
 impl Runtime {
@@ -237,7 +280,7 @@ pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableE
 pub(in crate::storage) async fn append_event(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
-## `src/storage/sqlite/mod.rs` — 178 lines
+## `src/storage/sqlite/mod.rs` — 179 lines
 
 ```rust
 pub use runtime::{ReconcileReport, StopKind};
@@ -261,6 +304,18 @@ impl Storage {
 }
 ```
 
+## `src/storage/sqlite/operation.rs` — 221 lines
+
+```rust
+impl Storage {
+    pub async fn create_pending_operation(&self, thread_id: &str, runtime_instance_id: &RuntimeInstanceId) -> Result<OperationId, StorageError>
+    pub async fn mark_operation_started(&self, op_id: &OperationId, expected_runtime: &RuntimeInstanceId) -> Result<(), StorageError>
+    pub async fn mark_operation_completed(&self, op_id: &OperationId, outcome: serde_json::Value) -> Result<(), StorageError>
+    pub async fn mark_operation_failed(&self, op_id: &OperationId, stage: FailureStage, reason: &str) -> Result<(), StorageError>
+    pub async fn get_operation(&self, op_id: &OperationId) -> Result<Operation, StorageError>
+}
+```
+
 ## `src/storage/sqlite/project.rs` — 157 lines
 
 ```rust
@@ -272,7 +327,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/runtime.rs` — 159 lines
+## `src/storage/sqlite/runtime.rs` — 166 lines
 
 ```rust
 pub enum StopKind {
@@ -284,9 +339,9 @@ pub struct ReconcileReport {
     pub anomalies: Vec<String>,
 }
 impl Storage {
-    pub async fn register_runtime_instance(&self, version: &str) -> Result<String, StorageError>
-    pub async fn stop_runtime_instance(&self, id: &str, kind: StopKind) -> Result<(), StorageError>
-    pub async fn reconcile_orphans(&self, current: &str) -> Result<ReconcileReport, StorageError>
+    pub async fn register_runtime_instance(&self, version: &str) -> Result<RuntimeInstanceId, StorageError>
+    pub async fn stop_runtime_instance(&self, id: &RuntimeInstanceId, kind: StopKind) -> Result<(), StorageError>
+    pub async fn reconcile_orphans(&self, current: &RuntimeInstanceId) -> Result<ReconcileReport, StorageError>
 }
 ```
 
