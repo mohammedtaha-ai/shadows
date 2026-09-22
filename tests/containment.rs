@@ -67,6 +67,44 @@ async fn terminating_a_managed_tree_kills_the_grandchild_too() {
     panic!("child or grandchild survived termination: child={child} grandchild={grandchild}");
 }
 
+/// Completion belongs to the managed tree, not only its leader. A harness that
+/// exits after leaving a helper behind must not let that helper outlive wait().
+#[tokio::test]
+async fn waiting_for_the_leader_reaps_any_remaining_grandchild() {
+    let probe = env!("CARGO_BIN_EXE_tree_probe");
+    let mut handle = spawn(ProcessSpec {
+        executable: probe.into(),
+        args: vec!["--spawn-grandchild-and-exit".into()],
+        cwd: std::env::temp_dir(),
+        env: Vec::new(),
+        capture_stdout: true,
+    })
+    .expect("spawn should succeed");
+
+    let lines = handle.stdout_lines().expect("stdout was captured");
+    let first = tokio::time::timeout(Duration::from_secs(10), async { lines.next_line().await })
+        .await
+        .expect("probe should report within 10s")
+        .unwrap()
+        .expect("probe should print a line");
+    let grandchild: u32 = first
+        .trim()
+        .strip_prefix("grandchild=")
+        .expect("probe prints grandchild=<pid>")
+        .parse()
+        .unwrap();
+    assert!(is_alive(grandchild), "grandchild must start alive");
+
+    handle.wait().await.expect("leader wait should succeed");
+    for _ in 0..50 {
+        if !is_alive(grandchild) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    panic!("grandchild survived a completed managed wait: grandchild={grandchild}");
+}
+
 /// Spec §1.5: the child's stdin is closed. An open stdin that never receives
 /// data costs a fixed stall on every turn — measured at three seconds against
 /// the real harness.

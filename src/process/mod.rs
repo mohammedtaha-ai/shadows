@@ -2,18 +2,13 @@ use std::io;
 use std::path::PathBuf;
 use std::process::Stdio;
 
+#[cfg(windows)]
+use process_wrap::tokio::JobObject;
+#[cfg(unix)]
+use process_wrap::tokio::ProcessSession;
+use process_wrap::tokio::{ChildWrapper, CommandWrap, KillOnDrop};
 use tokio::io::{BufReader, Lines};
-use tokio::process::{Child, ChildStdout, Command};
-
-#[cfg(windows)]
-mod containment_windows;
-#[cfg(windows)]
-use containment_windows as containment;
-
-#[cfg(unix)]
-mod containment_unix;
-#[cfg(unix)]
-use containment_unix as containment;
+use tokio::process::{ChildStdout, Command};
 
 /// OS-level intent and nothing else. Spec §1.5: `process/` knows nothing about
 /// Role, Claude, Codex, planning, workflows, or verification.
@@ -31,8 +26,7 @@ pub struct ProcessSpec {
 }
 
 pub struct ProcessHandle {
-    child: Child,
-    containment: containment::Containment,
+    child: Box<dyn ChildWrapper>,
     stdout: Option<Lines<BufReader<ChildStdout>>>,
 }
 
@@ -46,14 +40,26 @@ impl ProcessHandle {
     }
 
     pub async fn wait(&mut self) -> io::Result<std::process::ExitStatus> {
-        self.child.wait().await
+        loop {
+            if let Some(status) = self.child.try_wait()? {
+                match self.child.start_kill() {
+                    Ok(()) => return Ok(status),
+                    #[cfg(unix)]
+                    Err(error) if error.raw_os_error() == Some(libc::ESRCH) => {
+                        return Ok(status);
+                    }
+                    Err(error) => return Err(error),
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
     }
 
     /// Terminates the whole managed tree through the containment handle that
     /// owns it. Spec §8.3: never by signalling a PID read from the database,
     /// because the operating system reuses PIDs.
     pub fn terminate_tree(&mut self) -> io::Result<()> {
-        self.containment.terminate()
+        self.child.start_kill()
     }
 }
 
@@ -97,22 +103,18 @@ pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle> {
         cmd.env(k, v);
     }
 
-    containment::configure(&mut cmd);
+    let mut wrapped = CommandWrap::from(cmd);
+    wrapped.wrap(KillOnDrop);
+    #[cfg(windows)]
+    wrapped.wrap(JobObject);
+    #[cfg(unix)]
+    wrapped.wrap(ProcessSession);
 
-    let mut child = cmd.spawn()?;
-    let pid = child
-        .id()
-        .ok_or_else(|| io::Error::other("child exited before a pid could be observed"))?;
-    let containment = containment::attach(pid)?;
-
-    let stdout = child.stdout.take().map(|out| {
+    let mut child = wrapped.spawn()?;
+    let stdout = child.stdout().take().map(|out| {
         use tokio::io::AsyncBufReadExt;
         BufReader::new(out).lines()
     });
 
-    Ok(ProcessHandle {
-        child,
-        containment,
-        stdout,
-    })
+    Ok(ProcessHandle { child, stdout })
 }

@@ -16,5 +16,14 @@ pub struct ThreadEntry {
     pub author_kind: String,
     pub author_id: String,
     pub body: String,
+    pub refs: Vec<EntryRef>,
     pub created_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum EntryRef {
+    Decision(String),
+    Research(String),
+    Workflow(String),
+    Operation(String),
 }

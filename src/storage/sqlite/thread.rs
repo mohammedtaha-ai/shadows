@@ -4,7 +4,7 @@ use super::project::{classify, record_command};
 use super::{Storage, StorageError, events::append_event, now};
 use crate::command::CommandContext;
 use crate::events::{Actor, DurableEvent};
-use crate::thread::{PlanningThread, ThreadEntry};
+use crate::thread::{EntryRef, PlanningThread, ThreadEntry};
 
 impl Storage {
     pub async fn create_planning_thread(
@@ -72,15 +72,18 @@ impl Storage {
         author_kind: &str,
         author_id: &str,
         body: &str,
+        refs: &[EntryRef],
     ) -> Result<ThreadEntry, StorageError> {
-        let (thread_id, kind, author_kind, author_id, body, ts) = (
+        let (thread_id, kind, author_kind, author_id, body, refs, ts) = (
             thread_id.to_string(),
             kind.to_string(),
             author_kind.to_string(),
             author_id.to_string(),
             body.to_string(),
+            refs.to_vec(),
             now(),
         );
+        let refs_json = serde_json::to_string(&refs)?;
         self.write_txn(move |conn| {
             Box::pin(async move {
                 // Spec section 6.5: allocate inside this transaction. Never MAX+1.
@@ -98,8 +101,8 @@ impl Storage {
                 let id = uuid::Uuid::new_v4().to_string();
                 sqlx::query(
                     "INSERT INTO thread_entry
-                       (id, thread_id, ordinal, kind, author_kind, author_id, body, created_at)
-                     VALUES (?,?,?,?,?,?,?,?)",
+                       (id, thread_id, ordinal, kind, author_kind, author_id, body, refs_json, created_at)
+                     VALUES (?,?,?,?,?,?,?,?,?)",
                 )
                 .bind(&id)
                 .bind(&thread_id)
@@ -108,6 +111,7 @@ impl Storage {
                 .bind(&author_kind)
                 .bind(&author_id)
                 .bind(&body)
+                .bind(&refs_json)
                 .bind(&ts)
                 .execute(&mut *conn)
                 .await?;
@@ -135,6 +139,7 @@ impl Storage {
                     author_kind,
                     author_id,
                     body,
+                    refs,
                     created_at: ts,
                 })
             })
@@ -146,27 +151,39 @@ impl Storage {
         &self,
         thread_id: &str,
     ) -> Result<Vec<ThreadEntry>, StorageError> {
-        type Row = (String, String, i64, String, String, String, String, String);
+        type Row = (
+            String,
+            String,
+            i64,
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+        );
         let rows: Vec<Row> = sqlx::query_as(
-            "SELECT id, thread_id, ordinal, kind, author_kind, author_id, body, created_at
+            "SELECT id, thread_id, ordinal, kind, author_kind, author_id, body, refs_json, created_at
                    FROM thread_entry WHERE thread_id = ? ORDER BY ordinal",
         )
         .bind(thread_id)
         .fetch_all(self.reader())
         .await?;
-        Ok(rows
-            .into_iter()
-            .map(|r| ThreadEntry {
-                id: r.0,
-                thread_id: r.1,
-                ordinal: r.2,
-                kind: r.3,
-                author_kind: r.4,
-                author_id: r.5,
-                body: r.6,
-                created_at: r.7,
+        rows.into_iter()
+            .map(|r| {
+                Ok(ThreadEntry {
+                    id: r.0,
+                    thread_id: r.1,
+                    ordinal: r.2,
+                    kind: r.3,
+                    author_kind: r.4,
+                    author_id: r.5,
+                    body: r.6,
+                    refs: serde_json::from_str(&r.7)?,
+                    created_at: r.8,
+                })
             })
-            .collect())
+            .collect()
     }
 
     pub async fn list_threads_for_project(

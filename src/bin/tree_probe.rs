@@ -14,7 +14,9 @@ fn main() {
         return;
     }
 
-    if args.iter().any(|a| a == "--spawn-grandchild") {
+    let spawn_grandchild = args.iter().any(|a| a == "--spawn-grandchild");
+    let exit_after_spawn = args.iter().any(|a| a == "--spawn-grandchild-and-exit");
+    if spawn_grandchild || exit_after_spawn {
         let me = std::env::current_exe().expect("current exe");
         // The grandchild sleeps 600s; the containment test kills the whole
         // tree through the Job Object. Calling `.wait()` here would deadlock
@@ -27,6 +29,9 @@ fn main() {
         println!("grandchild={}", grandchild.id());
         use std::io::Write;
         std::io::stdout().flush().unwrap();
+        if exit_after_spawn {
+            return;
+        }
     }
 
     // Both the child and the grandchild end up here and sleep until killed.

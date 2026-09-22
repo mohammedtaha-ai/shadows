@@ -34,6 +34,8 @@ pub enum StorageError {
     TransitionConflict { expected: String, found: String },
     #[error("command conflict: the same command id was reused with a different request")]
     CommandConflict,
+    #[error("stored JSON is invalid: {0}")]
+    Json(#[from] serde_json::Error),
     #[error(transparent)]
     Database(#[from] sqlx::Error),
 }

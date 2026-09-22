@@ -5,6 +5,7 @@
 
 use shadows::command::{CommandContext, fingerprint};
 use shadows::storage::Storage;
+use shadows::thread::EntryRef;
 
 fn ctx(command_id: &str, params: &serde_json::Value) -> CommandContext {
     ctx_kind(command_id, "project.create", params)
@@ -55,6 +56,7 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
                         "User",
                         "local",
                         &format!("w{w}-i{i}"),
+                        &[],
                     )
                     .await
                     .unwrap();
@@ -110,7 +112,7 @@ async fn entries_are_read_in_ordinal_order() {
 
     for body in ["first", "second", "third"] {
         storage
-            .append_thread_entry(&thread.id, "UserMessage", "User", "local", body)
+            .append_thread_entry(&thread.id, "UserMessage", "User", "local", body, &[])
             .await
             .unwrap();
     }
@@ -122,5 +124,87 @@ async fn entries_are_read_in_ordinal_order() {
     assert_eq!(
         entries.iter().map(|e| e.ordinal).collect::<Vec<_>>(),
         vec![1, 2, 3]
+    );
+}
+
+/// Spec sections 4.2 and 6.5: refs are part of ThreadEntry domain truth, not
+/// an SQLite-only column that disappears when an entry is loaded again.
+#[tokio::test]
+async fn entry_refs_round_trip_through_storage() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
+    let project = storage
+        .create_project(&ctx("cmd-p", &params), "demo", "Demo")
+        .await
+        .unwrap();
+    let thread = storage
+        .create_planning_thread(
+            &ctx_kind("cmd-t", "thread.create", &params),
+            &project.id,
+            "T",
+        )
+        .await
+        .unwrap();
+    let refs = vec![
+        EntryRef::Decision("decision-1".into()),
+        EntryRef::Operation("operation-1".into()),
+    ];
+
+    let appended = storage
+        .append_thread_entry(&thread.id, "UserMessage", "User", "local", "hello", &refs)
+        .await
+        .unwrap();
+    assert_eq!(appended.refs, refs);
+
+    let listed = storage.list_thread_entries(&thread.id).await.unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].refs, refs);
+}
+
+/// Ordinal allocation and entry insertion are one transaction. If insertion
+/// fails after UPDATE ... RETURNING, the next successful entry still receives
+/// ordinal 1 rather than leaving a gap.
+#[tokio::test]
+async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
+    let project = storage
+        .create_project(&ctx("cmd-p", &params), "demo", "Demo")
+        .await
+        .unwrap();
+    let thread = storage
+        .create_planning_thread(
+            &ctx_kind("cmd-t", "thread.create", &params),
+            &project.id,
+            "T",
+        )
+        .await
+        .unwrap();
+
+    sqlx::query(
+        "CREATE TRIGGER reject_thread_entry BEFORE INSERT ON thread_entry
+         BEGIN SELECT RAISE(ABORT, 'forced entry failure'); END",
+    )
+    .execute(storage.reader())
+    .await
+    .unwrap();
+    storage
+        .append_thread_entry(&thread.id, "UserMessage", "User", "local", "lost", &[])
+        .await
+        .expect_err("the trigger must reject the entry insert");
+    sqlx::query("DROP TRIGGER reject_thread_entry")
+        .execute(storage.reader())
+        .await
+        .unwrap();
+
+    let entry = storage
+        .append_thread_entry(&thread.id, "UserMessage", "User", "local", "kept", &[])
+        .await
+        .unwrap();
+    assert_eq!(
+        entry.ordinal, 1,
+        "failed insertion must not consume an ordinal"
     );
 }
