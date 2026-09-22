@@ -6,6 +6,7 @@
 > |----------|---------|
 > | [CLAUDE.md](./CLAUDE.md) | Architecture, conventions, rules (this file) |
 > | [docs/superpowers/specs/README.md](./docs/superpowers/specs/README.md) | **Index of the authoritative design sections and their owners.** |
+> | [docs/codebase/README.md](./docs/codebase/README.md) | **The code map.** What each module owns, and every declaration that exists. Read before writing code. |
 > | [docs/status.md](./docs/status.md) | Where the project is right now. Decides nothing. |
 > | [docs/evidence/](./docs/evidence/) | Dated measurement records. Facts, not decisions. |
 >
@@ -29,6 +30,14 @@
 > - Earlier specs, the runtime draft, and the four consolidated ADRs were absorbed
 >   into the topic specs and deleted. They remain in Git history and are not
 >   active references.
+> - **The code map is generated, never written.** `docs/codebase/inventory.md`
+>   comes out of `src/` and `cargo test --test codemap` fails when it has
+>   drifted, so a code change that moves a signature regenerates it in the same
+>   commit: `UPDATE_CODEMAP=1 cargo test --test codemap`. The one part no
+>   generator can derive — what each module owns — is hand-written in
+>   `docs/codebase/README.md`, and the same test refuses a module with no owner
+>   or a job stated with "and". `tests/codemap/main.rs` owns that decision and
+>   states why line numbers are excluded.
 > - CLAUDE.md stays compact: links + rules + architecture. No long backlogs.
 
 ## Project

@@ -40,6 +40,11 @@ test-support = []
 
 [dev-dependencies]
 tempfile = "3"
+# `tests/codemap` generates docs/codebase/inventory.md from the source tree and
+# fails when the checked-in file has drifted. syn parses, prettyplease prints —
+# neither is a product dependency and neither ships.
+syn = { version = "2", features = ["full", "parsing", "printing", "clone-impls"] }
+prettyplease = "0.2"
 # Enables `test-support` for integration tests (tests/*.rs) without turning
 # it on for `cargo build` or `cargo run`: Cargo's feature resolver unifies
 # features per build/test graph, so this only affects `cargo test`.

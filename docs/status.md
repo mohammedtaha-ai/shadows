@@ -77,8 +77,9 @@ Settling it needs one turn that actually invokes `Bash`, with the tree walked by
    and complete-tree cleanup before `ProcessHandle::wait` returns.
 2. **Tasks 8-13**, then PR #2. Task 8 adds the real Claude harness on top of the
    corrected process boundary.
-3. **Create `docs/codebase/roadmap/`** — a living code map an agent reads before
-   writing and updates when it finishes. Proposed, not yet approved.
+3. ~~Create a living code map.~~ Done: `docs/codebase/`. The inventory is
+   generated from `src/` and `cargo test --test codemap` fails when it drifts, so
+   it cannot go stale without the acceptance gate saying so.
 
 ## Standing risks
 
