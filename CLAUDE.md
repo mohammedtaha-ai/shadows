@@ -135,6 +135,27 @@ a crawl, or a re-read was paid for and bought nothing.
   the branch. Do not carry a second long-lived branch alongside `main` and do
   not leave merged branches on the remote. A branch nobody is committing to is
   either merged or abandoned; both cases end with it deleted.
+- **The controller verifies a review; it does not repeat it.** After a reviewer
+  reports, the controller checks that the report is true — the commits exist,
+  the diff says what the report says, the gate and test count are real — and
+  rules on what was left to it. It does not re-read the code for a second deep
+  review. One whole-branch review runs before the PR, and that is the only other.
+
+## Lessons from `shadow`
+
+`shadow` spent 29 days, 413 commits and 67k lines of Rust and ended with
+nothing a person could run: no web client, and a socket on which no business
+method could execute. These three rules are what that cost.
+
+- **Run it before you document it.** A slice is not done until a person has
+  started `shadows serve`, used it in a browser, and read its logs. 35% of
+  `shadow`'s commits were docs about software nobody had run.
+- **One path end to end before any abstraction.** Every `shadow` method was
+  tested alone; the first test that crossed the layers found swapped arguments
+  in minutes. Build the path through every layer first, then widen it.
+- **No layer before its first user.** Protocol versions, nine authorities and
+  six crates existed before one request succeeded. A seam, trait, or version is
+  added when the second caller needs it, not when it might.
 
 ## Decisions
 
