@@ -154,6 +154,22 @@ async fn thread_routes_create_list_and_run_a_turn_to_its_entries() {
     assert_eq!(listed.as_array().unwrap().len(), 1);
     assert_eq!(listed[0]["id"], thread["id"]);
 
+    // Watch the thread live before the turn starts: the turn's entries must
+    // reach an open stream as durable events, not only the entries route.
+    let response = f
+        .app
+        .clone()
+        .oneshot(
+            Request::get(format!("/api/subscribe?thread_id={thread_id}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let mut stream = response.into_body().into_data_stream();
+    let mut seen = String::new();
+    read_until(&mut stream, &mut seen, |s| s.contains("event: caught-up")).await;
+
     // Spec §3.3: a long-running command answers 202 and an operation id.
     let (status, started) = call(
         &f.app,
@@ -200,6 +216,49 @@ async fn thread_routes_create_list_and_run_a_turn_to_its_entries() {
         ["UserMessage", "AgentMessage"],
         "the prompt is recorded before the agent's reply: {entries}"
     );
+
+    // The same two entries, live, each exactly once and in order, as durable
+    // events carrying their `seq`. The transient `entry` event is gone: it
+    // would repeat the durable one with nothing to de-duplicate it by.
+    read_until(&mut stream, &mut seen, |s| {
+        s.contains("AgentMessage") && s.contains("event: turn-end")
+    })
+    .await;
+    let appended: Vec<(i64, String)> = seen
+        .split("\n\n")
+        .filter(|frame| frame.lines().any(|l| l == "event: durable"))
+        .filter_map(|frame| frame.lines().find_map(|l| l.strip_prefix("data: ")))
+        .map(|data| serde_json::from_str::<Value>(data).unwrap())
+        .filter(|ev| ev["kind"] == "ThreadEntryAppended")
+        .map(|ev| {
+            let payload: Value = serde_json::from_str(ev["payload"].as_str().unwrap()).unwrap();
+            (
+                ev["seq"].as_i64().unwrap(),
+                payload["kind"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect();
+    let live_kinds: Vec<&str> = appended.iter().map(|(_, k)| k.as_str()).collect();
+    assert_eq!(live_kinds, ["UserMessage", "AgentMessage"], "{seen}");
+    assert!(appended[0].0 < appended[1].0, "{seen}");
+    assert!(!seen.contains("event: entry"), "{seen}");
+}
+
+/// Reads the open stream until `done` holds for everything read so far.
+async fn read_until(
+    stream: &mut axum::body::BodyDataStream,
+    seen: &mut String,
+    done: impl Fn(&str) -> bool,
+) {
+    use tokio_stream::StreamExt;
+    while !done(seen) {
+        let chunk = tokio::time::timeout(Duration::from_secs(20), stream.next())
+            .await
+            .unwrap_or_else(|_| panic!("the stream stalled: {seen}"))
+            .expect("the stream ended early")
+            .unwrap();
+        seen.push_str(std::str::from_utf8(&chunk).unwrap());
+    }
 }
 
 /// Stopping an operation that does not exist reaches `get_operation`'s

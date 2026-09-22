@@ -167,7 +167,7 @@ pub(crate) struct TurnWatch {
 pub(crate) fn watch_turn(
     watch: TurnWatch,
     lines: Option<StdoutLines>,
-    bus: broadcast::Sender<(OperationId, StreamItem)>,
+    bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
 ) {
     let TurnWatch {
         op_id: reader_op,
@@ -269,7 +269,7 @@ pub(crate) fn watch_turn(
                     }
                     _ => {}
                 }
-                let _ = bus.send((reader_op.clone(), item));
+                let _ = bus.send((reader_thread.clone(), reader_op.clone(), item));
             }
         }
 

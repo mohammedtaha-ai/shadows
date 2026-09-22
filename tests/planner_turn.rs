@@ -358,7 +358,12 @@ async fn a_cancelled_turn_that_had_already_ended_keeps_its_outcome_and_loses_its
     .unwrap();
 
     loop {
-        let (_op, item) = rx.recv().await.expect("the stream must reach its turn-end");
+        let (published_for, _op, item) =
+            rx.recv().await.expect("the stream must reach its turn-end");
+        assert_eq!(
+            published_for, thread,
+            "each bus item names the turn's thread"
+        );
         if matches!(item, StreamItem::TurnEnd { .. }) {
             break;
         }

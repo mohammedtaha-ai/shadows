@@ -248,7 +248,7 @@ pub(crate) struct TurnWatch {
     pub(crate) agent_role: String,
     pub(crate) turn_end_seen: Arc<AtomicBool>,
 }
-pub(crate) fn watch_turn(watch: TurnWatch, lines: Option<StdoutLines>, bus: broadcast::Sender<(OperationId, StreamItem)>)
+pub(crate) fn watch_turn(watch: TurnWatch, lines: Option<StdoutLines>, bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>)
 impl PlannerTurn {
     pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, op_id: &OperationId) -> Result<(), StorageError>
 }
@@ -264,7 +264,7 @@ pub struct PlannerTurnRequest {
     pub resume_session_id: Option<String>,
 }
 impl PlannerTurn {
-    pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, harness: Arc<ClaudeHarness>, request: PlannerTurnRequest, bus: broadcast::Sender<(OperationId, StreamItem)>) -> Result<OperationId, StorageError>
+    pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, harness: Arc<ClaudeHarness>, request: PlannerTurnRequest, bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>) -> Result<OperationId, StorageError>
 }
 ```
 
@@ -330,7 +330,7 @@ pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<serde_json::Value>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 100 lines
+## `src/protocol/mod.rs` — 101 lines
 
 ```rust
 pub struct AppState {
@@ -338,7 +338,7 @@ pub struct AppState {
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
     pub harness: Arc<ClaudeHarness>,
-    pub bus: tokio::sync::broadcast::Sender<(OperationId, StreamItem)>,
+    pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
     pub project_root: std::path::PathBuf,
     pub shutdown: tokio::sync::watch::Receiver<bool>,
 }
@@ -346,7 +346,7 @@ pub fn router(state: AppState) -> Router
 pub struct Failure(crate::storage::StorageError);
 ```
 
-## `src/protocol/sse.rs` — 134 lines
+## `src/protocol/sse.rs` — 186 lines
 
 ```rust
 pub struct SubscribeQuery {
@@ -406,7 +406,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/mod.rs` — 181 lines
+## `src/storage/sqlite/mod.rs` — 228 lines
 
 ```rust
 pub use events_read::StoredEvent;
@@ -423,10 +423,11 @@ pub enum StorageError {
     Database(sqlx::Error),
 }
 pub struct Storage {}
-// + 2 private fields
+// + 3 private fields
 impl Storage {
     pub async fn open(db_path: &Path) -> Result<Self, StorageError>
     pub fn reader(&self) -> &SqlitePool
+    pub fn watch_committed(&self) -> watch::Receiver<i64>
     pub async fn write_txn<F, T>(&self, f: F) -> Result<T, StorageError> where F: for<'a> FnOnce(&'a mut SqliteConnection) -> BoxFuture<'a, Result<T, StorageError>>,
 }
 ```

@@ -51,7 +51,7 @@ impl PlannerTurn {
         handles: Arc<LiveHandles>,
         harness: Arc<ClaudeHarness>,
         request: PlannerTurnRequest,
-        bus: broadcast::Sender<(OperationId, StreamItem)>,
+        bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
     ) -> Result<OperationId, StorageError> {
         let PlannerTurnRequest {
             thread_id,

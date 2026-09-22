@@ -2,10 +2,12 @@
 //! de-duplication by durable sequence.
 //!
 //! The first two tests own the replay half — what a cursor means and what
-//! reading after one returns. The third owns the half that cannot be checked
-//! by reading storage at all: that the live subscription exists *before* the
-//! replay is read, so an event published during the replay is buffered rather
-//! than dropped into the gap between the two.
+//! reading after one returns. The rest own the half that cannot be checked by
+//! reading storage at all: that the live subscriptions exist *before* the
+//! replay is read, so nothing published or committed during the replay falls
+//! into the gap between the two; that a durable event committed after the
+//! handoff reaches the open stream exactly once; and that a stream carries only
+//! its own thread.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -23,7 +25,7 @@ use shadows::protocol::AppState;
 use shadows::protocol::sse::{SubscribeQuery, subscribe};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
-use shadows::thread::{NewThreadEntry, PlanningThread};
+use shadows::thread::{NewThreadEntry, PlanningThread, ThreadId};
 use tokio_stream::StreamExt;
 
 /// A project and a planning thread, which between them have already written
@@ -147,63 +149,25 @@ async fn an_event_published_during_the_replay_survives_the_handoff() {
             .await
             .unwrap();
     }
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
-    let (bus, _) = tokio::sync::broadcast::channel(64);
-    // Held for the whole test: a dropped sender reads as a stopping daemon,
-    // which ends the live phase this test is waiting on.
-    let (_stopping, shutdown) = tokio::sync::watch::channel(false);
-    let state = AppState {
-        runtime: Arc::new(runtime),
-        storage,
-        handles: Arc::new(LiveHandles::default()),
-        harness: Arc::new(ClaudeHarness::new(
-            tmp.path().join("claude.exe"),
-            "test".into(),
-        )),
-        bus: bus.clone(),
-        project_root: tmp.path().to_path_buf(),
-        shutdown,
-    };
-
-    let response = subscribe(
-        State(state.clone()),
-        Query(SubscribeQuery {
-            thread_id: thread.id.clone(),
-            after: 0,
-        }),
-    )
-    .await
-    .into_response();
+    let live = Live::start(&tmp, storage).await;
+    let mut stream = live.open(&thread.id).await;
 
     // No await between the line above and this one: the replay task has not
     // run. If the subscription were taken inside it, there would be no
     // receiver here and this send would fail.
-    bus.send((
-        OperationId::from_literal("op-live"),
-        StreamItem::Delta {
-            text: "during-replay".into(),
-        },
-    ))
-    .expect("the live subscription must exist before the replay is read");
+    live.bus
+        .send(delta(&thread.id, "during-replay"))
+        .expect("the live subscription must exist before the replay is read");
 
-    let mut body = response.into_body().into_data_stream();
-    let mut text = String::new();
-    while !text.contains("during-replay") {
-        let chunk = tokio::time::timeout(Duration::from_secs(10), body.next())
-            .await
-            .expect("the stream stalled before delivering the live event")
-            .expect("the stream ended before delivering the live event")
-            .unwrap();
-        text.push_str(std::str::from_utf8(&chunk).unwrap());
-    }
+    let text = stream.read_until("during-replay").await;
 
     let durable = text.find("event: durable").expect("durable replay first");
     let caught_up = text
         .find("event: caught-up")
         .expect("then the handoff marker");
-    let live = text.find("during-replay").unwrap();
+    let live_at = text.find("during-replay").unwrap();
     assert!(
-        durable < caught_up && caught_up < live,
+        durable < caught_up && caught_up < live_at,
         "replay, then handoff, then live: {text}"
     );
     assert_eq!(
@@ -211,4 +175,197 @@ async fn an_event_published_during_the_replay_survives_the_handoff() {
         3,
         "thread creation and both entries replay exactly once: {text}"
     );
+}
+
+/// Spec §2.4's live publication after commit, seen from the stream: a durable
+/// event committed after the handoff reaches a connected client, with its
+/// `seq`, without reconnecting.
+#[tokio::test]
+async fn a_durable_event_committed_after_the_handoff_arrives_live() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let (_project, thread) = seed(&storage).await;
+    let live = Live::start(&tmp, storage.clone()).await;
+    let mut stream = live.open(&thread.id).await;
+    stream.read_until("event: caught-up").await;
+
+    storage
+        .append_thread_entry(&thread.id, user_message("after the handoff"))
+        .await
+        .unwrap();
+    let seq = storage.current_cursor().await.unwrap().0;
+
+    let text = stream.read_until(&format!("\"seq\":{seq}")).await;
+    assert_eq!(durable_seqs(&text).last(), Some(&seq), "{text}");
+}
+
+/// Spec §2.10's no-gap handoff for durable events. The entry is committed
+/// after both live subscriptions exist and before the replay task has run, so
+/// it is reachable from both the replay and the live phase's re-read. It must
+/// arrive exactly once: not lost between them, and not repeated by both.
+#[tokio::test]
+async fn a_durable_event_committed_during_the_replay_arrives_exactly_once() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let (_project, thread) = seed(&storage).await;
+    let live = Live::start(&tmp, storage.clone()).await;
+    let mut stream = live.open(&thread.id).await;
+
+    storage
+        .append_thread_entry(&thread.id, user_message("during the replay"))
+        .await
+        .unwrap();
+    let seq = storage.current_cursor().await.unwrap().0;
+
+    // A marker committed after the handoff: once it is read, the replay, the
+    // handoff and the live re-read triggered by the first commit have all had
+    // their turn, so any repeat would already be on the stream.
+    stream.read_until("event: caught-up").await;
+    storage
+        .append_thread_entry(&thread.id, user_message("marker"))
+        .await
+        .unwrap();
+    let marker = storage.current_cursor().await.unwrap().0;
+    let text = stream.read_until(&format!("\"seq\":{marker}")).await;
+
+    let seqs = durable_seqs(&text);
+    assert_eq!(
+        seqs.iter().filter(|s| **s == seq).count(),
+        1,
+        "the entry is delivered once: {text}"
+    );
+    let mut deduped = seqs.clone();
+    deduped.dedup();
+    assert_eq!(seqs, deduped, "no durable event is repeated: {text}");
+}
+
+/// A subscription names one thread. Another thread's transient items are not
+/// delivered to it, while its own are.
+#[tokio::test]
+async fn a_subscriber_receives_only_its_own_threads_live_items() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let (project, thread_a) = seed(&storage).await;
+    let thread_b = storage
+        .create_planning_thread(&thread_ctx("c3"), &project.id, "B")
+        .await
+        .unwrap();
+    let live = Live::start(&tmp, storage).await;
+    let mut stream = live.open(&thread_a.id).await;
+    stream.read_until("event: caught-up").await;
+
+    // Sent in this order on one broadcast channel, so B's item would be read
+    // first if it were forwarded at all.
+    live.bus.send(delta(&thread_b.id, "for-thread-b")).unwrap();
+    live.bus.send(delta(&thread_a.id, "for-thread-a")).unwrap();
+
+    let text = stream.read_until("for-thread-a").await;
+    assert!(
+        !text.contains("for-thread-b"),
+        "thread B's item reached thread A: {text}"
+    );
+}
+
+/// The daemon's state as `subscribe` sees it, with a bus the test publishes on.
+struct Live {
+    state: AppState,
+    bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
+    // Held for the whole test: a dropped sender reads as a stopping daemon,
+    // which ends the live phase the test is waiting on.
+    _stopping: tokio::sync::watch::Sender<bool>,
+}
+
+impl Live {
+    async fn start(tmp: &tempfile::TempDir, storage: Arc<Storage>) -> Self {
+        let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+        let (bus, _) = tokio::sync::broadcast::channel(64);
+        let (stopping, shutdown) = tokio::sync::watch::channel(false);
+        let state = AppState {
+            runtime: Arc::new(runtime),
+            storage,
+            handles: Arc::new(LiveHandles::default()),
+            harness: Arc::new(ClaudeHarness::new(
+                tmp.path().join("claude.exe"),
+                "test".into(),
+            )),
+            bus: bus.clone(),
+            project_root: tmp.path().to_path_buf(),
+            shutdown,
+        };
+        Live {
+            state,
+            bus,
+            _stopping: stopping,
+        }
+    }
+
+    /// Subscribes from the beginning of the thread. The replay task has not
+    /// run when this returns.
+    async fn open(&self, thread_id: &ThreadId) -> Stream {
+        let response = subscribe(
+            State(self.state.clone()),
+            Query(SubscribeQuery {
+                thread_id: thread_id.clone(),
+                after: 0,
+            }),
+        )
+        .await
+        .into_response();
+        Stream {
+            body: response.into_body().into_data_stream(),
+            text: String::new(),
+        }
+    }
+}
+
+struct Stream {
+    body: axum::body::BodyDataStream,
+    text: String,
+}
+
+impl Stream {
+    /// Reads until `needle` has arrived; returns everything read so far.
+    async fn read_until(&mut self, needle: &str) -> String {
+        while !self.text.contains(needle) {
+            let chunk = tokio::time::timeout(Duration::from_secs(10), self.body.next())
+                .await
+                .unwrap_or_else(|_| panic!("stalled before {needle:?}: {}", self.text))
+                .expect("the stream ended early")
+                .unwrap();
+            self.text.push_str(std::str::from_utf8(&chunk).unwrap());
+        }
+        self.text.clone()
+    }
+}
+
+fn delta(thread_id: &ThreadId, text: &str) -> (ThreadId, OperationId, StreamItem) {
+    (
+        thread_id.clone(),
+        OperationId::from_literal("op-live"),
+        StreamItem::Delta { text: text.into() },
+    )
+}
+
+fn thread_ctx(command_id: &str) -> CommandContext {
+    let params = serde_json::json!({ "title": command_id });
+    CommandContext {
+        principal_kind: "User".into(),
+        principal_id: "local".into(),
+        command_id: command_id.into(),
+        command_kind: "thread.create".into(),
+        command_schema_ver: 1,
+        request_fingerprint: fingerprint("thread.create", &params),
+    }
+}
+
+/// Every `durable` event's `seq`, in the order the stream delivered them.
+fn durable_seqs(text: &str) -> Vec<i64> {
+    text.split("\n\n")
+        .filter(|frame| frame.lines().any(|l| l == "event: durable"))
+        .filter_map(|frame| frame.lines().find_map(|l| l.strip_prefix("data: ")))
+        .map(|data| {
+            let event: serde_json::Value = serde_json::from_str(data).unwrap();
+            event["seq"].as_i64().unwrap()
+        })
+        .collect()
 }

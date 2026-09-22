@@ -30,7 +30,7 @@ impl Storage {
     /// cursor must come from the same read, so a caller building a snapshot
     /// takes this inside that same read transaction.
     pub async fn current_cursor(&self) -> Result<EventCursor, StorageError> {
-        let seq: Option<i64> = sqlx::query_scalar("SELECT MAX(seq) FROM durable_event")
+        let seq: Option<i64> = sqlx::query_scalar(super::MAX_SEQ)
             .fetch_one(self.reader())
             .await?;
         Ok(EventCursor(seq.unwrap_or(0)))

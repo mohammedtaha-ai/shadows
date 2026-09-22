@@ -25,6 +25,7 @@ use crate::operation::OperationId;
 use crate::planner::LiveHandles;
 use crate::runtime::Runtime;
 use crate::storage::Storage;
+use crate::thread::ThreadId;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -32,7 +33,7 @@ pub struct AppState {
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
     pub harness: Arc<ClaudeHarness>,
-    pub bus: tokio::sync::broadcast::Sender<(OperationId, StreamItem)>,
+    pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
     pub project_root: std::path::PathBuf,
     /// Becomes `true` once the daemon is stopping. A live stream has no end of
     /// its own, and a graceful HTTP shutdown waits for every open response to

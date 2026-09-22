@@ -5,7 +5,7 @@ use std::time::Duration;
 use futures_core::future::BoxFuture;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Connection, SqliteConnection, SqlitePool};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, watch};
 
 pub(super) mod events;
 mod events_read;
@@ -16,6 +16,8 @@ mod thread;
 
 pub use events_read::StoredEvent;
 pub use runtime::{ReconcileReport, StopKind};
+
+const MAX_SEQ: &str = "SELECT MAX(seq) FROM durable_event";
 
 pub(super) fn now() -> String {
     time::OffsetDateTime::now_utc()
@@ -68,6 +70,12 @@ struct WriteConn {
 pub struct Storage {
     read: SqlitePool,
     write: Mutex<WriteConn>,
+    /// The highest journal sequence known committed. Spec §2.4: live
+    /// publication happens after commit, so this is raised only after a
+    /// `COMMIT` returns, never inside a transaction. A `watch` rather than a
+    /// broadcast because a reader re-reads the journal on every change: two
+    /// commits coalesced into one wake-up lose nothing.
+    committed: watch::Sender<i64>,
 }
 
 impl Storage {
@@ -88,6 +96,7 @@ impl Storage {
         sqlx::migrate!("./migrations").run(&read).await?;
 
         let write = SqliteConnection::connect_with(&opts).await?;
+        let highest: Option<i64> = sqlx::query_scalar(MAX_SEQ).fetch_one(&read).await?;
 
         Ok(Self {
             read,
@@ -95,11 +104,48 @@ impl Storage {
                 conn: write,
                 txn_open: false,
             }),
+            committed: watch::channel(highest.unwrap_or(0)).0,
         })
     }
 
     pub fn reader(&self) -> &SqlitePool {
         &self.read
+    }
+
+    /// A receiver that changes whenever a write transaction that appended to
+    /// the journal has committed. Its value is the highest committed `seq`.
+    /// Take it BEFORE reading the journal: a commit that lands during the read
+    /// then shows as a change instead of falling between the two.
+    pub fn watch_committed(&self) -> watch::Receiver<i64> {
+        self.committed.subscribe()
+    }
+
+    /// Raises the committed-sequence signal. Called only once `COMMIT` has
+    /// returned, with the write lock still held so no writer of this process
+    /// commits in between. Spec §2.4: publication is best-effort — a failure
+    /// here is logged and never reaches the write's caller, whose transaction
+    /// is already durable. Only an increase notifies, so a transaction that
+    /// appended nothing wakes nobody.
+    async fn publish_committed(&self, conn: &mut SqliteConnection) {
+        match sqlx::query_scalar::<_, Option<i64>>(MAX_SEQ)
+            .fetch_one(&mut *conn)
+            .await
+        {
+            Ok(Some(seq)) => {
+                self.committed.send_if_modified(|current| {
+                    let raised = seq > *current;
+                    if raised {
+                        *current = seq;
+                    }
+                    raised
+                });
+            }
+            Ok(None) => {}
+            Err(error) => tracing::warn!(
+                %error,
+                "storage.publish_committed_failed: a committed write was not signalled live"
+            ),
+        }
     }
 
     /// Every write goes through here. Two invariants, each pinned down by its
@@ -162,6 +208,7 @@ impl Storage {
             Ok(v) => {
                 guard.conn.execute("COMMIT").await?;
                 guard.txn_open = false;
+                self.publish_committed(&mut guard.conn).await;
                 Ok(v)
             }
             Err(e) => {
