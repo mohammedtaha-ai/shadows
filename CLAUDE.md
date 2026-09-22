@@ -108,6 +108,34 @@ The first milestone is deliberately vertical: start `shadows serve`, manually op
 - **Idempotency:** mutating commands carry `CommandId`, command kind, schema version, and normalized request fingerprint. Replay requires fingerprint equality; mismatch is `CommandConflict`.
 - **PLAN_BLOCKED = Operation outcome, NOT HTTP error.** Structured refusal, not transport failure.
 
+## How agents work here
+
+These override the defaults of any execution skill. Token cost is a real
+constraint on this project, and every rule below exists because a round trip,
+a crawl, or a re-read was paid for and bought nothing.
+
+- **The code map is the entry point, not the source tree.** Read
+  `docs/codebase/README.md` (what each module owns) and
+  `docs/codebase/inventory.md` (every declaration that exists) FIRST, then open
+  only the files the task names. Reading the tree to discover what a signature
+  is means the code map failed or you skipped it — say which, in your report.
+  A generated map that nobody reads is a file we maintain for nothing.
+- **A reviewer fixes what it finds.** A review dispatch is one seat: find it,
+  fix it, run the gate, commit, and report what changed and why — not a findings
+  list that costs another dispatch to act on. It still reports everything it
+  found, including what it chose not to change and why. The controller reads the
+  resulting diff; that is the second pair of eyes. What a reviewer may NOT do
+  silently is contradict the plan or a spec — those it reports and leaves.
+- **Compose the dispatch once.** Everything a subagent needs — the task, the
+  interfaces, the rulings, the constraints — goes in the first message. A
+  follow-up message to steer an agent mid-task is a controller planning failure
+  and is paid for in full context re-read. Fix rounds are the exception, because
+  the findings did not exist yet.
+- **Branches are short-lived.** Finish the tasks, open the PR, merge it, delete
+  the branch. Do not carry a second long-lived branch alongside `main` and do
+  not leave merged branches on the remote. A branch nobody is committing to is
+  either merged or abandoned; both cases end with it deleted.
+
 ## Decisions
 
 [`docs/superpowers/specs/README.md`](./docs/superpowers/specs/README.md) maps every design section to its sole owner file. Together those owner files hold the complete architecture semantics. The rules above are a working summary; where this file and an owner spec disagree, the owner spec is right and this file is the defect.
