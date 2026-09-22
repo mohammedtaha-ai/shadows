@@ -113,6 +113,7 @@ PathInvalid          -- not absolute, not UTF-8, or not a single valid name
 PathNotFound
 PathNotADirectory
 PathAccessDenied
+PathAlreadyExists
 PathUnavailable      -- any other I/O failure reading the disk
 ```
 

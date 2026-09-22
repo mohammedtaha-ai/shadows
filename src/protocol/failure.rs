@@ -43,8 +43,13 @@ impl From<StorageError> for Failure {
 impl From<DirectoryError> for Failure {
     fn from(e: DirectoryError) -> Self {
         let (status, code) = match &e {
-            DirectoryError::NotAbsolute(_) | DirectoryError::NotUtf8 => {
+            DirectoryError::NotAbsolute(_)
+            | DirectoryError::NotUtf8
+            | DirectoryError::InvalidName { .. } => {
                 (StatusCode::BAD_REQUEST, ErrorCode::PathInvalid)
+            }
+            DirectoryError::AlreadyExists(_) => {
+                (StatusCode::CONFLICT, ErrorCode::PathAlreadyExists)
             }
             DirectoryError::NotFound(_) => (StatusCode::NOT_FOUND, ErrorCode::PathNotFound),
             DirectoryError::NotADirectory(_) => {

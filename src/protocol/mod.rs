@@ -4,13 +4,15 @@
 //! CLAUDE.md names `protocol/` an accretion point: every feature this project
 //! ever adds puts a route here. So the split is made on the way in — this file
 //! holds the wiring, `handlers.rs` holds what each route does, `sse.rs` holds
-//! the replay-then-live stream, `failure.rs` holds the transport mapping.
+//! the replay-then-live stream, `failure.rs` holds the transport mapping,
+//! `fs.rs` holds the disk routes for choosing a project directory.
 //!
 //! This module is also the sole owner of HTTP and SSE types (CLAUDE.md). None
 //! of them appear in a domain or application signature; a handler is where
 //! `axum` stops.
 
 mod failure;
+mod fs;
 mod handlers;
 pub mod sse;
 
@@ -63,6 +65,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/threads/{id}/turns", post(handlers::start_turn))
         .route("/api/operations/{id}/stop", post(handlers::stop_turn))
         .route("/api/subscribe", get(sse::subscribe))
+        .route("/api/fs/dirs", get(fs::list_dirs).post(fs::create_dir))
         .with_state(state)
         // One `http.response` line per request: method, path, status,
         // latency. The path is logged without its query string and no body

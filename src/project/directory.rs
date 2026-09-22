@@ -23,6 +23,10 @@ pub enum DirectoryError {
     NotADirectory(String),
     #[error("access denied: `{0}`")]
     AccessDenied(String),
+    #[error("`{name}` is not a usable directory name: {why}")]
+    InvalidName { name: String, why: &'static str },
+    #[error("already exists: `{0}`")]
+    AlreadyExists(String),
     #[error("`{path}` could not be read: {source}")]
     Unavailable { path: String, source: io::Error },
 }
@@ -37,6 +41,7 @@ impl DirectoryError {
             io::ErrorKind::NotFound => Self::NotFound(shown),
             io::ErrorKind::PermissionDenied => Self::AccessDenied(shown),
             io::ErrorKind::NotADirectory => Self::NotADirectory(shown),
+            io::ErrorKind::AlreadyExists => Self::AlreadyExists(shown),
             _ => Self::Unavailable {
                 path: shown,
                 source: error,

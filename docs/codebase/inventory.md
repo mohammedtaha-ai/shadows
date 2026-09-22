@@ -96,7 +96,7 @@ pub enum ConfigError {
 pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError>
 ```
 
-## `src/error.rs` — 69 lines
+## `src/error.rs` — 70 lines
 
 ```rust
 pub enum ErrorCode {
@@ -115,6 +115,7 @@ pub enum ErrorCode {
     PathNotFound,
     PathNotADirectory,
     PathAccessDenied,
+    PathAlreadyExists,
     PathUnavailable,
 }
 pub enum FailureClass {
@@ -300,7 +301,24 @@ impl ProcessHandle {
 pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle>
 ```
 
-## `src/project/directory.rs` — 95 lines
+## `src/project/browse.rs` — 184 lines
+
+```rust
+pub struct DirectoryEntry {
+    pub name: String,
+    pub path: String,
+    pub hidden: bool,
+}
+pub struct DirectoryListing {
+    pub path: Option<String>,
+    pub parent: Option<String>,
+    pub entries: Vec<DirectoryEntry>,
+}
+pub fn list(path: Option<&Path>) -> Result<DirectoryListing, DirectoryError>
+pub fn create_subdirectory(parent: &Path, name: &str) -> Result<DirectoryEntry, DirectoryError>
+```
+
+## `src/project/directory.rs` — 100 lines
 
 ```rust
 pub enum DirectoryError {
@@ -309,6 +327,8 @@ pub enum DirectoryError {
     NotFound(String),
     NotADirectory(String),
     AccessDenied(String),
+    InvalidName { name: String, why: &'static str },
+    AlreadyExists(String),
     Unavailable { path: String, source: io::Error },
 }
 impl DirectoryError {
@@ -325,7 +345,7 @@ pub(crate) fn canonical_dir(raw: &Path) -> Result<PathBuf, DirectoryError>
 pub(crate) fn utf8(path: PathBuf) -> Result<String, DirectoryError>
 ```
 
-## `src/project/mod.rs` — 26 lines
+## `src/project/mod.rs` — 27 lines
 
 ```rust
 pub use directory::{DirectoryError, ProjectDirectory};
@@ -346,11 +366,22 @@ pub struct Project {
 }
 ```
 
-## `src/protocol/failure.rs` — 79 lines
+## `src/protocol/failure.rs` — 84 lines
 
 ```rust
 pub struct Failure {}
 // + 3 private fields
+```
+
+## `src/protocol/fs.rs` — 64 lines
+
+```rust
+pub(super) struct DirsQuery {}
+// + 1 private field
+pub(super) async fn list_dirs(Query(q): Query<DirsQuery>) -> Result<Json<DirectoryListing>, Failure>
+pub(super) struct CreateDir {}
+// + 2 private fields
+pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCode, Json<DirectoryEntry>), Failure>
 ```
 
 ## `src/protocol/handlers.rs` — 157 lines
@@ -371,7 +402,7 @@ pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<serde_json::Value>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 106 lines
+## `src/protocol/mod.rs` — 109 lines
 
 ```rust
 pub use failure::Failure;

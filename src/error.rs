@@ -20,6 +20,7 @@ pub enum ErrorCode {
     PathNotFound,
     PathNotADirectory,
     PathAccessDenied,
+    PathAlreadyExists,
     PathUnavailable,
 }
 
