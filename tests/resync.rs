@@ -1,0 +1,210 @@
+//! Spec §2.10: durable replay, then a no-gap handoff to live, then
+//! de-duplication by durable sequence.
+//!
+//! The first two tests own the replay half — what a cursor means and what
+//! reading after one returns. The third owns the half that cannot be checked
+//! by reading storage at all: that the live subscription exists *before* the
+//! replay is read, so an event published during the replay is buffered rather
+//! than dropped into the gap between the two.
+
+use std::sync::Arc;
+use std::time::Duration;
+
+use axum::extract::{Query, State};
+use axum::response::IntoResponse;
+use shadows::agent::StreamItem;
+use shadows::agent::claude::ClaudeHarness;
+use shadows::command::{CommandContext, fingerprint};
+use shadows::events::{Actor, EventCursor};
+use shadows::operation::OperationId;
+use shadows::planner::LiveHandles;
+use shadows::project::Project;
+use shadows::protocol::AppState;
+use shadows::protocol::sse::{SubscribeQuery, subscribe};
+use shadows::runtime::Runtime;
+use shadows::storage::Storage;
+use shadows::thread::{NewThreadEntry, PlanningThread};
+use tokio_stream::StreamExt;
+
+/// A project and a planning thread, which between them have already written
+/// two durable events: `ProjectCreated` (no thread) and `PlanningThreadCreated`.
+async fn seed(storage: &Storage) -> (Project, PlanningThread) {
+    let params = serde_json::json!({ "slug": "demo" });
+    let ctx = CommandContext {
+        principal_kind: "User".into(),
+        principal_id: "local".into(),
+        command_id: "c1".into(),
+        command_kind: "project.create".into(),
+        command_schema_ver: 1,
+        request_fingerprint: fingerprint("project.create", &params),
+    };
+    let project = storage.create_project(&ctx, "demo", "Demo").await.unwrap();
+    let tctx = CommandContext {
+        command_id: "c2".into(),
+        command_kind: "thread.create".into(),
+        request_fingerprint: fingerprint("thread.create", &params),
+        ..ctx
+    };
+    let thread = storage
+        .create_planning_thread(&tctx, &project.id, "T")
+        .await
+        .unwrap();
+    (project, thread)
+}
+
+fn user_message(body: &str) -> NewThreadEntry<'_> {
+    NewThreadEntry {
+        kind: "UserMessage",
+        author: Actor::user("local"),
+        body,
+        refs: &[],
+    }
+}
+
+/// Spec §2.10. Reading after a cursor returns exactly the events the client has
+/// not seen, in sequence order, with no gap and no repeat.
+#[tokio::test]
+async fn reading_after_a_cursor_returns_the_unseen_tail_in_order() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let (_project, thread) = seed(&storage).await;
+
+    let mid = storage.current_cursor().await.unwrap();
+
+    for body in ["one", "two", "three"] {
+        storage
+            .append_thread_entry(&thread.id, user_message(body))
+            .await
+            .unwrap();
+    }
+
+    let tail = storage
+        .read_events_after(mid, &thread.id, 100)
+        .await
+        .unwrap();
+    assert_eq!(tail.len(), 3, "exactly the events after the cursor");
+    let seqs: Vec<i64> = tail.iter().map(|e| e.seq).collect();
+    let mut sorted = seqs.clone();
+    sorted.sort();
+    assert_eq!(seqs, sorted, "events arrive in sequence order");
+    assert!(tail.iter().all(|e| e.kind == "ThreadEntryAppended"));
+
+    // Re-reading from the same cursor is idempotent.
+    let again = storage
+        .read_events_after(mid, &thread.id, 100)
+        .await
+        .unwrap();
+    assert_eq!(seqs, again.iter().map(|e| e.seq).collect::<Vec<_>>());
+
+    // Reading after the last delivered seq returns nothing.
+    let after_all = EventCursor(*seqs.last().unwrap());
+    assert!(
+        storage
+            .read_events_after(after_all, &thread.id, 100)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}
+
+/// A cursor from before any event returns the whole thread history.
+#[tokio::test]
+async fn a_zero_cursor_replays_the_whole_thread() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let (_project, thread) = seed(&storage).await;
+    storage
+        .append_thread_entry(&thread.id, user_message("hi"))
+        .await
+        .unwrap();
+
+    let all = storage
+        .read_events_after(EventCursor(0), &thread.id, 100)
+        .await
+        .unwrap();
+    assert_eq!(all.len(), 2, "thread creation and the entry");
+    assert_eq!(all[0].kind, "PlanningThreadCreated");
+    assert_eq!(all[1].kind, "ThreadEntryAppended");
+}
+
+/// Spec §2.10's second clause, and the only one that can observe a gap.
+///
+/// The subscription is taken while the handler is still running, before a
+/// single durable row is read. This test publishes a live item in the window
+/// the replay occupies: on a `#[tokio::test]` current-thread runtime the task
+/// that performs the replay cannot have been polled yet when `subscribe`
+/// returns, so an implementation that subscribes after the replay has no
+/// receiver at that instant and loses the item outright. Here it must both
+/// accept the send and deliver it after the handoff marker.
+#[tokio::test]
+async fn an_event_published_during_the_replay_survives_the_handoff() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let (_project, thread) = seed(&storage).await;
+    for body in ["one", "two"] {
+        storage
+            .append_thread_entry(&thread.id, user_message(body))
+            .await
+            .unwrap();
+    }
+    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (bus, _) = tokio::sync::broadcast::channel(64);
+    let state = AppState {
+        runtime: Arc::new(runtime),
+        storage,
+        handles: Arc::new(LiveHandles::default()),
+        harness: Arc::new(ClaudeHarness::new(
+            tmp.path().join("claude.exe"),
+            "test".into(),
+        )),
+        bus: bus.clone(),
+        project_root: tmp.path().to_path_buf(),
+    };
+
+    let response = subscribe(
+        State(state.clone()),
+        Query(SubscribeQuery {
+            thread_id: thread.id.clone(),
+            after: 0,
+        }),
+    )
+    .await
+    .into_response();
+
+    // No await between the line above and this one: the replay task has not
+    // run. If the subscription were taken inside it, there would be no
+    // receiver here and this send would fail.
+    bus.send((
+        OperationId::from_literal("op-live"),
+        StreamItem::Delta {
+            text: "during-replay".into(),
+        },
+    ))
+    .expect("the live subscription must exist before the replay is read");
+
+    let mut body = response.into_body().into_data_stream();
+    let mut text = String::new();
+    while !text.contains("during-replay") {
+        let chunk = tokio::time::timeout(Duration::from_secs(10), body.next())
+            .await
+            .expect("the stream stalled before delivering the live event")
+            .expect("the stream ended before delivering the live event")
+            .unwrap();
+        text.push_str(std::str::from_utf8(&chunk).unwrap());
+    }
+
+    let durable = text.find("event: durable").expect("durable replay first");
+    let caught_up = text
+        .find("event: caught-up")
+        .expect("then the handoff marker");
+    let live = text.find("during-replay").unwrap();
+    assert!(
+        durable < caught_up && caught_up < live,
+        "replay, then handoff, then live: {text}"
+    );
+    assert_eq!(
+        text.matches("event: durable").count(),
+        3,
+        "thread creation and both entries replay exactly once: {text}"
+    );
+}

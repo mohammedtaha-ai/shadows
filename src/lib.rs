@@ -9,6 +9,7 @@ pub mod operation;
 pub mod planner;
 pub mod process;
 pub mod project;
+pub mod protocol;
 pub mod runtime;
 pub mod storage;
 pub mod thread;

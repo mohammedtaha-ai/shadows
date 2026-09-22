@@ -8,11 +8,13 @@ use sqlx::{Connection, SqliteConnection, SqlitePool};
 use tokio::sync::Mutex;
 
 pub(super) mod events;
+mod events_read;
 mod operation;
 mod project;
 mod runtime;
 mod thread;
 
+pub use events_read::StoredEvent;
 pub use runtime::{ReconcileReport, StopKind};
 
 pub(super) fn now() -> String {

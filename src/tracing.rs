@@ -8,5 +8,14 @@ pub fn init(verbose: bool) {
         "shadows=info,warn"
     };
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default));
-    fmt().with_env_filter(filter).with_target(true).init();
+    // Diagnostics go to stderr, never stdout. Spec §1.0 gives stdout one job —
+    // printing the single local address `shadows serve` binds — and Task 11 put
+    // the first log line (startup recovery) before that print. A subscriber
+    // writing to stdout would make the daemon's one promised output the second
+    // or tenth line, depending on how much recovery had to do.
+    fmt()
+        .with_env_filter(filter)
+        .with_target(true)
+        .with_writer(std::io::stderr)
+        .init();
 }

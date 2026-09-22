@@ -60,7 +60,7 @@ Nothing reachable from outside this file.
 
 Nothing reachable from outside this file.
 
-## `src/cli/mod.rs` — 16 lines
+## `src/cli/mod.rs` — 108 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -180,7 +180,7 @@ impl DurableEvent {
 pub(crate) use newtype_id;
 ```
 
-## `src/lib.rs` — 15 lines
+## `src/lib.rs` — 16 lines
 
 Nothing reachable from outside this file.
 
@@ -296,6 +296,49 @@ pub struct Project {
 }
 ```
 
+## `src/protocol/handlers.rs` — 151 lines
+
+```rust
+pub(super) struct CreateProject {}
+// + 3 private fields
+pub(super) async fn list_projects(State(s): State<AppState>) -> Result<Json<serde_json::Value>, Failure>
+pub(super) async fn create_project(State(s): State<AppState>, Json(body): Json<CreateProject>) -> Result<Json<serde_json::Value>, Failure>
+pub(super) async fn list_threads(State(s): State<AppState>, Path(project_id): Path<ProjectId>) -> Result<Json<serde_json::Value>, Failure>
+pub(super) struct CreateThread {}
+// + 2 private fields
+pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<serde_json::Value>, Failure>
+pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<serde_json::Value>, Failure>
+pub(super) struct StartTurn {}
+// + 2 private fields
+pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<ThreadId>, Json(body): Json<StartTurn>) -> Result<(axum::http::StatusCode, Json<serde_json::Value>), Failure>
+pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<serde_json::Value>, Failure>
+```
+
+## `src/protocol/mod.rs` — 95 lines
+
+```rust
+pub struct AppState {
+    pub runtime: Arc<Runtime>,
+    pub storage: Arc<Storage>,
+    pub handles: Arc<LiveHandles>,
+    pub harness: Arc<ClaudeHarness>,
+    pub bus: tokio::sync::broadcast::Sender<(OperationId, StreamItem)>,
+    pub project_root: std::path::PathBuf,
+}
+pub fn router(state: AppState) -> Router
+pub struct Failure(crate::storage::StorageError);
+```
+
+## `src/protocol/sse.rs` — 127 lines
+
+```rust
+pub struct SubscribeQuery {
+    pub thread_id: ThreadId,
+    pub after: i64,
+}
+pub async fn subscribe(State(state): State<AppState>, Query(q): Query<SubscribeQuery>) -> Sse<ReceiverStream<Result<Event, Infallible>>>
+```
+
 ## `src/runtime/mod.rs` — 51 lines
 
 ```rust
@@ -312,7 +355,7 @@ impl Runtime {
 ## `src/storage/mod.rs` — 26 lines
 
 ```rust
-pub use sqlite::{ReconcileReport, StopKind, Storage, StorageError};
+pub use sqlite::{ReconcileReport, StopKind, Storage, StorageError, StoredEvent};
 pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
@@ -322,9 +365,26 @@ pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableE
 pub(in crate::storage) async fn append_event(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
-## `src/storage/sqlite/mod.rs` — 179 lines
+## `src/storage/sqlite/events_read.rs` — 74 lines
 
 ```rust
+pub struct StoredEvent {
+    pub seq: i64,
+    pub kind: String,
+    pub operation_id: Option<OperationId>,
+    pub payload_json: String,
+    pub created_at: String,
+}
+impl Storage {
+    pub async fn current_cursor(&self) -> Result<EventCursor, StorageError>
+    pub async fn read_events_after(&self, cursor: EventCursor, thread_id: &ThreadId, limit: i64) -> Result<Vec<StoredEvent>, StorageError>
+}
+```
+
+## `src/storage/sqlite/mod.rs` — 181 lines
+
+```rust
+pub use events_read::StoredEvent;
 pub use runtime::{ReconcileReport, StopKind};
 pub(super) fn now() -> String
 pub enum StorageError {
@@ -434,7 +494,7 @@ pub enum EntryRef {
 }
 ```
 
-## `src/tracing.rs` — 12 lines
+## `src/tracing.rs` — 21 lines
 
 ```rust
 pub fn init(verbose: bool)
