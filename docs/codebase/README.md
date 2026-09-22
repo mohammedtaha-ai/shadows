@@ -21,6 +21,7 @@ before adding to that module: it is the pattern to follow, not merely an example
 
 | Module | Its one job | Reference file |
 |---|---|---|
+| `src/agent/` | the AI subprocess harness contract | `src/agent/claude.rs` |
 | `src/bin/` | test apparatus that no product code links | `src/bin/tree_probe.rs` |
 | `src/cli/` | the daemon's entry point | `src/cli/mod.rs` |
 | `src/command/` | external-command identity for idempotency | `src/command/mod.rs` |

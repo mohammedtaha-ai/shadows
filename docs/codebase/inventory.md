@@ -15,6 +15,43 @@ declaration, this file only says that it exists and what shape it has. What each
 module *owns* is a judgement no generator can make — that lives in
 [README.md](./README.md).
 
+## `src/agent/claude.rs` — 116 lines
+
+```rust
+pub struct ClaudeHarness {
+    pub version: String,
+}
+// + 1 private field
+impl ClaudeHarness {
+    pub fn new(executable: PathBuf, version: String) -> Self
+}
+```
+
+## `src/agent/mod.rs` — 53 lines
+
+```rust
+pub struct AgentInvocation {
+    pub operation_id: String,
+    pub role: String,
+    pub model: String,
+    pub prompt: String,
+    pub cwd: PathBuf,
+    pub resume_session_id: Option<String>,
+    pub session_id: String,
+}
+pub enum StreamItem {
+    Delta { text: String },
+    Entry { uuid: String, role: String, text: String },
+    TurnEnd { subtype: String, stop_reason: Option<String> },
+    Operational { label: String, session: Option<String> },
+    Unparsed(String),
+}
+pub trait AgentHarness {
+    fn to_process_spec(&self, invocation: &AgentInvocation) -> ProcessSpec;
+    fn classify(&self, line: &str) -> StreamItem;
+}
+```
+
 ## `src/bin/tree_probe.rs` — 39 lines
 
 Nothing reachable from outside this file.
@@ -129,7 +166,7 @@ impl DurableEvent {
 }
 ```
 
-## `src/lib.rs` — 11 lines
+## `src/lib.rs` — 12 lines
 
 Nothing reachable from outside this file.
 
