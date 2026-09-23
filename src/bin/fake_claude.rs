@@ -12,6 +12,7 @@
 //! | `crash` | one entry, then exits non-zero with no turn-end | a child that dies mid-turn (§8.4 case 4's `Failed` half) |
 //! | `failing-turn-end` | one entry, a turn-end whose subtype is not `success`, exits 0 | a turn the harness says failed while the process says it is fine |
 //! | `report-invocation` | one entry whose text is `{"cwd", "args"}` as JSON, one turn-end, exits 0 | where a turn ran, and with which session flags |
+//! | `wait-for-release` | one entry, then waits until a file named `release` exists in its working directory, then one turn-end, exits 0 | a turn that is provably still running at a moment the test chooses, and then completes normally |
 //! | anything else | one entry, one turn-end, exits 0 | an ordinary completed turn |
 
 use std::io::Write;
@@ -42,6 +43,20 @@ fn main() {
     if prompt == "hang" {
         std::thread::sleep(std::time::Duration::from_secs(600));
         return;
+    }
+
+    // Released by the test, not by a timer: a sleep long enough to outlast
+    // whatever the test does meanwhile is a guess, and a guess that is short
+    // on a slow machine turns "still running" into "already finished".
+    // Bounded, so a test that never releases it does not leave it forever.
+    if prompt == "wait-for-release" {
+        let release = std::path::Path::new("release");
+        for _ in 0..2400 {
+            if release.exists() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
     }
 
     // A child that ends mid-turn: no result line, and a status that says so.

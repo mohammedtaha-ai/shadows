@@ -52,7 +52,7 @@ pub trait AgentHarness {
 }
 ```
 
-## `src/bin/fake_claude.rs` — 81 lines
+## `src/bin/fake_claude.rs` — 96 lines
 
 Nothing reachable from outside this file.
 
