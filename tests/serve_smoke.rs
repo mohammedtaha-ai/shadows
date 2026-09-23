@@ -89,3 +89,43 @@ fn request(addr: &str, head: &str) -> String {
     }
     response
 }
+
+/// Startup asks the harness for its version before it binds. An executable
+/// that never answers `--version` must not hold the daemon up: the version is
+/// recorded as unknown and the daemon serves. `tree_probe` given `--version`
+/// sleeps for ten minutes, which is that executable.
+#[test]
+fn a_harness_that_never_answers_its_version_does_not_hold_startup() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_shadows"))
+        .arg("serve")
+        .arg("--db")
+        .arg(tmp.path().join("shadows.sqlite3"))
+        .arg("--bind")
+        .arg("127.0.0.1:0")
+        .arg("--harness")
+        .arg(env!("CARGO_BIN_EXE_tree_probe"))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("daemon should start");
+
+    let stdout = child.stdout.take().unwrap();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let first = BufReader::new(stdout).lines().next();
+        let _ = tx.send(first);
+    });
+    let first = rx.recv_timeout(std::time::Duration::from_secs(30));
+    child.kill().unwrap();
+    child.wait().unwrap();
+
+    let first = first
+        .expect("the daemon never bound: startup waited on `--version`")
+        .expect("expected a line")
+        .unwrap();
+    assert!(
+        first.starts_with("shadows serve listening on http://127.0.0.1:"),
+        "{first}"
+    );
+}

@@ -104,13 +104,30 @@ async fn harness_version(path: &Path) -> String {
         Ok(h) => h,
         Err(_) => return "unknown".to_string(),
     };
-    let first = match handle.take_stdout_lines() {
-        Some(mut lines) => lines.next_line().await.ok().flatten(),
-        None => None,
+    let lines = handle.take_stdout_lines();
+    // Bounded: this runs before the daemon binds, so an executable that never
+    // answers `--version` would otherwise hold startup forever. On expiry the
+    // handle is dropped here, and its kill-on-drop ends the probe's tree.
+    let probe = async {
+        let first = match lines {
+            Some(mut lines) => lines.next_line().await.ok().flatten(),
+            None => None,
+        };
+        let _ = handle.wait().await;
+        first
     };
-    let _ = handle.wait().await;
-    match first {
-        Some(line) if !line.trim().is_empty() => line.trim().to_string(),
-        _ => "unknown".to_string(),
+    match tokio::time::timeout(VERSION_BOUND, probe).await {
+        Ok(Some(line)) if !line.trim().is_empty() => line.trim().to_string(),
+        Ok(_) => "unknown".to_string(),
+        Err(_) => {
+            tracing::warn!(
+                executable = %path.display(),
+                "harness.version_timeout: `--version` did not answer; recorded as unknown"
+            );
+            "unknown".to_string()
+        }
     }
 }
+
+/// How long startup waits for the harness to state its version.
+const VERSION_BOUND: Duration = Duration::from_secs(5);
