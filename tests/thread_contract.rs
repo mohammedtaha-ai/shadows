@@ -250,3 +250,48 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
         "failed insertion must not consume an ordinal"
     );
 }
+
+/// CLAUDE.md: ordering is explicit. A project's threads are listed in the
+/// order they were created, not by `created_at` text (see the project
+/// listing's test for why the text cannot give that order).
+#[tokio::test]
+async fn threads_are_listed_in_creation_order_whatever_their_timestamp_text() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let params = serde_json::json!({ "slug": "demo" });
+    let project = storage
+        .create_project(&ctx("c-project", &params), "demo", "Demo", &dir())
+        .await
+        .unwrap();
+    let mut created = Vec::new();
+    for (i, stamp) in ["2026-01-01T00:00:00.5Z", "2026-01-01T00:00:00.45Z"]
+        .into_iter()
+        .enumerate()
+    {
+        let command = format!("c{i}");
+        let params = serde_json::json!({ "title": command });
+        let thread = storage
+            .create_planning_thread(
+                &ctx_kind(&command, "thread.create", &params),
+                &project.id,
+                &command,
+            )
+            .await
+            .unwrap();
+        sqlx::query("UPDATE planning_thread SET created_at = ? WHERE id = ?")
+            .bind(stamp)
+            .bind(thread.id.as_str())
+            .execute(storage.reader())
+            .await
+            .unwrap();
+        created.push(thread.id);
+    }
+    let listed: Vec<_> = storage
+        .list_threads_for_project(&project.id)
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|t| t.id)
+        .collect();
+    assert_eq!(listed, created);
+}

@@ -174,3 +174,40 @@ async fn the_same_command_id_under_a_different_schema_version_is_a_conflict() {
         .unwrap();
     assert_eq!(events, 1, "a conflict must not append a second event");
 }
+
+/// CLAUDE.md: ordering is explicit. Projects are listed in the order they were
+/// created, which `created_at` text cannot give — RFC 3339 with trimmed zeros
+/// does not sort in time order within a second. Here the stored timestamps are
+/// rewritten to sort backwards, and the listing must not follow them.
+#[tokio::test]
+async fn projects_are_listed_in_creation_order_whatever_their_timestamp_text() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let mut created = Vec::new();
+    for (i, stamp) in ["2026-01-01T00:00:00.5Z", "2026-01-01T00:00:00.45Z"]
+        .into_iter()
+        .enumerate()
+    {
+        let slug = format!("p{i}");
+        let params = serde_json::json!({ "slug": slug });
+        let project = storage
+            .create_project(&ctx(&slug, &params), &slug, &slug, &dir())
+            .await
+            .unwrap();
+        sqlx::query("UPDATE project SET created_at = ? WHERE id = ?")
+            .bind(stamp)
+            .bind(project.id.as_str())
+            .execute(storage.reader())
+            .await
+            .unwrap();
+        created.push(project.id);
+    }
+    let listed: Vec<_> = storage
+        .list_projects()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|p| p.id)
+        .collect();
+    assert_eq!(listed, created);
+}

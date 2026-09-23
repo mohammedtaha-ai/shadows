@@ -242,9 +242,15 @@ impl Storage {
         &self,
         project_id: &ProjectId,
     ) -> Result<Vec<PlanningThread>, StorageError> {
+        // Oldest first, by the `PlanningThreadCreated` event's sequence, for
+        // the reason `list_projects` gives.
         let rows: Vec<(String, String, String, String, String)> = sqlx::query_as(
-            "SELECT id, project_id, title, status, created_at
-               FROM planning_thread WHERE project_id = ? ORDER BY created_at, id",
+            "SELECT t.id, t.project_id, t.title, t.status, t.created_at
+               FROM planning_thread t
+               LEFT JOIN durable_event e
+                 ON e.thread_id = t.id AND e.kind = 'PlanningThreadCreated'
+              WHERE t.project_id = ?
+              ORDER BY e.seq, t.id",
         )
         .bind(project_id.as_str())
         .fetch_all(self.reader())

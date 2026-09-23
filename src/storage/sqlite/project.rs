@@ -135,9 +135,18 @@ impl Storage {
         .await
     }
 
+    /// Oldest first, by the durable sequence of each project's `ProjectCreated`
+    /// event, written in the transaction that created the row — not by
+    /// `created_at`, whose RFC 3339 text with trimmed zeros does not sort in
+    /// time order within a second (CLAUDE.md: ordering is explicit). `LEFT`
+    /// so a project could never be hidden by a missing event; there is none.
     pub async fn list_projects(&self) -> Result<Vec<Project>, StorageError> {
         let rows: Vec<ProjectRow> = sqlx::query_as(
-            "SELECT id, slug, name, directory, created_at FROM project ORDER BY created_at, id",
+            "SELECT p.id, p.slug, p.name, p.directory, p.created_at
+               FROM project p
+               LEFT JOIN durable_event e
+                 ON e.project_id = p.id AND e.kind = 'ProjectCreated'
+              ORDER BY e.seq, p.id",
         )
         .fetch_all(self.reader())
         .await?;

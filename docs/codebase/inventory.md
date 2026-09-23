@@ -603,7 +603,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/project.rs` — 171 lines
+## `src/storage/sqlite/project.rs` — 180 lines
 
 ```rust
 pub(super) async fn classify(conn: &mut SqliteConnection, ctx: &CommandContext, scope_kind: &str, scope_key: &str) -> Result<Option<String>, StorageError>
@@ -632,7 +632,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/thread.rs` — 283 lines
+## `src/storage/sqlite/thread.rs` — 289 lines
 
 ```rust
 impl Storage {
