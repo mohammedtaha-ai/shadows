@@ -57,3 +57,24 @@ describe('the New project dialog', () => {
     expect(a.bodies[0]).toMatchObject({ name: 'My Project', slug: 'my-project', directory: 'C:\\work' })
   })
 })
+
+describe('the New folder name box', () => {
+  it('Escape closes the name box, not the dialog', async () => {
+    const a = (app = await startApp('/', {
+      'GET /api/projects': [],
+      'GET /api/fs/dirs': { path: '/work', parent: '/', entries: [] },
+    }))
+    await until(() => a.button('New project') !== undefined)
+    await act(async () => a.button('New project')?.click())
+    await until(() => a.button('New folder here') !== undefined)
+    await act(async () => a.button('New folder here')?.click())
+    const box = document.querySelector<HTMLInputElement>('input[aria-label="New folder name"]')
+    if (box === null) throw new Error('no name box')
+
+    await act(async () => {
+      box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    })
+    await until(() => document.querySelector('input[aria-label="New folder name"]') === null)
+    expect(document.querySelector('#new-project-folder')).not.toBeNull()
+  })
+})
