@@ -1,6 +1,6 @@
 name: CI
 
-# Two platforms, two different jobs, on purpose.
+# Two platforms, three jobs, each claiming something different, on purpose.
 #
 # Windows is the acceptance gate: Milestone 0 claims Windows and nothing else
 # (plan Task 13), so Windows runs the full suite and its failure is a real
@@ -13,6 +13,12 @@ name: CI
 # known, recorded gap. Tests that would assert that gap are `#[ignore]`d with
 # the reason in the source. Never silence one to make this job green — a green
 # job that hides a gap is exactly the failure this project exists to avoid.
+#
+# Web is the third job, and it runs on Linux only because the client is
+# platform-neutral: it is TypeScript for a browser, and nothing in it touches
+# the machine. It certifies the client builds against the daemon's protocol as
+# checked in — `api/openapi.json`, which `tests/openapi.rs` keeps current — and
+# nothing about a running daemon; the client talking to one is a manual check.
 
 on:
   push:
@@ -98,3 +104,34 @@ jobs:
           fi
       - name: Test (ignored tests stay ignored; see the note at the top)
         run: cargo test
+
+  web:
+    name: Web — client build gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: API types match the daemon's OpenAPI document
+        # `schema.d.ts` is generated from `api/openapi.json` and committed. A
+        # diff here means a protocol change the client has not followed:
+        # run `npm run gen:api` in `web/` and commit the result.
+        run: |
+          npm run gen:api
+          git diff --exit-code -- src/api
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npx vite build
