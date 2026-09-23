@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode, act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { threadEntriesKey } from '@/api/queries'
+import { threadEntriesKey, threadOperationsKey } from '@/api/queries'
 import { FakeSource } from './fake-event-source'
 import { useThreadStream } from './use-thread-stream'
 
@@ -87,39 +87,68 @@ describe('useThreadStream', () => {
     expect(sources.at(-1)?.param('thread_id')).toBe('t2')
   })
 
-  it('refetches entries at each caught-up and per live entry, never per replayed one', () => {
+  it('refetches entries at each caught-up, per live entry and live turn end, never per replayed one', () => {
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
-    const refetches = () => invalidate.mock.calls.length
+    const refetches = (key: readonly unknown[]) =>
+      invalidate.mock.calls.filter(([filters]) => JSON.stringify(filters?.queryKey) === JSON.stringify(key)).length
+    const entries = () => refetches(threadEntriesKey('t1'))
+    const operations = () => refetches(threadOperationsKey('t1'))
     show('t1')
 
     act(() => {
       current().durable(1)
-      current().durable(2)
+      current().durable(2, 'OperationCompleted', 'op')
     })
-    expect(refetches()).toBe(0)
+    expect(entries()).toBe(0)
     act(() => current().caughtUp(2))
-    expect(refetches()).toBe(1)
+    expect([entries(), operations()]).toEqual([1, 1])
 
     act(() => current().durable(3))
-    expect(refetches()).toBe(2)
-    act(() => current().durable(4, 'OperationStarted'))
-    expect(refetches()).toBe(2)
+    expect(entries()).toBe(2)
+    act(() => current().durable(4, 'OperationStarted', 'op'))
+    expect(entries()).toBe(2)
+    act(() => current().durable(5, 'OperationCompleted', 'op'))
+    expect(entries()).toBe(3)
 
     // A break: the events missed meanwhile are replayed, then one caught-up.
     act(() => current().fail())
     act(() => vi.runOnlyPendingTimers())
-    expect(current().param('after')).toBe('4')
+    expect(current().param('after')).toBe('5')
     act(() => {
-      current().durable(5)
       current().durable(6)
-      current().durable(7)
+      current().durable(7, 'OperationCancelled', 'op')
+      current().durable(8)
     })
-    expect(refetches()).toBe(2)
-    act(() => current().caughtUp(7))
-    expect(refetches()).toBe(3)
+    expect(entries()).toBe(3)
+    act(() => current().caughtUp(8))
+    expect([entries(), operations()]).toEqual([4, 2])
+    expect(invalidate).toHaveBeenCalledTimes(6)
+  })
 
-    for (const [filters] of invalidate.mock.calls) {
-      expect(filters).toEqual({ queryKey: threadEntriesKey('t1') })
+  it('hands every durable event to its caller once, saying whether it was live', () => {
+    const seen: [number, boolean][] = []
+    function Watcher() {
+      useThreadStream('t1', (event, live) => seen.push([event.seq, live]))
+      return null
     }
+    root ??= createRoot(document.createElement('div'))
+    const target = root
+    act(() =>
+      target.render(
+        <QueryClientProvider client={queryClient}>
+          <Watcher />
+        </QueryClientProvider>,
+      ),
+    )
+    act(() => {
+      current().durable(1)
+      current().caughtUp(1)
+      current().durable(2, 'OperationStarted', 'op')
+      current().durable(2, 'OperationStarted', 'op')
+    })
+    expect(seen).toEqual([
+      [1, false],
+      [2, true],
+    ])
   })
 })
