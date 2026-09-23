@@ -6,6 +6,7 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
+use tracing::Instrument;
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
@@ -92,6 +93,11 @@ pub(super) async fn start_turn(
     Path(thread_id): Path<ThreadId>,
     Json(body): Json<StartTurn>,
 ) -> Result<(StatusCode, Json<TurnStarted>), Failure> {
+    let operation_id = detached(start(s, thread_id, body.prompt)).await?;
+    Ok((StatusCode::ACCEPTED, Json(TurnStarted { operation_id })))
+}
+
+async fn start(s: AppState, thread_id: ThreadId, prompt: String) -> Result<OperationId, Failure> {
     // Refused before the message is recorded, so a turn the daemon will not
     // run leaves no question behind it. `PlannerTurn::start` asks again; this
     // only keeps the common case clean.
@@ -106,25 +112,36 @@ pub(super) async fn start_turn(
             NewThreadEntry {
                 kind: "UserMessage",
                 author: Actor::user("local"),
-                body: &body.prompt,
+                body: &prompt,
                 refs: &[],
             },
         )
         .await?;
 
-    let operation_id = PlannerTurn::start(
+    Ok(PlannerTurn::start(
         s.runtime.clone(),
         s.handles.clone(),
         s.harness.clone(),
-        PlannerTurnRequest {
-            thread_id,
-            prompt: body.prompt,
-        },
+        PlannerTurnRequest { thread_id, prompt },
         s.bus.clone(),
     )
-    .await?;
+    .await?)
+}
 
-    Ok((StatusCode::ACCEPTED, Json(TurnStarted { operation_id })))
+/// Spec §8.4 case 7: a client disconnecting cancels nothing. Hyper drops a
+/// handler's future when its connection closes, and a turn route dropped
+/// between its writes strands work: a `Pending` operation nothing will ever
+/// start, or a tree `stop` killed without writing `Cancelled`. So the work runs
+/// in its own task and the request only awaits it; a dropped request leaves
+/// the task running to its end. A panic in it is re-raised here, exactly as
+/// if the handler itself had panicked.
+async fn detached<T: Send + 'static>(
+    work: impl Future<Output = Result<T, Failure>> + Send + 'static,
+) -> Result<T, Failure> {
+    match tokio::spawn(work.in_current_span()).await {
+        Ok(answer) => answer,
+        Err(error) => std::panic::resume_unwind(error.into_panic()),
+    }
 }
 
 /// Stops a turn: terminates its process tree, confirms it is gone, and only
@@ -150,15 +167,19 @@ pub(super) async fn stop_turn(
     State(s): State<AppState>,
     Path(op_id): Path<OperationId>,
 ) -> Result<Json<Operation>, Failure> {
-    let outcome = PlannerTurn::stop(
-        s.runtime.clone(),
-        s.handles.clone(),
-        &op_id,
-        Actor::user("local"),
-    )
+    let operation = detached(async move {
+        let outcome = PlannerTurn::stop(
+            s.runtime.clone(),
+            s.handles.clone(),
+            &op_id,
+            Actor::user("local"),
+        )
+        .await?;
+        if outcome == StopOutcome::TerminationFailed {
+            return Err(Failure::termination_failed());
+        }
+        Ok(s.storage.get_operation(&op_id).await?)
+    })
     .await?;
-    if outcome == StopOutcome::TerminationFailed {
-        return Err(Failure::termination_failed());
-    }
-    Ok(Json(s.storage.get_operation(&op_id).await?))
+    Ok(Json(operation))
 }

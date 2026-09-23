@@ -409,7 +409,7 @@ pub struct Project {
 }
 ```
 
-## `src/protocol/conversation.rs` — 164 lines
+## `src/protocol/conversation.rs` — 185 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
