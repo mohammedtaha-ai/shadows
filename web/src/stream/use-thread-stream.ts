@@ -11,8 +11,8 @@ import { type StreamState, ThreadStream } from './thread-stream'
  *
  * Entries are not carried by the stream (a `ThreadEntryAppended` is only
  * `{ordinal, kind}`), so the thread's entries query is invalidated at every
- * `caught-up` and at every entry appended after the first one, and fetched
- * again (ruling 51). */
+ * `caught-up` and at every entry appended while live, and fetched again
+ * (ruling 51). */
 export function useThreadStream(threadId: string): StreamState & { retry: () => void } {
   const queryClient = useQueryClient()
 
@@ -24,8 +24,11 @@ export function useThreadStream(threadId: string): StreamState & { retry: () => 
     const created: ThreadStream = new ThreadStream({
       url: (after) => subscribeUrl(threadId, after),
       onCaughtUp: refetchEntries,
+      // Only while live. During any replay — the first, or the one after a
+      // reconnect, when `caughtUp` is already true — the `caught-up` that
+      // ends it refetches once for the lot.
       onDurable: (event) => {
-        if (event.kind === 'ThreadEntryAppended' && created.getState().caughtUp) {
+        if (event.kind === 'ThreadEntryAppended' && created.getState().connection === 'live') {
           refetchEntries()
         }
       },

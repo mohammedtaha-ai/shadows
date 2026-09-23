@@ -1,45 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { type EventSourceLike, type Options, ThreadStream } from './thread-stream'
-
-/** An EventSource the test drives by hand. */
-class FakeSource implements EventSourceLike {
-  readonly url: string
-  closed = false
-  readonly #listeners = new Map<string, ((event: Event) => void)[]>()
-
-  constructor(url: string) {
-    this.url = url
-  }
-
-  addEventListener(type: string, listener: (event: Event) => void): void {
-    this.#listeners.set(type, [...(this.#listeners.get(type) ?? []), listener])
-  }
-
-  close(): void {
-    this.closed = true
-  }
-
-  emit(type: string, data = ''): void {
-    for (const listener of this.#listeners.get(type) ?? []) {
-      listener(new MessageEvent(type, { data }))
-    }
-  }
-
-  fail(): void {
-    for (const listener of this.#listeners.get('error') ?? []) listener(new Event('error'))
-  }
-
-  durable(seq: number): void {
-    this.emit(
-      'durable',
-      JSON.stringify({
-        seq,
-        kind: 'ThreadEntryAppended',
-        payload: JSON.stringify({ ordinal: seq, kind: 'UserMessage' }),
-      }),
-    )
-  }
-}
+import { FakeSource } from './fake-event-source'
+import { type Options, ThreadStream } from './thread-stream'
 
 function harness(options: Partial<Options> = {}) {
   const sources: FakeSource[] = []
@@ -62,7 +23,7 @@ function harness(options: Partial<Options> = {}) {
   return { stream, sources, applied, current }
 }
 
-const afterOf = (source: FakeSource) => new URL(source.url).searchParams.get('after')
+const afterOf = (source: FakeSource) => source.param('after')
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
