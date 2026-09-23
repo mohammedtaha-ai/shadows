@@ -74,3 +74,39 @@ describe('the conversation, opened while a turn runs', () => {
     expect(a.container.textContent).toContain('Stopped')
   })
 })
+
+describe('a stop the daemon could not carry out', () => {
+  it('shows why and can be asked again, even though the request is durable', async () => {
+    let stops = 0
+    const a = (app = await startApp('/projects/p1/threads/t1', {
+      ...DAEMON,
+      'POST /api/operations/op1/stop': () => {
+        stops += 1
+        return Response.json(
+          { code: 'PROCESS_TERMINATION_FAILED', message: 'the tree could not be terminated' },
+          { status: 500 },
+        )
+      },
+    }))
+    await until(() => a.button('Stop') !== undefined)
+    await act(async () => a.button('Stop')?.click())
+
+    // The request was recorded before termination failed, so the stream
+    // says a stop was asked for; the turn is still running.
+    const stream = a.sources.at(-1)
+    if (stream === undefined) throw new Error('no stream was opened')
+    await act(async () => {
+      stream.durable(5, 'OperationCreated', 'op1', { kind: 'PlannerTurn' })
+      stream.durable(6, 'OperationStarted', 'op1', {})
+      stream.durable(7, 'OperationCancellationRequested', 'op1', {})
+      stream.caughtUp(7)
+    })
+
+    await until(() => a.button('Stop again') !== undefined)
+    expect(a.button('Stop again')?.disabled).toBe(false)
+    expect(a.container.textContent).toContain('PROCESS_TERMINATION_FAILED')
+
+    await act(async () => a.button('Stop again')?.click())
+    await until(() => stops === 2)
+  })
+})

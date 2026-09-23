@@ -36,10 +36,16 @@ export function Composer({
   const stop = useMutation({ mutationFn: stopTurn })
 
   // "Stopping" until the durable ending arrives and `running` clears: the
-  // stop call answering is not the turn ending.
-  const stopping =
-    running !== null &&
-    (running.stopRequested || (stop.variables === running.id && !stop.isError))
+  // stop call answering is not the turn ending. A stop this client saw fail
+  // (PROCESS_TERMINATION_FAILED: the tree may still be running) offers Stop
+  // again, even though the request is durable — asking again is safe, and a
+  // button stuck on "Stopping…" over a live tree could never be retried. Only
+  // a stop in flight disables it; a "Stopping…" learned from the daemon (after
+  // a reload, say) stays pressable for the same reason.
+  const mine = running !== null && stop.variables === running.id
+  const failed = mine && stop.isError
+  const stopping = running !== null && !failed && (running.stopRequested || mine)
+  const stopLabel = failed ? 'Stop again' : stopping ? 'Stopping…' : 'Stop'
 
   const submit = () => {
     const text = prompt.trim()
@@ -80,11 +86,11 @@ export function Composer({
             <Button
               variant="outline"
               onClick={() => stop.mutate(running.id)}
-              disabled={stopping}
+              disabled={stop.isPending}
               className="border-destructive-border text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground"
             >
               <Square className="size-3 fill-current" />
-              {stopping ? 'Stopping…' : 'Stop'}
+              {stopLabel}
             </Button>
           )}
         </div>
