@@ -118,6 +118,8 @@ PathNotADirectory
 PathAccessDenied
 PathAlreadyExists
 PathUnavailable      -- any other I/O failure reading the disk
+
+OriginRefused        -- a browser sent this for a page that is not a client (§1); 403
 ```
 
 The `Path*` codes answer the daemon's disk routes (§1) and a project's

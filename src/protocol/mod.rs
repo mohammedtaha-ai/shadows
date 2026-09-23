@@ -7,7 +7,8 @@
 //! `conversation.rs` (entries, a thread's turns, starting and stopping one),
 //! `sse.rs` (the replay-then-live stream), `fs.rs` (choosing a project directory),
 //! `openapi.rs` (the document describing all of it), `failure.rs` (the
-//! transport mapping). A new feature adds a file or a route to one of them.
+//! transport mapping), `guard.rs` (refusing requests pages were made to send).
+//! A new feature adds a file or a route to one of them.
 //!
 //! This module is also the sole owner of HTTP and SSE types (CLAUDE.md). None
 //! of them appear in a domain or application signature; a handler is where
@@ -16,6 +17,7 @@
 mod conversation;
 mod failure;
 mod fs;
+mod guard;
 mod openapi;
 mod project;
 pub mod sse;
@@ -64,9 +66,14 @@ pub struct AppState {
 /// served from its own origin and reaches this API cross-origin.
 pub fn router(state: AppState) -> Router {
     let cors = cors(&state.allowed_origins);
+    let guard = axum::middleware::from_fn_with_state(state.clone(), guard::refuse_foreign_pages);
     let (routes, _document) = routes().split_for_parts();
     routes
         .with_state(state)
+        // Inside the CORS layer: a preflight is answered before it gets here,
+        // and a refusal sent to an allowed origin still carries the header
+        // that lets that client read why.
+        .layer(guard)
         // Inside the trace layer, so a refused or answered preflight is
         // logged like any other request.
         .layer(cors)

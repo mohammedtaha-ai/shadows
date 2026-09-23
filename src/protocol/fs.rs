@@ -2,8 +2,9 @@
 //!
 //! **These routes expose the machine's disk** — every directory name the
 //! daemon's user can read, and the power to create directories — to any client
-//! allowed to call this daemon. Today that is a loopback bind plus the CORS
-//! origin list, and nothing else: there is no authentication. That is sound
+//! allowed to call this daemon. Today that is a loopback bind, the CORS origin
+//! list, and `guard.rs` refusing requests other pages make a browser send, and
+//! nothing else: there is no authentication. That is sound
 //! only while every client is on this machine; spec §1's OPEN block on remote
 //! access names the trigger that ends it.
 //!

@@ -100,7 +100,7 @@ pub fn allowed_origin(raw: &str) -> Result<String, ConfigError>
 pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError>
 ```
 
-## `src/error.rs` — 72 lines
+## `src/error.rs` — 73 lines
 
 ```rust
 pub enum ErrorCode {
@@ -123,6 +123,7 @@ pub enum ErrorCode {
     PathAccessDenied,
     PathAlreadyExists,
     PathUnavailable,
+    OriginRefused,
 }
 pub enum FailureClass {
     Client,
@@ -421,7 +422,7 @@ pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
 ```
 
-## `src/protocol/failure.rs` — 132 lines
+## `src/protocol/failure.rs` — 143 lines
 
 ```rust
 pub struct Failure {}
@@ -432,11 +433,12 @@ pub struct ErrorBody {
 }
 impl Failure {
     pub(super) fn runtime_stopping() -> Self
+    pub(super) fn origin_refused(why: &'static str) -> Self
     pub(super) fn termination_failed() -> Self
 }
 ```
 
-## `src/protocol/fs.rs` — 98 lines
+## `src/protocol/fs.rs` — 99 lines
 
 ```rust
 pub(super) struct DirsQuery {}
@@ -447,7 +449,13 @@ pub(super) struct CreateDir {}
 pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCode, Json<DirectoryEntry>), Failure>
 ```
 
-## `src/protocol/mod.rs` — 144 lines
+## `src/protocol/guard.rs` — 85 lines
+
+```rust
+pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
+```
+
+## `src/protocol/mod.rs` — 151 lines
 
 ```rust
 pub use failure::Failure;

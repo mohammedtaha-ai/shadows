@@ -213,7 +213,8 @@
           "PATH_NOT_A_DIRECTORY",
           "PATH_ACCESS_DENIED",
           "PATH_ALREADY_EXISTS",
-          "PATH_UNAVAILABLE"
+          "PATH_UNAVAILABLE",
+          "ORIGIN_REFUSED"
         ],
         "type": "string"
       },

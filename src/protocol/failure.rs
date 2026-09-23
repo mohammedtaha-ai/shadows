@@ -71,6 +71,17 @@ impl Failure {
         }
     }
 
+    /// Spec §1: a browser sent this on behalf of a page that is not one of
+    /// this daemon's clients (`guard.rs`). 403: the request is refused for
+    /// who sent it, whatever it asks.
+    pub(super) fn origin_refused(why: &'static str) -> Self {
+        Failure {
+            status: StatusCode::FORBIDDEN,
+            code: ErrorCode::OriginRefused,
+            message: why.into(),
+        }
+    }
+
     /// Spec §8.4 case 6: the tree could not be terminated. The daemon failed
     /// to do what Stop asks, so this is a 5xx, and the operation was not
     /// recorded `Cancelled` — it is still running as far as anyone can tell.

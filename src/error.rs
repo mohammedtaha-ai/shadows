@@ -24,6 +24,7 @@ pub enum ErrorCode {
     PathAccessDenied,
     PathAlreadyExists,
     PathUnavailable,
+    OriginRefused,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]

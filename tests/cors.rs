@@ -150,3 +150,130 @@ fn an_allowed_origin_is_exactly_scheme_host_and_port() {
         );
     }
 }
+
+async fn send(app: &Router, request: Request<Body>) -> (StatusCode, serde_json::Value) {
+    let response = app.clone().oneshot(request).await.unwrap();
+    let status = response.status();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    (
+        status,
+        serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null),
+    )
+}
+
+/// DNS rebinding: a page whose own name was re-pointed at this machine is
+/// same-origin with the daemon, so CORS never applies to it. Its requests
+/// still carry its own name in `Host`, and that is refused before any route;
+/// this machine's names and IP addresses are not.
+#[tokio::test]
+async fn a_request_addressed_to_another_hostname_is_refused() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (app, _stopping) = app(&tmp).await;
+
+    for host in [
+        "evil.example:4318",
+        "evil.example",
+        "127.0.0.1.evil.example",
+    ] {
+        let (status, body) = send(
+            &app,
+            Request::get("/api/projects")
+                .header(header::HOST, host)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{host}: {body}");
+        assert_eq!(body["code"], "ORIGIN_REFUSED", "{host}");
+    }
+    for host in [
+        "127.0.0.1:4318",
+        "localhost:4318",
+        "LOCALHOST",
+        "[::1]:4318",
+        "192.168.1.20:4318",
+    ] {
+        let (status, body) = send(
+            &app,
+            Request::get("/api/projects")
+                .header(header::HOST, host)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{host}: {body}");
+    }
+}
+
+/// CORS stops a page reading an answer, not the request running. A simple
+/// request from any page — an `<img>` pointed at the disk route, a form
+/// posting to it — would otherwise run with the page none the wiser. Each is
+/// refused before its handler runs: nothing is listed, nothing created.
+#[tokio::test]
+async fn a_page_on_another_site_cannot_make_the_daemon_act() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (app, _stopping) = app(&tmp).await;
+    let parent = tmp.path().to_str().unwrap().to_string();
+    let listing = format!("/api/fs/dirs?path={}", encode(&parent));
+    let create = |origin: Option<&str>| {
+        let request =
+            Request::post("/api/fs/dirs").header(header::CONTENT_TYPE, "application/json");
+        let request = match origin {
+            Some(origin) => request.header(header::ORIGIN, origin),
+            None => request,
+        };
+        request
+            .body(Body::from(
+                serde_json::json!({ "parent": parent, "name": "made" }).to_string(),
+            ))
+            .unwrap()
+    };
+
+    // No-cors, from another site: the browser sends no Origin, but says where
+    // the request came from.
+    let (status, body) = send(
+        &app,
+        Request::get(&listing)
+            .header("sec-fetch-site", "cross-site")
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    assert_eq!(body["code"], "ORIGIN_REFUSED");
+
+    let (status, body) = send(&app, create(Some("http://evil.example"))).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    assert!(!tmp.path().join("made").exists(), "a refused request ran");
+
+    // The configured client, and a caller that is not a browser at all.
+    let (status, body) = send(
+        &app,
+        Request::get(&listing)
+            .header(header::ORIGIN, ALLOWED)
+            .header("sec-fetch-site", "cross-site")
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let (status, body) = send(&app, Request::get(&listing).body(Body::empty()).unwrap()).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let (status, body) = send(&app, create(Some(ALLOWED))).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    assert!(tmp.path().join("made").is_dir());
+}
+
+/// A query-string value, percent-encoded byte by byte.
+fn encode(raw: &str) -> String {
+    raw.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (b as char).to_string()
+            }
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
