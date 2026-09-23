@@ -166,4 +166,37 @@ describe('ThreadStream', () => {
     expect(stream.getState().problem).toMatch(/malformed `durable` frame/)
     expect(sources).toHaveLength(1)
   })
+
+  it('ignores whatever a replaced connection still delivers', () => {
+    const { stream, sources, applied, current } = harness()
+    stream.start()
+    const old = current()
+    old.emit('lagged')
+    expect(sources).toHaveLength(2)
+
+    // Frames still queued on the closed source, then its closing error.
+    old.durable(1)
+    old.emit('delta', JSON.stringify({ op: 'a', text: 'stale' }))
+    old.fail()
+    vi.advanceTimersByTime(60_000)
+
+    expect(applied).toEqual([])
+    expect(stream.getState().lastSeq).toBe(0)
+    expect(stream.getState().streaming).toEqual({})
+    // The late error neither counted as a failure nor opened a third connection.
+    expect(sources).toHaveLength(2)
+    expect(stream.getState().problem).toBeNull()
+  })
+
+  it('earns back its failure budget at every caught-up', () => {
+    const { stream, current } = harness({ maxFailures: 1 })
+    stream.start()
+    for (let round = 0; round < 3; round += 1) {
+      current().fail()
+      expect(stream.getState().connection).toBe('reconnecting')
+      vi.runOnlyPendingTimers()
+      current().emit('caught-up', '0')
+      expect(stream.getState().connection).toBe('live')
+    }
+  })
 })
