@@ -370,10 +370,11 @@ pub struct Project {
 }
 ```
 
-## `src/protocol/conversation.rs` — 119 lines
+## `src/protocol/conversation.rs` — 142 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
+pub(super) async fn list_operations(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<Operation>>, Failure>
 pub(super) struct StartTurn {}
 // + 1 private field
 pub(super) struct TurnStarted {}
@@ -404,7 +405,7 @@ pub(super) struct CreateDir {}
 pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCode, Json<DirectoryEntry>), Failure>
 ```
 
-## `src/protocol/mod.rs` — 143 lines
+## `src/protocol/mod.rs` — 144 lines
 
 ```rust
 pub use failure::Failure;
@@ -442,7 +443,7 @@ pub(super) struct CreateThread {}
 pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<PlanningThread>, Failure>
 ```
 
-## `src/protocol/sse.rs` — 238 lines
+## `src/protocol/sse.rs` — 258 lines
 
 ```rust
 pub struct SubscribeQuery {
@@ -486,13 +487,14 @@ pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableE
 pub(in crate::storage) async fn append_event(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
-## `src/storage/sqlite/events_read.rs` — 74 lines
+## `src/storage/sqlite/events_read.rs` — 79 lines
 
 ```rust
 pub struct StoredEvent {
     pub seq: i64,
     pub kind: String,
     pub operation_id: Option<OperationId>,
+    pub thread_id: Option<ThreadId>,
     pub payload_json: String,
     pub created_at: String,
 }
@@ -502,7 +504,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/mod.rs` — 229 lines
+## `src/storage/sqlite/mod.rs` — 230 lines
 
 ```rust
 pub use events_read::StoredEvent;
@@ -528,7 +530,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/operation.rs` — 328 lines
+## `src/storage/sqlite/operation.rs` — 284 lines
 
 ```rust
 impl Storage {
@@ -538,7 +540,15 @@ impl Storage {
     pub async fn mark_operation_failed(&self, op_id: &OperationId, stage: FailureStage, reason: &str) -> Result<(), StorageError>
     pub async fn request_cancellation(&self, op_id: &OperationId, requester: Actor) -> Result<(), StorageError>
     pub async fn mark_operation_cancelled(&self, op_id: &OperationId) -> Result<(), StorageError>
+}
+```
+
+## `src/storage/sqlite/operation_read.rs` — 91 lines
+
+```rust
+impl Storage {
     pub async fn get_operation(&self, op_id: &OperationId) -> Result<Operation, StorageError>
+    pub async fn list_operations_for_thread(&self, thread_id: &ThreadId) -> Result<Vec<Operation>, StorageError>
 }
 ```
 

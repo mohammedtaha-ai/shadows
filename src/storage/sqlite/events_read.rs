@@ -21,9 +21,13 @@ pub struct StoredEvent {
     pub seq: i64,
     pub kind: String,
     pub operation_id: Option<OperationId>,
+    pub thread_id: Option<ThreadId>,
     pub payload_json: String,
     pub created_at: String,
 }
+
+/// The six `durable_event` columns `read_events_after` selects, in select order.
+type EventRow = (i64, String, Option<String>, Option<String>, String, String);
 
 impl Storage {
     /// The highest sequence committed so far. Spec §2.10: the snapshot and the
@@ -45,8 +49,8 @@ impl Storage {
         thread_id: &ThreadId,
         limit: i64,
     ) -> Result<Vec<StoredEvent>, StorageError> {
-        let rows: Vec<(i64, String, Option<String>, String, String)> = sqlx::query_as(
-            "SELECT seq, kind, operation_id, payload_json, created_at
+        let rows: Vec<EventRow> = sqlx::query_as(
+            "SELECT seq, kind, operation_id, thread_id, payload_json, created_at
                FROM durable_event
               WHERE thread_id = ? AND seq > ?
               ORDER BY seq
@@ -66,8 +70,9 @@ impl Storage {
                 // case `from_stored` exists for: outside code still cannot
                 // build an id from arbitrary text.
                 operation_id: r.2.map(OperationId::from_stored),
-                payload_json: r.3,
-                created_at: r.4,
+                thread_id: r.3.map(ThreadId::from_stored),
+                payload_json: r.4,
+                created_at: r.5,
             })
             .collect())
     }

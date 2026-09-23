@@ -10,6 +10,7 @@ use tokio::sync::{Mutex, watch};
 pub(super) mod events;
 mod events_read;
 mod operation;
+mod operation_read;
 mod project;
 mod runtime;
 mod thread;

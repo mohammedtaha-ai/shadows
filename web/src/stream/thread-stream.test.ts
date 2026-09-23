@@ -63,7 +63,7 @@ describe('ThreadStream', () => {
     const { stream, sources, current } = harness()
     stream.start()
     current().durable(1)
-    current().emit('caught-up', '1')
+    current().caughtUp(1)
     current().emit('delta', JSON.stringify({ op: 'a', text: 'partial' }))
     current().emit('lagged')
 
@@ -109,7 +109,7 @@ describe('ThreadStream', () => {
     stream.start()
     current().durable(1)
     expect(stream.getState()).toMatchObject({ connection: 'connecting', caughtUp: false })
-    current().emit('caught-up', '1')
+    current().caughtUp(1)
 
     expect(stream.getState()).toMatchObject({ connection: 'live', caughtUp: true })
     expect(caughtUpAt).toEqual([1])
@@ -195,7 +195,7 @@ describe('ThreadStream', () => {
       current().fail()
       expect(stream.getState().connection).toBe('reconnecting')
       vi.runOnlyPendingTimers()
-      current().emit('caught-up', '0')
+      current().caughtUp(0)
       expect(stream.getState().connection).toBe('live')
     }
   })

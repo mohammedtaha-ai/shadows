@@ -4,8 +4,8 @@
 //! CLAUDE.md names `protocol/` an accretion point: every feature this project
 //! ever adds puts a route here. So routes are split by domain, and this file
 //! only wires them: `project.rs` (projects and their threads),
-//! `conversation.rs` (entries, starting and stopping a turn), `sse.rs` (the
-//! replay-then-live stream), `fs.rs` (choosing a project directory),
+//! `conversation.rs` (entries, a thread's turns, starting and stopping one),
+//! `sse.rs` (the replay-then-live stream), `fs.rs` (choosing a project directory),
 //! `openapi.rs` (the document describing all of it), `failure.rs` (the
 //! transport mapping). A new feature adds a file or a route to one of them.
 //!
@@ -105,6 +105,7 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(project::list_projects, project::create_project))
         .routes(routes!(project::list_threads, project::create_thread))
         .routes(routes!(conversation::list_entries))
+        .routes(routes!(conversation::list_operations))
         .routes(routes!(conversation::start_turn))
         .routes(routes!(conversation::stop_turn))
         .routes(routes!(sse::subscribe))

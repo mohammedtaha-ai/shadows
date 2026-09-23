@@ -30,15 +30,20 @@ export class FakeSource implements EventSourceLike {
     for (const listener of this.#listeners.get('error') ?? []) listener(new Event('error'))
   }
 
-  durable(seq: number, kind = 'ThreadEntryAppended'): void {
+  durable(
+    seq: number,
+    kind = 'ThreadEntryAppended',
+    operationId: string | null = null,
+    payload: unknown = { ordinal: seq, kind: 'UserMessage' },
+  ): void {
     this.emit(
       'durable',
-      JSON.stringify({
-        seq,
-        kind,
-        payload: JSON.stringify({ ordinal: seq, kind: 'UserMessage' }),
-      }),
+      JSON.stringify({ seq, kind, operation_id: operationId, thread_id: 't', payload }),
     )
+  }
+
+  caughtUp(seq: number): void {
+    this.emit('caught-up', JSON.stringify({ seq }))
   }
 
   /** The value of a query parameter of the URL this connection was opened with. */

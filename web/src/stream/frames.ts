@@ -3,10 +3,13 @@
 // the OpenAPI document's `/api/subscribe` entry); OpenAPI cannot type them, so
 // they are checked here, and a frame that does not match is a protocol error.
 
-/** One journal event. `payload` is the event's JSON payload, parsed. */
+/** One journal event. `operationId` and `threadId` are the ids the event
+ * names, `null` where it names none; `payload` is the event's JSON payload. */
 export interface DurableEvent {
   seq: number
   kind: string
+  operationId: string | null
+  threadId: string | null
   payload: unknown
 }
 
@@ -38,19 +41,25 @@ export class FrameError extends Error {
 
 export function parseDurable(data: string): DurableEvent {
   const frame = object('durable', data)
-  const seq = frame.seq
-  const kind = frame.kind
-  const payload = frame.payload
-  if (!isSeq(seq) || typeof kind !== 'string' || typeof payload !== 'string') {
+  const { seq, kind, payload } = frame
+  const operationId = frame.operation_id
+  const threadId = frame.thread_id
+  if (
+    !isSeq(seq) ||
+    typeof kind !== 'string' ||
+    !('payload' in frame) ||
+    !isIdOrNull(operationId) ||
+    !isIdOrNull(threadId)
+  ) {
     throw new FrameError('durable', data)
   }
-  return { seq, kind, payload: json('durable', payload) }
+  return { seq, kind, operationId, threadId, payload }
 }
 
-/** `caught-up` carries the last replayed seq as plain text, not JSON. */
+/** `caught-up` carries the last replayed seq. */
 export function parseCaughtUp(data: string): number {
-  const seq = Number(data)
-  if (data.trim() === '' || !isSeq(seq)) {
+  const { seq } = object('caught-up', data)
+  if (!isSeq(seq)) {
     throw new FrameError('caught-up', data)
   }
   return seq
@@ -90,6 +99,12 @@ export function parseMeta(data: string): Meta {
 
 function isSeq(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+
+/** Present, and either an id or `null`. A missing field is a daemon that
+ * does not send it, which this client cannot follow. */
+function isIdOrNull(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
 }
 
 function json(event: string, data: string): unknown {

@@ -97,7 +97,7 @@ describe('useThreadStream', () => {
       current().durable(2)
     })
     expect(refetches()).toBe(0)
-    act(() => current().emit('caught-up', '2'))
+    act(() => current().caughtUp(2))
     expect(refetches()).toBe(1)
 
     act(() => current().durable(3))
@@ -115,7 +115,7 @@ describe('useThreadStream', () => {
       current().durable(7)
     })
     expect(refetches()).toBe(2)
-    act(() => current().emit('caught-up', '7'))
+    act(() => current().caughtUp(7))
     expect(refetches()).toBe(3)
 
     for (const [filters] of invalidate.mock.calls) {

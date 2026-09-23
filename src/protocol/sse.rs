@@ -97,7 +97,7 @@ async fn stream(
     let _ = tx
         .send(Ok(Event::default()
             .event("caught-up")
-            .data(last_seq.to_string())))
+            .data(serde_json::json!({ "seq": last_seq }).to_string())))
         .await;
 
     // 3. Live. The stream ends when the daemon stops (see
@@ -161,10 +161,11 @@ const CLIENT_GONE: &str = "client gone";
 const STREAM_DESCRIPTION: &str = "Server-sent events for one thread (spec §2.10): \
 the durable journal after `after`, then `caught-up`, then live. Each frame's \
 `event:` names its kind and its `data:` is JSON unless stated.\n\n\
-- `durable` — `{seq, kind, payload}`: one journal event, `payload` a JSON string. \
-Sent once each, in `seq` order, in the replay and live alike; remember the \
-highest `seq` and resubscribe with it as `after`.\n\
-- `caught-up` — data is the last replayed `seq` as plain text. The replay is over.\n\
+- `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. \
+`operation_id` and `thread_id` are the ids it names, `null` where it names none; \
+`payload` is the event's JSON object. Sent once each, in `seq` order, in the \
+replay and live alike; remember the highest `seq` and resubscribe with it as `after`.\n\
+- `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n\
 - `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n\
 - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n\
 - `meta` — `{op, label}`: any other harness line, by label. Transient.\n\
@@ -201,13 +202,32 @@ async fn send_journal_after(
             return Ok(());
         }
         for ev in batch {
+            // Every payload was written by `serde_json` in the transaction
+            // that recorded its state change; one that no longer parses is a
+            // damaged journal, which ends the stream like a failed read.
+            let payload: serde_json::Value = match serde_json::from_str(&ev.payload_json) {
+                Ok(p) => p,
+                Err(e) => {
+                    tracing::error!(seq = ev.seq, error = %e, "sse.payload_invalid");
+                    let _ = tx
+                        .send(Ok(Event::default()
+                            .event("fatal")
+                            .data(format!("event {} has an invalid payload", ev.seq))))
+                        .await;
+                    return Err("error: journal payload invalid");
+                }
+            };
             *last_seq = ev.seq;
-            let payload = serde_json::json!({
-                "seq": ev.seq, "kind": ev.kind, "payload": ev.payload_json,
+            let frame = serde_json::json!({
+                "seq": ev.seq,
+                "kind": ev.kind,
+                "operation_id": ev.operation_id,
+                "thread_id": ev.thread_id,
+                "payload": payload,
             });
             tx.send(Ok(Event::default()
                 .event("durable")
-                .data(payload.to_string())))
+                .data(frame.to_string())))
                 .await
                 .map_err(|_| CLIENT_GONE)?;
         }

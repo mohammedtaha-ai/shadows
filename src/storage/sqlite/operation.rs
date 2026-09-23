@@ -1,29 +1,13 @@
+//! One job: an operation's state transitions, each written with its journal
+//! event. Reading operations back is `operation_read.rs`.
+
 use crate::events::{Actor, DurableEvent};
-use crate::operation::{FailureStage, Operation, OperationId};
+use crate::operation::{FailureStage, OperationId};
 use crate::runtime::RuntimeInstanceId;
 use crate::thread::ThreadId;
 
 use super::transition::{Before, existed, read_before, record};
 use super::{Storage, StorageError, now};
-
-/// The thirteen `operation` columns `get_operation` reads back, in select
-/// order. A row alias, not a domain type: `get_operation` maps it into
-/// `Operation` immediately below.
-type OperationRow = (
-    String,
-    String,
-    String,
-    Option<String>,
-    String,
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    String,
-    Option<String>,
-    Option<String>,
-);
 
 impl Storage {
     /// TX #1 of the two-phase spawn. Spec §2.7: Pending is persisted before
@@ -296,33 +280,5 @@ impl Storage {
         .await?
         .log();
         Ok(())
-    }
-
-    pub async fn get_operation(&self, op_id: &OperationId) -> Result<Operation, StorageError> {
-        let r: OperationRow = sqlx::query_as(
-            "SELECT id, kind, status_kind, thread_id, runtime_instance_id, outcome_json,
-                    failure_stage, failure_reason, interrupt_reason, cancel_requested_at,
-                    created_at, started_at, finished_at
-               FROM operation WHERE id = ?",
-        )
-        .bind(op_id.as_str())
-        .fetch_optional(self.reader())
-        .await?
-        .ok_or(StorageError::NotFound("operation"))?;
-        Ok(Operation {
-            id: OperationId::from_stored(r.0),
-            kind: r.1,
-            status_kind: r.2,
-            thread_id: r.3,
-            runtime_instance_id: RuntimeInstanceId::from_stored(r.4),
-            outcome_json: r.5,
-            failure_stage: r.6,
-            failure_reason: r.7,
-            interrupt_reason: r.8,
-            cancel_requested_at: r.9,
-            created_at: r.10,
-            started_at: r.11,
-            finished_at: r.12,
-        })
     }
 }

@@ -99,6 +99,7 @@ fn the_document_names_every_route() {
             "GET /api/projects/{id}/threads",
             "GET /api/subscribe",
             "GET /api/threads/{id}/entries",
+            "GET /api/threads/{id}/operations",
             "POST /api/fs/dirs",
             "POST /api/operations/{id}/stop",
             "POST /api/projects",

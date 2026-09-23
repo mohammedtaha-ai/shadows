@@ -151,6 +151,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/threads/{id}/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A thread's operations — its turns — newest first, each as it now stands.
+         *     A client opening a thread reads this to learn whether a turn is running and
+         *     which one (so it can offer Stop), then follows it on `/api/subscribe`,
+         *     whose durable frames name their `operation_id`.
+         */
+        get: operations["list_operations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/threads/{id}/turns": {
         parameters: {
             query?: never;
@@ -734,8 +756,8 @@ export interface operations {
             /**
              * @description Server-sent events for one thread (spec §2.10): the durable journal after `after`, then `caught-up`, then live. Each frame's `event:` names its kind and its `data:` is JSON unless stated.
              *
-             *     - `durable` — `{seq, kind, payload}`: one journal event, `payload` a JSON string. Sent once each, in `seq` order, in the replay and live alike; remember the highest `seq` and resubscribe with it as `after`.
-             *     - `caught-up` — data is the last replayed `seq` as plain text. The replay is over.
+             *     - `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. `operation_id` and `thread_id` are the ids it names, `null` where it names none; `payload` is the event's JSON object. Sent once each, in `seq` order, in the replay and live alike; remember the highest `seq` and resubscribe with it as `after`.
+             *     - `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.
              *     - `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.
              *     - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.
              *     - `meta` — `{op, label}`: any other harness line, by label. Transient.
@@ -772,6 +794,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ThreadEntry"][];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_operations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"][];
                 };
             };
             /** @description STORAGE_UNAVAILABLE */

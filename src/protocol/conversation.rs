@@ -1,5 +1,5 @@
 //! One job: the routes a conversation runs through — reading a thread's
-//! entries, starting a turn on it, stopping one.
+//! entries and its turns, starting a turn on it, stopping one.
 //!
 //! Every handler here is `pub(super)`, for the reason `project.rs` gives.
 
@@ -30,6 +30,29 @@ pub(super) async fn list_entries(
     Path(thread_id): Path<ThreadId>,
 ) -> Result<Json<Vec<ThreadEntry>>, Failure> {
     Ok(Json(s.storage.list_thread_entries(&thread_id).await?))
+}
+
+/// A thread's operations — its turns — newest first, each as it now stands.
+/// A client opening a thread reads this to learn whether a turn is running and
+/// which one (so it can offer Stop), then follows it on `/api/subscribe`,
+/// whose durable frames name their `operation_id`.
+#[utoipa::path(
+    get,
+    path = "/api/threads/{id}/operations",
+    tag = "turns",
+    params(("id" = ThreadId, Path, description = "The thread")),
+    responses(
+        (status = 200, body = Vec<Operation>),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn list_operations(
+    State(s): State<AppState>,
+    Path(thread_id): Path<ThreadId>,
+) -> Result<Json<Vec<Operation>>, Failure> {
+    Ok(Json(
+        s.storage.list_operations_for_thread(&thread_id).await?,
+    ))
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]

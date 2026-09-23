@@ -1,6 +1,7 @@
 //! The HTTP surface, driven through the real router (spec §3.3, §1.0).
 //!
-//! `tests/resync.rs` owns what the stream guarantees; this file owns that each
+//! `tests/resync.rs` owns what the stream guarantees and `tests/stream_frames.rs`
+//! what its frames carry; this file owns that each
 //! route reaches the capability it names, that path ids deserialize into their
 //! newtypes, that failures become the status the transport mapping promises,
 //! and that an open live stream does not hold the daemon up after it stops.
@@ -17,8 +18,9 @@ use shadows::agent::claude::ClaudeHarness;
 use shadows::operation::OperationId;
 use shadows::planner::LiveHandles;
 use shadows::protocol::{AppState, router};
-use shadows::runtime::Runtime;
+use shadows::runtime::{Runtime, RuntimeInstanceId};
 use shadows::storage::Storage;
+use shadows::thread::ThreadId;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tower::ServiceExt;
 
@@ -27,12 +29,14 @@ struct Fixture {
     storage: Arc<Storage>,
     app: Router,
     stopping: tokio::sync::watch::Sender<bool>,
+    runtime: RuntimeInstanceId,
 }
 
 async fn fixture() -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let runtime_id = runtime.instance_id.clone();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
@@ -52,6 +56,7 @@ async fn fixture() -> Fixture {
         storage,
         app,
         stopping,
+        runtime: runtime_id,
     }
 }
 
@@ -234,10 +239,9 @@ async fn thread_routes_create_list_and_run_a_turn_to_its_entries() {
         .map(|data| serde_json::from_str::<Value>(data).unwrap())
         .filter(|ev| ev["kind"] == "ThreadEntryAppended")
         .map(|ev| {
-            let payload: Value = serde_json::from_str(ev["payload"].as_str().unwrap()).unwrap();
             (
                 ev["seq"].as_i64().unwrap(),
-                payload["kind"].as_str().unwrap().to_string(),
+                ev["payload"]["kind"].as_str().unwrap().to_string(),
             )
         })
         .collect();
@@ -262,6 +266,80 @@ async fn read_until(
             .unwrap();
         seen.push_str(std::str::from_utf8(&chunk).unwrap());
     }
+}
+
+/// A client reloaded mid-turn learns from this route whether a turn is running
+/// on the thread and which one, so it can show Running and aim Stop: the
+/// thread's operations, newest first, each with its status. Only that thread's.
+#[tokio::test]
+async fn a_threads_operations_are_listed_newest_first_with_their_status() {
+    let f = fixture().await;
+    let (_, project) = create_project(&f.app, "c1", "Demo").await;
+    let threads_uri = format!("/api/projects/{}/threads", project["id"].as_str().unwrap());
+    let mut threads = Vec::new();
+    for (command_id, title) in [("c2", "T"), ("c3", "Other")] {
+        let (_, thread) = call(
+            &f.app,
+            "POST",
+            &threads_uri,
+            Some(json!({ "command_id": command_id, "title": title })),
+        )
+        .await;
+        threads.push(ThreadId::from_literal(thread["id"].as_str().unwrap()));
+    }
+    let (thread, other) = (&threads[0], &threads[1]);
+
+    let first = f
+        .storage
+        .create_pending_operation(thread, &f.runtime)
+        .await
+        .unwrap();
+    f.storage
+        .mark_operation_started(&first, &f.runtime)
+        .await
+        .unwrap();
+    f.storage
+        .mark_operation_completed(&first, json!({}))
+        .await
+        .unwrap();
+    f.storage
+        .create_pending_operation(other, &f.runtime)
+        .await
+        .unwrap();
+    let second = f
+        .storage
+        .create_pending_operation(thread, &f.runtime)
+        .await
+        .unwrap();
+    f.storage
+        .mark_operation_started(&second, &f.runtime)
+        .await
+        .unwrap();
+
+    let (status, listed) = call(
+        &f.app,
+        "GET",
+        &format!("/api/threads/{}/operations", thread.as_str()),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{listed}");
+    let rows: Vec<(&str, &str)> = listed
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|op| {
+            (
+                op["id"].as_str().unwrap(),
+                op["status_kind"].as_str().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        rows,
+        [(second.as_str(), "Running"), (first.as_str(), "Completed")],
+        "{listed}"
+    );
 }
 
 /// Stopping an operation that does not exist reaches `get_operation`'s
