@@ -36,13 +36,18 @@ utoipa-axum = "0.2"
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+# Test apparatus, not product (docs/codebase: `src/bin/`). Built only with
+# `test-support`, which `cargo test` enables through the self dev-dependency
+# below, so `cargo build --release` and `cargo install` never ship them.
 [[bin]]
 name = "tree_probe"
 path = "src/bin/tree_probe.rs"
+required-features = ["test-support"]
 
 [[bin]]
 name = "fake_claude"
 path = "src/bin/fake_claude.rs"
+required-features = ["test-support"]
 
 [features]
 # Compiles in `storage::test_support`, a hook onto an otherwise-private
