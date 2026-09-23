@@ -200,16 +200,20 @@ every Operation this runtime owned is terminal.** A runtime that cannot reach
 that state does not get to record `Graceful`. This is the guarantee §8.6 relies
 on, and §8.6 checks it rather than assuming it.
 
-A second stop signal escalates: the runtime stops waiting for confirmation, sets
-`stop_kind = Escalated`, and exits. Operations that never reached confirmed
+Shutdown waits for that confirmation up to a bound. When the bound expires, or a
+second stop signal arrives, the runtime stops waiting, sets
+`stop_kind = Escalated`, and exits. The bound can only turn a would-be
+`Graceful` into `Escalated`, never the reverse; without it, one reader that
+never finishes would hang a single Ctrl-C forever. Operations that never reached confirmed
 termination are **left non-terminal on purpose** and become `Interrupted` at the
 next startup (§8.6). Recovery selects them by ownership, not by `stopped_at`, so
 recording a clean exit time does not hide them.
 
 Both properties that matter here follow from reusing one mechanism instead of
-adding a second. A bounded drain would still need the cancellation path when its
-bound expired, so it buys a second code path and a timeout constant in exchange
-for nothing. And escalation never invents a terminal state it cannot prove:
+adding a second. A bounded drain — letting turns finish before cancelling them —
+would still need the cancellation path when its bound expired, so it buys a
+second code path in exchange for nothing; the confirmation bound above is not a
+drain, since every turn is cancelled at once. And escalation never invents a terminal state it cannot prove:
 `Cancelled` keeps meaning confirmed termination exactly as §2.3 requires, and an
 unconfirmed operation is recorded as interrupted rather than as cancelled.
 
