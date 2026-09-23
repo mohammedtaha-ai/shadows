@@ -307,3 +307,24 @@ async fn has_exited_answers_immediately_and_tells_the_two_states_apart() {
     running.terminate_tree().expect("cleanup should succeed");
     running.wait().await.expect("the killed child should reap");
 }
+
+/// A child's stderr is a pipe the daemon owns. Left unread it fills, the child
+/// blocks on its next write, and it never exits: a harness that warns at
+/// length would hang its turn forever. A megabyte of stderr must not stop a
+/// child from finishing.
+#[tokio::test]
+async fn a_child_that_floods_stderr_still_exits() {
+    let mut handle = spawn(ProcessSpec {
+        executable: env!("CARGO_BIN_EXE_tree_probe").into(),
+        args: vec!["--flood-stderr".into()],
+        cwd: std::env::temp_dir(),
+        env: Vec::new(),
+        capture_stdout: true,
+    })
+    .expect("spawn should succeed");
+    let status = tokio::time::timeout(Duration::from_secs(20), handle.wait())
+        .await
+        .expect("the child blocked on its stderr and never exited")
+        .unwrap();
+    assert!(status.success(), "{status}");
+}

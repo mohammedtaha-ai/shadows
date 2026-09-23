@@ -56,11 +56,11 @@ pub trait AgentHarness {
 
 Nothing reachable from outside this file.
 
-## `src/bin/tree_probe.rs` — 39 lines
+## `src/bin/tree_probe.rs` — 51 lines
 
 Nothing reachable from outside this file.
 
-## `src/cli/mod.rs` — 116 lines
+## `src/cli/mod.rs` — 133 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -319,7 +319,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/process/mod.rs` — 210 lines
+## `src/process/mod.rs` — 233 lines
 
 ```rust
 pub struct ProcessSpec {
