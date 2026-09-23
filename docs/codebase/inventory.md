@@ -255,7 +255,7 @@ pub(crate) struct Registry {
 // + 1 private field
 pub struct LiveHandles(pub(crate) Mutex<Registry>);
 impl LiveHandles {
-    pub(crate) async fn register(&self, op_id: OperationId, turn: LiveTurn) -> Result<(), LiveTurn>
+    pub(crate) async fn register(&self, op_id: OperationId, turn: LiveTurn) -> Result<(), Box<LiveTurn>>
     pub(crate) async fn claim(&self, op_id: &OperationId) -> Option<LiveTurn>
     pub(crate) async fn close(&self) -> Vec<OperationId>
     pub async fn is_closed(&self) -> bool
