@@ -1,0 +1,1145 @@
+{
+  "components": {
+    "schemas": {
+      "Actor": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "type": "object"
+      },
+      "CreateDir": {
+        "properties": {
+          "name": {
+            "description": "One new path component that Windows would accept.",
+            "type": "string"
+          },
+          "parent": {
+            "description": "Absolute path to an existing directory.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "parent",
+          "name"
+        ],
+        "type": "object"
+      },
+      "CreateProject": {
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key (spec §3.2). The same id with the same request\nreplays the first answer; with a different one it is a conflict.",
+            "type": "string"
+          },
+          "directory": {
+            "description": "Absolute path to an existing directory, in any spelling; it is stored\nand returned canonical.",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "slug",
+          "name",
+          "directory"
+        ],
+        "type": "object"
+      },
+      "CreateThread": {
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key (spec §3.2), scoped to the project.",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "title"
+        ],
+        "type": "object"
+      },
+      "DirectoryEntry": {
+        "description": "One directory a person could open or choose.",
+        "properties": {
+          "hidden": {
+            "description": "Hidden or system on Windows, or named with a leading dot. Flagged rather\nthan filtered, so the client decides what to show and nothing is\nwithheld without anyone saying so.",
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "description": "Absolute and canonical; sending it back names exactly this directory.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "path",
+          "hidden"
+        ],
+        "type": "object"
+      },
+      "DirectoryListing": {
+        "description": "A directory's immediate subdirectories, or the roots when `path` is `None`.",
+        "properties": {
+          "entries": {
+            "description": "Sorted case-insensitively by name, which is how a person scans a list\nof folders; ties are broken by the exact name so the order is total.",
+            "items": {
+              "$ref": "#/components/schemas/DirectoryEntry"
+            },
+            "type": "array"
+          },
+          "parent": {
+            "description": "Where \"up\" leads. `None` at a root, and for the roots themselves.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "description": "The directory listed, canonical. `None` for the roots.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "entries"
+        ],
+        "type": "object"
+      },
+      "EntryRef": {
+        "oneOf": [
+          {
+            "description": "Typed, because `operation/` exists. The three below reference entities\nwhose modules Milestone 0 never creates, and §4.1's rule is that no module\nis created before the task that fills it.",
+            "properties": {
+              "Operation": {
+                "$ref": "#/components/schemas/OperationId",
+                "description": "Typed, because `operation/` exists. The three below reference entities\nwhose modules Milestone 0 never creates, and §4.1's rule is that no module\nis created before the task that fills it."
+              }
+            },
+            "required": [
+              "Operation"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "Decision": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Decision"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "Research": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Research"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "Workflow": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Workflow"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ErrorBody": {
+        "description": "The body of every error this API answers: the stable code a client\nmatches on (spec §3.4), and a human message nobody should match on. A\nrequest axum rejects before a handler runs (malformed JSON, a missing query\nparameter) gets one too, through\n[`rejections_as_error_bodies`].",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ErrorCode": {
+        "description": "Stable codes clients pattern-match on. Never match on human text.\nSpec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.",
+        "enum": [
+          "PROCESS_SPAWN_FAILED",
+          "PROCESS_TERMINATED",
+          "PROCESS_TERMINATION_FAILED",
+          "RUNTIME_STOPPING",
+          "STORAGE_UNAVAILABLE",
+          "STORAGE_MIGRATION_FAILED",
+          "STORAGE_CONSTRAINT_VIOLATION",
+          "COMMAND_CONFLICT",
+          "IDEMPOTENCY_KEY_REQUIRED",
+          "INVALID_COMMAND",
+          "INVALID_CURSOR",
+          "AGENT_AUTH_FAILED",
+          "AGENT_UNSUPPORTED_PROFILE",
+          "PATH_INVALID",
+          "PATH_NOT_FOUND",
+          "PATH_NOT_A_DIRECTORY",
+          "PATH_ACCESS_DENIED",
+          "PATH_ALREADY_EXISTS",
+          "PATH_UNAVAILABLE",
+          "ORIGIN_REFUSED"
+        ],
+        "type": "string"
+      },
+      "Operation": {
+        "description": "Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the\n`ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged\nfor reviewability, that follows this task (spec §4.1 OPEN block).",
+        "properties": {
+          "cancel_requested_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "failure_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failure_stage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "$ref": "#/components/schemas/OperationId"
+          },
+          "interrupt_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "outcome_json": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runtime_instance_id": {
+            "$ref": "#/components/schemas/RuntimeInstanceId"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status_kind": {
+            "type": "string"
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status_kind",
+          "runtime_instance_id",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "OperationId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "PlanningThread": {
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "status": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "title",
+          "status",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "Project": {
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "directory": {
+            "description": "Spec §4.2: the directory this project's turns run in, as\n[`ProjectDirectory`] resolved it. `None` only for a project created\nbefore projects owned one (`migrations/0003_project_directory.sql`);\na turn on such a project fails at Prepare rather than running in the\ndaemon's own working directory.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ProjectId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "RuntimeInstanceId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "StartTurn": {
+        "properties": {
+          "prompt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "type": "object"
+      },
+      "ThreadEntry": {
+        "properties": {
+          "author": {
+            "$ref": "#/components/schemas/Actor",
+            "description": "Spec §4.2 calls this field's type `Principal`. Milestone 0 uses\n`events::Actor`, which already has exactly this shape (`kind` + `id`) and\nalready answers \"who did this\" for durable events. Declaring a second\nidentical struct would record one decision twice, which this project's\ndocumentation rules forbid. See the note in §4.2."
+          },
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/ThreadEntryId"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "ordinal": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "refs": {
+            "items": {
+              "$ref": "#/components/schemas/EntryRef"
+            },
+            "type": "array"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          }
+        },
+        "required": [
+          "id",
+          "thread_id",
+          "ordinal",
+          "kind",
+          "author",
+          "body",
+          "refs",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ThreadEntryId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "ThreadId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "TurnStarted": {
+        "properties": {
+          "operation_id": {
+            "$ref": "#/components/schemas/OperationId"
+          }
+        },
+        "required": [
+          "operation_id"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "The local daemon's HTTP API. Every client is on another origin; only origins passed with `--allow-origin` may call it. There is no authentication: the daemon binds to loopback (spec §1, OPEN block on remote access). Errors answered by the API carry `ErrorBody`, whose `code` is stable; a request axum rejects before a handler runs (malformed JSON, a missing parameter) is answered in plain text.",
+    "license": {
+      "name": ""
+    },
+    "title": "shadows",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/fs/dirs": {
+      "get": {
+        "description": "Exposes the machine's directory names to any client the CORS list admits;\nsee spec §1's OPEN block on remote access.",
+        "operationId": "list_dirs",
+        "parameters": [
+          {
+            "description": "Absolute path to list. Absent or empty: the roots to start from.",
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryListing"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_INVALID, PATH_NOT_A_DIRECTORY"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_ACCESS_DENIED"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_NOT_FOUND"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_UNAVAILABLE"
+          }
+        },
+        "summary": "A directory's immediate subdirectories, or the roots to start from.",
+        "tags": [
+          "filesystem"
+        ]
+      },
+      "post": {
+        "operationId": "create_dir",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDir"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryEntry"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_INVALID, PATH_NOT_A_DIRECTORY"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_ACCESS_DENIED"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_NOT_FOUND: no such parent"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_ALREADY_EXISTS"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_UNAVAILABLE"
+          }
+        },
+        "summary": "Creates one new directory to choose as a project's.",
+        "tags": [
+          "filesystem"
+        ]
+      }
+    },
+    "/api/openapi.json": {
+      "get": {
+        "operationId": "serve",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "This OpenAPI document"
+          }
+        },
+        "summary": "This document.",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/operations/{id}/stop": {
+      "post": {
+        "description": "If the tree cannot be terminated the answer is 500\n`PROCESS_TERMINATION_FAILED`, and the operation is not `Cancelled`.",
+        "operationId": "stop_turn",
+        "parameters": [
+          {
+            "description": "The turn's operation",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/OperationId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such operation"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_CONSTRAINT_VIOLATION: it had already ended another way"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PROCESS_TERMINATION_FAILED: the tree is still running, or STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Stops a turn: terminates its process tree, confirms it is gone, and only\nthen records it `Cancelled` (spec §2.3). Answers with the operation as it\nnow stands — which may still be `Running` for a moment when the turn had\nalready ended on its own and its ending is being recorded.",
+        "tags": [
+          "turns"
+        ]
+      }
+    },
+    "/api/projects": {
+      "get": {
+        "operationId": "list_projects",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Project"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Every project, oldest first.",
+        "tags": [
+          "projects"
+        ]
+      },
+      "post": {
+        "operationId": "create_project",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProject"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            },
+            "description": "Created, or the replay of the same command"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_INVALID, PATH_NOT_A_DIRECTORY"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_ACCESS_DENIED"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_NOT_FOUND"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT, or STORAGE_CONSTRAINT_VIOLATION: the slug is in use"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE, PATH_UNAVAILABLE"
+          }
+        },
+        "summary": "Creates a project owning an existing directory.",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/projects/{id}/threads": {
+      "get": {
+        "operationId": "list_threads",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlanningThread"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "A project's planning threads, oldest first. An unknown project has none.",
+        "tags": [
+          "threads"
+        ]
+      },
+      "post": {
+        "operationId": "create_thread",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateThread"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanningThread"
+                }
+              }
+            },
+            "description": "Created, or the replay of the same command"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Creates a planning thread in a project.",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/api/subscribe": {
+      "get": {
+        "description": "Two live sources, both taken BEFORE a single journal row is read:\n\n- the storage's committed-sequence signal (spec §2.4: raised after each\n  commit that appended to the journal). A commit that lands while the\n  replay is being read shows up as a pending change, so it cannot fall into\n  the gap between the replay's last read and the live phase.\n- the transient bus, for what is never stored: deltas, turn ends, meta.\n\nDurable events reach the client only by reading the journal after\n`last_seq` — in the replay, and again on every signal change in the live\nphase — so each one is sent once, in sequence order, and de-duplication by\n`seq` is structural rather than left to the client. The bus's `Entry` items\nare therefore not forwarded: the same entry arrives as its durable\n`ThreadEntryAppended` event. Bus items for another thread are dropped.",
+        "operationId": "subscribe",
+        "parameters": [
+          {
+            "description": "The thread to watch.",
+            "in": "query",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          },
+          {
+            "description": "The last durable sequence this client has already applied; 0 replays\nthe thread from its start.",
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Server-sent events for one thread (spec §2.10): the durable journal after `after`, then `caught-up`, then live. Each frame's `event:` names its kind and its `data:` is JSON unless stated.\n\n- `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. `operation_id` and `thread_id` are the ids it names, `null` where it names none; `payload` is the event's JSON object. Sent once each, in `seq` order, in the replay and live alike; remember the highest `seq` and resubscribe with it as `after`.\n- `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n- `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n- `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n- `meta` — `{op, label}`: any other harness line, by label. Transient.\n- `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.\n- `fatal` — data is a message as plain text: the journal could not be read and the stream ends.\n\nThe stream also ends when the daemon stops. Reconnect with the last `seq`."
+          }
+        },
+        "summary": "Spec §2.10: durable replay, then a no-gap handoff to live, then\nde-duplication by durable sequence.",
+        "tags": [
+          "stream"
+        ]
+      }
+    },
+    "/api/threads/{id}/entries": {
+      "get": {
+        "operationId": "list_entries",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ThreadEntry"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "A thread's entries in ordinal order.",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/api/threads/{id}/operations": {
+      "get": {
+        "operationId": "list_operations",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Operation"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "A thread's operations — its turns — newest first, each as it now stands.\nA client opening a thread reads this to learn whether a turn is running and\nwhich one (so it can offer Stop), then follows it on `/api/subscribe`,\nwhose durable frames name their `operation_id`.",
+        "tags": [
+          "turns"
+        ]
+      }
+    },
+    "/api/threads/{id}/turns": {
+      "post": {
+        "description": "Spec §3.3: a long-running command answers 202 with an operation id, and the\noperation reaches its terminal outcome later — watch it on\n`/api/subscribe`. A turn that cannot run (no project directory, no harness)\nis still 202: the operation fails at `Prepare`, durably, with its reason.\n\nA daemon that has begun to stop refuses the turn with 503 (spec §8.5).",
+        "operationId": "start_turn",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartTurn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnStarted"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such thread"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "RUNTIME_STOPPING: the daemon is shutting down"
+          }
+        },
+        "summary": "Starts a Planner turn. The turn runs in the thread's project directory and\ncontinues the thread's harness session; neither is the client's to name.",
+        "tags": [
+          "turns"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Projects and the directory each owns",
+      "name": "projects"
+    },
+    {
+      "description": "Planning threads and their entries",
+      "name": "threads"
+    },
+    {
+      "description": "Starting and stopping a Planner turn",
+      "name": "turns"
+    },
+    {
+      "description": "The replay-then-live event stream",
+      "name": "stream"
+    },
+    {
+      "description": "Choosing a project directory on this machine",
+      "name": "filesystem"
+    },
+    {
+      "description": "This document",
+      "name": "meta"
+    }
+  ]
+}

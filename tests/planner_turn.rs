@@ -10,8 +10,9 @@ use std::time::Duration;
 use shadows::agent::StreamItem;
 use shadows::agent::claude::ClaudeHarness;
 use shadows::command::{CommandContext, fingerprint};
+use shadows::events::Actor;
 use shadows::operation::{Operation, OperationId};
-use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest};
+use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest, StopOutcome};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use shadows::thread::ThreadId;
@@ -33,7 +34,12 @@ async fn fixture() -> (tempfile::TempDir, Arc<Runtime>, ThreadId) {
     };
     let project = runtime
         .storage
-        .create_project(&ctx, "demo", "Demo")
+        .create_project(
+            &ctx,
+            "demo",
+            "Demo",
+            &shadows::project::ProjectDirectory::resolve(tmp.path()).unwrap(),
+        )
         .await
         .unwrap();
     let tctx = CommandContext {
@@ -125,8 +131,6 @@ async fn a_completed_turn_persists_the_stream_and_releases_its_handle() {
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: "quick".into(),
-            cwd: std::env::temp_dir(),
-            resume_session_id: None,
         },
         bus,
     )
@@ -181,8 +185,6 @@ async fn cancelling_a_running_turn_confirms_termination_before_writing_cancelled
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: "hang".into(),
-            cwd: std::env::temp_dir(),
-            resume_session_id: None,
         },
         bus,
     )
@@ -191,9 +193,10 @@ async fn cancelling_a_running_turn_confirms_termination_before_writing_cancelled
 
     wait_for_running(&runtime, &op).await;
 
-    PlannerTurn::stop(runtime.clone(), handles.clone(), &op)
+    let outcome = PlannerTurn::stop(runtime.clone(), handles.clone(), &op, Actor::user("local"))
         .await
         .unwrap();
+    assert_eq!(outcome, StopOutcome::Cancelled);
 
     let loaded = runtime.storage.get_operation(&op).await.unwrap();
     assert_eq!(loaded.status_kind, "Cancelled");
@@ -225,9 +228,10 @@ async fn stop_without_a_live_handle_records_the_request_and_stays_non_terminal()
         .await
         .unwrap();
 
-    PlannerTurn::stop(runtime.clone(), handles, &op)
+    let outcome = PlannerTurn::stop(runtime.clone(), handles, &op, Actor::user("local"))
         .await
         .unwrap();
+    assert_eq!(outcome, StopOutcome::NotLive);
 
     let loaded = runtime.storage.get_operation(&op).await.unwrap();
     assert_eq!(
@@ -256,8 +260,6 @@ async fn unconfirmed_termination_keeps_the_handle_and_leaves_the_operation_non_t
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: "hang".into(),
-            cwd: std::env::temp_dir(),
-            resume_session_id: None,
         },
         bus,
     )
@@ -270,9 +272,14 @@ async fn unconfirmed_termination_keeps_the_handle_and_leaves_the_operation_non_t
         "the turn must still be registered for this test to mean anything"
     );
 
-    PlannerTurn::stop(runtime.clone(), handles.clone(), &op)
+    let outcome = PlannerTurn::stop(runtime.clone(), handles.clone(), &op, Actor::user("local"))
         .await
         .unwrap();
+    assert_eq!(
+        outcome,
+        StopOutcome::TerminationFailed,
+        "a failed termination must be said, not reported like a success"
+    );
 
     let loaded = runtime.storage.get_operation(&op).await.unwrap();
     assert_eq!(
@@ -306,8 +313,6 @@ async fn a_failing_turn_end_is_not_completed_even_on_a_clean_exit() {
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: "failing-turn-end".into(),
-            cwd: std::env::temp_dir(),
-            resume_session_id: None,
         },
         bus,
     )
@@ -349,8 +354,6 @@ async fn a_cancelled_turn_that_had_already_ended_keeps_its_outcome_and_loses_its
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: "slow-exit".into(),
-            cwd: std::env::temp_dir(),
-            resume_session_id: None,
         },
         bus,
     )
@@ -377,9 +380,10 @@ async fn a_cancelled_turn_that_had_already_ended_keeps_its_outcome_and_loses_its
         "the process has not exited yet, so this is the contested window"
     );
 
-    PlannerTurn::stop(runtime.clone(), handles.clone(), &op)
+    let outcome = PlannerTurn::stop(runtime.clone(), handles.clone(), &op, Actor::user("local"))
         .await
         .unwrap();
+    assert_eq!(outcome, StopOutcome::TerminatedAfterTurnEnd);
 
     let loaded = wait_for_terminal(&runtime, &op).await;
     assert_eq!(
@@ -427,8 +431,6 @@ async fn a_child_that_dies_without_a_turn_end_is_failed_at_the_run_stage() {
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: "crash".into(),
-            cwd: std::env::temp_dir(),
-            resume_session_id: None,
         },
         bus,
     )

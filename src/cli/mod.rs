@@ -2,15 +2,15 @@
 
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::agent::claude::ClaudeHarness;
 use crate::config::Config;
-use crate::operation::OperationId;
-use crate::planner::{LiveHandles, PlannerTurn};
+use crate::planner::{LiveHandles, shut_down};
 use crate::process::{ProcessSpec, spawn};
 use crate::protocol::{AppState, router};
 use crate::runtime::Runtime;
-use crate::storage::{StopKind, Storage};
+use crate::storage::Storage;
 
 /// Binds, prints exactly one address, and serves. Spec §1.0: it never opens a
 /// browser. The user chooses which browser to use.
@@ -29,7 +29,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         handles: Arc::new(LiveHandles::default()),
         harness: Arc::new(ClaudeHarness::new(config.harness_path.clone(), version)),
         bus,
-        project_root: std::env::current_dir()?,
+        allowed_origins: config.allowed_origins.clone(),
         shutdown,
     };
 
@@ -41,35 +41,33 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     }
 
     // Spec §8.5: shutdown reuses the cancellation path. There is no drain mode.
-    let shutdown_runtime = runtime.clone();
-    let shutdown_state = state.clone();
+    // The listener keeps accepting until this future returns — axum stops
+    // accepting only then — so a turn requested meanwhile is refused by the
+    // closed registry, not by the socket.
+    let handles = state.handles.clone();
     axum::serve(listener, router(state))
         .with_graceful_shutdown(async move {
-            let _ = tokio::signal::ctrl_c().await;
+            if let Err(error) = tokio::signal::ctrl_c().await {
+                // Without a signal there is no way to be asked to stop, and
+                // stopping now would end a daemon nobody asked to end. Serve
+                // on; a killed daemon's turns are recovered at next startup.
+                tracing::error!(%error, "shutdown.signal_unavailable");
+                std::future::pending::<()>().await;
+            }
             tracing::info!("stop signal received; cancelling this runtime's operations");
-            let ids: Vec<OperationId> = {
-                let map = shutdown_state.handles.0.lock().await;
-                map.keys().cloned().collect()
+            let second_signal = async {
+                // An error here means no second signal can ever arrive, which
+                // is the same as one that has not arrived yet.
+                if tokio::signal::ctrl_c().await.is_err() {
+                    std::future::pending::<()>().await;
+                }
             };
-            let mut all_confirmed = true;
-            for op in ids {
-                if PlannerTurn::stop(
-                    shutdown_runtime.clone(),
-                    shutdown_state.handles.clone(),
-                    &op,
-                )
-                .await
-                .is_err()
-                {
-                    all_confirmed = false;
+            match shut_down(runtime, handles, CONFIRMATION_BOUND, second_signal).await {
+                Ok(kind) => tracing::info!(stop_kind = ?kind, "shutdown.recorded"),
+                Err(error) => {
+                    tracing::error!(%error, "shutdown.unrecorded: the stop could not be written")
                 }
             }
-            let kind = if all_confirmed {
-                StopKind::Graceful
-            } else {
-                StopKind::Escalated
-            };
-            let _ = shutdown_runtime.stop(kind).await;
             // Last: open live streams end here, so a graceful HTTP shutdown
             // is not left waiting on a response that never finishes.
             stopping.send_replace(true);
@@ -77,6 +75,12 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         .await?;
     Ok(())
 }
+
+/// How long shutdown waits for every owned operation to be confirmed terminal
+/// before it records `Escalated` instead of `Graceful` (§8.5). A terminated
+/// tree is reaped, and its outcome written, in milliseconds; the bound exists
+/// for the turn that never confirms, so a daemon told once to stop still ends.
+const CONFIRMATION_BOUND: Duration = Duration::from_secs(10);
 
 /// Spec §1.4: read the harness's self-reported version and record it. The
 /// measured stream contract belongs to one installation at one version.
@@ -100,13 +104,30 @@ async fn harness_version(path: &Path) -> String {
         Ok(h) => h,
         Err(_) => return "unknown".to_string(),
     };
-    let first = match handle.take_stdout_lines() {
-        Some(mut lines) => lines.next_line().await.ok().flatten(),
-        None => None,
+    let lines = handle.take_stdout_lines();
+    // Bounded: this runs before the daemon binds, so an executable that never
+    // answers `--version` would otherwise hold startup forever. On expiry the
+    // handle is dropped here, and its kill-on-drop ends the probe's tree.
+    let probe = async {
+        let first = match lines {
+            Some(mut lines) => lines.next_line().await.ok().flatten(),
+            None => None,
+        };
+        let _ = handle.wait().await;
+        first
     };
-    let _ = handle.wait().await;
-    match first {
-        Some(line) if !line.trim().is_empty() => line.trim().to_string(),
-        _ => "unknown".to_string(),
+    match tokio::time::timeout(VERSION_BOUND, probe).await {
+        Ok(Some(line)) if !line.trim().is_empty() => line.trim().to_string(),
+        Ok(_) => "unknown".to_string(),
+        Err(_) => {
+            tracing::warn!(
+                executable = %path.display(),
+                "harness.version_timeout: `--version` did not answer; recorded as unknown"
+            );
+            "unknown".to_string()
+        }
     }
 }
+
+/// How long startup waits for the harness to state its version.
+const VERSION_BOUND: Duration = Duration::from_secs(5);

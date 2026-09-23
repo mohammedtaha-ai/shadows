@@ -11,7 +11,7 @@ use crate::thread::ThreadId;
 )]
 pub struct EventCursor(pub i64);
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct Actor {
     pub kind: String,
     pub id: String,

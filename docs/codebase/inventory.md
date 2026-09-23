@@ -52,15 +52,15 @@ pub trait AgentHarness {
 }
 ```
 
-## `src/bin/fake_claude.rs` — 71 lines
+## `src/bin/fake_claude.rs` — 96 lines
 
 Nothing reachable from outside this file.
 
-## `src/bin/tree_probe.rs` — 39 lines
+## `src/bin/tree_probe.rs` — 51 lines
 
 Nothing reachable from outside this file.
 
-## `src/cli/mod.rs` — 112 lines
+## `src/cli/mod.rs` — 133 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -80,7 +80,7 @@ pub struct CommandContext {
 pub fn fingerprint(command_kind: &str, params: &serde_json::Value) -> String
 ```
 
-## `src/config.rs` — 56 lines
+## `src/config.rs` — 91 lines
 
 ```rust
 pub struct Config {
@@ -88,20 +88,26 @@ pub struct Config {
     pub bind: SocketAddr,
     pub harness_path: PathBuf,
     pub debug_log: Option<PathBuf>,
+    pub allowed_origins: Vec<String>,
 }
+pub const DEFAULT_ALLOWED_ORIGINS: [&str; 2] = [ "http://localhost:5173", "http://127.0.0.1:5173", ];
 pub fn data_dir(db_path: &Path) -> PathBuf
 pub enum ConfigError {
     HarnessNotAbsolute(String),
+    OriginInvalid(String),
 }
+pub fn allowed_origin(raw: &str) -> Result<String, ConfigError>
 pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError>
 ```
 
-## `src/error.rs` — 64 lines
+## `src/error.rs` — 73 lines
 
 ```rust
 pub enum ErrorCode {
     ProcessSpawnFailed,
     ProcessTerminated,
+    ProcessTerminationFailed,
+    RuntimeStopping,
     StorageUnavailable,
     StorageMigrationFailed,
     StorageConstraintViolation,
@@ -111,6 +117,13 @@ pub enum ErrorCode {
     InvalidCursor,
     AgentAuthFailed,
     AgentUnsupportedProfile,
+    PathInvalid,
+    PathNotFound,
+    PathNotADirectory,
+    PathAccessDenied,
+    PathAlreadyExists,
+    PathUnavailable,
+    OriginRefused,
 }
 pub enum FailureClass {
     Client,
@@ -176,7 +189,7 @@ impl DurableEvent {
 }
 ```
 
-## `src/id.rs` — 83 lines
+## `src/id.rs` — 101 lines
 
 ```rust
 pub(crate) use newtype_id;
@@ -186,7 +199,7 @@ pub(crate) use newtype_id;
 
 Nothing reachable from outside this file.
 
-## `src/main.rs` — 68 lines
+## `src/main.rs` — 85 lines
 
 Nothing reachable from outside this file.
 
@@ -227,20 +240,46 @@ pub struct Operation {
 }
 ```
 
-## `src/planner/mod.rs` — 462 lines
+## `src/planner/handles.rs` — 146 lines
 
 ```rust
-pub use spawn::PlannerTurnRequest;
-pub(crate) struct LiveTurn {}
-// + 4 private fields
-pub struct LiveHandles(pub(crate) Mutex<HashMap<OperationId, LiveTurn>>);
+pub(crate) struct LiveTurn {
+    pub(crate) handle: ProcessHandle,
+    pub(crate) turn_end_seen: Arc<AtomicBool>,
+    pub(crate) terminated_by_stop: bool,
+    pub(crate) span: tracing::Span,
+}
+pub(crate) struct Registry {
+    pub(crate) turns: HashMap<OperationId, LiveTurn>,
+}
+// + 1 private field
+pub struct LiveHandles(pub(crate) Mutex<Registry>);
 impl LiveHandles {
+    pub(crate) async fn register(&self, op_id: OperationId, turn: LiveTurn) -> Result<(), Box<LiveTurn>>
+    pub(crate) async fn claim(&self, op_id: &OperationId) -> Option<LiveTurn>
+    pub(crate) async fn close(&self) -> Vec<OperationId>
+    pub async fn is_closed(&self) -> bool
     pub async fn contains(&self, op_id: &OperationId) -> bool
     pub async fn pid(&self, op_id: &OperationId) -> Option<u32>
     pub async fn force_termination_failure(&self, op_id: &OperationId) -> bool
 }
+```
 
+## `src/planner/mod.rs` — 441 lines
+
+```rust
+pub use handles::LiveHandles;
+pub(crate) use handles::LiveTurn;
+pub use shutdown::shut_down;
+pub use spawn::{PlannerTurnRequest, StartError};
 pub struct PlannerTurn;
+pub enum StopOutcome {
+    Cancelled,
+    TerminatedAfterTurnEnd,
+    AlreadyExited,
+    NotLive,
+    TerminationFailed,
+}
 pub(crate) struct TurnWatch {
     pub(crate) op_id: OperationId,
     pub(crate) runtime: Arc<Runtime>,
@@ -248,30 +287,39 @@ pub(crate) struct TurnWatch {
     pub(crate) harness: Arc<ClaudeHarness>,
     pub(crate) thread_id: ThreadId,
     pub(crate) agent_role: String,
+    pub(crate) new_session: Option<String>,
     pub(crate) turn_end_seen: Arc<AtomicBool>,
     pub(crate) span: tracing::Span,
 }
 pub(crate) fn watch_turn(watch: TurnWatch, lines: Option<StdoutLines>, bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>)
 impl PlannerTurn {
-    pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, op_id: &OperationId) -> Result<(), StorageError>
+    pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, op_id: &OperationId, requester: Actor) -> Result<StopOutcome, StorageError>
 }
 ```
 
-## `src/planner/spawn.rs` — 174 lines
+## `src/planner/shutdown.rs` — 144 lines
 
 ```rust
+pub async fn shut_down(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, confirm_within: Duration, escalate: impl Future<Output = ()>) -> Result<StopKind, StorageError>
+```
+
+## `src/planner/spawn.rs` — 284 lines
+
+```rust
+pub enum StartError {
+    RuntimeStopping,
+    Storage(StorageError),
+}
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
     pub prompt: String,
-    pub cwd: PathBuf,
-    pub resume_session_id: Option<String>,
 }
 impl PlannerTurn {
-    pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, harness: Arc<ClaudeHarness>, request: PlannerTurnRequest, bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>) -> Result<OperationId, StorageError>
+    pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, harness: Arc<ClaudeHarness>, request: PlannerTurnRequest, bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>) -> Result<OperationId, StartError>
 }
 ```
 
-## `src/process/mod.rs` — 210 lines
+## `src/process/mod.rs` — 233 lines
 
 ```rust
 pub struct ProcessSpec {
@@ -296,9 +344,54 @@ impl ProcessHandle {
 pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle>
 ```
 
-## `src/project/mod.rs` — 16 lines
+## `src/project/browse.rs` — 184 lines
 
 ```rust
+pub struct DirectoryEntry {
+    pub name: String,
+    pub path: String,
+    pub hidden: bool,
+}
+pub struct DirectoryListing {
+    pub path: Option<String>,
+    pub parent: Option<String>,
+    pub entries: Vec<DirectoryEntry>,
+}
+pub fn list(path: Option<&Path>) -> Result<DirectoryListing, DirectoryError>
+pub fn create_subdirectory(parent: &Path, name: &str) -> Result<DirectoryEntry, DirectoryError>
+```
+
+## `src/project/directory.rs` — 100 lines
+
+```rust
+pub enum DirectoryError {
+    NotAbsolute(String),
+    NotUtf8,
+    NotFound(String),
+    NotADirectory(String),
+    AccessDenied(String),
+    InvalidName { name: String, why: &'static str },
+    AlreadyExists(String),
+    Unavailable { path: String, source: io::Error },
+}
+impl DirectoryError {
+    pub(crate) fn from_io(path: &Path, error: io::Error) -> Self
+}
+
+pub struct ProjectDirectory(String);
+impl ProjectDirectory {
+    pub fn resolve(raw: &Path) -> Result<Self, DirectoryError>
+    pub fn as_str(&self) -> &str
+}
+
+pub(crate) fn canonical_dir(raw: &Path) -> Result<PathBuf, DirectoryError>
+pub(crate) fn utf8(path: PathBuf) -> Result<String, DirectoryError>
+```
+
+## `src/project/mod.rs` — 27 lines
+
+```rust
+pub use directory::{DirectoryError, ProjectDirectory};
 pub struct ProjectId(String);
 impl ProjectId {
     pub fn generate() -> Self
@@ -311,45 +404,98 @@ pub struct Project {
     pub id: ProjectId,
     pub slug: String,
     pub name: String,
+    pub directory: Option<String>,
     pub created_at: String,
 }
 ```
 
-## `src/protocol/handlers.rs` — 151 lines
+## `src/protocol/conversation.rs` — 185 lines
 
 ```rust
-pub(super) struct CreateProject {}
-// + 3 private fields
-pub(super) async fn list_projects(State(s): State<AppState>) -> Result<Json<serde_json::Value>, Failure>
-pub(super) async fn create_project(State(s): State<AppState>, Json(body): Json<CreateProject>) -> Result<Json<serde_json::Value>, Failure>
-pub(super) async fn list_threads(State(s): State<AppState>, Path(project_id): Path<ProjectId>) -> Result<Json<serde_json::Value>, Failure>
-pub(super) struct CreateThread {}
-// + 2 private fields
-pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<serde_json::Value>, Failure>
-pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<serde_json::Value>, Failure>
+pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
+pub(super) async fn list_operations(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<Operation>>, Failure>
 pub(super) struct StartTurn {}
-// + 2 private fields
-pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<ThreadId>, Json(body): Json<StartTurn>) -> Result<(axum::http::StatusCode, Json<serde_json::Value>), Failure>
-pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<serde_json::Value>, Failure>
+// + 1 private field
+pub(super) struct TurnStarted {}
+// + 1 private field
+pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<ThreadId>, Json(body): Json<StartTurn>) -> Result<(StatusCode, Json<TurnStarted>), Failure>
+pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 143 lines
+## `src/protocol/failure.rs` — 220 lines
 
 ```rust
+pub struct Failure {}
+// + 4 private fields
+pub struct ErrorBody {
+    pub code: ErrorCode,
+    pub message: String,
+}
+impl Failure {
+    pub(super) fn runtime_stopping() -> Self
+    pub(super) fn origin_refused(why: &'static str) -> Self
+    pub(super) fn termination_failed() -> Self
+}
+
+pub(super) async fn rejections_as_error_bodies(response: axum::response::Response) -> axum::response::Response
+```
+
+## `src/protocol/fs.rs` — 99 lines
+
+```rust
+pub(super) struct DirsQuery {}
+// + 1 private field
+pub(super) async fn list_dirs(Query(q): Query<DirsQuery>) -> Result<Json<DirectoryListing>, Failure>
+pub(super) struct CreateDir {}
+// + 2 private fields
+pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCode, Json<DirectoryEntry>), Failure>
+```
+
+## `src/protocol/guard.rs` — 85 lines
+
+```rust
+pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
+```
+
+## `src/protocol/mod.rs` — 156 lines
+
+```rust
+pub use failure::Failure;
+pub use openapi::document as openapi_document;
 pub struct AppState {
     pub runtime: Arc<Runtime>,
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
     pub harness: Arc<ClaudeHarness>,
     pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
-    pub project_root: std::path::PathBuf,
+    pub allowed_origins: Vec<String>,
     pub shutdown: tokio::sync::watch::Receiver<bool>,
 }
 pub fn router(state: AppState) -> Router
-pub struct Failure(crate::storage::StorageError);
 ```
 
-## `src/protocol/sse.rs` — 205 lines
+## `src/protocol/openapi.rs` — 80 lines
+
+```rust
+pub(super) fn base() -> utoipa::openapi::OpenApi
+pub fn document() -> String
+pub(super) async fn serve() -> ([(header::HeaderName, &'static str); 1], String)
+```
+
+## `src/protocol/project.rs` — 144 lines
+
+```rust
+pub(super) struct CreateProject {}
+// + 4 private fields
+pub(super) async fn list_projects(State(s): State<AppState>) -> Result<Json<Vec<Project>>, Failure>
+pub(super) async fn create_project(State(s): State<AppState>, Json(body): Json<CreateProject>) -> Result<Json<Project>, Failure>
+pub(super) async fn list_threads(State(s): State<AppState>, Path(project_id): Path<ProjectId>) -> Result<Json<Vec<PlanningThread>>, Failure>
+pub(super) struct CreateThread {}
+// + 2 private fields
+pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<PlanningThread>, Failure>
+```
+
+## `src/protocol/sse.rs` — 262 lines
 
 ```rust
 pub struct SubscribeQuery {
@@ -393,13 +539,14 @@ pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableE
 pub(in crate::storage) async fn append_event(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
-## `src/storage/sqlite/events_read.rs` — 74 lines
+## `src/storage/sqlite/events_read.rs` — 79 lines
 
 ```rust
 pub struct StoredEvent {
     pub seq: i64,
     pub kind: String,
     pub operation_id: Option<OperationId>,
+    pub thread_id: Option<ThreadId>,
     pub payload_json: String,
     pub created_at: String,
 }
@@ -409,7 +556,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/mod.rs` — 229 lines
+## `src/storage/sqlite/mod.rs` — 252 lines
 
 ```rust
 pub use events_read::StoredEvent;
@@ -435,7 +582,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/operation.rs` — 328 lines
+## `src/storage/sqlite/operation.rs` — 300 lines
 
 ```rust
 impl Storage {
@@ -445,22 +592,31 @@ impl Storage {
     pub async fn mark_operation_failed(&self, op_id: &OperationId, stage: FailureStage, reason: &str) -> Result<(), StorageError>
     pub async fn request_cancellation(&self, op_id: &OperationId, requester: Actor) -> Result<(), StorageError>
     pub async fn mark_operation_cancelled(&self, op_id: &OperationId) -> Result<(), StorageError>
-    pub async fn get_operation(&self, op_id: &OperationId) -> Result<Operation, StorageError>
 }
 ```
 
-## `src/storage/sqlite/project.rs` — 160 lines
+## `src/storage/sqlite/operation_read.rs` — 109 lines
+
+```rust
+impl Storage {
+    pub async fn get_operation(&self, op_id: &OperationId) -> Result<Operation, StorageError>
+    pub async fn list_operations_for_thread(&self, thread_id: &ThreadId) -> Result<Vec<Operation>, StorageError>
+    pub async fn non_terminal_operations_owned_by(&self, runtime: &RuntimeInstanceId) -> Result<Vec<OperationId>, StorageError>
+}
+```
+
+## `src/storage/sqlite/project.rs` — 180 lines
 
 ```rust
 pub(super) async fn classify(conn: &mut SqliteConnection, ctx: &CommandContext, scope_kind: &str, scope_key: &str) -> Result<Option<String>, StorageError>
 pub(super) async fn record_command(conn: &mut SqliteConnection, ctx: &CommandContext, scope_kind: &str, scope_key: &str, entity_kind: &str, outcome_ref: &str, ts: &str) -> Result<(), StorageError>
 impl Storage {
-    pub async fn create_project(&self, ctx: &CommandContext, slug: &str, name: &str) -> Result<Project, StorageError>
+    pub async fn create_project(&self, ctx: &CommandContext, slug: &str, name: &str, directory: &ProjectDirectory) -> Result<Project, StorageError>
     pub async fn list_projects(&self) -> Result<Vec<Project>, StorageError>
 }
 ```
 
-## `src/storage/sqlite/runtime.rs` — 182 lines
+## `src/storage/sqlite/runtime.rs` — 203 lines
 
 ```rust
 pub enum StopKind {
@@ -478,13 +634,15 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/thread.rs` — 219 lines
+## `src/storage/sqlite/thread.rs` — 289 lines
 
 ```rust
 impl Storage {
     pub async fn create_planning_thread(&self, ctx: &CommandContext, project_id: &ProjectId, title: &str) -> Result<PlanningThread, StorageError>
     pub async fn append_thread_entry(&self, thread_id: &ThreadId, entry: NewThreadEntry<'_>) -> Result<ThreadEntry, StorageError>
     pub async fn list_thread_entries(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>
+    pub async fn turn_context(&self, thread_id: &ThreadId) -> Result<TurnContext, StorageError>
+    pub async fn record_harness_session(&self, thread_id: &ThreadId, session_id: &str) -> Result<bool, StorageError>
     pub async fn list_threads_for_project(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>
 }
 ```
@@ -511,7 +669,7 @@ impl Transition {
 pub(super) async fn record(conn: &mut SqliteConnection, op_id: &OperationId, before: Before, to: &str, event: DurableEvent, ts: &str) -> Result<Transition, StorageError>
 ```
 
-## `src/thread/mod.rs` — 69 lines
+## `src/thread/mod.rs` — 84 lines
 
 ```rust
 pub struct ThreadId(String);
@@ -536,6 +694,10 @@ pub struct PlanningThread {
     pub title: String,
     pub status: String,
     pub created_at: String,
+}
+pub struct TurnContext {
+    pub project_directory: Option<PathBuf>,
+    pub harness_session_id: Option<String>,
 }
 pub struct ThreadEntry {
     pub id: ThreadEntryId,

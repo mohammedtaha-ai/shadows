@@ -30,6 +30,119 @@ fn is_alive(pid: u32) -> bool {
     !matches!(rest.1.chars().next(), Some('Z') | None)
 }
 
+/// Spawns `tree_probe --spawn-grandchild` as a managed tree and answers its
+/// handle with the leader's and the grandchild's pids, both confirmed alive.
+async fn spawn_probe_tree() -> (shadows::process::ProcessHandle, u32, u32) {
+    let mut handle = spawn(ProcessSpec {
+        executable: env!("CARGO_BIN_EXE_tree_probe").into(),
+        args: vec!["--spawn-grandchild".into()],
+        cwd: std::env::temp_dir(),
+        env: Vec::new(),
+        capture_stdout: true,
+    })
+    .expect("spawn should succeed");
+    let mut lines = handle.take_stdout_lines().expect("stdout was captured");
+    let first = tokio::time::timeout(Duration::from_secs(10), lines.next_line())
+        .await
+        .expect("probe should report within 10s")
+        .unwrap()
+        .expect("probe should print a line");
+    let grandchild: u32 = first
+        .trim()
+        .strip_prefix("grandchild=")
+        .expect("probe prints grandchild=<pid>")
+        .parse()
+        .unwrap();
+    let child = handle.id().expect("child has a pid");
+    assert!(
+        is_alive(child) && is_alive(grandchild),
+        "the tree must start alive"
+    );
+    (handle, child, grandchild)
+}
+
+/// Waits, bounded, for every pid to be gone; panics naming the survivors.
+async fn wait_until_gone(pids: &[u32], what: &str) {
+    for _ in 0..50 {
+        if pids.iter().all(|pid| !is_alive(*pid)) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    let alive: Vec<u32> = pids.iter().copied().filter(|pid| is_alive(*pid)).collect();
+    panic!("{what} survived termination: {alive:?}");
+}
+
+/// A process this test started outside any managed tree, killed when the test
+/// ends however it ends — a failing assertion must not leave it sleeping.
+struct Bystander(std::process::Child);
+
+impl Drop for Bystander {
+    fn drop(&mut self) {
+        // Best effort by nature: this runs during a panic too, where there is
+        // no one left to report a failed cleanup to.
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+/// Stop must kill only what its turn started. The user runs Claude desktop and
+/// other Claude Code sessions on the same machine as Shadows, and those are
+/// processes with the same executable name as a turn's harness. Termination
+/// goes through the containment handle (§1.5, §8.3), so a process outside the
+/// managed tree is out of its reach — even one running the very same binary,
+/// which is what this bystander is, so that a kill by name would find it.
+///
+/// On Unix the tree is a process session, and the bystander stays in this
+/// test's own session, so the same claim is measured there too.
+#[tokio::test]
+async fn terminating_a_managed_tree_leaves_a_process_outside_it_alive() {
+    let mut bystander = Bystander(
+        std::process::Command::new(env!("CARGO_BIN_EXE_tree_probe"))
+            .arg("--sleep")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("the bystander should start"),
+    );
+    let (mut managed, child, grandchild) = spawn_probe_tree().await;
+
+    managed
+        .terminate_tree()
+        .expect("termination should succeed");
+    wait_until_gone(&[child, grandchild], "the managed tree").await;
+
+    assert!(
+        bystander.0.try_wait().unwrap().is_none() && is_alive(bystander.0.id()),
+        "terminating a managed tree killed a process outside it"
+    );
+}
+
+/// Two turns in two projects are two managed trees. Stopping one must leave
+/// the other — leader and grandchild — running.
+#[tokio::test]
+async fn terminating_one_managed_tree_leaves_another_alive() {
+    let (mut stopped, stopped_child, stopped_grandchild) = spawn_probe_tree().await;
+    let (mut kept, kept_child, kept_grandchild) = spawn_probe_tree().await;
+
+    stopped
+        .terminate_tree()
+        .expect("termination should succeed");
+    wait_until_gone(&[stopped_child, stopped_grandchild], "the stopped tree").await;
+
+    assert!(!kept.has_exited(), "the other tree's leader was killed");
+    assert!(
+        is_alive(kept_child) && is_alive(kept_grandchild),
+        "the other tree was reached: leader alive={}, grandchild alive={}",
+        is_alive(kept_child),
+        is_alive(kept_grandchild)
+    );
+
+    kept.terminate_tree().expect("cleanup should succeed");
+    wait_until_gone(&[kept_child, kept_grandchild], "the kept tree").await;
+}
+
 /// Spec §1.5 and §3.7 Layer 4. A managed child and every managed descendant
 /// must not survive termination. A direct-child-only assertion is insufficient,
 /// so the probe builds a real grandchild and checks that one too.
@@ -193,4 +306,25 @@ async fn has_exited_answers_immediately_and_tells_the_two_states_apart() {
 
     running.terminate_tree().expect("cleanup should succeed");
     running.wait().await.expect("the killed child should reap");
+}
+
+/// A child's stderr is a pipe the daemon owns. Left unread it fills, the child
+/// blocks on its next write, and it never exits: a harness that warns at
+/// length would hang its turn forever. A megabyte of stderr must not stop a
+/// child from finishing.
+#[tokio::test]
+async fn a_child_that_floods_stderr_still_exits() {
+    let mut handle = spawn(ProcessSpec {
+        executable: env!("CARGO_BIN_EXE_tree_probe").into(),
+        args: vec!["--flood-stderr".into()],
+        cwd: std::env::temp_dir(),
+        env: Vec::new(),
+        capture_stdout: true,
+    })
+    .expect("spawn should succeed");
+    let status = tokio::time::timeout(Duration::from_secs(20), handle.wait())
+        .await
+        .expect("the child blocked on its stderr and never exited")
+        .unwrap();
+    assert!(status.success(), "{status}");
 }

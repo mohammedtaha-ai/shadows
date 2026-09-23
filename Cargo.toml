@@ -9,6 +9,9 @@ publish = false
 anyhow = "1"
 axum = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
+# `std::fs::canonicalize` answers `\\?\C:\...` on Windows: a path no person
+# typed and most tools refuse. `dunce` strips that prefix where it is safe to.
+dunce = "1"
 futures-core = "0.3"
 process-wrap = { version = "10", features = ["tokio1"] }
 serde = { version = "1", features = ["derive"] }
@@ -19,22 +22,32 @@ thiserror = "2"
 time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
-tower-http = { version = "0.6", features = ["trace"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1", features = ["v4", "serde"] }
+# Spec §1: the protocol is described, not copied. The OpenAPI document is
+# generated from the routes and their types; `utoipa-axum` 0.2 is the line
+# built for axum 0.8.
+utoipa = { version = "5", features = ["uuid"] }
+utoipa-axum = "0.2"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+# Test apparatus, not product (docs/codebase: `src/bin/`). Built only with
+# `test-support`, which `cargo test` enables through the self dev-dependency
+# below, so `cargo build --release` and `cargo install` never ship them.
 [[bin]]
 name = "tree_probe"
 path = "src/bin/tree_probe.rs"
+required-features = ["test-support"]
 
 [[bin]]
 name = "fake_claude"
 path = "src/bin/fake_claude.rs"
+required-features = ["test-support"]
 
 [features]
 # Compiles in `storage::test_support`, a hook onto an otherwise-private

@@ -141,6 +141,26 @@ const WINDOWS_ESSENTIAL_ENV: &[&str] = &[
     "APPDATA",
 ];
 
+/// A child's stderr is a pipe, and a pipe nobody reads fills: once its buffer
+/// is full the child blocks on its next write and never exits, so a harness
+/// that warns at length would hang its turn forever. It is read to its end
+/// here. Only each line's length is logged, at debug: spec §8.7 keeps a
+/// harness's own output out of the log by default, and nothing yet says which
+/// of its stderr is safe to keep.
+fn drain_stderr(stderr: tokio::process::ChildStderr) {
+    use tokio::io::AsyncBufReadExt;
+    use tracing::Instrument;
+    tokio::spawn(
+        async move {
+            let mut lines = BufReader::new(stderr).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                tracing::debug!(bytes = line.len(), "process.stderr");
+            }
+        }
+        .in_current_span(),
+    );
+}
+
 pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle> {
     let mut cmd = Command::new(&spec.executable);
     cmd.args(&spec.args)
@@ -200,6 +220,9 @@ pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle> {
         use tokio::io::AsyncBufReadExt;
         BufReader::new(out).lines()
     });
+    if let Some(stderr) = child.stderr().take() {
+        drain_stderr(stderr);
+    }
 
     Ok(ProcessHandle {
         child,

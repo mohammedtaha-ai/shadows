@@ -60,7 +60,7 @@ async fn state_and_event_commit_atomically_or_not_at_all() {
     let outcome = storage
         .write_txn(|conn| {
             Box::pin(async move {
-                sqlx::query("INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)")
+                sqlx::query("INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,'/d',?)")
                     .bind("p-1")
                     .bind("demo")
                     .bind("Demo")
@@ -120,7 +120,7 @@ async fn concurrent_read_then_write_transactions_all_succeed() {
                                 .fetch_one(&mut *conn)
                                 .await?;
                             sqlx::query(
-                                "INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)",
+                                "INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,'/d',?)",
                             )
                             .bind(&id)
                             .bind(&id)
@@ -164,7 +164,7 @@ async fn write_txn_recovers_after_a_panicking_transaction() {
             .write_txn(|conn| {
                 Box::pin(async move {
                     sqlx::query(
-                        "INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)",
+                        "INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,'/d',?)",
                     )
                     .bind("p-panic")
                     .bind("panic")
@@ -185,7 +185,7 @@ async fn write_txn_recovers_after_a_panicking_transaction() {
     storage
         .write_txn(|conn| {
             Box::pin(async move {
-                sqlx::query("INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)")
+                sqlx::query("INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,'/d',?)")
                     .bind("p-after")
                     .bind("after")
                     .bind("x")
@@ -253,8 +253,8 @@ async fn write_txn_waits_out_an_external_writer_holding_begin_immediate() {
     external.execute("BEGIN IMMEDIATE").await.unwrap();
     external
         .execute(
-            "INSERT INTO project (id, slug, name, created_at) \
-             VALUES ('p-ext','ext','x','2026-09-21T00:00:00Z')",
+            "INSERT INTO project (id, slug, name, directory, created_at) \
+             VALUES ('p-ext','ext','x','/d','2026-09-21T00:00:00Z')",
         )
         .await
         .unwrap();
@@ -281,7 +281,7 @@ async fn write_txn_waits_out_an_external_writer_holding_begin_immediate() {
                 // what guarantees the snapshot goes stale before the write
                 // is attempted.
                 tokio::time::sleep(Duration::from_millis(300)).await;
-                sqlx::query("INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)")
+                sqlx::query("INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,'/d',?)")
                     .bind("p-after-external")
                     .bind("after")
                     .bind("x")
@@ -317,7 +317,7 @@ async fn event_provenance_round_trips_through_append_event() {
     storage
         .write_txn(|conn| {
             Box::pin(async move {
-                sqlx::query("INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)")
+                sqlx::query("INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,'/d',?)")
                     .bind("p-1")
                     .bind("demo")
                     .bind("Demo")

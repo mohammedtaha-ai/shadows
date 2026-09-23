@@ -1,33 +1,22 @@
+//! One job: an operation's state transitions, each written with its journal
+//! event. Reading operations back is `operation_read.rs`.
+
 use crate::events::{Actor, DurableEvent};
-use crate::operation::{FailureStage, Operation, OperationId};
+use crate::operation::{FailureStage, OperationId};
 use crate::runtime::RuntimeInstanceId;
 use crate::thread::ThreadId;
 
 use super::transition::{Before, existed, read_before, record};
 use super::{Storage, StorageError, now};
 
-/// The thirteen `operation` columns `get_operation` reads back, in select
-/// order. A row alias, not a domain type: `get_operation` maps it into
-/// `Operation` immediately below.
-type OperationRow = (
-    String,
-    String,
-    String,
-    Option<String>,
-    String,
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    String,
-    Option<String>,
-    Option<String>,
-);
-
 impl Storage {
     /// TX #1 of the two-phase spawn. Spec §2.7: Pending is persisted before
     /// anything is spawned, so a crash between here and spawn is recoverable.
+    ///
+    /// Refused with `TransitionConflict` once the owning runtime's stop is
+    /// recorded (§8.5): a stopped runtime accepts no work, and an operation
+    /// born after a `Graceful` stop would make that record a lie after the
+    /// fact. `stop_runtime_instance` guards the other side of the same line.
     pub async fn create_pending_operation(
         &self,
         thread_id: &ThreadId,
@@ -43,17 +32,26 @@ impl Storage {
         let transition = self
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    sqlx::query(
+                    let affected = sqlx::query(
                         "INSERT INTO operation
                            (id, kind, status_kind, thread_id, runtime_instance_id, created_at)
-                         VALUES (?, 'PlannerTurn', 'Pending', ?, ?, ?)",
+                         SELECT ?, 'PlannerTurn', 'Pending', ?, r.id, ?
+                           FROM runtime_instance r
+                          WHERE r.id = ? AND r.stopped_at IS NULL",
                     )
                     .bind(op_id.as_str())
                     .bind(thread_id.as_str())
-                    .bind(runtime_id.as_str())
                     .bind(&ts)
+                    .bind(runtime_id.as_str())
                     .execute(&mut *conn)
-                    .await?;
+                    .await?
+                    .rows_affected();
+                    if affected == 0 {
+                        return Err(StorageError::TransitionConflict {
+                            expected: "a runtime that has not stopped".into(),
+                            found: "a stopped or unknown runtime".into(),
+                        });
+                    }
 
                     record(
                         conn,
@@ -232,12 +230,14 @@ impl Storage {
                     .execute(&mut *conn)
                     .await?
                     .rows_affected();
+                    // Asked first: an operation that does not exist is not one
+                    // whose cancellation was already requested.
+                    let before = existed(before)?;
                     if affected == 0 {
                         // Already requested, or already terminal. Spec §2.3: a
                         // repeat is idempotent and runs no process effects.
                         return Ok(None);
                     }
-                    let before = existed(before)?;
                     // A request leaves the status where it was (spec §2.3).
                     let status = before.status().to_string();
                     record(
@@ -296,33 +296,5 @@ impl Storage {
         .await?
         .log();
         Ok(())
-    }
-
-    pub async fn get_operation(&self, op_id: &OperationId) -> Result<Operation, StorageError> {
-        let r: OperationRow = sqlx::query_as(
-            "SELECT id, kind, status_kind, thread_id, runtime_instance_id, outcome_json,
-                    failure_stage, failure_reason, interrupt_reason, cancel_requested_at,
-                    created_at, started_at, finished_at
-               FROM operation WHERE id = ?",
-        )
-        .bind(op_id.as_str())
-        .fetch_optional(self.reader())
-        .await?
-        .ok_or(StorageError::NotFound("operation"))?;
-        Ok(Operation {
-            id: OperationId::from_stored(r.0),
-            kind: r.1,
-            status_kind: r.2,
-            thread_id: r.3,
-            runtime_instance_id: RuntimeInstanceId::from_stored(r.4),
-            outcome_json: r.5,
-            failure_stage: r.6,
-            failure_reason: r.7,
-            interrupt_reason: r.8,
-            cancel_requested_at: r.9,
-            created_at: r.10,
-            started_at: r.11,
-            finished_at: r.12,
-        })
     }
 }

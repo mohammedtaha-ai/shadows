@@ -14,19 +14,31 @@ fn main() {
         return;
     }
 
+    // Far more than any pipe buffer holds, then a clean exit: a child whose
+    // stderr nobody reads blocks on it here and never exits.
+    if args.iter().any(|a| a == "--flood-stderr") {
+        let line = "x".repeat(1023);
+        let mut stderr = std::io::stderr().lock();
+        for _ in 0..1024 {
+            use std::io::Write;
+            writeln!(stderr, "{line}").expect("stderr write");
+        }
+        return;
+    }
+
     let spawn_grandchild = args.iter().any(|a| a == "--spawn-grandchild");
     let exit_after_spawn = args.iter().any(|a| a == "--spawn-grandchild-and-exit");
     if spawn_grandchild || exit_after_spawn {
         let me = std::env::current_exe().expect("current exe");
         // The grandchild sleeps 600s; the containment test kills the whole
-        // tree through the Job Object. Calling `.wait()` here would deadlock
-        // the probe and defeat the test, so the lint is explicitly allowed.
-        #[allow(clippy::zombie_processes)]
+        // tree through the Job Object. It is never waited on — that would
+        // deadlock the probe and defeat the test — so only its pid is kept.
         let grandchild = std::process::Command::new(me)
             .arg("--sleep")
             .spawn()
-            .expect("grandchild should spawn");
-        println!("grandchild={}", grandchild.id());
+            .expect("grandchild should spawn")
+            .id();
+        println!("grandchild={grandchild}");
         use std::io::Write;
         std::io::stdout().flush().unwrap();
         if exit_after_spawn {

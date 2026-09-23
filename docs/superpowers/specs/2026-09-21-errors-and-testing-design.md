@@ -98,6 +98,9 @@ AgentRateLimited
 
 ProcessSpawnFailed
 ProcessTerminated
+ProcessTerminationFailed  -- Stop could not terminate the tree; nothing was Cancelled (§8.4 case 6)
+
+RuntimeStopping      -- the daemon has begun to stop and accepts no new work (§8.5)
 
 StorageUnavailable
 StorageMigrationFailed
@@ -108,7 +111,20 @@ IdempotencyKeyRequired
 
 InvalidCommand
 InvalidCursor
+
+PathInvalid          -- not absolute, not UTF-8, or not a single valid name
+PathNotFound
+PathNotADirectory
+PathAccessDenied
+PathAlreadyExists
+PathUnavailable      -- any other I/O failure reading the disk
+
+OriginRefused        -- a browser sent this for a page that is not a client (§1); 403
 ```
+
+The `Path*` codes answer the daemon's disk routes (§1) and a project's
+directory (§4.2). They are refusals of a request, so each maps to a 4xx except
+`PathUnavailable`, which is the daemon failing to read its own disk.
 
 `Blocked`/`Rejected` outcome kinds do **not** appear in the error-code registry.
 

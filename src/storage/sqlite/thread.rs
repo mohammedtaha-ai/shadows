@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use sqlx::SqliteConnection;
 
 use super::project::{classify, record_command};
@@ -5,7 +7,9 @@ use super::{Storage, StorageError, events::append_event, now};
 use crate::command::CommandContext;
 use crate::events::{Actor, DurableEvent};
 use crate::project::ProjectId;
-use crate::thread::{NewThreadEntry, PlanningThread, ThreadEntry, ThreadEntryId, ThreadId};
+use crate::thread::{
+    NewThreadEntry, PlanningThread, ThreadEntry, ThreadEntryId, ThreadId, TurnContext,
+};
 
 impl Storage {
     pub async fn create_planning_thread(
@@ -21,6 +25,17 @@ impl Storage {
                 let scope_key = project_id.as_str().to_string();
                 if let Some(id) = classify(conn, &ctx, "Project", &scope_key).await? {
                     return load_thread(conn, &ThreadId::from_stored(id)).await;
+                }
+                // `NotFound`, not the foreign key's constraint failure: a
+                // thread asked for under a project that does not exist names
+                // something missing, not a conflict with what is stored.
+                let project: Option<String> =
+                    sqlx::query_scalar("SELECT id FROM project WHERE id = ?")
+                        .bind(project_id.as_str())
+                        .fetch_optional(&mut *conn)
+                        .await?;
+                if project.is_none() {
+                    return Err(StorageError::NotFound("project"));
                 }
                 let id = ThreadId::generate();
                 sqlx::query(
@@ -174,13 +189,68 @@ impl Storage {
             .collect()
     }
 
+    /// `NotFound` when the thread does not exist, so a turn on an unknown
+    /// thread is refused before an operation is created for it.
+    pub async fn turn_context(&self, thread_id: &ThreadId) -> Result<TurnContext, StorageError> {
+        let (directory, session): (Option<String>, Option<String>) = sqlx::query_as(
+            "SELECT p.directory, t.harness_session_id
+               FROM planning_thread t JOIN project p ON p.id = t.project_id
+              WHERE t.id = ?",
+        )
+        .bind(thread_id.as_str())
+        .fetch_optional(self.reader())
+        .await?
+        .ok_or(StorageError::NotFound("planning_thread"))?;
+        Ok(TurnContext {
+            project_directory: directory.map(PathBuf::from),
+            harness_session_id: session,
+        })
+    }
+
+    /// Records the harness session this thread's later turns resume. Written
+    /// once: when two first turns race, the first to reach its turn-end wins
+    /// and the other's session is left unrecorded rather than replacing a
+    /// session a later turn may already have resumed. Returns whether it was
+    /// recorded.
+    ///
+    /// Internal write, like `append_thread_entry`: no CommandRecord, and no
+    /// journal event — a harness session id is the harness's continuity, not
+    /// something a client renders or replays.
+    pub async fn record_harness_session(
+        &self,
+        thread_id: &ThreadId,
+        session_id: &str,
+    ) -> Result<bool, StorageError> {
+        let (thread_id, session_id) = (thread_id.clone(), session_id.to_string());
+        self.write_txn(move |conn| {
+            Box::pin(async move {
+                let done = sqlx::query(
+                    "UPDATE planning_thread SET harness_session_id = ?
+                      WHERE id = ? AND harness_session_id IS NULL",
+                )
+                .bind(&session_id)
+                .bind(thread_id.as_str())
+                .execute(&mut *conn)
+                .await?;
+                Ok(done.rows_affected() == 1)
+            })
+        })
+        .await
+    }
+
     pub async fn list_threads_for_project(
         &self,
         project_id: &ProjectId,
     ) -> Result<Vec<PlanningThread>, StorageError> {
+        // Oldest first, by the `PlanningThreadCreated` event's sequence, for
+        // the reason `list_projects` gives.
         let rows: Vec<(String, String, String, String, String)> = sqlx::query_as(
-            "SELECT id, project_id, title, status, created_at
-               FROM planning_thread WHERE project_id = ? ORDER BY created_at, id",
+            "SELECT t.id, t.project_id, t.title, t.status, t.created_at
+               FROM planning_thread t
+               LEFT JOIN durable_event e
+                 ON e.thread_id = t.id AND e.kind = 'PlanningThreadCreated'
+              WHERE t.project_id = ?
+              ORDER BY e.seq, t.id",
         )
         .bind(project_id.as_str())
         .fetch_all(self.reader())

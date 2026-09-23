@@ -32,12 +32,15 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/operation/` | the operation lifecycle's shape | `src/operation/mod.rs` |
 | `src/planner/` | the Planner turn's spawn-through-termination lifecycle | `src/planner/mod.rs` |
 | `src/process/` | OS process ownership with whole-tree containment | `src/process/mod.rs` |
-| `src/project/` | project identity | `src/project/mod.rs` |
-| `src/protocol/` | the HTTP/SSE surface the browser client talks to | `src/protocol/handlers.rs` |
+| `src/project/` | the project: its identity, the directory it owns | `src/project/mod.rs` |
+| `src/protocol/` | the HTTP/SSE surface every client talks to | `src/protocol/project.rs` |
 | `src/runtime/` | the runtime instance's lifecycle | `src/runtime/mod.rs` |
 | `src/storage/` | persistence | `src/storage/sqlite/project.rs` |
 | `src/thread/` | the planning thread's shape | `src/thread/mod.rs` |
 | `src/tracing.rs` | tracing subscriber setup | `src/tracing.rs` |
+
+The Web client in `web/` is a separate program outside this crate and this map;
+[`web/README.md`](../../web/README.md) describes it.
 
 A module absent from this table is a module that does not exist yet. The fifteen
 planned modules are listed in [`CLAUDE.md`](../../CLAUDE.md); this table is not a

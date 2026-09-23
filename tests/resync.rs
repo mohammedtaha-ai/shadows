@@ -40,7 +40,11 @@ async fn seed(storage: &Storage) -> (Project, PlanningThread) {
         command_schema_ver: 1,
         request_fingerprint: fingerprint("project.create", &params),
     };
-    let project = storage.create_project(&ctx, "demo", "Demo").await.unwrap();
+    let dir = shadows::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
+    let project = storage
+        .create_project(&ctx, "demo", "Demo", &dir)
+        .await
+        .unwrap();
     let tctx = CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
@@ -336,7 +340,7 @@ impl Live {
                 "test".into(),
             )),
             bus: bus.clone(),
-            project_root: tmp.path().to_path_buf(),
+            allowed_origins: Vec::new(),
             shutdown,
         };
         Live {

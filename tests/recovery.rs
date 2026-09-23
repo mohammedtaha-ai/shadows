@@ -108,6 +108,10 @@ async fn an_escalated_shutdowns_operations_are_not_stranded() {
 /// Spec §8.5: `Graceful` is a claim only written when true. §8.6: finding one
 /// that owns a non-terminal Operation is a defect, reconciled and reported,
 /// never stranded and never passed over silently.
+///
+/// Storage refuses to write that row (the next test), so the defect is seeded
+/// in raw SQL — which is the point: recovery must still report a row it could
+/// only meet through a bug, an older build, or a hand-edited file.
 #[tokio::test]
 async fn a_graceful_runtime_owning_unfinished_work_is_reported_as_an_anomaly() {
     let tmp = tempfile::tempdir().unwrap();
@@ -118,8 +122,20 @@ async fn a_graceful_runtime_owning_unfinished_work_is_reported_as_an_anomaly() {
         .await
         .unwrap();
     seed_operation(&storage, "op-leaked", &old, "Running").await;
+    let old_id = old.as_str().to_string();
     storage
-        .stop_runtime_instance(&old, StopKind::Graceful)
+        .write_txn(move |conn| {
+            Box::pin(async move {
+                sqlx::query(
+                    "UPDATE runtime_instance SET stopped_at = '2026-09-21T00:00:01Z',
+                            stop_kind = 'Graceful' WHERE id = ?",
+                )
+                .bind(&old_id)
+                .execute(&mut *conn)
+                .await?;
+                Ok(())
+            })
+        })
         .await
         .unwrap();
 
@@ -135,6 +151,47 @@ async fn a_graceful_runtime_owning_unfinished_work_is_reported_as_an_anomaly() {
     );
     let anomalies: Vec<&str> = report.anomalies.iter().map(|i| i.as_str()).collect();
     assert_eq!(anomalies, vec!["op-leaked"]);
+}
+
+/// Spec §8.5, enforced where the claim is written: storage refuses `Graceful`
+/// for a runtime that owns a non-terminal operation, writes nothing, and still
+/// accepts `Escalated`, which claims nothing. Another runtime's unfinished work
+/// is not this runtime's to answer for, and does not block its `Graceful`.
+#[tokio::test]
+async fn graceful_is_refused_while_the_runtime_owns_unfinished_work() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+
+    let busy = storage.register_runtime_instance("0.1.0").await.unwrap();
+    let idle = storage.register_runtime_instance("0.1.0").await.unwrap();
+    seed_operation(&storage, "op-running", &busy, "Running").await;
+
+    let refused = storage
+        .stop_runtime_instance(&busy, StopKind::Graceful)
+        .await;
+    assert!(
+        matches!(
+            refused,
+            Err(shadows::storage::StorageError::TransitionConflict { .. })
+        ),
+        "Graceful over a Running operation must be refused, got {refused:?}"
+    );
+    let stopped: Option<String> =
+        sqlx::query_scalar("SELECT stopped_at FROM runtime_instance WHERE id = ?")
+            .bind(busy.as_str())
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(stopped, None, "a refused stop writes nothing");
+
+    storage
+        .stop_runtime_instance(&busy, StopKind::Escalated)
+        .await
+        .expect("Escalated claims nothing and is never refused for unfinished work");
+    storage
+        .stop_runtime_instance(&idle, StopKind::Graceful)
+        .await
+        .expect("`idle` owns no unfinished work; `busy`'s Running row is not its own");
 }
 
 /// The current runtime's own live work is never reconciled out from under it.

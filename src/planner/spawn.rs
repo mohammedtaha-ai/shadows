@@ -21,26 +21,42 @@ use tracing::Instrument;
 use super::{LiveHandles, LiveTurn, PlannerTurn, TurnWatch, watch_turn};
 use crate::agent::claude::ClaudeHarness;
 use crate::agent::{AgentHarness, AgentInvocation, StreamItem};
+use crate::events::Actor;
 use crate::operation::{FailureStage, OperationId};
 use crate::process::spawn;
 use crate::runtime::Runtime;
 use crate::storage::StorageError;
-use crate::thread::ThreadId;
+use crate::thread::{ThreadId, TurnContext};
+
+/// Why a turn was not started. A turn that starts and then fails is not one
+/// of these: it is an operation, and its failure is durable (`Prepare`,
+/// `Spawn`, `Run`).
+#[derive(Debug, thiserror::Error)]
+pub enum StartError {
+    /// Spec §8.5: once the runtime has begun to stop, it accepts no new work.
+    /// Refused rather than queued — there is no later for this runtime.
+    #[error("the runtime is stopping and accepts no new turns")]
+    RuntimeStopping,
+    #[error(transparent)]
+    Storage(#[from] StorageError),
+}
 
 /// What a caller asks for, bundled rather than passed positionally.
 /// `PlannerTurn::start` otherwise takes eight parameters, which is both a
 /// clippy lint (`too_many_arguments`, refused here rather than suppressed —
 /// see CLAUDE.md) and the exact shape of mistake this project's
-/// `NewThreadEntry` precedent exists to close: same-typed neighbours
-/// (`thread_id`, `prompt`, `resume_session_id` are all string-ish) that the
+/// `NewThreadEntry` precedent exists to close: same-typed neighbours that the
 /// compiler cannot tell apart at a positional call site.
+///
+/// There is no working directory and no session here, on purpose: a turn runs
+/// in its thread's project directory and continues its thread's harness
+/// session, both read from durable state ([`TurnContext`]). A caller that could
+/// name the directory could run a turn anywhere on the disk; one that had to
+/// name the session would have to have been told it.
 #[derive(Debug, Clone)]
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
     pub prompt: String,
-    pub cwd: PathBuf,
-    /// Present on a resumed turn. Continuity belongs to the harness, not to us.
-    pub resume_session_id: Option<String>,
 }
 
 impl PlannerTurn {
@@ -53,33 +69,75 @@ impl PlannerTurn {
         harness: Arc<ClaudeHarness>,
         request: PlannerTurnRequest,
         bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
-    ) -> Result<OperationId, StorageError> {
-        let PlannerTurnRequest {
-            thread_id,
-            prompt,
-            cwd,
-            resume_session_id,
-        } = request;
+    ) -> Result<OperationId, StartError> {
+        let PlannerTurnRequest { thread_id, prompt } = request;
 
-        // TX #1: the durable attempt exists before anything spawns.
-        let op_id = runtime
+        // Spec §8.5. Asked first so that a refused turn leaves nothing durable
+        // behind. The answer can go stale before TX #1; the two later checks —
+        // storage refusing a Pending row for a stopped runtime, and `register`
+        // refusing under the registry's lock — are what make it hold.
+        if handles.is_closed().await {
+            return Err(StartError::RuntimeStopping);
+        }
+
+        // Read before TX #1, so a turn on a thread that does not exist is
+        // refused with nothing created for it.
+        let context = runtime.storage.turn_context(&thread_id).await?;
+
+        // TX #1: the durable attempt exists before anything spawns. Storage
+        // refuses it once this runtime's stop is recorded, so no operation
+        // can be born owned by a runtime that already claimed `Graceful`.
+        let op_id = match runtime
             .storage
             .create_pending_operation(&thread_id, &runtime.instance_id)
-            .await?;
+            .await
+        {
+            Ok(op_id) => op_id,
+            Err(_) if handles.is_closed().await => return Err(StartError::RuntimeStopping),
+            Err(error) => return Err(error.into()),
+        };
         // Spec §8.7's correlation fields, carried by every line this turn logs
         // — here, in the watcher, in `stop`, and in `process/` beneath them.
-        let span =
-            tracing::info_span!("planner.turn", operation_id = %op_id, thread_id = %thread_id);
+        //
+        // A root span, not a child of whatever is current. The caller is
+        // usually an HTTP request whose span ends at its 202, while this turn
+        // runs on for minutes: as a child, every line of it would name a
+        // request that was over.
+        let span = tracing::info_span!(
+            parent: None,
+            "planner.turn",
+            operation_id = %op_id,
+            thread_id = %thread_id
+        );
 
+        let cwd = match workspace(&context) {
+            Ok(dir) => dir,
+            Err(reason) => {
+                runtime
+                    .storage
+                    .mark_operation_failed(&op_id, FailureStage::Prepare, &reason)
+                    .await?;
+                return Ok(op_id);
+            }
+        };
+
+        // Evidence Finding 3: `--session-id` on a thread's first turn,
+        // `--resume` with that same id on every turn after. A thread with no
+        // recorded session starts a fresh one; the watcher records it once the
+        // harness has reached its turn-end, and not before — see `TurnWatch`.
         let invocation = AgentInvocation {
             operation_id: op_id.clone(),
             role: "Planner".into(),
             model: "sonnet".into(),
             prompt,
             cwd,
-            resume_session_id,
+            resume_session_id: context.harness_session_id,
             session_id: uuid::Uuid::new_v4().to_string(),
         };
+        let new_session = invocation
+            .resume_session_id
+            .is_none()
+            .then(|| invocation.session_id.clone());
 
         // Prepare: resolve, build the environment, ready the workspace. A
         // failure here is not a spawn failure — no process ever existed.
@@ -122,9 +180,8 @@ impl PlannerTurn {
         // produce — `stop` would have nothing to terminate.
         let lines = handle.take_stdout_lines();
         let turn_end_seen = Arc::new(AtomicBool::new(false));
-        {
-            let mut map = handles.0.lock().await;
-            map.insert(
+        let registered = handles
+            .register(
                 op_id.clone(),
                 LiveTurn {
                     handle,
@@ -132,7 +189,11 @@ impl PlannerTurn {
                     terminated_by_stop: false,
                     span: span.clone(),
                 },
-            );
+            )
+            .await;
+        if let Err(turn) = registered {
+            refuse_spawned(&runtime, &op_id, *turn).await?;
+            return Err(StartError::RuntimeStopping);
         }
 
         // TX #2. The child is already running, and the only thing that can
@@ -146,12 +207,12 @@ impl PlannerTurn {
             .mark_operation_started(&op_id, &runtime.instance_id)
             .await
         {
-            let orphan = handles.0.lock().await.remove(&op_id);
+            let orphan = handles.claim(&op_id).await;
             if let Some(mut turn) = orphan {
                 let _ = span.in_scope(|| turn.handle.terminate_tree());
                 let _ = turn.handle.wait().instrument(span).await;
             }
-            return Err(error);
+            return Err(error.into());
         }
 
         watch_turn(
@@ -162,6 +223,7 @@ impl PlannerTurn {
                 harness,
                 thread_id,
                 agent_role: invocation.role,
+                new_session,
                 turn_end_seen,
                 span,
             },
@@ -171,4 +233,52 @@ impl PlannerTurn {
 
         Ok(op_id)
     }
+}
+
+/// Spec §8.4 case 2, reached when shutdown began while this turn was spawning:
+/// the tree exists, the registry refused it, and `Running` must never be
+/// committed. Terminate and reap it, then write `Cancelled` — and only then,
+/// because `Cancelled` claims confirmed termination (§2.3). If termination
+/// fails the operation is left `Pending` for shutdown to find unconfirmed;
+/// the handle is dropped here, and its kill-on-drop is the last thing that
+/// can still reach the tree.
+async fn refuse_spawned(
+    runtime: &Runtime,
+    op_id: &OperationId,
+    mut turn: LiveTurn,
+) -> Result<(), StorageError> {
+    let span = turn.span.clone();
+    tracing::info!(parent: &span, "planner.start: refused, the runtime is stopping");
+    runtime
+        .storage
+        .request_cancellation(op_id, Actor::system())
+        .await?;
+    if span.in_scope(|| turn.handle.terminate_tree()).is_err() {
+        return Ok(());
+    }
+    let _ = turn.handle.wait().instrument(span).await;
+    runtime.storage.mark_operation_cancelled(op_id).await
+}
+
+/// Prepare's workspace step (spec §8.3). Milestone 0 has one workspace mode —
+/// the project directory, read in place — so readying it means checking that
+/// the project has one and that it is still a directory. It was checked when
+/// the project was created, and can have been deleted or moved since.
+///
+/// `Err` is the operation's failure reason. There is no fallback to the
+/// daemon's own working directory: a turn that ran somewhere nobody chose
+/// would look like success.
+fn workspace(context: &TurnContext) -> Result<PathBuf, String> {
+    let Some(dir) = &context.project_directory else {
+        return Err(
+            "the project has no directory: it was created before projects owned one".into(),
+        );
+    };
+    if !dir.is_dir() {
+        return Err(format!(
+            "the project directory is missing or no longer a directory: {}",
+            dir.display()
+        ));
+    }
+    Ok(dir.clone())
 }

@@ -1,27 +1,40 @@
 //! One job: wiring. What shared state a route may reach, which path reaches
-//! which handler, and how a failure becomes a status code.
+//! which handler, and which origins may call at all.
 //!
 //! CLAUDE.md names `protocol/` an accretion point: every feature this project
-//! ever adds puts a route here. So the split is made on the way in — this file
-//! holds the wiring, `handlers.rs` holds what each route does, `sse.rs` holds
-//! the replay-then-live stream.
+//! ever adds puts a route here. So routes are split by domain, and this file
+//! only wires them: `project.rs` (projects and their threads),
+//! `conversation.rs` (entries, a thread's turns, starting and stopping one),
+//! `sse.rs` (the replay-then-live stream), `fs.rs` (choosing a project directory),
+//! `openapi.rs` (the document describing all of it), `failure.rs` (the
+//! transport mapping), `guard.rs` (refusing requests pages were made to send).
+//! A new feature adds a file or a route to one of them.
 //!
 //! This module is also the sole owner of HTTP and SSE types (CLAUDE.md). None
 //! of them appear in a domain or application signature; a handler is where
 //! `axum` stops.
 
-mod handlers;
+mod conversation;
+mod failure;
+mod fs;
+mod guard;
+mod openapi;
+mod project;
 pub mod sse;
+
+pub use failure::Failure;
+pub use openapi::document as openapi_document;
 
 use std::sync::Arc;
 use std::time::Duration;
 
+use axum::Router;
 use axum::body::Body;
-use axum::http::{Request, Response};
-use axum::response::Html;
-use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum::http::{HeaderValue, Method, Request, Response, header};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
+use utoipa_axum::router::OpenApiRouter;
+use utoipa_axum::routes;
 
 use crate::agent::StreamItem;
 use crate::agent::claude::ClaudeHarness;
@@ -38,7 +51,10 @@ pub struct AppState {
     pub handles: Arc<LiveHandles>,
     pub harness: Arc<ClaudeHarness>,
     pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
-    pub project_root: std::path::PathBuf,
+    /// Spec §1: the only origins a browser may call this daemon from. Every
+    /// client is cross-origin, because the daemon serves no page. Validated
+    /// by `config::allowed_origin` before it gets here.
+    pub allowed_origins: Vec<String>,
     /// Becomes `true` once the daemon is stopping. A live stream has no end of
     /// its own, and a graceful HTTP shutdown waits for every open response to
     /// finish — so without this, one open browser tab holds the daemon up
@@ -46,22 +62,26 @@ pub struct AppState {
     pub shutdown: tokio::sync::watch::Receiver<bool>,
 }
 
+/// Spec §1: the daemon serves no page — there is no `GET /`. A client is
+/// served from its own origin and reaches this API cross-origin.
 pub fn router(state: AppState) -> Router {
-    Router::new()
-        .route("/", get(index))
-        .route(
-            "/api/projects",
-            get(handlers::list_projects).post(handlers::create_project),
-        )
-        .route(
-            "/api/projects/{id}/threads",
-            get(handlers::list_threads).post(handlers::create_thread),
-        )
-        .route("/api/threads/{id}/entries", get(handlers::list_entries))
-        .route("/api/threads/{id}/turns", post(handlers::start_turn))
-        .route("/api/operations/{id}/stop", post(handlers::stop_turn))
-        .route("/api/subscribe", get(sse::subscribe))
+    let cors = cors(&state.allowed_origins);
+    let guard = axum::middleware::from_fn_with_state(state.clone(), guard::refuse_foreign_pages);
+    let (routes, _document) = routes().split_for_parts();
+    routes
         .with_state(state)
+        // Innermost: an extractor's plain-text refusal becomes an `ErrorBody`
+        // before anything outside adds its headers to it.
+        .layer(axum::middleware::map_response(
+            failure::rejections_as_error_bodies,
+        ))
+        // Inside the CORS layer: a preflight is answered before it gets here,
+        // and a refusal sent to an allowed origin still carries the header
+        // that lets that client read why.
+        .layer(guard)
+        // Inside the trace layer, so a refused or answered preflight is
+        // logged like any other request.
+        .layer(cors)
         // One `http.response` line per request: method, path, status,
         // latency. The path is logged without its query string and no body
         // ever is — a body can hold a prompt; at debug the request's size is
@@ -89,6 +109,22 @@ pub fn router(state: AppState) -> Router {
         )
 }
 
+/// The route table, and with it the OpenAPI document's paths: a route exists
+/// here or not at all, so the document cannot list a route the router lacks
+/// or miss one it has. Each `routes!` groups the methods of one path.
+fn routes() -> OpenApiRouter<AppState> {
+    OpenApiRouter::with_openapi(openapi::base())
+        .routes(routes!(project::list_projects, project::create_project))
+        .routes(routes!(project::list_threads, project::create_thread))
+        .routes(routes!(conversation::list_entries))
+        .routes(routes!(conversation::list_operations))
+        .routes(routes!(conversation::start_turn))
+        .routes(routes!(conversation::stop_turn))
+        .routes(routes!(sse::subscribe))
+        .routes(routes!(fs::list_dirs, fs::create_dir))
+        .routes(routes!(openapi::serve))
+}
+
 fn content_length(headers: &axum::http::HeaderMap) -> Option<u64> {
     headers
         .get(axum::http::header::CONTENT_LENGTH)?
@@ -98,46 +134,23 @@ fn content_length(headers: &axum::http::HeaderMap) -> Option<u64> {
         .ok()
 }
 
-/// The whole web client. Spec §1.0: the daemon serves it and never opens it.
-async fn index() -> Html<&'static str> {
-    Html(include_str!("index.html"))
-}
-
-/// Transport mapping lives here and nowhere else. Spec §3.3: `Blocked` and
-/// `Rejected` are domain outcomes, not HTTP failures, and would be returned as
-/// 200 with the outcome — they are not reachable in Milestone 0.
-pub struct Failure(crate::storage::StorageError);
-
-impl From<crate::storage::StorageError> for Failure {
-    fn from(e: crate::storage::StorageError) -> Self {
-        Failure(e)
-    }
-}
-
-impl axum::response::IntoResponse for Failure {
-    fn into_response(self) -> axum::response::Response {
-        use crate::error::ErrorCode;
-        use crate::storage::StorageError as E;
-        let (status, code) = match &self.0 {
-            E::CommandConflict => (axum::http::StatusCode::CONFLICT, ErrorCode::CommandConflict),
-            E::NotFound(_) => (axum::http::StatusCode::NOT_FOUND, ErrorCode::InvalidCommand),
-            E::TransitionConflict { .. } => (
-                axum::http::StatusCode::CONFLICT,
-                ErrorCode::StorageConstraintViolation,
-            ),
-            _ => (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorCode::StorageUnavailable,
-            ),
-        };
-        if status.is_server_error() {
-            // Inside the request's `http` span, so the line names the route.
-            tracing::error!(error = %self.0, "http.failure");
-        }
-        (
-            status,
-            Json(serde_json::json!({ "code": code, "message": self.0.to_string() })),
-        )
-            .into_response()
-    }
+/// Cross-origin access for the configured origins only; any other origin's
+/// request gets no `Access-Control-Allow-Origin` and the browser withholds the
+/// response. The methods and headers are exactly what the routes use: `GET`
+/// and `POST`, JSON bodies, and `Last-Event-ID`, which a browser's
+/// `EventSource` sends when it reconnects a stream. No credentials: the API
+/// has none to send (spec §1's OPEN block on remote access).
+fn cors(origins: &[String]) -> CorsLayer {
+    let origins: Vec<HeaderValue> = origins
+        .iter()
+        .filter_map(|o| HeaderValue::from_str(o).ok())
+        .collect();
+    CorsLayer::new()
+        .allow_origin(AllowOrigin::list(origins))
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::HeaderName::from_static("last-event-id"),
+        ])
+        .max_age(Duration::from_secs(600))
 }

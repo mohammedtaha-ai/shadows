@@ -59,6 +59,12 @@ impl Storage {
         Ok(id)
     }
 
+    /// Records how a runtime stopped. Spec §8.5: `Graceful` is a claim that
+    /// every operation the runtime owns is terminal, so it is refused —
+    /// `TransitionConflict`, nothing written — while one is not. The check is
+    /// inside the same transaction as the write: with every writer serialized,
+    /// no operation can change between the two. `Escalated` claims nothing and
+    /// is never refused for this.
     pub async fn stop_runtime_instance(
         &self,
         id: &RuntimeInstanceId,
@@ -67,6 +73,21 @@ impl Storage {
         let (id, ts) = (id.as_str().to_string(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
+                if kind == StopKind::Graceful {
+                    let unfinished: i64 = sqlx::query_scalar(
+                        "SELECT COUNT(*) FROM operation
+                          WHERE runtime_instance_id = ? AND status_kind IN ('Pending','Running')",
+                    )
+                    .bind(&id)
+                    .fetch_one(&mut *conn)
+                    .await?;
+                    if unfinished > 0 {
+                        return Err(StorageError::TransitionConflict {
+                            expected: "every operation the runtime owns terminal".into(),
+                            found: format!("{unfinished} still Pending or Running"),
+                        });
+                    }
+                }
                 let affected = sqlx::query(
                     "UPDATE runtime_instance SET stopped_at = ?, stop_kind = ?
                      WHERE id = ? AND stopped_at IS NULL",

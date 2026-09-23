@@ -8,6 +8,7 @@ async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) 
     let tmp = tempfile::tempdir().unwrap();
     let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let runtime = storage.register_runtime_instance("test").await.unwrap();
+    let dir = shadows::project::ProjectDirectory::resolve(tmp.path()).unwrap();
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = shadows::command::CommandContext {
         principal_kind: "User".into(),
@@ -17,7 +18,10 @@ async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) 
         command_schema_ver: 1,
         request_fingerprint: shadows::command::fingerprint("project.create", &params),
     };
-    let project = storage.create_project(&ctx, "demo", "Demo").await.unwrap();
+    let project = storage
+        .create_project(&ctx, "demo", "Demo", &dir)
+        .await
+        .unwrap();
     let tctx = shadows::command::CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
@@ -234,6 +238,23 @@ async fn a_cancellation_request_does_not_make_an_operation_terminal() {
 
 /// Spec §2.3. Terminal Cancelled is written only after termination is
 /// confirmed, and it is what closes the operation.
+/// Spec §2.3 makes a repeated request idempotent; an operation that does not
+/// exist is not a repeat. Answering `Ok` for it let Stop report success for
+/// an id nobody had ever issued.
+#[tokio::test]
+async fn a_cancellation_request_for_an_unknown_operation_is_not_found() {
+    let (_tmp, storage, _runtime, _thread) = fixture().await;
+    let unknown =
+        shadows::operation::OperationId::from_literal("00000000-0000-4000-8000-000000000000");
+    let answer = storage
+        .request_cancellation(&unknown, Actor::user("local"))
+        .await;
+    assert!(
+        matches!(answer, Err(StorageError::NotFound(_))),
+        "{answer:?}"
+    );
+}
+
 #[tokio::test]
 async fn cancelled_is_written_after_confirmation_and_closes_the_operation() {
     let (_t, storage, runtime, thread) = fixture().await;

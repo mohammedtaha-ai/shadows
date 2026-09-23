@@ -70,10 +70,19 @@ struct Project {
     id: ProjectId,
     slug: ProjectSlug,
     name: String,
+    directory: Option<ProjectDirectory>,
     default_config_ref: Option<ConfigRef>,
     created_at: Timestamp,
 }
 ```
+
+`directory` is where the project's turns run (§8.3). It is chosen by the user,
+checked by the daemon when the project is created (absolute, exists, is a
+directory), and stored canonical — on Windows without the `\\?\` prefix — so two
+spellings of one folder are one directory. It is not the project's identity
+(§11.1). `None` only for a project created before projects owned a directory:
+none can be backfilled, so such a project's turns fail at Prepare rather than
+run in the daemon's working directory.
 
 ### PlanningThread
 
@@ -83,9 +92,20 @@ struct PlanningThread {
     project_id: ProjectId,
     title: String,
     status: PlanningThreadStatus, // Open | Closed
+    harness_session_id: Option<String>,
     created_at: Timestamp,
 }
 ```
+
+`harness_session_id` is the harness session the thread's turns continue
+(evidence `SERVE_STREAM_SPIKE.md` Finding 3: `--session-id` on the first turn,
+`--resume` with the same id after). The daemon chooses it and records it when a
+turn that started it reaches the harness's turn-end — not at spawn, because a
+turn that fails or is stopped earlier may leave no session, and a recorded id
+that `--resume` rejects would fail every later turn. Clients never supply or see
+it. The harness store is the source of truth for what the model remembers; the
+thread's entries are the source of truth for what the user sees (see
+*Continuity* below).
 
 ### ThreadEntry
 

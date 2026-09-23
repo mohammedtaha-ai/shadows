@@ -4047,262 +4047,34 @@ git commit -m "feat(protocol): durable replay with a no-gap handoff to live SSE"
 
 ---
 
-## Task 12: The web client
+## Task 12: The web client — replaced 2026-09-23, split into 12a, 12b, 12c
 
-**Files:**
-- Create: `src/protocol/index.html`
-- Test: `tests/web_client.rs`
+The single embedded page this task originally specified was withdrawn: the daemon
+does not serve or embed a client (spec §1, "The daemon does not serve or embed the
+client"). Its original text is in Git history. The screens were agreed from a
+mockup on 2026-09-23: two panes (projects with their folder and conversations on
+the left; the conversation on the right, streamed, with Stop), a new-project
+dialog that browses or creates a folder, near-black with a subtle dark purple.
 
-**Interfaces:**
-- Consumes: every route from Task 11.
-- Produces: nothing other tasks consume.
+### Task 12a: The daemon side of an independent client
+- A project owns a directory: created with a path the user picked or created;
+  every turn runs in it (today it runs in the daemon's cwd). New migration.
+- Filesystem routes for choosing it: list a directory's subdirectories, create one.
+- CORS from configured origins; `GET /` and `src/protocol/index.html` removed.
+- OpenAPI generated from the routes (`utoipa` + `utoipa-axum`), served and
+  written to a checked-in file a test keeps current, like the code map.
+- The planner's detached turn task stops inheriting the HTTP request span.
 
-**No framework, no bundler.** The serve/stream spike established that one embedded page covers this entire milestone; choosing a framework now would decide a question the milestone does not ask.
+### Task 12b: The client skeleton
+`web/`: React + TypeScript on Vite, TanStack Router and Query, shadcn/ui on
+Tailwind v4 with the theme as CSS variables, typed client generated from the
+OpenAPI file, the SSE hook (replay, live, dedupe by seq, reconnect with the last
+seq). One empty screen that proves the daemon is reachable. CI builds and
+type-checks `web/` before Rust.
 
-- [ ] **Step 1: Write the failing test**
-
-`tests/web_client.rs`:
-
-```rust
-/// The page is embedded in the binary, so there is no build step and no asset
-/// path to get wrong. This test is what catches an accidental external
-/// dependency being introduced later.
-#[test]
-fn the_client_is_self_contained() {
-    let html = include_str!("../src/protocol/index.html");
-    assert!(html.contains("<title>Shadows</title>"));
-    for id in ["projects", "threads", "entries", "live", "prompt", "start", "stop"] {
-        assert!(html.contains(&format!("id=\"{id}\"")), "missing #{id}");
-    }
-    assert!(
-        !html.contains("http://") && !html.contains("https://"),
-        "the client must not fetch anything external"
-    );
-    assert!(html.contains("EventSource"), "the client must subscribe over SSE");
-}
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cargo test --test web_client`
-Expected: FAIL — `src/protocol/index.html` does not exist.
-
-- [ ] **Step 3: Write `src/protocol/index.html`**
-
-```html
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Shadows</title>
-<style>
-  body { font: 14px/1.6 ui-monospace, Consolas, monospace; margin: 0; padding: 16px;
-         background: #101215; color: #d8dee9; }
-  h1 { font-size: 15px; margin: 0 0 12px; }
-  select, input, button, textarea {
-    font: inherit; background: #181b20; color: #d8dee9;
-    border: 1px solid #2b313a; border-radius: 4px; padding: 6px 8px; }
-  button { background: #2b6cb0; border: 0; cursor: pointer; }
-  button.secondary { background: #2b313a; }
-  button:disabled { opacity: .5; cursor: default; }
-  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  section { border: 1px solid #2b313a; border-radius: 4px; }
-  section > h2 { font-size: 12px; margin: 0; padding: 6px 10px; background: #181b20;
-                 border-bottom: 1px solid #2b313a; color: #8b97a8; }
-  .pane { padding: 10px; white-space: pre-wrap; word-break: break-word;
-          max-height: 52vh; overflow: auto; }
-  .entry { border-left: 2px solid #48a868; padding-left: 8px; margin-bottom: 8px; }
-  #status { margin-top: 10px; color: #8b97a8; }
-  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
-</style>
-</head>
-<body>
-<h1>Shadows — Planner</h1>
-
-<div class="row">
-  <select id="projects"></select>
-  <input id="newProject" placeholder="new project slug">
-  <button id="addProject" class="secondary">Add project</button>
-</div>
-
-<div class="row">
-  <select id="threads"></select>
-  <input id="newThread" placeholder="new thread title">
-  <button id="addThread" class="secondary">Add thread</button>
-</div>
-
-<div class="row">
-  <textarea id="prompt" rows="3" style="flex:1 1 420px"
-            placeholder="Ask the planner something"></textarea>
-</div>
-<div class="row">
-  <button id="start">Start turn</button>
-  <button id="stop" class="secondary" disabled>Stop</button>
-</div>
-
-<div class="cols">
-  <section>
-    <h2>Live — transient, never stored</h2>
-    <div class="pane" id="live"></div>
-  </section>
-  <section>
-    <h2>Durable — survives a restart</h2>
-    <div class="pane" id="entries"></div>
-  </section>
-</div>
-
-<div id="status">idle</div>
-
-<script>
-const $ = (id) => document.getElementById(id);
-let es = null, currentOp = null, lastSeq = 0;
-const uuid = () => crypto.randomUUID();
-
-async function api(method, url, body) {
-  const res = await fetch(url, {
-    method,
-    headers: body ? { "content-type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || res.statusText);
-  }
-  return res.status === 204 ? null : res.json();
-}
-
-async function loadProjects() {
-  const list = await api("GET", "/api/projects");
-  $("projects").innerHTML = list
-    .map((p) => `<option value="${p.id}">${p.slug}</option>`).join("");
-  if (list.length) await loadThreads();
-}
-
-async function loadThreads() {
-  const pid = $("projects").value;
-  if (!pid) return;
-  const list = await api("GET", `/api/projects/${pid}/threads`);
-  $("threads").innerHTML = list
-    .map((t) => `<option value="${t.id}">${t.title}</option>`).join("");
-  if (list.length) await openThread();
-}
-
-// Resume: replay the durable history, then hand off to live without a gap.
-async function openThread() {
-  const tid = $("threads").value;
-  if (!tid) return;
-  $("live").textContent = "";
-  $("entries").textContent = "";
-  lastSeq = 0;
-
-  const entries = await api("GET", `/api/threads/${tid}/entries`);
-  for (const e of entries) addEntry(`#${e.ordinal} ${e.author_kind}: ${e.body}`);
-
-  if (es) es.close();
-  es = new EventSource(`/api/subscribe?thread_id=${tid}&after=0`);
-
-  es.addEventListener("durable", (ev) => {
-    const d = JSON.parse(ev.data);
-    lastSeq = Math.max(lastSeq, d.seq);
-  });
-  es.addEventListener("caught-up", (ev) => {
-    lastSeq = Math.max(lastSeq, Number(ev.data));
-    $("status").textContent = `caught up at seq ${lastSeq}`;
-  });
-  es.addEventListener("delta", (ev) => {
-    $("live").textContent += JSON.parse(ev.data).text;
-  });
-  es.addEventListener("entry", (ev) => {
-    const d = JSON.parse(ev.data);
-    addEntry(`${d.role}: ${d.text}`);
-  });
-  es.addEventListener("turn-end", (ev) => {
-    const d = JSON.parse(ev.data);
-    $("status").textContent = `turn ended: ${d.subtype} / ${d.stop_reason}`;
-    setRunning(false);
-  });
-  es.addEventListener("meta", (ev) => {
-    const d = JSON.parse(ev.data);
-    if (d.label.startsWith("system/api_retry")) {
-      $("status").textContent = "harness is retrying upstream...";
-    }
-  });
-}
-
-function addEntry(text) {
-  const d = document.createElement("div");
-  d.className = "entry";
-  d.textContent = text;
-  $("entries").appendChild(d);
-  $("entries").scrollTop = $("entries").scrollHeight;
-}
-
-function setRunning(running) {
-  $("start").disabled = running;
-  $("stop").disabled = !running;
-}
-
-$("addProject").onclick = async () => {
-  const slug = $("newProject").value.trim();
-  if (!slug) return;
-  await api("POST", "/api/projects", { command_id: uuid(), slug, name: slug });
-  $("newProject").value = "";
-  await loadProjects();
-};
-
-$("addThread").onclick = async () => {
-  const title = $("newThread").value.trim();
-  if (!title) return;
-  await api("POST", `/api/projects/${$("projects").value}/threads`,
-            { command_id: uuid(), title });
-  $("newThread").value = "";
-  await loadThreads();
-};
-
-$("projects").onchange = loadThreads;
-$("threads").onchange = openThread;
-
-$("start").onclick = async () => {
-  const prompt = $("prompt").value.trim();
-  if (!prompt) return;
-  $("live").textContent = "";
-  setRunning(true);
-  $("status").textContent = "starting...";
-  const res = await api("POST", `/api/threads/${$("threads").value}/turns`, { prompt });
-  currentOp = res.operation_id;
-  $("status").textContent = `operation ${currentOp} accepted`;
-};
-
-// Stop goes through the real backend. The button going grey is not the proof;
-// the operation reaching Cancelled is.
-$("stop").onclick = async () => {
-  if (!currentOp) return;
-  $("status").textContent = "stopping...";
-  const op = await api("POST", `/api/operations/${currentOp}/stop`);
-  $("status").textContent = `operation ${op.id} is ${op.status_kind}`;
-  setRunning(false);
-};
-
-loadProjects().catch((e) => { $("status").textContent = e.message; });
-</script>
-</body>
-</html>
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `cargo test --test web_client`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/protocol/index.html tests/web_client.rs
-git commit -m "feat(protocol): embed the whole web client as one page"
-```
-
----
+### Task 12c: The two screens
+The agreed mockup, on 12b's skeleton, with Streamdown for replies and Motion for
+transitions.
 
 ## Task 13: The Windows acceptance run, and an honest Linux gap report
 

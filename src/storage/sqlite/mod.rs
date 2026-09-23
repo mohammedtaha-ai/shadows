@@ -10,6 +10,7 @@ use tokio::sync::{Mutex, watch};
 pub(super) mod events;
 mod events_read;
 mod operation;
+mod operation_read;
 mod project;
 mod runtime;
 mod thread;
@@ -43,7 +44,29 @@ pub enum StorageError {
     #[error("stored JSON is invalid: {0}")]
     Json(#[from] serde_json::Error),
     #[error(transparent)]
-    Database(#[from] sqlx::Error),
+    Database(sqlx::Error),
+}
+
+/// A write the schema refused — a second project with a slug already in use —
+/// is `Constraint`, which a client can act on; any other database failure is
+/// `Database`. Classified by the driver's kind, never by message text.
+impl From<sqlx::Error> for StorageError {
+    fn from(error: sqlx::Error) -> Self {
+        use sqlx::error::ErrorKind;
+        match error
+            .as_database_error()
+            .map(|db| (db.kind(), db.message()))
+        {
+            Some((
+                ErrorKind::UniqueViolation
+                | ErrorKind::ForeignKeyViolation
+                | ErrorKind::NotNullViolation
+                | ErrorKind::CheckViolation,
+                message,
+            )) => Self::Constraint(message.to_string()),
+            _ => Self::Database(error),
+        }
+    }
 }
 
 /// The write connection, plus whether it currently sits inside an open

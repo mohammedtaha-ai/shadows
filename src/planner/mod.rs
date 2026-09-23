@@ -3,6 +3,9 @@
 //! Starting one is the neighbouring file's job. `spawn.rs` turns a request
 //! into a registered, running operation and hands it here; everything after
 //! that — the stream, the ending, the cancellation interlock — is this file.
+//! The two other neighbours hold what the interlock reads and who else calls
+//! it: `handles.rs` is the registry of live turns, and `shutdown.rs` stops
+//! every one of them when the runtime stops (§8.5).
 //!
 //! `Cancelled` means Shadows confirmed the managed execution is no longer
 //! running AND persisted the terminal transition (spec §2.3) — never only
@@ -33,22 +36,26 @@
 //! already reported a result — leaves a harness that hangs after its result
 //! unstoppable, while `stop` returns success.
 
+mod handles;
+mod shutdown;
 mod spawn;
 
-pub use spawn::PlannerTurnRequest;
+pub use handles::LiveHandles;
+pub(crate) use handles::LiveTurn;
+pub use shutdown::shut_down;
+pub use spawn::{PlannerTurnRequest, StartError};
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use tokio::sync::{Mutex, broadcast};
+use tokio::sync::broadcast;
 use tracing::Instrument;
 
 use crate::agent::claude::ClaudeHarness;
 use crate::agent::{AgentHarness, StreamItem};
 use crate::events::Actor;
 use crate::operation::{FailureStage, OperationId};
-use crate::process::{ProcessHandle, StdoutLines};
+use crate::process::StdoutLines;
 use crate::runtime::Runtime;
 use crate::storage::StorageError;
 use crate::thread::{NewThreadEntry, ThreadId};
@@ -61,89 +68,35 @@ use crate::thread::{NewThreadEntry, ThreadId};
 /// failure subtype as a completed turn.
 const TURN_END_SUCCESS: &str = "success";
 
-/// One live turn's registration: the containment handle that owns its tree,
-/// and the two facts §8.4 needs to answer its two separate questions.
-///
-/// **They are separate questions and the code must not fuse them.** Whether
-/// there is a tree to terminate is `ProcessHandle::has_exited` and nothing
-/// else — §8.4 case 4's precondition is that the process *exited*, not that it
-/// said it was finishing. Whether this turn already produced its own ending is
-/// `turn_end_seen`. A harness can emit its result and then stay alive for a
-/// long time, which is case 3 ("terminate and reap the registered tree"), and
-/// reading `turn_end_seen` as "nothing to kill" makes such a harness
-/// unstoppable while `stop` reports success.
-pub(crate) struct LiveTurn {
-    handle: ProcessHandle,
-    /// Set by the reader the moment it classifies this turn's `TurnEnd`, which
-    /// is strictly before the process exits and before the reader competes for
-    /// the map. It decides who writes the outcome, never whether to terminate.
-    turn_end_seen: Arc<AtomicBool>,
-    /// Set by `stop` when it terminated this tree but left the outcome to the
-    /// reader (§8.4 case 3 over a turn that had already ended). It travels with
-    /// the registration rather than in an `Arc`, because only whoever holds the
-    /// registration reads it. Without it the reader would see the exit status
-    /// of a process *we* killed and record a `Run` failure for a turn that
-    /// reported success.
-    terminated_by_stop: bool,
-    /// The turn's `planner.turn` span, so `stop`'s lines carry its ids too.
-    span: tracing::Span,
-}
-
-/// Live handles for operations this runtime owns. Spec §8.3: termination goes
-/// through the containment handle that owns the tree, never through a PID read
-/// from the database, because the OS reuses PIDs.
-///
-/// The map is also the interlock's single arbitration point (§8.4): a turn's
-/// terminal transition may only be written by whoever holds its registration,
-/// and a side that cannot confirm what it is claiming puts the registration
-/// back rather than keeping it.
-///
-/// The inner map is `pub(crate)` so `cli::serve` can enumerate this runtime's
-/// live operations at shutdown.
-#[derive(Default)]
-pub struct LiveHandles(pub(crate) Mutex<HashMap<OperationId, LiveTurn>>);
-
-impl LiveHandles {
-    /// Test-only visibility into whether an operation still holds a live
-    /// handle. `pub(crate)` does not reach an integration test, which is a
-    /// separate crate, so this follows the same feature-gated pattern as
-    /// `storage::test_support`: compiled in for `cargo test` only, never for
-    /// an ordinary build.
-    #[cfg(feature = "test-support")]
-    pub async fn contains(&self, op_id: &OperationId) -> bool {
-        self.0.lock().await.contains_key(op_id)
-    }
-
-    /// Test-only. The registered tree's leader pid, so a test can assert that
-    /// a cancelled turn's process is actually gone rather than trusting that
-    /// `stop` said so.
-    #[cfg(feature = "test-support")]
-    pub async fn pid(&self, op_id: &OperationId) -> Option<u32> {
-        self.0
-            .lock()
-            .await
-            .get(op_id)
-            .and_then(|turn| turn.handle.id())
-    }
-
-    /// Test-only. Arms the registered handle so its next `terminate_tree`
-    /// fails, which is the only way to reach spec §8.4 case 6's live-handle
-    /// branch — see `ProcessHandle::force_termination_failure`. Returns
-    /// whether a registration was there to arm, so a test cannot pass by
-    /// arming nothing.
-    #[cfg(feature = "test-support")]
-    pub async fn force_termination_failure(&self, op_id: &OperationId) -> bool {
-        match self.0.lock().await.get_mut(op_id) {
-            Some(turn) => {
-                turn.handle.force_termination_failure();
-                true
-            }
-            None => false,
-        }
-    }
-}
-
 pub struct PlannerTurn;
+
+/// What `PlannerTurn::stop` did, because its callers need to tell these
+/// apart: the Stop route answers differently when the tree could not be
+/// terminated, and shutdown (§8.5) must not count a live tree as stopped.
+/// `Ok(())` for all five was how shutdown came to record `Graceful` over a
+/// turn whose termination had failed.
+///
+/// Only `Cancelled` means `stop` itself wrote the terminal state. In the three
+/// middle cases the reader writes it (or already has), which is why a caller
+/// that needs the operation terminal must still wait for the durable record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StopOutcome {
+    /// §8.4 case 3: the tree was terminated and reaped, then `Cancelled` was
+    /// written.
+    Cancelled,
+    /// §8.4 case 3 over a turn that had already produced its ending: the tree
+    /// was terminated, and the reader reaps it and records that ending.
+    TerminatedAfterTurnEnd,
+    /// §8.4 case 4: the process had already exited on its own. Nothing was
+    /// terminated; the reader records the real exit.
+    AlreadyExited,
+    /// This runtime holds no live tree for the operation: the reader already
+    /// claimed it, or it was never registered here. Nothing was terminated.
+    NotLive,
+    /// §8.4 case 6: termination failed. The tree may still be running, the
+    /// registration is kept, and the operation stays non-terminal.
+    TerminationFailed,
+}
 
 /// Everything the watcher needs to decide and persist how one live turn ends,
 /// bundled because it is one thing — the turn — and not six parameters.
@@ -154,6 +107,14 @@ pub(crate) struct TurnWatch {
     pub(crate) harness: Arc<ClaudeHarness>,
     pub(crate) thread_id: ThreadId,
     pub(crate) agent_role: String,
+    /// The session this turn started, when it started one. Recorded on the
+    /// thread at the turn-end, the harness's statement that the turn — and
+    /// so its session — exists in the harness's store. Earlier would be
+    /// wrong: a spawn failure, crash, or Stop before then can leave no
+    /// session, and a recorded id `--resume` rejects would fail every later
+    /// turn on the thread. The price is that a first turn stopped mid-stream
+    /// is forgotten by the model; the thread's entries still show it.
+    pub(crate) new_session: Option<String>,
     /// The same flag the registration holds. The watcher sets it the moment it
     /// classifies this turn's `TurnEnd`; `stop` reads it to decide who names
     /// the ending. Shared rather than re-read from the map because the watcher
@@ -180,6 +141,7 @@ pub(crate) fn watch_turn(
         harness: reader_harness,
         thread_id: reader_thread,
         agent_role,
+        mut new_session,
         turn_end_seen,
         span,
     } = watch;
@@ -276,6 +238,16 @@ pub(crate) fn watch_turn(
                         // interlock has seen it too.
                         turn_end_seen.store(true, Ordering::SeqCst);
                         tracing::info!(%subtype, "planner.turn_end");
+                        if let Some(session) = new_session.take()
+                            && let Err(error) = reader_runtime
+                                .storage
+                                .record_harness_session(&reader_thread, &session)
+                                .await
+                        {
+                            // The turn itself is unaffected; the thread's
+                            // next turn starts a new session instead.
+                            tracing::error!(%error, "planner.record_session_failed");
+                        }
                     }
                     _ => {}
                 }
@@ -290,7 +262,7 @@ pub(crate) fn watch_turn(
         // whoever's `remove` returns `Some` owns the outcome. `None` means
         // `stop` took ownership and will write `Cancelled`, so this task
         // writes nothing (§8.4 case 5).
-        let claimed = reader_handles.0.lock().await.remove(&reader_op);
+        let claimed = reader_handles.claim(&reader_op).await;
         let Some(mut turn) = claimed else {
             return;
         };
@@ -388,25 +360,31 @@ impl PlannerTurn {
     /// Terminating and naming the ending are two decisions, taken in that
     /// order: anything still alive is terminated (§8.4 case 3), and only then
     /// does the question of who writes the terminal state arise. The branches
-    /// below name the case each one serves.
+    /// below name the case each one serves, and each answers its own
+    /// [`StopOutcome`].
+    ///
+    /// `requester` is whoever asked: the user through the Stop route, or the
+    /// runtime itself at shutdown (§8.5). It is recorded on the request.
     pub async fn stop(
         runtime: Arc<Runtime>,
         handles: Arc<LiveHandles>,
         op_id: &OperationId,
-    ) -> Result<(), StorageError> {
+        requester: Actor,
+    ) -> Result<StopOutcome, StorageError> {
         runtime
             .storage
-            .request_cancellation(op_id, Actor::user("local"))
+            .request_cancellation(op_id, requester)
             .await?;
 
-        let mut map = handles.0.lock().await;
+        let mut registry = handles.0.lock().await;
+        let map = &mut registry.turns;
         let Some(mut turn) = map.remove(op_id) else {
             // No live handle: either it already exited (the reader task has
             // or will record its real outcome), or this runtime never
             // registered one for it. Either way termination cannot be
             // confirmed here, so Cancelled must not be written.
             tracing::info!(operation_id = %op_id, "planner.stop: no live handle, nothing to terminate");
-            return Ok(());
+            return Ok(StopOutcome::NotLive);
         };
         let span = turn.span.clone();
         tracing::info!(parent: &span, "planner.stop");
@@ -421,7 +399,7 @@ impl PlannerTurn {
         if turn.handle.has_exited() {
             tracing::info!(parent: &span, "planner.stop: already exited; the reader names the ending");
             map.insert(op_id.clone(), turn);
-            return Ok(());
+            return Ok(StopOutcome::AlreadyExited);
         }
 
         // §8.4 case 6. Ownership of the outcome is claimed only once
@@ -431,7 +409,7 @@ impl PlannerTurn {
         // resolve the operation.
         if span.in_scope(|| turn.handle.terminate_tree()).is_err() {
             map.insert(op_id.clone(), turn);
-            return Ok(());
+            return Ok(StopOutcome::TerminationFailed);
         }
 
         // §8.4 case 3 has now been served: the registered tree is terminated.
@@ -445,9 +423,9 @@ impl PlannerTurn {
         if turn.turn_end_seen.load(Ordering::SeqCst) {
             turn.terminated_by_stop = true;
             map.insert(op_id.clone(), turn);
-            return Ok(());
+            return Ok(StopOutcome::TerminatedAfterTurnEnd);
         }
-        drop(map);
+        drop(registry);
 
         // `wait` returning is the confirmation that the leader (and, through
         // job/group containment, the tree it owns) has been reaped. The exit
@@ -457,6 +435,7 @@ impl PlannerTurn {
         // not what its exit code was.
         let _ = turn.handle.wait().instrument(span.clone()).await;
         tracing::info!(parent: &span, "planner.stop: tree reaped");
-        runtime.storage.mark_operation_cancelled(op_id).await
+        runtime.storage.mark_operation_cancelled(op_id).await?;
+        Ok(StopOutcome::Cancelled)
     }
 }

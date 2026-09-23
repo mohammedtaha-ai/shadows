@@ -16,6 +16,7 @@ use axum::body::Body;
 use axum::http::Request;
 use shadows::agent::claude::ClaudeHarness;
 use shadows::command::{CommandContext, fingerprint};
+use shadows::events::Actor;
 use shadows::operation::OperationId;
 use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest};
 use shadows::protocol::{AppState, router};
@@ -42,13 +43,36 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
     let (state, _stopping) = app_state(&tmp).await;
     let thread = seed_thread(&state.runtime).await;
 
-    let completed = start(&state, &thread, PROMPT).await;
+    // Through the router, as a client starts one: the turn outlives the
+    // request that started it, and its lines must not claim otherwise.
+    let response = router(state.clone())
+        .oneshot(
+            Request::post(format!("/api/threads/{thread}/turns"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "prompt": PROMPT }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::ACCEPTED);
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let started: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let completed = OperationId::from_literal(started["operation_id"].as_str().unwrap());
     wait_for_terminal(&state.runtime, &completed).await;
 
     let stopped = start(&state, &thread, "hang").await;
-    PlannerTurn::stop(state.runtime.clone(), state.handles.clone(), &stopped)
-        .await
-        .unwrap();
+    PlannerTurn::stop(
+        state.runtime.clone(),
+        state.handles.clone(),
+        &stopped,
+        Actor::user("local"),
+    )
+    .await
+    .unwrap();
 
     let response = router(state.clone())
         .oneshot(Request::get("/api/projects").body(Body::empty()).unwrap())
@@ -94,6 +118,25 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
             "process.spawn does not name its operation {op}:\n{text}"
         );
     }
+    // The HTTP-started turn's lines are under `planner.turn` alone. Nested
+    // under the request's `http{...}` span, every one of them would name a
+    // POST that returned 202 long before the line was written.
+    let turn_lines: Vec<&str> = text
+        .lines()
+        .filter(|l| l.contains("planner.turn{") && l.contains(completed.as_str()))
+        .collect();
+    assert!(
+        turn_lines
+            .iter()
+            .any(|l| l.contains("planner.first_output")),
+        "no planner line for the HTTP-started turn in:\n{text}"
+    );
+    for line in &turn_lines {
+        assert!(
+            !line.contains("http{"),
+            "a turn line inherited the request span: {line}"
+        );
+    }
     assert!(
         !text.contains(PROMPT),
         "the prompt reached the log:\n{text}"
@@ -112,8 +155,6 @@ async fn start(state: &AppState, thread: &shadows::thread::ThreadId, prompt: &st
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: prompt.into(),
-            cwd: state.project_root.clone(),
-            resume_session_id: None,
         },
         state.bus.clone(),
     )
@@ -137,7 +178,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (AppState, tokio::sync::watch::Se
             "fake-1".into(),
         )),
         bus,
-        project_root: tmp.path().to_path_buf(),
+        allowed_origins: Vec::new(),
         shutdown,
     };
     (state, stopping)
@@ -155,7 +196,12 @@ async fn seed_thread(runtime: &Runtime) -> shadows::thread::ThreadId {
     };
     let project = runtime
         .storage
-        .create_project(&ctx, "demo", "Demo")
+        .create_project(
+            &ctx,
+            "demo",
+            "Demo",
+            &shadows::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+        )
         .await
         .unwrap();
     let tctx = CommandContext {

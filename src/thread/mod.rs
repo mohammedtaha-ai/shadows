@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::events::Actor;
 use crate::id::newtype_id;
 use crate::operation::OperationId;
@@ -14,7 +16,7 @@ newtype_id! {
     ThreadEntryId
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct PlanningThread {
     pub id: ThreadId,
     pub project_id: ProjectId,
@@ -23,7 +25,20 @@ pub struct PlanningThread {
     pub created_at: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+/// What a thread's next turn inherits from durable state, read by the
+/// Planner's Prepare step (spec §8.3) rather than supplied by the caller: a
+/// client that could name a turn's directory could run it anywhere.
+#[derive(Debug, Clone)]
+pub struct TurnContext {
+    /// The owning project's directory. `None` for a project created before
+    /// projects owned one — see `Project::directory`.
+    pub project_directory: Option<PathBuf>,
+    /// The harness session this thread's turns continue, once one of them
+    /// has reached its turn-end. `None` means the next turn starts a session.
+    pub harness_session_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct ThreadEntry {
     pub id: ThreadEntryId,
     pub thread_id: ThreadId,
@@ -57,7 +72,7 @@ pub struct NewThreadEntry<'a> {
     pub refs: &'a [EntryRef],
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub enum EntryRef {
     /// Typed, because `operation/` exists. The three below reference entities
     /// whose modules Milestone 0 never creates, and §4.1's rule is that no module
