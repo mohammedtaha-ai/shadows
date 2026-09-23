@@ -11,7 +11,7 @@ use super::failure::ErrorBody;
 use super::{AppState, Failure};
 use crate::events::Actor;
 use crate::operation::{Operation, OperationId};
-use crate::planner::{PlannerTurn, PlannerTurnRequest};
+use crate::planner::{PlannerTurn, PlannerTurnRequest, StopOutcome};
 use crate::thread::{NewThreadEntry, ThreadEntry, ThreadId};
 
 /// A thread's entries in ordinal order.
@@ -72,6 +72,8 @@ pub(super) struct TurnStarted {
 /// operation reaches its terminal outcome later — watch it on
 /// `/api/subscribe`. A turn that cannot run (no project directory, no harness)
 /// is still 202: the operation fails at `Prepare`, durably, with its reason.
+///
+/// A daemon that has begun to stop refuses the turn with 503 (spec §8.5).
 #[utoipa::path(
     post,
     path = "/api/threads/{id}/turns",
@@ -82,6 +84,7 @@ pub(super) struct TurnStarted {
         (status = 202, body = TurnStarted),
         (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+        (status = 503, description = "RUNTIME_STOPPING: the daemon is shutting down", body = ErrorBody),
     )
 )]
 pub(super) async fn start_turn(
@@ -89,6 +92,12 @@ pub(super) async fn start_turn(
     Path(thread_id): Path<ThreadId>,
     Json(body): Json<StartTurn>,
 ) -> Result<(StatusCode, Json<TurnStarted>), Failure> {
+    // Refused before the message is recorded, so a turn the daemon will not
+    // run leaves no question behind it. `PlannerTurn::start` asks again; this
+    // only keeps the common case clean.
+    if s.handles.is_closed().await {
+        return Err(Failure::runtime_stopping());
+    }
     // Record the user's message as a durable entry before the turn starts, so
     // a restart mid-turn still shows what was asked.
     s.storage
@@ -120,7 +129,11 @@ pub(super) async fn start_turn(
 
 /// Stops a turn: terminates its process tree, confirms it is gone, and only
 /// then records it `Cancelled` (spec §2.3). Answers with the operation as it
-/// now stands.
+/// now stands — which may still be `Running` for a moment when the turn had
+/// already ended on its own and its ending is being recorded.
+///
+/// If the tree cannot be terminated the answer is 500
+/// `PROCESS_TERMINATION_FAILED`, and the operation is not `Cancelled`.
 #[utoipa::path(
     post,
     path = "/api/operations/{id}/stop",
@@ -130,13 +143,22 @@ pub(super) async fn start_turn(
         (status = 200, body = Operation),
         (status = 404, description = "INVALID_COMMAND: no such operation", body = ErrorBody),
         (status = 409, description = "STORAGE_CONSTRAINT_VIOLATION: it had already ended another way", body = ErrorBody),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+        (status = 500, description = "PROCESS_TERMINATION_FAILED: the tree is still running, or STORAGE_UNAVAILABLE", body = ErrorBody),
     )
 )]
 pub(super) async fn stop_turn(
     State(s): State<AppState>,
     Path(op_id): Path<OperationId>,
 ) -> Result<Json<Operation>, Failure> {
-    PlannerTurn::stop(s.runtime.clone(), s.handles.clone(), &op_id).await?;
+    let outcome = PlannerTurn::stop(
+        s.runtime.clone(),
+        s.handles.clone(),
+        &op_id,
+        Actor::user("local"),
+    )
+    .await?;
+    if outcome == StopOutcome::TerminationFailed {
+        return Err(Failure::termination_failed());
+    }
     Ok(Json(s.storage.get_operation(&op_id).await?))
 }

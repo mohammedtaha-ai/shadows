@@ -70,6 +70,24 @@ impl Storage {
         .await?;
         Ok(rows.into_iter().map(into_operation).collect())
     }
+
+    /// The operations `runtime` owns that are still `Pending` or `Running`,
+    /// ordered by id. Spec §8.5: shutdown may record `Graceful` only once this
+    /// is empty. The order is only for stable logs; nothing depends on it.
+    pub async fn non_terminal_operations_owned_by(
+        &self,
+        runtime: &RuntimeInstanceId,
+    ) -> Result<Vec<OperationId>, StorageError> {
+        let ids: Vec<String> = sqlx::query_scalar(
+            "SELECT id FROM operation
+              WHERE runtime_instance_id = ? AND status_kind IN ('Pending','Running')
+              ORDER BY id",
+        )
+        .bind(runtime.as_str())
+        .fetch_all(self.reader())
+        .await?;
+        Ok(ids.into_iter().map(OperationId::from_stored).collect())
+    }
 }
 
 fn into_operation(r: OperationRow) -> Operation {

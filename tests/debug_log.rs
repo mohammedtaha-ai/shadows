@@ -16,6 +16,7 @@ use axum::body::Body;
 use axum::http::Request;
 use shadows::agent::claude::ClaudeHarness;
 use shadows::command::{CommandContext, fingerprint};
+use shadows::events::Actor;
 use shadows::operation::OperationId;
 use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest};
 use shadows::protocol::{AppState, router};
@@ -64,9 +65,14 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
     wait_for_terminal(&state.runtime, &completed).await;
 
     let stopped = start(&state, &thread, "hang").await;
-    PlannerTurn::stop(state.runtime.clone(), state.handles.clone(), &stopped)
-        .await
-        .unwrap();
+    PlannerTurn::stop(
+        state.runtime.clone(),
+        state.handles.clone(),
+        &stopped,
+        Actor::user("local"),
+    )
+    .await
+    .unwrap();
 
     let response = router(state.clone())
         .oneshot(Request::get("/api/projects").body(Body::empty()).unwrap())

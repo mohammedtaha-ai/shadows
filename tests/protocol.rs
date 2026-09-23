@@ -30,6 +30,7 @@ struct Fixture {
     app: Router,
     stopping: tokio::sync::watch::Sender<bool>,
     runtime: RuntimeInstanceId,
+    handles: Arc<LiveHandles>,
 }
 
 async fn fixture() -> Fixture {
@@ -39,10 +40,11 @@ async fn fixture() -> Fixture {
     let runtime_id = runtime.instance_id.clone();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
+    let handles = Arc::new(LiveHandles::default());
     let app = router(AppState {
         runtime: Arc::new(runtime),
         storage: storage.clone(),
-        handles: Arc::new(LiveHandles::default()),
+        handles: handles.clone(),
         harness: Arc::new(ClaudeHarness::new(
             PathBuf::from(env!("CARGO_BIN_EXE_fake_claude")),
             "fake-1".into(),
@@ -57,6 +59,7 @@ async fn fixture() -> Fixture {
         app,
         stopping,
         runtime: runtime_id,
+        handles,
     }
 }
 
@@ -355,6 +358,54 @@ async fn stopping_an_unknown_operation_is_not_found() {
     )
     .await;
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+}
+
+/// Spec §8.4 case 6 over HTTP. A Stop whose tree could not be terminated is a
+/// failure of the daemon, and says so: 500 `PROCESS_TERMINATION_FAILED`, with
+/// the operation left non-terminal — not a 200 carrying a `Running` row that a
+/// client would read as "Stopping" forever.
+#[tokio::test]
+async fn a_stop_whose_termination_fails_answers_500_and_cancels_nothing() {
+    let f = fixture().await;
+    let (_, project) = create_project(&f.app, "c1", "Demo").await;
+    let (_, thread) = call(
+        &f.app,
+        "POST",
+        &format!("/api/projects/{}/threads", project["id"].as_str().unwrap()),
+        Some(json!({ "command_id": "c2", "title": "T" })),
+    )
+    .await;
+    let (status, started) = call(
+        &f.app,
+        "POST",
+        &format!("/api/threads/{}/turns", thread["id"].as_str().unwrap()),
+        Some(json!({ "prompt": "hang" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{started}");
+    let op = OperationId::from_literal(started["operation_id"].as_str().unwrap());
+    for _ in 0..200 {
+        if f.storage.get_operation(&op).await.unwrap().status_kind == "Running" {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert!(f.handles.force_termination_failure(&op).await);
+
+    let (status, body) = call(
+        &f.app,
+        "POST",
+        &format!("/api/operations/{}/stop", op.as_str()),
+        None,
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
+    assert_eq!(body["code"], "PROCESS_TERMINATION_FAILED", "{body}");
+    assert_eq!(
+        f.storage.get_operation(&op).await.unwrap().status_kind,
+        "Running"
+    );
 }
 
 /// Spec §8.5 says shutdown has no drain mode. A graceful HTTP shutdown still

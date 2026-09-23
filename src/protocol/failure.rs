@@ -8,6 +8,7 @@ use axum::Json;
 use axum::http::StatusCode;
 
 use crate::error::ErrorCode;
+use crate::planner::StartError;
 use crate::project::DirectoryError;
 use crate::storage::StorageError;
 
@@ -45,6 +46,41 @@ impl From<StorageError> for Failure {
             status,
             code,
             message: e.to_string(),
+        }
+    }
+}
+
+impl From<StartError> for Failure {
+    fn from(e: StartError) -> Self {
+        match e {
+            StartError::Storage(e) => e.into(),
+            StartError::RuntimeStopping => Failure::runtime_stopping(),
+        }
+    }
+}
+
+impl Failure {
+    /// Spec §8.5: a stopping daemon takes no new work. 503, because the
+    /// refusal is about this daemon's state, not the request — the same
+    /// request succeeds against the next one.
+    pub(super) fn runtime_stopping() -> Self {
+        Failure {
+            status: StatusCode::SERVICE_UNAVAILABLE,
+            code: ErrorCode::RuntimeStopping,
+            message: StartError::RuntimeStopping.to_string(),
+        }
+    }
+
+    /// Spec §8.4 case 6: the tree could not be terminated. The daemon failed
+    /// to do what Stop asks, so this is a 5xx, and the operation was not
+    /// recorded `Cancelled` — it is still running as far as anyone can tell.
+    pub(super) fn termination_failed() -> Self {
+        Failure {
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+            code: ErrorCode::ProcessTerminationFailed,
+            message: "the turn's process tree could not be terminated; it was not \
+                      recorded as cancelled"
+                .into(),
         }
     }
 }

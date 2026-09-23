@@ -7,6 +7,8 @@ use std::fmt;
 pub enum ErrorCode {
     ProcessSpawnFailed,
     ProcessTerminated,
+    ProcessTerminationFailed,
+    RuntimeStopping,
     StorageUnavailable,
     StorageMigrationFailed,
     StorageConstraintViolation,

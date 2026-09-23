@@ -12,6 +12,7 @@ use std::time::Duration;
 use serde_json::Value;
 use shadows::agent::claude::ClaudeHarness;
 use shadows::command::{CommandContext, fingerprint};
+use shadows::events::Actor;
 use shadows::operation::OperationId;
 use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest};
 use shadows::project::ProjectDirectory;
@@ -144,9 +145,14 @@ async fn a_first_turn_stopped_before_its_turn_end_records_no_session() {
     let (f, thread, _) = fixture().await;
 
     let hung = f.start(&thread, "hang").await;
-    PlannerTurn::stop(f.runtime.clone(), f.handles.clone(), &hung)
-        .await
-        .unwrap();
+    PlannerTurn::stop(
+        f.runtime.clone(),
+        f.handles.clone(),
+        &hung,
+        Actor::user("local"),
+    )
+    .await
+    .unwrap();
     assert_eq!(f.wait_for_terminal(&hung).await, "Cancelled");
 
     let next = f.args_of_a_turn(&thread).await;

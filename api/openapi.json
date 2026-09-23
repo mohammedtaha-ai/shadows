@@ -197,6 +197,8 @@
         "enum": [
           "PROCESS_SPAWN_FAILED",
           "PROCESS_TERMINATED",
+          "PROCESS_TERMINATION_FAILED",
+          "RUNTIME_STOPPING",
           "STORAGE_UNAVAILABLE",
           "STORAGE_MIGRATION_FAILED",
           "STORAGE_CONSTRAINT_VIOLATION",
@@ -617,6 +619,7 @@
     },
     "/api/operations/{id}/stop": {
       "post": {
+        "description": "If the tree cannot be terminated the answer is 500\n`PROCESS_TERMINATION_FAILED`, and the operation is not `Cancelled`.",
         "operationId": "stop_turn",
         "parameters": [
           {
@@ -668,10 +671,10 @@
                 }
               }
             },
-            "description": "STORAGE_UNAVAILABLE"
+            "description": "PROCESS_TERMINATION_FAILED: the tree is still running, or STORAGE_UNAVAILABLE"
           }
         },
-        "summary": "Stops a turn: terminates its process tree, confirms it is gone, and only\nthen records it `Cancelled` (spec §2.3). Answers with the operation as it\nnow stands.",
+        "summary": "Stops a turn: terminates its process tree, confirms it is gone, and only\nthen records it `Cancelled` (spec §2.3). Answers with the operation as it\nnow stands — which may still be `Running` for a moment when the turn had\nalready ended on its own and its ending is being recorded.",
         "tags": [
           "turns"
         ]
@@ -1030,7 +1033,7 @@
     },
     "/api/threads/{id}/turns": {
       "post": {
-        "description": "Spec §3.3: a long-running command answers 202 with an operation id, and the\noperation reaches its terminal outcome later — watch it on\n`/api/subscribe`. A turn that cannot run (no project directory, no harness)\nis still 202: the operation fails at `Prepare`, durably, with its reason.",
+        "description": "Spec §3.3: a long-running command answers 202 with an operation id, and the\noperation reaches its terminal outcome later — watch it on\n`/api/subscribe`. A turn that cannot run (no project directory, no harness)\nis still 202: the operation fails at `Prepare`, durably, with its reason.\n\nA daemon that has begun to stop refuses the turn with 503 (spec §8.5).",
         "operationId": "start_turn",
         "parameters": [
           {
@@ -1083,6 +1086,16 @@
               }
             },
             "description": "STORAGE_UNAVAILABLE"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "RUNTIME_STOPPING: the daemon is shutting down"
           }
         },
         "summary": "Starts a Planner turn. The turn runs in the thread's project directory and\ncontinues the thread's harness session; neither is the client's to name.",

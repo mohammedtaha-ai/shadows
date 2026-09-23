@@ -21,11 +21,25 @@ use tracing::Instrument;
 use super::{LiveHandles, LiveTurn, PlannerTurn, TurnWatch, watch_turn};
 use crate::agent::claude::ClaudeHarness;
 use crate::agent::{AgentHarness, AgentInvocation, StreamItem};
+use crate::events::Actor;
 use crate::operation::{FailureStage, OperationId};
 use crate::process::spawn;
 use crate::runtime::Runtime;
 use crate::storage::StorageError;
 use crate::thread::{ThreadId, TurnContext};
+
+/// Why a turn was not started. A turn that starts and then fails is not one
+/// of these: it is an operation, and its failure is durable (`Prepare`,
+/// `Spawn`, `Run`).
+#[derive(Debug, thiserror::Error)]
+pub enum StartError {
+    /// Spec §8.5: once the runtime has begun to stop, it accepts no new work.
+    /// Refused rather than queued — there is no later for this runtime.
+    #[error("the runtime is stopping and accepts no new turns")]
+    RuntimeStopping,
+    #[error(transparent)]
+    Storage(#[from] StorageError),
+}
 
 /// What a caller asks for, bundled rather than passed positionally.
 /// `PlannerTurn::start` otherwise takes eight parameters, which is both a
@@ -55,18 +69,33 @@ impl PlannerTurn {
         harness: Arc<ClaudeHarness>,
         request: PlannerTurnRequest,
         bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
-    ) -> Result<OperationId, StorageError> {
+    ) -> Result<OperationId, StartError> {
         let PlannerTurnRequest { thread_id, prompt } = request;
+
+        // Spec §8.5. Asked first so that a refused turn leaves nothing durable
+        // behind. The answer can go stale before TX #1; the two later checks —
+        // storage refusing a Pending row for a stopped runtime, and `register`
+        // refusing under the registry's lock — are what make it hold.
+        if handles.is_closed().await {
+            return Err(StartError::RuntimeStopping);
+        }
 
         // Read before TX #1, so a turn on a thread that does not exist is
         // refused with nothing created for it.
         let context = runtime.storage.turn_context(&thread_id).await?;
 
-        // TX #1: the durable attempt exists before anything spawns.
-        let op_id = runtime
+        // TX #1: the durable attempt exists before anything spawns. Storage
+        // refuses it once this runtime's stop is recorded, so no operation
+        // can be born owned by a runtime that already claimed `Graceful`.
+        let op_id = match runtime
             .storage
             .create_pending_operation(&thread_id, &runtime.instance_id)
-            .await?;
+            .await
+        {
+            Ok(op_id) => op_id,
+            Err(_) if handles.is_closed().await => return Err(StartError::RuntimeStopping),
+            Err(error) => return Err(error.into()),
+        };
         // Spec §8.7's correlation fields, carried by every line this turn logs
         // — here, in the watcher, in `stop`, and in `process/` beneath them.
         //
@@ -151,9 +180,8 @@ impl PlannerTurn {
         // produce — `stop` would have nothing to terminate.
         let lines = handle.take_stdout_lines();
         let turn_end_seen = Arc::new(AtomicBool::new(false));
-        {
-            let mut map = handles.0.lock().await;
-            map.insert(
+        let registered = handles
+            .register(
                 op_id.clone(),
                 LiveTurn {
                     handle,
@@ -161,7 +189,11 @@ impl PlannerTurn {
                     terminated_by_stop: false,
                     span: span.clone(),
                 },
-            );
+            )
+            .await;
+        if let Err(turn) = registered {
+            refuse_spawned(&runtime, &op_id, turn).await?;
+            return Err(StartError::RuntimeStopping);
         }
 
         // TX #2. The child is already running, and the only thing that can
@@ -175,12 +207,12 @@ impl PlannerTurn {
             .mark_operation_started(&op_id, &runtime.instance_id)
             .await
         {
-            let orphan = handles.0.lock().await.remove(&op_id);
+            let orphan = handles.claim(&op_id).await;
             if let Some(mut turn) = orphan {
                 let _ = span.in_scope(|| turn.handle.terminate_tree());
                 let _ = turn.handle.wait().instrument(span).await;
             }
-            return Err(error);
+            return Err(error.into());
         }
 
         watch_turn(
@@ -201,6 +233,31 @@ impl PlannerTurn {
 
         Ok(op_id)
     }
+}
+
+/// Spec §8.4 case 2, reached when shutdown began while this turn was spawning:
+/// the tree exists, the registry refused it, and `Running` must never be
+/// committed. Terminate and reap it, then write `Cancelled` — and only then,
+/// because `Cancelled` claims confirmed termination (§2.3). If termination
+/// fails the operation is left `Pending` for shutdown to find unconfirmed;
+/// the handle is dropped here, and its kill-on-drop is the last thing that
+/// can still reach the tree.
+async fn refuse_spawned(
+    runtime: &Runtime,
+    op_id: &OperationId,
+    mut turn: LiveTurn,
+) -> Result<(), StorageError> {
+    let span = turn.span.clone();
+    tracing::info!(parent: &span, "planner.start: refused, the runtime is stopping");
+    runtime
+        .storage
+        .request_cancellation(op_id, Actor::system())
+        .await?;
+    if span.in_scope(|| turn.handle.terminate_tree()).is_err() {
+        return Ok(());
+    }
+    let _ = turn.handle.wait().instrument(span).await;
+    runtime.storage.mark_operation_cancelled(op_id).await
 }
 
 /// Prepare's workspace step (spec §8.3). Milestone 0 has one workspace mode —

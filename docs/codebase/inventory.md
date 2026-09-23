@@ -60,7 +60,7 @@ Nothing reachable from outside this file.
 
 Nothing reachable from outside this file.
 
-## `src/cli/mod.rs` — 112 lines
+## `src/cli/mod.rs` — 116 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -100,12 +100,14 @@ pub fn allowed_origin(raw: &str) -> Result<String, ConfigError>
 pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError>
 ```
 
-## `src/error.rs` — 70 lines
+## `src/error.rs` — 72 lines
 
 ```rust
 pub enum ErrorCode {
     ProcessSpawnFailed,
     ProcessTerminated,
+    ProcessTerminationFailed,
+    RuntimeStopping,
     StorageUnavailable,
     StorageMigrationFailed,
     StorageConstraintViolation,
@@ -237,20 +239,46 @@ pub struct Operation {
 }
 ```
 
-## `src/planner/mod.rs` — 481 lines
+## `src/planner/handles.rs` — 146 lines
 
 ```rust
-pub use spawn::PlannerTurnRequest;
-pub(crate) struct LiveTurn {}
-// + 4 private fields
-pub struct LiveHandles(pub(crate) Mutex<HashMap<OperationId, LiveTurn>>);
+pub(crate) struct LiveTurn {
+    pub(crate) handle: ProcessHandle,
+    pub(crate) turn_end_seen: Arc<AtomicBool>,
+    pub(crate) terminated_by_stop: bool,
+    pub(crate) span: tracing::Span,
+}
+pub(crate) struct Registry {
+    pub(crate) turns: HashMap<OperationId, LiveTurn>,
+}
+// + 1 private field
+pub struct LiveHandles(pub(crate) Mutex<Registry>);
 impl LiveHandles {
+    pub(crate) async fn register(&self, op_id: OperationId, turn: LiveTurn) -> Result<(), LiveTurn>
+    pub(crate) async fn claim(&self, op_id: &OperationId) -> Option<LiveTurn>
+    pub(crate) async fn close(&self) -> Vec<OperationId>
+    pub async fn is_closed(&self) -> bool
     pub async fn contains(&self, op_id: &OperationId) -> bool
     pub async fn pid(&self, op_id: &OperationId) -> Option<u32>
     pub async fn force_termination_failure(&self, op_id: &OperationId) -> bool
 }
+```
 
+## `src/planner/mod.rs` — 441 lines
+
+```rust
+pub use handles::LiveHandles;
+pub(crate) use handles::LiveTurn;
+pub use shutdown::shut_down;
+pub use spawn::{PlannerTurnRequest, StartError};
 pub struct PlannerTurn;
+pub enum StopOutcome {
+    Cancelled,
+    TerminatedAfterTurnEnd,
+    AlreadyExited,
+    NotLive,
+    TerminationFailed,
+}
 pub(crate) struct TurnWatch {
     pub(crate) op_id: OperationId,
     pub(crate) runtime: Arc<Runtime>,
@@ -264,19 +292,29 @@ pub(crate) struct TurnWatch {
 }
 pub(crate) fn watch_turn(watch: TurnWatch, lines: Option<StdoutLines>, bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>)
 impl PlannerTurn {
-    pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, op_id: &OperationId) -> Result<(), StorageError>
+    pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, op_id: &OperationId, requester: Actor) -> Result<StopOutcome, StorageError>
 }
 ```
 
-## `src/planner/spawn.rs` — 227 lines
+## `src/planner/shutdown.rs` — 144 lines
 
 ```rust
+pub async fn shut_down(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, confirm_within: Duration, escalate: impl Future<Output = ()>) -> Result<StopKind, StorageError>
+```
+
+## `src/planner/spawn.rs` — 284 lines
+
+```rust
+pub enum StartError {
+    RuntimeStopping,
+    Storage(StorageError),
+}
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
     pub prompt: String,
 }
 impl PlannerTurn {
-    pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, harness: Arc<ClaudeHarness>, request: PlannerTurnRequest, bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>) -> Result<OperationId, StorageError>
+    pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, harness: Arc<ClaudeHarness>, request: PlannerTurnRequest, bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>) -> Result<OperationId, StartError>
 }
 ```
 
@@ -370,7 +408,7 @@ pub struct Project {
 }
 ```
 
-## `src/protocol/conversation.rs` — 142 lines
+## `src/protocol/conversation.rs` — 164 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
@@ -383,7 +421,7 @@ pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
 ```
 
-## `src/protocol/failure.rs` — 96 lines
+## `src/protocol/failure.rs` — 132 lines
 
 ```rust
 pub struct Failure {}
@@ -391,6 +429,10 @@ pub struct Failure {}
 pub struct ErrorBody {
     pub code: ErrorCode,
     pub message: String,
+}
+impl Failure {
+    pub(super) fn runtime_stopping() -> Self
+    pub(super) fn termination_failed() -> Self
 }
 ```
 
@@ -530,7 +572,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/operation.rs` — 284 lines
+## `src/storage/sqlite/operation.rs` — 298 lines
 
 ```rust
 impl Storage {
@@ -543,12 +585,13 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/operation_read.rs` — 91 lines
+## `src/storage/sqlite/operation_read.rs` — 109 lines
 
 ```rust
 impl Storage {
     pub async fn get_operation(&self, op_id: &OperationId) -> Result<Operation, StorageError>
     pub async fn list_operations_for_thread(&self, thread_id: &ThreadId) -> Result<Vec<Operation>, StorageError>
+    pub async fn non_terminal_operations_owned_by(&self, runtime: &RuntimeInstanceId) -> Result<Vec<OperationId>, StorageError>
 }
 ```
 
@@ -563,7 +606,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/runtime.rs` — 182 lines
+## `src/storage/sqlite/runtime.rs` — 203 lines
 
 ```rust
 pub enum StopKind {

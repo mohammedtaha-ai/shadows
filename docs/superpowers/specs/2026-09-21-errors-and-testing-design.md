@@ -98,6 +98,9 @@ AgentRateLimited
 
 ProcessSpawnFailed
 ProcessTerminated
+ProcessTerminationFailed  -- Stop could not terminate the tree; nothing was Cancelled (§8.4 case 6)
+
+RuntimeStopping      -- the daemon has begun to stop and accepts no new work (§8.5)
 
 StorageUnavailable
 StorageMigrationFailed

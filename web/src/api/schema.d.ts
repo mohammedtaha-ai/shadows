@@ -55,7 +55,10 @@ export interface paths {
         /**
          * Stops a turn: terminates its process tree, confirms it is gone, and only
          *     then records it `Cancelled` (spec §2.3). Answers with the operation as it
-         *     now stands.
+         *     now stands — which may still be `Running` for a moment when the turn had
+         *     already ended on its own and its ending is being recorded.
+         * @description If the tree cannot be terminated the answer is 500
+         *     `PROCESS_TERMINATION_FAILED`, and the operation is not `Cancelled`.
          */
         post: operations["stop_turn"];
         delete?: never;
@@ -189,6 +192,8 @@ export interface paths {
          *     operation reaches its terminal outcome later — watch it on
          *     `/api/subscribe`. A turn that cannot run (no project directory, no harness)
          *     is still 202: the operation fails at `Prepare`, durably, with its reason.
+         *
+         *     A daemon that has begun to stop refuses the turn with 503 (spec §8.5).
          */
         post: operations["start_turn"];
         delete?: never;
@@ -283,7 +288,7 @@ export interface components {
          *     Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE";
+        ErrorCode: "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE";
         /**
          * @description Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
          *     `ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged
@@ -552,7 +557,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description STORAGE_UNAVAILABLE */
+            /** @description PROCESS_TERMINATION_FAILED: the tree is still running, or STORAGE_UNAVAILABLE */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -873,6 +878,15 @@ export interface operations {
             };
             /** @description STORAGE_UNAVAILABLE */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description RUNTIME_STOPPING: the daemon is shutting down */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
