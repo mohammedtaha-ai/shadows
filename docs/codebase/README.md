@@ -39,6 +39,9 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/thread/` | the planning thread's shape | `src/thread/mod.rs` |
 | `src/tracing.rs` | tracing subscriber setup | `src/tracing.rs` |
 
+The Web client in `web/` is a separate program outside this crate and this map;
+[`web/README.md`](../../web/README.md) describes it.
+
 A module absent from this table is a module that does not exist yet. The fifteen
 planned modules are listed in [`CLAUDE.md`](../../CLAUDE.md); this table is not a
 second copy of that list, and the tree is what decides which of them are real.

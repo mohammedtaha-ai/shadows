@@ -1,6 +1,7 @@
 // One job: the two-pane frame every screen sits in.
 
 import { Outlet } from '@tanstack/react-router'
+import { ConnectionIndicator } from './daemon-status'
 
 export function Shell() {
   return (
@@ -10,6 +11,9 @@ export function Shell() {
           <span className="text-sm font-semibold tracking-wide">Shadows</span>
         </header>
         <nav aria-label="Projects and threads" className="flex-1 overflow-y-auto px-2" />
+        <footer className="border-t border-sidebar-border px-4 py-3">
+          <ConnectionIndicator />
+        </footer>
       </aside>
       <main className="flex min-w-0 flex-1 flex-col">
         <Outlet />
