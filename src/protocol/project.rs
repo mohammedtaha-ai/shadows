@@ -68,7 +68,7 @@ pub(super) async fn list_projects(
         (status = 400, description = "PATH_INVALID, PATH_NOT_A_DIRECTORY", body = ErrorBody),
         (status = 403, description = "PATH_ACCESS_DENIED", body = ErrorBody),
         (status = 404, description = "PATH_NOT_FOUND", body = ErrorBody),
-        (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
+        (status = 409, description = "COMMAND_CONFLICT, or STORAGE_CONSTRAINT_VIOLATION: the slug is in use", body = ErrorBody),
         (status = 500, description = "STORAGE_UNAVAILABLE, PATH_UNAVAILABLE", body = ErrorBody),
     )
 )]
@@ -124,6 +124,7 @@ pub(super) struct CreateThread {
     request_body = CreateThread,
     responses(
         (status = 200, description = "Created, or the replay of the same command", body = PlanningThread),
+        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
         (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
     )

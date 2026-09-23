@@ -645,7 +645,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description COMMAND_CONFLICT */
+            /** @description COMMAND_CONFLICT, or STORAGE_CONSTRAINT_VIOLATION: the slug is in use */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -719,6 +719,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanningThread"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description COMMAND_CONFLICT */

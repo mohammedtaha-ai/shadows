@@ -3,6 +3,10 @@
 //! Transport mapping lives here and nowhere else. Spec §3.3: `Blocked` and
 //! `Rejected` are domain outcomes, not HTTP failures, and would be returned as
 //! 200 with the outcome — they are not reachable in Milestone 0.
+//!
+//! Spec §3.2: what reaches a client is public-safe. A storage failure's own
+//! text names tables, columns, and driver internals, so a client is told what
+//! happened in words written here, and the cause goes to the log only.
 
 use axum::Json;
 use axum::http::StatusCode;
@@ -17,6 +21,8 @@ pub struct Failure {
     status: StatusCode,
     code: ErrorCode,
     message: String,
+    /// The internal cause, logged with a 5xx and never sent (spec §3.2).
+    cause: Option<String>,
 }
 
 /// The body of every error this API answers with itself: the stable code a
@@ -31,21 +37,43 @@ pub struct ErrorBody {
 
 impl From<StorageError> for Failure {
     fn from(e: StorageError) -> Self {
-        let (status, code) = match &e {
-            StorageError::CommandConflict => (StatusCode::CONFLICT, ErrorCode::CommandConflict),
-            StorageError::NotFound(_) => (StatusCode::NOT_FOUND, ErrorCode::InvalidCommand),
-            StorageError::TransitionConflict { .. } => {
-                (StatusCode::CONFLICT, ErrorCode::StorageConstraintViolation)
+        // These two texts are written in `StorageError` itself and name
+        // nothing but the command, or the kind of thing that is missing.
+        let own = |status, code| Failure {
+            status,
+            code,
+            message: e.to_string(),
+            cause: None,
+        };
+        let (status, code, message) = match &e {
+            StorageError::CommandConflict => {
+                return own(StatusCode::CONFLICT, ErrorCode::CommandConflict);
             }
+            StorageError::NotFound(_) => {
+                return own(StatusCode::NOT_FOUND, ErrorCode::InvalidCommand);
+            }
+            StorageError::TransitionConflict { .. } => (
+                StatusCode::CONFLICT,
+                ErrorCode::StorageConstraintViolation,
+                "the operation had already moved on; read it again",
+            ),
+            StorageError::Constraint(_) => (
+                StatusCode::CONFLICT,
+                ErrorCode::StorageConstraintViolation,
+                "the request conflicts with what is already stored, such as a slug \
+                 already in use",
+            ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 ErrorCode::StorageUnavailable,
+                "storage is unavailable",
             ),
         };
         Failure {
             status,
             code,
-            message: e.to_string(),
+            message: message.into(),
+            cause: Some(e.to_string()),
         }
     }
 }
@@ -68,6 +96,7 @@ impl Failure {
             status: StatusCode::SERVICE_UNAVAILABLE,
             code: ErrorCode::RuntimeStopping,
             message: StartError::RuntimeStopping.to_string(),
+            cause: None,
         }
     }
 
@@ -79,6 +108,7 @@ impl Failure {
             status: StatusCode::FORBIDDEN,
             code: ErrorCode::OriginRefused,
             message: why.into(),
+            cause: None,
         }
     }
 
@@ -92,6 +122,7 @@ impl Failure {
             message: "the turn's process tree could not be terminated; it was not \
                       recorded as cancelled"
                 .into(),
+            cause: None,
         }
     }
 }
@@ -121,6 +152,7 @@ impl From<DirectoryError> for Failure {
             status,
             code,
             message: e.to_string(),
+            cause: None,
         }
     }
 }
@@ -129,7 +161,11 @@ impl axum::response::IntoResponse for Failure {
     fn into_response(self) -> axum::response::Response {
         if self.status.is_server_error() {
             // Inside the request's `http` span, so the line names the route.
-            tracing::error!(error = %self.message, "http.failure");
+            tracing::error!(
+                error = %self.message,
+                cause = self.cause.as_deref().unwrap_or_default(),
+                "http.failure"
+            );
         }
         (
             self.status,

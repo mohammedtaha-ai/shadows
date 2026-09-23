@@ -191,9 +191,13 @@ async fn send_journal_after(
         {
             Ok(b) => b,
             Err(e) => {
+                // Spec §3.2: the cause is logged here; the client is told only what
+                // it needs to know — that the stream is over.
                 tracing::error!(error = %e, "sse.replay_failed");
                 let _ = tx
-                    .send(Ok(Event::default().event("fatal").data(e.to_string())))
+                    .send(Ok(Event::default()
+                        .event("fatal")
+                        .data("the journal could not be read")))
                     .await;
                 return Err("error: journal read failed");
             }

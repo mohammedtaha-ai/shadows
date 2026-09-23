@@ -26,6 +26,17 @@ impl Storage {
                 if let Some(id) = classify(conn, &ctx, "Project", &scope_key).await? {
                     return load_thread(conn, &ThreadId::from_stored(id)).await;
                 }
+                // `NotFound`, not the foreign key's constraint failure: a
+                // thread asked for under a project that does not exist names
+                // something missing, not a conflict with what is stored.
+                let project: Option<String> =
+                    sqlx::query_scalar("SELECT id FROM project WHERE id = ?")
+                        .bind(project_id.as_str())
+                        .fetch_optional(&mut *conn)
+                        .await?;
+                if project.is_none() {
+                    return Err(StorageError::NotFound("project"));
+                }
                 let id = ThreadId::generate();
                 sqlx::query(
                     "INSERT INTO planning_thread

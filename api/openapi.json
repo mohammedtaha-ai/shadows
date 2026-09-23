@@ -775,7 +775,7 @@
                 }
               }
             },
-            "description": "COMMAND_CONFLICT"
+            "description": "COMMAND_CONFLICT, or STORAGE_CONSTRAINT_VIOLATION: the slug is in use"
           },
           "500": {
             "content": {
@@ -871,6 +871,16 @@
               }
             },
             "description": "Created, or the replay of the same command"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
           },
           "409": {
             "content": {

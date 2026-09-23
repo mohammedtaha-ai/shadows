@@ -422,11 +422,11 @@ pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
 ```
 
-## `src/protocol/failure.rs` — 143 lines
+## `src/protocol/failure.rs` — 179 lines
 
 ```rust
 pub struct Failure {}
-// + 3 private fields
+// + 4 private fields
 pub struct ErrorBody {
     pub code: ErrorCode,
     pub message: String,
@@ -480,7 +480,7 @@ pub fn document() -> String
 pub(super) async fn serve() -> ([(header::HeaderName, &'static str); 1], String)
 ```
 
-## `src/protocol/project.rs` — 143 lines
+## `src/protocol/project.rs` — 144 lines
 
 ```rust
 pub(super) struct CreateProject {}
@@ -493,7 +493,7 @@ pub(super) struct CreateThread {}
 pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<PlanningThread>, Failure>
 ```
 
-## `src/protocol/sse.rs` — 258 lines
+## `src/protocol/sse.rs` — 262 lines
 
 ```rust
 pub struct SubscribeQuery {
@@ -554,7 +554,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/mod.rs` — 230 lines
+## `src/storage/sqlite/mod.rs` — 252 lines
 
 ```rust
 pub use events_read::StoredEvent;
@@ -580,7 +580,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/operation.rs` — 298 lines
+## `src/storage/sqlite/operation.rs` — 300 lines
 
 ```rust
 impl Storage {
@@ -632,7 +632,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/thread.rs` — 272 lines
+## `src/storage/sqlite/thread.rs` — 283 lines
 
 ```rust
 impl Storage {

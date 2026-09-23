@@ -238,6 +238,23 @@ async fn a_cancellation_request_does_not_make_an_operation_terminal() {
 
 /// Spec §2.3. Terminal Cancelled is written only after termination is
 /// confirmed, and it is what closes the operation.
+/// Spec §2.3 makes a repeated request idempotent; an operation that does not
+/// exist is not a repeat. Answering `Ok` for it let Stop report success for
+/// an id nobody had ever issued.
+#[tokio::test]
+async fn a_cancellation_request_for_an_unknown_operation_is_not_found() {
+    let (_tmp, storage, _runtime, _thread) = fixture().await;
+    let unknown =
+        shadows::operation::OperationId::from_literal("00000000-0000-4000-8000-000000000000");
+    let answer = storage
+        .request_cancellation(&unknown, Actor::user("local"))
+        .await;
+    assert!(
+        matches!(answer, Err(StorageError::NotFound(_))),
+        "{answer:?}"
+    );
+}
+
 #[tokio::test]
 async fn cancelled_is_written_after_confirmation_and_closes_the_operation() {
     let (_t, storage, runtime, thread) = fixture().await;

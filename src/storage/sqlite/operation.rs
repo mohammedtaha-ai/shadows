@@ -230,12 +230,14 @@ impl Storage {
                     .execute(&mut *conn)
                     .await?
                     .rows_affected();
+                    // Asked first: an operation that does not exist is not one
+                    // whose cancellation was already requested.
+                    let before = existed(before)?;
                     if affected == 0 {
                         // Already requested, or already terminal. Spec §2.3: a
                         // repeat is idempotent and runs no process effects.
                         return Ok(None);
                     }
-                    let before = existed(before)?;
                     // A request leaves the status where it was (spec §2.3).
                     let status = before.status().to_string();
                     record(

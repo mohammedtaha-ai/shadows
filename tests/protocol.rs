@@ -454,3 +454,32 @@ async fn an_open_live_stream_does_not_hold_up_shutdown() {
         .expect("serve never returned: an open live stream held up shutdown")
         .unwrap();
 }
+
+/// Spec §3.2: a refusal the schema makes is a 409 the client can act on, and
+/// what reaches the client is written for it — not the driver's text, which
+/// names tables and columns. A thread asked for under a project that does not
+/// exist is missing, not in conflict.
+#[tokio::test]
+async fn a_refused_write_answers_its_own_code_without_database_text() {
+    let f = fixture().await;
+    let (_, first) = create_project(&f.app, "c1", "Demo").await;
+    let (status, body) = create_project(&f.app, "c2", "Demo again").await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_eq!(body["code"], "STORAGE_CONSTRAINT_VIOLATION");
+    let message = body["message"].as_str().unwrap();
+    assert!(
+        !message.contains("UNIQUE") && !message.contains("project.slug"),
+        "{message}"
+    );
+
+    let (status, body) = call(
+        &f.app,
+        "POST",
+        "/api/projects/00000000-0000-4000-8000-000000000000/threads",
+        Some(json!({ "command_id": "c3", "title": "T" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+    assert_eq!(body["code"], "INVALID_COMMAND");
+    assert!(first["id"].is_string());
+}
