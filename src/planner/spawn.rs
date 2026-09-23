@@ -192,7 +192,7 @@ impl PlannerTurn {
             )
             .await;
         if let Err(turn) = registered {
-            refuse_spawned(&runtime, &op_id, turn).await?;
+            refuse_spawned(&runtime, &op_id, *turn).await?;
             return Err(StartError::RuntimeStopping);
         }
 

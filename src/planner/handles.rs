@@ -75,10 +75,10 @@ impl LiveHandles {
         &self,
         op_id: OperationId,
         turn: LiveTurn,
-    ) -> Result<(), LiveTurn> {
+    ) -> Result<(), Box<LiveTurn>> {
         let mut registry = self.0.lock().await;
         if registry.closed {
-            return Err(turn);
+            return Err(Box::new(turn));
         }
         registry.turns.insert(op_id, turn);
         Ok(())
