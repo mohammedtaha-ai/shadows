@@ -2,7 +2,8 @@
 
 The first client of the Shadows daemon (spec §1: the daemon does not serve or
 embed the client). React + TypeScript on Vite, TanStack Router and Query,
-shadcn/ui (Base UI) on Tailwind v4.
+shadcn/ui (Base UI) on Tailwind v4, Motion for transitions, and Streamdown
+(with its Shiki code plugin) for the Planner's replies.
 
 ## Run it
 

@@ -22,6 +22,11 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
+/* Streamdown (the reply renderer) and its code-highlighting plugin ship their
+ * Tailwind classes in their bundles; per their docs, Tailwind must scan them. */
+@source "../node_modules/streamdown/dist/*.js";
+@source "../node_modules/@streamdown/code/dist/*.js";
+
 @custom-variant dark (&:is(.dark *));
 
 /* 1. The palette. */
@@ -48,6 +53,7 @@
   --palette-danger-border: #791f1f;
   --palette-danger-text: #f09595;
   --palette-success: #1d9e75;
+  --palette-overlay: #050408b3;
 
   --typeface-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --typeface-serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino,
@@ -98,6 +104,7 @@
   --destructive-border: var(--palette-danger-border);
   --destructive-foreground: var(--palette-danger-text);
   --success: var(--palette-success);
+  --overlay: var(--palette-overlay);
 }
 
 /* 3. The utilities. */
@@ -142,6 +149,7 @@
   --color-destructive-border: var(--destructive-border);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
+  --color-overlay: var(--overlay);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
