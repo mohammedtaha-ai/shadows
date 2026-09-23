@@ -274,10 +274,11 @@ export interface components {
             Workflow: string;
         };
         /**
-         * @description The body of every error this API answers with itself: the stable code a
-         *     client matches on (spec §3.4), and a human message nobody should match on.
-         *     A request axum rejects before a handler runs (malformed JSON, a missing
-         *     query parameter) is answered by axum in plain text, not with this.
+         * @description The body of every error this API answers: the stable code a client
+         *     matches on (spec §3.4), and a human message nobody should match on. A
+         *     request axum rejects before a handler runs (malformed JSON, a missing query
+         *     parameter) gets one too, through
+         *     [`rejections_as_error_bodies`].
          */
         ErrorBody: {
             code: components["schemas"]["ErrorCode"];

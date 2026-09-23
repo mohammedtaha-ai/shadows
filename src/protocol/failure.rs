@@ -25,10 +25,11 @@ pub struct Failure {
     cause: Option<String>,
 }
 
-/// The body of every error this API answers with itself: the stable code a
-/// client matches on (spec §3.4), and a human message nobody should match on.
-/// A request axum rejects before a handler runs (malformed JSON, a missing
-/// query parameter) is answered by axum in plain text, not with this.
+/// The body of every error this API answers: the stable code a client
+/// matches on (spec §3.4), and a human message nobody should match on. A
+/// request axum rejects before a handler runs (malformed JSON, a missing query
+/// parameter) gets one too, through
+/// [`rejections_as_error_bodies`].
 #[derive(serde::Serialize, utoipa::ToSchema)]
 pub struct ErrorBody {
     pub code: ErrorCode,
@@ -176,4 +177,44 @@ impl axum::response::IntoResponse for Failure {
         )
             .into_response()
     }
+}
+
+/// Axum answers a request its extractors refuse — a body that is not the JSON
+/// a route takes, a query or path that does not parse — before any handler
+/// runs, in plain text. Every such answer is a 4xx `text/plain`, and no
+/// handler here answers one, so this rewrites exactly those into an
+/// [`ErrorBody`] with `INVALID_COMMAND`: a client reads one error shape from
+/// every route. Axum's text names only the field and the reason, which is safe
+/// to pass on.
+pub(super) async fn rejections_as_error_bodies(
+    response: axum::response::Response,
+) -> axum::response::Response {
+    use axum::http::header::CONTENT_TYPE;
+    let plain = response
+        .headers()
+        .get(CONTENT_TYPE)
+        .is_some_and(|v| v.as_bytes().starts_with(b"text/plain"));
+    if !response.status().is_client_error() || !plain {
+        return response;
+    }
+    let status = response.status();
+    let text = match axum::body::to_bytes(response.into_body(), 64 * 1024).await {
+        Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+        Err(_) => String::new(),
+    };
+    let message = if text.is_empty() {
+        status
+            .canonical_reason()
+            .unwrap_or("the request was refused")
+            .to_string()
+    } else {
+        text
+    };
+    axum::response::IntoResponse::into_response((
+        status,
+        Json(ErrorBody {
+            code: ErrorCode::InvalidCommand,
+            message,
+        }),
+    ))
 }

@@ -70,6 +70,11 @@ pub fn router(state: AppState) -> Router {
     let (routes, _document) = routes().split_for_parts();
     routes
         .with_state(state)
+        // Innermost: an extractor's plain-text refusal becomes an `ErrorBody`
+        // before anything outside adds its headers to it.
+        .layer(axum::middleware::map_response(
+            failure::rejections_as_error_bodies,
+        ))
         // Inside the CORS layer: a preflight is answered before it gets here,
         // and a refusal sent to an allowed origin still carries the header
         // that lets that client read why.

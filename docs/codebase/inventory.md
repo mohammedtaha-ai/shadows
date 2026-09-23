@@ -422,7 +422,7 @@ pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
 ```
 
-## `src/protocol/failure.rs` — 179 lines
+## `src/protocol/failure.rs` — 220 lines
 
 ```rust
 pub struct Failure {}
@@ -436,6 +436,8 @@ impl Failure {
     pub(super) fn origin_refused(why: &'static str) -> Self
     pub(super) fn termination_failed() -> Self
 }
+
+pub(super) async fn rejections_as_error_bodies(response: axum::response::Response) -> axum::response::Response
 ```
 
 ## `src/protocol/fs.rs` — 99 lines
@@ -455,7 +457,7 @@ pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCod
 pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
 ```
 
-## `src/protocol/mod.rs` — 151 lines
+## `src/protocol/mod.rs` — 156 lines
 
 ```rust
 pub use failure::Failure;

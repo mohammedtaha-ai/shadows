@@ -248,3 +248,37 @@ async fn a_name_that_is_not_one_valid_component_is_refused() {
         "a refused name created something"
     );
 }
+
+/// Axum refuses a malformed request before any handler runs, and answers it in
+/// plain text of its own. A client matches on codes (spec §3.4), so those
+/// refusals carry the same `ErrorBody` as every other error.
+#[tokio::test]
+async fn a_request_refused_before_its_handler_still_answers_an_error_body() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (app, _stopping) = app(tmp.path()).await;
+    let bad_json = Request::post("/api/fs/dirs")
+        .header("content-type", "application/json")
+        .body(Body::from("{\"parent\": 1}"))
+        .unwrap();
+    let not_json = Request::post("/api/fs/dirs")
+        .header("content-type", "text/plain")
+        .body(Body::from("{}"))
+        .unwrap();
+    let missing_query = Request::get("/api/subscribe").body(Body::empty()).unwrap();
+    for request in [bad_json, not_json, missing_query] {
+        let what = format!("{} {}", request.method(), request.uri());
+        let response = app.clone().oneshot(request).await.unwrap();
+        let status = response.status();
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body: Value = serde_json::from_slice(&bytes)
+            .unwrap_or_else(|_| panic!("{what}: not JSON: {}", String::from_utf8_lossy(&bytes)));
+        assert!(status.is_client_error(), "{what}: {status}");
+        assert_eq!(body["code"], "INVALID_COMMAND", "{what}: {body}");
+        assert!(
+            body["message"].as_str().is_some_and(|m| !m.is_empty()),
+            "{what}"
+        );
+    }
+}

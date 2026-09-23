@@ -13,8 +13,9 @@ export type Problem =
   | { kind: 'unreachable' }
   /** The daemon answered with its own `ErrorBody` (spec §3.4). Match on `code`. */
   | { kind: 'daemon'; status: number; code: ErrorCode }
-  /** An HTTP failure that is not an `ErrorBody` — axum rejecting a request
-   * before a handler ran answers in plain text. */
+  /** An HTTP failure that is not an `ErrorBody`. The daemon answers every
+   * error it makes with one; this is a route it does not have (an empty 404
+   * or 405), or something between the two that answered instead. */
   | { kind: 'http'; status: number; body: string }
 
 export class ApiError extends Error {

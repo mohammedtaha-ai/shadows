@@ -177,7 +177,7 @@
         ]
       },
       "ErrorBody": {
-        "description": "The body of every error this API answers with itself: the stable code a\nclient matches on (spec §3.4), and a human message nobody should match on.\nA request axum rejects before a handler runs (malformed JSON, a missing\nquery parameter) is answered by axum in plain text, not with this.",
+        "description": "The body of every error this API answers: the stable code a client\nmatches on (spec §3.4), and a human message nobody should match on. A\nrequest axum rejects before a handler runs (malformed JSON, a missing query\nparameter) gets one too, through\n[`rejections_as_error_bodies`].",
         "properties": {
           "code": {
             "$ref": "#/components/schemas/ErrorCode"
