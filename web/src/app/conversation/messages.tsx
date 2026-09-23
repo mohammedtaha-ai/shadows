@@ -3,11 +3,32 @@
 
 import { AnimatePresence, motion } from 'motion/react'
 import { LoaderCircle } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import type { ThreadEntry } from '@/api/client'
 import { describeLabel } from './operational-label'
 import type { ShownReply } from './reply'
-import { ReplyText } from './reply-text'
+
+// Streamdown and its code highlighting are most of this app's weight, so they
+// are a chunk of their own, and not in the one every screen waits for. The
+// load starts when this module does, so by the time a reply arrives it has
+// usually landed; until it has, the reply shows as plain text.
+const loadReplyText = () => import('./reply-text')
+const LazyReplyText = lazy(async () => ({ default: (await loadReplyText()).ReplyText }))
+void loadReplyText()
+
+function ReplyText({ text, live = false }: { text: string; live?: boolean }) {
+  return (
+    <Suspense
+      fallback={
+        <p className="font-serif text-[15px] leading-7 whitespace-pre-wrap text-foreground">
+          {text}
+        </p>
+      }
+    >
+      <LazyReplyText text={text} live={live} />
+    </Suspense>
+  )
+}
 
 const appear = {
   initial: { opacity: 0, y: 6 },
