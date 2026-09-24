@@ -26,6 +26,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/harnesses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every harness Shadows knows, runnable or not, with the model and effort
+         *     last used on it and the account limits it last reported.
+         */
+        get: operations["list_harnesses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/openapi.json": {
         parameters: {
             query?: never;
@@ -53,8 +73,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Stops a turn: terminates its process tree, confirms it is gone, and only
-         *     then records it `Cancelled` (spec §2.3). Answers with the operation as it
+         * Stops a turn: asks the harness to cancel it, and if the harness does not
+         *     confirm in time, terminates the adapter's process tree, confirms it is
+         *     gone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the operation as it
          *     now stands — which may still be `Running` for a moment when the turn had
          *     already ended on its own and its ending is being recorded.
          * @description If the tree cannot be terminated the answer is 500
@@ -83,6 +104,27 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Sets the modes this project allows, per harness (spec §12.5). A turn's
+         *     mode is checked against them when it starts. A replay answers the project
+         *     as it now stands.
+         */
+        patch: operations["update_project"];
         trace?: never;
     };
     "/api/projects/{id}/threads": {
@@ -119,7 +161,7 @@ export interface paths {
          *       commit that appended to the journal). A commit that lands while the
          *       replay is being read shows up as a pending change, so it cannot fall into
          *       the gap between the replay's last read and the live phase.
-         *     - the transient bus, for what is never stored: deltas, turn ends, meta.
+         *     - the transient bus, for what is never stored: deltas and turn ends.
          *
          *     Durable events reach the client only by reading the journal after
          *     `last_seq` — in the replay, and again on every signal change in the live
@@ -129,6 +171,51 @@ export interface paths {
          *     `ThreadEntryAppended` event. Bus items for another thread are dropped.
          */
         get: operations["subscribe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/threads/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Changes the thread's CLI before its first turn (spec §12.6). A replay
+         *     answers the thread as it now stands and changes nothing, even once the
+         *     harness is locked; a new command after the first turn, or on a fork (its
+         *     session is a fork of its source's, §12.9), is `HARNESS_LOCKED`. A change
+         *     closes the thread's adapter (§12.2).
+         */
+        patch: operations["update_thread"];
+        trace?: never;
+    };
+    "/api/threads/{id}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The context breakdown of the thread's session, read on demand (spec
+         *     §12.8). It is fetched only on an open, idle session that has answered a
+         *     turn, within five seconds; otherwise it says why it has none. Nothing is
+         *     written: no operation, no entry.
+         */
+        get: operations["thread_context"];
         put?: never;
         post?: never;
         delete?: never;
@@ -148,6 +235,29 @@ export interface paths {
         get: operations["list_entries"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/threads/{id}/fork": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Forks the thread from its last completed entry into a new thread on the
+         *     same project (spec §12.9). The new thread holds copies of the entries up to
+         *     and including `at_entry_id`; its next turn continues a fork of the
+         *     source's harness session. The source is unchanged. A replay answers the
+         *     fork already made.
+         */
+        post: operations["fork_thread"];
         delete?: never;
         options?: never;
         head?: never;
@@ -176,6 +286,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/threads/{id}/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Opens the thread's harness session (spec §12.2) and answers what it
+         *     offers. Idempotent: an open session answers what it holds. A client calls
+         *     it when it shows the conversation, so the menus are ready before the
+         *     first message.
+         */
+        post: operations["open_session"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/threads/{id}/session/model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Sets the thread's session to `model` as soon as a person picks it (spec
+         *     §12.7), opening the session first if it is not open, and answers its
+         *     choices exactly as `POST .../session` does — the efforts are now the new
+         *     model's. Nothing durable is written and no `command_id` is carried:
+         *     setting the same model twice is the same state, and a turn records its
+         *     model in its own invocation. The remembered model does not move (§12.4).
+         *     A running turn's session is not changed (`THREAD_BUSY`).
+         */
+        put: operations["change_model"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/threads/{id}/turns": {
         parameters: {
             query?: never;
@@ -190,10 +347,12 @@ export interface paths {
          *     continues the thread's harness session; neither is the client's to name.
          * @description Spec §3.3: a long-running command answers 202 with an operation id, and the
          *     operation reaches its terminal outcome later — watch it on
-         *     `/api/subscribe`. A turn that cannot run (no project directory, no harness)
-         *     is still 202: the operation fails at `Prepare`, durably, with its reason.
+         *     `/api/subscribe`. Spec §12.7: the prompt, the operation, its invocation
+         *     and the command record commit together, after every check; a check that
+         *     fails writes nothing. A retry with the same `command_id` and body answers
+         *     the first operation and starts nothing, even while the daemon stops.
          *
-         *     A daemon that has begun to stop refuses the turn with 503 (spec §8.5).
+         *     A daemon that has begun to stop refuses a new turn with 503 (spec §8.5).
          */
         post: operations["start_turn"];
         delete?: never;
@@ -206,9 +365,51 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description The account's limits as last reported by the harness (spec §12.8). A
+         *     window the harness did not report is `None`, never estimated.
+         */
+        AccountLimits: {
+            five_hour: null | components["schemas"]["LimitWindow"];
+            /** @description When the daemon received the report (RFC 3339). */
+            observed_at: string;
+            seven_day: null | components["schemas"]["LimitWindow"];
+        };
         Actor: {
             id: string;
             kind: string;
+        };
+        /** @description The model a person picked (spec §12.7). */
+        ChangeModel: {
+            /** @description One of the session's `models`. */
+            model: string;
+        };
+        /**
+         * @description One value the session offers for a setting (spec §12.4). `enabled: false`
+         *     carries the `reason` it cannot be chosen.
+         */
+        Choice: {
+            description: string | null;
+            enabled: boolean;
+            id: string;
+            label: string;
+            reason: string | null;
+        };
+        /**
+         * @description The context breakdown read on demand (spec §12.8): the categories, or none
+         *     with the reason.
+         */
+        ContextBreakdown: {
+            categories: components["schemas"]["ContextCategory"][] | null;
+            reason: string | null;
+        };
+        /** @description One category of the context breakdown. */
+        ContextCategory: {
+            name: string;
+            /** Format: double */
+            percent: number;
+            /** Format: int64 */
+            tokens: number;
         };
         CreateDir: {
             /** @description One new path component that Windows would accept. */
@@ -233,6 +434,8 @@ export interface components {
         CreateThread: {
             /** @description The idempotency key (spec §3.2), scoped to the project. */
             command_id: string;
+            /** @description The CLI for this conversation; `claude-code` when omitted. */
+            harness?: string | null;
             title: string;
         };
         /** @description One directory a person could open or choose. */
@@ -289,7 +492,53 @@ export interface components {
          *     Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED";
+        ErrorCode: "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "FORK_POINT_NOT_SUPPORTED";
+        /** @description Forks the thread from its last completed entry (spec §12.9). */
+        ForkThread: {
+            at_entry_id: components["schemas"]["ThreadEntryId"];
+            /** @description The idempotency key (spec §3.2), scoped to the source thread. */
+            command_id: string;
+        };
+        /**
+         * @description A CLI a conversation can run on (spec §12.1). `kind` is `claude-code` or
+         *     `codex`.
+         */
+        HarnessInfo: {
+            available: boolean;
+            kind: string;
+            label: string;
+            limits: null | components["schemas"]["AccountLimits"];
+            /** @description Why it cannot run, when `available` is false. */
+            reason: string | null;
+            remembered: null | components["schemas"]["RememberedSettings"];
+        };
+        /**
+         * @description What a turn asked for and what the harness reported (spec §8.2, §12.8).
+         *     Anything not reported is `None`, never estimated.
+         */
+        InvocationView: {
+            agent_version: string;
+            /** Format: int64 */
+            context_used: number | null;
+            /** Format: int64 */
+            context_window: number | null;
+            harness_kind: string;
+            harness_version: string;
+            observed_model: string | null;
+            requested_effort: string | null;
+            requested_mode: string;
+            requested_model: string;
+        };
+        /**
+         * @description One account limit window as the harness reported it: `utilization` from 0
+         *     to 1, `resets_at` in Unix seconds.
+         */
+        LimitWindow: {
+            /** Format: int64 */
+            resets_at: number;
+            /** Format: double */
+            utilization: number;
+        };
         /**
          * @description Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
          *     `ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged
@@ -303,6 +552,7 @@ export interface components {
             finished_at?: string | null;
             id: components["schemas"]["OperationId"];
             interrupt_reason?: string | null;
+            invocation: null | components["schemas"]["InvocationView"];
             kind: string;
             outcome_json?: string | null;
             runtime_instance_id: components["schemas"]["RuntimeInstanceId"];
@@ -314,12 +564,28 @@ export interface components {
         OperationId: string;
         PlanningThread: {
             created_at: string;
+            /** @description The thread this one was forked from, if it is a fork (spec §12.9). */
+            forked_from_thread: string | null;
+            /**
+             * @description The CLI this conversation runs on (`agent::policy`): chosen at
+             *     creation, changeable until the thread's first operation, then fixed
+             *     (spec §12.6).
+             */
+            harness: string;
             id: components["schemas"]["ThreadId"];
             project_id: components["schemas"]["ProjectId"];
             status: string;
             title: string;
         };
         Project: {
+            /**
+             * @description Per harness kind, the modes this project's turns may use (spec §12.5).
+             *     Each list is a set: its order carries no meaning. Every known harness
+             *     is present; an empty list means no turn can start on it.
+             */
+            allowed_modes: {
+                [key: string]: string[];
+            };
             created_at: string;
             /**
              * @description Spec §4.2: the directory this project's turns run in, as
@@ -335,9 +601,33 @@ export interface components {
         };
         /** Format: uuid */
         ProjectId: string;
+        /** @description The model and effort last chosen for this harness (spec §12.4). */
+        RememberedSettings: {
+            effort: string | null;
+            model: string;
+        };
         /** Format: uuid */
         RuntimeInstanceId: string;
+        /**
+         * @description What the thread's session offers now (spec §12.4). `efforts` are the
+         *     current model's. `modes` are after Shadows' policy; a mode the project does
+         *     not allow is present with `enabled: false` and `reason: "Not allowed in
+         *     this project"`.
+         */
+        SessionChoices: {
+            current: components["schemas"]["TurnSettings"];
+            efforts: components["schemas"]["Choice"][];
+            models: components["schemas"]["Choice"][];
+            modes: components["schemas"]["Choice"][];
+        };
+        /** @description Starts a turn as one command (spec §12.7). */
         StartTurn: {
+            /** @description The idempotency key (spec §3.2). A retry sends the same one. */
+            command_id: string;
+            /** @description `null` exactly when the chosen model offers no effort (§12.4). */
+            effort: string | null;
+            mode: string;
+            model: string;
             prompt: string;
         };
         ThreadEntry: {
@@ -352,7 +642,17 @@ export interface components {
             body: string;
             created_at: string;
             id: components["schemas"]["ThreadEntryId"];
+            /**
+             * @description `UserMessage`, `AgentMessage`, or `PermissionRefused` (a permission the
+             *     harness asked for and Shadows refused, spec §12.2).
+             */
             kind: string;
+            /**
+             * @description The turn this entry belongs to (spec §12.7). `None` for entries written
+             *     before entries named their turn. A fork's copied entries keep the
+             *     source's operation: provenance, not something the fork can act on.
+             */
+            operation_id: string | null;
             /** Format: int64 */
             ordinal: number;
             refs: components["schemas"]["EntryRef"][];
@@ -362,8 +662,39 @@ export interface components {
         ThreadEntryId: string;
         /** Format: uuid */
         ThreadId: string;
+        /**
+         * @description The settings a turn runs with (spec §12.7). `effort` is `None` exactly
+         *     when the model offers none (§12.4).
+         */
+        TurnSettings: {
+            effort: string | null;
+            mode: string;
+            model: string;
+        };
         TurnStarted: {
             operation_id: components["schemas"]["OperationId"];
+        };
+        /** @description Sets the modes this project allows, per harness (spec §12.5). */
+        UpdateProject: {
+            /**
+             * @description Per harness kind, the modes this project allows; a harness not named
+             *     keeps its modes. Only modes in Shadows' policy for that harness.
+             */
+            allowed_modes: {
+                [key: string]: string[];
+            };
+            /** @description The idempotency key (spec §3.2), scoped to the project. */
+            command_id: string;
+        };
+        /**
+         * @description Changes the thread's CLI. Refused once the thread has run a turn, and on
+         *     a fork from birth (`HARNESS_LOCKED`).
+         */
+        UpdateThread: {
+            /** @description The idempotency key (spec §3.2), scoped to the thread. */
+            command_id: string;
+            /** @description `claude-code` or `codex`. */
+            harness: string;
         };
     };
     responses: never;
@@ -490,6 +821,34 @@ export interface operations {
                 };
             };
             /** @description PATH_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_harnesses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HarnessInfo"][];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -666,6 +1025,59 @@ export interface operations {
             };
         };
     };
+    update_project: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProject"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Project"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description SETTING_NOT_OFFERED: a mode outside Shadows' policy */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_threads: {
         parameters: {
             query?: never;
@@ -740,6 +1152,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description SETTING_NOT_OFFERED: a harness Shadows does not know */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             /** @description STORAGE_UNAVAILABLE */
             500: {
                 headers: {
@@ -775,11 +1196,14 @@ export interface operations {
              *     - `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.
              *     - `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.
              *     - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.
-             *     - `meta` — `{op, label}`: any other harness line, by label. Transient.
+             *     - `usage` — `{thread_id, context_used, context_window, limits}`: the session's context use and the account's limits as the harness last reported them; each is `null` when not reported. Transient.
+             *     - `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.
              *     - `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.
              *     - `fatal` — data is a message as plain text: the journal could not be read and the stream ends.
              *
              *     The stream also ends when the daemon stops. Reconnect with the last `seq`.
+             *
+             *     A `durable` frame of kind `OperationCompleted` carries `payload.invocation`: the turn's `InvocationView`.
              */
             200: {
                 headers: {
@@ -787,6 +1211,99 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": string;
+                };
+            };
+        };
+    };
+    update_thread: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateThread"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanningThread"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such thread */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_LOCKED: the thread already ran a turn on its harness, or is a fork; or COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description SETTING_NOT_OFFERED: a harness Shadows does not know */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    thread_context: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextBreakdown"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such thread */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
@@ -813,6 +1330,59 @@ export interface operations {
             };
             /** @description STORAGE_UNAVAILABLE */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    fork_thread: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The source thread */
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForkThread"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanningThread"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such thread or entry */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description THREAD_BUSY: a turn is running, or COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description FORK_POINT_NOT_SUPPORTED: fork from anything but the last completed entry */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -853,6 +1423,126 @@ export interface operations {
             };
         };
     };
+    open_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionChoices"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such thread */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description PATH_NOT_FOUND: the project's directory is gone or was never set */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_UNAVAILABLE: the thread's harness is listed but not runnable */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_START_FAILED: the adapter did not start */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    change_model: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeModel"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionChoices"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such thread */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description THREAD_BUSY: a turn is running; PATH_NOT_FOUND: the project's directory is gone or was never set */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description SETTING_NOT_OFFERED: a model the session does not offer, or one the harness refused (its words in the message); HARNESS_UNAVAILABLE */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_START_FAILED: the adapter did not start, or its session closed */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     start_turn: {
         parameters: {
             query?: never;
@@ -877,6 +1567,15 @@ export interface operations {
                     "application/json": components["schemas"]["TurnStarted"];
                 };
             };
+            /** @description MODE_NOT_ALLOWED: the project does not allow this mode */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             /** @description INVALID_COMMAND: no such thread */
             404: {
                 headers: {
@@ -886,8 +1585,35 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description THREAD_BUSY: a turn is running; COMMAND_CONFLICT: this command_id was used with another request; PATH_NOT_FOUND: the project's directory is gone or was never set; nothing was written */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description SETTING_NOT_OFFERED: a model, mode or effort the session does not offer; HARNESS_UNAVAILABLE */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             /** @description STORAGE_UNAVAILABLE */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_START_FAILED: the thread's session could not be opened; nothing was written */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

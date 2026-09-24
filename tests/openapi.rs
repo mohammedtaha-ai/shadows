@@ -21,12 +21,14 @@ use std::sync::Arc;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
-use shadows::agent::claude::ClaudeHarness;
 use shadows::planner::LiveHandles;
 use shadows::protocol::{AppState, openapi_document, router};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use tower::ServiceExt;
+
+#[path = "fixtures/acp.rs"]
+mod acp;
 
 fn checked_in() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("api/openapi.json")
@@ -74,7 +76,7 @@ fn the_checked_in_document_matches_the_routes() {
     );
 }
 
-/// Every route a client of Milestone 0 needs, by method and path.
+/// Every route a client needs, by method and path.
 #[test]
 fn the_document_names_every_route() {
     let doc = document();
@@ -94,17 +96,24 @@ fn the_document_names_every_route() {
         named,
         [
             "GET /api/fs/dirs",
+            "GET /api/harnesses",
             "GET /api/openapi.json",
             "GET /api/projects",
             "GET /api/projects/{id}/threads",
             "GET /api/subscribe",
+            "GET /api/threads/{id}/context",
             "GET /api/threads/{id}/entries",
             "GET /api/threads/{id}/operations",
+            "PATCH /api/projects/{id}",
+            "PATCH /api/threads/{id}",
             "POST /api/fs/dirs",
             "POST /api/operations/{id}/stop",
             "POST /api/projects",
             "POST /api/projects/{id}/threads",
+            "POST /api/threads/{id}/fork",
+            "POST /api/threads/{id}/session",
             "POST /api/threads/{id}/turns",
+            "PUT /api/threads/{id}/session/model",
         ]
     );
 }
@@ -156,7 +165,6 @@ fn ids_errors_and_the_stream_are_described_as_clients_rely_on() {
         "`caught-up`",
         "`delta`",
         "`turn-end`",
-        "`meta`",
         "`lagged`",
         "`fatal`",
     ] {
@@ -177,10 +185,7 @@ async fn the_document_is_served_and_every_path_it_names_is_routed() {
         runtime: Arc::new(runtime),
         storage,
         handles: Arc::new(LiveHandles::default()),
-        harness: Arc::new(ClaudeHarness::new(
-            tmp.path().join("claude.exe"),
-            "t".into(),
-        )),
+        sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
         bus,
         allowed_origins: Vec::new(),
         shutdown,

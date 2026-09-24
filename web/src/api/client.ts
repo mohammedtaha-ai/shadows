@@ -18,6 +18,14 @@ export type DirectoryListing = Schemas['DirectoryListing']
 export type DirectoryEntry = Schemas['DirectoryEntry']
 export type CreateProject = Schemas['CreateProject']
 export type CreateThread = Schemas['CreateThread']
+export type HarnessInfo = Schemas['HarnessInfo']
+export type Choice = Schemas['Choice']
+export type SessionChoices = Schemas['SessionChoices']
+export type AccountLimits = Schemas['AccountLimits']
+export type LimitWindow = Schemas['LimitWindow']
+export type InvocationView = Schemas['InvocationView']
+export type TurnSettings = Schemas['TurnSettings']
+export type ContextBreakdown = Schemas['ContextBreakdown']
 
 /** The daemon's origin, without a trailing slash. */
 export const DAEMON_URL = (import.meta.env.VITE_SHADOWS_URL ?? 'http://127.0.0.1:4318').replace(
@@ -25,7 +33,40 @@ export const DAEMON_URL = (import.meta.env.VITE_SHADOWS_URL ?? 'http://127.0.0.1
   '',
 )
 
-const client = createClient<paths>({ baseUrl: DAEMON_URL })
+// `fetch` is looked up on each call rather than captured once here (what
+// openapi-fetch does by default), so a test that stubs it is heard however
+// early this module was imported.
+const client = createClient<paths>({ baseUrl: DAEMON_URL, fetch: (request) => fetch(request) })
+
+/** The CLIs a conversation can run on, with what each remembers and its
+ * latest reported limits (spec §12.10). */
+export function listHarnesses(): Promise<HarnessInfo[]> {
+  return unwrap(client.GET('/api/harnesses'))
+}
+
+/** Opens the thread's harness session if it is not open; answers what it
+ * offers now. Idempotent: an open session answers what it holds (spec §12.2). */
+export function openSession(threadId: string): Promise<SessionChoices> {
+  return unwrap(client.POST('/api/threads/{id}/session', { params: { path: { id: threadId } } }))
+}
+
+/** Sets the thread's session to `model` at once, opening it if needed;
+ * answers what it offers now, the new model's efforts included (spec §12.7).
+ * Writes nothing durable, so it carries no command id. */
+export function changeModel(threadId: string, model: string): Promise<SessionChoices> {
+  return unwrap(
+    client.PUT('/api/threads/{id}/session/model', {
+      params: { path: { id: threadId } },
+      body: { model },
+    }),
+  )
+}
+
+/** The session's context breakdown, read on demand, or none with the reason
+ * (spec §12.8). */
+export function readContext(threadId: string): Promise<ContextBreakdown> {
+  return unwrap(client.GET('/api/threads/{id}/context', { params: { path: { id: threadId } } }))
+}
 
 /** Every project, oldest first. Also the reachability probe: it is the
  * cheapest call that proves the daemon answers this origin. */
@@ -59,15 +100,64 @@ export function listOperations(threadId: string): Promise<Operation[]> {
   return unwrap(client.GET('/api/threads/{id}/operations', { params: { path: { id: threadId } } }))
 }
 
-/** Starts a Planner turn; answers the operation it runs as. */
-export async function startTurn(threadId: string, prompt: string): Promise<string> {
+/** Starts a Planner turn with its settings, as one command (spec §12.7);
+ * answers the operation it runs as. The command id is the caller's: a retry of
+ * the same send passes the same one, and this function never makes one. */
+export async function startTurn(
+  threadId: string,
+  commandId: string,
+  prompt: string,
+  settings: TurnSettings,
+): Promise<string> {
   const started = await unwrap(
     client.POST('/api/threads/{id}/turns', {
       params: { path: { id: threadId } },
-      body: { prompt },
+      body: { command_id: commandId, prompt, ...settings },
     }),
   )
   return started.operation_id
+}
+
+/** Changes the thread's CLI; refused once it has run a turn (spec §12.6). */
+export function setThreadHarness(
+  threadId: string,
+  commandId: string,
+  harness: string,
+): Promise<PlanningThread> {
+  return unwrap(
+    client.PATCH('/api/threads/{id}', {
+      params: { path: { id: threadId } },
+      body: { command_id: commandId, harness },
+    }),
+  )
+}
+
+/** Sets the modes a project allows, per harness kind (spec §12.5). */
+export function setProjectModes(
+  projectId: string,
+  commandId: string,
+  allowedModes: Record<string, string[]>,
+): Promise<Project> {
+  return unwrap(
+    client.PATCH('/api/projects/{id}', {
+      params: { path: { id: projectId } },
+      body: { command_id: commandId, allowed_modes: allowedModes },
+    }),
+  )
+}
+
+/** Forks the thread at `atEntryId` into a new thread (spec §12.9). */
+export function forkThread(
+  threadId: string,
+  commandId: string,
+  atEntryId: string,
+): Promise<PlanningThread> {
+  return unwrap(
+    client.POST('/api/threads/{id}/fork', {
+      params: { path: { id: threadId } },
+      body: { command_id: commandId, at_entry_id: atEntryId },
+    }),
+  )
 }
 
 /** Stops a turn; answers the operation as it now stands. */

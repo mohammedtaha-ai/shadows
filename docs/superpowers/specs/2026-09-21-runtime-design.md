@@ -93,6 +93,9 @@ execution workspace identity
 timeout / budget
 ```
 
+A Planner turn freezes this as §12.7 states. Which of these permissions Shadows
+enforces itself, rather than leaving to the harness's mode, is §12.5's OPEN block.
+
 It must never persist resolved secret values or raw child environment values.
 Reading any of these later would let a configuration change between claim and
 spawn alter what the durable record says was run.
@@ -156,7 +159,10 @@ see §8.6.
 
 Handle registration, natural process exit, and cancellation all race for one
 Operation. They are serialized per Operation, and exactly one of them writes the
-terminal transition. The required behaviour, case by case:
+terminal transition. From Milestone 1 a Planner turn is a prompt on a live ACP
+connection rather than a process of its own; §12.3 states how these cases read
+there, including when the harness's own `cancelled` answer confirms a stop. The
+required behaviour, case by case:
 
 1. **Cancel arrives before spawn begins.** Do not spawn. Confirm no handle or
    tree exists. `Pending -> Cancelled`.

@@ -21,9 +21,22 @@ before adding to that module: it is the pattern to follow, not merely an example
 
 | Module | Its one job | Reference file |
 |---|---|---|
-| `src/agent/` | the AI subprocess harness contract | `src/agent/claude.rs` |
+| `src/agent/` | the AI subprocess harness contract | `src/agent/acp.rs` |
+| `src/agent/acp.rs` | the ACP client connection to one adapter process | `src/agent/acp.rs` |
+| `src/agent/events.rs` | what a harness connection reports | `src/agent/events.rs` |
+| `src/agent/policy.rs` | the modes Shadows allows per harness | `src/agent/policy.rs` |
+| `src/agent/choices.rs` | reading the harness's offered choices | `src/agent/choices.rs` |
+| `src/agent/breakdown.rs` | reading Claude's `/context` answer | `src/agent/breakdown.rs` |
+| `src/planner/offers.rs` | the latest choices each open session offers | `src/planner/offers.rs` |
+| `src/planner/context.rs` | reading a session's context breakdown on demand | `src/planner/context.rs` |
+| `src/protocol/harness.rs` | the routes over harnesses, their sessions included | `src/protocol/harness.rs` |
+| `src/protocol/thread.rs` | the routes that change a planning thread itself | `src/protocol/thread.rs` |
+| `src/planner/sessions.rs` | the live adapter connection each open thread holds | `src/planner/sessions.rs` |
+| `src/planner/settings.rs` | setting an open session's options | `src/planner/settings.rs` |
+| `src/planner/turn.rs` | the recorded ending of a live Planner turn | `src/planner/turn.rs` |
+| `src/planner/entries.rs` | turning harness events into durable entries | `src/planner/entries.rs` |
 | `src/bin/` | test apparatus that no product code links | `src/bin/tree_probe.rs` |
-| `src/cli/` | the daemon's entry point | `src/cli/mod.rs` |
+| `src/cli/` | daemon startup | `src/cli/args.rs` |
 | `src/command/` | external-command identity for idempotency | `src/command/mod.rs` |
 | `src/config.rs` | startup configuration resolved once | `src/config.rs` |
 | `src/error.rs` | the stable failure taxonomy clients match on | `src/error.rs` |

@@ -1,36 +1,40 @@
 //! Spec §8.5, daemon shutdown: `Graceful` is written only when every operation
 //! the runtime owns is terminal; anything short of that is `Escalated`, and a
 //! stopping runtime takes no new turn. Driven through `planner::shut_down`,
-//! which is what `shadows serve` runs on its stop signal, with `fake_claude`
-//! standing in for the harness.
+//! which is what `shadows serve` runs on its stop signal, with `fake_acp`
+//! standing in for the adapter.
 //!
 //! The storage half of the same rule — `Graceful` refused over unfinished work
 //! whoever asks — is `tests/recovery.rs`, next to the recovery that relies on it.
 
 use std::future::Future;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use shadows::agent::StreamItem;
-use shadows::agent::claude::ClaudeHarness;
+use shadows::agent::events::HarnessEvent;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::operation::{Operation, OperationId};
-use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest, StartError, shut_down};
+use shadows::planner::{LiveHandles, Sessions, StartError, shut_down};
 use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
 use shadows::storage::{StopKind, Storage};
 use shadows::thread::ThreadId;
 use tower::ServiceExt;
 
-type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>;
+#[path = "fixtures/acp.rs"]
+mod acp;
+#[path = "fixtures/turn.rs"]
+mod turn;
+
+type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
 
 struct Fixture {
     _tmp: tempfile::TempDir,
     runtime: Arc<Runtime>,
     handles: Arc<LiveHandles>,
+    sessions: Arc<Sessions>,
     thread: ThreadId,
     bus: Bus,
 }
@@ -57,6 +61,7 @@ async fn fixture() -> Fixture {
             "demo",
             "Demo",
             &shadows::project::ProjectDirectory::resolve(tmp.path()).unwrap(),
+            &shadows::agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -68,13 +73,15 @@ async fn fixture() -> Fixture {
     };
     let thread = runtime
         .storage
-        .create_planning_thread(&tctx, &project.id, "T")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
         .await
         .unwrap();
+    let sessions = acp::fake_sessions(&tmp.path().join("s.sqlite3")).await;
     Fixture {
         _tmp: tmp,
         runtime,
         handles: Arc::new(LiveHandles::default()),
+        sessions,
         thread: thread.id,
         bus: tokio::sync::broadcast::channel(64).0,
     }
@@ -82,15 +89,13 @@ async fn fixture() -> Fixture {
 
 impl Fixture {
     async fn start(&self, prompt: &str) -> Result<OperationId, StartError> {
-        PlannerTurn::start(
-            self.runtime.clone(),
-            self.handles.clone(),
-            harness(),
-            PlannerTurnRequest {
-                thread_id: self.thread.clone(),
-                prompt: prompt.into(),
-            },
-            self.bus.clone(),
+        turn::start_direct(
+            &self.runtime,
+            &self.handles,
+            &self.sessions,
+            &self.bus,
+            &self.thread,
+            prompt,
         )
         .await
     }
@@ -103,6 +108,7 @@ impl Fixture {
         shut_down(
             self.runtime.clone(),
             self.handles.clone(),
+            self.sessions.clone(),
             confirm_within,
             escalate,
         )
@@ -134,13 +140,6 @@ impl Fixture {
         }
         panic!("operation never reached {wanted}");
     }
-}
-
-fn harness() -> Arc<ClaudeHarness> {
-    Arc::new(ClaudeHarness::new(
-        PathBuf::from(env!("CARGO_BIN_EXE_fake_claude")),
-        "fake-1".into(),
-    ))
 }
 
 /// No second stop signal ever arrives.
@@ -175,20 +174,20 @@ fn is_alive(pid: u32) -> bool {
 }
 
 /// The ordinary stop: one turn already finished, one still running. The
-/// running one is terminated and confirmed (`Cancelled`, its process gone),
-/// and only then is `Graceful` written.
+/// running one is cancelled and confirmed (`Cancelled`), the adapter is closed
+/// (its process gone), and only then is `Graceful` written.
 #[tokio::test]
 async fn a_shutdown_that_confirms_every_operation_records_graceful() {
     let f = fixture().await;
-    let finished = f.start("quick").await.unwrap();
+    let finished = f.start("hi").await.unwrap();
     f.wait_for_status(&finished, "Completed").await;
     let running = f.start("hang").await.unwrap();
     f.wait_for_status(&running, "Running").await;
     let pid = f
-        .handles
-        .pid(&running)
+        .sessions
+        .pid(&f.thread)
         .await
-        .expect("the turn is registered");
+        .expect("the adapter is live");
 
     let kind = f
         .shut_down(Duration::from_secs(20), no_second_signal())
@@ -201,18 +200,18 @@ async fn a_shutdown_that_confirms_every_operation_records_graceful() {
     assert!(!is_alive(pid), "Cancelled was written over a live process");
 }
 
-/// The window the old shutdown fell into: the turn has reported its result
-/// and its process is still alive, so `stop` terminates the tree but the
-/// *reader* writes the ending — after `stop` has returned. `Graceful` must
-/// wait for that write rather than be recorded over a `Running` row.
+/// The window the old shutdown fell into: the prompt has answered but the
+/// watcher is still writing the turn's ending, so `stop` finds it resolved by
+/// the turn and returns before that write. `Graceful` must wait for it rather
+/// than be recorded over a `Running` row.
 #[tokio::test]
 async fn a_turn_whose_outcome_is_still_being_written_is_terminal_before_graceful() {
     let f = fixture().await;
     let mut rx = f.bus.subscribe();
-    let op = f.start("slow-exit").await.unwrap();
+    let op = f.start("hi").await.unwrap();
     loop {
         let (_, _, item) = rx.recv().await.expect("the turn must reach its turn-end");
-        if matches!(item, StreamItem::TurnEnd { .. }) {
+        if matches!(item, HarnessEvent::TurnEnd { .. }) {
             break;
         }
     }
@@ -238,11 +237,12 @@ async fn a_turn_whose_outcome_is_still_being_written_is_terminal_before_graceful
 #[tokio::test]
 async fn a_termination_failure_during_shutdown_is_escalated_and_never_cancelled() {
     let f = fixture().await;
-    let op = f.start("hang").await.unwrap();
+    // `ignore-cancel`: the harness never confirms, so Stop must terminate.
+    let op = f.start("ignore-cancel").await.unwrap();
     f.wait_for_status(&op, "Running").await;
     assert!(
-        f.handles.force_termination_failure(&op).await,
-        "the turn must still be registered for this test to mean anything"
+        f.sessions.force_termination_failure(&f.thread).await,
+        "the adapter must still be live for this test to mean anything"
     );
 
     let kind = tokio::time::timeout(
@@ -331,7 +331,7 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
         .await;
     assert_eq!(kind, StopKind::Graceful);
 
-    let refused = f.start("quick").await;
+    let refused = f.start("hi").await;
     assert!(
         matches!(refused, Err(StartError::RuntimeStopping)),
         "got {refused:?}"
@@ -351,7 +351,7 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
         runtime: f.runtime.clone(),
         storage: f.runtime.storage.clone(),
         handles: f.handles.clone(),
-        harness: harness(),
+        sessions: f.sessions.clone(),
         bus: f.bus.clone(),
         allowed_origins: Vec::new(),
         shutdown,
@@ -360,7 +360,7 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
         .oneshot(
             Request::post(format!("/api/threads/{}/turns", f.thread.as_str()))
                 .header("content-type", "application/json")
-                .body(Body::from(r#"{"prompt":"hi"}"#))
+                .body(Body::from(r#"{"command_id":"after-stop","prompt":"hi","model":"fake-large","mode":"acceptEdits","effort":"high"}"#))
                 .unwrap(),
         )
         .await

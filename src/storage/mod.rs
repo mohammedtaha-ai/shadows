@@ -1,6 +1,8 @@
 mod sqlite;
 
-pub use sqlite::{ReconcileReport, StopKind, Storage, StorageError, StoredEvent};
+pub use sqlite::{
+    NewTurn, ReconcileReport, StartedTurn, StopKind, Storage, StorageError, StoredEvent,
+};
 
 /// Test-only access to a private capability. Compiled in only when the
 /// `test-support` feature is enabled — enabled automatically for `cargo test`

@@ -8,8 +8,12 @@
 use axum::Json;
 use axum::extract::{Path, State};
 
+use std::collections::BTreeMap;
+
 use super::failure::ErrorBody;
+use super::thread::known_harness;
 use super::{AppState, Failure};
+use crate::agent::policy;
 use crate::command::{CommandContext, fingerprint};
 use crate::project::{Project, ProjectDirectory, ProjectId};
 use crate::thread::PlanningThread;
@@ -18,7 +22,7 @@ use crate::thread::PlanningThread;
 /// the fingerprint is derived from the same parameters the capability is about
 /// to act on — never supplied by the client, which would let a replay with a
 /// different body claim to be the same command.
-fn ctx(command_id: String, kind: &str, params: serde_json::Value) -> CommandContext {
+pub(super) fn ctx(command_id: String, kind: &str, params: serde_json::Value) -> CommandContext {
     CommandContext {
         principal_kind: "User".into(),
         principal_id: "local".into(),
@@ -85,7 +89,13 @@ pub(super) async fn create_project(
     let c = ctx(body.command_id, "project.create", params);
     Ok(Json(
         s.storage
-            .create_project(&c, &body.slug, &body.name, &directory)
+            .create_project(
+                &c,
+                &body.slug,
+                &body.name,
+                &directory,
+                &policy::default_modes(),
+            )
             .await?,
     ))
 }
@@ -113,6 +123,8 @@ pub(super) struct CreateThread {
     /// The idempotency key (spec §3.2), scoped to the project.
     command_id: String,
     title: String,
+    /// The CLI for this conversation; `claude-code` when omitted.
+    harness: Option<String>,
 }
 
 /// Creates a planning thread in a project.
@@ -126,6 +138,7 @@ pub(super) struct CreateThread {
         (status = 200, description = "Created, or the replay of the same command", body = PlanningThread),
         (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
         (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
+        (status = 422, description = "SETTING_NOT_OFFERED: a harness Shadows does not know", body = ErrorBody),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
     )
 )]
@@ -134,11 +147,70 @@ pub(super) async fn create_thread(
     Path(project_id): Path<ProjectId>,
     Json(body): Json<CreateThread>,
 ) -> Result<Json<PlanningThread>, Failure> {
-    let params = serde_json::json!({ "project": project_id, "title": body.title });
+    let harness = body.harness.as_deref().unwrap_or(policy::CLAUDE_CODE);
+    known_harness(harness)?;
+    let params = serde_json::json!({
+        "project": project_id, "title": body.title, "harness": harness,
+    });
     let c = ctx(body.command_id, "thread.create", params);
     Ok(Json(
         s.storage
-            .create_planning_thread(&c, &project_id, &body.title)
+            .create_planning_thread(&c, &project_id, &body.title, harness)
             .await?,
+    ))
+}
+
+/// Sets the modes this project allows, per harness (spec §12.5).
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct UpdateProject {
+    /// The idempotency key (spec §3.2), scoped to the project.
+    command_id: String,
+    /// Per harness kind, the modes this project allows; a harness not named
+    /// keeps its modes. Only modes in Shadows' policy for that harness.
+    allowed_modes: BTreeMap<String, Vec<String>>,
+}
+
+/// Sets the modes this project allows, per harness (spec §12.5). A turn's
+/// mode is checked against them when it starts. A replay answers the project
+/// as it now stands.
+#[utoipa::path(
+    patch,
+    path = "/api/projects/{id}",
+    tag = "projects",
+    params(("id" = ProjectId, Path, description = "The project")),
+    request_body = UpdateProject,
+    responses(
+        (status = 200, body = Project),
+        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
+        (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
+        (status = 422, description = "SETTING_NOT_OFFERED: a mode outside Shadows' policy", body = ErrorBody),
+    )
+)]
+pub(super) async fn update_project(
+    State(s): State<AppState>,
+    Path(project_id): Path<ProjectId>,
+    Json(body): Json<UpdateProject>,
+) -> Result<Json<Project>, Failure> {
+    let mut modes = BTreeMap::new();
+    for (harness, list) in body.allowed_modes {
+        known_harness(&harness)?;
+        let policy = policy::allowed_modes(&harness);
+        let mut set: Vec<String> = Vec::new();
+        for mode in list {
+            if !policy.contains(&mode.as_str()) {
+                return Err(Failure::setting_not_offered("mode", &mode, None));
+            }
+            if !set.contains(&mode) {
+                set.push(mode);
+            }
+        }
+        // A set: the order it was sent in is not part of the request.
+        set.sort();
+        modes.insert(harness, set);
+    }
+    let params = serde_json::json!({ "project": project_id, "allowed_modes": modes });
+    let c = ctx(body.command_id, "project.modes", params);
+    Ok(Json(
+        s.storage.set_project_modes(&c, &project_id, &modes).await?,
     ))
 }

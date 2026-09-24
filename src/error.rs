@@ -5,6 +5,7 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
+    HarnessStartFailed,
     ProcessSpawnFailed,
     ProcessTerminated,
     ProcessTerminationFailed,
@@ -25,6 +26,19 @@ pub enum ErrorCode {
     PathAlreadyExists,
     PathUnavailable,
     OriginRefused,
+    /// Spec §12.10: the thread's harness is listed but not runnable.
+    HarnessUnavailable,
+    /// A model, mode or effort the session does not offer, or a mode outside
+    /// Shadows' policy.
+    SettingNotOffered,
+    /// The project does not allow this mode (§12.5).
+    ModeNotAllowed,
+    /// The thread already ran a turn on its harness (§12.6).
+    HarnessLocked,
+    /// The thread has a turn running.
+    ThreadBusy,
+    /// Fork from anything but the last completed entry (§12.9).
+    ForkPointNotSupported,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]

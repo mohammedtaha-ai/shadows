@@ -53,6 +53,16 @@ impl From<StorageError> for Failure {
             StorageError::NotFound(_) => {
                 return own(StatusCode::NOT_FOUND, ErrorCode::InvalidCommand);
             }
+            StorageError::HarnessLocked => {
+                return own(StatusCode::CONFLICT, ErrorCode::HarnessLocked);
+            }
+            StorageError::ThreadBusy => return own(StatusCode::CONFLICT, ErrorCode::ThreadBusy),
+            StorageError::ForkPointNotSupported => {
+                return own(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    ErrorCode::ForkPointNotSupported,
+                );
+            }
             StorageError::TransitionConflict { .. } => (
                 StatusCode::CONFLICT,
                 ErrorCode::StorageConstraintViolation,
@@ -89,6 +99,61 @@ impl From<StartError> for Failure {
 }
 
 impl Failure {
+    /// The thread's project has no usable directory. A 4xx whose message is
+    /// the reason, because the user can act on it: the text is ours, about a
+    /// directory the user chose (§3.2).
+    pub(super) fn project_directory_unusable(reason: String) -> Self {
+        Failure {
+            status: StatusCode::CONFLICT,
+            code: ErrorCode::PathNotFound,
+            message: reason,
+            cause: None,
+        }
+    }
+    pub(super) fn harness_start_failed(reason: String) -> Self {
+        Failure {
+            status: StatusCode::BAD_GATEWAY,
+            code: ErrorCode::HarnessStartFailed,
+            message: "the harness could not start".into(),
+            cause: Some(reason),
+        }
+    }
+    /// Spec §12.4: the thread's harness is listed but cannot run here yet.
+    pub(super) fn harness_unavailable(harness: &str) -> Self {
+        Failure {
+            status: StatusCode::UNPROCESSABLE_ENTITY,
+            code: ErrorCode::HarnessUnavailable,
+            message: format!("the {harness} harness is not available yet"),
+            cause: None,
+        }
+    }
+
+    /// Spec §12.7: `what` (model, effort, mode or harness) is not among the
+    /// choices on offer. `detail`, when given, is the harness's own refusal,
+    /// which names a setting the user chose (§12.4: reported in its words).
+    pub(super) fn setting_not_offered(what: &str, id: &str, detail: Option<&str>) -> Self {
+        let message = match detail {
+            Some(detail) => format!("{what} {id} was refused by the harness: {detail}"),
+            None => format!("{what} {id} is not offered"),
+        };
+        Failure {
+            status: StatusCode::UNPROCESSABLE_ENTITY,
+            code: ErrorCode::SettingNotOffered,
+            message,
+            cause: None,
+        }
+    }
+
+    /// Spec §12.5: the project does not allow `mode`.
+    pub(super) fn mode_not_allowed(mode: &str) -> Self {
+        Failure {
+            status: StatusCode::FORBIDDEN,
+            code: ErrorCode::ModeNotAllowed,
+            message: format!("this project does not allow the {mode} mode"),
+            cause: None,
+        }
+    }
+
     /// Spec §8.5: a stopping daemon takes no new work. 503, because the
     /// refusal is about this daemon's state, not the request — the same
     /// request succeeds against the next one.

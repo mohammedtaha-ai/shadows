@@ -5,6 +5,8 @@
 //! ever adds puts a route here. So routes are split by domain, and this file
 //! only wires them: `project.rs` (projects and their threads),
 //! `conversation.rs` (entries, a thread's turns, starting and stopping one),
+//! `harness.rs` (the harnesses and a thread's session), `thread.rs` (changing
+//! a thread itself),
 //! `sse.rs` (the replay-then-live stream), `fs.rs` (choosing a project directory),
 //! `openapi.rs` (the document describing all of it), `failure.rs` (the
 //! transport mapping), `guard.rs` (refusing requests pages were made to send).
@@ -18,9 +20,11 @@ mod conversation;
 mod failure;
 mod fs;
 mod guard;
+mod harness;
 mod openapi;
 mod project;
 pub mod sse;
+mod thread;
 
 pub use failure::Failure;
 pub use openapi::document as openapi_document;
@@ -36,10 +40,9 @@ use tower_http::trace::TraceLayer;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-use crate::agent::StreamItem;
-use crate::agent::claude::ClaudeHarness;
+use crate::agent::events::HarnessEvent;
 use crate::operation::OperationId;
-use crate::planner::LiveHandles;
+use crate::planner::{LiveHandles, Sessions};
 use crate::runtime::Runtime;
 use crate::storage::Storage;
 use crate::thread::ThreadId;
@@ -49,8 +52,8 @@ pub struct AppState {
     pub runtime: Arc<Runtime>,
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
-    pub harness: Arc<ClaudeHarness>,
-    pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
+    pub sessions: Arc<Sessions>,
+    pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
     /// Spec §1: the only origins a browser may call this daemon from. Every
     /// client is cross-origin, because the daemon serves no page. Validated
     /// by `config::allowed_origin` before it gets here.
@@ -115,11 +118,18 @@ pub fn router(state: AppState) -> Router {
 fn routes() -> OpenApiRouter<AppState> {
     OpenApiRouter::with_openapi(openapi::base())
         .routes(routes!(project::list_projects, project::create_project))
+        .routes(routes!(project::update_project))
         .routes(routes!(project::list_threads, project::create_thread))
         .routes(routes!(conversation::list_entries))
         .routes(routes!(conversation::list_operations))
         .routes(routes!(conversation::start_turn))
         .routes(routes!(conversation::stop_turn))
+        .routes(routes!(harness::list_harnesses))
+        .routes(routes!(harness::open_session))
+        .routes(routes!(harness::change_model))
+        .routes(routes!(harness::thread_context))
+        .routes(routes!(thread::update_thread))
+        .routes(routes!(thread::fork_thread))
         .routes(routes!(sse::subscribe))
         .routes(routes!(fs::list_dirs, fs::create_dir))
         .routes(routes!(openapi::serve))
@@ -136,8 +146,8 @@ fn content_length(headers: &axum::http::HeaderMap) -> Option<u64> {
 
 /// Cross-origin access for the configured origins only; any other origin's
 /// request gets no `Access-Control-Allow-Origin` and the browser withholds the
-/// response. The methods and headers are exactly what the routes use: `GET`
-/// and `POST`, JSON bodies, and `Last-Event-ID`, which a browser's
+/// response. The methods and headers are exactly what the routes use: `GET`,
+/// `POST`, `PUT` and `PATCH`, JSON bodies, and `Last-Event-ID`, which a browser's
 /// `EventSource` sends when it reconnects a stream. No credentials: the API
 /// has none to send (spec §1's OPEN block on remote access).
 fn cors(origins: &[String]) -> CorsLayer {
@@ -147,7 +157,7 @@ fn cors(origins: &[String]) -> CorsLayer {
         .collect();
     CorsLayer::new()
         .allow_origin(AllowOrigin::list(origins))
-        .allow_methods([Method::GET, Method::POST])
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::PATCH])
         .allow_headers([
             header::CONTENT_TYPE,
             header::HeaderName::from_static("last-event-id"),

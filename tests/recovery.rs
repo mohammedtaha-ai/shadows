@@ -211,3 +211,130 @@ async fn the_current_runtimes_own_operations_are_left_alone() {
         .unwrap();
     assert_eq!(status, "Running");
 }
+
+#[path = "fixtures/acp.rs"]
+mod acp;
+#[path = "fixtures/turn.rs"]
+mod turn;
+
+/// One daemon's worth of state over the database at `db`: a runtime, its
+/// registry and its adapters, as `shadows serve` assembles them.
+struct Daemon {
+    runtime: std::sync::Arc<shadows::runtime::Runtime>,
+    handles: std::sync::Arc<shadows::planner::LiveHandles>,
+    sessions: std::sync::Arc<shadows::planner::Sessions>,
+}
+
+impl Daemon {
+    async fn start(db: &std::path::Path) -> Self {
+        let storage = std::sync::Arc::new(Storage::open(db).await.unwrap());
+        let (runtime, _report) = shadows::runtime::Runtime::start(storage).await.unwrap();
+        Daemon {
+            runtime: std::sync::Arc::new(runtime),
+            handles: Default::default(),
+            sessions: acp::fake_sessions(db).await,
+        }
+    }
+
+    /// Runs one turn to its end and answers the text of its last entry.
+    async fn turn(&self, thread: &shadows::thread::ThreadId, prompt: &str) -> String {
+        let bus = tokio::sync::broadcast::channel(16).0;
+        let op = turn::start_direct(
+            &self.runtime,
+            &self.handles,
+            &self.sessions,
+            &bus,
+            thread,
+            prompt,
+        )
+        .await
+        .unwrap();
+        for _ in 0..200 {
+            let loaded = self.runtime.storage.get_operation(&op).await.unwrap();
+            if loaded.finished_at.is_some() {
+                assert_eq!(loaded.status_kind, "Completed", "{loaded:?}");
+                let entries = self
+                    .runtime
+                    .storage
+                    .list_thread_entries(thread)
+                    .await
+                    .unwrap();
+                return entries.last().unwrap().body.clone();
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        panic!("the turn never ended");
+    }
+
+    async fn stop(self) {
+        let kind = shadows::planner::shut_down(
+            self.runtime,
+            self.handles,
+            self.sessions.clone(),
+            std::time::Duration::from_secs(10),
+            std::future::pending(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(kind, StopKind::Graceful);
+        assert_eq!(
+            self.sessions.live_count().await,
+            0,
+            "an adapter outlived the daemon"
+        );
+    }
+}
+
+/// Spec §12.2: the daemon's adapters do not survive it, and the thread's
+/// recorded session does. The next daemon, holding no live adapter, opens the
+/// thread by resuming that session — which is how a conversation continues
+/// across a restart.
+#[tokio::test]
+async fn after_a_restart_the_next_turn_resumes_the_recorded_session() {
+    let tmp = tempfile::tempdir().unwrap();
+    let db = tmp.path().join("s.sqlite3");
+    let first = Daemon::start(&db).await;
+    let ctx = |id: &str, kind: &str| shadows::command::CommandContext {
+        principal_kind: "User".into(),
+        principal_id: "local".into(),
+        command_id: id.into(),
+        command_kind: kind.into(),
+        command_schema_ver: 1,
+        request_fingerprint: shadows::command::fingerprint(kind, &serde_json::json!({ "id": id })),
+    };
+    let dir = shadows::project::ProjectDirectory::resolve(tmp.path()).unwrap();
+    let storage = &first.runtime.storage;
+    let project = storage
+        .create_project(
+            &ctx("c1", "project.create"),
+            "demo",
+            "Demo",
+            &dir,
+            &shadows::agent::policy::default_modes(),
+        )
+        .await
+        .unwrap();
+    let thread = storage
+        .create_planning_thread(&ctx("c2", "thread.create"), &project.id, "T", "claude-code")
+        .await
+        .unwrap()
+        .id;
+
+    first.turn(&thread, "hi").await;
+    let session = storage
+        .turn_context(&thread)
+        .await
+        .unwrap()
+        .harness_session_id
+        .expect("the first turn records its session");
+    first.stop().await;
+
+    let second = Daemon::start(&db).await;
+    let report: serde_json::Value =
+        serde_json::from_str(&second.turn(&thread, "report").await).unwrap();
+    assert_eq!(
+        (report["how"].as_str(), report["session"].as_str()),
+        (Some("resume"), Some(session.as_str()))
+    );
+    second.stop().await;
+}

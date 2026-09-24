@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 pub mod browse;
 pub mod directory;
 
@@ -24,4 +26,8 @@ pub struct Project {
     /// daemon's own working directory.
     pub directory: Option<String>,
     pub created_at: String,
+    /// Per harness kind, the modes this project's turns may use (spec §12.5).
+    /// Each list is a set: its order carries no meaning. Every known harness
+    /// is present; an empty list means no turn can start on it.
+    pub allowed_modes: BTreeMap<String, Vec<String>>,
 }

@@ -6,6 +6,7 @@ import { MessageSquarePlus } from 'lucide-react'
 import { projectsQuery, threadsQuery } from '@/api/queries'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from './error-line'
+import { ProjectModes } from './project-modes'
 import { useNewConversation } from './use-new-conversation'
 
 const route = getRouteApi('/projects/$projectId')
@@ -33,6 +34,11 @@ export function ProjectPage() {
         {empty ? 'Start a conversation' : 'New conversation'}
       </Button>
       {newConversation.error !== null && <ErrorLine error={newConversation.error} />}
+      {project !== undefined && (
+        <div className="mt-6 border-t border-border pt-6">
+          <ProjectModes project={project} />
+        </div>
+      )}
     </div>
   )
 }

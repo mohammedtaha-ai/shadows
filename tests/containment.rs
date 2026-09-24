@@ -39,6 +39,7 @@ async fn spawn_probe_tree() -> (shadows::process::ProcessHandle, u32, u32) {
         cwd: std::env::temp_dir(),
         env: Vec::new(),
         capture_stdout: true,
+        pipe_stdin: false,
     })
     .expect("spawn should succeed");
     let mut lines = handle.take_stdout_lines().expect("stdout was captured");
@@ -155,6 +156,7 @@ async fn terminating_a_managed_tree_kills_the_grandchild_too() {
         cwd: std::env::temp_dir(),
         env: Vec::new(),
         capture_stdout: true,
+        pipe_stdin: false,
     })
     .expect("spawn should succeed");
 
@@ -207,6 +209,7 @@ async fn waiting_for_the_leader_reaps_any_remaining_grandchild() {
         cwd: std::env::temp_dir(),
         env: Vec::new(),
         capture_stdout: true,
+        pipe_stdin: false,
     })
     .expect("spawn should succeed");
 
@@ -246,6 +249,7 @@ async fn a_spawned_child_has_no_inherited_stdin() {
         cwd: std::env::temp_dir(),
         env: Vec::new(),
         capture_stdout: true,
+        pipe_stdin: false,
     })
     .unwrap();
 
@@ -254,6 +258,27 @@ async fn a_spawned_child_has_no_inherited_stdin() {
         .expect("a child with closed stdin must see EOF immediately, not block")
         .unwrap();
     assert!(status.success());
+}
+
+#[tokio::test]
+async fn a_piped_child_echoes_stdin_and_its_tree_is_contained() {
+    let mut handle = shadows::process::spawn(ProcessSpec {
+        executable: env!("CARGO_BIN_EXE_tree_probe").into(),
+        args: vec!["echo".into()],
+        cwd: std::env::temp_dir(),
+        env: Vec::new(),
+        capture_stdout: true,
+        pipe_stdin: true,
+    })
+    .unwrap();
+    let (mut stdin, stdout, _stderr) = handle.take_stdio().expect("stdio taken once");
+    assert!(handle.take_stdio().is_none());
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    stdin.write_all(b"ping\n").await.unwrap();
+    let mut lines = BufReader::new(stdout).lines();
+    assert_eq!(lines.next_line().await.unwrap().as_deref(), Some("ping"));
+    handle.terminate_tree().unwrap();
+    handle.wait().await.unwrap();
 }
 
 /// Spec §8.4 case 4 turns on one fact and one only: had the process already
@@ -276,6 +301,7 @@ async fn has_exited_answers_immediately_and_tells_the_two_states_apart() {
         cwd: std::env::temp_dir(),
         env: Vec::new(),
         capture_stdout: false,
+        pipe_stdin: false,
     })
     .expect("spawn should succeed");
 
@@ -296,6 +322,7 @@ async fn has_exited_answers_immediately_and_tells_the_two_states_apart() {
         cwd: std::env::temp_dir(),
         env: Vec::new(),
         capture_stdout: false,
+        pipe_stdin: false,
     })
     .expect("spawn should succeed");
     finished.wait().await.expect("the child should exit");
@@ -320,6 +347,7 @@ async fn a_child_that_floods_stderr_still_exits() {
         cwd: std::env::temp_dir(),
         env: Vec::new(),
         capture_stdout: true,
+        pipe_stdin: false,
     })
     .expect("spawn should succeed");
     let status = tokio::time::timeout(Duration::from_secs(20), handle.wait())

@@ -1,21 +1,26 @@
 //! Stop reaches only its own turn. Two turns on two threads in two projects run
-//! at once under one runtime; stopping one terminates its tree and records it
-//! `Cancelled`, and the other keeps running and then completes normally. The
+//! at once under one runtime, each on its own adapter; stopping one terminates
+//! its adapter's tree and records it `Cancelled`, and the other keeps running
+//! and then completes normally. The
 //! process-level half of the same claim — a tree's termination never reaches
 //! another tree or a process outside every tree — is `tests/containment.rs`.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use shadows::agent::claude::ClaudeHarness;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::Actor;
 use shadows::operation::{Operation, OperationId};
-use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest, StopOutcome};
+use shadows::planner::{LiveHandles, PlannerTurn, StopOutcome};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use shadows::thread::ThreadId;
+
+#[path = "fixtures/acp.rs"]
+mod acp;
+#[path = "fixtures/turn.rs"]
+mod turn;
 
 /// A project with its own directory, and one thread in it.
 async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> ThreadId {
@@ -35,6 +40,7 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
             slug,
             slug,
             &shadows::project::ProjectDirectory::resolve(dir).unwrap(),
+            &shadows::agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -46,7 +52,7 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
     };
     runtime
         .storage
-        .create_planning_thread(&tctx, &project.id, "T")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
         .await
         .unwrap()
         .id
@@ -103,32 +109,25 @@ async fn stopping_one_turn_leaves_a_concurrent_turn_running_to_completion() {
 
     let handles = Arc::new(LiveHandles::default());
     let (bus, _rx) = tokio::sync::broadcast::channel(64);
-    let harness = Arc::new(ClaudeHarness::new(
-        PathBuf::from(env!("CARGO_BIN_EXE_fake_claude")),
-        "fake-1".into(),
-    ));
-    let start = |thread: ThreadId, prompt: &str| {
-        PlannerTurn::start(
-            runtime.clone(),
-            handles.clone(),
-            harness.clone(),
-            PlannerTurnRequest {
-                thread_id: thread,
-                prompt: prompt.into(),
-            },
-            bus.clone(),
-        )
+    let sessions = acp::fake_sessions(&tmp.path().join("s.sqlite3")).await;
+    let start = async |thread: &ThreadId, prompt: &str| {
+        turn::start_direct(&runtime, &handles, &sessions, &bus, thread, prompt)
+            .await
+            .unwrap()
     };
-    let stopped = start(stopped_thread, "hang").await.unwrap();
-    let kept = start(kept_thread, "wait-for-release").await.unwrap();
+    // `ignore-cancel`: the harness never confirms, so Stop has to terminate
+    // the stopped thread's adapter — the case that could reach the other.
+    let stopped = start(&stopped_thread, "ignore-cancel").await;
+    let kept = start(&kept_thread, "wait-for-release").await;
     wait_for_status(&runtime, &stopped, "Running").await;
     wait_for_status(&runtime, &kept, "Running").await;
-    let stopped_pid = handles.pid(&stopped).await.expect("registered");
-    let kept_pid = handles.pid(&kept).await.expect("registered");
+    let stopped_pid = sessions.pid(&stopped_thread).await.expect("live");
+    let kept_pid = sessions.pid(&kept_thread).await.expect("live");
 
     let outcome = PlannerTurn::stop(
         runtime.clone(),
         handles.clone(),
+        sessions.clone(),
         &stopped,
         Actor::user("local"),
     )

@@ -20,8 +20,45 @@ export interface TestApp {
   /** The JSON body of each request that had one, in order. */
   readonly bodies: unknown[]
   readonly sources: FakeSource[]
+  /** The first button named `name` by its text or its `aria-label`,
+   * anywhere in the page (menus and popups render outside the app's root). */
   button(name: string): HTMLButtonElement | undefined
+  /** Every button so named, in document order. */
+  buttons(name: string): HTMLButtonElement[]
+  /** The checkbox whose label reads `name`. */
+  checkbox(name: string): HTMLInputElement | undefined
+  /** All the page's text, popups included. */
+  text(): string
+  /** The URL path the router is at. */
+  path(): string
+  /** Delivers one SSE frame, `data` as JSON, on the latest stream. */
+  pushFrame(name: string, data: unknown): void
   unmount(): void
+}
+
+function buttonsNamed(name: string): HTMLButtonElement[] {
+  return [...document.querySelectorAll('button')].filter(
+    (b) => b.textContent?.trim() === name || b.getAttribute('aria-label') === name,
+  )
+}
+
+/** The open menu's item that reads `name`, or starts with it (an item may
+ * carry a note after its name, such as "coming"). */
+export function menuItem(name: string): HTMLElement | undefined {
+  const items = [...document.querySelectorAll<HTMLElement>('[role^="menuitem"]')]
+  return (
+    items.find((i) => i.textContent?.trim() === name) ??
+    items.find((i) => i.textContent?.trim().startsWith(name))
+  )
+}
+
+/** Opens the menu whose trigger reads `trigger` and picks `item` from it. */
+export async function choose(app: TestApp, trigger: string, item: string): Promise<void> {
+  const button = app.button(trigger)
+  if (button === undefined) throw new Error(`no menu button reads "${trigger}"`)
+  act(() => button.click())
+  await until(() => menuItem(item) !== undefined)
+  act(() => menuItem(item)?.click())
 }
 
 /** Starts the app's real router at `url`, with each `METHOD /path` in
@@ -75,10 +112,19 @@ export async function startApp(url: string, answers: Record<string, Answer>): Pr
     calls,
     bodies,
     sources,
-    button: (name) =>
-      [...document.querySelectorAll('button')].find(
-        (b) => b.textContent?.trim() === name || b.getAttribute('aria-label') === name,
+    button: (name) => buttonsNamed(name)[0],
+    buttons: buttonsNamed,
+    checkbox: (name) =>
+      [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(
+        (i) => i.closest('label')?.textContent?.trim() === name,
       ),
+    text: () => document.body.textContent ?? '',
+    path: () => window.location.pathname,
+    pushFrame: (name, data) => {
+      const source = sources.at(-1)
+      if (source === undefined) throw new Error('no stream was opened')
+      source.emit(name, JSON.stringify(data))
+    },
     unmount: () => {
       act(() => root.unmount())
       container.remove()

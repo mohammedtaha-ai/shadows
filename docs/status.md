@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-09-24
+**Updated:** 2026-09-24 (after the Phase B run)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,24 +9,30 @@ restate them.
 
 ## Where we are
 
-**Milestone 0 is complete on Windows.** A person starts `shadows serve`, opens
-the web client in a browser, picks a project folder, holds a conversation with
-a real Claude Planner that streams live, stops a turn with the process tree
-confirmed dead, and gets the conversation back after the daemon is killed and
-restarted. The run is recorded in
-[`evidence/milestone0/ACCEPTANCE.md`](./evidence/milestone0/ACCEPTANCE.md).
+**Milestone 1 is implemented, Phase A and Phase B, and both have run on
+Linux against the real harness.** A Planner turn is an ACP `session/prompt` on
+an adapter each open thread keeps (spec §12). The person chooses the CLI per
+conversation and the model, mode and effort per message, all read from the
+harness. The composer shows context and limits. Any message can be copied, and
+the last one forked. The Phase B run found four defects, all fixed and run
+again: [`evidence/milestone1/PHASE_B_RUN.md`](./evidence/milestone1/PHASE_B_RUN.md).
+The Phase A run is [`PHASE_A_RUN.md`](./evidence/milestone1/PHASE_A_RUN.md).
+**Mohammed's run has not happened yet, on Windows or anywhere else.**
 
-- Tasks 1-4: `main` via PR #1. Tasks 5-11 (the backend): `main` via PR #2.
-  Tasks 12a-12c (daemon API for an independent client, the React client) and
-  Task 13 (shutdown, isolation, acceptance): branch `milestone-0/web-client`.
+- Milestone 0 is complete on Windows and on `main` (PRs #1-#3).
+  [`evidence/milestone0/ACCEPTANCE.md`](./evidence/milestone0/ACCEPTANCE.md).
+- Milestone 1: branch `milestone-1/harness-controls-7p9608`, PR #4. The
+  whole-branch review has run, and its fixes are merged.
+- Mohammed's three rulings after the run are built and ran on the real
+  harness (spec §12.5, §12.6/§12.9, §12.7): the mode menu says what Accept
+  edits allows, a fork is locked to its harness, and a chosen model is set at
+  once.
 - The daemon serves an API only; the React client in `web/` is a separate
   application (spec §1). Its types are generated from `api/openapi.json`.
-- 107 Rust tests and 48 web tests. CI runs three jobs: Windows is the acceptance
-  gate, Linux is a compile gate only, and a web job builds, type-checks and
-  tests the client.
+- 202 Rust tests and 95 web tests.
 
-The plan is `superpowers/plans/2026-09-21-milestone-0-browser-planner.md`; its
-ledger and rulings are in the git-ignored `.superpowers/sdd/` workspace.
+The plan is `superpowers/plans/2026-09-24-milestone-1-harness-controls.md`.
+The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## What has been measured
 
@@ -35,6 +41,14 @@ ledger and rulings are in the git-ignored `.superpowers/sdd/` workspace.
   killed mid-turn takes the harness and its grandchild with it through the Job
   Object, and restart records the turn `Interrupted` with every entry intact.
   `evidence/milestone0/`.
+- **Phase A over ACP, on Linux.** Adapter 0.81.1 over Claude Code 2.1.281:
+  the harness itself confirmed a Stop (`cancelled`) and the adapter lived on,
+  and a restarted daemon resumed the recorded session. Read-only shell commands
+  are allowed by Claude Code without asking. `evidence/milestone1/`.
+- **Phase B on Linux.** The model list, each model's efforts and the modes all
+  come from the session. The adapter needs `PATH` and `HOME` from the daemon, or
+  no shell command runs. Accept edits runs file commands in the project folder,
+  `rm` included, without a permission request. `evidence/milestone1/`.
 - **The harness does spawn a tree.** `claude --print` starts an MCP proxy as a
   child. This settles the question the serve/stream spike left open; whether a
   `Bash` call adds more descendants was not measured separately.
@@ -53,21 +67,28 @@ ledger and rulings are in the git-ignored `.superpowers/sdd/` workspace.
 
 ## Next
 
-1. Merge `milestone-0/web-client` (PR #3) and delete the branch.
-2. Plan the next milestone. Its first candidates are the gaps below that
-   Milestone 0 deliberately left open.
+1. Mohammed runs Milestone 1 with the real client on Windows: every item of
+   spec §12.13, plus Phase A's Stop and restart.
+2. Merge PR #4 and delete the branch.
+3. **One lock for every open session.** `Sessions` holds a single lock through
+   an adapter's startup (up to 5 s) and through each termination wait, so
+   opening one conversation can delay Stop on another. This is latency, not a
+   correctness defect. The fix is one slot per thread. It is its own task,
+   after the PR.
 
 ## Standing risks
 
-- **Linux parent-death containment is not implemented.** The Linux CI job
-  compiles and runs the portable suite; it does not prove that the harness dies
-  with a crashed daemon (spec §1.5 OPEN block). Never generalize a Windows
+- **Linux parent-death containment is not implemented.** The Linux run and CI
+  stop the daemon cleanly; neither proves that the adapter dies with a crashed
+  daemon (spec §1.5 OPEN block). Never generalize a Windows
   result into a Linux claim.
-- **A harness that closes stdout but keeps running cannot be stopped** until the
-  daemon exits. Found in the whole-branch review; the Stop/reader arbitration
-  needs rework.
-- **Starting a turn carries no `CommandId`**, against the idempotency rule;
-  **`agent_invocation` is not persisted** (spec §8.2).
+- **A harness that stops answering but keeps running** was the Milestone 0 risk.
+  Stop no longer waits on a stream: after `cancel_wait` it terminates the
+  adapter's tree (§12.3). `fake_acp`'s `ignore-cancel` covers this; the real
+  harness was not driven into that state.
+- **Accept edits lets Claude Code delete files in the project folder without
+  asking** (spec §12.5, measured in the Phase B run). This is the harness's
+  behaviour, kept by decision; an uncommitted file it deletes is lost.
 - **No authentication.** The daemon binds to loopback and refuses cross-site
   browser requests, but any local process can call it. Remote access is an OPEN
   block in spec §1 with its trigger.

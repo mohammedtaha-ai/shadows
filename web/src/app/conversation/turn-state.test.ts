@@ -23,6 +23,7 @@ const op = (id: string, status_kind: string, cancel_requested_at?: string): Oper
   kind: 'PlannerTurn',
   created_at: '2026-09-23T00:00:00Z',
   runtime_instance_id: 'r',
+  invocation: null,
 })
 
 const snapshot = (operations: Operation[], now = 0): TurnAction => ({

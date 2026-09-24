@@ -5,6 +5,10 @@ use std::path::{Path, PathBuf};
 pub struct Config {
     pub db_path: PathBuf,
     pub bind: SocketAddr,
+    /// Explicit Node runtime for the installed ACP adapter. Never resolved via `PATH`.
+    pub node_path: PathBuf,
+    /// Entry point for the pinned ACP adapter package.
+    pub adapter_path: PathBuf,
     /// Spec §1.4: resolved from configuration, never from `PATH`. This machine
     /// carries more than one `claude-code` installation at different versions.
     /// Built through [`harness_path`], which is what enforces that.
@@ -40,6 +44,8 @@ pub enum ConfigError {
          path resolves against whatever directory the daemon happens to be in."
     )]
     HarnessNotAbsolute(String),
+    #[error("configured harness path does not exist: `{0}`")]
+    HarnessNotFound(String),
     #[error(
         "`{0}` is not an origin. An origin is exactly what a browser sends in its \
          Origin header: `http://` or `https://`, a host, an optional port, and \
@@ -82,10 +88,34 @@ pub fn allowed_origin(raw: &str) -> Result<String, ConfigError> {
 /// not a stable fact, so it carries the same ambiguity one step further in.
 pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError> {
     if raw.is_absolute() {
-        Ok(raw.to_path_buf())
+        if raw.exists() {
+            Ok(raw.to_path_buf())
+        } else {
+            Err(ConfigError::HarnessNotFound(
+                raw.to_string_lossy().into_owned(),
+            ))
+        }
     } else {
         Err(ConfigError::HarnessNotAbsolute(
             raw.to_string_lossy().into_owned(),
         ))
     }
+}
+
+/// Reads the installed ACP adapter's package version from its entry point's
+/// package root. A missing or malformed package is recorded as unknown so the
+/// daemon can still start and report the configuration problem at runtime.
+pub fn adapter_version(adapter_entry: &Path) -> String {
+    let Some(package_json) = adapter_entry
+        .parent()
+        .and_then(Path::parent)
+        .map(|root| root.join("package.json"))
+    else {
+        return "unknown".to_string();
+    };
+    std::fs::read(package_json)
+        .ok()
+        .and_then(|contents| serde_json::from_slice::<serde_json::Value>(&contents).ok())
+        .and_then(|package| package.get("version")?.as_str().map(str::to_string))
+        .unwrap_or_else(|| "unknown".to_string())
 }

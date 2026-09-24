@@ -1,6 +1,41 @@
 {
   "components": {
     "schemas": {
+      "AccountLimits": {
+        "description": "The account's limits as last reported by the harness (spec §12.8). A\nwindow the harness did not report is `None`, never estimated.",
+        "properties": {
+          "five_hour": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LimitWindow"
+              }
+            ]
+          },
+          "observed_at": {
+            "description": "When the daemon received the report (RFC 3339).",
+            "type": "string"
+          },
+          "seven_day": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LimitWindow"
+              }
+            ]
+          }
+        },
+        "required": [
+          "five_hour",
+          "seven_day",
+          "observed_at"
+        ],
+        "type": "object"
+      },
       "Actor": {
         "properties": {
           "id": {
@@ -13,6 +48,101 @@
         "required": [
           "kind",
           "id"
+        ],
+        "type": "object"
+      },
+      "ChangeModel": {
+        "description": "The model a person picked (spec §12.7).",
+        "properties": {
+          "model": {
+            "description": "One of the session's `models`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "type": "object"
+      },
+      "Choice": {
+        "description": "One value the session offers for a setting (spec §12.4). `enabled: false`\ncarries the `reason` it cannot be chosen.",
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "description",
+          "enabled",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "ContextBreakdown": {
+        "description": "The context breakdown read on demand (spec §12.8): the categories, or none\nwith the reason.",
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/ContextCategory"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "categories",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "ContextCategory": {
+        "description": "One category of the context breakdown.",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "percent": {
+            "format": "double",
+            "type": "number"
+          },
+          "tokens": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "tokens",
+          "percent"
         ],
         "type": "object"
       },
@@ -63,6 +193,13 @@
           "command_id": {
             "description": "The idempotency key (spec §3.2), scoped to the project.",
             "type": "string"
+          },
+          "harness": {
+            "description": "The CLI for this conversation; `claude-code` when omitted.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "title": {
             "type": "string"
@@ -195,6 +332,7 @@
       "ErrorCode": {
         "description": "Stable codes clients pattern-match on. Never match on human text.\nSpec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.",
         "enum": [
+          "HARNESS_START_FAILED",
           "PROCESS_SPAWN_FAILED",
           "PROCESS_TERMINATED",
           "PROCESS_TERMINATION_FAILED",
@@ -214,9 +352,158 @@
           "PATH_ACCESS_DENIED",
           "PATH_ALREADY_EXISTS",
           "PATH_UNAVAILABLE",
-          "ORIGIN_REFUSED"
+          "ORIGIN_REFUSED",
+          "HARNESS_UNAVAILABLE",
+          "SETTING_NOT_OFFERED",
+          "MODE_NOT_ALLOWED",
+          "HARNESS_LOCKED",
+          "THREAD_BUSY",
+          "FORK_POINT_NOT_SUPPORTED"
         ],
         "type": "string"
+      },
+      "ForkThread": {
+        "description": "Forks the thread from its last completed entry (spec §12.9).",
+        "properties": {
+          "at_entry_id": {
+            "$ref": "#/components/schemas/ThreadEntryId"
+          },
+          "command_id": {
+            "description": "The idempotency key (spec §3.2), scoped to the source thread.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "at_entry_id"
+        ],
+        "type": "object"
+      },
+      "HarnessInfo": {
+        "description": "A CLI a conversation can run on (spec §12.1). `kind` is `claude-code` or\n`codex`.",
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "limits": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AccountLimits"
+              }
+            ]
+          },
+          "reason": {
+            "description": "Why it cannot run, when `available` is false.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "remembered": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RememberedSettings"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "available",
+          "reason",
+          "remembered",
+          "limits"
+        ],
+        "type": "object"
+      },
+      "InvocationView": {
+        "description": "What a turn asked for and what the harness reported (spec §8.2, §12.8).\nAnything not reported is `None`, never estimated.",
+        "properties": {
+          "agent_version": {
+            "type": "string"
+          },
+          "context_used": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "context_window": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "harness_kind": {
+            "type": "string"
+          },
+          "harness_version": {
+            "type": "string"
+          },
+          "observed_model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requested_effort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requested_mode": {
+            "type": "string"
+          },
+          "requested_model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "harness_kind",
+          "harness_version",
+          "agent_version",
+          "requested_model",
+          "requested_mode",
+          "requested_effort",
+          "observed_model",
+          "context_used",
+          "context_window"
+        ],
+        "type": "object"
+      },
+      "LimitWindow": {
+        "description": "One account limit window as the harness reported it: `utilization` from 0\nto 1, `resets_at` in Unix seconds.",
+        "properties": {
+          "resets_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "utilization": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "utilization",
+          "resets_at"
+        ],
+        "type": "object"
       },
       "Operation": {
         "description": "Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the\n`ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged\nfor reviewability, that follows this task (spec §4.1 OPEN block).",
@@ -257,6 +544,17 @@
               "null"
             ]
           },
+          "invocation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/InvocationView",
+                "description": "What the turn asked of the harness and what it reported (§12.7).\n`None` for an operation from before invocations were recorded."
+              }
+            ]
+          },
           "kind": {
             "type": "string"
           },
@@ -290,7 +588,8 @@
           "kind",
           "status_kind",
           "runtime_instance_id",
-          "created_at"
+          "created_at",
+          "invocation"
         ],
         "type": "object"
       },
@@ -301,6 +600,17 @@
       "PlanningThread": {
         "properties": {
           "created_at": {
+            "type": "string"
+          },
+          "forked_from_thread": {
+            "description": "The thread this one was forked from, if it is a fork (spec §12.9).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "harness": {
+            "description": "The CLI this conversation runs on (`agent::policy`): chosen at\ncreation, changeable until the thread's first operation, then fixed\n(spec §12.6).",
             "type": "string"
           },
           "id": {
@@ -321,12 +631,27 @@
           "project_id",
           "title",
           "status",
-          "created_at"
+          "created_at",
+          "harness",
+          "forked_from_thread"
         ],
         "type": "object"
       },
       "Project": {
         "properties": {
+          "allowed_modes": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "description": "Per harness kind, the modes this project's turns may use (spec §12.5).\nEach list is a set: its order carries no meaning. Every known harness\nis present; an empty list means no turn can start on it.",
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
           "created_at": {
             "type": "string"
           },
@@ -351,7 +676,8 @@
           "id",
           "slug",
           "name",
-          "created_at"
+          "created_at",
+          "allowed_modes"
         ],
         "type": "object"
       },
@@ -359,18 +685,92 @@
         "format": "uuid",
         "type": "string"
       },
+      "RememberedSettings": {
+        "description": "The model and effort last chosen for this harness (spec §12.4).",
+        "properties": {
+          "effort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "model",
+          "effort"
+        ],
+        "type": "object"
+      },
       "RuntimeInstanceId": {
         "format": "uuid",
         "type": "string"
       },
-      "StartTurn": {
+      "SessionChoices": {
+        "description": "What the thread's session offers now (spec §12.4). `efforts` are the\ncurrent model's. `modes` are after Shadows' policy; a mode the project does\nnot allow is present with `enabled: false` and `reason: \"Not allowed in\nthis project\"`.",
         "properties": {
+          "current": {
+            "$ref": "#/components/schemas/TurnSettings"
+          },
+          "efforts": {
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "type": "array"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "type": "array"
+          },
+          "modes": {
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "models",
+          "efforts",
+          "modes",
+          "current"
+        ],
+        "type": "object"
+      },
+      "StartTurn": {
+        "description": "Starts a turn as one command (spec §12.7).",
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key (spec §3.2). A retry sends the same one.",
+            "type": "string"
+          },
+          "effort": {
+            "description": "`null` exactly when the chosen model offers no effort (§12.4).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mode": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
           "prompt": {
             "type": "string"
           }
         },
         "required": [
-          "prompt"
+          "command_id",
+          "prompt",
+          "model",
+          "mode",
+          "effort"
         ],
         "type": "object"
       },
@@ -390,7 +790,15 @@
             "$ref": "#/components/schemas/ThreadEntryId"
           },
           "kind": {
+            "description": "`UserMessage`, `AgentMessage`, or `PermissionRefused` (a permission the\nharness asked for and Shadows refused, spec §12.2).",
             "type": "string"
+          },
+          "operation_id": {
+            "description": "The turn this entry belongs to (spec §12.7). `None` for entries written\nbefore entries named their turn. A fork's copied entries keep the\nsource's operation: provenance, not something the fork can act on.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "ordinal": {
             "format": "int64",
@@ -414,7 +822,8 @@
           "author",
           "body",
           "refs",
-          "created_at"
+          "created_at",
+          "operation_id"
         ],
         "type": "object"
       },
@@ -426,6 +835,29 @@
         "format": "uuid",
         "type": "string"
       },
+      "TurnSettings": {
+        "description": "The settings a turn runs with (spec §12.7). `effort` is `None` exactly\nwhen the model offers none (§12.4).",
+        "properties": {
+          "effort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mode": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "model",
+          "mode",
+          "effort"
+        ],
+        "type": "object"
+      },
       "TurnStarted": {
         "properties": {
           "operation_id": {
@@ -434,6 +866,51 @@
         },
         "required": [
           "operation_id"
+        ],
+        "type": "object"
+      },
+      "UpdateProject": {
+        "description": "Sets the modes this project allows, per harness (spec §12.5).",
+        "properties": {
+          "allowed_modes": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "description": "Per harness kind, the modes this project allows; a harness not named\nkeeps its modes. Only modes in Shadows' policy for that harness.",
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "command_id": {
+            "description": "The idempotency key (spec §3.2), scoped to the project.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "allowed_modes"
+        ],
+        "type": "object"
+      },
+      "UpdateThread": {
+        "description": "Changes the thread's CLI. Refused once the thread has run a turn, and on\na fork from birth (`HARNESS_LOCKED`).",
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key (spec §3.2), scoped to the thread.",
+            "type": "string"
+          },
+          "harness": {
+            "description": "`claude-code` or `codex`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "harness"
         ],
         "type": "object"
       }
@@ -601,6 +1078,40 @@
         ]
       }
     },
+    "/api/harnesses": {
+      "get": {
+        "operationId": "list_harnesses",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HarnessInfo"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Every harness Shadows knows, runnable or not, with the model and effort\nlast used on it and the account limits it last reported.",
+        "tags": [
+          "harnesses"
+        ]
+      }
+    },
     "/api/openapi.json": {
       "get": {
         "operationId": "serve",
@@ -675,7 +1186,7 @@
             "description": "PROCESS_TERMINATION_FAILED: the tree is still running, or STORAGE_UNAVAILABLE"
           }
         },
-        "summary": "Stops a turn: terminates its process tree, confirms it is gone, and only\nthen records it `Cancelled` (spec §2.3). Answers with the operation as it\nnow stands — which may still be `Running` for a moment when the turn had\nalready ended on its own and its ending is being recorded.",
+        "summary": "Stops a turn: asks the harness to cancel it, and if the harness does not\nconfirm in time, terminates the adapter's process tree, confirms it is\ngone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the operation as it\nnow stands — which may still be `Running` for a moment when the turn had\nalready ended on its own and its ending is being recorded.",
         "tags": [
           "turns"
         ]
@@ -794,6 +1305,78 @@
         ]
       }
     },
+    "/api/projects/{id}": {
+      "patch": {
+        "operationId": "update_project",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProject"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "SETTING_NOT_OFFERED: a mode outside Shadows' policy"
+          }
+        },
+        "summary": "Sets the modes this project allows, per harness (spec §12.5). A turn's\nmode is checked against them when it starts. A replay answers the project\nas it now stands.",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
     "/api/projects/{id}/threads": {
       "get": {
         "operationId": "list_threads",
@@ -892,6 +1475,16 @@
             },
             "description": "COMMAND_CONFLICT"
           },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "SETTING_NOT_OFFERED: a harness Shadows does not know"
+          },
           "500": {
             "content": {
               "application/json": {
@@ -911,7 +1504,7 @@
     },
     "/api/subscribe": {
       "get": {
-        "description": "Two live sources, both taken BEFORE a single journal row is read:\n\n- the storage's committed-sequence signal (spec §2.4: raised after each\n  commit that appended to the journal). A commit that lands while the\n  replay is being read shows up as a pending change, so it cannot fall into\n  the gap between the replay's last read and the live phase.\n- the transient bus, for what is never stored: deltas, turn ends, meta.\n\nDurable events reach the client only by reading the journal after\n`last_seq` — in the replay, and again on every signal change in the live\nphase — so each one is sent once, in sequence order, and de-duplication by\n`seq` is structural rather than left to the client. The bus's `Entry` items\nare therefore not forwarded: the same entry arrives as its durable\n`ThreadEntryAppended` event. Bus items for another thread are dropped.",
+        "description": "Two live sources, both taken BEFORE a single journal row is read:\n\n- the storage's committed-sequence signal (spec §2.4: raised after each\n  commit that appended to the journal). A commit that lands while the\n  replay is being read shows up as a pending change, so it cannot fall into\n  the gap between the replay's last read and the live phase.\n- the transient bus, for what is never stored: deltas and turn ends.\n\nDurable events reach the client only by reading the journal after\n`last_seq` — in the replay, and again on every signal change in the live\nphase — so each one is sent once, in sequence order, and de-duplication by\n`seq` is structural rather than left to the client. The bus's `Entry` items\nare therefore not forwarded: the same entry arrives as its durable\n`ThreadEntryAppended` event. Bus items for another thread are dropped.",
         "operationId": "subscribe",
         "parameters": [
           {
@@ -943,12 +1536,136 @@
                 }
               }
             },
-            "description": "Server-sent events for one thread (spec §2.10): the durable journal after `after`, then `caught-up`, then live. Each frame's `event:` names its kind and its `data:` is JSON unless stated.\n\n- `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. `operation_id` and `thread_id` are the ids it names, `null` where it names none; `payload` is the event's JSON object. Sent once each, in `seq` order, in the replay and live alike; remember the highest `seq` and resubscribe with it as `after`.\n- `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n- `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n- `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n- `meta` — `{op, label}`: any other harness line, by label. Transient.\n- `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.\n- `fatal` — data is a message as plain text: the journal could not be read and the stream ends.\n\nThe stream also ends when the daemon stops. Reconnect with the last `seq`."
+            "description": "Server-sent events for one thread (spec §2.10): the durable journal after `after`, then `caught-up`, then live. Each frame's `event:` names its kind and its `data:` is JSON unless stated.\n\n- `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. `operation_id` and `thread_id` are the ids it names, `null` where it names none; `payload` is the event's JSON object. Sent once each, in `seq` order, in the replay and live alike; remember the highest `seq` and resubscribe with it as `after`.\n- `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n- `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n- `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n- `usage` — `{thread_id, context_used, context_window, limits}`: the session's context use and the account's limits as the harness last reported them; each is `null` when not reported. Transient.\n- `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.\n- `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.\n- `fatal` — data is a message as plain text: the journal could not be read and the stream ends.\n\nThe stream also ends when the daemon stops. Reconnect with the last `seq`.\n\nA `durable` frame of kind `OperationCompleted` carries `payload.invocation`: the turn's `InvocationView`."
           }
         },
         "summary": "Spec §2.10: durable replay, then a no-gap handoff to live, then\nde-duplication by durable sequence.",
         "tags": [
           "stream"
+        ]
+      }
+    },
+    "/api/threads/{id}": {
+      "patch": {
+        "operationId": "update_thread",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateThread"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanningThread"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such thread"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_LOCKED: the thread already ran a turn on its harness, or is a fork; or COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "SETTING_NOT_OFFERED: a harness Shadows does not know"
+          }
+        },
+        "summary": "Changes the thread's CLI before its first turn (spec §12.6). A replay\nanswers the thread as it now stands and changes nothing, even once the\nharness is locked; a new command after the first turn, or on a fork (its\nsession is a fork of its source's, §12.9), is `HARNESS_LOCKED`. A change\ncloses the thread's adapter (§12.2).",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/api/threads/{id}/context": {
+      "get": {
+        "operationId": "thread_context",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextBreakdown"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such thread"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The context breakdown of the thread's session, read on demand (spec\n§12.8). It is fetched only on an open, idle session that has answered a\nturn, within five seconds; otherwise it says why it has none. Nothing is\nwritten: no operation, no entry.",
+        "tags": [
+          "threads"
         ]
       }
     },
@@ -992,6 +1709,78 @@
           }
         },
         "summary": "A thread's entries in ordinal order.",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/api/threads/{id}/fork": {
+      "post": {
+        "operationId": "fork_thread",
+        "parameters": [
+          {
+            "description": "The source thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForkThread"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanningThread"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such thread or entry"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "THREAD_BUSY: a turn is running, or COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "FORK_POINT_NOT_SUPPORTED: fork from anything but the last completed entry"
+          }
+        },
+        "summary": "Forks the thread from its last completed entry into a new thread on the\nsame project (spec §12.9). The new thread holds copies of the entries up to\nand including `at_entry_id`; its next turn continues a fork of the\nsource's harness session. The source is unchanged. A replay answers the\nfork already made.",
         "tags": [
           "threads"
         ]
@@ -1042,9 +1831,163 @@
         ]
       }
     },
+    "/api/threads/{id}/session": {
+      "post": {
+        "operationId": "open_session",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionChoices"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such thread"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_NOT_FOUND: the project's directory is gone or was never set"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_UNAVAILABLE: the thread's harness is listed but not runnable"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_START_FAILED: the adapter did not start"
+          }
+        },
+        "summary": "Opens the thread's harness session (spec §12.2) and answers what it\noffers. Idempotent: an open session answers what it holds. A client calls\nit when it shows the conversation, so the menus are ready before the\nfirst message.",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/api/threads/{id}/session/model": {
+      "put": {
+        "operationId": "change_model",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeModel"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionChoices"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such thread"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "THREAD_BUSY: a turn is running; PATH_NOT_FOUND: the project's directory is gone or was never set"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "SETTING_NOT_OFFERED: a model the session does not offer, or one the harness refused (its words in the message); HARNESS_UNAVAILABLE"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_START_FAILED: the adapter did not start, or its session closed"
+          }
+        },
+        "summary": "Sets the thread's session to `model` as soon as a person picks it (spec\n§12.7), opening the session first if it is not open, and answers its\nchoices exactly as `POST .../session` does — the efforts are now the new\nmodel's. Nothing durable is written and no `command_id` is carried:\nsetting the same model twice is the same state, and a turn records its\nmodel in its own invocation. The remembered model does not move (§12.4).\nA running turn's session is not changed (`THREAD_BUSY`).",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
     "/api/threads/{id}/turns": {
       "post": {
-        "description": "Spec §3.3: a long-running command answers 202 with an operation id, and the\noperation reaches its terminal outcome later — watch it on\n`/api/subscribe`. A turn that cannot run (no project directory, no harness)\nis still 202: the operation fails at `Prepare`, durably, with its reason.\n\nA daemon that has begun to stop refuses the turn with 503 (spec §8.5).",
+        "description": "Spec §3.3: a long-running command answers 202 with an operation id, and the\noperation reaches its terminal outcome later — watch it on\n`/api/subscribe`. Spec §12.7: the prompt, the operation, its invocation\nand the command record commit together, after every check; a check that\nfails writes nothing. A retry with the same `command_id` and body answers\nthe first operation and starts nothing, even while the daemon stops.\n\nA daemon that has begun to stop refuses a new turn with 503 (spec §8.5).",
         "operationId": "start_turn",
         "parameters": [
           {
@@ -1078,6 +2021,16 @@
             },
             "description": ""
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "MODE_NOT_ALLOWED: the project does not allow this mode"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -1088,6 +2041,26 @@
             },
             "description": "INVALID_COMMAND: no such thread"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "THREAD_BUSY: a turn is running; COMMAND_CONFLICT: this command_id was used with another request; PATH_NOT_FOUND: the project's directory is gone or was never set; nothing was written"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "SETTING_NOT_OFFERED: a model, mode or effort the session does not offer; HARNESS_UNAVAILABLE"
+          },
           "500": {
             "content": {
               "application/json": {
@@ -1097,6 +2070,16 @@
               }
             },
             "description": "STORAGE_UNAVAILABLE"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_START_FAILED: the thread's session could not be opened; nothing was written"
           },
           "503": {
             "content": {
@@ -1128,6 +2111,10 @@
     {
       "description": "Starting and stopping a Planner turn",
       "name": "turns"
+    },
+    {
+      "description": "The CLIs a conversation runs on, and the choices a session offers",
+      "name": "harnesses"
     },
     {
       "description": "The replay-then-live event stream",
