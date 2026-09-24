@@ -31,8 +31,8 @@ The Phase A run is [`PHASE_A_RUN.md`](./evidence/milestone1/PHASE_A_RUN.md).
   application (spec §1). Its types are generated from `api/openapi.json`.
 - 202 Rust tests and 95 web tests.
 
-The plan is `superpowers/plans/2026-09-24-milestone-1-harness-controls.md`. Its
-ledger is in `.superpowers/sdd/`, which must leave the branch before its PR.
+The plan is `superpowers/plans/2026-09-24-milestone-1-harness-controls.md`.
+The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## What has been measured
 
@@ -69,8 +69,7 @@ ledger is in `.superpowers/sdd/`, which must leave the branch before its PR.
 
 1. Mohammed runs Milestone 1 with the real client on Windows: every item of
    spec §12.13, plus Phase A's Stop and restart.
-2. Remove `.superpowers/sdd/` from the branch, open the Milestone 1 PR, merge
-   it, delete the branch.
+2. Merge PR #4 and delete the branch.
 3. **One lock for every open session.** `Sessions` holds a single lock through
    an adapter's startup (up to 5 s) and through each termination wait, so
    opening one conversation can delay Stop on another. This is latency, not a
