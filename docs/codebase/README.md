@@ -23,7 +23,7 @@ before adding to that module: it is the pattern to follow, not merely an example
 |---|---|---|
 | `src/agent/` | the AI subprocess harness contract | `src/agent/claude.rs` |
 | `src/bin/` | test apparatus that no product code links | `src/bin/tree_probe.rs` |
-| `src/cli/` | the daemon's entry point | `src/cli/mod.rs` |
+| `src/cli/` | daemon startup | `src/cli/args.rs` |
 | `src/command/` | external-command identity for idempotency | `src/command/mod.rs` |
 | `src/config.rs` | startup configuration resolved once | `src/config.rs` |
 | `src/error.rs` | the stable failure taxonomy clients match on | `src/error.rs` |

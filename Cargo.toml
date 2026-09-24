@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 anyhow = "1"
+agent-client-protocol = { version = "=2.2.0", features = ["unstable_session_fork"] }
 axum = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
 # `std::fs::canonicalize` answers `\\?\C:\...` on Windows: a path no person
@@ -22,6 +23,7 @@ thiserror = "2"
 time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
+tokio-util = { version = "0.7", features = ["compat"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 tracing = "0.1"
 tracing-appender = "0.2"

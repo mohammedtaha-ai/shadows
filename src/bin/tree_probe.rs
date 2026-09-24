@@ -14,6 +14,18 @@ fn main() {
         return;
     }
 
+    if args.iter().any(|a| a == "echo") {
+        use std::io::{BufRead, Write};
+        let stdin = std::io::stdin();
+        let mut stdout = std::io::stdout().lock();
+        for line in stdin.lock().lines() {
+            let line = line.expect("stdin line");
+            writeln!(stdout, "{line}").expect("stdout write");
+            stdout.flush().expect("stdout flush");
+        }
+        return;
+    }
+
     // Far more than any pipe buffer holds, then a clean exit: a child whose
     // stderr nobody reads blocks on it here and never exits.
     if args.iter().any(|a| a == "--flood-stderr") {

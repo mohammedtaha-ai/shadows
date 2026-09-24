@@ -53,6 +53,7 @@ impl AgentHarness for ClaudeHarness {
             cwd: inv.cwd.clone(),
             env: Vec::new(),
             capture_stdout: true,
+            pipe_stdin: false,
         }
     }
 

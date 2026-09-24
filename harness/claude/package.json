@@ -1,0 +1,7 @@
+{
+  "name": "shadows-harness-claude",
+  "private": true,
+  "description": "The ACP adapter Shadows runs for Claude Code (spec §12.2). Installed, never patched.",
+  "engines": { "node": ">=22" },
+  "dependencies": { "@agentclientprotocol/claude-agent-acp": "0.81.1" }
+}

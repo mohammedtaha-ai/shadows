@@ -1,11 +1,13 @@
 //! One job: the daemon's entry point — assemble the product and serve it.
 
+pub mod args;
+
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
 use crate::agent::claude::ClaudeHarness;
-use crate::config::Config;
+use crate::config::{Config, adapter_version};
 use crate::planner::{LiveHandles, shut_down};
 use crate::process::{ProcessSpec, spawn};
 use crate::protocol::{AppState, router};
@@ -21,6 +23,8 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     let runtime = Arc::new(runtime);
 
     let version = harness_version(&config.harness_path).await;
+    let adapter_version = adapter_version(&config.adapter_path);
+    tracing::info!(adapter_version, claude_version = %version, "harness.versions");
     let (bus, _) = tokio::sync::broadcast::channel(4096);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {
@@ -100,6 +104,7 @@ async fn harness_version(path: &Path) -> String {
         cwd,
         env: Vec::new(),
         capture_stdout: true,
+        pipe_stdin: false,
     }) {
         Ok(h) => h,
         Err(_) => return "unknown".to_string(),

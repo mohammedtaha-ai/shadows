@@ -7,8 +7,8 @@ use process_wrap::tokio::JobObject;
 #[cfg(unix)]
 use process_wrap::tokio::ProcessSession;
 use process_wrap::tokio::{ChildWrapper, CommandWrap, KillOnDrop};
-use tokio::io::{BufReader, Lines};
-use tokio::process::{ChildStdout, Command};
+use tokio::io::{AsyncBufReadExt, BufReader, Lines};
+use tokio::process::{ChildStderr, ChildStdin, ChildStdout, Command};
 
 /// OS-level intent and nothing else. Spec §1.5: `process/` knows nothing about
 /// Role, Claude, Codex, planning, workflows, or verification.
@@ -23,7 +23,12 @@ pub struct ProcessSpec {
     /// ways that never appear on Linux.
     pub env: Vec<(String, String)>,
     pub capture_stdout: bool,
+    pub pipe_stdin: bool,
 }
+
+pub type ChildIn = ChildStdin;
+pub type ChildOut = ChildStdout;
+pub type ChildErr = ChildStderr;
 
 /// A captured child's stdout, read line by line. Named here so callers can
 /// hold one in a signature without importing `tokio::process` themselves —
@@ -33,6 +38,9 @@ pub type StdoutLines = Lines<BufReader<ChildStdout>>;
 
 pub struct ProcessHandle {
     child: Box<dyn ChildWrapper>,
+    stdin: Option<ChildIn>,
+    stdout_raw: Option<ChildOut>,
+    stderr: Option<ChildErr>,
     stdout: Option<Lines<BufReader<ChildStdout>>>,
     /// Test-only. Spec §8.4 case 6 ("termination fails or cannot be
     /// confirmed") has no reachable test otherwise: on Windows — this
@@ -58,6 +66,18 @@ impl ProcessHandle {
     /// minor M2.
     pub fn take_stdout_lines(&mut self) -> Option<Lines<BufReader<ChildStdout>>> {
         self.stdout.take()
+    }
+
+    /// Takes all stdio handles once for an interactive child protocol.
+    pub fn take_stdio(&mut self) -> Option<(ChildIn, ChildOut, ChildErr)> {
+        if self.stdin.is_none() || self.stdout_raw.is_none() || self.stderr.is_none() {
+            return None;
+        }
+        Some((
+            self.stdin.take()?,
+            self.stdout_raw.take()?,
+            self.stderr.take()?,
+        ))
     }
 
     /// Completion is the LEADER's exit, and whatever the leader left behind is
@@ -166,9 +186,12 @@ pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle> {
     cmd.args(&spec.args)
         .current_dir(&spec.cwd)
         .env_clear()
-        // Spec §1.5: stdin is closed unless the harness contract requires
-        // streaming input.
-        .stdin(Stdio::null())
+        // Spec §1.5: stdin is closed unless the child protocol runs over it.
+        .stdin(if spec.pipe_stdin {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(if spec.capture_stdout {
             Stdio::piped()
         } else {
@@ -216,16 +239,25 @@ pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle> {
         cwd = %spec.cwd.display(),
         "process.spawn"
     );
-    let stdout = child.stdout().take().map(|out| {
-        use tokio::io::AsyncBufReadExt;
-        BufReader::new(out).lines()
-    });
-    if let Some(stderr) = child.stderr().take() {
+    let stdin = child.stdin().take();
+    let mut stdout_raw = child.stdout().take();
+    let mut stderr = child.stderr().take();
+    let stdout = if spec.pipe_stdin && spec.capture_stdout {
+        None
+    } else {
+        stdout_raw.take().map(|out| BufReader::new(out).lines())
+    };
+    if !(spec.pipe_stdin && spec.capture_stdout)
+        && let Some(stderr) = stderr.take()
+    {
         drain_stderr(stderr);
     }
 
     Ok(ProcessHandle {
         child,
+        stdin,
+        stdout_raw,
+        stderr,
         stdout,
         #[cfg(feature = "test-support")]
         termination_fails: false,

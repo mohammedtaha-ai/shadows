@@ -7,7 +7,7 @@
 //! `docs/evidence/harness/SERVE_STREAM_SPIKE.md`, not from invention.
 
 use shadows::agent::{AgentHarness, StreamItem, claude::ClaudeHarness};
-use shadows::config::{ConfigError, harness_path};
+use shadows::config::{ConfigError, adapter_version, harness_path};
 
 /// Spec §1.4: the harness is resolved from explicit configuration, never from
 /// `PATH`. `claude` is what a PATH lookup looks like when it is spelled as a
@@ -25,15 +25,25 @@ fn a_bare_program_name_is_refused_as_a_harness_path() {
         assert_eq!(err, ConfigError::HarnessNotAbsolute(bare.to_string()));
     }
 
-    let absolute = if cfg!(windows) {
-        r"C:\Users\test\.local\bin\claude.exe"
-    } else {
-        "/usr/local/bin/claude"
-    };
+    let dir = tempfile::tempdir().unwrap();
+    let absolute = dir.path().join("claude");
+    std::fs::write(&absolute, "").unwrap();
+    assert_eq!(harness_path(&absolute).unwrap(), absolute);
+    let missing = dir.path().join("missing-claude");
     assert_eq!(
-        harness_path(std::path::Path::new(absolute)).unwrap(),
-        std::path::PathBuf::from(absolute)
+        harness_path(&missing).unwrap_err(),
+        ConfigError::HarnessNotFound(missing.to_string_lossy().into_owned())
     );
+}
+
+#[test]
+fn adapter_version_is_read_from_its_package() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("dist")).unwrap();
+    std::fs::write(dir.path().join("package.json"), r#"{"version":"0.81.1"}"#).unwrap();
+    std::fs::write(dir.path().join("dist/index.js"), "").unwrap();
+    assert_eq!(adapter_version(&dir.path().join("dist/index.js")), "0.81.1");
+    assert_eq!(adapter_version(&dir.path().join("nope.js")), "unknown");
 }
 
 /// The captured fixture is a pure-text turn, so it never exercises the tool and

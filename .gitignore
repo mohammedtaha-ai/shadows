@@ -1,6 +1,7 @@
 # Rust build output
 target/
 **/target/
+harness/*/node_modules/
 
 # Local databases and runtime artifacts
 *.db

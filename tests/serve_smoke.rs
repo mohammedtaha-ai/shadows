@@ -7,6 +7,10 @@ use std::process::{Command, Stdio};
 fn serve_prints_one_local_address_and_does_not_open_a_browser() {
     let exe = env!("CARGO_BIN_EXE_shadows");
     let tmp = tempfile::tempdir().unwrap();
+    let harness = tmp.path().join("claude.exe");
+    let adapter = tmp.path().join("adapter.js");
+    std::fs::write(&harness, "").unwrap();
+    std::fs::write(&adapter, "").unwrap();
     let mut child = Command::new(exe)
         .arg("serve")
         .arg("--db")
@@ -15,10 +19,13 @@ fn serve_prints_one_local_address_and_does_not_open_a_browser() {
         .arg("127.0.0.1:0")
         // Required, with no default: spec §1.4 resolves the harness from
         // explicit configuration and refuses a bare name, which would be a PATH
-        // lookup. Nothing is spawned in this test; the path only has to be
-        // absolute. `tests/harness_config.rs` owns that rule.
+        // lookup. The version probe may fail; startup records it as unknown.
         .arg("--harness")
-        .arg(tmp.path().join("claude.exe"))
+        .arg(harness)
+        .arg("--node")
+        .arg(env!("CARGO_BIN_EXE_tree_probe"))
+        .arg("--adapter")
+        .arg(adapter)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -97,6 +104,8 @@ fn request(addr: &str, head: &str) -> String {
 #[test]
 fn a_harness_that_never_answers_its_version_does_not_hold_startup() {
     let tmp = tempfile::tempdir().unwrap();
+    let adapter = tmp.path().join("adapter.js");
+    std::fs::write(&adapter, "").unwrap();
     let mut child = Command::new(env!("CARGO_BIN_EXE_shadows"))
         .arg("serve")
         .arg("--db")
@@ -105,6 +114,10 @@ fn a_harness_that_never_answers_its_version_does_not_hold_startup() {
         .arg("127.0.0.1:0")
         .arg("--harness")
         .arg(env!("CARGO_BIN_EXE_tree_probe"))
+        .arg("--node")
+        .arg(env!("CARGO_BIN_EXE_tree_probe"))
+        .arg("--adapter")
+        .arg(adapter)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()

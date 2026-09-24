@@ -15,7 +15,7 @@ declaration, this file only says that it exists and what shape it has. What each
 module *owns* is a judgement no generator can make — that lives in
 [README.md](./README.md).
 
-## `src/agent/claude.rs` — 116 lines
+## `src/agent/claude.rs` — 117 lines
 
 ```rust
 pub struct ClaudeHarness {
@@ -56,11 +56,21 @@ pub trait AgentHarness {
 
 Nothing reachable from outside this file.
 
-## `src/bin/tree_probe.rs` — 51 lines
+## `src/bin/tree_probe.rs` — 63 lines
 
 Nothing reachable from outside this file.
 
-## `src/cli/mod.rs` — 133 lines
+## `src/cli/args.rs` — 88 lines
+
+```rust
+pub struct Cli {}
+// + 2 private fields
+impl Cli {
+    pub async fn run(self) -> anyhow::Result<()>
+}
+```
+
+## `src/cli/mod.rs` — 138 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -80,12 +90,14 @@ pub struct CommandContext {
 pub fn fingerprint(command_kind: &str, params: &serde_json::Value) -> String
 ```
 
-## `src/config.rs` — 91 lines
+## `src/config.rs` — 121 lines
 
 ```rust
 pub struct Config {
     pub db_path: PathBuf,
     pub bind: SocketAddr,
+    pub node_path: PathBuf,
+    pub adapter_path: PathBuf,
     pub harness_path: PathBuf,
     pub debug_log: Option<PathBuf>,
     pub allowed_origins: Vec<String>,
@@ -94,10 +106,12 @@ pub const DEFAULT_ALLOWED_ORIGINS: [&str; 2] = [ "http://localhost:5173", "http:
 pub fn data_dir(db_path: &Path) -> PathBuf
 pub enum ConfigError {
     HarnessNotAbsolute(String),
+    HarnessNotFound(String),
     OriginInvalid(String),
 }
 pub fn allowed_origin(raw: &str) -> Result<String, ConfigError>
 pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError>
+pub fn adapter_version(adapter_entry: &Path) -> String
 ```
 
 ## `src/error.rs` — 73 lines
@@ -199,7 +213,7 @@ pub(crate) use newtype_id;
 
 Nothing reachable from outside this file.
 
-## `src/main.rs` — 85 lines
+## `src/main.rs` — 7 lines
 
 Nothing reachable from outside this file.
 
@@ -319,7 +333,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/process/mod.rs` — 233 lines
+## `src/process/mod.rs` — 265 lines
 
 ```rust
 pub struct ProcessSpec {
@@ -328,13 +342,18 @@ pub struct ProcessSpec {
     pub cwd: PathBuf,
     pub env: Vec<(String, String)>,
     pub capture_stdout: bool,
+    pub pipe_stdin: bool,
 }
+pub type ChildIn = ChildStdin;
+pub type ChildOut = ChildStdout;
+pub type ChildErr = ChildStderr;
 pub type StdoutLines = Lines<BufReader<ChildStdout>>;
 pub struct ProcessHandle {}
-// + 3 private fields
+// + 6 private fields
 impl ProcessHandle {
     pub fn id(&self) -> Option<u32>
     pub fn take_stdout_lines(&mut self) -> Option<Lines<BufReader<ChildStdout>>>
+    pub fn take_stdio(&mut self) -> Option<(ChildIn, ChildOut, ChildErr)>
     pub async fn wait(&mut self) -> io::Result<std::process::ExitStatus>
     pub fn has_exited(&mut self) -> bool
     pub fn terminate_tree(&mut self) -> io::Result<()>
