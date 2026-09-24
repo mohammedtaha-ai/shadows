@@ -21,7 +21,7 @@ The Phase A run is [`PHASE_A_RUN.md`](./evidence/milestone1/PHASE_A_RUN.md).
 
 - Milestone 0 is complete on Windows and on `main` (PRs #1-#3).
   [`evidence/milestone0/ACCEPTANCE.md`](./evidence/milestone0/ACCEPTANCE.md).
-- Milestone 1: branch `milestone-1/harness-controls-7p9608`, no PR yet. The
+- Milestone 1: branch `milestone-1/harness-controls-7p9608`, PR #4. The
   whole-branch review has run, and its fixes are merged.
 - Mohammed's three rulings after the run are built and ran on the real
   harness (spec §12.5, §12.6/§12.9, §12.7): the mode menu says what Accept
