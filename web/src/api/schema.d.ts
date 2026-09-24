@@ -33,7 +33,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description The CLIs a conversation can run on, with what each remembers and its last reported limits (spec §12.1, §12.5, §12.8). */
+        /**
+         * Every harness Shadows knows, runnable or not, with the model and effort
+         *     last used on it and the account limits it last reported.
+         */
         get: operations["list_harnesses"];
         put?: never;
         post?: never;
@@ -116,7 +119,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** @description Sets the modes this project allows, per harness (spec §12.4). */
+        /**
+         * Sets the modes this project allows, per harness (spec §12.5). A turn's
+         *     mode is checked against them when it starts. A replay answers the project
+         *     as it now stands.
+         */
         patch: operations["update_project"];
         trace?: never;
     };
@@ -185,7 +192,12 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** @description Changes the thread's CLI before its first turn (spec §12.1). */
+        /**
+         * Changes the thread's CLI before its first turn (spec §12.6). A replay
+         *     answers the thread as it now stands and changes nothing, even once the
+         *     harness is locked; a new command after the first turn is
+         *     `HARNESS_LOCKED`. A change closes the thread's adapter (§12.2).
+         */
         patch: operations["update_thread"];
         trace?: never;
     };
@@ -196,7 +208,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description The context breakdown of the thread's session, read on demand (spec §12.8). */
+        /**
+         * The context breakdown of the thread's session, read on demand (spec
+         *     §12.8). It is fetched only on an open, idle session that has answered a
+         *     turn, within five seconds; otherwise it says why it has none. Nothing is
+         *     written: no operation, no entry.
+         */
         get: operations["thread_context"];
         put?: never;
         post?: never;
@@ -232,7 +249,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Forks the thread from its last completed entry into a new thread on the same project (spec §12.9). */
+        /**
+         * Forks the thread from its last completed entry into a new thread on the
+         *     same project (spec §12.9). The new thread holds copies of the entries up to
+         *     and including `at_entry_id`; its next turn continues a fork of the
+         *     source's harness session. The source is unchanged. A replay answers the
+         *     fork already made.
+         */
         post: operations["fork_thread"];
         delete?: never;
         options?: never;
@@ -271,7 +294,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Opens the thread's harness session if it is not open, and answers what it offers now (spec §12.2, §12.4). Writes nothing durable. */
+        /**
+         * Opens the thread's harness session (spec §12.2) and answers what it
+         *     offers. Idempotent: an open session answers what it holds. A client calls
+         *     it when it shows the conversation, so the menus are ready before the
+         *     first message.
+         */
         post: operations["open_session"];
         delete?: never;
         options?: never;
@@ -293,11 +321,12 @@ export interface paths {
          *     continues the thread's harness session; neither is the client's to name.
          * @description Spec §3.3: a long-running command answers 202 with an operation id, and the
          *     operation reaches its terminal outcome later — watch it on
-         *     `/api/subscribe`. The thread's harness session is opened first (spec
-         *     §12.7); when it cannot be, nothing is written: 409 when the project's
-         *     directory is gone or was never set, 502 when the adapter does not start.
+         *     `/api/subscribe`. Spec §12.7: the prompt, the operation, its invocation
+         *     and the command record commit together, after every check; a check that
+         *     fails writes nothing. A retry with the same `command_id` and body answers
+         *     the first operation and starts nothing, even while the daemon stops.
          *
-         *     A daemon that has begun to stop refuses the turn with 503 (spec §8.5).
+         *     A daemon that has begun to stop refuses a new turn with 503 (spec §8.5).
          */
         post: operations["start_turn"];
         delete?: never;
@@ -310,33 +339,46 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description The account's limits as last reported by the harness (spec §12.8). A window the harness did not report is `null`, never estimated. */
+        /**
+         * @description The account's limits as last reported by the harness (spec §12.8). A
+         *     window the harness did not report is `None`, never estimated.
+         */
         AccountLimits: {
             five_hour: null | components["schemas"]["LimitWindow"];
-            seven_day: null | components["schemas"]["LimitWindow"];
+            /** @description When the daemon received the report (RFC 3339). */
             observed_at: string;
+            seven_day: null | components["schemas"]["LimitWindow"];
         };
         Actor: {
             id: string;
             kind: string;
         };
-        /** @description One value the session offers for a setting (spec §12.4). `enabled: false` carries the `reason` it cannot be chosen. */
+        /**
+         * @description One value the session offers for a setting (spec §12.4). `enabled: false`
+         *     carries the `reason` it cannot be chosen.
+         */
         Choice: {
-            id: string;
-            label: string;
             description: string | null;
             enabled: boolean;
+            id: string;
+            label: string;
             reason: string | null;
         };
-        /** @description The context breakdown read on demand (spec §12.8): the categories, or none with the reason. */
+        /**
+         * @description The context breakdown read on demand (spec §12.8): the categories, or none
+         *     with the reason.
+         */
         ContextBreakdown: {
             categories: components["schemas"]["ContextCategory"][] | null;
             reason: string | null;
         };
+        /** @description One category of the context breakdown. */
         ContextCategory: {
             name: string;
-            tokens: number;
+            /** Format: double */
             percent: number;
+            /** Format: int64 */
+            tokens: number;
         };
         CreateDir: {
             /** @description One new path component that Windows would accept. */
@@ -361,9 +403,9 @@ export interface components {
         CreateThread: {
             /** @description The idempotency key (spec §3.2), scoped to the project. */
             command_id: string;
-            title: string;
             /** @description The CLI for this conversation; `claude-code` when omitted. */
             harness?: string | null;
+            title: string;
         };
         /** @description One directory a person could open or choose. */
         DirectoryEntry: {
@@ -422,34 +464,49 @@ export interface components {
         ErrorCode: "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "FORK_POINT_NOT_SUPPORTED";
         /** @description Forks the thread from its last completed entry (spec §12.9). */
         ForkThread: {
-            command_id: string;
             at_entry_id: components["schemas"]["ThreadEntryId"];
+            /** @description The idempotency key (spec §3.2), scoped to the source thread. */
+            command_id: string;
         };
-        /** @description A CLI a conversation can run on (spec §12.1). `kind` is `claude-code` or `codex`. */
+        /**
+         * @description A CLI a conversation can run on (spec §12.1). `kind` is `claude-code` or
+         *     `codex`.
+         */
         HarnessInfo: {
+            available: boolean;
             kind: string;
             label: string;
-            available: boolean;
+            limits: null | components["schemas"]["AccountLimits"];
+            /** @description Why it cannot run, when `available` is false. */
             reason: string | null;
             remembered: null | components["schemas"]["RememberedSettings"];
-            limits: null | components["schemas"]["AccountLimits"];
         };
-        /** @description What a turn asked for and what the harness reported (spec §8.2, §12.8). Anything not reported is `null`. */
+        /**
+         * @description What a turn asked for and what the harness reported (spec §8.2, §12.8).
+         *     Anything not reported is `None`, never estimated.
+         */
         InvocationView: {
+            agent_version: string;
+            /** Format: int64 */
+            context_used: number | null;
+            /** Format: int64 */
+            context_window: number | null;
             harness_kind: string;
             harness_version: string;
-            agent_version: string;
-            requested_model: string;
-            requested_mode: string;
-            requested_effort: string | null;
             observed_model: string | null;
-            context_used: number | null;
-            context_window: number | null;
+            requested_effort: string | null;
+            requested_mode: string;
+            requested_model: string;
         };
-        /** @description One account limit window as the harness reported it: `utilization` from 0 to 1, `resets_at` in Unix seconds. */
+        /**
+         * @description One account limit window as the harness reported it: `utilization` from 0
+         *     to 1, `resets_at` in Unix seconds.
+         */
         LimitWindow: {
-            utilization: number;
+            /** Format: int64 */
             resets_at: number;
+            /** Format: double */
+            utilization: number;
         };
         /**
          * @description Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
@@ -464,27 +521,40 @@ export interface components {
             finished_at?: string | null;
             id: components["schemas"]["OperationId"];
             interrupt_reason?: string | null;
+            invocation: null | components["schemas"]["InvocationView"];
             kind: string;
             outcome_json?: string | null;
             runtime_instance_id: components["schemas"]["RuntimeInstanceId"];
             started_at?: string | null;
             status_kind: string;
             thread_id?: string | null;
-            invocation: null | components["schemas"]["InvocationView"];
         };
         /** Format: uuid */
         OperationId: string;
         PlanningThread: {
             created_at: string;
+            /** @description The thread this one was forked from, if it is a fork (spec §12.9). */
+            forked_from_thread: string | null;
+            /**
+             * @description The CLI this conversation runs on (`agent::policy`): chosen at
+             *     creation, changeable until the thread's first operation, then fixed
+             *     (spec §12.6).
+             */
+            harness: string;
             id: components["schemas"]["ThreadId"];
             project_id: components["schemas"]["ProjectId"];
             status: string;
             title: string;
-            /** @description The CLI this conversation runs on: `claude-code` or `codex`. */
-            harness: string;
-            forked_from_thread: string | null;
         };
         Project: {
+            /**
+             * @description Per harness kind, the modes this project's turns may use (spec §12.5).
+             *     Each list is a set: its order carries no meaning. Every known harness
+             *     is present; an empty list means no turn can start on it.
+             */
+            allowed_modes: {
+                [key: string]: string[];
+            };
             created_at: string;
             /**
              * @description Spec §4.2: the directory this project's turns run in, as
@@ -497,35 +567,37 @@ export interface components {
             id: components["schemas"]["ProjectId"];
             name: string;
             slug: string;
-            /** @description Per harness kind, the modes this project allows (spec §12.4). */
-            allowed_modes: {
-                [key: string]: string[];
-            };
         };
         /** Format: uuid */
         ProjectId: string;
-        /** @description The model and effort last chosen for this harness (spec §12.5). */
+        /** @description The model and effort last chosen for this harness (spec §12.4). */
         RememberedSettings: {
-            model: string;
             effort: string | null;
+            model: string;
         };
         /** Format: uuid */
         RuntimeInstanceId: string;
-        /** @description What the thread's session offers now (spec §12.4). `efforts` are the current model's. `modes` are after Shadows' policy; a mode the project does not allow is present with `enabled: false` and `reason: "Not allowed in this project"`. */
+        /**
+         * @description What the thread's session offers now (spec §12.4). `efforts` are the
+         *     current model's. `modes` are after Shadows' policy; a mode the project does
+         *     not allow is present with `enabled: false` and `reason: "Not allowed in
+         *     this project"`.
+         */
         SessionChoices: {
-            models: components["schemas"]["Choice"][];
-            efforts: components["schemas"]["Choice"][];
-            modes: components["schemas"]["Choice"][];
             current: components["schemas"]["TurnSettings"];
+            efforts: components["schemas"]["Choice"][];
+            models: components["schemas"]["Choice"][];
+            modes: components["schemas"]["Choice"][];
         };
         /** @description Starts a turn as one command (spec §12.7). */
         StartTurn: {
             /** @description The idempotency key (spec §3.2). A retry sends the same one. */
             command_id: string;
-            prompt: string;
-            model: string;
-            mode: string;
+            /** @description `null` exactly when the chosen model offers no effort (§12.4). */
             effort: string | null;
+            mode: string;
+            model: string;
+            prompt: string;
         };
         ThreadEntry: {
             /**
@@ -539,37 +611,58 @@ export interface components {
             body: string;
             created_at: string;
             id: components["schemas"]["ThreadEntryId"];
-            /** @description `UserMessage`, `AgentMessage`, or `PermissionRefused` (a permission the harness asked for and Shadows refused). */
+            /**
+             * @description `UserMessage`, `AgentMessage`, or `PermissionRefused` (a permission the
+             *     harness asked for and Shadows refused, spec §12.2).
+             */
             kind: string;
+            /**
+             * @description The turn this entry belongs to (spec §12.7). `None` for entries written
+             *     before entries named their turn. A fork's copied entries keep the
+             *     source's operation: provenance, not something the fork can act on.
+             */
+            operation_id: string | null;
             /** Format: int64 */
             ordinal: number;
             refs: components["schemas"]["EntryRef"][];
             thread_id: components["schemas"]["ThreadId"];
-            operation_id: string | null;
         };
         /** Format: uuid */
         ThreadEntryId: string;
         /** Format: uuid */
         ThreadId: string;
-        /** @description The settings a turn runs with. `effort` is `null` exactly when the model offers none (spec §12.4). */
+        /**
+         * @description The settings a turn runs with (spec §12.7). `effort` is `None` exactly
+         *     when the model offers none (§12.4).
+         */
         TurnSettings: {
-            model: string;
-            mode: string;
             effort: string | null;
+            mode: string;
+            model: string;
         };
         TurnStarted: {
             operation_id: components["schemas"]["OperationId"];
         };
+        /** @description Sets the modes this project allows, per harness (spec §12.5). */
         UpdateProject: {
-            command_id: string;
-            /** @description Per harness kind, the modes this project allows. */
+            /**
+             * @description Per harness kind, the modes this project allows; a harness not named
+             *     keeps its modes. Only modes in Shadows' policy for that harness.
+             */
             allowed_modes: {
                 [key: string]: string[];
             };
-        };
-        /** @description Changes the thread's CLI. Refused once the thread has run a turn (`HARNESS_LOCKED`). */
-        UpdateThread: {
+            /** @description The idempotency key (spec §3.2), scoped to the project. */
             command_id: string;
+        };
+        /**
+         * @description Changes the thread's CLI. Refused once the thread has run a turn
+         *     (`HARNESS_LOCKED`).
+         */
+        UpdateThread: {
+            /** @description The idempotency key (spec §3.2), scoped to the thread. */
+            command_id: string;
+            /** @description `claude-code` or `codex`. */
             harness: string;
         };
     };
@@ -1028,6 +1121,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description SETTING_NOT_OFFERED: a harness Shadows does not know */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             /** @description STORAGE_UNAVAILABLE */
             500: {
                 headers: {
@@ -1124,7 +1226,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description HARNESS_UNAVAILABLE */
+            /** @description SETTING_NOT_OFFERED: a harness Shadows does not know */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1211,7 +1313,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The thread */
+                /** @description The source thread */
                 id: components["schemas"]["ThreadId"];
             };
             cookie?: never;
@@ -1390,7 +1492,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description THREAD_BUSY: a turn is running; COMMAND_CONFLICT: this command_id was used with another request; PATH_NOT_FOUND: the project's directory is gone or was never set. Nothing was written. */
+            /** @description THREAD_BUSY: a turn is running; COMMAND_CONFLICT: this command_id was used with another request; PATH_NOT_FOUND: the project's directory is gone or was never set; nothing was written */
             409: {
                 headers: {
                     [name: string]: unknown;
