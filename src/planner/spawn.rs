@@ -92,6 +92,36 @@ impl PlannerTurn {
             runtime.storage.mark_operation_cancelled(&op_id).await?;
             return Err(StartError::RuntimeStopping);
         }
+        // A Stop that came while the turn was `Pending` recorded its request
+        // and found nothing registered to cancel. Read after registering, so
+        // either that Stop saw the registration or this read sees its request.
+        let asked = runtime
+            .storage
+            .get_operation(&op_id)
+            .await
+            .map(|op| op.cancel_requested_at.is_some());
+        if !matches!(asked, Ok(false)) {
+            let mine = handles.claim(&op_id).await.is_some();
+            sessions.give_back_events(&thread_id, &opened, events).await;
+            if !mine {
+                // A Stop claimed it and records its ending.
+                return Ok(op_id);
+            }
+            return match asked {
+                Ok(_) => {
+                    tracing::info!(parent: &span, "planner.stopped_before_prompt");
+                    runtime.storage.mark_operation_cancelled(&op_id).await?;
+                    Ok(op_id)
+                }
+                Err(e) => {
+                    runtime
+                        .storage
+                        .mark_operation_failed(&op_id, FailureStage::Prepare, &e.to_string())
+                        .await?;
+                    Err(e.into())
+                }
+            };
+        }
         if let Err(e) = runtime
             .storage
             .mark_operation_started(&op_id, &runtime.instance_id)

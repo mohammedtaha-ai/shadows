@@ -169,9 +169,11 @@ impl Storage {
                 let as_int = |v: Option<u64>| v.and_then(|n| i64::try_from(n).ok());
                 sqlx::query(
                     "UPDATE agent_invocation
-                        SET observed_model = ?, context_used = ?, context_window = ?
+                        SET native_session_id = ?, observed_model = ?, context_used = ?,
+                            context_window = ?
                       WHERE operation_id = ?",
                 )
+                .bind(&seen.native_session_id)
                 .bind(&seen.observed_model)
                 .bind(as_int(seen.context_used))
                 .bind(as_int(seen.context_window))

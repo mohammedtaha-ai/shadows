@@ -19,6 +19,16 @@ async fn a_completed_turn_records_what_the_harness_reported() {
     assert_eq!(done.status_kind, "Completed");
     let inv = done.invocation.unwrap();
     assert_eq!(inv.observed_model.as_deref(), Some("fake-large-answering"));
+    let session: Option<String> =
+        sqlx::query_scalar("SELECT native_session_id FROM agent_invocation WHERE operation_id = ?")
+            .bind(done.id.as_str())
+            .fetch_one(app.storage.reader())
+            .await
+            .unwrap();
+    assert!(
+        session.is_some_and(|s| s.starts_with("fake-")),
+        "the session it ran in"
+    );
     assert_eq!(
         (inv.context_used, inv.context_window),
         (Some(1234), Some(1_000_000)),

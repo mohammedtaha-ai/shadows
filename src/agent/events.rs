@@ -80,6 +80,8 @@ pub fn limits_from(rate_limit: &Value, observed_at: &str) -> Option<AccountLimit
 /// it did not report is estimated.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TurnObservation {
+    /// The harness session the turn ran in (§12.7 `native_session_id`).
+    pub native_session_id: Option<String>,
     pub observed_model: Option<String>,
     pub context_used: Option<u64>,
     pub context_window: Option<u64>,
@@ -93,6 +95,7 @@ impl TurnObservation {
             Some(HarnessEvent::Usage {
                 used, size, model, ..
             }) => Self {
+                native_session_id: None,
                 observed_model: model.clone(),
                 context_used: Some(*used),
                 context_window: (*size > 0).then_some(*size),

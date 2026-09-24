@@ -215,7 +215,10 @@ pub(crate) fn watch_turn(
             // cancelled one leaves it NULL, which a client shows as
             // unavailable (§12.7 — nothing unreported is estimated).
             Ok(TurnEnd::Ended) => {
-                let seen = TurnObservation::from_usage(last_usage.as_ref());
+                let seen = TurnObservation {
+                    native_session_id: Some(w.opened.session_id.clone()),
+                    ..TurnObservation::from_usage(last_usage.as_ref())
+                };
                 w.runtime.storage.mark_operation_completed(&w.op_id, serde_json::json!({"stop_reason":"end_turn"}), &seen).await
             }
             Ok(TurnEnd::Cancelled) if w.cancel_requested.load(Ordering::SeqCst) => w.runtime.storage.mark_operation_cancelled(&w.op_id).await,

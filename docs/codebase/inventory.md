@@ -114,7 +114,7 @@ impl ClaudeAdapter {
 }
 ```
 
-## `src/agent/events.rs` — 139 lines
+## `src/agent/events.rs` — 142 lines
 
 ```rust
 pub enum HarnessEvent {
@@ -136,6 +136,7 @@ pub struct AccountLimits {
 }
 pub fn limits_from(rate_limit: &Value, observed_at: &str) -> Option<AccountLimits>
 pub struct TurnObservation {
+    pub native_session_id: Option<String>,
     pub observed_model: Option<String>,
     pub context_used: Option<u64>,
     pub context_window: Option<u64>,
@@ -558,7 +559,7 @@ impl Sessions {
 pub async fn shut_down(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, confirm_within: Duration, escalate: impl Future<Output = ()>) -> Result<StopKind, StorageError>
 ```
 
-## `src/planner/spawn.rs` — 127 lines
+## `src/planner/spawn.rs` — 157 lines
 
 ```rust
 pub enum StartError {
@@ -578,7 +579,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/planner/turn.rs` — 295 lines
+## `src/planner/turn.rs` — 298 lines
 
 ```rust
 pub struct PlannerTurn;
@@ -956,7 +957,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/operation.rs` — 334 lines
+## `src/storage/sqlite/operation.rs` — 336 lines
 
 ```rust
 pub(super) async fn insert_pending(conn: &mut SqliteConnection, op_id: &OperationId, thread_id: &ThreadId, runtime_id: &RuntimeInstanceId, ts: &str) -> Result<Transition, StorageError>
