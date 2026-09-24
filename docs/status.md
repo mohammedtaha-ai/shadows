@@ -25,7 +25,7 @@ item.
 
 - Milestone 0 is complete on Windows and on `main` (PRs #1-#3).
   [`evidence/milestone0/ACCEPTANCE.md`](./evidence/milestone0/ACCEPTANCE.md).
-- Milestone 1 is on `main` (PRs #4 and #5); its branches are deleted. The
+- Milestone 1 is on `main` (PRs #4 and #5). The
   whole-branch review ran before the merge.
 - Mohammed's three rulings after the run are built and ran on the real
   harness (spec §12.5, §12.6/§12.9, §12.7): the mode menu says what Accept
