@@ -107,6 +107,17 @@ What `session/new` is given in this milestone: the project directory, no MCP
 servers, and no `_meta.claudeCode.options`. Milestone 0 ran Claude with its
 default setting sources and tool set, and so does this one.
 
+**Every opening sets the mode.** A session starts in the mode of the person's
+own Claude settings, and a resumed one comes back at those defaults rather than
+at the settings it last ran with (`docs/evidence/harness/ACP_PROBE.md` §1, §4).
+So after `session/new`, `session/resume` or a fork's opening, Shadows sets the
+mode to the policy's default before anything else, and a turn sets model,
+effort and mode again whenever they differ from what the session reports
+(§12.7).
+
+The adapter writes diagnostics to stderr; the daemon forwards each line to its
+debug log.
+
 **Permission requests are refused.** The adapter asks the client before a tool
 runs that the mode does not already allow (`session/request_permission`). In
 this milestone Shadows answers every such request with the harness's reject
@@ -127,7 +138,7 @@ table below.
 | spawn `claude --print` | the thread's adapter is open (§12.2), then `session/prompt` is sent |
 | handle registered, then `Running` | the prompt is registered in `LiveHandles`, then `Running` |
 | `stream_event` text deltas | `session/update` chunks: transient, rendered, never stored |
-| `assistant` / `user` lines → entries | one durable entry per agent message, keyed by the update's `messageId` and written when that message is complete (the next message begins, or the turn ends); a tool call is its own entry naming the tool |
+| `assistant` / `user` lines → entries | one durable entry per agent message, keyed by the update's `messageId` and written when that message is complete (the next message begins, or the turn ends); a tool call is its own entry, written when its `tool_call_update` reports `completed` or `failed` (or the turn ends), under the last title it was given — the first title is generic ("Terminal") and the command arrives later |
 | `result` line + exit status | the `session/prompt` response: `stopReason` `end_turn` is success; `max_tokens`, `max_turn_requests` and `refusal` are recorded as failures naming the reason; a JSON-RPC error is a failure carrying its message |
 | session recorded at turn-end | unchanged: the harness session id is recorded on the thread when its first turn ends, never earlier |
 | the adapter exits mid-turn | `Failed { stage: Run }`, "the harness exited during the turn" |
@@ -152,17 +163,11 @@ answered before the cancel took ownership keeps the ending it answered with.
 produced, and `src/bin/fake_claude.rs`. Tests run against a fake ACP agent
 (`src/bin/fake_acp.rs`, built on the same crate's agent side) instead.
 
-> **Measured before Phase A** (the plan's first task, recorded in
-> `docs/evidence/harness/ACP_PROBE.md`, driving the pinned adapter from a
-> throwaway script):
-> 1. `session/new` returns config options with the current models (Opus 5.5 among them), each model's effort levels, and which modes each model offers.
-> 2. Agent message chunks carry `messageId`, and where one message ends.
-> 3. `session/cancel` answers `stopReason: cancelled`, and how long it takes.
-> 4. `session/resume` continues the conversation after the adapter was killed (the model remembers an earlier message).
-> 5. Whether the context breakdown (§12.8) can be read without the slow control request.
-> 6. `session/fork` leaves the source usable and returns a new session that remembers the source's messages.
-> 7. What `usage_update` and `_meta["_claude/rateLimit"]` carry, and whether the model that answered is named.
-> 8. `session/request_permission`'s options, and what Claude does after a rejection.
+**Measured on 2026-09-24** against adapter 0.81.1 and Claude Code 2.1.281
+(`docs/evidence/harness/ACP_PROBE.md`): chunks carry `messageId`; a cancel
+answers `cancelled` in about 60 ms; `session/resume` after the adapter was
+killed continues the conversation; a rejected permission ends the tool call
+`failed` and the turn `end_turn`. This section rests on those findings.
 
 ## 12.4 Choices come from the harness
 
@@ -175,9 +180,15 @@ replaces the effort levels on offer. Shadows keeps no list of Claude's models.
 | ACP option | Shadows reads it as |
 |---|---|
 | `category: model` | the model menu, in the harness's order |
-| `category: thought_level` | the effort menu for the current model |
+| `category: thought_level` | the effort menu for the current model; **absent** for a model that offers no effort (Haiku 4.5 on 2026-09-24), and then the turn's effort is none |
 | `category: mode` | the mode menu, **after** the filter below |
-| anything else | ignored in this milestone |
+| anything else (`fast`, a `model_config`) | ignored in this milestone |
+
+**Listed is not usable.** The harness lists models the account may not run:
+Fable 5.1 is listed, and selecting it is refused with "Usage credits are
+required for this model". Shadows shows the list as the harness gives it and
+reports the harness's refusal, in its own words, when a model is chosen
+(`SettingNotOffered` carrying the message, §12.7).
 
 **Shadows' mode policy** is per harness, because modes are:
 
@@ -186,9 +197,15 @@ replaces the effort levels on offer. Shadows keeps no list of Claude's models.
 | Claude Code | `acceptEdits`, `auto` | `acceptEdits` |
 | Codex | decided when Codex is enabled | — |
 
-A mode reaches the menu only if it is in that policy, the harness offers it for
-the current model (the adapter withholds `auto` from a model that does not
-support it), and the project allows it (§12.5).
+A mode reaches the menu only if it is in that policy, the harness lists it, and
+the project allows it (§12.5).
+
+**`auto` per model.** The harness keeps `auto` listed for every model, but a
+model without auto mode moves the session to `acceptEdits` when it is chosen
+(Haiku 4.5, measured). So after a model change Shadows reads the mode the
+session reports: if it is not the mode the person had, the menu shows the
+session's mode and the client says the model moved it. A turn that still asks
+for `auto` on such a model fails at `Prepare` with the harness's message.
 
 **Remembered settings.** The daemon keeps, per harness, the model and effort of
 the last turn it started, and a new session is set to them after it opens. A
@@ -234,7 +251,8 @@ setting. A trigger enforces the lock in storage, below the application.
 
 ## 12.7 Starting a turn as one command
 
-`POST /api/threads/{id}/turns` carries `{ command_id, prompt, model, mode, effort }`.
+`POST /api/threads/{id}/turns` carries `{ command_id, prompt, model, mode, effort }`;
+`effort` is `null` exactly when the chosen model offers none (§12.4).
 
 **Validation, all before any write:** the thread's harness is available
 (`HarnessUnavailable`); its session is open, and is opened here if it is not
@@ -263,7 +281,8 @@ second message and a second run.
 **The model is set during validation.** Efforts belong to a model, so a turn
 that names another model than the session holds sets it with
 `session/set_config_option` before the checks, and checks the effort against
-the answer. That changes the session, not the durable record; a later refusal
+the answer. The harness refusing the model (an account without access to it)
+is `SettingNotOffered` with the harness's message. That changes the session, not the durable record; a later refusal
 leaves the session on the new model, and clients see it as an `options` frame.
 
 **Then, before the prompt is sent,** the session is set to the turn's effort
@@ -294,7 +313,7 @@ agent_path          TEXT NOT NULL      -- the CLI the adapter runs (CLAUDE_CODE_
 agent_version       TEXT NOT NULL      -- that CLI's --version
 requested_model     TEXT NOT NULL
 requested_mode      TEXT NOT NULL      -- the permission mode requested of the harness
-requested_effort    TEXT NOT NULL
+requested_effort    TEXT NULL          -- NULL when the model offers no effort
 profile_json        TEXT NOT NULL      -- '{}' until profiles exist
 native_session_id   TEXT NULL
 observed_model      TEXT NULL
@@ -312,7 +331,7 @@ once, in the transaction that records the turn's terminal transition, from what
 the harness reported during the turn. Nothing it did not report is estimated;
 it stays NULL and a client shows it as unavailable.
 
-- `observed_model` is the model the harness names with the turn's last usage report (item 7 of §12.3's box decides where the adapter puts it). It can differ from `requested_model`: on 2026-09-24 a turn that asked for `haiku` was answered by `claude-sonnet-5`.
+- `observed_model` is the model the harness names in `_meta["_claude/model"]` on the turn's last usage report — a model id such as `claude-sonnet-5`, where `requested_model` holds the option value the person chose (`sonnet`). It can name another model than the one asked for: on 2026-09-24 a turn that asked for `haiku` through `claude --print` was answered by `claude-sonnet-5`.
 
 **Every entry names the turn it belongs to.** `thread_entry` gains
 `operation_id TEXT NULL FK operation(id) ON DELETE RESTRICT`: the user entry the
@@ -325,7 +344,9 @@ fact. This is the durable link §12.9's fork rule reads.
 
 **Context.** The adapter reports `usage_update { used, size }` during and after a
 turn. Shadows keeps the latest for the session and writes the turn's last one
-into its invocation (`context_used`, `context_window`). A report with no usable
+into its invocation (`context_used`, `context_window`). Only the last one of a
+turn is trusted: the adapter first reports its guess of the window (200k) and
+corrects it after the turn's result (1M, measured). A report with no usable
 `size` is not shown as a percentage.
 
 **Account limits.** The adapter forwards Claude's rate-limit report in
@@ -350,12 +371,24 @@ session for tens of seconds, is why a ring elsewhere was seen spinning.)
 2. **Breakdown:** messages, system tools, MCP tools, skills, memory files, system
    prompt, custom agents, autocompact buffer, free space.
 
-> **OPEN — the breakdown's source.** It exists in the Agent SDK only through
-> `getContextUsage`, which can block a live session. **Trigger that closes this:**
-> item 5 of §12.3's box. If it finds a read that does not block a turn, the
-> breakdown is taken after a turn ends, stored with the invocation, and shown;
-> otherwise the ring ships with the summary only, and this block names what was
-> measured.
+**The breakdown is read on demand.** Sending `/context` as a prompt answers
+the breakdown as one markdown message, costs no model tokens, and takes 0.6 s
+on a session that has already answered once — but 17–23 s as a fresh session's
+first call (ACP_PROBE §5). So the breakdown is fetched only when the person opens
+the ring's second level (`GET /api/threads/{id}/context`), only on an open,
+idle session that has run a turn in this adapter, with a 5-second limit. It is
+parsed from the "Estimated usage by category" table, shown, and not stored.
+While a turn runs, before the session's first turn, or past the limit, the
+second level says why it has nothing, and the summary still shows. The
+`/context` exchange is not a Planner turn: it writes no Operation and no entry,
+and its chunks never reach the conversation.
+
+> **OPEN — does `/context` enter the conversation Claude remembers?** The probe
+> did not establish whether the exchange is written into the session transcript
+> that `session/resume` replays to the model. **Trigger that closes this:** the
+> Phase B run (§12.13). Read the session transcript after a `/context` and
+> resume; if the exchange is there, the breakdown route is removed and the ring
+> ships with the summary only. It does not block Phase A.
 
 Delivery: the thread snapshot carries each operation's invocation; the
 operation's terminal event carries the observed values; `GET /api/harnesses`
@@ -371,7 +404,7 @@ source with "(fork)":
 - It copies the source's entries up to and including `at_entry_id` under new ids and ordinals. It copies no Operation: an Operation belongs to the thread that ran it.
 - **Copied entries keep their `operation_id` and `refs` unchanged.** Both still name the source thread's operation; that is provenance, read-only history, and is shown as such. Nothing in the fork can stop, retry, or otherwise act on it.
 - It records `forked_from_thread`, `forked_from_entry`, and `fork_session_id` (the source's harness session at that moment). The three are all NULL or all set, and are written only by the creating insert. The source is not changed.
-- The fork's first opening (§12.2) calls `session/fork` on `fork_session_id`. The session it returns is recorded as the fork's own `harness_session_id` when the fork's first turn ends, by the rule of §12.3.
+- The fork's first opening (§12.2) calls `session/fork` on `fork_session_id`, then `session/resume` on the id it returns: the adapter answers a fork's id without making it live, and a prompt to it before the resume is "Session not found" (ACP_PROBE §6). The fork remembers the source's messages and the source is unaffected. The session is recorded as the fork's own `harness_session_id` when the fork's first turn ends, by the rule of §12.3.
 - **Valid fork point in this milestone**, decided only from durable rows: `at_entry_id` is the source's highest-ordinal entry; its `operation_id` is set; that operation is `Completed`; and the source's `harness_session_id` is set. A turn running on the source is `ThreadBusy`; anything else is `ForkPointNotSupported`, including an entry with no `operation_id` and a turn that was stopped or failed. Widening it to any entry is a server change only, once the Context Compiler exists.
 
 ## 12.10 Protocol changes
@@ -386,6 +419,7 @@ source with "(fork)":
 | `GET /api/projects/{id}` | carries the allowed modes per harness |
 | `PATCH /api/projects/{id}` | new: `{ command_id, allowed_modes }` |
 | `POST /api/threads/{id}/fork` | new, §12.9 |
+| `GET /api/threads/{id}/context` | new: the context breakdown read on demand (§12.8); answers the categories, or none with the reason |
 | thread snapshot, operation events | carry the invocation's requested and observed values |
 | entries | a new kind, `PermissionRefused` |
 | SSE | new transient frames: `usage` (context and limits), `options` (the session's choices changed) |
@@ -458,6 +492,10 @@ Phase B
 [ ] the harness can be changed before the first turn and not after, enforced in storage
 [ ] a new conversation starts at Accept edits and at the last model and effort used
 [ ] the ring shows figures or "no figures yet" and never spins; limits show their observed time
+[ ] the ring's second level shows the breakdown, or says why it has none; §12.8's OPEN
+    block is closed by reading the transcript after a /context
+[ ] a model the account cannot use (Fable 5.1) is refused with the harness's message;
+    a model with no effort (Haiku 4.5) runs with none
 [ ] copy works on every message; fork from the last message opens a thread whose next turn
     remembers the conversation, and the source is unchanged
 [ ] one whole-branch review before the PR

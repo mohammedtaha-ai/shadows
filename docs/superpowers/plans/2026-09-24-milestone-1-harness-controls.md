@@ -51,38 +51,24 @@ Phase B:
 
 ---
 
-### Task 0: Measure the adapter (Codex, throwaway)
+### Task 0: Measure the adapter — done 2026-09-24
 
-**Files:**
-- Create: `docs/evidence/harness/ACP_PROBE.md`
-- The probe itself lives outside the repository (a `%TEMP%` directory) and is not committed; the evidence file names where it ran and quotes the raw JSON-RPC lines it relies on.
+Run by the controller against adapter 0.81.1 and Claude Code 2.1.281 with a throwaway raw JSON-RPC probe outside the repository; 9 prompts. Findings: `docs/evidence/harness/ACP_PROBE.md`. What they changed, and where this plan now follows them:
 
-The weekly limit is near its end: every prompt is a one-line prompt (`say ok`, `what word did I ask you to remember?`). If a turn is refused for the limit, stop, record how far the probe got, and do not retry.
-
-- [ ] **Step 1: Install the pinned adapter** in a new `%TEMP%\acp-probe` directory (Mohammed runs this if the download is slow):
-
-```bash
-npm install @agentclientprotocol/claude-agent-acp@0.81.1 @agentclientprotocol/sdk --omit=optional
-```
-
-- [ ] **Step 2: Write `probe.ts`** from the adapter's `examples/simple-client.ts`: spawn `node node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js` with `CLAUDE_CODE_EXECUTABLE=%USERPROFILE%\.local\bin\claude.exe`, log every JSON-RPC line in both directions with a timestamp to `wire.log`, and answer every `session/request_permission` with its `reject_once` option.
-- [ ] **Step 3: Run the eight checks of spec §12.3's box**, in this order, each in its own session unless stated:
-  1. `initialize` + `session/new` (cwd = the probe dir): record the full `configOptions` — model values and names, each model's `thought_level` values, `mode` values, current values. Then `session/set_config_option` to another model and record the new effort list.
-  2. Prompt `say ok`: record every `session/update` kind, whether `agent_message_chunk` carries `messageId`, and the prompt's `stopReason`.
-  3. Prompt `count slowly from 1 to 200, one number per line`; after the first chunk send `session/cancel`; record the time until the prompt answers and its `stopReason`.
-  4. Prompt `remember the word amber`; kill the adapter process tree; start a new adapter; `session/resume` the same id; prompt `what word did I ask you to remember?`; record the answer.
-  5. Look for a way to read the context breakdown that does not block: the adapter's `available_commands_update` (is there a `/context` command whose output arrives as a chunk?), and any `_meta` on `usage_update`. Record what exists and how long it takes after a finished turn.
-  6. On the session from check 4: `session/fork` (requires the fork capability in `initialize`'s answer — record it); prompt the fork `what word did I ask you to remember?`; then prompt the source `say ok` and record that it still answers.
-  7. From checks 2–6: every `usage_update` (fields, `_meta`, where the model is named) and every `_meta["_claude/rateLimit"]` payload.
-  8. Prompt in the default mode after `session/set_config_option` mode=`acceptEdits`: `run the shell command: echo probe`. Record the `session/request_permission` params (options with `kind`s, `toolCall.title`) and what Claude says after the rejection.
-- [ ] **Step 4: Write the evidence file** — one section per check: the command, the raw lines (trimmed), the finding; the adapter version, `claude --version`, Node version, date. Commit:
-
-```bash
-git add docs/evidence/harness/ACP_PROBE.md
-git commit -m "docs(evidence): measure the claude-agent-acp adapter for Milestone 1"
-```
-
-**Stop and bring it to Mohammed** if check 2 finds no `messageId`, check 3 finds no `cancelled` answer, or check 4 finds the resumed session does not remember: §12.3 changes before Phase A starts.
+| Finding | Where it lands |
+|---|---|
+| Models, efforts and modes come back live (Opus 5.5, Fable 5.1, Sonnet 5, Haiku 4.5) | B2 |
+| A listed model can be refused by the account (Fable: "Usage credits are required") | fake `fake-locked`; B3 |
+| A model can offer no effort (Haiku) | `TurnSettings.effort: Option`; fake `fake-tiny`; B1, B3 |
+| `auto` stays listed for every model; a model without it moves the session to `acceptEdits` | fake behaviour; B2 |
+| A new or resumed session starts at the person's Claude defaults (`auto`, `opus`) | A3 sets the mode on every opening; B3 sets settings every turn |
+| Chunks carry `messageId`; the model is `_meta["_claude/model"]` | A2 |
+| The first `size` is a 200k guess, corrected to 1M after the result | fake `usage`; B4 |
+| Cancel answers `cancelled` in ~60 ms | A4 |
+| A tool call's first title is generic ("Terminal"); the real one and the final `status` arrive in `tool_call_update` | A2 `HarnessEvent::ToolCall`; A4 collector |
+| `session/fork` answers an id that is not live until `session/resume` | A2 `SessionStart::Fork` |
+| `/context` as a prompt: breakdown in markdown, no tokens, 0.6 s after a session's first answer, 17–23 s before it | B4 Step 5 |
+| The adapter writes diagnostics to stderr | A1 pipes it; A2 forwards it to the debug log |
 
 ---
 
@@ -100,8 +86,8 @@ git commit -m "docs(evidence): measure the claude-agent-acp adapter for Mileston
   - `Config { .., node_path: PathBuf, adapter_path: PathBuf, harness_path: PathBuf }` — all three built through `config::harness_path` (absolute, exists).
   - `config::adapter_version(adapter_entry: &Path) -> String` — reads `version` from the `package.json` in the entry's parent's parent (`…/claude-agent-acp/dist/index.js` → `…/claude-agent-acp/package.json`); `"unknown"` when unreadable.
   - `ProcessSpec { .., pipe_stdin: bool }` (every existing construction passes `false`).
-  - `pub type ChildIn = tokio::process::ChildStdin; pub type ChildOut = tokio::process::ChildStdout;` in `process/`.
-  - `ProcessHandle::take_stdio(&mut self) -> Option<(ChildIn, ChildOut)>` — `Some` once, for a spec with `pipe_stdin && capture_stdout`.
+  - `pub type ChildIn = tokio::process::ChildStdin; pub type ChildOut = tokio::process::ChildStdout; pub type ChildErr = tokio::process::ChildStderr;` in `process/`.
+  - `ProcessHandle::take_stdio(&mut self) -> Option<(ChildIn, ChildOut, ChildErr)>` — `Some` once, for a spec with `pipe_stdin && capture_stdout`; such a spec also pipes stderr (the adapter writes diagnostics there, ACP_PROBE "Also seen").
 
 - [ ] **Step 1: Pin the adapter.**
 
@@ -131,7 +117,7 @@ async fn a_piped_child_echoes_stdin_and_its_tree_is_contained() {
         capture_stdout: true,
         pipe_stdin: true,
     }).unwrap();
-    let (mut stdin, stdout) = handle.take_stdio().expect("stdio taken once");
+    let (mut stdin, stdout, _stderr) = handle.take_stdio().expect("stdio taken once");
     assert!(handle.take_stdio().is_none());
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
     stdin.write_all(b"ping\n").await.unwrap();
@@ -177,8 +163,10 @@ The stream-json path is not touched here: `planner/` still runs on it until A4 r
     pub enum HarnessEvent {
         /// Transient text of an agent message; `message_id` groups chunks into one message.
         Chunk { message_id: Option<String>, text: String },
-        /// A tool call started; its title is what the person sees.
-        ToolCall { id: String, title: String },
+        /// A `tool_call` or `tool_call_update`. The first title is generic
+        /// ("Terminal"); later updates carry the real one and the final
+        /// `status` (`completed` / `failed`). Absent fields did not change.
+        ToolCall { id: String, title: Option<String>, status: Option<String> },
         /// A permission request Shadows refused (spec §12.2).
         PermissionRefused { title: String },
         /// Context and, when the adapter forwarded it, the account's rate-limit report.
@@ -187,7 +175,7 @@ The stream-json path is not touched here: `planner/` still runs on it until A4 r
         Options(serde_json::Value),
     }
     ```
-  - `agent::acp::SessionStart { New, Resume(String), Fork(String) }`
+  - `agent::acp::SessionStart { New, Resume(String), Fork(String) }` — `Fork(src)` sends `session/fork` on `src`, then `session/resume` on the id it answers, because a fork's id is not live until resumed (ACP_PROBE §6); `Opened` then carries the fork's id and the resume's options.
   - `agent::acp::Opened { pub session_id: String, pub options: serde_json::Value }`
   - `agent::acp::Connection` (Clone): `open(handle: &mut ProcessHandle, events: mpsc::UnboundedSender<HarnessEvent>) -> Result<Connection, AcpError>` (takes stdio, spawns the connection task, sends `initialize`); `start_session(&self, cwd: &Path, how: SessionStart) -> Result<Opened, AcpError>`; `set_option(&self, session: &str, config_id: &str, value: &str) -> Result<serde_json::Value, AcpError>` (returns the complete option set); `prompt(&self, session: &str, text: &str) -> Result<TurnEnd, AcpError>`; `cancel(&self, session: &str)`.
   - `agent::acp::TurnEnd { Ended, Cancelled, Refused(String) }` — `end_turn` → `Ended`; `cancelled` → `Cancelled`; `max_tokens`, `max_turn_requests`, `refusal` → `Refused(<reason>)`.
@@ -196,23 +184,30 @@ The stream-json path is not touched here: `planner/` still runs on it until A4 r
 - [ ] **Step 1: The fake agent.** `src/bin/fake_acp.rs` is an ACP agent built on the crate's agent side (`Agent.builder().on_receive_request(..).connect_to(Stdio::new())`, as the crate's `examples/simple_agent.rs`). It ignores its first argument (so tests configure `--node <fake_acp> --adapter anything`). It advertises the fork capability, returns these config options on every session answer, and applies `session/set_config_option` to them:
 
 ```text
-model:         fake-small (efforts low, high; default high) | fake-large (efforts low, high, max; default high)
-thought_level: the current model's efforts
-mode:          default | acceptEdits | auto | plan      (auto only while model = fake-large)
+model:         fake-large (efforts low, high, max; default high; auto mode)   ← the default
+               fake-small (efforts low, high; default high; no auto mode)
+               fake-tiny  (no thought_level option at all; no auto mode)
+               fake-locked (listed; selecting it is refused:
+                            "Usage credits are required for this model · model not changed")
+thought_level: the current model's efforts; the option is absent for fake-tiny
+mode:          default | acceptEdits | plan | auto | bypassPermissions   (all listed for every model)
 ```
 
-Run as `fake_acp --version` it prints `fake-claude-1` and exits, so tests can configure it as the Claude executable too and the existing version probe reads it. Its session id is `fake-<n>`; `session/resume` of an id it did not create in this process still succeeds (a new process resumes what an old one created) and `session/fork` returns `fork-of-<id>`. Prompts, by text:
+It mirrors what ACP_PROBE measured on the real adapter: every new or resumed session starts at `fake-large` in mode `auto` (the person's defaults, whatever it ran with before); choosing a model without auto mode while the mode is `auto` moves the mode to `acceptEdits`; setting mode `auto` while such a model is current is refused with "auto mode is not available for this model".
+
+Run as `fake_acp --version` it prints `fake-claude-1` and exits, so tests can configure it as the Claude executable too and the existing version probe reads it. Its session id is `fake-<n>`; `session/resume` of an id it did not create in this process still succeeds (a new process resumes what an old one created). `session/fork` answers `fork-of-<id>` **without making it live**: a prompt to it before `session/resume` on that id is refused "Session not found", as the real adapter does. Prompts, by text:
 
 | prompt | behaviour |
 |---|---|
 | anything not below | chunks `hello ` and `from fake_acp` under message id `m1`, then `end_turn` |
-| `two-messages` | `first` under `m1`, a tool call titled `Read notes.md`, `second` under `m2`, `end_turn` |
-| `report` | one message whose text is JSON `{ "cwd", "session", "how": "new"/"resume"/"fork", "model", "effort", "mode", "claude": $CLAUDE_CODE_EXECUTABLE }`, `end_turn` |
+| `two-messages` | `first` under `m1`; a `tool_call` titled `Terminal` (`pending`); a `tool_call_update` retitling it `Read notes.md`; a `tool_call_update` with `status: completed`; `second` under `m2`; `end_turn` |
+| `report` | one message whose text is JSON `{ "cwd", "session", "how": "new"/"resume"/"fork", "model", "effort", "mode", "claude": $CLAUDE_CODE_EXECUTABLE }` (`how` is `fork` for a `fork-of-` id), `end_turn` |
+| `/context` | one message: a markdown table `| Category | Tokens | Percentage |` with rows `Messages 3.8k 0.4%`, `System tools 19.1k 1.9%`, `Free space 923.9k 92.4%`; the first `/context` of a process sleeps 1 s first, like the real first call |
 | `hang` | one chunk, then waits; answers `cancelled` when `session/cancel` arrives |
 | `ignore-cancel` | one chunk, then waits forever, ignoring `session/cancel` |
 | `exit` | one chunk, then the process exits with code 3 |
 | `ask-permission` | sends `session/request_permission` (title `Run echo probe`, options `allow_once`, `reject_once`), then one message `permission: <chosen option kind>`, `end_turn` |
-| `usage` | one message, then `usage_update { used: 1234, size: 200000 }` with `_meta: { "_claude/rateLimit": { "unifiedWindows": { "five_hour": { "utilization": 0.25, "resetsAt": 1790212200 }, "seven_day": { "utilization": 0.5, "resetsAt": 1790542800 } } }, "model": "fake-large-answering" }`, `end_turn` |
+| `usage` | `usage_update { used: 1234, size: 200000, _meta: { "_claude/model": "fake-large-answering" } }`, one message, then `usage_update { used: 1234, size: 1000000 }` with `_meta: { "_claude/rateLimit": { "unifiedWindows": { "five_hour": { "utilization": 0.25, "resetsAt": 1790212200 }, "seven_day": { "utilization": 0.5, "resetsAt": 1790542800 } } }, "_claude/model": "fake-large-answering" }`, `end_turn` |
 | `refuse` | `max_tokens` |
 
 Its module doc lists this table, as `fake_claude`'s did.
@@ -273,16 +268,49 @@ async fn usage_carries_context_model_and_rate_limit() {
     let (_h, c, mut ev) = open_fake().await;
     let s = c.start_session(&tmp(), SessionStart::New).await.unwrap().session_id;
     c.prompt(&s, "usage").await.unwrap();
-    let u = drain(&mut ev).into_iter().find_map(|e| match e {
+    let usages: Vec<_> = drain(&mut ev).into_iter().filter_map(|e| match e {
         HarnessEvent::Usage { used, size, model, rate_limit } => Some((used, size, model, rate_limit)),
         _ => None,
-    }).unwrap();
-    assert_eq!((u.0, u.1, u.2.as_deref()), (1234, 200000, Some("fake-large-answering")));
-    assert!(u.3.unwrap()["unifiedWindows"]["seven_day"].is_object());
+    }).collect();
+    assert_eq!(usages.len(), 2);
+    let last = usages.last().unwrap();
+    assert_eq!((last.0, last.1, last.2.as_deref()), (1234, 1_000_000, Some("fake-large-answering")));
+    assert!(last.3.as_ref().unwrap()["unifiedWindows"]["seven_day"].is_object());
+}
+
+#[tokio::test]
+async fn a_tool_call_reports_its_real_title_and_final_status() {
+    let (_h, c, mut ev) = open_fake().await;
+    let s = c.start_session(&tmp(), SessionStart::New).await.unwrap().session_id;
+    c.prompt(&s, "two-messages").await.unwrap();
+    let tools: Vec<_> = drain(&mut ev).into_iter().filter_map(|e| match e {
+        HarnessEvent::ToolCall { title, status, .. } => Some((title, status)),
+        _ => None,
+    }).collect();
+    assert_eq!(tools, [
+        (Some("Terminal".to_string()), Some("pending".to_string())),
+        (Some("Read notes.md".to_string()), None),
+        (None, Some("completed".to_string())),
+    ]);
+}
+
+#[tokio::test]
+async fn a_fork_is_resumed_before_it_is_answered() {
+    let (_h, c, _ev) = open_fake().await;
+    let src = c.start_session(&tmp(), SessionStart::New).await.unwrap().session_id;
+    let fork = c.start_session(&tmp(), SessionStart::Fork(src.clone())).await.unwrap();
+    assert_eq!(fork.session_id, format!("fork-of-{src}"));
+    assert_eq!(c.prompt(&fork.session_id, "hi").await.unwrap(), TurnEnd::Ended, "live after the resume");
+}
+
+#[tokio::test]
+async fn a_model_the_account_cannot_use_is_refused_with_the_harness_message() {
+    let (_h, c, _ev) = open_fake().await;
+    let s = c.start_session(&tmp(), SessionStart::New).await.unwrap().session_id;
+    let err = c.set_option(&s, "model", "fake-locked").await.unwrap_err();
+    assert!(matches!(err, AcpError::Rpc(m) if m.contains("Usage credits are required")));
 }
 ```
-
-(Where Task 0 found the adapter names the model somewhere other than `_meta.model`, the fake and `Usage.model` follow the evidence file, and this test with them.)
 
 - [ ] **Step 3: Run** `cargo test --test acp_connection` — expected: compile failure.
 - [ ] **Step 4: Implement `agent/acp.rs`.** The connection task runs the crate's client builder over the child's stdio:
@@ -291,7 +319,8 @@ async fn usage_carries_context_model_and_rate_limit() {
 use agent_client_protocol::{Agent, ByteStreams, Client, ConnectionTo};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
-let (stdin, stdout) = handle.take_stdio().ok_or(AcpError::Closed)?;
+let (stdin, stdout, stderr) = handle.take_stdio().ok_or(AcpError::Closed)?;
+forward_stderr(stderr); // each line → tracing::debug!(target: "harness.stderr", ...)
 let (ready_tx, ready_rx) = tokio::sync::oneshot::channel::<ConnectionTo<Agent>>();
 let notify = events.clone();
 let refuse = events.clone();
@@ -323,7 +352,7 @@ let cx = ready_rx.await.map_err(|_| AcpError::Closed)?;
 cx.send_request(InitializeRequest::new(ProtocolVersion::V1)).block_task().await.map_err(rpc)?;
 ```
 
-`forward` maps `agent_message_chunk` (text blocks only) → `Chunk`, `tool_call` → `ToolCall`, `usage_update` → `Usage` (model and rate limit read from `_meta` as Task 0 recorded), `config_option_update` → `Options`; every other update is dropped with a `trace!`. `reject` selects the option whose `kind` is `reject_once`, else `reject_always`, else answers `Cancelled`. `start_session` sends `NewSessionRequest::new(cwd)`, `ResumeSessionRequest`, or `ForkSessionRequest` and returns the id and the answer's `configOptions` as JSON. Any send whose future fails because the connection ended is `AcpError::Closed`. Types are the crate's `schema::v1` types; read `examples/yolo_one_shot_client.rs` of the pinned version for their constructors. `agent/events.rs` owns only `HarnessEvent`; `agent/acp.rs` owns only the connection.
+`forward` maps `agent_message_chunk` (text blocks only) → `Chunk`, `tool_call` and `tool_call_update` → `ToolCall` (the fields each carries), `usage_update` → `Usage` (model from `_meta["_claude/model"]`, rate limit from `_meta["_claude/rateLimit"]`, ACP_PROBE §7), `config_option_update` → `Options`; every other update (`available_commands_update`, `session_info_update`, `current_mode_update`, thoughts) is dropped with a `trace!`. `title_of` is the request's `toolCall.title`. `reject` selects the option whose `kind` is `reject_once`, else `reject_always`, else answers `Cancelled`. `start_session` sends `NewSessionRequest::new(cwd)`, `ResumeSessionRequest`, or `ForkSessionRequest` followed by `ResumeSessionRequest` on the answered id, and returns the id and the last answer's `configOptions` as JSON. A JSON-RPC error answer is `AcpError::Rpc` carrying `data.details` when present, else `message`. Any send whose future fails because the connection ended is `AcpError::Closed`. Types are the crate's `schema::v1` types; read `examples/yolo_one_shot_client.rs` of the pinned version for their constructors. `agent/events.rs` owns only `HarnessEvent`; `agent/acp.rs` owns only the connection.
 
 - [ ] **Step 5:** `cargo test --test acp_connection`, clippy, code map, owners (`agent/acp.rs`: "the ACP client connection to one adapter process"; `agent/events.rs`: "what a harness connection reports"). Commit `feat(agent): ACP client connection and the fake ACP agent (spec §12.2)`.
 
@@ -415,7 +444,7 @@ async fn a_project_without_its_directory_does_not_start_an_adapter() {
 **Interfaces:**
 - Consumes: A3 `Sessions`, `OpenSession`; A2 `TurnEnd`, `AcpError`, `HarnessEvent`.
 - Produces:
-  - `entries::Collector::new() -> Collector`; `Collector::push(&mut self, e: &HarnessEvent) -> Vec<Durable>`; `Collector::finish(&mut self) -> Vec<Durable>`; `Durable { Message(String), Tool(String), PermissionRefused(String) }` — a message is emitted when its `message_id` changes, a tool call or refusal arrives, or the turn finishes; empty text is never emitted.
+  - `entries::Collector::new() -> Collector`; `Collector::push(&mut self, e: &HarnessEvent) -> Vec<Durable>`; `Collector::finish(&mut self) -> Vec<Durable>`; `Durable { Message(String), Tool(String), PermissionRefused(String) }` — a message is emitted when its `message_id` changes, a tool call or refusal arrives, or the turn finishes; empty text is never emitted. A tool call is tracked by id with its latest title and emitted once, when an update reports `status` `completed` or `failed`, or at `finish()` if it never did — under the last title it was given, since the first is generic (ACP_PROBE §8).
   - `LiveTurn { turn_end_seen: Arc<AtomicBool>, cancel_requested: Arc<AtomicBool>, span }` (no handle).
   - `StopOutcome { Cancelled, ResolvedByTurn, NotLive, TerminationFailed }` — `Cancelled`: stop terminated the adapter tree and wrote `Cancelled`; `ResolvedByTurn`: the watcher named the ending (the harness confirmed the cancel, or the turn had already ended).
   - `ErrorCode::HarnessStartFailed` → 502, `Failure::harness_start_failed(reason)`.
@@ -430,7 +459,9 @@ fn chunks_of_one_message_become_one_entry_and_a_tool_call_splits_messages() {
     let mut out = Vec::new();
     for e in [
         chunk(Some("m1"), "hello "), chunk(Some("m1"), "there"),
-        HarnessEvent::ToolCall { id: "t1".into(), title: "Read notes.md".into() },
+        tool("t1", Some("Terminal"), Some("pending")),
+        tool("t1", Some("Read notes.md"), None),
+        tool("t1", None, Some("completed")),
         chunk(Some("m2"), "done"),
     ] { out.extend(c.push(&e)); }
     out.extend(c.finish());
@@ -439,6 +470,14 @@ fn chunks_of_one_message_become_one_entry_and_a_tool_call_splits_messages() {
         Durable::Tool("Read notes.md".into()),
         Durable::Message("done".into()),
     ]);
+}
+
+#[test]
+fn a_tool_call_that_never_finished_is_emitted_at_the_end_under_its_last_title() {
+    let mut c = Collector::new();
+    assert!(c.push(&tool("t9", Some("Terminal"), Some("pending"))).is_empty());
+    assert!(c.push(&tool("t9", Some("npm install"), None)).is_empty());
+    assert_eq!(c.finish(), [Durable::Tool("npm install".into())]);
 }
 
 #[test]
@@ -460,7 +499,7 @@ async fn a_turn_streams_and_stores_one_entry_per_message() {
     let op = start_prompt(&app, "two-messages").await;
     assert_eq!(wait_terminal(&app, &op).await.status, "Completed");
     let bodies: Vec<_> = entries(&app).await.into_iter().map(|e| e.body).collect();
-    assert_eq!(bodies, ["two-messages", "first", "[tool: Read notes.md]", "second"]);
+    assert_eq!(bodies, ["two-messages", "first", "[tool: Read notes.md]", "second"], "the tool entry carries its real title, not \"Terminal\"");
 }
 
 #[tokio::test]
@@ -582,16 +621,17 @@ async fn after_a_restart_the_next_turn_resumes_the_recorded_session() {
 - [ ] **Step 1: Add schemas** under `components.schemas`, keys sorted, matching the existing style (`required` lists, `description` from the spec):
   - `Choice { id: string, label: string, description: string|null, enabled: boolean, reason: string|null }`
   - `SessionChoices { models: Choice[], efforts: Choice[], modes: Choice[], current: TurnSettings }` — `efforts` are the current model's; `modes` are after §12.4's filter, with modes the project does not allow present and `enabled: false`, `reason: "Not allowed in this project"`.
-  - `TurnSettings { model: string, mode: string, effort: string }`
+  - `TurnSettings { model: string, mode: string, effort: string|null }` — `effort` is `null` exactly when the model offers none (spec §12.4)
   - `LimitWindow { utilization: number, resets_at: integer }`
   - `AccountLimits { five_hour: LimitWindow|null, seven_day: LimitWindow|null, observed_at: string }`
-  - `HarnessInfo { kind: string, label: string, available: boolean, reason: string|null, remembered: { model: string, effort: string }|null, limits: AccountLimits|null }`
-  - `InvocationView { harness_kind, harness_version, agent_version, requested_model, requested_mode, requested_effort, observed_model: string|null, context_used: integer|null, context_window: integer|null }`
+  - `HarnessInfo { kind: string, label: string, available: boolean, reason: string|null, remembered: { model: string, effort: string|null }|null, limits: AccountLimits|null }`
+  - `InvocationView { harness_kind, harness_version, agent_version, requested_model, requested_mode, requested_effort: string|null, observed_model: string|null, context_used: integer|null, context_window: integer|null }`
   - `StartTurn { command_id, prompt, model, mode, effort }` (replaces `{ prompt }`)
   - `UpdateThread { command_id, harness }`, `UpdateProject { command_id, allowed_modes: { [harness]: string[] } }`, `ForkThread { command_id, at_entry_id }`
   - `Project` gains `allowed_modes`; `PlanningThread` gains `harness: string`, `forked_from_thread: string|null`; `ThreadEntry` gains `operation_id: string|null` and its `kind` documents `PermissionRefused`; `Operation` gains `invocation: InvocationView|null`; `CreateThread` gains optional `harness`.
+  - `ContextBreakdown { categories: { name: string, tokens: integer, percent: number }[]|null, reason: string|null }`
   - `ErrorCode` enum gains the seven codes in Global Constraints.
-- [ ] **Step 2: Add paths:** `GET /api/harnesses` → `HarnessInfo[]`; `POST /api/threads/{id}/session` → 200 `SessionChoices` (422 `HARNESS_UNAVAILABLE`, 502 `HARNESS_START_FAILED`); `PATCH /api/threads/{id}` → `PlanningThread` (409 `HARNESS_LOCKED`); `PATCH /api/projects/{id}` → `Project`; `POST /api/threads/{id}/fork` → 201 `PlanningThread` (409 `THREAD_BUSY`, 422 `FORK_POINT_NOT_SUPPORTED`); on `POST /api/threads/{id}/turns` add 403 `MODE_NOT_ALLOWED`, 409 `THREAD_BUSY`, 409 `COMMAND_CONFLICT`, 422 `SETTING_NOT_OFFERED`/`HARNESS_UNAVAILABLE`, 502 `HARNESS_START_FAILED`.
+- [ ] **Step 2: Add paths:** `GET /api/harnesses` → `HarnessInfo[]`; `GET /api/threads/{id}/context` → `ContextBreakdown`; `POST /api/threads/{id}/session` → 200 `SessionChoices` (422 `HARNESS_UNAVAILABLE`, 502 `HARNESS_START_FAILED`); `PATCH /api/threads/{id}` → `PlanningThread` (409 `HARNESS_LOCKED`); `PATCH /api/projects/{id}` → `Project`; `POST /api/threads/{id}/fork` → 201 `PlanningThread` (409 `THREAD_BUSY`, 422 `FORK_POINT_NOT_SUPPORTED`); on `POST /api/threads/{id}/turns` add 403 `MODE_NOT_ALLOWED`, 409 `THREAD_BUSY`, 409 `COMMAND_CONFLICT`, 422 `SETTING_NOT_OFFERED`/`HARNESS_UNAVAILABLE`, 502 `HARNESS_START_FAILED`.
 - [ ] **Step 3: Extend the `/api/subscribe` description** with two transient frames: `usage` `{ "thread_id": string, "context_used": integer|null, "context_window": integer|null, "limits": AccountLimits|null }` and `options` `{ "thread_id": string, "choices": SessionChoices }`; and that a `durable` frame of kind `OperationCompleted` carries `payload.invocation: InvocationView`.
 - [ ] **Step 4: Validate and commit.** `npx --prefix web openapi-typescript api/openapi.json -o NUL` must succeed. Then:
 
@@ -734,7 +774,7 @@ CREATE TABLE agent_invocation (
     agent_version     TEXT NOT NULL,
     requested_model   TEXT NOT NULL,
     requested_mode    TEXT NOT NULL,
-    requested_effort  TEXT NOT NULL,
+    requested_effort  TEXT NULL,
     profile_json      TEXT NOT NULL DEFAULT '{}',
     native_session_id TEXT NULL,
     observed_model    TEXT NULL,
@@ -752,7 +792,7 @@ BEGIN SELECT RAISE(ABORT, 'invocation_requested_immutable'); END;
 CREATE TABLE harness_preference (
     harness_kind TEXT PRIMARY KEY,
     model        TEXT NOT NULL,
-    effort       TEXT NOT NULL,
+    effort       TEXT NULL,
     updated_at   TEXT NOT NULL
 );
 
@@ -786,12 +826,12 @@ git commit -m "feat(storage): migration 0005 and the mode policy for harness con
 **Interfaces:**
 - Consumes: B1 `policy`, `Project.allowed_modes`, `TurnContext.harness`; A3 `Sessions`, `OpenSession.options`.
 - Produces:
-  - `agent::TurnSettings { pub model: String, pub mode: String, pub effort: String }` (Serialize, Deserialize, ToSchema, Clone, Debug, PartialEq)
+  - `agent::TurnSettings { pub model: String, pub mode: String, pub effort: Option<String> }` (Serialize, Deserialize, ToSchema, Clone, Debug, PartialEq)
   - `agent::choices::Offered { pub models: Vec<Choice>, pub efforts: Vec<Choice>, pub modes: Vec<Choice>, pub current: TurnSettings, pub ids: OptionIds }` where `OptionIds { model: String, effort: Option<String>, mode: String }` are the ACP `configId`s found by category.
   - `choices::parse(options: &serde_json::Value) -> Result<Offered, String>` — reads `category` `model`/`thought_level`/`mode`, `options` flat or grouped, keeps the harness's order.
   - `choices::for_client(offered: &Offered, harness: &str, allowed: &[String]) -> SessionChoices` — drops modes outside `policy::allowed_modes(harness)`; marks the rest `enabled: false, reason: Some("Not allowed in this project")` when not in `allowed`.
-  - `choices::refusal(offered: &Offered, harness: &str, s: &TurnSettings) -> Option<(&'static str, String)>` — `("model", id)`, `("effort", id)`, or `("mode", id)` for the first value not on offer or outside the policy.
-  - `Storage::remembered_settings(&self, kind: &str) -> Result<Option<(String, String)>, StorageError>`, `Storage::latest_limits(&self, kind: &str) -> Result<Option<AccountLimits>, StorageError>`, `pub(in crate::storage) async fn remember_settings(conn, kind, &TurnSettings, ts)`, `Storage::record_limits(&self, kind: &str, limits: &AccountLimits) -> Result<(), StorageError>` (upsert, latest wins).
+  - `choices::refusal(offered: &Offered, harness: &str, s: &TurnSettings) -> Option<(&'static str, String)>` — `("model", id)`, `("effort", id)`, or `("mode", id)` for the first value not on offer or outside the policy. `effort` must be `Some(offered)` when the model offers efforts and `None` when it offers none.
+  - `Storage::remembered_settings(&self, kind: &str) -> Result<Option<(String, Option<String>)>, StorageError>`, `Storage::remember_for_test(&self, kind: &str, model: &str, effort: Option<&str>)` (test-support), `Storage::latest_limits(&self, kind: &str) -> Result<Option<AccountLimits>, StorageError>`, `pub(in crate::storage) async fn remember_settings(conn, kind, &TurnSettings, ts)`, `Storage::record_limits(&self, kind: &str, limits: &AccountLimits) -> Result<(), StorageError>` (upsert, latest wins).
   - `AccountLimits { five_hour: Option<LimitWindow>, seven_day: Option<LimitWindow>, observed_at: String }`, `LimitWindow { utilization: f64, resets_at: i64 }` in `agent::events` (B4 fills them).
   - `Sessions::offered(&self, thread) -> Option<Offered>` (the latest).
   - Routes `POST /api/threads/{id}/session` → `SessionChoices`, `GET /api/harnesses` → `Vec<HarnessInfo>`.
@@ -802,10 +842,17 @@ git commit -m "feat(storage): migration 0005 and the mode policy for harness con
 #[test]
 fn parse_reads_models_efforts_and_modes_by_category_in_the_harness_order() {
     let o = parse(&fake_options("fake-large")).unwrap();
-    assert_eq!(ids(&o.models), ["fake-small", "fake-large"]);
+    assert_eq!(ids(&o.models), ["fake-large", "fake-small", "fake-tiny", "fake-locked"]);
     assert_eq!(ids(&o.efforts), ["low", "high", "max"]);
-    assert_eq!(ids(&o.modes), ["default", "acceptEdits", "auto", "plan"]);
+    assert_eq!(ids(&o.modes), ["default", "acceptEdits", "plan", "auto", "bypassPermissions"]);
     assert_eq!(o.current.model, "fake-large");
+}
+
+#[test]
+fn a_model_without_effort_parses_to_no_efforts_and_no_effort_id() {
+    let o = parse(&fake_options("fake-tiny")).unwrap();
+    assert!(o.efforts.is_empty());
+    assert_eq!((o.ids.effort.as_deref(), o.current.effort.as_deref()), (None, None));
 }
 
 #[test]
@@ -818,18 +865,16 @@ fn only_policy_modes_reach_the_client_and_disallowed_ones_say_why() {
 }
 
 #[test]
-fn a_mode_the_harness_withholds_for_this_model_is_not_offered() {
-    let o = parse(&fake_options("fake-small")).unwrap(); // fake withholds auto for fake-small
-    let c = for_client(&o, "claude-code", &["acceptEdits".into(), "auto".into()]);
-    assert_eq!(ids(&c.modes), ["acceptEdits"]);
-}
-
-#[test]
 fn refusal_names_what_is_not_offered() {
     let o = parse(&fake_options("fake-small")).unwrap();
-    let ok = TurnSettings { model: "fake-small".into(), mode: "acceptEdits".into(), effort: "high".into() };
+    let ok = TurnSettings { model: "fake-small".into(), mode: "acceptEdits".into(), effort: Some("high".into()) };
     assert_eq!(refusal(&o, "claude-code", &ok), None);
-    assert_eq!(refusal(&o, "claude-code", &TurnSettings { effort: "max".into(), ..ok.clone() }).unwrap().0, "effort");
+    assert_eq!(refusal(&o, "claude-code", &TurnSettings { effort: Some("max".into()), ..ok.clone() }).unwrap().0, "effort");
+    assert_eq!(refusal(&o, "claude-code", &TurnSettings { effort: None, ..ok.clone() }).unwrap().0, "effort", "an offered effort must be chosen");
+    let tiny = parse(&fake_options("fake-tiny")).unwrap();
+    let none = TurnSettings { model: "fake-tiny".into(), effort: None, ..ok.clone() };
+    assert_eq!(refusal(&tiny, "claude-code", &none), None);
+    assert_eq!(refusal(&tiny, "claude-code", &TurnSettings { effort: Some("high".into()), ..none }).unwrap().0, "effort");
     assert_eq!(refusal(&o, "claude-code", &TurnSettings { mode: "plan".into(), ..ok.clone() }).unwrap().0, "mode");
     assert_eq!(refusal(&o, "claude-code", &TurnSettings { model: "gpt".into(), ..ok }).unwrap().0, "model");
 }
@@ -845,9 +890,17 @@ async fn opening_a_session_answers_the_harness_choices_after_the_policy() {
     let app = test_app().await;
     let (s, c) = post(&app, &format!("/api/threads/{}/session", app.thread), json!({})).await;
     assert_eq!(s, 200);
-    assert_eq!(names(&c["models"]), ["fake-small", "fake-large"]);
+    assert_eq!(names(&c["models"]), ["fake-large", "fake-small", "fake-tiny", "fake-locked"]);
     assert_eq!(names(&c["modes"]), ["acceptEdits", "auto"]);
-    assert_eq!(c["current"]["mode"], "acceptEdits");
+    assert_eq!(c["current"]["mode"], "acceptEdits", "the fake starts in auto, as the real adapter does; opening sets the default");
+}
+
+#[tokio::test]
+async fn a_remembered_model_the_account_cannot_use_is_dropped() {
+    let app = test_app().await;
+    app.storage.remember_for_test("claude-code", "fake-locked", None).await;
+    let (s, c) = post(&app, &format!("/api/threads/{}/session", app.thread), json!({})).await;
+    assert_eq!((s, c["current"]["model"].as_str()), (200, Some("fake-large")));
 }
 
 #[tokio::test]
@@ -863,7 +916,7 @@ async fn harnesses_lists_claude_runnable_and_codex_not() {
 #[tokio::test]
 async fn a_new_session_starts_at_the_remembered_model_and_effort() {
     let app = test_app().await;
-    app.storage.remember_for_test("claude-code", "fake-small", "low").await; // test-support helper over remember_settings
+    app.storage.remember_for_test("claude-code", "fake-small", Some("low")).await; // test-support helper over remember_settings
     let (_, c) = post(&app, &format!("/api/threads/{}/session", app.thread), json!({})).await;
     assert_eq!((c["current"]["model"].as_str(), c["current"]["effort"].as_str()), (Some("fake-small"), Some("low")));
 }
@@ -871,7 +924,7 @@ async fn a_new_session_starts_at_the_remembered_model_and_effort() {
 #[tokio::test]
 async fn a_remembered_model_the_harness_no_longer_offers_is_dropped() {
     let app = test_app().await;
-    app.storage.remember_for_test("claude-code", "retired-model", "high").await;
+    app.storage.remember_for_test("claude-code", "retired-model", Some("high")).await;
     let (s, c) = post(&app, &format!("/api/threads/{}/session", app.thread), json!({})).await;
     assert_eq!(s, 200);
     assert_eq!(c["current"]["model"], "fake-large"); // the fake's own default
@@ -889,7 +942,7 @@ async fn a_codex_thread_cannot_open_a_session() {
 (The last test needs B5's `harness` on create; if B5 has not landed, create the thread through storage with `"codex"` directly.)
 
 - [ ] **Step 3: Run** — expected: compile failure / 404.
-- [ ] **Step 4: Implement.** `Sessions::open` applies remembered settings after the mode: `set_option(ids.model, m)` then `set_option(ids.effort, e)` only when each is on offer (re-parse after the model); a value not on offer is skipped with an `info!` naming it. Every `set_option` answer and every `HarnessEvent::Options` replaces the thread's stored `Offered` and publishes an `options` SSE frame for that thread. `GET /api/harnesses`: Claude Code is `available` when node, adapter and Claude paths were configured (they are required flags, so always in a running daemon); Codex `available: false, reason: "Coming later"`. `remembered` and `limits` from storage.
+- [ ] **Step 4: Implement.** `Sessions::open` applies remembered settings after the mode: `set_option(ids.model, m)` then, when the model offers efforts and the remembered one is among them, `set_option(ids.effort, e)` (re-parse after the model). A remembered value not on offer, or one the harness refuses (the account cannot use the model), is skipped with an `info!` naming it and the harness's message; then the mode is set to the policy default again, since a model change can move it (ACP_PROBE §1). Every `set_option` answer and every `HarnessEvent::Options` replaces the thread's stored `Offered` and publishes an `options` SSE frame for that thread. `GET /api/harnesses`: Claude Code is `available` when node, adapter and Claude paths were configured (they are required flags, so always in a running daemon); Codex `available: false, reason: "Coming later"`. `remembered` and `limits` from storage.
 - [ ] **Step 5:** `cargo test`, clippy, code map, owners (`agent/choices.rs`: "reading the harness's offered choices"; `protocol/harness.rs`: "the harness and session-choice routes"; `storage/sqlite/harness.rs`: "per-harness remembered settings and limits"). Commit `feat(agent): choices from the ACP session, POST /session and GET /api/harnesses (spec §12.4)`.
 
 ### Task B3: Starting a turn as one command
@@ -914,7 +967,7 @@ async fn a_codex_thread_cannot_open_a_session() {
 
 ```rust
 fn small_edits() -> TurnSettings {
-    TurnSettings { model: "fake-small".into(), mode: "acceptEdits".into(), effort: "high".into() }
+    TurnSettings { model: "fake-small".into(), mode: "acceptEdits".into(), effort: Some("high".into()) }
 }
 
 #[tokio::test]
@@ -979,6 +1032,40 @@ async fn an_effort_the_model_does_not_offer_is_refused() {
 }
 
 #[tokio::test]
+async fn a_model_the_account_cannot_use_is_refused_with_the_harness_message() {
+    let app = test_app().await;
+    let (status, body) = http_start(&app, &app.thread, json!({
+        "command_id": "t1", "prompt": "hi", "model": "fake-locked", "mode": "acceptEdits", "effort": null })).await;
+    assert_eq!((status.as_u16(), body["code"].as_str()), (422, Some("SETTING_NOT_OFFERED")));
+    assert!(body["message"].as_str().unwrap().contains("Usage credits are required"));
+    assert!(app.storage.list_thread_entries(&app.thread).await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_model_without_efforts_runs_with_none() {
+    let app = test_app().await;
+    let (s, b) = http_start(&app, &app.thread, json!({
+        "command_id": "t1", "prompt": "report", "model": "fake-tiny", "mode": "acceptEdits", "effort": null })).await;
+    assert_eq!(s.as_u16(), 202);
+    wait_terminal(&app, &b["operation_id"]).await;
+    let r: Value = serde_json::from_str(&last_agent_entry(&app).await.body).unwrap();
+    assert_eq!((r["model"].as_str(), r["effort"].is_null()), (Some("fake-tiny"), true));
+    let inv = app.storage.list_operations_for_thread(&app.thread).await.unwrap()[0].invocation.clone().unwrap();
+    assert!(inv.requested_effort.is_none());
+}
+
+#[tokio::test]
+async fn auto_on_a_model_without_it_fails_at_prepare_with_the_harness_message() {
+    let app = test_app().await;
+    let (s, b) = http_start(&app, &app.thread, json!({
+        "command_id": "t1", "prompt": "hi", "model": "fake-small", "mode": "auto", "effort": "high" })).await;
+    assert_eq!(s.as_u16(), 202);
+    let done = wait_terminal(&app, &b["operation_id"]).await;
+    assert_eq!(done.status, "Failed");
+    assert!(done.failure_reason.unwrap().contains("auto mode is not available"));
+}
+
+#[tokio::test]
 async fn a_replay_is_answered_even_after_the_mode_was_disallowed() {
     let app = test_app().await;
     let body = json!({ "command_id": "t1", "prompt": "hi", "model": "fake-large", "mode": "auto", "effort": "high" });
@@ -1023,11 +1110,11 @@ async fn the_harness_runs_with_the_chosen_model_mode_and_effort() {
   1. build the `CommandContext` and the fingerprint over `{thread_id, prompt, model, mode, effort}`;
   2. `storage.replayed_turn(&ctx)` — a match returns its `StartedTurn` at once: no validation, no session, no spawn, even while stopping; a mismatch is `CommandConflict`;
   3. new commands only: `is_closed` → `RuntimeStopping`;
-  4. `turn_context`; harness known and available (`HarnessUnavailable`); `sessions.open` (`HarnessStartFailed`); if `model` differs from the session's current model, `set_option(ids.model, model)` so the efforts are the chosen model's — the only session change allowed before the transaction, since it records nothing; `choices::refusal` (`SettingNotOffered`); project `allowed_modes` (`ModeNotAllowed`);
+  4. `turn_context`; harness known and available (`HarnessUnavailable`); `sessions.open` (`HarnessStartFailed`); if `model` differs from the session's current model, `set_option(ids.model, model)` so the efforts are the chosen model's — the only session change allowed before the transaction, since it records nothing; the harness refusing it (`AcpError::Rpc`) is `SettingNotOffered` carrying the harness's message; `choices::refusal` (`SettingNotOffered`); project `allowed_modes` (`ModeNotAllowed`);
   5. `storage.start_turn` (classifies again inside its transaction, so two concurrent first requests produce one turn);
   6. hand to `PlannerTurn::start` only when `replayed` is false.
 
-  `StartTurn` becomes `{ command_id: String, prompt: String, model: String, mode: String, effort: String }`.
+  `StartTurn` becomes `{ command_id: String, prompt: String, model: String, mode: String, effort: Option<String> }`.
 - [ ] **Step 5: `PlannerTurn::start`** begins after the transaction: sets effort and mode with `set_option` when they differ from the session's current values (a refusal is `Failed { stage: Prepare }` naming the setting, nothing sent to the model), registers, commits `Running`, prompts. Entries the turn writes pass `operation_id: Some(&op)`.
 - [ ] **Step 6: Errors.** Add the `ErrorCode` variants (SCREAMING_SNAKE like the rest); map `StorageError::ThreadBusy` → 409, `HarnessLocked` → 409, `ForkPointNotSupported` → 422; constructors `Failure::setting_not_offered(what, id)`, `Failure::harness_unavailable()`, `Failure::mode_not_allowed(mode)`.
 - [ ] **Step 7:** Update every other caller of `PlannerTurn::start` to create the operation via `storage.start_turn` first (fixture helper in `tests/fixtures/`). `cargo test`, clippy, code map. Commit `feat(turns): start a turn as one idempotent command with its settings (spec §12.7)`.
@@ -1082,7 +1169,7 @@ async fn a_completed_turn_records_what_the_harness_reported() {
     let done = wait_terminal(&app, &start_settled(&app, "usage").await).await;
     let inv = done.invocation.unwrap();
     assert_eq!(inv.observed_model.as_deref(), Some("fake-large-answering"));
-    assert_eq!((inv.context_used, inv.context_window), (Some(1234), Some(200000)));
+    assert_eq!((inv.context_used, inv.context_window), (Some(1234), Some(1_000_000)), "the last report, not the 200k guess");
     let limits = app.storage.latest_limits("claude-code").await.unwrap().unwrap();
     assert!((limits.seven_day.unwrap().utilization - 0.5).abs() < 1e-9);
 }
@@ -1109,7 +1196,43 @@ async fn a_usage_frame_reaches_a_subscriber_of_the_thread() {
 
 - [ ] **Step 3: Run** — expected: failures.
 - [ ] **Step 4: Implement.** The watcher keeps the last `Usage` of the turn; on a `Usage` with `rate_limit`, `record_limits(harness, &limits_from(..))`; every `Usage` becomes a `usage` frame `{ thread_id, context_used, context_window, limits }` (limits: the stored latest). `Completed` writes `TurnObservation::from_usage(last)`. Failed and cancelled turns record no observation (NULLs = unavailable), stated in a comment citing §12.7.
-- [ ] **Step 5: The breakdown, only if Task 0 check 5 found a read that does not block a turn.** If it did: add `context_breakdown TEXT NULL` (JSON) to `agent_invocation` in a migration `0006`, read it after `end_turn` exactly as the evidence file describes, store it with the observation, carry it in `InvocationView.breakdown`, and add it to the contract with the difference reported in B6. If it did not: change nothing and leave spec §12.8's OPEN block; say which in the report.
+- [ ] **Step 5: The breakdown, on demand (spec §12.8).** New file `src/agent/breakdown.rs` (one job: "reading Claude's `/context` answer"): `pub struct Category { pub name: String, pub tokens: u64, pub percent: f64 }`; `pub fn parse(markdown: &str) -> Option<Vec<Category>>` reads the table under "Estimated usage by category" (`| Category | Tokens | Percentage |`; tokens like `3.8k`, `923.9k`, `756`; `1m` = 1 000 000), stops at the first blank line after it, and is `None` when the table is missing. `SessionsConfig` gains `context_wait: Duration` (default 5 s). `Sessions::context(&self, thread) -> Result<Vec<Category>, NoBreakdown>` with `NoBreakdown { NotOpen, NoTurnYet, Busy, TimedOut, Unreadable }`: it refuses unless the thread's session is open, has answered at least one Planner turn in this adapter (`Live.answered: bool`, set by the watcher), and its events are not taken (no turn running); it then takes the events itself, sends `/context` as a prompt, collects the chunks within `context_wait`, discards every event, gives the events back, and parses. On `TimedOut` it sends `session/cancel`. Nothing is written: no Operation, no entry. Route `GET /api/threads/{id}/context` → `200 { categories: Category[] | null, reason: string | null }` (`reason` is the `NoBreakdown` in words). Tests in `tests/harness_observation.rs`:
+
+```rust
+#[tokio::test]
+async fn the_breakdown_is_read_on_demand_and_leaves_no_trace() {
+    let app = test_app().await;
+    wait_terminal(&app, &start_settled(&app, "hi").await).await;
+    let before = entries(&app).await.len();
+    let b: Value = get_json(&app, &format!("/api/threads/{}/context", app.thread)).await;
+    assert_eq!(b["categories"][0]["name"], "Messages");
+    assert_eq!(b["categories"][2]["tokens"], 923_900);
+    assert_eq!(entries(&app).await.len(), before, "no entry");
+    assert_eq!(get_json::<Vec<Value>>(&app, &format!("/api/threads/{}/operations", app.thread)).await.len(), 1, "no operation");
+}
+
+#[tokio::test]
+async fn no_breakdown_before_the_first_turn_or_while_one_runs() {
+    let app = test_app().await;
+    post(&app, &format!("/api/threads/{}/session", app.thread), json!({})).await;
+    let b: Value = get_json(&app, &format!("/api/threads/{}/context", app.thread)).await;
+    assert!(b["categories"].is_null() && b["reason"].as_str().unwrap().contains("first"));
+    let _running = start_settled(&app, "hang").await;
+    let b2: Value = get_json(&app, &format!("/api/threads/{}/context", app.thread)).await;
+    assert!(b2["categories"].is_null() && b2["reason"].as_str().unwrap().contains("running"));
+}
+
+#[test]
+fn parse_reads_the_category_table_only() {
+    let md = "## Context Usage\n\n| Category | Tokens | Percentage |\n|---|---|---|\n| Messages | 3.8k | 0.4% |\n| Free space | 923.9k | 92.4% |\n\n### MCP Tools\n| Tool | Server | Tokens |\n| x | y | 400 |\n";
+    let c = shadows::agent::breakdown::parse(md).unwrap();
+    assert_eq!(c.len(), 2);
+    assert_eq!((c[1].name.as_str(), c[1].tokens), ("Free space", 923_900));
+    assert!(shadows::agent::breakdown::parse("no table").is_none());
+}
+```
+
+The Phase B run closes spec §12.8's OPEN block: after a `/context`, resume the session and read its transcript. If the exchange is there, remove the route and the second level and say so in `ACCEPTANCE.md`.
 - [ ] **Step 6:** `cargo test`, clippy, code map. Commit `feat(agent): record context, limits and the answering model from the session (spec §12.8)`.
 
 ### Task B5: Thread and project routes
@@ -1292,8 +1415,8 @@ The web agent works from the draft `api/openapi.json` (Task 1). First step of W1
 
 **Interfaces:**
 - Produces (in `client.ts`):
-  - `type HarnessInfo`, `Choice`, `SessionChoices`, `AccountLimits`, `InvocationView`, `TurnSettings = { model: string; mode: string; effort: string }` — re-exported from `schema.d.ts`.
-  - `listHarnesses(): Promise<HarnessInfo[]>`; `openSession(threadId: string): Promise<SessionChoices>`
+  - `type HarnessInfo`, `Choice`, `SessionChoices`, `AccountLimits`, `InvocationView`, `TurnSettings = { model: string; mode: string; effort: string | null }` — re-exported from `schema.d.ts`.
+  - `listHarnesses(): Promise<HarnessInfo[]>`; `openSession(threadId: string): Promise<SessionChoices>`; `readContext(threadId: string): Promise<ContextBreakdown>`
   - `startTurn(threadId: string, commandId: string, prompt: string, settings: TurnSettings): Promise<string>` — the id is the caller's; this function never makes one
   - `setThreadHarness(threadId: string, commandId: string, harness: string): Promise<PlanningThread>`
   - `setProjectModes(projectId: string, commandId: string, allowedModes: Record<string, string[]>): Promise<Project>`
@@ -1351,6 +1474,7 @@ it('openSession posts to the thread session route', async () => {
   - `useSession(threadId): { state: 'connecting' } | { state: 'ready'; choices: SessionChoices } | { state: 'failed'; message: string; retry: () => void }` — opens on mount and when the harness changes; an `options` frame replaces `choices`.
   - `initialSettings(c: SessionChoices): TurnSettings` — `c.current`, except a mode that is disabled moves to the first enabled mode.
   - `withModel(c: SessionChoices, s: TurnSettings, model: string): TurnSettings` — the model changes; the effort stays only if the new choices (after the `options` frame the daemon sends) offer it, else the first offered effort; until those choices arrive the effort menu is disabled.
+  - `modeNote(prev: TurnSettings, next: SessionChoices): string | null` — when an `options` frame after a model change reports another mode than `prev.mode`: "<model name> does not offer <prev mode label>; switched to <new mode label>" (spec §12.4). `test-app.tsx` gains `pushFrame(name, data)`, delivering one SSE frame to the running app.
   - `sendable(c: SessionChoices, s: TurnSettings): boolean` — false when the mode is disabled or no mode is enabled.
 
 - [ ] **Step 1: Failing unit tests** (`turn-settings.test.ts`):
@@ -1398,6 +1522,17 @@ it('sends the chosen model, mode and effort', async () => {
   act(() => app.button('Send')!.click())
   await until(() => app.calls.includes('POST /api/threads/t1/turns'))
   expect(app.bodies.at(-1)).toMatchObject({ model: 'fake-large', mode: 'auto', prompt: 'hi' })
+  app.unmount()
+})
+it('a model without auto moves the mode and the bar says so', async () => {
+  const app = await startApp('/projects/p1/threads/t1', answers())
+  await until(() => app.button('fake-large') !== undefined)
+  await choose(app, 'Accept edits', 'Auto')
+  await choose(app, 'fake-large', 'fake-small')
+  // the daemon answers the model change with an options frame whose current mode is acceptEdits
+  act(() => app.pushFrame('options', { thread_id: 't1', choices: { ...fakeChoices, current: { model: 'fake-small', mode: 'acceptEdits', effort: 'high' } } }))
+  await until(() => app.text().includes('fake-small does not offer Auto; switched to Accept edits'))
+  expect(app.button('Accept edits')).toBeDefined()
   app.unmount()
 })
 it('the CLI picker changes the harness before the first turn and shows a lock after', async () => {
@@ -1500,7 +1635,23 @@ it('a reply whose observed model differs from the requested one says both', asyn
 })
 ```
 
-(The breakdown level renders only when `InvocationView` carries a breakdown, which exists only if B4 Step 5 added it; W3 renders the summary and leaves a `breakdown?` prop unused otherwise — Task I wires it if the regenerated contract has it.)
+```tsx
+it('opening the second level fetches the breakdown, or says why there is none', async () => {
+  const r = renderRing({ usage: { contextUsed: 126800, contextWindow: 1_000_000 }, limits: null,
+    breakdown: () => Response.json({ categories: [{ name: 'Messages', tokens: 80300, percent: 8 }], reason: null }) })
+  act(() => r.trigger().click())
+  act(() => r.button('Details')!.click())
+  await until(() => r.text().includes('Messages'))
+  expect(r.text()).toContain('80.3k')
+  const none = renderRing({ usage: null, limits: null,
+    breakdown: () => Response.json({ categories: null, reason: 'A turn is running' }) })
+  act(() => none.trigger().click())
+  act(() => none.button('Details')!.click())
+  await until(() => none.text().includes('A turn is running'))
+})
+```
+
+(`renderRing` answers `GET /api/threads/t1/context` with its `breakdown`. The ring fetches only when Details is opened, never on a timer; while the answer is on its way the level reads "Reading…" — a word, not a spinner.)
 
 - [ ] **Step 2–4:** implement, green, commit `feat(web): context ring that never waits, limits, answering model (spec §12.8, §12.11)`.
 
