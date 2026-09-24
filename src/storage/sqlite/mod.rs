@@ -47,8 +47,8 @@ pub enum StorageError {
     TransitionConflict { expected: String, found: String },
     #[error("command conflict: the same command id was reused with a different request")]
     CommandConflict,
-    /// Spec §12.6: the thread already ran a turn on its harness.
-    #[error("the thread already ran a turn on its harness, which is now fixed")]
+    /// Spec §12.6: the thread already ran a turn on its harness, or is a fork.
+    #[error("the thread's harness is fixed: it already ran a turn, or it is a fork")]
     HarnessLocked,
     /// Spec §12.7, §12.9: the thread has a turn that has not ended.
     #[error("the thread has a turn running")]

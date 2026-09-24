@@ -86,13 +86,29 @@ followed the run through screenshots.
   sent no rate-limit report in these turns. The ring said so and did not spin,
   as §12.8 requires.
 
+## Follow-up run: the rulings (`bcc9ba8`)
+
+After Mohammed's rulings, a fresh database and a new conversation:
+
+| Step | Result |
+|---|---|
+| Mode menu | ✅ Each mode carries its line; Accept edits: "Claude Code edits, creates and deletes files in the project folder without asking. Other commands are refused." |
+| Choose Haiku 4.5, no Send | ✅ `PUT …/session/model {"model":"haiku"}`; the effort menu went away at once |
+| Choose Fable 5.1, no Send | ✅ Accepted with its efforts. A turn on it completed, `observed_model` `claude-fable-5-1`. The account had access that day |
+| Choose Opus 5.5, no Send | ✅ The effort menu showed Default to Max before any Send. A turn at Max completed and recorded `requested_effort` `max` |
+| An unknown model | ✅ `SETTING_NOT_OFFERED`, "model nope is not offered" |
+| Fork, then change its CLI | ✅ `HARNESS_LOCKED` on a fork with no turn of its own. The picker shows the lock |
+
+gates at the follow-up: 202 Rust tests, 95 web tests, fmt, clippy, typecheck,
+lint and build clean.
+
 ## What this run does not establish
 
 - **Mohammed's run, and Windows.** §12.13 asks Mohammed to run every Phase B
   item with the real client. Phase A's Windows run has not happened either.
-- **Fable 5.1's refusal and Haiku 4.5's missing effort** were not chosen in
-  this run. They were measured through the API when §12.4 was written, and
-  `fake_acp` covers both.
+- **A harness refusing a model.** Fable 5.1, refused when §12.4 was written,
+  was accepted in the follow-up run below, so no real refusal was seen.
+  `fake_acp` covers the refusal path.
 - **A human in the browser.** Playwright drove the page. What is described here
   was checked from screenshots and from the database.
 - **Linux parent-death containment.** The daemon was only stopped with

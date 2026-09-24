@@ -188,8 +188,10 @@ replaces the effort levels on offer. Shadows keeps no list of Claude's models.
 | anything else (`fast`, a `model_config`) | ignored in this milestone |
 
 **Listed is not usable.** The harness lists models the account may not run:
-Fable 5.1 is listed, and selecting it is refused with "Usage credits are
-required for this model". Shadows shows the list as the harness gives it and
+when this section was written, Fable 5.1 was listed and selecting it was refused
+with "Usage credits are required for this model". Access belongs to the account
+and changes: in the Phase B run the same model was accepted and answered a turn
+(`evidence/milestone1/PHASE_B_RUN.md`). Shadows shows the list as the harness gives it and
 reports the harness's refusal, in its own words, when a model is chosen
 (`SettingNotOffered` carrying the message, §12.7).
 
@@ -528,7 +530,7 @@ Phase B
 [ ] the ring shows figures or "no figures yet" and never spins; limits show their observed time
 [ ] the ring's second level shows the breakdown, or says why it has none; §12.8's OPEN
     block is closed by reading the transcript after a /context
-[ ] a model the account cannot use (Fable 5.1) is refused with the harness's message;
+[ ] a model the account cannot use is refused with the harness's message;
     a model with no effort (Haiku 4.5) runs with none
 [ ] copy works on every message; fork from the last message opens a thread whose next turn
     remembers the conversation, and the source is unchanged
