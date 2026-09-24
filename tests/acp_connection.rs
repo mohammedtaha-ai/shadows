@@ -201,6 +201,20 @@ async fn a_model_the_account_cannot_use_is_refused_with_the_harness_message() {
     assert!(matches!(err, AcpError::Rpc(m) if m.contains("Usage credits are required")));
 }
 
+#[tokio::test]
+async fn a_refused_prompt_names_the_acp_stop_reason() {
+    let (_h, c, _ev) = open_fake().await;
+    let s = c
+        .start_session(&tmp(), SessionStart::New)
+        .await
+        .unwrap()
+        .session_id;
+    assert_eq!(
+        c.prompt(&s, "refuse").await.unwrap(),
+        TurnEnd::Refused("max_tokens".into())
+    );
+}
+
 #[test]
 fn claude_adapter_launches_node_with_the_explicit_agent() {
     let adapter = ClaudeAdapter {

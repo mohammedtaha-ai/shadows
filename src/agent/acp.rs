@@ -192,6 +192,9 @@ impl Connection {
         Ok(match r.stop_reason {
             StopReason::EndTurn => TurnEnd::Ended,
             StopReason::Cancelled => TurnEnd::Cancelled,
+            StopReason::MaxTokens => TurnEnd::Refused("max_tokens".into()),
+            StopReason::MaxTurnRequests => TurnEnd::Refused("max_turn_requests".into()),
+            StopReason::Refusal => TurnEnd::Refused("refusal".into()),
             other => TurnEnd::Refused(format!("{other:?}")),
         })
     }
@@ -204,14 +207,14 @@ impl Connection {
 }
 
 fn rpc(error: agent_client_protocol::Error) -> AcpError {
+    if agent_client_protocol::is_incoming_transport_closed(&error) {
+        return AcpError::Closed;
+    }
     let value = serde_json::to_value(&error).unwrap_or(Value::Null);
     let message = value
         .get("message")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    if message.contains("transport closed") || message.contains("connection closed") {
-        return AcpError::Closed;
-    }
     if let Some(details) = value.pointer("/data/details").and_then(Value::as_str) {
         AcpError::Rpc(details.to_string())
     } else if !message.is_empty() {
@@ -272,4 +275,17 @@ fn forward_stderr(stderr: ChildErr) {
             tracing::debug!(target: "harness.stderr", %line);
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_server_error_mentioning_connection_closed_is_still_an_rpc_error() {
+        let error = agent_client_protocol::Error::new(-32603, "connection closed by policy");
+        assert!(
+            matches!(rpc(error), AcpError::Rpc(message) if message == "connection closed by policy")
+        );
+    }
 }

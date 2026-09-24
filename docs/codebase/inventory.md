@@ -15,7 +15,7 @@ declaration, this file only says that it exists and what shape it has. What each
 module *owns* is a judgement no generator can make — that lives in
 [README.md](./README.md).
 
-## `src/agent/acp.rs` — 275 lines
+## `src/agent/acp.rs` — 291 lines
 
 ```rust
 pub enum SessionStart {
