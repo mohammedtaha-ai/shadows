@@ -108,6 +108,9 @@ created_at   TEXT NOT NULL
 UNIQUE(thread_id, ordinal)
 ```
 
+Milestone 1 adds `operation_id TEXT NULL FK operation(id)`: the turn an entry
+belongs to (§12.5).
+
 > **OPEN — this table has nowhere to put the harness-side identity of the line an
 > entry came from.**
 >
@@ -563,7 +566,12 @@ native_session_id  TEXT NULL
 created_at         TEXT NOT NULL
 ```
 
-> **OPEN — this table has nowhere to put the resolved harness path and version.**
+> **DECIDED 2026-09-24 — implementation waits for Milestone 1's migration.**
+> Explicit `harness_path` and `harness_version` columns, in the table as §12.5
+> lays it out. This is no longer an open architectural question; what follows is
+> the reasoning that led to it.
+>
+> **Was: this table has nowhere to put the resolved harness path and version.**
 >
 > §8.2 requires `AgentInvocation` to freeze "harness kind, profile, and resolved
 > executable identity + version (§1.4)" at claim time, and §1.4 requires both to be

@@ -93,6 +93,9 @@ execution workspace identity
 timeout / budget
 ```
 
+A Planner turn freezes this as §12.5 states. Which of these permissions Shadows
+enforces itself, rather than leaving to the harness's mode, is §12.3's OPEN block.
+
 It must never persist resolved secret values or raw child environment values.
 Reading any of these later would let a configuration change between claim and
 spawn alter what the durable record says was run.
