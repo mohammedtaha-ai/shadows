@@ -29,10 +29,12 @@ export interface Overrides {
 }
 
 export function answers(o: Overrides = {}): Record<string, Answer> {
-  const project = o.project ?? projectFixture
+  // Kept as the daemon keeps it: a refetch after a PATCH reads what the PATCH
+  // saved, as it does against the real daemon.
+  let project = o.project ?? projectFixture
   return {
     'GET /api/harnesses': [claudeHarness, codexHarness],
-    'GET /api/projects': [project],
+    'GET /api/projects': () => Response.json([project]),
     'GET /api/projects/p1/threads': [threadFixture],
     'GET /api/threads/t1/entries': o.entries ?? [userEntry('u1', 'hi'), agentEntry('a1', 'hello')],
     'GET /api/threads/t1/operations': o.operations ?? [],
@@ -46,7 +48,8 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     },
     'PATCH /api/projects/p1': async (r: Request) => {
       const { allowed_modes } = (await r.json()) as { allowed_modes: Record<string, string[]> }
-      return Response.json({ ...project, allowed_modes })
+      project = { ...project, allowed_modes }
+      return Response.json(project)
     },
     'POST /api/threads/t1/fork':
       o.fork ?? (() => Response.json({ ...threadFixture, id: 't9' }, { status: 201 })),

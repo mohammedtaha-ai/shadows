@@ -39,3 +39,36 @@ fn adapter_version_is_read_from_its_package() {
     assert_eq!(adapter_version(&dir.path().join("dist/index.js")), "0.81.1");
     assert_eq!(adapter_version(&dir.path().join("nope.js")), "unknown");
 }
+
+/// The adapter's tree gets the daemon's `PATH`: `process::spawn` clears the
+/// environment, and a Claude without `PATH` cannot run `git`, `ls` or `mkdir`
+/// for the Planner (found in the Phase B run: every shell tool failed with
+/// exit 127). The value is passed by name, never the whole environment.
+#[test]
+fn the_adapter_inherits_path_by_name_and_names_its_claude() {
+    let adapter = shadows::agent::claude::ClaudeAdapter {
+        node: "/usr/bin/node".into(),
+        adapter: "/opt/adapter/index.js".into(),
+        agent: "/opt/claude".into(),
+        adapter_version: "t".into(),
+        agent_version: "t".into(),
+    };
+    let spec = adapter.process_spec(std::path::Path::new("/tmp"));
+    let get = |key: &str| {
+        spec.env
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.as_str())
+    };
+    assert_eq!(get("PATH"), std::env::var("PATH").ok().as_deref());
+    assert!(get("PATH").is_some(), "the test process itself has a PATH");
+    assert_eq!(get("CLAUDE_CODE_EXECUTABLE"), Some("/opt/claude"));
+    assert!(
+        spec.env.iter().all(
+            |(k, _)| ["PATH", "HOME", "TMPDIR", "LANG", "CLAUDE_CODE_EXECUTABLE"]
+                .contains(&k.as_str())
+        ),
+        "only named variables are passed: {:?}",
+        spec.env.iter().map(|(k, _)| k).collect::<Vec<_>>()
+    );
+}

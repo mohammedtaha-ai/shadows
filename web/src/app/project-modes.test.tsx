@@ -26,7 +26,9 @@ describe('allowed modes', () => {
     await until(() => app.calls.includes('PATCH /api/projects/p1'))
     expect(app.bodies.at(-1)).toMatchObject({ allowed_modes: { 'claude-code': ['acceptEdits'] } })
     act(() => app.checkbox('Accept edits')?.click())
+    // Shown at once, while the second change waits behind the first.
     await until(() => app.text().includes('No mode left: turns cannot start'))
+    await until(() => app.bodies.length === 2)
     expect(app.bodies.at(-1)).toMatchObject({ allowed_modes: { 'claude-code': [] } })
     const [first, second] = app.bodies.slice(-2) as { command_id: string }[]
     expect(second.command_id).not.toBe(first.command_id)

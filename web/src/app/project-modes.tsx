@@ -6,7 +6,7 @@
 // in order, and the list shows the set as last asked for while they travel.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { type Project, setProjectModes } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { harnessesQuery, projectsQuery } from '@/api/queries'
@@ -19,6 +19,15 @@ export function ProjectModes({ project }: { project: Project }) {
   const queryClient = useQueryClient()
   const harnesses = useQuery(harnessesQuery).data
   const pending = useRef<Attempt | null>(null)
+  // The set last asked for, shown until the save of that same set answers.
+  // Reading it from the mutation's own pending state left a gap: between one
+  // save answering and the project list re-rendering, a second click computed
+  // from the old set and could turn a mode back on.
+  const [asked, setAsked] = useState<Allowed | null>(null)
+  const latest = useRef<Allowed | null>(null)
+  const settle = (allowed: Allowed) => {
+    if (latest.current === allowed) setAsked(null)
+  }
 
   const save = useMutation({
     // One project's changes wait for each other, so the last one asked for
@@ -26,15 +35,17 @@ export function ProjectModes({ project }: { project: Project }) {
     scope: { id: `project-modes-${project.id}` },
     mutationFn: ({ commandId, allowed }: { commandId: string; allowed: Allowed }) =>
       setProjectModes(project.id, commandId, allowed),
-    onSuccess: (saved) => {
+    onSuccess: (saved, { allowed }) => {
       queryClient.setQueryData<Project[]>(projectsQuery.queryKey, (projects) =>
         projects?.map((p) => (p.id === saved.id ? saved : p)),
       )
+      settle(allowed)
     },
+    // A refused change shows the set the daemon holds, with the error.
+    onError: (_error, { allowed }) => settle(allowed),
   })
 
-  const allowed: Allowed =
-    save.isPending && save.variables !== undefined ? save.variables.allowed : project.allowed_modes
+  const allowed: Allowed = asked ?? project.allowed_modes
 
   const toggle = (harness: string, mode: string, on: boolean) => {
     const order = policyOf(harness).modes.map((m) => m.id)
@@ -43,6 +54,8 @@ export function ProjectModes({ project }: { project: Project }) {
     else current.delete(mode)
     const next = { ...allowed, [harness]: order.filter((id) => current.has(id)) }
     // A new set is a new command; only a retry of the same set reuses its id.
+    latest.current = next
+    setAsked(next)
     pending.current = attemptFor(pending.current, next)
     save.mutate({ commandId: pending.current.commandId, allowed: next })
   }

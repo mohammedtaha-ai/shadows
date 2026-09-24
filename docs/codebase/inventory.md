@@ -99,7 +99,7 @@ pub fn for_client(offered: &Offered, harness: &str, allowed: &[String]) -> Sessi
 pub fn refusal(offered: &Offered, harness: &str, s: &TurnSettings) -> Option<(&'static str, String)>
 ```
 
-## `src/agent/claude.rs` — 28 lines
+## `src/agent/claude.rs` — 48 lines
 
 ```rust
 pub struct ClaudeAdapter {

@@ -229,8 +229,9 @@ fn claude_adapter_launches_node_with_the_explicit_agent() {
     assert_eq!(spec.executable, PathBuf::from("node.exe"));
     assert_eq!(spec.args, ["adapter.js"]);
     assert_eq!(
-        spec.env,
-        [("CLAUDE_CODE_EXECUTABLE".into(), "claude.exe".into())]
+        spec.env.last(),
+        Some(&("CLAUDE_CODE_EXECUTABLE".into(), "claude.exe".into())),
+        "the rest is inherited by name: tests/harness_config.rs"
     );
     assert_eq!(spec.cwd, cwd);
     assert!(spec.capture_stdout && spec.pipe_stdin);

@@ -74,7 +74,9 @@ function DropdownMenuRadioGroup(props: MenuPrimitive.RadioGroup.Props) {
   return <MenuPrimitive.RadioGroup data-slot="dropdown-menu-radio-group" {...props} />
 }
 
-/** An item that shows a check while it is the group's value. */
+/** An item that shows a check while it is the group's value. Choosing one
+ * closes the menu: every menu here picks one value, and Base UI keeps a radio
+ * menu open by default, leaving it over the composer's Send button. */
 function DropdownMenuRadioItem({
   className,
   children,
@@ -82,6 +84,7 @@ function DropdownMenuRadioItem({
 }: MenuPrimitive.RadioItem.Props & { children?: React.ReactNode }) {
   return (
     <MenuPrimitive.RadioItem
+      closeOnClick
       data-slot="dropdown-menu-radio-item"
       className={cn(itemClass, "pr-8", className)}
       {...props}

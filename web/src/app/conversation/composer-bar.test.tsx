@@ -75,6 +75,14 @@ describe('the composer bar', () => {
     await until(() => tries === 2)
   })
 
+  it('choosing a value closes its menu, so it never covers Send', async () => {
+    const app = await start('/projects/p1/threads/t1', answers())
+    await until(ready(app))
+    await choose(app, 'Accept edits', 'Auto')
+    await until(() => menuItem('Auto') === undefined)
+    expect(app.button('Auto')).toBeDefined()
+  })
+
   it('sends the chosen model, mode and effort', async () => {
     const app = await start('/projects/p1/threads/t1', answers())
     await until(ready(app))
