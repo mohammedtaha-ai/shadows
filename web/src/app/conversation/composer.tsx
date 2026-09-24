@@ -4,7 +4,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { ArrowUp, Square } from 'lucide-react'
 import { useState } from 'react'
-import { startTurn, stopTurn } from '@/api/client'
+import { type TurnSettings, startTurn, stopTurn } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import type { Turn } from './turn-state'
@@ -14,9 +14,12 @@ export function Composer({
   running,
   directory,
   known,
+  settings,
   onStarted,
 }: {
   threadId: string
+  /** What the turn runs with; `null` until the session has answered. */
+  settings: TurnSettings | null
   running: Turn | null
   directory: string | null | undefined
   /** Whether a turn is running is known yet; Send waits for it. */
@@ -27,7 +30,8 @@ export function Composer({
   const [prompt, setPrompt] = useState('')
 
   const send = useMutation({
-    mutationFn: (text: string) => startTurn(threadId, text),
+    mutationFn: ({ text, chosen }: { text: string; chosen: TurnSettings }) =>
+      startTurn(threadId, crypto.randomUUID(), text, chosen),
     onSuccess: (operationId) => {
       setPrompt('')
       onStarted(operationId)
@@ -49,8 +53,8 @@ export function Composer({
 
   const submit = () => {
     const text = prompt.trim()
-    if (text === '' || !known || send.isPending || running !== null) return
-    send.mutate(text)
+    if (text === '' || !known || settings === null || send.isPending || running !== null) return
+    send.mutate({ text, chosen: settings })
   }
 
   const error = send.error ?? stop.error
@@ -76,7 +80,7 @@ export function Composer({
           {running === null ? (
             <Button
               onClick={submit}
-              disabled={prompt.trim() === '' || !known || send.isPending}
+              disabled={prompt.trim() === '' || !known || settings === null || send.isPending}
               size="icon"
               aria-label="Send"
             >

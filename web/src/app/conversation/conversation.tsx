@@ -74,6 +74,7 @@ function Conversation({
         running={c.running}
         directory={project?.directory}
         known={c.known}
+        settings={null}
         onStarted={c.started}
       />
     </div>
