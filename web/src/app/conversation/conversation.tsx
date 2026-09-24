@@ -99,6 +99,8 @@ function Conversation({
         label={c.label}
         operations={c.operations}
         models={session.state === 'ready' ? session.choices.models : []}
+        harness={harness}
+        forkFrom={c.known && c.running === null ? { projectId, threadId } : null}
       />
       <Composer
         threadId={threadId}

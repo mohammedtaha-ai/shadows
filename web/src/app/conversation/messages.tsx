@@ -2,9 +2,11 @@
 // whatever the running turn is saying.
 
 import { AnimatePresence, motion } from 'motion/react'
-import { LoaderCircle } from 'lucide-react'
+import { LoaderCircle, ShieldX, Wrench } from 'lucide-react'
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import type { Choice, Operation, ThreadEntry } from '@/api/client'
+import { type HarnessPolicy, modeLabel, policyOf } from '../mode-policy'
+import { MessageActions } from './message-actions'
 import { describeLabel } from './operational-label'
 import type { ShownReply } from './reply'
 import { labelOf } from './turn-settings'
@@ -46,12 +48,19 @@ export function Messages({
   label,
   operations,
   models,
+  harness,
+  forkFrom,
 }: {
   entries: readonly ThreadEntry[] | undefined
   /** The thread's turns, for what each asked for and was answered by. */
   operations: readonly Operation[] | undefined
   /** The session's models, for their labels. */
   models: readonly Choice[]
+  /** The thread's harness kind, whose policy names a refused permission's modes. */
+  harness: string
+  /** Where a fork from the last message goes; `null` unless the thread is
+   * known to be idle. */
+  forkFrom: { projectId: string; threadId: string } | null
   /** The stream has not caught up yet: history is still arriving. */
   loading: boolean
   reply: ShownReply | null
@@ -81,6 +90,10 @@ export function Messages({
   const shown = entries?.filter((entry) => !reply?.hidden.has(entry.ordinal)) ?? []
   const operational = label === undefined ? null : describeLabel(label)
   const answered = answeredNotes(shown, operations ?? [], models)
+  const lastId = entries?.at(-1)?.id
+  const policy = policyOf(harness)
+  const modeOf = (entry: ThreadEntry) =>
+    operations?.find((op) => op.id === entry.operation_id)?.invocation?.requested_mode ?? null
 
   return (
     <div
@@ -109,11 +122,22 @@ export function Messages({
               key={entry.id}
               {...appear}
               initial={handedOver.has(entry.ordinal) ? false : appear.initial}
+              className="group space-y-1"
             >
-              <Entry entry={entry} />
+              <Entry entry={entry} policy={policy} requestedMode={modeOf(entry)} />
               {answered.has(entry.id) && (
-                <p className="mt-2 text-xs text-faint-foreground">{answered.get(entry.id)}</p>
+                <p className="text-xs text-faint-foreground">{answered.get(entry.id)}</p>
               )}
+              <div className={entry.kind === 'UserMessage' ? 'flex justify-end' : undefined}>
+                <MessageActions
+                  text={copyText(entry)}
+                  forkPoint={
+                    forkFrom !== null && entry.id === lastId
+                      ? { ...forkFrom, entryId: entry.id }
+                      : undefined
+                  }
+                />
+              </div>
             </motion.li>
           ))}
           {reply !== null && (
@@ -168,7 +192,27 @@ function answeredNotes(
   return notes
 }
 
-function Entry({ entry }: { entry: ThreadEntry }) {
+/** A tool call arrives as an agent message whose body is `[tool: <title>]`
+ * (spec §12.3); its title, or `null` for any other body. */
+function toolTitle(body: string): string | null {
+  return /^\[tool: ([\s\S]*)\]$/.exec(body)?.[1] ?? null
+}
+
+/** What Copy puts on the clipboard: the text as it reads, not its wrapping. */
+function copyText(entry: ThreadEntry): string {
+  return toolTitle(entry.body) ?? entry.body
+}
+
+function Entry({
+  entry,
+  policy,
+  requestedMode,
+}: {
+  entry: ThreadEntry
+  policy: HarnessPolicy
+  /** The mode the entry's turn asked for, when known. */
+  requestedMode: string | null
+}) {
   if (entry.kind === 'UserMessage') {
     return (
       <div className="flex justify-end">
@@ -178,6 +222,33 @@ function Entry({ entry }: { entry: ThreadEntry }) {
       </div>
     )
   }
-  if (entry.kind === 'AgentMessage') return <ReplyText text={entry.body} />
+  if (entry.kind === 'AgentMessage') {
+    const tool = toolTitle(entry.body)
+    if (tool === null) return <ReplyText text={entry.body} />
+    return (
+      <p className="flex items-start gap-2 text-xs text-muted-foreground">
+        <Wrench aria-label="Tool" className="mt-px size-3.5 shrink-0" />
+        <code className="font-mono break-all whitespace-pre-wrap">{tool}</code>
+      </p>
+    )
+  }
+  if (entry.kind === 'PermissionRefused') {
+    // Refused in the mode the turn ran in; only a mode that asks refuses,
+    // so without a record it is the policy's first. The unattended mode
+    // does not ask (spec §12.2).
+    const refusedIn = requestedMode ?? policy.initial
+    return (
+      <p className="flex items-start gap-2 text-xs text-muted-foreground">
+        <ShieldX aria-label="Permission refused" className="mt-px size-3.5 shrink-0" />
+        <span>
+          <code className="font-mono break-all whitespace-pre-wrap">{entry.body}</code>
+          {refusedIn !== null && <> — refused in {modeLabel(policy, refusedIn)}</>}
+          {policy.unattended !== null && refusedIn !== policy.unattended && (
+            <>. {modeLabel(policy, policy.unattended)} would allow it.</>
+          )}
+        </span>
+      </p>
+    )
+  }
   return <p className="text-xs text-faint-foreground">{entry.body}</p>
 }
