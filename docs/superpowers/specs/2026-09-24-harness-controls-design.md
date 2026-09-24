@@ -231,7 +231,7 @@ source with "(fork)":
 |---|---|
 | `GET /api/harnesses` | new: catalogue, defaults, remembered model and effort, latest limits |
 | create thread | gains optional `harness` (default `claude-code`) |
-| `PATCH /api/threads/{id}` | new: `{ harness }`; `HarnessLocked` once an Operation exists |
+| `PATCH /api/threads/{id}` | new: `{ command_id, harness }`; `HarnessLocked` for a new command once an Operation exists; a replay answers the thread as it stands |
 | `GET /api/projects/{id}` | carries the allowed modes per harness |
 | `PATCH /api/projects/{id}` | new: `{ command_id, allowed_modes }` |
 | `POST /api/threads/{id}/turns` | body becomes `{ command_id, prompt, model, mode, effort }` (§12.5) |
