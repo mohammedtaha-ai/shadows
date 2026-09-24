@@ -17,12 +17,16 @@ harness. The composer shows context and limits. Any message can be copied, and
 the last one forked. The Phase B run found four defects, all fixed and run
 again: [`evidence/milestone1/PHASE_B_RUN.md`](./evidence/milestone1/PHASE_B_RUN.md).
 The Phase A run is [`PHASE_A_RUN.md`](./evidence/milestone1/PHASE_A_RUN.md).
-**Mohammed's run has not happened yet, on Windows or anywhere else.**
+**Mohammed ran it on Windows:** send, Stop (56 ms to `Cancelled`) and a
+daemon restart with the conversation remembered all worked:
+[`evidence/milestone1/WINDOWS_RUN.md`](./evidence/milestone1/WINDOWS_RUN.md).
+Fork, the permission-refused line and the breakdown were not checked item by
+item.
 
 - Milestone 0 is complete on Windows and on `main` (PRs #1-#3).
   [`evidence/milestone0/ACCEPTANCE.md`](./evidence/milestone0/ACCEPTANCE.md).
-- Milestone 1: branch `milestone-1/harness-controls-7p9608`, PR #4. The
-  whole-branch review has run, and its fixes are merged.
+- Milestone 1 is on `main` (PRs #4 and #5); its branches are deleted. The
+  whole-branch review ran before the merge.
 - Mohammed's three rulings after the run are built and ran on the real
   harness (spec §12.5, §12.6/§12.9, §12.7): the mode menu says what Accept
   edits allows, a fork is locked to its harness, and a chosen model is set at
@@ -67,10 +71,11 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. Mohammed runs Milestone 1 with the real client on Windows: every item of
-   spec §12.13, plus Phase A's Stop and restart.
-2. Merge PR #4 and delete the branch.
-3. **One lock for every open session.** `Sessions` holds a single lock through
+1. **Effort at once, without `default`.** Mohammed's ruling after the
+   Windows run: picking an effort sets it on the session at once, as the
+   model is, and Claude's `default` effort is not offered. Amends §12.4 and
+   §12.7.
+2. **One lock for every open session.** `Sessions` holds a single lock through
    an adapter's startup (up to 5 s) and through each termination wait, so
    opening one conversation can delay Stop on another. This is latency, not a
    correctness defect. The fix is one slot per thread. It is its own task,
