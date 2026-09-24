@@ -1,0 +1,459 @@
+# Review package: 0834bb7..HEAD
+
+## Commits
+c9288fd feat(storage): serialized write transactions with atomic state and event
+
+## Files changed
+ Cargo.lock                   |   1 +
+ Cargo.toml                   |   1 +
+ src/events/mod.rs            |  72 +++++++++++++++++++++++++++++++
+ src/lib.rs                   |   1 +
+ src/storage/mod.rs           |  18 ++++++++
+ src/storage/sqlite/events.rs |  40 +++++++++++++++++
+ src/storage/sqlite/mod.rs    |  47 +++++++++++++++++---
+ tests/storage_contract.rs    | 100 +++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 275 insertions(+), 5 deletions(-)
+
+## Diff
+diff --git a/Cargo.lock b/Cargo.lock
+index 4115140..0fcdd12 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -1247,20 +1247,21 @@ dependencies = [
+  "digest 0.11.3",
+ ]
+ 
+ [[package]]
+ name = "shadows"
+ version = "0.1.0"
+ dependencies = [
+  "anyhow",
+  "axum",
+  "clap",
++ "futures-core",
+  "serde",
+  "serde_json",
+  "sqlx",
+  "tempfile",
+  "thiserror",
+  "time",
+  "tokio",
+  "tokio-stream",
+  "tower-http",
+  "tracing",
+diff --git a/Cargo.toml b/Cargo.toml
+index 008c29e..817bf58 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -2,20 +2,21 @@
+ name = "shadows"
+ version = "0.1.0"
+ edition = "2024"
+ rust-version = "1.94"
+ publish = false
+ 
+ [dependencies]
+ anyhow = "1"
+ axum = "0.8"
+ clap = { version = "4", features = ["derive"] }
++futures-core = "0.3"
+ serde = { version = "1", features = ["derive"] }
+ serde_json = "1"
+ sqlx = { version = "0.9", features = ["runtime-tokio", "sqlite", "migrate"] }
+ thiserror = "2"
+ time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
+ tokio = { version = "1", features = ["full"] }
+ tokio-stream = "0.1"
+ tower-http = { version = "0.6", features = ["trace"] }
+ tracing = "0.1"
+ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+diff --git a/src/events/mod.rs b/src/events/mod.rs
+new file mode 100644
+index 0000000..4c68f12
+--- /dev/null
++++ b/src/events/mod.rs
+@@ -0,0 +1,72 @@
++/// Spec §6.18. `seq` is assigned by the INSERT, which on SQLite can only run
++/// while holding the write lock, so assignment order equals commit order. That
++/// property is SQLite-specific — see the OPEN block in §6.18 before writing
++/// backend-neutral cursor code.
++#[derive(
++    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
++)]
++pub struct EventCursor(pub i64);
++
++#[derive(Debug, Clone)]
++pub struct Actor {
++    pub kind: String,
++    pub id: String,
++}
++
++impl Actor {
++    pub fn system() -> Self {
++        Self {
++            kind: "System".into(),
++            id: "daemon".into(),
++        }
++    }
++    pub fn user(id: impl Into<String>) -> Self {
++        Self {
++            kind: "User".into(),
++            id: id.into(),
++        }
++    }
++}
++
++#[derive(Debug, Clone)]
++pub struct DurableEvent {
++    pub event_id: String,
++    pub kind: String,
++    pub project_id: Option<String>,
++    pub thread_id: Option<String>,
++    pub operation_id: Option<String>,
++    pub actor: Actor,
++    pub correlation_id: Option<String>,
++    pub payload_json: String,
++}
++
++impl DurableEvent {
++    pub fn new(kind: impl Into<String>, actor: Actor) -> Self {
++        Self {
++            event_id: uuid::Uuid::new_v4().to_string(),
++            kind: kind.into(),
++            project_id: None,
++            thread_id: None,
++            operation_id: None,
++            actor,
++            correlation_id: None,
++            payload_json: "{}".into(),
++        }
++    }
++    pub fn with_project(mut self, id: impl Into<String>) -> Self {
++        self.project_id = Some(id.into());
++        self
++    }
++    pub fn with_thread(mut self, id: impl Into<String>) -> Self {
++        self.thread_id = Some(id.into());
++        self
++    }
++    pub fn with_operation(mut self, id: impl Into<String>) -> Self {
++        self.operation_id = Some(id.into());
++        self
++    }
++    pub fn with_payload(mut self, v: serde_json::Value) -> Self {
++        self.payload_json = v.to_string();
++        self
++    }
++}
+diff --git a/src/lib.rs b/src/lib.rs
+index eb490e4..ce30184 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1,5 +1,6 @@
+ pub mod cli;
+ pub mod config;
+ pub mod error;
++pub mod events;
+ pub mod storage;
+ pub mod tracing;
+diff --git a/src/storage/mod.rs b/src/storage/mod.rs
+index a3edde2..0fab97d 100644
+--- a/src/storage/mod.rs
++++ b/src/storage/mod.rs
+@@ -1,3 +1,21 @@
+ mod sqlite;
+ 
+ pub use sqlite::{Storage, StorageError};
++
++/// Test-only access to a private capability. Not compiled into the library for
++/// consumers, and not a public API.
++#[doc(hidden)]
++pub mod test_support {
++    use sqlx::SqliteConnection;
++
++    use super::StorageError;
++    use crate::events::DurableEvent;
++
++    pub async fn append_event_for_test(
++        conn: &mut SqliteConnection,
++        event: &DurableEvent,
++        now: &str,
++    ) -> Result<i64, StorageError> {
++        super::sqlite::events::append_event(conn, event, now).await
++    }
++}
+diff --git a/src/storage/sqlite/events.rs b/src/storage/sqlite/events.rs
+new file mode 100644
+index 0000000..163117b
+--- /dev/null
++++ b/src/storage/sqlite/events.rs
+@@ -0,0 +1,40 @@
++use sqlx::SqliteConnection;
++
++use super::StorageError;
++use crate::events::DurableEvent;
++
++/// Private on purpose. Cross-cutting rule 10 forbids a public raw
++/// `append_event`: an event is appended only inside a capability that also
++/// writes the state it describes.
++///
++/// Visibility is `pub(in crate::storage)` rather than `pub(super)`: besides
++/// its Task 4-9 callers in sibling modules under `storage::sqlite` (which
++/// `pub(super)` alone would reach), `storage::test_support` — a sibling of
++/// `sqlite` itself, not a descendant of it — also needs to call this for the
++/// atomicity contract test. `pub(in crate::storage)` is the narrowest
++/// visibility that reaches both without making the function `pub`.
++pub(in crate::storage) async fn append_event(
++    conn: &mut SqliteConnection,
++    event: &DurableEvent,
++    now: &str,
++) -> Result<i64, StorageError> {
++    let seq: i64 = sqlx::query_scalar(
++        "INSERT INTO durable_event
++           (event_id, kind, project_id, thread_id, operation_id,
++            actor_kind, actor_id, payload_json, created_at)
++         VALUES (?,?,?,?,?,?,?,?,?)
++         RETURNING seq",
++    )
++    .bind(&event.event_id)
++    .bind(&event.kind)
++    .bind(&event.project_id)
++    .bind(&event.thread_id)
++    .bind(&event.operation_id)
++    .bind(&event.actor.kind)
++    .bind(&event.actor.id)
++    .bind(&event.payload_json)
++    .bind(now)
++    .fetch_one(&mut *conn)
++    .await?;
++    Ok(seq)
++}
+diff --git a/src/storage/sqlite/mod.rs b/src/storage/sqlite/mod.rs
+index e9b79da..9bc5348 100644
+--- a/src/storage/sqlite/mod.rs
++++ b/src/storage/sqlite/mod.rs
+@@ -1,56 +1,93 @@
+ use std::path::Path;
+ use std::str::FromStr;
+ use std::time::Duration;
+ 
+-use sqlx::SqlitePool;
++use futures_core::future::BoxFuture;
+ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
++use sqlx::{Connection, SqliteConnection, SqlitePool};
++use tokio::sync::Mutex;
++
++pub(super) mod events;
+ 
+ #[derive(Debug, thiserror::Error)]
+ pub enum StorageError {
+     #[error("storage is unavailable: {0}")]
+     Unavailable(String),
+     #[error("migration failed: {0}")]
+     Migration(#[from] sqlx::migrate::MigrateError),
+     #[error("constraint violated: {0}")]
+     Constraint(String),
+     #[error("not found: {0}")]
+     NotFound(&'static str),
+     #[error("transition conflict: expected {expected}, found {found}")]
+     TransitionConflict { expected: String, found: String },
+     #[error("command conflict: the same command id was reused with a different request")]
+     CommandConflict,
+     #[error(transparent)]
+     Database(#[from] sqlx::Error),
+ }
+ 
+ /// Task 3 adds a serialized write connection alongside `read` (spec §6.23,
+-/// evidence `docs/evidence/persistence/WAL_VALIDATION.md`). Task 2 only
+-/// opens the database and exposes the read pool.
++/// evidence `docs/evidence/persistence/WAL_VALIDATION.md`). `write` is one
++/// connection, not a pool, guarded by an async mutex: the evidence found that
++/// a deferred `BEGIN` fails a read-then-write transaction with
++/// `SQLITE_BUSY_SNAPSHOT` on a lock upgrade, that `busy_timeout` cannot
++/// rescue that upgrade, and that a single serialized writer using
++/// `BEGIN IMMEDIATE` is the only scenario with zero failures under
++/// concurrency (scenarios K and L).
+ pub struct Storage {
+     read: SqlitePool,
++    write: Mutex<SqliteConnection>,
+ }
+ 
+ impl Storage {
+     pub async fn open(db_path: &Path) -> Result<Self, StorageError> {
+         let url = format!("sqlite://{}", db_path.to_string_lossy().replace('\\', "/"));
+         let opts = SqliteConnectOptions::from_str(&url)
+             .map_err(|e| StorageError::Unavailable(e.to_string()))?
+             .create_if_missing(true)
+             .foreign_keys(true)
+             .journal_mode(SqliteJournalMode::Wal)
+             .busy_timeout(Duration::from_millis(5000));
+ 
+         let read = SqlitePoolOptions::new()
+             .max_connections(8)
+-            .connect_with(opts)
++            .connect_with(opts.clone())
+             .await?;
+ 
+         sqlx::migrate!("./migrations").run(&read).await?;
+ 
+-        Ok(Self { read })
++        let write = SqliteConnection::connect_with(&opts).await?;
++
++        Ok(Self {
++            read,
++            write: Mutex::new(write),
++        })
+     }
+ 
+     pub fn reader(&self) -> &SqlitePool {
+         &self.read
+     }
++
++    /// Every write goes through here. `BEGIN IMMEDIATE` takes the write lock up
++    /// front so no transaction has to upgrade mid-flight; the mutex is what
++    /// removes contention entirely. Both are required — see §6.23.
++    pub async fn write_txn<F, T>(&self, f: F) -> Result<T, StorageError>
++    where
++        F: for<'a> FnOnce(&'a mut SqliteConnection) -> BoxFuture<'a, Result<T, StorageError>>,
++    {
++        use sqlx::Executor;
++        let mut conn = self.write.lock().await;
++        conn.execute("BEGIN IMMEDIATE").await?;
++        match f(&mut conn).await {
++            Ok(v) => {
++                conn.execute("COMMIT").await?;
++                Ok(v)
++            }
++            Err(e) => {
++                let _ = conn.execute("ROLLBACK").await;
++                Err(e)
++            }
++        }
++    }
+ }
+diff --git a/tests/storage_contract.rs b/tests/storage_contract.rs
+index b0c35c2..6c218cc 100644
+--- a/tests/storage_contract.rs
++++ b/tests/storage_contract.rs
+@@ -1,10 +1,11 @@
++use shadows::events::{Actor, DurableEvent};
+ use shadows::storage::Storage;
+ 
+ #[tokio::test]
+ async fn fresh_database_migrates_and_applies_the_connection_policy() {
+     let tmp = tempfile::tempdir().unwrap();
+     let db = tmp.path().join("shadows.sqlite3");
+     let storage = Storage::open(&db).await.expect("open should succeed");
+ 
+     let journal: String = sqlx::query_scalar("PRAGMA journal_mode")
+         .fetch_one(storage.reader())
+@@ -34,10 +35,109 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
+             "durable_event",
+             "operation",
+             "planning_thread",
+             "project",
+             "runtime_instance",
+             "thread_entry",
+         ],
+         "spec §7.1: the first migration carries only the milestone's tables"
+     );
+ }
++
++/// Spec §2.4 and cross-cutting rule 5: state and event commit together or not
++/// at all. A live publication failure must never roll back committed truth, and
++/// a rolled-back transaction must leave no event behind.
++#[tokio::test]
++async fn state_and_event_commit_atomically_or_not_at_all() {
++    let tmp = tempfile::tempdir().unwrap();
++    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
++
++    // A transaction that fails after appending its event leaves nothing behind.
++    let outcome = storage
++        .write_txn(|conn| {
++            Box::pin(async move {
++                sqlx::query("INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)")
++                    .bind("p-1")
++                    .bind("demo")
++                    .bind("Demo")
++                    .bind("2026-09-21T00:00:00Z")
++                    .execute(&mut *conn)
++                    .await?;
++                shadows::storage::test_support::append_event_for_test(
++                    conn,
++                    &DurableEvent::new("ProjectCreated", Actor::system())
++                        .with_project("p-1")
++                        .with_payload(serde_json::json!({})),
++                    "2026-09-21T00:00:00Z",
++                )
++                .await?;
++                Err::<(), _>(shadows::storage::StorageError::NotFound("forced"))
++            })
++        })
++        .await;
++    assert!(outcome.is_err());
++
++    let projects: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
++        .fetch_one(storage.reader())
++        .await
++        .unwrap();
++    let events: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM durable_event")
++        .fetch_one(storage.reader())
++        .await
++        .unwrap();
++    assert_eq!(
++        (projects, events),
++        (0, 0),
++        "rollback must leave neither behind"
++    );
++}
++
++/// The measured writer policy, encoded as a regression test. Concurrent
++/// read-then-write transactions must all succeed. If someone later replaces the
++/// serialized write connection with a pool, this test is what fails.
++#[tokio::test]
++async fn concurrent_read_then_write_transactions_all_succeed() {
++    let tmp = tempfile::tempdir().unwrap();
++    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
++
++    let mut handles = Vec::new();
++    for w in 0..16 {
++        let storage = storage.clone();
++        handles.push(tokio::spawn(async move {
++            for i in 0..25 {
++                let id = format!("p-{w}-{i}");
++                storage
++                    .write_txn(|conn| {
++                        let id = id.clone();
++                        Box::pin(async move {
++                            // Read first, then write: this is the shape that
++                            // forces a lock upgrade under deferred BEGIN.
++                            let _: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
++                                .fetch_one(&mut *conn)
++                                .await?;
++                            sqlx::query(
++                                "INSERT INTO project (id, slug, name, created_at) VALUES (?,?,?,?)",
++                            )
++                            .bind(&id)
++                            .bind(&id)
++                            .bind("x")
++                            .bind("2026-09-21T00:00:00Z")
++                            .execute(&mut *conn)
++                            .await?;
++                            Ok(())
++                        })
++                    })
++                    .await
++                    .expect("no write transaction may fail under the serialized policy");
++            }
++        }));
++    }
++    for h in handles {
++        h.await.unwrap();
++    }
++
++    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
++        .fetch_one(storage.reader())
++        .await
++        .unwrap();
++    assert_eq!(count, 400);
++}

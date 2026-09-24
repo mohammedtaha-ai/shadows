@@ -1,0 +1,1088 @@
+# Review package: a093401e963c1b2022650aa3927bed430f8281c0..a5df0c4f74100ecc5fd77847fa2258da664a34e2
+
+## Commits
+a5df0c4 feat(agent): ACP client connection and the fake ACP agent (spec §12.2)
+
+## Files changed
+ Cargo.toml                 |   5 +
+ docs/codebase/README.md    |   2 +
+ docs/codebase/inventory.md |  63 ++++++++++-
+ src/agent/acp.rs           | 275 +++++++++++++++++++++++++++++++++++++++++++++
+ src/agent/claude.rs        |  27 ++++-
+ src/agent/events.rs        |  25 +++++
+ src/agent/mod.rs           |   2 +
+ src/bin/fake_acp.rs        | 232 ++++++++++++++++++++++++++++++++++++++
+ tests/acp_connection.rs    | 266 +++++++++++++++++++++++++++++++++++++++++++
+ 9 files changed, 894 insertions(+), 3 deletions(-)
+
+## Diff
+diff --git a/Cargo.toml b/Cargo.toml
+index b629126..beaeeef 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -44,20 +44,25 @@ libc = "0.2"
+ [[bin]]
+ name = "tree_probe"
+ path = "src/bin/tree_probe.rs"
+ required-features = ["test-support"]
+ 
+ [[bin]]
+ name = "fake_claude"
+ path = "src/bin/fake_claude.rs"
+ required-features = ["test-support"]
+ 
++[[bin]]
++name = "fake_acp"
++path = "src/bin/fake_acp.rs"
++required-features = ["test-support"]
++
+ [features]
+ # Compiles in `storage::test_support`, a hook onto an otherwise-private
+ # capability (`append_event` without a state write) that must never ship in
+ # an ordinary build — see cross-cutting rule 10. Enabled for `cargo test` only
+ # via the self dev-dependency below, never a default feature.
+ test-support = []
+ 
+ [dev-dependencies]
+ tempfile = "3"
+ # `tests/codemap` generates docs/codebase/inventory.md from the source tree and
+diff --git a/docs/codebase/README.md b/docs/codebase/README.md
+index 520fbbd..0cbead6 100644
+--- a/docs/codebase/README.md
++++ b/docs/codebase/README.md
+@@ -15,20 +15,22 @@ change that moved it.
+ 
+ ## What each module owns
+ 
+ One job per module, stated without "and" — a conjunction here means the module
+ has quietly taken a second responsibility. The reference file is the one to read
+ before adding to that module: it is the pattern to follow, not merely an example.
+ 
+ | Module | Its one job | Reference file |
+ |---|---|---|
+ | `src/agent/` | the AI subprocess harness contract | `src/agent/claude.rs` |
++| `src/agent/acp.rs` | the ACP client connection to one adapter process | `src/agent/acp.rs` |
++| `src/agent/events.rs` | what a harness connection reports | `src/agent/events.rs` |
+ | `src/bin/` | test apparatus that no product code links | `src/bin/tree_probe.rs` |
+ | `src/cli/` | daemon startup | `src/cli/args.rs` |
+ | `src/command/` | external-command identity for idempotency | `src/command/mod.rs` |
+ | `src/config.rs` | startup configuration resolved once | `src/config.rs` |
+ | `src/error.rs` | the stable failure taxonomy clients match on | `src/error.rs` |
+ | `src/events/` | the durable event record's shape | `src/events/mod.rs` |
+ | `src/id.rs` | the UUID id newtype pattern | `src/id.rs` |
+ | `src/operation/` | the operation lifecycle's shape | `src/operation/mod.rs` |
+ | `src/planner/` | the Planner turn's spawn-through-termination lifecycle | `src/planner/mod.rs` |
+ | `src/process/` | OS process ownership with whole-tree containment | `src/process/mod.rs` |
+diff --git a/docs/codebase/inventory.md b/docs/codebase/inventory.md
+index 975b228..0991496 100644
+--- a/docs/codebase/inventory.md
++++ b/docs/codebase/inventory.md
+@@ -8,33 +8,88 @@ with its full signature. Regenerate with:
+ ```bash
+ UPDATE_CODEMAP=1 cargo test --test codemap
+ ```
+ 
+ `cargo test` fails when this file has drifted from the tree, so it cannot go
+ stale quietly. Attributes and doc comments are stripped: the source explains a
+ declaration, this file only says that it exists and what shape it has. What each
+ module *owns* is a judgement no generator can make — that lives in
+ [README.md](./README.md).
+ 
+-## `src/agent/claude.rs` — 117 lines
++## `src/agent/acp.rs` — 275 lines
+ 
+ ```rust
++pub enum SessionStart {
++    New,
++    Resume(String),
++    Fork(String),
++}
++pub struct Opened {
++    pub session_id: String,
++    pub options: Value,
++}
++pub enum TurnEnd {
++    Ended,
++    Cancelled,
++    Refused(String),
++}
++pub enum AcpError {
++    Closed,
++    Rpc(String),
++}
++pub struct Connection {}
++// + 1 private field
++impl Connection {
++    pub async fn open(handle: &mut ProcessHandle, events: mpsc::UnboundedSender<HarnessEvent>) -> Result<Self, AcpError>
++    pub async fn start_session(&self, cwd: &Path, how: SessionStart) -> Result<Opened, AcpError>
++    pub async fn set_option(&self, session: &str, config_id: &str, value: &str) -> Result<Value, AcpError>
++    pub async fn prompt(&self, session: &str, text: &str) -> Result<TurnEnd, AcpError>
++    pub fn cancel(&self, session: &str)
++}
++```
++
++## `src/agent/claude.rs` — 142 lines
++
++```rust
++pub struct ClaudeAdapter {
++    pub node: PathBuf,
++    pub adapter: PathBuf,
++    pub agent: PathBuf,
++    pub adapter_version: String,
++    pub agent_version: String,
++}
++impl ClaudeAdapter {
++    pub fn process_spec(&self, cwd: &Path) -> ProcessSpec
++}
++
+ pub struct ClaudeHarness {
+     pub version: String,
+ }
+ // + 1 private field
+ impl ClaudeHarness {
+     pub fn new(executable: PathBuf, version: String) -> Self
+ }
+ ```
+ 
+-## `src/agent/mod.rs` — 58 lines
++## `src/agent/events.rs` — 25 lines
++
++```rust
++pub enum HarnessEvent {
++    Chunk { message_id: Option<String>, text: String },
++    ToolCall { id: String, title: Option<String>, status: Option<String> },
++    PermissionRefused { title: String },
++    Usage { used: u64, size: u64, model: Option<String>, rate_limit: Option<Value> },
++    Options(Value),
++}
++```
++
++## `src/agent/mod.rs` — 60 lines
+ 
+ ```rust
+ pub struct AgentInvocation {
+     pub operation_id: OperationId,
+     pub role: String,
+     pub model: String,
+     pub prompt: String,
+     pub cwd: PathBuf,
+     pub resume_session_id: Option<String>,
+     pub session_id: String,
+@@ -45,20 +100,24 @@ pub enum StreamItem {
+     TurnEnd { subtype: String, stop_reason: Option<String> },
+     Operational { label: String, session: Option<String> },
+     Unparsed(String),
+ }
+ pub trait AgentHarness {
+     fn to_process_spec(&self, invocation: &AgentInvocation) -> ProcessSpec;
+     fn classify(&self, line: &str) -> StreamItem;
+ }
+ ```
+ 
++## `src/bin/fake_acp.rs` — 232 lines
++
++Nothing reachable from outside this file.
++
+ ## `src/bin/fake_claude.rs` — 96 lines
+ 
+ Nothing reachable from outside this file.
+ 
+ ## `src/bin/tree_probe.rs` — 63 lines
+ 
+ Nothing reachable from outside this file.
+ 
+ ## `src/cli/args.rs` — 88 lines
+ 
+diff --git a/src/agent/acp.rs b/src/agent/acp.rs
+new file mode 100644
+index 0000000..9241bb8
+--- /dev/null
++++ b/src/agent/acp.rs
+@@ -0,0 +1,275 @@
++//! One ACP client connection to one managed adapter process.
++use std::path::Path;
++
++use agent_client_protocol::schema::{
++    ProtocolVersion,
++    v1::{
++        CancelNotification, ContentBlock, ForkSessionRequest, InitializeRequest, NewSessionRequest,
++        PermissionOptionKind, PromptRequest, RequestPermissionOutcome, RequestPermissionRequest,
++        RequestPermissionResponse, ResumeSessionRequest, SelectedPermissionOutcome,
++        SessionConfigOptionValue, SessionNotification, SessionUpdate,
++        SetSessionConfigOptionRequest, StopReason, TextContent,
++    },
++};
++use agent_client_protocol::{Agent, ByteStreams, Client, ConnectionTo};
++use serde_json::Value;
++use tokio::{
++    io::{AsyncBufReadExt, BufReader},
++    sync::mpsc,
++};
++use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
++
++use super::events::HarnessEvent;
++use crate::process::{ChildErr, ProcessHandle};
++
++#[derive(Debug, Clone)]
++pub enum SessionStart {
++    New,
++    Resume(String),
++    Fork(String),
++}
++
++#[derive(Debug)]
++pub struct Opened {
++    pub session_id: String,
++    pub options: Value,
++}
++
++#[derive(Debug, PartialEq, Eq)]
++pub enum TurnEnd {
++    Ended,
++    Cancelled,
++    Refused(String),
++}
++
++#[derive(Debug, thiserror::Error)]
++pub enum AcpError {
++    #[error("ACP connection closed")]
++    Closed,
++    #[error("ACP request failed: {0}")]
++    Rpc(String),
++}
++
++#[derive(Clone)]
++pub struct Connection {
++    cx: ConnectionTo<Agent>,
++}
++
++impl Connection {
++    pub async fn open(
++        handle: &mut ProcessHandle,
++        events: mpsc::UnboundedSender<HarnessEvent>,
++    ) -> Result<Self, AcpError> {
++        let (stdin, stdout, stderr) = handle.take_stdio().ok_or(AcpError::Closed)?;
++        forward_stderr(stderr);
++        let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
++        let notify = events.clone();
++        tokio::spawn(async move {
++            let _ = Client
++                .builder()
++                .on_receive_notification(
++                    async move |n: SessionNotification, _cx| {
++                        forward(&notify, n.update);
++                        Ok(())
++                    },
++                    agent_client_protocol::on_receive_notification!(),
++                )
++                .on_receive_request(
++                    async move |r: RequestPermissionRequest, responder, _cx| {
++                        let _ = events.send(HarnessEvent::PermissionRefused {
++                            title: r.tool_call.fields.title.clone().unwrap_or_default(),
++                        });
++                        let choice = r
++                            .options
++                            .iter()
++                            .find(|o| matches!(o.kind, PermissionOptionKind::RejectOnce))
++                            .or_else(|| {
++                                r.options
++                                    .iter()
++                                    .find(|o| matches!(o.kind, PermissionOptionKind::RejectAlways))
++                            });
++                        let outcome = match choice {
++                            Some(o) => RequestPermissionOutcome::Selected(
++                                SelectedPermissionOutcome::new(o.option_id.clone()),
++                            ),
++                            None => RequestPermissionOutcome::Cancelled,
++                        };
++                        responder.respond(RequestPermissionResponse::new(outcome))
++                    },
++                    agent_client_protocol::on_receive_request!(),
++                )
++                .connect_with(
++                    ByteStreams::new(stdin.compat_write(), stdout.compat()),
++                    |cx: ConnectionTo<Agent>| async move {
++                        let _ = ready_tx.send(cx);
++                        std::future::pending::<()>().await;
++                        #[allow(unreachable_code)]
++                        Ok(())
++                    },
++                )
++                .await;
++        });
++        let cx = ready_rx.await.map_err(|_| AcpError::Closed)?;
++        cx.send_request(InitializeRequest::new(ProtocolVersion::V1))
++            .block_task()
++            .await
++            .map_err(rpc)?;
++        Ok(Self { cx })
++    }
++
++    pub async fn start_session(&self, cwd: &Path, how: SessionStart) -> Result<Opened, AcpError> {
++        let (session_id, options) = match how {
++            SessionStart::New => {
++                let r = self
++                    .cx
++                    .send_request(NewSessionRequest::new(cwd))
++                    .block_task()
++                    .await
++                    .map_err(rpc)?;
++                (r.session_id.to_string(), r.config_options)
++            }
++            SessionStart::Resume(id) => {
++                let r = self
++                    .cx
++                    .send_request(ResumeSessionRequest::new(id.clone(), cwd))
++                    .block_task()
++                    .await
++                    .map_err(rpc)?;
++                (id, r.config_options)
++            }
++            SessionStart::Fork(src) => {
++                let fork = self
++                    .cx
++                    .send_request(ForkSessionRequest::new(src, cwd))
++                    .block_task()
++                    .await
++                    .map_err(rpc)?;
++                let id = fork.session_id.to_string();
++                let r = self
++                    .cx
++                    .send_request(ResumeSessionRequest::new(id.clone(), cwd))
++                    .block_task()
++                    .await
++                    .map_err(rpc)?;
++                (id, r.config_options)
++            }
++        };
++        Ok(Opened {
++            session_id,
++            options: serde_json::to_value(options).unwrap_or(Value::Null),
++        })
++    }
++
++    pub async fn set_option(
++        &self,
++        session: &str,
++        config_id: &str,
++        value: &str,
++    ) -> Result<Value, AcpError> {
++        let r = self
++            .cx
++            .send_request(SetSessionConfigOptionRequest::new(
++                session.to_owned(),
++                config_id.to_owned(),
++                SessionConfigOptionValue::value_id(value.to_owned()),
++            ))
++            .block_task()
++            .await
++            .map_err(rpc)?;
++        Ok(serde_json::to_value(r.config_options).unwrap_or(Value::Null))
++    }
++
++    pub async fn prompt(&self, session: &str, text: &str) -> Result<TurnEnd, AcpError> {
++        let r = self
++            .cx
++            .send_request(PromptRequest::new(
++                session.to_owned(),
++                vec![ContentBlock::Text(TextContent::new(text))],
++            ))
++            .block_task()
++            .await
++            .map_err(rpc)?;
++        Ok(match r.stop_reason {
++            StopReason::EndTurn => TurnEnd::Ended,
++            StopReason::Cancelled => TurnEnd::Cancelled,
++            other => TurnEnd::Refused(format!("{other:?}")),
++        })
++    }
++
++    pub fn cancel(&self, session: &str) {
++        let cx = self.cx.clone();
++        let session = session.to_string();
++        let _ = cx.send_notification(CancelNotification::new(session));
++    }
++}
++
++fn rpc(error: agent_client_protocol::Error) -> AcpError {
++    let value = serde_json::to_value(&error).unwrap_or(Value::Null);
++    let message = value
++        .get("message")
++        .and_then(Value::as_str)
++        .unwrap_or_default();
++    if message.contains("transport closed") || message.contains("connection closed") {
++        return AcpError::Closed;
++    }
++    if let Some(details) = value.pointer("/data/details").and_then(Value::as_str) {
++        AcpError::Rpc(details.to_string())
++    } else if !message.is_empty() {
++        AcpError::Rpc(message.to_string())
++    } else {
++        AcpError::Closed
++    }
++}
++
++fn forward(events: &mpsc::UnboundedSender<HarnessEvent>, update: SessionUpdate) {
++    let item = match update {
++        SessionUpdate::AgentMessageChunk(c) => match c.content {
++            ContentBlock::Text(t) => Some(HarnessEvent::Chunk {
++                message_id: c.message_id.map(|id| id.to_string()),
++                text: t.text,
++            }),
++            _ => None,
++        },
++        SessionUpdate::ToolCall(t) => Some(HarnessEvent::ToolCall {
++            id: t.tool_call_id.to_string(),
++            title: Some(t.title),
++            status: Some(format!("{:?}", t.status).to_lowercase()),
++        }),
++        SessionUpdate::ToolCallUpdate(t) => Some(HarnessEvent::ToolCall {
++            id: t.tool_call_id.to_string(),
++            title: t.fields.title,
++            status: t.fields.status.map(|s| format!("{s:?}").to_lowercase()),
++        }),
++        SessionUpdate::UsageUpdate(u) => {
++            let meta = serde_json::to_value(u.meta).unwrap_or(Value::Null);
++            Some(HarnessEvent::Usage {
++                used: u.used,
++                size: u.size,
++                model: meta
++                    .get("_claude/model")
++                    .and_then(Value::as_str)
++                    .map(str::to_owned),
++                rate_limit: meta.get("_claude/rateLimit").cloned(),
++            })
++        }
++        SessionUpdate::ConfigOptionUpdate(o) => Some(HarnessEvent::Options(
++            serde_json::to_value(o.config_options).unwrap_or(Value::Null),
++        )),
++        other => {
++            tracing::trace!(?other, "ignored ACP update");
++            None
++        }
++    };
++    if let Some(item) = item {
++        let _ = events.send(item);
++    }
++}
++
++fn forward_stderr(stderr: ChildErr) {
++    tokio::spawn(async move {
++        let mut lines = BufReader::new(stderr).lines();
++        while let Ok(Some(line)) = lines.next_line().await {
++            tracing::debug!(target: "harness.stderr", %line);
++        }
++    });
++}
+diff --git a/src/agent/claude.rs b/src/agent/claude.rs
+index 3d97ad8..7bda2df 100644
+--- a/src/agent/claude.rs
++++ b/src/agent/claude.rs
+@@ -1,17 +1,42 @@
+-use std::path::PathBuf;
++use std::path::{Path, PathBuf};
+ 
+ use serde_json::Value;
+ 
+ use super::{AgentHarness, AgentInvocation, StreamItem};
+ use crate::process::ProcessSpec;
+ 
++/// The pinned Node ACP adapter launched with the configured Claude executable.
++pub struct ClaudeAdapter {
++    pub node: PathBuf,
++    pub adapter: PathBuf,
++    pub agent: PathBuf,
++    pub adapter_version: String,
++    pub agent_version: String,
++}
++
++impl ClaudeAdapter {
++    pub fn process_spec(&self, cwd: &Path) -> ProcessSpec {
++        ProcessSpec {
++            executable: self.node.clone(),
++            args: vec![self.adapter.to_string_lossy().into_owned()],
++            cwd: cwd.to_path_buf(),
++            env: vec![(
++                "CLAUDE_CODE_EXECUTABLE".into(),
++                self.agent.to_string_lossy().into_owned(),
++            )],
++            capture_stdout: true,
++            pipe_stdin: true,
++        }
++    }
++}
++
+ pub struct ClaudeHarness {
+     /// Spec §1.4: resolved from configuration, never from PATH.
+     executable: PathBuf,
+     /// Recorded per Operation. The stream contract belongs to one installation
+     /// at one version, and this machine carries more than one.
+     pub version: String,
+ }
+ 
+ impl ClaudeHarness {
+     pub fn new(executable: PathBuf, version: String) -> Self {
+diff --git a/src/agent/events.rs b/src/agent/events.rs
+new file mode 100644
+index 0000000..b894b27
+--- /dev/null
++++ b/src/agent/events.rs
+@@ -0,0 +1,25 @@
++use serde_json::Value;
++
++/// Transient reports from one ACP connection.
++#[derive(Debug, Clone)]
++pub enum HarnessEvent {
++    Chunk {
++        message_id: Option<String>,
++        text: String,
++    },
++    ToolCall {
++        id: String,
++        title: Option<String>,
++        status: Option<String>,
++    },
++    PermissionRefused {
++        title: String,
++    },
++    Usage {
++        used: u64,
++        size: u64,
++        model: Option<String>,
++        rate_limit: Option<Value>,
++    },
++    Options(Value),
++}
+diff --git a/src/agent/mod.rs b/src/agent/mod.rs
+index dee500b..bb3a56a 100644
+--- a/src/agent/mod.rs
++++ b/src/agent/mod.rs
+@@ -1,16 +1,18 @@
+ use std::path::PathBuf;
+ 
+ use crate::operation::OperationId;
+ use crate::process::ProcessSpec;
+ 
++pub mod acp;
+ pub mod claude;
++pub mod events;
+ 
+ /// Frozen at claim time, not read at spawn time. Spec §8.2: reading any of
+ /// these later would let a configuration change between claim and spawn alter
+ /// what the durable record says was run.
+ #[derive(Debug, Clone)]
+ pub struct AgentInvocation {
+     /// Spec §4.1: the operation this invocation belongs to, typed. A public
+     /// `String` here is the same hole the newtype sweep closed everywhere
+     /// else — it lets outside code hand this field a thread id, a session id,
+     /// or any other string and compile.
+diff --git a/src/bin/fake_acp.rs b/src/bin/fake_acp.rs
+new file mode 100644
+index 0000000..df22438
+--- /dev/null
++++ b/src/bin/fake_acp.rs
+@@ -0,0 +1,232 @@
++//! ACP test agent. Prompts: ordinary (two chunks), `two-messages` (tool updates),
++//! `report` (session state), `/context` (delayed first report), `hang` (cancel),
++//! `ignore-cancel` (never), `exit` (code 3), `ask-permission` (reject),
++//! `usage` (two context updates), and `refuse` (max_tokens).
++use std::{
++    collections::HashMap,
++    path::PathBuf,
++    sync::{Arc, Mutex},
++    time::Duration,
++};
++
++use agent_client_protocol::schema::v1::{
++    AgentCapabilities, CancelNotification, ContentBlock, ContentChunk, ForkSessionRequest,
++    ForkSessionResponse, InitializeRequest, InitializeResponse, NewSessionRequest,
++    NewSessionResponse, PermissionOption, PermissionOptionKind, PromptRequest, PromptResponse,
++    RequestPermissionRequest, ResumeSessionRequest, ResumeSessionResponse, SessionConfigOption,
++    SessionNotification, SessionUpdate, SetSessionConfigOptionRequest,
++    SetSessionConfigOptionResponse, StopReason, TextContent, ToolCall, ToolCallUpdate, UsageUpdate,
++};
++use agent_client_protocol::{Agent, Client, ConnectionTo, Responder, Stdio};
++use serde_json::json;
++use tokio::sync::watch;
++
++#[derive(Clone)]
++struct Session {
++    cwd: PathBuf,
++    how: &'static str,
++    model: String,
++    effort: String,
++    mode: String,
++    cancel: watch::Sender<bool>,
++}
++
++#[derive(Default)]
++struct State {
++    next: usize,
++    sessions: HashMap<String, Session>,
++    context_seen: bool,
++}
++type Shared = Arc<Mutex<State>>;
++
++fn options(s: &Session) -> Vec<SessionConfigOption> {
++    let efforts: Vec<&str> = match s.model.as_str() {
++        "fake-large" => vec!["low", "high", "max"],
++        "fake-small" => vec!["low", "high"],
++        _ => vec![],
++    };
++    let mut values = vec![
++        json!({"id":"model","name":"Model","type":"select","currentValue":s.model,
++            "options":[
++                {"value":"fake-large","name":"fake-large"},
++                {"value":"fake-small","name":"fake-small"},
++                {"value":"fake-tiny","name":"fake-tiny"},
++                {"value":"fake-locked","name":"fake-locked"}]}),
++        json!({"id":"mode","name":"Mode","type":"select","currentValue":s.mode,
++            "options":(["default","acceptEdits","plan","auto","bypassPermissions"].iter()
++              .map(|v| json!({"value":v,"name":v})).collect::<Vec<_>>()) }),
++    ];
++    if !efforts.is_empty() {
++        values.push(
++            json!({"id":"thought_level","name":"Effort","type":"select","currentValue":s.effort,
++            "options":efforts.iter().map(|v| json!({"value":v,"name":v})).collect::<Vec<_>>() }),
++        );
++    }
++    values
++        .into_iter()
++        .map(|v| serde_json::from_value(v).expect("fake option schema"))
++        .collect()
++}
++
++fn make_session(cwd: PathBuf, how: &'static str) -> Session {
++    let (cancel, _) = watch::channel(false);
++    Session {
++        cwd,
++        how,
++        model: "fake-large".into(),
++        effort: "high".into(),
++        mode: "auto".into(),
++        cancel,
++    }
++}
++
++fn update(
++    cx: &ConnectionTo<Client>,
++    id: &str,
++    item: SessionUpdate,
++) -> agent_client_protocol::Result<()> {
++    cx.send_notification(SessionNotification::new(id.to_owned(), item))
++}
++
++fn chunk(
++    cx: &ConnectionTo<Client>,
++    id: &str,
++    mid: &str,
++    text: &str,
++) -> agent_client_protocol::Result<()> {
++    update(
++        cx,
++        id,
++        SessionUpdate::AgentMessageChunk(
++            ContentChunk::new(ContentBlock::Text(TextContent::new(text))).message_id(mid),
++        ),
++    )
++}
++
++#[tokio::main]
++async fn main() -> agent_client_protocol::Result<()> {
++    if std::env::args().nth(1).as_deref() == Some("--version") {
++        println!("fake-claude-1");
++        return Ok(());
++    }
++    let state: Shared = Arc::default();
++    Agent.builder().name("fake-acp")
++        .on_receive_request(async |r: InitializeRequest, responder, _cx| {
++            let caps: AgentCapabilities = serde_json::from_value(json!({"sessionCapabilities":{"fork":{},"resume":{}}})).unwrap();
++            responder.respond(InitializeResponse::new(r.protocol_version).agent_capabilities(caps))
++        }, agent_client_protocol::on_receive_request!())
++        .on_receive_request({ let state = state.clone(); async move |r: NewSessionRequest, responder, _cx| {
++            let mut st = state.lock().unwrap();
++            st.next += 1;
++            let id = format!("fake-{}", st.next);
++            let s = make_session(r.cwd, "new");
++            let opts = options(&s);
++            st.sessions.insert(id.clone(), s);
++            responder.respond(NewSessionResponse::new(id).config_options(opts))
++        }}, agent_client_protocol::on_receive_request!())
++        .on_receive_request({ let state = state.clone(); async move |r: ResumeSessionRequest, responder, _cx| {
++            let id = r.session_id.to_string();
++            let mut st = state.lock().unwrap();
++            let how = if id.starts_with("fork-of-") { "fork" } else { "resume" };
++            let s = make_session(r.cwd, how);
++            let opts = options(&s);
++            st.sessions.insert(id, s);
++            responder.respond(ResumeSessionResponse::new().config_options(opts))
++        }}, agent_client_protocol::on_receive_request!())
++        .on_receive_request({ let state = state.clone(); async move |r: ForkSessionRequest, responder, _cx| {
++            let st = state.lock().unwrap();
++            if !st.sessions.contains_key(&r.session_id.to_string()) {
++                return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "Session not found"));
++            }
++            responder.respond(ForkSessionResponse::new(format!("fork-of-{}", r.session_id)))
++        }}, agent_client_protocol::on_receive_request!())
++        .on_receive_request({ let state = state.clone(); async move |r: SetSessionConfigOptionRequest, responder, _cx| {
++            let mut st = state.lock().unwrap();
++            let Some(s) = st.sessions.get_mut(&r.session_id.to_string()) else {
++                return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "Session not found"));
++            };
++            let value = r.value.as_value_id().map(ToString::to_string).unwrap_or_default();
++            match r.config_id.to_string().as_str() {
++                "model" if value == "fake-locked" => return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "Usage credits are required for this model · model not changed")),
++                "model" => {
++                    s.model = value;
++                    s.effort = "high".into();
++                    if s.mode == "auto" && s.model != "fake-large" { s.mode = "acceptEdits".into(); }
++                },
++                "thought_level" => s.effort = value,
++                "mode" if value == "auto" && s.model != "fake-large" => return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "auto mode is not available for this model")),
++                "mode" => s.mode = value,
++                _ => {},
++            }
++            responder.respond(SetSessionConfigOptionResponse::new(options(s)))
++        }}, agent_client_protocol::on_receive_request!())
++        .on_receive_notification({ let state = state.clone(); async move |r: CancelNotification, _cx| {
++            if let Some(s) = state.lock().unwrap().sessions.get(&r.session_id.to_string()) { let _ = s.cancel.send(true); }
++            Ok(())
++        }}, agent_client_protocol::on_receive_notification!())
++        .on_receive_request({ let state = state.clone(); async move |r: PromptRequest, responder: Responder<PromptResponse>, cx: ConnectionTo<Client>| {
++            let worker = cx.clone();
++            let state = state.clone();
++            cx.spawn(async move {
++            let cx = worker;
++            let id = r.session_id.to_string();
++            let prompt = r.prompt.iter().find_map(|b| match b { ContentBlock::Text(t) => Some(t.text.as_str()), _ => None }).unwrap_or("");
++            let (s, first_context) = {
++                let mut st = state.lock().unwrap();
++                let Some(s) = st.sessions.get(&id).cloned() else { return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "Session not found")); };
++                let first = prompt == "/context" && !st.context_seen;
++                if prompt == "/context" { st.context_seen = true; }
++                (s, first)
++            };
++            match prompt {
++                "two-messages" => {
++                    chunk(&cx, &id, "m1", "first")?;
++                    let tool: ToolCall = serde_json::from_value(json!({"toolCallId":"t1","title":"Terminal","status":"pending"})).unwrap();
++                    update(&cx, &id, SessionUpdate::ToolCall(tool))?;
++                    let rename: ToolCallUpdate = serde_json::from_value(json!({"toolCallId":"t1","title":"Read notes.md"})).unwrap();
++                    update(&cx, &id, SessionUpdate::ToolCallUpdate(rename))?;
++                    let done: ToolCallUpdate = serde_json::from_value(json!({"toolCallId":"t1","status":"completed"})).unwrap();
++                    update(&cx, &id, SessionUpdate::ToolCallUpdate(done))?;
++                    chunk(&cx, &id, "m2", "second")?;
++                },
++                "report" => {
++                    let text = json!({"cwd":s.cwd,"session":id,"how":s.how,"model":s.model,"effort":s.effort,"mode":s.mode,"claude":std::env::var("CLAUDE_CODE_EXECUTABLE").unwrap_or_default()}).to_string();
++                    chunk(&cx, &id, "m1", &text)?;
++                },
++                "/context" => {
++                    if first_context { tokio::time::sleep(Duration::from_secs(1)).await; }
++                    chunk(&cx, &id, "m1", "| Category | Tokens | Percentage |\n| Messages | 3.8k | 0.4% |\n| System tools | 19.1k | 1.9% |\n| Free space | 923.9k | 92.4% |")?;
++                },
++                "hang" => {
++                    chunk(&cx, &id, "m1", "waiting")?;
++                    let mut cancelled = s.cancel.subscribe();
++                    while !*cancelled.borrow() { if cancelled.changed().await.is_err() { break; } }
++                    return responder.respond(PromptResponse::new(StopReason::Cancelled));
++                },
++                "ignore-cancel" => { chunk(&cx, &id, "m1", "waiting")?; std::future::pending::<()>().await; },
++                "exit" => { chunk(&cx, &id, "m1", "exiting")?; std::process::exit(3); },
++                "ask-permission" => {
++                    let call: ToolCallUpdate = serde_json::from_value(json!({"toolCallId":"p1","title":"Run echo probe"})).unwrap();
++                    let req = RequestPermissionRequest::new(id.clone(), call, vec![
++                        PermissionOption::new("allow_once", "Allow", PermissionOptionKind::AllowOnce),
++                        PermissionOption::new("reject_once", "Reject", PermissionOptionKind::RejectOnce),
++                    ]);
++                    let answer = cx.send_request(req).block_task().await?;
++                    let chosen = match answer.outcome { agent_client_protocol::schema::v1::RequestPermissionOutcome::Selected(x) => x.option_id.to_string(), _ => "cancelled".into() };
++                    chunk(&cx, &id, "m1", &format!("permission: {chosen}"))?;
++                },
++                "usage" => {
++                    let u = UsageUpdate::new(1234, 200000).meta(json!({"_claude/model":"fake-large-answering"}).as_object().unwrap().clone());
++                    update(&cx, &id, SessionUpdate::UsageUpdate(u))?;
++                    chunk(&cx, &id, "m1", "usage")?;
++                    let u = UsageUpdate::new(1234, 1000000).meta(json!({"_claude/model":"fake-large-answering","_claude/rateLimit":{"unifiedWindows":{"five_hour":{"utilization":0.25,"resetsAt":1790212200},"seven_day":{"utilization":0.5,"resetsAt":1790542800}}}}).as_object().unwrap().clone());
++                    update(&cx, &id, SessionUpdate::UsageUpdate(u))?;
++                },
++                "refuse" => return responder.respond(PromptResponse::new(StopReason::MaxTokens)),
++                _ => { chunk(&cx, &id, "m1", "hello ")?; chunk(&cx, &id, "m1", "from fake_acp")?; },
++            }
++            responder.respond(PromptResponse::new(StopReason::EndTurn))
++            })
++        }}, agent_client_protocol::on_receive_request!())
++        .connect_to(Stdio::new()).await
++}
+diff --git a/tests/acp_connection.rs b/tests/acp_connection.rs
+new file mode 100644
+index 0000000..c80a86a
+--- /dev/null
++++ b/tests/acp_connection.rs
+@@ -0,0 +1,266 @@
++use std::{path::PathBuf, time::Duration};
++
++use shadows::agent::{
++    acp::{AcpError, Connection, SessionStart, TurnEnd},
++    claude::ClaudeAdapter,
++    events::HarnessEvent,
++};
++use shadows::process::{self, ProcessHandle, ProcessSpec};
++use tokio::sync::mpsc;
++
++fn tmp() -> PathBuf {
++    std::env::temp_dir()
++}
++
++async fn open_fake() -> (
++    ProcessHandle,
++    Connection,
++    mpsc::UnboundedReceiver<HarnessEvent>,
++) {
++    let executable = PathBuf::from(env!("CARGO_BIN_EXE_fake_acp"));
++    let mut handle = process::spawn(ProcessSpec {
++        executable,
++        args: vec!["anything".into()],
++        cwd: tmp(),
++        env: vec![],
++        capture_stdout: true,
++        pipe_stdin: true,
++    })
++    .unwrap();
++    let (tx, rx) = mpsc::unbounded_channel();
++    let connection = Connection::open(&mut handle, tx).await.unwrap();
++    (handle, connection, rx)
++}
++
++fn drain(rx: &mut mpsc::UnboundedReceiver<HarnessEvent>) -> Vec<HarnessEvent> {
++    let mut out = Vec::new();
++    while let Ok(event) = rx.try_recv() {
++        out.push(event);
++    }
++    out
++}
++
++#[tokio::test]
++async fn a_new_session_answers_its_options_and_a_prompt_streams_then_ends() {
++    let (_h, c, mut ev) = open_fake().await;
++    let opened = c.start_session(&tmp(), SessionStart::New).await.unwrap();
++    assert!(opened.session_id.starts_with("fake-"));
++    assert!(opened.options.to_string().contains("fake-large"));
++    assert_eq!(
++        c.prompt(&opened.session_id, "hi").await.unwrap(),
++        TurnEnd::Ended
++    );
++    let chunks = drain(&mut ev);
++    assert!(
++        matches!(&chunks[0], HarnessEvent::Chunk { message_id: Some(m), text } if m == "m1" && text == "hello ")
++    );
++}
++
++#[tokio::test]
++async fn a_cancelled_prompt_answers_cancelled() {
++    let (_h, c, _ev) = open_fake().await;
++    let s = c
++        .start_session(&tmp(), SessionStart::New)
++        .await
++        .unwrap()
++        .session_id;
++    let c2 = c.clone();
++    let s2 = s.clone();
++    let turn = tokio::spawn(async move { c2.prompt(&s2, "hang").await });
++    tokio::time::sleep(Duration::from_millis(200)).await;
++    c.cancel(&s);
++    assert_eq!(turn.await.unwrap().unwrap(), TurnEnd::Cancelled);
++}
++
++#[tokio::test]
++async fn a_permission_request_is_refused_and_reported() {
++    let (_h, c, mut ev) = open_fake().await;
++    let s = c
++        .start_session(&tmp(), SessionStart::New)
++        .await
++        .unwrap()
++        .session_id;
++    c.prompt(&s, "ask-permission").await.unwrap();
++    let got = drain(&mut ev);
++    assert!(got.iter().any(
++        |e| matches!(e, HarnessEvent::PermissionRefused { title } if title == "Run echo probe")
++    ));
++    assert!(got.iter().any(
++        |e| matches!(e, HarnessEvent::Chunk { text, .. } if text == "permission: reject_once")
++    ));
++}
++
++#[tokio::test]
++async fn setting_the_model_answers_the_new_effort_list() {
++    let (_h, c, _ev) = open_fake().await;
++    let s = c
++        .start_session(&tmp(), SessionStart::New)
++        .await
++        .unwrap()
++        .session_id;
++    let all = c.set_option(&s, "model", "fake-small").await.unwrap();
++    assert!(!all.to_string().contains("\"max\""));
++}
++
++#[tokio::test]
++async fn a_process_that_exits_mid_prompt_is_closed() {
++    let (_h, c, _ev) = open_fake().await;
++    let s = c
++        .start_session(&tmp(), SessionStart::New)
++        .await
++        .unwrap()
++        .session_id;
++    let result = c.prompt(&s, "exit").await;
++    assert!(matches!(result, Err(AcpError::Closed)), "{result:?}");
++}
++
++#[tokio::test]
++async fn usage_carries_context_model_and_rate_limit() {
++    let (_h, c, mut ev) = open_fake().await;
++    let s = c
++        .start_session(&tmp(), SessionStart::New)
++        .await
++        .unwrap()
++        .session_id;
++    c.prompt(&s, "usage").await.unwrap();
++    let usages: Vec<_> = drain(&mut ev)
++        .into_iter()
++        .filter_map(|e| match e {
++            HarnessEvent::Usage {
++                used,
++                size,
++                model,
++                rate_limit,
++            } => Some((used, size, model, rate_limit)),
++            _ => None,
++        })
++        .collect();
++    assert_eq!(usages.len(), 2);
++    let last = usages.last().unwrap();
++    assert_eq!(
++        (last.0, last.1, last.2.as_deref()),
++        (1234, 1_000_000, Some("fake-large-answering"))
++    );
++    assert!(last.3.as_ref().unwrap()["unifiedWindows"]["seven_day"].is_object());
++}
++
++#[tokio::test]
++async fn a_tool_call_reports_its_real_title_and_final_status() {
++    let (_h, c, mut ev) = open_fake().await;
++    let s = c
++        .start_session(&tmp(), SessionStart::New)
++        .await
++        .unwrap()
++        .session_id;
++    c.prompt(&s, "two-messages").await.unwrap();
++    let tools: Vec<_> = drain(&mut ev)
++        .into_iter()
++        .filter_map(|e| match e {
++            HarnessEvent::ToolCall { title, status, .. } => Some((title, status)),
++            _ => None,
++        })
++        .collect();
++    assert_eq!(
++        tools,
++        [
++            (Some("Terminal".to_string()), Some("pending".to_string())),
++            (Some("Read notes.md".to_string()), None),
++            (None, Some("completed".to_string())),
++        ]
++    );
++}
++
++#[tokio::test]
++async fn a_fork_is_resumed_before_it_is_answered() {
++    let (_h, c, _ev) = open_fake().await;
++    let src = c
++        .start_session(&tmp(), SessionStart::New)
++        .await
++        .unwrap()
++        .session_id;
++    let fork = c
++        .start_session(&tmp(), SessionStart::Fork(src.clone()))
++        .await
++        .unwrap();
++    assert_eq!(fork.session_id, format!("fork-of-{src}"));
++    assert_eq!(
++        c.prompt(&fork.session_id, "hi").await.unwrap(),
++        TurnEnd::Ended
++    );
++}
++
++#[tokio::test]
++async fn a_model_the_account_cannot_use_is_refused_with_the_harness_message() {
++    let (_h, c, _ev) = open_fake().await;
++    let s = c
++        .start_session(&tmp(), SessionStart::New)
++        .await
++        .unwrap()
++        .session_id;
++    let err = c.set_option(&s, "model", "fake-locked").await.unwrap_err();
++    assert!(matches!(err, AcpError::Rpc(m) if m.contains("Usage credits are required")));
++}
++
++#[test]
++fn claude_adapter_launches_node_with_the_explicit_agent() {
++    let adapter = ClaudeAdapter {
++        node: PathBuf::from("node.exe"),
++        adapter: PathBuf::from("adapter.js"),
++        agent: PathBuf::from("claude.exe"),
++        adapter_version: "1".into(),
++        agent_version: "2".into(),
++    };
++    let cwd = tmp();
++    let spec = adapter.process_spec(&cwd);
++    assert_eq!(spec.executable, PathBuf::from("node.exe"));
++    assert_eq!(spec.args, ["adapter.js"]);
++    assert_eq!(
++        spec.env,
++        [("CLAUDE_CODE_EXECUTABLE".into(), "claude.exe".into())]
++    );
++    assert_eq!(spec.cwd, cwd);
++    assert!(spec.capture_stdout && spec.pipe_stdin);
++}
++
++#[tokio::test]
++async fn changing_model_adjusts_mode_and_resuming_starts_at_personal_defaults() {
++    let (_h, c, mut ev) = open_fake().await;
++    let s = c
++        .start_session(&tmp(), SessionStart::New)
++        .await
++        .unwrap()
++        .session_id;
++    c.set_option(&s, "model", "fake-small").await.unwrap();
++    assert_eq!(c.prompt(&s, "report").await.unwrap(), TurnEnd::Ended);
++    let changed = drain(&mut ev)
++        .into_iter()
++        .find_map(|e| match e {
++            HarnessEvent::Chunk { text, .. } => {
++                serde_json::from_str::<serde_json::Value>(&text).ok()
++            }
++            _ => None,
++        })
++        .unwrap();
++    assert_eq!(changed["model"], "fake-small");
++    assert_eq!(changed["mode"], "acceptEdits");
++    assert!(matches!(
++        c.set_option(&s, "mode", "auto").await,
++        Err(AcpError::Rpc(_))
++    ));
++    c.start_session(&tmp(), SessionStart::Resume(s.clone()))
++        .await
++        .unwrap();
++    c.prompt(&s, "report").await.unwrap();
++    let resumed = drain(&mut ev)
++        .into_iter()
++        .find_map(|e| match e {
++            HarnessEvent::Chunk { text, .. } => {
++                serde_json::from_str::<serde_json::Value>(&text).ok()
++            }
++            _ => None,
++        })
++        .unwrap();
++    assert_eq!(resumed["model"], "fake-large");
++    assert_eq!(resumed["mode"], "auto");
++    assert_eq!(resumed["how"], "resume");
++}

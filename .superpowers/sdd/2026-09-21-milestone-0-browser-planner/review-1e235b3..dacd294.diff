@@ -1,0 +1,30 @@
+# Review package: 1e235b3..HEAD
+
+## Commits
+dacd294 fix: drop the unspec'd /health route from shadows serve
+
+## Files changed
+ src/cli/mod.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+## Diff
+diff --git a/src/cli/mod.rs b/src/cli/mod.rs
+index 0af81b3..73af183 100644
+--- a/src/cli/mod.rs
++++ b/src/cli/mod.rs
+@@ -3,14 +3,14 @@ use std::net::SocketAddr;
+ use crate::config::Config;
+ 
+ /// Binds, prints exactly one address, and serves. Spec §1.0: it never opens a
+ /// browser. The user chooses which browser to use.
+ pub async fn serve(config: Config) -> anyhow::Result<()> {
+     let listener = tokio::net::TcpListener::bind(config.bind).await?;
+     let addr: SocketAddr = listener.local_addr()?;
+     println!("shadows serve listening on http://{addr}");
+     tracing::info!(%addr, "daemon bound");
+ 
+-    let app = axum::Router::new().route("/health", axum::routing::get(|| async { "ok" }));
++    let app = axum::Router::new();
+     axum::serve(listener, app).await?;
+     Ok(())
+ }

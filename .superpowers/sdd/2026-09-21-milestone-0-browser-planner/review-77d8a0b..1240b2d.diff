@@ -1,0 +1,433 @@
+# Review package: 77d8a0b..1240b2d
+
+## Commits
+1240b2d feat(thread): planning threads and entries with transactional ordinal allocation
+
+## Files changed
+ src/lib.rs                   |   1 +
+ src/storage/sqlite/mod.rs    |   1 +
+ src/storage/sqlite/thread.rs | 214 +++++++++++++++++++++++++++++++++++++++++++
+ src/thread/mod.rs            |  20 ++++
+ tests/thread_contract.rs     | 126 +++++++++++++++++++++++++
+ 5 files changed, 362 insertions(+)
+
+## Diff
+diff --git a/src/lib.rs b/src/lib.rs
+index 5e285c6..79b2710 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1,9 +1,10 @@
+ pub mod cli;
+ pub mod command;
+ pub mod config;
+ pub mod error;
+ pub mod events;
+ pub mod project;
+ pub mod runtime;
+ pub mod storage;
++pub mod thread;
+ pub mod tracing;
+diff --git a/src/storage/sqlite/mod.rs b/src/storage/sqlite/mod.rs
+index b83590b..2ba163c 100644
+--- a/src/storage/sqlite/mod.rs
++++ b/src/storage/sqlite/mod.rs
+@@ -3,20 +3,21 @@ use std::str::FromStr;
+ use std::time::Duration;
+ 
+ use futures_core::future::BoxFuture;
+ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
+ use sqlx::{Connection, SqliteConnection, SqlitePool};
+ use tokio::sync::Mutex;
+ 
+ pub(super) mod events;
+ mod project;
+ mod runtime;
++mod thread;
+ 
+ pub use runtime::{ReconcileReport, StopKind};
+ 
+ pub(super) fn now() -> String {
+     time::OffsetDateTime::now_utc()
+         .format(&time::format_description::well_known::Rfc3339)
+         .expect("RFC3339 formatting cannot fail")
+ }
+ 
+ #[derive(Debug, thiserror::Error)]
+diff --git a/src/storage/sqlite/thread.rs b/src/storage/sqlite/thread.rs
+new file mode 100644
+index 0000000..2813adb
+--- /dev/null
++++ b/src/storage/sqlite/thread.rs
+@@ -0,0 +1,214 @@
++use sqlx::SqliteConnection;
++
++use super::project::{classify, record_command};
++use super::{Storage, StorageError, events::append_event, now};
++use crate::command::CommandContext;
++use crate::events::{Actor, DurableEvent};
++use crate::thread::{PlanningThread, ThreadEntry};
++
++impl Storage {
++    pub async fn create_planning_thread(
++        &self,
++        ctx: &CommandContext,
++        project_id: &str,
++        title: &str,
++    ) -> Result<PlanningThread, StorageError> {
++        let (ctx, project_id, title, ts) = (
++            ctx.clone(),
++            project_id.to_string(),
++            title.to_string(),
++            now(),
++        );
++        self.write_txn(move |conn| {
++            Box::pin(async move {
++                if let Some(id) = classify(conn, &ctx, "Project", &project_id).await? {
++                    return load_thread(conn, &id).await;
++                }
++                let id = uuid::Uuid::new_v4().to_string();
++                sqlx::query(
++                    "INSERT INTO planning_thread
++                       (id, project_id, title, status, next_entry_ordinal, created_at)
++                     VALUES (?,?,?, 'Open', 1, ?)",
++                )
++                .bind(&id)
++                .bind(&project_id)
++                .bind(&title)
++                .bind(&ts)
++                .execute(&mut *conn)
++                .await?;
++
++                append_event(
++                    conn,
++                    &DurableEvent::new("PlanningThreadCreated", Actor::user(&ctx.principal_id))
++                        .with_project(&project_id)
++                        .with_thread(&id)
++                        .with_payload(serde_json::json!({ "title": title })),
++                    &ts,
++                )
++                .await?;
++
++                record_command(
++                    conn,
++                    &ctx,
++                    "Project",
++                    &project_id,
++                    "PlanningThread",
++                    &id,
++                    &ts,
++                )
++                .await?;
++                load_thread(conn, &id).await
++            })
++        })
++        .await
++    }
++
++    /// Internal write: no CommandRecord. Entries appended while a turn streams
++    /// are produced by the daemon, not commanded by a client. Spec section 5.2.
++    pub async fn append_thread_entry(
++        &self,
++        thread_id: &str,
++        kind: &str,
++        author_kind: &str,
++        author_id: &str,
++        body: &str,
++    ) -> Result<ThreadEntry, StorageError> {
++        let (thread_id, kind, author_kind, author_id, body, ts) = (
++            thread_id.to_string(),
++            kind.to_string(),
++            author_kind.to_string(),
++            author_id.to_string(),
++            body.to_string(),
++            now(),
++        );
++        self.write_txn(move |conn| {
++            Box::pin(async move {
++                // Spec section 6.5: allocate inside this transaction. Never MAX+1.
++                let ordinal: i64 = sqlx::query_scalar(
++                    "UPDATE planning_thread
++                        SET next_entry_ordinal = next_entry_ordinal + 1
++                      WHERE id = ?
++                  RETURNING next_entry_ordinal - 1",
++                )
++                .bind(&thread_id)
++                .fetch_optional(&mut *conn)
++                .await?
++                .ok_or(StorageError::NotFound("planning_thread"))?;
++
++                let id = uuid::Uuid::new_v4().to_string();
++                sqlx::query(
++                    "INSERT INTO thread_entry
++                       (id, thread_id, ordinal, kind, author_kind, author_id, body, created_at)
++                     VALUES (?,?,?,?,?,?,?,?)",
++                )
++                .bind(&id)
++                .bind(&thread_id)
++                .bind(ordinal)
++                .bind(&kind)
++                .bind(&author_kind)
++                .bind(&author_id)
++                .bind(&body)
++                .bind(&ts)
++                .execute(&mut *conn)
++                .await?;
++
++                append_event(
++                    conn,
++                    &DurableEvent::new(
++                        "ThreadEntryAppended",
++                        Actor {
++                            kind: author_kind.clone(),
++                            id: author_id.clone(),
++                        },
++                    )
++                    .with_thread(&thread_id)
++                    .with_payload(serde_json::json!({ "ordinal": ordinal, "kind": kind })),
++                    &ts,
++                )
++                .await?;
++
++                Ok(ThreadEntry {
++                    id,
++                    thread_id,
++                    ordinal,
++                    kind,
++                    author_kind,
++                    author_id,
++                    body,
++                    created_at: ts,
++                })
++            })
++        })
++        .await
++    }
++
++    pub async fn list_thread_entries(
++        &self,
++        thread_id: &str,
++    ) -> Result<Vec<ThreadEntry>, StorageError> {
++        type Row = (String, String, i64, String, String, String, String, String);
++        let rows: Vec<Row> = sqlx::query_as(
++            "SELECT id, thread_id, ordinal, kind, author_kind, author_id, body, created_at
++                   FROM thread_entry WHERE thread_id = ? ORDER BY ordinal",
++        )
++        .bind(thread_id)
++        .fetch_all(self.reader())
++        .await?;
++        Ok(rows
++            .into_iter()
++            .map(|r| ThreadEntry {
++                id: r.0,
++                thread_id: r.1,
++                ordinal: r.2,
++                kind: r.3,
++                author_kind: r.4,
++                author_id: r.5,
++                body: r.6,
++                created_at: r.7,
++            })
++            .collect())
++    }
++
++    pub async fn list_threads_for_project(
++        &self,
++        project_id: &str,
++    ) -> Result<Vec<PlanningThread>, StorageError> {
++        let rows: Vec<(String, String, String, String, String)> = sqlx::query_as(
++            "SELECT id, project_id, title, status, created_at
++               FROM planning_thread WHERE project_id = ? ORDER BY created_at, id",
++        )
++        .bind(project_id)
++        .fetch_all(self.reader())
++        .await?;
++        Ok(rows
++            .into_iter()
++            .map(|r| PlanningThread {
++                id: r.0,
++                project_id: r.1,
++                title: r.2,
++                status: r.3,
++                created_at: r.4,
++            })
++            .collect())
++    }
++}
++
++async fn load_thread(
++    conn: &mut SqliteConnection,
++    id: &str,
++) -> Result<PlanningThread, StorageError> {
++    let r: (String, String, String, String, String) = sqlx::query_as(
++        "SELECT id, project_id, title, status, created_at FROM planning_thread WHERE id = ?",
++    )
++    .bind(id)
++    .fetch_optional(&mut *conn)
++    .await?
++    .ok_or(StorageError::NotFound("planning_thread"))?;
++    Ok(PlanningThread {
++        id: r.0,
++        project_id: r.1,
++        title: r.2,
++        status: r.3,
++        created_at: r.4,
++    })
++}
+diff --git a/src/thread/mod.rs b/src/thread/mod.rs
+new file mode 100644
+index 0000000..ce45e34
+--- /dev/null
++++ b/src/thread/mod.rs
+@@ -0,0 +1,20 @@
++#[derive(Debug, Clone, serde::Serialize)]
++pub struct PlanningThread {
++    pub id: String,
++    pub project_id: String,
++    pub title: String,
++    pub status: String,
++    pub created_at: String,
++}
++
++#[derive(Debug, Clone, serde::Serialize)]
++pub struct ThreadEntry {
++    pub id: String,
++    pub thread_id: String,
++    pub ordinal: i64,
++    pub kind: String,
++    pub author_kind: String,
++    pub author_id: String,
++    pub body: String,
++    pub created_at: String,
++}
+diff --git a/tests/thread_contract.rs b/tests/thread_contract.rs
+new file mode 100644
+index 0000000..4541e60
+--- /dev/null
++++ b/tests/thread_contract.rs
+@@ -0,0 +1,126 @@
++//! The thread capability's durable contract: planning threads parented to a
++//! project and thread entries whose ordinals are allocated transactionally.
++//! Separate from `tests/storage_contract.rs`, whose one job is the connection
++//! and transaction contracts.
++
++use shadows::command::{CommandContext, fingerprint};
++use shadows::storage::Storage;
++
++fn ctx(command_id: &str, params: &serde_json::Value) -> CommandContext {
++    ctx_kind(command_id, "project.create", params)
++}
++
++fn ctx_kind(command_id: &str, kind: &str, params: &serde_json::Value) -> CommandContext {
++    CommandContext {
++        principal_kind: "User".into(),
++        principal_id: "local".into(),
++        command_id: command_id.into(),
++        command_kind: kind.into(),
++        command_schema_ver: 1,
++        request_fingerprint: fingerprint(kind, params),
++    }
++}
++
++/// Spec section 6.5: ordinals are allocated by UPDATE ... RETURNING in the same
++/// transaction, never MAX(ordinal)+1. Under concurrency the result must be a
++/// contiguous, gapless, duplicate-free run.
++#[tokio::test]
++async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
++    let tmp = tempfile::tempdir().unwrap();
++    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
++    let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
++    let project = storage
++        .create_project(&ctx("cmd-p", &params), "demo", "Demo")
++        .await
++        .unwrap();
++    let thread = storage
++        .create_planning_thread(
++            &ctx_kind("cmd-t", "thread.create", &params),
++            &project.id,
++            "T",
++        )
++        .await
++        .unwrap();
++
++    let mut handles = Vec::new();
++    for w in 0..8 {
++        let storage = storage.clone();
++        let thread_id = thread.id.clone();
++        handles.push(tokio::spawn(async move {
++            for i in 0..25 {
++                storage
++                    .append_thread_entry(
++                        &thread_id,
++                        "UserMessage",
++                        "User",
++                        "local",
++                        &format!("w{w}-i{i}"),
++                    )
++                    .await
++                    .unwrap();
++            }
++        }));
++    }
++    for h in handles {
++        h.await.unwrap();
++    }
++
++    let ordinals: Vec<i64> =
++        sqlx::query_scalar("SELECT ordinal FROM thread_entry WHERE thread_id = ? ORDER BY ordinal")
++            .bind(&thread.id)
++            .fetch_all(storage.reader())
++            .await
++            .unwrap();
++
++    assert_eq!(ordinals.len(), 200);
++    assert_eq!(
++        ordinals,
++        (1..=200).collect::<Vec<i64>>(),
++        "ordinals must be contiguous and unique"
++    );
++
++    let next: i64 =
++        sqlx::query_scalar("SELECT next_entry_ordinal FROM planning_thread WHERE id = ?")
++            .bind(&thread.id)
++            .fetch_one(storage.reader())
++            .await
++            .unwrap();
++    assert_eq!(next, 201);
++}
++
++/// Entries are read back in ordinal order, never in insertion order.
++/// Cross-cutting rule 4.
++#[tokio::test]
++async fn entries_are_read_in_ordinal_order() {
++    let tmp = tempfile::tempdir().unwrap();
++    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
++    let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
++    let project = storage
++        .create_project(&ctx("cmd-p", &params), "demo", "Demo")
++        .await
++        .unwrap();
++    let thread = storage
++        .create_planning_thread(
++            &ctx_kind("cmd-t", "thread.create", &params),
++            &project.id,
++            "T",
++        )
++        .await
++        .unwrap();
++
++    for body in ["first", "second", "third"] {
++        storage
++            .append_thread_entry(&thread.id, "UserMessage", "User", "local", body)
++            .await
++            .unwrap();
++    }
++    let entries = storage.list_thread_entries(&thread.id).await.unwrap();
++    assert_eq!(
++        entries.iter().map(|e| e.body.as_str()).collect::<Vec<_>>(),
++        vec!["first", "second", "third"]
++    );
++    assert_eq!(
++        entries.iter().map(|e| e.ordinal).collect::<Vec<_>>(),
++        vec![1, 2, 3]
++    );
++}
