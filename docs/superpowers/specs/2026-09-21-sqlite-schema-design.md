@@ -109,7 +109,7 @@ UNIQUE(thread_id, ordinal)
 ```
 
 Milestone 1 adds `operation_id TEXT NULL FK operation(id)`: the turn an entry
-belongs to (§12.5).
+belongs to (§12.7).
 
 > **OPEN — this table has nowhere to put the harness-side identity of the line an
 > entry came from.**
@@ -567,7 +567,7 @@ created_at         TEXT NOT NULL
 ```
 
 > **DECIDED 2026-09-24 — implementation waits for Milestone 1's migration.**
-> Explicit `harness_path` and `harness_version` columns, in the table as §12.5
+> Explicit harness and agent path and version columns, in the table as §12.7
 > lays it out. This is no longer an open architectural question; what follows is
 > the reasoning that led to it.
 >

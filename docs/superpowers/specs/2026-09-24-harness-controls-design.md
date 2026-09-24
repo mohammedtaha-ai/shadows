@@ -1,104 +1,229 @@
-# Section 12 — Harness Controls (Milestone 1)
+# Section 12 — Harness Controls over ACP (Milestone 1)
 
 > Part of the [Shadows design specification](./README.md). Section numbers are
 > stable across files, and every `§x.y` reference resolves through the ownership
 > map there.
 
 - **Date:** 2026-09-24
-- **Status:** Design agreed with Mohammed in conversation, revised after two Codex reviews; awaiting review of this file.
+- **Status:** Redesigned with Mohammed on 2026-09-24 around the Agent Client Protocol. The first draft (`2cc7930`) talked to `claude --print` directly and kept a hand-written catalogue; both are replaced here. Awaiting review of this file.
 - **Builds on:** Milestone 0 (§11.1), merged at `58fb30e`.
 
-Milestone 1 lets the person choose, per conversation, which agent CLI runs it,
-and per message, which model, mode and effort it runs with; shows how full the
-context is and how much of the account's limits are left; and adds copy and
-fork to messages. It is built on Claude Code only. Codex is listed and not yet
+Milestone 1 runs the Planner's harness over the **Agent Client Protocol (ACP)**
+through a maintained adapter instead of reading Claude Code's stream ourselves.
+On that connection the person chooses, per conversation, which agent CLI runs it
+and, per message, which model, mode and effort; sees how full the context is and
+how much of the account's limits are left; and can copy any message and fork
+from the last one. Model and effort lists come from the harness, so a new model
+appears without a Shadows release. Claude Code only; Codex is listed and not yet
 runnable.
 
 ## 12.1 Scope
 
-In:
+In, in two phases:
 
-1. **CLI choice** in the conversation header, locked once the conversation has run a turn (§12.4).
-2. **Composer bar** under the message box: mode, folder, model, effort, context ring (§12.9).
-3. **Per-harness catalogue** served by the daemon (§12.2) and **per-project allowed modes** (§12.3).
-4. **Turn settings recorded** with every turn, in the same transaction that creates it (§12.5).
-5. **Context and account limits** read from the harness stream (§12.6).
-6. **Copy** on every message; **fork** from the last message, designed to widen to any message later (§12.7).
-7. **`CommandId` on turn start**, with the user's message, the Operation and its invocation committed as one command (§12.5).
+- **Phase A — the connection.** Milestone 0's Planner turn, unchanged in what a
+  person sees, now runs over ACP (§12.2, §12.3). Milestone 0's stream-json path
+  is deleted, not kept beside it. A session opens in `acceptEdits` (§12.4's
+  default) and otherwise at the harness's own model and effort; choosing them
+  is Phase B.
+- **Phase B — the controls,** on that connection:
+  1. **CLI choice** in the conversation header, locked once the conversation has run a turn (§12.6).
+  2. **Composer bar** under the message box: mode, folder, model, effort, context ring (§12.11).
+  3. **Choices from the harness** (§12.4) filtered by Shadows' mode policy and the project's allowed modes (§12.5).
+  4. **Turn start as one command** with its settings recorded (§12.7).
+  5. **Context and account limits** (§12.8).
+  6. **Copy** on every message; **fork** from the last message, designed to widen to any message later (§12.9).
+  7. **A refused permission is shown** in the conversation (§12.3).
 
 Out:
 
 | Not in this milestone | Why |
 |---|---|
-| Running Codex | Its stream contract has not been measured the way Claude's was. Listed `available: false` (§12.2). |
-| Claude's `plan` mode | Planning is the Planner's own job in Shadows (§11.6 slice 1). Claude's plan mode ends by asking a person to approve leaving it, which a `--print` turn cannot do. |
-| Claude's `bypassPermissions` | Not needed; decided 2026-09-24. |
-| Claude's `manual` mode | Needs an approval channel from the harness to a client and back (`--permission-prompt-tool`). A later slice. |
-| Fork, edit, or retry from a message before the last | Needs the Context Compiler (§2.11) to rebuild a session up to that message. The fork request already names the entry (§12.7). |
+| Running Codex | Its adapter (`@agentclientprotocol/codex-acp`) is not measured, and its modes are not decided (§12.4). Listed `available: false`. |
+| Claude's `plan`, `default`, `dontAsk`, `bypassPermissions` modes | Not in Shadows' policy for Claude (§12.4); decided 2026-09-24. Planning is the Planner's own job (§11.6 slice 1). |
+| Asking the person to approve a permission | The request reaches Shadows (§12.3), so this is a client feature on an existing path, not new plumbing. A later slice. |
+| Shadows' own tools (an MCP server) | ACP carries them (`mcpServers` on `session/new`); the first user is the Planner's workflow tools, not this milestone. |
+| Fork, edit, or retry from a message before the last | Needs the Context Compiler (§2.11). The fork request already names the entry (§12.9). |
+| Packaging the adapter as one executable | Node runs it (§12.2). **OPEN** there. |
 
-## 12.2 The harness catalogue
+## 12.2 The harness connection
 
-Each harness declares the choices a turn may make on it, next to the flags it
-translates them into (`agent/<harness>`). Clients read it from
-`GET /api/harnesses` and build every menu from it; no client carries its own list.
+**The protocol.** Shadows is an ACP *client*. It uses the official Rust crate
+`agent-client-protocol`, pinned to one version; it does not implement JSON-RPC
+or the ACP message shapes itself (library-first, CLAUDE.md).
 
-Every choice has an `id`, a `label`, a one-line `description`, and `enabled`
-with a `reason` when not. **Effort belongs to a model**: each model lists the
-effort levels it accepts and its default, because the levels a model supports
-differ by model.
+**The adapter.** Claude Code does not speak ACP. The adapter
+`@agentclientprotocol/claude-agent-acp` (Apache-2.0, maintained by the ACP
+project, built on the Claude Agent SDK) does. It is **installed, not copied**:
 
-**Claude Code** (measured against `claude` 2.1.278, 2026-09-24):
+- `harness/claude/package.json` pins the exact adapter version, and
+  `harness/claude/package-lock.json` is committed. `harness/` belongs to the
+  daemon; it is not part of `web/` and no client imports it. A later desktop
+  client talks to the daemon the same way the browser does.
+- Updating the adapter is a commit that changes the pinned version, after its
+  tests and a run. An upstream release never reaches Shadows on its own.
+- Shadows does not patch the adapter. What it dislikes it fixes on its own side
+  (§12.8 is the first case). A defect that can only be fixed inside the adapter
+  is reported upstream; a local patch is a decision taken case by case and
+  recorded where it applies.
 
-| Kind | id (= flag value) | Label | Notes |
-|---|---|---|---|
-| mode | `acceptEdits` | Accept edits | **default of every new conversation** |
-| mode | `auto` | Auto | |
-| model | `sonnet` | Sonnet | alias; **default** (Milestone 0's hard-coded value) |
-| model | `opus` | Opus | alias |
-| model | `haiku` | Haiku | alias |
-| effort | from `low` `medium` `high` `xhigh` `max` | Low … Max | `--effort`; the subset and default per model are measured first (§12.7 box) |
+**Running it.** The daemon starts `node <adapter entry>` through `process/`
+(stdin and stdout piped, Job Object containment as every managed child, §1.5).
+Configuration names three absolute paths, never resolved through `PATH` (§1.4):
+Node, the adapter entry (`harness/claude/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js`),
+and the Claude Code executable. The last is passed to the adapter as
+`CLAUDE_CODE_EXECUTABLE`, so the Claude that runs is the one configured and not
+the copy the Agent SDK can carry. Every invocation records the adapter's version
+and Claude's (§12.7).
 
-The mode is passed as `--permission-mode`; `--permission-prompts none` stays,
-so anything either mode would ask a person about is denied, never left waiting.
+> **OPEN — the adapter needs Node at run time.** A person running the daemon from
+> source has Node already (the web client needs it). A packaged desktop client
+> cannot assume it. **Trigger that closes this:** the first packaged desktop
+> build. The candidate is compiling the adapter to one executable (the Codex
+> adapter already ships that way); only how the process is started changes, not
+> the connection.
 
-**Codex** is listed with `available: false` and no choices.
+**One adapter per open conversation.**
 
-**The catalogue states what Shadows supports, not what the account may use.**
-Aliases move as models are released, and a provider or organisation may refuse
-or reroute one: on 2026-09-24 a turn asked for `--model haiku` and the stream
-reported `claude-sonnet-5`. The catalogue is never presented as an availability
-check. What a turn ran on is recorded (§12.5) and shown whenever it differs
-from what was requested.
+1. **Opening.** A client opens a conversation's harness session with
+   `POST /api/threads/{id}/session` (§12.10) when it shows the conversation, so
+   the menus are ready before the first message; a turn start on a thread whose
+   session is not open opens it first (§12.7). The daemon starts that thread's
+   adapter if none is live, sends `initialize`, then `session/new` (a thread
+   with no harness session), `session/resume` (a thread with one), or
+   `session/fork` (a fork's first opening, §12.9), with the project directory
+   as `cwd`. The answer carries the choices the harness offers (§12.4).
+2. **Idle.** An adapter with no turn running for **15 minutes** is closed. The
+   next opening starts a new one and resumes the same harness session.
+3. **Switching harness** before the first turn (§12.6) closes the thread's
+   adapter.
+4. **Shutdown** (§8.5) stops every running turn, then closes every adapter.
+   Closing is terminating the tree through its containment handle and reaping it.
+5. **Restart.** Adapters do not outlive the daemon. Recovery (§8.6) is
+   unchanged: a turn a previous runtime left non-terminal becomes `Interrupted`,
+   and the conversation continues by resuming its harness session.
 
-**Remembered settings.** The daemon keeps, per harness, the **model and effort**
-of the last turn it started and returns them with the catalogue as the next
-conversation's starting values. The **mode is not remembered**: every new
-conversation starts at the catalogue's default mode. They live in the daemon so
-every client, including a later desktop client, starts from the same place.
+What `session/new` is given in this milestone: the project directory, no MCP
+servers, and no `_meta.claudeCode.options`. Milestone 0 ran Claude with its
+default setting sources and tool set, and so does this one.
 
-## 12.3 Allowed modes per project
+**Permission requests are refused.** The adapter asks the client before a tool
+runs that the mode does not already allow (`session/request_permission`). In
+this milestone Shadows answers every such request with the harness's reject
+option, and writes a durable `PermissionRefused` entry to the thread naming
+what was asked ("run `npm install`"), so the person sees why the turn went the
+way it did and that `auto` is the mode that would have allowed it. `auto` itself
+does not ask. This keeps Milestone 0's behaviour, where
+`--permission-prompts none` denied the same requests without a trace.
+
+## 12.3 A turn over the connection
+
+This section replaces what Milestone 0's stream-json reader decided about a
+turn. §2.3, §2.7 and §8.3–§8.5 still hold; where they say "process", read the
+table below.
+
+| Milestone 0 (a process per turn) | Milestone 1 (a prompt on a live connection) |
+|---|---|
+| spawn `claude --print` | the thread's adapter is open (§12.2), then `session/prompt` is sent |
+| handle registered, then `Running` | the prompt is registered in `LiveHandles`, then `Running` |
+| `stream_event` text deltas | `session/update` chunks: transient, rendered, never stored |
+| `assistant` / `user` lines → entries | one durable entry per agent message, keyed by the update's `messageId` and written when that message is complete (the next message begins, or the turn ends); a tool call is its own entry naming the tool |
+| `result` line + exit status | the `session/prompt` response: `stopReason` `end_turn` is success; `max_tokens`, `max_turn_requests` and `refusal` are recorded as failures naming the reason; a JSON-RPC error is a failure carrying its message |
+| session recorded at turn-end | unchanged: the harness session id is recorded on the thread when its first turn ends, never earlier |
+| the adapter exits mid-turn | `Failed { stage: Run }`, "the harness exited during the turn" |
+
+**Stop.** `PlannerTurn::stop` keeps §2.3's rule that `Cancelled` means confirmed:
+
+1. Record the cancellation request (TX #1), as today.
+2. Send `session/cancel`.
+3. **The harness confirms:** the prompt answers `stopReason: cancelled` within
+   **10 seconds**. The adapter owns the Claude process and has ended the turn;
+   write `Cancelled`, with the harness's answer as the confirmation.
+4. **The harness does not confirm** in time: terminate the adapter's tree
+   through its containment handle, reap it, then write `Cancelled` — Milestone
+   0's path. The thread's next opening starts a new adapter.
+5. **Termination fails:** §8.4 case 6 unchanged; nothing terminal is written.
+
+§8.4 case 4 (the turn ended on its own first) keeps its meaning: a prompt that
+answered before the cancel took ownership keeps the ending it answered with.
+
+**What is deleted.** `agent/claude.rs`'s stream-json `classify`, the
+`--print` argument builder, `StreamItem`'s line classes that only stream-json
+produced, and `src/bin/fake_claude.rs`. Tests run against a fake ACP agent
+(`src/bin/fake_acp.rs`, built on the same crate's agent side) instead.
+
+> **Measured before Phase A** (the plan's first task, recorded in
+> `docs/evidence/harness/ACP_PROBE.md`, driving the pinned adapter from a
+> throwaway script):
+> 1. `session/new` returns config options with the current models (Opus 5.5 among them), each model's effort levels, and which modes each model offers.
+> 2. Agent message chunks carry `messageId`, and where one message ends.
+> 3. `session/cancel` answers `stopReason: cancelled`, and how long it takes.
+> 4. `session/resume` continues the conversation after the adapter was killed (the model remembers an earlier message).
+> 5. Whether the context breakdown (§12.8) can be read without the slow control request.
+> 6. `session/fork` leaves the source usable and returns a new session that remembers the source's messages.
+> 7. What `usage_update` and `_meta["_claude/rateLimit"]` carry, and whether the model that answered is named.
+> 8. `session/request_permission`'s options, and what Claude does after a rejection.
+
+## 12.4 Choices come from the harness
+
+The model, mode and effort lists are the harness's, read from the ACP session:
+`configOptions` on `session/new`, `session/resume` and `session/fork`, on every
+`session/set_config_option` answer, and on every `config_option_update`
+notification. Each answer is the complete set, so choosing a model also
+replaces the effort levels on offer. Shadows keeps no list of Claude's models.
+
+| ACP option | Shadows reads it as |
+|---|---|
+| `category: model` | the model menu, in the harness's order |
+| `category: thought_level` | the effort menu for the current model |
+| `category: mode` | the mode menu, **after** the filter below |
+| anything else | ignored in this milestone |
+
+**Shadows' mode policy** is per harness, because modes are:
+
+| Harness | Modes Shadows allows | Default of a new conversation |
+|---|---|---|
+| Claude Code | `acceptEdits`, `auto` | `acceptEdits` |
+| Codex | decided when Codex is enabled | — |
+
+A mode reaches the menu only if it is in that policy, the harness offers it for
+the current model (the adapter withholds `auto` from a model that does not
+support it), and the project allows it (§12.5).
+
+**Remembered settings.** The daemon keeps, per harness, the model and effort of
+the last turn it started, and a new session is set to them after it opens. A
+remembered value the harness no longer offers is dropped and the harness's
+current value stands. The mode is not remembered: every new conversation starts
+at the policy's default.
+
+**The harness list** itself — which CLIs exist, which run — is Shadows': Claude
+Code (available when its three paths are configured), Codex (not yet).
+
+## 12.5 Allowed modes per project
 
 A mode is a permission decision, not a display preference: `auto` lets the
 harness act on its own judgement where `acceptEdits` does not. Each project
 states which modes its turns may use:
 
-- `project_mode(project_id, harness_kind, mode_id)`, primary key over all three. A project is created with every mode its harness's catalogue enables; the migration gives existing projects the same. An empty set for a harness means no turn can start on it, and the client says so.
+- `project_mode(project_id, harness_kind, mode_id)`, primary key over all three. A project is created with every mode of its harness's policy (§12.4); the migration gives existing projects the same. An empty set for a harness means no turn can start on it, and the client says so.
 - The daemon checks the requested mode against the project's set at turn start, before anything durable is written (`ModeNotAllowed`). What the client offered or disabled is not the check.
-- Changing the set is its own command (`PATCH /api/projects/{id}` with a `CommandId`).
+- Changing the set is its own command (`PATCH /api/projects/{id}` with a `CommandId`), and only modes in the harness's policy are accepted.
 - The set is a list of named modes per harness, not an ordering, so it claims nothing about how one mode's authority compares with another's or with a second harness's.
 
 > **OPEN — Shadows imposes no boundary of its own.** §8.2 freezes "effective
 > read / write / network permissions" with every invocation. In this milestone
 > those are exactly the harness's mode: Shadows does not confine the Planner to
-> the project directory, the network, or a tool set outside what the harness
-> itself enforces, and must not claim it does. The invocation records the mode
-> as the whole of it. **Trigger that closes this:** the first role or mode whose
-> limits Shadows must enforce itself — at the latest §11.6 slice 2, where an
-> Executor runs against a declared write scope. It does not block this
-> milestone: the Planner is a person's own agent, run in the directory that
-> person chose, in one of two modes that person allowed.
+> the project directory, the network, or a tool set beyond what the harness
+> enforces, and must not claim it does. The invocation records the mode as the
+> whole of it. The place to enforce more already exists — every
+> `session/request_permission` reaches the daemon (§12.2) — and so do the
+> options to narrow the tool set at `session/new`. **Trigger that closes this:**
+> the first role or mode whose limits Shadows must enforce itself — at the
+> latest §11.6 slice 2, where an Executor runs against a declared write scope.
+> It does not block this milestone: the Planner is a person's own agent, run in
+> the directory that person chose, in one of two modes that person allowed.
 
-## 12.4 A conversation's harness
+## 12.6 A conversation's harness
 
 `PlanningThread.harness` is chosen when the thread is created, defaults to
 `claude-code`, may be changed while the thread has no Operation, and is fixed
@@ -107,15 +232,17 @@ harness; a thread whose turns alternated harnesses would have no session to
 continue. Moving a conversation between harnesses is §2.11's continuity, not a
 setting. A trigger enforces the lock in storage, below the application.
 
-## 12.5 Starting a turn as one command
+## 12.7 Starting a turn as one command
 
 `POST /api/threads/{id}/turns` carries `{ command_id, prompt, model, mode, effort }`.
 
 **Validation, all before any write:** the thread's harness is available
-(`HarnessUnavailable`); model, mode and effort are in its catalogue, enabled,
-and the effort is one that model accepts (`SettingNotOffered`); the mode is in
-the project's allowed set (`ModeNotAllowed`); no turn is running on the thread
-(`ThreadBusy`).
+(`HarnessUnavailable`); its session is open, and is opened here if it is not
+(`HarnessStartFailed` when that fails — opening starts a process but writes
+nothing durable, §12.2); model, mode and effort are among the choices the session
+offers now, the effort is one the chosen model offers, and the mode passes §12.4's
+policy (`SettingNotOffered`); the mode is in the project's allowed set
+(`ModeNotAllowed`); no turn is running on the thread (`ThreadBusy`).
 
 **One transaction** then commits, together or not at all (§2.1, §6.20):
 
@@ -133,14 +260,25 @@ This replaces Milestone 0's two writes (the entry in `protocol/conversation.rs`,
 then `Pending` in `planner/spawn.rs`), which a retried request could turn into a
 second message and a second run.
 
-**Replay.** A request whose `command_id` has a record and whose fingerprint
-matches returns the recorded result and starts nothing — without re-validating
-against the catalogue or the allowed modes as they are now, because the command
-already happened. A matching `command_id` with a different fingerprint is
-`CommandConflict`. The fingerprint covers the thread id, prompt, model, mode and
-effort.
+**The model is set during validation.** Efforts belong to a model, so a turn
+that names another model than the session holds sets it with
+`session/set_config_option` before the checks, and checks the effort against
+the answer. That changes the session, not the durable record; a later refusal
+leaves the session on the new model, and clients see it as an `options` frame.
 
-**`agent_invocation`** is created in that transaction, before anything spawns
+**Then, before the prompt is sent,** the session is set to the turn's effort
+and mode, one call per value that differs from what the session holds. A
+refusal there fails the turn at `Prepare`, naming the setting; nothing was sent
+to the model.
+
+**Replay.** A request whose `command_id` has a record and whose fingerprint
+matches returns the recorded result and starts nothing — answered before any
+other check, including the daemon stopping, and without opening a session,
+because the command already happened. A matching `command_id` with a different
+fingerprint is `CommandConflict`. The fingerprint covers the thread id, prompt,
+model, mode and effort.
+
+**`agent_invocation`** is created in that transaction, before anything is sent
 (§2.7, §8.2). It answers §6.15's OPEN block with the explicit columns §6.15
 already preferred:
 
@@ -150,143 +288,176 @@ id                  TEXT PRIMARY KEY
 operation_id        TEXT NOT NULL UNIQUE FK operation(id) ON DELETE RESTRICT
 role                TEXT NOT NULL
 harness_kind        TEXT NOT NULL
-harness_path        TEXT NOT NULL
-harness_version     TEXT NOT NULL
+harness_path        TEXT NOT NULL      -- the adapter entry
+harness_version     TEXT NOT NULL      -- the adapter's package version
+agent_path          TEXT NOT NULL      -- the CLI the adapter runs (CLAUDE_CODE_EXECUTABLE)
+agent_version       TEXT NOT NULL      -- that CLI's --version
 requested_model     TEXT NOT NULL
 requested_mode      TEXT NOT NULL      -- the permission mode requested of the harness
 requested_effort    TEXT NOT NULL
 profile_json        TEXT NOT NULL      -- '{}' until profiles exist
 native_session_id   TEXT NULL
 observed_model      TEXT NULL
-observed_models     TEXT NULL          -- JSON array
 context_used        INTEGER NULL
 context_window      INTEGER NULL
-output_tokens       INTEGER NULL
 created_at          TEXT NOT NULL
 ```
 
 `requested_mode` is what Shadows asked the harness for, not a record of the
 rules and settings the harness then applied. §8.2's "effective read / write /
-network permissions" stay unrecorded and are §12.3's OPEN block.
+network permissions" stay unrecorded and are §12.5's OPEN block.
 
-The `requested_*` columns never change. The rest is written once, in the
-transaction that records the turn's terminal transition, from what the stream
-reported. Nothing the stream did not report is estimated; it stays NULL and a
-client shows it as unavailable.
+The `requested_*`, path and version columns never change. The rest is written
+once, in the transaction that records the turn's terminal transition, from what
+the harness reported during the turn. Nothing it did not report is estimated;
+it stays NULL and a client shows it as unavailable.
 
-- `observed_model` is the `message.model` of the turn's **last `assistant` line** — the model that produced the answer. The `system`/`init` line names the model the session started on, which a fallback can change, so it is not the evidence.
-- `observed_models` is every key of the `result` line's `modelUsage`, because a turn can use more than one model (a fallback, or a small model for background work).
+- `observed_model` is the model the harness names with the turn's last usage report (item 7 of §12.3's box decides where the adapter puts it). It can differ from `requested_model`: on 2026-09-24 a turn that asked for `haiku` was answered by `claude-sonnet-5`.
 
 **Every entry names the turn it belongs to.** `thread_entry` gains
 `operation_id TEXT NULL FK operation(id) ON DELETE RESTRICT`: the user entry the
-turn command writes, and every agent entry the turn's stream produces, carry
-that turn's operation id. Milestone 0's entries carry none (NULL), since which
-turn wrote them can only be inferred from timing, and an inference is not
-recorded as fact. This is the durable link §12.7's fork rule reads.
+turn command writes, and every entry the turn produces, carry that turn's
+operation id. Milestone 0's entries carry none (NULL), since which turn wrote
+them can only be inferred from timing, and an inference is not recorded as
+fact. This is the durable link §12.9's fork rule reads.
 
-## 12.6 Context and account limits
+## 12.8 Context and account limits
 
-**Context used** is taken from the turn's `result` line: the **last** element of
-`usage.iterations`, summing `input_tokens`, `cache_read_input_tokens` and
-`cache_creation_input_tokens`. Output tokens are not context. The top-level
-`usage` sums every request the turn made and so overstates how full the context
-is; it is not used. **Context window** is `modelUsage[observed_model].contextWindow`.
-If either is missing, the ring shows "unavailable" rather than a guess. The
-figure describes the context after the last turn; it does not move while a turn
-runs, and a compaction shows up at the next turn.
+**Context.** The adapter reports `usage_update { used, size }` during and after a
+turn. Shadows keeps the latest for the session and writes the turn's last one
+into its invocation (`context_used`, `context_window`). A report with no usable
+`size` is not shown as a percentage.
 
-**Account limits** come from the `rate_limit_event` stream line
-(`rate_limit_info.unifiedWindows.five_hour` and `.seven_day`: `utilization` and
-`resetsAt`). They are account-wide, so the daemon keeps the latest per harness
-with the time it was observed (`harness_limit`, one row per harness, latest
-wins; not journal data). A client always shows that time: the figure is only as
-fresh as the last turn.
+**Account limits.** The adapter forwards Claude's rate-limit report in
+`_meta["_claude/rateLimit"]` on a `usage_update`: five-hour and seven-day
+utilisation, each with its reset time. The limits are account-wide, so the
+daemon keeps the latest per harness with the time it was observed
+(`harness_limit`, one row per harness, latest wins; not journal data). The
+adapter drops a report that arrives before the session's first answer; the
+kept row is what covers that gap.
+
+**The ring never waits.** It shows the last figures the daemon holds and the
+time they were observed, opens at any moment, and says "no figures yet" when it
+has none. There is no loading state. (The adapter's context breakdown, read
+through a control request that the adapter's own source says can stall a
+session for tens of seconds, is why a ring elsewhere was seen spinning.)
+
+**Two levels, as agreed on 2026-09-24:**
+
+1. **Summary:** context `used / size (percent)`; five-hour and weekly bars with
+   reset times; "updated <time>". No credit balance: that belongs to the claude.ai
+   account and does not reach the CLI.
+2. **Breakdown:** messages, system tools, MCP tools, skills, memory files, system
+   prompt, custom agents, autocompact buffer, free space.
+
+> **OPEN — the breakdown's source.** It exists in the Agent SDK only through
+> `getContextUsage`, which can block a live session. **Trigger that closes this:**
+> item 5 of §12.3's box. If it finds a read that does not block a turn, the
+> breakdown is taken after a turn ends, stored with the invocation, and shown;
+> otherwise the ring ships with the summary only, and this block names what was
+> measured.
 
 Delivery: the thread snapshot carries each operation's invocation; the
-operation's terminal event carries the observed values so a live client updates
-without refetching; `GET /api/harnesses` carries the latest limits, and a
-transient `limits` SSE frame pushes a new report as it arrives.
+operation's terminal event carries the observed values; `GET /api/harnesses`
+carries the latest limits; a transient `usage` SSE frame pushes a new context
+or limits report as it arrives.
 
-## 12.7 Fork
+## 12.9 Fork
 
 `POST /api/threads/{id}/fork` with `{ command_id, at_entry_id }` creates, as one
 command, a new thread in the same project on the same harness, titled after the
 source with "(fork)":
 
 - It copies the source's entries up to and including `at_entry_id` under new ids and ordinals. It copies no Operation: an Operation belongs to the thread that ran it.
-- **Copied entries keep their `operation_id` and `refs` unchanged.** Both still name the source thread's operation; that is provenance, read-only history of how the message came about, and is shown as such. Nothing in the fork can stop, retry, or otherwise act on it.
+- **Copied entries keep their `operation_id` and `refs` unchanged.** Both still name the source thread's operation; that is provenance, read-only history, and is shown as such. Nothing in the fork can stop, retry, or otherwise act on it.
 - It records `forked_from_thread`, `forked_from_entry`, and `fork_session_id` (the source's harness session at that moment). The three are all NULL or all set, and are written only by the creating insert. The source is not changed.
-- The fork's first turn runs `--resume <fork_session_id> --fork-session`; the new session id the stream reports is recorded as the fork's own `harness_session_id` by the existing rule (§4.2): at turn-end, once.
-- **Valid fork point in this milestone**, decided only from durable rows: `at_entry_id` is the source's highest-ordinal entry; its `operation_id` is set; that operation is `Completed` (the state the watcher records only after the harness's turn-end); and the source's `harness_session_id` is set. A turn running on the source is `ThreadBusy`; anything else is `ForkPointNotSupported`, including an entry with no `operation_id` and a turn that was stopped or failed. Widening it to any entry is a server change only, once the Context Compiler exists.
+- The fork's first opening (§12.2) calls `session/fork` on `fork_session_id`. The session it returns is recorded as the fork's own `harness_session_id` when the fork's first turn ends, by the rule of §12.3.
+- **Valid fork point in this milestone**, decided only from durable rows: `at_entry_id` is the source's highest-ordinal entry; its `operation_id` is set; that operation is `Completed`; and the source's `harness_session_id` is set. A turn running on the source is `ThreadBusy`; anything else is `ForkPointNotSupported`, including an entry with no `operation_id` and a turn that was stopped or failed. Widening it to any entry is a server change only, once the Context Compiler exists.
 
-> **To measure first** (the plan's first task, recorded in `docs/evidence/`):
-> 1. `--resume X --fork-session` leaves session X usable and reports a new session id on the stream.
-> 2. Which effort levels each catalogue model accepts, and what a refused one looks like.
-> 3. Whether `rate_limit_event` appears on every turn or only past a threshold.
-> 4. The `haiku` → `claude-sonnet-5` observation: what the last `assistant` line and `modelUsage` say for it.
-
-## 12.8 Protocol changes
+## 12.10 Protocol changes
 
 | Route | Change |
 |---|---|
-| `GET /api/harnesses` | new: catalogue, defaults, remembered model and effort, latest limits |
-| create thread | gains optional `harness` (default `claude-code`) |
+| `GET /api/harnesses` | new: each harness's kind, label, availability with a reason, remembered model and effort, latest limits |
+| `POST /api/threads/{id}/session` | new: open the thread's harness session (§12.2); answers the choices on offer — models, efforts of the current model, modes after §12.4's filter, current values. Idempotent: an open session answers what it holds |
+| `POST /api/threads/{id}/turns` | body becomes `{ command_id, prompt, model, mode, effort }` (§12.7) |
 | `PATCH /api/threads/{id}` | new: `{ command_id, harness }`; `HarnessLocked` for a new command once an Operation exists; a replay answers the thread as it stands |
+| create thread | gains optional `harness` (default `claude-code`) |
 | `GET /api/projects/{id}` | carries the allowed modes per harness |
 | `PATCH /api/projects/{id}` | new: `{ command_id, allowed_modes }` |
-| `POST /api/threads/{id}/turns` | body becomes `{ command_id, prompt, model, mode, effort }` (§12.5) |
-| `POST /api/threads/{id}/fork` | new, §12.7 |
+| `POST /api/threads/{id}/fork` | new, §12.9 |
 | thread snapshot, operation events | carry the invocation's requested and observed values |
-| SSE | new transient `limits` frame |
+| entries | a new kind, `PermissionRefused` |
+| SSE | new transient frames: `usage` (context and limits), `options` (the session's choices changed) |
 
 New stable error codes (§3.4):
 
 ```text
 HarnessUnavailable     422  the thread's harness is listed but not runnable
-SettingNotOffered      422  a model, mode or effort the harness does not list, has disabled,
-                            or (effort) the chosen model does not accept
+HarnessStartFailed     502  the adapter did not start or did not answer initialize / session setup
+SettingNotOffered      422  a model, mode or effort the session does not offer, or a mode outside the policy
 ModeNotAllowed         403  the project does not allow this mode
 HarnessLocked          409  the thread already ran a turn on its harness
 ThreadBusy             409  the thread has a turn running
 ForkPointNotSupported  422  fork from anything but the last completed entry
 ```
 
-## 12.9 Web client
+## 12.11 Web client
 
 Matches the mockup agreed on 2026-09-24:
 
+- **Opening a conversation** opens its session. Until the answer arrives the bar reads "Connecting to Claude Code…"; a failure shows the daemon's message and a retry. Never a spinner without words.
 - **Header:** CLI picker (`cli-picker.tsx`). Unavailable harnesses shown disabled as "coming". Changeable until the first turn, then shown with a lock.
-- **Under the message box**, flat, no border (`composer-bar.tsx`): left `+`, mode, folder; right model, effort, context ring. Modes the project does not allow are shown disabled with the reason. The effort menu follows the chosen model. When the observed model differs from the requested one, the reply shows both.
-- **Context ring** (`context-ring.tsx`): hover shows context used / window and percent, last turn's output tokens, five-hour and weekly utilisation with reset times, and "updated <time>".
+- **Under the message box**, flat, no border (`composer-bar.tsx`): left `+`, mode, folder; right model, effort, context ring. Every menu is built from the session's answer. Modes the project does not allow are shown disabled with the reason. The effort menu follows the chosen model. When the observed model differs from the requested one, the reply shows both.
+- **Context ring** (`context-ring.tsx`): §12.8's two levels; hover or click opens it at any time.
 - **Message actions** (`message-actions.tsx`): copy on every message, fork on the last one when the thread is idle; fork opens the new thread.
+- **A refused permission** renders as a quiet line: what was asked, that `acceptEdits` refused it, and that `auto` would allow it.
 - **Allowed modes:** a per-harness checklist on the project page.
 - New UI pieces are shadcn's `DropdownMenu` and `Tooltip` on the existing Base UI. No new library.
 
-## 12.10 How the work is split
+## 12.12 How the work is split
 
-Backend and web client are built by separate agents that do not touch each
-other's tree. The contract between them is `api/openapi.json`.
+**Phase A** is one backend agent. The HTTP contract does not change in Phase A
+except the `PermissionRefused` entry kind, so the web client is untouched.
+Phase A ends with Mohammed running a conversation, a Stop, and a daemon restart
+on the real adapter before Phase B starts.
 
-1. **Contract first.** The controller writes the draft `api/openapi.json` by hand from §12.8, including the SSE frame shapes, and commits it alone before any code.
-2. **Backend agent** owns `src/`, `tests/`, `migrations/`, and at the end regenerates `api/openapi.json` (`UPDATE_OPENAPI=1 cargo test --test openapi`). Its report lists every difference between what it generated and the draft, with the reason for each. It never opens `web/`.
+**Phase B** is built by two agents that do not touch each other's tree; the
+contract between them is `api/openapi.json`.
+
+1. **Contract first.** The controller writes the draft `api/openapi.json` by hand from §12.10, including the SSE frame shapes, and commits it alone before any code.
+2. **Backend agent** owns `src/`, `tests/`, `migrations/`, `harness/`, and at the end regenerates `api/openapi.json` (`UPDATE_OPENAPI=1 cargo test --test openapi`). Its report lists every difference between what it generated and the draft, with the reason for each. It never opens `web/`.
 3. **Web agent** owns `web/` only. It generates its types from the draft and tests against a fake daemon built from it. It never runs the daemon or opens `src/`.
 4. **A contract that is wrong or missing something** stops the agent that found it; it reports to the controller and changes neither the contract nor the other side.
 5. **Integration.** Each agent works in its own worktree. The controller merges both into one branch; the generated `api/openapi.json` replaces the draft; the web types are regenerated, and any type error is fixed in `web/` only.
 
-## 12.11 Acceptance
+## 12.13 Acceptance
 
 ```text
-[ ] the measurements in §12.7 are recorded in docs/evidence/
-[ ] GET /api/harnesses lists Claude Code (runnable) and Codex (not), with Claude's catalogue as in §12.2
+Phase A
+[ ] §12.3's measurements are recorded in docs/evidence/harness/ACP_PROBE.md
+[ ] a Planner turn runs over ACP on the pinned adapter; its reply streams live and its
+    messages are durable, one entry per message
+[ ] Stop ends a running turn: Cancelled after the harness confirms, or after the tree is
+    reaped when it does not; never before either
+[ ] a daemon restart leaves the conversation readable, and its next turn remembers it
+[ ] a permission request is refused and shows as a PermissionRefused entry
+[ ] the stream-json path and fake_claude are gone; tests run on fake_acp
+[ ] Mohammed runs a conversation, a Stop and a restart on the real adapter
+
+Phase B
+[ ] GET /api/harnesses lists Claude Code (runnable) and Codex (not)
+[ ] opening a session lists the models Claude offers today, with each model's efforts,
+    and only the modes §12.4 lets through
 [ ] a turn runs with the chosen model, mode and effort; its entry, operation, invocation and
-    command record commit in one transaction; its invocation holds path, version, requested
-    and observed values
+    command record commit in one transaction; the invocation holds both paths and versions,
+    requested and observed values
 [ ] a replayed turn start with the same CommandId returns the first result and starts nothing,
     even after the project's allowed modes changed; a changed body is CommandConflict
 [ ] a mode the project does not allow is refused by the daemon, not only hidden by the client
 [ ] the harness can be changed before the first turn and not after, enforced in storage
 [ ] a new conversation starts at Accept edits and at the last model and effort used
-[ ] the context ring shows the last-iteration figure, or "unavailable"; limits show their observed time
+[ ] the ring shows figures or "no figures yet" and never spins; limits show their observed time
 [ ] copy works on every message; fork from the last message opens a thread whose next turn
     remembers the conversation, and the source is unchanged
 [ ] one whole-branch review before the PR
