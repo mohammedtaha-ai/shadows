@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { FrameError, parseCaughtUp, parseDurable } from './frames'
+import { fakeChoices } from '@/test/contract-fixtures'
+import { FrameError, parseCaughtUp, parseDurable, parseOptions, parseUsage } from './frames'
 
 describe('frames', () => {
   it('reads a durable frame with its operation, its thread, and its payload object', () => {
@@ -30,5 +31,36 @@ describe('frames', () => {
   it('reads caught-up as a JSON object', () => {
     expect(parseCaughtUp('{"seq":12}')).toBe(12)
     expect(() => parseCaughtUp('12')).toThrow(FrameError)
+  })
+
+  it('parses a usage frame with limits', () => {
+    const u = parseUsage(
+      '{"thread_id":"t1","context_used":1234,"context_window":200000,"limits":{"five_hour":{"utilization":0.25,"resets_at":1790212200},"seven_day":null,"observed_at":"2026-09-24T02:49:00Z"}}',
+    )
+    expect(u.contextUsed).toBe(1234)
+    expect(u.limits?.fiveHour?.utilization).toBe(0.25)
+    expect(u.limits?.sevenDay).toBeNull()
+  })
+
+  it('reads a usage frame that reported nothing as nulls', () => {
+    const u = parseUsage('{"thread_id":"t1","context_used":null,"context_window":null,"limits":null}')
+    expect(u).toEqual({ threadId: 't1', contextUsed: null, contextWindow: null, limits: null })
+  })
+
+  it('refuses a usage frame without thread_id', () => {
+    expect(() => parseUsage('{"context_used":1,"context_window":2,"limits":null}')).toThrow(
+      FrameError,
+    )
+  })
+
+  it('parses an options frame', () => {
+    const o = parseOptions(JSON.stringify({ thread_id: 't1', choices: fakeChoices }))
+    expect(o.choices.models.map((m) => m.id)).toEqual(['fake-small', 'fake-large'])
+  })
+
+  it('refuses an options frame whose choices have no current settings', () => {
+    const { models, efforts, modes } = fakeChoices
+    const choices = { models, efforts, modes }
+    expect(() => parseOptions(JSON.stringify({ thread_id: 't1', choices }))).toThrow(FrameError)
   })
 })

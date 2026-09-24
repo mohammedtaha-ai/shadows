@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FakeSource } from './fake-event-source'
-import { type Options, ThreadStream } from './thread-stream'
+import { fakeChoices } from '@/test/contract-fixtures'
+import { type Notice, type Options, ThreadStream } from './thread-stream'
 
 function harness(options: Partial<Options> = {}) {
   const sources: FakeSource[] = []
@@ -198,5 +199,18 @@ describe('ThreadStream', () => {
       current().caughtUp(0)
       expect(stream.getState().connection).toBe('live')
     }
+  })
+
+  it('hands on usage and options frames as notices', () => {
+    const notices: Notice[] = []
+    const { stream, current } = harness({ onNotice: (n) => notices.push(n) })
+    stream.start()
+    current().emit(
+      'usage',
+      JSON.stringify({ thread_id: 't', context_used: 5, context_window: 10, limits: null }),
+    )
+    current().emit('options', JSON.stringify({ thread_id: 't', choices: fakeChoices }))
+    expect(notices.map((n) => n.type)).toEqual(['usage', 'options'])
+    expect(notices[1]).toEqual({ type: 'options', choices: fakeChoices })
   })
 })

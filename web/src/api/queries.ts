@@ -1,7 +1,14 @@
 // One job: the TanStack Query identity of each piece of daemon state.
 
 import { queryOptions } from '@tanstack/react-query'
-import { listDirs, listEntries, listOperations, listProjects, listThreads } from './client'
+import {
+  listDirs,
+  listEntries,
+  listHarnesses,
+  listOperations,
+  listProjects,
+  listThreads,
+} from './client'
 
 /** The project list, which the app shell also reads as "is the daemon there".
  *
@@ -18,6 +25,10 @@ export const projectsQuery = queryOptions({
   retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 4000),
   refetchInterval: (query) => (query.state.data === undefined ? false : 10_000),
 })
+
+/** The CLIs a conversation can run on (spec §12.10). Their limits move, so a
+ * screen that shows them refetches on focus like any other query. */
+export const harnessesQuery = queryOptions({ queryKey: ['harnesses'], queryFn: listHarnesses })
 
 /** A project's planning threads, oldest first. */
 export function threadsQuery(projectId: string) {

@@ -3,6 +3,8 @@
 // the OpenAPI document's `/api/subscribe` entry); OpenAPI cannot type them, so
 // they are checked here, and a frame that does not match is a protocol error.
 
+import type { AccountLimits, Choice, SessionChoices } from '@/api/client'
+
 /** One journal event. `operationId` and `threadId` are the ids the event
  * names, `null` where it names none; `payload` is the event's JSON payload. */
 export interface DurableEvent {
@@ -26,10 +28,40 @@ export interface TurnEnd {
   stopReason: string | null
 }
 
-/** Any other harness line, by label. Transient. */
+/** Any other harness line, by label. Transient. The daemon no longer sends
+ * it since the harness runs over ACP; a stream that does is still read. */
 export interface Meta {
   op: string
   label: string
+}
+
+/** One account limit window: `utilization` from 0 to 1, `resetsAt` in Unix seconds. */
+export interface LimitWindow {
+  utilization: number
+  resetsAt: number
+}
+
+/** The account's limits as the harness last reported them (spec §12.8). A
+ * window it did not report is `null`, never estimated. */
+export interface Limits {
+  fiveHour: LimitWindow | null
+  sevenDay: LimitWindow | null
+  observedAt: string
+}
+
+/** The session's context use and the account's limits, each `null` when the
+ * harness did not report it. Transient. */
+export interface UsageFrame {
+  threadId: string
+  contextUsed: number | null
+  contextWindow: number | null
+  limits: Limits | null
+}
+
+/** The session's choices changed. Transient. */
+export interface OptionsFrame {
+  threadId: string
+  choices: SessionChoices
 }
 
 export class FrameError extends Error {
@@ -95,6 +127,99 @@ export function parseMeta(data: string): Meta {
     throw new FrameError('meta', data)
   }
   return { op, label }
+}
+
+export function parseUsage(data: string): UsageFrame {
+  const frame = object('usage', data)
+  const threadId = frame.thread_id
+  const contextUsed = frame.context_used
+  const contextWindow = frame.context_window
+  const limits = frame.limits
+  if (
+    typeof threadId !== 'string' ||
+    !isCountOrNull(contextUsed) ||
+    !isCountOrNull(contextWindow) ||
+    !(limits === null || isAccountLimits(limits))
+  ) {
+    throw new FrameError('usage', data)
+  }
+  return { threadId, contextUsed, contextWindow, limits: limits === null ? null : toLimits(limits) }
+}
+
+export function parseOptions(data: string): OptionsFrame {
+  const frame = object('options', data)
+  const threadId = frame.thread_id
+  const choices = frame.choices
+  if (typeof threadId !== 'string' || !isSessionChoices(choices)) {
+    throw new FrameError('options', data)
+  }
+  return { threadId, choices }
+}
+
+/** The daemon's limits (as `GET /api/harnesses` also carries them) in this
+ * client's terms. */
+export function toLimits(limits: AccountLimits): Limits {
+  const window = (w: AccountLimits['five_hour']): LimitWindow | null =>
+    w === null ? null : { utilization: w.utilization, resetsAt: w.resets_at }
+  return {
+    fiveHour: window(limits.five_hour),
+    sevenDay: window(limits.seven_day),
+    observedAt: limits.observed_at,
+  }
+}
+
+function isCountOrNull(value: unknown): value is number | null {
+  return value === null || (typeof value === 'number' && Number.isFinite(value) && value >= 0)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isWindowOrNull(value: unknown): boolean {
+  return (
+    value === null ||
+    (isRecord(value) && typeof value.utilization === 'number' && typeof value.resets_at === 'number')
+  )
+}
+
+function isAccountLimits(value: unknown): value is AccountLimits {
+  return (
+    isRecord(value) &&
+    isWindowOrNull(value.five_hour) &&
+    isWindowOrNull(value.seven_day) &&
+    typeof value.observed_at === 'string'
+  )
+}
+
+function isStringOrNull(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
+function isChoice(value: unknown): value is Choice {
+  return (
+    isRecord(value) &&
+    typeof value.id === 'string' &&
+    typeof value.label === 'string' &&
+    isStringOrNull(value.description) &&
+    typeof value.enabled === 'boolean' &&
+    isStringOrNull(value.reason)
+  )
+}
+
+function isSessionChoices(value: unknown): value is SessionChoices {
+  if (!isRecord(value)) return false
+  const { models, efforts, modes, current } = value
+  const list = (v: unknown) => Array.isArray(v) && v.every(isChoice)
+  return (
+    list(models) &&
+    list(efforts) &&
+    list(modes) &&
+    isRecord(current) &&
+    typeof current.model === 'string' &&
+    typeof current.mode === 'string' &&
+    isStringOrNull(current.effort)
+  )
 }
 
 function isSeq(value: unknown): value is number {
