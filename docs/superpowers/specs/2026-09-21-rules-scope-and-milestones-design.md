@@ -163,7 +163,7 @@ Future PostgreSQL work must run the same semantic storage-contract suite.
 After Milestone 0 works, add features in user-visible slices rather than
 constructing the entire platform upfront:
 
-1. Workflow draft/freeze and task display;
+1. Workflow draft/freeze and task display — Milestone 2, §13;
 2. scheduler and execution;
 3. deterministic verification;
 4. context compilation and Claude/Codex continuity;

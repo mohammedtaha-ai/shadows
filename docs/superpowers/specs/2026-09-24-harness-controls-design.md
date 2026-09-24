@@ -328,7 +328,7 @@ matches returns the recorded result and starts nothing — answered before any
 other check, including the daemon stopping, and without opening a session,
 because the command already happened. A matching `command_id` with a different
 fingerprint is `CommandConflict`. The fingerprint covers the thread id, prompt,
-model, mode and effort.
+model, mode and effort, and from Milestone 2 the turn's `focus` (§13.10).
 
 **`agent_invocation`** is created in that transaction, before anything is sent
 (§2.7, §8.2). It answers §6.15's OPEN block with the explicit columns §6.15

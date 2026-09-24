@@ -91,6 +91,9 @@ Representative error codes:
 WorkflowInvalidTransition
 WorkflowFrozenImmutable
 WorkflowValidationFailed
+RevisionConflict     -- a plan edit based on a stale revision (§13.5); 409
+GrantScope           -- an MCP call outside its grant's thread or project (§13.6)
+GrantInvalid         -- an MCP grant revoked while its call was in flight (§13.7)
 
 AgentAuthFailed
 AgentUnsupportedProfile
