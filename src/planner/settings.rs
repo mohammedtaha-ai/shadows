@@ -1,17 +1,32 @@
 //! One job: setting an open session's options (spec §12.4, §12.7).
 //!
 //! Every `session/set_config_option` Shadows sends goes through here: the
-//! opening's default mode and remembered model and effort, and a turn's own
-//! settings before its prompt. The harness answers each with the complete
-//! set, which becomes the thread's latest offer (`offers.rs`).
+//! opening's default mode and remembered model and effort, the model a person
+//! picks, and a turn's own settings before its prompt. The harness answers
+//! each with the complete set, which becomes the thread's latest offer
+//! (`offers.rs`).
 
 use serde_json::Value;
 
-use super::{OpenSession, Sessions};
+use super::{LeaseError, OpenSession, Sessions};
 use crate::{
     agent::{TurnSettings, acp::AcpError, choices::Offered},
     thread::ThreadId,
 };
+
+/// Why the session's model was not changed (spec §12.7).
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ModelRefused {
+    /// The session's model list does not hold it.
+    #[error("the session does not offer this model")]
+    NotOffered,
+    /// The harness refused it, in its own words.
+    #[error("{0}")]
+    Harness(String),
+    /// The session could not be taken: a turn holds it, or it closed.
+    #[error(transparent)]
+    Lease(#[from] LeaseError),
+}
 
 impl Sessions {
     /// Sets one of the session's options. The harness answers the complete
@@ -28,6 +43,47 @@ impl Sessions {
             .set_option(&opened.session_id, config_id, value)
             .await?;
         self.offers.record(thread, &answer).map_err(AcpError::Rpc)
+    }
+
+    /// Sets the session to `model` as soon as a person picks it (§12.7), so
+    /// the efforts it answers are that model's before any turn. The session
+    /// is held the way a turn holds it, so neither a turn nor a `/context`
+    /// read runs while it changes; it is given back whatever the outcome.
+    /// Nothing durable is written: a turn records its own model.
+    pub async fn change_model(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+        model: &str,
+    ) -> Result<Offered, ModelRefused> {
+        let events = self.lease_events(thread, opened).await?;
+        let changed = self.set_model(thread, opened, model).await;
+        self.give_back_events(thread, opened, events).await;
+        changed
+    }
+
+    async fn set_model(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+        model: &str,
+    ) -> Result<Offered, ModelRefused> {
+        let offered = self
+            .offered(thread)
+            .await
+            .ok_or(ModelRefused::Lease(LeaseError::Closed))?;
+        if !offered.offers_model(model) {
+            return Err(ModelRefused::NotOffered);
+        }
+        if offered.current.model == model {
+            return Ok(offered);
+        }
+        let id = offered.ids.model.clone();
+        match self.set_option(thread, opened, &id, model).await {
+            Ok(next) => Ok(next),
+            Err(AcpError::Rpc(message)) => Err(ModelRefused::Harness(message)),
+            Err(AcpError::Closed) => Err(ModelRefused::Lease(LeaseError::Closed)),
+        }
     }
 
     /// §12.2: every opening sets the policy's default mode, since a new or

@@ -2,19 +2,21 @@
 //!
 //! `GET /api/harnesses` lists the CLIs a conversation can run on; `POST
 //! /api/threads/{id}/session` opens a thread's harness session and answers
-//! what it offers, after Shadows' policy and the project's allowed modes.
+//! what it offers, after Shadows' policy and the project's allowed modes;
+//! `PUT /api/threads/{id}/session/model` changes that session's model.
 
 use axum::Json;
 use axum::extract::{Path, State};
 
+use super::conversation::detached;
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
 use crate::agent::breakdown::Category;
 use crate::agent::choices::{Offered, SessionChoices, for_client};
 use crate::agent::events::AccountLimits;
 use crate::agent::policy;
-use crate::planner::OpenError;
-use crate::storage::Storage;
+use crate::planner::{LeaseError, ModelRefused, OpenError};
+use crate::storage::{Storage, StorageError};
 use crate::thread::ThreadId;
 
 /// The model and effort last chosen for this harness (spec §12.4).
@@ -140,6 +142,70 @@ pub(super) async fn open_session(
             Failure::harness_start_failed("the session closed as it opened".into())
         })?;
     Ok(Json(choices_for(&s.storage, &thread, &offered).await?))
+}
+
+/// The model a person picked (spec §12.7).
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct ChangeModel {
+    /// One of the session's `models`.
+    model: String,
+}
+
+/// Sets the thread's session to `model` as soon as a person picks it (spec
+/// §12.7), opening the session first if it is not open, and answers its
+/// choices exactly as `POST .../session` does — the efforts are now the new
+/// model's. Nothing durable is written and no `command_id` is carried:
+/// setting the same model twice is the same state, and a turn records its
+/// model in its own invocation. The remembered model does not move (§12.4).
+/// A running turn's session is not changed (`THREAD_BUSY`).
+#[utoipa::path(
+    put,
+    path = "/api/threads/{id}/session/model",
+    tag = "threads",
+    params(("id" = ThreadId, Path, description = "The thread")),
+    request_body = ChangeModel,
+    responses(
+        (status = 200, body = SessionChoices),
+        (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
+        (status = 409, description = "THREAD_BUSY: a turn is running; PATH_NOT_FOUND: the project's directory is gone or was never set", body = ErrorBody),
+        (status = 422, description = "SETTING_NOT_OFFERED: a model the session does not offer, or one the harness refused (its words in the message); HARNESS_UNAVAILABLE", body = ErrorBody),
+        (status = 502, description = "HARNESS_START_FAILED: the adapter did not start, or its session closed", body = ErrorBody),
+    )
+)]
+pub(super) async fn change_model(
+    State(s): State<AppState>,
+    Path(thread): Path<ThreadId>,
+    Json(body): Json<ChangeModel>,
+) -> Result<Json<SessionChoices>, Failure> {
+    let choices = detached(async move {
+        let context = s.storage.turn_context(&thread).await?;
+        if !policy::is_available(&context.harness) {
+            return Err(Failure::harness_unavailable(&context.harness));
+        }
+        if s.storage.thread_is_busy(&thread).await? {
+            return Err(StorageError::ThreadBusy.into());
+        }
+        let opened = s.sessions.open(&thread).await.map_err(open_failure)?;
+        let offered = s
+            .sessions
+            .change_model(&thread, &opened, &body.model)
+            .await
+            .map_err(|refused| match refused {
+                ModelRefused::NotOffered => {
+                    Failure::setting_not_offered("model", &body.model, None)
+                }
+                ModelRefused::Harness(message) => {
+                    Failure::setting_not_offered("model", &body.model, Some(&message))
+                }
+                ModelRefused::Lease(LeaseError::Busy) => StorageError::ThreadBusy.into(),
+                ModelRefused::Lease(e @ LeaseError::Closed) => {
+                    Failure::harness_start_failed(e.to_string())
+                }
+            })?;
+        choices_for(&s.storage, &thread, &offered).await
+    })
+    .await?;
+    Ok(Json(choices))
 }
 
 /// The context breakdown read on demand (spec §12.8): the categories, or none

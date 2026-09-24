@@ -453,13 +453,14 @@ impl LiveHandles {
 }
 ```
 
-## `src/planner/mod.rs` — 20 lines
+## `src/planner/mod.rs` — 21 lines
 
 ```rust
 pub use context::NoBreakdown;
 pub use handles::LiveHandles;
 pub(crate) use handles::LiveTurn;
 pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig};
+pub use settings::ModelRefused;
 pub use shutdown::shut_down;
 pub use spawn::{PlannerTurnRequest, StartError};
 pub use turn::{PlannerTurn, StopOutcome};
@@ -543,11 +544,17 @@ impl Sessions {
 pub(super) fn workspace(context: &TurnContext) -> Result<PathBuf, String>
 ```
 
-## `src/planner/settings.rs` — 150 lines
+## `src/planner/settings.rs` — 206 lines
 
 ```rust
+pub enum ModelRefused {
+    NotOffered,
+    Harness(String),
+    Lease(LeaseError),
+}
 impl Sessions {
     pub async fn set_option(&self, thread: &ThreadId, opened: &OpenSession, config_id: &str, value: &str) -> Result<Offered, AcpError>
+    pub async fn change_model(&self, thread: &ThreadId, opened: &OpenSession, model: &str) -> Result<Offered, ModelRefused>
     pub(super) async fn apply_opening_settings(&self, thread: &ThreadId, opened: &OpenSession, mut offered: Offered, default_mode: &str, remembered: Option<(String, Option<String>)>) -> Result<(), AcpError>
     pub(super) async fn prepare_turn(&self, thread: &ThreadId, opened: &OpenSession, settings: &TurnSettings) -> Result<(), String>
 }
@@ -704,7 +711,7 @@ pub struct Project {
 }
 ```
 
-## `src/protocol/conversation.rs` — 332 lines
+## `src/protocol/conversation.rs` — 333 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
@@ -714,6 +721,7 @@ pub(super) struct StartTurn {}
 pub(super) struct TurnStarted {}
 // + 1 private field
 pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<ThreadId>, Json(body): Json<StartTurn>) -> Result<(StatusCode, Json<TurnStarted>), Failure>
+pub(super) async fn detached<T: Send + 'static>(work: impl Future<Output = Result<T, Failure>> + Send + 'static) -> Result<T, Failure>
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
 ```
 
@@ -757,7 +765,7 @@ pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCod
 pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
 ```
 
-## `src/protocol/harness.rs` — 185 lines
+## `src/protocol/harness.rs` — 251 lines
 
 ```rust
 pub(super) struct RememberedSettings {}
@@ -768,12 +776,15 @@ pub(super) async fn list_harnesses(State(s): State<AppState>) -> Result<Json<Vec
 pub(super) fn open_failure(e: OpenError) -> Failure
 pub(super) async fn choices_for(storage: &Storage, thread: &ThreadId, offered: &Offered) -> Result<SessionChoices, Failure>
 pub(super) async fn open_session(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<SessionChoices>, Failure>
+pub(super) struct ChangeModel {}
+// + 1 private field
+pub(super) async fn change_model(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<ChangeModel>) -> Result<Json<SessionChoices>, Failure>
 pub(super) struct ContextBreakdown {}
 // + 2 private fields
 pub(super) async fn thread_context(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<ContextBreakdown>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 165 lines
+## `src/protocol/mod.rs` — 166 lines
 
 ```rust
 pub use failure::Failure;
@@ -825,7 +836,7 @@ pub struct SubscribeQuery {
 pub async fn subscribe(State(state): State<AppState>, Query(q): Query<SubscribeQuery>) -> Sse<ReceiverStream<Result<Event, Infallible>>>
 ```
 
-## `src/protocol/thread.rs` — 109 lines
+## `src/protocol/thread.rs` — 110 lines
 
 ```rust
 pub(super) struct UpdateThread {}
@@ -1012,7 +1023,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/thread.rs` — 283 lines
+## `src/storage/sqlite/thread.rs` — 284 lines
 
 ```rust
 impl Storage {

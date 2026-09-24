@@ -6,6 +6,7 @@ use serde_json::{Value, json};
 use shadows::events::Actor;
 use shadows::operation::OperationId;
 use shadows::planner::PlannerTurn;
+use shadows::storage::StorageError;
 use shadows::thread::ThreadId;
 
 #[path = "fixtures/acp.rs"]
@@ -181,6 +182,43 @@ async fn fork_while_a_turn_runs_is_thread_busy_and_a_replay_returns_the_same_for
     let _running = start_settled(&app, "hang").await;
     let (s, body) = fork_last_raw_with(&app, "f2").await;
     assert_eq!((s, body["code"].as_str()), (409, Some("THREAD_BUSY")));
+}
+
+/// §12.6, §12.9: a fork's session is a fork of its source's, which no other
+/// harness could continue, so its harness is locked from birth — before it
+/// has an operation of its own — in the route, the storage call and the
+/// trigger below both.
+#[tokio::test]
+async fn a_fork_is_locked_to_its_sources_harness_from_birth() {
+    let app = test_app().await;
+    start_and_finish(&app, "hello", default_settings()).await;
+    let fork = fork_last(&app).await;
+    let fork_id = fork["id"].as_str().unwrap();
+    let (s, b) = app::patch(
+        &app,
+        &format!("/api/threads/{fork_id}"),
+        json!({ "command_id": "h1", "harness": "codex" }),
+    )
+    .await;
+    assert_eq!(
+        (s, b["code"].as_str()),
+        (409, Some("HARNESS_LOCKED")),
+        "{b}"
+    );
+
+    let thread = ThreadId::from_literal(fork_id);
+    let direct = app
+        .storage
+        .set_thread_harness(&app::ctx("h2", "thread.harness"), &thread, "codex")
+        .await;
+    assert!(matches!(direct, Err(StorageError::HarnessLocked)));
+    let raw = sqlx::query("UPDATE planning_thread SET harness_kind = 'codex' WHERE id = ?")
+        .bind(fork_id)
+        .execute(app.storage.reader())
+        .await;
+    assert!(raw.is_err(), "the trigger must refuse a raw update too");
+    let ctx = app.storage.turn_context(&thread).await.unwrap();
+    assert_eq!(ctx.harness, "claude-code");
 }
 
 async fn wait_for_delta(

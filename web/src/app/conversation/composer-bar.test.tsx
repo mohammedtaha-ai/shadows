@@ -7,7 +7,7 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { completedOperation, fakeChoices } from '@/test/contract-fixtures'
+import { choice, completedOperation, fakeChoices, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, choose, menuItem, startApp, typeInto, until } from '../test-app'
 
@@ -128,19 +128,87 @@ describe('the composer bar', () => {
     const app = await start('/projects/p1/threads/t1', answers())
     await until(ready(app))
     await choose(app, 'Accept edits', 'Auto')
+    // The daemon answers the model change with the session's choices, whose
+    // current mode is acceptEdits.
     await choose(app, 'fake-large', 'fake-small')
-    // the daemon answers the model change with an options frame whose current mode is acceptEdits
-    act(() =>
-      app.pushFrame('options', {
-        thread_id: 't1',
-        choices: {
-          ...fakeChoices,
-          current: { model: 'fake-small', mode: 'acceptEdits', effort: 'high' },
-        },
-      }),
-    )
     await until(() => app.text().includes('fake-small does not offer Auto; switched to Accept edits'))
     expect(app.button('Accept edits')).toBeDefined()
+  })
+
+  it('picking a model sets it on the session at once, so its efforts show before Send', async () => {
+    let release!: () => void
+    const small = {
+      ...fakeChoices,
+      efforts: [choice('low'), choice('high')],
+      current: { ...fakeChoices.current, model: 'fake-small' },
+    }
+    const app = await start(
+      '/projects/p1/threads/t1',
+      answers({
+        model: () =>
+          new Promise<Response>((r) => {
+            release = () => r(Response.json(small))
+          }),
+      }),
+    )
+    await until(ready(app))
+    await choose(app, 'high', 'max')
+    await until(() => app.button('max') !== undefined)
+    await choose(app, 'fake-large', 'fake-small')
+    await until(() => app.bodies.length > 0)
+    expect(app.calls.at(-1)).toBe('PUT /api/threads/t1/session/model')
+    expect(app.bodies.at(-1)).toEqual({ model: 'fake-small' })
+    // While the session changes, the effort menu is off and Send waits.
+    typeInto(textarea(app), 'hi')
+    expect(app.button('max')?.disabled).toBe(true)
+    expect(app.button('Send')?.disabled).toBe(true)
+    act(() => release())
+    // fake-small offers no max: the effort moves to one it offers.
+    await until(() => app.button('low')?.disabled === false)
+    act(() => app.button('low')?.click())
+    await until(() => menuItem('high') !== undefined)
+    expect(menuItem('max')).toBeUndefined()
+    expect(app.button('Send')?.disabled).toBe(false)
+    expect(turnStarts(app)).toBe(0)
+  })
+
+  it('a model the harness refuses goes back to the session’s, with its words', async () => {
+    const message = 'model fake-small was refused by the harness: Usage credits are required'
+    const app = await start(
+      '/projects/p1/threads/t1',
+      answers({
+        model: () => Response.json({ code: 'SETTING_NOT_OFFERED', message }, { status: 422 }),
+      }),
+    )
+    await until(ready(app))
+    await choose(app, 'fake-large', 'fake-small')
+    await until(() => app.text().includes(message))
+    expect(app.button('fake-large')).toBeDefined()
+    expect(app.button('fake-small')).toBeUndefined()
+    expect(app.button('high')?.disabled).toBe(false)
+  })
+
+  it('the mode menu says plainly what Accept edits allows', async () => {
+    const app = await start('/projects/p1/threads/t1', answers())
+    await until(ready(app))
+    act(() => app.button('Accept edits')?.click())
+    await until(() => menuItem('Accept edits') !== undefined)
+    expect(menuItem('Accept edits')?.textContent).toContain(
+      'Claude Code edits, creates and deletes files in the project folder without asking. Other commands are refused.',
+    )
+    expect(menuItem('Auto')?.textContent).toContain(
+      'Claude Code decides on its own; nothing is asked.',
+    )
+  })
+
+  it('a fresh fork shows the CLI locked before any turn', async () => {
+    const app = await start('/projects/p1/threads/t1', {
+      ...answers({ operations: [] }),
+      'GET /api/projects/p1/threads': [{ ...threadFixture, forked_from_thread: 't0' }],
+    })
+    await until(
+      () => app.container.querySelector('[aria-label="CLI locked for this conversation"]') !== null,
+    )
   })
 
   it('the CLI picker changes the harness before the first turn and shows a lock after', async () => {

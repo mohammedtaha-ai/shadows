@@ -113,6 +113,7 @@ fn the_document_names_every_route() {
             "POST /api/threads/{id}/fork",
             "POST /api/threads/{id}/session",
             "POST /api/threads/{id}/turns",
+            "PUT /api/threads/{id}/session/model",
         ]
     );
 }

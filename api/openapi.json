@@ -51,6 +51,19 @@
         ],
         "type": "object"
       },
+      "ChangeModel": {
+        "description": "The model a person picked (spec §12.7).",
+        "properties": {
+          "model": {
+            "description": "One of the session's `models`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "type": "object"
+      },
       "Choice": {
         "description": "One value the session offers for a setting (spec §12.4). `enabled: false`\ncarries the `reason` it cannot be chosen.",
         "properties": {
@@ -884,7 +897,7 @@
         "type": "object"
       },
       "UpdateThread": {
-        "description": "Changes the thread's CLI. Refused once the thread has run a turn\n(`HARNESS_LOCKED`).",
+        "description": "Changes the thread's CLI. Refused once the thread has run a turn, and on\na fork from birth (`HARNESS_LOCKED`).",
         "properties": {
           "command_id": {
             "description": "The idempotency key (spec §3.2), scoped to the thread.",
@@ -1585,7 +1598,7 @@
                 }
               }
             },
-            "description": "HARNESS_LOCKED: the thread already ran a turn on its harness, or COMMAND_CONFLICT"
+            "description": "HARNESS_LOCKED: the thread already ran a turn on its harness, or is a fork; or COMMAND_CONFLICT"
           },
           "422": {
             "content": {
@@ -1598,7 +1611,7 @@
             "description": "SETTING_NOT_OFFERED: a harness Shadows does not know"
           }
         },
-        "summary": "Changes the thread's CLI before its first turn (spec §12.6). A replay\nanswers the thread as it now stands and changes nothing, even once the\nharness is locked; a new command after the first turn is\n`HARNESS_LOCKED`. A change closes the thread's adapter (§12.2).",
+        "summary": "Changes the thread's CLI before its first turn (spec §12.6). A replay\nanswers the thread as it now stands and changes nothing, even once the\nharness is locked; a new command after the first turn, or on a fork (its\nsession is a fork of its source's, §12.9), is `HARNESS_LOCKED`. A change\ncloses the thread's adapter (§12.2).",
         "tags": [
           "threads"
         ]
@@ -1885,6 +1898,88 @@
           }
         },
         "summary": "Opens the thread's harness session (spec §12.2) and answers what it\noffers. Idempotent: an open session answers what it holds. A client calls\nit when it shows the conversation, so the menus are ready before the\nfirst message.",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/api/threads/{id}/session/model": {
+      "put": {
+        "operationId": "change_model",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeModel"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionChoices"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such thread"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "THREAD_BUSY: a turn is running; PATH_NOT_FOUND: the project's directory is gone or was never set"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "SETTING_NOT_OFFERED: a model the session does not offer, or one the harness refused (its words in the message); HARNESS_UNAVAILABLE"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_START_FAILED: the adapter did not start, or its session closed"
+          }
+        },
+        "summary": "Sets the thread's session to `model` as soon as a person picks it (spec\n§12.7), opening the session first if it is not open, and answers its\nchoices exactly as `POST .../session` does — the efforts are now the new\nmodel's. Nothing durable is written and no `command_id` is carried:\nsetting the same model twice is the same state, and a turn records its\nmodel in its own invocation. The remembered model does not move (§12.4).\nA running turn's session is not changed (`THREAD_BUSY`).",
         "tags": [
           "threads"
         ]

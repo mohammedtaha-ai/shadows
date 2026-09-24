@@ -158,6 +158,85 @@ async fn a_change_to_the_offer_reaches_a_subscriber_as_an_options_frame() {
     assert_eq!(names(&frame["choices"]["modes"]), ["acceptEdits", "auto"]);
 }
 
+fn model_path(app: &app::App) -> String {
+    format!("/api/threads/{}/session/model", app.thread)
+}
+
+async fn put_model(app: &app::App, model: &str) -> (u16, Value) {
+    app::call(
+        app,
+        "PUT",
+        &model_path(app),
+        Some(json!({ "model": model })),
+    )
+    .await
+}
+
+/// §12.7: a picked model is set at once, so the efforts answered are its own
+/// before any turn; the session need not be open, and nothing is remembered.
+#[tokio::test]
+async fn picking_a_model_answers_that_models_efforts() {
+    let app = test_app().await;
+    let (s, c) = put_model(&app, "fake-small").await;
+    assert_eq!(s, 200, "{c}");
+    assert_eq!(c["current"]["model"], "fake-small");
+    assert_eq!(names(&c["efforts"]), ["low", "high"]);
+    assert_eq!(names(&c["modes"]), ["acceptEdits", "auto"]);
+
+    let (s, c) = put_model(&app, "fake-tiny").await;
+    assert_eq!((s, names(&c["efforts"])), (200, Vec::<String>::new()));
+    let (_, again) = put_model(&app, "fake-tiny").await;
+    assert_eq!(again, c, "the same model twice is the same state");
+    let (_, opened) = post(&app, &session_path(&app), json!({})).await;
+    assert_eq!(opened, c, "the session answers the model it now holds");
+
+    let h: Vec<Value> = get_json(&app, "/api/harnesses").await;
+    assert!(h[0]["remembered"].is_null(), "only a turn is remembered");
+    assert_eq!(app.sessions.live_count().await, 1);
+}
+
+#[tokio::test]
+async fn a_model_the_session_does_not_list_is_not_offered() {
+    let app = test_app().await;
+    let (s, b) = put_model(&app, "retired-model").await;
+    assert_eq!((s, b["code"].as_str()), (422, Some("SETTING_NOT_OFFERED")));
+    let (_, c) = post(&app, &session_path(&app), json!({})).await;
+    assert_eq!(
+        c["current"]["model"], "fake-large",
+        "the session is unchanged"
+    );
+}
+
+#[tokio::test]
+async fn a_model_the_harness_refuses_is_not_offered_in_its_words() {
+    let app = test_app().await;
+    let (s, b) = put_model(&app, "fake-locked").await;
+    assert_eq!((s, b["code"].as_str()), (422, Some("SETTING_NOT_OFFERED")));
+    let message = b["message"].as_str().unwrap();
+    assert!(
+        message.contains("Usage credits are required for this model"),
+        "{message}"
+    );
+    let (_, c) = post(&app, &session_path(&app), json!({})).await;
+    assert_eq!(c["current"]["model"], "fake-large");
+}
+
+#[tokio::test]
+async fn a_running_turns_model_is_not_changed() {
+    let app = test_app().await;
+    let op = app::start_settled(&app, "hang").await;
+    let (s, b) = put_model(&app, "fake-small").await;
+    assert_eq!((s, b["code"].as_str()), (409, Some("THREAD_BUSY")), "{b}");
+    let (s, _) = post(&app, &format!("/api/operations/{op}/stop"), json!({})).await;
+    assert_eq!(s, 200);
+    app::wait_terminal(&app, &op).await;
+    let (s, c) = put_model(&app, "fake-small").await;
+    assert_eq!(
+        (s, c["current"]["model"].as_str()),
+        (200, Some("fake-small"))
+    );
+}
+
 #[tokio::test]
 async fn an_unknown_thread_is_not_found() {
     let app = test_app().await;
