@@ -94,7 +94,10 @@ and Claude's (§12.7).
    `session/fork` (a fork's first opening, §12.9), with the project directory
    as `cwd`. The answer carries the choices the harness offers (§12.4).
 2. **Idle.** An adapter with no turn running for **15 minutes** is closed. The
-   next opening starts a new one and resumes the same harness session.
+   next opening starts a new one and resumes the same harness session if its id
+   was recorded by a finished turn (§12.3). Before the first turn finishes,
+   closing the adapter discards its unrecorded session id; the next opening
+   starts a new session.
 3. **Switching harness** before the first turn (§12.6) closes the thread's
    adapter.
 4. **Shutdown** (§8.5) stops every running turn, then closes every adapter.
