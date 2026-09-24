@@ -9,6 +9,7 @@ use axum::extract::{Path, State};
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
+use crate::agent::breakdown::Category;
 use crate::agent::choices::{Offered, SessionChoices, for_client};
 use crate::agent::events::AccountLimits;
 use crate::agent::policy;
@@ -135,4 +136,44 @@ pub(super) async fn open_session(
             Failure::harness_start_failed("the session closed as it opened".into())
         })?;
     Ok(Json(choices_for(&s.storage, &thread, &offered).await?))
+}
+
+/// The context breakdown read on demand (spec §12.8): the categories, or none
+/// with the reason.
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub(super) struct ContextBreakdown {
+    categories: Option<Vec<Category>>,
+    reason: Option<String>,
+}
+
+/// The context breakdown of the thread's session, read on demand (spec
+/// §12.8). It is fetched only on an open, idle session that has answered a
+/// turn, within five seconds; otherwise it says why it has none. Nothing is
+/// written: no operation, no entry.
+#[utoipa::path(
+    get,
+    path = "/api/threads/{id}/context",
+    tag = "threads",
+    params(("id" = ThreadId, Path, description = "The thread")),
+    responses(
+        (status = 200, body = ContextBreakdown),
+        (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn thread_context(
+    State(s): State<AppState>,
+    Path(thread): Path<ThreadId>,
+) -> Result<Json<ContextBreakdown>, Failure> {
+    s.storage.turn_context(&thread).await?;
+    Ok(Json(match s.sessions.context(&thread).await {
+        Ok(categories) => ContextBreakdown {
+            categories: Some(categories),
+            reason: None,
+        },
+        Err(why) => ContextBreakdown {
+            categories: None,
+            reason: Some(why.reason().to_string()),
+        },
+    }))
 }

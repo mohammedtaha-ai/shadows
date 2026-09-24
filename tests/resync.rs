@@ -303,7 +303,7 @@ async fn operation_transitions_reach_their_threads_stream() {
     );
 
     storage
-        .mark_operation_completed(&op, serde_json::json!({}))
+        .mark_operation_completed(&op, serde_json::json!({}), &Default::default())
         .await
         .unwrap();
     let text = stream.read_until("OperationCompleted").await;

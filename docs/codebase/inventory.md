@@ -48,6 +48,17 @@ impl Connection {
 }
 ```
 
+## `src/agent/breakdown.rs` — 86 lines
+
+```rust
+pub struct Category {
+    pub name: String,
+    pub tokens: u64,
+    pub percent: f64,
+}
+pub fn parse(markdown: &str) -> Option<Vec<Category>>
+```
+
 ## `src/agent/choices.rs` — 348 lines
 
 ```rust
@@ -103,7 +114,7 @@ impl ClaudeAdapter {
 }
 ```
 
-## `src/agent/events.rs` — 50 lines
+## `src/agent/events.rs` — 137 lines
 
 ```rust
 pub enum HarnessEvent {
@@ -123,9 +134,18 @@ pub struct AccountLimits {
     pub seven_day: Option<LimitWindow>,
     pub observed_at: String,
 }
+pub fn limits_from(rate_limit: &Value, observed_at: &str) -> Option<AccountLimits>
+pub struct TurnObservation {
+    pub observed_model: Option<String>,
+    pub context_used: Option<u64>,
+    pub context_window: Option<u64>,
+}
+impl TurnObservation {
+    pub fn from_usage(last: Option<&HarnessEvent>) -> Self
+}
 ```
 
-## `src/agent/mod.rs` — 14 lines
+## `src/agent/mod.rs` — 15 lines
 
 ```rust
 pub struct TurnSettings {
@@ -369,6 +389,25 @@ pub struct InvocationView {
 }
 ```
 
+## `src/planner/context.rs` — 99 lines
+
+```rust
+pub enum NoBreakdown {
+    NotOpen,
+    NoTurnYet,
+    Busy,
+    TimedOut,
+    Unreadable,
+}
+impl NoBreakdown {
+    pub fn reason(self) -> &'static str
+}
+
+impl Sessions {
+    pub async fn context(&self, thread: &ThreadId) -> Result<Vec<Category>, NoBreakdown>
+}
+```
+
 ## `src/planner/entries.rs` — 151 lines
 
 ```rust
@@ -412,9 +451,10 @@ impl LiveHandles {
 }
 ```
 
-## `src/planner/mod.rs` — 17 lines
+## `src/planner/mod.rs` — 19 lines
 
 ```rust
+pub use context::NoBreakdown;
 pub use handles::LiveHandles;
 pub(crate) use handles::LiveTurn;
 pub use sessions::{OpenError, OpenSession, Sessions, SessionsConfig};
@@ -439,12 +479,13 @@ impl Offers {
 pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, mut from: mpsc::UnboundedReceiver<HarnessEvent>, to: mpsc::UnboundedSender<HarnessEvent>)
 ```
 
-## `src/planner/sessions.rs` — 444 lines
+## `src/planner/sessions.rs` — 459 lines
 
 ```rust
 pub struct SessionsConfig {
     pub idle_after: Duration,
     pub cancel_wait: Duration,
+    pub context_wait: Duration,
 }
 pub enum OpenError {
     Storage(StorageError),
@@ -460,8 +501,18 @@ impl OpenSession {
     pub fn connection(&self) -> &Connection
 }
 
-pub struct Sessions {}
-// + 5 private fields
+pub(super) struct Live {
+    pub(super) handle: ProcessHandle,
+    pub(super) opened: OpenSession,
+    pub(super) events: Option<mpsc::UnboundedReceiver<HarnessEvent>>,
+    pub(super) answered: bool,
+}
+// + 1 private field
+pub struct Sessions {
+    pub(super) config: SessionsConfig,
+    pub(super) live: Mutex<HashMap<ThreadId, Live>>,
+}
+// + 3 private fields
 impl Sessions {
     pub fn new(adapter: Arc<ClaudeAdapter>, storage: Storage, config: SessionsConfig) -> Arc<Self>
     pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError>
@@ -470,6 +521,7 @@ impl Sessions {
     pub fn watch_options(&self) -> broadcast::Receiver<(ThreadId, Offered)>
     pub async fn take_events(&self, thread: &ThreadId) -> Option<mpsc::UnboundedReceiver<HarnessEvent>>
     pub async fn give_back_events(&self, thread: &ThreadId, rx: mpsc::UnboundedReceiver<HarnessEvent>)
+    pub async fn mark_answered(&self, thread: &ThreadId)
     pub async fn touch(&self, thread: &ThreadId)
     pub async fn cancel(&self, thread: &ThreadId)
     pub async fn terminate(&self, thread: &ThreadId) -> io::Result<()>
@@ -490,7 +542,7 @@ pub(super) fn workspace(context: &TurnContext) -> Result<PathBuf, String>
 pub async fn shut_down(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, confirm_within: Duration, escalate: impl Future<Output = ()>) -> Result<StopKind, StorageError>
 ```
 
-## `src/planner/spawn.rs` — 159 lines
+## `src/planner/spawn.rs` — 161 lines
 
 ```rust
 pub enum StartError {
@@ -508,7 +560,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/planner/turn.rs` — 262 lines
+## `src/planner/turn.rs` — 294 lines
 
 ```rust
 pub struct PlannerTurn;
@@ -525,6 +577,7 @@ pub(crate) struct TurnWatch {
     pub sessions: Arc<Sessions>,
     pub opened: OpenSession,
     pub thread_id: ThreadId,
+    pub harness: String,
     pub prompt: String,
     pub events: Option<mpsc::UnboundedReceiver<HarnessEvent>>,
     pub turn_end_seen: Arc<AtomicBool>,
@@ -686,7 +739,7 @@ pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCod
 pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
 ```
 
-## `src/protocol/harness.rs` — 138 lines
+## `src/protocol/harness.rs` — 179 lines
 
 ```rust
 pub(super) struct RememberedSettings {}
@@ -697,9 +750,12 @@ pub(super) async fn list_harnesses(State(s): State<AppState>) -> Result<Json<Vec
 pub(super) fn open_failure(e: OpenError) -> Failure
 pub(super) async fn choices_for(storage: &Storage, thread: &ThreadId, offered: &Offered) -> Result<SessionChoices, Failure>
 pub(super) async fn open_session(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<SessionChoices>, Failure>
+pub(super) struct ContextBreakdown {}
+// + 2 private fields
+pub(super) async fn thread_context(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<ContextBreakdown>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 159 lines
+## `src/protocol/mod.rs` — 160 lines
 
 ```rust
 pub use failure::Failure;
@@ -738,7 +794,7 @@ pub(super) struct CreateThread {}
 pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<PlanningThread>, Failure>
 ```
 
-## `src/protocol/sse.rs` — 295 lines
+## `src/protocol/sse.rs` — 328 lines
 
 ```rust
 pub struct SubscribeQuery {
@@ -860,14 +916,14 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/operation.rs` — 314 lines
+## `src/storage/sqlite/operation.rs` — 334 lines
 
 ```rust
 pub(super) async fn insert_pending(conn: &mut SqliteConnection, op_id: &OperationId, thread_id: &ThreadId, runtime_id: &RuntimeInstanceId, ts: &str) -> Result<Transition, StorageError>
 impl Storage {
     pub async fn create_pending_operation(&self, thread_id: &ThreadId, runtime_instance_id: &RuntimeInstanceId) -> Result<OperationId, StorageError>
     pub async fn mark_operation_started(&self, op_id: &OperationId, expected_runtime: &RuntimeInstanceId) -> Result<(), StorageError>
-    pub async fn mark_operation_completed(&self, op_id: &OperationId, outcome: serde_json::Value) -> Result<(), StorageError>
+    pub async fn mark_operation_completed(&self, op_id: &OperationId, outcome: serde_json::Value, observation: &TurnObservation) -> Result<(), StorageError>
     pub async fn mark_operation_failed(&self, op_id: &OperationId, stage: FailureStage, reason: &str) -> Result<(), StorageError>
     pub async fn request_cancellation(&self, op_id: &OperationId, requester: Actor) -> Result<(), StorageError>
     pub async fn mark_operation_cancelled(&self, op_id: &OperationId) -> Result<(), StorageError>

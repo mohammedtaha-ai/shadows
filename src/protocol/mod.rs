@@ -123,6 +123,7 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(conversation::stop_turn))
         .routes(routes!(harness::list_harnesses))
         .routes(routes!(harness::open_session))
+        .routes(routes!(harness::thread_context))
         .routes(routes!(sse::subscribe))
         .routes(routes!(fs::list_dirs, fs::create_dir))
         .routes(routes!(openapi::serve))

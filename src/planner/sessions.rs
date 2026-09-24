@@ -27,6 +27,8 @@ use crate::{
 pub struct SessionsConfig {
     pub idle_after: Duration,
     pub cancel_wait: Duration,
+    /// How long the on-demand context breakdown waits for `/context` (§12.8).
+    pub context_wait: Duration,
 }
 
 impl Default for SessionsConfig {
@@ -34,6 +36,7 @@ impl Default for SessionsConfig {
         Self {
             idle_after: Duration::from_secs(15 * 60),
             cancel_wait: Duration::from_secs(10),
+            context_wait: Duration::from_secs(5),
         }
     }
 }
@@ -65,18 +68,22 @@ impl OpenSession {
     }
 }
 
-struct Live {
-    handle: ProcessHandle,
-    opened: OpenSession,
-    events: Option<mpsc::UnboundedReceiver<HarnessEvent>>,
+pub(super) struct Live {
+    pub(super) handle: ProcessHandle,
+    pub(super) opened: OpenSession,
+    /// `None` while a turn (or a `/context` read) has taken them.
+    pub(super) events: Option<mpsc::UnboundedReceiver<HarnessEvent>>,
     last_used: Instant,
+    /// Whether a Planner turn has answered in this adapter: before one has,
+    /// `/context` can stall a fresh session for tens of seconds (§12.8).
+    pub(super) answered: bool,
 }
 
 pub struct Sessions {
     adapter: Arc<ClaudeAdapter>,
     storage: Storage,
-    config: SessionsConfig,
-    live: Mutex<HashMap<ThreadId, Live>>,
+    pub(super) config: SessionsConfig,
+    pub(super) live: Mutex<HashMap<ThreadId, Live>>,
     offers: Arc<Offers>,
 }
 
@@ -180,6 +187,7 @@ impl Sessions {
                 opened: opened.clone(),
                 events: Some(rx),
                 last_used: Instant::now(),
+                answered: false,
             },
         );
         Ok(opened)
@@ -303,6 +311,13 @@ impl Sessions {
         if let Some(item) = self.live.lock().await.get_mut(thread) {
             item.events = Some(rx);
             item.last_used = Instant::now();
+        }
+    }
+
+    /// Records that a Planner turn has answered in the thread's adapter.
+    pub async fn mark_answered(&self, thread: &ThreadId) {
+        if let Some(item) = self.live.lock().await.get_mut(thread) {
+            item.answered = true;
         }
     }
 

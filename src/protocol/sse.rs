@@ -161,7 +161,13 @@ async fn stream(
                 if thread_id != q.thread_id {
                     continue;
                 }
-                let Some(ev) = transient_event(&op_id, item) else {
+                let ev = match item {
+                    HarnessEvent::Usage { used, size, .. } => {
+                        usage_event(&state, &thread_id, used, size).await
+                    }
+                    item => transient_event(&op_id, item),
+                };
+                let Some(ev) = ev else {
                     continue;
                 };
                 if tx.send(Ok(ev)).await.is_err() {
@@ -193,12 +199,17 @@ replay and live alike; remember the highest `seq` and resubscribe with it as `af
 - `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n\
 - `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n\
 - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n\
+- `usage` — `{thread_id, context_used, context_window, limits}`: the session's \
+context use and the account's limits as the harness last reported them; each is \
+`null` when not reported. Transient.\n\
 - `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.\n\
 - `lagged` — empty: this client fell behind and transient frames were dropped; \
 durable ones were not.\n\
 - `fatal` — data is a message as plain text: the journal could not be read and \
 the stream ends.\n\n\
-The stream also ends when the daemon stops. Reconnect with the last `seq`.";
+The stream also ends when the daemon stops. Reconnect with the last `seq`.\n\n\
+A `durable` frame of kind `OperationCompleted` carries `payload.invocation`: the \
+turn's `InvocationView`.";
 
 /// Sends every journal event for `thread_id` after `last_seq`, advancing it.
 /// `Err` means the stream is over and says why: the client left, or storage
@@ -263,6 +274,28 @@ async fn send_journal_after(
     }
 }
 
+/// The `usage` frame: a usage report as it arrives, with the harness's latest
+/// limits, which the watcher recorded before publishing it (§12.8). A `size`
+/// of 0 is no window.
+async fn usage_event(state: &AppState, thread: &ThreadId, used: u64, size: u64) -> Option<Event> {
+    let limits = match state.storage.turn_context(thread).await {
+        Ok(context) => state
+            .storage
+            .latest_limits(&context.harness)
+            .await
+            .ok()
+            .flatten(),
+        Err(_) => None,
+    };
+    let frame = serde_json::json!({
+        "thread_id": thread,
+        "context_used": used,
+        "context_window": (size > 0).then_some(size),
+        "limits": limits,
+    });
+    Some(Event::default().event("usage").data(frame.to_string()))
+}
+
 /// The `options` frame: the thread's new offer as a client sees it (§12.4).
 /// `None` when the thread's policy cannot be read; the next opening answers.
 async fn options_event(state: &AppState, thread: &ThreadId, offered: &Offered) -> Option<Event> {
@@ -277,7 +310,7 @@ async fn options_event(state: &AppState, thread: &ThreadId, offered: &Offered) -
 }
 
 /// The SSE form of a transient bus item, or `None` for one this stream does
-/// not forward yet (`usage` and `options` frames arrive in Phase B, §12).
+/// not forward: entries arrive durable, options through `options_event`.
 fn transient_event(op_id: &OperationId, item: HarnessEvent) -> Option<Event> {
     Some(match item {
         HarnessEvent::Chunk { text, .. } => Event::default()

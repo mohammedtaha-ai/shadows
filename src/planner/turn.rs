@@ -41,7 +41,7 @@ use super::{
 use crate::{
     agent::{
         acp::{AcpError, TurnEnd},
-        events::HarnessEvent,
+        events::{HarnessEvent, TurnObservation, limits_from},
     },
     events::Actor,
     operation::{FailureStage, OperationId},
@@ -75,6 +75,8 @@ pub(crate) struct TurnWatch {
     pub sessions: Arc<Sessions>,
     pub opened: OpenSession,
     pub thread_id: ThreadId,
+    /// The thread's harness, whose account limits a usage report updates.
+    pub harness: String,
     pub prompt: String,
     pub events: Option<mpsc::UnboundedReceiver<HarnessEvent>>,
     pub turn_end_seen: Arc<AtomicBool>,
@@ -128,11 +130,25 @@ async fn accept(
     collector: &mut Collector,
     bus: &broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
     first: &mut bool,
+    last_usage: &mut Option<HarnessEvent>,
     e: HarnessEvent,
 ) {
     if *first && matches!(e, HarnessEvent::Chunk { .. }) {
         *first = false;
         tracing::info!("planner.first_output");
+    }
+    if let HarnessEvent::Usage { rate_limit, .. } = &e {
+        // Recorded before the event is published, so the `usage` frame it
+        // becomes carries these limits as the latest (§12.8).
+        let limits = rate_limit
+            .as_ref()
+            .and_then(|r| limits_from(r, &now_rfc3339()));
+        if let Some(limits) = limits
+            && let Err(error) = w.runtime.storage.record_limits(&w.harness, &limits).await
+        {
+            tracing::error!(%error, "planner.record_limits_failed");
+        }
+        *last_usage = Some(e.clone());
     }
     let durable = collector.push(&e);
     persist(w, durable).await;
@@ -147,6 +163,7 @@ pub(crate) fn watch_turn(
     tokio::spawn(async move {
         let mut collector = Collector::new();
         let mut first = true;
+        let mut last_usage = None;
         tracing::info!(session_id = %w.opened.session_id, how = w.opened.how, "agent.invocation.start");
         // Notifications between turns belong to neither prompt.
         let mut events = w.events.take();
@@ -163,13 +180,13 @@ pub(crate) fn watch_turn(
                 if let Some(rx) = events.as_mut() {
                     tokio::select! {
                         result = &mut prompt_future => break result,
-                        event = rx.recv() => if let Some(event) = event { accept(&w, &mut collector, &bus, &mut first, event).await; },
+                        event = rx.recv() => if let Some(event) = event { accept(&w, &mut collector, &bus, &mut first, &mut last_usage, event).await; },
                     }
                 } else { break prompt_future.await; }
             }
         };
         if let Some(mut rx) = events.take() {
-            while let Ok(event) = rx.try_recv() { accept(&w, &mut collector, &bus, &mut first, event).await; }
+            while let Ok(event) = rx.try_recv() { accept(&w, &mut collector, &bus, &mut first, &mut last_usage, event).await; }
             persist(&w, collector.finish()).await;
             w.sessions.give_back_events(&w.thread_id, rx).await;
         } else { persist(&w, collector.finish()).await; }
@@ -188,10 +205,19 @@ pub(crate) fn watch_turn(
         {
             tracing::error!(%error, "planner.record_session_failed");
         }
+        if matches!(answer, Ok(TurnEnd::Ended)) {
+            w.sessions.mark_answered(&w.thread_id).await;
+        }
         w.sessions.touch(&w.thread_id).await;
         if w.handles.claim(&w.op_id).await.is_none() { return; }
         let result = match answer {
-            Ok(TurnEnd::Ended) => w.runtime.storage.mark_operation_completed(&w.op_id, serde_json::json!({"stop_reason":"end_turn"})).await,
+            // Only a completed turn records an observation: a failed or
+            // cancelled one leaves it NULL, which a client shows as
+            // unavailable (§12.7 — nothing unreported is estimated).
+            Ok(TurnEnd::Ended) => {
+                let seen = TurnObservation::from_usage(last_usage.as_ref());
+                w.runtime.storage.mark_operation_completed(&w.op_id, serde_json::json!({"stop_reason":"end_turn"}), &seen).await
+            }
             Ok(TurnEnd::Cancelled) if w.cancel_requested.load(Ordering::SeqCst) => w.runtime.storage.mark_operation_cancelled(&w.op_id).await,
             Ok(TurnEnd::Cancelled) => w.runtime.storage.mark_operation_failed(&w.op_id, FailureStage::Run, "the harness cancelled the turn on its own").await,
             Ok(TurnEnd::Refused(reason)) => w.runtime.storage.mark_operation_failed(&w.op_id, FailureStage::Run, &reason).await,
@@ -259,4 +285,10 @@ impl PlannerTurn {
         runtime.storage.mark_operation_cancelled(op_id).await?;
         Ok(StopOutcome::Cancelled)
     }
+}
+
+fn now_rfc3339() -> String {
+    time::OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_default()
 }

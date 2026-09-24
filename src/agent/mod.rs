@@ -1,4 +1,5 @@
 pub mod acp;
+pub mod breakdown;
 pub mod choices;
 pub mod claude;
 pub mod events;

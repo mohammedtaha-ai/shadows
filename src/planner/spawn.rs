@@ -96,6 +96,7 @@ impl PlannerTurn {
             settings,
         } = request;
         let span = tracing::info_span!(parent: None, "planner.turn", operation_id = %op_id, thread_id = %thread_id);
+        let harness = runtime.storage.turn_context(&thread_id).await?.harness;
         if let Err(reason) = prepare_settings(&sessions, &thread_id, &opened, &settings).await {
             tracing::info!(parent: &span, %reason, "planner.prepare_refused");
             runtime
@@ -146,6 +147,7 @@ impl PlannerTurn {
                 sessions,
                 opened,
                 thread_id,
+                harness,
                 prompt,
                 events,
                 turn_end_seen,

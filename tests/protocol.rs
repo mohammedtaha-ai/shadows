@@ -301,7 +301,7 @@ async fn a_threads_operations_are_listed_newest_first_with_their_status() {
         .await
         .unwrap();
     f.storage
-        .mark_operation_completed(&first, json!({}))
+        .mark_operation_completed(&first, json!({}), &Default::default())
         .await
         .unwrap();
     f.storage

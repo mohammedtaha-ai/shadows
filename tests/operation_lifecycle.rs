@@ -155,7 +155,7 @@ async fn a_terminal_operation_never_transitions_again() {
         .unwrap();
     storage.mark_operation_started(&op, &runtime).await.unwrap();
     storage
-        .mark_operation_completed(&op, serde_json::json!({ "ok": true }))
+        .mark_operation_completed(&op, serde_json::json!({ "ok": true }), &Default::default())
         .await
         .unwrap();
 
@@ -187,7 +187,7 @@ async fn every_transition_appends_its_event_atomically() {
         .unwrap();
     storage.mark_operation_started(&op, &runtime).await.unwrap();
     storage
-        .mark_operation_completed(&op, serde_json::json!({}))
+        .mark_operation_completed(&op, serde_json::json!({}), &Default::default())
         .await
         .unwrap();
 
@@ -319,7 +319,7 @@ async fn a_natural_exit_wins_over_an_in_flight_cancellation() {
 
     // The process exits before containment takes ownership.
     storage
-        .mark_operation_completed(&op, serde_json::json!({ "ok": true }))
+        .mark_operation_completed(&op, serde_json::json!({ "ok": true }), &Default::default())
         .await
         .unwrap();
 
@@ -385,7 +385,7 @@ async fn every_operation_event_is_scoped_to_its_thread() {
         .await
         .unwrap();
     storage
-        .mark_operation_completed(&completed, serde_json::json!({}))
+        .mark_operation_completed(&completed, serde_json::json!({}), &Default::default())
         .await
         .unwrap();
 
