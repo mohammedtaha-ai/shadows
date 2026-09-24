@@ -7,6 +7,7 @@ use tokio::{
     sync::{Mutex, mpsc},
     time::Instant,
 };
+use tracing::Instrument;
 
 use crate::{
     agent::{
@@ -96,6 +97,12 @@ impl Sessions {
     }
 
     pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError> {
+        self.open_live(thread)
+            .instrument(tracing::info_span!("sessions.open", thread_id = %thread))
+            .await
+    }
+
+    async fn open_live(&self, thread: &ThreadId) -> Result<OpenSession, OpenError> {
         let mut live = self.live.lock().await;
         if let Some(current) = live.get_mut(thread) {
             if !current.handle.has_exited() && !current.opened.connection.is_closed() {
@@ -136,7 +143,9 @@ impl Sessions {
                 options,
                 connection,
             })
-        }).await.unwrap_or_else(|_| Err("harness setup timed out".into()));
+        })
+        .await
+        .unwrap_or_else(|_| Err("harness setup timed out".into()));
         let opened = match setup {
             Ok(opened) => opened,
             Err(error) => {
@@ -251,14 +260,41 @@ impl Sessions {
         self.live.lock().await.len()
     }
 
-    pub fn cancel_wait(&self) -> Duration { self.config.cancel_wait }
+    /// The process id of the thread's adapter, while one is live.
+    #[cfg(feature = "test-support")]
+    pub async fn pid(&self, thread: &ThreadId) -> Option<u32> {
+        self.live
+            .lock()
+            .await
+            .get(thread)
+            .and_then(|item| item.handle.id())
+    }
+
+    /// Arms the thread's adapter so its next termination fails — see
+    /// `ProcessHandle::force_termination_failure`. Returns whether an adapter
+    /// was there to arm, so a test cannot pass by arming nothing.
+    #[cfg(feature = "test-support")]
+    pub async fn force_termination_failure(&self, thread: &ThreadId) -> bool {
+        match self.live.lock().await.get_mut(thread) {
+            Some(item) => {
+                item.handle.force_termination_failure();
+                true
+            }
+            None => false,
+        }
+    }
+
+    pub fn cancel_wait(&self) -> Duration {
+        self.config.cancel_wait
+    }
 }
 
 async fn stop_handle(handle: &mut ProcessHandle) -> io::Result<()> {
     if !handle.has_exited() {
         handle.terminate_tree()?;
     }
-    tokio::time::timeout(Duration::from_secs(5), handle.wait()).await
+    tokio::time::timeout(Duration::from_secs(5), handle.wait())
+        .await
         .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "adapter did not exit in time"))?
         .map(|_| ())
 }

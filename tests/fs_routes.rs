@@ -10,12 +10,14 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use shadows::agent::claude::ClaudeHarness;
 use shadows::planner::LiveHandles;
 use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use tower::ServiceExt;
+
+#[path = "fixtures/acp.rs"]
+mod acp;
 
 async fn app(tmp: &Path) -> (Router, tokio::sync::watch::Sender<bool>) {
     let storage = Arc::new(Storage::open(&tmp.join("s.sqlite3")).await.unwrap());
@@ -26,8 +28,7 @@ async fn app(tmp: &Path) -> (Router, tokio::sync::watch::Sender<bool>) {
         runtime: Arc::new(runtime),
         storage,
         handles: Arc::new(LiveHandles::default()),
-        harness: Arc::new(ClaudeHarness::new(tmp.join("claude.exe"), "test".into())),
-        sessions: None,
+        sessions: acp::fake_sessions(&tmp.join("s.sqlite3")).await,
         bus,
         allowed_origins: Vec::new(),
         shutdown,

@@ -53,8 +53,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Stops a turn: terminates its process tree, confirms it is gone, and only
-         *     then records it `Cancelled` (spec §2.3). Answers with the operation as it
+         * Stops a turn: asks the harness to cancel it, and if the harness does not
+         *     confirm in time, terminates the adapter's process tree, confirms it is
+         *     gone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the operation as it
          *     now stands — which may still be `Running` for a moment when the turn had
          *     already ended on its own and its ending is being recorded.
          * @description If the tree cannot be terminated the answer is 500
@@ -119,7 +120,7 @@ export interface paths {
          *       commit that appended to the journal). A commit that lands while the
          *       replay is being read shows up as a pending change, so it cannot fall into
          *       the gap between the replay's last read and the live phase.
-         *     - the transient bus, for what is never stored: deltas, turn ends, meta.
+         *     - the transient bus, for what is never stored: deltas and turn ends.
          *
          *     Durable events reach the client only by reading the journal after
          *     `last_seq` — in the replay, and again on every signal change in the live
@@ -190,8 +191,9 @@ export interface paths {
          *     continues the thread's harness session; neither is the client's to name.
          * @description Spec §3.3: a long-running command answers 202 with an operation id, and the
          *     operation reaches its terminal outcome later — watch it on
-         *     `/api/subscribe`. A turn that cannot run (no project directory, no harness)
-         *     is still 202: the operation fails at `Prepare`, durably, with its reason.
+         *     `/api/subscribe`. The thread's harness session is opened first (spec
+         *     §12.7); when it cannot be (no project directory, an adapter that does not
+         *     start) the answer is 502 and nothing is written.
          *
          *     A daemon that has begun to stop refuses the turn with 503 (spec §8.5).
          */
@@ -289,7 +291,7 @@ export interface components {
          *     Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED";
+        ErrorCode: "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED";
         /**
          * @description Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
          *     `ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged
@@ -775,7 +777,6 @@ export interface operations {
              *     - `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.
              *     - `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.
              *     - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.
-             *     - `meta` — `{op, label}`: any other harness line, by label. Transient.
              *     - `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.
              *     - `fatal` — data is a message as plain text: the journal could not be read and the stream ends.
              *
@@ -888,6 +889,15 @@ export interface operations {
             };
             /** @description STORAGE_UNAVAILABLE */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_START_FAILED: the thread's session could not be opened; nothing was written */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

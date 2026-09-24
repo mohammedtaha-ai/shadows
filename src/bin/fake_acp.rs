@@ -118,7 +118,8 @@ async fn main() -> agent_client_protocol::Result<()> {
         .on_receive_request({ let state = state.clone(); async move |r: NewSessionRequest, responder, _cx| {
             let mut st = state.lock().unwrap();
             st.next += 1;
-            let id = format!("fake-{}", st.next);
+            // Unique across adapter processes, as the real harness's ids are.
+            let id = format!("fake-{}-{}", std::process::id(), st.next);
             let s = make_session(r.cwd, "new");
             let opts = options(&s);
             st.sessions.insert(id.clone(), s);
@@ -202,6 +203,10 @@ async fn main() -> agent_client_protocol::Result<()> {
                     let mut cancelled = s.cancel.subscribe();
                     while !*cancelled.borrow() { if cancelled.changed().await.is_err() { break; } }
                     return responder.respond(PromptResponse::new(StopReason::Cancelled));
+                },
+                "wait-for-release" => {
+                    chunk(&cx, &id, "m1", "waiting")?;
+                    while !s.cwd.join("release").exists() { tokio::time::sleep(Duration::from_millis(20)).await; }
                 },
                 "ignore-cancel" => { chunk(&cx, &id, "m1", "waiting")?; std::future::pending::<()>().await; },
                 "exit" => { chunk(&cx, &id, "m1", "exiting")?; std::process::exit(3); },

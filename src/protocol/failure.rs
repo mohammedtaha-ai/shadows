@@ -90,8 +90,12 @@ impl From<StartError> for Failure {
 
 impl Failure {
     pub(super) fn harness_start_failed(reason: String) -> Self {
-        Failure { status: StatusCode::BAD_GATEWAY, code: ErrorCode::HarnessStartFailed,
-            message: "the harness could not start".into(), cause: Some(reason) }
+        Failure {
+            status: StatusCode::BAD_GATEWAY,
+            code: ErrorCode::HarnessStartFailed,
+            message: "the harness could not start".into(),
+            cause: Some(reason),
+        }
     }
     /// Spec §8.5: a stopping daemon takes no new work. 503, because the
     /// refusal is about this daemon's state, not the request — the same

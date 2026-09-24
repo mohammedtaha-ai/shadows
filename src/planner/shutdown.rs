@@ -59,12 +59,24 @@ pub async fn shut_down(
 /// record to say every owned operation is terminal. `false` as soon as one
 /// termination cannot be confirmed: waiting for it would only run out the
 /// bound over a tree that is known to be alive.
-async fn terminate_all(runtime: &Arc<Runtime>, handles: &Arc<LiveHandles>, sessions: &Arc<Sessions>) -> bool {
+async fn terminate_all(
+    runtime: &Arc<Runtime>,
+    handles: &Arc<LiveHandles>,
+    sessions: &Arc<Sessions>,
+) -> bool {
     let live = handles.close().await;
     tracing::info!(live = live.len(), "shutdown.begin");
     let mut confirmed = true;
     for op_id in live {
-        match PlannerTurn::stop(runtime.clone(), handles.clone(), sessions.clone(), &op_id, Actor::system()).await {
+        match PlannerTurn::stop(
+            runtime.clone(),
+            handles.clone(),
+            sessions.clone(),
+            &op_id,
+            Actor::system(),
+        )
+        .await
+        {
             Ok(StopOutcome::TerminationFailed) => {
                 tracing::error!(operation_id = %op_id, "shutdown.termination_failed");
                 confirmed = false;

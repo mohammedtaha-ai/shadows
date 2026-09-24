@@ -1,29 +1,59 @@
-//! Full-stack tests for the two-phase Planner turn and its cancellation
-//! interlock (spec §2.3, §2.7, §8.3, §8.4). `fake_claude` (a test-support
-//! binary, not the real `claude` CLI) stands in for the harness executable so
-//! these tests run without any external tool installed.
+//! Full-stack tests for a Planner turn over the thread's ACP connection and
+//! its cancellation interlock (spec §2.3, §8.4, §12.3). `fake_acp` (a
+//! test-support binary) stands in for Node and the pinned adapter, so these
+//! tests run with nothing installed; its prompts script what the agent does.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use shadows::agent::StreamItem;
-use shadows::agent::claude::ClaudeHarness;
+use axum::Router;
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
+use serde_json::{Value, json};
+use shadows::agent::claude::ClaudeAdapter;
+use shadows::agent::events::HarnessEvent;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::Actor;
 use shadows::operation::{Operation, OperationId};
-use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest, StopOutcome};
+use shadows::planner::{LiveHandles, PlannerTurn, Sessions, StopOutcome};
+use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
-use shadows::storage::Storage;
-use shadows::thread::ThreadId;
+use shadows::thread::{ThreadEntry, ThreadId};
+use tower::ServiceExt;
 
-async fn fixture() -> (tempfile::TempDir, Arc<Runtime>, ThreadId) {
+#[path = "fixtures/acp.rs"]
+mod acp;
+
+type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
+
+struct App {
+    _tmp: tempfile::TempDir,
+    runtime: Arc<Runtime>,
+    handles: Arc<LiveHandles>,
+    sessions: Arc<Sessions>,
+    bus: Bus,
+    router: Router,
+    thread: ThreadId,
+    // Held: a dropped sender reads as a stopping daemon.
+    _stopping: tokio::sync::watch::Sender<bool>,
+}
+
+async fn test_app() -> App {
+    test_app_with(acp::fake_adapter()).await
+}
+
+async fn test_app_with_node(node: &str) -> App {
+    test_app_with(acp::adapter_at(node.into())).await
+}
+
+async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage).await.unwrap();
+    let db = tmp.path().join("s.sqlite3");
+    let storage = Arc::new(shadows::storage::Storage::open(&db).await.unwrap());
+    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
     let runtime = Arc::new(runtime);
 
-    let params = serde_json::json!({ "slug": "demo" });
+    let params = json!({ "slug": "demo" });
     let ctx = CommandContext {
         principal_kind: "User".into(),
         principal_id: "local".into(),
@@ -32,8 +62,7 @@ async fn fixture() -> (tempfile::TempDir, Arc<Runtime>, ThreadId) {
         command_schema_ver: 1,
         request_fingerprint: fingerprint("project.create", &params),
     };
-    let project = runtime
-        .storage
+    let project = storage
         .create_project(
             &ctx,
             "demo",
@@ -48,27 +77,70 @@ async fn fixture() -> (tempfile::TempDir, Arc<Runtime>, ThreadId) {
         request_fingerprint: fingerprint("thread.create", &params),
         ..ctx
     };
-    let thread = runtime
-        .storage
+    let thread = storage
         .create_planning_thread(&tctx, &project.id, "T")
         .await
+        .unwrap()
+        .id;
+
+    let sessions = Sessions::new(
+        adapter,
+        shadows::storage::Storage::open(&db).await.unwrap(),
+        acp::test_config(),
+    );
+    let handles = Arc::new(LiveHandles::default());
+    let (bus, _) = tokio::sync::broadcast::channel(256);
+    let (stopping, shutdown) = tokio::sync::watch::channel(false);
+    let router = router(AppState {
+        runtime: runtime.clone(),
+        storage,
+        handles: handles.clone(),
+        sessions: sessions.clone(),
+        bus: bus.clone(),
+        allowed_origins: Vec::new(),
+        shutdown,
+    });
+    App {
+        _tmp: tmp,
+        runtime,
+        handles,
+        sessions,
+        bus,
+        router,
+        thread,
+        _stopping: stopping,
+    }
+}
+
+async fn http_start_raw(app: &App, body: Value) -> (u16, Value) {
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::post(format!("/api/threads/{}/turns", app.thread.as_str()))
+                .header("content-type", "application/json")
+                .body(Body::from(body.to_string()))
+                .unwrap(),
+        )
+        .await
         .unwrap();
-    (tmp, runtime, thread.id)
+    let status = response.status().as_u16();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    (status, serde_json::from_slice(&bytes).unwrap())
 }
 
-fn harness() -> Arc<ClaudeHarness> {
-    Arc::new(ClaudeHarness::new(
-        PathBuf::from(env!("CARGO_BIN_EXE_fake_claude")),
-        "fake-1".into(),
-    ))
+async fn start_prompt(app: &App, prompt: &str) -> OperationId {
+    let (status, body) = http_start_raw(app, json!({ "prompt": prompt })).await;
+    assert_eq!(status, StatusCode::ACCEPTED.as_u16(), "{body}");
+    OperationId::from_literal(body["operation_id"].as_str().unwrap())
 }
 
-/// Polls `get_operation` until it leaves Pending/Running, bounded so a stuck
-/// interlock fails the test instead of hanging the suite.
-async fn wait_for_terminal(runtime: &Runtime, op: &OperationId) -> Operation {
-    for _ in 0..100 {
-        let loaded = runtime.storage.get_operation(op).await.unwrap();
-        if loaded.status_kind != "Pending" && loaded.status_kind != "Running" {
+async fn wait_terminal(app: &App, op: &OperationId) -> Operation {
+    for _ in 0..200 {
+        let loaded = app.runtime.storage.get_operation(op).await.unwrap();
+        if loaded.finished_at.is_some() {
             return loaded;
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -76,380 +148,231 @@ async fn wait_for_terminal(runtime: &Runtime, op: &OperationId) -> Operation {
     panic!("operation did not reach a terminal state in time");
 }
 
-/// Duplicated from `tests/containment.rs` rather than shared: each integration
-/// test is its own crate, and a three-line helper is not worth a test-support
-/// module that product code would then carry. The Unix arm keeps the zombie
-/// distinction that file paid for — existence is not life.
-#[cfg(windows)]
-fn is_alive(pid: u32) -> bool {
-    let out = std::process::Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-Command",
-            &format!("if (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ 'yes' }} else {{ 'no' }}"),
-        ])
-        .output()
-        .expect("powershell should run");
-    String::from_utf8_lossy(&out.stdout).trim() == "yes"
-}
-
-#[cfg(unix)]
-fn is_alive(pid: u32) -> bool {
-    let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
-        return false;
-    };
-    let Some(rest) = stat.rsplit_once(") ") else {
-        return false;
-    };
-    !matches!(rest.1.chars().next(), Some('Z') | None)
-}
-
-async fn wait_for_running(runtime: &Runtime, op: &OperationId) {
-    for _ in 0..100 {
-        let loaded = runtime.storage.get_operation(op).await.unwrap();
-        if loaded.status_kind == "Running" {
+async fn wait_running(app: &App, op: &OperationId) {
+    for _ in 0..200 {
+        if app
+            .runtime
+            .storage
+            .get_operation(op)
+            .await
+            .unwrap()
+            .status_kind
+            == "Running"
+        {
             return;
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    panic!("operation did not reach Running in time");
+    panic!("operation never reached Running");
 }
 
-/// Spec §2.7, §8.3. A turn that runs to completion on its own persists
-/// Pending -> Running -> Completed, writes the durable entry the fake harness
-/// streamed, and releases its live handle once the process has exited.
-#[tokio::test]
-async fn a_completed_turn_persists_the_stream_and_releases_its_handle() {
-    let (_t, runtime, thread) = fixture().await;
-    let handles = Arc::new(LiveHandles::default());
-    let (bus, _rx) = tokio::sync::broadcast::channel(16);
+async fn entries(app: &App) -> Vec<ThreadEntry> {
+    app.runtime
+        .storage
+        .list_thread_entries(&app.thread)
+        .await
+        .unwrap()
+}
 
-    let op = PlannerTurn::start(
-        runtime.clone(),
-        handles.clone(),
-        harness(),
-        PlannerTurnRequest {
-            thread_id: thread.clone(),
-            prompt: "quick".into(),
-        },
-        bus,
+async fn stop(app: &App, op: &OperationId) -> StopOutcome {
+    PlannerTurn::stop(
+        app.runtime.clone(),
+        app.handles.clone(),
+        app.sessions.clone(),
+        op,
+        Actor::user("local"),
     )
     .await
-    .unwrap();
+    .unwrap()
+}
 
-    let loaded = wait_for_terminal(&runtime, &op).await;
-    assert_eq!(loaded.status_kind, "Completed");
-    assert!(loaded.finished_at.is_some());
+/// Waits until the running turn has streamed something, so a Stop lands
+/// while the prompt is in flight.
+async fn wait_for_delta(
+    rx: &mut tokio::sync::broadcast::Receiver<(ThreadId, OperationId, HarnessEvent)>,
+) {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let (_, _, event) = rx.recv().await.unwrap();
+            if matches!(event, HarnessEvent::Chunk { .. }) {
+                return;
+            }
+        }
+    })
+    .await
+    .expect("the turn never streamed");
+}
 
-    // Without this the whole TurnEnd branch could be deleted and the suite
-    // would still pass: the default outcome also yields Completed.
-    let outcome: serde_json::Value =
-        serde_json::from_str(loaded.outcome_json.as_deref().expect("an outcome")).unwrap();
+#[tokio::test]
+async fn a_turn_streams_and_stores_one_entry_per_message() {
+    let app = test_app().await;
+    let op = start_prompt(&app, "two-messages").await;
+    assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
+    let bodies: Vec<_> = entries(&app).await.into_iter().map(|e| e.body).collect();
     assert_eq!(
-        outcome,
-        serde_json::json!({ "subtype": "success", "stop_reason": "end_turn" }),
-        "the persisted outcome must be the one the harness's turn-end reported"
+        bodies,
+        ["two-messages", "first", "[tool: Read notes.md]", "second"],
+        "the tool entry carries its real title, not \"Terminal\""
     );
-
-    let entries = runtime.storage.list_thread_entries(&thread).await.unwrap();
-    assert_eq!(
-        entries.len(),
-        1,
-        "the fake harness's one durable line must be recorded"
-    );
-    assert_eq!(entries[0].body, "hello from fake_claude");
-    // Spec §4.2. The author is the agent whose turn this is, the same actor on
-    // every line — not the harness's per-line uuid, which would make every
-    // message look like a different author.
-    assert_eq!(entries[0].author.kind, "Agent");
-    assert_eq!(entries[0].author.id, "Planner");
-
     assert!(
-        !handles.contains(&op).await,
-        "a finished operation's handle must not linger in LiveHandles"
+        !app.handles.contains(&op).await,
+        "the registration outlived the turn"
     );
 }
 
-/// Spec §2.3, §8.3. Cancelling a live turn requests, then terminates, then
-/// confirms, then writes Cancelled — never only the request.
 #[tokio::test]
-async fn cancelling_a_running_turn_confirms_termination_before_writing_cancelled() {
-    let (_t, runtime, thread) = fixture().await;
-    let handles = Arc::new(LiveHandles::default());
-    let (bus, _rx) = tokio::sync::broadcast::channel(16);
+async fn the_first_turn_records_the_session_and_the_next_resumes_it() {
+    let app = test_app().await;
+    wait_terminal(&app, &start_prompt(&app, "hi").await).await;
+    let session = app
+        .runtime
+        .storage
+        .turn_context(&app.thread)
+        .await
+        .unwrap()
+        .harness_session_id
+        .unwrap();
+    app.sessions.terminate(&app.thread).await.unwrap();
+    let op = start_prompt(&app, "report").await;
+    wait_terminal(&app, &op).await;
+    let r: Value = serde_json::from_str(&entries(&app).await.last().unwrap().body).unwrap();
+    assert_eq!(
+        (r["how"].as_str(), r["session"].as_str()),
+        (Some("resume"), Some(session.as_str()))
+    );
+}
 
-    let op = PlannerTurn::start(
-        runtime.clone(),
-        handles.clone(),
-        harness(),
-        PlannerTurnRequest {
-            thread_id: thread.clone(),
-            prompt: "hang".into(),
-        },
-        bus,
-    )
-    .await
-    .unwrap();
+#[tokio::test]
+async fn stop_is_confirmed_by_the_harness_when_it_answers_cancelled() {
+    let app = test_app().await;
+    let mut rx = app.bus.subscribe();
+    let op = start_prompt(&app, "hang").await;
+    wait_for_delta(&mut rx).await;
+    assert_eq!(stop(&app, &op).await, StopOutcome::ResolvedByTurn);
+    let done = wait_terminal(&app, &op).await;
+    assert_eq!(done.status_kind, "Cancelled");
+    assert!(done.cancel_requested_at.is_some());
+    assert_eq!(
+        app.sessions.live_count().await,
+        1,
+        "the adapter survives a confirmed cancel"
+    );
+}
 
-    wait_for_running(&runtime, &op).await;
+#[tokio::test]
+async fn stop_terminates_the_adapter_when_the_harness_does_not_confirm() {
+    let app = test_app().await;
+    let mut rx = app.bus.subscribe();
+    let op = start_prompt(&app, "ignore-cancel").await;
+    wait_for_delta(&mut rx).await;
+    assert_eq!(stop(&app, &op).await, StopOutcome::Cancelled);
+    assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
+    assert_eq!(app.sessions.live_count().await, 0);
+    let next = start_prompt(&app, "hi").await; // a fresh adapter
+    assert_eq!(wait_terminal(&app, &next).await.status_kind, "Completed");
+}
 
-    let outcome = PlannerTurn::stop(runtime.clone(), handles.clone(), &op, Actor::user("local"))
+#[tokio::test]
+async fn an_adapter_that_exits_mid_turn_fails_the_turn() {
+    let app = test_app().await;
+    let op = start_prompt(&app, "exit").await;
+    let done = wait_terminal(&app, &op).await;
+    assert_eq!(done.status_kind, "Failed");
+    assert!(
+        done.failure_reason
+            .unwrap()
+            .contains("the harness exited during the turn")
+    );
+    assert_eq!(
+        app.sessions.live_count().await,
+        0,
+        "the dead adapter was kept"
+    );
+}
+
+#[tokio::test]
+async fn a_refused_stop_reason_fails_the_turn_naming_it() {
+    let app = test_app().await;
+    let done = wait_terminal(&app, &start_prompt(&app, "refuse").await).await;
+    assert_eq!(done.status_kind, "Failed");
+    assert!(done.failure_reason.unwrap().contains("max_tokens"));
+}
+
+#[tokio::test]
+async fn a_permission_request_is_refused_and_recorded() {
+    let app = test_app().await;
+    wait_terminal(&app, &start_prompt(&app, "ask-permission").await).await;
+    let refused: Vec<_> = entries(&app)
+        .await
+        .into_iter()
+        .filter(|e| e.kind == "PermissionRefused")
+        .collect();
+    assert_eq!(refused.len(), 1);
+    assert_eq!(refused[0].body, "Run echo probe");
+}
+
+#[tokio::test]
+async fn a_turn_whose_adapter_cannot_start_writes_nothing() {
+    let app = test_app_with_node("C:/definitely/missing/node.exe").await;
+    let (status, body) = http_start_raw(&app, json!({ "prompt": "hi" })).await;
+    assert_eq!(
+        (status, body["code"].as_str()),
+        (502, Some("HARNESS_START_FAILED"))
+    );
+    assert!(entries(&app).await.is_empty());
+    let operations = app
+        .runtime
+        .storage
+        .list_operations_for_thread(&app.thread)
         .await
         .unwrap();
-    assert_eq!(outcome, StopOutcome::Cancelled);
-
-    let loaded = runtime.storage.get_operation(&op).await.unwrap();
-    assert_eq!(loaded.status_kind, "Cancelled");
-    assert!(loaded.finished_at.is_some());
-    assert!(loaded.cancel_requested_at.is_some());
-    assert!(
-        !handles.contains(&op).await,
-        "the terminated operation's handle must be gone from LiveHandles"
-    );
+    assert!(operations.is_empty(), "{operations:?}");
 }
 
-/// Spec §8.4 case 6. `stop` on an operation this runtime does not hold a live
-/// handle for (never started through `PlannerTurn::start`, so containment was
-/// never registered) can only record the request — it must not invent
+/// Spec §8.4 case 6. `stop` on an operation this runtime holds no live
+/// registration for can only record the request — it must not invent a
 /// confirmation it does not have, and the operation is left non-terminal.
 #[tokio::test]
-async fn stop_without_a_live_handle_records_the_request_and_stays_non_terminal() {
-    let (_t, runtime, thread) = fixture().await;
-    let handles = Arc::new(LiveHandles::default());
-
-    let op = runtime
+async fn stop_without_a_live_turn_records_the_request_and_stays_non_terminal() {
+    let app = test_app().await;
+    let op = app
+        .runtime
         .storage
-        .create_pending_operation(&thread, &runtime.instance_id)
+        .create_pending_operation(&app.thread, &app.runtime.instance_id)
         .await
         .unwrap();
-    runtime
+    app.runtime
         .storage
-        .mark_operation_started(&op, &runtime.instance_id)
+        .mark_operation_started(&op, &app.runtime.instance_id)
         .await
         .unwrap();
 
-    let outcome = PlannerTurn::stop(runtime.clone(), handles, &op, Actor::user("local"))
-        .await
-        .unwrap();
-    assert_eq!(outcome, StopOutcome::NotLive);
+    assert_eq!(stop(&app, &op).await, StopOutcome::NotLive);
 
-    let loaded = runtime.storage.get_operation(&op).await.unwrap();
-    assert_eq!(
-        loaded.status_kind, "Running",
-        "no live handle means termination cannot be confirmed"
-    );
+    let loaded = app.runtime.storage.get_operation(&op).await.unwrap();
+    assert_eq!(loaded.status_kind, "Running");
     assert!(loaded.cancel_requested_at.is_some());
     assert!(loaded.finished_at.is_none());
 }
 
-/// Spec §8.4 case 6, the branch the no-handle test cannot reach: a live
-/// registration whose termination fails. `stop` must not take ownership of an
-/// outcome it cannot confirm — if it did, the registration would be gone, the
-/// reader would find nothing to claim, and the still-running tree could never
-/// be terminated again by this runtime.
+/// Spec §8.4 case 6 with a live turn whose adapter cannot be terminated. Stop
+/// must not take an outcome it cannot confirm: the registration stays, so the
+/// still-running tree can be reached again, and nothing terminal is written.
 #[tokio::test]
-async fn unconfirmed_termination_keeps_the_handle_and_leaves_the_operation_non_terminal() {
-    let (_t, runtime, thread) = fixture().await;
-    let handles = Arc::new(LiveHandles::default());
-    let (bus, _rx) = tokio::sync::broadcast::channel(16);
-
-    let op = PlannerTurn::start(
-        runtime.clone(),
-        handles.clone(),
-        harness(),
-        PlannerTurnRequest {
-            thread_id: thread.clone(),
-            prompt: "hang".into(),
-        },
-        bus,
-    )
-    .await
-    .unwrap();
-
-    wait_for_running(&runtime, &op).await;
+async fn unconfirmed_termination_keeps_the_registration_and_leaves_the_operation_non_terminal() {
+    let app = test_app().await;
+    let op = start_prompt(&app, "ignore-cancel").await;
+    wait_running(&app, &op).await;
     assert!(
-        handles.force_termination_failure(&op).await,
-        "the turn must still be registered for this test to mean anything"
+        app.sessions.force_termination_failure(&app.thread).await,
+        "the adapter must be live for this test to mean anything"
     );
 
-    let outcome = PlannerTurn::stop(runtime.clone(), handles.clone(), &op, Actor::user("local"))
-        .await
-        .unwrap();
-    assert_eq!(
-        outcome,
-        StopOutcome::TerminationFailed,
-        "a failed termination must be said, not reported like a success"
-    );
+    assert_eq!(stop(&app, &op).await, StopOutcome::TerminationFailed);
 
-    let loaded = runtime.storage.get_operation(&op).await.unwrap();
-    assert_eq!(
-        loaded.status_kind, "Running",
-        "termination was not confirmed, so Cancelled must not be written"
-    );
+    let loaded = app.runtime.storage.get_operation(&op).await.unwrap();
+    assert_eq!(loaded.status_kind, "Running");
     assert!(loaded.cancel_requested_at.is_some());
     assert!(loaded.finished_at.is_none());
-    assert!(
-        handles.contains(&op).await,
-        "an unconfirmed kill must leave the handle registered — it is the only \
-         thing that can still reach the tree"
-    );
-}
-
-/// The turn's verdict and the process's status are two facts, and a turn is
-/// only Completed when both say so. A harness that reports a failing turn end
-/// and then exits 0 — the evidence report's own "structured verdict and a
-/// process status, and can cross-check them" — must not be recorded as a
-/// completed turn just because the process was fine.
-#[tokio::test]
-async fn a_failing_turn_end_is_not_completed_even_on_a_clean_exit() {
-    let (_t, runtime, thread) = fixture().await;
-    let handles = Arc::new(LiveHandles::default());
-    let (bus, _rx) = tokio::sync::broadcast::channel(16);
-
-    let op = PlannerTurn::start(
-        runtime.clone(),
-        handles.clone(),
-        harness(),
-        PlannerTurnRequest {
-            thread_id: thread.clone(),
-            prompt: "failing-turn-end".into(),
-        },
-        bus,
-    )
-    .await
-    .unwrap();
-
-    let loaded = wait_for_terminal(&runtime, &op).await;
-    assert_eq!(loaded.status_kind, "Failed");
-    assert_eq!(loaded.failure_stage.as_deref(), Some("Run"));
-    let reason = loaded.failure_reason.unwrap_or_default();
-    assert!(
-        reason.contains("failing turn end"),
-        "the reason must name the harness's own verdict, got: {reason}"
-    );
-}
-
-/// Spec §8.4 cases 3 and 4 in the one window where they meet: the turn has
-/// reported its result and the process is still alive. Both obligations hold
-/// at once and neither may be dropped for the other — the registered tree is
-/// terminated (case 3), and the ending the turn already produced is the one
-/// persisted (case 4's rule about the outcome), not `Cancelled` and not a Run
-/// failure read off the exit status of a kill Shadows itself performed.
-///
-/// The window is made deterministic by the bus: the test proceeds only after
-/// the turn-end has been observed, which is exactly the state the arbitration
-/// has to get right. `fake_claude`'s `slow-exit` then stays alive for two
-/// minutes, so a `stop` that terminated nothing cannot be mistaken for one
-/// that did.
-#[tokio::test]
-async fn a_cancelled_turn_that_had_already_ended_keeps_its_outcome_and_loses_its_tree() {
-    let (_t, runtime, thread) = fixture().await;
-    let handles = Arc::new(LiveHandles::default());
-    let (bus, mut rx) = tokio::sync::broadcast::channel(16);
-
-    let op = PlannerTurn::start(
-        runtime.clone(),
-        handles.clone(),
-        harness(),
-        PlannerTurnRequest {
-            thread_id: thread.clone(),
-            prompt: "slow-exit".into(),
-        },
-        bus,
-    )
-    .await
-    .unwrap();
-
-    loop {
-        let (published_for, _op, item) =
-            rx.recv().await.expect("the stream must reach its turn-end");
-        assert_eq!(
-            published_for, thread,
-            "each bus item names the turn's thread"
-        );
-        if matches!(item, StreamItem::TurnEnd { .. }) {
-            break;
-        }
-    }
-    let pid = handles
-        .pid(&op)
-        .await
-        .expect("the turn is still registered");
-    assert!(
-        is_alive(pid),
-        "the process has not exited yet, so this is the contested window"
-    );
-
-    let outcome = PlannerTurn::stop(runtime.clone(), handles.clone(), &op, Actor::user("local"))
-        .await
-        .unwrap();
-    assert_eq!(outcome, StopOutcome::TerminatedAfterTurnEnd);
-
-    let loaded = wait_for_terminal(&runtime, &op).await;
-    assert_eq!(
-        loaded.status_kind, "Completed",
-        "the turn's own ending wins: not Cancelled, and not a Run failure read \
-         off the exit status of a kill Shadows itself performed"
-    );
-    let outcome: serde_json::Value =
-        serde_json::from_str(loaded.outcome_json.as_deref().expect("an outcome")).unwrap();
-    assert_eq!(
-        outcome,
-        serde_json::json!({ "subtype": "success", "stop_reason": "end_turn" }),
-        "the outcome the reader had already built must not be discarded"
-    );
-    assert!(
-        loaded.cancel_requested_at.is_some(),
-        "the request stays as history on a terminal non-cancelled record"
-    );
-
-    // §8.4 case 3's other half. Keeping the outcome is not a reason to leave
-    // the tree running: `fake_claude` would still be sleeping for two minutes
-    // if `stop` had declined to terminate it.
-    for _ in 0..50 {
-        if !is_alive(pid) {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!("the cancelled turn's tree survived: pid={pid}");
-}
-
-/// Spec §8.4 case 4's other half: "persist Completed or **Failed** from the
-/// real exit". A child that dies without a turn-end result did not complete,
-/// and the exit status is the fact that says so.
-#[tokio::test]
-async fn a_child_that_dies_without_a_turn_end_is_failed_at_the_run_stage() {
-    let (_t, runtime, thread) = fixture().await;
-    let handles = Arc::new(LiveHandles::default());
-    let (bus, _rx) = tokio::sync::broadcast::channel(16);
-
-    let op = PlannerTurn::start(
-        runtime.clone(),
-        handles.clone(),
-        harness(),
-        PlannerTurnRequest {
-            thread_id: thread.clone(),
-            prompt: "crash".into(),
-        },
-        bus,
-    )
-    .await
-    .unwrap();
-
-    let loaded = wait_for_terminal(&runtime, &op).await;
-    assert_eq!(
-        loaded.status_kind, "Failed",
-        "a crashed turn is not a completed one"
-    );
-    assert_eq!(loaded.failure_stage.as_deref(), Some("Run"));
-    let reason = loaded.failure_reason.unwrap_or_default();
-    assert!(
-        reason.contains("without a turn-end result"),
-        "the reason must say which of the two failures this was, got: {reason}"
-    );
-    assert!(
-        loaded.outcome_json.is_none(),
-        "a failed turn has no outcome to report"
-    );
+    assert!(app.handles.contains(&op).await);
 }

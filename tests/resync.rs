@@ -14,8 +14,7 @@ use std::time::Duration;
 
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
-use shadows::agent::StreamItem;
-use shadows::agent::claude::ClaudeHarness;
+use shadows::agent::events::HarnessEvent;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::{Actor, EventCursor};
 use shadows::operation::OperationId;
@@ -27,6 +26,9 @@ use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use shadows::thread::{NewThreadEntry, PlanningThread, ThreadId};
 use tokio_stream::StreamExt;
+
+#[path = "fixtures/acp.rs"]
+mod acp;
 
 /// A project and a planning thread, which between them have already written
 /// two durable events: `ProjectCreated` (no thread) and `PlanningThreadCreated`.
@@ -320,7 +322,7 @@ fn durable_kinds(text: &str) -> Vec<String> {
 /// The daemon's state as `subscribe` sees it, with a bus the test publishes on.
 struct Live {
     state: AppState,
-    bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
+    bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
     // Held for the whole test: a dropped sender reads as a stopping daemon,
     // which ends the live phase the test is waiting on.
     _stopping: tokio::sync::watch::Sender<bool>,
@@ -335,11 +337,7 @@ impl Live {
             runtime: Arc::new(runtime),
             storage,
             handles: Arc::new(LiveHandles::default()),
-            harness: Arc::new(ClaudeHarness::new(
-                tmp.path().join("claude.exe"),
-                "test".into(),
-            )),
-            sessions: None,
+            sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
             bus: bus.clone(),
             allowed_origins: Vec::new(),
             shutdown,
@@ -390,11 +388,14 @@ impl Stream {
     }
 }
 
-fn delta(thread_id: &ThreadId, text: &str) -> (ThreadId, OperationId, StreamItem) {
+fn delta(thread_id: &ThreadId, text: &str) -> (ThreadId, OperationId, HarnessEvent) {
     (
         thread_id.clone(),
         OperationId::from_literal("op-live"),
-        StreamItem::Delta { text: text.into() },
+        HarnessEvent::Chunk {
+            message_id: None,
+            text: text.into(),
+        },
     )
 }
 

@@ -4,7 +4,6 @@
 //! request's future is dropped after its first poll through the real router,
 //! which is that, and the work the request began must still reach its end.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -12,13 +11,15 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::Request;
 use serde_json::{Value, json};
-use shadows::agent::claude::ClaudeHarness;
 use shadows::planner::LiveHandles;
 use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use shadows::thread::ThreadId;
 use tower::ServiceExt;
+
+#[path = "fixtures/acp.rs"]
+mod acp;
 
 /// The turn still starts and runs, and the stop still terminates it and
 /// records `Cancelled` — nothing is left `Pending`, or `Running` over a dead
@@ -35,11 +36,7 @@ async fn a_client_that_disconnects_mid_request_strands_nothing() {
         runtime: Arc::new(runtime),
         storage: storage.clone(),
         handles: handles.clone(),
-        harness: Arc::new(ClaudeHarness::new(
-            PathBuf::from(env!("CARGO_BIN_EXE_fake_claude")),
-            "fake-1".into(),
-        )),
-        sessions: None,
+        sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
         bus,
         allowed_origins: Vec::new(),
         shutdown,

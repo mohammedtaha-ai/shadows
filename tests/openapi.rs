@@ -21,12 +21,14 @@ use std::sync::Arc;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
-use shadows::agent::claude::ClaudeHarness;
 use shadows::planner::LiveHandles;
 use shadows::protocol::{AppState, openapi_document, router};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use tower::ServiceExt;
+
+#[path = "fixtures/acp.rs"]
+mod acp;
 
 fn checked_in() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("api/openapi.json")
@@ -156,7 +158,6 @@ fn ids_errors_and_the_stream_are_described_as_clients_rely_on() {
         "`caught-up`",
         "`delta`",
         "`turn-end`",
-        "`meta`",
         "`lagged`",
         "`fatal`",
     ] {
@@ -177,11 +178,7 @@ async fn the_document_is_served_and_every_path_it_names_is_routed() {
         runtime: Arc::new(runtime),
         storage,
         handles: Arc::new(LiveHandles::default()),
-        harness: Arc::new(ClaudeHarness::new(
-            tmp.path().join("claude.exe"),
-            "t".into(),
-        )),
-        sessions: None,
+        sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
         bus,
         allowed_origins: Vec::new(),
         shutdown,

@@ -4,17 +4,15 @@
 //!
 //! One test in its own binary on purpose: the tracing subscriber is global to
 //! a process and can be installed once, so a second test here would race the
-//! first for it. It runs one real turn through `fake_claude`, one stopped
+//! first for it. It runs one real turn through `fake_acp`, one stopped
 //! turn, and one HTTP request, because a log file that exists but says nothing
 //! about a turn is the failure this file guards against.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::Request;
-use shadows::agent::claude::ClaudeHarness;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::Actor;
 use shadows::operation::OperationId;
@@ -23,6 +21,9 @@ use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use tower::ServiceExt;
+
+#[path = "fixtures/acp.rs"]
+mod acp;
 
 const PROMPT: &str = "a prompt that must never reach a log 7f3a";
 
@@ -64,10 +65,13 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
     let completed = OperationId::from_literal(started["operation_id"].as_str().unwrap());
     wait_for_terminal(&state.runtime, &completed).await;
 
-    let stopped = start(&state, &thread, "hang").await;
+    // `ignore-cancel`: the harness never confirms, so Stop terminates the
+    // adapter and its log shows the tree reaped.
+    let stopped = start(&state, &thread, "ignore-cancel").await;
     PlannerTurn::stop(
         state.runtime.clone(),
         state.handles.clone(),
+        state.sessions.clone(),
         &stopped,
         Actor::user("local"),
     )
@@ -114,10 +118,17 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
         );
         assert!(
             text.lines()
-                .any(|l| l.contains("process.spawn") && l.contains(op)),
-            "process.spawn does not name its operation {op}:\n{text}"
+                .any(|l| l.contains("agent.invocation.start") && l.contains(op)),
+            "agent.invocation.start does not name its operation {op}:\n{text}"
         );
     }
+    // The adapter is spawned when the thread's session opens, before any
+    // operation exists, so its line names the thread.
+    assert!(
+        text.lines()
+            .any(|l| l.contains("process.spawn") && l.contains(thread.as_str())),
+        "process.spawn does not name its thread:\n{text}"
+    );
     // The HTTP-started turn's lines are under `planner.turn` alone. Nested
     // under the request's `http{...}` span, every one of them would name a
     // POST that returned 202 long before the line was written.
@@ -148,10 +159,12 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
 }
 
 async fn start(state: &AppState, thread: &shadows::thread::ThreadId, prompt: &str) -> OperationId {
+    let opened = state.sessions.open(thread).await.unwrap();
     PlannerTurn::start(
         state.runtime.clone(),
         state.handles.clone(),
-        state.harness.clone(),
+        state.sessions.clone(),
+        opened,
         PlannerTurnRequest {
             thread_id: thread.clone(),
             prompt: prompt.into(),
@@ -173,11 +186,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (AppState, tokio::sync::watch::Se
         runtime: Arc::new(runtime),
         storage,
         handles: Arc::new(LiveHandles::default()),
-        harness: Arc::new(ClaudeHarness::new(
-            PathBuf::from(env!("CARGO_BIN_EXE_fake_claude")),
-            "fake-1".into(),
-        )),
-        sessions: None,
+        sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
         bus,
         allowed_origins: Vec::new(),
         shutdown,

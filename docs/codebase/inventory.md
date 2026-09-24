@@ -48,7 +48,7 @@ impl Connection {
 }
 ```
 
-## `src/agent/claude.rs` — 142 lines
+## `src/agent/claude.rs` — 28 lines
 
 ```rust
 pub struct ClaudeAdapter {
@@ -61,17 +61,9 @@ pub struct ClaudeAdapter {
 impl ClaudeAdapter {
     pub fn process_spec(&self, cwd: &Path) -> ProcessSpec
 }
-
-pub struct ClaudeHarness {
-    pub version: String,
-}
-// + 1 private field
-impl ClaudeHarness {
-    pub fn new(executable: PathBuf, version: String) -> Self
-}
 ```
 
-## `src/agent/events.rs` — 25 lines
+## `src/agent/events.rs` — 32 lines
 
 ```rust
 pub enum HarnessEvent {
@@ -80,39 +72,15 @@ pub enum HarnessEvent {
     PermissionRefused { title: String },
     Usage { used: u64, size: u64, model: Option<String>, rate_limit: Option<Value> },
     Options(Value),
+    TurnEnd { subtype: &'static str, stop_reason: Option<String> },
 }
 ```
 
-## `src/agent/mod.rs` — 60 lines
-
-```rust
-pub struct AgentInvocation {
-    pub operation_id: OperationId,
-    pub role: String,
-    pub model: String,
-    pub prompt: String,
-    pub cwd: PathBuf,
-    pub resume_session_id: Option<String>,
-    pub session_id: String,
-}
-pub enum StreamItem {
-    Delta { text: String },
-    Entry { uuid: String, role: String, text: String },
-    TurnEnd { subtype: String, stop_reason: Option<String> },
-    Operational { label: String, session: Option<String> },
-    Unparsed(String),
-}
-pub trait AgentHarness {
-    fn to_process_spec(&self, invocation: &AgentInvocation) -> ProcessSpec;
-    fn classify(&self, line: &str) -> StreamItem;
-}
-```
-
-## `src/bin/fake_acp.rs` — 232 lines
+## `src/agent/mod.rs` — 3 lines
 
 Nothing reachable from outside this file.
 
-## `src/bin/fake_claude.rs` — 96 lines
+## `src/bin/fake_acp.rs` — 237 lines
 
 Nothing reachable from outside this file.
 
@@ -130,7 +98,7 @@ impl Cli {
 }
 ```
 
-## `src/cli/mod.rs` — 153 lines
+## `src/cli/mod.rs` — 157 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -174,10 +142,11 @@ pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError>
 pub fn adapter_version(adapter_entry: &Path) -> String
 ```
 
-## `src/error.rs` — 73 lines
+## `src/error.rs` — 74 lines
 
 ```rust
 pub enum ErrorCode {
+    HarnessStartFailed,
     ProcessSpawnFailed,
     ProcessTerminated,
     ProcessTerminationFailed,
@@ -314,13 +283,30 @@ pub struct Operation {
 }
 ```
 
-## `src/planner/handles.rs` — 146 lines
+## `src/planner/entries.rs` — 151 lines
+
+```rust
+pub(crate) enum Durable {
+    Message(String),
+    Tool(String),
+    PermissionRefused(String),
+}
+pub(crate) struct Collector {}
+// + 3 private fields
+impl Collector {
+    pub(crate) fn new() -> Self
+    pub(crate) fn push(&mut self, event: &HarnessEvent) -> Vec<Durable>
+    pub(crate) fn finish(&mut self) -> Vec<Durable>
+}
+```
+
+## `src/planner/handles.rs` — 57 lines
 
 ```rust
 pub(crate) struct LiveTurn {
-    pub(crate) handle: ProcessHandle,
+    pub(crate) thread_id: ThreadId,
     pub(crate) turn_end_seen: Arc<AtomicBool>,
-    pub(crate) terminated_by_stop: bool,
+    pub(crate) cancel_requested: Arc<AtomicBool>,
     pub(crate) span: tracing::Span,
 }
 pub(crate) struct Registry {
@@ -329,17 +315,17 @@ pub(crate) struct Registry {
 // + 1 private field
 pub struct LiveHandles(pub(crate) Mutex<Registry>);
 impl LiveHandles {
-    pub(crate) async fn register(&self, op_id: OperationId, turn: LiveTurn) -> Result<(), Box<LiveTurn>>
-    pub(crate) async fn claim(&self, op_id: &OperationId) -> Option<LiveTurn>
+    pub(crate) async fn register(&self, op: OperationId, turn: LiveTurn) -> Result<(), Box<LiveTurn>>
+    pub(crate) async fn claim(&self, op: &OperationId) -> Option<LiveTurn>
+    pub(crate) async fn contains_internal(&self, op: &OperationId) -> bool
+    pub(crate) async fn restore(&self, op: OperationId, turn: LiveTurn)
     pub(crate) async fn close(&self) -> Vec<OperationId>
     pub async fn is_closed(&self) -> bool
-    pub async fn contains(&self, op_id: &OperationId) -> bool
-    pub async fn pid(&self, op_id: &OperationId) -> Option<u32>
-    pub async fn force_termination_failure(&self, op_id: &OperationId) -> bool
+    pub async fn contains(&self, op: &OperationId) -> bool
 }
 ```
 
-## `src/planner/mod.rs` — 443 lines
+## `src/planner/mod.rs` — 16 lines
 
 ```rust
 pub use handles::LiveHandles;
@@ -347,32 +333,10 @@ pub(crate) use handles::LiveTurn;
 pub use sessions::{OpenError, OpenSession, Sessions, SessionsConfig};
 pub use shutdown::shut_down;
 pub use spawn::{PlannerTurnRequest, StartError};
-pub struct PlannerTurn;
-pub enum StopOutcome {
-    Cancelled,
-    TerminatedAfterTurnEnd,
-    AlreadyExited,
-    NotLive,
-    TerminationFailed,
-}
-pub(crate) struct TurnWatch {
-    pub(crate) op_id: OperationId,
-    pub(crate) runtime: Arc<Runtime>,
-    pub(crate) handles: Arc<LiveHandles>,
-    pub(crate) harness: Arc<ClaudeHarness>,
-    pub(crate) thread_id: ThreadId,
-    pub(crate) agent_role: String,
-    pub(crate) new_session: Option<String>,
-    pub(crate) turn_end_seen: Arc<AtomicBool>,
-    pub(crate) span: tracing::Span,
-}
-pub(crate) fn watch_turn(watch: TurnWatch, lines: Option<StdoutLines>, bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>)
-impl PlannerTurn {
-    pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, op_id: &OperationId, requester: Actor) -> Result<StopOutcome, StorageError>
-}
+pub use turn::{PlannerTurn, StopOutcome};
 ```
 
-## `src/planner/sessions.rs` — 272 lines
+## `src/planner/sessions.rs` — 317 lines
 
 ```rust
 pub struct SessionsConfig {
@@ -401,21 +365,25 @@ impl Sessions {
     pub async fn take_events(&self, thread: &ThreadId) -> Option<mpsc::UnboundedReceiver<HarnessEvent>>
     pub async fn give_back_events(&self, thread: &ThreadId, rx: mpsc::UnboundedReceiver<HarnessEvent>)
     pub async fn touch(&self, thread: &ThreadId)
+    pub async fn cancel(&self, thread: &ThreadId)
     pub async fn terminate(&self, thread: &ThreadId) -> io::Result<()>
     pub async fn close_all(&self) -> io::Result<()>
     pub async fn live_count(&self) -> usize
+    pub async fn pid(&self, thread: &ThreadId) -> Option<u32>
+    pub async fn force_termination_failure(&self, thread: &ThreadId) -> bool
+    pub fn cancel_wait(&self) -> Duration
 }
 
 pub(super) fn workspace(context: &TurnContext) -> Result<PathBuf, String>
 ```
 
-## `src/planner/shutdown.rs` — 144 lines
+## `src/planner/shutdown.rs` — 160 lines
 
 ```rust
-pub async fn shut_down(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, confirm_within: Duration, escalate: impl Future<Output = ()>) -> Result<StopKind, StorageError>
+pub async fn shut_down(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, confirm_within: Duration, escalate: impl Future<Output = ()>) -> Result<StopKind, StorageError>
 ```
 
-## `src/planner/spawn.rs` — 261 lines
+## `src/planner/spawn.rs` — 105 lines
 
 ```rust
 pub enum StartError {
@@ -427,7 +395,36 @@ pub struct PlannerTurnRequest {
     pub prompt: String,
 }
 impl PlannerTurn {
-    pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, harness: Arc<ClaudeHarness>, request: PlannerTurnRequest, bus: broadcast::Sender<(ThreadId, OperationId, StreamItem)>) -> Result<OperationId, StartError>
+    pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, opened: OpenSession, request: PlannerTurnRequest, bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>) -> Result<OperationId, StartError>
+}
+```
+
+## `src/planner/turn.rs` — 261 lines
+
+```rust
+pub struct PlannerTurn;
+pub enum StopOutcome {
+    Cancelled,
+    ResolvedByTurn,
+    NotLive,
+    TerminationFailed,
+}
+pub(crate) struct TurnWatch {
+    pub op_id: OperationId,
+    pub runtime: Arc<Runtime>,
+    pub handles: Arc<LiveHandles>,
+    pub sessions: Arc<Sessions>,
+    pub opened: OpenSession,
+    pub thread_id: ThreadId,
+    pub prompt: String,
+    pub events: Option<mpsc::UnboundedReceiver<HarnessEvent>>,
+    pub turn_end_seen: Arc<AtomicBool>,
+    pub cancel_requested: Arc<AtomicBool>,
+    pub span: tracing::Span,
+}
+pub(crate) fn watch_turn(mut w: TurnWatch, bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>)
+impl PlannerTurn {
+    pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, op_id: &OperationId, requester: Actor) -> Result<StopOutcome, StorageError>
 }
 ```
 
@@ -526,7 +523,7 @@ pub struct Project {
 }
 ```
 
-## `src/protocol/conversation.rs` — 185 lines
+## `src/protocol/conversation.rs` — 194 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
@@ -539,7 +536,7 @@ pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
 ```
 
-## `src/protocol/failure.rs` — 220 lines
+## `src/protocol/failure.rs` — 228 lines
 
 ```rust
 pub struct Failure {}
@@ -549,6 +546,7 @@ pub struct ErrorBody {
     pub message: String,
 }
 impl Failure {
+    pub(super) fn harness_start_failed(reason: String) -> Self
     pub(super) fn runtime_stopping() -> Self
     pub(super) fn origin_refused(why: &'static str) -> Self
     pub(super) fn termination_failed() -> Self
@@ -574,7 +572,7 @@ pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCod
 pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
 ```
 
-## `src/protocol/mod.rs` — 157 lines
+## `src/protocol/mod.rs` — 155 lines
 
 ```rust
 pub use failure::Failure;
@@ -583,9 +581,8 @@ pub struct AppState {
     pub runtime: Arc<Runtime>,
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
-    pub harness: Arc<ClaudeHarness>,
-    pub sessions: Option<Arc<Sessions>>,
-    pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
+    pub sessions: Arc<Sessions>,
+    pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
     pub allowed_origins: Vec<String>,
     pub shutdown: tokio::sync::watch::Receiver<bool>,
 }
@@ -613,7 +610,7 @@ pub(super) struct CreateThread {}
 pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<PlanningThread>, Failure>
 ```
 
-## `src/protocol/sse.rs` — 262 lines
+## `src/protocol/sse.rs` — 256 lines
 
 ```rust
 pub struct SubscribeQuery {

@@ -1,30 +1,32 @@
-//! A thread remembers its harness session (evidence
-//! `docs/evidence/harness/SERVE_STREAM_SPIKE.md` Finding 3): the first turn
-//! starts one with `--session-id`, every later turn on the same thread
-//! resumes it with `--resume`, and a session is recorded only once the
-//! harness has reached its turn-end. `fake_claude`'s `report-invocation`
-//! prompt echoes the arguments it was started with.
+//! A thread remembers its harness session (spec §12.2, §12.3): the first
+//! turn's session is recorded once that turn ends, a thread whose adapter was
+//! closed resumes it at its next opening, and another thread has its own.
+//! `fake_acp`'s `report` prompt answers with the session it runs in and how
+//! that session was opened.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::Value;
-use shadows::agent::claude::ClaudeHarness;
+use shadows::agent::events::HarnessEvent;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::Actor;
 use shadows::operation::OperationId;
-use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest};
+use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest, Sessions, StopOutcome};
 use shadows::project::ProjectDirectory;
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use shadows::thread::ThreadId;
 
+#[path = "fixtures/acp.rs"]
+mod acp;
+
 struct Fixture {
     _tmp: tempfile::TempDir,
     runtime: Arc<Runtime>,
     handles: Arc<LiveHandles>,
-    harness: Arc<ClaudeHarness>,
+    sessions: Arc<Sessions>,
+    bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
 }
 
 async fn fixture() -> (Fixture, ThreadId, ThreadId) {
@@ -52,14 +54,13 @@ async fn fixture() -> (Fixture, ThreadId, ThreadId) {
             .unwrap();
         threads.push(thread.id);
     }
+    let sessions = acp::fake_sessions(&tmp.path().join("s.sqlite3")).await;
     let fixture = Fixture {
         _tmp: tmp,
         runtime: Arc::new(runtime),
         handles: Arc::new(LiveHandles::default()),
-        harness: Arc::new(ClaudeHarness::new(
-            PathBuf::from(env!("CARGO_BIN_EXE_fake_claude")),
-            "fake-1".into(),
-        )),
+        sessions,
+        bus: tokio::sync::broadcast::channel(16).0,
     };
     let second = threads.pop().unwrap();
     (fixture, threads.pop().unwrap(), second)
@@ -67,16 +68,17 @@ async fn fixture() -> (Fixture, ThreadId, ThreadId) {
 
 impl Fixture {
     async fn start(&self, thread: &ThreadId, prompt: &str) -> OperationId {
-        let (bus, _) = tokio::sync::broadcast::channel(16);
+        let opened = self.sessions.open(thread).await.unwrap();
         PlannerTurn::start(
             self.runtime.clone(),
             self.handles.clone(),
-            self.harness.clone(),
+            self.sessions.clone(),
+            opened,
             PlannerTurnRequest {
                 thread_id: thread.clone(),
                 prompt: prompt.into(),
             },
-            bus,
+            self.bus.clone(),
         )
         .await
         .unwrap()
@@ -93,10 +95,10 @@ impl Fixture {
         panic!("operation did not reach a terminal state in time");
     }
 
-    /// Runs one `report-invocation` turn to completion and returns the
-    /// arguments the harness was started with.
-    async fn args_of_a_turn(&self, thread: &ThreadId) -> Vec<String> {
-        let op = self.start(thread, "report-invocation").await;
+    /// Runs one `report` turn to completion and returns how its session was
+    /// opened and which session it was.
+    async fn session_of_a_turn(&self, thread: &ThreadId) -> (String, String) {
+        let op = self.start(thread, "report").await;
         assert_eq!(self.wait_for_terminal(&op).await, "Completed");
         let entries = self
             .runtime
@@ -110,52 +112,68 @@ impl Fixture {
             .find(|e| e.kind == "AgentMessage")
             .expect("an agent reply");
         let reported: Value = serde_json::from_str(&reply.body).unwrap();
-        serde_json::from_value(reported["args"].clone()).unwrap()
+        (
+            reported["how"].as_str().unwrap().to_string(),
+            reported["session"].as_str().unwrap().to_string(),
+        )
+    }
+
+    async fn recorded(&self, thread: &ThreadId) -> Option<String> {
+        self.runtime
+            .storage
+            .turn_context(thread)
+            .await
+            .unwrap()
+            .harness_session_id
     }
 }
 
-fn flag<'a>(args: &'a [String], name: &str) -> Option<&'a str> {
-    let at = args.iter().position(|a| a == name)?;
-    args.get(at + 1).map(String::as_str)
-}
-
 #[tokio::test]
-async fn later_turns_resume_the_session_the_first_turn_started() {
+async fn a_closed_adapter_resumes_the_session_the_first_turn_started() {
     let (f, thread, other) = fixture().await;
 
-    let first = f.args_of_a_turn(&thread).await;
-    let session = flag(&first, "--session-id").expect("the first turn starts a session");
-    assert_eq!(flag(&first, "--resume"), None, "{first:?}");
+    let (how, session) = f.session_of_a_turn(&thread).await;
+    assert_eq!(how, "new");
+    assert_eq!(f.recorded(&thread).await.as_deref(), Some(session.as_str()));
 
-    let second = f.args_of_a_turn(&thread).await;
-    assert_eq!(flag(&second, "--resume"), Some(session), "{second:?}");
-    assert_eq!(flag(&second, "--session-id"), None, "{second:?}");
+    // The adapter is still open: the next turn runs in the same session.
+    assert_eq!(
+        f.session_of_a_turn(&thread).await,
+        ("new".into(), session.clone())
+    );
 
-    let elsewhere = f.args_of_a_turn(&other).await;
-    assert_eq!(flag(&elsewhere, "--resume"), None, "{elsewhere:?}");
-    let own = flag(&elsewhere, "--session-id").expect("another thread starts its own");
+    f.sessions.terminate(&thread).await.unwrap();
+    assert_eq!(
+        f.session_of_a_turn(&thread).await,
+        ("resume".into(), session.clone())
+    );
+
+    let (how, own) = f.session_of_a_turn(&other).await;
+    assert_eq!(how, "new");
     assert_ne!(own, session, "two threads share one session");
 }
 
-/// A first turn stopped before its turn-end may have left no session in the
-/// harness's store. Recording it would make every later turn on the thread a
-/// `--resume` of an id the harness rejects, so the next turn starts afresh.
+/// A first turn whose adapter had to be terminated never ended, so its
+/// session is not recorded (§12.3): the next turn opens a new one rather than
+/// resuming an id the harness may never have stored.
 #[tokio::test]
-async fn a_first_turn_stopped_before_its_turn_end_records_no_session() {
+async fn a_first_turn_stopped_by_termination_records_no_session() {
     let (f, thread, _) = fixture().await;
 
-    let hung = f.start(&thread, "hang").await;
-    PlannerTurn::stop(
+    let hung = f.start(&thread, "ignore-cancel").await;
+    let outcome = PlannerTurn::stop(
         f.runtime.clone(),
         f.handles.clone(),
+        f.sessions.clone(),
         &hung,
         Actor::user("local"),
     )
     .await
     .unwrap();
+    assert_eq!(outcome, StopOutcome::Cancelled);
     assert_eq!(f.wait_for_terminal(&hung).await, "Cancelled");
+    assert_eq!(f.recorded(&thread).await, None);
 
-    let next = f.args_of_a_turn(&thread).await;
-    assert_eq!(flag(&next, "--resume"), None, "{next:?}");
-    assert!(flag(&next, "--session-id").is_some(), "{next:?}");
+    let (how, _) = f.session_of_a_turn(&thread).await;
+    assert_eq!(how, "new");
 }

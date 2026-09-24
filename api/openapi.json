@@ -195,6 +195,7 @@
       "ErrorCode": {
         "description": "Stable codes clients pattern-match on. Never match on human text.\nSpec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.",
         "enum": [
+          "HARNESS_START_FAILED",
           "PROCESS_SPAWN_FAILED",
           "PROCESS_TERMINATED",
           "PROCESS_TERMINATION_FAILED",
@@ -675,7 +676,7 @@
             "description": "PROCESS_TERMINATION_FAILED: the tree is still running, or STORAGE_UNAVAILABLE"
           }
         },
-        "summary": "Stops a turn: terminates its process tree, confirms it is gone, and only\nthen records it `Cancelled` (spec §2.3). Answers with the operation as it\nnow stands — which may still be `Running` for a moment when the turn had\nalready ended on its own and its ending is being recorded.",
+        "summary": "Stops a turn: asks the harness to cancel it, and if the harness does not\nconfirm in time, terminates the adapter's process tree, confirms it is\ngone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the operation as it\nnow stands — which may still be `Running` for a moment when the turn had\nalready ended on its own and its ending is being recorded.",
         "tags": [
           "turns"
         ]
@@ -911,7 +912,7 @@
     },
     "/api/subscribe": {
       "get": {
-        "description": "Two live sources, both taken BEFORE a single journal row is read:\n\n- the storage's committed-sequence signal (spec §2.4: raised after each\n  commit that appended to the journal). A commit that lands while the\n  replay is being read shows up as a pending change, so it cannot fall into\n  the gap between the replay's last read and the live phase.\n- the transient bus, for what is never stored: deltas, turn ends, meta.\n\nDurable events reach the client only by reading the journal after\n`last_seq` — in the replay, and again on every signal change in the live\nphase — so each one is sent once, in sequence order, and de-duplication by\n`seq` is structural rather than left to the client. The bus's `Entry` items\nare therefore not forwarded: the same entry arrives as its durable\n`ThreadEntryAppended` event. Bus items for another thread are dropped.",
+        "description": "Two live sources, both taken BEFORE a single journal row is read:\n\n- the storage's committed-sequence signal (spec §2.4: raised after each\n  commit that appended to the journal). A commit that lands while the\n  replay is being read shows up as a pending change, so it cannot fall into\n  the gap between the replay's last read and the live phase.\n- the transient bus, for what is never stored: deltas and turn ends.\n\nDurable events reach the client only by reading the journal after\n`last_seq` — in the replay, and again on every signal change in the live\nphase — so each one is sent once, in sequence order, and de-duplication by\n`seq` is structural rather than left to the client. The bus's `Entry` items\nare therefore not forwarded: the same entry arrives as its durable\n`ThreadEntryAppended` event. Bus items for another thread are dropped.",
         "operationId": "subscribe",
         "parameters": [
           {
@@ -943,7 +944,7 @@
                 }
               }
             },
-            "description": "Server-sent events for one thread (spec §2.10): the durable journal after `after`, then `caught-up`, then live. Each frame's `event:` names its kind and its `data:` is JSON unless stated.\n\n- `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. `operation_id` and `thread_id` are the ids it names, `null` where it names none; `payload` is the event's JSON object. Sent once each, in `seq` order, in the replay and live alike; remember the highest `seq` and resubscribe with it as `after`.\n- `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n- `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n- `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n- `meta` — `{op, label}`: any other harness line, by label. Transient.\n- `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.\n- `fatal` — data is a message as plain text: the journal could not be read and the stream ends.\n\nThe stream also ends when the daemon stops. Reconnect with the last `seq`."
+            "description": "Server-sent events for one thread (spec §2.10): the durable journal after `after`, then `caught-up`, then live. Each frame's `event:` names its kind and its `data:` is JSON unless stated.\n\n- `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. `operation_id` and `thread_id` are the ids it names, `null` where it names none; `payload` is the event's JSON object. Sent once each, in `seq` order, in the replay and live alike; remember the highest `seq` and resubscribe with it as `after`.\n- `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n- `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n- `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n- `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.\n- `fatal` — data is a message as plain text: the journal could not be read and the stream ends.\n\nThe stream also ends when the daemon stops. Reconnect with the last `seq`."
           }
         },
         "summary": "Spec §2.10: durable replay, then a no-gap handoff to live, then\nde-duplication by durable sequence.",
@@ -1044,7 +1045,7 @@
     },
     "/api/threads/{id}/turns": {
       "post": {
-        "description": "Spec §3.3: a long-running command answers 202 with an operation id, and the\noperation reaches its terminal outcome later — watch it on\n`/api/subscribe`. A turn that cannot run (no project directory, no harness)\nis still 202: the operation fails at `Prepare`, durably, with its reason.\n\nA daemon that has begun to stop refuses the turn with 503 (spec §8.5).",
+        "description": "Spec §3.3: a long-running command answers 202 with an operation id, and the\noperation reaches its terminal outcome later — watch it on\n`/api/subscribe`. The thread's harness session is opened first (spec\n§12.7); when it cannot be (no project directory, an adapter that does not\nstart) the answer is 502 and nothing is written.\n\nA daemon that has begun to stop refuses the turn with 503 (spec §8.5).",
         "operationId": "start_turn",
         "parameters": [
           {
@@ -1097,6 +1098,16 @@
               }
             },
             "description": "STORAGE_UNAVAILABLE"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_START_FAILED: the thread's session could not be opened; nothing was written"
           },
           "503": {
             "content": {

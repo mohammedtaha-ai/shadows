@@ -71,8 +71,9 @@ pub(super) struct TurnStarted {
 ///
 /// Spec §3.3: a long-running command answers 202 with an operation id, and the
 /// operation reaches its terminal outcome later — watch it on
-/// `/api/subscribe`. A turn that cannot run (no project directory, no harness)
-/// is still 202: the operation fails at `Prepare`, durably, with its reason.
+/// `/api/subscribe`. The thread's harness session is opened first (spec
+/// §12.7); when it cannot be (no project directory, an adapter that does not
+/// start) the answer is 502 and nothing is written.
 ///
 /// A daemon that has begun to stop refuses the turn with 503 (spec §8.5).
 #[utoipa::path(
@@ -85,6 +86,7 @@ pub(super) struct TurnStarted {
         (status = 202, body = TurnStarted),
         (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+        (status = 502, description = "HARNESS_START_FAILED: the thread's session could not be opened; nothing was written", body = ErrorBody),
         (status = 503, description = "RUNTIME_STOPPING: the daemon is shutting down", body = ErrorBody),
     )
 )]
@@ -149,8 +151,9 @@ async fn detached<T: Send + 'static>(
     }
 }
 
-/// Stops a turn: terminates its process tree, confirms it is gone, and only
-/// then records it `Cancelled` (spec §2.3). Answers with the operation as it
+/// Stops a turn: asks the harness to cancel it, and if the harness does not
+/// confirm in time, terminates the adapter's process tree, confirms it is
+/// gone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the operation as it
 /// now stands — which may still be `Running` for a moment when the turn had
 /// already ended on its own and its ending is being recorded.
 ///

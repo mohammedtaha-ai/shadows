@@ -1,4 +1,4 @@
-//! Planner turns run as ACP prompts on a thread's managed adapter (§12.3).
+//! Planner turns run as ACP prompts on the adapter each thread holds (§12.3).
 //! `spawn` registers before Running. `turn` arbitrates terminal state with Stop.
 
 mod entries;

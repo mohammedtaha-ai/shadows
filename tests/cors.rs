@@ -8,13 +8,15 @@ use std::sync::Arc;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
-use shadows::agent::claude::ClaudeHarness;
 use shadows::config::{ConfigError, allowed_origin};
 use shadows::planner::LiveHandles;
 use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use tower::ServiceExt;
+
+#[path = "fixtures/acp.rs"]
+mod acp;
 
 const ALLOWED: &str = "http://localhost:5173";
 
@@ -27,11 +29,7 @@ async fn app(tmp: &tempfile::TempDir) -> (Router, tokio::sync::watch::Sender<boo
         runtime: Arc::new(runtime),
         storage,
         handles: Arc::new(LiveHandles::default()),
-        harness: Arc::new(ClaudeHarness::new(
-            tmp.path().join("claude.exe"),
-            "test".into(),
-        )),
-        sessions: None,
+        sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
         bus,
         allowed_origins: vec![ALLOWED.to_string()],
         shutdown,

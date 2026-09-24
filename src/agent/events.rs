@@ -22,4 +22,11 @@ pub enum HarnessEvent {
         rate_limit: Option<Value>,
     },
     Options(Value),
+    /// The prompt has answered and the turn's entries are durable. Sent by the
+    /// Planner's watcher, not the connection: ACP ends a turn with the prompt's
+    /// response, which no notification carries.
+    TurnEnd {
+        subtype: &'static str,
+        stop_reason: Option<String>,
+    },
 }

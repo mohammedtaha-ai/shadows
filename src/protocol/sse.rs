@@ -35,7 +35,7 @@ pub struct SubscribeQuery {
 ///   commit that appended to the journal). A commit that lands while the
 ///   replay is being read shows up as a pending change, so it cannot fall into
 ///   the gap between the replay's last read and the live phase.
-/// - the transient bus, for what is never stored: deltas, turn ends, meta.
+/// - the transient bus, for what is never stored: deltas and turn ends.
 ///
 /// Durable events reach the client only by reading the journal after
 /// `last_seq` — in the replay, and again on every signal change in the live
@@ -168,7 +168,6 @@ replay and live alike; remember the highest `seq` and resubscribe with it as `af
 - `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n\
 - `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n\
 - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n\
-- `meta` — `{op, label}`: any other harness line, by label. Transient.\n\
 - `lagged` — empty: this client fell behind and transient frames were dropped; \
 durable ones were not.\n\
 - `fatal` — data is a message as plain text: the journal could not be read and \
@@ -239,12 +238,19 @@ async fn send_journal_after(
 }
 
 /// The SSE form of a transient bus item, or `None` for one this stream does
-/// not forward. `Entry` is `None` because its durable event carries it.
+/// not forward yet (`usage` and `options` frames arrive in Phase B, §12).
 fn transient_event(op_id: &OperationId, item: HarnessEvent) -> Option<Event> {
     Some(match item {
         HarnessEvent::Chunk { text, .. } => Event::default()
             .event("delta")
             .data(serde_json::json!({ "op": op_id, "text": text }).to_string()),
+        HarnessEvent::TurnEnd {
+            subtype,
+            stop_reason,
+        } => Event::default().event("turn-end").data(
+            serde_json::json!({ "op": op_id, "subtype": subtype, "stop_reason": stop_reason })
+                .to_string(),
+        ),
         _ => return None,
     })
 }

@@ -48,3 +48,4 @@ Task A3 reviewer follow-up: add deterministic pre-first-turn idle close/new sess
 A4 handoff risk: event receiver must be returned on every turn exit path to avoid permanent reaper skip; ensure setup/close bounds while global Sessions mutex is held.
 Task A3: complete (implementer 250a4d0f13d7b67c4da295f4a0acb2f059e60b65; reviewer fix 7954d9a1d3e1c45ec4d6f1b5324128e87f1b45b9; spec clarification ad6f5a1; follow-up test 9c89856667f8daa94b24afa5460bf26304f541ba). Review PASS after fixes/ruling. Reviewer Windows Sessions 8/8, codemap 2/2, fmt/clippy.
 Task A4: dispatched to /root/a4_implement (gpt-6-sol, medium), base 9c89856667f8daa94b24afa5460bf26304f541ba; report task-A4-report.md.
+Task A4: complete in the cloud session (Linux gate 131/131, clippy/fmt/codemap, web 48/48); report task-A4-report.md. Not run on Windows or against the real adapter — A5 run pending.
