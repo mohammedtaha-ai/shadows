@@ -755,7 +755,7 @@ pub(super) struct ContextBreakdown {}
 pub(super) async fn thread_context(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<ContextBreakdown>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 160 lines
+## `src/protocol/mod.rs` — 164 lines
 
 ```rust
 pub use failure::Failure;
@@ -780,7 +780,7 @@ pub fn document() -> String
 pub(super) async fn serve() -> ([(header::HeaderName, &'static str); 1], String)
 ```
 
-## `src/protocol/project.rs` — 151 lines
+## `src/protocol/project.rs` — 216 lines
 
 ```rust
 pub(super) fn ctx(command_id: String, kind: &str, params: serde_json::Value) -> CommandContext
@@ -790,8 +790,11 @@ pub(super) async fn list_projects(State(s): State<AppState>) -> Result<Json<Vec<
 pub(super) async fn create_project(State(s): State<AppState>, Json(body): Json<CreateProject>) -> Result<Json<Project>, Failure>
 pub(super) async fn list_threads(State(s): State<AppState>, Path(project_id): Path<ProjectId>) -> Result<Json<Vec<PlanningThread>>, Failure>
 pub(super) struct CreateThread {}
-// + 2 private fields
+// + 3 private fields
 pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<PlanningThread>, Failure>
+pub(super) struct UpdateProject {}
+// + 2 private fields
+pub(super) async fn update_project(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<UpdateProject>) -> Result<Json<Project>, Failure>
 ```
 
 ## `src/protocol/sse.rs` — 328 lines
@@ -802,6 +805,15 @@ pub struct SubscribeQuery {
     pub after: i64,
 }
 pub async fn subscribe(State(state): State<AppState>, Query(q): Query<SubscribeQuery>) -> Sse<ReceiverStream<Result<Event, Infallible>>>
+```
+
+## `src/protocol/thread.rs` — 68 lines
+
+```rust
+pub(super) struct UpdateThread {}
+// + 2 private fields
+pub(super) fn known_harness(harness: &str) -> Result<(), Failure>
+pub(super) async fn update_thread(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<UpdateThread>) -> Result<Json<PlanningThread>, Failure>
 ```
 
 ## `src/runtime/mod.rs` — 59 lines

@@ -104,6 +104,8 @@ fn the_document_names_every_route() {
             "GET /api/threads/{id}/context",
             "GET /api/threads/{id}/entries",
             "GET /api/threads/{id}/operations",
+            "PATCH /api/projects/{id}",
+            "PATCH /api/threads/{id}",
             "POST /api/fs/dirs",
             "POST /api/operations/{id}/stop",
             "POST /api/projects",

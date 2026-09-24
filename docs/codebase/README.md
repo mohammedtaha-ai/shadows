@@ -30,6 +30,7 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/planner/offers.rs` | the latest choices each open session offers | `src/planner/offers.rs` |
 | `src/planner/context.rs` | reading a session's context breakdown on demand | `src/planner/context.rs` |
 | `src/protocol/harness.rs` | the routes over harnesses, their sessions included | `src/protocol/harness.rs` |
+| `src/protocol/thread.rs` | the routes that change a planning thread itself | `src/protocol/thread.rs` |
 | `src/planner/sessions.rs` | the live adapter connection each open thread holds | `src/planner/sessions.rs` |
 | `src/planner/turn.rs` | the recorded ending of a live Planner turn | `src/planner/turn.rs` |
 | `src/planner/entries.rs` | turning harness events into durable entries | `src/planner/entries.rs` |
