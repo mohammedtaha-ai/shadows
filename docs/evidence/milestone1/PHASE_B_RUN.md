@@ -99,7 +99,7 @@ After Mohammed's rulings, a fresh database and a new conversation:
 | An unknown model | ✅ `SETTING_NOT_OFFERED`, "model nope is not offered" |
 | Fork, then change its CLI | ✅ `HARNESS_LOCKED` on a fork with no turn of its own. The picker shows the lock |
 
-gates at the follow-up: 202 Rust tests, 95 web tests, fmt, clippy, typecheck,
+Gates at the follow-up: 202 Rust tests, 95 web tests, fmt, clippy, typecheck,
 lint and build clean.
 
 ## What this run does not establish

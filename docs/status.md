@@ -23,12 +23,13 @@ The Phase A run is [`PHASE_A_RUN.md`](./evidence/milestone1/PHASE_A_RUN.md).
   [`evidence/milestone0/ACCEPTANCE.md`](./evidence/milestone0/ACCEPTANCE.md).
 - Milestone 1: branch `milestone-1/harness-controls-7p9608`, no PR yet. The
   whole-branch review has run, and its fixes are merged.
-- Three changes Mohammed ruled on after the run are being built (spec §12.5,
-  §12.6/§12.9, §12.7): the mode menu says what Accept edits allows, a fork is
-  locked to its harness, and a chosen model is set at once.
+- Mohammed's three rulings after the run are built and ran on the real
+  harness (spec §12.5, §12.6/§12.9, §12.7): the mode menu says what Accept
+  edits allows, a fork is locked to its harness, and a chosen model is set at
+  once.
 - The daemon serves an API only; the React client in `web/` is a separate
   application (spec §1). Its types are generated from `api/openapi.json`.
-- 197 Rust tests and 91 web tests.
+- 202 Rust tests and 95 web tests.
 
 The plan is `superpowers/plans/2026-09-24-milestone-1-harness-controls.md`. Its
 ledger is in `.superpowers/sdd/`, which must leave the branch before its PR.
@@ -66,12 +67,11 @@ ledger is in `.superpowers/sdd/`, which must leave the branch before its PR.
 
 ## Next
 
-1. Finish the three ruled changes above and run them on the real harness.
-2. Mohammed runs Milestone 1 with the real client on Windows: every item of
+1. Mohammed runs Milestone 1 with the real client on Windows: every item of
    spec §12.13, plus Phase A's Stop and restart.
-3. Remove `.superpowers/sdd/` from the branch, open the Milestone 1 PR, merge
+2. Remove `.superpowers/sdd/` from the branch, open the Milestone 1 PR, merge
    it, delete the branch.
-4. **One lock for every open session.** `Sessions` holds a single lock through
+3. **One lock for every open session.** `Sessions` holds a single lock through
    an adapter's startup (up to 5 s) and through each termination wait, so
    opening one conversation can delay Stop on another. This is latency, not a
    correctness defect. The fix is one slot per thread. It is its own task,
