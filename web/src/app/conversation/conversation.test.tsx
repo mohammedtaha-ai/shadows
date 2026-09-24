@@ -15,6 +15,7 @@ const operation = (status_kind: string) => ({
   thread_id: 't1',
   runtime_instance_id: 'r',
   created_at: '2026-09-23T00:00:00Z',
+  invocation: null,
 })
 
 const DAEMON = {

@@ -4,9 +4,10 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { LoaderCircle } from 'lucide-react'
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
-import type { ThreadEntry } from '@/api/client'
+import type { Choice, Operation, ThreadEntry } from '@/api/client'
 import { describeLabel } from './operational-label'
 import type { ShownReply } from './reply'
+import { labelOf } from './turn-settings'
 
 // Streamdown and its code highlighting are most of this app's weight, so they
 // are a chunk of their own, and not in the one every screen waits for. The
@@ -43,8 +44,14 @@ export function Messages({
   running,
   thinking,
   label,
+  operations,
+  models,
 }: {
   entries: readonly ThreadEntry[] | undefined
+  /** The thread's turns, for what each asked for and was answered by. */
+  operations: readonly Operation[] | undefined
+  /** The session's models, for their labels. */
+  models: readonly Choice[]
   /** The stream has not caught up yet: history is still arriving. */
   loading: boolean
   reply: ShownReply | null
@@ -73,6 +80,7 @@ export function Messages({
 
   const shown = entries?.filter((entry) => !reply?.hidden.has(entry.ordinal)) ?? []
   const operational = label === undefined ? null : describeLabel(label)
+  const answered = answeredNotes(shown, operations ?? [], models)
 
   return (
     <div
@@ -103,6 +111,9 @@ export function Messages({
               initial={handedOver.has(entry.ordinal) ? false : appear.initial}
             >
               <Entry entry={entry} />
+              {answered.has(entry.id) && (
+                <p className="mt-2 text-xs text-faint-foreground">{answered.get(entry.id)}</p>
+              )}
             </motion.li>
           ))}
           {reply !== null && (
@@ -130,6 +141,31 @@ export function Messages({
       </ol>
     </div>
   )
+}
+
+/** For each turn whose answering model is not the one asked for, its note,
+ * by the id of the turn's last entry shown (spec §12.11). */
+function answeredNotes(
+  entries: readonly ThreadEntry[],
+  operations: readonly Operation[],
+  models: readonly Choice[],
+): Map<string, string> {
+  const last = new Map<string, string>()
+  for (const entry of entries) {
+    if (entry.operation_id !== null) last.set(entry.operation_id, entry.id)
+  }
+  const notes = new Map<string, string>()
+  for (const operation of operations) {
+    const entryId = last.get(operation.id)
+    const invocation = operation.invocation
+    if (entryId === undefined || invocation == null) continue
+    const { requested_model: requested, observed_model: observed } = invocation
+    // The request names the harness's option ("sonnet"), the answer a model
+    // id ("claude-sonnet-5"): an id that contains the option is the same one.
+    if (observed === null || observed.includes(requested)) continue
+    notes.set(entryId, `Asked for ${labelOf(models, requested)} · answered by ${observed}`)
+  }
+  return notes
 }
 
 function Entry({ entry }: { entry: ThreadEntry }) {

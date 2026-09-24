@@ -25,7 +25,8 @@ export type NoticeListener = (notice: Notice) => void
  * `{ordinal, kind}`), so the thread's entries query is invalidated at every
  * `caught-up`, at every entry appended while live, and when a turn ends while
  * live — a turn's last word is settled only then — and fetched again (ruling
- * 51). The thread's operations query is invalidated at every `caught-up`.
+ * 51). The thread's operations query is invalidated at every `caught-up`, and
+ * when a turn ends while live, for the observed values of its invocation.
  *
  * `onDurable` sees every durable event once, replayed or live, in `seq` order;
  * `live` says which, and `state` is the stream as it stood when the event
@@ -58,6 +59,8 @@ export function useThreadStream(
         if (live && (event.kind === 'ThreadEntryAppended' || TERMINAL_KINDS.has(event.kind))) {
           refetch(threadEntriesKey(threadId))
         }
+        // A turn's ending settles its invocation's observed values (spec §12.8).
+        if (live && TERMINAL_KINDS.has(event.kind)) refetch(threadOperationsKey(threadId))
         for (const listener of listeners) listener(event, live, created.getState())
       },
       onNotice: (notice) => {

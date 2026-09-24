@@ -4,9 +4,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useReducer } from 'react'
 import { entriesQuery, operationsQuery } from '@/api/queries'
+import type { Limits, UsageFrame } from '@/stream/frames'
 import { useThreadStream } from '@/stream/use-thread-stream'
 import { initialReply, replyReducer, shownReply } from './reply'
 import { initialTurnState, latestTurn, runningTurn, turnReducer } from './turn-state'
+import { type ContextFigures, latestContext } from './usage'
 import { replaceChoices } from './use-session'
 
 /** Mount once per thread (key the caller by thread id): the reducers here
@@ -14,6 +16,18 @@ import { replaceChoices } from './use-session'
 export function useConversation(threadId: string) {
   const [turns, dispatchTurn] = useReducer(turnReducer, initialTurnState)
   const [reply, dispatchReply] = useReducer(replyReducer, initialReply)
+  // The latest the harness reported live; a report that left a figure out
+  // keeps the one before it.
+  const [reported, dispatchUsage] = useReducer(
+    (held: Reported, u: UsageFrame): Reported => ({
+      context:
+        u.contextUsed !== null || u.contextWindow !== null
+          ? { contextUsed: u.contextUsed, contextWindow: u.contextWindow }
+          : held.context,
+      limits: u.limits ?? held.limits,
+    }),
+    { context: null, limits: null },
+  )
 
   const queryClient = useQueryClient()
   const stream = useThreadStream(
@@ -29,6 +43,7 @@ export function useConversation(threadId: string) {
     },
     (notice) => {
       if (notice.type === 'options') replaceChoices(queryClient, threadId, notice.choices)
+      if (notice.type === 'usage') dispatchUsage(notice.usage)
     },
   )
 
@@ -67,7 +82,18 @@ export function useConversation(threadId: string) {
     // replay ended. Until then Send could start a second turn beside one.
     known: operations.isSuccess || stream.caughtUp,
     started: (id: string) => dispatchTurn({ type: 'started', id }),
+    /** Each turn as the operations route last answered it, newest first. */
+    operations: operations.data,
+    /** Context as last reported: live, else as the newest turn ended with it. */
+    context: reported.context ?? latestContext(operations.data ?? []),
+    /** Account limits reported live on this conversation's stream, if any. */
+    limits: reported.limits,
   }
+}
+
+interface Reported {
+  context: ContextFigures | null
+  limits: Limits | null
 }
 
 /** The ordinal of an announced AgentMessage entry, else `null`. The payload

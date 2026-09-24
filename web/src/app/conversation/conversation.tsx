@@ -4,9 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import type { PlanningThread, Project } from '@/api/client'
 import { harnessesQuery, projectsQuery, threadsQuery } from '@/api/queries'
+import { toLimits } from '@/stream/frames'
 import { ErrorLine } from '../error-line'
 import { CliPicker } from './cli-picker'
 import { Composer } from './composer'
+import { ContextRing } from './context-ring'
 import { Messages } from './messages'
 import { StatusBadge } from './status-badge'
 import { StreamBanner } from './stream-banner'
@@ -51,9 +53,12 @@ function Conversation({
   // the first message (spec §12.2).
   const session = useSession(threadId)
   const harness = thread?.harness ?? DEFAULT_HARNESS
+  const info = useQuery(harnessesQuery).data?.find((h) => h.kind === harness)
   // The kind itself until the list has answered.
-  const label =
-    useQuery(harnessesQuery).data?.find((h) => h.kind === harness)?.label ?? harness
+  const label = info?.label ?? harness
+  // Limits are account-wide: reported live on this stream, else as the
+  // daemon last kept them for the harness.
+  const limits = c.limits ?? (info?.limits == null ? null : toLimits(info.limits))
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -92,6 +97,8 @@ function Conversation({
         running={c.running !== null}
         thinking={c.thinking}
         label={c.label}
+        operations={c.operations}
+        models={session.state === 'ready' ? session.choices.models : []}
       />
       <Composer
         threadId={threadId}
@@ -100,6 +107,7 @@ function Conversation({
         running={c.running}
         directory={project?.directory}
         known={c.known}
+        ring={<ContextRing threadId={threadId} usage={c.context} limits={limits} />}
         onStarted={c.started}
       />
     </div>
