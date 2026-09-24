@@ -18,9 +18,11 @@ mod project;
 mod runtime;
 mod thread;
 mod transition;
+mod turn;
 
 pub use events_read::StoredEvent;
 pub use runtime::{ReconcileReport, StopKind};
+pub use turn::{NewTurn, StartedTurn};
 
 const MAX_SEQ: &str = "SELECT MAX(seq) FROM durable_event";
 

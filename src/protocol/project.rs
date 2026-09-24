@@ -19,7 +19,7 @@ use crate::thread::PlanningThread;
 /// the fingerprint is derived from the same parameters the capability is about
 /// to act on — never supplied by the client, which would let a replay with a
 /// different body claim to be the same command.
-fn ctx(command_id: String, kind: &str, params: serde_json::Value) -> CommandContext {
+pub(super) fn ctx(command_id: String, kind: &str, params: serde_json::Value) -> CommandContext {
     CommandContext {
         principal_kind: "User".into(),
         principal_id: "local".into(),

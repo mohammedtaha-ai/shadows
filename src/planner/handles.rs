@@ -54,4 +54,9 @@ impl LiveHandles {
     pub async fn contains(&self, op: &OperationId) -> bool {
         self.0.lock().await.turns.contains_key(op)
     }
+    /// What shutdown does first (§8.5): closes the registry to new turns.
+    #[cfg(feature = "test-support")]
+    pub async fn close_for_test(&self) {
+        self.close().await;
+    }
 }

@@ -12,7 +12,7 @@ use shadows::agent::events::HarnessEvent;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::Actor;
 use shadows::operation::OperationId;
-use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest, Sessions, StopOutcome};
+use shadows::planner::{LiveHandles, PlannerTurn, Sessions, StopOutcome};
 use shadows::project::ProjectDirectory;
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
@@ -20,6 +20,8 @@ use shadows::thread::ThreadId;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
+#[path = "fixtures/turn.rs"]
+mod turn;
 
 struct Fixture {
     _tmp: tempfile::TempDir,
@@ -74,17 +76,13 @@ async fn fixture() -> (Fixture, ThreadId, ThreadId) {
 
 impl Fixture {
     async fn start(&self, thread: &ThreadId, prompt: &str) -> OperationId {
-        let opened = self.sessions.open(thread).await.unwrap();
-        PlannerTurn::start(
-            self.runtime.clone(),
-            self.handles.clone(),
-            self.sessions.clone(),
-            opened,
-            PlannerTurnRequest {
-                thread_id: thread.clone(),
-                prompt: prompt.into(),
-            },
-            self.bus.clone(),
+        turn::start_direct(
+            &self.runtime,
+            &self.handles,
+            &self.sessions,
+            &self.bus,
+            thread,
+            prompt,
         )
         .await
         .unwrap()

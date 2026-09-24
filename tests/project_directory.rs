@@ -115,7 +115,7 @@ async fn a_turn_runs_in_its_projects_directory() {
         &app,
         "POST",
         &format!("/api/threads/{thread_id}/turns"),
-        Some(json!({ "prompt": "report" })),
+        Some(json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": "report", "model": "fake-large", "mode": "acceptEdits", "effort": "high" })),
     )
     .await;
     assert_eq!(status, StatusCode::ACCEPTED, "{started}");
@@ -204,7 +204,7 @@ async fn a_turn_on_a_deleted_directory_is_refused_with_its_reason() {
         &app,
         "POST",
         &format!("/api/threads/{thread_id}/turns"),
-        Some(json!({ "prompt": "hi" })),
+        Some(json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": "hi", "model": "fake-large", "mode": "acceptEdits", "effort": "high" })),
     )
     .await;
 
@@ -245,7 +245,7 @@ async fn a_project_from_before_directories_has_its_turns_refused() {
         &app,
         "POST",
         &format!("/api/threads/{LEGACY_THREAD}/turns"),
-        Some(json!({ "prompt": "report" })),
+        Some(json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": "report", "model": "fake-large", "mode": "acceptEdits", "effort": "high" })),
     )
     .await;
     // Spec §12.7: the session is opened before any write, and a directory

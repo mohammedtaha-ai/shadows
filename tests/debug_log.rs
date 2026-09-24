@@ -16,7 +16,7 @@ use axum::http::Request;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::Actor;
 use shadows::operation::OperationId;
-use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest};
+use shadows::planner::{LiveHandles, PlannerTurn};
 use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
@@ -24,6 +24,8 @@ use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
+#[path = "fixtures/turn.rs"]
+mod turn;
 
 const PROMPT: &str = "a prompt that must never reach a log 7f3a";
 
@@ -51,7 +53,7 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
             Request::post(format!("/api/threads/{thread}/turns"))
                 .header("content-type", "application/json")
                 .body(Body::from(
-                    serde_json::json!({ "prompt": PROMPT }).to_string(),
+                    serde_json::json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": PROMPT, "model": "fake-large", "mode": "acceptEdits", "effort": "high" }).to_string(),
                 ))
                 .unwrap(),
         )
@@ -159,17 +161,13 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
 }
 
 async fn start(state: &AppState, thread: &shadows::thread::ThreadId, prompt: &str) -> OperationId {
-    let opened = state.sessions.open(thread).await.unwrap();
-    PlannerTurn::start(
-        state.runtime.clone(),
-        state.handles.clone(),
-        state.sessions.clone(),
-        opened,
-        PlannerTurnRequest {
-            thread_id: thread.clone(),
-            prompt: prompt.into(),
-        },
-        state.bus.clone(),
+    turn::start_direct(
+        &state.runtime,
+        &state.handles,
+        &state.sessions,
+        &state.bus,
+        thread,
+        prompt,
     )
     .await
     .unwrap()

@@ -185,7 +185,7 @@ async fn thread_routes_create_list_and_run_a_turn_to_its_entries() {
         &f.app,
         "POST",
         &format!("/api/threads/{thread_id}/turns"),
-        Some(json!({ "prompt": "hi" })),
+        Some(json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": "hi", "model": "fake-large", "mode": "acceptEdits", "effort": "high" })),
     )
     .await;
     assert_eq!(status, StatusCode::ACCEPTED, "{started}");
@@ -378,7 +378,7 @@ async fn a_stop_whose_termination_fails_answers_500_and_cancels_nothing() {
         &f.app,
         "POST",
         &format!("/api/threads/{}/turns", thread["id"].as_str().unwrap()),
-        Some(json!({ "prompt": "ignore-cancel" })),
+        Some(json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": "ignore-cancel", "model": "fake-large", "mode": "acceptEdits", "effort": "high" })),
     )
     .await;
     assert_eq!(status, StatusCode::ACCEPTED, "{started}");

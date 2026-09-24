@@ -214,6 +214,8 @@ async fn the_current_runtimes_own_operations_are_left_alone() {
 
 #[path = "fixtures/acp.rs"]
 mod acp;
+#[path = "fixtures/turn.rs"]
+mod turn;
 
 /// One daemon's worth of state over the database at `db`: a runtime, its
 /// registry and its adapters, as `shadows serve` assembles them.
@@ -236,17 +238,14 @@ impl Daemon {
 
     /// Runs one turn to its end and answers the text of its last entry.
     async fn turn(&self, thread: &shadows::thread::ThreadId, prompt: &str) -> String {
-        let opened = self.sessions.open(thread).await.unwrap();
-        let op = shadows::planner::PlannerTurn::start(
-            self.runtime.clone(),
-            self.handles.clone(),
-            self.sessions.clone(),
-            opened,
-            shadows::planner::PlannerTurnRequest {
-                thread_id: thread.clone(),
-                prompt: prompt.into(),
-            },
-            tokio::sync::broadcast::channel(16).0,
+        let bus = tokio::sync::broadcast::channel(16).0;
+        let op = turn::start_direct(
+            &self.runtime,
+            &self.handles,
+            &self.sessions,
+            &bus,
+            thread,
+            prompt,
         )
         .await
         .unwrap();

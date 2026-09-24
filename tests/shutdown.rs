@@ -16,9 +16,7 @@ use axum::http::{Request, StatusCode};
 use shadows::agent::events::HarnessEvent;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::operation::{Operation, OperationId};
-use shadows::planner::{
-    LiveHandles, PlannerTurn, PlannerTurnRequest, Sessions, StartError, shut_down,
-};
+use shadows::planner::{LiveHandles, Sessions, StartError, shut_down};
 use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
 use shadows::storage::{StopKind, Storage};
@@ -27,6 +25,8 @@ use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
+#[path = "fixtures/turn.rs"]
+mod turn;
 
 type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
 
@@ -89,17 +89,13 @@ async fn fixture() -> Fixture {
 
 impl Fixture {
     async fn start(&self, prompt: &str) -> Result<OperationId, StartError> {
-        let opened = self.sessions.open(&self.thread).await.unwrap();
-        PlannerTurn::start(
-            self.runtime.clone(),
-            self.handles.clone(),
-            self.sessions.clone(),
-            opened,
-            PlannerTurnRequest {
-                thread_id: self.thread.clone(),
-                prompt: prompt.into(),
-            },
-            self.bus.clone(),
+        turn::start_direct(
+            &self.runtime,
+            &self.handles,
+            &self.sessions,
+            &self.bus,
+            &self.thread,
+            prompt,
         )
         .await
     }
@@ -364,7 +360,7 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
         .oneshot(
             Request::post(format!("/api/threads/{}/turns", f.thread.as_str()))
                 .header("content-type", "application/json")
-                .body(Body::from(r#"{"prompt":"hi"}"#))
+                .body(Body::from(r#"{"command_id":"after-stop","prompt":"hi","model":"fake-large","mode":"acceptEdits","effort":"high"}"#))
                 .unwrap(),
         )
         .await

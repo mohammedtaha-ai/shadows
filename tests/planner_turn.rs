@@ -133,7 +133,7 @@ async fn http_start_raw(app: &App, body: Value) -> (u16, Value) {
 }
 
 async fn start_prompt(app: &App, prompt: &str) -> OperationId {
-    let (status, body) = http_start_raw(app, json!({ "prompt": prompt })).await;
+    let (status, body) = http_start_raw(app, json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": prompt, "model": "fake-large", "mode": "acceptEdits", "effort": "high" })).await;
     assert_eq!(status, StatusCode::ACCEPTED.as_u16(), "{body}");
     OperationId::from_literal(body["operation_id"].as_str().unwrap())
 }
@@ -315,7 +315,7 @@ async fn a_permission_request_is_refused_and_recorded() {
 #[tokio::test]
 async fn a_turn_whose_adapter_cannot_start_writes_nothing() {
     let app = test_app_with_node("C:/definitely/missing/node.exe").await;
-    let (status, body) = http_start_raw(&app, json!({ "prompt": "hi" })).await;
+    let (status, body) = http_start_raw(&app, json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": "hi", "model": "fake-large", "mode": "acceptEdits", "effort": "high" })).await;
     assert_eq!(
         (status, body["code"].as_str()),
         (502, Some("HARNESS_START_FAILED"))

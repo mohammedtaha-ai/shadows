@@ -405,6 +405,12 @@ impl Sessions {
         }
     }
 
+    /// The adapter this daemon runs, whose paths and versions every
+    /// invocation records (§12.7).
+    pub fn adapter(&self) -> &ClaudeAdapter {
+        &self.adapter
+    }
+
     pub fn cancel_wait(&self) -> Duration {
         self.config.cancel_wait
     }

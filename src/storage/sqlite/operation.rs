@@ -6,8 +6,53 @@ use crate::operation::{FailureStage, OperationId};
 use crate::runtime::RuntimeInstanceId;
 use crate::thread::ThreadId;
 
-use super::transition::{Before, existed, read_before, record};
+use sqlx::SqliteConnection;
+
+use super::transition::{Before, Transition, existed, read_before, record};
 use super::{Storage, StorageError, now};
+
+/// Inserts a `Pending` operation and its `OperationCreated` event inside the
+/// caller's transaction; refused for a stopped runtime (see
+/// `create_pending_operation`). The turn command (§12.7) calls it inside its
+/// own transaction. The caller logs the returned transition after commit.
+pub(super) async fn insert_pending(
+    conn: &mut SqliteConnection,
+    op_id: &OperationId,
+    thread_id: &ThreadId,
+    runtime_id: &RuntimeInstanceId,
+    ts: &str,
+) -> Result<Transition, StorageError> {
+    let affected = sqlx::query(
+        "INSERT INTO operation
+           (id, kind, status_kind, thread_id, runtime_instance_id, created_at)
+         SELECT ?, 'PlannerTurn', 'Pending', ?, r.id, ?
+           FROM runtime_instance r
+          WHERE r.id = ? AND r.stopped_at IS NULL",
+    )
+    .bind(op_id.as_str())
+    .bind(thread_id.as_str())
+    .bind(ts)
+    .bind(runtime_id.as_str())
+    .execute(&mut *conn)
+    .await?
+    .rows_affected();
+    if affected == 0 {
+        return Err(StorageError::TransitionConflict {
+            expected: "a runtime that has not stopped".into(),
+            found: "a stopped or unknown runtime".into(),
+        });
+    }
+    record(
+        conn,
+        op_id,
+        Before::creating(thread_id.clone()),
+        "Pending",
+        DurableEvent::new("OperationCreated", Actor::system())
+            .with_payload(serde_json::json!({ "kind": "PlannerTurn" })),
+        ts,
+    )
+    .await
+}
 
 impl Storage {
     /// TX #1 of the two-phase spawn. Spec §2.7: Pending is persisted before
@@ -29,44 +74,13 @@ impl Storage {
             runtime_instance_id.clone(),
             now(),
         );
-        let transition = self
-            .write_txn(move |conn| {
-                Box::pin(async move {
-                    let affected = sqlx::query(
-                        "INSERT INTO operation
-                           (id, kind, status_kind, thread_id, runtime_instance_id, created_at)
-                         SELECT ?, 'PlannerTurn', 'Pending', ?, r.id, ?
-                           FROM runtime_instance r
-                          WHERE r.id = ? AND r.stopped_at IS NULL",
-                    )
-                    .bind(op_id.as_str())
-                    .bind(thread_id.as_str())
-                    .bind(&ts)
-                    .bind(runtime_id.as_str())
-                    .execute(&mut *conn)
-                    .await?
-                    .rows_affected();
-                    if affected == 0 {
-                        return Err(StorageError::TransitionConflict {
-                            expected: "a runtime that has not stopped".into(),
-                            found: "a stopped or unknown runtime".into(),
-                        });
-                    }
-
-                    record(
-                        conn,
-                        &op_id,
-                        Before::creating(thread_id),
-                        "Pending",
-                        DurableEvent::new("OperationCreated", Actor::system())
-                            .with_payload(serde_json::json!({ "kind": "PlannerTurn" })),
-                        &ts,
-                    )
-                    .await
-                })
-            })
-            .await?;
-        transition.log();
+        self.write_txn(move |conn| {
+            Box::pin(
+                async move { insert_pending(conn, &op_id, &thread_id, &runtime_id, &ts).await },
+            )
+        })
+        .await?
+        .log();
         Ok(id)
     }
 

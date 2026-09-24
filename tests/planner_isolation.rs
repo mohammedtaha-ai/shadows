@@ -12,13 +12,15 @@ use std::time::Duration;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::Actor;
 use shadows::operation::{Operation, OperationId};
-use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest, StopOutcome};
+use shadows::planner::{LiveHandles, PlannerTurn, StopOutcome};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use shadows::thread::ThreadId;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
+#[path = "fixtures/turn.rs"]
+mod turn;
 
 /// A project with its own directory, and one thread in it.
 async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> ThreadId {
@@ -109,20 +111,9 @@ async fn stopping_one_turn_leaves_a_concurrent_turn_running_to_completion() {
     let (bus, _rx) = tokio::sync::broadcast::channel(64);
     let sessions = acp::fake_sessions(&tmp.path().join("s.sqlite3")).await;
     let start = async |thread: &ThreadId, prompt: &str| {
-        let opened = sessions.open(thread).await.unwrap();
-        PlannerTurn::start(
-            runtime.clone(),
-            handles.clone(),
-            sessions.clone(),
-            opened,
-            PlannerTurnRequest {
-                thread_id: thread.clone(),
-                prompt: prompt.into(),
-            },
-            bus.clone(),
-        )
-        .await
-        .unwrap()
+        turn::start_direct(&runtime, &handles, &sessions, &bus, thread, prompt)
+            .await
+            .unwrap()
     };
     // `ignore-cancel`: the harness never confirms, so Stop has to terminate
     // the stopped thread's adapter — the case that could reach the other.

@@ -128,6 +128,32 @@ impl Failure {
         }
     }
 
+    /// Spec §12.7: `what` (model, effort, mode or harness) is not among the
+    /// choices on offer. `detail`, when given, is the harness's own refusal,
+    /// which names a setting the user chose (§12.4: reported in its words).
+    pub(super) fn setting_not_offered(what: &str, id: &str, detail: Option<&str>) -> Self {
+        let message = match detail {
+            Some(detail) => format!("{what} {id} was refused by the harness: {detail}"),
+            None => format!("{what} {id} is not offered"),
+        };
+        Failure {
+            status: StatusCode::UNPROCESSABLE_ENTITY,
+            code: ErrorCode::SettingNotOffered,
+            message,
+            cause: None,
+        }
+    }
+
+    /// Spec §12.5: the project does not allow `mode`.
+    pub(super) fn mode_not_allowed(mode: &str) -> Self {
+        Failure {
+            status: StatusCode::FORBIDDEN,
+            code: ErrorCode::ModeNotAllowed,
+            message: format!("this project does not allow the {mode} mode"),
+            cause: None,
+        }
+    }
+
     /// Spec §8.5: a stopping daemon takes no new work. 503, because the
     /// refusal is about this daemon's state, not the request — the same
     /// request succeeds against the next one.

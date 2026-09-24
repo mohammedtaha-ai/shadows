@@ -1,10 +1,15 @@
 //! One job: register a Planner prompt before committing Running.
+//!
+//! The operation already exists: the turn command (§12.7,
+//! `Storage::start_turn`) committed it `Pending` with the user's entry. This
+//! file sets the session to the turn's settings, registers the prompt, and
+//! commits `Running`; `turn.rs` takes it from there.
 use super::{
     LiveHandles, LiveTurn, OpenSession, Sessions,
     turn::{PlannerTurn, TurnWatch, watch_turn},
 };
 use crate::{
-    agent::events::HarnessEvent,
+    agent::{TurnSettings, acp::AcpError, events::HarnessEvent},
     events::Actor,
     operation::{FailureStage, OperationId},
     runtime::Runtime,
@@ -21,11 +26,60 @@ pub enum StartError {
     #[error(transparent)]
     Storage(#[from] StorageError),
 }
+/// A turn whose operation `Storage::start_turn` has committed `Pending`.
 #[derive(Debug, Clone)]
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
+    pub operation_id: OperationId,
     pub prompt: String,
+    pub settings: TurnSettings,
 }
+
+/// §12.7: before the prompt, the session is set to the turn's model, effort
+/// and mode, one call per value that differs from what the session holds.
+/// `Err` names the setting the harness refused, in its words; nothing has
+/// been sent to the model.
+async fn prepare_settings(
+    sessions: &Sessions,
+    thread: &ThreadId,
+    opened: &OpenSession,
+    settings: &TurnSettings,
+) -> Result<(), String> {
+    let mut offered = sessions
+        .offered(thread)
+        .await
+        .ok_or("the harness session closed before the turn")?;
+    let refused = |what: &str, value: &str, e: AcpError| format!("{what} {value}: {e}");
+    if offered.current.model != settings.model {
+        let id = offered.ids.model.clone();
+        offered = sessions
+            .set_option(thread, opened, &id, &settings.model)
+            .await
+            .map_err(|e| refused("model", &settings.model, e))?;
+    }
+    if let Some(effort) = &settings.effort
+        && offered.current.effort.as_ref() != Some(effort)
+    {
+        let id = offered
+            .ids
+            .effort
+            .clone()
+            .ok_or_else(|| format!("effort {effort}: the model offers no effort"))?;
+        offered = sessions
+            .set_option(thread, opened, &id, effort)
+            .await
+            .map_err(|e| refused("effort", effort, e))?;
+    }
+    if offered.current.mode != settings.mode {
+        let id = offered.ids.mode.clone();
+        sessions
+            .set_option(thread, opened, &id, &settings.mode)
+            .await
+            .map_err(|e| refused("mode", &settings.mode, e))?;
+    }
+    Ok(())
+}
+
 impl PlannerTurn {
     pub async fn start(
         runtime: Arc<Runtime>,
@@ -35,21 +89,21 @@ impl PlannerTurn {
         request: PlannerTurnRequest,
         bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
     ) -> Result<OperationId, StartError> {
-        let PlannerTurnRequest { thread_id, prompt } = request;
-        if handles.is_closed().await {
-            return Err(StartError::RuntimeStopping);
-        }
-        runtime.storage.turn_context(&thread_id).await?;
-        let op_id = match runtime
-            .storage
-            .create_pending_operation(&thread_id, &runtime.instance_id)
-            .await
-        {
-            Ok(id) => id,
-            Err(_) if handles.is_closed().await => return Err(StartError::RuntimeStopping),
-            Err(e) => return Err(e.into()),
-        };
+        let PlannerTurnRequest {
+            thread_id,
+            operation_id: op_id,
+            prompt,
+            settings,
+        } = request;
         let span = tracing::info_span!(parent: None, "planner.turn", operation_id = %op_id, thread_id = %thread_id);
+        if let Err(reason) = prepare_settings(&sessions, &thread_id, &opened, &settings).await {
+            tracing::info!(parent: &span, %reason, "planner.prepare_refused");
+            runtime
+                .storage
+                .mark_operation_failed(&op_id, FailureStage::Prepare, &reason)
+                .await?;
+            return Ok(op_id);
+        }
         let turn_end_seen = Arc::new(AtomicBool::new(false));
         let cancel_requested = Arc::new(AtomicBool::new(false));
         if let Err(_turn) = handles
