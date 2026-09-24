@@ -7,7 +7,7 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { choice, completedOperation, fakeChoices } from '@/test/contract-fixtures'
+import { choice, completedOperation, fakeChoices, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, choose, menuItem, startApp, typeInto, until } from '../test-app'
 
@@ -186,6 +186,16 @@ describe('the composer bar', () => {
     expect(app.button('fake-large')).toBeDefined()
     expect(app.button('fake-small')).toBeUndefined()
     expect(app.button('high')?.disabled).toBe(false)
+  })
+
+  it('a fresh fork shows the CLI locked before any turn', async () => {
+    const app = await start('/projects/p1/threads/t1', {
+      ...answers({ operations: [] }),
+      'GET /api/projects/p1/threads': [{ ...threadFixture, forked_from_thread: 't0' }],
+    })
+    await until(
+      () => app.container.querySelector('[aria-label="CLI locked for this conversation"]') !== null,
+    )
   })
 
   it('the CLI picker changes the harness before the first turn and shows a lock after', async () => {

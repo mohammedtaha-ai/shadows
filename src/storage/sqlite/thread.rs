@@ -89,8 +89,9 @@ impl Storage {
     /// Changes the thread's harness while it has no operation (spec §12.6).
     /// An idempotent command: a replay answers the thread as it now stands and
     /// changes nothing, even once the harness is locked. A new command on a
-    /// thread with an operation is `HarnessLocked` — checked here, and again by
-    /// the `planning_thread_harness_locked` trigger below the application.
+    /// thread with an operation, or on a fork (locked from birth, §12.9), is
+    /// `HarnessLocked` — checked here, and again by the
+    /// `planning_thread_harness_locked` trigger below the application.
     pub async fn set_thread_harness(
         &self,
         ctx: &CommandContext,
@@ -107,7 +108,7 @@ impl Storage {
                     return load_thread(conn, &thread).await;
                 }
                 let current = load_thread(conn, &thread).await?;
-                if has_operation(conn, &thread).await? {
+                if current.forked_from_thread.is_some() || has_operation(conn, &thread).await? {
                     return Err(StorageError::HarnessLocked);
                 }
                 sqlx::query("UPDATE planning_thread SET harness_kind = ? WHERE id = ?")

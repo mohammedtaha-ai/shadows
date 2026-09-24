@@ -31,7 +31,8 @@ export function CliPicker({
   /** The thread's harness kind, and how it reads. */
   harness: string
   label: string
-  /** The thread has run a turn: its harness is fixed (`HARNESS_LOCKED`). */
+  /** The thread has run a turn, or is a fork: its harness is fixed
+   * (`HARNESS_LOCKED`). */
   locked: boolean
 }) {
   const queryClient = useQueryClient()
@@ -64,7 +65,9 @@ export function CliPicker({
           <Lock aria-hidden className="size-3" />
           {label}
         </TooltipTrigger>
-        <TooltipContent>The CLI is fixed once a conversation has run a turn.</TooltipContent>
+        <TooltipContent>
+          The CLI is fixed once a conversation has run a turn; a fork keeps its source’s.
+        </TooltipContent>
       </Tooltip>
     )
   }

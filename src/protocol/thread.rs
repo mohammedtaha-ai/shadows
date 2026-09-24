@@ -11,8 +11,8 @@ use super::{AppState, Failure};
 use crate::agent::policy;
 use crate::thread::{PlanningThread, ThreadEntryId, ThreadId};
 
-/// Changes the thread's CLI. Refused once the thread has run a turn
-/// (`HARNESS_LOCKED`).
+/// Changes the thread's CLI. Refused once the thread has run a turn, and on
+/// a fork from birth (`HARNESS_LOCKED`).
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct UpdateThread {
     /// The idempotency key (spec §3.2), scoped to the thread.
@@ -32,8 +32,9 @@ pub(super) fn known_harness(harness: &str) -> Result<(), Failure> {
 
 /// Changes the thread's CLI before its first turn (spec §12.6). A replay
 /// answers the thread as it now stands and changes nothing, even once the
-/// harness is locked; a new command after the first turn is
-/// `HARNESS_LOCKED`. A change closes the thread's adapter (§12.2).
+/// harness is locked; a new command after the first turn, or on a fork (its
+/// session is a fork of its source's, §12.9), is `HARNESS_LOCKED`. A change
+/// closes the thread's adapter (§12.2).
 #[utoipa::path(
     patch,
     path = "/api/threads/{id}",
@@ -43,7 +44,7 @@ pub(super) fn known_harness(harness: &str) -> Result<(), Failure> {
     responses(
         (status = 200, body = PlanningThread),
         (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
-        (status = 409, description = "HARNESS_LOCKED: the thread already ran a turn on its harness, or COMMAND_CONFLICT", body = ErrorBody),
+        (status = 409, description = "HARNESS_LOCKED: the thread already ran a turn on its harness, or is a fork; or COMMAND_CONFLICT", body = ErrorBody),
         (status = 422, description = "SETTING_NOT_OFFERED: a harness Shadows does not know", body = ErrorBody),
     )
 )]

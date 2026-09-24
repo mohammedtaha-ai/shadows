@@ -897,7 +897,7 @@
         "type": "object"
       },
       "UpdateThread": {
-        "description": "Changes the thread's CLI. Refused once the thread has run a turn\n(`HARNESS_LOCKED`).",
+        "description": "Changes the thread's CLI. Refused once the thread has run a turn, and on\na fork from birth (`HARNESS_LOCKED`).",
         "properties": {
           "command_id": {
             "description": "The idempotency key (spec §3.2), scoped to the thread.",
@@ -1598,7 +1598,7 @@
                 }
               }
             },
-            "description": "HARNESS_LOCKED: the thread already ran a turn on its harness, or COMMAND_CONFLICT"
+            "description": "HARNESS_LOCKED: the thread already ran a turn on its harness, or is a fork; or COMMAND_CONFLICT"
           },
           "422": {
             "content": {
@@ -1611,7 +1611,7 @@
             "description": "SETTING_NOT_OFFERED: a harness Shadows does not know"
           }
         },
-        "summary": "Changes the thread's CLI before its first turn (spec §12.6). A replay\nanswers the thread as it now stands and changes nothing, even once the\nharness is locked; a new command after the first turn is\n`HARNESS_LOCKED`. A change closes the thread's adapter (§12.2).",
+        "summary": "Changes the thread's CLI before its first turn (spec §12.6). A replay\nanswers the thread as it now stands and changes nothing, even once the\nharness is locked; a new command after the first turn, or on a fork (its\nsession is a fork of its source's, §12.9), is `HARNESS_LOCKED`. A change\ncloses the thread's adapter (§12.2).",
         "tags": [
           "threads"
         ]

@@ -75,7 +75,9 @@ function Conversation({
             threadId={threadId}
             harness={harness}
             label={label}
-            locked={c.latest !== null}
+            // A fork is locked from birth (spec §12.9): its session is a fork
+            // of its source's, which no other harness could continue.
+            locked={c.latest !== null || thread?.forked_from_thread != null}
           />
           <StatusBadge running={c.running} latest={c.latest} />
         </div>

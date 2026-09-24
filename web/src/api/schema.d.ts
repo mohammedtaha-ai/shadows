@@ -195,8 +195,9 @@ export interface paths {
         /**
          * Changes the thread's CLI before its first turn (spec §12.6). A replay
          *     answers the thread as it now stands and changes nothing, even once the
-         *     harness is locked; a new command after the first turn is
-         *     `HARNESS_LOCKED`. A change closes the thread's adapter (§12.2).
+         *     harness is locked; a new command after the first turn, or on a fork (its
+         *     session is a fork of its source's, §12.9), is `HARNESS_LOCKED`. A change
+         *     closes the thread's adapter (§12.2).
          */
         patch: operations["update_thread"];
         trace?: never;
@@ -686,8 +687,8 @@ export interface components {
             command_id: string;
         };
         /**
-         * @description Changes the thread's CLI. Refused once the thread has run a turn
-         *     (`HARNESS_LOCKED`).
+         * @description Changes the thread's CLI. Refused once the thread has run a turn, and on
+         *     a fork from birth (`HARNESS_LOCKED`).
          */
         UpdateThread: {
             /** @description The idempotency key (spec §3.2), scoped to the thread. */
@@ -1247,7 +1248,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description HARNESS_LOCKED: the thread already ran a turn on its harness, or COMMAND_CONFLICT */
+            /** @description HARNESS_LOCKED: the thread already ran a turn on its harness, or is a fork; or COMMAND_CONFLICT */
             409: {
                 headers: {
                     [name: string]: unknown;

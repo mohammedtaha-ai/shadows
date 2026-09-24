@@ -836,7 +836,7 @@ pub struct SubscribeQuery {
 pub async fn subscribe(State(state): State<AppState>, Query(q): Query<SubscribeQuery>) -> Sse<ReceiverStream<Result<Event, Infallible>>>
 ```
 
-## `src/protocol/thread.rs` — 109 lines
+## `src/protocol/thread.rs` — 110 lines
 
 ```rust
 pub(super) struct UpdateThread {}
@@ -1023,7 +1023,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/thread.rs` — 283 lines
+## `src/storage/sqlite/thread.rs` — 284 lines
 
 ```rust
 impl Storage {
