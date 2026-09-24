@@ -1,12 +1,13 @@
 // One job: binding one open conversation to the daemon — its stream, its
 // entries, its turns — as the state its screen draws.
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useReducer } from 'react'
 import { entriesQuery, operationsQuery } from '@/api/queries'
 import { useThreadStream } from '@/stream/use-thread-stream'
 import { initialReply, replyReducer, shownReply } from './reply'
 import { initialTurnState, latestTurn, runningTurn, turnReducer } from './turn-state'
+import { replaceChoices } from './use-session'
 
 /** Mount once per thread (key the caller by thread id): the reducers here
  * hold that one thread's turns and reply. */
@@ -14,15 +15,22 @@ export function useConversation(threadId: string) {
   const [turns, dispatchTurn] = useReducer(turnReducer, initialTurnState)
   const [reply, dispatchReply] = useReducer(replyReducer, initialReply)
 
-  const stream = useThreadStream(threadId, (event, live, current) => {
-    dispatchTurn({ type: 'event', event, now: Date.now() })
-    if (live && event.kind === 'ThreadEntryAppended') {
-      const ordinal = agentOrdinal(event.payload)
-      if (ordinal !== null) {
-        dispatchReply({ type: 'agent-entry', ordinal, streaming: current.streaming })
+  const queryClient = useQueryClient()
+  const stream = useThreadStream(
+    threadId,
+    (event, live, current) => {
+      dispatchTurn({ type: 'event', event, now: Date.now() })
+      if (live && event.kind === 'ThreadEntryAppended') {
+        const ordinal = agentOrdinal(event.payload)
+        if (ordinal !== null) {
+          dispatchReply({ type: 'agent-entry', ordinal, streaming: current.streaming })
+        }
       }
-    }
-  })
+    },
+    (notice) => {
+      if (notice.type === 'options') replaceChoices(queryClient, threadId, notice.choices)
+    },
+  )
 
   const entries = useQuery(entriesQuery(threadId))
   const operations = useQuery(operationsQuery(threadId))

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { subscribeUrl } from '@/api/client'
 import { threadEntriesKey, threadOperationsKey } from '@/api/queries'
 import type { DurableEvent } from './frames'
-import { type StreamState, ThreadStream } from './thread-stream'
+import { type Notice, type StreamState, ThreadStream } from './thread-stream'
 
 /** Operation events after which the operation is over. */
 const TERMINAL_KINDS: ReadonlySet<string> = new Set([
@@ -16,6 +16,7 @@ const TERMINAL_KINDS: ReadonlySet<string> = new Set([
 ])
 
 export type DurableListener = (event: DurableEvent, live: boolean, state: StreamState) => void
+export type NoticeListener = (notice: Notice) => void
 
 /** A thread's live stream while the calling component is mounted. Switching
  * `threadId` or unmounting closes the connection; it never stops a turn.
@@ -28,17 +29,20 @@ export type DurableListener = (event: DurableEvent, live: boolean, state: Stream
  *
  * `onDurable` sees every durable event once, replayed or live, in `seq` order;
  * `live` says which, and `state` is the stream as it stood when the event
- * arrived. It may change between renders. */
+ * arrived. `onNotice` sees each `usage` and `options` frame. Either may change
+ * between renders. */
 export function useThreadStream(
   threadId: string,
   onDurable?: DurableListener,
+  onNotice?: NoticeListener,
 ): StreamState & { retry: () => void } {
   const queryClient = useQueryClient()
 
   // Constructing a ThreadStream opens nothing, so creating it during render is
   // safe; the effect below owns the connection.
-  const { stream, listeners } = useMemo(() => {
+  const { stream, listeners, noticeListeners } = useMemo(() => {
     const listeners = new Set<DurableListener>()
+    const noticeListeners = new Set<NoticeListener>()
     const refetch = (key: readonly unknown[]) => void queryClient.invalidateQueries({ queryKey: key })
     const created: ThreadStream = new ThreadStream({
       url: (after) => subscribeUrl(threadId, after),
@@ -56,9 +60,20 @@ export function useThreadStream(
         }
         for (const listener of listeners) listener(event, live, created.getState())
       },
+      onNotice: (notice) => {
+        for (const listener of noticeListeners) listener(notice)
+      },
     })
-    return { stream: created, listeners }
+    return { stream: created, listeners, noticeListeners }
   }, [threadId, queryClient])
+
+  useEffect(() => {
+    if (onNotice === undefined) return
+    noticeListeners.add(onNotice)
+    return () => {
+      noticeListeners.delete(onNotice)
+    }
+  }, [noticeListeners, onNotice])
 
   // Declared before the effect that connects, so the listener is in place
   // before the first frame can arrive.
