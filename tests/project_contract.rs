@@ -38,11 +38,23 @@ async fn replaying_an_identical_command_returns_the_stored_outcome() {
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
 
     let first = storage
-        .create_project(&ctx("cmd-1", &params), "demo", "Demo", &dir())
+        .create_project(
+            &ctx("cmd-1", &params),
+            "demo",
+            "Demo",
+            &dir(),
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let second = storage
-        .create_project(&ctx("cmd-1", &params), "demo", "Demo", &dir())
+        .create_project(
+            &ctx("cmd-1", &params),
+            "demo",
+            "Demo",
+            &dir(),
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
 
@@ -71,13 +83,25 @@ async fn the_same_command_id_with_a_different_request_is_a_conflict() {
 
     let first_params = serde_json::json!({ "slug": "demo", "name": "Demo" });
     storage
-        .create_project(&ctx("cmd-1", &first_params), "demo", "Demo", &dir())
+        .create_project(
+            &ctx("cmd-1", &first_params),
+            "demo",
+            "Demo",
+            &dir(),
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
 
     let other_params = serde_json::json!({ "slug": "other", "name": "Other" });
     let err = storage
-        .create_project(&ctx("cmd-1", &other_params), "other", "Other", &dir())
+        .create_project(
+            &ctx("cmd-1", &other_params),
+            "other",
+            "Other",
+            &dir(),
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .expect_err("a reused command id with a different request must be refused");
     assert!(matches!(
@@ -141,7 +165,13 @@ async fn the_same_command_id_under_a_different_schema_version_is_a_conflict() {
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
 
     storage
-        .create_project(&ctx("cmd-1", &params), "demo", "Demo", &dir())
+        .create_project(
+            &ctx("cmd-1", &params),
+            "demo",
+            "Demo",
+            &dir(),
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
 
@@ -154,7 +184,13 @@ async fn the_same_command_id_under_a_different_schema_version_is_a_conflict() {
     );
 
     let err = storage
-        .create_project(&bumped, "demo", "Demo", &dir())
+        .create_project(
+            &bumped,
+            "demo",
+            "Demo",
+            &dir(),
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .expect_err("a reused command id under a new schema version must be refused");
     assert!(matches!(
@@ -191,7 +227,13 @@ async fn projects_are_listed_in_creation_order_whatever_their_timestamp_text() {
         let slug = format!("p{i}");
         let params = serde_json::json!({ "slug": slug });
         let project = storage
-            .create_project(&ctx(&slug, &params), &slug, &slug, &dir())
+            .create_project(
+                &ctx(&slug, &params),
+                &slug,
+                &slug,
+                &dir(),
+                &shadows::agent::policy::default_modes(),
+            )
             .await
             .unwrap();
         sqlx::query("UPDATE project SET created_at = ? WHERE id = ?")

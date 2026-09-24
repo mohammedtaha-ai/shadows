@@ -8,14 +8,12 @@
 //! `operation_id` its durable frames name — so a frame that drops that field
 //! strands the client with a Stop button it cannot aim.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::Request;
 use serde_json::Value;
-use shadows::agent::claude::ClaudeHarness;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::planner::LiveHandles;
 use shadows::protocol::{AppState, router};
@@ -23,6 +21,9 @@ use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use tokio_stream::StreamExt;
 use tower::ServiceExt;
+
+#[path = "fixtures/acp.rs"]
+mod acp;
 
 /// A durable frame names its operation and its thread, and its `payload` is
 /// the event's JSON object, not a string holding JSON. `caught-up` is JSON
@@ -39,8 +40,7 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
         runtime: Arc::new(runtime),
         storage: storage.clone(),
         handles: Arc::new(LiveHandles::default()),
-        harness: Arc::new(ClaudeHarness::new(PathBuf::from("claude.exe"), "t".into())),
-        sessions: None,
+        sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
         bus,
         allowed_origins: Vec::new(),
         shutdown,
@@ -57,11 +57,17 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
     };
     let dir = shadows::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
     let project = storage
-        .create_project(&ctx("c1", "project.create"), "demo", "Demo", &dir)
+        .create_project(
+            &ctx("c1", "project.create"),
+            "demo",
+            "Demo",
+            &dir,
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let thread = storage
-        .create_planning_thread(&ctx("c2", "thread.create"), &project.id, "T")
+        .create_planning_thread(&ctx("c2", "thread.create"), &project.id, "T", "claude-code")
         .await
         .unwrap();
     let op = storage

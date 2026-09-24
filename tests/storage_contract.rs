@@ -36,15 +36,20 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
     assert_eq!(
         tables,
         vec![
+            "agent_invocation",
             "command_record",
             "durable_event",
+            "harness_limit",
+            "harness_preference",
             "operation",
             "planning_thread",
             "project",
+            "project_mode",
             "runtime_instance",
             "thread_entry",
         ],
-        "spec §7.1: the first migration carries only the milestone's tables"
+        "spec §7.1: the migrations carry only the milestones' tables \
+         (0005 adds §12's four)"
     );
 }
 

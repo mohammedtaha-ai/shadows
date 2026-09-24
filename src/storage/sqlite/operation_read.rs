@@ -4,7 +4,11 @@
 //! event; a read has no such pairing, and keeping it apart keeps that file
 //! about transitions only (the same split as `events.rs` / `events_read.rs`).
 
-use crate::operation::{Operation, OperationId};
+use std::collections::HashMap;
+
+use sqlx::SqliteConnection;
+
+use crate::operation::{InvocationView, Operation, OperationId};
 use crate::runtime::RuntimeInstanceId;
 use crate::thread::ThreadId;
 
@@ -40,7 +44,9 @@ impl Storage {
         .fetch_optional(self.reader())
         .await?
         .ok_or(StorageError::NotFound("operation"))?;
-        Ok(into_operation(row))
+        let mut conn = self.reader().acquire().await?;
+        let invocation = invocation_of(&mut conn, op_id).await?;
+        Ok(into_operation(row, invocation))
     }
 
     /// A thread's operations, newest first. A thread nobody knows has none.
@@ -68,7 +74,27 @@ impl Storage {
         .bind(thread_id.as_str())
         .fetch_all(self.reader())
         .await?;
-        Ok(rows.into_iter().map(into_operation).collect())
+        let found: Vec<InvocationRow> = sqlx::query_as(
+            "SELECT i.operation_id, i.harness_kind, i.harness_version, i.agent_version,
+                    i.requested_model, i.requested_mode, i.requested_effort,
+                    i.observed_model, i.context_used, i.context_window
+               FROM agent_invocation i JOIN operation o ON o.id = i.operation_id
+              WHERE o.thread_id = ?",
+        )
+        .bind(thread_id.as_str())
+        .fetch_all(self.reader())
+        .await?;
+        let mut by_op: HashMap<String, InvocationView> = found
+            .into_iter()
+            .map(|r| (r.0.clone(), into_view(r)))
+            .collect();
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                let invocation = by_op.remove(&r.0);
+                into_operation(r, invocation)
+            })
+            .collect())
     }
 
     /// The operations `runtime` owns that are still `Pending` or `Running`,
@@ -90,7 +116,53 @@ impl Storage {
     }
 }
 
-fn into_operation(r: OperationRow) -> Operation {
+/// `agent_invocation`'s columns as a client sees them, led by its operation.
+type InvocationRow = (
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<i64>,
+    Option<i64>,
+);
+
+fn into_view(r: InvocationRow) -> InvocationView {
+    InvocationView {
+        harness_kind: r.1,
+        harness_version: r.2,
+        agent_version: r.3,
+        requested_model: r.4,
+        requested_mode: r.5,
+        requested_effort: r.6,
+        observed_model: r.7,
+        context_used: r.8,
+        context_window: r.9,
+    }
+}
+
+/// The invocation of `op`, if one was recorded. Also read by the transition
+/// that completes a turn, to put it in the `OperationCompleted` event.
+pub(super) async fn invocation_of(
+    conn: &mut SqliteConnection,
+    op: &OperationId,
+) -> Result<Option<InvocationView>, StorageError> {
+    let row: Option<InvocationRow> = sqlx::query_as(
+        "SELECT operation_id, harness_kind, harness_version, agent_version,
+                requested_model, requested_mode, requested_effort,
+                observed_model, context_used, context_window
+           FROM agent_invocation WHERE operation_id = ?",
+    )
+    .bind(op.as_str())
+    .fetch_optional(&mut *conn)
+    .await?;
+    Ok(row.map(into_view))
+}
+
+fn into_operation(r: OperationRow, invocation: Option<InvocationView>) -> Operation {
     Operation {
         id: OperationId::from_stored(r.0),
         kind: r.1,
@@ -105,5 +177,6 @@ fn into_operation(r: OperationRow) -> Operation {
         created_at: r.10,
         started_at: r.11,
         finished_at: r.12,
+        invocation,
     }
 }

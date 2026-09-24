@@ -14,8 +14,7 @@ use std::time::Duration;
 
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
-use shadows::agent::StreamItem;
-use shadows::agent::claude::ClaudeHarness;
+use shadows::agent::events::HarnessEvent;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::{Actor, EventCursor};
 use shadows::operation::OperationId;
@@ -27,6 +26,9 @@ use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use shadows::thread::{NewThreadEntry, PlanningThread, ThreadId};
 use tokio_stream::StreamExt;
+
+#[path = "fixtures/acp.rs"]
+mod acp;
 
 /// A project and a planning thread, which between them have already written
 /// two durable events: `ProjectCreated` (no thread) and `PlanningThreadCreated`.
@@ -42,7 +44,13 @@ async fn seed(storage: &Storage) -> (Project, PlanningThread) {
     };
     let dir = shadows::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
     let project = storage
-        .create_project(&ctx, "demo", "Demo", &dir)
+        .create_project(
+            &ctx,
+            "demo",
+            "Demo",
+            &dir,
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let tctx = CommandContext {
@@ -52,7 +60,7 @@ async fn seed(storage: &Storage) -> (Project, PlanningThread) {
         ..ctx
     };
     let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
         .await
         .unwrap();
     (project, thread)
@@ -64,6 +72,7 @@ fn user_message(body: &str) -> NewThreadEntry<'_> {
         author: Actor::user("local"),
         body,
         refs: &[],
+        operation_id: None,
     }
 }
 
@@ -251,7 +260,7 @@ async fn a_subscriber_receives_only_its_own_threads_live_items() {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (project, thread_a) = seed(&storage).await;
     let thread_b = storage
-        .create_planning_thread(&thread_ctx("c3"), &project.id, "B")
+        .create_planning_thread(&thread_ctx("c3"), &project.id, "B", "claude-code")
         .await
         .unwrap();
     let live = Live::start(&tmp, storage).await;
@@ -294,7 +303,7 @@ async fn operation_transitions_reach_their_threads_stream() {
     );
 
     storage
-        .mark_operation_completed(&op, serde_json::json!({}))
+        .mark_operation_completed(&op, serde_json::json!({}), &Default::default())
         .await
         .unwrap();
     let text = stream.read_until("OperationCompleted").await;
@@ -320,7 +329,7 @@ fn durable_kinds(text: &str) -> Vec<String> {
 /// The daemon's state as `subscribe` sees it, with a bus the test publishes on.
 struct Live {
     state: AppState,
-    bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
+    bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
     // Held for the whole test: a dropped sender reads as a stopping daemon,
     // which ends the live phase the test is waiting on.
     _stopping: tokio::sync::watch::Sender<bool>,
@@ -335,11 +344,7 @@ impl Live {
             runtime: Arc::new(runtime),
             storage,
             handles: Arc::new(LiveHandles::default()),
-            harness: Arc::new(ClaudeHarness::new(
-                tmp.path().join("claude.exe"),
-                "test".into(),
-            )),
-            sessions: None,
+            sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
             bus: bus.clone(),
             allowed_origins: Vec::new(),
             shutdown,
@@ -390,11 +395,14 @@ impl Stream {
     }
 }
 
-fn delta(thread_id: &ThreadId, text: &str) -> (ThreadId, OperationId, StreamItem) {
+fn delta(thread_id: &ThreadId, text: &str) -> (ThreadId, OperationId, HarnessEvent) {
     (
         thread_id.clone(),
         OperationId::from_literal("op-live"),
-        StreamItem::Delta { text: text.into() },
+        HarnessEvent::Chunk {
+            message_id: None,
+            text: text.into(),
+        },
     )
 }
 

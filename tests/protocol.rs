@@ -6,7 +6,6 @@
 //! newtypes, that failures become the status the transport mapping promises,
 //! and that an open live stream does not hold the daemon up after it stops.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,9 +13,8 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use shadows::agent::claude::ClaudeHarness;
 use shadows::operation::OperationId;
-use shadows::planner::LiveHandles;
+use shadows::planner::{LiveHandles, Sessions};
 use shadows::protocol::{AppState, router};
 use shadows::runtime::{Runtime, RuntimeInstanceId};
 use shadows::storage::Storage;
@@ -24,13 +22,16 @@ use shadows::thread::ThreadId;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tower::ServiceExt;
 
+#[path = "fixtures/acp.rs"]
+mod acp;
+
 struct Fixture {
     _tmp: tempfile::TempDir,
     storage: Arc<Storage>,
     app: Router,
     stopping: tokio::sync::watch::Sender<bool>,
     runtime: RuntimeInstanceId,
-    handles: Arc<LiveHandles>,
+    sessions: Arc<Sessions>,
 }
 
 async fn fixture() -> Fixture {
@@ -41,15 +42,12 @@ async fn fixture() -> Fixture {
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let handles = Arc::new(LiveHandles::default());
+    let sessions = acp::fake_sessions(&tmp.path().join("s.sqlite3")).await;
     let app = router(AppState {
         runtime: Arc::new(runtime),
         storage: storage.clone(),
         handles: handles.clone(),
-        harness: Arc::new(ClaudeHarness::new(
-            PathBuf::from(env!("CARGO_BIN_EXE_fake_claude")),
-            "fake-1".into(),
-        )),
-        sessions: None,
+        sessions: sessions.clone(),
         bus,
         allowed_origins: Vec::new(),
         shutdown,
@@ -60,7 +58,7 @@ async fn fixture() -> Fixture {
         app,
         stopping,
         runtime: runtime_id,
-        handles,
+        sessions,
     }
 }
 
@@ -187,7 +185,7 @@ async fn thread_routes_create_list_and_run_a_turn_to_its_entries() {
         &f.app,
         "POST",
         &format!("/api/threads/{thread_id}/turns"),
-        Some(json!({ "prompt": "hi" })),
+        Some(json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": "hi", "model": "fake-large", "mode": "acceptEdits", "effort": "high" })),
     )
     .await;
     assert_eq!(status, StatusCode::ACCEPTED, "{started}");
@@ -303,7 +301,7 @@ async fn a_threads_operations_are_listed_newest_first_with_their_status() {
         .await
         .unwrap();
     f.storage
-        .mark_operation_completed(&first, json!({}))
+        .mark_operation_completed(&first, json!({}), &Default::default())
         .await
         .unwrap();
     f.storage
@@ -380,7 +378,7 @@ async fn a_stop_whose_termination_fails_answers_500_and_cancels_nothing() {
         &f.app,
         "POST",
         &format!("/api/threads/{}/turns", thread["id"].as_str().unwrap()),
-        Some(json!({ "prompt": "hang" })),
+        Some(json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": "ignore-cancel", "model": "fake-large", "mode": "acceptEdits", "effort": "high" })),
     )
     .await;
     assert_eq!(status, StatusCode::ACCEPTED, "{started}");
@@ -391,7 +389,8 @@ async fn a_stop_whose_termination_fails_answers_500_and_cancels_nothing() {
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    assert!(f.handles.force_termination_failure(&op).await);
+    let thread_id = ThreadId::from_literal(thread["id"].as_str().unwrap());
+    assert!(f.sessions.force_termination_failure(&thread_id).await);
 
     let (status, body) = call(
         &f.app,

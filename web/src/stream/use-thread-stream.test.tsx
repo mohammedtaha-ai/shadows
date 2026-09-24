@@ -108,7 +108,8 @@ describe('useThreadStream', () => {
     act(() => current().durable(4, 'OperationStarted', 'op'))
     expect(entries()).toBe(2)
     act(() => current().durable(5, 'OperationCompleted', 'op'))
-    expect(entries()).toBe(3)
+    // A live turn end also refetches the operations, for its invocation.
+    expect([entries(), operations()]).toEqual([3, 2])
 
     // A break: the events missed meanwhile are replayed, then one caught-up.
     act(() => current().fail())
@@ -121,8 +122,8 @@ describe('useThreadStream', () => {
     })
     expect(entries()).toBe(3)
     act(() => current().caughtUp(8))
-    expect([entries(), operations()]).toEqual([4, 2])
-    expect(invalidate).toHaveBeenCalledTimes(6)
+    expect([entries(), operations()]).toEqual([4, 3])
+    expect(invalidate).toHaveBeenCalledTimes(7)
   })
 
   it('hands every durable event to its caller once, saying whether it was live', () => {

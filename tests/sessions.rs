@@ -37,6 +37,7 @@ async fn fixture(config: SessionsConfig) -> Fixture {
             "demo",
             "Demo",
             &ProjectDirectory::resolve(&project_dir).unwrap(),
+            &shadows::agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -47,7 +48,7 @@ async fn fixture(config: SessionsConfig) -> Fixture {
         ..ctx
     };
     let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
         .await
         .unwrap()
         .id;
@@ -78,7 +79,7 @@ async fn prompt_text(fx: &Fixture, s: &OpenSession, text: &str) -> String {
             result.push_str(&text);
         }
     }
-    fx.sessions.give_back_events(&fx.thread, events).await;
+    fx.sessions.give_back_events(&fx.thread, s, events).await;
     result
 }
 
@@ -173,7 +174,7 @@ async fn a_project_without_its_directory_does_not_start_an_adapter() {
     std::fs::remove_dir_all(&fx.project_dir).unwrap();
     assert!(matches!(
         fx.sessions.open(&fx.thread).await,
-        Err(OpenError::Start(_))
+        Err(OpenError::Workspace(reason)) if reason.contains("missing")
     ));
     assert_eq!(fx.sessions.live_count().await, 0);
 }
@@ -185,11 +186,13 @@ async fn reaper_keeps_a_connection_while_its_turn_holds_events() {
         ..Default::default()
     })
     .await;
-    fx.sessions.open(&fx.thread).await.unwrap();
+    let opened = fx.sessions.open(&fx.thread).await.unwrap();
     let events = fx.sessions.take_events(&fx.thread).await.unwrap();
     tokio::time::sleep(Duration::from_millis(600)).await;
     assert_eq!(fx.sessions.live_count().await, 1);
-    fx.sessions.give_back_events(&fx.thread, events).await;
+    fx.sessions
+        .give_back_events(&fx.thread, &opened, events)
+        .await;
     fx.sessions.close_all().await.unwrap();
 }
 

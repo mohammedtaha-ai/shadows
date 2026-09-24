@@ -7,17 +7,23 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Connection, SqliteConnection, SqlitePool};
 use tokio::sync::{Mutex, watch};
 
+mod command;
+mod entry;
 pub(super) mod events;
 mod events_read;
+mod fork;
+mod harness;
 mod operation;
 mod operation_read;
 mod project;
 mod runtime;
 mod thread;
 mod transition;
+mod turn;
 
 pub use events_read::StoredEvent;
 pub use runtime::{ReconcileReport, StopKind};
+pub use turn::{NewTurn, StartedTurn};
 
 const MAX_SEQ: &str = "SELECT MAX(seq) FROM durable_event";
 
@@ -41,6 +47,15 @@ pub enum StorageError {
     TransitionConflict { expected: String, found: String },
     #[error("command conflict: the same command id was reused with a different request")]
     CommandConflict,
+    /// Spec §12.6: the thread already ran a turn on its harness, or is a fork.
+    #[error("the thread's harness is fixed: it already ran a turn, or it is a fork")]
+    HarnessLocked,
+    /// Spec §12.7, §12.9: the thread has a turn that has not ended.
+    #[error("the thread has a turn running")]
+    ThreadBusy,
+    /// Spec §12.9: only the last entry of a completed turn is a fork point.
+    #[error("only the thread's last entry, written by a completed turn, can be forked from")]
+    ForkPointNotSupported,
     #[error("stored JSON is invalid: {0}")]
     Json(#[from] serde_json::Error),
     #[error(transparent)]

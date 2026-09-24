@@ -19,7 +19,13 @@ async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) 
         request_fingerprint: shadows::command::fingerprint("project.create", &params),
     };
     let project = storage
-        .create_project(&ctx, "demo", "Demo", &dir)
+        .create_project(
+            &ctx,
+            "demo",
+            "Demo",
+            &dir,
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let tctx = shadows::command::CommandContext {
@@ -29,7 +35,7 @@ async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) 
         ..ctx
     };
     let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
         .await
         .unwrap();
     (tmp, storage, runtime, thread.id)
@@ -149,7 +155,7 @@ async fn a_terminal_operation_never_transitions_again() {
         .unwrap();
     storage.mark_operation_started(&op, &runtime).await.unwrap();
     storage
-        .mark_operation_completed(&op, serde_json::json!({ "ok": true }))
+        .mark_operation_completed(&op, serde_json::json!({ "ok": true }), &Default::default())
         .await
         .unwrap();
 
@@ -181,7 +187,7 @@ async fn every_transition_appends_its_event_atomically() {
         .unwrap();
     storage.mark_operation_started(&op, &runtime).await.unwrap();
     storage
-        .mark_operation_completed(&op, serde_json::json!({}))
+        .mark_operation_completed(&op, serde_json::json!({}), &Default::default())
         .await
         .unwrap();
 
@@ -313,7 +319,7 @@ async fn a_natural_exit_wins_over_an_in_flight_cancellation() {
 
     // The process exits before containment takes ownership.
     storage
-        .mark_operation_completed(&op, serde_json::json!({ "ok": true }))
+        .mark_operation_completed(&op, serde_json::json!({ "ok": true }), &Default::default())
         .await
         .unwrap();
 
@@ -379,7 +385,7 @@ async fn every_operation_event_is_scoped_to_its_thread() {
         .await
         .unwrap();
     storage
-        .mark_operation_completed(&completed, serde_json::json!({}))
+        .mark_operation_completed(&completed, serde_json::json!({}), &Default::default())
         .await
         .unwrap();
 

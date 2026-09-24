@@ -7,16 +7,27 @@
 // connection and nothing else: a client leaving never cancels work (spec §8.4
 // case 7), and this module has no way to ask for that.
 
+import type { SessionChoices } from '@/api/client'
 import {
   type DurableEvent,
   FrameError,
   type TurnEnd,
+  type UsageFrame,
   parseCaughtUp,
   parseDelta,
   parseDurable,
   parseMeta,
+  parseOptions,
   parseTurnEnd,
+  parseUsage,
 } from './frames'
+
+/** A transient report about the thread's harness session, handed on as it
+ * arrives and not kept here: the latest context and limits (`usage`), or the
+ * choices the session now offers (`options`). */
+export type Notice =
+  | { type: 'usage'; usage: UsageFrame }
+  | { type: 'options'; choices: SessionChoices }
 
 /** `connecting` until the first `caught-up`; `live` after it; `reconnecting`
  * after a break until the next `caught-up`; `failed` once reconnecting has been
@@ -58,6 +69,8 @@ export interface Options {
   onDurable?: (event: DurableEvent) => void
   /** Called at each `caught-up`, with the last applied `seq`. */
   onCaughtUp?: (lastSeq: number) => void
+  /** Called once per `usage` or `options` frame. */
+  onNotice?: (notice: Notice) => void
   /** Reconnect delay after the n-th consecutive failure: `baseDelayMs * 2^(n-1)`, capped. */
   baseDelayMs?: number
   maxDelayMs?: number
@@ -66,8 +79,8 @@ export interface Options {
 }
 
 export class ThreadStream {
-  readonly #options: Required<Omit<Options, 'onDurable' | 'onCaughtUp'>> &
-    Pick<Options, 'onDurable' | 'onCaughtUp'>
+  readonly #options: Required<Omit<Options, 'onDurable' | 'onCaughtUp' | 'onNotice'>> &
+    Pick<Options, 'onDurable' | 'onCaughtUp' | 'onNotice'>
   readonly #listeners = new Set<() => void>()
   #state: StreamState
   #source: EventSourceLike | null = null
@@ -170,6 +183,10 @@ export class ThreadStream {
     on('meta', (data) => {
       const { op, label } = parseMeta(data)
       this.#set({ labels: { ...this.#state.labels, [op]: label } })
+    })
+    on('usage', (data) => this.#options.onNotice?.({ type: 'usage', usage: parseUsage(data) }))
+    on('options', (data) => {
+      this.#options.onNotice?.({ type: 'options', choices: parseOptions(data).choices })
     })
     // Transient frames were dropped, durable ones were not: resubscribe from
     // `lastSeq` at once. Not a failure, so no backoff.

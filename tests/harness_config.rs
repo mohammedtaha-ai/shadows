@@ -1,12 +1,6 @@
-//! Spec §1.4's one rule, and the block shapes the fixture could not carry.
-//!
-//! Separate from `tests/harness_stream.rs`, whose job is the classifier against
-//! a real captured turn. These two tests are about inputs a real turn on this
-//! machine did not produce: a misconfigured harness path, and durable lines
-//! carrying tool blocks. The shapes come from the measured examples in
-//! `docs/evidence/harness/SERVE_STREAM_SPIKE.md`, not from invention.
+//! Spec §1.4's one rule, and how the pinned adapter's version is read: the
+//! configuration a harness is started from, not anything it answers.
 
-use shadows::agent::{AgentHarness, StreamItem, claude::ClaudeHarness};
 use shadows::config::{ConfigError, adapter_version, harness_path};
 
 /// Spec §1.4: the harness is resolved from explicit configuration, never from
@@ -46,52 +40,35 @@ fn adapter_version_is_read_from_its_package() {
     assert_eq!(adapter_version(&dir.path().join("nope.js")), "unknown");
 }
 
-/// The captured fixture is a pure-text turn, so it never exercises the tool and
-/// thinking block arms. The evidence report shows both durable tool shapes it
-/// measured — an `assistant` line carrying `tool_use`, and a `tool_result`
-/// arriving as role `user` — so they are tested from those shapes.
-///
-/// Task 9 runs a real Planner turn, which invokes tools. A swap between these
-/// arms would mislabel every tool call in the durable history while the whole of
-/// `tests/harness_stream.rs` stayed green.
+/// The adapter's tree gets the daemon's `PATH`: `process::spawn` clears the
+/// environment, and a Claude without `PATH` cannot run `git`, `ls` or `mkdir`
+/// for the Planner (found in the Phase B run: every shell tool failed with
+/// exit 127). The value is passed by name, never the whole environment.
 #[test]
-fn durable_tool_blocks_are_each_named_distinctly() {
-    let h = ClaudeHarness::new("claude".into(), "2.1.278".into());
-
-    let tool_use = r#"{"type":"assistant","uuid":"u-1","message":{"role":"assistant",
-        "content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{}}]}}"#;
-    match h.classify(tool_use) {
-        StreamItem::Entry { uuid, role, text } => {
-            assert_eq!(uuid, "u-1");
-            assert_eq!(role, "assistant");
-            assert_eq!(text, "[tool_use: Read]", "the tool's name must survive");
-        }
-        other => panic!("a tool_use line is durable, got {other:?}"),
-    }
-
-    let tool_result = r#"{"type":"user","uuid":"u-2","message":{"role":"user",
-        "content":[{"tool_use_id":"toolu_1","type":"tool_result","content":"ok"}]}}"#;
-    match h.classify(tool_result) {
-        StreamItem::Entry { role, text, .. } => {
-            assert_eq!(role, "user", "a tool result arrives as role user");
-            assert_eq!(text, "[tool_result]");
-        }
-        other => panic!("a tool_result line is durable, got {other:?}"),
-    }
-
-    let thinking = r#"{"type":"assistant","uuid":"u-3","message":{"role":"assistant",
-        "content":[{"type":"thinking","thinking":"..."}]}}"#;
-    match h.classify(thinking) {
-        StreamItem::Entry { text, .. } => assert_eq!(text, "[thinking]"),
-        other => panic!("a thinking line is durable, got {other:?}"),
-    }
-
-    // Mixed blocks join in order, so a tool call after text is not swallowed.
-    let mixed = r#"{"type":"assistant","uuid":"u-4","message":{"role":"assistant",
-        "content":[{"type":"text","text":"before"},
-                   {"type":"tool_use","id":"t","name":"Bash","input":{}}]}}"#;
-    match h.classify(mixed) {
-        StreamItem::Entry { text, .. } => assert_eq!(text, "before\n[tool_use: Bash]"),
-        other => panic!("a mixed line is durable, got {other:?}"),
-    }
+fn the_adapter_inherits_path_by_name_and_names_its_claude() {
+    let adapter = shadows::agent::claude::ClaudeAdapter {
+        node: "/usr/bin/node".into(),
+        adapter: "/opt/adapter/index.js".into(),
+        agent: "/opt/claude".into(),
+        adapter_version: "t".into(),
+        agent_version: "t".into(),
+    };
+    let spec = adapter.process_spec(std::path::Path::new("/tmp"));
+    let get = |key: &str| {
+        spec.env
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.as_str())
+    };
+    assert_eq!(get("PATH"), std::env::var("PATH").ok().as_deref());
+    assert!(get("PATH").is_some(), "the test process itself has a PATH");
+    assert_eq!(get("CLAUDE_CODE_EXECUTABLE"), Some("/opt/claude"));
+    assert!(
+        spec.env.iter().all(
+            |(k, _)| ["PATH", "HOME", "TMPDIR", "LANG", "CLAUDE_CODE_EXECUTABLE"]
+                .contains(&k.as_str())
+        ),
+        "only named variables are passed: {:?}",
+        spec.env.iter().map(|(k, _)| k).collect::<Vec<_>>()
+    );
 }

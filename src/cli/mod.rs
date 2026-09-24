@@ -77,7 +77,15 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
                     std::future::pending::<()>().await;
                 }
             };
-            match shut_down(runtime, handles, sessions.clone(), CONFIRMATION_BOUND, second_signal).await {
+            match shut_down(
+                runtime,
+                handles,
+                sessions.clone(),
+                CONFIRMATION_BOUND,
+                second_signal,
+            )
+            .await
+            {
                 Ok(kind) => tracing::info!(stop_kind = ?kind, "shutdown.recorded"),
                 Err(error) => {
                     tracing::error!(%error, "shutdown.unrecorded: the stop could not be written")

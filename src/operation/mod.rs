@@ -49,4 +49,27 @@ pub struct Operation {
     pub created_at: String,
     pub started_at: Option<String>,
     pub finished_at: Option<String>,
+    /// What the turn asked of the harness and what it reported (§12.7).
+    /// `None` for an operation from before invocations were recorded.
+    #[schema(required)]
+    pub invocation: Option<InvocationView>,
+}
+
+/// What a turn asked for and what the harness reported (spec §8.2, §12.8).
+/// Anything not reported is `None`, never estimated.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
+pub struct InvocationView {
+    pub harness_kind: String,
+    pub harness_version: String,
+    pub agent_version: String,
+    pub requested_model: String,
+    pub requested_mode: String,
+    #[schema(required)]
+    pub requested_effort: Option<String>,
+    #[schema(required)]
+    pub observed_model: Option<String>,
+    #[schema(required)]
+    pub context_used: Option<i64>,
+    #[schema(required)]
+    pub context_window: Option<i64>,
 }

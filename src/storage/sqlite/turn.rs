@@ -1,0 +1,207 @@
+//! One job: starting a turn as one command (spec §12.7).
+//!
+//! The user's entry, the `Pending` operation, its invocation, the remembered
+//! settings and the command record commit together or not at all, so a
+//! retried request can never become a second message or a second run.
+
+use sqlx::SqliteConnection;
+
+use super::command::{classify, record_command};
+use super::entry::append_entry_in;
+use super::harness::remember_settings;
+use super::operation::insert_pending;
+use super::{Storage, StorageError, now};
+use crate::agent::TurnSettings;
+use crate::command::CommandContext;
+use crate::events::Actor;
+use crate::operation::OperationId;
+use crate::runtime::RuntimeInstanceId;
+use crate::thread::{NewThreadEntry, ThreadEntryId, ThreadId};
+
+/// Everything the turn command records. The paths and versions are the
+/// adapter's and the CLI's it runs (§12.2), frozen on the invocation.
+#[derive(Debug, Clone, Copy)]
+pub struct NewTurn<'a> {
+    pub thread_id: &'a ThreadId,
+    pub runtime: &'a RuntimeInstanceId,
+    pub prompt: &'a str,
+    pub role: &'a str,
+    pub harness_kind: &'a str,
+    pub harness_path: &'a str,
+    pub harness_version: &'a str,
+    pub agent_path: &'a str,
+    pub agent_version: &'a str,
+    pub settings: &'a TurnSettings,
+}
+
+/// What the command recorded; `replayed` when it had already happened.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StartedTurn {
+    pub operation_id: OperationId,
+    pub entry_id: ThreadEntryId,
+    pub replayed: bool,
+}
+
+const SCOPE: &str = "Thread";
+
+fn recorded(outcome: &str) -> Result<StartedTurn, StorageError> {
+    let v: serde_json::Value = serde_json::from_str(outcome)?;
+    let text = |key: &str| {
+        v.get(key)
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned)
+            .ok_or(StorageError::NotFound("recorded turn"))
+    };
+    Ok(StartedTurn {
+        operation_id: OperationId::from_stored(text("operation_id")?),
+        entry_id: ThreadEntryId::from_stored(text("entry_id")?),
+        replayed: true,
+    })
+}
+
+/// Whether the thread has a turn that has not reached a terminal status.
+pub(super) async fn has_open_operation(
+    conn: &mut SqliteConnection,
+    thread: &ThreadId,
+) -> Result<bool, StorageError> {
+    let found: Option<i64> = sqlx::query_scalar(
+        "SELECT 1 FROM operation
+          WHERE thread_id = ?
+            AND status_kind NOT IN ('Completed','Failed','Cancelled','Interrupted')
+          LIMIT 1",
+    )
+    .bind(thread.as_str())
+    .fetch_optional(&mut *conn)
+    .await?;
+    Ok(found.is_some())
+}
+
+impl Storage {
+    /// §12.7's one transaction. A replay found inside it answers the recorded
+    /// ids with `replayed: true`, so two concurrent first requests produce
+    /// one turn; a thread with a turn not yet ended is `ThreadBusy`; a stopped
+    /// runtime is refused as `create_pending_operation` refuses it.
+    pub async fn start_turn(
+        &self,
+        ctx: &CommandContext,
+        turn: NewTurn<'_>,
+    ) -> Result<StartedTurn, StorageError> {
+        let (ctx, ts) = (ctx.clone(), now());
+        let thread = turn.thread_id.clone();
+        let runtime = turn.runtime.clone();
+        let prompt = turn.prompt.to_string();
+        let settings = turn.settings.clone();
+        let invocation = [
+            turn.role,
+            turn.harness_kind,
+            turn.harness_path,
+            turn.harness_version,
+            turn.agent_path,
+            turn.agent_version,
+        ]
+        .map(str::to_owned);
+        let (started, transition) = self
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    if let Some(outcome) = classify(conn, &ctx, SCOPE, thread.as_str()).await? {
+                        return Ok((recorded(&outcome)?, None));
+                    }
+                    if has_open_operation(conn, &thread).await? {
+                        return Err(StorageError::ThreadBusy);
+                    }
+                    let op = OperationId::generate();
+                    let transition = insert_pending(conn, &op, &thread, &runtime, &ts).await?;
+                    let entry = append_entry_in(
+                        conn,
+                        &thread,
+                        NewThreadEntry {
+                            kind: "UserMessage",
+                            author: Actor::user(&ctx.principal_id),
+                            body: &prompt,
+                            refs: &[],
+                            operation_id: Some(&op),
+                        },
+                        &ts,
+                    )
+                    .await?;
+                    let [
+                        role,
+                        kind,
+                        harness_path,
+                        harness_version,
+                        agent_path,
+                        agent_version,
+                    ] = &invocation;
+                    sqlx::query(
+                        "INSERT INTO agent_invocation
+                           (id, operation_id, role, harness_kind, harness_path, harness_version,
+                            agent_path, agent_version, requested_model, requested_mode,
+                            requested_effort, created_at)
+                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    )
+                    .bind(uuid::Uuid::new_v4().to_string())
+                    .bind(op.as_str())
+                    .bind(role)
+                    .bind(kind)
+                    .bind(harness_path)
+                    .bind(harness_version)
+                    .bind(agent_path)
+                    .bind(agent_version)
+                    .bind(&settings.model)
+                    .bind(&settings.mode)
+                    .bind(&settings.effort)
+                    .bind(&ts)
+                    .execute(&mut *conn)
+                    .await?;
+                    remember_settings(conn, kind, &settings, &ts).await?;
+                    let outcome = serde_json::json!({
+                        "operation_id": op.as_str(),
+                        "entry_id": entry.id.as_str(),
+                    });
+                    record_command(
+                        conn,
+                        &ctx,
+                        SCOPE,
+                        thread.as_str(),
+                        "Operation",
+                        &outcome.to_string(),
+                        &ts,
+                    )
+                    .await?;
+                    let started = StartedTurn {
+                        operation_id: op,
+                        entry_id: entry.id,
+                        replayed: false,
+                    };
+                    Ok((started, Some(transition)))
+                })
+            })
+            .await?;
+        if let Some(transition) = transition {
+            transition.log();
+        }
+        Ok(started)
+    }
+
+    /// Read-only: the recorded answer to this exact command on `thread`, if it
+    /// already happened; `CommandConflict` when its id was used with another
+    /// request. Asked before any validation (§12.7): a replay starts nothing.
+    pub async fn replayed_turn(
+        &self,
+        ctx: &CommandContext,
+        thread: &ThreadId,
+    ) -> Result<Option<StartedTurn>, StorageError> {
+        let mut conn = self.reader().acquire().await?;
+        match classify(&mut conn, ctx, SCOPE, thread.as_str()).await? {
+            Some(outcome) => Ok(Some(recorded(&outcome)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Whether the thread has a turn that has not ended: checked before a new
+    /// turn touches the thread's session, and again inside `start_turn`.
+    pub async fn thread_is_busy(&self, thread: &ThreadId) -> Result<bool, StorageError> {
+        let mut conn = self.reader().acquire().await?;
+        has_open_operation(&mut conn, thread).await
+    }
+}
