@@ -339,6 +339,7 @@ impl Live {
                 tmp.path().join("claude.exe"),
                 "test".into(),
             )),
+            sessions: None,
             bus: bus.clone(),
             allowed_origins: Vec::new(),
             shutdown,

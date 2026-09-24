@@ -11,13 +11,13 @@
 //! not the same fact: `Prepare` means no process ever existed, `Spawn` means
 //! the operating system refused to start one.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use tokio::sync::broadcast;
 use tracing::Instrument;
 
+use super::sessions::workspace;
 use super::{LiveHandles, LiveTurn, PlannerTurn, TurnWatch, watch_turn};
 use crate::agent::claude::ClaudeHarness;
 use crate::agent::{AgentHarness, AgentInvocation, StreamItem};
@@ -26,7 +26,7 @@ use crate::operation::{FailureStage, OperationId};
 use crate::process::spawn;
 use crate::runtime::Runtime;
 use crate::storage::StorageError;
-use crate::thread::{ThreadId, TurnContext};
+use crate::thread::ThreadId;
 
 /// Why a turn was not started. A turn that starts and then fails is not one
 /// of these: it is an operation, and its failure is durable (`Prepare`,
@@ -258,27 +258,4 @@ async fn refuse_spawned(
     }
     let _ = turn.handle.wait().instrument(span).await;
     runtime.storage.mark_operation_cancelled(op_id).await
-}
-
-/// Prepare's workspace step (spec §8.3). Milestone 0 has one workspace mode —
-/// the project directory, read in place — so readying it means checking that
-/// the project has one and that it is still a directory. It was checked when
-/// the project was created, and can have been deleted or moved since.
-///
-/// `Err` is the operation's failure reason. There is no fallback to the
-/// daemon's own working directory: a turn that ran somewhere nobody chose
-/// would look like success.
-fn workspace(context: &TurnContext) -> Result<PathBuf, String> {
-    let Some(dir) = &context.project_directory else {
-        return Err(
-            "the project has no directory: it was created before projects owned one".into(),
-        );
-    };
-    if !dir.is_dir() {
-        return Err(format!(
-            "the project directory is missing or no longer a directory: {}",
-            dir.display()
-        ));
-    }
-    Ok(dir.clone())
 }

@@ -24,6 +24,7 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/agent/` | the AI subprocess harness contract | `src/agent/claude.rs` |
 | `src/agent/acp.rs` | the ACP client connection to one adapter process | `src/agent/acp.rs` |
 | `src/agent/events.rs` | what a harness connection reports | `src/agent/events.rs` |
+| `src/planner/sessions.rs` | the live adapter connection each open thread holds | `src/planner/sessions.rs` |
 | `src/bin/` | test apparatus that no product code links | `src/bin/tree_probe.rs` |
 | `src/cli/` | daemon startup | `src/cli/args.rs` |
 | `src/command/` | external-command identity for idempotency | `src/command/mod.rs` |

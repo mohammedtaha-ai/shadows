@@ -40,6 +40,7 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
         storage: storage.clone(),
         handles: Arc::new(LiveHandles::default()),
         harness: Arc::new(ClaudeHarness::new(PathBuf::from("claude.exe"), "t".into())),
+        sessions: None,
         bus,
         allowed_origins: Vec::new(),
         shutdown,

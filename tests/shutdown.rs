@@ -352,6 +352,7 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
         storage: f.runtime.storage.clone(),
         handles: f.handles.clone(),
         harness: harness(),
+        sessions: None,
         bus: f.bus.clone(),
         allowed_origins: Vec::new(),
         shutdown,

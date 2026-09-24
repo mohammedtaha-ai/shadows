@@ -6,9 +6,9 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::agent::claude::ClaudeHarness;
+use crate::agent::claude::{ClaudeAdapter, ClaudeHarness};
 use crate::config::{Config, adapter_version};
-use crate::planner::{LiveHandles, shut_down};
+use crate::planner::{LiveHandles, Sessions, SessionsConfig, shut_down};
 use crate::process::{ProcessSpec, spawn};
 use crate::protocol::{AppState, router};
 use crate::runtime::Runtime;
@@ -25,6 +25,17 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     let version = harness_version(&config.harness_path).await;
     let adapter_version = adapter_version(&config.adapter_path);
     tracing::info!(adapter_version, claude_version = %version, "harness.versions");
+    let sessions = Sessions::new(
+        Arc::new(ClaudeAdapter {
+            node: config.node_path.clone(),
+            adapter: config.adapter_path.clone(),
+            agent: config.harness_path.clone(),
+            adapter_version: adapter_version.to_string(),
+            agent_version: version.clone(),
+        }),
+        Storage::open(&config.db_path).await?,
+        SessionsConfig::default(),
+    );
     let (bus, _) = tokio::sync::broadcast::channel(4096);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {
@@ -32,6 +43,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         storage,
         handles: Arc::new(LiveHandles::default()),
         harness: Arc::new(ClaudeHarness::new(config.harness_path.clone(), version)),
+        sessions: Some(sessions.clone()),
         bus,
         allowed_origins: config.allowed_origins.clone(),
         shutdown,
@@ -71,6 +83,9 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
                 Err(error) => {
                     tracing::error!(%error, "shutdown.unrecorded: the stop could not be written")
                 }
+            }
+            if let Err(error) = sessions.close_all().await {
+                tracing::error!(%error, "shutdown.sessions_close_failed");
             }
             // Last: open live streams end here, so a graceful HTTP shutdown
             // is not left waiting on a response that never finishes.

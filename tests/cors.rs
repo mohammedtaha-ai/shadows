@@ -31,6 +31,7 @@ async fn app(tmp: &tempfile::TempDir) -> (Router, tokio::sync::watch::Sender<boo
             tmp.path().join("claude.exe"),
             "test".into(),
         )),
+        sessions: None,
         bus,
         allowed_origins: vec![ALLOWED.to_string()],
         shutdown,

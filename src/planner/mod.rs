@@ -37,11 +37,13 @@
 //! unstoppable, while `stop` returns success.
 
 mod handles;
+mod sessions;
 mod shutdown;
 mod spawn;
 
 pub use handles::LiveHandles;
 pub(crate) use handles::LiveTurn;
+pub use sessions::{OpenError, OpenSession, Sessions, SessionsConfig};
 pub use shutdown::shut_down;
 pub use spawn::{PlannerTurnRequest, StartError};
 

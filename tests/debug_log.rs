@@ -177,6 +177,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (AppState, tokio::sync::watch::Se
             PathBuf::from(env!("CARGO_BIN_EXE_fake_claude")),
             "fake-1".into(),
         )),
+        sessions: None,
         bus,
         allowed_origins: Vec::new(),
         shutdown,

@@ -56,6 +56,10 @@ pub struct Connection {
 }
 
 impl Connection {
+    pub fn is_closed(&self) -> bool {
+        self.cx.is_incoming_closed()
+    }
+
     pub async fn open(
         handle: &mut ProcessHandle,
         events: mpsc::UnboundedSender<HarnessEvent>,

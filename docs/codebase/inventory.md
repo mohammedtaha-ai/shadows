@@ -15,7 +15,7 @@ declaration, this file only says that it exists and what shape it has. What each
 module *owns* is a judgement no generator can make — that lives in
 [README.md](./README.md).
 
-## `src/agent/acp.rs` — 291 lines
+## `src/agent/acp.rs` — 295 lines
 
 ```rust
 pub enum SessionStart {
@@ -39,6 +39,7 @@ pub enum AcpError {
 pub struct Connection {}
 // + 1 private field
 impl Connection {
+    pub fn is_closed(&self) -> bool
     pub async fn open(handle: &mut ProcessHandle, events: mpsc::UnboundedSender<HarnessEvent>) -> Result<Self, AcpError>
     pub async fn start_session(&self, cwd: &Path, how: SessionStart) -> Result<Opened, AcpError>
     pub async fn set_option(&self, session: &str, config_id: &str, value: &str) -> Result<Value, AcpError>
@@ -129,7 +130,7 @@ impl Cli {
 }
 ```
 
-## `src/cli/mod.rs` — 138 lines
+## `src/cli/mod.rs` — 153 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -338,11 +339,12 @@ impl LiveHandles {
 }
 ```
 
-## `src/planner/mod.rs` — 441 lines
+## `src/planner/mod.rs` — 443 lines
 
 ```rust
 pub use handles::LiveHandles;
 pub(crate) use handles::LiveTurn;
+pub use sessions::{OpenError, OpenSession, Sessions, SessionsConfig};
 pub use shutdown::shut_down;
 pub use spawn::{PlannerTurnRequest, StartError};
 pub struct PlannerTurn;
@@ -370,13 +372,50 @@ impl PlannerTurn {
 }
 ```
 
+## `src/planner/sessions.rs` — 260 lines
+
+```rust
+pub struct SessionsConfig {
+    pub idle_after: Duration,
+    pub cancel_wait: Duration,
+}
+pub enum OpenError {
+    Storage(StorageError),
+    Start(String),
+}
+pub struct OpenSession {
+    pub session_id: String,
+    pub how: &'static str,
+    pub options: Value,
+}
+// + 1 private field
+impl OpenSession {
+    pub fn connection(&self) -> &Connection
+}
+
+pub struct Sessions {}
+// + 4 private fields
+impl Sessions {
+    pub fn new(adapter: Arc<ClaudeAdapter>, storage: Storage, config: SessionsConfig) -> Arc<Self>
+    pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError>
+    pub async fn take_events(&self, thread: &ThreadId) -> Option<mpsc::UnboundedReceiver<HarnessEvent>>
+    pub async fn give_back_events(&self, thread: &ThreadId, rx: mpsc::UnboundedReceiver<HarnessEvent>)
+    pub async fn touch(&self, thread: &ThreadId)
+    pub async fn terminate(&self, thread: &ThreadId) -> io::Result<()>
+    pub async fn close_all(&self) -> io::Result<()>
+    pub async fn live_count(&self) -> usize
+}
+
+pub(super) fn workspace(context: &TurnContext) -> Result<PathBuf, String>
+```
+
 ## `src/planner/shutdown.rs` — 144 lines
 
 ```rust
 pub async fn shut_down(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, confirm_within: Duration, escalate: impl Future<Output = ()>) -> Result<StopKind, StorageError>
 ```
 
-## `src/planner/spawn.rs` — 284 lines
+## `src/planner/spawn.rs` — 261 lines
 
 ```rust
 pub enum StartError {
@@ -535,7 +574,7 @@ pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCod
 pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
 ```
 
-## `src/protocol/mod.rs` — 156 lines
+## `src/protocol/mod.rs` — 157 lines
 
 ```rust
 pub use failure::Failure;
@@ -545,6 +584,7 @@ pub struct AppState {
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
     pub harness: Arc<ClaudeHarness>,
+    pub sessions: Option<Arc<Sessions>>,
     pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
     pub allowed_origins: Vec<String>,
     pub shutdown: tokio::sync::watch::Receiver<bool>,

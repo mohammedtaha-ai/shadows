@@ -39,7 +39,7 @@ use utoipa_axum::routes;
 use crate::agent::StreamItem;
 use crate::agent::claude::ClaudeHarness;
 use crate::operation::OperationId;
-use crate::planner::LiveHandles;
+use crate::planner::{LiveHandles, Sessions};
 use crate::runtime::Runtime;
 use crate::storage::Storage;
 use crate::thread::ThreadId;
@@ -50,6 +50,7 @@ pub struct AppState {
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
     pub harness: Arc<ClaudeHarness>,
+    pub sessions: Option<Arc<Sessions>>,
     pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
     /// Spec §1: the only origins a browser may call this daemon from. Every
     /// client is cross-origin, because the daemon serves no page. Validated

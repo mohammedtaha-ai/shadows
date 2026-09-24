@@ -31,6 +31,7 @@ async fn app(storage: Arc<Storage>) -> (Router, tokio::sync::watch::Sender<bool>
             PathBuf::from(env!("CARGO_BIN_EXE_fake_claude")),
             "fake-1".into(),
         )),
+        sessions: None,
         bus,
         allowed_origins: Vec::new(),
         shutdown,

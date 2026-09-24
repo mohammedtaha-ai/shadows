@@ -39,6 +39,7 @@ async fn a_client_that_disconnects_mid_request_strands_nothing() {
             PathBuf::from(env!("CARGO_BIN_EXE_fake_claude")),
             "fake-1".into(),
         )),
+        sessions: None,
         bus,
         allowed_origins: Vec::new(),
         shutdown,

@@ -181,6 +181,7 @@ async fn the_document_is_served_and_every_path_it_names_is_routed() {
             tmp.path().join("claude.exe"),
             "t".into(),
         )),
+        sessions: None,
         bus,
         allowed_origins: Vec::new(),
         shutdown,
