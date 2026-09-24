@@ -96,6 +96,26 @@ async fn the_breakdown_is_read_on_demand_and_leaves_no_trace() {
     );
 }
 
+/// A turn sent while a breakdown is being read waits for the read to give the
+/// session back, then runs with its own live output: its reply is its own
+/// entry, and the `/context` answer is in no entry at all.
+#[tokio::test]
+async fn a_turn_started_during_a_breakdown_read_keeps_its_output() {
+    let app = test_app().await;
+    wait_terminal(&app, &start_settled(&app, "hi").await).await;
+    let path = format!("/api/threads/{}/context", app.thread);
+    // The fake answers an adapter's first `/context` after a second.
+    let (breakdown, op) = tokio::join!(get_json::<Value>(&app, &path), async {
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        start_settled(&app, "two-messages").await
+    });
+    assert!(breakdown["categories"].is_array(), "{breakdown}");
+    assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
+    let bodies: Vec<String> = entries(&app).await.into_iter().map(|e| e.body).collect();
+    assert!(bodies.iter().any(|b| b == "second"), "{bodies:?}");
+    assert!(!bodies.iter().any(|b| b.contains("Category")), "{bodies:?}");
+}
+
 #[tokio::test]
 async fn no_breakdown_before_the_first_turn_or_while_one_runs() {
     let app = test_app().await;

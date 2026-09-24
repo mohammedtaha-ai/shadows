@@ -1,8 +1,16 @@
 //! One job: the live adapter connection each open thread holds.
 
-use std::{collections::HashMap, io, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    io,
+    path::PathBuf,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+    time::Duration,
+};
 
-use serde_json::Value;
 use tokio::{
     sync::{Mutex, broadcast, mpsc},
     time::Instant,
@@ -12,7 +20,7 @@ use tracing::Instrument;
 use super::offers::{Offers, intercept};
 use crate::{
     agent::{
-        acp::{AcpError, Connection, SessionStart},
+        acp::{Connection, SessionStart},
         choices::Offered,
         claude::ClaudeAdapter,
         events::HarnessEvent,
@@ -53,13 +61,30 @@ pub enum OpenError {
     Workspace(String),
 }
 
+/// A turn cannot take the thread's session (spec §12.7).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum LeaseError {
+    /// Another user of the session — a turn, or a `/context` read that did
+    /// not finish in time — holds it.
+    #[error("the thread's session is in use")]
+    Busy,
+    /// The adapter this session ran on is gone.
+    #[error("the harness session closed")]
+    Closed,
+}
+
 /// An open harness session. What it offers now is `Sessions::offered`: the
 /// choices change after opening, so a copy here would go stale.
+///
+/// A resumed session keeps its id across adapters, so each opening also
+/// carries a `generation`: a turn that outlives its adapter must not give its
+/// events to, mark, or terminate the adapter that replaced it.
 #[derive(Clone)]
 pub struct OpenSession {
     pub session_id: String,
     pub how: &'static str,
     connection: Connection,
+    generation: u64,
 }
 
 impl OpenSession {
@@ -84,7 +109,8 @@ pub struct Sessions {
     storage: Storage,
     pub(super) config: SessionsConfig,
     pub(super) live: Mutex<HashMap<ThreadId, Live>>,
-    offers: Arc<Offers>,
+    pub(super) offers: Arc<Offers>,
+    generations: AtomicU64,
 }
 
 impl Sessions {
@@ -95,6 +121,7 @@ impl Sessions {
             config,
             live: Mutex::new(HashMap::new()),
             offers: Arc::new(Offers::new()),
+            generations: AtomicU64::new(0),
         });
         let reaper = Arc::downgrade(&sessions);
         let period = (config.idle_after / 4)
@@ -167,6 +194,7 @@ impl Sessions {
                 session_id: session.session_id,
                 how,
                 connection,
+                generation: self.generations.fetch_add(1, Ordering::Relaxed),
             };
             let offered = self.offers.record(thread, &session.options)?;
             self.apply_opening_settings(thread, &opened, offered, default_mode, remembered)
@@ -199,96 +227,6 @@ impl Sessions {
         Ok(opened)
     }
 
-    /// §12.2: every opening sets the policy's default mode, since a new or
-    /// resumed session starts at the person's own Claude defaults. Then the
-    /// harness's remembered model and effort (§12.4), each skipped when the
-    /// session does not offer it or the harness refuses it; a model change
-    /// can move the mode, so the default is set again after.
-    async fn apply_opening_settings(
-        &self,
-        thread: &ThreadId,
-        opened: &OpenSession,
-        mut offered: Offered,
-        default_mode: &str,
-        remembered: Option<(String, Option<String>)>,
-    ) -> Result<(), AcpError> {
-        if offered.current.mode != default_mode {
-            let id = offered.ids.mode.clone();
-            offered = self.set_option(thread, opened, &id, default_mode).await?;
-        }
-        let Some((model, effort)) = remembered else {
-            return Ok(());
-        };
-        if offered.current.model != model {
-            let id = offered.ids.model.clone();
-            offered = match self
-                .try_remembered(thread, opened, &id, &model, offered.offers_model(&model))
-                .await?
-            {
-                Some(next) => next,
-                None => offered,
-            };
-        }
-        if let (Some(effort), Some(id)) = (effort, offered.ids.effort.clone())
-            && offered.current.model == model
-            && offered.current.effort.as_deref() != Some(effort.as_str())
-        {
-            let offers = offered.offers_effort(&effort);
-            if let Some(next) = self
-                .try_remembered(thread, opened, &id, &effort, offers)
-                .await?
-            {
-                offered = next;
-            }
-        }
-        if offered.current.mode != default_mode {
-            let id = offered.ids.mode.clone();
-            self.set_option(thread, opened, &id, default_mode).await?;
-        }
-        Ok(())
-    }
-
-    /// Sets one remembered value, or skips it with a line saying why: it is
-    /// not on offer, or the harness refused it (an account that cannot use the
-    /// model). Only a connection failure is an error.
-    async fn try_remembered(
-        &self,
-        thread: &ThreadId,
-        opened: &OpenSession,
-        config_id: &str,
-        value: &str,
-        offered: bool,
-    ) -> Result<Option<Offered>, AcpError> {
-        if !offered {
-            tracing::info!(config_id, value, "sessions.remembered_not_offered: dropped");
-            return Ok(None);
-        }
-        match self.set_option(thread, opened, config_id, value).await {
-            Ok(next) => Ok(Some(next)),
-            Err(AcpError::Rpc(message)) => {
-                tracing::info!(config_id, value, %message, "sessions.remembered_refused: dropped");
-                Ok(None)
-            }
-            Err(error) => Err(error),
-        }
-    }
-
-    /// Sets one of the session's options. The harness answers the complete
-    /// set, which becomes the thread's latest offer and is published.
-    pub async fn set_option(
-        &self,
-        thread: &ThreadId,
-        opened: &OpenSession,
-        config_id: &str,
-        value: &str,
-    ) -> Result<Offered, AcpError> {
-        let answer: Value = opened
-            .connection
-            .set_option(&opened.session_id, config_id, value)
-            .await?;
-        self.offers.record(thread, &answer).map_err(AcpError::Rpc)
-    }
-
     /// What the thread's open session offers now, if it is open.
     pub async fn offered(&self, thread: &ThreadId) -> Option<Offered> {
         self.offers.get(thread)
@@ -309,20 +247,55 @@ impl Sessions {
         item.events.take()
     }
 
+    /// Takes the session's events for a turn: whoever holds them has the
+    /// session to itself (spec §12.7). A `/context` read gives them back
+    /// within `context_wait` plus, when it had to cancel, `cancel_wait`; a
+    /// turn waits that long before it is `Busy`.
+    pub async fn lease_events(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+    ) -> Result<mpsc::UnboundedReceiver<HarnessEvent>, LeaseError> {
+        let deadline = Instant::now()
+            + self.config.context_wait
+            + self.config.cancel_wait
+            + Duration::from_secs(1);
+        loop {
+            {
+                let mut live = self.live.lock().await;
+                let item = live
+                    .get_mut(thread)
+                    .filter(|item| item.opened.generation == opened.generation)
+                    .ok_or(LeaseError::Closed)?;
+                if let Some(rx) = item.events.take() {
+                    item.last_used = Instant::now();
+                    return Ok(rx);
+                }
+            }
+            if Instant::now() >= deadline {
+                return Err(LeaseError::Busy);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    }
+
+    /// Gives the events back to the adapter they came from; to nothing when
+    /// that adapter has since been closed or replaced.
     pub async fn give_back_events(
         &self,
         thread: &ThreadId,
+        opened: &OpenSession,
         rx: mpsc::UnboundedReceiver<HarnessEvent>,
     ) {
-        if let Some(item) = self.live.lock().await.get_mut(thread) {
+        if let Some(item) = same_adapter(&mut *self.live.lock().await, thread, opened) {
             item.events = Some(rx);
             item.last_used = Instant::now();
         }
     }
 
-    /// Records that a Planner turn has answered in the thread's adapter.
-    pub async fn mark_answered(&self, thread: &ThreadId) {
-        if let Some(item) = self.live.lock().await.get_mut(thread) {
+    /// Records that a Planner turn has answered in `opened`'s adapter.
+    pub async fn mark_answered(&self, thread: &ThreadId, opened: &OpenSession) {
+        if let Some(item) = same_adapter(&mut *self.live.lock().await, thread, opened) {
             item.answered = true;
         }
     }
@@ -333,12 +306,6 @@ impl Sessions {
         }
     }
 
-    pub async fn cancel(&self, thread: &ThreadId) {
-        if let Some(item) = self.live.lock().await.get(thread) {
-            item.opened.connection.cancel(&item.opened.session_id);
-        }
-    }
-
     pub async fn terminate(&self, thread: &ThreadId) -> io::Result<()> {
         let mut live = self.live.lock().await;
         if let Some(item) = live.get_mut(thread) {
@@ -346,6 +313,23 @@ impl Sessions {
         }
         live.remove(thread);
         self.offers.forget(thread);
+        Ok(())
+    }
+
+    /// Terminates `opened`'s adapter and reaps it. An adapter no longer in
+    /// the map was already reaped by whoever removed it, so `Ok` then: a
+    /// replacement opened since is another adapter, and is left alone.
+    pub async fn terminate_adapter(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+    ) -> io::Result<()> {
+        let mut live = self.live.lock().await;
+        if let Some(item) = same_adapter(&mut live, thread, opened) {
+            stop_handle(&mut item.handle).await?;
+            live.remove(thread);
+            self.offers.forget(thread);
+        }
         Ok(())
     }
 
@@ -462,4 +446,14 @@ pub(super) fn workspace(context: &TurnContext) -> Result<PathBuf, String> {
         ));
     }
     Ok(dir.clone())
+}
+
+/// The thread's live adapter, if it is still the one `opened` was made on.
+fn same_adapter<'a>(
+    live: &'a mut HashMap<ThreadId, Live>,
+    thread: &ThreadId,
+    opened: &OpenSession,
+) -> Option<&'a mut Live> {
+    live.get_mut(thread)
+        .filter(|item| item.opened.generation == opened.generation)
 }

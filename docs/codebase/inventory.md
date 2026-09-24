@@ -389,7 +389,7 @@ pub struct InvocationView {
 }
 ```
 
-## `src/planner/context.rs` — 99 lines
+## `src/planner/context.rs` — 101 lines
 
 ```rust
 pub enum NoBreakdown {
@@ -425,11 +425,12 @@ impl Collector {
 }
 ```
 
-## `src/planner/handles.rs` — 62 lines
+## `src/planner/handles.rs` — 66 lines
 
 ```rust
 pub(crate) struct LiveTurn {
     pub(crate) thread_id: ThreadId,
+    pub(crate) session: OpenSession,
     pub(crate) turn_end_seen: Arc<AtomicBool>,
     pub(crate) cancel_requested: Arc<AtomicBool>,
     pub(crate) span: tracing::Span,
@@ -451,13 +452,13 @@ impl LiveHandles {
 }
 ```
 
-## `src/planner/mod.rs` — 19 lines
+## `src/planner/mod.rs` — 20 lines
 
 ```rust
 pub use context::NoBreakdown;
 pub use handles::LiveHandles;
 pub(crate) use handles::LiveTurn;
-pub use sessions::{OpenError, OpenSession, Sessions, SessionsConfig};
+pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig};
 pub use shutdown::shut_down;
 pub use spawn::{PlannerTurnRequest, StartError};
 pub use turn::{PlannerTurn, StopOutcome};
@@ -479,7 +480,7 @@ impl Offers {
 pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, mut from: mpsc::UnboundedReceiver<HarnessEvent>, to: mpsc::UnboundedSender<HarnessEvent>)
 ```
 
-## `src/planner/sessions.rs` — 465 lines
+## `src/planner/sessions.rs` — 459 lines
 
 ```rust
 pub struct SessionsConfig {
@@ -492,11 +493,15 @@ pub enum OpenError {
     Start(String),
     Workspace(String),
 }
+pub enum LeaseError {
+    Busy,
+    Closed,
+}
 pub struct OpenSession {
     pub session_id: String,
     pub how: &'static str,
 }
-// + 1 private field
+// + 2 private fields
 impl OpenSession {
     pub fn connection(&self) -> &Connection
 }
@@ -511,20 +516,21 @@ pub(super) struct Live {
 pub struct Sessions {
     pub(super) config: SessionsConfig,
     pub(super) live: Mutex<HashMap<ThreadId, Live>>,
+    pub(super) offers: Arc<Offers>,
 }
 // + 3 private fields
 impl Sessions {
     pub fn new(adapter: Arc<ClaudeAdapter>, storage: Storage, config: SessionsConfig) -> Arc<Self>
     pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError>
-    pub async fn set_option(&self, thread: &ThreadId, opened: &OpenSession, config_id: &str, value: &str) -> Result<Offered, AcpError>
     pub async fn offered(&self, thread: &ThreadId) -> Option<Offered>
     pub fn watch_options(&self) -> broadcast::Receiver<(ThreadId, Offered)>
     pub async fn take_events(&self, thread: &ThreadId) -> Option<mpsc::UnboundedReceiver<HarnessEvent>>
-    pub async fn give_back_events(&self, thread: &ThreadId, rx: mpsc::UnboundedReceiver<HarnessEvent>)
-    pub async fn mark_answered(&self, thread: &ThreadId)
+    pub async fn lease_events(&self, thread: &ThreadId, opened: &OpenSession) -> Result<mpsc::UnboundedReceiver<HarnessEvent>, LeaseError>
+    pub async fn give_back_events(&self, thread: &ThreadId, opened: &OpenSession, rx: mpsc::UnboundedReceiver<HarnessEvent>)
+    pub async fn mark_answered(&self, thread: &ThreadId, opened: &OpenSession)
     pub async fn touch(&self, thread: &ThreadId)
-    pub async fn cancel(&self, thread: &ThreadId)
     pub async fn terminate(&self, thread: &ThreadId) -> io::Result<()>
+    pub async fn terminate_adapter(&self, thread: &ThreadId, opened: &OpenSession) -> io::Result<()>
     pub async fn close_all(&self) -> io::Result<()>
     pub async fn live_count(&self) -> usize
     pub async fn pid(&self, thread: &ThreadId) -> Option<u32>
@@ -536,13 +542,23 @@ impl Sessions {
 pub(super) fn workspace(context: &TurnContext) -> Result<PathBuf, String>
 ```
 
+## `src/planner/settings.rs` — 150 lines
+
+```rust
+impl Sessions {
+    pub async fn set_option(&self, thread: &ThreadId, opened: &OpenSession, config_id: &str, value: &str) -> Result<Offered, AcpError>
+    pub(super) async fn apply_opening_settings(&self, thread: &ThreadId, opened: &OpenSession, mut offered: Offered, default_mode: &str, remembered: Option<(String, Option<String>)>) -> Result<(), AcpError>
+    pub(super) async fn prepare_turn(&self, thread: &ThreadId, opened: &OpenSession, settings: &TurnSettings) -> Result<(), String>
+}
+```
+
 ## `src/planner/shutdown.rs` — 160 lines
 
 ```rust
 pub async fn shut_down(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, confirm_within: Duration, escalate: impl Future<Output = ()>) -> Result<StopKind, StorageError>
 ```
 
-## `src/planner/spawn.rs` — 161 lines
+## `src/planner/spawn.rs` — 127 lines
 
 ```rust
 pub enum StartError {
@@ -551,16 +567,18 @@ pub enum StartError {
 }
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
+    pub harness: String,
     pub operation_id: OperationId,
     pub prompt: String,
     pub settings: TurnSettings,
+    pub events: mpsc::UnboundedReceiver<HarnessEvent>,
 }
 impl PlannerTurn {
     pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, opened: OpenSession, request: PlannerTurnRequest, bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>) -> Result<OperationId, StartError>
 }
 ```
 
-## `src/planner/turn.rs` — 296 lines
+## `src/planner/turn.rs` — 295 lines
 
 ```rust
 pub struct PlannerTurn;
@@ -579,12 +597,11 @@ pub(crate) struct TurnWatch {
     pub thread_id: ThreadId,
     pub harness: String,
     pub prompt: String,
-    pub events: Option<mpsc::UnboundedReceiver<HarnessEvent>>,
     pub turn_end_seen: Arc<AtomicBool>,
     pub cancel_requested: Arc<AtomicBool>,
     pub span: tracing::Span,
 }
-pub(crate) fn watch_turn(mut w: TurnWatch, bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>)
+pub(crate) fn watch_turn(w: TurnWatch, mut rx: mpsc::UnboundedReceiver<HarnessEvent>, bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>)
 impl PlannerTurn {
     pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, op_id: &OperationId, requester: Actor) -> Result<StopOutcome, StorageError>
 }
@@ -686,7 +703,7 @@ pub struct Project {
 }
 ```
 
-## `src/protocol/conversation.rs` — 296 lines
+## `src/protocol/conversation.rs` — 332 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>

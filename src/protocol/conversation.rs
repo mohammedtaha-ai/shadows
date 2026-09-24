@@ -16,11 +16,12 @@ use crate::agent::TurnSettings;
 use crate::agent::acp::AcpError;
 use crate::agent::choices::{Offered, refusal};
 use crate::agent::policy;
+use crate::command::CommandContext;
 use crate::events::Actor;
 use crate::operation::{Operation, OperationId};
-use crate::planner::{OpenSession, PlannerTurn, PlannerTurnRequest, StopOutcome};
-use crate::storage::{NewTurn, StorageError};
-use crate::thread::{ThreadEntry, ThreadId};
+use crate::planner::{LeaseError, OpenSession, PlannerTurn, PlannerTurnRequest, StopOutcome};
+use crate::storage::{NewTurn, StartedTurn, StorageError};
+use crate::thread::{ThreadEntry, ThreadId, TurnContext};
 
 /// A thread's entries in ordinal order.
 #[utoipa::path(
@@ -153,8 +154,60 @@ async fn start(s: AppState, thread_id: ThreadId, body: StartTurn) -> Result<Oper
         return Err(StorageError::ThreadBusy.into());
     }
     let opened = s.sessions.open(&thread_id).await.map_err(open_failure)?;
-    let offered = offer_for_model(&s, &thread_id, &opened, &settings.model).await?;
-    if let Some((what, id)) = refusal(&offered, &context.harness, &settings) {
+    // The turn holds the session from here: a second start, or a `/context`
+    // read, cannot change or prompt it until this turn gives it back.
+    let events = s
+        .sessions
+        .lease_events(&thread_id, &opened)
+        .await
+        .map_err(|e| match e {
+            LeaseError::Busy => Failure::from(StorageError::ThreadBusy),
+            LeaseError::Closed => Failure::harness_start_failed(e.to_string()),
+        })?;
+    let started = match record(
+        &s, &thread_id, &opened, &context, &command, &prompt, &settings,
+    )
+    .await
+    {
+        Ok(started) if !started.replayed => started,
+        other => {
+            s.sessions
+                .give_back_events(&thread_id, &opened, events)
+                .await;
+            return other.map(|replay| replay.operation_id);
+        }
+    };
+    Ok(PlannerTurn::start(
+        s.runtime.clone(),
+        s.handles.clone(),
+        s.sessions.clone(),
+        opened,
+        PlannerTurnRequest {
+            thread_id,
+            harness: context.harness,
+            operation_id: started.operation_id,
+            prompt,
+            settings,
+            events,
+        },
+        s.bus.clone(),
+    )
+    .await?)
+}
+
+/// The rest of §12.7's checks on the leased session, then the one
+/// transaction.
+async fn record(
+    s: &AppState,
+    thread_id: &ThreadId,
+    opened: &OpenSession,
+    context: &TurnContext,
+    command: &CommandContext,
+    prompt: &str,
+    settings: &TurnSettings,
+) -> Result<StartedTurn, Failure> {
+    let offered = offer_for_model(s, thread_id, opened, &settings.model).await?;
+    if let Some((what, id)) = refusal(&offered, &context.harness, settings) {
         return Err(Failure::setting_not_offered(what, &id, None));
     }
     let project = s.storage.get_project(&context.project_id).await?;
@@ -171,45 +224,28 @@ async fn start(s: AppState, thread_id: ThreadId, body: StartTurn) -> Result<Oper
     let started = s
         .storage
         .start_turn(
-            &command,
+            command,
             NewTurn {
-                thread_id: &thread_id,
+                thread_id,
                 runtime: &s.runtime.instance_id,
-                prompt: &prompt,
+                prompt,
                 role: "Planner",
                 harness_kind: &context.harness,
                 harness_path: &harness_path,
                 harness_version: &adapter.adapter_version,
                 agent_path: &agent_path,
                 agent_version: &adapter.agent_version,
-                settings: &settings,
+                settings,
             },
         )
         .await;
-    let started = match started {
-        Ok(started) => started,
+    match started {
+        Ok(started) => Ok(started),
         Err(StorageError::TransitionConflict { .. }) if s.handles.is_closed().await => {
-            return Err(Failure::runtime_stopping());
+            Err(Failure::runtime_stopping())
         }
-        Err(e) => return Err(e.into()),
-    };
-    if started.replayed {
-        return Ok(started.operation_id);
+        Err(e) => Err(e.into()),
     }
-    Ok(PlannerTurn::start(
-        s.runtime.clone(),
-        s.handles.clone(),
-        s.sessions.clone(),
-        opened,
-        PlannerTurnRequest {
-            thread_id,
-            operation_id: started.operation_id,
-            prompt,
-            settings,
-        },
-        s.bus.clone(),
-    )
-    .await?)
 }
 
 /// The session's offer for `model`. Efforts belong to a model, so a turn
