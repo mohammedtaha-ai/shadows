@@ -55,6 +55,32 @@ describe('the composer bar', () => {
     expect(app.button('high')).toBeDefined()
   })
 
+  it('a frame sent while the session opens does not override its answer', async () => {
+    // Found in the Phase B run: opening sets mode, model, then effort, and
+    // each step's frame arrives before the opening answers. The answer holds
+    // the result; a frame from before it is a step on the way.
+    const opened = { ...fakeChoices, current: { ...fakeChoices.current, effort: 'max' } }
+    let release!: () => void
+    const app = await start(
+      '/projects/p1/threads/t1',
+      answers({
+        session: () =>
+          new Promise<Response>((r) => {
+            release = () => r(Response.json(opened))
+          }),
+      }),
+    )
+    await until(() => app.text().includes('Connecting to Claude Code…'))
+    act(() => app.pushFrame('caught-up', { seq: 0 }))
+    act(() => app.pushFrame('options', { thread_id: 't1', choices: fakeChoices }))
+    act(() => app.pushFrame('options', { thread_id: 't1', choices: opened }))
+    await new Promise((r) => setTimeout(r, 50))
+    expect(app.text()).toContain('Connecting to Claude Code…')
+    act(() => release())
+    await until(() => app.button('max') !== undefined)
+    expect(app.button('high')).toBeUndefined()
+  })
+
   it('a failed opening shows the message and a retry, never an endless spinner', async () => {
     let tries = 0
     const app = await start(

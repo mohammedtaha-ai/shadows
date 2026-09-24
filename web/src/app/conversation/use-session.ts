@@ -36,8 +36,13 @@ export function useSession(threadId: string): SessionView {
   return { state: 'connecting' }
 }
 
-/** The session's choices changed (an `options` frame). */
+/** The session's choices changed (an `options` frame). Ignored while the
+ * opening is in flight: opening sets mode, model, then effort, each step's
+ * frame arrives before the opening answers, and the answer is the result.
+ * Taking the first step as the session's state kept its effort for good. */
 export function replaceChoices(queryClient: QueryClient, threadId: string, choices: SessionChoices) {
+  const state = queryClient.getQueryState(sessionKey(threadId))
+  if (state?.data === undefined || state.fetchStatus === 'fetching') return
   queryClient.setQueryData(sessionKey(threadId), choices)
 }
 
