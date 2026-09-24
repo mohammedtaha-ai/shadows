@@ -15,9 +15,52 @@ declaration, this file only says that it exists and what shape it has. What each
 module *owns* is a judgement no generator can make — that lives in
 [README.md](./README.md).
 
-## `src/agent/claude.rs` — 117 lines
+## `src/agent/acp.rs` — 275 lines
 
 ```rust
+pub enum SessionStart {
+    New,
+    Resume(String),
+    Fork(String),
+}
+pub struct Opened {
+    pub session_id: String,
+    pub options: Value,
+}
+pub enum TurnEnd {
+    Ended,
+    Cancelled,
+    Refused(String),
+}
+pub enum AcpError {
+    Closed,
+    Rpc(String),
+}
+pub struct Connection {}
+// + 1 private field
+impl Connection {
+    pub async fn open(handle: &mut ProcessHandle, events: mpsc::UnboundedSender<HarnessEvent>) -> Result<Self, AcpError>
+    pub async fn start_session(&self, cwd: &Path, how: SessionStart) -> Result<Opened, AcpError>
+    pub async fn set_option(&self, session: &str, config_id: &str, value: &str) -> Result<Value, AcpError>
+    pub async fn prompt(&self, session: &str, text: &str) -> Result<TurnEnd, AcpError>
+    pub fn cancel(&self, session: &str)
+}
+```
+
+## `src/agent/claude.rs` — 142 lines
+
+```rust
+pub struct ClaudeAdapter {
+    pub node: PathBuf,
+    pub adapter: PathBuf,
+    pub agent: PathBuf,
+    pub adapter_version: String,
+    pub agent_version: String,
+}
+impl ClaudeAdapter {
+    pub fn process_spec(&self, cwd: &Path) -> ProcessSpec
+}
+
 pub struct ClaudeHarness {
     pub version: String,
 }
@@ -27,7 +70,19 @@ impl ClaudeHarness {
 }
 ```
 
-## `src/agent/mod.rs` — 58 lines
+## `src/agent/events.rs` — 25 lines
+
+```rust
+pub enum HarnessEvent {
+    Chunk { message_id: Option<String>, text: String },
+    ToolCall { id: String, title: Option<String>, status: Option<String> },
+    PermissionRefused { title: String },
+    Usage { used: u64, size: u64, model: Option<String>, rate_limit: Option<Value> },
+    Options(Value),
+}
+```
+
+## `src/agent/mod.rs` — 60 lines
 
 ```rust
 pub struct AgentInvocation {
@@ -51,6 +106,10 @@ pub trait AgentHarness {
     fn classify(&self, line: &str) -> StreamItem;
 }
 ```
+
+## `src/bin/fake_acp.rs` — 232 lines
+
+Nothing reachable from outside this file.
 
 ## `src/bin/fake_claude.rs` — 96 lines
 

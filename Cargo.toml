@@ -51,6 +51,11 @@ name = "fake_claude"
 path = "src/bin/fake_claude.rs"
 required-features = ["test-support"]
 
+[[bin]]
+name = "fake_acp"
+path = "src/bin/fake_acp.rs"
+required-features = ["test-support"]
+
 [features]
 # Compiles in `storage::test_support`, a hook onto an otherwise-private
 # capability (`append_event` without a state write) that must never ship in

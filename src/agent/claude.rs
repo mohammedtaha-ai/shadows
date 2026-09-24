@@ -1,9 +1,34 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
 use super::{AgentHarness, AgentInvocation, StreamItem};
 use crate::process::ProcessSpec;
+
+/// The pinned Node ACP adapter launched with the configured Claude executable.
+pub struct ClaudeAdapter {
+    pub node: PathBuf,
+    pub adapter: PathBuf,
+    pub agent: PathBuf,
+    pub adapter_version: String,
+    pub agent_version: String,
+}
+
+impl ClaudeAdapter {
+    pub fn process_spec(&self, cwd: &Path) -> ProcessSpec {
+        ProcessSpec {
+            executable: self.node.clone(),
+            args: vec![self.adapter.to_string_lossy().into_owned()],
+            cwd: cwd.to_path_buf(),
+            env: vec![(
+                "CLAUDE_CODE_EXECUTABLE".into(),
+                self.agent.to_string_lossy().into_owned(),
+            )],
+            capture_stdout: true,
+            pipe_stdin: true,
+        }
+    }
+}
 
 pub struct ClaudeHarness {
     /// Spec §1.4: resolved from configuration, never from PATH.

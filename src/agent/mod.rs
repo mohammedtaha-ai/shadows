@@ -3,7 +3,9 @@ use std::path::PathBuf;
 use crate::operation::OperationId;
 use crate::process::ProcessSpec;
 
+pub mod acp;
 pub mod claude;
+pub mod events;
 
 /// Frozen at claim time, not read at spawn time. Spec §8.2: reading any of
 /// these later would let a configuration change between claim and spawn alter
