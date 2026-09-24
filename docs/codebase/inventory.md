@@ -48,6 +48,46 @@ impl Connection {
 }
 ```
 
+## `src/agent/choices.rs` — 348 lines
+
+```rust
+pub struct Choice {
+    pub id: String,
+    pub label: String,
+    pub description: Option<String>,
+    pub enabled: bool,
+    pub reason: Option<String>,
+}
+pub struct SessionChoices {
+    pub models: Vec<Choice>,
+    pub efforts: Vec<Choice>,
+    pub modes: Vec<Choice>,
+    pub current: TurnSettings,
+}
+pub struct OptionIds {
+    pub model: String,
+    pub effort: Option<String>,
+    pub mode: String,
+}
+pub struct Offered {
+    pub models: Vec<Choice>,
+    pub efforts: Vec<Choice>,
+    pub modes: Vec<Choice>,
+    pub current: TurnSettings,
+    pub ids: OptionIds,
+}
+impl Offered {
+    pub fn offers_model(&self, id: &str) -> bool
+    pub fn offers_effort(&self, id: &str) -> bool
+    pub fn offers_mode(&self, id: &str) -> bool
+}
+
+pub const NOT_ALLOWED: &str = "Not allowed in this project";
+pub fn parse(options: &Value) -> Result<Offered, String>
+pub fn for_client(offered: &Offered, harness: &str, allowed: &[String]) -> SessionChoices
+pub fn refusal(offered: &Offered, harness: &str, s: &TurnSettings) -> Option<(&'static str, String)>
+```
+
 ## `src/agent/claude.rs` — 28 lines
 
 ```rust
@@ -63,7 +103,7 @@ impl ClaudeAdapter {
 }
 ```
 
-## `src/agent/events.rs` — 32 lines
+## `src/agent/events.rs` — 50 lines
 
 ```rust
 pub enum HarnessEvent {
@@ -74,11 +114,26 @@ pub enum HarnessEvent {
     Options(Value),
     TurnEnd { subtype: &'static str, stop_reason: Option<String> },
 }
+pub struct LimitWindow {
+    pub utilization: f64,
+    pub resets_at: i64,
+}
+pub struct AccountLimits {
+    pub five_hour: Option<LimitWindow>,
+    pub seven_day: Option<LimitWindow>,
+    pub observed_at: String,
+}
 ```
 
-## `src/agent/mod.rs` — 4 lines
+## `src/agent/mod.rs` — 14 lines
 
-Nothing reachable from outside this file.
+```rust
+pub struct TurnSettings {
+    pub model: String,
+    pub mode: String,
+    pub effort: Option<String>,
+}
+```
 
 ## `src/agent/policy.rs` — 57 lines
 
@@ -93,7 +148,7 @@ pub fn is_available(kind: &str) -> bool
 pub fn default_modes() -> BTreeMap<String, Vec<String>>
 ```
 
-## `src/bin/fake_acp.rs` — 237 lines
+## `src/bin/fake_acp.rs` — 253 lines
 
 Nothing reachable from outside this file.
 
@@ -155,7 +210,7 @@ pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError>
 pub fn adapter_version(adapter_entry: &Path) -> String
 ```
 
-## `src/error.rs` — 74 lines
+## `src/error.rs` — 87 lines
 
 ```rust
 pub enum ErrorCode {
@@ -180,6 +235,12 @@ pub enum ErrorCode {
     PathAlreadyExists,
     PathUnavailable,
     OriginRefused,
+    HarnessUnavailable,
+    SettingNotOffered,
+    ModeNotAllowed,
+    HarnessLocked,
+    ThreadBusy,
+    ForkPointNotSupported,
 }
 pub enum FailureClass {
     Client,
@@ -338,7 +399,7 @@ impl LiveHandles {
 }
 ```
 
-## `src/planner/mod.rs` — 16 lines
+## `src/planner/mod.rs` — 17 lines
 
 ```rust
 pub use handles::LiveHandles;
@@ -349,7 +410,23 @@ pub use spawn::{PlannerTurnRequest, StartError};
 pub use turn::{PlannerTurn, StopOutcome};
 ```
 
-## `src/planner/sessions.rs` — 321 lines
+## `src/planner/offers.rs` — 80 lines
+
+```rust
+pub(super) struct Offers {}
+// + 2 private fields
+impl Offers {
+    pub(super) fn new() -> Self
+    pub(super) fn record(&self, thread: &ThreadId, options: &Value) -> Result<Offered, String>
+    pub(super) fn get(&self, thread: &ThreadId) -> Option<Offered>
+    pub(super) fn forget(&self, thread: &ThreadId)
+    pub(super) fn subscribe(&self) -> broadcast::Receiver<(ThreadId, Offered)>
+}
+
+pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, mut from: mpsc::UnboundedReceiver<HarnessEvent>, to: mpsc::UnboundedSender<HarnessEvent>)
+```
+
+## `src/planner/sessions.rs` — 438 lines
 
 ```rust
 pub struct SessionsConfig {
@@ -364,7 +441,6 @@ pub enum OpenError {
 pub struct OpenSession {
     pub session_id: String,
     pub how: &'static str,
-    pub options: Value,
 }
 // + 1 private field
 impl OpenSession {
@@ -372,10 +448,13 @@ impl OpenSession {
 }
 
 pub struct Sessions {}
-// + 4 private fields
+// + 5 private fields
 impl Sessions {
     pub fn new(adapter: Arc<ClaudeAdapter>, storage: Storage, config: SessionsConfig) -> Arc<Self>
     pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError>
+    pub async fn set_option(&self, thread: &ThreadId, opened: &OpenSession, config_id: &str, value: &str) -> Result<Offered, AcpError>
+    pub async fn offered(&self, thread: &ThreadId) -> Option<Offered>
+    pub fn watch_options(&self) -> broadcast::Receiver<(ThreadId, Offered)>
     pub async fn take_events(&self, thread: &ThreadId) -> Option<mpsc::UnboundedReceiver<HarnessEvent>>
     pub async fn give_back_events(&self, thread: &ThreadId, rx: mpsc::UnboundedReceiver<HarnessEvent>)
     pub async fn touch(&self, thread: &ThreadId)
@@ -551,7 +630,7 @@ pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
 ```
 
-## `src/protocol/failure.rs` — 239 lines
+## `src/protocol/failure.rs` — 259 lines
 
 ```rust
 pub struct Failure {}
@@ -563,6 +642,7 @@ pub struct ErrorBody {
 impl Failure {
     pub(super) fn project_directory_unusable(reason: String) -> Self
     pub(super) fn harness_start_failed(reason: String) -> Self
+    pub(super) fn harness_unavailable(harness: &str) -> Self
     pub(super) fn runtime_stopping() -> Self
     pub(super) fn origin_refused(why: &'static str) -> Self
     pub(super) fn termination_failed() -> Self
@@ -588,7 +668,20 @@ pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCod
 pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
 ```
 
-## `src/protocol/mod.rs` — 155 lines
+## `src/protocol/harness.rs` — 138 lines
+
+```rust
+pub(super) struct RememberedSettings {}
+// + 2 private fields
+pub(super) struct HarnessInfo {}
+// + 6 private fields
+pub(super) async fn list_harnesses(State(s): State<AppState>) -> Result<Json<Vec<HarnessInfo>>, Failure>
+pub(super) fn open_failure(e: OpenError) -> Failure
+pub(super) async fn choices_for(storage: &Storage, thread: &ThreadId, offered: &Offered) -> Result<SessionChoices, Failure>
+pub(super) async fn open_session(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<SessionChoices>, Failure>
+```
+
+## `src/protocol/mod.rs` — 159 lines
 
 ```rust
 pub use failure::Failure;
@@ -605,7 +698,7 @@ pub struct AppState {
 pub fn router(state: AppState) -> Router
 ```
 
-## `src/protocol/openapi.rs` — 80 lines
+## `src/protocol/openapi.rs` — 81 lines
 
 ```rust
 pub(super) fn base() -> utoipa::openapi::OpenApi
@@ -626,7 +719,7 @@ pub(super) struct CreateThread {}
 pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<PlanningThread>, Failure>
 ```
 
-## `src/protocol/sse.rs` — 256 lines
+## `src/protocol/sse.rs` — 295 lines
 
 ```rust
 pub struct SubscribeQuery {
@@ -706,7 +799,19 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/mod.rs` — 263 lines
+## `src/storage/sqlite/harness.rs` — 128 lines
+
+```rust
+pub(in crate::storage) async fn remember_settings(conn: &mut SqliteConnection, kind: &str, settings: &TurnSettings, ts: &str) -> Result<(), StorageError>
+impl Storage {
+    pub async fn remembered_settings(&self, kind: &str) -> Result<Option<(String, Option<String>)>, StorageError>
+    pub async fn remember_for_test(&self, kind: &str, model: &str, effort: Option<&str>)
+    pub async fn latest_limits(&self, kind: &str) -> Result<Option<AccountLimits>, StorageError>
+    pub async fn record_limits(&self, kind: &str, limits: &AccountLimits) -> Result<(), StorageError>
+}
+```
+
+## `src/storage/sqlite/mod.rs` — 264 lines
 
 ```rust
 pub use events_read::StoredEvent;
@@ -758,12 +863,13 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/project.rs` — 245 lines
+## `src/storage/sqlite/project.rs` — 250 lines
 
 ```rust
 impl Storage {
     pub async fn create_project(&self, ctx: &CommandContext, slug: &str, name: &str, directory: &ProjectDirectory, default_modes: &BTreeMap<String, Vec<String>>) -> Result<Project, StorageError>
     pub async fn list_projects(&self) -> Result<Vec<Project>, StorageError>
+    pub async fn get_project(&self, id: &ProjectId) -> Result<Project, StorageError>
     pub async fn set_project_modes(&self, ctx: &CommandContext, project_id: &ProjectId, modes: &BTreeMap<String, Vec<String>>) -> Result<Project, StorageError>
 }
 ```

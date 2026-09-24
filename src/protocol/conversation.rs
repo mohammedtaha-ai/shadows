@@ -107,11 +107,11 @@ async fn start(s: AppState, thread_id: ThreadId, prompt: String) -> Result<Opera
     if s.handles.is_closed().await {
         return Err(Failure::runtime_stopping());
     }
-    let opened = s.sessions.open(&thread_id).await.map_err(|e| match e {
-        crate::planner::OpenError::Storage(e) => Failure::from(e),
-        crate::planner::OpenError::Start(reason) => Failure::harness_start_failed(reason),
-        crate::planner::OpenError::Workspace(reason) => Failure::project_directory_unusable(reason),
-    })?;
+    let opened = s
+        .sessions
+        .open(&thread_id)
+        .await
+        .map_err(super::harness::open_failure)?;
     // Record the user's message as a durable entry before the turn starts, so
     // a restart mid-turn still shows what was asked.
     s.storage

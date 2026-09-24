@@ -1,0 +1,320 @@
+//! Shared apparatus: a whole daemon in-process — storage, runtime, sessions on
+//! `fake_acp`, and the real router driven with `oneshot` — with one project and
+//! one thread already created. Include beside `acp.rs`:
+//!
+//! ```ignore
+//! #[path = "fixtures/acp.rs"] mod acp;
+//! #[path = "fixtures/app.rs"] mod app;
+//! ```
+
+#![allow(dead_code)]
+
+use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
+
+use axum::Router;
+use axum::body::Body;
+use axum::http::Request;
+use serde::de::DeserializeOwned;
+use serde_json::{Value, json};
+use shadows::agent::events::HarnessEvent;
+use shadows::agent::policy;
+use shadows::command::{CommandContext, fingerprint};
+use shadows::operation::{Operation, OperationId};
+use shadows::planner::{LiveHandles, Sessions};
+use shadows::project::{ProjectDirectory, ProjectId};
+use shadows::protocol::{AppState, router};
+use shadows::runtime::Runtime;
+use shadows::storage::Storage;
+use shadows::thread::{ThreadEntry, ThreadId};
+use tower::ServiceExt;
+
+use super::acp;
+
+pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
+
+pub struct App {
+    /// `None` when the test owns the directory (`test_app_at`).
+    _tmp: Option<tempfile::TempDir>,
+    pub runtime: Arc<Runtime>,
+    pub storage: Arc<Storage>,
+    pub handles: Arc<LiveHandles>,
+    pub sessions: Arc<Sessions>,
+    pub bus: Bus,
+    pub router: Router,
+    pub project: ProjectId,
+    pub thread: ThreadId,
+    // Held: a dropped sender reads as a stopping daemon.
+    _stopping: tokio::sync::watch::Sender<bool>,
+}
+
+pub fn ctx(id: &str, kind: &str) -> CommandContext {
+    CommandContext {
+        principal_kind: "User".into(),
+        principal_id: "local".into(),
+        command_id: id.into(),
+        command_kind: kind.into(),
+        command_schema_ver: 1,
+        request_fingerprint: fingerprint(kind, &json!({ "id": id })),
+    }
+}
+
+pub async fn test_app() -> App {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut app = test_app_at(tmp.path()).await;
+    app._tmp = Some(tmp);
+    app
+}
+
+/// A daemon on the database in `dir`. Called twice on one directory, the
+/// second is the first one restarted: the project and thread are found again,
+/// not created twice.
+pub async fn test_app_at(dir: &Path) -> App {
+    let db = dir.join("s.sqlite3");
+    let storage = Arc::new(Storage::open(&db).await.unwrap());
+    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let runtime = Arc::new(runtime);
+    let project = storage
+        .create_project(
+            &ctx("c1", "project.create"),
+            "demo",
+            "Demo",
+            &ProjectDirectory::resolve(dir).unwrap(),
+            &policy::default_modes(),
+        )
+        .await
+        .unwrap();
+    let thread = storage
+        .create_planning_thread(
+            &ctx("c2", "thread.create"),
+            &project.id,
+            "T",
+            policy::CLAUDE_CODE,
+        )
+        .await
+        .unwrap()
+        .id;
+    let sessions = Sessions::new(
+        acp::fake_adapter(),
+        Storage::open(&db).await.unwrap(),
+        acp::test_config(),
+    );
+    let handles = Arc::new(LiveHandles::default());
+    let (bus, _) = tokio::sync::broadcast::channel(256);
+    let (stopping, shutdown) = tokio::sync::watch::channel(false);
+    let router = router(AppState {
+        runtime: runtime.clone(),
+        storage: storage.clone(),
+        handles: handles.clone(),
+        sessions: sessions.clone(),
+        bus: bus.clone(),
+        allowed_origins: Vec::new(),
+        shutdown,
+    });
+    App {
+        _tmp: None,
+        runtime,
+        storage,
+        handles,
+        sessions,
+        bus,
+        router,
+        project: project.id,
+        thread,
+        _stopping: stopping,
+    }
+}
+
+/// Stops the daemon as `serve` does on a signal, so the directory can be
+/// opened again by `test_app_at`.
+pub async fn shut_down_app(app: App) {
+    shadows::planner::shut_down(
+        app.runtime.clone(),
+        app.handles.clone(),
+        app.sessions.clone(),
+        Duration::from_secs(5),
+        std::future::pending::<()>(),
+    )
+    .await
+    .unwrap();
+}
+
+pub async fn call(app: &App, method: &str, path: &str, body: Option<Value>) -> (u16, Value) {
+    let request = Request::builder().method(method).uri(path);
+    let request = match body {
+        Some(body) => request
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string())),
+        None => request.body(Body::empty()),
+    }
+    .unwrap();
+    let response = app.router.clone().oneshot(request).await.unwrap();
+    let status = response.status().as_u16();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let value = if bytes.is_empty() {
+        Value::Null
+    } else {
+        serde_json::from_slice(&bytes).unwrap()
+    };
+    (status, value)
+}
+
+pub async fn post(app: &App, path: &str, body: Value) -> (u16, Value) {
+    call(app, "POST", path, Some(body)).await
+}
+
+pub async fn patch(app: &App, path: &str, body: Value) -> (u16, Value) {
+    call(app, "PATCH", path, Some(body)).await
+}
+
+pub async fn get_json<T: DeserializeOwned>(app: &App, path: &str) -> T {
+    let (status, body) = call(app, "GET", path, None).await;
+    assert_eq!(status, 200, "GET {path}: {body}");
+    serde_json::from_value(body).unwrap()
+}
+
+/// Creates a thread in the app's project over HTTP; answers its JSON.
+pub async fn create_thread(app: &App, body: Value) -> Value {
+    let (status, thread) = post(app, &format!("/api/projects/{}/threads", app.project), body).await;
+    assert_eq!(status, 200, "{thread}");
+    thread
+}
+
+pub fn names(list: &Value) -> Vec<String> {
+    list.as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["id"].as_str().unwrap().to_string())
+        .collect()
+}
+
+/// The fake's own default settings, which every turn can run with.
+pub fn default_settings() -> Value {
+    json!({ "model": "fake-large", "mode": "acceptEdits", "effort": "high" })
+}
+
+static NEXT_COMMAND: AtomicUsize = AtomicUsize::new(1);
+
+/// A command id no other request in this test binary has used.
+pub fn fresh_command() -> String {
+    format!("cmd-{}", NEXT_COMMAND.fetch_add(1, Ordering::SeqCst))
+}
+
+/// `POST /api/threads/{thread}/turns` with `body` as given.
+pub async fn http_start(app: &App, thread: &str, body: Value) -> (u16, Value) {
+    post(app, &format!("/api/threads/{thread}/turns"), body).await
+}
+
+/// Starts `prompt` on `thread` with `settings` and a fresh command id;
+/// answers the operation, asserting it was accepted.
+pub async fn start_on(app: &App, thread: &str, prompt: &str, settings: Value) -> OperationId {
+    let mut body = settings;
+    body["command_id"] = json!(fresh_command());
+    body["prompt"] = json!(prompt);
+    let (status, answer) = http_start(app, thread, body).await;
+    assert_eq!(status, 202, "{answer}");
+    OperationId::from_literal(answer["operation_id"].as_str().unwrap())
+}
+
+/// Starts `prompt` on the app's thread with the fake's default settings.
+pub async fn start_settled(app: &App, prompt: &str) -> OperationId {
+    start_on(app, app.thread.as_str(), prompt, default_settings()).await
+}
+
+pub async fn start_and_finish_on(
+    app: &App,
+    thread: &str,
+    prompt: &str,
+    settings: Value,
+) -> Operation {
+    let op = start_on(app, thread, prompt, settings).await;
+    wait_terminal(app, &op).await
+}
+
+pub async fn start_and_finish(app: &App, prompt: &str, settings: Value) -> Operation {
+    start_and_finish_on(app, app.thread.as_str(), prompt, settings).await
+}
+
+pub async fn wait_terminal(app: &App, op: &OperationId) -> Operation {
+    for _ in 0..200 {
+        let loaded = app.storage.get_operation(op).await.unwrap();
+        if loaded.finished_at.is_some() {
+            return loaded;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    panic!("operation did not reach a terminal state in time");
+}
+
+pub async fn entries_on(app: &App, thread: &ThreadId) -> Vec<ThreadEntry> {
+    app.storage.list_thread_entries(thread).await.unwrap()
+}
+
+pub async fn entries(app: &App) -> Vec<ThreadEntry> {
+    entries_on(app, &app.thread).await
+}
+
+pub async fn last_agent_entry_on(app: &App, thread: &str) -> ThreadEntry {
+    entries_on(app, &ThreadId::from_literal(thread))
+        .await
+        .into_iter()
+        .rev()
+        .find(|e| e.kind == "AgentMessage")
+        .expect("an agent reply")
+}
+
+pub async fn last_agent_entry(app: &App) -> ThreadEntry {
+    last_agent_entry_on(app, app.thread.as_str()).await
+}
+
+/// A live `/api/subscribe` stream, read frame by frame.
+pub struct Subscription {
+    body: axum::body::BodyDataStream,
+    buffer: String,
+}
+
+/// Subscribes to `thread` from its start and waits until the replay is over,
+/// so what the next frames carry happened after this call.
+pub async fn subscribe(app: &App, thread: &ThreadId) -> Subscription {
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::get(format!("/api/subscribe?thread_id={thread}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let mut sub = Subscription {
+        body: response.into_body().into_data_stream(),
+        buffer: String::new(),
+    };
+    next_frame_named(&mut sub, "caught-up").await;
+    sub
+}
+
+/// The data of the next frame whose `event:` is `name`, skipping others.
+pub async fn next_frame_named(sub: &mut Subscription, name: &str) -> Value {
+    use tokio_stream::StreamExt;
+    loop {
+        while let Some(end) = sub.buffer.find("\n\n") {
+            let frame: String = sub.buffer.drain(..end + 2).collect();
+            let event = frame.lines().find_map(|l| l.strip_prefix("event: "));
+            let data = frame.lines().find_map(|l| l.strip_prefix("data: "));
+            if event == Some(name) {
+                return serde_json::from_str(data.unwrap_or("null")).unwrap_or(Value::Null);
+            }
+        }
+        let chunk = tokio::time::timeout(Duration::from_secs(10), sub.body.next())
+            .await
+            .unwrap_or_else(|_| panic!("no {name} frame in time: {}", sub.buffer))
+            .expect("the stream ended")
+            .unwrap();
+        sub.buffer.push_str(std::str::from_utf8(&chunk).unwrap());
+    }
+}

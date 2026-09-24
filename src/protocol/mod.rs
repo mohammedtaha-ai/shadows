@@ -5,6 +5,7 @@
 //! ever adds puts a route here. So routes are split by domain, and this file
 //! only wires them: `project.rs` (projects and their threads),
 //! `conversation.rs` (entries, a thread's turns, starting and stopping one),
+//! `harness.rs` (the harnesses and a thread's session choices),
 //! `sse.rs` (the replay-then-live stream), `fs.rs` (choosing a project directory),
 //! `openapi.rs` (the document describing all of it), `failure.rs` (the
 //! transport mapping), `guard.rs` (refusing requests pages were made to send).
@@ -18,6 +19,7 @@ mod conversation;
 mod failure;
 mod fs;
 mod guard;
+mod harness;
 mod openapi;
 mod project;
 pub mod sse;
@@ -119,6 +121,8 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(conversation::list_operations))
         .routes(routes!(conversation::start_turn))
         .routes(routes!(conversation::stop_turn))
+        .routes(routes!(harness::list_harnesses))
+        .routes(routes!(harness::open_session))
         .routes(routes!(sse::subscribe))
         .routes(routes!(fs::list_dirs, fs::create_dir))
         .routes(routes!(openapi::serve))

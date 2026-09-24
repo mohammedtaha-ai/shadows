@@ -4,16 +4,19 @@ use std::{collections::HashMap, io, path::PathBuf, sync::Arc, time::Duration};
 
 use serde_json::Value;
 use tokio::{
-    sync::{Mutex, mpsc},
+    sync::{Mutex, broadcast, mpsc},
     time::Instant,
 };
 use tracing::Instrument;
 
+use super::offers::{Offers, intercept};
 use crate::{
     agent::{
-        acp::{Connection, SessionStart},
+        acp::{AcpError, Connection, SessionStart},
+        choices::Offered,
         claude::ClaudeAdapter,
         events::HarnessEvent,
+        policy,
     },
     process::{self, ProcessHandle},
     storage::{Storage, StorageError},
@@ -47,11 +50,12 @@ pub enum OpenError {
     Workspace(String),
 }
 
+/// An open harness session. What it offers now is `Sessions::offered`: the
+/// choices change after opening, so a copy here would go stale.
 #[derive(Clone)]
 pub struct OpenSession {
     pub session_id: String,
     pub how: &'static str,
-    pub options: Value,
     connection: Connection,
 }
 
@@ -73,6 +77,7 @@ pub struct Sessions {
     storage: Storage,
     config: SessionsConfig,
     live: Mutex<HashMap<ThreadId, Live>>,
+    offers: Arc<Offers>,
 }
 
 impl Sessions {
@@ -82,6 +87,7 @@ impl Sessions {
             storage,
             config,
             live: Mutex::new(HashMap::new()),
+            offers: Arc::new(Offers::new()),
         });
         let reaper = Arc::downgrade(&sessions);
         let period = (config.idle_after / 4)
@@ -119,40 +125,48 @@ impl Sessions {
                     .map_err(|e| OpenError::Start(format!("could not close dead adapter: {e}")))?;
             }
             live.remove(thread);
+            self.offers.forget(thread);
         }
         let context = self.storage.turn_context(thread).await?;
         let cwd = workspace(&context).map_err(OpenError::Workspace)?;
-        let (how, start) = match context.harness_session_id {
+        let (how, start) = match context.harness_session_id.clone() {
             Some(id) => ("resume", SessionStart::Resume(id)),
             None => ("new", SessionStart::New),
         };
+        let default_mode = policy::default_mode(&context.harness).ok_or_else(|| {
+            OpenError::Start(format!("no mode policy for harness {}", context.harness))
+        })?;
+        let remembered = self.storage.remembered_settings(&context.harness).await?;
         let mut handle = process::spawn(self.adapter.process_spec(&cwd))
             .map_err(|e| OpenError::Start(e.to_string()))?;
         let (tx, rx) = mpsc::unbounded_channel();
+        let (raw_tx, raw_rx) = mpsc::unbounded_channel();
+        intercept(self.offers.clone(), thread.clone(), raw_rx, tx);
         let setup = tokio::time::timeout(Duration::from_secs(5), async {
-            let connection = Connection::open(&mut handle, tx)
+            let connection = Connection::open(&mut handle, raw_tx)
                 .await
                 .map_err(|e| e.to_string())?;
             let session = connection
                 .start_session(&cwd, start)
                 .await
                 .map_err(|e| e.to_string())?;
-            let options = connection
-                .set_option(&session.session_id, "mode", "acceptEdits")
-                .await
-                .map_err(|e| e.to_string())?;
-            Ok::<_, String>(OpenSession {
+            let opened = OpenSession {
                 session_id: session.session_id,
                 how,
-                options,
                 connection,
-            })
+            };
+            let offered = self.offers.record(thread, &session.options)?;
+            self.apply_opening_settings(thread, &opened, offered, default_mode, remembered)
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok::<_, String>(opened)
         })
         .await
         .unwrap_or_else(|_| Err("harness setup timed out".into()));
         let opened = match setup {
             Ok(opened) => opened,
             Err(error) => {
+                self.offers.forget(thread);
                 if let Err(cleanup) = stop_handle(&mut handle).await {
                     tracing::error!(%cleanup, "sessions.failed_open_cleanup");
                 }
@@ -169,6 +183,106 @@ impl Sessions {
             },
         );
         Ok(opened)
+    }
+
+    /// §12.2: every opening sets the policy's default mode, since a new or
+    /// resumed session starts at the person's own Claude defaults. Then the
+    /// harness's remembered model and effort (§12.4), each skipped when the
+    /// session does not offer it or the harness refuses it; a model change
+    /// can move the mode, so the default is set again after.
+    async fn apply_opening_settings(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+        mut offered: Offered,
+        default_mode: &str,
+        remembered: Option<(String, Option<String>)>,
+    ) -> Result<(), AcpError> {
+        if offered.current.mode != default_mode {
+            let id = offered.ids.mode.clone();
+            offered = self.set_option(thread, opened, &id, default_mode).await?;
+        }
+        let Some((model, effort)) = remembered else {
+            return Ok(());
+        };
+        if offered.current.model != model {
+            let id = offered.ids.model.clone();
+            offered = match self
+                .try_remembered(thread, opened, &id, &model, offered.offers_model(&model))
+                .await?
+            {
+                Some(next) => next,
+                None => offered,
+            };
+        }
+        if let (Some(effort), Some(id)) = (effort, offered.ids.effort.clone())
+            && offered.current.model == model
+            && offered.current.effort.as_deref() != Some(effort.as_str())
+        {
+            let offers = offered.offers_effort(&effort);
+            if let Some(next) = self
+                .try_remembered(thread, opened, &id, &effort, offers)
+                .await?
+            {
+                offered = next;
+            }
+        }
+        if offered.current.mode != default_mode {
+            let id = offered.ids.mode.clone();
+            self.set_option(thread, opened, &id, default_mode).await?;
+        }
+        Ok(())
+    }
+
+    /// Sets one remembered value, or skips it with a line saying why: it is
+    /// not on offer, or the harness refused it (an account that cannot use the
+    /// model). Only a connection failure is an error.
+    async fn try_remembered(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+        config_id: &str,
+        value: &str,
+        offered: bool,
+    ) -> Result<Option<Offered>, AcpError> {
+        if !offered {
+            tracing::info!(config_id, value, "sessions.remembered_not_offered: dropped");
+            return Ok(None);
+        }
+        match self.set_option(thread, opened, config_id, value).await {
+            Ok(next) => Ok(Some(next)),
+            Err(AcpError::Rpc(message)) => {
+                tracing::info!(config_id, value, %message, "sessions.remembered_refused: dropped");
+                Ok(None)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Sets one of the session's options. The harness answers the complete
+    /// set, which becomes the thread's latest offer and is published.
+    pub async fn set_option(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+        config_id: &str,
+        value: &str,
+    ) -> Result<Offered, AcpError> {
+        let answer: Value = opened
+            .connection
+            .set_option(&opened.session_id, config_id, value)
+            .await?;
+        self.offers.record(thread, &answer).map_err(AcpError::Rpc)
+    }
+
+    /// What the thread's open session offers now, if it is open.
+    pub async fn offered(&self, thread: &ThreadId) -> Option<Offered> {
+        self.offers.get(thread)
+    }
+
+    /// Every change to any thread's offer, as it happens.
+    pub fn watch_options(&self) -> broadcast::Receiver<(ThreadId, Offered)> {
+        self.offers.subscribe()
     }
 
     pub async fn take_events(
@@ -210,6 +324,7 @@ impl Sessions {
             stop_handle(&mut item.handle).await?;
         }
         live.remove(thread);
+        self.offers.forget(thread);
         Ok(())
     }
 
@@ -228,6 +343,7 @@ impl Sessions {
             match result {
                 Ok(()) => {
                     live.remove(&thread);
+                    self.offers.forget(&thread);
                 }
                 Err(error) if first.is_none() => first = Some(error),
                 Err(_) => {}
@@ -256,6 +372,7 @@ impl Sessions {
                 continue;
             }
             live.remove(&id);
+            self.offers.forget(&id);
         }
     }
 

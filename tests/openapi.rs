@@ -76,7 +76,7 @@ fn the_checked_in_document_matches_the_routes() {
     );
 }
 
-/// Every route a client of Milestone 0 needs, by method and path.
+/// Every route a client needs, by method and path.
 #[test]
 fn the_document_names_every_route() {
     let doc = document();
@@ -96,6 +96,7 @@ fn the_document_names_every_route() {
         named,
         [
             "GET /api/fs/dirs",
+            "GET /api/harnesses",
             "GET /api/openapi.json",
             "GET /api/projects",
             "GET /api/projects/{id}/threads",
@@ -106,6 +107,7 @@ fn the_document_names_every_route() {
             "POST /api/operations/{id}/stop",
             "POST /api/projects",
             "POST /api/projects/{id}/threads",
+            "POST /api/threads/{id}/session",
             "POST /api/threads/{id}/turns",
         ]
     );

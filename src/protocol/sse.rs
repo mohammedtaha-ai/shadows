@@ -9,6 +9,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 
 use super::AppState;
+use crate::agent::choices::Offered;
 use crate::agent::events::HarnessEvent;
 use crate::events::EventCursor;
 use crate::operation::OperationId;
@@ -63,12 +64,13 @@ pub async fn subscribe(
     // Both taken before the replay is read; see above.
     let committed = state.storage.watch_committed();
     let live = state.bus.subscribe();
+    let options = state.sessions.watch_options();
     let span = tracing::debug_span!("sse", thread_id = %q.thread_id);
     tracing::debug!(parent: &span, after = q.after, "sse.subscribe");
 
     tokio::spawn(
         async move {
-            let why = stream(state, q, committed, live, tx).await;
+            let why = stream(state, q, committed, live, options, tx).await;
             tracing::debug!(why, "sse.closed");
         }
         .instrument(span),
@@ -84,6 +86,7 @@ async fn stream(
     q: SubscribeQuery,
     mut committed: tokio::sync::watch::Receiver<i64>,
     mut live: tokio::sync::broadcast::Receiver<(ThreadId, OperationId, HarnessEvent)>,
+    mut options: tokio::sync::broadcast::Receiver<(ThreadId, Offered)>,
     tx: Sender<Result<Event, Infallible>>,
 ) -> &'static str {
     // 1. Durable replay.
@@ -112,6 +115,7 @@ async fn stream(
         // signal) before it sends the transient item that follows, so
         // polling the signal first keeps a turn's `turn-end` behind the
         // durable entry it ends.
+        let mut woke_options = None;
         let received = tokio::select! {
             biased;
             _ = shutdown.wait_for(|stopping| *stopping) => return "shutdown",
@@ -122,7 +126,28 @@ async fn stream(
                 None
             }
             received = live.recv() => Some(received),
+            offered = options.recv() => {
+                woke_options = Some(offered);
+                None
+            }
         };
+        if let Some(offered) = woke_options.take() {
+            match offered {
+                Ok((thread_id, offered)) if thread_id == q.thread_id => {
+                    if let Some(ev) = options_event(&state, &thread_id, &offered).await
+                        && tx.send(Ok(ev)).await.is_err()
+                    {
+                        return CLIENT_GONE;
+                    }
+                }
+                Ok(_) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                    let _ = tx.send(Ok(Event::default().event("lagged").data(""))).await;
+                }
+                Err(_) => return "shutdown: options closed",
+            }
+            continue;
+        }
         let Some(received) = received else {
             if let Err(why) =
                 send_journal_after(&state.storage, &q.thread_id, &mut last_seq, &tx).await
@@ -168,6 +193,7 @@ replay and live alike; remember the highest `seq` and resubscribe with it as `af
 - `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n\
 - `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n\
 - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n\
+- `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.\n\
 - `lagged` — empty: this client fell behind and transient frames were dropped; \
 durable ones were not.\n\
 - `fatal` — data is a message as plain text: the journal could not be read and \
@@ -235,6 +261,19 @@ async fn send_journal_after(
                 .map_err(|_| CLIENT_GONE)?;
         }
     }
+}
+
+/// The `options` frame: the thread's new offer as a client sees it (§12.4).
+/// `None` when the thread's policy cannot be read; the next opening answers.
+async fn options_event(state: &AppState, thread: &ThreadId, offered: &Offered) -> Option<Event> {
+    let choices = super::harness::choices_for(&state.storage, thread, offered)
+        .await
+        .ok()?;
+    Some(
+        Event::default()
+            .event("options")
+            .data(serde_json::json!({ "thread_id": thread, "choices": choices }).to_string()),
+    )
 }
 
 /// The SSE form of a transient bus item, or `None` for one this stream does

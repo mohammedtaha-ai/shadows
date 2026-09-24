@@ -3,6 +3,7 @@
 
 mod entries;
 mod handles;
+mod offers;
 mod sessions;
 mod shutdown;
 mod spawn;

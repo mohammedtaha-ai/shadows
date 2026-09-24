@@ -53,6 +53,16 @@ impl From<StorageError> for Failure {
             StorageError::NotFound(_) => {
                 return own(StatusCode::NOT_FOUND, ErrorCode::InvalidCommand);
             }
+            StorageError::HarnessLocked => {
+                return own(StatusCode::CONFLICT, ErrorCode::HarnessLocked);
+            }
+            StorageError::ThreadBusy => return own(StatusCode::CONFLICT, ErrorCode::ThreadBusy),
+            StorageError::ForkPointNotSupported => {
+                return own(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    ErrorCode::ForkPointNotSupported,
+                );
+            }
             StorageError::TransitionConflict { .. } => (
                 StatusCode::CONFLICT,
                 ErrorCode::StorageConstraintViolation,
@@ -108,6 +118,16 @@ impl Failure {
             cause: Some(reason),
         }
     }
+    /// Spec §12.4: the thread's harness is listed but cannot run here yet.
+    pub(super) fn harness_unavailable(harness: &str) -> Self {
+        Failure {
+            status: StatusCode::UNPROCESSABLE_ENTITY,
+            code: ErrorCode::HarnessUnavailable,
+            message: format!("the {harness} harness is not available yet"),
+            cause: None,
+        }
+    }
+
     /// Spec §8.5: a stopping daemon takes no new work. 503, because the
     /// refusal is about this daemon's state, not the request — the same
     /// request succeeds against the next one.

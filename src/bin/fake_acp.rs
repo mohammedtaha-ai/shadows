@@ -1,7 +1,11 @@
 //! ACP test agent. Prompts: ordinary (two chunks), `two-messages` (tool updates),
 //! `report` (session state), `/context` (delayed first report), `hang` (cancel),
 //! `ignore-cancel` (never), `exit` (code 3), `ask-permission` (reject),
-//! `usage` (two context updates), and `refuse` (max_tokens).
+//! `usage` (two context updates), and `refuse` (max_tokens). Models:
+//! `fake-large` (efforts, `auto`), `fake-small` (efforts, no `auto`),
+//! `fake-tiny` (no effort), `fake-locked` (refused, as an account without
+//! credits is). A session starts at `fake-large`, `high`, `auto`: as the real
+//! adapter does, at the person's own defaults rather than Shadows'.
 use std::{
     collections::HashMap,
     path::PathBuf,
@@ -26,7 +30,7 @@ struct Session {
     cwd: PathBuf,
     how: &'static str,
     model: String,
-    effort: String,
+    effort: Option<String>,
     mode: String,
     cancel: watch::Sender<bool>,
 }
@@ -39,29 +43,40 @@ struct State {
 }
 type Shared = Arc<Mutex<State>>;
 
+/// The efforts a fake model offers; `fake-tiny` offers none, as Haiku 4.5
+/// does (ACP_PROBE §1).
+fn efforts(model: &str) -> &'static [&'static str] {
+    match model {
+        "fake-large" => &["low", "high", "max"],
+        "fake-small" => &["low", "high"],
+        _ => &[],
+    }
+}
+
+/// The options as the real adapter shapes them (ACP_PROBE §1): ids that are
+/// not their categories (`effort` is `thought_level`), the effort option
+/// absent for a model without one, and a `model_config` option to ignore.
 fn options(s: &Session) -> Vec<SessionConfigOption> {
-    let efforts: Vec<&str> = match s.model.as_str() {
-        "fake-large" => vec!["low", "high", "max"],
-        "fake-small" => vec!["low", "high"],
-        _ => vec![],
-    };
+    let efforts = efforts(&s.model);
     let mut values = vec![
-        json!({"id":"model","name":"Model","type":"select","currentValue":s.model,
-            "options":[
-                {"value":"fake-large","name":"fake-large"},
-                {"value":"fake-small","name":"fake-small"},
-                {"value":"fake-tiny","name":"fake-tiny"},
-                {"value":"fake-locked","name":"fake-locked"}]}),
-        json!({"id":"mode","name":"Mode","type":"select","currentValue":s.mode,
+        json!({"id":"mode","name":"Mode","category":"mode","type":"select","currentValue":s.mode,
             "options":(["default","acceptEdits","plan","auto","bypassPermissions"].iter()
               .map(|v| json!({"value":v,"name":v})).collect::<Vec<_>>()) }),
+        json!({"id":"model","name":"Model","category":"model","type":"select","currentValue":s.model,
+            "options":[
+                {"value":"fake-large","name":"Fake Large","description":"The biggest fake"},
+                {"value":"fake-small","name":"Fake Small"},
+                {"value":"fake-tiny","name":"Fake Tiny"},
+                {"value":"fake-locked","name":"Fake Locked"}]}),
     ];
-    if !efforts.is_empty() {
+    if let Some(effort) = &s.effort {
         values.push(
-            json!({"id":"thought_level","name":"Effort","type":"select","currentValue":s.effort,
+            json!({"id":"effort","name":"Effort","category":"thought_level","type":"select","currentValue":effort,
             "options":efforts.iter().map(|v| json!({"value":v,"name":v})).collect::<Vec<_>>() }),
         );
     }
+    values.push(json!({"id":"fast","name":"Fast","category":"model_config","type":"select","currentValue":"off",
+        "options":[{"value":"on","name":"On"},{"value":"off","name":"Off"}]}));
     values
         .into_iter()
         .map(|v| serde_json::from_value(v).expect("fake option schema"))
@@ -74,7 +89,7 @@ fn make_session(cwd: PathBuf, how: &'static str) -> Session {
         cwd,
         how,
         model: "fake-large".into(),
-        effort: "high".into(),
+        effort: Some("high".into()),
         mode: "auto".into(),
         cancel,
     }
@@ -150,11 +165,12 @@ async fn main() -> agent_client_protocol::Result<()> {
             match r.config_id.to_string().as_str() {
                 "model" if value == "fake-locked" => return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "Usage credits are required for this model · model not changed")),
                 "model" => {
+                    s.effort = (!efforts(&value).is_empty()).then(|| "high".to_string());
                     s.model = value;
-                    s.effort = "high".into();
                     if s.mode == "auto" && s.model != "fake-large" { s.mode = "acceptEdits".into(); }
                 },
-                "thought_level" => s.effort = value,
+                "effort" if !efforts(&s.model).contains(&value.as_str()) => return responder.respond_with_error(agent_client_protocol::Error::new(-32602, "effort not offered")),
+                "effort" => s.effort = Some(value),
                 "mode" if value == "auto" && s.model != "fake-large" => return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "auto mode is not available for this model")),
                 "mode" => s.mode = value,
                 _ => {},

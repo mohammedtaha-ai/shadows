@@ -87,6 +87,11 @@ impl Storage {
             .collect())
     }
 
+    pub async fn get_project(&self, id: &ProjectId) -> Result<Project, StorageError> {
+        let mut conn = self.reader().acquire().await?;
+        load_project(&mut conn, id).await
+    }
+
     /// Replaces the modes the project allows for each harness named in
     /// `modes` (spec §12.5); harnesses not named keep theirs. An idempotent
     /// command: a replay answers the project as it now stands. The caller

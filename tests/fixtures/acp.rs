@@ -15,10 +15,12 @@ use shadows::storage::Storage;
 pub fn adapter_at(node: PathBuf) -> Arc<ClaudeAdapter> {
     Arc::new(ClaudeAdapter {
         node,
-        adapter: PathBuf::from("unused"),
-        agent: PathBuf::from("unused"),
-        adapter_version: "fake".into(),
-        agent_version: "fake".into(),
+        adapter: PathBuf::from("fake-adapter/dist/index.js"),
+        agent: PathBuf::from(env!("CARGO_BIN_EXE_fake_acp")),
+        // What `serve` reads from the adapter's package.json and from the
+        // agent's `--version` (`fake_acp --version` answers the second).
+        adapter_version: "fake-adapter-1".into(),
+        agent_version: "fake-claude-1".into(),
     })
 }
 
