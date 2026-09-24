@@ -192,8 +192,8 @@ export interface paths {
          * @description Spec §3.3: a long-running command answers 202 with an operation id, and the
          *     operation reaches its terminal outcome later — watch it on
          *     `/api/subscribe`. The thread's harness session is opened first (spec
-         *     §12.7); when it cannot be (no project directory, an adapter that does not
-         *     start) the answer is 502 and nothing is written.
+         *     §12.7); when it cannot be, nothing is written: 409 when the project's
+         *     directory is gone or was never set, 502 when the adapter does not start.
          *
          *     A daemon that has begun to stop refuses the turn with 503 (spec §8.5).
          */
@@ -880,6 +880,15 @@ export interface operations {
             };
             /** @description INVALID_COMMAND: no such thread */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description PATH_NOT_FOUND: the project's directory is gone or was never set; nothing was written */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

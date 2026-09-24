@@ -41,6 +41,10 @@ pub enum OpenError {
     Storage(#[from] StorageError),
     #[error("harness start failed: {0}")]
     Start(String),
+    /// The project's directory cannot be run in. The text is written here,
+    /// about the user's own project, so a client may show it (§3.2).
+    #[error("{0}")]
+    Workspace(String),
 }
 
 #[derive(Clone)]
@@ -117,7 +121,7 @@ impl Sessions {
             live.remove(thread);
         }
         let context = self.storage.turn_context(thread).await?;
-        let cwd = workspace(&context).map_err(OpenError::Start)?;
+        let cwd = workspace(&context).map_err(OpenError::Workspace)?;
         let (how, start) = match context.harness_session_id {
             Some(id) => ("resume", SessionStart::Resume(id)),
             None => ("new", SessionStart::New),

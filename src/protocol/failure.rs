@@ -89,6 +89,17 @@ impl From<StartError> for Failure {
 }
 
 impl Failure {
+    /// The thread's project has no usable directory. A 4xx whose message is
+    /// the reason, because the user can act on it: the text is ours, about a
+    /// directory the user chose (§3.2).
+    pub(super) fn project_directory_unusable(reason: String) -> Self {
+        Failure {
+            status: StatusCode::CONFLICT,
+            code: ErrorCode::PathNotFound,
+            message: reason,
+            cause: None,
+        }
+    }
     pub(super) fn harness_start_failed(reason: String) -> Self {
         Failure {
             status: StatusCode::BAD_GATEWAY,

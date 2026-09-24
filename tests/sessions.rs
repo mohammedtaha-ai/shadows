@@ -173,7 +173,7 @@ async fn a_project_without_its_directory_does_not_start_an_adapter() {
     std::fs::remove_dir_all(&fx.project_dir).unwrap();
     assert!(matches!(
         fx.sessions.open(&fx.thread).await,
-        Err(OpenError::Start(_))
+        Err(OpenError::Workspace(reason)) if reason.contains("missing")
     ));
     assert_eq!(fx.sessions.live_count().await, 0);
 }

@@ -72,8 +72,8 @@ pub(super) struct TurnStarted {
 /// Spec §3.3: a long-running command answers 202 with an operation id, and the
 /// operation reaches its terminal outcome later — watch it on
 /// `/api/subscribe`. The thread's harness session is opened first (spec
-/// §12.7); when it cannot be (no project directory, an adapter that does not
-/// start) the answer is 502 and nothing is written.
+/// §12.7); when it cannot be, nothing is written: 409 when the project's
+/// directory is gone or was never set, 502 when the adapter does not start.
 ///
 /// A daemon that has begun to stop refuses the turn with 503 (spec §8.5).
 #[utoipa::path(
@@ -85,6 +85,7 @@ pub(super) struct TurnStarted {
     responses(
         (status = 202, body = TurnStarted),
         (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
+        (status = 409, description = "PATH_NOT_FOUND: the project's directory is gone or was never set; nothing was written", body = ErrorBody),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
         (status = 502, description = "HARNESS_START_FAILED: the thread's session could not be opened; nothing was written", body = ErrorBody),
         (status = 503, description = "RUNTIME_STOPPING: the daemon is shutting down", body = ErrorBody),
@@ -109,6 +110,7 @@ async fn start(s: AppState, thread_id: ThreadId, prompt: String) -> Result<Opera
     let opened = s.sessions.open(&thread_id).await.map_err(|e| match e {
         crate::planner::OpenError::Storage(e) => Failure::from(e),
         crate::planner::OpenError::Start(reason) => Failure::harness_start_failed(reason),
+        crate::planner::OpenError::Workspace(reason) => Failure::project_directory_unusable(reason),
     })?;
     // Record the user's message as a durable entry before the turn starts, so
     // a restart mid-turn still shows what was asked.

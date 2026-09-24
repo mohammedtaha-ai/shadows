@@ -179,6 +179,52 @@ async fn an_unusable_directory_is_refused_with_a_stable_code() {
     assert_eq!(listed, json!([]), "a refused request created a project");
 }
 
+/// A project whose directory was deleted after it was created: the turn is
+/// refused with the reason, naming the directory, and nothing is written.
+#[tokio::test]
+async fn a_turn_on_a_deleted_directory_is_refused_with_its_reason() {
+    let tmp = tempfile::tempdir().unwrap();
+    let db = tmp.path().join("s.sqlite3");
+    let storage = Arc::new(Storage::open(&db).await.unwrap());
+    let (app, _stopping) = app(storage.clone(), &db).await;
+    let work = tmp.path().join("work");
+    std::fs::create_dir(&work).unwrap();
+    let (_, project) = create_project(&app, "c1", &work.display().to_string()).await;
+    let (_, thread) = call(
+        &app,
+        "POST",
+        &format!("/api/projects/{}/threads", project["id"].as_str().unwrap()),
+        Some(json!({ "command_id": "c2", "title": "T" })),
+    )
+    .await;
+    let thread_id = thread["id"].as_str().unwrap();
+    std::fs::remove_dir_all(&work).unwrap();
+
+    let (status, refused) = call(
+        &app,
+        "POST",
+        &format!("/api/threads/{thread_id}/turns"),
+        Some(json!({ "prompt": "hi" })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::CONFLICT, "{refused}");
+    assert_eq!(refused["code"], "PATH_NOT_FOUND", "{refused}");
+    let message = refused["message"].as_str().unwrap();
+    assert!(
+        message.contains("missing") && message.contains("work"),
+        "{refused}"
+    );
+    let (_, entries) = call(
+        &app,
+        "GET",
+        &format!("/api/threads/{thread_id}/entries"),
+        None,
+    )
+    .await;
+    assert_eq!(entries, json!([]), "a refused turn wrote its prompt");
+}
+
 /// A database written before `0003_project_directory.sql` holds projects with
 /// no directory. The migration cannot invent one, so the row keeps NULL, the
 /// API says so, and a turn is refused (no session can open there) rather than
@@ -204,8 +250,14 @@ async fn a_project_from_before_directories_has_its_turns_refused() {
     .await;
     // Spec §12.7: the session is opened before any write, and a directory
     // that cannot be run in is a failure to open it — nothing durable.
-    assert_eq!(status, StatusCode::BAD_GATEWAY, "{started}");
-    assert_eq!(started["code"], "HARNESS_START_FAILED", "{started}");
+    assert_eq!(status, StatusCode::CONFLICT, "{started}");
+    assert_eq!(started["code"], "PATH_NOT_FOUND", "{started}");
+    assert!(
+        started["message"]
+            .as_str()
+            .is_some_and(|m| m.contains("no directory")),
+        "the client is told why: {started}"
+    );
     let (_, operations) = call(
         &app,
         "GET",

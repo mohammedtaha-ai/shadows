@@ -34,11 +34,11 @@ conversation start, SSE delta). Linux only; no Windows run, no real adapter.
 
 ## Concerns for the reviewer / Mohammed
 1. A project with no directory used to answer 202 and fail at `Prepare`. It now answers
-   502 `HARNESS_START_FAILED` with nothing written (§12.7: open before any write). The
-   reason goes to the log only (§3.2), so the browser shows "the harness could not start".
+   409 `PATH_NOT_FOUND` with the reason as its message, and writes nothing (§12.7, amended).
+   Resolved in the follow-up commit, at Mohammed's request.
 2. Owner line for `planner/turn.rs` in the plan ("decide and persist ...") fails the codemap
    "and" rule; recorded as "the recorded ending of a live Planner turn".
 3. `planner/sessions.rs` is 317 lines, over 300. Single job, unchanged: the live adapter each
    thread holds; the additions are two test-support hooks and the open span.
-4. A first turn the harness confirms `cancelled` still records its session (only a
+4. Kept as is (Mohammed agreed): a first turn the harness confirms `cancelled` still records its session (only a
    terminated or failed-RPC turn does not). `thread_session.rs` tests the terminated case.

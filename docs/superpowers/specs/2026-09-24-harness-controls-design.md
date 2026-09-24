@@ -258,7 +258,9 @@ setting. A trigger enforces the lock in storage, below the application.
 `effort` is `null` exactly when the chosen model offers none (§12.4).
 
 **Validation, all before any write:** the thread's harness is available
-(`HarnessUnavailable`); its session is open, and is opened here if it is not
+(`HarnessUnavailable`); its project's directory exists (`PathNotFound`, 409,
+whose message is the reason — it is about a directory the user chose, so it is
+public-safe, §3.2); its session is open, and is opened here if it is not
 (`HarnessStartFailed` when that fails — opening starts a process but writes
 nothing durable, §12.2); model, mode and effort are among the choices the session
 offers now, the effort is one the chosen model offers, and the mode passes §12.4's

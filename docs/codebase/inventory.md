@@ -336,7 +336,7 @@ pub use spawn::{PlannerTurnRequest, StartError};
 pub use turn::{PlannerTurn, StopOutcome};
 ```
 
-## `src/planner/sessions.rs` — 317 lines
+## `src/planner/sessions.rs` — 321 lines
 
 ```rust
 pub struct SessionsConfig {
@@ -346,6 +346,7 @@ pub struct SessionsConfig {
 pub enum OpenError {
     Storage(StorageError),
     Start(String),
+    Workspace(String),
 }
 pub struct OpenSession {
     pub session_id: String,
@@ -523,7 +524,7 @@ pub struct Project {
 }
 ```
 
-## `src/protocol/conversation.rs` — 194 lines
+## `src/protocol/conversation.rs` — 196 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
@@ -536,7 +537,7 @@ pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
 ```
 
-## `src/protocol/failure.rs` — 228 lines
+## `src/protocol/failure.rs` — 239 lines
 
 ```rust
 pub struct Failure {}
@@ -546,6 +547,7 @@ pub struct ErrorBody {
     pub message: String,
 }
 impl Failure {
+    pub(super) fn project_directory_unusable(reason: String) -> Self
     pub(super) fn harness_start_failed(reason: String) -> Self
     pub(super) fn runtime_stopping() -> Self
     pub(super) fn origin_refused(why: &'static str) -> Self

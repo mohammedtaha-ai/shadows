@@ -1045,7 +1045,7 @@
     },
     "/api/threads/{id}/turns": {
       "post": {
-        "description": "Spec §3.3: a long-running command answers 202 with an operation id, and the\noperation reaches its terminal outcome later — watch it on\n`/api/subscribe`. The thread's harness session is opened first (spec\n§12.7); when it cannot be (no project directory, an adapter that does not\nstart) the answer is 502 and nothing is written.\n\nA daemon that has begun to stop refuses the turn with 503 (spec §8.5).",
+        "description": "Spec §3.3: a long-running command answers 202 with an operation id, and the\noperation reaches its terminal outcome later — watch it on\n`/api/subscribe`. The thread's harness session is opened first (spec\n§12.7); when it cannot be, nothing is written: 409 when the project's\ndirectory is gone or was never set, 502 when the adapter does not start.\n\nA daemon that has begun to stop refuses the turn with 503 (spec §8.5).",
         "operationId": "start_turn",
         "parameters": [
           {
@@ -1088,6 +1088,16 @@
               }
             },
             "description": "INVALID_COMMAND: no such thread"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PATH_NOT_FOUND: the project's directory is gone or was never set; nothing was written"
           },
           "500": {
             "content": {
