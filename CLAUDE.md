@@ -68,7 +68,7 @@ storage/         protocol/       cli/
 
 | Module | Sole owner of |
 |---|---|
-| `agent/` | AI subprocess harness (`AgentHarness::start`) |
+| `agent/` | AI subprocess harness (the ACP `Connection`) |
 | `storage/` | SQLite (and future PostgreSQL adapter) |
 | `protocol/` | HTTP/SSE transport |
 | `process/` | `tokio::process` / `process-wrap` (private to `process/` only) |
