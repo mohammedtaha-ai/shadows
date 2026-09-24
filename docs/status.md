@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-09-24
+**Updated:** 2026-09-24 (after the Phase B run)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,21 +9,26 @@ restate them.
 
 ## Where we are
 
-**Milestone 1 Phase A is implemented, and it has run on Linux.** A Planner
-turn is now an ACP `session/prompt` on an adapter each open thread keeps
-(spec §12). The per-turn `claude --print` path is deleted. Every Phase A step
-passed against the real harness in a cloud container: streaming, Stop, a
-refused permission, a graceful restart, and memory across it.
-[`evidence/milestone1/PHASE_A_RUN.md`](./evidence/milestone1/PHASE_A_RUN.md).
-**Mohammed's Windows run has not happened yet, and Phase B waits for it.**
+**Milestone 1 is implemented, Phase A and Phase B, and both have run on
+Linux against the real harness.** A Planner turn is an ACP `session/prompt` on
+an adapter each open thread keeps (spec §12). The person chooses the CLI per
+conversation and the model, mode and effort per message, all read from the
+harness. The composer shows context and limits. Any message can be copied, and
+the last one forked. The Phase B run found four defects, all fixed and run
+again: [`evidence/milestone1/PHASE_B_RUN.md`](./evidence/milestone1/PHASE_B_RUN.md).
+The Phase A run is [`PHASE_A_RUN.md`](./evidence/milestone1/PHASE_A_RUN.md).
+**Mohammed's run has not happened yet, on Windows or anywhere else.**
 
 - Milestone 0 is complete on Windows and on `main` (PRs #1-#3).
   [`evidence/milestone0/ACCEPTANCE.md`](./evidence/milestone0/ACCEPTANCE.md).
-- Milestone 1 Phase A (Tasks 0, A1-A5): branch
-  `milestone-1/harness-controls-7p9608`, no PR yet.
+- Milestone 1: branch `milestone-1/harness-controls-7p9608`, no PR yet. The
+  whole-branch review has run, and its fixes are merged.
+- Three changes Mohammed ruled on after the run are being built (spec §12.5,
+  §12.6/§12.9, §12.7): the mode menu says what Accept edits allows, a fork is
+  locked to its harness, and a chosen model is set at once.
 - The daemon serves an API only; the React client in `web/` is a separate
   application (spec §1). Its types are generated from `api/openapi.json`.
-- 133 Rust tests and 48 web tests.
+- 197 Rust tests and 91 web tests.
 
 The plan is `superpowers/plans/2026-09-24-milestone-1-harness-controls.md`. Its
 ledger is in `.superpowers/sdd/`, which must leave the branch before its PR.
@@ -39,6 +44,10 @@ ledger is in `.superpowers/sdd/`, which must leave the branch before its PR.
   the harness itself confirmed a Stop (`cancelled`) and the adapter lived on,
   and a restarted daemon resumed the recorded session. Read-only shell commands
   are allowed by Claude Code without asking. `evidence/milestone1/`.
+- **Phase B on Linux.** The model list, each model's efforts and the modes all
+  come from the session. The adapter needs `PATH` and `HOME` from the daemon, or
+  no shell command runs. Accept edits runs file commands in the project folder,
+  `rm` included, without a permission request. `evidence/milestone1/`.
 - **The harness does spawn a tree.** `claude --print` starts an MCP proxy as a
   child. This settles the question the serve/stream spike left open; whether a
   `Bash` call adds more descendants was not measured separately.
@@ -57,11 +66,16 @@ ledger is in `.superpowers/sdd/`, which must leave the branch before its PR.
 
 ## Next
 
-1. Mohammed's Windows run of Phase A (plan Task A5 Step 3), recorded next to
-   the Linux run.
-2. Remove `.superpowers/sdd/` from the branch, open the Phase A PR, merge it,
-   delete the branch.
-3. Phase B (the controls), which starts with its contract draft (plan Task 1).
+1. Finish the three ruled changes above and run them on the real harness.
+2. Mohammed runs Milestone 1 with the real client on Windows: every item of
+   spec §12.13, plus Phase A's Stop and restart.
+3. Remove `.superpowers/sdd/` from the branch, open the Milestone 1 PR, merge
+   it, delete the branch.
+4. **One lock for every open session.** `Sessions` holds a single lock through
+   an adapter's startup (up to 5 s) and through each termination wait, so
+   opening one conversation can delay Stop on another. This is latency, not a
+   correctness defect. The fix is one slot per thread. It is its own task,
+   after the PR.
 
 ## Standing risks
 
@@ -73,8 +87,9 @@ ledger is in `.superpowers/sdd/`, which must leave the branch before its PR.
   Stop no longer waits on a stream: after `cancel_wait` it terminates the
   adapter's tree (§12.3). `fake_acp`'s `ignore-cancel` covers this; the real
   harness was not driven into that state.
-- **Starting a turn carries no `CommandId`**, against the idempotency rule;
-  **`agent_invocation` is not persisted** (spec §8.2). Both are Phase B, Task B3.
+- **Accept edits lets Claude Code delete files in the project folder without
+  asking** (spec §12.5, measured in the Phase B run). This is the harness's
+  behaviour, kept by decision; an uncommitted file it deletes is lost.
 - **No authentication.** The daemon binds to loopback and refuses cross-site
   browser requests, but any local process can call it. Remote access is an OPEN
   block in spec §1 with its trigger.

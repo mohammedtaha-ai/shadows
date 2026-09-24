@@ -5,7 +5,7 @@
 > map there.
 
 - **Date:** 2026-09-24
-- **Status:** Redesigned with Mohammed on 2026-09-24 around the Agent Client Protocol. The first draft (`2cc7930`) talked to `claude --print` directly and kept a hand-written catalogue; both are replaced here. Awaiting review of this file.
+- **Status:** Redesigned with Mohammed on 2026-09-24 around the Agent Client Protocol. The first draft (`2cc7930`) talked to `claude --print` directly and kept a hand-written catalogue; both are replaced here. Amended the same day after the Phase B run on the real harness, with Mohammed's rulings: what Accept edits allows (§12.5), a fork is locked to its harness from creation (§12.6, §12.9), and the model is set when it is chosen (§12.7).
 - **Builds on:** Milestone 0 (§11.1), merged at `58fb30e`.
 
 Milestone 1 runs the Planner's harness over the **Agent Client Protocol (ACP)**
@@ -243,11 +243,24 @@ states which modes its turns may use:
 > It does not block this milestone: the Planner is a person's own agent, run in
 > the directory that person chose, in one of two modes that person allowed.
 
+**What Accept edits allows is Claude Code's, and the client says so.** Measured
+in the Phase B run (`evidence/milestone1/PHASE_B_RUN.md`): in `acceptEdits`,
+Claude Code runs file commands inside the project directory without a
+permission request — `rm -rf ./README.md` deleted a file that was never
+committed, and Shadows never saw a request. A command outside that, such as
+`curl` to the network, is asked, and Shadows refuses it (§12.2). Decided with
+Mohammed on 2026-09-24: Shadows keeps the harness's behaviour and does not add
+a boundary of its own here (the OPEN block above still names when it must).
+The mode menu states, on the mode itself, what each mode lets the harness do
+(§12.11), so the choice is made knowing it.
+
 ## 12.6 A conversation's harness
 
 `PlanningThread.harness` is chosen when the thread is created, defaults to
 `claude-code`, may be changed while the thread has no Operation, and is fixed
-from its first Operation on (`HarnessLocked`). A harness session belongs to one
+from its first Operation on (`HarnessLocked`). A fork is fixed from creation
+(§12.9): it continues its source's harness session, which only that harness
+can continue. A harness session belongs to one
 harness; a thread whose turns alternated harnesses would have no session to
 continue. Moving a conversation between harnesses is §2.11's continuity, not a
 setting. A trigger enforces the lock in storage, below the application.
@@ -289,6 +302,19 @@ that names another model than the session holds sets it with
 the answer. The harness refusing the model (an account without access to it)
 is `SettingNotOffered` with the harness's message. That changes the session, not the durable record; a later refusal
 leaves the session on the new model, and clients see it as an `options` frame.
+
+**Choosing a model sets it at once.** Efforts belong to a model, and the
+session only reports a model's efforts once it holds that model. So the client
+does not wait for Send: `PUT /api/threads/{id}/session/model` with `{ model }`
+opens the session if needed, sets the model when it differs, and answers the
+choices as `POST /session` does, the new model's efforts included. It writes
+nothing durable and carries no `CommandId`: setting the same model twice is
+the same state, and a turn records its model in its own invocation. It is
+`SettingNotOffered` for a model not on offer or refused by the harness (with
+the harness's message), and `ThreadBusy` while a turn runs, since a running
+turn's session is not changed under it. It does not touch the remembered
+settings, which follow turns started (§12.4). Turn start keeps setting the
+model during validation, for any client that did not.
 
 **Then, before the prompt is sent,** the session is set to the turn's effort
 and mode, one call per value that differs from what the session holds. A
@@ -409,6 +435,7 @@ source with "(fork)":
 - It copies the source's entries up to and including `at_entry_id` under new ids and ordinals. It copies no Operation: an Operation belongs to the thread that ran it.
 - **Copied entries keep their `operation_id` and `refs` unchanged.** Both still name the source thread's operation; that is provenance, read-only history, and is shown as such. Nothing in the fork can stop, retry, or otherwise act on it.
 - It records `forked_from_thread`, `forked_from_entry`, and `fork_session_id` (the source's harness session at that moment). The three are all NULL or all set, and are written only by the creating insert. The source is not changed.
+- **The fork is locked to the source's harness from creation** (§12.6): `fork_session_id` is a session of that harness, and no other can continue it. Changing it is `HarnessLocked`, and storage refuses it as it refuses a thread with an Operation.
 - The fork's first opening (§12.2) calls `session/fork` on `fork_session_id`, then `session/resume` on the id it returns: the adapter answers a fork's id without making it live, and a prompt to it before the resume is "Session not found" (ACP_PROBE §6). The fork remembers the source's messages and the source is unaffected. The session is recorded as the fork's own `harness_session_id` when the fork's first turn ends, by the rule of §12.3.
 - **Valid fork point in this milestone**, decided only from durable rows: `at_entry_id` is the source's highest-ordinal entry; its `operation_id` is set; that operation is `Completed`; and the source's `harness_session_id` is set. A turn running on the source is `ThreadBusy`; anything else is `ForkPointNotSupported`, including an entry with no `operation_id` and a turn that was stopped or failed. Widening it to any entry is a server change only, once the Context Compiler exists.
 
@@ -419,7 +446,8 @@ source with "(fork)":
 | `GET /api/harnesses` | new: each harness's kind, label, availability with a reason, remembered model and effort, latest limits |
 | `POST /api/threads/{id}/session` | new: open the thread's harness session (§12.2); answers the choices on offer — models, efforts of the current model, modes after §12.4's filter, current values. Idempotent: an open session answers what it holds |
 | `POST /api/threads/{id}/turns` | body becomes `{ command_id, prompt, model, mode, effort }` (§12.7) |
-| `PATCH /api/threads/{id}` | new: `{ command_id, harness }`; `HarnessLocked` for a new command once an Operation exists; a replay answers the thread as it stands |
+| `PUT /api/threads/{id}/session/model` | new: `{ model }`; sets the open session's model when it is chosen and answers the choices as `POST /session` does (§12.7). Not durable, no `CommandId` |
+| `PATCH /api/threads/{id}` | new: `{ command_id, harness }`; `HarnessLocked` for a new command once an Operation exists, or at once for a fork (§12.6); a replay answers the thread as it stands |
 | create thread | gains optional `harness` (default `claude-code`) |
 | `GET /api/projects/{id}` | carries the allowed modes per harness |
 | `PATCH /api/projects/{id}` | new: `{ command_id, allowed_modes }` |
@@ -447,7 +475,7 @@ Matches the mockup agreed on 2026-09-24:
 
 - **Opening a conversation** opens its session. Until the answer arrives the bar reads "Connecting to Claude Code…"; a failure shows the daemon's message and a retry. Never a spinner without words.
 - **Header:** CLI picker (`cli-picker.tsx`). Unavailable harnesses shown disabled as "coming". Changeable until the first turn, then shown with a lock.
-- **Under the message box**, flat, no border (`composer-bar.tsx`): left `+`, mode, folder; right model, effort, context ring. Every menu is built from the session's answer. Modes the project does not allow are shown disabled with the reason. The effort menu follows the chosen model. When the observed model differs from the requested one, the reply shows both.
+- **Under the message box**, flat, no border (`composer-bar.tsx`): left `+`, mode, folder; right model, effort, context ring. Every menu is built from the session's answer. Modes the project does not allow are shown disabled with the reason. Each mode carries one line saying what it lets the harness do; for Accept edits, that it edits, creates and deletes files in the project folder without asking and other commands are refused (§12.5). Choosing a model sets it at once (§12.7): the effort menu waits for the answer and then shows that model's efforts; a refusal puts the session's model back and shows the harness's message. When the observed model differs from the requested one, the reply shows both.
 - **Context ring** (`context-ring.tsx`): §12.8's two levels; hover or click opens it at any time.
 - **Message actions** (`message-actions.tsx`): copy on every message, fork on the last one when the thread is idle; fork opens the new thread.
 - **A refused permission** renders as a quiet line: what was asked, that `acceptEdits` refused it, and that `auto` would allow it.
@@ -494,7 +522,8 @@ Phase B
 [ ] a replayed turn start with the same CommandId returns the first result and starts nothing,
     even after the project's allowed modes changed; a changed body is CommandConflict
 [ ] a mode the project does not allow is refused by the daemon, not only hidden by the client
-[ ] the harness can be changed before the first turn and not after, enforced in storage
+[ ] the harness can be changed before the first turn and not after, enforced in storage;
+    a fork's cannot be changed at all
 [ ] a new conversation starts at Accept edits and at the last model and effort used
 [ ] the ring shows figures or "no figures yet" and never spins; limits show their observed time
 [ ] the ring's second level shows the breakdown, or says why it has none; §12.8's OPEN
