@@ -43,7 +43,9 @@ pub struct LimitWindow {
 /// window the harness did not report is `None`, never estimated.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct AccountLimits {
+    #[schema(required)]
     pub five_hour: Option<LimitWindow>,
+    #[schema(required)]
     pub seven_day: Option<LimitWindow>,
     /// When the daemon received the report (RFC 3339).
     pub observed_at: String,

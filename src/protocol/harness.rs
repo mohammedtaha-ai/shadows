@@ -21,6 +21,7 @@ use crate::thread::ThreadId;
 #[derive(serde::Serialize, utoipa::ToSchema)]
 pub(super) struct RememberedSettings {
     model: String,
+    #[schema(required)]
     effort: Option<String>,
 }
 
@@ -32,8 +33,11 @@ pub(super) struct HarnessInfo {
     label: String,
     available: bool,
     /// Why it cannot run, when `available` is false.
+    #[schema(required)]
     reason: Option<String>,
+    #[schema(required)]
     remembered: Option<RememberedSettings>,
+    #[schema(required)]
     limits: Option<AccountLimits>,
 }
 
@@ -142,7 +146,9 @@ pub(super) async fn open_session(
 /// with the reason.
 #[derive(serde::Serialize, utoipa::ToSchema)]
 pub(super) struct ContextBreakdown {
+    #[schema(required)]
     categories: Option<Vec<Category>>,
+    #[schema(required)]
     reason: Option<String>,
 }
 

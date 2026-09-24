@@ -11,5 +11,6 @@ pub mod policy;
 pub struct TurnSettings {
     pub model: String,
     pub mode: String,
+    #[schema(required)]
     pub effort: Option<String>,
 }

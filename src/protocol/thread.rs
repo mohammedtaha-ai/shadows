@@ -1,14 +1,15 @@
 //! One job: the routes that change a planning thread itself — its harness
-//! (spec §12.6).
+//! (spec §12.6), or a fork of it (§12.9).
 
 use axum::Json;
 use axum::extract::{Path, State};
+use axum::http::StatusCode;
 
 use super::failure::ErrorBody;
 use super::project::ctx;
 use super::{AppState, Failure};
 use crate::agent::policy;
-use crate::thread::{PlanningThread, ThreadId};
+use crate::thread::{PlanningThread, ThreadEntryId, ThreadId};
 
 /// Changes the thread's CLI. Refused once the thread has run a turn
 /// (`HARNESS_LOCKED`).
@@ -65,4 +66,44 @@ pub(super) async fn update_thread(
         tracing::error!(%error, thread_id = %thread, "thread.harness_change_close_failed");
     }
     Ok(Json(updated))
+}
+
+/// Forks the thread from its last completed entry (spec §12.9).
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct ForkThread {
+    /// The idempotency key (spec §3.2), scoped to the source thread.
+    command_id: String,
+    at_entry_id: ThreadEntryId,
+}
+
+/// Forks the thread from its last completed entry into a new thread on the
+/// same project (spec §12.9). The new thread holds copies of the entries up to
+/// and including `at_entry_id`; its next turn continues a fork of the
+/// source's harness session. The source is unchanged. A replay answers the
+/// fork already made.
+#[utoipa::path(
+    post,
+    path = "/api/threads/{id}/fork",
+    tag = "threads",
+    params(("id" = ThreadId, Path, description = "The source thread")),
+    request_body = ForkThread,
+    responses(
+        (status = 201, body = PlanningThread),
+        (status = 404, description = "INVALID_COMMAND: no such thread or entry", body = ErrorBody),
+        (status = 409, description = "THREAD_BUSY: a turn is running, or COMMAND_CONFLICT", body = ErrorBody),
+        (status = 422, description = "FORK_POINT_NOT_SUPPORTED: fork from anything but the last completed entry", body = ErrorBody),
+    )
+)]
+pub(super) async fn fork_thread(
+    State(s): State<AppState>,
+    Path(thread): Path<ThreadId>,
+    Json(body): Json<ForkThread>,
+) -> Result<(StatusCode, Json<PlanningThread>), Failure> {
+    let params = serde_json::json!({ "thread_id": thread, "at_entry_id": body.at_entry_id });
+    let c = ctx(body.command_id, "thread.fork", params);
+    let fork = s
+        .storage
+        .fork_thread(&c, &thread, &body.at_entry_id)
+        .await?;
+    Ok((StatusCode::CREATED, Json(fork)))
 }

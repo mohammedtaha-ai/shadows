@@ -28,7 +28,7 @@ pub struct PlanningThread {
     /// (spec §12.6).
     pub harness: String,
     /// The thread this one was forked from, if it is a fork (spec §12.9).
-    #[schema(value_type = Option<String>)]
+    #[schema(value_type = Option<String>, required)]
     pub forked_from_thread: Option<ThreadId>,
 }
 
@@ -72,7 +72,7 @@ pub struct ThreadEntry {
     /// The turn this entry belongs to (spec §12.7). `None` for entries written
     /// before entries named their turn. A fork's copied entries keep the
     /// source's operation: provenance, not something the fork can act on.
-    #[schema(value_type = Option<String>)]
+    #[schema(value_type = Option<String>, required)]
     pub operation_id: Option<OperationId>,
 }
 

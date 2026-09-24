@@ -11,6 +11,7 @@ mod command;
 mod entry;
 pub(super) mod events;
 mod events_read;
+mod fork;
 mod harness;
 mod operation;
 mod operation_read;

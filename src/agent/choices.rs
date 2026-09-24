@@ -14,8 +14,10 @@ use super::{TurnSettings, policy};
 pub struct Choice {
     pub id: String,
     pub label: String,
+    #[schema(required)]
     pub description: Option<String>,
     pub enabled: bool,
+    #[schema(required)]
     pub reason: Option<String>,
 }
 

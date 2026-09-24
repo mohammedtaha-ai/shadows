@@ -110,6 +110,7 @@ fn the_document_names_every_route() {
             "POST /api/operations/{id}/stop",
             "POST /api/projects",
             "POST /api/projects/{id}/threads",
+            "POST /api/threads/{id}/fork",
             "POST /api/threads/{id}/session",
             "POST /api/threads/{id}/turns",
         ]

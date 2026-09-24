@@ -59,7 +59,7 @@ pub struct Category {
 pub fn parse(markdown: &str) -> Option<Vec<Category>>
 ```
 
-## `src/agent/choices.rs` — 348 lines
+## `src/agent/choices.rs` — 350 lines
 
 ```rust
 pub struct Choice {
@@ -114,7 +114,7 @@ impl ClaudeAdapter {
 }
 ```
 
-## `src/agent/events.rs` — 137 lines
+## `src/agent/events.rs` — 139 lines
 
 ```rust
 pub enum HarnessEvent {
@@ -145,7 +145,7 @@ impl TurnObservation {
 }
 ```
 
-## `src/agent/mod.rs` — 15 lines
+## `src/agent/mod.rs` — 16 lines
 
 ```rust
 pub struct TurnSettings {
@@ -168,7 +168,7 @@ pub fn is_available(kind: &str) -> bool
 pub fn default_modes() -> BTreeMap<String, Vec<String>>
 ```
 
-## `src/bin/fake_acp.rs` — 253 lines
+## `src/bin/fake_acp.rs` — 257 lines
 
 Nothing reachable from outside this file.
 
@@ -340,7 +340,7 @@ Nothing reachable from outside this file.
 
 Nothing reachable from outside this file.
 
-## `src/operation/mod.rs` — 70 lines
+## `src/operation/mod.rs` — 75 lines
 
 ```rust
 pub struct OperationId(String);
@@ -479,7 +479,7 @@ impl Offers {
 pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, mut from: mpsc::UnboundedReceiver<HarnessEvent>, to: mpsc::UnboundedSender<HarnessEvent>)
 ```
 
-## `src/planner/sessions.rs` — 459 lines
+## `src/planner/sessions.rs` — 465 lines
 
 ```rust
 pub struct SessionsConfig {
@@ -560,7 +560,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/planner/turn.rs` — 294 lines
+## `src/planner/turn.rs` — 296 lines
 
 ```rust
 pub struct PlannerTurn;
@@ -686,7 +686,7 @@ pub struct Project {
 }
 ```
 
-## `src/protocol/conversation.rs` — 295 lines
+## `src/protocol/conversation.rs` — 296 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
@@ -739,7 +739,7 @@ pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCod
 pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
 ```
 
-## `src/protocol/harness.rs` — 179 lines
+## `src/protocol/harness.rs` — 185 lines
 
 ```rust
 pub(super) struct RememberedSettings {}
@@ -755,7 +755,7 @@ pub(super) struct ContextBreakdown {}
 pub(super) async fn thread_context(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<ContextBreakdown>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 164 lines
+## `src/protocol/mod.rs` — 165 lines
 
 ```rust
 pub use failure::Failure;
@@ -807,13 +807,16 @@ pub struct SubscribeQuery {
 pub async fn subscribe(State(state): State<AppState>, Query(q): Query<SubscribeQuery>) -> Sse<ReceiverStream<Result<Event, Infallible>>>
 ```
 
-## `src/protocol/thread.rs` — 68 lines
+## `src/protocol/thread.rs` — 109 lines
 
 ```rust
 pub(super) struct UpdateThread {}
 // + 2 private fields
 pub(super) fn known_harness(harness: &str) -> Result<(), Failure>
 pub(super) async fn update_thread(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<UpdateThread>) -> Result<Json<PlanningThread>, Failure>
+pub(super) struct ForkThread {}
+// + 2 private fields
+pub(super) async fn fork_thread(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<ForkThread>) -> Result<(StatusCode, Json<PlanningThread>), Failure>
 ```
 
 ## `src/runtime/mod.rs` — 59 lines
@@ -886,6 +889,14 @@ impl Storage {
 }
 ```
 
+## `src/storage/sqlite/fork.rs` — 203 lines
+
+```rust
+impl Storage {
+    pub async fn fork_thread(&self, ctx: &CommandContext, source: &ThreadId, at_entry: &ThreadEntryId) -> Result<PlanningThread, StorageError>
+}
+```
+
 ## `src/storage/sqlite/harness.rs` — 128 lines
 
 ```rust
@@ -898,7 +909,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/mod.rs` — 266 lines
+## `src/storage/sqlite/mod.rs` — 267 lines
 
 ```rust
 pub use events_read::StoredEvent;

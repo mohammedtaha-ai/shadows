@@ -2,6 +2,7 @@
   "components": {
     "schemas": {
       "AccountLimits": {
+        "description": "The account's limits as last reported by the harness (spec §12.8). A\nwindow the harness did not report is `None`, never estimated.",
         "properties": {
           "five_hour": {
             "oneOf": [
@@ -13,6 +14,10 @@
               }
             ]
           },
+          "observed_at": {
+            "description": "When the daemon received the report (RFC 3339).",
+            "type": "string"
+          },
           "seven_day": {
             "oneOf": [
               {
@@ -22,9 +27,6 @@
                 "$ref": "#/components/schemas/LimitWindow"
               }
             ]
-          },
-          "observed_at": {
-            "type": "string"
           }
         },
         "required": [
@@ -32,8 +34,7 @@
           "seven_day",
           "observed_at"
         ],
-        "type": "object",
-        "description": "The account's limits as last reported by the harness (spec §12.8). A window the harness did not report is `null`, never estimated."
+        "type": "object"
       },
       "Actor": {
         "properties": {
@@ -51,13 +52,8 @@
         "type": "object"
       },
       "Choice": {
+        "description": "One value the session offers for a setting (spec §12.4). `enabled: false`\ncarries the `reason` it cannot be chosen.",
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "label": {
-            "type": "string"
-          },
           "description": {
             "type": [
               "string",
@@ -66,6 +62,12 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
           },
           "reason": {
             "type": [
@@ -81,19 +83,19 @@
           "enabled",
           "reason"
         ],
-        "type": "object",
-        "description": "One value the session offers for a setting (spec §12.4). `enabled: false` carries the `reason` it cannot be chosen."
+        "type": "object"
       },
       "ContextBreakdown": {
+        "description": "The context breakdown read on demand (spec §12.8): the categories, or none\nwith the reason.",
         "properties": {
           "categories": {
+            "items": {
+              "$ref": "#/components/schemas/ContextCategory"
+            },
             "type": [
               "array",
               "null"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/ContextCategory"
-            }
+            ]
           },
           "reason": {
             "type": [
@@ -106,19 +108,22 @@
           "categories",
           "reason"
         ],
-        "type": "object",
-        "description": "The context breakdown read on demand (spec §12.8): the categories, or none with the reason."
+        "type": "object"
       },
       "ContextCategory": {
+        "description": "One category of the context breakdown.",
         "properties": {
           "name": {
             "type": "string"
           },
-          "tokens": {
-            "type": "integer"
-          },
           "percent": {
+            "format": "double",
             "type": "number"
+          },
+          "tokens": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
@@ -176,15 +181,15 @@
             "description": "The idempotency key (spec §3.2), scoped to the project.",
             "type": "string"
           },
-          "title": {
-            "type": "string"
-          },
           "harness": {
+            "description": "The CLI for this conversation; `claude-code` when omitted.",
             "type": [
               "string",
               "null"
-            ],
-            "description": "The CLI for this conversation; `claude-code` when omitted."
+            ]
+          },
+          "title": {
+            "type": "string"
           }
         },
         "required": [
@@ -345,33 +350,46 @@
         "type": "string"
       },
       "ForkThread": {
+        "description": "Forks the thread from its last completed entry (spec §12.9).",
         "properties": {
-          "command_id": {
-            "type": "string"
-          },
           "at_entry_id": {
             "$ref": "#/components/schemas/ThreadEntryId"
+          },
+          "command_id": {
+            "description": "The idempotency key (spec §3.2), scoped to the source thread.",
+            "type": "string"
           }
         },
         "required": [
           "command_id",
           "at_entry_id"
         ],
-        "type": "object",
-        "description": "Forks the thread from its last completed entry (spec §12.9)."
+        "type": "object"
       },
       "HarnessInfo": {
+        "description": "A CLI a conversation can run on (spec §12.1). `kind` is `claude-code` or\n`codex`.",
         "properties": {
+          "available": {
+            "type": "boolean"
+          },
           "kind": {
             "type": "string"
           },
           "label": {
             "type": "string"
           },
-          "available": {
-            "type": "boolean"
+          "limits": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AccountLimits"
+              }
+            ]
           },
           "reason": {
+            "description": "Why it cannot run, when `available` is false.",
             "type": [
               "string",
               "null"
@@ -386,16 +404,6 @@
                 "$ref": "#/components/schemas/RememberedSettings"
               }
             ]
-          },
-          "limits": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/AccountLimits"
-              }
-            ]
           }
         },
         "required": [
@@ -406,31 +414,33 @@
           "remembered",
           "limits"
         ],
-        "type": "object",
-        "description": "A CLI a conversation can run on (spec §12.1). `kind` is `claude-code` or `codex`."
+        "type": "object"
       },
       "InvocationView": {
+        "description": "What a turn asked for and what the harness reported (spec §8.2, §12.8).\nAnything not reported is `None`, never estimated.",
         "properties": {
+          "agent_version": {
+            "type": "string"
+          },
+          "context_used": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "context_window": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "harness_kind": {
             "type": "string"
           },
           "harness_version": {
             "type": "string"
-          },
-          "agent_version": {
-            "type": "string"
-          },
-          "requested_model": {
-            "type": "string"
-          },
-          "requested_mode": {
-            "type": "string"
-          },
-          "requested_effort": {
-            "type": [
-              "string",
-              "null"
-            ]
           },
           "observed_model": {
             "type": [
@@ -438,17 +448,17 @@
               "null"
             ]
           },
-          "context_used": {
+          "requested_effort": {
             "type": [
-              "integer",
+              "string",
               "null"
             ]
           },
-          "context_window": {
-            "type": [
-              "integer",
-              "null"
-            ]
+          "requested_mode": {
+            "type": "string"
+          },
+          "requested_model": {
+            "type": "string"
           }
         },
         "required": [
@@ -462,24 +472,25 @@
           "context_used",
           "context_window"
         ],
-        "type": "object",
-        "description": "What a turn asked for and what the harness reported (spec §8.2, §12.8). Anything not reported is `null`."
+        "type": "object"
       },
       "LimitWindow": {
+        "description": "One account limit window as the harness reported it: `utilization` from 0\nto 1, `resets_at` in Unix seconds.",
         "properties": {
-          "utilization": {
-            "type": "number"
-          },
           "resets_at": {
+            "format": "int64",
             "type": "integer"
+          },
+          "utilization": {
+            "format": "double",
+            "type": "number"
           }
         },
         "required": [
           "utilization",
           "resets_at"
         ],
-        "type": "object",
-        "description": "One account limit window as the harness reported it: `utilization` from 0 to 1, `resets_at` in Unix seconds."
+        "type": "object"
       },
       "Operation": {
         "description": "Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the\n`ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged\nfor reviewability, that follows this task (spec §4.1 OPEN block).",
@@ -520,6 +531,17 @@
               "null"
             ]
           },
+          "invocation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/InvocationView",
+                "description": "What the turn asked of the harness and what it reported (§12.7).\n`None` for an operation from before invocations were recorded."
+              }
+            ]
+          },
           "kind": {
             "type": "string"
           },
@@ -546,16 +568,6 @@
               "string",
               "null"
             ]
-          },
-          "invocation": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/InvocationView"
-              }
-            ]
           }
         },
         "required": [
@@ -577,6 +589,17 @@
           "created_at": {
             "type": "string"
           },
+          "forked_from_thread": {
+            "description": "The thread this one was forked from, if it is a fork (spec §12.9).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "harness": {
+            "description": "The CLI this conversation runs on (`agent::policy`): chosen at\ncreation, changeable until the thread's first operation, then fixed\n(spec §12.6).",
+            "type": "string"
+          },
           "id": {
             "$ref": "#/components/schemas/ThreadId"
           },
@@ -588,16 +611,6 @@
           },
           "title": {
             "type": "string"
-          },
-          "harness": {
-            "type": "string",
-            "description": "The CLI this conversation runs on: `claude-code` or `codex`."
-          },
-          "forked_from_thread": {
-            "type": [
-              "string",
-              "null"
-            ]
           }
         },
         "required": [
@@ -613,6 +626,19 @@
       },
       "Project": {
         "properties": {
+          "allowed_modes": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "description": "Per harness kind, the modes this project's turns may use (spec §12.5).\nEach list is a set: its order carries no meaning. Every known harness\nis present; an empty list means no turn can start on it.",
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
           "created_at": {
             "type": "string"
           },
@@ -631,16 +657,6 @@
           },
           "slug": {
             "type": "string"
-          },
-          "allowed_modes": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "description": "Per harness kind, the modes this project allows (spec §12.4)."
           }
         },
         "required": [
@@ -657,50 +673,51 @@
         "type": "string"
       },
       "RememberedSettings": {
+        "description": "The model and effort last chosen for this harness (spec §12.4).",
         "properties": {
-          "model": {
-            "type": "string"
-          },
           "effort": {
             "type": [
               "string",
               "null"
             ]
+          },
+          "model": {
+            "type": "string"
           }
         },
         "required": [
           "model",
           "effort"
         ],
-        "type": "object",
-        "description": "The model and effort last chosen for this harness (spec §12.5)."
+        "type": "object"
       },
       "RuntimeInstanceId": {
         "format": "uuid",
         "type": "string"
       },
       "SessionChoices": {
+        "description": "What the thread's session offers now (spec §12.4). `efforts` are the\ncurrent model's. `modes` are after Shadows' policy; a mode the project does\nnot allow is present with `enabled: false` and `reason: \"Not allowed in\nthis project\"`.",
         "properties": {
-          "models": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Choice"
-            }
-          },
-          "efforts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Choice"
-            }
-          },
-          "modes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Choice"
-            }
-          },
           "current": {
             "$ref": "#/components/schemas/TurnSettings"
+          },
+          "efforts": {
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "type": "array"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "type": "array"
+          },
+          "modes": {
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -709,29 +726,30 @@
           "modes",
           "current"
         ],
-        "type": "object",
-        "description": "What the thread's session offers now (spec §12.4). `efforts` are the current model's. `modes` are after Shadows' policy; a mode the project does not allow is present with `enabled: false` and `reason: \"Not allowed in this project\"`."
+        "type": "object"
       },
       "StartTurn": {
+        "description": "Starts a turn as one command (spec §12.7).",
         "properties": {
           "command_id": {
-            "type": "string",
-            "description": "The idempotency key (spec §3.2). A retry sends the same one."
+            "description": "The idempotency key (spec §3.2). A retry sends the same one.",
+            "type": "string"
           },
-          "prompt": {
+          "effort": {
+            "description": "`null` exactly when the chosen model offers no effort (§12.4).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mode": {
             "type": "string"
           },
           "model": {
             "type": "string"
           },
-          "mode": {
+          "prompt": {
             "type": "string"
-          },
-          "effort": {
-            "type": [
-              "string",
-              "null"
-            ]
           }
         },
         "required": [
@@ -741,8 +759,7 @@
           "mode",
           "effort"
         ],
-        "type": "object",
-        "description": "Starts a turn as one command (spec §12.7)."
+        "type": "object"
       },
       "ThreadEntry": {
         "properties": {
@@ -760,8 +777,15 @@
             "$ref": "#/components/schemas/ThreadEntryId"
           },
           "kind": {
-            "type": "string",
-            "description": "`UserMessage`, `AgentMessage`, or `PermissionRefused` (a permission the harness asked for and Shadows refused)."
+            "description": "`UserMessage`, `AgentMessage`, or `PermissionRefused` (a permission the\nharness asked for and Shadows refused, spec §12.2).",
+            "type": "string"
+          },
+          "operation_id": {
+            "description": "The turn this entry belongs to (spec §12.7). `None` for entries written\nbefore entries named their turn. A fork's copied entries keep the\nsource's operation: provenance, not something the fork can act on.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "ordinal": {
             "format": "int64",
@@ -775,12 +799,6 @@
           },
           "thread_id": {
             "$ref": "#/components/schemas/ThreadId"
-          },
-          "operation_id": {
-            "type": [
-              "string",
-              "null"
-            ]
           }
         },
         "required": [
@@ -805,18 +823,19 @@
         "type": "string"
       },
       "TurnSettings": {
+        "description": "The settings a turn runs with (spec §12.7). `effort` is `None` exactly\nwhen the model offers none (§12.4).",
         "properties": {
-          "model": {
-            "type": "string"
-          },
-          "mode": {
-            "type": "string"
-          },
           "effort": {
             "type": [
               "string",
               "null"
             ]
+          },
+          "mode": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
           }
         },
         "required": [
@@ -824,8 +843,7 @@
           "mode",
           "effort"
         ],
-        "type": "object",
-        "description": "The settings a turn runs with. `effort` is `null` exactly when the model offers none (spec §12.4)."
+        "type": "object"
       },
       "TurnStarted": {
         "properties": {
@@ -839,19 +857,24 @@
         "type": "object"
       },
       "UpdateProject": {
+        "description": "Sets the modes this project allows, per harness (spec §12.5).",
         "properties": {
-          "command_id": {
-            "type": "string"
-          },
           "allowed_modes": {
-            "type": "object",
             "additionalProperties": {
-              "type": "array",
               "items": {
                 "type": "string"
-              }
+              },
+              "type": "array"
             },
-            "description": "Per harness kind, the modes this project allows."
+            "description": "Per harness kind, the modes this project allows; a harness not named\nkeeps its modes. Only modes in Shadows' policy for that harness.",
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "command_id": {
+            "description": "The idempotency key (spec §3.2), scoped to the project.",
+            "type": "string"
           }
         },
         "required": [
@@ -861,11 +884,14 @@
         "type": "object"
       },
       "UpdateThread": {
+        "description": "Changes the thread's CLI. Refused once the thread has run a turn\n(`HARNESS_LOCKED`).",
         "properties": {
           "command_id": {
+            "description": "The idempotency key (spec §3.2), scoped to the thread.",
             "type": "string"
           },
           "harness": {
+            "description": "`claude-code` or `codex`.",
             "type": "string"
           }
         },
@@ -873,8 +899,7 @@
           "command_id",
           "harness"
         ],
-        "type": "object",
-        "description": "Changes the thread's CLI. Refused once the thread has run a turn (`HARNESS_LOCKED`)."
+        "type": "object"
       }
     }
   },
@@ -1043,19 +1068,15 @@
     "/api/harnesses": {
       "get": {
         "operationId": "list_harnesses",
-        "tags": [
-          "harnesses"
-        ],
-        "description": "The CLIs a conversation can run on, with what each remembers and its last reported limits (spec §12.1, §12.5, §12.8).",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/HarnessInfo"
-                  }
+                  },
+                  "type": "array"
                 }
               }
             },
@@ -1071,7 +1092,11 @@
             },
             "description": "STORAGE_UNAVAILABLE"
           }
-        }
+        },
+        "summary": "Every harness Shadows knows, runnable or not, with the model and effort\nlast used on it and the account limits it last reported.",
+        "tags": [
+          "harnesses"
+        ]
       }
     },
     "/api/openapi.json": {
@@ -1270,10 +1295,6 @@
     "/api/projects/{id}": {
       "patch": {
         "operationId": "update_project",
-        "tags": [
-          "projects"
-        ],
-        "description": "Sets the modes this project allows, per harness (spec §12.4).",
         "parameters": [
           {
             "description": "The project",
@@ -1336,7 +1357,11 @@
             },
             "description": "SETTING_NOT_OFFERED: a mode outside Shadows' policy"
           }
-        }
+        },
+        "summary": "Sets the modes this project allows, per harness (spec §12.5). A turn's\nmode is checked against them when it starts. A replay answers the project\nas it now stands.",
+        "tags": [
+          "projects"
+        ]
       }
     },
     "/api/projects/{id}/threads": {
@@ -1437,6 +1462,16 @@
             },
             "description": "COMMAND_CONFLICT"
           },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "SETTING_NOT_OFFERED: a harness Shadows does not know"
+          },
           "500": {
             "content": {
               "application/json": {
@@ -1500,10 +1535,6 @@
     "/api/threads/{id}": {
       "patch": {
         "operationId": "update_thread",
-        "tags": [
-          "threads"
-        ],
-        "description": "Changes the thread's CLI before its first turn (spec §12.1).",
         "parameters": [
           {
             "description": "The thread",
@@ -1564,18 +1595,18 @@
                 }
               }
             },
-            "description": "HARNESS_UNAVAILABLE"
+            "description": "SETTING_NOT_OFFERED: a harness Shadows does not know"
           }
-        }
+        },
+        "summary": "Changes the thread's CLI before its first turn (spec §12.6). A replay\nanswers the thread as it now stands and changes nothing, even once the\nharness is locked; a new command after the first turn is\n`HARNESS_LOCKED`. A change closes the thread's adapter (§12.2).",
+        "tags": [
+          "threads"
+        ]
       }
     },
     "/api/threads/{id}/context": {
       "get": {
         "operationId": "thread_context",
-        "tags": [
-          "threads"
-        ],
-        "description": "The context breakdown of the thread's session, read on demand (spec §12.8).",
         "parameters": [
           {
             "description": "The thread",
@@ -1618,7 +1649,11 @@
             },
             "description": "STORAGE_UNAVAILABLE"
           }
-        }
+        },
+        "summary": "The context breakdown of the thread's session, read on demand (spec\n§12.8). It is fetched only on an open, idle session that has answered a\nturn, within five seconds; otherwise it says why it has none. Nothing is\nwritten: no operation, no entry.",
+        "tags": [
+          "threads"
+        ]
       }
     },
     "/api/threads/{id}/entries": {
@@ -1669,13 +1704,9 @@
     "/api/threads/{id}/fork": {
       "post": {
         "operationId": "fork_thread",
-        "tags": [
-          "threads"
-        ],
-        "description": "Forks the thread from its last completed entry into a new thread on the same project (spec §12.9).",
         "parameters": [
           {
-            "description": "The thread",
+            "description": "The source thread",
             "in": "path",
             "name": "id",
             "required": true,
@@ -1735,7 +1766,11 @@
             },
             "description": "FORK_POINT_NOT_SUPPORTED: fork from anything but the last completed entry"
           }
-        }
+        },
+        "summary": "Forks the thread from its last completed entry into a new thread on the\nsame project (spec §12.9). The new thread holds copies of the entries up to\nand including `at_entry_id`; its next turn continues a fork of the\nsource's harness session. The source is unchanged. A replay answers the\nfork already made.",
+        "tags": [
+          "threads"
+        ]
       }
     },
     "/api/threads/{id}/operations": {
@@ -1786,10 +1821,6 @@
     "/api/threads/{id}/session": {
       "post": {
         "operationId": "open_session",
-        "tags": [
-          "threads"
-        ],
-        "description": "Opens the thread's harness session if it is not open, and answers what it offers now (spec §12.2, §12.4). Writes nothing durable.",
         "parameters": [
           {
             "description": "The thread",
@@ -1852,12 +1883,16 @@
             },
             "description": "HARNESS_START_FAILED: the adapter did not start"
           }
-        }
+        },
+        "summary": "Opens the thread's harness session (spec §12.2) and answers what it\noffers. Idempotent: an open session answers what it holds. A client calls\nit when it shows the conversation, so the menus are ready before the\nfirst message.",
+        "tags": [
+          "threads"
+        ]
       }
     },
     "/api/threads/{id}/turns": {
       "post": {
-        "description": "Spec §3.3: a long-running command answers 202 with an operation id, and the\noperation reaches its terminal outcome later — watch it on\n`/api/subscribe`. The thread's harness session is opened first (spec\n§12.7); when it cannot be, nothing is written: 409 when the project's\ndirectory is gone or was never set, 502 when the adapter does not start.\n\nA daemon that has begun to stop refuses the turn with 503 (spec §8.5).",
+        "description": "Spec §3.3: a long-running command answers 202 with an operation id, and the\noperation reaches its terminal outcome later — watch it on\n`/api/subscribe`. Spec §12.7: the prompt, the operation, its invocation\nand the command record commit together, after every check; a check that\nfails writes nothing. A retry with the same `command_id` and body answers\nthe first operation and starts nothing, even while the daemon stops.\n\nA daemon that has begun to stop refuses a new turn with 503 (spec §8.5).",
         "operationId": "start_turn",
         "parameters": [
           {
@@ -1919,7 +1954,7 @@
                 }
               }
             },
-            "description": "THREAD_BUSY: a turn is running; COMMAND_CONFLICT: this command_id was used with another request; PATH_NOT_FOUND: the project's directory is gone or was never set. Nothing was written."
+            "description": "THREAD_BUSY: a turn is running; COMMAND_CONFLICT: this command_id was used with another request; PATH_NOT_FOUND: the project's directory is gone or was never set; nothing was written"
           },
           "422": {
             "content": {
@@ -1981,6 +2016,10 @@
     {
       "description": "Starting and stopping a Planner turn",
       "name": "turns"
+    },
+    {
+      "description": "The CLIs a conversation runs on, and the choices a session offers",
+      "name": "harnesses"
     },
     {
       "description": "The replay-then-live event stream",

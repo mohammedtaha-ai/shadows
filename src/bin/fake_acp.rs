@@ -151,7 +151,11 @@ async fn main() -> agent_client_protocol::Result<()> {
         }}, agent_client_protocol::on_receive_request!())
         .on_receive_request({ let state = state.clone(); async move |r: ForkSessionRequest, responder, _cx| {
             let st = state.lock().unwrap();
-            if !st.sessions.contains_key(&r.session_id.to_string()) {
+            // The real adapter forks any session in Claude's own store; the
+            // fake's store is its process, so a fake id from another adapter
+            // process stands for one that exists.
+            let id = r.session_id.to_string();
+            if !st.sessions.contains_key(&id) && !id.starts_with("fake-") && !id.starts_with("fork-of-") {
                 return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "Session not found"));
             }
             responder.respond(ForkSessionResponse::new(format!("fork-of-{}", r.session_id)))

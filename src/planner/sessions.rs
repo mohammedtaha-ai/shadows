@@ -136,9 +136,15 @@ impl Sessions {
         }
         let context = self.storage.turn_context(thread).await?;
         let cwd = workspace(&context).map_err(OpenError::Workspace)?;
-        let (how, start) = match context.harness_session_id.clone() {
-            Some(id) => ("resume", SessionStart::Resume(id)),
-            None => ("new", SessionStart::New),
+        // A fork's first opening forks the source's session (§12.9); once
+        // the fork's first turn has recorded its own, it resumes that.
+        let (how, start) = match (
+            context.harness_session_id.clone(),
+            context.fork_session_id.clone(),
+        ) {
+            (Some(id), _) => ("resume", SessionStart::Resume(id)),
+            (None, Some(source)) => ("fork", SessionStart::Fork(source)),
+            (None, None) => ("new", SessionStart::New),
         };
         let default_mode = policy::default_mode(&context.harness).ok_or_else(|| {
             OpenError::Start(format!("no mode policy for harness {}", context.harness))

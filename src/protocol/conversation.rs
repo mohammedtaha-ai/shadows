@@ -72,6 +72,7 @@ pub(super) struct StartTurn {
     model: String,
     mode: String,
     /// `null` exactly when the chosen model offers no effort (§12.4).
+    #[schema(required)]
     effort: Option<String>,
 }
 

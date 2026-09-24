@@ -199,8 +199,10 @@ pub(crate) fn watch_turn(
         };
         tracing::info!(subtype, stop_reason = stop_reason.as_deref().unwrap_or(""), "planner.turn_end");
         let _ = bus.send((w.thread_id.clone(), w.op_id.clone(), HarnessEvent::TurnEnd { subtype, stop_reason }));
+        // A new session, or a fork's, is recorded when its first turn ends
+        // (§12.3, §12.9); a resumed one is already the thread's.
         if answer.is_ok()
-            && w.opened.how == "new"
+            && w.opened.how != "resume"
             && let Err(error) = w.runtime.storage.record_harness_session(&w.thread_id, &w.opened.session_id).await
         {
             tracing::error!(%error, "planner.record_session_failed");
