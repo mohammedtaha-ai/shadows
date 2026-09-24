@@ -128,6 +128,36 @@ async fn an_idle_connection_is_closed_and_the_next_opening_resumes() {
 }
 
 #[tokio::test]
+async fn idle_close_before_first_turn_discards_the_unrecorded_session() {
+    let fx = fixture(SessionsConfig {
+        idle_after: Duration::from_millis(300),
+        ..Default::default()
+    })
+    .await;
+    let first = fx.sessions.open(&fx.thread).await.unwrap();
+    assert_eq!(first.how, "new");
+    assert!(
+        fx.storage
+            .turn_context(&fx.thread)
+            .await
+            .unwrap()
+            .harness_session_id
+            .is_none()
+    );
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while fx.sessions.live_count().await != 0 {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("idle reaper should close the adapter");
+    let again = fx.sessions.open(&fx.thread).await.unwrap();
+    assert_eq!(again.how, "new");
+    assert_eq!(prompt_text(&fx, &again, "hi").await, "hello from fake_acp");
+    fx.sessions.close_all().await.unwrap();
+}
+
+#[tokio::test]
 async fn a_dead_connection_is_replaced_on_the_next_opening() {
     let fx = fixture(SessionsConfig::default()).await;
     let s = fx.sessions.open(&fx.thread).await.unwrap();
