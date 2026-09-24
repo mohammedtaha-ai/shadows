@@ -106,6 +106,7 @@ function Conversation({
       />
       <Composer
         threadId={threadId}
+        harness={harness}
         harnessLabel={label}
         session={session}
         running={c.running}

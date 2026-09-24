@@ -188,6 +188,19 @@ describe('the composer bar', () => {
     expect(app.button('high')?.disabled).toBe(false)
   })
 
+  it('the mode menu says plainly what Accept edits allows', async () => {
+    const app = await start('/projects/p1/threads/t1', answers())
+    await until(ready(app))
+    act(() => app.button('Accept edits')?.click())
+    await until(() => menuItem('Accept edits') !== undefined)
+    expect(menuItem('Accept edits')?.textContent).toContain(
+      'Claude Code edits, creates and deletes files in the project folder without asking. Other commands are refused.',
+    )
+    expect(menuItem('Auto')?.textContent).toContain(
+      'Claude Code decides on its own; nothing is asked.',
+    )
+  })
+
   it('a fresh fork shows the CLI locked before any turn', async () => {
     const app = await start('/projects/p1/threads/t1', {
       ...answers({ operations: [] }),

@@ -27,6 +27,7 @@ interface Send {
 
 export function Composer({
   threadId,
+  harness,
   harnessLabel,
   session,
   running,
@@ -36,6 +37,8 @@ export function Composer({
   onStarted,
 }: {
   threadId: string
+  /** The thread's harness kind. */
+  harness: string
   harnessLabel: string
   session: SessionView
   running: Turn | null
@@ -173,6 +176,7 @@ export function Composer({
           settings={settings}
           onSettings={choose}
           changingModel={changing}
+          harness={harness}
           directory={directory}
           note={note}
           ring={ring}

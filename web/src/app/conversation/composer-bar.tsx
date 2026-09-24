@@ -16,10 +16,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ErrorLine } from '../error-line'
+import { modeDescription, policyOf } from '../mode-policy'
 import { effortsKnown, labelOf, withModel } from './turn-settings'
 import type { SessionView } from './use-session'
 
 export function ComposerBar({
+  harness,
   harnessLabel,
   session,
   settings,
@@ -29,6 +31,8 @@ export function ComposerBar({
   note,
   ring,
 }: {
+  /** The thread's harness kind, whose mode policy describes each mode. */
+  harness: string
   harnessLabel: string
   session: SessionView
   /** `null` until the session has answered. */
@@ -43,6 +47,7 @@ export function ComposerBar({
 }) {
   const choices = session.state === 'ready' ? session.choices : null
   const noMode = choices !== null && !choices.modes.some((m) => m.enabled)
+  const policy = policyOf(harness)
 
   return (
     <div className="space-y-1.5">
@@ -73,6 +78,7 @@ export function ComposerBar({
             title="Mode"
             options={choices.modes}
             value={settings.mode}
+            describe={(mode) => modeDescription(policy, mode)}
             onChange={(mode) => onSettings({ ...settings, mode })}
           />
         )}
@@ -124,19 +130,21 @@ export function ComposerBar({
 }
 
 /** One setting's menu. A choice that cannot be picked is shown disabled with
- * the reason the session gave. */
+ * the reason the session gave; `describe` adds a line saying what one allows. */
 function Setting({
   title,
   options,
   value,
   onChange,
   disabled = false,
+  describe,
 }: {
   title: string
   options: readonly Choice[]
   value: string
   onChange: (id: string) => void
   disabled?: boolean
+  describe?: (id: string) => string | null
 }) {
   return (
     <DropdownMenu>
@@ -154,6 +162,11 @@ function Setting({
               <DropdownMenuRadioItem key={o.id} value={o.id} disabled={!o.enabled}>
                 <span className="flex flex-col">
                   <span>{o.label}</span>
+                  {describe?.(o.id) != null && (
+                    <span className="max-w-64 text-xs text-muted-foreground">
+                      {describe(o.id)}
+                    </span>
+                  )}
                   {!o.enabled && o.reason !== null && (
                     <span className="text-xs text-muted-foreground">{o.reason}</span>
                   )}
