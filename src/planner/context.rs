@@ -43,7 +43,7 @@ impl Sessions {
     /// interleave, and discards every one of them; gives them back after. On
     /// `TimedOut` the prompt is cancelled.
     pub async fn context(&self, thread: &ThreadId) -> Result<Vec<Category>, NoBreakdown> {
-        let (connection, session_id, mut rx) = {
+        let (opened, mut rx) = {
             let mut live = self.live.lock().await;
             let item = live.get_mut(thread).ok_or(NoBreakdown::NotOpen)?;
             if item.handle.has_exited() || item.opened.connection().is_closed() {
@@ -57,18 +57,15 @@ impl Sessions {
                 return Err(NoBreakdown::NoTurnYet);
             }
             let rx = item.events.take().ok_or(NoBreakdown::Busy)?;
-            (
-                item.opened.connection().clone(),
-                item.opened.session_id.clone(),
-                rx,
-            )
+            (item.opened.clone(), rx)
         };
+        let (connection, session_id) = (opened.connection(), opened.session_id.as_str());
         // Notifications from before belong to nothing this reads.
         while rx.try_recv().is_ok() {}
         let mut text = String::new();
+        let prompt = connection.prompt(session_id, "/context");
+        tokio::pin!(prompt);
         let answer = tokio::time::timeout(self.config.context_wait, async {
-            let prompt = connection.prompt(&session_id, "/context");
-            tokio::pin!(prompt);
             loop {
                 tokio::select! {
                     answer = &mut prompt => break answer,
@@ -81,15 +78,20 @@ impl Sessions {
             }
         })
         .await;
-        while let Ok(event) = rx.try_recv() {
-            if let HarnessEvent::Chunk { text: chunk, .. } = event {
-                text.push_str(&chunk);
+        if answer.is_err() {
+            // The events go back only once the cancelled `/context` has
+            // answered (or `cancel_wait` passed), so its late chunks cannot
+            // land in the next turn's conversation.
+            connection.cancel(session_id);
+            let _ = tokio::time::timeout(self.config.cancel_wait, &mut prompt).await;
+        } else {
+            while let Ok(event) = rx.try_recv() {
+                if let HarnessEvent::Chunk { text: chunk, .. } = event {
+                    text.push_str(&chunk);
+                }
             }
         }
-        if answer.is_err() {
-            connection.cancel(&session_id);
-        }
-        self.give_back_events(thread, rx).await;
+        self.give_back_events(thread, &opened, rx).await;
         match answer {
             Err(_) => Err(NoBreakdown::TimedOut),
             Ok(Err(_)) => Err(NoBreakdown::Unreadable),

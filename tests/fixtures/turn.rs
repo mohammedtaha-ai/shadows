@@ -72,6 +72,7 @@ pub async fn start_direct(
     prompt: &str,
 ) -> Result<OperationId, StartError> {
     let opened = sessions.open(thread).await.unwrap();
+    let events = sessions.lease_events(thread, &opened).await.unwrap();
     let settings = default_turn_settings();
     let id = format!("direct-{}", NEXT.fetch_add(1, Ordering::SeqCst));
     let command = turn_command(&id, thread, prompt, &settings);
@@ -81,8 +82,13 @@ pub async fn start_direct(
         .await
     {
         Ok(started) => started,
-        Err(_) if handles.is_closed().await => return Err(StartError::RuntimeStopping),
-        Err(e) => return Err(e.into()),
+        Err(e) => {
+            sessions.give_back_events(thread, &opened, events).await;
+            if handles.is_closed().await {
+                return Err(StartError::RuntimeStopping);
+            }
+            return Err(e.into());
+        }
     };
     PlannerTurn::start(
         runtime.clone(),
@@ -91,9 +97,11 @@ pub async fn start_direct(
         opened,
         PlannerTurnRequest {
             thread_id: thread.clone(),
+            harness: "claude-code".into(),
             operation_id: started.operation_id,
             prompt: prompt.into(),
             settings,
+            events,
         },
         bus.clone(),
     )

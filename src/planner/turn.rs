@@ -78,7 +78,6 @@ pub(crate) struct TurnWatch {
     /// The thread's harness, whose account limits a usage report updates.
     pub harness: String,
     pub prompt: String,
-    pub events: Option<mpsc::UnboundedReceiver<HarnessEvent>>,
     pub turn_end_seen: Arc<AtomicBool>,
     pub cancel_requested: Arc<AtomicBool>,
     pub span: tracing::Span,
@@ -156,7 +155,8 @@ async fn accept(
 }
 
 pub(crate) fn watch_turn(
-    mut w: TurnWatch,
+    w: TurnWatch,
+    mut rx: mpsc::UnboundedReceiver<HarnessEvent>,
     bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
 ) {
     let span = w.span.clone();
@@ -166,10 +166,7 @@ pub(crate) fn watch_turn(
         let mut last_usage = None;
         tracing::info!(session_id = %w.opened.session_id, how = w.opened.how, "agent.invocation.start");
         // Notifications between turns belong to neither prompt.
-        let mut events = w.events.take();
-        if let Some(rx) = events.as_mut() {
-            while let Ok(stale) = rx.try_recv() { tracing::trace!(?stale, "planner.stale_event"); }
-        }
+        while let Ok(stale) = rx.try_recv() { tracing::trace!(?stale, "planner.stale_event"); }
         let connection = w.opened.connection().clone();
         let session_id = w.opened.session_id.clone();
         let prompt = w.prompt.clone();
@@ -177,19 +174,20 @@ pub(crate) fn watch_turn(
             let prompt_future = connection.prompt(&session_id, &prompt);
             tokio::pin!(prompt_future);
             loop {
-                if let Some(rx) = events.as_mut() {
-                    tokio::select! {
-                        result = &mut prompt_future => break result,
-                        event = rx.recv() => if let Some(event) = event { accept(&w, &mut collector, &bus, &mut first, &mut last_usage, event).await; },
-                    }
-                } else { break prompt_future.await; }
+                tokio::select! {
+                    result = &mut prompt_future => break result,
+                    event = rx.recv() => match event {
+                        Some(event) => accept(&w, &mut collector, &bus, &mut first, &mut last_usage, event).await,
+                        // The adapter dropped its side: nothing more will
+                        // arrive, and polling a closed channel would spin.
+                        None => break prompt_future.await,
+                    },
+                }
             }
         };
-        if let Some(mut rx) = events.take() {
-            while let Ok(event) = rx.try_recv() { accept(&w, &mut collector, &bus, &mut first, &mut last_usage, event).await; }
-            persist(&w, collector.finish()).await;
-            w.sessions.give_back_events(&w.thread_id, rx).await;
-        } else { persist(&w, collector.finish()).await; }
+        while let Ok(event) = rx.try_recv() { accept(&w, &mut collector, &bus, &mut first, &mut last_usage, event).await; }
+        persist(&w, collector.finish()).await;
+        w.sessions.give_back_events(&w.thread_id, &w.opened, rx).await;
         w.turn_end_seen.store(true, Ordering::SeqCst);
         let (subtype, stop_reason) = match &answer {
             Ok(TurnEnd::Ended) => ("success", Some("end_turn".to_string())),
@@ -208,7 +206,7 @@ pub(crate) fn watch_turn(
             tracing::error!(%error, "planner.record_session_failed");
         }
         if matches!(answer, Ok(TurnEnd::Ended)) {
-            w.sessions.mark_answered(&w.thread_id).await;
+            w.sessions.mark_answered(&w.thread_id, &w.opened).await;
         }
         w.sessions.touch(&w.thread_id).await;
         if w.handles.claim(&w.op_id).await.is_none() { return; }
@@ -217,14 +215,17 @@ pub(crate) fn watch_turn(
             // cancelled one leaves it NULL, which a client shows as
             // unavailable (§12.7 — nothing unreported is estimated).
             Ok(TurnEnd::Ended) => {
-                let seen = TurnObservation::from_usage(last_usage.as_ref());
+                let seen = TurnObservation {
+                    native_session_id: Some(w.opened.session_id.clone()),
+                    ..TurnObservation::from_usage(last_usage.as_ref())
+                };
                 w.runtime.storage.mark_operation_completed(&w.op_id, serde_json::json!({"stop_reason":"end_turn"}), &seen).await
             }
             Ok(TurnEnd::Cancelled) if w.cancel_requested.load(Ordering::SeqCst) => w.runtime.storage.mark_operation_cancelled(&w.op_id).await,
             Ok(TurnEnd::Cancelled) => w.runtime.storage.mark_operation_failed(&w.op_id, FailureStage::Run, "the harness cancelled the turn on its own").await,
             Ok(TurnEnd::Refused(reason)) => w.runtime.storage.mark_operation_failed(&w.op_id, FailureStage::Run, &reason).await,
             Err(AcpError::Closed) => {
-                if let Err(error) = w.sessions.terminate(&w.thread_id).await { tracing::error!(%error, "planner.dead_adapter_cleanup_failed"); }
+                if let Err(error) = w.sessions.terminate_adapter(&w.thread_id, &w.opened).await { tracing::error!(%error, "planner.dead_adapter_cleanup_failed"); }
                 w.runtime.storage.mark_operation_failed(&w.op_id, FailureStage::Run, "the harness exited during the turn").await
             }
             Err(AcpError::Rpc(reason)) => w.runtime.storage.mark_operation_failed(&w.op_id, FailureStage::Run, &reason).await,
@@ -245,11 +246,12 @@ impl PlannerTurn {
             .storage
             .request_cancellation(op_id, requester)
             .await?;
-        let Some((thread_id, flag, ended, span)) = ({
+        let Some((thread_id, session, flag, ended, span)) = ({
             let r = handles.0.lock().await;
             r.turns.get(op_id).map(|t| {
                 (
                     t.thread_id.clone(),
+                    t.session.clone(),
                     t.cancel_requested.clone(),
                     t.turn_end_seen.clone(),
                     t.span.clone(),
@@ -261,7 +263,7 @@ impl PlannerTurn {
         };
         tracing::info!(parent: &span, "planner.stop");
         flag.store(true, Ordering::SeqCst);
-        sessions.cancel(&thread_id).await;
+        session.connection().cancel(&session.session_id);
         let deadline = Instant::now() + sessions.cancel_wait();
         while Instant::now() < deadline {
             if !handles.contains_internal(op_id).await {
@@ -278,7 +280,7 @@ impl PlannerTurn {
         let Some(turn) = handles.claim(op_id).await else {
             return Ok(StopOutcome::ResolvedByTurn);
         };
-        if let Err(error) = sessions.terminate(&thread_id).await {
+        if let Err(error) = sessions.terminate_adapter(&thread_id, &session).await {
             tracing::error!(parent: &turn.span, %error, "planner.stop_termination_failed");
             handles.restore(op_id.clone(), turn).await;
             return Ok(StopOutcome::TerminationFailed);

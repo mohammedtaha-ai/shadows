@@ -380,3 +380,54 @@ async fn the_harness_runs_with_the_chosen_model_mode_and_effort() {
         "the prompt and every entry the turn wrote name the turn"
     );
 }
+
+/// A Stop that lands while the committed turn is still `Pending` finds nothing
+/// registered to cancel (`NotLive`), but its request is durable: the turn
+/// sees it once registered and ends `Cancelled` without prompting the model.
+#[tokio::test]
+async fn a_stop_while_pending_cancels_the_turn_before_its_prompt() {
+    use shadows::events::Actor;
+    use shadows::planner::{PlannerTurn, PlannerTurnRequest, StopOutcome};
+    let app = test_app().await;
+    let opened = app.sessions.open(&app.thread).await.unwrap();
+    let events = app
+        .sessions
+        .lease_events(&app.thread, &opened)
+        .await
+        .unwrap();
+    let settings = turn::default_turn_settings();
+    let started = start(&app, "t1", "hello", &settings).await.unwrap();
+    let op = started.operation_id;
+    let stop = PlannerTurn::stop(
+        app.runtime.clone(),
+        app.handles.clone(),
+        app.sessions.clone(),
+        &op,
+        Actor::user("local"),
+    )
+    .await
+    .unwrap();
+    assert_eq!(stop, StopOutcome::NotLive);
+    PlannerTurn::start(
+        app.runtime.clone(),
+        app.handles.clone(),
+        app.sessions.clone(),
+        opened,
+        PlannerTurnRequest {
+            thread_id: app.thread.clone(),
+            harness: "claude-code".into(),
+            operation_id: op.clone(),
+            prompt: "hello".into(),
+            settings,
+            events,
+        },
+        app.bus.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
+    let kinds: Vec<String> = entries(&app).await.into_iter().map(|e| e.kind).collect();
+    assert_eq!(kinds, ["UserMessage"], "nothing reached the model");
+    let next = wait_terminal(&app, &app::start_settled(&app, "hi").await).await;
+    assert_eq!(next.status_kind, "Completed", "the session was given back");
+}

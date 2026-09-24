@@ -9,7 +9,7 @@ use super::{
     turn::{PlannerTurn, TurnWatch, watch_turn},
 };
 use crate::{
-    agent::{TurnSettings, acp::AcpError, events::HarnessEvent},
+    agent::{TurnSettings, events::HarnessEvent},
     events::Actor,
     operation::{FailureStage, OperationId},
     runtime::Runtime,
@@ -17,7 +17,7 @@ use crate::{
     thread::ThreadId,
 };
 use std::sync::{Arc, atomic::AtomicBool};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc};
 
 #[derive(Debug, thiserror::Error)]
 pub enum StartError {
@@ -27,57 +27,19 @@ pub enum StartError {
     Storage(#[from] StorageError),
 }
 /// A turn whose operation `Storage::start_turn` has committed `Pending`.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
+    /// The thread's harness as the turn command validated it, so nothing is
+    /// read between the commit and the run that could strand it `Pending`.
+    pub harness: String,
     pub operation_id: OperationId,
     pub prompt: String,
     pub settings: TurnSettings,
-}
-
-/// §12.7: before the prompt, the session is set to the turn's model, effort
-/// and mode, one call per value that differs from what the session holds.
-/// `Err` names the setting the harness refused, in its words; nothing has
-/// been sent to the model.
-async fn prepare_settings(
-    sessions: &Sessions,
-    thread: &ThreadId,
-    opened: &OpenSession,
-    settings: &TurnSettings,
-) -> Result<(), String> {
-    let mut offered = sessions
-        .offered(thread)
-        .await
-        .ok_or("the harness session closed before the turn")?;
-    let refused = |what: &str, value: &str, e: AcpError| format!("{what} {value}: {e}");
-    if offered.current.model != settings.model {
-        let id = offered.ids.model.clone();
-        offered = sessions
-            .set_option(thread, opened, &id, &settings.model)
-            .await
-            .map_err(|e| refused("model", &settings.model, e))?;
-    }
-    if let Some(effort) = &settings.effort
-        && offered.current.effort.as_ref() != Some(effort)
-    {
-        let id = offered
-            .ids
-            .effort
-            .clone()
-            .ok_or_else(|| format!("effort {effort}: the model offers no effort"))?;
-        offered = sessions
-            .set_option(thread, opened, &id, effort)
-            .await
-            .map_err(|e| refused("effort", effort, e))?;
-    }
-    if offered.current.mode != settings.mode {
-        let id = offered.ids.mode.clone();
-        sessions
-            .set_option(thread, opened, &id, &settings.mode)
-            .await
-            .map_err(|e| refused("mode", &settings.mode, e))?;
-    }
-    Ok(())
+    /// The session's events, leased before validation
+    /// (`Sessions::lease_events`): the turn holds the session from its
+    /// checks to its ending, and gives them back.
+    pub events: mpsc::UnboundedReceiver<HarnessEvent>,
 }
 
 impl PlannerTurn {
@@ -91,14 +53,16 @@ impl PlannerTurn {
     ) -> Result<OperationId, StartError> {
         let PlannerTurnRequest {
             thread_id,
+            harness,
             operation_id: op_id,
             prompt,
             settings,
+            events,
         } = request;
         let span = tracing::info_span!(parent: None, "planner.turn", operation_id = %op_id, thread_id = %thread_id);
-        let harness = runtime.storage.turn_context(&thread_id).await?.harness;
-        if let Err(reason) = prepare_settings(&sessions, &thread_id, &opened, &settings).await {
+        if let Err(reason) = sessions.prepare_turn(&thread_id, &opened, &settings).await {
             tracing::info!(parent: &span, %reason, "planner.prepare_refused");
+            sessions.give_back_events(&thread_id, &opened, events).await;
             runtime
                 .storage
                 .mark_operation_failed(&op_id, FailureStage::Prepare, &reason)
@@ -112,6 +76,7 @@ impl PlannerTurn {
                 op_id.clone(),
                 LiveTurn {
                     thread_id: thread_id.clone(),
+                    session: opened.clone(),
                     turn_end_seen: turn_end_seen.clone(),
                     cancel_requested: cancel_requested.clone(),
                     span: span.clone(),
@@ -119,6 +84,7 @@ impl PlannerTurn {
             )
             .await
         {
+            sessions.give_back_events(&thread_id, &opened, events).await;
             runtime
                 .storage
                 .request_cancellation(&op_id, Actor::system())
@@ -126,19 +92,49 @@ impl PlannerTurn {
             runtime.storage.mark_operation_cancelled(&op_id).await?;
             return Err(StartError::RuntimeStopping);
         }
+        // A Stop that came while the turn was `Pending` recorded its request
+        // and found nothing registered to cancel. Read after registering, so
+        // either that Stop saw the registration or this read sees its request.
+        let asked = runtime
+            .storage
+            .get_operation(&op_id)
+            .await
+            .map(|op| op.cancel_requested_at.is_some());
+        if !matches!(asked, Ok(false)) {
+            let mine = handles.claim(&op_id).await.is_some();
+            sessions.give_back_events(&thread_id, &opened, events).await;
+            if !mine {
+                // A Stop claimed it and records its ending.
+                return Ok(op_id);
+            }
+            return match asked {
+                Ok(_) => {
+                    tracing::info!(parent: &span, "planner.stopped_before_prompt");
+                    runtime.storage.mark_operation_cancelled(&op_id).await?;
+                    Ok(op_id)
+                }
+                Err(e) => {
+                    runtime
+                        .storage
+                        .mark_operation_failed(&op_id, FailureStage::Prepare, &e.to_string())
+                        .await?;
+                    Err(e.into())
+                }
+            };
+        }
         if let Err(e) = runtime
             .storage
             .mark_operation_started(&op_id, &runtime.instance_id)
             .await
         {
             handles.claim(&op_id).await;
+            sessions.give_back_events(&thread_id, &opened, events).await;
             runtime
                 .storage
                 .mark_operation_failed(&op_id, FailureStage::Prepare, &e.to_string())
                 .await?;
             return Err(e.into());
         }
-        let events = sessions.take_events(&thread_id).await;
         watch_turn(
             TurnWatch {
                 op_id: op_id.clone(),
@@ -149,11 +145,11 @@ impl PlannerTurn {
                 thread_id,
                 harness,
                 prompt,
-                events,
                 turn_end_seen,
                 cancel_requested,
                 span,
             },
+            events,
             bus,
         );
         Ok(op_id)

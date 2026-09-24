@@ -1,4 +1,5 @@
 //! One job: register live turns for watcher/stop arbitration.
+use super::OpenSession;
 use crate::operation::OperationId;
 use crate::thread::ThreadId;
 use std::{
@@ -9,6 +10,9 @@ use tokio::sync::Mutex;
 
 pub(crate) struct LiveTurn {
     pub(crate) thread_id: ThreadId,
+    /// The session the prompt runs on: Stop cancels on it, and terminates
+    /// its adapter — never one that replaced it.
+    pub(crate) session: OpenSession,
     pub(crate) turn_end_seen: Arc<AtomicBool>,
     pub(crate) cancel_requested: Arc<AtomicBool>,
     pub(crate) span: tracing::Span,

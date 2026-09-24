@@ -32,6 +32,7 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/protocol/harness.rs` | the routes over harnesses, their sessions included | `src/protocol/harness.rs` |
 | `src/protocol/thread.rs` | the routes that change a planning thread itself | `src/protocol/thread.rs` |
 | `src/planner/sessions.rs` | the live adapter connection each open thread holds | `src/planner/sessions.rs` |
+| `src/planner/settings.rs` | setting an open session's options | `src/planner/settings.rs` |
 | `src/planner/turn.rs` | the recorded ending of a live Planner turn | `src/planner/turn.rs` |
 | `src/planner/entries.rs` | turning harness events into durable entries | `src/planner/entries.rs` |
 | `src/bin/` | test apparatus that no product code links | `src/bin/tree_probe.rs` |

@@ -79,7 +79,7 @@ async fn prompt_text(fx: &Fixture, s: &OpenSession, text: &str) -> String {
             result.push_str(&text);
         }
     }
-    fx.sessions.give_back_events(&fx.thread, events).await;
+    fx.sessions.give_back_events(&fx.thread, s, events).await;
     result
 }
 
@@ -186,11 +186,13 @@ async fn reaper_keeps_a_connection_while_its_turn_holds_events() {
         ..Default::default()
     })
     .await;
-    fx.sessions.open(&fx.thread).await.unwrap();
+    let opened = fx.sessions.open(&fx.thread).await.unwrap();
     let events = fx.sessions.take_events(&fx.thread).await.unwrap();
     tokio::time::sleep(Duration::from_millis(600)).await;
     assert_eq!(fx.sessions.live_count().await, 1);
-    fx.sessions.give_back_events(&fx.thread, events).await;
+    fx.sessions
+        .give_back_events(&fx.thread, &opened, events)
+        .await;
     fx.sessions.close_all().await.unwrap();
 }
 
