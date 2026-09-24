@@ -15,6 +15,7 @@ pub use context::NoBreakdown;
 pub use handles::LiveHandles;
 pub(crate) use handles::LiveTurn;
 pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig};
+pub use settings::ModelRefused;
 pub use shutdown::shut_down;
 pub use spawn::{PlannerTurnRequest, StartError};
 pub use turn::{PlannerTurn, StopOutcome};

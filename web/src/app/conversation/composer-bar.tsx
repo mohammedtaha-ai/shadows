@@ -24,6 +24,7 @@ export function ComposerBar({
   session,
   settings,
   onSettings,
+  changingModel,
   directory,
   note,
   ring,
@@ -33,6 +34,8 @@ export function ComposerBar({
   /** `null` until the session has answered. */
   settings: TurnSettings | null
   onSettings: (next: TurnSettings) => void
+  /** The session is being set to the picked model (spec §12.7). */
+  changingModel: boolean
   directory: string | null | undefined
   /** Why the settings moved on their own, if they did. */
   note: string | null
@@ -89,17 +92,18 @@ export function ComposerBar({
                 title="Model"
                 options={choices.models}
                 value={settings.model}
+                disabled={changingModel}
                 onChange={(model) => onSettings(withModel(choices, settings, model))}
               />
               {/* Efforts belong to the model the session holds: until it
-                  reports the chosen one they are unknown, and the menu keeps
+                  answers the chosen one they are unknown, and the menu keeps
                   the effort, disabled. A model that offers none has no menu. */}
               {settings.effort !== null && (
                 <Setting
                   title="Effort"
                   options={choices.efforts}
                   value={settings.effort}
-                  disabled={!effortsKnown(choices, settings.model)}
+                  disabled={changingModel || !effortsKnown(choices, settings.model)}
                   onChange={(effort) => onSettings({ ...settings, effort })}
                 />
               )}

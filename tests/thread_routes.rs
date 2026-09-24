@@ -216,4 +216,6 @@ async fn a_browser_may_send_patch_from_an_allowed_origin() {
         .map(|v| v.to_str().unwrap().to_string())
         .unwrap_or_default();
     assert!(methods.contains("PATCH"), "{methods}");
+    // Picking a model sends a PUT (§12.7); the allowed list is one list.
+    assert!(methods.contains("PUT"), "{methods}");
 }

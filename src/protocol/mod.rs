@@ -126,6 +126,7 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(conversation::stop_turn))
         .routes(routes!(harness::list_harnesses))
         .routes(routes!(harness::open_session))
+        .routes(routes!(harness::change_model))
         .routes(routes!(harness::thread_context))
         .routes(routes!(thread::update_thread))
         .routes(routes!(thread::fork_thread))
@@ -146,7 +147,7 @@ fn content_length(headers: &axum::http::HeaderMap) -> Option<u64> {
 /// Cross-origin access for the configured origins only; any other origin's
 /// request gets no `Access-Control-Allow-Origin` and the browser withholds the
 /// response. The methods and headers are exactly what the routes use: `GET`,
-/// `POST` and `PATCH`, JSON bodies, and `Last-Event-ID`, which a browser's
+/// `POST`, `PUT` and `PATCH`, JSON bodies, and `Last-Event-ID`, which a browser's
 /// `EventSource` sends when it reconnects a stream. No credentials: the API
 /// has none to send (spec §1's OPEN block on remote access).
 fn cors(origins: &[String]) -> CorsLayer {
@@ -156,7 +157,7 @@ fn cors(origins: &[String]) -> CorsLayer {
         .collect();
     CorsLayer::new()
         .allow_origin(AllowOrigin::list(origins))
-        .allow_methods([Method::GET, Method::POST, Method::PATCH])
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::PATCH])
         .allow_headers([
             header::CONTENT_TYPE,
             header::HeaderName::from_static("last-event-id"),

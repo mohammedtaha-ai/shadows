@@ -279,8 +279,9 @@ async fn offer_for_model(
 /// start, or a tree `stop` killed without writing `Cancelled`. So the work runs
 /// in its own task and the request only awaits it; a dropped request leaves
 /// the task running to its end. A panic in it is re-raised here, exactly as
-/// if the handler itself had panicked.
-async fn detached<T: Send + 'static>(
+/// if the handler itself had panicked. `harness.rs` runs a model change the
+/// same way: a dropped request must not drop the session it holds.
+pub(super) async fn detached<T: Send + 'static>(
     work: impl Future<Output = Result<T, Failure>> + Send + 'static,
 ) -> Result<T, Failure> {
     match tokio::spawn(work.in_current_span()).await {

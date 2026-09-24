@@ -20,6 +20,9 @@ export interface Overrides {
   operations?: Operation[]
   /** `POST /api/threads/t1/session` */
   session?: Answer
+  /** `PUT /api/threads/t1/session/model`; by default the session takes the
+   * model and answers `fakeChoices` holding it. */
+  model?: Answer
   /** `POST /api/threads/t1/turns` */
   start?: Answer
   /** `POST /api/threads/t1/fork` */
@@ -39,6 +42,12 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'GET /api/threads/t1/entries': o.entries ?? [userEntry('u1', 'hi'), agentEntry('a1', 'hello')],
     'GET /api/threads/t1/operations': o.operations ?? [],
     'POST /api/threads/t1/session': o.session ?? fakeChoices,
+    'PUT /api/threads/t1/session/model':
+      o.model ??
+      (async (r: Request) => {
+        const { model } = (await r.json()) as { model: string }
+        return Response.json({ ...fakeChoices, current: { ...fakeChoices.current, model } })
+      }),
     'POST /api/threads/t1/turns':
       o.start ?? (() => Response.json({ operation_id: 'op1' }, { status: 202 })),
     // The two PATCHes answer what they were asked to become.

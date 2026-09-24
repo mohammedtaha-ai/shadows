@@ -50,6 +50,18 @@ export function openSession(threadId: string): Promise<SessionChoices> {
   return unwrap(client.POST('/api/threads/{id}/session', { params: { path: { id: threadId } } }))
 }
 
+/** Sets the thread's session to `model` at once, opening it if needed;
+ * answers what it offers now, the new model's efforts included (spec §12.7).
+ * Writes nothing durable, so it carries no command id. */
+export function changeModel(threadId: string, model: string): Promise<SessionChoices> {
+  return unwrap(
+    client.PUT('/api/threads/{id}/session/model', {
+      params: { path: { id: threadId } },
+      body: { model },
+    }),
+  )
+}
+
 /** The session's context breakdown, read on demand, or none with the reason
  * (spec §12.8). */
 export function readContext(threadId: string): Promise<ContextBreakdown> {

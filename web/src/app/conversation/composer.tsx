@@ -1,17 +1,23 @@
 // One job: writing to the Planner — the prompt and the settings it runs with,
 // Send, and Stop while a turn runs.
 
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, Square } from 'lucide-react'
-import { type ReactNode, useRef, useState } from 'react'
-import { type SessionChoices, type TurnSettings, startTurn, stopTurn } from '@/api/client'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
+import {
+  type SessionChoices,
+  type TurnSettings,
+  changeModel,
+  startTurn,
+  stopTurn,
+} from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { ComposerBar } from './composer-bar'
-import { afterOptions, initialSettings, sendable } from './turn-settings'
+import { afterOptions, effortsKnown, initialSettings, sendable, withModel } from './turn-settings'
 import type { Turn } from './turn-state'
-import type { SessionView } from './use-session'
+import { type SessionView, sessionKey } from './use-session'
 
 interface Send {
   commandId: string
@@ -59,14 +65,34 @@ export function Composer({
   })
 
   const choices = session.state === 'ready' ? session.choices : null
-  const { settings, note, choose } = useTurnSettings(
-    choices,
-    send.isPending || running !== null,
-    () => {
-      pending.current = null
-    },
-  )
+  const busy = send.isPending || running !== null
+  const { settings, note, choose, refuse } = useTurnSettings(choices, busy, () => {
+    pending.current = null
+  })
   const stop = useMutation({ mutationFn: stopTurn })
+
+  // Spec §12.7: a picked model is set on the session at once, so its efforts
+  // are known before Send. The answer is the session's new choices; a refusal
+  // puts the session's model back and says why. A turn's session is not
+  // changed while it runs: the change is asked once the turn has ended.
+  const queryClient = useQueryClient()
+  const switchModel = useMutation({
+    mutationFn: (id: string) => changeModel(threadId, id),
+    onSuccess: (answer, id) => {
+      queryClient.setQueryData(sessionKey(threadId), answer)
+      // Asked again it would be answered the same: say so rather than ask.
+      if (answer.current.model !== id) refuse(`The session kept ${answer.current.model}`, answer)
+    },
+    onError: (error) => refuse(error.message),
+  })
+  const wanted = settings?.model
+  const held = choices?.current.model
+  const requestModel = switchModel.mutate
+  const changing = switchModel.isPending
+  useEffect(() => {
+    if (busy || changing || wanted === undefined || held === undefined || wanted === held) return
+    requestModel(wanted)
+  }, [busy, changing, wanted, held, requestModel])
 
   // "Stopping" until the durable ending arrives and `running` clears: the
   // stop call answering is not the turn ending. A stop this client saw fail
@@ -80,7 +106,15 @@ export function Composer({
   const stopping = running !== null && !failed && (running.stopRequested || mine)
   const stopLabel = failed ? 'Stop again' : stopping ? 'Stopping…' : 'Stop'
 
-  const ready = known && choices !== null && settings !== null && sendable(choices, settings)
+  // Send waits until the session holds the chosen model: only then are the
+  // efforts it runs with that model's.
+  const ready =
+    known &&
+    !changing &&
+    choices !== null &&
+    settings !== null &&
+    effortsKnown(choices, settings.model) &&
+    sendable(choices, settings)
 
   const submit = () => {
     const text = prompt.trim()
@@ -138,6 +172,7 @@ export function Composer({
           session={session}
           settings={settings}
           onSettings={choose}
+          changingModel={changing}
           directory={directory}
           note={note}
           ring={ring}
@@ -150,12 +185,19 @@ export function Composer({
 
 /** The settings the next turn runs with: the session's own at first, then the
  * person's, following the session's reports (`afterOptions`) as they arrive.
- * `changed` runs whenever the person changes one. */
+ * `changed` runs whenever the person changes one; `refuse` puts the model
+ * back to the one the session holds (`session`, when it just answered) and
+ * shows why. */
 function useTurnSettings(
   choices: SessionChoices | null,
   busy: boolean,
   changed: () => void,
-): { settings: TurnSettings | null; note: string | null; choose: (next: TurnSettings) => void } {
+): {
+  settings: TurnSettings | null
+  note: string | null
+  choose: (next: TurnSettings) => void
+  refuse: (why: string, session?: SessionChoices) => void
+} {
   const [held, setHeld] = useState<{
     choices: SessionChoices
     settings: TurnSettings
@@ -181,6 +223,14 @@ function useTurnSettings(
     choose: (next) => {
       changed()
       setHeld((h) => (h === null ? h : { ...h, settings: next, note: null }))
+    },
+    refuse: (why, session) => {
+      changed()
+      setHeld((h) => {
+        if (h === null) return h
+        const back = (session ?? h.choices).current.model
+        return { ...h, settings: withModel(h.choices, h.settings, back), note: why }
+      })
     },
   }
 }

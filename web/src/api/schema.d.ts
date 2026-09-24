@@ -307,6 +307,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/threads/{id}/session/model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Sets the thread's session to `model` as soon as a person picks it (spec
+         *     §12.7), opening the session first if it is not open, and answers its
+         *     choices exactly as `POST .../session` does — the efforts are now the new
+         *     model's. Nothing durable is written and no `command_id` is carried:
+         *     setting the same model twice is the same state, and a turn records its
+         *     model in its own invocation. The remembered model does not move (§12.4).
+         *     A running turn's session is not changed (`THREAD_BUSY`).
+         */
+        put: operations["change_model"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/threads/{id}/turns": {
         parameters: {
             query?: never;
@@ -352,6 +377,11 @@ export interface components {
         Actor: {
             id: string;
             kind: string;
+        };
+        /** @description The model a person picked (spec §12.7). */
+        ChangeModel: {
+            /** @description One of the session's `models`. */
+            model: string;
         };
         /**
          * @description One value the session offers for a setting (spec §12.4). `enabled: false`
@@ -1440,6 +1470,68 @@ export interface operations {
                 };
             };
             /** @description HARNESS_START_FAILED: the adapter did not start */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    change_model: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeModel"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionChoices"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such thread */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description THREAD_BUSY: a turn is running; PATH_NOT_FOUND: the project's directory is gone or was never set */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description SETTING_NOT_OFFERED: a model the session does not offer, or one the harness refused (its words in the message); HARNESS_UNAVAILABLE */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_START_FAILED: the adapter did not start, or its session closed */
             502: {
                 headers: {
                     [name: string]: unknown;

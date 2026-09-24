@@ -4,9 +4,9 @@
 //
 // The session's choices carry the efforts of the model it holds now, and
 // nothing about another's. So after the person picks another model, its
-// efforts are unknown until the session reports that model (an `options`
-// frame, which the daemon sends once it has set it at the next turn start,
-// spec §12.7); until then the effort menu is disabled and the effort stays.
+// efforts are unknown until the session reports that model: the composer sets
+// it on the session at once (spec §12.7) and its answer carries them; until
+// then the effort menu is disabled, the effort stays and Send waits.
 
 import type { Choice, SessionChoices, TurnSettings } from '@/api/client'
 
