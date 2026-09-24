@@ -19,7 +19,13 @@ async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) 
         request_fingerprint: shadows::command::fingerprint("project.create", &params),
     };
     let project = storage
-        .create_project(&ctx, "demo", "Demo", &dir)
+        .create_project(
+            &ctx,
+            "demo",
+            "Demo",
+            &dir,
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let tctx = shadows::command::CommandContext {
@@ -29,7 +35,7 @@ async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) 
         ..ctx
     };
     let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
         .await
         .unwrap();
     (tmp, storage, runtime, thread.id)

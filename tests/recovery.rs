@@ -306,11 +306,17 @@ async fn after_a_restart_the_next_turn_resumes_the_recorded_session() {
     let dir = shadows::project::ProjectDirectory::resolve(tmp.path()).unwrap();
     let storage = &first.runtime.storage;
     let project = storage
-        .create_project(&ctx("c1", "project.create"), "demo", "Demo", &dir)
+        .create_project(
+            &ctx("c1", "project.create"),
+            "demo",
+            "Demo",
+            &dir,
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let thread = storage
-        .create_planning_thread(&ctx("c2", "thread.create"), &project.id, "T")
+        .create_planning_thread(&ctx("c2", "thread.create"), &project.id, "T", "claude-code")
         .await
         .unwrap()
         .id;

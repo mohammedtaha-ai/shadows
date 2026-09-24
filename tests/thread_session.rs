@@ -43,13 +43,19 @@ async fn fixture() -> (Fixture, ThreadId, ThreadId) {
     };
     let dir = ProjectDirectory::resolve(tmp.path()).unwrap();
     let project = storage
-        .create_project(&ctx("c1", "project.create"), "demo", "Demo", &dir)
+        .create_project(
+            &ctx("c1", "project.create"),
+            "demo",
+            "Demo",
+            &dir,
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let mut threads = Vec::new();
     for id in ["c2", "c3"] {
         let thread = storage
-            .create_planning_thread(&ctx(id, "thread.create"), &project.id, id)
+            .create_planning_thread(&ctx(id, "thread.create"), &project.id, id, "claude-code")
             .await
             .unwrap();
         threads.push(thread.id);

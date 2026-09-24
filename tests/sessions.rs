@@ -37,6 +37,7 @@ async fn fixture(config: SessionsConfig) -> Fixture {
             "demo",
             "Demo",
             &ProjectDirectory::resolve(&project_dir).unwrap(),
+            &shadows::agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -47,7 +48,7 @@ async fn fixture(config: SessionsConfig) -> Fixture {
         ..ctx
     };
     let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
         .await
         .unwrap()
         .id;

@@ -24,6 +24,7 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/agent/` | the AI subprocess harness contract | `src/agent/acp.rs` |
 | `src/agent/acp.rs` | the ACP client connection to one adapter process | `src/agent/acp.rs` |
 | `src/agent/events.rs` | what a harness connection reports | `src/agent/events.rs` |
+| `src/agent/policy.rs` | the modes Shadows allows per harness | `src/agent/policy.rs` |
 | `src/planner/sessions.rs` | the live adapter connection each open thread holds | `src/planner/sessions.rs` |
 | `src/planner/turn.rs` | the recorded ending of a live Planner turn | `src/planner/turn.rs` |
 | `src/planner/entries.rs` | turning harness events into durable entries | `src/planner/entries.rs` |

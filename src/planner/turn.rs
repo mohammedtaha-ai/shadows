@@ -113,6 +113,7 @@ async fn persist(w: &TurnWatch, entries: Vec<Durable>) {
                     author,
                     body: &body,
                     refs: &[],
+                    operation_id: None,
                 },
             )
             .await

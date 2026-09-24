@@ -57,11 +57,17 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
     };
     let dir = shadows::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
     let project = storage
-        .create_project(&ctx("c1", "project.create"), "demo", "Demo", &dir)
+        .create_project(
+            &ctx("c1", "project.create"),
+            "demo",
+            "Demo",
+            &dir,
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let thread = storage
-        .create_planning_thread(&ctx("c2", "thread.create"), &project.id, "T")
+        .create_planning_thread(&ctx("c2", "thread.create"), &project.id, "T", "claude-code")
         .await
         .unwrap();
     let op = storage

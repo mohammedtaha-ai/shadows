@@ -44,7 +44,13 @@ async fn seed(storage: &Storage) -> (Project, PlanningThread) {
     };
     let dir = shadows::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
     let project = storage
-        .create_project(&ctx, "demo", "Demo", &dir)
+        .create_project(
+            &ctx,
+            "demo",
+            "Demo",
+            &dir,
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let tctx = CommandContext {
@@ -54,7 +60,7 @@ async fn seed(storage: &Storage) -> (Project, PlanningThread) {
         ..ctx
     };
     let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
         .await
         .unwrap();
     (project, thread)
@@ -66,6 +72,7 @@ fn user_message(body: &str) -> NewThreadEntry<'_> {
         author: Actor::user("local"),
         body,
         refs: &[],
+        operation_id: None,
     }
 }
 
@@ -253,7 +260,7 @@ async fn a_subscriber_receives_only_its_own_threads_live_items() {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (project, thread_a) = seed(&storage).await;
     let thread_b = storage
-        .create_planning_thread(&thread_ctx("c3"), &project.id, "B")
+        .create_planning_thread(&thread_ctx("c3"), &project.id, "B", "claude-code")
         .await
         .unwrap();
     let live = Live::start(&tmp, storage).await;

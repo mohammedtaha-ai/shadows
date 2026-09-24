@@ -61,6 +61,7 @@ async fn fixture() -> Fixture {
             "demo",
             "Demo",
             &shadows::project::ProjectDirectory::resolve(tmp.path()).unwrap(),
+            &shadows::agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -72,7 +73,7 @@ async fn fixture() -> Fixture {
     };
     let thread = runtime
         .storage
-        .create_planning_thread(&tctx, &project.id, "T")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
         .await
         .unwrap();
     let sessions = acp::fake_sessions(&tmp.path().join("s.sqlite3")).await;

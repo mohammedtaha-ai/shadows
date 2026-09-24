@@ -10,6 +10,7 @@ use axum::extract::{Path, State};
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
+use crate::agent::policy;
 use crate::command::{CommandContext, fingerprint};
 use crate::project::{Project, ProjectDirectory, ProjectId};
 use crate::thread::PlanningThread;
@@ -85,7 +86,13 @@ pub(super) async fn create_project(
     let c = ctx(body.command_id, "project.create", params);
     Ok(Json(
         s.storage
-            .create_project(&c, &body.slug, &body.name, &directory)
+            .create_project(
+                &c,
+                &body.slug,
+                &body.name,
+                &directory,
+                &policy::default_modes(),
+            )
             .await?,
     ))
 }
@@ -138,7 +145,7 @@ pub(super) async fn create_thread(
     let c = ctx(body.command_id, "thread.create", params);
     Ok(Json(
         s.storage
-            .create_planning_thread(&c, &project_id, &body.title)
+            .create_planning_thread(&c, &project_id, &body.title, policy::CLAUDE_CODE)
             .await?,
     ))
 }

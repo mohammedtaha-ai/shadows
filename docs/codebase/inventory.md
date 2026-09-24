@@ -76,9 +76,22 @@ pub enum HarnessEvent {
 }
 ```
 
-## `src/agent/mod.rs` — 3 lines
+## `src/agent/mod.rs` — 4 lines
 
 Nothing reachable from outside this file.
+
+## `src/agent/policy.rs` — 57 lines
+
+```rust
+pub const CLAUDE_CODE: &str = "claude-code";
+pub const CODEX: &str = "codex";
+pub const KNOWN: [&str; 2] = [CLAUDE_CODE, CODEX];
+pub fn allowed_modes(kind: &str) -> &'static [&'static str]
+pub fn default_mode(kind: &str) -> Option<&'static str>
+pub fn is_known(kind: &str) -> bool
+pub fn is_available(kind: &str) -> bool
+pub fn default_modes() -> BTreeMap<String, Vec<String>>
+```
 
 ## `src/bin/fake_acp.rs` — 237 lines
 
@@ -400,7 +413,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/planner/turn.rs` — 261 lines
+## `src/planner/turn.rs` — 262 lines
 
 ```rust
 pub struct PlannerTurn;
@@ -503,7 +516,7 @@ pub(crate) fn canonical_dir(raw: &Path) -> Result<PathBuf, DirectoryError>
 pub(crate) fn utf8(path: PathBuf) -> Result<String, DirectoryError>
 ```
 
-## `src/project/mod.rs` — 27 lines
+## `src/project/mod.rs` — 33 lines
 
 ```rust
 pub use directory::{DirectoryError, ProjectDirectory};
@@ -521,10 +534,11 @@ pub struct Project {
     pub name: String,
     pub directory: Option<String>,
     pub created_at: String,
+    pub allowed_modes: BTreeMap<String, Vec<String>>,
 }
 ```
 
-## `src/protocol/conversation.rs` — 196 lines
+## `src/protocol/conversation.rs` — 197 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
@@ -599,7 +613,7 @@ pub fn document() -> String
 pub(super) async fn serve() -> ([(header::HeaderName, &'static str); 1], String)
 ```
 
-## `src/protocol/project.rs` — 144 lines
+## `src/protocol/project.rs` — 151 lines
 
 ```rust
 pub(super) struct CreateProject {}
@@ -650,6 +664,25 @@ pub use sqlite::{ReconcileReport, StopKind, Storage, StorageError, StoredEvent};
 pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
+## `src/storage/sqlite/command.rs` — 87 lines
+
+```rust
+pub(in crate::storage) async fn classify(conn: &mut SqliteConnection, ctx: &CommandContext, scope_kind: &str, scope_key: &str) -> Result<Option<String>, StorageError>
+pub(in crate::storage) async fn record_command(conn: &mut SqliteConnection, ctx: &CommandContext, scope_kind: &str, scope_key: &str, entity_kind: &str, outcome_ref: &str, ts: &str) -> Result<(), StorageError>
+```
+
+## `src/storage/sqlite/entry.rs` — 156 lines
+
+```rust
+pub(super) async fn append_entry_in(conn: &mut SqliteConnection, thread_id: &ThreadId, entry: NewThreadEntry<'_>, ts: &str) -> Result<ThreadEntry, StorageError>
+pub(super) type EntryRow = (String, String, i64, String, String, String, String, String, String, Option<String>);
+pub(super) fn into_entry(r: EntryRow) -> Result<ThreadEntry, StorageError>
+impl Storage {
+    pub async fn append_thread_entry(&self, thread_id: &ThreadId, entry: NewThreadEntry<'_>) -> Result<ThreadEntry, StorageError>
+    pub async fn list_thread_entries(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>
+}
+```
+
 ## `src/storage/sqlite/events.rs` — 52 lines
 
 ```rust
@@ -673,7 +706,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/mod.rs` — 252 lines
+## `src/storage/sqlite/mod.rs` — 263 lines
 
 ```rust
 pub use events_read::StoredEvent;
@@ -686,6 +719,9 @@ pub enum StorageError {
     NotFound(&'static str),
     TransitionConflict { expected: String, found: String },
     CommandConflict,
+    HarnessLocked,
+    ThreadBusy,
+    ForkPointNotSupported,
     Json(serde_json::Error),
     Database(sqlx::Error),
 }
@@ -722,14 +758,13 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/project.rs` — 180 lines
+## `src/storage/sqlite/project.rs` — 245 lines
 
 ```rust
-pub(super) async fn classify(conn: &mut SqliteConnection, ctx: &CommandContext, scope_kind: &str, scope_key: &str) -> Result<Option<String>, StorageError>
-pub(super) async fn record_command(conn: &mut SqliteConnection, ctx: &CommandContext, scope_kind: &str, scope_key: &str, entity_kind: &str, outcome_ref: &str, ts: &str) -> Result<(), StorageError>
 impl Storage {
-    pub async fn create_project(&self, ctx: &CommandContext, slug: &str, name: &str, directory: &ProjectDirectory) -> Result<Project, StorageError>
+    pub async fn create_project(&self, ctx: &CommandContext, slug: &str, name: &str, directory: &ProjectDirectory, default_modes: &BTreeMap<String, Vec<String>>) -> Result<Project, StorageError>
     pub async fn list_projects(&self) -> Result<Vec<Project>, StorageError>
+    pub async fn set_project_modes(&self, ctx: &CommandContext, project_id: &ProjectId, modes: &BTreeMap<String, Vec<String>>) -> Result<Project, StorageError>
 }
 ```
 
@@ -751,17 +786,18 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/thread.rs` — 289 lines
+## `src/storage/sqlite/thread.rs` — 283 lines
 
 ```rust
 impl Storage {
-    pub async fn create_planning_thread(&self, ctx: &CommandContext, project_id: &ProjectId, title: &str) -> Result<PlanningThread, StorageError>
-    pub async fn append_thread_entry(&self, thread_id: &ThreadId, entry: NewThreadEntry<'_>) -> Result<ThreadEntry, StorageError>
-    pub async fn list_thread_entries(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>
+    pub async fn create_planning_thread(&self, ctx: &CommandContext, project_id: &ProjectId, title: &str, harness: &str) -> Result<PlanningThread, StorageError>
+    pub async fn set_thread_harness(&self, ctx: &CommandContext, thread: &ThreadId, harness: &str) -> Result<PlanningThread, StorageError>
     pub async fn turn_context(&self, thread_id: &ThreadId) -> Result<TurnContext, StorageError>
     pub async fn record_harness_session(&self, thread_id: &ThreadId, session_id: &str) -> Result<bool, StorageError>
     pub async fn list_threads_for_project(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>
 }
+
+pub(super) async fn load_thread(conn: &mut SqliteConnection, id: &ThreadId) -> Result<PlanningThread, StorageError>
 ```
 
 ## `src/storage/sqlite/transition.rs` — 132 lines
@@ -786,7 +822,7 @@ impl Transition {
 pub(super) async fn record(conn: &mut SqliteConnection, op_id: &OperationId, before: Before, to: &str, event: DurableEvent, ts: &str) -> Result<Transition, StorageError>
 ```
 
-## `src/thread/mod.rs` — 84 lines
+## `src/thread/mod.rs` — 107 lines
 
 ```rust
 pub struct ThreadId(String);
@@ -811,10 +847,15 @@ pub struct PlanningThread {
     pub title: String,
     pub status: String,
     pub created_at: String,
+    pub harness: String,
+    pub forked_from_thread: Option<ThreadId>,
 }
 pub struct TurnContext {
     pub project_directory: Option<PathBuf>,
     pub harness_session_id: Option<String>,
+    pub harness: String,
+    pub project_id: ProjectId,
+    pub fork_session_id: Option<String>,
 }
 pub struct ThreadEntry {
     pub id: ThreadEntryId,
@@ -825,12 +866,14 @@ pub struct ThreadEntry {
     pub body: String,
     pub refs: Vec<EntryRef>,
     pub created_at: String,
+    pub operation_id: Option<OperationId>,
 }
 pub struct NewThreadEntry<'a> {
     pub kind: &'a str,
     pub author: Actor,
     pub body: &'a str,
     pub refs: &'a [EntryRef],
+    pub operation_id: Option<&'a OperationId>,
 }
 pub enum EntryRef {
     Operation(OperationId),

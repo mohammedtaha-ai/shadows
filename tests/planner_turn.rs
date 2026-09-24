@@ -68,6 +68,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
             "demo",
             "Demo",
             &shadows::project::ProjectDirectory::resolve(tmp.path()).unwrap(),
+            &shadows::agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -78,7 +79,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
         ..ctx
     };
     let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
         .await
         .unwrap()
         .id;

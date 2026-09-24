@@ -122,6 +122,7 @@ async fn start(s: AppState, thread_id: ThreadId, prompt: String) -> Result<Opera
                 author: Actor::user("local"),
                 body: &prompt,
                 refs: &[],
+                operation_id: None,
             },
         )
         .await?;

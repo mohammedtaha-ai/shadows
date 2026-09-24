@@ -211,6 +211,7 @@ async fn seed_thread(runtime: &Runtime) -> shadows::thread::ThreadId {
             "demo",
             "Demo",
             &shadows::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+            &shadows::agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -222,7 +223,7 @@ async fn seed_thread(runtime: &Runtime) -> shadows::thread::ThreadId {
     };
     runtime
         .storage
-        .create_planning_thread(&tctx, &project.id, "T")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
         .await
         .unwrap()
         .id

@@ -40,7 +40,13 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
     let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
     let project = storage
-        .create_project(&ctx("cmd-p", &params), "demo", "Demo", &dir())
+        .create_project(
+            &ctx("cmd-p", &params),
+            "demo",
+            "Demo",
+            &dir(),
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let thread = storage
@@ -48,6 +54,7 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
             &ctx_kind("cmd-t", "thread.create", &params),
             &project.id,
             "T",
+            "claude-code",
         )
         .await
         .unwrap();
@@ -66,6 +73,7 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
                             author: Actor::user("local"),
                             body: &format!("w{w}-i{i}"),
                             refs: &[],
+                            operation_id: None,
                         },
                     )
                     .await
@@ -108,7 +116,13 @@ async fn entries_are_read_in_ordinal_order() {
     let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
     let project = storage
-        .create_project(&ctx("cmd-p", &params), "demo", "Demo", &dir())
+        .create_project(
+            &ctx("cmd-p", &params),
+            "demo",
+            "Demo",
+            &dir(),
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let thread = storage
@@ -116,6 +130,7 @@ async fn entries_are_read_in_ordinal_order() {
             &ctx_kind("cmd-t", "thread.create", &params),
             &project.id,
             "T",
+            "claude-code",
         )
         .await
         .unwrap();
@@ -129,6 +144,7 @@ async fn entries_are_read_in_ordinal_order() {
                     author: Actor::user("local"),
                     body,
                     refs: &[],
+                    operation_id: None,
                 },
             )
             .await
@@ -153,7 +169,13 @@ async fn entry_refs_round_trip_through_storage() {
     let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
     let project = storage
-        .create_project(&ctx("cmd-p", &params), "demo", "Demo", &dir())
+        .create_project(
+            &ctx("cmd-p", &params),
+            "demo",
+            "Demo",
+            &dir(),
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let thread = storage
@@ -161,6 +183,7 @@ async fn entry_refs_round_trip_through_storage() {
             &ctx_kind("cmd-t", "thread.create", &params),
             &project.id,
             "T",
+            "claude-code",
         )
         .await
         .unwrap();
@@ -177,6 +200,7 @@ async fn entry_refs_round_trip_through_storage() {
                 author: Actor::user("local"),
                 body: "hello",
                 refs: &refs,
+                operation_id: None,
             },
         )
         .await
@@ -197,7 +221,13 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
     let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let params = serde_json::json!({ "slug": "demo", "name": "Demo" });
     let project = storage
-        .create_project(&ctx("cmd-p", &params), "demo", "Demo", &dir())
+        .create_project(
+            &ctx("cmd-p", &params),
+            "demo",
+            "Demo",
+            &dir(),
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let thread = storage
@@ -205,6 +235,7 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
             &ctx_kind("cmd-t", "thread.create", &params),
             &project.id,
             "T",
+            "claude-code",
         )
         .await
         .unwrap();
@@ -224,6 +255,7 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
                 author: Actor::user("local"),
                 body: "lost",
                 refs: &[],
+                operation_id: None,
             },
         )
         .await
@@ -241,6 +273,7 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
                 author: Actor::user("local"),
                 body: "kept",
                 refs: &[],
+                operation_id: None,
             },
         )
         .await
@@ -260,7 +293,13 @@ async fn threads_are_listed_in_creation_order_whatever_their_timestamp_text() {
     let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let params = serde_json::json!({ "slug": "demo" });
     let project = storage
-        .create_project(&ctx("c-project", &params), "demo", "Demo", &dir())
+        .create_project(
+            &ctx("c-project", &params),
+            "demo",
+            "Demo",
+            &dir(),
+            &shadows::agent::policy::default_modes(),
+        )
         .await
         .unwrap();
     let mut created = Vec::new();
@@ -275,6 +314,7 @@ async fn threads_are_listed_in_creation_order_whatever_their_timestamp_text() {
                 &ctx_kind(&command, "thread.create", &params),
                 &project.id,
                 &command,
+                "claude-code",
             )
             .await
             .unwrap();
