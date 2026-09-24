@@ -118,7 +118,7 @@ impl Sessions {
         let mut handle = process::spawn(self.adapter.process_spec(&cwd))
             .map_err(|e| OpenError::Start(e.to_string()))?;
         let (tx, rx) = mpsc::unbounded_channel();
-        let setup = async {
+        let setup = tokio::time::timeout(Duration::from_secs(5), async {
             let connection = Connection::open(&mut handle, tx)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -136,8 +136,7 @@ impl Sessions {
                 options,
                 connection,
             })
-        }
-        .await;
+        }).await.unwrap_or_else(|_| Err("harness setup timed out".into()));
         let opened = match setup {
             Ok(opened) => opened,
             Err(error) => {
@@ -183,6 +182,12 @@ impl Sessions {
     pub async fn touch(&self, thread: &ThreadId) {
         if let Some(item) = self.live.lock().await.get_mut(thread) {
             item.last_used = Instant::now();
+        }
+    }
+
+    pub async fn cancel(&self, thread: &ThreadId) {
+        if let Some(item) = self.live.lock().await.get(thread) {
+            item.opened.connection.cancel(&item.opened.session_id);
         }
     }
 
@@ -245,13 +250,17 @@ impl Sessions {
     pub async fn live_count(&self) -> usize {
         self.live.lock().await.len()
     }
+
+    pub fn cancel_wait(&self) -> Duration { self.config.cancel_wait }
 }
 
 async fn stop_handle(handle: &mut ProcessHandle) -> io::Result<()> {
     if !handle.has_exited() {
         handle.terminate_tree()?;
     }
-    handle.wait().await.map(|_| ())
+    tokio::time::timeout(Duration::from_secs(5), handle.wait()).await
+        .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "adapter did not exit in time"))?
+        .map(|_| ())
 }
 
 /// Resolve the project's directory at opening, so a moved or deleted directory

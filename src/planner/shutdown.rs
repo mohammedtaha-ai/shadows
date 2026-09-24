@@ -18,7 +18,7 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::{LiveHandles, PlannerTurn, StopOutcome};
+use super::{LiveHandles, PlannerTurn, Sessions, StopOutcome};
 use crate::events::Actor;
 use crate::runtime::Runtime;
 use crate::storage::{StopKind, StorageError};
@@ -33,11 +33,12 @@ use crate::storage::{StopKind, StorageError};
 pub async fn shut_down(
     runtime: Arc<Runtime>,
     handles: Arc<LiveHandles>,
+    sessions: Arc<Sessions>,
     confirm_within: Duration,
     escalate: impl Future<Output = ()>,
 ) -> Result<StopKind, StorageError> {
     let confirmed = tokio::select! {
-        confirmed = tokio::time::timeout(confirm_within, terminate_all(&runtime, &handles)) => {
+        confirmed = tokio::time::timeout(confirm_within, terminate_all(&runtime, &handles, &sessions)) => {
             match confirmed {
                 Ok(confirmed) => confirmed,
                 Err(_elapsed) => {
@@ -58,12 +59,12 @@ pub async fn shut_down(
 /// record to say every owned operation is terminal. `false` as soon as one
 /// termination cannot be confirmed: waiting for it would only run out the
 /// bound over a tree that is known to be alive.
-async fn terminate_all(runtime: &Arc<Runtime>, handles: &Arc<LiveHandles>) -> bool {
+async fn terminate_all(runtime: &Arc<Runtime>, handles: &Arc<LiveHandles>, sessions: &Arc<Sessions>) -> bool {
     let live = handles.close().await;
     tracing::info!(live = live.len(), "shutdown.begin");
     let mut confirmed = true;
     for op_id in live {
-        match PlannerTurn::stop(runtime.clone(), handles.clone(), &op_id, Actor::system()).await {
+        match PlannerTurn::stop(runtime.clone(), handles.clone(), sessions.clone(), &op_id, Actor::system()).await {
             Ok(StopOutcome::TerminationFailed) => {
                 tracing::error!(operation_id = %op_id, "shutdown.termination_failed");
                 confirmed = false;
@@ -74,6 +75,9 @@ async fn terminate_all(runtime: &Arc<Runtime>, handles: &Arc<LiveHandles>) -> bo
                 confirmed = false;
             }
         }
+    }
+    if let Err(error) = sessions.close_all().await {
+        tracing::error!(%error, "shutdown.sessions_close_failed");
     }
     if !confirmed {
         return false;

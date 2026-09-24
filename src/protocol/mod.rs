@@ -36,8 +36,7 @@ use tower_http::trace::TraceLayer;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-use crate::agent::StreamItem;
-use crate::agent::claude::ClaudeHarness;
+use crate::agent::events::HarnessEvent;
 use crate::operation::OperationId;
 use crate::planner::{LiveHandles, Sessions};
 use crate::runtime::Runtime;
@@ -49,9 +48,8 @@ pub struct AppState {
     pub runtime: Arc<Runtime>,
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
-    pub harness: Arc<ClaudeHarness>,
-    pub sessions: Option<Arc<Sessions>>,
-    pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, StreamItem)>,
+    pub sessions: Arc<Sessions>,
+    pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
     /// Spec §1: the only origins a browser may call this daemon from. Every
     /// client is cross-origin, because the daemon serves no page. Validated
     /// by `config::allowed_origin` before it gets here.

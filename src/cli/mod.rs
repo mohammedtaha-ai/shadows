@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::agent::claude::{ClaudeAdapter, ClaudeHarness};
+use crate::agent::claude::ClaudeAdapter;
 use crate::config::{Config, adapter_version};
 use crate::planner::{LiveHandles, Sessions, SessionsConfig, shut_down};
 use crate::process::{ProcessSpec, spawn};
@@ -42,8 +42,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         runtime: runtime.clone(),
         storage,
         handles: Arc::new(LiveHandles::default()),
-        harness: Arc::new(ClaudeHarness::new(config.harness_path.clone(), version)),
-        sessions: Some(sessions.clone()),
+        sessions: sessions.clone(),
         bus,
         allowed_origins: config.allowed_origins.clone(),
         shutdown,
@@ -78,14 +77,11 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
                     std::future::pending::<()>().await;
                 }
             };
-            match shut_down(runtime, handles, CONFIRMATION_BOUND, second_signal).await {
+            match shut_down(runtime, handles, sessions.clone(), CONFIRMATION_BOUND, second_signal).await {
                 Ok(kind) => tracing::info!(stop_kind = ?kind, "shutdown.recorded"),
                 Err(error) => {
                     tracing::error!(%error, "shutdown.unrecorded: the stop could not be written")
                 }
-            }
-            if let Err(error) = sessions.close_all().await {
-                tracing::error!(%error, "shutdown.sessions_close_failed");
             }
             // Last: open live streams end here, so a graceful HTTP shutdown
             // is not left waiting on a response that never finishes.

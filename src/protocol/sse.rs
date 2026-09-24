@@ -9,7 +9,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 
 use super::AppState;
-use crate::agent::StreamItem;
+use crate::agent::events::HarnessEvent;
 use crate::events::EventCursor;
 use crate::operation::OperationId;
 use crate::storage::Storage;
@@ -83,7 +83,7 @@ async fn stream(
     state: AppState,
     q: SubscribeQuery,
     mut committed: tokio::sync::watch::Receiver<i64>,
-    mut live: tokio::sync::broadcast::Receiver<(ThreadId, OperationId, StreamItem)>,
+    mut live: tokio::sync::broadcast::Receiver<(ThreadId, OperationId, HarnessEvent)>,
     tx: Sender<Result<Event, Infallible>>,
 ) -> &'static str {
     // 1. Durable replay.
@@ -240,23 +240,11 @@ async fn send_journal_after(
 
 /// The SSE form of a transient bus item, or `None` for one this stream does
 /// not forward. `Entry` is `None` because its durable event carries it.
-fn transient_event(op_id: &OperationId, item: StreamItem) -> Option<Event> {
+fn transient_event(op_id: &OperationId, item: HarnessEvent) -> Option<Event> {
     Some(match item {
-        StreamItem::Delta { text } => Event::default()
+        HarnessEvent::Chunk { text, .. } => Event::default()
             .event("delta")
             .data(serde_json::json!({ "op": op_id, "text": text }).to_string()),
-        StreamItem::TurnEnd {
-            subtype,
-            stop_reason,
-        } => Event::default().event("turn-end").data(
-            serde_json::json!({
-                "op": op_id, "subtype": subtype, "stop_reason": stop_reason
-            })
-            .to_string(),
-        ),
-        StreamItem::Operational { label, .. } => Event::default()
-            .event("meta")
-            .data(serde_json::json!({ "op": op_id, "label": label }).to_string()),
-        StreamItem::Entry { .. } | StreamItem::Unparsed(_) => return None,
+        _ => return None,
     })
 }

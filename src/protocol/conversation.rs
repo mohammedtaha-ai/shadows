@@ -104,6 +104,10 @@ async fn start(s: AppState, thread_id: ThreadId, prompt: String) -> Result<Opera
     if s.handles.is_closed().await {
         return Err(Failure::runtime_stopping());
     }
+    let opened = s.sessions.open(&thread_id).await.map_err(|e| match e {
+        crate::planner::OpenError::Storage(e) => Failure::from(e),
+        crate::planner::OpenError::Start(reason) => Failure::harness_start_failed(reason),
+    })?;
     // Record the user's message as a durable entry before the turn starts, so
     // a restart mid-turn still shows what was asked.
     s.storage
@@ -121,7 +125,8 @@ async fn start(s: AppState, thread_id: ThreadId, prompt: String) -> Result<Opera
     Ok(PlannerTurn::start(
         s.runtime.clone(),
         s.handles.clone(),
-        s.harness.clone(),
+        s.sessions.clone(),
+        opened,
         PlannerTurnRequest { thread_id, prompt },
         s.bus.clone(),
     )
@@ -171,6 +176,7 @@ pub(super) async fn stop_turn(
         let outcome = PlannerTurn::stop(
             s.runtime.clone(),
             s.handles.clone(),
+            s.sessions.clone(),
             &op_id,
             Actor::user("local"),
         )

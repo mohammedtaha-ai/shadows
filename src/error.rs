@@ -5,6 +5,7 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
+    HarnessStartFailed,
     ProcessSpawnFailed,
     ProcessTerminated,
     ProcessTerminationFailed,
