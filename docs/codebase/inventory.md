@@ -372,7 +372,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/planner/sessions.rs` — 260 lines
+## `src/planner/sessions.rs` — 272 lines
 
 ```rust
 pub struct SessionsConfig {

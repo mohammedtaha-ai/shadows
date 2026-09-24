@@ -102,9 +102,12 @@ impl Sessions {
                 current.last_used = Instant::now();
                 return Ok(current.opened.clone());
             }
-            if let Some(mut dead) = live.remove(thread) {
-                let _ = dead.handle.wait().await;
+            if let Some(dead) = live.get_mut(thread) {
+                stop_handle(&mut dead.handle)
+                    .await
+                    .map_err(|e| OpenError::Start(format!("could not close dead adapter: {e}")))?;
             }
+            live.remove(thread);
         }
         let context = self.storage.turn_context(thread).await?;
         let cwd = workspace(&context).map_err(OpenError::Start)?;
@@ -195,14 +198,23 @@ impl Sessions {
     pub async fn close_all(&self) -> io::Result<()> {
         let mut live = self.live.lock().await;
         let mut first = None;
-        for item in live.values_mut() {
-            if let Err(error) = stop_handle(&mut item.handle).await
-                && first.is_none()
-            {
-                first = Some(error);
+        let threads: Vec<_> = live.keys().cloned().collect();
+        for thread in threads {
+            let result = stop_handle(
+                &mut live
+                    .get_mut(&thread)
+                    .expect("thread collected above")
+                    .handle,
+            )
+            .await;
+            match result {
+                Ok(()) => {
+                    live.remove(&thread);
+                }
+                Err(error) if first.is_none() => first = Some(error),
+                Err(_) => {}
             }
         }
-        live.clear();
         match first {
             Some(error) => Err(error),
             None => Ok(()),
