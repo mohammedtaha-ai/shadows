@@ -42,6 +42,7 @@ let app: TestApp | null = null
 afterEach(() => {
   app?.unmount()
   app = null
+  vi.unstubAllGlobals()
 })
 
 /** The graph node of task `T{n}`. */

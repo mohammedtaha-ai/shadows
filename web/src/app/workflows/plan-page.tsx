@@ -54,7 +54,7 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1">
           {/* One canvas throughout: when Inspect opens or closes, the graph
-              refits to the width left (see `plan-camera.tsx`). */}
+              refits to the width left (see `plan-camera.ts`). */}
           <PlanGraph plan={p} onSelectTask={(t) => setInspected(t.number)} />
         </div>
         {task !== undefined && (

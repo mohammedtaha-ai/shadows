@@ -92,7 +92,7 @@ export function PlanGraph({
         <Controls showInteractive={false} fitViewOptions={WHOLE_PLAN} />
         {!compact && <MiniMap pannable zoomable />}
         <Legend />
-        <Camera size={size} compact={compact} focusTask={focusTask} lastClicked={lastClicked} />
+        <Camera size={size} compact={compact} focusTask={focusTask} lastClicked={lastClicked} nodes={shown} />
       </ReactFlow>
     </div>
   )
@@ -134,6 +134,7 @@ function Camera(props: {
   compact: boolean
   focusTask: number | undefined
   lastClicked: number | null
+  nodes: PlanNode[]
 }) {
   useCamera(props)
   return null
