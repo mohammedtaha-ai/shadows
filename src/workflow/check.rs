@@ -5,7 +5,7 @@
 //! stable order — tasks ascending, then links in stored order, then a cycle —
 //! so the same plan always yields the same list.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use petgraph::{algo::tarjan_scc, graph::DiGraph};
 
@@ -61,6 +61,9 @@ pub(super) fn edit_problems_after_removing(
 ) -> Vec<Problem> {
     let mut problems = Vec::new();
     for (&n, task) in &content.tasks {
+        if n == 0 || task.number == 0 {
+            problems.push(Problem::new("T0 is not a task number; numbers start at 1"));
+        }
         if task.number != n {
             problems.push(Problem::new(format!(
                 "the task stored as T{n} is numbered T{}",
@@ -80,7 +83,16 @@ pub(super) fn edit_problems_after_removing(
             )));
         }
     }
+    let mut seen_links = HashSet::new();
+    let mut reported_links = HashSet::new();
     for link in &content.links {
+        let identity = (link.task, link.after, link.kind);
+        if !seen_links.insert(identity) && reported_links.insert(identity) {
+            problems.push(Problem::new(format!(
+                "{} occurs more than once",
+                link_name(link.task, link.after, link.kind)
+            )));
+        }
         problems.extend(
             link_problems(content, removed, link)
                 .into_iter()

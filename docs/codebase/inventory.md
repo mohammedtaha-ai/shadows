@@ -1160,7 +1160,7 @@ impl DebugLog {
 pub fn init(verbose: bool, debug_data_dir: Option<&Path>) -> anyhow::Result<Option<DebugLog>>
 ```
 
-## `src/workflow/check.rs` — 190 lines
+## `src/workflow/check.rs` — 202 lines
 
 ```rust
 pub struct Problem {

@@ -344,3 +344,46 @@ fn an_empty_edit_is_refused() {
         vec!["an edit needs at least one operation"]
     );
 }
+
+#[test]
+fn a_stored_task_number_must_be_positive() {
+    let mut content = empty();
+    content.tasks.insert(0, task(0, "invalid"));
+    assert_eq!(
+        messages(edit_problems(&content)),
+        vec!["T0 is not a task number; numbers start at 1"]
+    );
+    assert!(
+        apply(
+            &content,
+            &[PlanOp::PlanPut {
+                title: "New title".into(),
+                goal: "New goal".into(),
+            }]
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn two_stored_links_of_one_kind_are_refused() {
+    let mut content = empty();
+    content.tasks.insert(1, task(1, "a"));
+    content.tasks.insert(2, task(2, "b"));
+    content.links.push(needs(2, 1));
+    content.links.push(needs(2, 1));
+    assert_eq!(
+        messages(edit_problems(&content)),
+        vec!["the needs link T2 → T1 occurs more than once"]
+    );
+    assert!(
+        apply(
+            &content,
+            &[PlanOp::PlanPut {
+                title: "New title".into(),
+                goal: "New goal".into(),
+            }]
+        )
+        .is_err()
+    );
+}
