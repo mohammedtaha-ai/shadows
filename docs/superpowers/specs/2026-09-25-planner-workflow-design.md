@@ -237,8 +237,11 @@ expire. The guarantee against a duplicate plan starts at `draft_start`.
   official Rust SDK) over Streamable HTTP on the existing axum router. MCP is a
   separate interface from the HTTP API (§2.12): the two share the application
   commands and the validator, not a protocol.
-- The protocol version is the one Claude Code 2.1.281 and `rmcp` agree on;
-  Task 0 records it. Without protocol sessions, every request stands alone.
+- Claude Code 2.1.281 opens with `server/discover` at MCP `2026-07-28` and,
+  from a server that does not know it, falls back to `initialize` at
+  `2025-11-25`. `rmcp` 3.4.1 serves both: the first always statelessly, the
+  second statelessly with `legacy_session_mode: false` (`MCP_PROBE.md` §4).
+  Without protocol sessions, every request stands alone.
 - §1's request guard applies unchanged: loopback only, `Host` checked, and a
   present, unlisted `Origin` refused with 403 `ORIGIN_REFUSED`, which the MCP
   transport requires.
@@ -309,7 +312,9 @@ A grant is Shadows' answer to "who may do what" on `/mcp` (§2.12's
   internal grant left from before (recovery, §8).
 - The web client does not manage grants. Opening a conversation can start an
   adapter (§12.2), and a grant comes with it.
-- A change of project instructions (§13.8) on a live adapter keeps its grant.
+- A change of project instructions (§13.8) touches neither the session nor its
+  grant. A new adapter's grant reaches a resumed session because `mcpServers`
+  is read on every resume (`MCP_PROBE.md` §3).
 
 **An external agent's grant is bound to one project.**
 
@@ -320,10 +325,11 @@ A grant is Shadows' answer to "who may do what" on `/mcp` (§2.12's
   headers in plain text in `~/.claude.json`; the settings page says so. This is
   accepted for a loopback-only daemon, a token bound to one project and unable
   to approve, that the person can revoke.
-- After revocation, Claude Code's documentation says a server whose
-  configured `Authorization` header is rejected is reported as a failed
-  connection, not sent into OAuth. This is expected, not yet observed;
-  acceptance step 6 records what Claude Code 2.1.281 shows.
+- A server that answers 401 with an empty body and no `WWW-Authenticate` is
+  reported by Claude Code 2.1.281 as failed to connect with a 401. It tried
+  twice and made no OAuth discovery request (`MCP_PROBE.md` §5). That was
+  observed when a session opens; acceptance step 6 records what Claude Code
+  shows when a token is revoked during a session.
 - Issuing and revoking are durable events, recorded without the token.
 - Issuing is an HTTP API route, open to any local process like approval is
   (§13.2's OPEN block).
@@ -365,14 +371,36 @@ permission request (§12.3), and Accept edits (§12.5's default) does not
 pre-approve MCP tools, so without it the Planner could not write a plan in the
 default mode. It restricts nothing; the grant remains the authority.
 
-**Before each turn starts**, Shadows compares the project instructions the open
-session was given with the current ones. If they differ, it sends
-`session/resume` on the same adapter with the new instructions and the same
-grant; the adapter rebuilds its session when its settings change
-(`computeSessionFingerprint`). A session is never rebuilt during a turn.
+**What a Claude session keeps.** Claude Code writes the appended instructions
+into the session's transcript when the session is created, and restores them
+on every `session/resume`, from the same adapter process or a new one. A
+changed `append` on resume is ignored. `mcpServers` is read again on every
+resume, so a new grant's token takes effect (`MCP_PROBE.md` §3). So `append`
+reaches Claude once, when its session is created. Shadows never rebuilds a
+session to change instructions.
+
+**When instructions change.** Before each turn starts, Shadows compares the
+current versions with those recorded by the thread's latest `agent_invocation`.
+The turn's prompt then carries, after the person's text, one context block with
+what differs:
+
+- the project instructions version differs: `[Shadows] The project's Planner
+  instructions changed. They replace the project instructions you were given
+  before:` followed by the new body, or `[Shadows] The project's Planner
+  instructions were removed.`;
+- `prompt_version` differs or was never recorded (a conversation from before
+  this milestone, or a Shadows upgrade that changed `prompt.txt`): the block
+  also carries `prompt.txt`, under `[Shadows] Shadows' instructions for you:`.
+
+A thread with no invocation gets no block when its session opens with
+`session/new`, because its `append` carries both. It gets a block with both when
+its session opens by fork (§12.2), because the parent's session holds versions
+Shadows did not record for this thread. The person's text is always the first
+content block. A session is never touched during a turn.
 
 Each `agent_invocation` records `prompt_version` and the
-`planner_instructions_version` it was sent (§13.15).
+`planner_instructions_version` current when it started (§13.15), so a change is
+sent once.
 
 ## 13.9 Showing a plan in the conversation
 
@@ -508,7 +536,10 @@ is open.
       `ACP_PROBE.md` §4);
    4. the MCP protocol version Claude Code 2.1.281 and `rmcp` agree on.
 
-   A probe that fails amends this section before anything is built.
+   A probe that fails amends this section before anything is built. **Ran
+   2026-09-25 (`docs/evidence/milestone2/MCP_PROBE.md`):** 1, 2 and 4 pass.
+   3 failed: the conversation is kept but the new `append` is not, which
+   amended §13.8 ("What a Claude session keeps").
 2. The plan: domain, validator, storage, commands, HTTP routes.
 3. `/mcp` and grants, tested with an `rmcp` client.
 4. The Planner: instructions, session fields, `fake_acp` calling `/mcp`.

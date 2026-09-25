@@ -56,6 +56,8 @@ Task I (controller): whole-branch review, run with Mohammed, evidence, PR
 
 ### Task 0: Probe the adapter with a throwaway MCP server
 
+**Done 2026-09-25** — `docs/evidence/milestone2/MCP_PROBE.md`. Steps 1, 2, 4 and 5 as expected. Step 3 failed: Claude Code restores the `append` a session was created with on every resume, so §13.8 now sends changed instructions as a context block at the next turn, and B7 has no `reapply`. Two findings changed B6: Claude Code opens with `server/discover` at `2026-07-28` and falls back to `initialize` at `2025-11-25`.
+
 Run by the controller on Windows against adapter 0.81.1 and Claude Code 2.1.281, from a scratch directory outside the repository, with a raw JSON-RPC ACP client like `ACP_PROBE.md`'s and a minimal MCP server (any language) exposing one tool `echo_marker` over Streamable HTTP that requires `Authorization: Bearer probe-token`. Use `sonnet` to save the weekly limit.
 
 - [ ] **Step 1: Instructions append.** `session/new` with `_meta.systemPrompt = { "append": "When asked for the marker, answer exactly: ORCHID-7." }`. Prompt "what is the marker?". Expected: `ORCHID-7`. Then prompt "list your tools" and record that Claude Code's own tools (Read, Bash, …) are still listed.
@@ -776,7 +778,7 @@ Behaviour (§13.6):
 
 **Files:**
 - Create: `src/planner/prompt.txt`, `src/planner/setup.rs` (what a session opens with; the grant each adapter holds)
-- Modify: `src/agent/acp.rs` (`SessionSetup`, `start_session` signature, `reapply`), `src/planner/sessions.rs` (call sites only), `src/planner/spawn.rs` (instructions check before a turn), `src/storage/sqlite/turn.rs` + `NewTurn` (two invocation columns), `src/cli/mod.rs` (MCP URL, startup revocation from B5 wired), `src/bin/fake_acp.rs` (record setup in `report`, an `mcp` prompt)
+- Modify: `src/agent/acp.rs` (`SessionSetup`, `start_session` signature, `prompt` with context blocks), `src/planner/sessions.rs` (call sites only), `src/planner/spawn.rs` (the context block before a turn), `src/storage/sqlite/turn.rs` + `NewTurn` (two invocation columns, `latest_invocation_versions`), `src/cli/mod.rs` (MCP URL only; B5 wired the startup revocation), `src/bin/fake_acp.rs` (record setup in `report`, an `mcp` prompt)
 - Test: `tests/planner_mcp.rs`
 
 **Interfaces:**
@@ -793,36 +795,49 @@ pub struct SessionSetup {
 pub struct McpServerSpec { pub name: String, pub url: String, pub bearer: String }
 impl Connection {
     pub async fn start_session(&self, cwd: &Path, how: SessionStart, setup: &SessionSetup) -> Result<Opened, AcpError>;
-    /// session/resume on a live session with new settings (§13.8).
-    pub async fn reapply(&self, session: &str, cwd: &Path, setup: &SessionSetup) -> Result<Opened, AcpError>;
+    /// The person's text is the first content block; each `context` entry is one more text block after it.
+    pub async fn prompt(&self, session: &str, text: &str, context: &[String]) -> Result<TurnEnd, AcpError>;
 }
 // src/planner/setup.rs
-pub(crate) struct Setups { /* per-thread stamp: grant id + instructions version id */ }
+pub(crate) struct Setups { /* per-thread: the live grant's id */ }
 impl Setups {
     pub(crate) fn new(storage: Arc<Storage>, mcp_url: Option<String>) -> Self;
     /// Issues the thread's grant (revoking any previous one) and builds the setup.
     pub(crate) async fn for_opening(&self, thread: &ThreadId, project: &ProjectId) -> Result<SessionSetup, String>;
-    /// Before a turn: Some(setup) with the same grant when the project's instructions changed.
-    pub(crate) async fn changed_before_turn(&self, thread: &ThreadId, project: &ProjectId) -> Result<Option<SessionSetup>, String>;
+    /// Before a turn: §13.8's context block when the versions the thread's latest
+    /// invocation recorded differ from the current ones (rules below).
+    pub(crate) async fn context_before_turn(&self, thread: &ThreadId, project: &ProjectId) -> Result<Option<String>, String>;
     /// The adapter closed: revoke its grant.
     pub(crate) async fn forget(&self, thread: &ThreadId);
-    pub(crate) fn stamp(&self, thread: &ThreadId) -> Option<(GrantId, Option<String>)>;
+    pub(crate) fn grant(&self, thread: &ThreadId) -> Option<GrantId>;
 }
 pub fn prompt_version() -> &'static str;   // sha256 hex (first 16) of prompt.txt, computed once
 // src/planner/sessions.rs gains one field and one accessor:
 //   setups: Setups,   pub(crate) fn setups(&self) -> &Setups
 // SessionsConfig gains: pub mcp_url: Option<String>   (None in tests that need no MCP)
 // NewTurn gains: pub prompt_version: Option<&'a str>, pub instructions_version: Option<&'a str>
+// src/storage/sqlite/turn.rs
+impl Storage {
+    /// (prompt_version, planner_instructions_version_id) of the thread's latest invocation, by its turn's order; None when it has none.
+    pub async fn latest_invocation_versions(&self, thread: &ThreadId) -> Result<Option<(Option<String>, Option<String>)>, StorageError>;
+}
 ```
 
-The ACP request fields (Task 0 confirmed them; §13.8 table): `mcp_servers` = one HTTP server `{ name: "shadows", url, headers: [Authorization: Bearer …] }`; `_meta.systemPrompt = { "append": prompt.txt + "\n\n## Project instructions\n\n" + body }` (the heading only when the project has instructions); `_meta.claudeCode.options.allowedTools = ["mcp__shadows__*"]`. Use the `agent-client-protocol` 2.2.0 builders for `mcp_servers` and `meta`; if a builder is missing, construct the request from `serde_json` into the typed request.
+The ACP request fields (Task 0 confirmed them; §13.8 table): `mcp_servers` = one HTTP server `{ name: "shadows", url, headers: [Authorization: Bearer …] }`; `_meta.systemPrompt = { "append": prompt.txt + "\n\n## Project instructions\n\n" + body }` (the heading only when the project has instructions); `_meta.claudeCode.options.allowedTools = ["mcp__shadows__*"]`. Use the `agent-client-protocol` 2.2.0 builders for `mcp_servers` and `meta`; if a builder is missing, construct the request from `serde_json` into the typed request. Send all three on `session/new`, `session/resume` and a fork's opening alike: on a resume Claude Code ignores the `append` (it restores the one the session was created with — `MCP_PROBE.md` §3) but reads `mcp_servers`, which is how a new adapter's grant reaches it.
+
+**Changed instructions (§13.8 "When instructions change").** Never `session/resume` to change instructions — Task 0 showed Claude keeps the original `append`. `context_before_turn` compares `prompt_version()` and the project's current instructions version id with `latest_invocation_versions(thread)`:
+- `None` (no invocation) and the thread has no `fork_session_id` → `None` (the new session's `append` carries both);
+- `None` and a `fork_session_id` → both parts below;
+- the instructions id differs → `"[Shadows] The project's Planner instructions changed. They replace the project instructions you were given before:\n\n" + body`, or `"[Shadows] The project's Planner instructions were removed."` when the project now has none;
+- `prompt_version` differs or is `None` (a pre-Milestone-2 invocation) → also `"[Shadows] Shadows' instructions for you:\n\n" + prompt.txt`, placed first.
+Both parts go in one block, separated by a blank line.
 
 `src/planner/prompt.txt` says, in plain English, the six points of §13.8, including: "You never approve a plan and never call Shadows' HTTP API; when asked to approve, ask the person to press Approve." Keep it under 60 lines.
 
 Wiring (keep `sessions.rs` under 500 lines — only calls):
 - `open_live`: `let setup = self.setups.for_opening(thread, &context.project_id).await.map_err(OpenError::Start)?;` before `start_session`; on any setup failure after the grant was issued, `self.setups.forget(thread).await`.
 - every path that removes a `Live` entry (idle close, `terminate`, `terminate_adapter`, `close_all`, dead-adapter replacement): `self.setups.forget(thread).await`.
-- `spawn.rs`, after the session is leased and before `prepare_turn`: `if let Some(setup) = sessions.setups().changed_before_turn(..)? { opened.connection().reapply(..).await }` — a failure fails the turn at `Prepare` with the adapter's words.
+- `spawn.rs`, after the session is leased and before `prepare_turn`: `let context: Vec<String> = sessions.setups().context_before_turn(..).await?.into_iter().collect();` and the prompt goes out as `connection.prompt(session, text, &context)` — a storage failure fails the turn at `Prepare`. Read the versions before `start_turn` records the new invocation.
 - `start_turn` records `prompt_version()` and the current instructions version id.
 - `fake_acp`: store the received `mcp_servers`, `_meta.systemPrompt.append` and `allowedTools` per session and include them (`"mcp"`, `"append"`, `"allowed"`) in the JSON its existing `report` prompt echoes — the bearer only as `"bearer_hash"` (sha256 hex, the same function as `mcp::grant::hash_token`), never the token, because a reply is stored as an `AgentMessage` — plus `"blocks"`: the text of every content block of the current prompt; a prompt `mcp <tool> <json args>` calls that tool on the session's MCP server with its bearer (using `rmcp`'s client, `test-support` only) and replies with the tool result's text.
 
@@ -831,7 +846,9 @@ Wiring (keep `sessions.rs` under 500 lines — only calls):
   - `a_turn_edits_the_plan_through_mcp` — `mcp draft_start {"title":"Login","goal":"g"}` then `mcp plan_edit {...}` → the plan exists with the task; the edit event's actor is `("Thread", thread)`.
   - `reopening_after_idle_issues_a_new_grant_and_revokes_the_old` — shorten `idle_after`; after the close, the grant whose `token_hash` is the first `bearer_hash` has `revoked_at` set; the next turn's `report` shows a different `bearer_hash` whose grant is live, and `mcp workflow_get {}` through the fake succeeds. (401 for a revoked token is B6's test.) (Review Focus 5.)
   - `restart_revokes_every_internal_grant` — shut the app down and start another on the same database: every `kind = 'thread'` grant has `revoked_at` set; project grants do not. (Review Focus 5.)
-  - `changed_instructions_apply_at_the_next_turn_not_during_one` — start a `wait-for-release` turn (existing: it ends when a file named `release` appears in the project directory), save new instructions via the route while it runs, then release it; a following `report` turn shows the new `append` and the same `bearer_hash`, and the adapter received exactly one `session/resume` (count them in `report`'s JSON as `"resumes"`), sent after the first turn ended.
+  - `changed_instructions_reach_the_next_turn_once_as_a_context_block` — start a `wait-for-release` turn (existing: it ends when a file named `release` appears in the project directory), save new instructions via the route while it runs, then release it; the next `report` turn's `blocks` are the person's text and then a block starting `[Shadows] The project's Planner instructions changed.` with the new body, and the same `bearer_hash`; the turn after that has only the person's text; the adapter received no `session/resume` after the first opening (count them in `report`'s JSON as `"resumes"`).
+  - `a_thread_from_before_this_milestone_gets_shadows_instructions_once` — seed an `agent_invocation` with both version columns NULL for a thread with a harness session; its next turn's second block starts `[Shadows] Shadows' instructions for you:`; the turn after has none.
+  - `a_new_threads_first_turn_has_no_context_block` — the `append` carries the instructions instead.
   - `an_invocation_records_the_prompt_and_instructions_versions`
 - [ ] **Step 2–4:** failing run, implement, gate.
 - [ ] **Step 5: Commit** `feat(planner): sessions open with Shadows' MCP server and instructions (§13.7–§13.8)`.
@@ -841,7 +858,7 @@ Wiring (keep `sessions.rs` under 500 lines — only calls):
 ### Task B8: The plan in the conversation
 
 **Files:**
-- Modify: `src/protocol/conversation.rs` (`StartTurn.focus`, `StartTurn.client_tab`, fingerprint), `src/storage/sqlite/turn.rs` (focus refs on the `UserMessage`), `src/agent/acp.rs` (`prompt` with a context block), `src/planner/handles.rs` (`LiveTurn.client_tab`), `src/mcp/tools.rs` + `src/mcp/server.rs` (`plan_show`), `src/protocol/mod.rs` (`AppState.ui`), `src/protocol/sse.rs` (`plan-show` frame)
+- Modify: `src/protocol/conversation.rs` (`StartTurn.focus`, `StartTurn.client_tab`, fingerprint), `src/storage/sqlite/turn.rs` (focus refs on the `UserMessage`), `src/planner/spawn.rs` (the focus block joins B7's context list), `src/planner/handles.rs` (`LiveTurn.client_tab`), `src/mcp/tools.rs` + `src/mcp/server.rs` (`plan_show`), `src/protocol/mod.rs` (`AppState.ui`), `src/protocol/sse.rs` (`plan-show` frame)
 - Create: `src/protocol/ui_signal.rs` (the live-only signal type)
 - Test: `tests/plan_in_conversation.rs`
 
@@ -855,8 +872,8 @@ focus: Option<Focus>, client_tab: Option<String>
 // The fingerprint covers thread id, prompt, model, mode, effort and focus (§12.7 amended); not client_tab.
 
 // src/agent/acp.rs
-pub async fn prompt(&self, session: &str, text: &str, context: Option<&str>) -> Result<TurnEnd, AcpError>
-// context, when present, is a second text content block after the person's text.
+// B7's prompt(session, text, context: &[String]) is reused: the focus block is pushed after
+// B7's instructions block, so the person's text stays first.
 
 // src/protocol/ui_signal.rs
 #[derive(Clone, serde::Serialize)]
