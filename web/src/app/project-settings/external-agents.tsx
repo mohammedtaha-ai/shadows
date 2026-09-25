@@ -134,7 +134,14 @@ function GrantRow({ grant, projectId }: { grant: Grant; projectId: string }) {
           </span>
         </span>
         {revokedAt === null ? (
-          <Button size="sm" variant="ghost" onClick={startRevoke} disabled={revoke.isPending}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={startRevoke}
+            disabled={revoke.isPending}
+            // Each row's button says which connection it ends, by what the row shows.
+            aria-label={`Revoke the connection made ${when(grant.created_at)}, ${grant.id}`}
+          >
             Revoke
           </Button>
         ) : (

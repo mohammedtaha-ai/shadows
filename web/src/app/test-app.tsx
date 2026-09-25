@@ -102,23 +102,35 @@ export async function startApp(url: string, answers: Record<string, Answer>): Pr
   const container = document.createElement('div')
   document.body.append(container)
 
-  // happy-dom never finishes an animation, and a badge crossfade waits for
-  // one. Set on the module instance the app is about to import: the app is
-  // imported fresh (see `vi.resetModules` in `stop`) so its router reads `url`.
-  const { MotionGlobalConfig } = await import('motion/react')
-  MotionGlobalConfig.skipAnimations = true
-  const { router } = await import('@/router')
-  const { RouterProvider } = await import('@tanstack/react-router')
-
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const root: Root = createRoot(container)
-  await act(async () => {
-    root.render(
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    )
-  })
+  const unmount = () => {
+    act(() => root.unmount())
+    container.remove()
+    vi.unstubAllGlobals()
+    vi.resetModules()
+  }
+  try {
+    // happy-dom never finishes an animation, and a badge crossfade waits for
+    // one. Set on the module instance the app is about to import: the app is
+    // imported fresh (see `vi.resetModules` in `unmount`) so its router reads `url`.
+    const { MotionGlobalConfig } = await import('motion/react')
+    MotionGlobalConfig.skipAnimations = true
+    const { router } = await import('@/router')
+    const { RouterProvider } = await import('@tanstack/react-router')
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>,
+      )
+    })
+  } catch (error) {
+    // The caller never receives an app to unmount, so a failed start cleans
+    // up here: otherwise its stubs and mounted tree leak into the next test.
+    unmount()
+    throw error
+  }
 
   return {
     container,
@@ -139,12 +151,7 @@ export async function startApp(url: string, answers: Record<string, Answer>): Pr
       if (source === undefined) throw new Error('no stream was opened')
       source.emit(name, JSON.stringify(data))
     },
-    unmount: () => {
-      act(() => root.unmount())
-      container.remove()
-      vi.unstubAllGlobals()
-      vi.resetModules()
-    },
+    unmount,
   }
 }
 

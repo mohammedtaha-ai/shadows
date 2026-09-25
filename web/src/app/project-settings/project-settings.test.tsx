@@ -121,6 +121,9 @@ describe('project settings', () => {
     await until(() => app.text().includes('Revoked'))
     expect(app.buttons('Revoke')).toHaveLength(1)
     expect(document.querySelectorAll('[data-grant]')).toHaveLength(2)
+    // A screen reader hears which connection the button ends.
+    const name = app.buttons('Revoke')[0]?.getAttribute('aria-label') ?? ''
+    expect(name).toMatch(/^Revoke the connection made .+, g2$/)
   })
 
   it('a newer version fetched in the background keeps unsaved edits', async () => {
