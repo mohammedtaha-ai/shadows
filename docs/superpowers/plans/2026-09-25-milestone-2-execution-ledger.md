@@ -15,7 +15,7 @@ committed; the tree is clean.
 | B1–B8 (backend) | done and reviewed — 302 Rust tests |
 | F1, F2 (pre-existing flakes) | done and reviewed — both were real product races |
 | W1 (plan page + graph) | done and reviewed (one fix round) — 116 web tests |
-| **W2 (plan in the conversation)** | **implemented, `9476bb4`, 125 web tests — REVIEW NOT RUN YET** (the Codex run was stopped before it wrote anything) |
+| W2 (plan in the conversation) | done and reviewed (opus, cloud) — 125 web tests |
 | W3 (project settings) | not started |
 | Task I | not started: whole-branch review, then Mohammed's run on Windows (§13.14's nine steps), evidence, status, PR only when Mohammed says |
 
@@ -169,3 +169,8 @@ Task W1: complete (commits fddc3f6..21e74b9, 116 web).
 - Ruling (Codex agrees): a wide plan's first view opens at the start column at readable zoom — cost if wrong: one camera setting.
 Task W2: dispatched, BASE 21e74b9.
 Task W2: implementer DONE_WITH_CONCERNS, 9476bb4 (125 web). Controller viewed the screenshot: card, Arabic focus chip and Open plan render. Rulings and the legend overlap sent to Codex.
+Session moved to the cloud (no Codex there): the desktop WIP commit held only `.claude/launch.json` (Windows paths) — dropped from the branch, kept untracked. Branch pushed as `milestone-2/plan-workflow-ggu7l6`. Reviewer from here on: opus (the ledger's fallback).
+Task W2: complete (commits 9476bb4..1dadd4a, opus review: legend moved under the compact card; messages.tsx split by job into messages.tsx + entry.tsx; 125 web, controller re-ran 125/125).
+Task W2: minor (deferred): tool lines lack §13.11's "· N changes" and Open plan — tool entries store bare `[tool: title]` with no workflow ref or result; needs a backend change (src/planner/turn.rs:88, web/src/app/conversation/tool-text.ts). Spec/brief gap, not a W2 defect.
+Task W2: minor (deferred): Fork disappears when a turn's last entry is the hidden plan_show tool line (tool lines batch after the card); the daemon forks only from the real last entry (src/storage/sqlite/mod.rs:66). Needs a ruling on fork points or on hiding that line.
+Task W3: dispatched, BASE 1dadd4a.
