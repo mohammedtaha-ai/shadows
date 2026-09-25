@@ -322,8 +322,13 @@ impl Shadows {
                 if plan.project_id != grant.project_id {
                     return Err(Refusal::scope("that plan is not in this grant's project"));
                 }
+                // A state error, not a scope one: the plan is in the project.
                 if plan.state != crate::workflow::WorkflowState::Frozen {
-                    return Err(Refusal::scope("start a new version from an approved plan"));
+                    return Err(Refusal::new(
+                        ErrorCode::InvalidCommand,
+                        "that plan version is a draft: edit it with plan_edit, or start a \
+                         new version from an approved one",
+                    ));
                 }
                 storage
                     .start_draft(&ctx, &writer, &plan.thread_id, None, Some(draft_ref))

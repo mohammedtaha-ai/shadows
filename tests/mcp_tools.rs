@@ -220,7 +220,9 @@ async fn an_external_draft_source_must_be_frozen() {
         json!({ "draft_ref": invalid_ref, "from_workflow_id": v2["workflow_id"] }),
     )
     .await;
-    assert!(text.starts_with("GRANT_SCOPE: "), "{text}");
+    // The draft is in the project: a state error, not a scope one.
+    assert!(text.starts_with("INVALID_COMMAND: "), "{text}");
+    assert!(text.contains("edit it with plan_edit"), "{text}");
     assert_eq!(
         l.app.storage.thread_plan(&l.app.thread).await.unwrap(),
         Some(serde_json::from_value(v2["workflow_id"].clone()).unwrap())

@@ -288,8 +288,11 @@ expire. The guarantee against a duplicate plan starts at `draft_start`.
    started: `GRANT_SCOPE` (a plan outside the grant's thread or project),
    `GRANT_INVALID` (revoked while the call was in flight), `REVISION_CONFLICT`,
    `WORKFLOW_FROZEN_IMMUTABLE`, `WORKFLOW_VALIDATION_FAILED` (with the
-   validator's list). The text says what to do, e.g. "T9 does not exist in
-   this plan".
+   validator's list), `COMMAND_CONFLICT` (§13.5), and §3.4's
+   `INVALID_COMMAND` for a request that cannot be done as asked — a task or
+   plan that does not exist, a draft named as the source of a new version, a
+   Planner call that needs a running turn outside one. The text says what to
+   do, e.g. "T9 does not exist in this plan".
 3. **HTTP API status codes** (409, 422) belong to the HTTP API only (§13.10).
 
 A tool the grant's list does not hold is unknown to that client.
