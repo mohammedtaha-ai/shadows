@@ -76,7 +76,7 @@ export function Messages({
     entries?.filter((entry) => !reply?.hidden.has(entry.ordinal) && !silent(entry)) ?? []
   const operational = label === undefined ? null : describeLabel(label)
   const answered = answeredNotes(shown, operations ?? [], models)
-  const lastId = entries?.at(-1)?.id
+  const forkAt = forkAnchor(entries ?? [], shown)
   const policy = policyOf(harness)
   const modeOf = (entry: ThreadEntry) =>
     operations?.find((op) => op.id === entry.operation_id)?.invocation?.requested_mode ?? null
@@ -125,8 +125,8 @@ export function Messages({
                 <MessageActions
                   text={copyText(entry)}
                   forkPoint={
-                    forkFrom !== null && entry.id === lastId
-                      ? { ...forkFrom, entryId: entry.id }
+                    forkFrom !== null && forkAt !== null && entry.id === forkAt.shownId
+                      ? { ...forkFrom, entryId: forkAt.entryId }
                       : undefined
                   }
                 />
@@ -158,6 +158,21 @@ export function Messages({
       </ol>
     </div>
   )
+}
+
+/** Where Fork shows, and the entry it forks from. The daemon forks only from
+ * the thread's last entry (spec §12.9), which may be a line that shows nothing
+ * (the tool call behind a plan card): Fork then sits on the last entry shown
+ * and forks from the real last one, which holds the same conversation. */
+function forkAnchor(
+  entries: readonly ThreadEntry[],
+  shown: readonly ThreadEntry[],
+): { shownId: string; entryId: string } | null {
+  const last = entries.at(-1)
+  const lastShown = shown.at(-1)
+  if (last === undefined || lastShown === undefined) return null
+  const after = entries.slice(entries.findIndex((e) => e.id === lastShown.id) + 1)
+  return after.every(silent) ? { shownId: lastShown.id, entryId: last.id } : null
 }
 
 /** For each turn whose answering model is not the one asked for, its note,

@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { ThreadEntry } from '@/api/client'
 import {
   agentEntry,
+  completedOperation,
   entryOfKind,
   planFixture,
   planViewEntry,
@@ -254,6 +255,26 @@ describe('the plan in the conversation', () => {
     const approved = [...a.container.querySelectorAll('[data-entry-kind="PlanApproved"]')]
     expect(approved).toHaveLength(1)
     expect(approved[0]?.querySelector('[dir="auto"]')?.textContent).toBe('Plan v1 approved')
+  })
+
+  it('a turn that ends with a plan card can still be forked, from its real last entry', async () => {
+    // As the daemon writes them: the card during the call, the call's own
+    // line when it completes, which shows nothing.
+    const a = await start(
+      [
+        userEntry('u1', 'show me the plan'),
+        planViewEntry('v1', 'Plan v1', 'w1'),
+        agentEntry('a1', '[tool: mcp__shadows__plan_show]'),
+      ],
+      { operations: [completedOperation(null)] },
+    )
+    await until(() => a.buttons('Fork').length === 1)
+    // On the card, the last entry the person sees.
+    const on = a.buttons('Fork')[0]?.closest('[data-entry-kind]')
+    expect(on?.getAttribute('data-entry-kind')).toBe('PlanView')
+    act(() => a.buttons('Fork')[0]?.click())
+    await until(() => a.calls.includes('POST /api/threads/t1/fork'))
+    expect(a.bodies.at(-1)).toMatchObject({ at_entry_id: 'a1' })
   })
 
   it('a conversation with a plan card holds one stream for its thread', async () => {
