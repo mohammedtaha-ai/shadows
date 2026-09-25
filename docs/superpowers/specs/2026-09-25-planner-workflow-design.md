@@ -198,7 +198,7 @@ decides whether a repeat is a replay.
 
 **The revision check is strict, with no exception for a writer's own earlier
 edits.** Two calls from one writer based on the same revision may still
-overwrite each other (each `task_put` carries the whole task). Parallel changes
+overwrite each other (each `task_update` carries the whole task). Parallel changes
 go in one `plan_edit`, which moves the revision once.
 
 **Who names the command.** A model is not asked to invent ids or to reuse one
@@ -263,8 +263,11 @@ expire. The guarantee against a duplicate plan starts at `draft_start`.
   `Draft`, it answers that draft and changes nothing. From an external agent,
   from scratch or from a frozen plan, it requires a `draft_ref` (§13.5).
 - **`plan_edit`** takes `expected_revision` and a list of operations —
-  `plan_put` (title and goal), `task_put`, `task_remove`, `link_put`,
-  `link_remove` — and answers the new revision.
+  `plan_put` (title and goal), `task_add`, `task_update`, `task_remove`,
+  `link_put`, `link_remove` — and answers the new revision. `task_add`
+  refuses a number already in use and `task_update` one not in use, so a
+  writer that meant to add a task never overwrites another by reusing its
+  number; both carry the whole task.
 - **`draft_start` from scratch** (external only) creates a planning thread and
   its first plan together, in the grant's project. The thread's title is the
   plan's title; the durable event that creates them records the grant as
@@ -343,7 +346,9 @@ They tell the Planner:
    block).
 
 **Project instructions** are edited in project settings. Each save is a new row
-of `planner_instructions_version` (§13.15); nothing is overwritten. They follow
+of `planner_instructions_version` (§13.15) with the next `number`; nothing is
+overwritten, and a project's current instructions are its highest number, so
+no pointer can name another project's row. They follow
 Shadows' instructions under a "Project instructions" heading.
 
 **What a session opens with.** `session/new` and `session/resume` carry, where
@@ -405,8 +410,9 @@ agent can read plans but cannot move a person's screen.
   still says which task when the conversation is read later.
 - Approving a plan writes a `PlanApproved` entry ("Plan v2 approved").
 
-`PlanView` and `PlanApproved` are the first entry kinds the client branches
-on, which is the trigger of §4's `ThreadEntryKind` OPEN block; §4 closes it.
+The client branches on these kinds, as Milestone 1's already does on
+`UserMessage` and `PermissionRefused`; that is the trigger of §4's
+`ThreadEntryKind` OPEN block, which §4 closes.
 
 ## 13.10 Protocol changes
 
@@ -585,11 +591,6 @@ CHECK kind IN ('needs', 'completes_after')
 CHECK (kind = 'completes_after') = (waiting_items IS NOT NULL)
 ```
 
-**`project`** (§6.3) gains `planner_instructions_version_id TEXT NULL`, the
-current row below, with a composite key so it can only name one of its own
-project's rows: `FK (planner_instructions_version_id, id) →
-planner_instructions_version(id, project_id)`.
-
 **`agent_invocation`** (§6.15) gains `prompt_version TEXT NULL` and
 `planner_instructions_version_id TEXT NULL`.
 
@@ -599,9 +600,10 @@ planner_instructions_version(id, project_id)`.
 planner_instructions_version
   id           TEXT PRIMARY KEY
   project_id   TEXT NOT NULL FK project(id)
+  number       INTEGER NOT NULL      -- 1, 2, 3 … within the project
   body         TEXT NOT NULL
   created_at   TEXT NOT NULL
-  UNIQUE(id, project_id)
+  UNIQUE(project_id, number)
 
 mcp_grant
   id           TEXT PRIMARY KEY

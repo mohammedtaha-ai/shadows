@@ -132,8 +132,10 @@ struct ThreadEntry {
 > diverge — a principal gaining fields an event actor must not carry — that is the
 > point to split them, and this note is where to say so.
 
-> **DECIDED 2026-09-25 — Milestone 2 closes this.** Its `PlanView` and
-> `PlanApproved` entries (§13.9) are the first kinds the client branches on.
+> **DECIDED 2026-09-25 — Milestone 2 closes this.** The trigger had already
+> fired unnoticed: Milestone 1's web client renders `UserMessage` and
+> `PermissionRefused` entries differently. Milestone 2 adds `PlanView` and
+> `PlanApproved` (§13.9), which the client also branches on.
 > `ThreadEntryKind` becomes an enum naming every value storage already holds —
 > the code writes `UserMessage`, `AgentMessage` and `PermissionRefused` at the
 > time of writing, and the migration checks the database holds no other — plus

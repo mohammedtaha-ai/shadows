@@ -68,7 +68,8 @@ before it. SQLite cannot add a NOT NULL column without a default, and a default
 would be an invented directory, so two triggers hold the rule for new rows
 instead: a NULL `directory` can be neither inserted nor written over one.
 
-> Milestone 2 adds `planner_instructions_version_id` (§13.15).
+> Milestone 2 keeps a project's Planner instructions in
+> `planner_instructions_version`, not in this table (§13.15).
 
 ---
 
