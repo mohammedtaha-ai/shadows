@@ -27,6 +27,7 @@ export type Answer = unknown | ((request: Request) => Response | Promise<Respons
 
 export interface TestApp {
   readonly container: HTMLElement
+  readonly queryClient: QueryClient
   /** Every request, as `METHOD /path`, in order. */
   readonly calls: string[]
   /** The JSON body of each request that had one, in order. */
@@ -121,6 +122,7 @@ export async function startApp(url: string, answers: Record<string, Answer>): Pr
 
   return {
     container,
+    queryClient,
     calls,
     bodies,
     sources,
