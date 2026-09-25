@@ -27,8 +27,8 @@ Domain IDs are UUID-v4 newtypes unless a later decision explicitly changes one:
 > One case is **reduced, not closed.** `Storage::append_thread_entry` took five
 > consecutive `&str`. Its fields now arrive as one named struct, so a swap must be
 > written out as `kind: <body text>` instead of happening silently by position.
-> `kind` and `body` are still both `&str`, so the compiler cannot refuse it. The
-> complete fix is `ThreadEntryKind` — see the OPEN block in §4.2.
+> `kind` was still `&str` like `body` until Milestone 2 typed it as
+> `ThreadEntryKind` (§4.2's decided block), which closes it.
 >
 > Why the ids are not `sqlx` types: CLAUDE.md keeps persistence imports out of
 > domain types, so every id converts to a column at the `storage/sqlite/` boundary

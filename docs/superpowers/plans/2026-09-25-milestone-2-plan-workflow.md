@@ -491,6 +491,14 @@ Durable events (kind, payload), each with the plan's thread and project and the 
 
 ```sql
 -- Milestone 2 (§13.15). workflow/task/task_parent did not exist before this.
+
+-- Domain §4.2: ThreadEntryKind is now an enum; refuse to migrate a database
+-- holding any other kind. SQLite has no ASSERT, so a CHECK on a temp table does it.
+CREATE TEMP TABLE entry_kind_check (kind TEXT NOT NULL CHECK (kind IN
+    ('UserMessage','AgentMessage','PermissionRefused','PlanView','PlanApproved')));
+INSERT INTO entry_kind_check SELECT DISTINCT kind FROM thread_entry;
+DROP TABLE entry_kind_check;
+
 CREATE UNIQUE INDEX planning_thread_id_project ON planning_thread(id, project_id);
 
 CREATE TABLE workflow (
