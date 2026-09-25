@@ -337,7 +337,7 @@ A grant is Shadows' answer to "who may do what" on `/mcp` (§2.12's
 ## 13.8 Planner instructions and the session
 
 **Shadows' instructions** are `src/planner/prompt.txt`, compiled in with
-`include_str!`. Their version is a hash of the text, computed at build time.
+`include_str!`. Their version is a hash of the compiled text, computed once when the daemon starts.
 They tell the Planner:
 
 1. its main job — analyse, discuss, and build the plan with Shadows' tools; no
@@ -380,7 +380,7 @@ reaches Claude once, when its session is created. Shadows never rebuilds a
 session to change instructions.
 
 **When instructions change.** Before each turn starts, Shadows compares the
-current versions with those recorded by the thread's latest `agent_invocation`.
+current versions with those recorded by the thread's latest `agent_invocation` whose turn started (the route records the new turn's invocation before this check, and a turn refused before its prompt went out must not swallow a change).
 The turn's prompt then carries, after the person's text, one context block with
 what differs:
 
@@ -392,8 +392,9 @@ what differs:
   this milestone, or a Shadows upgrade that changed `prompt.txt`): the block
   also carries `prompt.txt`, under `[Shadows] Shadows' instructions for you:`.
 
-A thread with no invocation gets no block when its session opens with
-`session/new`, because its `append` carries both. It gets a block with both when
+A thread with no started turn whose session opened with `session/new` is compared
+with the versions that `append` carried, so instructions saved between opening a
+conversation and its first message still arrive. It gets a block with both when
 its session opens by fork (§12.2), because the parent's session holds versions
 Shadows did not record for this thread. The person's text is always the first
 content block. A session is never touched during a turn.
