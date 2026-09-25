@@ -179,7 +179,7 @@ pub fn is_available(kind: &str) -> bool
 pub fn default_modes() -> BTreeMap<String, Vec<String>>
 ```
 
-## `src/bin/fake_acp.rs` — 342 lines
+## `src/bin/fake_acp.rs` — 347 lines
 
 Nothing reachable from outside this file.
 
@@ -615,12 +615,13 @@ impl Offers {
 pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, to: mpsc::UnboundedSender<HarnessEvent>) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static
 ```
 
-## `src/planner/sessions.rs` — 482 lines
+## `src/planner/sessions.rs` — 485 lines
 
 ```rust
 pub struct SessionsConfig {
     pub idle_after: Duration,
     pub cancel_wait: Duration,
+    pub setup_wait: Duration,
     pub context_wait: Duration,
     pub mcp_url: Option<String>,
 }
@@ -1463,7 +1464,7 @@ pub enum EntryRef {
 }
 ```
 
-## `src/tracing.rs` — 125 lines
+## `src/tracing.rs` — 126 lines
 
 ```rust
 pub struct DebugLog {}

@@ -222,6 +222,11 @@ async fn main() -> agent_client_protocol::Result<()> {
         }}, agent_client_protocol::on_receive_request!())
         .on_receive_request({ let state = state.clone(); async move |r: ResumeSessionRequest, responder, _cx| {
             let id = r.session_id.to_string();
+            // A harness slow to open its session, as Claude Code's own
+            // startup is on Windows (seconds).
+            if id.starts_with("slow-") {
+                tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+            }
             let mut st = state.lock().unwrap();
             let how = if id.starts_with("fork-of-") { "fork" } else { "resume" };
             st.resumes += 1;

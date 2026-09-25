@@ -36,6 +36,8 @@ use crate::{
 pub struct SessionsConfig {
     pub idle_after: Duration,
     pub cancel_wait: Duration,
+    /// How long an adapter has to start and open its session (§12.2).
+    pub setup_wait: Duration,
     /// How long the on-demand context breakdown waits for `/context` (§12.8).
     pub context_wait: Duration,
     /// Shadows' `/mcp`, as the daemon bound it; `None` in tests that need no MCP.
@@ -47,6 +49,7 @@ impl Default for SessionsConfig {
         Self {
             idle_after: Duration::from_secs(15 * 60),
             cancel_wait: Duration::from_secs(10),
+            setup_wait: Duration::from_secs(20),
             context_wait: Duration::from_secs(5),
             mcp_url: None,
         }
@@ -196,7 +199,7 @@ impl Sessions {
         };
         let (tx, rx) = mpsc::unbounded_channel();
         let events = intercept(self.offers.clone(), thread.clone(), tx);
-        let setup = tokio::time::timeout(Duration::from_secs(5), async {
+        let setup = tokio::time::timeout(self.config.setup_wait, async {
             let connection = Connection::open(&mut handle, events)
                 .await
                 .map_err(|e| e.to_string())?;

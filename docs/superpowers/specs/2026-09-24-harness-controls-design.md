@@ -119,7 +119,16 @@ effort and mode again whenever they differ from what the session reports
 (§12.7).
 
 The adapter writes diagnostics to stderr; the daemon forwards each line to its
-debug log.
+debug log (target `harness.stderr`, which `--debug` enables).
+
+**An adapter has 20 s to open its session** (`setup_wait`): starting, ACP
+`initialize`, `session/new`, `session/resume` or the fork, and the opening
+settings. Past that the opening fails and its tree is terminated. Claude Code
+reads the person's own configuration when it starts, so its startup has no
+fixed cost: on Windows an opening took 2.6–5.7 s, nearly all of it the SDK's
+`sdk-initialize` phase (4.2 s in one), and the first bound of 5 s refused
+openings in Milestone 1's and Milestone 2's runs
+(`docs/evidence/milestone2/WINDOWS_RUN.md`).
 
 **Permission requests are refused.** The adapter asks the client before a tool
 runs that the mode does not already allow (`session/request_permission`). In

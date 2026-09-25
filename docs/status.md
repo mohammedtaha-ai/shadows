@@ -83,7 +83,8 @@ The PR is #4; its execution ledger was removed from the branch before merge.
    model is, and Claude's `default` effort is not offered. Amends §12.4 and
    §12.7.
 2. **One lock for every open session.** `Sessions` holds a single lock through
-   an adapter's startup (up to 5 s) and through each termination wait, so
+   an adapter's startup (typically 3–6 s on Windows, bounded at 20 s) and
+   through each termination wait, so
    opening one conversation can delay Stop on another. This is latency, not a
    correctness defect. The fix is one slot per thread. It is its own task,
    after the PR.

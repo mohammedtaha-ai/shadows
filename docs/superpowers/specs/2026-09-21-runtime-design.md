@@ -332,7 +332,8 @@ payloads, bootstrap credentials, or sensitive filesystem paths by default. Debug
 mode may add diagnostic detail; it does not disable redaction.
 
 **Debug mode.** `shadows serve --debug` raises the default filter to
-`shadows=debug` (`RUST_LOG`, when set, still decides) and writes every line to
+`shadows=debug` and the harness adapter's stderr (`harness.stderr`, spec §12.2)
+(`RUST_LOG`, when set, still decides) and writes every line to
 stderr **and** to a new plain-text file,
 `<data dir>/logs/shadows-<UTC start>-<pid>.log`, where the data directory is the
 one holding the database. One file per daemon start; `tracing-appender` writes

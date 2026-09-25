@@ -35,7 +35,8 @@ impl DebugLog {
 /// Installs the global subscriber. Call once per process.
 ///
 /// `debug_data_dir` is debug mode (`shadows serve --debug`): the default
-/// filter becomes `shadows=debug`, and lines also go to a new file under
+/// filter becomes `shadows=debug` plus the adapter's stderr lines
+/// (`harness.stderr`, §12.2), and lines also go to a new file under
 /// `<data dir>/logs/`, one per daemon start, named for the UTC start time and
 /// the process id. Without it: `shadows=info`, stderr only. `verbose` raises
 /// the stderr level without writing a file. `RUST_LOG`, when set, overrides
@@ -47,7 +48,7 @@ impl DebugLog {
 /// log file's path after it) — and startup recovery logs before that print.
 pub fn init(verbose: bool, debug_data_dir: Option<&Path>) -> anyhow::Result<Option<DebugLog>> {
     let default = if verbose || debug_data_dir.is_some() {
-        "shadows=debug,info"
+        "shadows=debug,harness.stderr=debug,info"
     } else {
         "shadows=info,warn"
     };
