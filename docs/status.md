@@ -9,6 +9,12 @@ restate them.
 
 ## Where we are
 
+**Milestone 2 (§13, the Planner writes a plan) is being built** on branch
+`milestone-2/plan-workflow`. The backend and the first two web tasks are done.
+Still to do: W2's review, W3, the whole-branch review, and Mohammed's run.
+Handoff and ledger:
+[`superpowers/plans/2026-09-25-milestone-2-execution-ledger.md`](./superpowers/plans/2026-09-25-milestone-2-execution-ledger.md).
+
 **Milestone 1 is implemented, Phase A and Phase B, and both have run on
 Linux against the real harness.** A Planner turn is an ACP `session/prompt` on
 an adapter each open thread keeps (spec §12). The person chooses the CLI per
