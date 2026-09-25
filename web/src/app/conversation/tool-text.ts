@@ -1,5 +1,7 @@
 // One job: how a tool call reads in the conversation — its title, or for
-// Shadows' own tools a sentence (§13.11).
+// Shadows' own tools a sentence (§13.11), or no line at all.
+
+import type { ThreadEntry } from '@/api/client'
 
 /** What each of Shadows' tools (`mcp__shadows__<name>`, §13.6) did, said as a
  * person would. `plan_show` says nothing: the card it wrote is the entry. */
@@ -25,4 +27,18 @@ export function toolText(title: string): string | null {
   const name = /^mcp__shadows__(\w+)/.exec(title)?.[1]
   if (name === undefined || !(name in SENTENCES)) return title
   return SENTENCES[name] ?? null
+}
+
+export const isTool = (entry: ThreadEntry) =>
+  entry.kind === 'AgentMessage' && toolTitle(entry.body) !== null
+
+/** An entry that adds no line: a tool call whose result is another entry. */
+export function silent(entry: ThreadEntry): boolean {
+  return isTool(entry) && toolText(toolTitle(entry.body) ?? '') === null
+}
+
+/** What Copy puts on the clipboard: the text as it reads, not its wrapping. */
+export function copyText(entry: ThreadEntry): string {
+  const tool = toolTitle(entry.body)
+  return tool === null ? entry.body : (toolText(tool) ?? tool)
 }

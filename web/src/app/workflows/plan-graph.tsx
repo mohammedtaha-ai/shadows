@@ -71,7 +71,7 @@ export function PlanGraph({
   const canvas = useRef<HTMLDivElement>(null)
   const size = useCanvasSize(canvas)
 
-  return (
+  const flow = (
     <div ref={canvas} data-plan-canvas className={compact ? 'h-72 w-full' : 'h-full w-full'}>
       <ReactFlow
         nodes={shown}
@@ -91,18 +91,31 @@ export function PlanGraph({
       >
         <Controls showInteractive={false} fitViewOptions={WHOLE_PLAN} />
         {!compact && <MiniMap pannable zoomable />}
-        <Legend />
+        {!compact && (
+          <Panel position="top-right">
+            <Legend className="rounded-md border border-border bg-background/90 px-2 py-1" />
+          </Panel>
+        )}
         <Camera size={size} compact={compact} focusTask={focusTask} lastClicked={lastClicked} nodes={shown} />
       </ReactFlow>
+    </div>
+  )
+  if (!compact) return flow
+  // A card is too short for a floating legend: over its zoomed-in graph it
+  // would hide the nodes at its top right, so it sits under the canvas.
+  return (
+    <div>
+      {flow}
+      <Legend className="border-t border-border px-3 py-1.5" />
     </div>
   )
 }
 
 /** Explains the two kinds of link (§13.11). */
-function Legend() {
+function Legend({ className }: { className: string }) {
   return (
-    <Panel position="top-right">
-      <div className="flex items-center gap-3 rounded-md border border-border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground">
+    <div data-plan-legend className={className}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <svg width="22" height="6" aria-hidden>
             <line x1="0" y1="3" x2="22" y2="3" stroke="var(--accent-line)" strokeWidth="1.5" />
@@ -124,7 +137,7 @@ function Legend() {
           completes after: parts wait
         </span>
       </div>
-    </Panel>
+    </div>
   )
 }
 

@@ -111,8 +111,11 @@ describe('the plan in the conversation', () => {
       (l) => l.textContent?.trim() === 'Open plan',
     )
     expect(openPlan?.getAttribute('href')).toBe('/projects/p1/workflows/w1')
-    // A compact card: no minimap.
+    // A compact card: no minimap, and its legend under the canvas, not over
+    // the nodes of its zoomed-in graph.
     expect(card(a)?.querySelector('.react-flow__minimap')).toBeNull()
+    expect(card(a)?.querySelector('[data-plan-legend]')?.textContent).toContain('needs')
+    expect(card(a)?.querySelector('[data-plan-canvas] [data-plan-legend]')).toBeNull()
     for (const text of card(a)?.querySelectorAll('header p, header span, header h2') ?? []) {
       expect(text.getAttribute('dir'), text.outerHTML).toBe('auto')
     }
