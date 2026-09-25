@@ -10,6 +10,18 @@ import { FakeSource } from '@/stream/fake-event-source'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
+// Load the whole app once while the test file is collected, outside every
+// test's timeout. The first import transforms every app module and loads the
+// dependencies — about two seconds idle, past five under load — and if a test
+// pays for it, the first test in each file times out and leaves its app
+// mounted for the next. `resetModules` then drops the instance loaded here, so
+// `startApp` still imports the app fresh; what stays warm is the transform
+// cache, which makes that import a few milliseconds.
+await import('motion/react')
+await import('@tanstack/react-router')
+await import('@/router')
+vi.resetModules()
+
 /** An answer: a JSON body, or a function of the request for anything else. */
 export type Answer = unknown | ((request: Request) => Response | Promise<Response>)
 
@@ -135,7 +147,7 @@ export async function startApp(url: string, answers: Record<string, Answer>): Pr
 }
 
 /** Lets pending fetches and renders settle until `ready` holds, for up to
- * three seconds: a cold first run (modules still being transformed) is slow. */
+ * three seconds. */
 export async function until(ready: () => boolean): Promise<void> {
   const deadline = Date.now() + 3000
   while (!ready() && Date.now() < deadline) {

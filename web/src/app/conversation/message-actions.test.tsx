@@ -40,7 +40,9 @@ describe('message actions', () => {
     } as Clipboard)
     const app = await start(answers({ entries: [userEntry('u1', 'hi'), agentEntry('a1', 'hello')] }))
     await until(() => app.buttons('Copy').length === 2)
-    act(() => app.buttons('Copy')[1]?.click())
+    // Async act: the copy answers a promise later, and its "Copied" must land
+    // inside act, not in the tick after a check that was already true.
+    await act(async () => app.buttons('Copy')[1]?.click())
     await until(() => writes.length === 1)
     expect(writes).toEqual(['hello'])
     await until(() => app.buttons('Copied').length === 1)

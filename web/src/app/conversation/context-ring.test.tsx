@@ -15,12 +15,16 @@ import { startApp, until } from '../test-app'
 import { ContextRing } from './context-ring'
 import type { ContextFigures } from './usage'
 
-const nowSec = Math.floor(Date.now() / 1000)
+// The clock the summary test reads, fixed: reset times count from the moment
+// the ring opens, so a real clock that ticks a second between here and the
+// click reads 4h17m.
+const nowSec = Date.parse('2026-09-24T03:00:00Z') / 1000
 
 const mounted: (() => void)[] = []
 afterEach(() => {
   for (const unmount of mounted.splice(0)) unmount()
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 function renderRing({
@@ -79,6 +83,8 @@ describe('the context ring', () => {
   })
 
   it('shows the summary level: context, five-hour and weekly with resets, and when observed', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(nowSec * 1000)
     const r = renderRing({
       usage: { contextUsed: 126800, contextWindow: 1_000_000 },
       limits: {
