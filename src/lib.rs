@@ -5,6 +5,7 @@ pub mod config;
 pub mod error;
 pub mod events;
 pub mod id;
+pub mod mcp;
 pub mod operation;
 pub mod planner;
 pub mod process;

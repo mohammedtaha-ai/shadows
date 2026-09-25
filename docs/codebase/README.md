@@ -38,10 +38,13 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/bin/` | test apparatus that no product code links | `src/bin/tree_probe.rs` |
 | `src/cli/` | daemon startup | `src/cli/args.rs` |
 | `src/command/` | external-command identity for idempotency | `src/command/mod.rs` |
+| `src/command/derive.rs` | command ids Shadows derives when a caller names none | `src/command/derive.rs` |
 | `src/config.rs` | startup configuration resolved once | `src/config.rs` |
 | `src/error.rs` | the stable failure taxonomy clients match on | `src/error.rs` |
 | `src/events/` | the durable event record's shape | `src/events/mod.rs` |
 | `src/id.rs` | the UUID id newtype pattern | `src/id.rs` |
+| `src/mcp/` | Shadows' MCP server | `src/mcp/mod.rs` |
+| `src/mcp/grant.rs` | who may do what on `/mcp` | `src/mcp/grant.rs` |
 | `src/operation/` | the operation lifecycle's shape | `src/operation/mod.rs` |
 | `src/planner/` | the Planner turn's spawn-through-termination lifecycle | `src/planner/mod.rs` |
 | `src/process/` | OS process ownership with whole-tree containment | `src/process/mod.rs` |
@@ -49,6 +52,11 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/protocol/` | the HTTP/SSE surface every client talks to | `src/protocol/project.rs` |
 | `src/runtime/` | the runtime instance's lifecycle | `src/runtime/mod.rs` |
 | `src/storage/` | persistence | `src/storage/sqlite/project.rs` |
+| `src/storage/sqlite/workflow.rs` | changing a plan version | `src/storage/sqlite/workflow.rs` |
+| `src/storage/sqlite/workflow_draft.rs` | starting a plan version | `src/storage/sqlite/workflow_draft.rs` |
+| `src/storage/sqlite/workflow_read.rs` | reading plan versions | `src/storage/sqlite/workflow_read.rs` |
+| `src/storage/sqlite/task.rs` | a plan version's task graph rows | `src/storage/sqlite/task.rs` |
+| `src/storage/sqlite/grant.rs` | what a writer's MCP grant permits a write | `src/storage/sqlite/grant.rs` |
 | `src/thread/` | the planning thread's shape | `src/thread/mod.rs` |
 | `src/tracing.rs` | tracing subscriber setup | `src/tracing.rs` |
 | `src/workflow/` | a plan's content under the rules of §13 | `src/workflow/mod.rs` |

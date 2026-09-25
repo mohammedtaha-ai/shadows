@@ -14,6 +14,8 @@ pub use check::{Problem, approval_problems, edit_problems};
 pub use ops::{Applied, PlanOp, apply};
 
 use crate::id::newtype_id;
+use crate::project::ProjectId;
+use crate::thread::ThreadId;
 
 newtype_id! {
     /// Spec §13.2. One version of a plan.
@@ -106,4 +108,102 @@ pub struct PlanContent {
     pub goal: String,
     pub tasks: BTreeMap<u32, TaskContent>,
     pub links: Vec<Link>,
+}
+
+/// One task of a stored version: its storage id beside its content.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct PlanTask {
+    pub id: TaskId,
+    #[serde(flatten)]
+    pub content: TaskContent,
+}
+
+/// The edit that set a version's current revision (§13.10's plan read).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct LastEdit {
+    pub revision: i64,
+    pub summary: String,
+    pub changed_tasks: Vec<u32>,
+}
+
+/// One stored version of a plan, as a reader sees it now (§13.2).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct Plan {
+    pub id: WorkflowId,
+    pub thread_id: ThreadId,
+    pub project_id: ProjectId,
+    pub version: i64,
+    pub revision: i64,
+    pub state: WorkflowState,
+    pub title: String,
+    pub goal: String,
+    /// The version this one was copied from.
+    pub previous: Option<WorkflowId>,
+    /// The version copied from this one, once it exists.
+    pub next: Option<WorkflowId>,
+    pub tasks: Vec<PlanTask>,
+    pub links: Vec<Link>,
+    /// What blocks approval ([`approval_problems`]) for a `Draft`; empty for
+    /// a `Frozen` version.
+    pub blockers: Vec<Problem>,
+    /// `None` until the version is first edited.
+    pub last_edit: Option<LastEdit>,
+    pub frozen_at: Option<String>,
+    pub created_at: String,
+}
+
+impl Plan {
+    /// The content [`apply`] and the checks work on.
+    pub fn content(&self) -> PlanContent {
+        PlanContent {
+            title: self.title.clone(),
+            goal: self.goal.clone(),
+            tasks: self
+                .tasks
+                .iter()
+                .map(|t| (t.content.number, t.content.clone()))
+                .collect(),
+            links: self.links.clone(),
+        }
+    }
+}
+
+/// What an edit did, fixed when it committed, so a replay answers exactly
+/// that and not the plan as it is later (§13.5).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct EditOutcome {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub revision: i64,
+    pub summary: String,
+    pub changed_tasks: Vec<u32>,
+}
+
+/// What `draft_start` answered: the version, which never changes as the draft
+/// is edited (§13.6).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct DraftStarted {
+    pub workflow_id: WorkflowId,
+    pub thread_id: ThreadId,
+    pub version: i64,
+}
+
+/// What an approval did, fixed when it committed (§13.2, §13.5).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct Approved {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub revision: i64,
+    pub frozen_at: String,
+}
+
+/// A plan as a project's list shows it: its thread's latest version.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct PlanListing {
+    pub id: WorkflowId,
+    pub thread_id: ThreadId,
+    pub title: String,
+    pub version: i64,
+    pub state: WorkflowState,
+    pub updated_at: String,
 }

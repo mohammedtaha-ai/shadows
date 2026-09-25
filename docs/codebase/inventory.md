@@ -193,7 +193,18 @@ impl Cli {
 pub async fn serve(config: Config) -> anyhow::Result<()>
 ```
 
-## `src/command/mod.rs` — 46 lines
+## `src/command/derive.rs` — 32 lines
+
+```rust
+pub enum Anchor<'a> {
+    Revision(i64),
+    Operation(&'a OperationId),
+    DraftRef(&'a str),
+}
+pub fn derived_id(anchor: Anchor<'_>, fingerprint: &str) -> String
+```
+
+## `src/command/mod.rs` — 94 lines
 
 ```rust
 pub struct CommandContext {
@@ -204,6 +215,17 @@ pub struct CommandContext {
     pub command_schema_ver: i64,
     pub request_fingerprint: String,
 }
+pub enum Writer {
+    Person,
+    Planner { thread: ThreadId, grant: GrantId },
+    External { grant: GrantId },
+}
+impl Writer {
+    pub fn principal(&self) -> (&'static str, String)
+    pub fn actor(&self) -> Actor
+    pub fn grant(&self) -> Option<&GrantId>
+}
+
 pub fn fingerprint(command_kind: &str, params: &serde_json::Value) -> String
 ```
 
@@ -327,17 +349,33 @@ impl DurableEvent {
 }
 ```
 
-## `src/id.rs` — 105 lines
+## `src/id.rs` — 101 lines
 
 ```rust
 pub(crate) use newtype_id;
 ```
 
-## `src/lib.rs` — 17 lines
+## `src/lib.rs` — 18 lines
 
 Nothing reachable from outside this file.
 
 ## `src/main.rs` — 7 lines
+
+Nothing reachable from outside this file.
+
+## `src/mcp/grant.rs` — 9 lines
+
+```rust
+pub struct GrantId(String);
+impl GrantId {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+    pub fn from_literal(id: impl Into<String>) -> Self
+}
+```
+
+## `src/mcp/mod.rs` — 15 lines
 
 Nothing reachable from outside this file.
 
@@ -926,6 +964,13 @@ impl Storage {
 }
 ```
 
+## `src/storage/sqlite/grant.rs` — 91 lines
+
+```rust
+pub(super) async fn check_writer(conn: &mut SqliteConnection, writer: &Writer, project: &ProjectId, thread: Option<&ThreadId>) -> Result<(), StorageError>
+pub(super) async fn bind_draft_ref(conn: &mut SqliteConnection, writer: &Writer, draft_ref: &str, workflow: &WorkflowId, project: &ProjectId, ts: &str) -> Result<(), StorageError>
+```
+
 ## `src/storage/sqlite/harness.rs` — 128 lines
 
 ```rust
@@ -938,7 +983,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/mod.rs` — 267 lines
+## `src/storage/sqlite/mod.rs` — 297 lines
 
 ```rust
 pub use events_read::StoredEvent;
@@ -955,6 +1000,11 @@ pub enum StorageError {
     HarnessLocked,
     ThreadBusy,
     ForkPointNotSupported,
+    RevisionConflict { current: i64, summary: String },
+    WorkflowFrozen,
+    PlanInvalid(Vec<Problem>),
+    GrantInvalid,
+    GrantScope,
     Json(serde_json::Error),
     Database(sqlx::Error),
 }
@@ -1023,7 +1073,15 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/thread.rs` — 284 lines
+## `src/storage/sqlite/task.rs` — 208 lines
+
+```rust
+pub(super) async fn tasks_of(conn: &mut SqliteConnection, workflow: &WorkflowId) -> Result<Vec<PlanTask>, StorageError>
+pub(super) async fn links_of(conn: &mut SqliteConnection, workflow: &WorkflowId) -> Result<Vec<Link>, StorageError>
+pub(super) async fn write_content(conn: &mut SqliteConnection, workflow: &WorkflowId, before: &[PlanTask], after: &PlanContent, ts: &str) -> Result<(), StorageError>
+```
+
+## `src/storage/sqlite/thread.rs` — 295 lines
 
 ```rust
 impl Storage {
@@ -1034,6 +1092,7 @@ impl Storage {
     pub async fn list_threads_for_project(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>
 }
 
+pub(super) async fn insert_thread(conn: &mut SqliteConnection, project_id: &ProjectId, title: &str, harness: &str, actor: Actor, ts: &str) -> Result<ThreadId, StorageError>
 pub(super) async fn load_thread(conn: &mut SqliteConnection, id: &ThreadId) -> Result<PlanningThread, StorageError>
 ```
 
@@ -1085,6 +1144,39 @@ impl Storage {
     pub async fn replayed_turn(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<Option<StartedTurn>, StorageError>
     pub async fn thread_is_busy(&self, thread: &ThreadId) -> Result<bool, StorageError>
 }
+```
+
+## `src/storage/sqlite/workflow.rs` — 224 lines
+
+```rust
+impl Storage {
+    pub async fn edit_plan(&self, ctx: &CommandContext, writer: &Writer, workflow: &WorkflowId, expected_revision: i64, ops: &[PlanOp]) -> Result<EditOutcome, StorageError>
+    pub async fn approve_plan(&self, ctx: &CommandContext, workflow: &WorkflowId, expected_revision: i64) -> Result<Approved, StorageError>
+}
+```
+
+## `src/storage/sqlite/workflow_draft.rs` — 230 lines
+
+```rust
+impl Storage {
+    pub async fn start_draft(&self, ctx: &CommandContext, writer: &Writer, thread: &ThreadId, fresh: Option<(&str, &str)>, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>
+    pub async fn start_thread_with_draft(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, title: &str, goal: &str, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>
+}
+```
+
+## `src/storage/sqlite/workflow_read.rs` — 186 lines
+
+```rust
+impl Storage {
+    pub async fn get_plan(&self, workflow: &WorkflowId) -> Result<Plan, StorageError>
+    pub async fn list_plans(&self, project: &ProjectId) -> Result<Vec<PlanListing>, StorageError>
+    pub async fn thread_plan(&self, thread: &ThreadId) -> Result<Option<WorkflowId>, StorageError>
+}
+
+pub(super) async fn latest_version(conn: &mut SqliteConnection, thread: &ThreadId) -> Result<Option<WorkflowId>, StorageError>
+pub(super) async fn load_plan(conn: &mut SqliteConnection, id: &WorkflowId) -> Result<Plan, StorageError>
+pub(super) async fn edits_of(conn: &mut SqliteConnection, thread: &ThreadId, workflow: &WorkflowId) -> Result<Vec<EditOutcome>, StorageError>
+pub(super) async fn recorded_outcome<T: serde::de::DeserializeOwned>(conn: &mut SqliteConnection, event_id: &str) -> Result<T, StorageError>
 ```
 
 ## `src/thread/mod.rs` — 149 lines
@@ -1188,7 +1280,7 @@ pub fn approval_problems(content: &PlanContent) -> Vec<Problem>
 pub(super) fn edit_problems_after_removing(content: &PlanContent, removed: &BTreeSet<u32>) -> Vec<Problem>
 ```
 
-## `src/workflow/mod.rs` — 109 lines
+## `src/workflow/mod.rs` — 209 lines
 
 ```rust
 pub use check::{Problem, approval_problems, edit_problems};
@@ -1245,6 +1337,63 @@ pub struct PlanContent {
     pub goal: String,
     pub tasks: BTreeMap<u32, TaskContent>,
     pub links: Vec<Link>,
+}
+pub struct PlanTask {
+    pub id: TaskId,
+    pub content: TaskContent,
+}
+pub struct LastEdit {
+    pub revision: i64,
+    pub summary: String,
+    pub changed_tasks: Vec<u32>,
+}
+pub struct Plan {
+    pub id: WorkflowId,
+    pub thread_id: ThreadId,
+    pub project_id: ProjectId,
+    pub version: i64,
+    pub revision: i64,
+    pub state: WorkflowState,
+    pub title: String,
+    pub goal: String,
+    pub previous: Option<WorkflowId>,
+    pub next: Option<WorkflowId>,
+    pub tasks: Vec<PlanTask>,
+    pub links: Vec<Link>,
+    pub blockers: Vec<Problem>,
+    pub last_edit: Option<LastEdit>,
+    pub frozen_at: Option<String>,
+    pub created_at: String,
+}
+impl Plan {
+    pub fn content(&self) -> PlanContent
+}
+
+pub struct EditOutcome {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub revision: i64,
+    pub summary: String,
+    pub changed_tasks: Vec<u32>,
+}
+pub struct DraftStarted {
+    pub workflow_id: WorkflowId,
+    pub thread_id: ThreadId,
+    pub version: i64,
+}
+pub struct Approved {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub revision: i64,
+    pub frozen_at: String,
+}
+pub struct PlanListing {
+    pub id: WorkflowId,
+    pub thread_id: ThreadId,
+    pub title: String,
+    pub version: i64,
+    pub state: WorkflowState,
+    pub updated_at: String,
 }
 ```
 

@@ -50,10 +50,6 @@ macro_rules! newtype_id {
             /// Reconstructs an id already known to be valid — a value read back
             /// from storage. Storage is the only caller; this is not a parser,
             /// and it is deliberately not `pub`.
-            #[allow(
-                dead_code,
-                reason = "a domain module declares its id before the storage that reads it back exists"
-            )]
             pub(crate) fn from_stored(id: String) -> Self {
                 Self(id)
             }
