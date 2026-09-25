@@ -277,8 +277,9 @@ expire. The guarantee against a duplicate plan starts at `draft_start`.
   its actor (`planning_thread` has no author column). It lists with the project's
   conversations with no messages; if a person writes in it, the Shadows
   Planner continues there and reads the plan with its tools.
-- The internal Planner never names a plan: its grant fixes the thread, and the
-  thread fixes the plan.
+- The internal Planner never names another thread's plan: its grant fixes the
+  thread. It edits that thread's latest version, and may read or show (`workflow_get`,
+  `task_get`, `plan_show`) any version of it, so "show me v1" works after v2 exists.
 
 **Errors come in three layers:**
 
