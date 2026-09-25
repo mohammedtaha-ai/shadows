@@ -327,13 +327,13 @@ impl DurableEvent {
 }
 ```
 
-## `src/id.rs` — 101 lines
+## `src/id.rs` — 105 lines
 
 ```rust
 pub(crate) use newtype_id;
 ```
 
-## `src/lib.rs` — 16 lines
+## `src/lib.rs` — 17 lines
 
 Nothing reachable from outside this file.
 
@@ -1158,5 +1158,99 @@ impl DebugLog {
 }
 
 pub fn init(verbose: bool, debug_data_dir: Option<&Path>) -> anyhow::Result<Option<DebugLog>>
+```
+
+## `src/workflow/check.rs` — 190 lines
+
+```rust
+pub struct Problem {
+    pub message: String,
+}
+impl Problem {
+    pub(super) fn new(message: impl Into<String>) -> Self
+}
+
+pub fn edit_problems(content: &PlanContent) -> Vec<Problem>
+pub fn approval_problems(content: &PlanContent) -> Vec<Problem>
+pub(super) fn edit_problems_after_removing(content: &PlanContent, removed: &BTreeSet<u32>) -> Vec<Problem>
+```
+
+## `src/workflow/mod.rs` — 109 lines
+
+```rust
+pub use check::{Problem, approval_problems, edit_problems};
+pub use ops::{Applied, PlanOp, apply};
+pub struct WorkflowId(String);
+impl WorkflowId {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+    pub fn from_literal(id: impl Into<String>) -> Self
+}
+
+pub struct TaskId(String);
+impl TaskId {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+    pub fn from_literal(id: impl Into<String>) -> Self
+}
+
+pub enum WorkflowState {
+    Draft,
+    Frozen,
+}
+pub enum LinkKind {
+    Needs,
+    CompletesAfter,
+}
+impl LinkKind {
+    pub fn as_str(&self) -> &'static str
+}
+
+pub struct AcceptanceItem {
+    pub number: u32,
+    pub text: String,
+}
+pub struct TaskContent {
+    pub number: u32,
+    pub title: String,
+    pub goal: String,
+    pub reads: Vec<String>,
+    pub writes: Vec<String>,
+    pub acceptance: Vec<AcceptanceItem>,
+}
+pub struct Link {
+    pub task: u32,
+    pub after: u32,
+    pub kind: LinkKind,
+    pub label: String,
+    pub waiting_items: Vec<u32>,
+}
+pub struct PlanContent {
+    pub title: String,
+    pub goal: String,
+    pub tasks: BTreeMap<u32, TaskContent>,
+    pub links: Vec<Link>,
+}
+```
+
+## `src/workflow/ops.rs` — 232 lines
+
+```rust
+pub enum PlanOp {
+    PlanPut { title: String, goal: String },
+    TaskAdd { task: TaskContent },
+    TaskUpdate { task: TaskContent },
+    TaskRemove { number: u32 },
+    LinkPut { link: Link },
+    LinkRemove { task: u32, after: u32, kind: LinkKind },
+}
+pub struct Applied {
+    pub content: PlanContent,
+    pub changed_tasks: Vec<u32>,
+    pub summary: String,
+}
+pub fn apply(current: &PlanContent, ops: &[PlanOp]) -> Result<Applied, Vec<Problem>>
 ```
 

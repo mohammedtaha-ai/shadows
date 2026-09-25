@@ -14,6 +14,8 @@ clap = { version = "4", features = ["derive", "env"] }
 # typed and most tools refuse. `dunce` strips that prefix where it is safe to.
 dunce = "1"
 futures-core = "0.3"
+# Spec §13.4's plan cycle check is petgraph's `tarjan_scc`, not a hand-written graph search.
+petgraph = "0.8"
 process-wrap = { version = "10", features = ["tokio1"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

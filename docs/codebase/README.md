@@ -51,6 +51,9 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/storage/` | persistence | `src/storage/sqlite/project.rs` |
 | `src/thread/` | the planning thread's shape | `src/thread/mod.rs` |
 | `src/tracing.rs` | tracing subscriber setup | `src/tracing.rs` |
+| `src/workflow/` | a plan's content under the rules of §13 | `src/workflow/mod.rs` |
+| `src/workflow/ops.rs` | applying one batch of plan edits | `src/workflow/ops.rs` |
+| `src/workflow/check.rs` | what makes a plan invalid or unready | `src/workflow/check.rs` |
 
 The Web client in `web/` is a separate program outside this crate and this map;
 [`web/README.md`](../../web/README.md) describes it.
