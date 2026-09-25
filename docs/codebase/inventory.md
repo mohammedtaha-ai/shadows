@@ -692,7 +692,7 @@ impl Sessions {
 }
 ```
 
-## `src/planner/setup.rs` — 179 lines
+## `src/planner/setup.rs` — 181 lines
 
 ```rust
 pub fn prompt_version() -> &'static str
@@ -1429,7 +1429,7 @@ pub enum EntryRef {
 }
 ```
 
-## `src/tracing.rs` — 117 lines
+## `src/tracing.rs` — 125 lines
 
 ```rust
 pub struct DebugLog {}

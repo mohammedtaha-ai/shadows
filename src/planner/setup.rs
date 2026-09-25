@@ -175,5 +175,7 @@ fn ours() -> &'static str {
 
 /// The project's instructions, when it has any: a version saved blank is none.
 fn body(current: Option<&InstructionsVersion>) -> Option<&str> {
-    current.map(|v| v.body.trim()).filter(|b| !b.is_empty())
+    current
+        .map(|v| v.body.as_str())
+        .filter(|b| !b.trim().is_empty())
 }

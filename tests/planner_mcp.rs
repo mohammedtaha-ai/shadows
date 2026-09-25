@@ -249,24 +249,28 @@ async fn the_daemon_opens_sessions_with_its_own_mcp_address() {
         body["command_id"] = json!(format!("c{n}"));
         body["prompt"] = json!(prompt);
         post(&turns, body).await;
-        let reply = loop {
-            let list: Vec<Value> = http
-                .get(&entries)
-                .send()
-                .await
-                .unwrap()
-                .json()
-                .await
-                .unwrap();
-            let agent: Vec<&Value> = list
-                .iter()
-                .filter(|e| e["kind"] == "AgentMessage")
-                .collect();
-            if agent.len() > n {
-                break agent[n]["body"].as_str().unwrap().to_string();
+        let reply = tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                let list: Vec<Value> = http
+                    .get(&entries)
+                    .send()
+                    .await
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+                let agent: Vec<&Value> = list
+                    .iter()
+                    .filter(|e| e["kind"] == "AgentMessage")
+                    .collect();
+                if agent.len() > n {
+                    break agent[n]["body"].as_str().unwrap().to_string();
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
             }
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        };
+        })
+        .await
+        .expect("daemon turn did not produce an AgentMessage");
         replies.push(reply);
     }
     let r: Value = serde_json::from_str(&replies[0]).unwrap();
@@ -343,7 +347,7 @@ async fn a_thread_from_before_this_milestone_gets_shadows_instructions_once() {
 #[tokio::test]
 async fn a_new_threads_first_turn_has_no_context_block() {
     let l = listening_app().await;
-    let body = "Keep every task under a day.";
+    let body = "  Keep every task under a day.  ";
     save_instructions(&l.app, "i1", body).await;
 
     let first = report(&l.app).await;
