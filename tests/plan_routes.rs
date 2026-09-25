@@ -79,9 +79,9 @@ async fn a_plan_read_lists_its_blockers_and_its_last_edit() {
     );
     assert_eq!(plan["last_edit"]["revision"], 1);
     assert_eq!(plan["last_edit"]["changed_tasks"], json!([1, 2]));
-    assert!(
-        !plan["last_edit"]["summary"].as_str().unwrap().is_empty(),
-        "{plan}"
+    assert_eq!(
+        plan["last_edit"]["summary"],
+        "3 changes: added T2, added T1, linked T2 → T1"
     );
 }
 
@@ -154,6 +154,9 @@ async fn a_replayed_approval_answers_the_first_result() {
         (first["version"].as_i64(), first["revision"].as_i64()),
         (Some(1), Some(1))
     );
+    let (conflict_status, conflict) = post(&app, &path, approve_body("approve-once", 0)).await;
+    assert_eq!(conflict_status, 409, "{conflict}");
+    assert_eq!(conflict["code"], "COMMAND_CONFLICT");
     assert_eq!(
         events_of(&app, &app.thread, "WorkflowFrozen").await.len(),
         1
