@@ -90,6 +90,28 @@ async fn a_project_grant_cannot_reach_another_project() {
 }
 
 #[tokio::test]
+async fn a_project_grant_must_name_a_plan_to_read_or_edit() {
+    let l = listening_app().await;
+    draft(&l.app).await;
+    let (_, external) = project_client(&l).await;
+    for (tool, args) in [
+        ("workflow_get", json!({})),
+        (
+            "workflow_get",
+            json!({ "workflow_id": WorkflowId::generate() }),
+        ),
+        ("task_get", json!({ "number": 1 })),
+        (
+            "plan_edit",
+            json!({ "expected_revision": 0, "ops": [add(1)] }),
+        ),
+    ] {
+        let text = refused(&external, tool, args).await;
+        assert!(text.starts_with("GRANT_SCOPE: "), "{tool}: {text}");
+    }
+}
+
+#[tokio::test]
 async fn parallel_edits_on_one_revision_conflict_and_the_loser_can_retry() {
     let l = listening_app().await;
     let workflow = draft(&l.app).await.workflow_id;
@@ -166,6 +188,43 @@ async fn a_draft_ref_replays_for_a_new_version_of_a_frozen_plan() {
 
     let again = ok(&external, "draft_start", start).await;
     assert_eq!(again, v2);
+}
+
+#[tokio::test]
+async fn an_external_draft_source_must_be_frozen() {
+    let l = listening_app().await;
+    let v1 = approved_v1(&l.app).await;
+    let (_, external) = project_client(&l).await;
+    let r1 = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
+    let v2 = ok(
+        &external,
+        "draft_start",
+        json!({ "draft_ref": r1, "from_workflow_id": v1 }),
+    )
+    .await;
+
+    // A frozen source's thread already has a Draft, so a new ref answers it.
+    let second_ref = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
+    let again = ok(
+        &external,
+        "draft_start",
+        json!({ "draft_ref": second_ref, "from_workflow_id": v1 }),
+    )
+    .await;
+    assert_eq!(again, v2);
+
+    let invalid_ref = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
+    let text = refused(
+        &external,
+        "draft_start",
+        json!({ "draft_ref": invalid_ref, "from_workflow_id": v2["workflow_id"] }),
+    )
+    .await;
+    assert!(text.starts_with("GRANT_SCOPE: "), "{text}");
+    assert_eq!(
+        l.app.storage.thread_plan(&l.app.thread).await.unwrap(),
+        Some(serde_json::from_value(v2["workflow_id"].clone()).unwrap())
+    );
 }
 
 async fn expire(app: &App, draft_ref: &str) {

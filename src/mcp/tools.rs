@@ -189,13 +189,15 @@ impl Shadows {
                 latest
             }
             GrantKind::Project => named.cloned().ok_or_else(|| {
-                Refusal::new(
-                    ErrorCode::InvalidCommand,
-                    "name the plan version with workflow_id; workflow_list lists them",
-                )
+                Refusal::scope("name the plan version with workflow_id; workflow_list lists them")
             })?,
         };
-        let plan = storage.get_plan(&id).await?;
+        let plan = match storage.get_plan(&id).await {
+            Err(StorageError::NotFound(_)) if grant.kind == GrantKind::Project => {
+                return Err(Refusal::scope("that plan is not in this grant's project"));
+            }
+            result => result?,
+        };
         if plan.project_id != grant.project_id {
             return Err(Refusal::scope("that plan is not in this grant's project"));
         }
@@ -273,9 +275,17 @@ impl Shadows {
         let storage = &self.state.storage;
         let started = match &args.from_workflow_id {
             Some(from) => {
-                let plan = storage.get_plan(from).await?;
+                let plan = match storage.get_plan(from).await {
+                    Err(StorageError::NotFound(_)) => {
+                        return Err(Refusal::scope("that plan is not in this grant's project"));
+                    }
+                    result => result?,
+                };
                 if plan.project_id != grant.project_id {
                     return Err(Refusal::scope("that plan is not in this grant's project"));
+                }
+                if plan.state != crate::workflow::WorkflowState::Frozen {
+                    return Err(Refusal::scope("start a new version from an approved plan"));
                 }
                 storage
                     .start_draft(&ctx, &writer, &plan.thread_id, None, Some(draft_ref))
