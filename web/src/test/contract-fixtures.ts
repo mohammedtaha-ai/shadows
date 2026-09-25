@@ -179,3 +179,17 @@ export function planListing(plan: Plan): PlanListing {
     updated_at: plan.created_at,
   }
 }
+
+/** A `PlanView` card (§13.9) of plan version `workflowId`, about task `taskId`
+ * when given; its body is what the daemon writes. */
+export function planViewEntry(
+  id: string,
+  body: string,
+  workflowId: string,
+  taskId?: string,
+): ThreadEntry {
+  const entry = entryOfKind(id, 'PlanView', body)
+  const refs: ThreadEntry['refs'] = [{ Workflow: workflowId }]
+  if (taskId !== undefined) refs.push({ Task: taskId })
+  return { ...entry, refs }
+}

@@ -2,13 +2,15 @@
 // whatever the running turn is saying.
 
 import { AnimatePresence, motion } from 'motion/react'
-import { LoaderCircle, ShieldX, Wrench } from 'lucide-react'
+import { CircleCheck, LoaderCircle, ShieldX, Wrench } from 'lucide-react'
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
-import type { Choice, Operation, ThreadEntry } from '@/api/client'
+import type { Choice, Operation, Plan, PlanTask, ThreadEntry } from '@/api/client'
 import { type HarnessPolicy, modeLabel, policyOf } from '../mode-policy'
 import { MessageActions } from './message-actions'
 import { describeLabel } from './operational-label'
+import { PlanCard } from './plan-card'
 import type { ShownReply } from './reply'
+import { toolText, toolTitle } from './tool-text'
 import { labelOf } from './turn-settings'
 
 // Streamdown and its code highlighting are most of this app's weight, so they
@@ -50,8 +52,13 @@ export function Messages({
   models,
   harness,
   forkFrom,
+  projectId,
+  onPointAt,
 }: {
   entries: readonly ThreadEntry[] | undefined
+  projectId: string
+  /** A task was clicked in a plan card. */
+  onPointAt: (plan: Plan, task: PlanTask) => void
   /** The thread's turns, for what each asked for and was answered by. */
   operations: readonly Operation[] | undefined
   /** The session's models, for their labels. */
@@ -87,7 +94,8 @@ export function Messages({
   const newlyHidden = [...(reply?.hidden ?? [])].filter((ordinal) => !handedOver.has(ordinal))
   if (newlyHidden.length > 0) setHandedOver(new Set([...handedOver, ...newlyHidden]))
 
-  const shown = entries?.filter((entry) => !reply?.hidden.has(entry.ordinal)) ?? []
+  const shown =
+    entries?.filter((entry) => !reply?.hidden.has(entry.ordinal) && !silent(entry)) ?? []
   const operational = label === undefined ? null : describeLabel(label)
   const answered = answeredNotes(shown, operations ?? [], models)
   const lastId = entries?.at(-1)?.id
@@ -122,9 +130,16 @@ export function Messages({
               key={entry.id}
               {...appear}
               initial={handedOver.has(entry.ordinal) ? false : appear.initial}
+              data-entry-kind={isTool(entry) ? 'tool' : entry.kind}
               className="group space-y-1"
             >
-              <Entry entry={entry} policy={policy} requestedMode={modeOf(entry)} />
+              <Entry
+                entry={entry}
+                policy={policy}
+                requestedMode={modeOf(entry)}
+                projectId={projectId}
+                onPointAt={onPointAt}
+              />
               {answered.has(entry.id) && (
                 <p className="text-xs text-faint-foreground">{answered.get(entry.id)}</p>
               )}
@@ -192,31 +207,41 @@ function answeredNotes(
   return notes
 }
 
-/** A tool call arrives as an agent message whose body is `[tool: <title>]`
- * (spec §12.3); its title, or `null` for any other body. */
-function toolTitle(body: string): string | null {
-  return /^\[tool: ([\s\S]*)\]$/.exec(body)?.[1] ?? null
+const isTool = (entry: ThreadEntry) =>
+  entry.kind === 'AgentMessage' && toolTitle(entry.body) !== null
+
+/** An entry that adds no line: a tool call whose result is another entry. */
+function silent(entry: ThreadEntry): boolean {
+  return isTool(entry) && toolText(toolTitle(entry.body) ?? '') === null
 }
 
 /** What Copy puts on the clipboard: the text as it reads, not its wrapping. */
 function copyText(entry: ThreadEntry): string {
-  return toolTitle(entry.body) ?? entry.body
+  const tool = toolTitle(entry.body)
+  return tool === null ? entry.body : (toolText(tool) ?? tool)
 }
 
 function Entry({
   entry,
   policy,
   requestedMode,
+  projectId,
+  onPointAt,
 }: {
   entry: ThreadEntry
   policy: HarnessPolicy
   /** The mode the entry's turn asked for, when known. */
   requestedMode: string | null
+  projectId: string
+  onPointAt: (plan: Plan, task: PlanTask) => void
 }) {
   if (entry.kind === 'UserMessage') {
     return (
       <div className="flex justify-end">
-        <p className="max-w-[80%] rounded-2xl rounded-br-md border border-border bg-card px-4 py-2.5 text-sm whitespace-pre-wrap text-card-foreground">
+        <p
+          dir="auto"
+          className="max-w-[80%] rounded-2xl rounded-br-md border border-border bg-card px-4 py-2.5 text-sm whitespace-pre-wrap text-card-foreground"
+        >
           {entry.body}
         </p>
       </div>
@@ -225,10 +250,29 @@ function Entry({
   if (entry.kind === 'AgentMessage') {
     const tool = toolTitle(entry.body)
     if (tool === null) return <ReplyText text={entry.body} />
+    // Shadows' own tools read as sentences; any other shows its title.
+    const text = toolText(tool) ?? tool
     return (
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
         <Wrench aria-label="Tool" className="mt-px size-3.5 shrink-0" />
-        <code className="font-mono break-all whitespace-pre-wrap">{tool}</code>
+        {text === tool ? (
+          <code dir="auto" className="font-mono break-all whitespace-pre-wrap">
+            {tool}
+          </code>
+        ) : (
+          <span dir="auto">{text}</span>
+        )}
+      </p>
+    )
+  }
+  if (entry.kind === 'PlanView') {
+    return <PlanCard entry={entry} projectId={projectId} onPointAt={onPointAt} />
+  }
+  if (entry.kind === 'PlanApproved') {
+    return (
+      <p className="flex items-center gap-2 text-xs text-faint-foreground">
+        <CircleCheck aria-hidden className="size-3.5 shrink-0 text-accent-line" />
+        <span dir="auto">{entry.body}</span>
       </p>
     )
   }
@@ -250,5 +294,9 @@ function Entry({
       </p>
     )
   }
-  return <p className="text-xs text-faint-foreground">{entry.body}</p>
+  return (
+    <p dir="auto" className="text-xs text-faint-foreground">
+      {entry.body}
+    </p>
+  )
 }

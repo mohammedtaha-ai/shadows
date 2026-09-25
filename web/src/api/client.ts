@@ -31,6 +31,7 @@ export type PlanTask = Schemas['PlanTask']
 export type PlanLink = Schemas['Link']
 export type PlanListing = Schemas['PlanListing']
 export type Approved = Schemas['Approved']
+export type Focus = Schemas['Focus']
 
 /** The daemon's origin, without a trailing slash. */
 export const DAEMON_URL = (import.meta.env.VITE_SHADOWS_URL ?? 'http://127.0.0.1:4318').replace(
@@ -107,17 +108,20 @@ export function listOperations(threadId: string): Promise<Operation[]> {
 
 /** Starts a Planner turn with its settings, as one command (spec §12.7);
  * answers the operation it runs as. The command id is the caller's: a retry of
- * the same send passes the same one, and this function never makes one. */
+ * the same send passes the same one, and this function never makes one.
+ * `focus` is the task the person points at, part of the command; `clientTab`
+ * is the sending tab (§13.9), transport state that is not. */
 export async function startTurn(
   threadId: string,
   commandId: string,
   prompt: string,
   settings: TurnSettings,
+  { focus = null, clientTab }: { focus?: Focus | null; clientTab: string },
 ): Promise<string> {
   const started = await unwrap(
     client.POST('/api/threads/{id}/turns', {
       params: { path: { id: threadId } },
-      body: { command_id: commandId, prompt, ...settings },
+      body: { command_id: commandId, prompt, ...settings, focus, client_tab: clientTab },
     }),
   )
   return started.operation_id
