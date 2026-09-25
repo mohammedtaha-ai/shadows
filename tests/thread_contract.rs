@@ -430,6 +430,23 @@ async fn a_task_reference_round_trips() {
         .await
         .unwrap();
     assert_eq!(entries_on(&app, &thread_id).await[0].refs, refs.to_vec());
+
+    let stored: String = sqlx::query_scalar(
+        "SELECT refs_json FROM thread_entry WHERE thread_id = ? AND ordinal = 1",
+    )
+    .bind(thread_id.as_str())
+    .fetch_one(app.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(stored, r#"[{"Workflow":"w1"},{"Task":"t1"}]"#);
+
+    sqlx::query("UPDATE thread_entry SET refs_json = ? WHERE thread_id = ? AND ordinal = 1")
+        .bind(r#"[{"Workflow":"w1"}]"#)
+        .bind(thread_id.as_str())
+        .execute(app.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(entries_on(&app, &thread_id).await[0].refs, refs[..1]);
 }
 
 /// A stored kind the enum does not name is a broken row, refused by name
