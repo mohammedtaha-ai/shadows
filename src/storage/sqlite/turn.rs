@@ -16,7 +16,7 @@ use crate::command::CommandContext;
 use crate::events::Actor;
 use crate::operation::OperationId;
 use crate::runtime::RuntimeInstanceId;
-use crate::thread::{NewThreadEntry, ThreadEntryId, ThreadId};
+use crate::thread::{NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId};
 
 /// Everything the turn command records. The paths and versions are the
 /// adapter's and the CLI's it runs (§12.2), frozen on the invocation.
@@ -115,7 +115,7 @@ impl Storage {
                         conn,
                         &thread,
                         NewThreadEntry {
-                            kind: "UserMessage",
+                            kind: ThreadEntryKind::UserMessage,
                             author: Actor::user(&ctx.principal_id),
                             body: &prompt,
                             refs: &[],

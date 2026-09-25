@@ -3,12 +3,21 @@
 //! Separate from `tests/storage_contract.rs`, whose one job is the connection
 //! and transaction contracts.
 
+use serde_json::json;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::Actor;
 use shadows::operation::OperationId;
 use shadows::project::ProjectDirectory;
-use shadows::storage::Storage;
-use shadows::thread::{EntryRef, NewThreadEntry};
+use shadows::storage::{Storage, StorageError};
+use shadows::thread::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId};
+use shadows::workflow::{TaskId, WorkflowId};
+
+#[path = "fixtures/acp.rs"]
+mod acp;
+#[path = "fixtures/app.rs"]
+mod app;
+
+use app::{create_thread, entries_on, fresh_command, test_app};
 
 /// Any directory that exists: these tests are about threads, not about where
 /// a turn runs.
@@ -69,7 +78,7 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
                     .append_thread_entry(
                         &thread_id,
                         NewThreadEntry {
-                            kind: "UserMessage",
+                            kind: ThreadEntryKind::UserMessage,
                             author: Actor::user("local"),
                             body: &format!("w{w}-i{i}"),
                             refs: &[],
@@ -140,7 +149,7 @@ async fn entries_are_read_in_ordinal_order() {
             .append_thread_entry(
                 &thread.id,
                 NewThreadEntry {
-                    kind: "UserMessage",
+                    kind: ThreadEntryKind::UserMessage,
                     author: Actor::user("local"),
                     body,
                     refs: &[],
@@ -196,7 +205,7 @@ async fn entry_refs_round_trip_through_storage() {
         .append_thread_entry(
             &thread.id,
             NewThreadEntry {
-                kind: "UserMessage",
+                kind: ThreadEntryKind::UserMessage,
                 author: Actor::user("local"),
                 body: "hello",
                 refs: &refs,
@@ -251,7 +260,7 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
         .append_thread_entry(
             &thread.id,
             NewThreadEntry {
-                kind: "UserMessage",
+                kind: ThreadEntryKind::UserMessage,
                 author: Actor::user("local"),
                 body: "lost",
                 refs: &[],
@@ -269,7 +278,7 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
         .append_thread_entry(
             &thread.id,
             NewThreadEntry {
-                kind: "UserMessage",
+                kind: ThreadEntryKind::UserMessage,
                 author: Actor::user("local"),
                 body: "kept",
                 refs: &[],
@@ -334,4 +343,125 @@ async fn threads_are_listed_in_creation_order_whatever_their_timestamp_text() {
         .map(|t| t.id)
         .collect();
     assert_eq!(listed, created);
+}
+
+/// Spec §4.2 (closed by §13.9): the kind is an enum, and each variant is
+/// stored as its name, so text written before the enum still reads.
+#[tokio::test]
+async fn every_entry_kind_round_trips_as_its_stored_name() {
+    let app = test_app().await;
+    let thread = create_thread(
+        &app,
+        json!({ "command_id": fresh_command(), "title": "t", "harness": "claude-code" }),
+    )
+    .await;
+    let thread_id = ThreadId::from_literal(thread["id"].as_str().unwrap());
+    let all = [
+        ThreadEntryKind::UserMessage,
+        ThreadEntryKind::AgentMessage,
+        ThreadEntryKind::PermissionRefused,
+        ThreadEntryKind::PlanView,
+        ThreadEntryKind::PlanApproved,
+    ];
+    for kind in all {
+        app.storage
+            .append_thread_entry(
+                &thread_id,
+                NewThreadEntry {
+                    kind,
+                    author: Actor::system(),
+                    body: "b",
+                    refs: &[],
+                    operation_id: None,
+                },
+            )
+            .await
+            .unwrap();
+    }
+    let kinds: Vec<_> = entries_on(&app, &thread_id)
+        .await
+        .into_iter()
+        .map(|e| e.kind)
+        .collect();
+    assert_eq!(kinds, all);
+    let stored: Vec<String> =
+        sqlx::query_scalar("SELECT kind FROM thread_entry WHERE thread_id = ? ORDER BY ordinal")
+            .bind(thread_id.as_str())
+            .fetch_all(app.storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(
+        stored,
+        [
+            "UserMessage",
+            "AgentMessage",
+            "PermissionRefused",
+            "PlanView",
+            "PlanApproved"
+        ]
+    );
+}
+
+/// §13.9: the person's message keeps the task it was about.
+#[tokio::test]
+async fn a_task_reference_round_trips() {
+    let app = test_app().await;
+    let thread = create_thread(
+        &app,
+        json!({ "command_id": fresh_command(), "title": "t", "harness": "claude-code" }),
+    )
+    .await;
+    let thread_id = ThreadId::from_literal(thread["id"].as_str().unwrap());
+    let refs = [
+        EntryRef::Workflow(WorkflowId::from_literal("w1")),
+        EntryRef::Task(TaskId::from_literal("t1")),
+    ];
+    app.storage
+        .append_thread_entry(
+            &thread_id,
+            NewThreadEntry {
+                kind: ThreadEntryKind::UserMessage,
+                author: Actor::user("local"),
+                body: "change this",
+                refs: &refs,
+                operation_id: None,
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(entries_on(&app, &thread_id).await[0].refs, refs.to_vec());
+}
+
+/// A stored kind the enum does not name is a broken row, refused by name
+/// rather than read as some default.
+#[tokio::test]
+async fn an_unknown_stored_kind_is_a_constraint_failure() {
+    let app = test_app().await;
+    app.storage
+        .append_thread_entry(
+            &app.thread,
+            NewThreadEntry {
+                kind: ThreadEntryKind::UserMessage,
+                author: Actor::user("local"),
+                body: "b",
+                refs: &[],
+                operation_id: None,
+            },
+        )
+        .await
+        .unwrap();
+    sqlx::query("UPDATE thread_entry SET kind = 'Bogus' WHERE thread_id = ?")
+        .bind(app.thread.as_str())
+        .execute(app.storage.reader())
+        .await
+        .unwrap();
+    let error = app
+        .storage
+        .list_thread_entries(&app.thread)
+        .await
+        .expect_err("an unknown kind must not read");
+    assert!(
+        matches!(&error, StorageError::Constraint(m) if m == "unknown thread entry kind: Bogus"),
+        "{error:?}"
+    );
 }

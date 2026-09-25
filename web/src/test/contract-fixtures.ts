@@ -108,7 +108,7 @@ let ordinal = 0
 /** An entry of any kind, written by turn `op1` unless `operationId` says otherwise. */
 export function entryOfKind(
   id: string,
-  kind: string,
+  kind: ThreadEntry['kind'],
   body: string,
   operationId: string | null = 'op1',
 ): ThreadEntry {

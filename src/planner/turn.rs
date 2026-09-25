@@ -47,7 +47,7 @@ use crate::{
     operation::{FailureStage, OperationId},
     runtime::Runtime,
     storage::StorageError,
-    thread::{NewThreadEntry, ThreadId},
+    thread::{NewThreadEntry, ThreadEntryKind, ThreadId},
 };
 use std::sync::{
     Arc,
@@ -87,7 +87,7 @@ async fn persist(w: &TurnWatch, entries: Vec<Durable>) {
     for entry in entries {
         let (kind, author, body) = match entry {
             Durable::Message(body) => (
-                "AgentMessage",
+                ThreadEntryKind::AgentMessage,
                 Actor {
                     kind: "Agent".into(),
                     id: "Planner".into(),
@@ -95,14 +95,16 @@ async fn persist(w: &TurnWatch, entries: Vec<Durable>) {
                 body,
             ),
             Durable::Tool(title) => (
-                "AgentMessage",
+                ThreadEntryKind::AgentMessage,
                 Actor {
                     kind: "Agent".into(),
                     id: "Planner".into(),
                 },
                 format!("[tool: {title}]"),
             ),
-            Durable::PermissionRefused(body) => ("PermissionRefused", Actor::system(), body),
+            Durable::PermissionRefused(body) => {
+                (ThreadEntryKind::PermissionRefused, Actor::system(), body)
+            }
         };
         if let Err(error) = w
             .runtime

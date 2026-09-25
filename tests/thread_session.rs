@@ -16,7 +16,7 @@ use shadows::planner::{LiveHandles, PlannerTurn, Sessions, StopOutcome};
 use shadows::project::ProjectDirectory;
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
-use shadows::thread::ThreadId;
+use shadows::thread::{ThreadEntryKind, ThreadId};
 
 #[path = "fixtures/acp.rs"]
 mod acp;
@@ -113,7 +113,7 @@ impl Fixture {
         let reply = entries
             .iter()
             .rev()
-            .find(|e| e.kind == "AgentMessage")
+            .find(|e| e.kind == ThreadEntryKind::AgentMessage)
             .expect("an agent reply");
         let reported: Value = serde_json::from_str(&reply.body).unwrap();
         (

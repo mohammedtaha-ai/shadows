@@ -7,6 +7,7 @@ use serde_json::{Value, json};
 use shadows::agent::TurnSettings;
 use shadows::operation::FailureStage;
 use shadows::storage::{StartedTurn, StorageError};
+use shadows::thread::ThreadEntryKind;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
@@ -313,7 +314,7 @@ async fn a_replay_is_answered_even_after_the_mode_was_disallowed() {
         entries(&app)
             .await
             .iter()
-            .filter(|e| e.kind == "UserMessage")
+            .filter(|e| e.kind == ThreadEntryKind::UserMessage)
             .count(),
         1
     );
@@ -426,8 +427,12 @@ async fn a_stop_while_pending_cancels_the_turn_before_its_prompt() {
     .await
     .unwrap();
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
-    let kinds: Vec<String> = entries(&app).await.into_iter().map(|e| e.kind).collect();
-    assert_eq!(kinds, ["UserMessage"], "nothing reached the model");
+    let kinds: Vec<_> = entries(&app).await.into_iter().map(|e| e.kind).collect();
+    assert_eq!(
+        kinds,
+        [ThreadEntryKind::UserMessage],
+        "nothing reached the model"
+    );
     let next = wait_terminal(&app, &app::start_settled(&app, "hi").await).await;
     assert_eq!(next.status_kind, "Completed", "the session was given back");
 }

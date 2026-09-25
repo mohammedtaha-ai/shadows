@@ -586,7 +586,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/planner/turn.rs` — 298 lines
+## `src/planner/turn.rs` — 300 lines
 
 ```rust
 pub struct PlannerTurn;
@@ -883,7 +883,7 @@ pub(in crate::storage) async fn classify(conn: &mut SqliteConnection, ctx: &Comm
 pub(in crate::storage) async fn record_command(conn: &mut SqliteConnection, ctx: &CommandContext, scope_kind: &str, scope_key: &str, entity_kind: &str, outcome_ref: &str, ts: &str) -> Result<(), StorageError>
 ```
 
-## `src/storage/sqlite/entry.rs` — 156 lines
+## `src/storage/sqlite/entry.rs` — 160 lines
 
 ```rust
 pub(super) async fn append_entry_in(conn: &mut SqliteConnection, thread_id: &ThreadId, entry: NewThreadEntry<'_>, ts: &str) -> Result<ThreadEntry, StorageError>
@@ -1087,7 +1087,7 @@ impl Storage {
 }
 ```
 
-## `src/thread/mod.rs` — 107 lines
+## `src/thread/mod.rs` — 149 lines
 
 ```rust
 pub struct ThreadId(String);
@@ -1126,7 +1126,7 @@ pub struct ThreadEntry {
     pub id: ThreadEntryId,
     pub thread_id: ThreadId,
     pub ordinal: i64,
-    pub kind: String,
+    pub kind: ThreadEntryKind,
     pub author: Actor,
     pub body: String,
     pub refs: Vec<EntryRef>,
@@ -1134,17 +1134,30 @@ pub struct ThreadEntry {
     pub operation_id: Option<OperationId>,
 }
 pub struct NewThreadEntry<'a> {
-    pub kind: &'a str,
+    pub kind: ThreadEntryKind,
     pub author: Actor,
     pub body: &'a str,
     pub refs: &'a [EntryRef],
     pub operation_id: Option<&'a OperationId>,
 }
+pub enum ThreadEntryKind {
+    UserMessage,
+    AgentMessage,
+    PermissionRefused,
+    PlanView,
+    PlanApproved,
+}
+impl ThreadEntryKind {
+    pub fn as_str(self) -> &'static str
+    pub fn parse(s: &str) -> Option<Self>
+}
+
 pub enum EntryRef {
     Operation(OperationId),
     Decision(String),
     Research(String),
-    Workflow(String),
+    Workflow(WorkflowId),
+    Task(TaskId),
 }
 ```
 

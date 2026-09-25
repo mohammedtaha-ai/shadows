@@ -266,11 +266,11 @@
       "EntryRef": {
         "oneOf": [
           {
-            "description": "Typed, because `operation/` exists. The three below reference entities\nwhose modules Milestone 0 never creates, and §4.1's rule is that no module\nis created before the task that fills it.",
+            "description": "Typed where the referenced entity's module exists. `Decision` and\n`Research` reference entities whose modules no milestone has created\nyet, and §4.1's rule is that no module is created before the task that\nfills it.",
             "properties": {
               "Operation": {
                 "$ref": "#/components/schemas/OperationId",
-                "description": "Typed, because `operation/` exists. The three below reference entities\nwhose modules Milestone 0 never creates, and §4.1's rule is that no module\nis created before the task that fills it."
+                "description": "Typed where the referenced entity's module exists. `Decision` and\n`Research` reference entities whose modules no milestone has created\nyet, and §4.1's rule is that no module is created before the task that\nfills it."
               }
             },
             "required": [
@@ -303,11 +303,24 @@
           {
             "properties": {
               "Workflow": {
-                "type": "string"
+                "$ref": "#/components/schemas/WorkflowId"
               }
             },
             "required": [
               "Workflow"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A message about one task of a plan (§13.9).",
+            "properties": {
+              "Task": {
+                "$ref": "#/components/schemas/TaskId",
+                "description": "A message about one task of a plan (§13.9)."
+              }
+            },
+            "required": [
+              "Task"
             ],
             "type": "object"
           }
@@ -774,6 +787,10 @@
         ],
         "type": "object"
       },
+      "TaskId": {
+        "format": "uuid",
+        "type": "string"
+      },
       "ThreadEntry": {
         "properties": {
           "author": {
@@ -790,8 +807,7 @@
             "$ref": "#/components/schemas/ThreadEntryId"
           },
           "kind": {
-            "description": "`UserMessage`, `AgentMessage`, or `PermissionRefused` (a permission the\nharness asked for and Shadows refused, spec §12.2).",
-            "type": "string"
+            "$ref": "#/components/schemas/ThreadEntryKind"
           },
           "operation_id": {
             "description": "The turn this entry belongs to (spec §12.7). `None` for entries written\nbefore entries named their turn. A fork's copied entries keep the\nsource's operation: provenance, not something the fork can act on.",
@@ -829,6 +845,17 @@
       },
       "ThreadEntryId": {
         "format": "uuid",
+        "type": "string"
+      },
+      "ThreadEntryKind": {
+        "description": "What an entry is (spec §4.2, closed by §13.9). The client branches on it.\nEach variant is stored as its name, the text storage held before this was\nan enum, so no stored row is rewritten.",
+        "enum": [
+          "UserMessage",
+          "AgentMessage",
+          "PermissionRefused",
+          "PlanView",
+          "PlanApproved"
+        ],
         "type": "string"
       },
       "ThreadId": {
@@ -913,6 +940,10 @@
           "harness"
         ],
         "type": "object"
+      },
+      "WorkflowId": {
+        "format": "uuid",
+        "type": "string"
       }
     }
   },

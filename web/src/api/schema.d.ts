@@ -464,9 +464,10 @@ export interface components {
         };
         EntryRef: {
             /**
-             * @description Typed, because `operation/` exists. The three below reference entities
-             *     whose modules Milestone 0 never creates, and §4.1's rule is that no module
-             *     is created before the task that fills it.
+             * @description Typed where the referenced entity's module exists. `Decision` and
+             *     `Research` reference entities whose modules no milestone has created
+             *     yet, and §4.1's rule is that no module is created before the task that
+             *     fills it.
              */
             Operation: components["schemas"]["OperationId"];
         } | {
@@ -474,7 +475,10 @@ export interface components {
         } | {
             Research: string;
         } | {
-            Workflow: string;
+            Workflow: components["schemas"]["WorkflowId"];
+        } | {
+            /** @description A message about one task of a plan (§13.9). */
+            Task: components["schemas"]["TaskId"];
         };
         /**
          * @description The body of every error this API answers: the stable code a client
@@ -630,6 +634,8 @@ export interface components {
             model: string;
             prompt: string;
         };
+        /** Format: uuid */
+        TaskId: string;
         ThreadEntry: {
             /**
              * @description Spec §4.2 calls this field's type `Principal`. Milestone 0 uses
@@ -642,11 +648,7 @@ export interface components {
             body: string;
             created_at: string;
             id: components["schemas"]["ThreadEntryId"];
-            /**
-             * @description `UserMessage`, `AgentMessage`, or `PermissionRefused` (a permission the
-             *     harness asked for and Shadows refused, spec §12.2).
-             */
-            kind: string;
+            kind: components["schemas"]["ThreadEntryKind"];
             /**
              * @description The turn this entry belongs to (spec §12.7). `None` for entries written
              *     before entries named their turn. A fork's copied entries keep the
@@ -660,6 +662,13 @@ export interface components {
         };
         /** Format: uuid */
         ThreadEntryId: string;
+        /**
+         * @description What an entry is (spec §4.2, closed by §13.9). The client branches on it.
+         *     Each variant is stored as its name, the text storage held before this was
+         *     an enum, so no stored row is rewritten.
+         * @enum {string}
+         */
+        ThreadEntryKind: "UserMessage" | "AgentMessage" | "PermissionRefused" | "PlanView" | "PlanApproved";
         /** Format: uuid */
         ThreadId: string;
         /**
@@ -696,6 +705,8 @@ export interface components {
             /** @description `claude-code` or `codex`. */
             harness: string;
         };
+        /** Format: uuid */
+        WorkflowId: string;
     };
     responses: never;
     parameters: never;

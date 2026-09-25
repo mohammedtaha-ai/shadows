@@ -28,7 +28,7 @@ use shadows::project::{ProjectDirectory, ProjectId};
 use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
-use shadows::thread::{ThreadEntry, ThreadId};
+use shadows::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
 use tower::ServiceExt;
 
 use super::acp;
@@ -263,7 +263,7 @@ pub async fn last_agent_entry_on(app: &App, thread: &str) -> ThreadEntry {
         .await
         .into_iter()
         .rev()
-        .find(|e| e.kind == "AgentMessage")
+        .find(|e| e.kind == ThreadEntryKind::AgentMessage)
         .expect("an agent reply")
 }
 

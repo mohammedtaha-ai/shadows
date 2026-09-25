@@ -18,7 +18,7 @@ use shadows::operation::{Operation, OperationId};
 use shadows::planner::{LiveHandles, PlannerTurn, Sessions, StopOutcome};
 use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
-use shadows::thread::{ThreadEntry, ThreadId};
+use shadows::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
 use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
@@ -306,7 +306,7 @@ async fn a_permission_request_is_refused_and_recorded() {
     let refused: Vec<_> = entries(&app)
         .await
         .into_iter()
-        .filter(|e| e.kind == "PermissionRefused")
+        .filter(|e| e.kind == ThreadEntryKind::PermissionRefused)
         .collect();
     assert_eq!(refused.len(), 1);
     assert_eq!(refused[0].body, "Run echo probe");
