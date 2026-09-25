@@ -16,7 +16,7 @@ committed; the tree is clean.
 | F1, F2 (pre-existing flakes) | done and reviewed — both were real product races |
 | W1 (plan page + graph) | done and reviewed (one fix round) — 116 web tests |
 | W2 (plan in the conversation) | done and reviewed (opus, cloud) — 125 web tests |
-| W3 (project settings) | not started |
+| W3 (project settings) | done and reviewed (opus, cloud) — 133 web tests |
 | Task I | not started: whole-branch review, then Mohammed's run on Windows (§13.14's nine steps), evidence, status, PR only when Mohammed says |
 
 ### Next steps, in order
@@ -174,3 +174,8 @@ Task W2: complete (commits 9476bb4..1dadd4a, opus review: legend moved under the
 Task W2: minor (deferred): tool lines lack §13.11's "· N changes" and Open plan — tool entries store bare `[tool: title]` with no workflow ref or result; needs a backend change (src/planner/turn.rs:88, web/src/app/conversation/tool-text.ts). Spec/brief gap, not a W2 defect.
 Task W2: minor (deferred): Fork disappears when a turn's last entry is the hidden plan_show tool line (tool lines batch after the card); the daemon forks only from the real last entry (src/storage/sqlite/mod.rs:66). Needs a ruling on fork points or on hiding that line.
 Task W3: dispatched, BASE 1dadd4a.
+Task W3: implementer DONE, b733646 (131 web). Departures: when.ts (shared date line), queries in queries.ts, grantFixture.
+Task W3: complete (commits b733646..db09c8b, opus review fixed 2 Important: settings kept p1's command/draft when switching to p2 — sections now keyed by project; a background refetch discarded unsaved instructions — draft now tracks its base version. Minor: Connect answer not kept in the mutation cache (gcTime 0); one shared copy-button.tsx. 133 web, controller re-ran 133/133).
+- Ruling (reviewer's view): no "Done" button for the shown command — §13.7/§13.11 ask only for once + Copy + notice; leaving the page drops it — cost if wrong: one button.
+Task W3: minor (deferred): every Revoke button shares one accessible name (external-agents.tsx:137); a save from another tab while this one has unsaved edits is overwritten silently on Save (instructions-editor.tsx:40).
+Web (W1–W3) complete: 133 web. Task I step 1 (whole-branch review, opus): dispatched, BASE db09c8b.
