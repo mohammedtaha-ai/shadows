@@ -1,15 +1,23 @@
 // One job: the route table of a daemon holding one project (`p1`) with one
-// conversation (`t1`) and no plan unless a test gives it one (`w1`), for
-// `startApp`. Each answer is the contract fixture
+// conversation (`t1`), and no plan (`w1`), instructions or grant unless a
+// test gives it one, for `startApp`. Each answer is the contract fixture
 // unless the test overrides it. Test-only.
 
-import type { Operation, PlanListing, Project, ThreadEntry } from '@/api/client'
+import type {
+  Grant,
+  InstructionsVersion,
+  Operation,
+  PlanListing,
+  Project,
+  ThreadEntry,
+} from '@/api/client'
 import type { Answer } from '@/app/test-app'
 import {
   agentEntry,
   claudeHarness,
   codexHarness,
   fakeChoices,
+  grantFixture,
   planFixture,
   projectFixture,
   threadFixture,
@@ -37,12 +45,22 @@ export interface Overrides {
   plan?: Answer
   /** `POST /api/workflows/w1/approve` */
   approve?: Answer
+  /** The project's saved instructions; none by default. */
+  instructions?: InstructionsVersion
+  /** The project's grants, newest first; none by default. */
+  grants?: Grant[]
+  /** `POST /api/projects/p1/mcp-grants`; by default issues grant `g9` with
+   * its token and command. */
+  issue?: Answer
 }
 
 export function answers(o: Overrides = {}): Record<string, Answer> {
   // Kept as the daemon keeps it: a refetch after a PATCH reads what the PATCH
   // saved, as it does against the real daemon.
   let project = o.project ?? projectFixture
+  let instructions = o.instructions ?? null
+  let grants = o.grants ?? []
+  const connect = 'claude mcp add --transport http shadows http://127.0.0.1:4318/mcp'
   return {
     'GET /api/harnesses': [claudeHarness, codexHarness],
     'GET /api/projects': () => Response.json([project]),
@@ -82,5 +100,35 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
           revision: 3,
           frozen_at: '2026-09-25T00:00:00Z',
         })),
+    'GET /api/projects/p1/planner-instructions': () => Response.json(instructions),
+    'PUT /api/projects/p1/planner-instructions': async (r: Request) => {
+      const { body } = (await r.json()) as { body: string }
+      const number = (instructions?.number ?? 0) + 1
+      instructions = { body, number, created_at: '2026-09-25T09:30:00Z' }
+      return Response.json(instructions)
+    },
+    'GET /api/projects/p1/mcp-grants': () => Response.json(grants),
+    'POST /api/projects/p1/mcp-grants':
+      o.issue ??
+      (() => {
+        const grant = grantFixture('g9')
+        grants = [grant, ...grants]
+        return Response.json({
+          grant,
+          token: 'tok-9',
+          command: `${connect} --header "Authorization: Bearer tok-9"`,
+        })
+      }),
+    // Any grant the test gave the project can be revoked.
+    ...Object.fromEntries(
+      grants.map((g) => [
+        `DELETE /api/mcp-grants/${g.id}`,
+        () => {
+          const revoked = { ...g, revoked_at: '2026-09-25T10:00:00Z' }
+          grants = grants.map((x) => (x.id === g.id ? revoked : x))
+          return Response.json(revoked)
+        },
+      ]),
+    ),
   }
 }

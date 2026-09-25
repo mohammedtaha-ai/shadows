@@ -32,6 +32,9 @@ export type PlanLink = Schemas['Link']
 export type PlanListing = Schemas['PlanListing']
 export type Approved = Schemas['Approved']
 export type Focus = Schemas['Focus']
+export type InstructionsVersion = Schemas['InstructionsVersion']
+export type Grant = Schemas['Grant']
+export type IssuedGrant = Schemas['IssuedGrantBody']
 
 /** The daemon's origin, without a trailing slash. */
 export const DAEMON_URL = (import.meta.env.VITE_SHADOWS_URL ?? 'http://127.0.0.1:4318').replace(
@@ -198,6 +201,56 @@ export function approvePlan(
     client.POST('/api/workflows/{id}/approve', {
       params: { path: { id: workflowId } },
       body: { command_id: commandId, expected_revision: expectedRevision },
+    }),
+  )
+}
+
+/** The project's current instructions, or `null` before the first save
+ * (spec §13.8). */
+export function getInstructions(projectId: string): Promise<InstructionsVersion | null> {
+  return unwrap(
+    client.GET('/api/projects/{id}/planner-instructions', { params: { path: { id: projectId } } }),
+  )
+}
+
+/** Saves the project's instructions as its next version (spec §13.8). */
+export function saveInstructions(
+  projectId: string,
+  commandId: string,
+  body: string,
+): Promise<InstructionsVersion> {
+  return unwrap(
+    client.PUT('/api/projects/{id}/planner-instructions', {
+      params: { path: { id: projectId } },
+      body: { command_id: commandId, body },
+    }),
+  )
+}
+
+/** A project's grants for external agents, revoked ones included, newest
+ * first (spec §13.7). */
+export function listGrants(projectId: string): Promise<Grant[]> {
+  return unwrap(
+    client.GET('/api/projects/{id}/mcp-grants', { params: { path: { id: projectId } } }),
+  )
+}
+
+/** Connect: issues a grant bound to the project. Its `command` and `token`
+ * are in this answer only, and `null` when the command is a replay. */
+export function issueGrant(projectId: string, commandId: string): Promise<IssuedGrant> {
+  return unwrap(
+    client.POST('/api/projects/{id}/mcp-grants', {
+      params: { path: { id: projectId } },
+      body: { command_id: commandId },
+    }),
+  )
+}
+
+/** Revokes a project grant; Shadows refuses its token from then on. */
+export function revokeGrant(grantId: string, commandId: string): Promise<Grant> {
+  return unwrap(
+    client.DELETE('/api/mcp-grants/{id}', {
+      params: { path: { id: grantId }, query: { command_id: commandId } },
     }),
   )
 }

@@ -7,6 +7,7 @@
 
 import type {
   Choice,
+  Grant,
   HarnessInfo,
   InvocationView,
   Operation,
@@ -70,6 +71,19 @@ export const threadFixture: PlanningThread = {
   created_at: '2026-09-24T00:00:00Z',
   harness: 'claude-code',
   forked_from_thread: null,
+}
+
+/** A live grant bound to project `p1`, for an external agent. */
+export function grantFixture(id: string, extra: Partial<Grant> = {}): Grant {
+  return {
+    id,
+    kind: 'project',
+    project_id: 'p1',
+    thread_id: null,
+    created_at: '2026-09-24T00:00:00Z',
+    revoked_at: null,
+    ...extra,
+  }
 }
 
 export const invocationFixture: InvocationView = {

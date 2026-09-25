@@ -2,7 +2,9 @@
 
 import { queryOptions } from '@tanstack/react-query'
 import {
+  getInstructions,
   getPlan,
+  listGrants,
   listDirs,
   listEntries,
   listHarnesses,
@@ -86,6 +88,24 @@ export function planQuery(workflowId: string) {
   return queryOptions({
     queryKey: [...workflowsKey, 'plan', workflowId],
     queryFn: () => getPlan(workflowId),
+  })
+}
+
+/** A project's current Planner instructions (spec §13.8). */
+export function instructionsQuery(projectId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'instructions'],
+    queryFn: () => getInstructions(projectId),
+  })
+}
+
+/** A project's grants for external agents (spec §13.7). No thread's stream
+ * carries them, so the list is polled every 10 s while shown, as plans are. */
+export function grantsQuery(projectId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'grants'],
+    queryFn: () => listGrants(projectId),
+    refetchInterval: 10_000,
   })
 }
 

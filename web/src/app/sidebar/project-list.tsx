@@ -1,9 +1,9 @@
 // One job: the sidebar's projects, each with its folder, and the open one's
-// conversations and plans under it.
+// conversations, plans and settings under it.
 
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from '@tanstack/react-router'
-import { Folder, FolderOpen } from 'lucide-react'
+import { Link, useLocation, useParams } from '@tanstack/react-router'
+import { Folder, FolderOpen, Settings } from 'lucide-react'
 import type { Project } from '@/api/client'
 import { projectsQuery } from '@/api/queries'
 import { ThreadList } from './thread-list'
@@ -27,6 +27,7 @@ export function ProjectList() {
             <>
               <ThreadList projectId={project.id} selected={threadId} />
               <WorkflowList projectId={project.id} selected={workflowId} />
+              <SettingsLink projectId={project.id} />
             </>
           )}
         </li>
@@ -55,5 +56,26 @@ function ProjectRow({ project, open }: { project: Project; open: boolean }) {
         )}
       </span>
     </Link>
+  )
+}
+
+function SettingsLink({ projectId }: { projectId: string }) {
+  const isSelected = useLocation().pathname === `/projects/${projectId}/settings`
+  return (
+    <div className="mb-1.5 ml-4 border-l border-sidebar-border pl-2">
+      <Link
+        to="/projects/$projectId/settings"
+        params={{ projectId }}
+        aria-current={isSelected ? 'page' : undefined}
+        className={`flex items-center gap-2 rounded-r-md border-l-2 px-2 py-1 text-sm transition-colors ${
+          isSelected
+            ? 'border-accent-line bg-secondary text-secondary-foreground'
+            : 'border-transparent text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground'
+        }`}
+      >
+        <Settings className="size-3.5 shrink-0" aria-hidden />
+        Project settings
+      </Link>
+    </div>
   )
 }
