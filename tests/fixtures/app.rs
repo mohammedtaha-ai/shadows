@@ -23,12 +23,12 @@ use shadows::agent::events::HarnessEvent;
 use shadows::agent::policy;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::operation::{Operation, OperationId};
-use shadows::planner::{LiveHandles, Sessions};
+use shadows::planner::{LiveHandles, Sessions, SessionsConfig};
 use shadows::project::{ProjectDirectory, ProjectId};
-use shadows::protocol::{AppState, router};
+use shadows::protocol::{AppState, UiSignal, router};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
-use shadows::thread::{ThreadEntry, ThreadId};
+use shadows::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
 use tower::ServiceExt;
 
 use super::acp;
@@ -43,6 +43,8 @@ pub struct App {
     pub handles: Arc<LiveHandles>,
     pub sessions: Arc<Sessions>,
     pub bus: Bus,
+    /// The live-only signals `plan_show` sends (§13.9).
+    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
     pub router: Router,
     pub project: ProjectId,
     pub thread: ThreadId,
@@ -63,15 +65,27 @@ pub fn ctx(id: &str, kind: &str) -> CommandContext {
 
 pub async fn test_app() -> App {
     let tmp = tempfile::tempdir().unwrap();
-    let mut app = test_app_at(tmp.path()).await;
-    app._tmp = Some(tmp);
-    app
+    test_app_at(tmp.path()).await.owning(tmp)
+}
+
+impl App {
+    /// The app, keeping `tmp` (its directory) until it is dropped.
+    pub fn owning(mut self, tmp: tempfile::TempDir) -> Self {
+        self._tmp = Some(tmp);
+        self
+    }
 }
 
 /// A daemon on the database in `dir`. Called twice on one directory, the
 /// second is the first one restarted: the project and thread are found again,
 /// not created twice.
 pub async fn test_app_at(dir: &Path) -> App {
+    test_app_with(dir, acp::test_config(), acp::MCP_URL).await
+}
+
+/// As `test_app_at`, with the sessions' own configuration and the `/mcp` URL
+/// the daemon reports.
+pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) -> App {
     let db = dir.join("s.sqlite3");
     let storage = Arc::new(Storage::open(&db).await.unwrap());
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
@@ -99,10 +113,11 @@ pub async fn test_app_at(dir: &Path) -> App {
     let sessions = Sessions::new(
         acp::fake_adapter(),
         Storage::open(&db).await.unwrap(),
-        acp::test_config(),
+        config,
     );
     let handles = Arc::new(LiveHandles::default());
     let (bus, _) = tokio::sync::broadcast::channel(256);
+    let (ui, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let router = router(AppState {
         runtime: runtime.clone(),
@@ -110,7 +125,9 @@ pub async fn test_app_at(dir: &Path) -> App {
         handles: handles.clone(),
         sessions: sessions.clone(),
         bus: bus.clone(),
+        ui: ui.clone(),
         allowed_origins: Vec::new(),
+        mcp_url: mcp_url.to_string(),
         shutdown,
     });
     App {
@@ -120,6 +137,7 @@ pub async fn test_app_at(dir: &Path) -> App {
         handles,
         sessions,
         bus,
+        ui,
         router,
         project: project.id,
         thread,
@@ -175,6 +193,35 @@ pub async fn get_json<T: DeserializeOwned>(app: &App, path: &str) -> T {
     let (status, body) = call(app, "GET", path, None).await;
     assert_eq!(status, 200, "GET {path}: {body}");
     serde_json::from_value(body).unwrap()
+}
+
+/// A second project, on the system's temp directory, with one thread of its
+/// own: what a test needs to show something stays inside its own project.
+pub async fn other_project(app: &App) -> (ProjectId, ThreadId) {
+    let project = app
+        .storage
+        .create_project(
+            &ctx("other-project", "project.create"),
+            "other",
+            "Other",
+            &ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+            &policy::default_modes(),
+        )
+        .await
+        .unwrap()
+        .id;
+    let thread = app
+        .storage
+        .create_planning_thread(
+            &ctx("other-thread", "thread.create"),
+            &project,
+            "Other",
+            policy::CLAUDE_CODE,
+        )
+        .await
+        .unwrap()
+        .id;
+    (project, thread)
 }
 
 /// Creates a thread in the app's project over HTTP; answers its JSON.
@@ -263,7 +310,7 @@ pub async fn last_agent_entry_on(app: &App, thread: &str) -> ThreadEntry {
         .await
         .into_iter()
         .rev()
-        .find(|e| e.kind == "AgentMessage")
+        .find(|e| e.kind == ThreadEntryKind::AgentMessage)
         .expect("an agent reply")
 }
 
@@ -280,41 +327,73 @@ pub struct Subscription {
 /// Subscribes to `thread` from its start and waits until the replay is over,
 /// so what the next frames carry happened after this call.
 pub async fn subscribe(app: &App, thread: &ThreadId) -> Subscription {
+    let mut sub = subscribe_from(app, thread, 0).await;
+    next_frame_named(&mut sub, "caught-up").await;
+    sub
+}
+
+/// Subscribes to `thread` after `after`, reading nothing yet: the replay's
+/// frames are still to come.
+pub async fn subscribe_from(app: &App, thread: &ThreadId, after: i64) -> Subscription {
     let response = app
         .router
         .clone()
         .oneshot(
-            Request::get(format!("/api/subscribe?thread_id={thread}"))
+            Request::get(format!("/api/subscribe?thread_id={thread}&after={after}"))
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .unwrap();
-    let mut sub = Subscription {
+    Subscription {
         body: response.into_body().into_data_stream(),
         buffer: String::new(),
-    };
-    next_frame_named(&mut sub, "caught-up").await;
-    sub
+    }
+}
+
+/// Every frame as `(event, data)`, up to and including the first for which
+/// `last` holds.
+pub async fn frames_until(
+    sub: &mut Subscription,
+    last: impl Fn(&str, &Value) -> bool,
+) -> Vec<(String, Value)> {
+    let mut frames = Vec::new();
+    loop {
+        let (event, data) = next_frame(sub).await;
+        let done = last(&event, &data);
+        frames.push((event, data));
+        if done {
+            return frames;
+        }
+    }
+}
+
+/// The next frame's `event:` and data, whatever it is.
+async fn next_frame(sub: &mut Subscription) -> (String, Value) {
+    use tokio_stream::StreamExt;
+    loop {
+        if let Some(end) = sub.buffer.find("\n\n") {
+            let frame: String = sub.buffer.drain(..end + 2).collect();
+            let event = frame.lines().find_map(|l| l.strip_prefix("event: "));
+            let data = frame.lines().find_map(|l| l.strip_prefix("data: "));
+            let data = serde_json::from_str(data.unwrap_or("null")).unwrap_or(Value::Null);
+            return (event.unwrap_or_default().to_string(), data);
+        }
+        let chunk = tokio::time::timeout(Duration::from_secs(10), sub.body.next())
+            .await
+            .unwrap_or_else(|_| panic!("no frame in time: {}", sub.buffer))
+            .expect("the stream ended")
+            .unwrap();
+        sub.buffer.push_str(std::str::from_utf8(&chunk).unwrap());
+    }
 }
 
 /// The data of the next frame whose `event:` is `name`, skipping others.
 pub async fn next_frame_named(sub: &mut Subscription, name: &str) -> Value {
-    use tokio_stream::StreamExt;
     loop {
-        while let Some(end) = sub.buffer.find("\n\n") {
-            let frame: String = sub.buffer.drain(..end + 2).collect();
-            let event = frame.lines().find_map(|l| l.strip_prefix("event: "));
-            let data = frame.lines().find_map(|l| l.strip_prefix("data: "));
-            if event == Some(name) {
-                return serde_json::from_str(data.unwrap_or("null")).unwrap_or(Value::Null);
-            }
+        let (event, data) = next_frame(sub).await;
+        if event == name {
+            return data;
         }
-        let chunk = tokio::time::timeout(Duration::from_secs(10), sub.body.next())
-            .await
-            .unwrap_or_else(|_| panic!("no {name} frame in time: {}", sub.buffer))
-            .expect("the stream ended")
-            .unwrap();
-        sub.buffer.push_str(std::str::from_utf8(&chunk).unwrap());
     }
 }

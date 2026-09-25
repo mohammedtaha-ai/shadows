@@ -4,16 +4,23 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useReducer } from 'react'
 import { entriesQuery, operationsQuery } from '@/api/queries'
-import type { Limits, UsageFrame } from '@/stream/frames'
+import type { Limits, PlanShowFrame, UsageFrame } from '@/stream/frames'
+import { tabId } from '@/stream/tab-id'
 import { useThreadStream } from '@/stream/use-thread-stream'
+import { isPlanEvent, refetchPlans } from '../workflows/plan-frames'
 import { initialReply, replyReducer, shownReply } from './reply'
 import { initialTurnState, latestTurn, runningTurn, turnReducer } from './turn-state'
 import { type ContextFigures, latestContext } from './usage'
 import { replaceChoices } from './use-session'
 
 /** Mount once per thread (key the caller by thread id): the reducers here
- * hold that one thread's turns and reply. */
-export function useConversation(threadId: string) {
+ * hold that one thread's turns and reply.
+ *
+ * The stream also keeps this thread's plans current, for its cards and side
+ * panel (see `plan-frames.ts`). `onShowHere` hears a plan the Planner showed
+ * for this tab (§13.9): a live `plan-show` naming this tab's id, never a
+ * replayed card and never another tab's. */
+export function useConversation(threadId: string, onShowHere?: (show: PlanShowFrame) => void) {
   const [turns, dispatchTurn] = useReducer(turnReducer, initialTurnState)
   const [reply, dispatchReply] = useReducer(replyReducer, initialReply)
   // The latest the harness reported live; a report that left a figure out
@@ -34,6 +41,7 @@ export function useConversation(threadId: string) {
     threadId,
     (event, live, current) => {
       dispatchTurn({ type: 'event', event, now: Date.now() })
+      if (live && isPlanEvent(event.kind)) refetchPlans(queryClient)
       if (live && event.kind === 'ThreadEntryAppended') {
         const ordinal = agentOrdinal(event.payload)
         if (ordinal !== null) {
@@ -44,8 +52,21 @@ export function useConversation(threadId: string) {
     (notice) => {
       if (notice.type === 'options') replaceChoices(queryClient, threadId, notice.choices)
       if (notice.type === 'usage') dispatchUsage(notice.usage)
+      if (
+        notice.type === 'plan-show' &&
+        notice.show.threadId === threadId &&
+        notice.show.targetTab === tabId()
+      ) {
+        onShowHere?.(notice.show)
+      }
     },
   )
+
+  // Each replay's end reads the plans again, for any change it carried.
+  const live = stream.connection === 'live'
+  useEffect(() => {
+    if (live) refetchPlans(queryClient)
+  }, [live, queryClient])
 
   const entries = useQuery(entriesQuery(threadId))
   const operations = useQuery(operationsQuery(threadId))

@@ -15,6 +15,7 @@ use crate::{
     runtime::Runtime,
     storage::StorageError,
     thread::ThreadId,
+    workflow::Focus,
 };
 use std::sync::{Arc, atomic::AtomicBool};
 use tokio::sync::{broadcast, mpsc};
@@ -26,6 +27,17 @@ pub enum StartError {
     #[error(transparent)]
     Storage(#[from] StorageError),
 }
+
+/// The context block that tells the Planner which task the person points at
+/// (§13.9): task `number`, titled `title`, as the turn command read it.
+pub fn focus_block(focus: &Focus, number: u32, title: &str) -> String {
+    format!(
+        "[Shadows] The person is pointing at task T{number} (\"{title}\") of plan {}, revision {}. \
+         Read the plan with workflow_get before changing it.",
+        focus.workflow_id, focus.revision
+    )
+}
+
 /// A turn whose operation `Storage::start_turn` has committed `Pending`.
 #[derive(Debug)]
 pub struct PlannerTurnRequest {
@@ -36,6 +48,11 @@ pub struct PlannerTurnRequest {
     pub operation_id: OperationId,
     pub prompt: String,
     pub settings: TurnSettings,
+    /// The focus block (§13.9, `focus_block`), sent after the instructions
+    /// block so the person's text stays first.
+    pub focus: Option<String>,
+    /// The tab that sent the turn, kept in memory only (§13.9).
+    pub client_tab: Option<String>,
     /// The session's events, leased before validation
     /// (`Sessions::lease_events`): the turn holds the session from its
     /// checks to its ending, and gives them back.
@@ -57,18 +74,31 @@ impl PlannerTurn {
             operation_id: op_id,
             prompt,
             settings,
+            focus,
+            client_tab,
             events,
         } = request;
         let span = tracing::info_span!(parent: None, "planner.turn", operation_id = %op_id, thread_id = %thread_id);
-        if let Err(reason) = sessions.prepare_turn(&thread_id, &opened, &settings).await {
-            tracing::info!(parent: &span, %reason, "planner.prepare_refused");
-            sessions.give_back_events(&thread_id, &opened, events).await;
-            runtime
-                .storage
-                .mark_operation_failed(&op_id, FailureStage::Prepare, &reason)
-                .await?;
-            return Ok(op_id);
-        }
+        // §13.8: what changed since the session last heard, read while this
+        // turn is still `Pending` and so not yet its thread's latest.
+        let context = sessions.setups().context_before_turn(&thread_id).await;
+        let prepared = match context {
+            Ok(context) => (sessions.prepare_turn(&thread_id, &opened, &settings).await)
+                .map(|()| context.into_iter().chain(focus).collect::<Vec<String>>()),
+            Err(error) => Err(error.to_string()),
+        };
+        let context = match prepared {
+            Ok(context) => context,
+            Err(reason) => {
+                tracing::info!(parent: &span, %reason, "planner.prepare_refused");
+                sessions.give_back_events(&thread_id, &opened, events).await;
+                runtime
+                    .storage
+                    .mark_operation_failed(&op_id, FailureStage::Prepare, &reason)
+                    .await?;
+                return Ok(op_id);
+            }
+        };
         let turn_end_seen = Arc::new(AtomicBool::new(false));
         let cancel_requested = Arc::new(AtomicBool::new(false));
         if let Err(_turn) = handles
@@ -77,6 +107,7 @@ impl PlannerTurn {
                 LiveTurn {
                     thread_id: thread_id.clone(),
                     session: opened.clone(),
+                    client_tab,
                     turn_end_seen: turn_end_seen.clone(),
                     cancel_requested: cancel_requested.clone(),
                     span: span.clone(),
@@ -145,6 +176,7 @@ impl PlannerTurn {
                 thread_id,
                 harness,
                 prompt,
+                context,
                 turn_end_seen,
                 cancel_requested,
                 span,

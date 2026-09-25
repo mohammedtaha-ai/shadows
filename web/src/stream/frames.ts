@@ -64,6 +64,21 @@ export interface OptionsFrame {
   choices: SessionChoices
 }
 
+/** Where the Planner put a shown plan (§13.9). */
+export type PlanPlace = 'inline' | 'side' | 'page'
+
+/** The Planner showed a plan (§13.9). Transient and live only: it is never
+ * replayed, and only the tab named `targetTab` acts on it. */
+export interface PlanShowFrame {
+  threadId: string
+  /** The tab that sent the turn; `null` when it named none. */
+  targetTab: string | null
+  workflowId: string
+  version: number
+  taskNumber: number | null
+  place: PlanPlace
+}
+
 export class FrameError extends Error {
   constructor(event: string, data: string) {
     super(`malformed \`${event}\` frame: ${data.slice(0, 200)}`)
@@ -154,6 +169,26 @@ export function parseOptions(data: string): OptionsFrame {
     throw new FrameError('options', data)
   }
   return { threadId, choices }
+}
+
+export function parsePlanShow(data: string): PlanShowFrame {
+  const frame = object('plan-show', data)
+  const threadId = frame.thread_id
+  const targetTab = frame.target_tab ?? null
+  const workflowId = frame.workflow_id
+  const { version, place } = frame
+  const taskNumber = frame.task_number ?? null
+  if (
+    typeof threadId !== 'string' ||
+    !isStringOrNull(targetTab) ||
+    typeof workflowId !== 'string' ||
+    !isSeq(version) ||
+    !(taskNumber === null || isSeq(taskNumber)) ||
+    !(place === 'inline' || place === 'side' || place === 'page')
+  ) {
+    throw new FrameError('plan-show', data)
+  }
+  return { threadId, targetTab, workflowId, version, taskNumber, place }
 }
 
 /** The daemon's limits (as `GET /api/harnesses` also carries them) in this

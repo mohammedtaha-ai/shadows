@@ -26,6 +26,15 @@ export type LimitWindow = Schemas['LimitWindow']
 export type InvocationView = Schemas['InvocationView']
 export type TurnSettings = Schemas['TurnSettings']
 export type ContextBreakdown = Schemas['ContextBreakdown']
+export type Plan = Schemas['Plan']
+export type PlanTask = Schemas['PlanTask']
+export type PlanLink = Schemas['Link']
+export type PlanListing = Schemas['PlanListing']
+export type Approved = Schemas['Approved']
+export type Focus = Schemas['Focus']
+export type InstructionsVersion = Schemas['InstructionsVersion']
+export type Grant = Schemas['Grant']
+export type IssuedGrant = Schemas['IssuedGrantBody']
 
 /** The daemon's origin, without a trailing slash. */
 export const DAEMON_URL = (import.meta.env.VITE_SHADOWS_URL ?? 'http://127.0.0.1:4318').replace(
@@ -102,17 +111,20 @@ export function listOperations(threadId: string): Promise<Operation[]> {
 
 /** Starts a Planner turn with its settings, as one command (spec §12.7);
  * answers the operation it runs as. The command id is the caller's: a retry of
- * the same send passes the same one, and this function never makes one. */
+ * the same send passes the same one, and this function never makes one.
+ * `focus` is the task the person points at, part of the command; `clientTab`
+ * is the sending tab (§13.9), transport state that is not. */
 export async function startTurn(
   threadId: string,
   commandId: string,
   prompt: string,
   settings: TurnSettings,
+  { focus = null, clientTab }: { focus?: Focus | null; clientTab: string },
 ): Promise<string> {
   const started = await unwrap(
     client.POST('/api/threads/{id}/turns', {
       params: { path: { id: threadId } },
-      body: { command_id: commandId, prompt, ...settings },
+      body: { command_id: commandId, prompt, ...settings, focus, client_tab: clientTab },
     }),
   )
   return started.operation_id
@@ -164,6 +176,82 @@ export function forkThread(
 export function stopTurn(operationId: string): Promise<Operation> {
   return unwrap(
     client.POST('/api/operations/{id}/stop', { params: { path: { id: operationId } } }),
+  )
+}
+
+/** Each conversation's latest plan version in a project (spec §13.10). */
+export function listPlans(projectId: string): Promise<PlanListing[]> {
+  return unwrap(client.GET('/api/projects/{id}/workflows', { params: { path: { id: projectId } } }))
+}
+
+/** One plan version: tasks, links, revision, its neighbours, what blocks its
+ * approval and what the last edit changed (spec §13.10). */
+export function getPlan(workflowId: string): Promise<Plan> {
+  return unwrap(client.GET('/api/workflows/{id}', { params: { path: { id: workflowId } } }))
+}
+
+/** Approves a Draft at the revision the person saw (spec §13.2). Answers what
+ * the approval did, not the plan: the caller reads the plan again. */
+export function approvePlan(
+  workflowId: string,
+  commandId: string,
+  expectedRevision: number,
+): Promise<Approved> {
+  return unwrap(
+    client.POST('/api/workflows/{id}/approve', {
+      params: { path: { id: workflowId } },
+      body: { command_id: commandId, expected_revision: expectedRevision },
+    }),
+  )
+}
+
+/** The project's current instructions, or `null` before the first save
+ * (spec §13.8). */
+export function getInstructions(projectId: string): Promise<InstructionsVersion | null> {
+  return unwrap(
+    client.GET('/api/projects/{id}/planner-instructions', { params: { path: { id: projectId } } }),
+  )
+}
+
+/** Saves the project's instructions as its next version (spec §13.8). */
+export function saveInstructions(
+  projectId: string,
+  commandId: string,
+  body: string,
+): Promise<InstructionsVersion> {
+  return unwrap(
+    client.PUT('/api/projects/{id}/planner-instructions', {
+      params: { path: { id: projectId } },
+      body: { command_id: commandId, body },
+    }),
+  )
+}
+
+/** A project's grants for external agents, revoked ones included, newest
+ * first (spec §13.7). */
+export function listGrants(projectId: string): Promise<Grant[]> {
+  return unwrap(
+    client.GET('/api/projects/{id}/mcp-grants', { params: { path: { id: projectId } } }),
+  )
+}
+
+/** Connect: issues a grant bound to the project. Its `command` and `token`
+ * are in this answer only, and `null` when the command is a replay. */
+export function issueGrant(projectId: string, commandId: string): Promise<IssuedGrant> {
+  return unwrap(
+    client.POST('/api/projects/{id}/mcp-grants', {
+      params: { path: { id: projectId } },
+      body: { command_id: commandId },
+    }),
+  )
+}
+
+/** Revokes a project grant; Shadows refuses its token from then on. */
+export function revokeGrant(grantId: string, commandId: string): Promise<Grant> {
+  return unwrap(
+    client.DELETE('/api/mcp-grants/{id}', {
+      params: { path: { id: grantId }, query: { command_id: commandId } },
+    }),
   )
 }
 

@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, Square } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import {
+  type Focus,
   type SessionChoices,
   type TurnSettings,
   changeModel,
@@ -13,8 +14,10 @@ import {
 } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
+import { tabId } from '@/stream/tab-id'
 import { ErrorLine } from '../error-line'
 import { ComposerBar } from './composer-bar'
+import { FocusChip, type PointedTask } from './focus-chip'
 import { afterOptions, effortsKnown, initialSettings, sendable, withModel } from './turn-settings'
 import type { Turn } from './turn-state'
 import { type SessionView, sessionKey } from './use-session'
@@ -23,6 +26,7 @@ interface Send {
   commandId: string
   text: string
   settings: TurnSettings
+  pointed: PointedTask | null
 }
 
 export function Composer({
@@ -35,6 +39,8 @@ export function Composer({
   known,
   ring,
   onStarted,
+  pointed,
+  onPointed,
 }: {
   threadId: string
   /** The thread's harness kind. */
@@ -48,6 +54,10 @@ export function Composer({
   ring?: ReactNode
   /** The start route answered: the turn exists before its events arrive. */
   onStarted: (operationId: string) => void
+  /** The task the person points at (§13.9), sent with the next turn. */
+  pointed: PointedTask | null
+  /** Clears the chip: pressed ×, or the turn that carried it started. */
+  onPointed: (done: PointedTask) => void
 }) {
   const [prompt, setPrompt] = useState('')
 
@@ -58,11 +68,15 @@ export function Composer({
   const pending = useRef<Attempt | null>(null)
 
   const send = useMutation({
-    mutationFn: ({ commandId, text, settings }: Send) =>
-      startTurn(threadId, commandId, text, settings),
-    onSuccess: (operationId) => {
+    mutationFn: ({ commandId, text, settings, pointed }: Send) =>
+      startTurn(threadId, commandId, text, settings, {
+        focus: focusOf(pointed),
+        clientTab: tabId(),
+      }),
+    onSuccess: (operationId, { pointed }) => {
       pending.current = null
       setPrompt('')
+      if (pointed !== null) onPointed(pointed)
       onStarted(operationId)
     },
   })
@@ -122,8 +136,9 @@ export function Composer({
   const submit = () => {
     const text = prompt.trim()
     if (text === '' || !ready || settings === null || send.isPending || running !== null) return
-    pending.current = attemptFor(pending.current, { text, settings })
-    send.mutate({ commandId: pending.current.commandId, text, settings })
+    // The focus is part of the command (§13.10): pointing elsewhere is a new one.
+    pending.current = attemptFor(pending.current, { text, settings, focus: focusOf(pointed) })
+    send.mutate({ commandId: pending.current.commandId, text, settings, pointed })
   }
 
   const error = send.error ?? stop.error
@@ -131,6 +146,7 @@ export function Composer({
   return (
     <div className="border-t border-border bg-background px-6 pt-3 pb-4">
       <div className="mx-auto max-w-3xl space-y-2">
+        {pointed !== null && <FocusChip pointed={pointed} onClear={() => onPointed(pointed)} />}
         <div className="flex items-end gap-2 rounded-xl border border-accent-line/40 bg-input-background p-2 focus-within:border-accent-line focus-within:ring-3 focus-within:ring-ring/30">
           <textarea
             value={prompt}
@@ -237,4 +253,10 @@ function useTurnSettings(
       })
     },
   }
+}
+
+/** What the turn sends: the task's id, never its number (§13.10). */
+function focusOf(pointed: PointedTask | null): Focus | null {
+  if (pointed === null) return null
+  return { workflow_id: pointed.workflowId, task_id: pointed.task.id, revision: pointed.revision }
 }

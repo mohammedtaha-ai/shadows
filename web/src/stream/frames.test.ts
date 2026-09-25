@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { fakeChoices } from '@/test/contract-fixtures'
-import { FrameError, parseCaughtUp, parseDurable, parseOptions, parseUsage } from './frames'
+import {
+  FrameError,
+  parseCaughtUp,
+  parseDurable,
+  parseOptions,
+  parsePlanShow,
+  parseUsage,
+} from './frames'
 
 describe('frames', () => {
   it('reads a durable frame with its operation, its thread, and its payload object', () => {
@@ -62,5 +69,30 @@ describe('frames', () => {
     const { models, efforts, modes } = fakeChoices
     const choices = { models, efforts, modes }
     expect(() => parseOptions(JSON.stringify({ thread_id: 't1', choices }))).toThrow(FrameError)
+  })
+
+  it('reads a plan-show frame, and refuses a place it does not know', () => {
+    const frame = {
+      thread_id: 't1',
+      target_tab: 'tab-1',
+      workflow_id: 'w1',
+      version: 2,
+      task_number: 4,
+      place: 'side',
+    }
+    expect(parsePlanShow(JSON.stringify(frame))).toEqual({
+      threadId: 't1',
+      targetTab: 'tab-1',
+      workflowId: 'w1',
+      version: 2,
+      taskNumber: 4,
+      place: 'side',
+    })
+    const untargeted = parsePlanShow(
+      JSON.stringify({ ...frame, target_tab: null, task_number: null }),
+    )
+    expect(untargeted.targetTab).toBeNull()
+    expect(untargeted.taskNumber).toBeNull()
+    expect(() => parsePlanShow(JSON.stringify({ ...frame, place: 'window' }))).toThrow(FrameError)
   })
 })

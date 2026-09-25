@@ -1,7 +1,8 @@
 mod sqlite;
 
 pub use sqlite::{
-    NewTurn, ReconcileReport, StartedTurn, StopKind, Storage, StorageError, StoredEvent,
+    InstructionsVersion, NewTurn, ReconcileReport, StartedTurn, StopKind, Storage, StorageError,
+    StoredEvent,
 };
 
 /// Test-only access to a private capability. Compiled in only when the

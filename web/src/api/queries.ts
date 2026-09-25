@@ -2,10 +2,14 @@
 
 import { queryOptions } from '@tanstack/react-query'
 import {
+  getInstructions,
+  getPlan,
+  listGrants,
   listDirs,
   listEntries,
   listHarnesses,
   listOperations,
+  listPlans,
   listProjects,
   listThreads,
 } from './client'
@@ -60,6 +64,48 @@ export function operationsQuery(threadId: string) {
   return queryOptions({
     queryKey: threadOperationsKey(threadId),
     queryFn: () => listOperations(threadId),
+  })
+}
+
+/** Every plan query, lists and versions alike: a thread's `Workflow*` event
+ * or an approval invalidates this prefix, since a new draft also changes its
+ * predecessor's `next`. */
+export const workflowsKey = ['workflows'] as const
+
+/** A project's plans, each conversation's latest version (spec §13.10). No
+ * thread's stream carries the list, so it is polled every 10 s while shown;
+ * TanStack Query pauses the poll while the window is hidden. */
+export function plansQuery(projectId: string) {
+  return queryOptions({
+    queryKey: [...workflowsKey, 'list', projectId],
+    queryFn: () => listPlans(projectId),
+    refetchInterval: 10_000,
+  })
+}
+
+/** One plan version, as the Workflows page and the conversation's cards show it. */
+export function planQuery(workflowId: string) {
+  return queryOptions({
+    queryKey: [...workflowsKey, 'plan', workflowId],
+    queryFn: () => getPlan(workflowId),
+  })
+}
+
+/** A project's current Planner instructions (spec §13.8). */
+export function instructionsQuery(projectId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'instructions'],
+    queryFn: () => getInstructions(projectId),
+  })
+}
+
+/** A project's grants for external agents (spec §13.7). No thread's stream
+ * carries them, so the list is polled every 10 s while shown, as plans are. */
+export function grantsQuery(projectId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'grants'],
+    queryFn: () => listGrants(projectId),
+    refetchInterval: 10_000,
   })
 }
 

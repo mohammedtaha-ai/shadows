@@ -24,7 +24,7 @@ use shadows::protocol::AppState;
 use shadows::protocol::sse::{SubscribeQuery, subscribe};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
-use shadows::thread::{NewThreadEntry, PlanningThread, ThreadId};
+use shadows::thread::{NewThreadEntry, PlanningThread, ThreadEntryKind, ThreadId};
 use tokio_stream::StreamExt;
 
 #[path = "fixtures/acp.rs"]
@@ -68,7 +68,7 @@ async fn seed(storage: &Storage) -> (Project, PlanningThread) {
 
 fn user_message(body: &str) -> NewThreadEntry<'_> {
     NewThreadEntry {
-        kind: "UserMessage",
+        kind: ThreadEntryKind::UserMessage,
         author: Actor::user("local"),
         body,
         refs: &[],
@@ -347,6 +347,8 @@ impl Live {
             sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
             bus: bus.clone(),
             allowed_origins: Vec::new(),
+            ui: tokio::sync::broadcast::channel(16).0,
+            mcp_url: acp::MCP_URL.to_string(),
             shutdown,
         };
         Live {

@@ -35,41 +35,8 @@ impl Storage {
                 if let Some(id) = classify(conn, &ctx, "Project", &scope_key).await? {
                     return load_thread(conn, &ThreadId::from_stored(id)).await;
                 }
-                // `NotFound`, not the foreign key's constraint failure: a
-                // thread asked for under a project that does not exist names
-                // something missing, not a conflict with what is stored.
-                let project: Option<String> =
-                    sqlx::query_scalar("SELECT id FROM project WHERE id = ?")
-                        .bind(project_id.as_str())
-                        .fetch_optional(&mut *conn)
-                        .await?;
-                if project.is_none() {
-                    return Err(StorageError::NotFound("project"));
-                }
-                let id = ThreadId::generate();
-                sqlx::query(
-                    "INSERT INTO planning_thread
-                       (id, project_id, title, status, next_entry_ordinal, harness_kind, created_at)
-                     VALUES (?,?,?, 'Open', 1, ?, ?)",
-                )
-                .bind(id.as_str())
-                .bind(project_id.as_str())
-                .bind(&title)
-                .bind(&harness)
-                .bind(&ts)
-                .execute(&mut *conn)
-                .await?;
-
-                append_event(
-                    conn,
-                    &DurableEvent::new("PlanningThreadCreated", Actor::user(&ctx.principal_id))
-                        .with_project(&project_id)
-                        .with_thread(&id)
-                        .with_payload(serde_json::json!({ "title": title, "harness": harness })),
-                    &ts,
-                )
-                .await?;
-
+                let actor = Actor::user(&ctx.principal_id);
+                let id = insert_thread(conn, &project_id, &title, &harness, actor, &ts).await?;
                 record_command(
                     conn,
                     &ctx,
@@ -230,6 +197,50 @@ impl Storage {
         .await?;
         Ok(rows.into_iter().map(into_thread).collect())
     }
+}
+
+/// Creates an open thread in `project_id` and journals `PlanningThreadCreated`
+/// by `actor`, inside the caller's transaction. `NotFound`, not the foreign
+/// key's constraint failure: a thread asked for under a project that does not
+/// exist names something missing, not a conflict with what is stored.
+pub(super) async fn insert_thread(
+    conn: &mut SqliteConnection,
+    project_id: &ProjectId,
+    title: &str,
+    harness: &str,
+    actor: Actor,
+    ts: &str,
+) -> Result<ThreadId, StorageError> {
+    let project: Option<String> = sqlx::query_scalar("SELECT id FROM project WHERE id = ?")
+        .bind(project_id.as_str())
+        .fetch_optional(&mut *conn)
+        .await?;
+    if project.is_none() {
+        return Err(StorageError::NotFound("project"));
+    }
+    let id = ThreadId::generate();
+    sqlx::query(
+        "INSERT INTO planning_thread
+           (id, project_id, title, status, next_entry_ordinal, harness_kind, created_at)
+         VALUES (?,?,?, 'Open', 1, ?, ?)",
+    )
+    .bind(id.as_str())
+    .bind(project_id.as_str())
+    .bind(title)
+    .bind(harness)
+    .bind(ts)
+    .execute(&mut *conn)
+    .await?;
+    append_event(
+        conn,
+        &DurableEvent::new("PlanningThreadCreated", actor)
+            .with_project(project_id)
+            .with_thread(&id)
+            .with_payload(serde_json::json!({ "title": title, "harness": harness })),
+        ts,
+    )
+    .await?;
+    Ok(id)
 }
 
 /// Whether any operation — running or ended — exists on the thread. Its first

@@ -74,7 +74,11 @@ describe('the composer bar', () => {
     act(() => app.pushFrame('caught-up', { seq: 0 }))
     act(() => app.pushFrame('options', { thread_id: 't1', choices: fakeChoices }))
     act(() => app.pushFrame('options', { thread_id: 't1', choices: opened }))
-    await new Promise((r) => setTimeout(r, 50))
+    // Inside act: what the frames set off settles here, not in a gap React
+    // does not see.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
     expect(app.text()).toContain('Connecting to Claude Code…')
     act(() => release())
     await until(() => app.button('max') !== undefined)

@@ -4,6 +4,7 @@ use crate::events::Actor;
 use crate::id::newtype_id;
 use crate::operation::OperationId;
 use crate::project::ProjectId;
+use crate::workflow::{TaskId, WorkflowId};
 
 newtype_id! {
     /// Spec §4.1.
@@ -57,9 +58,7 @@ pub struct ThreadEntry {
     pub id: ThreadEntryId,
     pub thread_id: ThreadId,
     pub ordinal: i64,
-    /// `UserMessage`, `AgentMessage`, or `PermissionRefused` (a permission the
-    /// harness asked for and Shadows refused, spec §12.2).
-    pub kind: String,
+    pub kind: ThreadEntryKind,
     /// Spec §4.2 calls this field's type `Principal`. Milestone 0 uses
     /// `events::Actor`, which already has exactly this shape (`kind` + `id`) and
     /// already answers "who did this" for durable events. Declaring a second
@@ -84,10 +83,7 @@ pub struct ThreadEntry {
 /// site is what makes the mistake unwritable rather than merely unlikely.
 #[derive(Debug, Clone)]
 pub struct NewThreadEntry<'a> {
-    /// Spec §4.2 types this as `ThreadEntryKind`, an enum whose variants the
-    /// spec never enumerates. Inventing them here would be deciding a question
-    /// the spec has not asked, so it stays text — see the note in §4.2.
-    pub kind: &'a str,
+    pub kind: ThreadEntryKind,
     pub author: Actor,
     pub body: &'a str,
     pub refs: &'a [EntryRef],
@@ -95,13 +91,59 @@ pub struct NewThreadEntry<'a> {
     pub operation_id: Option<&'a OperationId>,
 }
 
+/// What an entry is (spec §4.2, closed by §13.9). The client branches on it.
+/// Each variant is stored as its name, the text storage held before this was
+/// an enum, so no stored row is rewritten.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+pub enum ThreadEntryKind {
+    UserMessage,
+    AgentMessage,
+    /// A permission the harness asked for and Shadows refused (spec §12.2).
+    PermissionRefused,
+    /// A plan shown in the conversation at the person's request (§13.9).
+    PlanView,
+    /// A plan version approved (§13.9).
+    PlanApproved,
+}
+
+impl ThreadEntryKind {
+    /// The stored text, which is also the wire name.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::UserMessage => "UserMessage",
+            Self::AgentMessage => "AgentMessage",
+            Self::PermissionRefused => "PermissionRefused",
+            Self::PlanView => "PlanView",
+            Self::PlanApproved => "PlanApproved",
+        }
+    }
+
+    /// The inverse of [`Self::as_str`]; `None` for text no variant names.
+    pub fn parse(s: &str) -> Option<Self> {
+        [
+            Self::UserMessage,
+            Self::AgentMessage,
+            Self::PermissionRefused,
+            Self::PlanView,
+            Self::PlanApproved,
+        ]
+        .into_iter()
+        .find(|kind| kind.as_str() == s)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub enum EntryRef {
-    /// Typed, because `operation/` exists. The three below reference entities
-    /// whose modules Milestone 0 never creates, and §4.1's rule is that no module
-    /// is created before the task that fills it.
+    /// Typed where the referenced entity's module exists. `Decision` and
+    /// `Research` reference entities whose modules no milestone has created
+    /// yet, and §4.1's rule is that no module is created before the task that
+    /// fills it.
     Operation(OperationId),
     Decision(String),
     Research(String),
-    Workflow(String),
+    Workflow(WorkflowId),
+    /// A message about one task of a plan (§13.9).
+    Task(TaskId),
 }

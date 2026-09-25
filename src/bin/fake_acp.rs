@@ -1,7 +1,9 @@
 //! ACP test agent. Prompts: ordinary (two chunks), `two-messages` (tool updates),
 //! `report` (session state), `/context` (delayed first report), `hang` (cancel),
 //! `ignore-cancel` (never), `exit` (code 3), `ask-permission` (reject),
-//! `usage` (two context updates), and `refuse` (max_tokens). Models:
+//! `usage` (two context updates), `refuse` (max_tokens), and `mcp <tool> <json>`
+//! (calls the session's MCP server, §13.8). `report` also shows what the
+//! session opened with and the prompt's blocks. Models:
 //! `fake-large` (efforts, `auto`), `fake-small` (efforts, no `auto`),
 //! `fake-tiny` (no effort), `fake-locked` (refused, as an account without
 //! credits is). A session starts at `fake-large`, `high`, `auto`: as the real
@@ -15,14 +17,18 @@ use std::{
 
 use agent_client_protocol::schema::v1::{
     AgentCapabilities, CancelNotification, ContentBlock, ContentChunk, ForkSessionRequest,
-    ForkSessionResponse, InitializeRequest, InitializeResponse, NewSessionRequest,
+    ForkSessionResponse, InitializeRequest, InitializeResponse, McpServer, Meta, NewSessionRequest,
     NewSessionResponse, PermissionOption, PermissionOptionKind, PromptRequest, PromptResponse,
     RequestPermissionRequest, ResumeSessionRequest, ResumeSessionResponse, SessionConfigOption,
     SessionNotification, SessionUpdate, SetSessionConfigOptionRequest,
     SetSessionConfigOptionResponse, StopReason, TextContent, ToolCall, ToolCallUpdate, UsageUpdate,
 };
 use agent_client_protocol::{Agent, Client, ConnectionTo, Responder, Stdio};
-use serde_json::json;
+use rmcp::ServiceExt;
+use rmcp::model::CallToolRequestParams;
+use rmcp::transport::StreamableHttpClientTransport;
+use rmcp::transport::streamable_http_client::StreamableHttpClientTransportConfig;
+use serde_json::{Value, json};
 use tokio::sync::watch;
 
 #[derive(Clone)]
@@ -33,6 +39,77 @@ struct Session {
     effort: Option<String>,
     mode: String,
     cancel: watch::Sender<bool>,
+    setup: Setup,
+}
+
+/// What a session opened with: Shadows' MCP server, the appended prompt and
+/// the pre-approved tools. The bearer is kept to call `/mcp` and reported only
+/// as its hash, because a reply is stored as an entry.
+#[derive(Clone, Default)]
+struct Setup {
+    mcp: Value,
+    url: Option<String>,
+    bearer: Option<String>,
+    append: Option<String>,
+    allowed: Value,
+}
+
+fn setup_of(servers: &[McpServer], meta: Option<&Meta>) -> Setup {
+    let http = servers.iter().find_map(|s| match s {
+        McpServer::Http(h) => Some(h),
+        _ => None,
+    });
+    let auth = http.and_then(|h| h.headers.iter().find(|x| x.name == "Authorization"));
+    let meta = meta
+        .map(|m| Value::Object(m.clone()))
+        .unwrap_or(Value::Null);
+    Setup {
+        mcp: http
+            .map(|h| json!({"name":h.name,"url":h.url}))
+            .unwrap_or(Value::Null),
+        url: http.map(|h| h.url.clone()),
+        bearer: auth
+            .and_then(|x| x.value.strip_prefix("Bearer "))
+            .map(str::to_owned),
+        append: meta
+            .pointer("/systemPrompt/append")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        allowed: meta
+            .pointer("/claudeCode/options/allowedTools")
+            .cloned()
+            .unwrap_or(Value::Null),
+    }
+}
+
+/// `mcp <tool> <json args>`: one call on the session's MCP server with its
+/// bearer, answering the result's text.
+async fn call_mcp(setup: &Setup, line: &str) -> String {
+    let mut words = line.splitn(3, ' ').skip(1);
+    let tool = words.next().unwrap_or_default().to_string();
+    let args: Value = serde_json::from_str(words.next().unwrap_or("{}")).unwrap_or(json!({}));
+    let (Some(url), Some(bearer)) = (&setup.url, &setup.bearer) else {
+        return "mcp: no server".into();
+    };
+    let config =
+        StreamableHttpClientTransportConfig::with_uri(url.clone()).auth_header(bearer.clone());
+    let client = match ().serve(StreamableHttpClientTransport::from_config(config)).await {
+        Ok(client) => client,
+        Err(e) => return format!("mcp: {e}"),
+    };
+    let params = CallToolRequestParams::new(tool)
+        .with_arguments(args.as_object().cloned().unwrap_or_default());
+    let text = match client.call_tool(params).await {
+        Ok(r) => r
+            .content
+            .first()
+            .and_then(|c| c.as_text())
+            .map(|t| t.text.clone())
+            .unwrap_or_default(),
+        Err(e) => format!("mcp: {e}"),
+    };
+    let _ = client.cancel().await;
+    text
 }
 
 #[derive(Default)]
@@ -40,6 +117,8 @@ struct State {
     next: usize,
     sessions: HashMap<String, Session>,
     context_seen: bool,
+    /// `session/resume` requests this process received.
+    resumes: usize,
 }
 type Shared = Arc<Mutex<State>>;
 
@@ -83,7 +162,7 @@ fn options(s: &Session) -> Vec<SessionConfigOption> {
         .collect()
 }
 
-fn make_session(cwd: PathBuf, how: &'static str) -> Session {
+fn make_session(cwd: PathBuf, how: &'static str, setup: Setup) -> Session {
     let (cancel, _) = watch::channel(false);
     Session {
         cwd,
@@ -92,6 +171,7 @@ fn make_session(cwd: PathBuf, how: &'static str) -> Session {
         effort: Some("high".into()),
         mode: "auto".into(),
         cancel,
+        setup,
     }
 }
 
@@ -135,16 +215,22 @@ async fn main() -> agent_client_protocol::Result<()> {
             st.next += 1;
             // Unique across adapter processes, as the real harness's ids are.
             let id = format!("fake-{}-{}", std::process::id(), st.next);
-            let s = make_session(r.cwd, "new");
+            let s = make_session(r.cwd, "new", setup_of(&r.mcp_servers, r.meta.as_ref()));
             let opts = options(&s);
             st.sessions.insert(id.clone(), s);
             responder.respond(NewSessionResponse::new(id).config_options(opts))
         }}, agent_client_protocol::on_receive_request!())
         .on_receive_request({ let state = state.clone(); async move |r: ResumeSessionRequest, responder, _cx| {
             let id = r.session_id.to_string();
+            // A harness slow to open its session, as Claude Code's own
+            // startup is on Windows (seconds).
+            if id.starts_with("slow-") {
+                tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+            }
             let mut st = state.lock().unwrap();
             let how = if id.starts_with("fork-of-") { "fork" } else { "resume" };
-            let s = make_session(r.cwd, how);
+            st.resumes += 1;
+            let s = make_session(r.cwd, how, setup_of(&r.mcp_servers, r.meta.as_ref()));
             let opts = options(&s);
             st.sessions.insert(id, s);
             responder.respond(ResumeSessionResponse::new().config_options(opts))
@@ -192,12 +278,13 @@ async fn main() -> agent_client_protocol::Result<()> {
             let cx = worker;
             let id = r.session_id.to_string();
             let prompt = r.prompt.iter().find_map(|b| match b { ContentBlock::Text(t) => Some(t.text.as_str()), _ => None }).unwrap_or("");
-            let (s, first_context) = {
+            let blocks: Vec<&str> = r.prompt.iter().filter_map(|b| match b { ContentBlock::Text(t) => Some(t.text.as_str()), _ => None }).collect();
+            let (s, first_context, resumes) = {
                 let mut st = state.lock().unwrap();
                 let Some(s) = st.sessions.get(&id).cloned() else { return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "Session not found")); };
                 let first = prompt == "/context" && !st.context_seen;
                 if prompt == "/context" { st.context_seen = true; }
-                (s, first)
+                (s, first, st.resumes)
             };
             match prompt {
                 "two-messages" => {
@@ -211,7 +298,9 @@ async fn main() -> agent_client_protocol::Result<()> {
                     chunk(&cx, &id, "m2", "second")?;
                 },
                 "report" => {
-                    let text = json!({"cwd":s.cwd,"session":id,"how":s.how,"model":s.model,"effort":s.effort,"mode":s.mode,"claude":std::env::var("CLAUDE_CODE_EXECUTABLE").unwrap_or_default()}).to_string();
+                    let bearer_hash = s.setup.bearer.as_deref().map(shadows::mcp::grant::hash_token);
+                    let text = json!({"cwd":s.cwd,"session":id,"how":s.how,"model":s.model,"effort":s.effort,"mode":s.mode,"claude":std::env::var("CLAUDE_CODE_EXECUTABLE").unwrap_or_default(),
+                        "mcp":s.setup.mcp,"bearer_hash":bearer_hash,"append":s.setup.append,"allowed":s.setup.allowed,"blocks":blocks,"resumes":resumes}).to_string();
                     chunk(&cx, &id, "m1", &text)?;
                 },
                 "/context" => {
@@ -248,6 +337,7 @@ async fn main() -> agent_client_protocol::Result<()> {
                     update(&cx, &id, SessionUpdate::UsageUpdate(u))?;
                 },
                 "refuse" => return responder.respond(PromptResponse::new(StopReason::MaxTokens)),
+                line if line.starts_with("mcp ") => { let text = call_mcp(&s.setup, line).await; chunk(&cx, &id, "m1", &text)?; },
                 _ => { chunk(&cx, &id, "m1", "hello ")?; chunk(&cx, &id, "m1", "from fake_acp")?; },
             }
             responder.respond(PromptResponse::new(StopReason::EndTurn))

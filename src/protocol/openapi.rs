@@ -26,6 +26,8 @@ use utoipa::OpenApi;
         (name = "projects", description = "Projects and the directory each owns"),
         (name = "threads", description = "Planning threads and their entries"),
         (name = "turns", description = "Starting and stopping a Planner turn"),
+        (name = "workflows", description = "Plan versions and a person's approval of one"),
+        (name = "grants", description = "External agents' access to the MCP server"),
         (name = "harnesses", description = "The CLIs a conversation runs on, and the choices a session offers"),
         (name = "stream", description = "The replay-then-live event stream"),
         (name = "filesystem", description = "Choosing a project directory on this machine"),

@@ -18,7 +18,7 @@ use shadows::operation::{Operation, OperationId};
 use shadows::planner::{LiveHandles, PlannerTurn, Sessions, StopOutcome};
 use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
-use shadows::thread::{ThreadEntry, ThreadId};
+use shadows::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
 use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
@@ -99,6 +99,8 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
         sessions: sessions.clone(),
         bus: bus.clone(),
         allowed_origins: Vec::new(),
+        ui: tokio::sync::broadcast::channel(16).0,
+        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
     App {
@@ -306,7 +308,7 @@ async fn a_permission_request_is_refused_and_recorded() {
     let refused: Vec<_> = entries(&app)
         .await
         .into_iter()
-        .filter(|e| e.kind == "PermissionRefused")
+        .filter(|e| e.kind == ThreadEntryKind::PermissionRefused)
         .collect();
     assert_eq!(refused.len(), 1);
     assert_eq!(refused[0].body, "Run echo probe");

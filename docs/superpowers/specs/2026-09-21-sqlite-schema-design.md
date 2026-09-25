@@ -8,7 +8,8 @@ No migration SQL is written until this schema proposal is accepted.
 
 ## 6.1 Table set
 
-**17 ordinary tables + 1 FTS5 virtual table:**
+**17 ordinary tables + 1 FTS5 virtual table.** Milestone 2 adds three more,
+`planner_instructions_version`, `mcp_grant` and `draft_intent` (§13.15):
 
 ```text
 project
@@ -66,6 +67,9 @@ directory           TEXT NULL
 before it. SQLite cannot add a NOT NULL column without a default, and a default
 would be an invented directory, so two triggers hold the rule for new rows
 instead: a NULL `directory` can be neither inserted nor written over one.
+
+> Milestone 2 keeps a project's Planner instructions in
+> `planner_instructions_version`, not in this table (§13.15).
 
 ---
 
@@ -245,6 +249,8 @@ when `previous_version_id` is non-null.
 
 `source_plan_json`, if present, is an immutable authored/provenance snapshot only.
 
+> Milestone 2 adds `version`, `revision`, `title` and `goal` (§13.15).
+
 The scheduler reads normalized:
 
 ```text
@@ -274,6 +280,8 @@ CHECK state IN ('Pending','Ready','InProgress','Completed','Failed','Blocked')
 ```
 
 `Task.state` is persisted authoritative scheduler state.
+
+> Milestone 2 adds `number` (§13.15).
 
 ---
 
@@ -306,6 +314,8 @@ Index:
 This prevents DAG edges across workflow versions.
 
 Acyclicity is a domain/scheduler validation rule, not expressible as a simple SQLite `CHECK`.
+
+> Milestone 2 adds `kind`, `label` and `waiting_items`, and `kind` joins the primary key (§13.15).
 
 ---
 
@@ -613,6 +623,8 @@ Index:
 ```
 
 No reverse `operation.agent_invocation_id` column exists.
+
+> Milestone 2 adds `prompt_version` and `planner_instructions_version_id` (§13.15).
 
 ---
 

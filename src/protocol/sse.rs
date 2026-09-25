@@ -8,7 +8,7 @@ use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 
-use super::AppState;
+use super::{AppState, UiSignal};
 use crate::agent::choices::Offered;
 use crate::agent::events::HarnessEvent;
 use crate::events::EventCursor;
@@ -36,7 +36,8 @@ pub struct SubscribeQuery {
 ///   commit that appended to the journal). A commit that lands while the
 ///   replay is being read shows up as a pending change, so it cannot fall into
 ///   the gap between the replay's last read and the live phase.
-/// - the transient bus, for what is never stored: deltas and turn ends.
+/// - the transient bus, for what is never stored: deltas and turn ends;
+///   and beside it the session's options and `plan_show`'s signals.
 ///
 /// Durable events reach the client only by reading the journal after
 /// `last_seq` — in the replay, and again on every signal change in the live
@@ -65,12 +66,18 @@ pub async fn subscribe(
     let committed = state.storage.watch_committed();
     let live = state.bus.subscribe();
     let options = state.sessions.watch_options();
+    let signals = state.ui.subscribe();
     let span = tracing::debug_span!("sse", thread_id = %q.thread_id);
     tracing::debug!(parent: &span, after = q.after, "sse.subscribe");
 
     tokio::spawn(
         async move {
-            let why = stream(state, q, committed, live, options, tx).await;
+            let live = Live {
+                bus: live,
+                options,
+                signals,
+            };
+            let why = stream(state, q, committed, live, tx).await;
             tracing::debug!(why, "sse.closed");
         }
         .instrument(span),
@@ -79,16 +86,27 @@ pub async fn subscribe(
     Sse::new(ReceiverStream::new(rx))
 }
 
+/// The transient sources, taken before the replay is read.
+struct Live {
+    bus: tokio::sync::broadcast::Receiver<(ThreadId, OperationId, HarnessEvent)>,
+    options: tokio::sync::broadcast::Receiver<(ThreadId, Offered)>,
+    signals: tokio::sync::broadcast::Receiver<UiSignal>,
+}
+
 /// The replay, the handoff, and the live phase for one subscriber. Returns why
 /// the stream ended, for the `sse.closed` line.
 async fn stream(
     state: AppState,
     q: SubscribeQuery,
     mut committed: tokio::sync::watch::Receiver<i64>,
-    mut live: tokio::sync::broadcast::Receiver<(ThreadId, OperationId, HarnessEvent)>,
-    mut options: tokio::sync::broadcast::Receiver<(ThreadId, Offered)>,
+    live: Live,
     tx: Sender<Result<Event, Infallible>>,
 ) -> &'static str {
+    let Live {
+        bus: mut live,
+        mut options,
+        mut signals,
+    } = live;
     // 1. Durable replay.
     let mut last_seq = q.after;
     if let Err(why) = send_journal_after(&state.storage, &q.thread_id, &mut last_seq, &tx).await {
@@ -116,6 +134,7 @@ async fn stream(
         // polling the signal first keeps a turn's `turn-end` behind the
         // durable entry it ends.
         let mut woke_options = None;
+        let mut woke_signal = None;
         let received = tokio::select! {
             biased;
             _ = shutdown.wait_for(|stopping| *stopping) => return "shutdown",
@@ -130,7 +149,29 @@ async fn stream(
                 woke_options = Some(offered);
                 None
             }
+            signal = signals.recv() => {
+                woke_signal = Some(signal);
+                None
+            }
         };
+        if let Some(signal) = woke_signal.take() {
+            let frame = match signal {
+                // The card's durable event was committed before the signal
+                // was sent, so the journal branch above has already sent it.
+                Ok(signal) if signal.thread_id == q.thread_id => Event::default()
+                    .event("plan-show")
+                    .data(serde_json::json!(signal).to_string()),
+                Ok(_) => continue,
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                    Event::default().event("lagged").data("")
+                }
+                Err(_) => return "shutdown: signals closed",
+            };
+            if tx.send(Ok(frame)).await.is_err() {
+                return CLIENT_GONE;
+            }
+            continue;
+        }
         if let Some(offered) = woke_options.take() {
             match offered {
                 Ok((thread_id, offered)) if thread_id == q.thread_id => {
@@ -203,6 +244,10 @@ replay and live alike; remember the highest `seq` and resubscribe with it as `af
 context use and the account's limits as the harness last reported them; each is \
 `null` when not reported. Transient.\n\
 - `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.\n\
+- `plan-show` — `{thread_id, target_tab, workflow_id, version, task_number, place}`: \
+the Planner showed a plan (§13.9). Its card arrives first, as the `durable` \
+`PlanShown` event. Only the tab whose id is `target_tab` opens the panel or the \
+page for `side` or `page`. Transient: never replayed.\n\
 - `lagged` — empty: this client fell behind and transient frames were dropped; \
 durable ones were not.\n\
 - `fatal` — data is a message as plain text: the journal could not be read and \

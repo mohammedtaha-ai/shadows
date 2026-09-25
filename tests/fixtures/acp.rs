@@ -12,6 +12,10 @@ use shadows::agent::claude::ClaudeAdapter;
 use shadows::planner::{Sessions, SessionsConfig};
 use shadows::storage::Storage;
 
+/// The `/mcp` URL a daemon built from these fixtures reports: the address
+/// `serve` would have bound, which no test binds.
+pub const MCP_URL: &str = "http://127.0.0.1:4318/mcp";
+
 pub fn adapter_at(node: PathBuf) -> Arc<ClaudeAdapter> {
     Arc::new(ClaudeAdapter {
         node,

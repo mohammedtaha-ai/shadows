@@ -11,6 +11,7 @@ import type { SessionChoices } from '@/api/client'
 import {
   type DurableEvent,
   FrameError,
+  type PlanShowFrame,
   type TurnEnd,
   type UsageFrame,
   parseCaughtUp,
@@ -18,16 +19,18 @@ import {
   parseDurable,
   parseMeta,
   parseOptions,
+  parsePlanShow,
   parseTurnEnd,
   parseUsage,
 } from './frames'
 
-/** A transient report about the thread's harness session, handed on as it
- * arrives and not kept here: the latest context and limits (`usage`), or the
- * choices the session now offers (`options`). */
+/** A transient frame, handed on as it arrives and not kept here: the
+ * harness session's latest context and limits (`usage`), the choices it now
+ * offers (`options`), or a plan the Planner showed (`plan-show`, §13.9). */
 export type Notice =
   | { type: 'usage'; usage: UsageFrame }
   | { type: 'options'; choices: SessionChoices }
+  | { type: 'plan-show'; show: PlanShowFrame }
 
 /** `connecting` until the first `caught-up`; `live` after it; `reconnecting`
  * after a break until the next `caught-up`; `failed` once reconnecting has been
@@ -69,7 +72,7 @@ export interface Options {
   onDurable?: (event: DurableEvent) => void
   /** Called at each `caught-up`, with the last applied `seq`. */
   onCaughtUp?: (lastSeq: number) => void
-  /** Called once per `usage` or `options` frame. */
+  /** Called once per `usage`, `options` or `plan-show` frame. */
   onNotice?: (notice: Notice) => void
   /** Reconnect delay after the n-th consecutive failure: `baseDelayMs * 2^(n-1)`, capped. */
   baseDelayMs?: number
@@ -187,6 +190,10 @@ export class ThreadStream {
     on('usage', (data) => this.#options.onNotice?.({ type: 'usage', usage: parseUsage(data) }))
     on('options', (data) => {
       this.#options.onNotice?.({ type: 'options', choices: parseOptions(data).choices })
+    })
+    // Sent live only, never in a replay: receiving it is being live.
+    on('plan-show', (data) => {
+      this.#options.onNotice?.({ type: 'plan-show', show: parsePlanShow(data) })
     })
     // Transient frames were dropped, durable ones were not: resubscribe from
     // `lastSeq` at once. Not a failure, so no backoff.

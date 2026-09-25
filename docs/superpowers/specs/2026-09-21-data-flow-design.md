@@ -180,6 +180,9 @@ Rules:
 - `Running`, `Completed`, and `Failed` retain the same frozen definition.
 - There is **no unfreeze**.
 
+Milestone 2 approves in one step, `Draft` → `Frozen`, and leaves `Approved`
+unused until execution needs a state between them (§13.2).
+
 A design change after freeze creates a new workflow version:
 
 ```text
@@ -427,5 +430,8 @@ allowed domain operations
 The external agent cannot self-grant capabilities.
 
 Mutating MCP calls are external commands and use normal command idempotency. Read calls do not create `CommandRecord`s.
+
+Milestone 2 builds this adapter for plans: the server, its tools, grants and
+how a command is identified without a client-chosen id are §13.5–§13.7.
 
 ---

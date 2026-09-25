@@ -7,9 +7,13 @@
 
 import type {
   Choice,
+  Grant,
   HarnessInfo,
   InvocationView,
   Operation,
+  Plan,
+  PlanListing,
+  PlanTask,
   PlanningThread,
   Project,
   SessionChoices,
@@ -69,6 +73,19 @@ export const threadFixture: PlanningThread = {
   forked_from_thread: null,
 }
 
+/** A live grant bound to project `p1`, for an external agent. */
+export function grantFixture(id: string, extra: Partial<Grant> = {}): Grant {
+  return {
+    id,
+    kind: 'project',
+    project_id: 'p1',
+    thread_id: null,
+    created_at: '2026-09-24T00:00:00Z',
+    revoked_at: null,
+    ...extra,
+  }
+}
+
 export const invocationFixture: InvocationView = {
   harness_kind: 'claude-code',
   harness_version: '0.0.0-fake',
@@ -108,7 +125,7 @@ let ordinal = 0
 /** An entry of any kind, written by turn `op1` unless `operationId` says otherwise. */
 export function entryOfKind(
   id: string,
-  kind: string,
+  kind: ThreadEntry['kind'],
   body: string,
   operationId: string | null = 'op1',
 ): ThreadEntry {
@@ -128,3 +145,65 @@ export function entryOfKind(
 
 export const userEntry = (id: string, body: string) => entryOfKind(id, 'UserMessage', body)
 export const agentEntry = (id: string, body: string) => entryOfKind(id, 'AgentMessage', body)
+
+/** Task `T{number}` of a plan, with one acceptance item. */
+export function planTask(number: number, title: string, extra: Partial<PlanTask> = {}): PlanTask {
+  return {
+    id: `task-${number}`,
+    number,
+    title,
+    goal: `The goal of ${title}`,
+    reads: [],
+    writes: [],
+    acceptance: [{ number: 1, text: `${title} works` }],
+    ...extra,
+  }
+}
+
+/** Plan version `w1` of thread `t1`: a Draft of two tasks, T2 needing T1. */
+export function planFixture(extra: Partial<Plan> = {}): Plan {
+  return {
+    id: 'w1',
+    project_id: 'p1',
+    thread_id: 't1',
+    title: 'Login flow',
+    goal: 'People can sign in',
+    state: 'Draft',
+    version: 1,
+    revision: 3,
+    created_at: '2026-09-25T00:00:00Z',
+    frozen_at: null,
+    previous: null,
+    next: null,
+    blockers: [],
+    last_edit: null,
+    tasks: [planTask(1, 'Schema'), planTask(2, 'Login screen')],
+    links: [{ task: 2, after: 1, kind: 'needs', label: 'the users table', waiting_items: [] }],
+    ...extra,
+  }
+}
+
+export function planListing(plan: Plan): PlanListing {
+  return {
+    id: plan.id,
+    thread_id: plan.thread_id,
+    title: plan.title,
+    state: plan.state,
+    version: plan.version,
+    updated_at: plan.created_at,
+  }
+}
+
+/** A `PlanView` card (§13.9) of plan version `workflowId`, about task `taskId`
+ * when given; its body is what the daemon writes. */
+export function planViewEntry(
+  id: string,
+  body: string,
+  workflowId: string,
+  taskId?: string,
+): ThreadEntry {
+  const entry = entryOfKind(id, 'PlanView', body)
+  const refs: ThreadEntry['refs'] = [{ Workflow: workflowId }]
+  if (taskId !== undefined) refs.push({ Task: taskId })
+  return { ...entry, refs }
+}

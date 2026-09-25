@@ -15,7 +15,7 @@ use tracing_subscriber::fmt::FormatFields;
 use tracing_subscriber::fmt::format::{DefaultFields, Writer};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{EnvFilter, fmt};
+use tracing_subscriber::{EnvFilter, filter::filter_fn, fmt};
 
 /// The log file debug mode writes. Hold it for the daemon's whole lifetime:
 /// the file is written by a background worker, and dropping this is what
@@ -35,18 +35,20 @@ impl DebugLog {
 /// Installs the global subscriber. Call once per process.
 ///
 /// `debug_data_dir` is debug mode (`shadows serve --debug`): the default
-/// filter becomes `shadows=debug`, and lines also go to a new file under
+/// filter becomes `shadows=debug` plus the adapter's stderr lines
+/// (`harness.stderr`, §12.2), and lines also go to a new file under
 /// `<data dir>/logs/`, one per daemon start, named for the UTC start time and
 /// the process id. Without it: `shadows=info`, stderr only. `verbose` raises
 /// the stderr level without writing a file. `RUST_LOG`, when set, overrides
-/// the level in every mode.
+/// the level in every mode, except ACP request logs, which are capped at INFO
+/// because their DEBUG fields can contain a live MCP bearer.
 ///
 /// Diagnostics go to stderr, never stdout. Spec §1.0 gives stdout one job —
 /// printing the local address `shadows serve` binds (and, in debug mode, the
 /// log file's path after it) — and startup recovery logs before that print.
 pub fn init(verbose: bool, debug_data_dir: Option<&Path>) -> anyhow::Result<Option<DebugLog>> {
     let default = if verbose || debug_data_dir.is_some() {
-        "shadows=debug,info"
+        "shadows=debug,harness.stderr=debug,info"
     } else {
         "shadows=info,warn"
     };
@@ -67,10 +69,17 @@ pub fn init(verbose: bool, debug_data_dir: Option<&Path>) -> anyhow::Result<Opti
 
     tracing_subscriber::registry()
         .with(filter)
+        .with(filter_fn(acp_log_allowed))
         .with(fmt::layer().with_target(true).with_writer(std::io::stderr))
         .with(file)
         .try_init()?;
     Ok(log)
+}
+
+/// ACP 2.2.0 logs whole outgoing requests at DEBUG, including mcpServers'
+/// Authorization header. Apply this to both outputs after RUST_LOG is parsed.
+fn acp_log_allowed(meta: &tracing::Metadata<'_>) -> bool {
+    !meta.target().starts_with("agent_client_protocol") || *meta.level() <= tracing::Level::INFO
 }
 
 /// The file layer's field formatter: the default one, under its own type.

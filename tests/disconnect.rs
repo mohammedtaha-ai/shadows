@@ -39,6 +39,8 @@ async fn a_client_that_disconnects_mid_request_strands_nothing() {
         sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
         bus,
         allowed_origins: Vec::new(),
+        ui: tokio::sync::broadcast::channel(16).0,
+        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
 

@@ -6,7 +6,9 @@ use sqlx::SqliteConnection;
 use super::{Storage, StorageError, events::append_event, now};
 use crate::events::{Actor, DurableEvent};
 use crate::operation::OperationId;
-use crate::thread::{EntryRef, NewThreadEntry, ThreadEntry, ThreadEntryId, ThreadId};
+use crate::thread::{
+    EntryRef, NewThreadEntry, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId,
+};
 
 /// Appends one entry inside the caller's transaction: allocates its ordinal,
 /// inserts it, and journals `ThreadEntryAppended`. The turn command (§12.7)
@@ -42,7 +44,7 @@ pub(super) async fn append_entry_in(
     .bind(id.as_str())
     .bind(thread_id.as_str())
     .bind(ordinal)
-    .bind(entry.kind)
+    .bind(entry.kind.as_str())
     .bind(&entry.author.kind)
     .bind(&entry.author.id)
     .bind(entry.body)
@@ -56,7 +58,7 @@ pub(super) async fn append_entry_in(
         conn,
         &DurableEvent::new("ThreadEntryAppended", entry.author.clone())
             .with_thread(thread_id)
-            .with_payload(serde_json::json!({ "ordinal": ordinal, "kind": entry.kind })),
+            .with_payload(serde_json::json!({ "ordinal": ordinal, "kind": entry.kind.as_str() })),
         ts,
     )
     .await?;
@@ -65,7 +67,7 @@ pub(super) async fn append_entry_in(
         id,
         thread_id: thread_id.clone(),
         ordinal,
-        kind: entry.kind.to_string(),
+        kind: entry.kind,
         author: entry.author,
         body: entry.body.to_string(),
         refs,
@@ -95,7 +97,9 @@ pub(super) fn into_entry(r: EntryRow) -> Result<ThreadEntry, StorageError> {
         id: ThreadEntryId::from_stored(r.0),
         thread_id: ThreadId::from_stored(r.1),
         ordinal: r.2,
-        kind: r.3,
+        kind: ThreadEntryKind::parse(&r.3).ok_or_else(|| {
+            StorageError::Constraint(format!("unknown thread entry kind: {}", r.3))
+        })?,
         author: Actor { kind: r.4, id: r.5 },
         body: r.6,
         refs: serde_json::from_str::<Vec<EntryRef>>(&r.7)?,
@@ -117,7 +121,7 @@ impl Storage {
     ) -> Result<ThreadEntry, StorageError> {
         let (thread_id, kind, author, body, refs, operation_id, ts) = (
             thread_id.clone(),
-            entry.kind.to_string(),
+            entry.kind,
             entry.author.clone(),
             entry.body.to_string(),
             entry.refs.to_vec(),
@@ -127,7 +131,7 @@ impl Storage {
         self.write_txn(move |conn| {
             Box::pin(async move {
                 let entry = NewThreadEntry {
-                    kind: &kind,
+                    kind,
                     author,
                     body: &body,
                     refs: &refs,

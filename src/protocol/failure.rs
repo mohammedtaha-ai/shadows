@@ -23,6 +23,15 @@ pub struct Failure {
     message: String,
     /// The internal cause, logged with a 5xx and never sent (spec §3.2).
     cause: Option<String>,
+    detail: Detail,
+}
+
+/// What some refusals carry besides their message, for a client to act on
+/// without reading it (spec §13.10).
+#[derive(Default)]
+struct Detail {
+    current_revision: Option<i64>,
+    problems: Option<Vec<String>>,
 }
 
 /// The body of every error this API answers: the stable code a client
@@ -34,6 +43,13 @@ pub struct Failure {
 pub struct ErrorBody {
     pub code: ErrorCode,
     pub message: String,
+    /// `REVISION_CONFLICT` only: the plan's revision now, to read again at.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_revision: Option<i64>,
+    /// `WORKFLOW_VALIDATION_FAILED` only: each problem, the same sentences
+    /// `message` joins.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub problems: Option<Vec<String>>,
 }
 
 impl From<StorageError> for Failure {
@@ -45,6 +61,7 @@ impl From<StorageError> for Failure {
             code,
             message: e.to_string(),
             cause: None,
+            detail: Detail::default(),
         };
         let (status, code, message) = match &e {
             StorageError::CommandConflict => {
@@ -57,6 +74,47 @@ impl From<StorageError> for Failure {
                 return own(StatusCode::CONFLICT, ErrorCode::HarnessLocked);
             }
             StorageError::ThreadBusy => return own(StatusCode::CONFLICT, ErrorCode::ThreadBusy),
+            StorageError::WorkflowFrozen => {
+                return own(StatusCode::CONFLICT, ErrorCode::WorkflowFrozenImmutable);
+            }
+            StorageError::RevisionConflict { current, summary } => {
+                return Failure {
+                    status: StatusCode::CONFLICT,
+                    code: ErrorCode::RevisionConflict,
+                    message: format!("the plan changed; current revision is {current}: {summary}"),
+                    cause: None,
+                    detail: Detail {
+                        current_revision: Some(*current),
+                        problems: None,
+                    },
+                };
+            }
+            StorageError::PlanInvalid(problems) => {
+                let problems: Vec<String> = problems.iter().map(|p| p.message.clone()).collect();
+                return Failure {
+                    status: StatusCode::UNPROCESSABLE_ENTITY,
+                    code: ErrorCode::WorkflowValidationFailed,
+                    message: problems.join("; "),
+                    cause: None,
+                    detail: Detail {
+                        current_revision: None,
+                        problems: Some(problems),
+                    },
+                };
+            }
+            // A grant refusal answers an MCP tool call (§13.10); a route has
+            // no grant, so one reaching here is the daemon's own defect.
+            StorageError::GrantInvalid | StorageError::GrantScope => {
+                tracing::error!(error = %e, "http.grant_refusal_on_route");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    ErrorCode::StorageUnavailable,
+                    "the daemon refused its own request",
+                )
+            }
+            StorageError::TaskNotInPlan(_) => {
+                return own(StatusCode::UNPROCESSABLE_ENTITY, ErrorCode::InvalidCommand);
+            }
             StorageError::ForkPointNotSupported => {
                 return own(
                     StatusCode::UNPROCESSABLE_ENTITY,
@@ -85,6 +143,7 @@ impl From<StorageError> for Failure {
             code,
             message: message.into(),
             cause: Some(e.to_string()),
+            detail: Detail::default(),
         }
     }
 }
@@ -108,6 +167,7 @@ impl Failure {
             code: ErrorCode::PathNotFound,
             message: reason,
             cause: None,
+            detail: Detail::default(),
         }
     }
     pub(super) fn harness_start_failed(reason: String) -> Self {
@@ -116,6 +176,7 @@ impl Failure {
             code: ErrorCode::HarnessStartFailed,
             message: "the harness could not start".into(),
             cause: Some(reason),
+            detail: Detail::default(),
         }
     }
     /// Spec §12.4: the thread's harness is listed but cannot run here yet.
@@ -125,6 +186,7 @@ impl Failure {
             code: ErrorCode::HarnessUnavailable,
             message: format!("the {harness} harness is not available yet"),
             cause: None,
+            detail: Detail::default(),
         }
     }
 
@@ -141,6 +203,7 @@ impl Failure {
             code: ErrorCode::SettingNotOffered,
             message,
             cause: None,
+            detail: Detail::default(),
         }
     }
 
@@ -151,6 +214,7 @@ impl Failure {
             code: ErrorCode::ModeNotAllowed,
             message: format!("this project does not allow the {mode} mode"),
             cause: None,
+            detail: Detail::default(),
         }
     }
 
@@ -163,6 +227,7 @@ impl Failure {
             code: ErrorCode::RuntimeStopping,
             message: StartError::RuntimeStopping.to_string(),
             cause: None,
+            detail: Detail::default(),
         }
     }
 
@@ -175,6 +240,7 @@ impl Failure {
             code: ErrorCode::OriginRefused,
             message: why.into(),
             cause: None,
+            detail: Detail::default(),
         }
     }
 
@@ -189,6 +255,7 @@ impl Failure {
                       recorded as cancelled"
                 .into(),
             cause: None,
+            detail: Detail::default(),
         }
     }
 }
@@ -219,6 +286,7 @@ impl From<DirectoryError> for Failure {
             code,
             message: e.to_string(),
             cause: None,
+            detail: Detail::default(),
         }
     }
 }
@@ -238,6 +306,8 @@ impl axum::response::IntoResponse for Failure {
             Json(ErrorBody {
                 code: self.code,
                 message: self.message,
+                current_revision: self.detail.current_revision,
+                problems: self.detail.problems,
             }),
         )
             .into_response()
@@ -280,6 +350,8 @@ pub(super) async fn rejections_as_error_bodies(
         Json(ErrorBody {
             code: ErrorCode::InvalidCommand,
             message,
+            current_revision: None,
+            problems: None,
         }),
     ))
 }

@@ -95,24 +95,32 @@ fn the_document_names_every_route() {
     assert_eq!(
         named,
         [
+            "DELETE /api/mcp-grants/{id}",
             "GET /api/fs/dirs",
             "GET /api/harnesses",
             "GET /api/openapi.json",
             "GET /api/projects",
+            "GET /api/projects/{id}/mcp-grants",
+            "GET /api/projects/{id}/planner-instructions",
             "GET /api/projects/{id}/threads",
+            "GET /api/projects/{id}/workflows",
             "GET /api/subscribe",
             "GET /api/threads/{id}/context",
             "GET /api/threads/{id}/entries",
             "GET /api/threads/{id}/operations",
+            "GET /api/workflows/{id}",
             "PATCH /api/projects/{id}",
             "PATCH /api/threads/{id}",
             "POST /api/fs/dirs",
             "POST /api/operations/{id}/stop",
             "POST /api/projects",
+            "POST /api/projects/{id}/mcp-grants",
             "POST /api/projects/{id}/threads",
             "POST /api/threads/{id}/fork",
             "POST /api/threads/{id}/session",
             "POST /api/threads/{id}/turns",
+            "POST /api/workflows/{id}/approve",
+            "PUT /api/projects/{id}/planner-instructions",
             "PUT /api/threads/{id}/session/model",
         ]
     );
@@ -131,6 +139,7 @@ fn ids_errors_and_the_stream_are_described_as_clients_rely_on() {
         "ThreadEntryId",
         "OperationId",
         "RuntimeInstanceId",
+        "GrantId",
     ] {
         assert_eq!(schemas[id]["type"], "string", "{id}: {}", schemas[id]);
         assert_eq!(schemas[id]["format"], "uuid", "{id}: {}", schemas[id]);
@@ -188,6 +197,8 @@ async fn the_document_is_served_and_every_path_it_names_is_routed() {
         sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
         bus,
         allowed_origins: Vec::new(),
+        ui: tokio::sync::broadcast::channel(16).0,
+        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
 

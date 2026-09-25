@@ -21,10 +21,20 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     // `Runtime::start` logs recovery (`recovery.reconcile`).
     let (runtime, _report) = Runtime::start(storage.clone()).await?;
     let runtime = Arc::new(runtime);
+    // Spec §13.7: a Planner's grant lives as long as its adapter, and every
+    // adapter of an earlier daemon is gone. Before anything is served.
+    let revoked = storage.revoke_all_thread_grants().await?;
+    tracing::info!(revoked, "recovery.thread_grants_revoked");
 
     let version = harness_version(&config.harness_path).await;
     let adapter_version = adapter_version(&config.adapter_path);
     tracing::info!(adapter_version, claude_version = %version, "harness.versions");
+    // Bound first: a grant's `claude mcp add` names the address actually
+    // bound, which differs from `config.bind` when that asks for port 0, and
+    // every Planner session opens with that `/mcp` (§13.8).
+    let listener = tokio::net::TcpListener::bind(config.bind).await?;
+    let addr = listener.local_addr()?;
+    let mcp_url = format!("http://{addr}/mcp");
     let sessions = Sessions::new(
         Arc::new(ClaudeAdapter {
             node: config.node_path.clone(),
@@ -34,7 +44,10 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
             agent_version: version.clone(),
         }),
         Storage::open(&config.db_path).await?,
-        SessionsConfig::default(),
+        SessionsConfig {
+            mcp_url: Some(mcp_url.clone()),
+            ..SessionsConfig::default()
+        },
     );
     let (bus, _) = tokio::sync::broadcast::channel(4096);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
@@ -44,12 +57,12 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         handles: Arc::new(LiveHandles::default()),
         sessions: sessions.clone(),
         bus,
+        ui: tokio::sync::broadcast::channel(256).0,
         allowed_origins: config.allowed_origins.clone(),
+        mcp_url,
         shutdown,
     };
 
-    let listener = tokio::net::TcpListener::bind(config.bind).await?;
-    let addr = listener.local_addr()?;
     println!("shadows serve listening on http://{addr}");
     if let Some(path) = &config.debug_log {
         println!("shadows serve debug log: {}", path.display());

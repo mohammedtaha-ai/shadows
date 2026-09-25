@@ -46,6 +46,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mcp-grants/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke (§13.7): Shadows refuses the grant's token from now on. It does not
+         *     remove the server from the person's Claude configuration.
+         */
+        delete: operations["revoke_grant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/openapi.json": {
         parameters: {
             query?: never;
@@ -127,6 +147,55 @@ export interface paths {
         patch: operations["update_project"];
         trace?: never;
     };
+    "/api/projects/{id}/mcp-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A project's grants for external agents, revoked ones included, newest
+         *     first. Never a token.
+         */
+        get: operations["list_grants"];
+        put?: never;
+        /**
+         * Connect (§13.7): issues a grant bound to this project for an external
+         *     agent. The token is shown once — here — and stored only as its hash.
+         */
+        post: operations["issue_grant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/planner-instructions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The project's current instructions — its highest-numbered version — or
+         *     `null` before the first save.
+         */
+        get: operations["get_instructions"];
+        /**
+         * Saves the project's instructions as its next version; nothing earlier is
+         *     overwritten. A running Planner is told of the change before its next turn
+         *     (§13.8), never mid-turn.
+         */
+        put: operations["save_instructions"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/threads": {
         parameters: {
             query?: never;
@@ -139,6 +208,26 @@ export interface paths {
         put?: never;
         /** Creates a planning thread in a project. */
         post: operations["create_thread"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/workflows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Each planning thread's latest plan version in a project. An unknown
+         *     project has none.
+         */
+        get: operations["list_plans"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -161,7 +250,8 @@ export interface paths {
          *       commit that appended to the journal). A commit that lands while the
          *       replay is being read shows up as a pending change, so it cannot fall into
          *       the gap between the replay's last read and the live phase.
-         *     - the transient bus, for what is never stored: deltas and turn ends.
+         *     - the transient bus, for what is never stored: deltas and turn ends;
+         *       and beside it the session's options and `plan_show`'s signals.
          *
          *     Durable events reach the client only by reading the journal after
          *     `last_seq` — in the replay, and again on every signal change in the live
@@ -361,10 +451,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workflows/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One plan version: its tasks, links and revision, the versions before and
+         *     after it, what blocks its approval, and what the last edit changed.
+         */
+        get: operations["get_plan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workflows/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approves a `Draft` version as the person saw it: it becomes `Frozen` and
+         *     never changes again (§13.2). The client reads the plan again afterwards. A
+         *     replay of the same command answers what it answered first.
+         */
+        post: operations["approve_plan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Spec §13.3. One sentence someone can check, numbered within its task. */
+        AcceptanceItem: {
+            /** Format: int32 */
+            number: number;
+            text: string;
+        };
         /**
          * @description The account's limits as last reported by the harness (spec §12.8). A
          *     window the harness did not report is `None`, never estimated.
@@ -378,6 +515,24 @@ export interface components {
         Actor: {
             id: string;
             kind: string;
+        };
+        ApprovePlan: {
+            /** @description The idempotency key (spec §13.5), scoped to the plan version. */
+            command_id: string;
+            /**
+             * Format: int64
+             * @description The revision the person saw; approval of any other is refused.
+             */
+            expected_revision: number;
+        };
+        /** @description What an approval did, fixed when it committed (§13.2, §13.5). */
+        Approved: {
+            frozen_at: string;
+            /** Format: int64 */
+            revision: number;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
         };
         /** @description The model a person picked (spec §12.7). */
         ChangeModel: {
@@ -464,9 +619,10 @@ export interface components {
         };
         EntryRef: {
             /**
-             * @description Typed, because `operation/` exists. The three below reference entities
-             *     whose modules Milestone 0 never creates, and §4.1's rule is that no module
-             *     is created before the task that fills it.
+             * @description Typed where the referenced entity's module exists. `Decision` and
+             *     `Research` reference entities whose modules no milestone has created
+             *     yet, and §4.1's rule is that no module is created before the task that
+             *     fills it.
              */
             Operation: components["schemas"]["OperationId"];
         } | {
@@ -474,7 +630,10 @@ export interface components {
         } | {
             Research: string;
         } | {
-            Workflow: string;
+            Workflow: components["schemas"]["WorkflowId"];
+        } | {
+            /** @description A message about one task of a plan (§13.9). */
+            Task: components["schemas"]["TaskId"];
         };
         /**
          * @description The body of every error this API answers: the stable code a client
@@ -485,20 +644,59 @@ export interface components {
          */
         ErrorBody: {
             code: components["schemas"]["ErrorCode"];
+            /**
+             * Format: int64
+             * @description `REVISION_CONFLICT` only: the plan's revision now, to read again at.
+             */
+            current_revision?: number | null;
             message: string;
+            /**
+             * @description `WORKFLOW_VALIDATION_FAILED` only: each problem, the same sentences
+             *     `message` joins.
+             */
+            problems?: string[] | null;
         };
         /**
          * @description Stable codes clients pattern-match on. Never match on human text.
          *     Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "FORK_POINT_NOT_SUPPORTED";
+        ErrorCode: "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "GRANT_SCOPE" | "GRANT_INVALID";
+        /**
+         * @description The task a person points at when they send a turn: the task's id, in the
+         *     plan version and at the revision they were looking at. It is checked to
+         *     belong to that version and kept with their message.
+         */
+        Focus: {
+            /** Format: int64 */
+            revision: number;
+            task_id: components["schemas"]["TaskId"];
+            workflow_id: components["schemas"]["WorkflowId"];
+        };
         /** @description Forks the thread from its last completed entry (spec §12.9). */
         ForkThread: {
             at_entry_id: components["schemas"]["ThreadEntryId"];
             /** @description The idempotency key (spec §3.2), scoped to the source thread. */
             command_id: string;
         };
+        /** @description A grant as stored: never its token. */
+        Grant: {
+            created_at: string;
+            id: components["schemas"]["GrantId"];
+            kind: components["schemas"]["GrantKind"];
+            project_id: components["schemas"]["ProjectId"];
+            /** @description When it stopped being honoured; `null` while it is live. */
+            revoked_at?: string | null;
+            thread_id?: null | components["schemas"]["ThreadId"];
+        };
+        /** Format: uuid */
+        GrantId: string;
+        /**
+         * @description Whose grant it is: the Planner of one thread, or an external agent bound
+         *     to one project. On the wire and in storage, `thread` and `project`.
+         * @enum {string}
+         */
+        GrantKind: "thread" | "project";
         /**
          * @description A CLI a conversation can run on (spec §12.1). `kind` is `claude-code` or
          *     `codex`.
@@ -511,6 +709,19 @@ export interface components {
             /** @description Why it cannot run, when `available` is false. */
             reason: string | null;
             remembered: null | components["schemas"]["RememberedSettings"];
+        };
+        /**
+         * @description One saved version of a project's instructions. `id` is what an
+         *     `agent_invocation` records (§13.15); a client sees the number instead.
+         */
+        InstructionsVersion: {
+            body: string;
+            created_at: string;
+            /**
+             * Format: int64
+             * @description 1, 2, 3 … within the project.
+             */
+            number: number;
         };
         /**
          * @description What a turn asked for and what the harness reported (spec §8.2, §12.8).
@@ -529,6 +740,28 @@ export interface components {
             requested_mode: string;
             requested_model: string;
         };
+        IssueGrant: {
+            /** @description The idempotency key (spec §13.5), scoped to the project. */
+            command_id: string;
+        };
+        /**
+         * @description A new grant, with its token and the command that connects Claude Code to
+         *     it — or, for a replayed command, the grant alone.
+         */
+        IssuedGrantBody: {
+            /** @description `claude mcp add …` with the token, to copy once; `null` on a replay. */
+            command?: string | null;
+            grant: components["schemas"]["Grant"];
+            /** @description The bearer token, in this answer only; `null` on a replay. */
+            token?: string | null;
+        };
+        /** @description The edit that set a version's current revision (§13.10's plan read). */
+        LastEdit: {
+            changed_tasks: number[];
+            /** Format: int64 */
+            revision: number;
+            summary: string;
+        };
         /**
          * @description One account limit window as the harness reported it: `utilization` from 0
          *     to 1, `resets_at` in Unix seconds.
@@ -539,6 +772,23 @@ export interface components {
             /** Format: double */
             utilization: number;
         };
+        /** @description Spec §13.3. `task` waits for `after`. */
+        Link: {
+            /** Format: int32 */
+            after: number;
+            kind: components["schemas"]["LinkKind"];
+            /** @description A few words saying what passes from `after` to `task`. */
+            label: string;
+            /** Format: int32 */
+            task: number;
+            /** @description The acceptance items of `task` that wait. Empty for `needs`. */
+            waiting_items?: number[];
+        };
+        /**
+         * @description Spec §13.3. How a link's `task` waits for its `after`.
+         * @enum {string}
+         */
+        LinkKind: "needs" | "completes_after";
         /**
          * @description Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
          *     `ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged
@@ -562,6 +812,45 @@ export interface components {
         };
         /** Format: uuid */
         OperationId: string;
+        /** @description One stored version of a plan, as a reader sees it now (§13.2). */
+        Plan: {
+            /**
+             * @description What blocks approval ([`approval_problems`]) for a `Draft`; empty for
+             *     a `Frozen` version.
+             */
+            blockers: components["schemas"]["Problem"][];
+            created_at: string;
+            frozen_at?: string | null;
+            goal: string;
+            id: components["schemas"]["WorkflowId"];
+            last_edit?: null | components["schemas"]["LastEdit"];
+            links: components["schemas"]["Link"][];
+            next?: null | components["schemas"]["WorkflowId"];
+            previous?: null | components["schemas"]["WorkflowId"];
+            project_id: components["schemas"]["ProjectId"];
+            /** Format: int64 */
+            revision: number;
+            state: components["schemas"]["WorkflowState"];
+            tasks: components["schemas"]["PlanTask"][];
+            thread_id: components["schemas"]["ThreadId"];
+            title: string;
+            /** Format: int64 */
+            version: number;
+        };
+        /** @description A plan as a project's list shows it: its thread's latest version. */
+        PlanListing: {
+            id: components["schemas"]["WorkflowId"];
+            state: components["schemas"]["WorkflowState"];
+            thread_id: components["schemas"]["ThreadId"];
+            title: string;
+            updated_at: string;
+            /** Format: int64 */
+            version: number;
+        };
+        /** @description One task of a stored version: its storage id beside its content. */
+        PlanTask: components["schemas"]["TaskContent"] & {
+            id: components["schemas"]["TaskId"];
+        };
         PlanningThread: {
             created_at: string;
             /** @description The thread this one was forked from, if it is a fork (spec §12.9). */
@@ -576,6 +865,10 @@ export interface components {
             project_id: components["schemas"]["ProjectId"];
             status: string;
             title: string;
+        };
+        /** @description One broken or missing thing, named so a person can act on it: tasks as `T4`. */
+        Problem: {
+            message: string;
         };
         Project: {
             /**
@@ -608,6 +901,12 @@ export interface components {
         };
         /** Format: uuid */
         RuntimeInstanceId: string;
+        SaveInstructions: {
+            /** @description The instructions, as the person wrote them. */
+            body: string;
+            /** @description The idempotency key (spec §13.5), scoped to the project. */
+            command_id: string;
+        };
         /**
          * @description What the thread's session offers now (spec §12.4). `efforts` are the
          *     current model's. `modes` are after Shadows' policy; a mode the project does
@@ -622,14 +921,35 @@ export interface components {
         };
         /** @description Starts a turn as one command (spec §12.7). */
         StartTurn: {
+            /**
+             * @description The sending tab's id, made once per page load (§13.9). Kept in memory
+             *     for the turn only, so a `plan-show` frame can name it; not part of the
+             *     command, never stored.
+             */
+            client_tab?: string | null;
             /** @description The idempotency key (spec §3.2). A retry sends the same one. */
             command_id: string;
             /** @description `null` exactly when the chosen model offers no effort (§12.4). */
             effort: string | null;
+            focus?: null | components["schemas"]["Focus"];
             mode: string;
             model: string;
             prompt: string;
         };
+        /** @description Spec §13.3. A task as the plan holds it, shown as `T{number}`. */
+        TaskContent: {
+            acceptance: components["schemas"]["AcceptanceItem"][];
+            goal: string;
+            /** Format: int32 */
+            number: number;
+            /** @description Paths the task reads (its declared scope). */
+            reads: string[];
+            title: string;
+            /** @description Paths the task may change (its declared scope). */
+            writes: string[];
+        };
+        /** Format: uuid */
+        TaskId: string;
         ThreadEntry: {
             /**
              * @description Spec §4.2 calls this field's type `Principal`. Milestone 0 uses
@@ -642,11 +962,7 @@ export interface components {
             body: string;
             created_at: string;
             id: components["schemas"]["ThreadEntryId"];
-            /**
-             * @description `UserMessage`, `AgentMessage`, or `PermissionRefused` (a permission the
-             *     harness asked for and Shadows refused, spec §12.2).
-             */
-            kind: string;
+            kind: components["schemas"]["ThreadEntryKind"];
             /**
              * @description The turn this entry belongs to (spec §12.7). `None` for entries written
              *     before entries named their turn. A fork's copied entries keep the
@@ -660,6 +976,13 @@ export interface components {
         };
         /** Format: uuid */
         ThreadEntryId: string;
+        /**
+         * @description What an entry is (spec §4.2, closed by §13.9). The client branches on it.
+         *     Each variant is stored as its name, the text storage held before this was
+         *     an enum, so no stored row is rewritten.
+         * @enum {string}
+         */
+        ThreadEntryKind: "UserMessage" | "AgentMessage" | "PermissionRefused" | "PlanView" | "PlanApproved";
         /** Format: uuid */
         ThreadId: string;
         /**
@@ -696,6 +1019,14 @@ export interface components {
             /** @description `claude-code` or `codex`. */
             harness: string;
         };
+        /** Format: uuid */
+        WorkflowId: string;
+        /**
+         * @description Spec §13.2. A `Draft` is edited; a `Frozen` version is approved and never
+         *     changes again. The web client shows `Frozen` as "Approved".
+         * @enum {string}
+         */
+        WorkflowState: "Draft" | "Frozen";
     };
     responses: never;
     parameters: never;
@@ -846,6 +1177,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HarnessInfo"][];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    revoke_grant: {
+        parameters: {
+            query: {
+                /** @description The idempotency key (spec §13.5), scoped to the grant. */
+                command_id: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project grant */
+                id: components["schemas"]["GrantId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked, or the replay of the same command */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"];
+                };
+            };
+            /** @description INVALID_COMMAND: no `command_id` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project grant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description STORAGE_UNAVAILABLE */
@@ -1078,6 +1471,176 @@ export interface operations {
             };
         };
     };
+    list_grants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"][];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    issue_grant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueGrant"];
+            };
+        };
+        responses: {
+            /** @description Issued, or the replay of the same command without its token */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedGrantBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_instructions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": null | components["schemas"]["InstructionsVersion"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    save_instructions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveInstructions"];
+            };
+        };
+        responses: {
+            /** @description Saved, or the replay of the same command */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstructionsVersion"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_threads: {
         parameters: {
             query?: never;
@@ -1172,6 +1735,37 @@ export interface operations {
             };
         };
     };
+    list_plans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanListing"][];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     subscribe: {
         parameters: {
             query: {
@@ -1198,6 +1792,7 @@ export interface operations {
              *     - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.
              *     - `usage` — `{thread_id, context_used, context_window, limits}`: the session's context use and the account's limits as the harness last reported them; each is `null` when not reported. Transient.
              *     - `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.
+             *     - `plan-show` — `{thread_id, target_tab, workflow_id, version, task_number, place}`: the Planner showed a plan (§13.9). Its card arrives first, as the `durable` `PlanShown` event. Only the tab whose id is `target_tab` opens the panel or the page for `side` or `page`. Transient: never replayed.
              *     - `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.
              *     - `fatal` — data is a message as plain text: the journal could not be read and the stream ends.
              *
@@ -1594,7 +2189,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description SETTING_NOT_OFFERED: a model, mode or effort the session does not offer; HARNESS_UNAVAILABLE */
+            /** @description SETTING_NOT_OFFERED: a model, mode or effort the session does not offer; HARNESS_UNAVAILABLE; INVALID_COMMAND: the focus names a task not in that plan, or a plan not this thread's */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1623,6 +2218,109 @@ export interface operations {
             };
             /** @description RUNTIME_STOPPING: the daemon is shutting down */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The plan version */
+                id: components["schemas"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such plan version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    approve_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The plan version */
+                id: components["schemas"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovePlan"];
+            };
+        };
+        responses: {
+            /** @description Approved, or the replay of the same command */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Approved"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such plan version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description REVISION_CONFLICT, carrying `current_revision`; WORKFLOW_FROZEN_IMMUTABLE; COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description WORKFLOW_VALIDATION_FAILED, carrying `problems` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

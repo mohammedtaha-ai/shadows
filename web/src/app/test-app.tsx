@@ -10,11 +10,24 @@ import { FakeSource } from '@/stream/fake-event-source'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
+// Load the whole app once while the test file is collected, outside every
+// test's timeout. The first import transforms every app module and loads the
+// dependencies — about two seconds idle, past five under load — and if a test
+// pays for it, the first test in each file times out and leaves its app
+// mounted for the next. `resetModules` then drops the instance loaded here, so
+// `startApp` still imports the app fresh; what stays warm is the transform
+// cache, which makes that import a few milliseconds.
+await import('motion/react')
+await import('@tanstack/react-router')
+await import('@/router')
+vi.resetModules()
+
 /** An answer: a JSON body, or a function of the request for anything else. */
 export type Answer = unknown | ((request: Request) => Response | Promise<Response>)
 
 export interface TestApp {
   readonly container: HTMLElement
+  readonly queryClient: QueryClient
   /** Every request, as `METHOD /path`, in order. */
   readonly calls: string[]
   /** The JSON body of each request that had one, in order. */
@@ -89,26 +102,39 @@ export async function startApp(url: string, answers: Record<string, Answer>): Pr
   const container = document.createElement('div')
   document.body.append(container)
 
-  // happy-dom never finishes an animation, and a badge crossfade waits for
-  // one. Set on the module instance the app is about to import: the app is
-  // imported fresh (see `vi.resetModules` in `stop`) so its router reads `url`.
-  const { MotionGlobalConfig } = await import('motion/react')
-  MotionGlobalConfig.skipAnimations = true
-  const { router } = await import('@/router')
-  const { RouterProvider } = await import('@tanstack/react-router')
-
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const root: Root = createRoot(container)
-  await act(async () => {
-    root.render(
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    )
-  })
+  const unmount = () => {
+    act(() => root.unmount())
+    container.remove()
+    vi.unstubAllGlobals()
+    vi.resetModules()
+  }
+  try {
+    // happy-dom never finishes an animation, and a badge crossfade waits for
+    // one. Set on the module instance the app is about to import: the app is
+    // imported fresh (see `vi.resetModules` in `unmount`) so its router reads `url`.
+    const { MotionGlobalConfig } = await import('motion/react')
+    MotionGlobalConfig.skipAnimations = true
+    const { router } = await import('@/router')
+    const { RouterProvider } = await import('@tanstack/react-router')
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>,
+      )
+    })
+  } catch (error) {
+    // The caller never receives an app to unmount, so a failed start cleans
+    // up here: otherwise its stubs and mounted tree leak into the next test.
+    unmount()
+    throw error
+  }
 
   return {
     container,
+    queryClient,
     calls,
     bodies,
     sources,
@@ -125,17 +151,12 @@ export async function startApp(url: string, answers: Record<string, Answer>): Pr
       if (source === undefined) throw new Error('no stream was opened')
       source.emit(name, JSON.stringify(data))
     },
-    unmount: () => {
-      act(() => root.unmount())
-      container.remove()
-      vi.unstubAllGlobals()
-      vi.resetModules()
-    },
+    unmount,
   }
 }
 
 /** Lets pending fetches and renders settle until `ready` holds, for up to
- * three seconds: a cold first run (modules still being transformed) is slow. */
+ * three seconds. */
 export async function until(ready: () => boolean): Promise<void> {
   const deadline = Date.now() + 3000
   while (!ready() && Date.now() < deadline) {

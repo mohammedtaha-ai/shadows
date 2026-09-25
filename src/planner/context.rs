@@ -63,7 +63,7 @@ impl Sessions {
         // Notifications from before belong to nothing this reads.
         while rx.try_recv().is_ok() {}
         let mut text = String::new();
-        let prompt = connection.prompt(session_id, "/context");
+        let prompt = connection.prompt(session_id, "/context", &[]);
         tokio::pin!(prompt);
         let answer = tokio::time::timeout(self.config.context_wait, async {
             loop {

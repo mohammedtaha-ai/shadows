@@ -30,6 +30,7 @@ design-note, and status narratives.
 | §8 | [`2026-09-21-runtime-design.md`](./2026-09-21-runtime-design.md) |
 | §9–§11 | [`2026-09-21-rules-scope-and-milestones-design.md`](./2026-09-21-rules-scope-and-milestones-design.md) |
 | §12 | [`2026-09-24-harness-controls-design.md`](./2026-09-24-harness-controls-design.md) |
+| §13 | [`2026-09-25-planner-workflow-design.md`](./2026-09-25-planner-workflow-design.md) |
 
 ## Maintenance rules
 

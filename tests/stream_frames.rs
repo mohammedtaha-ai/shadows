@@ -43,6 +43,8 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
         sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
         bus,
         allowed_origins: Vec::new(),
+        ui: tokio::sync::broadcast::channel(16).0,
+        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
 

@@ -7,16 +7,14 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Check, Copy, GitBranch } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { GitBranch } from 'lucide-react'
+import { useRef } from 'react'
 import { forkThread } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { threadsQuery } from '@/api/queries'
 import { Button } from '@/components/ui/button'
+import { CopyButton } from '../copy-button'
 import { ErrorLine } from '../error-line'
-
-/** How long "Copied" shows after a copy. */
-const COPIED_MS = 1500
 
 export interface ForkPoint {
   projectId: string
@@ -33,22 +31,6 @@ export function MessageActions({
    * whether it is a valid fork point, and says why when it is not. */
   forkPoint?: ForkPoint
 }) {
-  const [copied, setCopied] = useState(false)
-  useEffect(() => {
-    if (!copied) return
-    const timer = setTimeout(() => setCopied(false), COPIED_MS)
-    return () => clearTimeout(timer)
-  }, [copied])
-
-  const copy = () => {
-    navigator.clipboard.writeText(text).then(
-      () => setCopied(true),
-      // The browser refused (no permission, or the page is not focused):
-      // nothing was copied, and the button does not say it was.
-      () => setCopied(false),
-    )
-  }
-
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const pending = useRef<Attempt | null>(null)
@@ -73,15 +55,7 @@ export function MessageActions({
   return (
     <div className="space-y-1">
       <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={copy}
-          aria-label={copied ? 'Copied' : 'Copy'}
-          title={copied ? 'Copied' : 'Copy'}
-        >
-          {copied ? <Check /> : <Copy />}
-        </Button>
+        <CopyButton text={text} size="icon-xs" />
         {forkPoint !== undefined && (
           <Button
             variant="ghost"

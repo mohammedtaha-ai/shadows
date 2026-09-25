@@ -11,7 +11,7 @@ use shadows::events::Actor;
 use shadows::project::{Project, ProjectDirectory};
 use shadows::runtime::Runtime;
 use shadows::storage::{Storage, StorageError};
-use shadows::thread::{NewThreadEntry, ThreadId};
+use shadows::thread::{NewThreadEntry, ThreadEntryKind, ThreadId};
 
 struct Fixture {
     _tmp: tempfile::TempDir,
@@ -159,7 +159,7 @@ async fn an_entry_can_name_its_operation_and_old_entries_name_none() {
         .append_thread_entry(
             &thread,
             NewThreadEntry {
-                kind: "AgentMessage",
+                kind: ThreadEntryKind::AgentMessage,
                 author: Actor::system(),
                 body: "x",
                 refs: &[],
@@ -174,7 +174,7 @@ async fn an_entry_can_name_its_operation_and_old_entries_name_none() {
         .append_thread_entry(
             &thread,
             NewThreadEntry {
-                kind: "UserMessage",
+                kind: ThreadEntryKind::UserMessage,
                 author: Actor::user("local"),
                 body: "y",
                 refs: &[],

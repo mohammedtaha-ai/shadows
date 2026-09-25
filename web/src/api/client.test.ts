@@ -21,21 +21,25 @@ function record(answer: () => Response) {
 }
 
 describe('client', () => {
-  it("startTurn sends the settings and the caller's command id", async () => {
+  it("startTurn sends the settings, the caller's command id and its tab", async () => {
     const { bodies } = record(() => Response.json({ operation_id: 'op1' }, { status: 202 }))
-    const id = await startTurn('t1', 'cmd-1', 'hi', {
-      model: 'fake-small',
-      mode: 'acceptEdits',
-      effort: 'high',
-    })
+    const settings = { model: 'fake-small', mode: 'acceptEdits', effort: 'high' }
+    const id = await startTurn('t1', 'cmd-1', 'hi', settings, { clientTab: 'tab-1' })
+    const focus = { workflow_id: 'w1', task_id: 'task-4', revision: 3 }
+    await startTurn('t1', 'cmd-2', 'change this', settings, { focus, clientTab: 'tab-1' })
     expect(id).toBe('op1')
-    expect(bodies[0]).toEqual({
-      command_id: 'cmd-1',
-      prompt: 'hi',
-      model: 'fake-small',
-      mode: 'acceptEdits',
-      effort: 'high',
-    })
+    expect(bodies).toEqual([
+      {
+        command_id: 'cmd-1',
+        prompt: 'hi',
+        model: 'fake-small',
+        mode: 'acceptEdits',
+        effort: 'high',
+        focus: null,
+        client_tab: 'tab-1',
+      },
+      { command_id: 'cmd-2', prompt: 'change this', ...settings, focus, client_tab: 'tab-1' },
+    ])
   })
 
   it('openSession posts to the thread session route', async () => {

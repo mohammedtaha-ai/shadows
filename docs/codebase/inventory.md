@@ -15,13 +15,23 @@ declaration, this file only says that it exists and what shape it has. What each
 module *owns* is a judgement no generator can make — that lives in
 [README.md](./README.md).
 
-## `src/agent/acp.rs` — 295 lines
+## `src/agent/acp.rs` — 381 lines
 
 ```rust
 pub enum SessionStart {
     New,
     Resume(String),
     Fork(String),
+}
+pub struct SessionSetup {
+    pub mcp: Option<McpServerSpec>,
+    pub append: Option<String>,
+    pub allowed_tools: Vec<String>,
+}
+pub struct McpServerSpec {
+    pub name: String,
+    pub url: String,
+    pub bearer: String,
 }
 pub struct Opened {
     pub session_id: String,
@@ -40,10 +50,10 @@ pub struct Connection {}
 // + 1 private field
 impl Connection {
     pub fn is_closed(&self) -> bool
-    pub async fn open(handle: &mut ProcessHandle, events: mpsc::UnboundedSender<HarnessEvent>) -> Result<Self, AcpError>
-    pub async fn start_session(&self, cwd: &Path, how: SessionStart) -> Result<Opened, AcpError>
+    pub async fn open(handle: &mut ProcessHandle, events: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static) -> Result<Self, AcpError>
+    pub async fn start_session(&self, cwd: &Path, how: SessionStart, setup: &SessionSetup) -> Result<Opened, AcpError>
     pub async fn set_option(&self, session: &str, config_id: &str, value: &str) -> Result<Value, AcpError>
-    pub async fn prompt(&self, session: &str, text: &str) -> Result<TurnEnd, AcpError>
+    pub async fn prompt(&self, session: &str, text: &str, context: &[String]) -> Result<TurnEnd, AcpError>
     pub fn cancel(&self, session: &str)
 }
 ```
@@ -169,7 +179,7 @@ pub fn is_available(kind: &str) -> bool
 pub fn default_modes() -> BTreeMap<String, Vec<String>>
 ```
 
-## `src/bin/fake_acp.rs` — 257 lines
+## `src/bin/fake_acp.rs` — 347 lines
 
 Nothing reachable from outside this file.
 
@@ -187,13 +197,24 @@ impl Cli {
 }
 ```
 
-## `src/cli/mod.rs` — 157 lines
+## `src/cli/mod.rs` — 170 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
 ```
 
-## `src/command/mod.rs` — 46 lines
+## `src/command/derive.rs` — 32 lines
+
+```rust
+pub enum Anchor<'a> {
+    Revision(i64),
+    Operation(&'a OperationId),
+    DraftRef(&'a str),
+}
+pub fn derived_id(anchor: Anchor<'_>, fingerprint: &str) -> String
+```
+
+## `src/command/mod.rs` — 94 lines
 
 ```rust
 pub struct CommandContext {
@@ -204,6 +225,17 @@ pub struct CommandContext {
     pub command_schema_ver: i64,
     pub request_fingerprint: String,
 }
+pub enum Writer {
+    Person,
+    Planner { thread: ThreadId, grant: GrantId },
+    External { grant: GrantId },
+}
+impl Writer {
+    pub fn principal(&self) -> (&'static str, String)
+    pub fn actor(&self) -> Actor
+    pub fn grant(&self) -> Option<&GrantId>
+}
+
 pub fn fingerprint(command_kind: &str, params: &serde_json::Value) -> String
 ```
 
@@ -231,7 +263,7 @@ pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError>
 pub fn adapter_version(adapter_entry: &Path) -> String
 ```
 
-## `src/error.rs` — 87 lines
+## `src/error.rs` — 100 lines
 
 ```rust
 pub enum ErrorCode {
@@ -262,6 +294,11 @@ pub enum ErrorCode {
     HarnessLocked,
     ThreadBusy,
     ForkPointNotSupported,
+    WorkflowFrozenImmutable,
+    WorkflowValidationFailed,
+    RevisionConflict,
+    GrantScope,
+    GrantInvalid,
 }
 pub enum FailureClass {
     Client,
@@ -333,11 +370,103 @@ impl DurableEvent {
 pub(crate) use newtype_id;
 ```
 
-## `src/lib.rs` — 16 lines
+## `src/lib.rs` — 18 lines
 
 Nothing reachable from outside this file.
 
 ## `src/main.rs` — 7 lines
+
+Nothing reachable from outside this file.
+
+## `src/mcp/auth.rs` — 51 lines
+
+```rust
+pub(super) async fn require_grant(State(storage): State<Arc<Storage>>, mut request: Request, next: Next) -> Response
+```
+
+## `src/mcp/grant.rs` — 92 lines
+
+```rust
+pub struct GrantId(String);
+impl GrantId {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+    pub fn from_literal(id: impl Into<String>) -> Self
+}
+
+pub enum GrantKind {
+    Thread,
+    Project,
+}
+impl GrantKind {
+    pub fn as_str(self) -> &'static str
+}
+
+pub struct Grant {
+    pub id: GrantId,
+    pub kind: GrantKind,
+    pub project_id: ProjectId,
+    pub thread_id: Option<ThreadId>,
+    pub created_at: String,
+    pub revoked_at: Option<String>,
+}
+pub struct Token(String);
+impl Token {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub fn hash(&self) -> String
+}
+
+pub fn hash_token(raw: &str) -> String
+pub struct IssuedGrant {
+    pub grant: Grant,
+    pub token: Option<Token>,
+}
+```
+
+## `src/mcp/mod.rs` — 62 lines
+
+```rust
+pub struct McpState {
+    pub storage: Arc<Storage>,
+    pub handles: Arc<LiveHandles>,
+    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
+}
+pub fn service(state: McpState) -> Router
+```
+
+## `src/mcp/refusal.rs` — 99 lines
+
+```rust
+pub(super) struct Refusal {}
+// + 2 private fields
+impl Refusal {
+    pub(super) fn new(code: ErrorCode, message: impl Into<String>) -> Self
+    pub(super) fn scope(message: impl Into<String>) -> Self
+}
+
+pub(super) fn answer<T: serde::Serialize>(outcome: Result<T, Refusal>) -> CallToolResult
+```
+
+## `src/mcp/server.rs` — 157 lines
+
+```rust
+pub(super) struct Tools(Arc<Routers>);
+impl Tools {
+    pub(super) fn new() -> Self
+}
+
+pub(super) struct Shadows {
+    pub(super) state: McpState,
+}
+// + 1 private field
+impl Shadows {
+    pub(super) fn new(state: McpState, tools: Tools) -> Self
+}
+```
+
+## `src/mcp/tools.rs` — 457 lines
 
 Nothing reachable from outside this file.
 
@@ -426,12 +555,13 @@ impl Collector {
 }
 ```
 
-## `src/planner/handles.rs` — 66 lines
+## `src/planner/handles.rs` — 83 lines
 
 ```rust
 pub(crate) struct LiveTurn {
     pub(crate) thread_id: ThreadId,
     pub(crate) session: OpenSession,
+    pub(crate) client_tab: Option<String>,
     pub(crate) turn_end_seen: Arc<AtomicBool>,
     pub(crate) cancel_requested: Arc<AtomicBool>,
     pub(crate) span: tracing::Span,
@@ -447,13 +577,15 @@ impl LiveHandles {
     pub(crate) async fn contains_internal(&self, op: &OperationId) -> bool
     pub(crate) async fn restore(&self, op: OperationId, turn: LiveTurn)
     pub(crate) async fn close(&self) -> Vec<OperationId>
+    pub async fn running_for(&self, thread: &ThreadId) -> Option<OperationId>
+    pub async fn running_turn(&self, thread: &ThreadId) -> Option<(OperationId, Option<String>)>
     pub async fn is_closed(&self) -> bool
     pub async fn contains(&self, op: &OperationId) -> bool
     pub async fn close_for_test(&self)
 }
 ```
 
-## `src/planner/mod.rs` — 21 lines
+## `src/planner/mod.rs` — 23 lines
 
 ```rust
 pub use context::NoBreakdown;
@@ -461,12 +593,13 @@ pub use handles::LiveHandles;
 pub(crate) use handles::LiveTurn;
 pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig};
 pub use settings::ModelRefused;
+pub use setup::prompt_version;
 pub use shutdown::shut_down;
-pub use spawn::{PlannerTurnRequest, StartError};
+pub use spawn::{PlannerTurnRequest, StartError, focus_block};
 pub use turn::{PlannerTurn, StopOutcome};
 ```
 
-## `src/planner/offers.rs` — 80 lines
+## `src/planner/offers.rs` — 78 lines
 
 ```rust
 pub(super) struct Offers {}
@@ -479,16 +612,18 @@ impl Offers {
     pub(super) fn subscribe(&self) -> broadcast::Receiver<(ThreadId, Offered)>
 }
 
-pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, mut from: mpsc::UnboundedReceiver<HarnessEvent>, to: mpsc::UnboundedSender<HarnessEvent>)
+pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, to: mpsc::UnboundedSender<HarnessEvent>) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static
 ```
 
-## `src/planner/sessions.rs` — 459 lines
+## `src/planner/sessions.rs` — 485 lines
 
 ```rust
 pub struct SessionsConfig {
     pub idle_after: Duration,
     pub cancel_wait: Duration,
+    pub setup_wait: Duration,
     pub context_wait: Duration,
+    pub mcp_url: Option<String>,
 }
 pub enum OpenError {
     Storage(StorageError),
@@ -520,7 +655,7 @@ pub struct Sessions {
     pub(super) live: Mutex<HashMap<ThreadId, Live>>,
     pub(super) offers: Arc<Offers>,
 }
-// + 3 private fields
+// + 4 private fields
 impl Sessions {
     pub fn new(adapter: Arc<ClaudeAdapter>, storage: Storage, config: SessionsConfig) -> Arc<Self>
     pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError>
@@ -539,6 +674,7 @@ impl Sessions {
     pub async fn force_termination_failure(&self, thread: &ThreadId) -> bool
     pub fn adapter(&self) -> &ClaudeAdapter
     pub fn cancel_wait(&self) -> Duration
+    pub(crate) fn setups(&self) -> &Setups
 }
 
 pub(super) fn workspace(context: &TurnContext) -> Result<PathBuf, String>
@@ -560,25 +696,42 @@ impl Sessions {
 }
 ```
 
+## `src/planner/setup.rs` — 181 lines
+
+```rust
+pub fn prompt_version() -> &'static str
+pub(crate) struct Setups {}
+// + 3 private fields
+impl Setups {
+    pub(crate) fn new(storage: Arc<Storage>, mcp_url: Option<String>) -> Self
+    pub(crate) async fn for_opening(&self, thread: &ThreadId, project: &ProjectId) -> Result<SessionSetup, String>
+    pub(crate) async fn context_before_turn(&self, thread: &ThreadId) -> Result<Option<String>, StorageError>
+    pub(crate) async fn forget(&self, thread: &ThreadId)
+}
+```
+
 ## `src/planner/shutdown.rs` — 160 lines
 
 ```rust
 pub async fn shut_down(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, confirm_within: Duration, escalate: impl Future<Output = ()>) -> Result<StopKind, StorageError>
 ```
 
-## `src/planner/spawn.rs` — 157 lines
+## `src/planner/spawn.rs` — 189 lines
 
 ```rust
 pub enum StartError {
     RuntimeStopping,
     Storage(StorageError),
 }
+pub fn focus_block(focus: &Focus, number: u32, title: &str) -> String
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
     pub harness: String,
     pub operation_id: OperationId,
     pub prompt: String,
     pub settings: TurnSettings,
+    pub focus: Option<String>,
+    pub client_tab: Option<String>,
     pub events: mpsc::UnboundedReceiver<HarnessEvent>,
 }
 impl PlannerTurn {
@@ -586,7 +739,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/planner/turn.rs` — 298 lines
+## `src/planner/turn.rs` — 299 lines
 
 ```rust
 pub struct PlannerTurn;
@@ -605,6 +758,7 @@ pub(crate) struct TurnWatch {
     pub thread_id: ThreadId,
     pub harness: String,
     pub prompt: String,
+    pub context: Vec<String>,
     pub turn_end_seen: Arc<AtomicBool>,
     pub cancel_requested: Arc<AtomicBool>,
     pub span: tracing::Span,
@@ -711,13 +865,13 @@ pub struct Project {
 }
 ```
 
-## `src/protocol/conversation.rs` — 333 lines
+## `src/protocol/conversation.rs` — 377 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
 pub(super) async fn list_operations(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<Operation>>, Failure>
 pub(super) struct StartTurn {}
-// + 5 private fields
+// + 7 private fields
 pub(super) struct TurnStarted {}
 // + 1 private field
 pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<ThreadId>, Json(body): Json<StartTurn>) -> Result<(StatusCode, Json<TurnStarted>), Failure>
@@ -725,14 +879,16 @@ pub(super) async fn detached<T: Send + 'static>(work: impl Future<Output = Resul
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
 ```
 
-## `src/protocol/failure.rs` — 285 lines
+## `src/protocol/failure.rs` — 357 lines
 
 ```rust
 pub struct Failure {}
-// + 4 private fields
+// + 5 private fields
 pub struct ErrorBody {
     pub code: ErrorCode,
     pub message: String,
+    pub current_revision: Option<i64>,
+    pub problems: Option<Vec<String>>,
 }
 impl Failure {
     pub(super) fn project_directory_unusable(reason: String) -> Self
@@ -757,6 +913,20 @@ pub(super) async fn list_dirs(Query(q): Query<DirsQuery>) -> Result<Json<Directo
 pub(super) struct CreateDir {}
 // + 2 private fields
 pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCode, Json<DirectoryEntry>), Failure>
+```
+
+## `src/protocol/grants.rs` — 127 lines
+
+```rust
+pub(super) async fn list_grants(State(s): State<AppState>, Path(project): Path<ProjectId>) -> Result<Json<Vec<Grant>>, Failure>
+pub(super) struct IssueGrant {}
+// + 1 private field
+pub(super) struct IssuedGrantBody {}
+// + 3 private fields
+pub(super) async fn issue_grant(State(s): State<AppState>, Path(project): Path<ProjectId>, Json(body): Json<IssueGrant>) -> Result<Json<IssuedGrantBody>, Failure>
+pub(super) struct RevokeQuery {}
+// + 1 private field
+pub(super) async fn revoke_grant(State(s): State<AppState>, Path(grant): Path<GrantId>, Query(q): Query<RevokeQuery>) -> Result<Json<Grant>, Failure>
 ```
 
 ## `src/protocol/guard.rs` — 85 lines
@@ -784,24 +954,36 @@ pub(super) struct ContextBreakdown {}
 pub(super) async fn thread_context(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<ContextBreakdown>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 166 lines
+## `src/protocol/instructions.rs` — 72 lines
+
+```rust
+pub(super) async fn get_instructions(State(s): State<AppState>, Path(project): Path<ProjectId>) -> Result<Json<Option<InstructionsVersion>>, Failure>
+pub(super) struct SaveInstructions {}
+// + 2 private fields
+pub(super) async fn save_instructions(State(s): State<AppState>, Path(project): Path<ProjectId>, Json(body): Json<SaveInstructions>) -> Result<Json<InstructionsVersion>, Failure>
+```
+
+## `src/protocol/mod.rs` — 203 lines
 
 ```rust
 pub use failure::Failure;
 pub use openapi::document as openapi_document;
+pub use ui_signal::UiSignal;
 pub struct AppState {
     pub runtime: Arc<Runtime>,
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
     pub sessions: Arc<Sessions>,
     pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
+    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
     pub allowed_origins: Vec<String>,
+    pub mcp_url: String,
     pub shutdown: tokio::sync::watch::Receiver<bool>,
 }
 pub fn router(state: AppState) -> Router
 ```
 
-## `src/protocol/openapi.rs` — 81 lines
+## `src/protocol/openapi.rs` — 83 lines
 
 ```rust
 pub(super) fn base() -> utoipa::openapi::OpenApi
@@ -826,7 +1008,7 @@ pub(super) struct UpdateProject {}
 pub(super) async fn update_project(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<UpdateProject>) -> Result<Json<Project>, Failure>
 ```
 
-## `src/protocol/sse.rs` — 328 lines
+## `src/protocol/sse.rs` — 373 lines
 
 ```rust
 pub struct SubscribeQuery {
@@ -846,6 +1028,29 @@ pub(super) async fn update_thread(State(s): State<AppState>, Path(thread): Path<
 pub(super) struct ForkThread {}
 // + 2 private fields
 pub(super) async fn fork_thread(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<ForkThread>) -> Result<(StatusCode, Json<PlanningThread>), Failure>
+```
+
+## `src/protocol/ui_signal.rs` — 20 lines
+
+```rust
+pub struct UiSignal {
+    pub thread_id: ThreadId,
+    pub target_tab: Option<String>,
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task_number: Option<u32>,
+    pub place: Place,
+}
+```
+
+## `src/protocol/workflow.rs` — 95 lines
+
+```rust
+pub(super) async fn list_plans(State(s): State<AppState>, Path(project_id): Path<ProjectId>) -> Result<Json<Vec<PlanListing>>, Failure>
+pub(super) async fn get_plan(State(s): State<AppState>, Path(workflow): Path<WorkflowId>) -> Result<Json<Plan>, Failure>
+pub(super) struct ApprovePlan {}
+// + 2 private fields
+pub(super) async fn approve_plan(State(s): State<AppState>, Path(workflow): Path<WorkflowId>, Json(body): Json<ApprovePlan>) -> Result<Json<Approved>, Failure>
 ```
 
 ## `src/runtime/mod.rs` — 59 lines
@@ -869,10 +1074,10 @@ impl Runtime {
 }
 ```
 
-## `src/storage/mod.rs` — 28 lines
+## `src/storage/mod.rs` — 29 lines
 
 ```rust
-pub use sqlite::{ NewTurn, ReconcileReport, StartedTurn, StopKind, Storage, StorageError, StoredEvent, };
+pub use sqlite::{ InstructionsVersion, NewTurn, ReconcileReport, StartedTurn, StopKind, Storage, StorageError, StoredEvent, };
 pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
@@ -883,7 +1088,7 @@ pub(in crate::storage) async fn classify(conn: &mut SqliteConnection, ctx: &Comm
 pub(in crate::storage) async fn record_command(conn: &mut SqliteConnection, ctx: &CommandContext, scope_kind: &str, scope_key: &str, entity_kind: &str, outcome_ref: &str, ts: &str) -> Result<(), StorageError>
 ```
 
-## `src/storage/sqlite/entry.rs` — 156 lines
+## `src/storage/sqlite/entry.rs` — 160 lines
 
 ```rust
 pub(super) async fn append_entry_in(conn: &mut SqliteConnection, thread_id: &ThreadId, entry: NewThreadEntry<'_>, ts: &str) -> Result<ThreadEntry, StorageError>
@@ -926,6 +1131,25 @@ impl Storage {
 }
 ```
 
+## `src/storage/sqlite/grant.rs` — 444 lines
+
+```rust
+impl Storage {
+    pub async fn issue_project_grant(&self, ctx: &CommandContext, project: &ProjectId) -> Result<IssuedGrant, StorageError>
+    pub async fn issue_thread_grant(&self, thread: &ThreadId) -> Result<(Grant, Token), StorageError>
+    pub async fn revoke_grant(&self, ctx: &CommandContext, id: &GrantId) -> Result<Grant, StorageError>
+    pub async fn revoke_thread_grant(&self, id: &GrantId) -> Result<(), StorageError>
+    pub async fn revoke_all_thread_grants(&self) -> Result<u64, StorageError>
+    pub async fn grant_for_token(&self, raw: &str) -> Result<Option<Grant>, StorageError>
+    pub async fn list_project_grants(&self, project: &ProjectId) -> Result<Vec<Grant>, StorageError>
+    pub async fn prepare_draft(&self, grant: &GrantId) -> Result<String, StorageError>
+    pub async fn draft_intent(&self, grant: &GrantId, draft_ref: &str) -> Result<Option<WorkflowId>, StorageError>
+}
+
+pub(super) async fn check_writer(conn: &mut SqliteConnection, writer: &Writer, project: &ProjectId, thread: Option<&ThreadId>) -> Result<(), StorageError>
+pub(super) async fn bind_draft_ref(conn: &mut SqliteConnection, writer: &Writer, draft_ref: &str, workflow: &WorkflowId, project: &ProjectId, ts: &str) -> Result<(), StorageError>
+```
+
 ## `src/storage/sqlite/harness.rs` — 128 lines
 
 ```rust
@@ -938,10 +1162,26 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/mod.rs` — 267 lines
+## `src/storage/sqlite/instructions.rs` — 120 lines
+
+```rust
+pub struct InstructionsVersion {
+    pub id: String,
+    pub number: i64,
+    pub body: String,
+    pub created_at: String,
+}
+impl Storage {
+    pub async fn save_planner_instructions(&self, ctx: &CommandContext, project: &ProjectId, body: &str) -> Result<InstructionsVersion, StorageError>
+    pub async fn current_planner_instructions(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, StorageError>
+}
+```
+
+## `src/storage/sqlite/mod.rs` — 304 lines
 
 ```rust
 pub use events_read::StoredEvent;
+pub use instructions::InstructionsVersion;
 pub use runtime::{ReconcileReport, StopKind};
 pub use turn::{NewTurn, StartedTurn};
 pub(super) fn now() -> String
@@ -955,6 +1195,12 @@ pub enum StorageError {
     HarnessLocked,
     ThreadBusy,
     ForkPointNotSupported,
+    RevisionConflict { current: i64, summary: String },
+    WorkflowFrozen,
+    PlanInvalid(Vec<Problem>),
+    GrantInvalid,
+    GrantScope,
+    TaskNotInPlan(String),
     Json(serde_json::Error),
     Database(sqlx::Error),
 }
@@ -994,6 +1240,14 @@ impl Storage {
 pub(super) async fn invocation_of(conn: &mut SqliteConnection, op: &OperationId) -> Result<Option<InvocationView>, StorageError>
 ```
 
+## `src/storage/sqlite/plan_view.rs` — 101 lines
+
+```rust
+impl Storage {
+    pub async fn show_plan(&self, ctx: &CommandContext, writer: &Writer, turn: &OperationId, workflow: &WorkflowId, task_number: Option<u32>, place: Place) -> Result<PlanShown, StorageError>
+}
+```
+
 ## `src/storage/sqlite/project.rs` — 250 lines
 
 ```rust
@@ -1023,7 +1277,17 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/thread.rs` — 284 lines
+## `src/storage/sqlite/task.rs` — 245 lines
+
+```rust
+pub(super) async fn tasks_of(conn: &mut SqliteConnection, workflow: &WorkflowId) -> Result<Vec<PlanTask>, StorageError>
+pub(super) async fn task_of(conn: &mut SqliteConnection, workflow: &WorkflowId, id: &TaskId) -> Result<Option<(u32, String)>, StorageError>
+pub(super) async fn task_numbered(conn: &mut SqliteConnection, workflow: &WorkflowId, number: u32) -> Result<Option<(TaskId, String)>, StorageError>
+pub(super) async fn links_of(conn: &mut SqliteConnection, workflow: &WorkflowId) -> Result<Vec<Link>, StorageError>
+pub(super) async fn write_content(conn: &mut SqliteConnection, workflow: &WorkflowId, before: &[PlanTask], after: &PlanContent, ts: &str) -> Result<(), StorageError>
+```
+
+## `src/storage/sqlite/thread.rs` — 295 lines
 
 ```rust
 impl Storage {
@@ -1034,6 +1298,7 @@ impl Storage {
     pub async fn list_threads_for_project(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>
 }
 
+pub(super) async fn insert_thread(conn: &mut SqliteConnection, project_id: &ProjectId, title: &str, harness: &str, actor: Actor, ts: &str) -> Result<ThreadId, StorageError>
 pub(super) async fn load_thread(conn: &mut SqliteConnection, id: &ThreadId) -> Result<PlanningThread, StorageError>
 ```
 
@@ -1059,7 +1324,7 @@ impl Transition {
 pub(super) async fn record(conn: &mut SqliteConnection, op_id: &OperationId, before: Before, to: &str, event: DurableEvent, ts: &str) -> Result<Transition, StorageError>
 ```
 
-## `src/storage/sqlite/turn.rs` — 207 lines
+## `src/storage/sqlite/turn.rs` — 283 lines
 
 ```rust
 pub struct NewTurn<'a> {
@@ -1073,21 +1338,59 @@ pub struct NewTurn<'a> {
     pub agent_path: &'a str,
     pub agent_version: &'a str,
     pub settings: &'a TurnSettings,
+    pub prompt_version: Option<&'a str>,
+    pub instructions_version: Option<&'a str>,
+    pub focus: Option<&'a Focus>,
 }
 pub struct StartedTurn {
     pub operation_id: OperationId,
     pub entry_id: ThreadEntryId,
     pub replayed: bool,
+    pub focus_task: Option<(u32, String)>,
 }
 pub(super) async fn has_open_operation(conn: &mut SqliteConnection, thread: &ThreadId) -> Result<bool, StorageError>
 impl Storage {
     pub async fn start_turn(&self, ctx: &CommandContext, turn: NewTurn<'_>) -> Result<StartedTurn, StorageError>
     pub async fn replayed_turn(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<Option<StartedTurn>, StorageError>
+    pub async fn latest_invocation_versions(&self, thread: &ThreadId) -> Result<Option<(Option<String>, Option<String>)>, StorageError>
     pub async fn thread_is_busy(&self, thread: &ThreadId) -> Result<bool, StorageError>
 }
 ```
 
-## `src/thread/mod.rs` — 107 lines
+## `src/storage/sqlite/workflow.rs` — 224 lines
+
+```rust
+impl Storage {
+    pub async fn edit_plan(&self, ctx: &CommandContext, writer: &Writer, workflow: &WorkflowId, expected_revision: i64, ops: &[PlanOp]) -> Result<EditOutcome, StorageError>
+    pub async fn approve_plan(&self, ctx: &CommandContext, workflow: &WorkflowId, expected_revision: i64) -> Result<Approved, StorageError>
+}
+```
+
+## `src/storage/sqlite/workflow_draft.rs` — 239 lines
+
+```rust
+impl Storage {
+    pub async fn start_draft(&self, ctx: &CommandContext, writer: &Writer, thread: &ThreadId, fresh: Option<(&str, &str)>, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>
+    pub async fn start_thread_with_draft(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, title: &str, goal: &str, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>
+}
+```
+
+## `src/storage/sqlite/workflow_read.rs` — 186 lines
+
+```rust
+impl Storage {
+    pub async fn get_plan(&self, workflow: &WorkflowId) -> Result<Plan, StorageError>
+    pub async fn list_plans(&self, project: &ProjectId) -> Result<Vec<PlanListing>, StorageError>
+    pub async fn thread_plan(&self, thread: &ThreadId) -> Result<Option<WorkflowId>, StorageError>
+}
+
+pub(super) async fn latest_version(conn: &mut SqliteConnection, thread: &ThreadId) -> Result<Option<WorkflowId>, StorageError>
+pub(super) async fn load_plan(conn: &mut SqliteConnection, id: &WorkflowId) -> Result<Plan, StorageError>
+pub(super) async fn edits_of(conn: &mut SqliteConnection, thread: &ThreadId, workflow: &WorkflowId) -> Result<Vec<EditOutcome>, StorageError>
+pub(super) async fn recorded_outcome<T: serde::de::DeserializeOwned>(conn: &mut SqliteConnection, event_id: &str) -> Result<T, StorageError>
+```
+
+## `src/thread/mod.rs` — 149 lines
 
 ```rust
 pub struct ThreadId(String);
@@ -1126,7 +1429,7 @@ pub struct ThreadEntry {
     pub id: ThreadEntryId,
     pub thread_id: ThreadId,
     pub ordinal: i64,
-    pub kind: String,
+    pub kind: ThreadEntryKind,
     pub author: Actor,
     pub body: String,
     pub refs: Vec<EntryRef>,
@@ -1134,21 +1437,34 @@ pub struct ThreadEntry {
     pub operation_id: Option<OperationId>,
 }
 pub struct NewThreadEntry<'a> {
-    pub kind: &'a str,
+    pub kind: ThreadEntryKind,
     pub author: Actor,
     pub body: &'a str,
     pub refs: &'a [EntryRef],
     pub operation_id: Option<&'a OperationId>,
 }
+pub enum ThreadEntryKind {
+    UserMessage,
+    AgentMessage,
+    PermissionRefused,
+    PlanView,
+    PlanApproved,
+}
+impl ThreadEntryKind {
+    pub fn as_str(self) -> &'static str
+    pub fn parse(s: &str) -> Option<Self>
+}
+
 pub enum EntryRef {
     Operation(OperationId),
     Decision(String),
     Research(String),
-    Workflow(String),
+    Workflow(WorkflowId),
+    Task(TaskId),
 }
 ```
 
-## `src/tracing.rs` — 117 lines
+## `src/tracing.rs` — 126 lines
 
 ```rust
 pub struct DebugLog {}
@@ -1158,5 +1474,180 @@ impl DebugLog {
 }
 
 pub fn init(verbose: bool, debug_data_dir: Option<&Path>) -> anyhow::Result<Option<DebugLog>>
+```
+
+## `src/workflow/check.rs` — 202 lines
+
+```rust
+pub struct Problem {
+    pub message: String,
+}
+impl Problem {
+    pub(super) fn new(message: impl Into<String>) -> Self
+}
+
+pub fn edit_problems(content: &PlanContent) -> Vec<Problem>
+pub fn approval_problems(content: &PlanContent) -> Vec<Problem>
+pub(super) fn edit_problems_after_removing(content: &PlanContent, removed: &BTreeSet<u32>) -> Vec<Problem>
+```
+
+## `src/workflow/conversation.rs` — 44 lines
+
+```rust
+pub struct Focus {
+    pub workflow_id: WorkflowId,
+    pub task_id: TaskId,
+    pub revision: i64,
+}
+pub enum Place {
+    Inline,
+    Side,
+    Page,
+}
+pub struct PlanShown {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task_number: Option<u32>,
+    pub place: Place,
+    pub entry_id: ThreadEntryId,
+    pub replayed: bool,
+}
+```
+
+## `src/workflow/mod.rs` — 244 lines
+
+```rust
+pub use check::{Problem, approval_problems, edit_problems};
+pub use conversation::{Focus, Place, PlanShown};
+pub use ops::{Applied, PlanOp, apply};
+pub struct WorkflowId(String);
+impl WorkflowId {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+    pub fn from_literal(id: impl Into<String>) -> Self
+}
+
+pub struct TaskId(String);
+impl TaskId {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+    pub fn from_literal(id: impl Into<String>) -> Self
+}
+
+pub enum WorkflowState {
+    Draft,
+    Frozen,
+}
+pub enum LinkKind {
+    Needs,
+    CompletesAfter,
+}
+impl LinkKind {
+    pub fn as_str(&self) -> &'static str
+}
+
+pub struct AcceptanceItem {
+    pub number: u32,
+    pub text: String,
+}
+pub struct TaskContent {
+    pub number: u32,
+    pub title: String,
+    pub goal: String,
+    pub reads: Vec<String>,
+    pub writes: Vec<String>,
+    pub acceptance: Vec<AcceptanceItem>,
+}
+pub struct Link {
+    pub task: u32,
+    pub after: u32,
+    pub kind: LinkKind,
+    pub label: String,
+    pub waiting_items: Vec<u32>,
+}
+pub struct PlanContent {
+    pub title: String,
+    pub goal: String,
+    pub tasks: BTreeMap<u32, TaskContent>,
+    pub links: Vec<Link>,
+}
+pub struct PlanTask {
+    pub id: TaskId,
+    pub content: TaskContent,
+}
+pub struct LastEdit {
+    pub revision: i64,
+    pub summary: String,
+    pub changed_tasks: Vec<u32>,
+}
+pub struct Plan {
+    pub id: WorkflowId,
+    pub thread_id: ThreadId,
+    pub project_id: ProjectId,
+    pub version: i64,
+    pub revision: i64,
+    pub state: WorkflowState,
+    pub title: String,
+    pub goal: String,
+    pub previous: Option<WorkflowId>,
+    pub next: Option<WorkflowId>,
+    pub tasks: Vec<PlanTask>,
+    pub links: Vec<Link>,
+    pub blockers: Vec<Problem>,
+    pub last_edit: Option<LastEdit>,
+    pub frozen_at: Option<String>,
+    pub created_at: String,
+}
+impl Plan {
+    pub fn content(&self) -> PlanContent
+}
+
+pub struct EditOutcome {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub revision: i64,
+    pub summary: String,
+    pub changed_tasks: Vec<u32>,
+}
+pub struct DraftStarted {
+    pub workflow_id: WorkflowId,
+    pub thread_id: ThreadId,
+    pub version: i64,
+}
+pub struct Approved {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub revision: i64,
+    pub frozen_at: String,
+}
+pub struct PlanListing {
+    pub id: WorkflowId,
+    pub thread_id: ThreadId,
+    pub title: String,
+    pub version: i64,
+    pub state: WorkflowState,
+    pub updated_at: String,
+}
+```
+
+## `src/workflow/ops.rs` — 240 lines
+
+```rust
+pub enum PlanOp {
+    PlanPut { title: String, goal: String },
+    TaskAdd { task: TaskContent },
+    TaskUpdate { task: TaskContent },
+    TaskRemove { number: u32 },
+    LinkPut { link: Link },
+    LinkRemove { task: u32, after: u32, kind: LinkKind },
+}
+pub struct Applied {
+    pub content: PlanContent,
+    pub changed_tasks: Vec<u32>,
+    pub summary: String,
+}
+pub fn apply(current: &PlanContent, ops: &[PlanOp]) -> Result<Applied, Vec<Problem>>
 ```
 

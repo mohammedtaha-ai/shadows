@@ -27,8 +27,8 @@ Domain IDs are UUID-v4 newtypes unless a later decision explicitly changes one:
 > One case is **reduced, not closed.** `Storage::append_thread_entry` took five
 > consecutive `&str`. Its fields now arrive as one named struct, so a swap must be
 > written out as `kind: <body text>` instead of happening silently by position.
-> `kind` and `body` are still both `&str`, so the compiler cannot refuse it. The
-> complete fix is `ThreadEntryKind` — see the OPEN block in §4.2.
+> `kind` was still `&str` like `body` until Milestone 2 typed it as
+> `ThreadEntryKind` (§4.2's decided block), which closes it.
 >
 > Why the ids are not `sqlx` types: CLAUDE.md keeps persistence imports out of
 > domain types, so every id converts to a column at the `storage/sqlite/` boundary
@@ -132,7 +132,19 @@ struct ThreadEntry {
 > diverge — a principal gaining fields an event actor must not carry — that is the
 > point to split them, and this note is where to say so.
 
-> **OPEN — `ThreadEntryKind` has no variants anywhere in this spec.**
+> **DECIDED 2026-09-25 — Milestone 2 closes this.** The trigger had already
+> fired unnoticed: Milestone 1's web client renders `UserMessage` and
+> `PermissionRefused` entries differently. Milestone 2 adds `PlanView` and
+> `PlanApproved` (§13.9), which the client also branches on.
+> `ThreadEntryKind` becomes an enum naming every value storage already holds —
+> the code writes `UserMessage`, `AgentMessage` and `PermissionRefused` at the
+> time of writing, and the migration checks the database holds no other — plus
+> those two. (`Agent`, `System` and `User` are `Actor` kinds, the author, not
+> entry kinds.)
+> Stored text is not rewritten: each variant serialises to its current string.
+> What follows is the reasoning that kept it open until now.
+>
+> **Was: `ThreadEntryKind` has no variants anywhere in this spec.**
 >
 > The field is typed here and its permitted values are never listed, so the
 > implementation carries it as text. That is not laziness: enumerating them in
@@ -156,6 +168,7 @@ enum EntryRef {
     Decision(DecisionId),
     Research(ResearchId),
     Workflow(WorkflowId),
+    Task(TaskId),        // Milestone 2: a message about one task (§13.9)
     Operation(OperationId),
     Verdict(VerdictId),
 }
@@ -220,6 +233,9 @@ enum WorkflowState {
 ```
 
 The normalized task/edge/gate/check rows are the scheduler's authoritative DAG representation.
+
+Milestone 2 adds a plan's `version`, `revision`, `title` and `goal`, a task's
+`number`, and two kinds of link with a label (§13.2, §13.3, §13.15).
 
 If an authored plan snapshot is preserved for provenance, it is named explicitly (for example `source_plan_json`) and is **not** consulted as a second runtime DAG source.
 

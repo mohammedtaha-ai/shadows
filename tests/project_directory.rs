@@ -32,6 +32,8 @@ async fn app(storage: Arc<Storage>, db: &Path) -> (Router, tokio::sync::watch::S
         sessions: acp::fake_sessions(db).await,
         bus,
         allowed_origins: Vec::new(),
+        ui: tokio::sync::broadcast::channel(16).0,
+        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
     (app, stopping)

@@ -1,6 +1,24 @@
 {
   "components": {
     "schemas": {
+      "AcceptanceItem": {
+        "description": "Spec §13.3. One sentence someone can check, numbered within its task.",
+        "properties": {
+          "number": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "text"
+        ],
+        "type": "object"
+      },
       "AccountLimits": {
         "description": "The account's limits as last reported by the harness (spec §12.8). A\nwindow the harness did not report is `None`, never estimated.",
         "properties": {
@@ -48,6 +66,50 @@
         "required": [
           "kind",
           "id"
+        ],
+        "type": "object"
+      },
+      "ApprovePlan": {
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key (spec §13.5), scoped to the plan version.",
+            "type": "string"
+          },
+          "expected_revision": {
+            "description": "The revision the person saw; approval of any other is refused.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "command_id",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "Approved": {
+        "description": "What an approval did, fixed when it committed (§13.2, §13.5).",
+        "properties": {
+          "frozen_at": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "revision",
+          "frozen_at"
         ],
         "type": "object"
       },
@@ -266,11 +328,11 @@
       "EntryRef": {
         "oneOf": [
           {
-            "description": "Typed, because `operation/` exists. The three below reference entities\nwhose modules Milestone 0 never creates, and §4.1's rule is that no module\nis created before the task that fills it.",
+            "description": "Typed where the referenced entity's module exists. `Decision` and\n`Research` reference entities whose modules no milestone has created\nyet, and §4.1's rule is that no module is created before the task that\nfills it.",
             "properties": {
               "Operation": {
                 "$ref": "#/components/schemas/OperationId",
-                "description": "Typed, because `operation/` exists. The three below reference entities\nwhose modules Milestone 0 never creates, and §4.1's rule is that no module\nis created before the task that fills it."
+                "description": "Typed where the referenced entity's module exists. `Decision` and\n`Research` reference entities whose modules no milestone has created\nyet, and §4.1's rule is that no module is created before the task that\nfills it."
               }
             },
             "required": [
@@ -303,11 +365,24 @@
           {
             "properties": {
               "Workflow": {
-                "type": "string"
+                "$ref": "#/components/schemas/WorkflowId"
               }
             },
             "required": [
               "Workflow"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A message about one task of a plan (§13.9).",
+            "properties": {
+              "Task": {
+                "$ref": "#/components/schemas/TaskId",
+                "description": "A message about one task of a plan (§13.9)."
+              }
+            },
+            "required": [
+              "Task"
             ],
             "type": "object"
           }
@@ -319,8 +394,26 @@
           "code": {
             "$ref": "#/components/schemas/ErrorCode"
           },
+          "current_revision": {
+            "description": "`REVISION_CONFLICT` only: the plan's revision now, to read again at.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "message": {
             "type": "string"
+          },
+          "problems": {
+            "description": "`WORKFLOW_VALIDATION_FAILED` only: each problem, the same sentences\n`message` joins.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -358,9 +451,35 @@
           "MODE_NOT_ALLOWED",
           "HARNESS_LOCKED",
           "THREAD_BUSY",
-          "FORK_POINT_NOT_SUPPORTED"
+          "FORK_POINT_NOT_SUPPORTED",
+          "WORKFLOW_FROZEN_IMMUTABLE",
+          "WORKFLOW_VALIDATION_FAILED",
+          "REVISION_CONFLICT",
+          "GRANT_SCOPE",
+          "GRANT_INVALID"
         ],
         "type": "string"
+      },
+      "Focus": {
+        "description": "The task a person points at when they send a turn: the task's id, in the\nplan version and at the revision they were looking at. It is checked to\nbelong to that version and kept with their message.",
+        "properties": {
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "task_id": {
+            "$ref": "#/components/schemas/TaskId"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "task_id",
+          "revision"
+        ],
+        "type": "object"
       },
       "ForkThread": {
         "description": "Forks the thread from its last completed entry (spec §12.9).",
@@ -378,6 +497,60 @@
           "at_entry_id"
         ],
         "type": "object"
+      },
+      "Grant": {
+        "description": "A grant as stored: never its token.",
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/GrantId"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GrantKind"
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "revoked_at": {
+            "description": "When it stopped being honoured; `null` while it is live.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "thread_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ThreadId",
+                "description": "The Planner's thread; `null` for a project grant."
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "project_id",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "GrantId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "GrantKind": {
+        "description": "Whose grant it is: the Planner of one thread, or an external agent bound\nto one project. On the wire and in storage, `thread` and `project`.",
+        "enum": [
+          "thread",
+          "project"
+        ],
+        "type": "string"
       },
       "HarnessInfo": {
         "description": "A CLI a conversation can run on (spec §12.1). `kind` is `claude-code` or\n`codex`.",
@@ -426,6 +599,28 @@
           "reason",
           "remembered",
           "limits"
+        ],
+        "type": "object"
+      },
+      "InstructionsVersion": {
+        "description": "One saved version of a project's instructions. `id` is what an\n`agent_invocation` records (§13.15); a client sees the number instead.",
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "number": {
+            "description": "1, 2, 3 … within the project.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number",
+          "body",
+          "created_at"
         ],
         "type": "object"
       },
@@ -487,6 +682,70 @@
         ],
         "type": "object"
       },
+      "IssueGrant": {
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key (spec §13.5), scoped to the project.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id"
+        ],
+        "type": "object"
+      },
+      "IssuedGrantBody": {
+        "description": "A new grant, with its token and the command that connects Claude Code to\nit — or, for a replayed command, the grant alone.",
+        "properties": {
+          "command": {
+            "description": "`claude mcp add …` with the token, to copy once; `null` on a replay.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "grant": {
+            "$ref": "#/components/schemas/Grant"
+          },
+          "token": {
+            "description": "The bearer token, in this answer only; `null` on a replay.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "grant"
+        ],
+        "type": "object"
+      },
+      "LastEdit": {
+        "description": "The edit that set a version's current revision (§13.10's plan read).",
+        "properties": {
+          "changed_tasks": {
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "summary",
+          "changed_tasks"
+        ],
+        "type": "object"
+      },
       "LimitWindow": {
         "description": "One account limit window as the harness reported it: `utilization` from 0\nto 1, `resets_at` in Unix seconds.",
         "properties": {
@@ -504,6 +763,52 @@
           "resets_at"
         ],
         "type": "object"
+      },
+      "Link": {
+        "description": "Spec §13.3. `task` waits for `after`.",
+        "properties": {
+          "after": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LinkKind"
+          },
+          "label": {
+            "description": "A few words saying what passes from `after` to `task`.",
+            "type": "string"
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "waiting_items": {
+            "description": "The acceptance items of `task` that wait. Empty for `needs`.",
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "task",
+          "after",
+          "kind",
+          "label"
+        ],
+        "type": "object"
+      },
+      "LinkKind": {
+        "description": "Spec §13.3. How a link's `task` waits for its `after`.",
+        "enum": [
+          "needs",
+          "completes_after"
+        ],
+        "type": "string"
       },
       "Operation": {
         "description": "Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the\n`ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged\nfor reviewability, that follows this task (spec §4.1 OPEN block).",
@@ -597,6 +902,165 @@
         "format": "uuid",
         "type": "string"
       },
+      "Plan": {
+        "description": "One stored version of a plan, as a reader sees it now (§13.2).",
+        "properties": {
+          "blockers": {
+            "description": "What blocks approval ([`approval_problems`]) for a `Draft`; empty for\na `Frozen` version.",
+            "items": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "type": "array"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "frozen_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "goal": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          },
+          "last_edit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LastEdit",
+                "description": "`None` until the version is first edited."
+              }
+            ]
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/Link"
+            },
+            "type": "array"
+          },
+          "next": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowId",
+                "description": "The version copied from this one, once it exists."
+              }
+            ]
+          },
+          "previous": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowId",
+                "description": "The version this one was copied from."
+              }
+            ]
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkflowState"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/PlanTask"
+            },
+            "type": "array"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "thread_id",
+          "project_id",
+          "version",
+          "revision",
+          "state",
+          "title",
+          "goal",
+          "tasks",
+          "links",
+          "blockers",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "PlanListing": {
+        "description": "A plan as a project's list shows it: its thread's latest version.",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkflowState"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "thread_id",
+          "title",
+          "version",
+          "state",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "PlanTask": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TaskContent"
+          },
+          {
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/TaskId"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "One task of a stored version: its storage id beside its content."
+      },
       "PlanningThread": {
         "properties": {
           "created_at": {
@@ -634,6 +1098,18 @@
           "created_at",
           "harness",
           "forked_from_thread"
+        ],
+        "type": "object"
+      },
+      "Problem": {
+        "description": "One broken or missing thing, named so a person can act on it: tasks as `T4`.",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
         ],
         "type": "object"
       },
@@ -708,6 +1184,23 @@
         "format": "uuid",
         "type": "string"
       },
+      "SaveInstructions": {
+        "properties": {
+          "body": {
+            "description": "The instructions, as the person wrote them.",
+            "type": "string"
+          },
+          "command_id": {
+            "description": "The idempotency key (spec §13.5), scoped to the project.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "body"
+        ],
+        "type": "object"
+      },
       "SessionChoices": {
         "description": "What the thread's session offers now (spec §12.4). `efforts` are the\ncurrent model's. `modes` are after Shadows' policy; a mode the project does\nnot allow is present with `enabled: false` and `reason: \"Not allowed in\nthis project\"`.",
         "properties": {
@@ -744,6 +1237,13 @@
       "StartTurn": {
         "description": "Starts a turn as one command (spec §12.7).",
         "properties": {
+          "client_tab": {
+            "description": "The sending tab's id, made once per page load (§13.9). Kept in memory\nfor the turn only, so a `plan-show` frame can name it; not part of the\ncommand, never stored.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "command_id": {
             "description": "The idempotency key (spec §3.2). A retry sends the same one.",
             "type": "string"
@@ -753,6 +1253,17 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "focus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Focus",
+                "description": "The task the person points at (§13.9). It must be a task of that plan\nversion, which must be this thread's; it is kept with the message and\ntold to the Planner. Part of the command: the same `command_id` with\nanother focus is `COMMAND_CONFLICT`."
+              }
             ]
           },
           "mode": {
@@ -774,6 +1285,55 @@
         ],
         "type": "object"
       },
+      "TaskContent": {
+        "description": "Spec §13.3. A task as the plan holds it, shown as `T{number}`.",
+        "properties": {
+          "acceptance": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptanceItem"
+            },
+            "type": "array"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reads": {
+            "description": "Paths the task reads (its declared scope).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          },
+          "writes": {
+            "description": "Paths the task may change (its declared scope).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "number",
+          "title",
+          "goal",
+          "reads",
+          "writes",
+          "acceptance"
+        ],
+        "type": "object"
+      },
+      "TaskId": {
+        "format": "uuid",
+        "type": "string"
+      },
       "ThreadEntry": {
         "properties": {
           "author": {
@@ -790,8 +1350,7 @@
             "$ref": "#/components/schemas/ThreadEntryId"
           },
           "kind": {
-            "description": "`UserMessage`, `AgentMessage`, or `PermissionRefused` (a permission the\nharness asked for and Shadows refused, spec §12.2).",
-            "type": "string"
+            "$ref": "#/components/schemas/ThreadEntryKind"
           },
           "operation_id": {
             "description": "The turn this entry belongs to (spec §12.7). `None` for entries written\nbefore entries named their turn. A fork's copied entries keep the\nsource's operation: provenance, not something the fork can act on.",
@@ -829,6 +1388,17 @@
       },
       "ThreadEntryId": {
         "format": "uuid",
+        "type": "string"
+      },
+      "ThreadEntryKind": {
+        "description": "What an entry is (spec §4.2, closed by §13.9). The client branches on it.\nEach variant is stored as its name, the text storage held before this was\nan enum, so no stored row is rewritten.",
+        "enum": [
+          "UserMessage",
+          "AgentMessage",
+          "PermissionRefused",
+          "PlanView",
+          "PlanApproved"
+        ],
         "type": "string"
       },
       "ThreadId": {
@@ -913,6 +1483,18 @@
           "harness"
         ],
         "type": "object"
+      },
+      "WorkflowId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "WorkflowState": {
+        "description": "Spec §13.2. A `Draft` is edited; a `Frozen` version is approved and never\nchanges again. The web client shows `Frozen` as \"Approved\".",
+        "enum": [
+          "Draft",
+          "Frozen"
+        ],
+        "type": "string"
       }
     }
   },
@@ -1109,6 +1691,87 @@
         "summary": "Every harness Shadows knows, runnable or not, with the model and effort\nlast used on it and the account limits it last reported.",
         "tags": [
           "harnesses"
+        ]
+      }
+    },
+    "/api/mcp-grants/{id}": {
+      "delete": {
+        "operationId": "revoke_grant",
+        "parameters": [
+          {
+            "description": "The project grant",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/GrantId"
+            }
+          },
+          {
+            "description": "The idempotency key (spec §13.5), scoped to the grant.",
+            "in": "query",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Grant"
+                }
+              }
+            },
+            "description": "Revoked, or the replay of the same command"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no `command_id`"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project grant"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Revoke (§13.7): Shadows refuses the grant's token from now on. It does not\nremove the server from the person's Claude configuration.",
+        "tags": [
+          "grants"
         ]
       }
     },
@@ -1377,6 +2040,240 @@
         ]
       }
     },
+    "/api/projects/{id}/mcp-grants": {
+      "get": {
+        "operationId": "list_grants",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Grant"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "A project's grants for external agents, revoked ones included, newest\nfirst. Never a token.",
+        "tags": [
+          "grants"
+        ]
+      },
+      "post": {
+        "operationId": "issue_grant",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueGrant"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedGrantBody"
+                }
+              }
+            },
+            "description": "Issued, or the replay of the same command without its token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Connect (§13.7): issues a grant bound to this project for an external\nagent. The token is shown once — here — and stored only as its hash.",
+        "tags": [
+          "grants"
+        ]
+      }
+    },
+    "/api/projects/{id}/planner-instructions": {
+      "get": {
+        "operationId": "get_instructions",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InstructionsVersion"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The project's current instructions — its highest-numbered version — or\n`null` before the first save.",
+        "tags": [
+          "projects"
+        ]
+      },
+      "put": {
+        "operationId": "save_instructions",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveInstructions"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstructionsVersion"
+                }
+              }
+            },
+            "description": "Saved, or the replay of the same command"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Saves the project's instructions as its next version; nothing earlier is\noverwritten. A running Planner is told of the change before its next turn\n(§13.8), never mid-turn.",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
     "/api/projects/{id}/threads": {
       "get": {
         "operationId": "list_threads",
@@ -1502,9 +2399,54 @@
         ]
       }
     },
+    "/api/projects/{id}/workflows": {
+      "get": {
+        "operationId": "list_plans",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlanListing"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Each planning thread's latest plan version in a project. An unknown\nproject has none.",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
     "/api/subscribe": {
       "get": {
-        "description": "Two live sources, both taken BEFORE a single journal row is read:\n\n- the storage's committed-sequence signal (spec §2.4: raised after each\n  commit that appended to the journal). A commit that lands while the\n  replay is being read shows up as a pending change, so it cannot fall into\n  the gap between the replay's last read and the live phase.\n- the transient bus, for what is never stored: deltas and turn ends.\n\nDurable events reach the client only by reading the journal after\n`last_seq` — in the replay, and again on every signal change in the live\nphase — so each one is sent once, in sequence order, and de-duplication by\n`seq` is structural rather than left to the client. The bus's `Entry` items\nare therefore not forwarded: the same entry arrives as its durable\n`ThreadEntryAppended` event. Bus items for another thread are dropped.",
+        "description": "Two live sources, both taken BEFORE a single journal row is read:\n\n- the storage's committed-sequence signal (spec §2.4: raised after each\n  commit that appended to the journal). A commit that lands while the\n  replay is being read shows up as a pending change, so it cannot fall into\n  the gap between the replay's last read and the live phase.\n- the transient bus, for what is never stored: deltas and turn ends;\n  and beside it the session's options and `plan_show`'s signals.\n\nDurable events reach the client only by reading the journal after\n`last_seq` — in the replay, and again on every signal change in the live\nphase — so each one is sent once, in sequence order, and de-duplication by\n`seq` is structural rather than left to the client. The bus's `Entry` items\nare therefore not forwarded: the same entry arrives as its durable\n`ThreadEntryAppended` event. Bus items for another thread are dropped.",
         "operationId": "subscribe",
         "parameters": [
           {
@@ -1536,7 +2478,7 @@
                 }
               }
             },
-            "description": "Server-sent events for one thread (spec §2.10): the durable journal after `after`, then `caught-up`, then live. Each frame's `event:` names its kind and its `data:` is JSON unless stated.\n\n- `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. `operation_id` and `thread_id` are the ids it names, `null` where it names none; `payload` is the event's JSON object. Sent once each, in `seq` order, in the replay and live alike; remember the highest `seq` and resubscribe with it as `after`.\n- `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n- `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n- `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n- `usage` — `{thread_id, context_used, context_window, limits}`: the session's context use and the account's limits as the harness last reported them; each is `null` when not reported. Transient.\n- `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.\n- `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.\n- `fatal` — data is a message as plain text: the journal could not be read and the stream ends.\n\nThe stream also ends when the daemon stops. Reconnect with the last `seq`.\n\nA `durable` frame of kind `OperationCompleted` carries `payload.invocation`: the turn's `InvocationView`."
+            "description": "Server-sent events for one thread (spec §2.10): the durable journal after `after`, then `caught-up`, then live. Each frame's `event:` names its kind and its `data:` is JSON unless stated.\n\n- `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. `operation_id` and `thread_id` are the ids it names, `null` where it names none; `payload` is the event's JSON object. Sent once each, in `seq` order, in the replay and live alike; remember the highest `seq` and resubscribe with it as `after`.\n- `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n- `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n- `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n- `usage` — `{thread_id, context_used, context_window, limits}`: the session's context use and the account's limits as the harness last reported them; each is `null` when not reported. Transient.\n- `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.\n- `plan-show` — `{thread_id, target_tab, workflow_id, version, task_number, place}`: the Planner showed a plan (§13.9). Its card arrives first, as the `durable` `PlanShown` event. Only the tab whose id is `target_tab` opens the panel or the page for `side` or `page`. Transient: never replayed.\n- `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.\n- `fatal` — data is a message as plain text: the journal could not be read and the stream ends.\n\nThe stream also ends when the daemon stops. Reconnect with the last `seq`.\n\nA `durable` frame of kind `OperationCompleted` carries `payload.invocation`: the turn's `InvocationView`."
           }
         },
         "summary": "Spec §2.10: durable replay, then a no-gap handoff to live, then\nde-duplication by durable sequence.",
@@ -2059,7 +3001,7 @@
                 }
               }
             },
-            "description": "SETTING_NOT_OFFERED: a model, mode or effort the session does not offer; HARNESS_UNAVAILABLE"
+            "description": "SETTING_NOT_OFFERED: a model, mode or effort the session does not offer; HARNESS_UNAVAILABLE; INVALID_COMMAND: the focus names a task not in that plan, or a plan not this thread's"
           },
           "500": {
             "content": {
@@ -2097,6 +3039,140 @@
           "turns"
         ]
       }
+    },
+    "/api/workflows/{id}": {
+      "get": {
+        "operationId": "get_plan",
+        "parameters": [
+          {
+            "description": "The plan version",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such plan version"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "One plan version: its tasks, links and revision, the versions before and\nafter it, what blocks its approval, and what the last edit changed.",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/workflows/{id}/approve": {
+      "post": {
+        "operationId": "approve_plan",
+        "parameters": [
+          {
+            "description": "The plan version",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovePlan"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Approved"
+                }
+              }
+            },
+            "description": "Approved, or the replay of the same command"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such plan version"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "REVISION_CONFLICT, carrying `current_revision`; WORKFLOW_FROZEN_IMMUTABLE; COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "WORKFLOW_VALIDATION_FAILED, carrying `problems`"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Approves a `Draft` version as the person saw it: it becomes `Frozen` and\nnever changes again (§13.2). The client reads the plan again afterwards. A\nreplay of the same command answers what it answered first.",
+        "tags": [
+          "workflows"
+        ]
+      }
     }
   },
   "tags": [
@@ -2111,6 +3187,14 @@
     {
       "description": "Starting and stopping a Planner turn",
       "name": "turns"
+    },
+    {
+      "description": "Plan versions and a person's approval of one",
+      "name": "workflows"
+    },
+    {
+      "description": "External agents' access to the MCP server",
+      "name": "grants"
     },
     {
       "description": "The CLIs a conversation runs on, and the choices a session offers",

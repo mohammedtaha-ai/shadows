@@ -7,21 +7,31 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Connection, SqliteConnection, SqlitePool};
 use tokio::sync::{Mutex, watch};
 
+use crate::workflow::Problem;
+
 mod command;
 mod entry;
 pub(super) mod events;
 mod events_read;
 mod fork;
+mod grant;
 mod harness;
+mod instructions;
 mod operation;
 mod operation_read;
+mod plan_view;
 mod project;
 mod runtime;
+mod task;
 mod thread;
 mod transition;
 mod turn;
+mod workflow;
+mod workflow_draft;
+mod workflow_read;
 
 pub use events_read::StoredEvent;
+pub use instructions::InstructionsVersion;
 pub use runtime::{ReconcileReport, StopKind};
 pub use turn::{NewTurn, StartedTurn};
 
@@ -56,10 +66,37 @@ pub enum StorageError {
     /// Spec §12.9: only the last entry of a completed turn is a fork point.
     #[error("only the thread's last entry, written by a completed turn, can be forked from")]
     ForkPointNotSupported,
+    /// Spec §13.5: `expected_revision` is not the version's current one.
+    /// `summary` joins what every edit since the expected revision did.
+    #[error("the plan is at revision {current}; changed since: {summary}")]
+    RevisionConflict { current: i64, summary: String },
+    /// Spec §13.2: a frozen version never changes.
+    #[error("the plan version is frozen; start a new version to change it")]
+    WorkflowFrozen,
+    /// Spec §13.4: the edit's final state, or the approval, breaks a rule.
+    #[error("the plan is not valid: {}", problems(.0))]
+    PlanInvalid(Vec<Problem>),
+    /// Spec §13.7: the writer's grant is unknown or revoked.
+    #[error("the grant is unknown or revoked")]
+    GrantInvalid,
+    /// Spec §13.6: the plan, thread or draft ref is outside the writer's grant.
+    #[error("outside what the grant allows")]
+    GrantScope,
+    /// Spec §13.9: a task named by a focus or by `plan_show` is not in that
+    /// plan version. The text says which.
+    #[error("{0}")]
+    TaskNotInPlan(String),
     #[error("stored JSON is invalid: {0}")]
     Json(#[from] serde_json::Error),
     #[error(transparent)]
     Database(sqlx::Error),
+}
+
+fn problems(list: &[Problem]) -> String {
+    list.iter()
+        .map(|p| p.message.as_str())
+        .collect::<Vec<_>>()
+        .join("; ")
 }
 
 /// A write the schema refused — a second project with a slug already in use —

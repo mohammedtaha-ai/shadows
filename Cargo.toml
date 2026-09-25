@@ -14,7 +14,19 @@ clap = { version = "4", features = ["derive", "env"] }
 # typed and most tools refuse. `dunce` strips that prefix where it is safe to.
 dunce = "1"
 futures-core = "0.3"
+# Spec §13.4's plan cycle check is petgraph's `tarjan_scc`, not a hand-written graph search.
+petgraph = "0.8"
 process-wrap = { version = "10", features = ["tokio1"] }
+# Spec §13.6: Shadows' MCP server, over Streamable HTTP on the daemon's own
+# listener. Never `transport-child-process` or `which-command`: `tokio::process`
+# stays private to `process/`. The client features are `test-support` only.
+rmcp = { version = "=3.4.1", default-features = false, features = ["server", "macros", "transport-streamable-http-server"] }
+# The major rmcp 3.4.1's `server` feature uses: MCP tool input schemas are
+# derived from the argument types, never written by hand.
+schemars = "1"
+# The MCP test client's HTTP stack: the major rmcp 3.4.1 itself depends on, so
+# one copy is built. Plain HTTP to loopback only, hence no TLS.
+reqwest = { version = "0.13", optional = true, default-features = false, features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
@@ -54,9 +66,14 @@ required-features = ["test-support"]
 [features]
 # Compiles in `storage::test_support`, a hook onto an otherwise-private
 # capability (`append_event` without a state write) that must never ship in
-# an ordinary build — see cross-cutting rule 10. Enabled for `cargo test` only
-# via the self dev-dependency below, never a default feature.
-test-support = []
+# an ordinary build — see cross-cutting rule 10. Also `rmcp`'s MCP client, for
+# tests that call `/mcp` as an agent does. Enabled for `cargo test` only via
+# the self dev-dependency below, never a default feature.
+test-support = [
+    "rmcp/client",
+    "rmcp/transport-streamable-http-client-reqwest",
+    "dep:reqwest",
+]
 
 [dev-dependencies]
 tempfile = "3"

@@ -58,6 +58,9 @@ pub fn new_turn<'a>(
         agent_path: "fake_acp",
         agent_version: "fake-claude-1",
         settings,
+        prompt_version: Some(shadows::planner::prompt_version()),
+        instructions_version: None,
+        focus: None,
     }
 }
 
@@ -101,6 +104,8 @@ pub async fn start_direct(
             operation_id: started.operation_id,
             prompt: prompt.into(),
             settings,
+            focus: None,
+            client_tab: None,
             events,
         },
         bus.clone(),

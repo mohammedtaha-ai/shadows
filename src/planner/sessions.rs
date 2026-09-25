@@ -18,6 +18,7 @@ use tokio::{
 use tracing::Instrument;
 
 use super::offers::{Offers, intercept};
+use super::setup::Setups;
 use crate::{
     agent::{
         acp::{Connection, SessionStart},
@@ -31,12 +32,16 @@ use crate::{
     thread::{ThreadId, TurnContext},
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct SessionsConfig {
     pub idle_after: Duration,
     pub cancel_wait: Duration,
+    /// How long an adapter has to start and open its session (§12.2).
+    pub setup_wait: Duration,
     /// How long the on-demand context breakdown waits for `/context` (§12.8).
     pub context_wait: Duration,
+    /// Shadows' `/mcp`, as the daemon bound it; `None` in tests that need no MCP.
+    pub mcp_url: Option<String>,
 }
 
 impl Default for SessionsConfig {
@@ -44,7 +49,9 @@ impl Default for SessionsConfig {
         Self {
             idle_after: Duration::from_secs(15 * 60),
             cancel_wait: Duration::from_secs(10),
+            setup_wait: Duration::from_secs(20),
             context_wait: Duration::from_secs(5),
+            mcp_url: None,
         }
     }
 }
@@ -106,16 +113,22 @@ pub(super) struct Live {
 
 pub struct Sessions {
     adapter: Arc<ClaudeAdapter>,
-    storage: Storage,
+    storage: Arc<Storage>,
     pub(super) config: SessionsConfig,
     pub(super) live: Mutex<HashMap<ThreadId, Live>>,
     pub(super) offers: Arc<Offers>,
     generations: AtomicU64,
+    setups: Setups,
 }
 
 impl Sessions {
     pub fn new(adapter: Arc<ClaudeAdapter>, storage: Storage, config: SessionsConfig) -> Arc<Self> {
+        let storage = Arc::new(storage);
+        let period = (config.idle_after / 4)
+            .min(Duration::from_secs(60))
+            .max(Duration::from_millis(1));
         let sessions = Arc::new(Self {
+            setups: Setups::new(storage.clone(), config.mcp_url.clone()),
             adapter,
             storage,
             config,
@@ -124,9 +137,6 @@ impl Sessions {
             generations: AtomicU64::new(0),
         });
         let reaper = Arc::downgrade(&sessions);
-        let period = (config.idle_after / 4)
-            .min(Duration::from_secs(60))
-            .max(Duration::from_millis(1));
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(period);
             loop {
@@ -160,6 +170,7 @@ impl Sessions {
             }
             live.remove(thread);
             self.offers.forget(thread);
+            self.setups.forget(thread).await;
         }
         let context = self.storage.turn_context(thread).await?;
         let cwd = workspace(&context).map_err(OpenError::Workspace)?;
@@ -177,17 +188,23 @@ impl Sessions {
             OpenError::Start(format!("no mode policy for harness {}", context.harness))
         })?;
         let remembered = self.storage.remembered_settings(&context.harness).await?;
-        let mut handle = process::spawn(self.adapter.process_spec(&cwd))
-            .map_err(|e| OpenError::Start(e.to_string()))?;
+        let setup = (self.setups.for_opening(thread, &context.project_id).await)
+            .map_err(OpenError::Start)?;
+        let mut handle = match process::spawn(self.adapter.process_spec(&cwd)) {
+            Ok(handle) => handle,
+            Err(error) => {
+                self.setups.forget(thread).await;
+                return Err(OpenError::Start(error.to_string()));
+            }
+        };
         let (tx, rx) = mpsc::unbounded_channel();
-        let (raw_tx, raw_rx) = mpsc::unbounded_channel();
-        intercept(self.offers.clone(), thread.clone(), raw_rx, tx);
-        let setup = tokio::time::timeout(Duration::from_secs(5), async {
-            let connection = Connection::open(&mut handle, raw_tx)
+        let events = intercept(self.offers.clone(), thread.clone(), tx);
+        let setup = tokio::time::timeout(self.config.setup_wait, async {
+            let connection = Connection::open(&mut handle, events)
                 .await
                 .map_err(|e| e.to_string())?;
             let session = connection
-                .start_session(&cwd, start)
+                .start_session(&cwd, start, &setup)
                 .await
                 .map_err(|e| e.to_string())?;
             let opened = OpenSession {
@@ -208,6 +225,7 @@ impl Sessions {
             Ok(opened) => opened,
             Err(error) => {
                 self.offers.forget(thread);
+                self.setups.forget(thread).await;
                 if let Err(cleanup) = stop_handle(&mut handle).await {
                     tracing::error!(%cleanup, "sessions.failed_open_cleanup");
                 }
@@ -313,6 +331,7 @@ impl Sessions {
         }
         live.remove(thread);
         self.offers.forget(thread);
+        self.setups.forget(thread).await;
         Ok(())
     }
 
@@ -329,6 +348,7 @@ impl Sessions {
             stop_handle(&mut item.handle).await?;
             live.remove(thread);
             self.offers.forget(thread);
+            self.setups.forget(thread).await;
         }
         Ok(())
     }
@@ -349,6 +369,7 @@ impl Sessions {
                 Ok(()) => {
                     live.remove(&thread);
                     self.offers.forget(&thread);
+                    self.setups.forget(&thread).await;
                 }
                 Err(error) if first.is_none() => first = Some(error),
                 Err(_) => {}
@@ -378,6 +399,7 @@ impl Sessions {
             }
             live.remove(&id);
             self.offers.forget(&id);
+            self.setups.forget(&id).await;
         }
     }
 
@@ -418,6 +440,10 @@ impl Sessions {
 
     pub fn cancel_wait(&self) -> Duration {
         self.config.cancel_wait
+    }
+
+    pub(crate) fn setups(&self) -> &Setups {
+        &self.setups
     }
 }
 

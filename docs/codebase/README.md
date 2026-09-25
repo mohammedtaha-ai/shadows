@@ -31,17 +31,29 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/planner/context.rs` | reading a session's context breakdown on demand | `src/planner/context.rs` |
 | `src/protocol/harness.rs` | the routes over harnesses, their sessions included | `src/protocol/harness.rs` |
 | `src/protocol/thread.rs` | the routes that change a planning thread itself | `src/protocol/thread.rs` |
+| `src/protocol/workflow.rs` | the routes over plan versions | `src/protocol/workflow.rs` |
+| `src/protocol/grants.rs` | the routes over external agents' MCP grants | `src/protocol/grants.rs` |
+| `src/protocol/instructions.rs` | the routes over a project's Planner instructions | `src/protocol/instructions.rs` |
+| `src/protocol/ui_signal.rs` | the live-only signal that moves a person's screen | `src/protocol/ui_signal.rs` |
 | `src/planner/sessions.rs` | the live adapter connection each open thread holds | `src/planner/sessions.rs` |
 | `src/planner/settings.rs` | setting an open session's options | `src/planner/settings.rs` |
+| `src/planner/setup.rs` | what a Planner session opens with | `src/planner/setup.rs` |
 | `src/planner/turn.rs` | the recorded ending of a live Planner turn | `src/planner/turn.rs` |
 | `src/planner/entries.rs` | turning harness events into durable entries | `src/planner/entries.rs` |
 | `src/bin/` | test apparatus that no product code links | `src/bin/tree_probe.rs` |
 | `src/cli/` | daemon startup | `src/cli/args.rs` |
 | `src/command/` | external-command identity for idempotency | `src/command/mod.rs` |
+| `src/command/derive.rs` | command ids Shadows derives when a caller names none | `src/command/derive.rs` |
 | `src/config.rs` | startup configuration resolved once | `src/config.rs` |
 | `src/error.rs` | the stable failure taxonomy clients match on | `src/error.rs` |
 | `src/events/` | the durable event record's shape | `src/events/mod.rs` |
 | `src/id.rs` | the UUID id newtype pattern | `src/id.rs` |
+| `src/mcp/` | Shadows' MCP server | `src/mcp/mod.rs` |
+| `src/mcp/grant.rs` | who may do what on `/mcp` | `src/mcp/grant.rs` |
+| `src/mcp/auth.rs` | refusing a `/mcp` request that holds no live grant | `src/mcp/auth.rs` |
+| `src/mcp/server.rs` | the tools a grant's kind may see | `src/mcp/server.rs` |
+| `src/mcp/tools.rs` | each MCP tool's storage call | `src/mcp/tools.rs` |
+| `src/mcp/refusal.rs` | what an MCP tool call answers | `src/mcp/refusal.rs` |
 | `src/operation/` | the operation lifecycle's shape | `src/operation/mod.rs` |
 | `src/planner/` | the Planner turn's spawn-through-termination lifecycle | `src/planner/mod.rs` |
 | `src/process/` | OS process ownership with whole-tree containment | `src/process/mod.rs` |
@@ -49,8 +61,19 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/protocol/` | the HTTP/SSE surface every client talks to | `src/protocol/project.rs` |
 | `src/runtime/` | the runtime instance's lifecycle | `src/runtime/mod.rs` |
 | `src/storage/` | persistence | `src/storage/sqlite/project.rs` |
+| `src/storage/sqlite/workflow.rs` | changing a plan version | `src/storage/sqlite/workflow.rs` |
+| `src/storage/sqlite/workflow_draft.rs` | starting a plan version | `src/storage/sqlite/workflow_draft.rs` |
+| `src/storage/sqlite/workflow_read.rs` | reading plan versions | `src/storage/sqlite/workflow_read.rs` |
+| `src/storage/sqlite/task.rs` | a plan version's task graph rows | `src/storage/sqlite/task.rs` |
+| `src/storage/sqlite/grant.rs` | an MCP grant's rows, from issue to revocation | `src/storage/sqlite/grant.rs` |
+| `src/storage/sqlite/instructions.rs` | a project's numbered Planner instructions | `src/storage/sqlite/instructions.rs` |
+| `src/storage/sqlite/plan_view.rs` | showing a plan version in its conversation | `src/storage/sqlite/plan_view.rs` |
 | `src/thread/` | the planning thread's shape | `src/thread/mod.rs` |
 | `src/tracing.rs` | tracing subscriber setup | `src/tracing.rs` |
+| `src/workflow/` | a plan's content under the rules of §13 | `src/workflow/mod.rs` |
+| `src/workflow/ops.rs` | applying one batch of plan edits | `src/workflow/ops.rs` |
+| `src/workflow/check.rs` | what makes a plan invalid or unready | `src/workflow/check.rs` |
+| `src/workflow/conversation.rs` | the plan in the conversation | `src/workflow/conversation.rs` |
 
 The Web client in `web/` is a separate program outside this crate and this map;
 [`web/README.md`](../../web/README.md) describes it.

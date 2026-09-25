@@ -5,7 +5,7 @@
 // set, whatever a client shows. Each change is one command; changes are sent
 // in order, and the list shows the set as last asked for while they travel.
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { notifyManager, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { type Project, setProjectModes } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
@@ -25,9 +25,13 @@ export function ProjectModes({ project }: { project: Project }) {
   // from the old set and could turn a mode back on.
   const [asked, setAsked] = useState<Allowed | null>(null)
   const latest = useRef<Allowed | null>(null)
-  const settle = (allowed: Allowed) => {
-    if (latest.current === allowed) setAsked(null)
-  }
+  // Cleared on the query client's own schedule, not at once: the saved set
+  // reaches `project` a timer later, and clearing before it lands showed the
+  // old set for that moment — the same gap, one step down.
+  const settle = (allowed: Allowed) =>
+    notifyManager.schedule(() => {
+      if (latest.current === allowed) setAsked(null)
+    })
 
   const save = useMutation({
     // One project's changes wait for each other, so the last one asked for

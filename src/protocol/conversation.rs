@@ -19,9 +19,13 @@ use crate::agent::policy;
 use crate::command::CommandContext;
 use crate::events::Actor;
 use crate::operation::{Operation, OperationId};
-use crate::planner::{LeaseError, OpenSession, PlannerTurn, PlannerTurnRequest, StopOutcome};
+use crate::planner::{
+    LeaseError, OpenSession, PlannerTurn, PlannerTurnRequest, StopOutcome, focus_block,
+    prompt_version,
+};
 use crate::storage::{NewTurn, StartedTurn, StorageError};
 use crate::thread::{ThreadEntry, ThreadId, TurnContext};
+use crate::workflow::Focus;
 
 /// A thread's entries in ordinal order.
 #[utoipa::path(
@@ -75,6 +79,17 @@ pub(super) struct StartTurn {
     /// `null` exactly when the chosen model offers no effort (§12.4).
     #[schema(required)]
     effort: Option<String>,
+    /// The task the person points at (§13.9). It must be a task of that plan
+    /// version, which must be this thread's; it is kept with the message and
+    /// told to the Planner. Part of the command: the same `command_id` with
+    /// another focus is `COMMAND_CONFLICT`.
+    #[serde(default)]
+    focus: Option<Focus>,
+    /// The sending tab's id, made once per page load (§13.9). Kept in memory
+    /// for the turn only, so a `plan-show` frame can name it; not part of the
+    /// command, never stored.
+    #[serde(default)]
+    client_tab: Option<String>,
 }
 
 #[derive(serde::Serialize, utoipa::ToSchema)]
@@ -104,7 +119,7 @@ pub(super) struct TurnStarted {
         (status = 403, description = "MODE_NOT_ALLOWED: the project does not allow this mode", body = ErrorBody),
         (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
         (status = 409, description = "THREAD_BUSY: a turn is running; COMMAND_CONFLICT: this command_id was used with another request; PATH_NOT_FOUND: the project's directory is gone or was never set; nothing was written", body = ErrorBody),
-        (status = 422, description = "SETTING_NOT_OFFERED: a model, mode or effort the session does not offer; HARNESS_UNAVAILABLE", body = ErrorBody),
+        (status = 422, description = "SETTING_NOT_OFFERED: a model, mode or effort the session does not offer; HARNESS_UNAVAILABLE; INVALID_COMMAND: the focus names a task not in that plan, or a plan not this thread's", body = ErrorBody),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
         (status = 502, description = "HARNESS_START_FAILED: the thread's session could not be opened; nothing was written", body = ErrorBody),
         (status = 503, description = "RUNTIME_STOPPING: the daemon is shutting down", body = ErrorBody),
@@ -128,10 +143,16 @@ async fn start(s: AppState, thread_id: ThreadId, body: StartTurn) -> Result<Oper
         model,
         mode,
         effort,
+        focus,
+        client_tab,
     } = body;
-    let params = serde_json::json!({
+    let mut params = serde_json::json!({
         "thread_id": thread_id, "prompt": prompt, "model": model, "mode": mode, "effort": effort,
     });
+    // Absent without a focus, so a turn recorded before §13.9 replays as it did.
+    if let Some(focus) = &focus {
+        params["focus"] = serde_json::json!(focus);
+    }
     let command = ctx(command_id, "turn.start", params);
     if let Some(replay) = s.storage.replayed_turn(&command, &thread_id).await? {
         return Ok(replay.operation_id);
@@ -164,11 +185,13 @@ async fn start(s: AppState, thread_id: ThreadId, body: StartTurn) -> Result<Oper
             LeaseError::Busy => Failure::from(StorageError::ThreadBusy),
             LeaseError::Closed => Failure::harness_start_failed(e.to_string()),
         })?;
-    let started = match record(
-        &s, &thread_id, &opened, &context, &command, &prompt, &settings,
-    )
-    .await
-    {
+    let turn = Turn {
+        command: &command,
+        prompt: &prompt,
+        settings: &settings,
+        focus: focus.as_ref(),
+    };
+    let started = match record(&s, &thread_id, &opened, &context, turn).await {
         Ok(started) if !started.replayed => started,
         other => {
             s.sessions
@@ -188,11 +211,23 @@ async fn start(s: AppState, thread_id: ThreadId, body: StartTurn) -> Result<Oper
             operation_id: started.operation_id,
             prompt,
             settings,
+            focus: focus
+                .zip(started.focus_task)
+                .map(|(focus, (number, title))| focus_block(&focus, number, &title)),
+            client_tab,
             events,
         },
         s.bus.clone(),
     )
     .await?)
+}
+
+/// What the person asked for: the command and what it records.
+struct Turn<'a> {
+    command: &'a CommandContext,
+    prompt: &'a str,
+    settings: &'a TurnSettings,
+    focus: Option<&'a Focus>,
 }
 
 /// The rest of §12.7's checks on the leased session, then the one
@@ -202,10 +237,14 @@ async fn record(
     thread_id: &ThreadId,
     opened: &OpenSession,
     context: &TurnContext,
-    command: &CommandContext,
-    prompt: &str,
-    settings: &TurnSettings,
+    turn: Turn<'_>,
 ) -> Result<StartedTurn, Failure> {
+    let Turn {
+        command,
+        prompt,
+        settings,
+        focus,
+    } = turn;
     let offered = offer_for_model(s, thread_id, opened, &settings.model).await?;
     if let Some((what, id)) = refusal(&offered, &context.harness, settings) {
         return Err(Failure::setting_not_offered(what, &id, None));
@@ -221,6 +260,8 @@ async fn record(
         adapter.adapter.to_string_lossy().into_owned(),
         adapter.agent.to_string_lossy().into_owned(),
     );
+    // §13.8: recorded so a later turn tells the session only what changed.
+    let instructions = (s.storage.current_planner_instructions(&context.project_id)).await?;
     let started = s
         .storage
         .start_turn(
@@ -236,6 +277,9 @@ async fn record(
                 agent_path: &agent_path,
                 agent_version: &adapter.agent_version,
                 settings,
+                prompt_version: Some(prompt_version()),
+                instructions_version: instructions.as_ref().map(|v| v.id.as_str()),
+                focus,
             },
         )
         .await;

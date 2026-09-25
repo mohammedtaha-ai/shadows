@@ -72,7 +72,10 @@ async fn fixture(config: SessionsConfig) -> Fixture {
 
 async fn prompt_text(fx: &Fixture, s: &OpenSession, text: &str) -> String {
     let mut events = fx.sessions.take_events(&fx.thread).await.unwrap();
-    s.connection().prompt(&s.session_id, text).await.unwrap();
+    s.connection()
+        .prompt(&s.session_id, text, &[])
+        .await
+        .unwrap();
     let mut result = String::new();
     while let Ok(event) = events.try_recv() {
         if let HarnessEvent::Chunk { text, .. } = event {
@@ -162,7 +165,7 @@ async fn idle_close_before_first_turn_discards_the_unrecorded_session() {
 async fn a_dead_connection_is_replaced_on_the_next_opening() {
     let fx = fixture(SessionsConfig::default()).await;
     let s = fx.sessions.open(&fx.thread).await.unwrap();
-    let _ = s.connection().prompt(&s.session_id, "exit").await;
+    let _ = s.connection().prompt(&s.session_id, "exit", &[]).await;
     let again = fx.sessions.open(&fx.thread).await.unwrap();
     assert_eq!(prompt_text(&fx, &again, "hi").await, "hello from fake_acp");
     fx.sessions.close_all().await.unwrap();
@@ -193,6 +196,38 @@ async fn reaper_keeps_a_connection_while_its_turn_holds_events() {
     fx.sessions
         .give_back_events(&fx.thread, &opened, events)
         .await;
+    fx.sessions.close_all().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_harness_slower_than_setup_wait_fails_and_leaves_no_adapter() {
+    let fx = fixture(SessionsConfig {
+        setup_wait: Duration::from_millis(300),
+        ..Default::default()
+    })
+    .await;
+    fx.storage
+        .record_harness_session(&fx.thread, "slow-1")
+        .await
+        .unwrap();
+    assert!(matches!(
+        fx.sessions.open(&fx.thread).await,
+        Err(OpenError::Start(reason)) if reason.contains("timed out")
+    ));
+    assert_eq!(fx.sessions.live_count().await, 0);
+}
+
+#[tokio::test]
+async fn the_default_setup_wait_outlasts_a_slow_harness() {
+    // Claude Code took 2.6–5.7 s to open a session on Windows; 5 s failed it.
+    assert!(SessionsConfig::default().setup_wait >= Duration::from_secs(15));
+    let fx = fixture(SessionsConfig::default()).await;
+    fx.storage
+        .record_harness_session(&fx.thread, "slow-2")
+        .await
+        .unwrap();
+    let s = fx.sessions.open(&fx.thread).await.unwrap();
+    assert_eq!((s.session_id.as_str(), s.how), ("slow-2", "resume"));
     fx.sessions.close_all().await.unwrap();
 }
 
