@@ -7,6 +7,7 @@
 > | [CLAUDE.md](./CLAUDE.md) | Architecture, conventions, rules (this file) |
 > | [docs/superpowers/specs/README.md](./docs/superpowers/specs/README.md) | **Index of the authoritative design sections and their owners.** |
 > | [docs/codebase/README.md](./docs/codebase/README.md) | **The code map.** What each module owns, and every declaration that exists. Read before writing code. |
+> | [docs/vision.md](./docs/vision.md) | **What Shadows is for and where it is going.** Read before specifying any new milestone. Decides nothing. |
 > | [docs/status.md](./docs/status.md) | Where the project is right now. Decides nothing. |
 > | [docs/evidence/](./docs/evidence/) | Dated measurement records. Facts, not decisions. |
 >
