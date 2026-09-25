@@ -39,6 +39,19 @@ pub enum ErrorCode {
     ThreadBusy,
     /// Fork from anything but the last completed entry (§12.9).
     ForkPointNotSupported,
+    /// A change to a frozen plan version (§13.2); 409.
+    WorkflowFrozenImmutable,
+    /// A check of §13.4 failed; the answer lists each problem; 422.
+    WorkflowValidationFailed,
+    /// `expected_revision` is stale (§13.5); the answer carries the current
+    /// revision; 409.
+    RevisionConflict,
+    /// An MCP call outside its grant's thread or project (§13.6). MCP tool
+    /// results only: no HTTP route answers it.
+    GrantScope,
+    /// An MCP grant unknown, or revoked while its call was in flight (§13.7).
+    /// MCP tool results only: no HTTP route answers it.
+    GrantInvalid,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]

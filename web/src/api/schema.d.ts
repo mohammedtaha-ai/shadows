@@ -145,6 +145,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/workflows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Each planning thread's latest plan version in a project. An unknown
+         *     project has none.
+         */
+        get: operations["list_plans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/subscribe": {
         parameters: {
             query?: never;
@@ -361,10 +381,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workflows/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One plan version: its tasks, links and revision, the versions before and
+         *     after it, what blocks its approval, and what the last edit changed.
+         */
+        get: operations["get_plan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workflows/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approves a `Draft` version as the person saw it: it becomes `Frozen` and
+         *     never changes again (§13.2). The client reads the plan again afterwards. A
+         *     replay of the same command answers what it answered first.
+         */
+        post: operations["approve_plan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Spec §13.3. One sentence someone can check, numbered within its task. */
+        AcceptanceItem: {
+            /** Format: int32 */
+            number: number;
+            text: string;
+        };
         /**
          * @description The account's limits as last reported by the harness (spec §12.8). A
          *     window the harness did not report is `None`, never estimated.
@@ -378,6 +445,24 @@ export interface components {
         Actor: {
             id: string;
             kind: string;
+        };
+        ApprovePlan: {
+            /** @description The idempotency key (spec §13.5), scoped to the plan version. */
+            command_id: string;
+            /**
+             * Format: int64
+             * @description The revision the person saw; approval of any other is refused.
+             */
+            expected_revision: number;
+        };
+        /** @description What an approval did, fixed when it committed (§13.2, §13.5). */
+        Approved: {
+            frozen_at: string;
+            /** Format: int64 */
+            revision: number;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
         };
         /** @description The model a person picked (spec §12.7). */
         ChangeModel: {
@@ -489,14 +574,24 @@ export interface components {
          */
         ErrorBody: {
             code: components["schemas"]["ErrorCode"];
+            /**
+             * Format: int64
+             * @description `REVISION_CONFLICT` only: the plan's revision now, to read again at.
+             */
+            current_revision?: number | null;
             message: string;
+            /**
+             * @description `WORKFLOW_VALIDATION_FAILED` only: each problem, the same sentences
+             *     `message` joins.
+             */
+            problems?: string[] | null;
         };
         /**
          * @description Stable codes clients pattern-match on. Never match on human text.
          *     Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "FORK_POINT_NOT_SUPPORTED";
+        ErrorCode: "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "GRANT_SCOPE" | "GRANT_INVALID";
         /** @description Forks the thread from its last completed entry (spec §12.9). */
         ForkThread: {
             at_entry_id: components["schemas"]["ThreadEntryId"];
@@ -533,6 +628,13 @@ export interface components {
             requested_mode: string;
             requested_model: string;
         };
+        /** @description The edit that set a version's current revision (§13.10's plan read). */
+        LastEdit: {
+            changed_tasks: number[];
+            /** Format: int64 */
+            revision: number;
+            summary: string;
+        };
         /**
          * @description One account limit window as the harness reported it: `utilization` from 0
          *     to 1, `resets_at` in Unix seconds.
@@ -543,6 +645,23 @@ export interface components {
             /** Format: double */
             utilization: number;
         };
+        /** @description Spec §13.3. `task` waits for `after`. */
+        Link: {
+            /** Format: int32 */
+            after: number;
+            kind: components["schemas"]["LinkKind"];
+            /** @description A few words saying what passes from `after` to `task`. */
+            label: string;
+            /** Format: int32 */
+            task: number;
+            /** @description The acceptance items of `task` that wait. Empty for `needs`. */
+            waiting_items?: number[];
+        };
+        /**
+         * @description Spec §13.3. How a link's `task` waits for its `after`.
+         * @enum {string}
+         */
+        LinkKind: "needs" | "completes_after";
         /**
          * @description Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
          *     `ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged
@@ -566,6 +685,45 @@ export interface components {
         };
         /** Format: uuid */
         OperationId: string;
+        /** @description One stored version of a plan, as a reader sees it now (§13.2). */
+        Plan: {
+            /**
+             * @description What blocks approval ([`approval_problems`]) for a `Draft`; empty for
+             *     a `Frozen` version.
+             */
+            blockers: components["schemas"]["Problem"][];
+            created_at: string;
+            frozen_at?: string | null;
+            goal: string;
+            id: components["schemas"]["WorkflowId"];
+            last_edit?: null | components["schemas"]["LastEdit"];
+            links: components["schemas"]["Link"][];
+            next?: null | components["schemas"]["WorkflowId"];
+            previous?: null | components["schemas"]["WorkflowId"];
+            project_id: components["schemas"]["ProjectId"];
+            /** Format: int64 */
+            revision: number;
+            state: components["schemas"]["WorkflowState"];
+            tasks: components["schemas"]["PlanTask"][];
+            thread_id: components["schemas"]["ThreadId"];
+            title: string;
+            /** Format: int64 */
+            version: number;
+        };
+        /** @description A plan as a project's list shows it: its thread's latest version. */
+        PlanListing: {
+            id: components["schemas"]["WorkflowId"];
+            state: components["schemas"]["WorkflowState"];
+            thread_id: components["schemas"]["ThreadId"];
+            title: string;
+            updated_at: string;
+            /** Format: int64 */
+            version: number;
+        };
+        /** @description One task of a stored version: its storage id beside its content. */
+        PlanTask: components["schemas"]["TaskContent"] & {
+            id: components["schemas"]["TaskId"];
+        };
         PlanningThread: {
             created_at: string;
             /** @description The thread this one was forked from, if it is a fork (spec §12.9). */
@@ -580,6 +738,10 @@ export interface components {
             project_id: components["schemas"]["ProjectId"];
             status: string;
             title: string;
+        };
+        /** @description One broken or missing thing, named so a person can act on it: tasks as `T4`. */
+        Problem: {
+            message: string;
         };
         Project: {
             /**
@@ -633,6 +795,18 @@ export interface components {
             mode: string;
             model: string;
             prompt: string;
+        };
+        /** @description Spec §13.3. A task as the plan holds it, shown as `T{number}`. */
+        TaskContent: {
+            acceptance: components["schemas"]["AcceptanceItem"][];
+            goal: string;
+            /** Format: int32 */
+            number: number;
+            /** @description Paths the task reads (its declared scope). */
+            reads: string[];
+            title: string;
+            /** @description Paths the task may change (its declared scope). */
+            writes: string[];
         };
         /** Format: uuid */
         TaskId: string;
@@ -707,6 +881,12 @@ export interface components {
         };
         /** Format: uuid */
         WorkflowId: string;
+        /**
+         * @description Spec §13.2. A `Draft` is edited; a `Frozen` version is approved and never
+         *     changes again. The web client shows `Frozen` as "Approved".
+         * @enum {string}
+         */
+        WorkflowState: "Draft" | "Frozen";
     };
     responses: never;
     parameters: never;
@@ -1183,6 +1363,37 @@ export interface operations {
             };
         };
     };
+    list_plans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanListing"][];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     subscribe: {
         parameters: {
             query: {
@@ -1634,6 +1845,109 @@ export interface operations {
             };
             /** @description RUNTIME_STOPPING: the daemon is shutting down */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The plan version */
+                id: components["schemas"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such plan version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    approve_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The plan version */
+                id: components["schemas"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovePlan"];
+            };
+        };
+        responses: {
+            /** @description Approved, or the replay of the same command */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Approved"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such plan version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description REVISION_CONFLICT, carrying `current_revision`; WORKFLOW_FROZEN_IMMUTABLE; COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description WORKFLOW_VALIDATION_FAILED, carrying `problems` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

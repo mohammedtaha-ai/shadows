@@ -253,7 +253,7 @@ pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError>
 pub fn adapter_version(adapter_entry: &Path) -> String
 ```
 
-## `src/error.rs` — 87 lines
+## `src/error.rs` — 100 lines
 
 ```rust
 pub enum ErrorCode {
@@ -284,6 +284,11 @@ pub enum ErrorCode {
     HarnessLocked,
     ThreadBusy,
     ForkPointNotSupported,
+    WorkflowFrozenImmutable,
+    WorkflowValidationFailed,
+    RevisionConflict,
+    GrantScope,
+    GrantInvalid,
 }
 pub enum FailureClass {
     Client,
@@ -763,14 +768,16 @@ pub(super) async fn detached<T: Send + 'static>(work: impl Future<Output = Resul
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
 ```
 
-## `src/protocol/failure.rs` — 285 lines
+## `src/protocol/failure.rs` — 354 lines
 
 ```rust
 pub struct Failure {}
-// + 4 private fields
+// + 5 private fields
 pub struct ErrorBody {
     pub code: ErrorCode,
     pub message: String,
+    pub current_revision: Option<i64>,
+    pub problems: Option<Vec<String>>,
 }
 impl Failure {
     pub(super) fn project_directory_unusable(reason: String) -> Self
@@ -822,7 +829,7 @@ pub(super) struct ContextBreakdown {}
 pub(super) async fn thread_context(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<ContextBreakdown>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 166 lines
+## `src/protocol/mod.rs` — 170 lines
 
 ```rust
 pub use failure::Failure;
@@ -839,7 +846,7 @@ pub struct AppState {
 pub fn router(state: AppState) -> Router
 ```
 
-## `src/protocol/openapi.rs` — 81 lines
+## `src/protocol/openapi.rs` — 82 lines
 
 ```rust
 pub(super) fn base() -> utoipa::openapi::OpenApi
@@ -884,6 +891,16 @@ pub(super) async fn update_thread(State(s): State<AppState>, Path(thread): Path<
 pub(super) struct ForkThread {}
 // + 2 private fields
 pub(super) async fn fork_thread(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<ForkThread>) -> Result<(StatusCode, Json<PlanningThread>), Failure>
+```
+
+## `src/protocol/workflow.rs` — 95 lines
+
+```rust
+pub(super) async fn list_plans(State(s): State<AppState>, Path(project_id): Path<ProjectId>) -> Result<Json<Vec<PlanListing>>, Failure>
+pub(super) async fn get_plan(State(s): State<AppState>, Path(workflow): Path<WorkflowId>) -> Result<Json<Plan>, Failure>
+pub(super) struct ApprovePlan {}
+// + 2 private fields
+pub(super) async fn approve_plan(State(s): State<AppState>, Path(workflow): Path<WorkflowId>, Json(body): Json<ApprovePlan>) -> Result<Json<Approved>, Failure>
 ```
 
 ## `src/runtime/mod.rs` — 59 lines

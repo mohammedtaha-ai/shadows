@@ -1,6 +1,24 @@
 {
   "components": {
     "schemas": {
+      "AcceptanceItem": {
+        "description": "Spec §13.3. One sentence someone can check, numbered within its task.",
+        "properties": {
+          "number": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "text"
+        ],
+        "type": "object"
+      },
       "AccountLimits": {
         "description": "The account's limits as last reported by the harness (spec §12.8). A\nwindow the harness did not report is `None`, never estimated.",
         "properties": {
@@ -48,6 +66,50 @@
         "required": [
           "kind",
           "id"
+        ],
+        "type": "object"
+      },
+      "ApprovePlan": {
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key (spec §13.5), scoped to the plan version.",
+            "type": "string"
+          },
+          "expected_revision": {
+            "description": "The revision the person saw; approval of any other is refused.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "command_id",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "Approved": {
+        "description": "What an approval did, fixed when it committed (§13.2, §13.5).",
+        "properties": {
+          "frozen_at": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "revision",
+          "frozen_at"
         ],
         "type": "object"
       },
@@ -332,8 +394,26 @@
           "code": {
             "$ref": "#/components/schemas/ErrorCode"
           },
+          "current_revision": {
+            "description": "`REVISION_CONFLICT` only: the plan's revision now, to read again at.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "message": {
             "type": "string"
+          },
+          "problems": {
+            "description": "`WORKFLOW_VALIDATION_FAILED` only: each problem, the same sentences\n`message` joins.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -371,7 +451,12 @@
           "MODE_NOT_ALLOWED",
           "HARNESS_LOCKED",
           "THREAD_BUSY",
-          "FORK_POINT_NOT_SUPPORTED"
+          "FORK_POINT_NOT_SUPPORTED",
+          "WORKFLOW_FROZEN_IMMUTABLE",
+          "WORKFLOW_VALIDATION_FAILED",
+          "REVISION_CONFLICT",
+          "GRANT_SCOPE",
+          "GRANT_INVALID"
         ],
         "type": "string"
       },
@@ -500,6 +585,32 @@
         ],
         "type": "object"
       },
+      "LastEdit": {
+        "description": "The edit that set a version's current revision (§13.10's plan read).",
+        "properties": {
+          "changed_tasks": {
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "summary",
+          "changed_tasks"
+        ],
+        "type": "object"
+      },
       "LimitWindow": {
         "description": "One account limit window as the harness reported it: `utilization` from 0\nto 1, `resets_at` in Unix seconds.",
         "properties": {
@@ -517,6 +628,52 @@
           "resets_at"
         ],
         "type": "object"
+      },
+      "Link": {
+        "description": "Spec §13.3. `task` waits for `after`.",
+        "properties": {
+          "after": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LinkKind"
+          },
+          "label": {
+            "description": "A few words saying what passes from `after` to `task`.",
+            "type": "string"
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "waiting_items": {
+            "description": "The acceptance items of `task` that wait. Empty for `needs`.",
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "task",
+          "after",
+          "kind",
+          "label"
+        ],
+        "type": "object"
+      },
+      "LinkKind": {
+        "description": "Spec §13.3. How a link's `task` waits for its `after`.",
+        "enum": [
+          "needs",
+          "completes_after"
+        ],
+        "type": "string"
       },
       "Operation": {
         "description": "Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the\n`ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged\nfor reviewability, that follows this task (spec §4.1 OPEN block).",
@@ -610,6 +767,165 @@
         "format": "uuid",
         "type": "string"
       },
+      "Plan": {
+        "description": "One stored version of a plan, as a reader sees it now (§13.2).",
+        "properties": {
+          "blockers": {
+            "description": "What blocks approval ([`approval_problems`]) for a `Draft`; empty for\na `Frozen` version.",
+            "items": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "type": "array"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "frozen_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "goal": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          },
+          "last_edit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LastEdit",
+                "description": "`None` until the version is first edited."
+              }
+            ]
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/Link"
+            },
+            "type": "array"
+          },
+          "next": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowId",
+                "description": "The version copied from this one, once it exists."
+              }
+            ]
+          },
+          "previous": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowId",
+                "description": "The version this one was copied from."
+              }
+            ]
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkflowState"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/PlanTask"
+            },
+            "type": "array"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "thread_id",
+          "project_id",
+          "version",
+          "revision",
+          "state",
+          "title",
+          "goal",
+          "tasks",
+          "links",
+          "blockers",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "PlanListing": {
+        "description": "A plan as a project's list shows it: its thread's latest version.",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkflowState"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "thread_id",
+          "title",
+          "version",
+          "state",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "PlanTask": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TaskContent"
+          },
+          {
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/TaskId"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "One task of a stored version: its storage id beside its content."
+      },
       "PlanningThread": {
         "properties": {
           "created_at": {
@@ -647,6 +963,18 @@
           "created_at",
           "harness",
           "forked_from_thread"
+        ],
+        "type": "object"
+      },
+      "Problem": {
+        "description": "One broken or missing thing, named so a person can act on it: tasks as `T4`.",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
         ],
         "type": "object"
       },
@@ -784,6 +1112,51 @@
           "model",
           "mode",
           "effort"
+        ],
+        "type": "object"
+      },
+      "TaskContent": {
+        "description": "Spec §13.3. A task as the plan holds it, shown as `T{number}`.",
+        "properties": {
+          "acceptance": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptanceItem"
+            },
+            "type": "array"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reads": {
+            "description": "Paths the task reads (its declared scope).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          },
+          "writes": {
+            "description": "Paths the task may change (its declared scope).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "number",
+          "title",
+          "goal",
+          "reads",
+          "writes",
+          "acceptance"
         ],
         "type": "object"
       },
@@ -943,6 +1316,14 @@
       },
       "WorkflowId": {
         "format": "uuid",
+        "type": "string"
+      },
+      "WorkflowState": {
+        "description": "Spec §13.2. A `Draft` is edited; a `Frozen` version is approved and never\nchanges again. The web client shows `Frozen` as \"Approved\".",
+        "enum": [
+          "Draft",
+          "Frozen"
+        ],
         "type": "string"
       }
     }
@@ -1530,6 +1911,51 @@
         "summary": "Creates a planning thread in a project.",
         "tags": [
           "threads"
+        ]
+      }
+    },
+    "/api/projects/{id}/workflows": {
+      "get": {
+        "operationId": "list_plans",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlanListing"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Each planning thread's latest plan version in a project. An unknown\nproject has none.",
+        "tags": [
+          "workflows"
         ]
       }
     },
@@ -2128,6 +2554,140 @@
           "turns"
         ]
       }
+    },
+    "/api/workflows/{id}": {
+      "get": {
+        "operationId": "get_plan",
+        "parameters": [
+          {
+            "description": "The plan version",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such plan version"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "One plan version: its tasks, links and revision, the versions before and\nafter it, what blocks its approval, and what the last edit changed.",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/workflows/{id}/approve": {
+      "post": {
+        "operationId": "approve_plan",
+        "parameters": [
+          {
+            "description": "The plan version",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovePlan"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Approved"
+                }
+              }
+            },
+            "description": "Approved, or the replay of the same command"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such plan version"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "REVISION_CONFLICT, carrying `current_revision`; WORKFLOW_FROZEN_IMMUTABLE; COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "WORKFLOW_VALIDATION_FAILED, carrying `problems`"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Approves a `Draft` version as the person saw it: it becomes `Frozen` and\nnever changes again (§13.2). The client reads the plan again afterwards. A\nreplay of the same command answers what it answered first.",
+        "tags": [
+          "workflows"
+        ]
+      }
     }
   },
   "tags": [
@@ -2142,6 +2702,10 @@
     {
       "description": "Starting and stopping a Planner turn",
       "name": "turns"
+    },
+    {
+      "description": "Plan versions and a person's approval of one",
+      "name": "workflows"
     },
     {
       "description": "The CLIs a conversation runs on, and the choices a session offers",

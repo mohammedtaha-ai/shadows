@@ -6,7 +6,7 @@
 //! only wires them: `project.rs` (projects and their threads),
 //! `conversation.rs` (entries, a thread's turns, starting and stopping one),
 //! `harness.rs` (the harnesses and a thread's session), `thread.rs` (changing
-//! a thread itself),
+//! a thread itself), `workflow.rs` (plan versions and their approval),
 //! `sse.rs` (the replay-then-live stream), `fs.rs` (choosing a project directory),
 //! `openapi.rs` (the document describing all of it), `failure.rs` (the
 //! transport mapping), `guard.rs` (refusing requests pages were made to send).
@@ -25,6 +25,7 @@ mod openapi;
 mod project;
 pub mod sse;
 mod thread;
+mod workflow;
 
 pub use failure::Failure;
 pub use openapi::document as openapi_document;
@@ -130,6 +131,9 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(harness::thread_context))
         .routes(routes!(thread::update_thread))
         .routes(routes!(thread::fork_thread))
+        .routes(routes!(workflow::list_plans))
+        .routes(routes!(workflow::get_plan))
+        .routes(routes!(workflow::approve_plan))
         .routes(routes!(sse::subscribe))
         .routes(routes!(fs::list_dirs, fs::create_dir))
         .routes(routes!(openapi::serve))

@@ -100,10 +100,12 @@ fn the_document_names_every_route() {
             "GET /api/openapi.json",
             "GET /api/projects",
             "GET /api/projects/{id}/threads",
+            "GET /api/projects/{id}/workflows",
             "GET /api/subscribe",
             "GET /api/threads/{id}/context",
             "GET /api/threads/{id}/entries",
             "GET /api/threads/{id}/operations",
+            "GET /api/workflows/{id}",
             "PATCH /api/projects/{id}",
             "PATCH /api/threads/{id}",
             "POST /api/fs/dirs",
@@ -113,6 +115,7 @@ fn the_document_names_every_route() {
             "POST /api/threads/{id}/fork",
             "POST /api/threads/{id}/session",
             "POST /api/threads/{id}/turns",
+            "POST /api/workflows/{id}/approve",
             "PUT /api/threads/{id}/session/model",
         ]
     );
