@@ -70,6 +70,11 @@ jobs:
   linux:
     name: Linux — compile gate only
     runs-on: ubuntu-latest
+    env:
+      # Full debug info across every test binary filled the runner's disk
+      # (Milestone 2: "No space left on device" while linking). Without it the
+      # target directory is ~2 GB instead of ~18 GB; the tests do not need it.
+      CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
