@@ -16,9 +16,8 @@ reaching both a new and an existing conversation, and Connect and Revoke from
 an external Claude Code all worked. The run found that a harness opening took
 up to 5.7 s against a 5 s bound, which is now fixed:
 [`evidence/milestone2/WINDOWS_RUN.md`](./evidence/milestone2/WINDOWS_RUN.md).
-Still to do: the PR.
-Handoff and ledger:
-[`superpowers/plans/2026-09-25-milestone-2-execution-ledger.md`](./superpowers/plans/2026-09-25-milestone-2-execution-ledger.md).
+The plan is `superpowers/plans/2026-09-25-milestone-2-plan-workflow.md`; its
+execution ledger was removed from the branch before merge.
 
 **Milestone 1 is implemented, Phase A and Phase B, and both have run on
 Linux against the real harness.** A Planner turn is an ACP `session/prompt` on
