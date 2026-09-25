@@ -466,7 +466,7 @@ impl Shadows {
 }
 ```
 
-## `src/mcp/tools.rs` — 436 lines
+## `src/mcp/tools.rs` — 452 lines
 
 Nothing reachable from outside this file.
 

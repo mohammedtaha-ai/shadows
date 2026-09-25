@@ -26,8 +26,9 @@ use crate::workflow::{Place, Plan, PlanOp, PlanShown, WorkflowId};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct PlanArgs {
-    /// The plan version. The Planner leaves it out: its conversation's latest
-    /// version is the one it reaches. An external agent must name one.
+    /// The plan version. The Planner leaves it out for its conversation's
+    /// latest version, or names an older version of the same conversation
+    /// when reading it. An external agent must name one.
     #[serde(default)]
     #[schemars(with = "Option<String>")]
     workflow_id: Option<WorkflowId>,
@@ -113,7 +114,10 @@ impl Shadows {
         Extension(grant): Extension<Grant>,
         Parameters(args): Parameters<PlanArgs>,
     ) -> CallToolResult {
-        answer(self.plan_in_scope(&grant, args.workflow_id.as_ref()).await)
+        answer(
+            self.plan_in_scope(&grant, args.workflow_id.as_ref(), false)
+                .await,
+        )
     }
 
     #[tool(description = "Read one task of a plan version by its number.")]
@@ -122,7 +126,9 @@ impl Shadows {
         Extension(grant): Extension<Grant>,
         Parameters(args): Parameters<TaskArgs>,
     ) -> CallToolResult {
-        let plan = self.plan_in_scope(&grant, args.workflow_id.as_ref()).await;
+        let plan = self
+            .plan_in_scope(&grant, args.workflow_id.as_ref(), false)
+            .await;
         answer(plan.and_then(|plan| {
             plan.tasks
                 .into_iter()
@@ -186,13 +192,14 @@ impl Shadows {
 }
 
 impl Shadows {
-    /// The plan version a call reaches (§13.6): for the Planner, its thread's
-    /// latest version, and nothing else; for an external agent, the version it
-    /// names, if that is in its project.
+    /// The plan version a call reaches (§13.6): reads and cards can name an
+    /// older version of the Planner's thread, while edits require its latest.
+    /// An external agent names a version in its project.
     async fn plan_in_scope(
         &self,
         grant: &Grant,
         named: Option<&WorkflowId>,
+        latest_only: bool,
     ) -> Result<Plan, Refusal> {
         let storage = &self.state.storage;
         let id = match grant.kind {
@@ -206,13 +213,13 @@ impl Shadows {
                             "this conversation has no plan yet; start one with draft_start",
                         )
                     })?;
-                if named.is_some_and(|id| id != &latest) {
+                if latest_only && named.is_some_and(|id| id != &latest) {
                     return Err(Refusal::scope(
-                        "a Planner reads and edits only its own conversation's latest plan \
-                         version; leave workflow_id out",
+                        "a Planner edits only its own conversation's latest plan version; \
+                         leave workflow_id out",
                     ));
                 }
-                latest
+                named.cloned().unwrap_or(latest)
             }
             GrantKind::Project => named.cloned().ok_or_else(|| {
                 Refusal::scope("name the plan version with workflow_id; workflow_list lists them")
@@ -226,6 +233,11 @@ impl Shadows {
         };
         if plan.project_id != grant.project_id {
             return Err(Refusal::scope("that plan is not in this grant's project"));
+        }
+        if grant.kind == GrantKind::Thread && Some(&plan.thread_id) != grant.thread_id.as_ref() {
+            return Err(Refusal::scope(
+                "that plan is not in this grant's conversation",
+            ));
         }
         Ok(plan)
     }
@@ -342,7 +354,9 @@ impl Shadows {
     /// `plan_edit`: the whole stored `EditOutcome`, or on a replay the one
     /// the first call recorded.
     async fn edit(&self, grant: &Grant, args: PlanEditArgs) -> Result<serde_json::Value, Refusal> {
-        let plan = self.plan_in_scope(grant, args.workflow_id.as_ref()).await?;
+        let plan = self
+            .plan_in_scope(grant, args.workflow_id.as_ref(), true)
+            .await?;
         let writer = writer_of(grant)?;
         let expected = args.expected_revision;
         let params = json!({ "workflow": plan.id, "expected_revision": expected, "ops": args.ops });
@@ -365,7 +379,9 @@ impl Shadows {
     /// identity, then one live signal naming the tab that sent the turn. A
     /// replayed call signals nothing: its card is already there.
     async fn show(&self, grant: &Grant, args: PlanShowArgs) -> Result<PlanShown, Refusal> {
-        let plan = self.plan_in_scope(grant, args.workflow_id.as_ref()).await?;
+        let plan = self
+            .plan_in_scope(grant, args.workflow_id.as_ref(), false)
+            .await?;
         let thread = own_thread(grant)?;
         let (op, tab) = (self.state.handles.running_turn(thread).await).ok_or_else(|| {
             Refusal::new(

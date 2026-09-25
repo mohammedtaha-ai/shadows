@@ -24,7 +24,7 @@ use app::{
     next_frame_named, subscribe, subscribe_from, wait_terminal,
 };
 use listening::{Listening, call, listening_app, project_client, refused, thread_client};
-use plan::{add, draft, draft_on, edit, events_of};
+use plan::{add, approved_v1, draft, draft_on, edit, events_of};
 
 /// v1 of the app's thread with T1..=`n`, at revision 1.
 async fn plan_with(app: &App, n: u32) -> WorkflowId {
@@ -348,4 +348,78 @@ async fn an_external_grant_has_no_plan_show() {
             .await
             .is_empty()
     );
+}
+
+#[tokio::test]
+async fn a_thread_grant_can_read_and_show_its_older_version_but_not_another_thread() {
+    let l = listening_app().await;
+    let v1 = approved_v1(&l.app).await;
+    let v2 = draft_on(&l.app, &l.app.thread, "start-2").await.workflow_id;
+    let other = l
+        .app
+        .storage
+        .create_planning_thread(
+            &app::ctx("other-thread-in-project", "thread.create"),
+            &l.app.project,
+            "Other",
+            shadows::agent::policy::CLAUDE_CODE,
+        )
+        .await
+        .unwrap();
+    let other_plan = draft_on(&l.app, &other.id, "other-plan").await.workflow_id;
+    let planner = thread_client(&l, &l.app.thread).await;
+
+    let old = listening::ok(&planner, "workflow_get", json!({ "workflow_id": v1 })).await;
+    assert_eq!(old["version"], 1);
+    let old_task = listening::ok(
+        &planner,
+        "task_get",
+        json!({ "workflow_id": v1, "number": 1 }),
+    )
+    .await;
+    assert_eq!(old_task["title"], "task 1");
+    let latest = listening::ok(&planner, "workflow_get", json!({})).await;
+    assert_eq!(latest["id"], v2.as_str());
+    let stale_edit = refused(
+        &planner,
+        "plan_edit",
+        json!({ "workflow_id": v1, "expected_revision": 1, "ops": [] }),
+    )
+    .await;
+    assert!(stale_edit.starts_with("GRANT_SCOPE: "), "{stale_edit}");
+    let outside = refused(
+        &planner,
+        "workflow_get",
+        json!({ "workflow_id": other_plan }),
+    )
+    .await;
+    assert!(outside.starts_with("GRANT_SCOPE: "), "{outside}");
+
+    let op = start(&l.app, turn("show-old", "wait-for-release", json!({}))).await;
+    wait_running(&l.app, &op).await;
+    let shown = listening::ok(
+        &planner,
+        "plan_show",
+        json!({ "workflow_id": v1, "place": "inline" }),
+    )
+    .await;
+    assert_eq!(shown["workflow_id"], v1.as_str());
+    assert_eq!(shown["version"], 1);
+    let outside = refused(
+        &planner,
+        "plan_show",
+        json!({ "workflow_id": other_plan, "place": "inline" }),
+    )
+    .await;
+    assert!(outside.starts_with("GRANT_SCOPE: "), "{outside}");
+    release(&l, &op).await;
+
+    let cards: Vec<_> = entries(&l.app)
+        .await
+        .into_iter()
+        .filter(|entry| entry.kind == ThreadEntryKind::PlanView)
+        .collect();
+    assert_eq!(cards.len(), 1);
+    assert_eq!(cards[0].body, "Plan v1");
+    assert_eq!(cards[0].refs, [EntryRef::Workflow(v1)]);
 }
