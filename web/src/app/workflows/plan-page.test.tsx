@@ -167,6 +167,13 @@ describe('the plan page', () => {
     expect(a.button('Approve')).toBeUndefined()
   })
 
+  it('an approved plan whose next version exists says so, not that editing creates it', async () => {
+    const plan = planFixture({ state: 'Frozen', frozen_at: '2026-09-25T01:00:00Z', next: 'w2' })
+    const a = (app = await startApp(PAGE, answers({ plan })))
+    await until(() => a.text().includes('Approved v1 · v2 is its next version'))
+    expect(a.text()).not.toContain('editing creates')
+  })
+
   it('changed tasks are marked', async () => {
     const plan = planFixture({
       last_edit: { revision: 3, summary: 'Renamed T2', changed_tasks: [2] },

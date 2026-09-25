@@ -41,7 +41,11 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
       {p.state === 'Frozen' ? (
         <p className="flex items-center gap-2 border-b border-border bg-accent-softer px-6 py-2 text-xs text-secondary-foreground">
           <Lock className="size-3.5" aria-hidden />
-          Approved v{p.version} · editing creates draft v{p.version + 1}
+          {/* Once the next version exists, editing no longer creates it. */}
+          Approved v{p.version} ·{' '}
+          {p.next == null
+            ? `editing creates draft v${p.version + 1}`
+            : `v${p.version + 1} is its next version`}
         </p>
       ) : (
         <ApproveBar plan={p} />

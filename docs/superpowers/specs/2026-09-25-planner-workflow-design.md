@@ -507,7 +507,7 @@ is open.
   - **Inspect** opens a task's goal, reads, writes and acceptance items; an
     item that waits says for which task.
   - An approved version is read-only, under "Approved v1 · editing creates
-    draft v2".
+    draft v2", or "Approved v1 · v2 is its next version" once v2 exists.
 - **In a conversation:** Shadows' tool calls read as sentences ("Plan edited ·
   3 changes") with **Open plan**; `PlanView` cards and panels (§13.9); the
   focus chip.
