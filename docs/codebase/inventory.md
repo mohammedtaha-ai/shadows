@@ -187,7 +187,7 @@ impl Cli {
 }
 ```
 
-## `src/cli/mod.rs` — 157 lines
+## `src/cli/mod.rs` — 164 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -368,7 +368,7 @@ Nothing reachable from outside this file.
 
 Nothing reachable from outside this file.
 
-## `src/mcp/grant.rs` — 9 lines
+## `src/mcp/grant.rs` — 92 lines
 
 ```rust
 pub struct GrantId(String);
@@ -378,9 +378,38 @@ impl GrantId {
     pub(crate) fn from_stored(id: String) -> Self
     pub fn from_literal(id: impl Into<String>) -> Self
 }
+
+pub enum GrantKind {
+    Thread,
+    Project,
+}
+impl GrantKind {
+    pub fn as_str(self) -> &'static str
+}
+
+pub struct Grant {
+    pub id: GrantId,
+    pub kind: GrantKind,
+    pub project_id: ProjectId,
+    pub thread_id: Option<ThreadId>,
+    pub created_at: String,
+    pub revoked_at: Option<String>,
+}
+pub struct Token(String);
+impl Token {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub fn hash(&self) -> String
+}
+
+pub fn hash_token(raw: &str) -> String
+pub struct IssuedGrant {
+    pub grant: Grant,
+    pub token: Option<Token>,
+}
 ```
 
-## `src/mcp/mod.rs` — 15 lines
+## `src/mcp/mod.rs` — 7 lines
 
 Nothing reachable from outside this file.
 
@@ -804,6 +833,20 @@ pub(super) struct CreateDir {}
 pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCode, Json<DirectoryEntry>), Failure>
 ```
 
+## `src/protocol/grants.rs` — 127 lines
+
+```rust
+pub(super) async fn list_grants(State(s): State<AppState>, Path(project): Path<ProjectId>) -> Result<Json<Vec<Grant>>, Failure>
+pub(super) struct IssueGrant {}
+// + 1 private field
+pub(super) struct IssuedGrantBody {}
+// + 3 private fields
+pub(super) async fn issue_grant(State(s): State<AppState>, Path(project): Path<ProjectId>, Json(body): Json<IssueGrant>) -> Result<Json<IssuedGrantBody>, Failure>
+pub(super) struct RevokeQuery {}
+// + 1 private field
+pub(super) async fn revoke_grant(State(s): State<AppState>, Path(grant): Path<GrantId>, Query(q): Query<RevokeQuery>) -> Result<Json<Grant>, Failure>
+```
+
 ## `src/protocol/guard.rs` — 85 lines
 
 ```rust
@@ -829,7 +872,16 @@ pub(super) struct ContextBreakdown {}
 pub(super) async fn thread_context(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<ContextBreakdown>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 170 lines
+## `src/protocol/instructions.rs` — 72 lines
+
+```rust
+pub(super) async fn get_instructions(State(s): State<AppState>, Path(project): Path<ProjectId>) -> Result<Json<Option<InstructionsVersion>>, Failure>
+pub(super) struct SaveInstructions {}
+// + 2 private fields
+pub(super) async fn save_instructions(State(s): State<AppState>, Path(project): Path<ProjectId>, Json(body): Json<SaveInstructions>) -> Result<Json<InstructionsVersion>, Failure>
+```
+
+## `src/protocol/mod.rs` — 190 lines
 
 ```rust
 pub use failure::Failure;
@@ -841,12 +893,13 @@ pub struct AppState {
     pub sessions: Arc<Sessions>,
     pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
     pub allowed_origins: Vec<String>,
+    pub mcp_url: String,
     pub shutdown: tokio::sync::watch::Receiver<bool>,
 }
 pub fn router(state: AppState) -> Router
 ```
 
-## `src/protocol/openapi.rs` — 82 lines
+## `src/protocol/openapi.rs` — 83 lines
 
 ```rust
 pub(super) fn base() -> utoipa::openapi::OpenApi
@@ -924,10 +977,10 @@ impl Runtime {
 }
 ```
 
-## `src/storage/mod.rs` — 28 lines
+## `src/storage/mod.rs` — 29 lines
 
 ```rust
-pub use sqlite::{ NewTurn, ReconcileReport, StartedTurn, StopKind, Storage, StorageError, StoredEvent, };
+pub use sqlite::{ InstructionsVersion, NewTurn, ReconcileReport, StartedTurn, StopKind, Storage, StorageError, StoredEvent, };
 pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
@@ -981,9 +1034,21 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/grant.rs` — 91 lines
+## `src/storage/sqlite/grant.rs` — 444 lines
 
 ```rust
+impl Storage {
+    pub async fn issue_project_grant(&self, ctx: &CommandContext, project: &ProjectId) -> Result<IssuedGrant, StorageError>
+    pub async fn issue_thread_grant(&self, thread: &ThreadId) -> Result<(Grant, Token), StorageError>
+    pub async fn revoke_grant(&self, ctx: &CommandContext, id: &GrantId) -> Result<Grant, StorageError>
+    pub async fn revoke_thread_grant(&self, id: &GrantId) -> Result<(), StorageError>
+    pub async fn revoke_all_thread_grants(&self) -> Result<u64, StorageError>
+    pub async fn grant_for_token(&self, raw: &str) -> Result<Option<Grant>, StorageError>
+    pub async fn list_project_grants(&self, project: &ProjectId) -> Result<Vec<Grant>, StorageError>
+    pub async fn prepare_draft(&self, grant: &GrantId) -> Result<String, StorageError>
+    pub async fn draft_intent(&self, grant: &GrantId, draft_ref: &str) -> Result<Option<WorkflowId>, StorageError>
+}
+
 pub(super) async fn check_writer(conn: &mut SqliteConnection, writer: &Writer, project: &ProjectId, thread: Option<&ThreadId>) -> Result<(), StorageError>
 pub(super) async fn bind_draft_ref(conn: &mut SqliteConnection, writer: &Writer, draft_ref: &str, workflow: &WorkflowId, project: &ProjectId, ts: &str) -> Result<(), StorageError>
 ```
@@ -1000,10 +1065,26 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/mod.rs` — 297 lines
+## `src/storage/sqlite/instructions.rs` — 120 lines
+
+```rust
+pub struct InstructionsVersion {
+    pub id: String,
+    pub number: i64,
+    pub body: String,
+    pub created_at: String,
+}
+impl Storage {
+    pub async fn save_planner_instructions(&self, ctx: &CommandContext, project: &ProjectId, body: &str) -> Result<InstructionsVersion, StorageError>
+    pub async fn current_planner_instructions(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, StorageError>
+}
+```
+
+## `src/storage/sqlite/mod.rs` — 299 lines
 
 ```rust
 pub use events_read::StoredEvent;
+pub use instructions::InstructionsVersion;
 pub use runtime::{ReconcileReport, StopKind};
 pub use turn::{NewTurn, StartedTurn};
 pub(super) fn now() -> String

@@ -31,6 +31,7 @@ async fn app(tmp: &Path) -> (Router, tokio::sync::watch::Sender<bool>) {
         sessions: acp::fake_sessions(&tmp.join("s.sqlite3")).await,
         bus,
         allowed_origins: Vec::new(),
+        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
     (app, stopping)

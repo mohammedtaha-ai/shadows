@@ -46,6 +46,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mcp-grants/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke (§13.7): Shadows refuses the grant's token from now on. It does not
+         *     remove the server from the person's Claude configuration.
+         */
+        delete: operations["revoke_grant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/openapi.json": {
         parameters: {
             query?: never;
@@ -125,6 +145,55 @@ export interface paths {
          *     as it now stands.
          */
         patch: operations["update_project"];
+        trace?: never;
+    };
+    "/api/projects/{id}/mcp-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A project's grants for external agents, revoked ones included, newest
+         *     first. Never a token.
+         */
+        get: operations["list_grants"];
+        put?: never;
+        /**
+         * Connect (§13.7): issues a grant bound to this project for an external
+         *     agent. The token is shown once — here — and stored only as its hash.
+         */
+        post: operations["issue_grant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/planner-instructions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The project's current instructions — its highest-numbered version — or
+         *     `null` before the first save.
+         */
+        get: operations["get_instructions"];
+        /**
+         * Saves the project's instructions as its next version; nothing earlier is
+         *     overwritten. A running Planner is told of the change before its next turn
+         *     (§13.8), never mid-turn.
+         */
+        put: operations["save_instructions"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/projects/{id}/threads": {
@@ -598,6 +667,24 @@ export interface components {
             /** @description The idempotency key (spec §3.2), scoped to the source thread. */
             command_id: string;
         };
+        /** @description A grant as stored: never its token. */
+        Grant: {
+            created_at: string;
+            id: components["schemas"]["GrantId"];
+            kind: components["schemas"]["GrantKind"];
+            project_id: components["schemas"]["ProjectId"];
+            /** @description When it stopped being honoured; `null` while it is live. */
+            revoked_at?: string | null;
+            thread_id?: null | components["schemas"]["ThreadId"];
+        };
+        /** Format: uuid */
+        GrantId: string;
+        /**
+         * @description Whose grant it is: the Planner of one thread, or an external agent bound
+         *     to one project. On the wire and in storage, `thread` and `project`.
+         * @enum {string}
+         */
+        GrantKind: "thread" | "project";
         /**
          * @description A CLI a conversation can run on (spec §12.1). `kind` is `claude-code` or
          *     `codex`.
@@ -610,6 +697,19 @@ export interface components {
             /** @description Why it cannot run, when `available` is false. */
             reason: string | null;
             remembered: null | components["schemas"]["RememberedSettings"];
+        };
+        /**
+         * @description One saved version of a project's instructions. `id` is what an
+         *     `agent_invocation` records (§13.15); a client sees the number instead.
+         */
+        InstructionsVersion: {
+            body: string;
+            created_at: string;
+            /**
+             * Format: int64
+             * @description 1, 2, 3 … within the project.
+             */
+            number: number;
         };
         /**
          * @description What a turn asked for and what the harness reported (spec §8.2, §12.8).
@@ -627,6 +727,21 @@ export interface components {
             requested_effort: string | null;
             requested_mode: string;
             requested_model: string;
+        };
+        IssueGrant: {
+            /** @description The idempotency key (spec §13.5), scoped to the project. */
+            command_id: string;
+        };
+        /**
+         * @description A new grant, with its token and the command that connects Claude Code to
+         *     it — or, for a replayed command, the grant alone.
+         */
+        IssuedGrantBody: {
+            /** @description `claude mcp add …` with the token, to copy once; `null` on a replay. */
+            command?: string | null;
+            grant: components["schemas"]["Grant"];
+            /** @description The bearer token, in this answer only; `null` on a replay. */
+            token?: string | null;
         };
         /** @description The edit that set a version's current revision (§13.10's plan read). */
         LastEdit: {
@@ -774,6 +889,12 @@ export interface components {
         };
         /** Format: uuid */
         RuntimeInstanceId: string;
+        SaveInstructions: {
+            /** @description The instructions, as the person wrote them. */
+            body: string;
+            /** @description The idempotency key (spec §13.5), scoped to the project. */
+            command_id: string;
+        };
         /**
          * @description What the thread's session offers now (spec §12.4). `efforts` are the
          *     current model's. `modes` are after Shadows' policy; a mode the project does
@@ -1050,6 +1171,68 @@ export interface operations {
             };
         };
     };
+    revoke_grant: {
+        parameters: {
+            query: {
+                /** @description The idempotency key (spec §13.5), scoped to the grant. */
+                command_id: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project grant */
+                id: components["schemas"]["GrantId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked, or the replay of the same command */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"];
+                };
+            };
+            /** @description INVALID_COMMAND: no `command_id` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project grant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     serve: {
         parameters: {
             query?: never;
@@ -1260,6 +1443,176 @@ export interface operations {
             };
             /** @description SETTING_NOT_OFFERED: a mode outside Shadows' policy */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_grants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"][];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    issue_grant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueGrant"];
+            };
+        };
+        responses: {
+            /** @description Issued, or the replay of the same command without its token */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedGrantBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_instructions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": null | components["schemas"]["InstructionsVersion"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    save_instructions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveInstructions"];
+            };
+        };
+        responses: {
+            /** @description Saved, or the replay of the same command */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstructionsVersion"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

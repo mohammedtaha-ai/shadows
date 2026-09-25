@@ -50,6 +50,7 @@ async fn fixture() -> Fixture {
         sessions: sessions.clone(),
         bus,
         allowed_origins: Vec::new(),
+        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
     Fixture {

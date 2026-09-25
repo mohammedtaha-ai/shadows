@@ -21,6 +21,10 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     // `Runtime::start` logs recovery (`recovery.reconcile`).
     let (runtime, _report) = Runtime::start(storage.clone()).await?;
     let runtime = Arc::new(runtime);
+    // Spec §13.7: a Planner's grant lives as long as its adapter, and every
+    // adapter of an earlier daemon is gone. Before anything is served.
+    let revoked = storage.revoke_all_thread_grants().await?;
+    tracing::info!(revoked, "recovery.thread_grants_revoked");
 
     let version = harness_version(&config.harness_path).await;
     let adapter_version = adapter_version(&config.adapter_path);
@@ -38,6 +42,10 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     );
     let (bus, _) = tokio::sync::broadcast::channel(4096);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
+    // Bound first: a grant's `claude mcp add` names the address actually
+    // bound, which differs from `config.bind` when that asks for port 0.
+    let listener = tokio::net::TcpListener::bind(config.bind).await?;
+    let addr = listener.local_addr()?;
     let state = AppState {
         runtime: runtime.clone(),
         storage,
@@ -45,11 +53,10 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         sessions: sessions.clone(),
         bus,
         allowed_origins: config.allowed_origins.clone(),
+        mcp_url: format!("http://{addr}/mcp"),
         shutdown,
     };
 
-    let listener = tokio::net::TcpListener::bind(config.bind).await?;
-    let addr = listener.local_addr()?;
     println!("shadows serve listening on http://{addr}");
     if let Some(path) = &config.debug_log {
         println!("shadows serve debug log: {}", path.display());

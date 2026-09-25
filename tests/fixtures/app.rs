@@ -111,6 +111,7 @@ pub async fn test_app_at(dir: &Path) -> App {
         sessions: sessions.clone(),
         bus: bus.clone(),
         allowed_origins: Vec::new(),
+        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
     App {
@@ -175,6 +176,35 @@ pub async fn get_json<T: DeserializeOwned>(app: &App, path: &str) -> T {
     let (status, body) = call(app, "GET", path, None).await;
     assert_eq!(status, 200, "GET {path}: {body}");
     serde_json::from_value(body).unwrap()
+}
+
+/// A second project, on the system's temp directory, with one thread of its
+/// own: what a test needs to show something stays inside its own project.
+pub async fn other_project(app: &App) -> (ProjectId, ThreadId) {
+    let project = app
+        .storage
+        .create_project(
+            &ctx("other-project", "project.create"),
+            "other",
+            "Other",
+            &ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+            &policy::default_modes(),
+        )
+        .await
+        .unwrap()
+        .id;
+    let thread = app
+        .storage
+        .create_planning_thread(
+            &ctx("other-thread", "thread.create"),
+            &project,
+            "Other",
+            policy::CLAUDE_CODE,
+        )
+        .await
+        .unwrap()
+        .id;
+    (project, thread)
 }
 
 /// Creates a thread in the app's project over HTTP; answers its JSON.

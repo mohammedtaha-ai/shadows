@@ -347,6 +347,7 @@ impl Live {
             sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
             bus: bus.clone(),
             allowed_origins: Vec::new(),
+            mcp_url: acp::MCP_URL.to_string(),
             shutdown,
         };
         Live {

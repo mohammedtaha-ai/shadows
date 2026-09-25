@@ -16,6 +16,7 @@ mod events_read;
 mod fork;
 mod grant;
 mod harness;
+mod instructions;
 mod operation;
 mod operation_read;
 mod project;
@@ -29,6 +30,7 @@ mod workflow_draft;
 mod workflow_read;
 
 pub use events_read::StoredEvent;
+pub use instructions::InstructionsVersion;
 pub use runtime::{ReconcileReport, StopKind};
 pub use turn::{NewTurn, StartedTurn};
 

@@ -32,6 +32,8 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/protocol/harness.rs` | the routes over harnesses, their sessions included | `src/protocol/harness.rs` |
 | `src/protocol/thread.rs` | the routes that change a planning thread itself | `src/protocol/thread.rs` |
 | `src/protocol/workflow.rs` | the routes over plan versions | `src/protocol/workflow.rs` |
+| `src/protocol/grants.rs` | the routes over external agents' MCP grants | `src/protocol/grants.rs` |
+| `src/protocol/instructions.rs` | the routes over a project's Planner instructions | `src/protocol/instructions.rs` |
 | `src/planner/sessions.rs` | the live adapter connection each open thread holds | `src/planner/sessions.rs` |
 | `src/planner/settings.rs` | setting an open session's options | `src/planner/settings.rs` |
 | `src/planner/turn.rs` | the recorded ending of a live Planner turn | `src/planner/turn.rs` |
@@ -57,7 +59,8 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/storage/sqlite/workflow_draft.rs` | starting a plan version | `src/storage/sqlite/workflow_draft.rs` |
 | `src/storage/sqlite/workflow_read.rs` | reading plan versions | `src/storage/sqlite/workflow_read.rs` |
 | `src/storage/sqlite/task.rs` | a plan version's task graph rows | `src/storage/sqlite/task.rs` |
-| `src/storage/sqlite/grant.rs` | what a writer's MCP grant permits a write | `src/storage/sqlite/grant.rs` |
+| `src/storage/sqlite/grant.rs` | an MCP grant's rows, from issue to revocation | `src/storage/sqlite/grant.rs` |
+| `src/storage/sqlite/instructions.rs` | a project's numbered Planner instructions | `src/storage/sqlite/instructions.rs` |
 | `src/thread/` | the planning thread's shape | `src/thread/mod.rs` |
 | `src/tracing.rs` | tracing subscriber setup | `src/tracing.rs` |
 | `src/workflow/` | a plan's content under the rules of §13 | `src/workflow/mod.rs` |

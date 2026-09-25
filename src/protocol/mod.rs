@@ -7,6 +7,8 @@
 //! `conversation.rs` (entries, a thread's turns, starting and stopping one),
 //! `harness.rs` (the harnesses and a thread's session), `thread.rs` (changing
 //! a thread itself), `workflow.rs` (plan versions and their approval),
+//! `grants.rs` (external agents' MCP grants), `instructions.rs` (a project's
+//! Planner instructions),
 //! `sse.rs` (the replay-then-live stream), `fs.rs` (choosing a project directory),
 //! `openapi.rs` (the document describing all of it), `failure.rs` (the
 //! transport mapping), `guard.rs` (refusing requests pages were made to send).
@@ -19,8 +21,10 @@
 mod conversation;
 mod failure;
 mod fs;
+mod grants;
 mod guard;
 mod harness;
+mod instructions;
 mod openapi;
 mod project;
 pub mod sse;
@@ -59,6 +63,10 @@ pub struct AppState {
     /// client is cross-origin, because the daemon serves no page. Validated
     /// by `config::allowed_origin` before it gets here.
     pub allowed_origins: Vec<String>,
+    /// This daemon's MCP endpoint, `http://<bound address>/mcp` (spec §13.6),
+    /// built from the address the listener actually bound: what a grant's
+    /// `claude mcp add` command names.
+    pub mcp_url: String,
     /// Becomes `true` once the daemon is stopping. A live stream has no end of
     /// its own, and a graceful HTTP shutdown waits for every open response to
     /// finish — so without this, one open browser tab holds the daemon up
@@ -134,6 +142,12 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(workflow::list_plans))
         .routes(routes!(workflow::get_plan))
         .routes(routes!(workflow::approve_plan))
+        .routes(routes!(grants::list_grants, grants::issue_grant))
+        .routes(routes!(grants::revoke_grant))
+        .routes(routes!(
+            instructions::get_instructions,
+            instructions::save_instructions
+        ))
         .routes(routes!(sse::subscribe))
         .routes(routes!(fs::list_dirs, fs::create_dir))
         .routes(routes!(openapi::serve))
@@ -151,7 +165,7 @@ fn content_length(headers: &axum::http::HeaderMap) -> Option<u64> {
 /// Cross-origin access for the configured origins only; any other origin's
 /// request gets no `Access-Control-Allow-Origin` and the browser withholds the
 /// response. The methods and headers are exactly what the routes use: `GET`,
-/// `POST`, `PUT` and `PATCH`, JSON bodies, and `Last-Event-ID`, which a browser's
+/// `POST`, `PUT`, `PATCH` and `DELETE` (revoking a grant), JSON bodies, and `Last-Event-ID`, which a browser's
 /// `EventSource` sends when it reconnects a stream. No credentials: the API
 /// has none to send (spec §1's OPEN block on remote access).
 fn cors(origins: &[String]) -> CorsLayer {
@@ -161,7 +175,13 @@ fn cors(origins: &[String]) -> CorsLayer {
         .collect();
     CorsLayer::new()
         .allow_origin(AllowOrigin::list(origins))
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::PATCH])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+        ])
         .allow_headers([
             header::CONTENT_TYPE,
             header::HeaderName::from_static("last-event-id"),

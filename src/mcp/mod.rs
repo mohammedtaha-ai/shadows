@@ -1,15 +1,7 @@
 //! One job: Shadows' MCP server (spec §13.6), served at `/mcp`.
 //!
-//! Only the grant's identity exists so far: storage checks a writer's grant
-//! inside every plan write (§13.7). Issuing grants and the server itself come
-//! with the tasks that first need them.
+//! So far only its grants exist (§13.7): who holds one, and the token each is
+//! answered by. Storage issues, revokes and checks them; the server itself
+//! comes with the task that first needs it.
 
-// `GrantId::from_stored` is the one id reader nothing calls yet: storage
-// reads a grant back first in B5, which looks a grant up by its token. An
-// `expect`, not an `allow`, so the first caller turns it into an error and it
-// cannot outlive its reason.
-#[expect(
-    dead_code,
-    reason = "GrantId::from_stored has no caller until grants are read back (B5)"
-)]
 pub mod grant;

@@ -354,6 +354,7 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
         sessions: f.sessions.clone(),
         bus: f.bus.clone(),
         allowed_origins: Vec::new(),
+        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
     let response = app

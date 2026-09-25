@@ -6,8 +6,9 @@
 //! #[path = "fixtures/plan.rs"] mod plan;
 //! ```
 //!
-//! Grants and draft refs are seeded with direct SQL until B5's issuing API
-//! exists; B5 may swap these helpers for it.
+//! Grants are issued through storage's own API. Revoking and draft refs stay
+//! direct SQL: a test needs those rows in states the API does not make on
+//! demand, such as a ref that expired an hour ago.
 
 #![allow(dead_code)]
 
@@ -96,27 +97,29 @@ pub fn needs(task: u32, after: u32) -> PlanOp {
     }
 }
 
-/// An `mcp_grant` row of `kind` (`thread` or `project`); answers its id.
+/// A grant of `kind` (`thread` or `project`), issued as the daemon issues
+/// one; answers its id. A thread grant takes its thread's own project.
 pub async fn insert_grant(
     app: &App,
     kind: &str,
     project: &ProjectId,
     thread: Option<&ThreadId>,
 ) -> GrantId {
-    let id = uuid::Uuid::new_v4().to_string();
-    sqlx::query(
-        "INSERT INTO mcp_grant (id, kind, thread_id, project_id, token_hash, created_at)
-         VALUES (?,?,?,?,?, '2026-09-25T00:00:00Z')",
-    )
-    .bind(&id)
-    .bind(kind)
-    .bind(thread.map(ThreadId::as_str))
-    .bind(project.as_str())
-    .bind(format!("hash-{id}"))
-    .execute(app.storage.reader())
-    .await
-    .unwrap();
-    GrantId::from_literal(id)
+    let grant = match (kind, thread) {
+        ("thread", Some(thread)) => app.storage.issue_thread_grant(thread).await.unwrap().0,
+        ("project", None) => {
+            let command = format!("grant-{}", uuid::Uuid::new_v4());
+            let c = writer_ctx(&Writer::Person, &command, "McpGrantIssue", json!({}));
+            app.storage
+                .issue_project_grant(&c, project)
+                .await
+                .unwrap()
+                .grant
+        }
+        other => panic!("no such grant: {other:?}"),
+    };
+    assert_eq!(&grant.project_id, project);
+    grant.id
 }
 
 pub async fn revoke_grant(app: &App, grant: &GrantId) {

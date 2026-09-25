@@ -32,6 +32,7 @@ async fn app(tmp: &tempfile::TempDir) -> (Router, tokio::sync::watch::Sender<boo
         sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
         bus,
         allowed_origins: vec![ALLOWED.to_string()],
+        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
     (app, stopping)
@@ -70,6 +71,39 @@ async fn a_preflight_from_an_allowed_origin_is_answered() {
     assert!(methods.contains("post"), "{methods}");
     let headers = header_of(&response, header::ACCESS_CONTROL_ALLOW_HEADERS).unwrap();
     assert!(headers.contains("content-type"), "{headers}");
+}
+
+/// Revoking a grant is the router's one `DELETE` (spec §13.10). A browser
+/// preflights it, so the allowed methods must name it, and the guard, which
+/// judges origins and never methods, lets the web client's own origin send it.
+#[tokio::test]
+async fn a_delete_from_an_allowed_origin_is_preflighted_and_sent() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (app, _stopping) = app(&tmp).await;
+
+    let preflight = Request::builder()
+        .method("OPTIONS")
+        .uri("/api/mcp-grants/00000000-0000-4000-8000-000000000000?command_id=r1")
+        .header(header::ORIGIN, ALLOWED)
+        .header(header::ACCESS_CONTROL_REQUEST_METHOD, "DELETE")
+        .body(Body::empty())
+        .unwrap();
+    let response = app.clone().oneshot(preflight).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let methods = header_of(&response, header::ACCESS_CONTROL_ALLOW_METHODS).unwrap();
+    assert!(methods.contains("delete"), "{methods}");
+
+    let (status, body) = send(
+        &app,
+        Request::delete("/api/mcp-grants/00000000-0000-4000-8000-000000000000?command_id=r1")
+            .header(header::ORIGIN, ALLOWED)
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    // Past the guard: an unknown grant, not a refused origin.
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+    assert_eq!(body["code"], "INVALID_COMMAND");
 }
 
 /// The browser's decision rests on `Access-Control-Allow-Origin` alone: without
