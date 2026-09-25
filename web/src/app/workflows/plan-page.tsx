@@ -53,7 +53,12 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
       )}
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1">
-          <PlanGraph plan={p} onSelectTask={(t) => setInspected(t.number)} />
+          {/* A new canvas fits to the width left after Inspect opens or closes. */}
+          <PlanGraph
+            key={task === undefined ? 'full' : 'inspect'}
+            plan={p}
+            onSelectTask={(t) => setInspected(t.number)}
+          />
         </div>
         {task !== undefined && (
           <InspectPanel plan={p} task={task} onClose={() => setInspected(null)} />

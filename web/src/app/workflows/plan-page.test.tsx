@@ -188,6 +188,22 @@ describe('the plan page', () => {
     expect(a.container.textContent).toContain(title)
   })
 
+  it('refits the graph when Inspect opens and closes', async () => {
+    const a = (app = await startApp(PAGE, answers()))
+    await until(() => node(2) !== null)
+    const fullGraph = a.container.querySelector('.react-flow')
+    if (fullGraph === null) throw new Error('no graph was mounted')
+
+    await act(async () => node(2)?.click())
+    await until(() => a.container.querySelector('aside[aria-label="T2"]') !== null)
+    const narrowGraph = a.container.querySelector('.react-flow')
+    expect(narrowGraph).not.toBe(fullGraph)
+
+    await act(async () => a.button('Close')?.click())
+    await until(() => a.container.querySelector('aside[aria-label="T2"]') === null)
+    expect(a.container.querySelector('.react-flow')).not.toBe(narrowGraph)
+  })
+
   it('a Workflow durable frame refetches the plan', async () => {
     const a = (app = await startApp(
       PAGE,
@@ -234,5 +250,15 @@ describe('the plan page', () => {
 
     const empty = (app = await startApp('/projects/p1', answers()))
     await until(() => empty.text().includes('Ask the Planner for a plan'))
+  })
+
+  it('shows a sidebar error when plans cannot be listed', async () => {
+    const routes = answers()
+    routes['GET /api/projects/p1/workflows'] = () =>
+      Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'database is locked' }, { status: 503 })
+    const a = (app = await startApp('/projects/p1', routes))
+
+    await until(() => a.text().includes('database is locked'))
+    expect(a.container.querySelector('[role="alert"]')?.textContent).toContain('STORAGE_UNAVAILABLE')
   })
 })

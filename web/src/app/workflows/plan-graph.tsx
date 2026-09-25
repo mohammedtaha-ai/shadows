@@ -82,8 +82,8 @@ export function PlanGraph({
         edgesFocusable={false}
         colorMode="dark"
         fitView
-        fitViewOptions={{ nodes: focusOn, maxZoom: 1, padding: 0.15 }}
-        minZoom={0.1}
+        fitViewOptions={{ nodes: focusOn, minZoom: 1, maxZoom: 1, padding: 0.15 }}
+        minZoom={1}
         style={THEME}
       >
         <Controls showInteractive={false} />
