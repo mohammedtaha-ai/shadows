@@ -13,10 +13,7 @@ use agent_client_protocol::schema::{
 };
 use agent_client_protocol::{Agent, ByteStreams, Client, ConnectionTo};
 use serde_json::Value;
-use tokio::{
-    io::{AsyncBufReadExt, BufReader},
-    sync::mpsc,
-};
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
 use super::events::HarnessEvent;
@@ -60,9 +57,14 @@ impl Connection {
         self.cx.is_incoming_closed()
     }
 
+    /// `events` receives what the adapter reports, called inside the
+    /// connection's dispatch loop in the order the adapter sent it: an update
+    /// sent before the answer to a request has been handed over before that
+    /// answer is. A task between the two would break that, and a turn could
+    /// end before its last update arrived.
     pub async fn open(
         handle: &mut ProcessHandle,
-        events: mpsc::UnboundedSender<HarnessEvent>,
+        events: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static,
     ) -> Result<Self, AcpError> {
         let (stdin, stdout, stderr) = handle.take_stdio().ok_or(AcpError::Closed)?;
         forward_stderr(stderr);
@@ -80,7 +82,7 @@ impl Connection {
                 )
                 .on_receive_request(
                     async move |r: RequestPermissionRequest, responder, _cx| {
-                        let _ = events.send(HarnessEvent::PermissionRefused {
+                        events(HarnessEvent::PermissionRefused {
                             title: r.tool_call.fields.title.clone().unwrap_or_default(),
                         });
                         let choice = r
@@ -228,7 +230,7 @@ fn rpc(error: agent_client_protocol::Error) -> AcpError {
     }
 }
 
-fn forward(events: &mpsc::UnboundedSender<HarnessEvent>, update: SessionUpdate) {
+fn forward(events: &impl Fn(HarnessEvent), update: SessionUpdate) {
     let item = match update {
         SessionUpdate::AgentMessageChunk(c) => match c.content {
             ContentBlock::Text(t) => Some(HarnessEvent::Chunk {
@@ -268,7 +270,7 @@ fn forward(events: &mpsc::UnboundedSender<HarnessEvent>, update: SessionUpdate) 
         }
     };
     if let Some(item) = item {
-        let _ = events.send(item);
+        events(item);
     }
 }
 

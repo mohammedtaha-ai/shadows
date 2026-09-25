@@ -180,10 +180,9 @@ impl Sessions {
         let mut handle = process::spawn(self.adapter.process_spec(&cwd))
             .map_err(|e| OpenError::Start(e.to_string()))?;
         let (tx, rx) = mpsc::unbounded_channel();
-        let (raw_tx, raw_rx) = mpsc::unbounded_channel();
-        intercept(self.offers.clone(), thread.clone(), raw_rx, tx);
+        let events = intercept(self.offers.clone(), thread.clone(), tx);
         let setup = tokio::time::timeout(Duration::from_secs(5), async {
-            let connection = Connection::open(&mut handle, raw_tx)
+            let connection = Connection::open(&mut handle, events)
                 .await
                 .map_err(|e| e.to_string())?;
             let session = connection

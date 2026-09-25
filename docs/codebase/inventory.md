@@ -15,7 +15,7 @@ declaration, this file only says that it exists and what shape it has. What each
 module *owns* is a judgement no generator can make — that lives in
 [README.md](./README.md).
 
-## `src/agent/acp.rs` — 295 lines
+## `src/agent/acp.rs` — 297 lines
 
 ```rust
 pub enum SessionStart {
@@ -40,7 +40,7 @@ pub struct Connection {}
 // + 1 private field
 impl Connection {
     pub fn is_closed(&self) -> bool
-    pub async fn open(handle: &mut ProcessHandle, events: mpsc::UnboundedSender<HarnessEvent>) -> Result<Self, AcpError>
+    pub async fn open(handle: &mut ProcessHandle, events: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static) -> Result<Self, AcpError>
     pub async fn start_session(&self, cwd: &Path, how: SessionStart) -> Result<Opened, AcpError>
     pub async fn set_option(&self, session: &str, config_id: &str, value: &str) -> Result<Value, AcpError>
     pub async fn prompt(&self, session: &str, text: &str) -> Result<TurnEnd, AcpError>
@@ -466,7 +466,7 @@ pub use spawn::{PlannerTurnRequest, StartError};
 pub use turn::{PlannerTurn, StopOutcome};
 ```
 
-## `src/planner/offers.rs` — 80 lines
+## `src/planner/offers.rs` — 78 lines
 
 ```rust
 pub(super) struct Offers {}
@@ -479,10 +479,10 @@ impl Offers {
     pub(super) fn subscribe(&self) -> broadcast::Receiver<(ThreadId, Offered)>
 }
 
-pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, mut from: mpsc::UnboundedReceiver<HarnessEvent>, to: mpsc::UnboundedSender<HarnessEvent>)
+pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, to: mpsc::UnboundedSender<HarnessEvent>) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static
 ```
 
-## `src/planner/sessions.rs` — 459 lines
+## `src/planner/sessions.rs` — 458 lines
 
 ```rust
 pub struct SessionsConfig {

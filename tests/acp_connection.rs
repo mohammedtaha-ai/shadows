@@ -28,7 +28,11 @@ async fn open_fake() -> (
     })
     .unwrap();
     let (tx, rx) = mpsc::unbounded_channel();
-    let connection = Connection::open(&mut handle, tx).await.unwrap();
+    let connection = Connection::open(&mut handle, move |e| {
+        let _ = tx.send(e);
+    })
+    .await
+    .unwrap();
     (handle, connection, rx)
 }
 

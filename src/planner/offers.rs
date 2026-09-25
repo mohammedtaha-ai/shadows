@@ -58,23 +58,21 @@ impl Offers {
 
 /// Forwards a connection's events to `to`, recording every options update
 /// on the way: the harness sends them between turns too, when nobody reads
-/// the thread's event channel. Ends when the connection drops its sender.
+/// the thread's event channel. It runs in the connection's own dispatch, not
+/// as a task of its own: a relay task let a turn's last update, received
+/// before the prompt's answer, reach `to` only after the turn had ended.
+/// `to` closes when the connection drops this.
 pub(super) fn intercept(
     offers: std::sync::Arc<Offers>,
     thread: ThreadId,
-    mut from: mpsc::UnboundedReceiver<HarnessEvent>,
     to: mpsc::UnboundedSender<HarnessEvent>,
-) {
-    tokio::spawn(async move {
-        while let Some(event) = from.recv().await {
-            if let HarnessEvent::Options(options) = &event
-                && let Err(error) = offers.record(&thread, options)
-            {
-                tracing::warn!(thread_id = %thread, %error, "sessions.options_unreadable");
-            }
-            if to.send(event).is_err() {
-                break;
-            }
+) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static {
+    move |event| {
+        if let HarnessEvent::Options(options) = &event
+            && let Err(error) = offers.record(&thread, options)
+        {
+            tracing::warn!(thread_id = %thread, %error, "sessions.options_unreadable");
         }
-    });
+        let _ = to.send(event);
+    }
 }
