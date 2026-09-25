@@ -9,12 +9,11 @@ import {
   type NodeMouseHandler,
   Panel,
   ReactFlow,
-  useNodesInitialized,
-  useReactFlow,
 } from '@xyflow/react'
-import { type CSSProperties, useEffect, useMemo } from 'react'
+import { type CSSProperties, useMemo, useRef, useState } from 'react'
 import type { Plan, PlanTask } from '@/api/client'
-import { type PlanNode, layoutPlan, taskNodeId } from './layout'
+import { type PlanNode, layoutPlan } from './layout'
+import { type CanvasSize, MIN_ZOOM, WHOLE_PLAN, firstFit, useCamera, useCanvasSize } from './plan-camera'
 import { LinkEdge } from './plan-edge'
 import { StartNodeView, TaskNodeView } from './task-node'
 
@@ -63,13 +62,17 @@ export function PlanGraph({
           ),
     [nodes, focusTask],
   )
+  const [lastClicked, setLastClicked] = useState<number | null>(null)
   const onNodeClick: NodeMouseHandler<PlanNode> = (_event, node) => {
-    if (node.type === 'task') onSelectTask?.(node.data.task)
+    if (node.type !== 'task') return
+    setLastClicked(node.data.task.number)
+    onSelectTask?.(node.data.task)
   }
-  const focusOn = focusTask === undefined ? undefined : [{ id: taskNodeId(focusTask) }]
+  const canvas = useRef<HTMLDivElement>(null)
+  const size = useCanvasSize(canvas)
 
   return (
-    <div className={compact ? 'h-72 w-full' : 'h-full w-full'}>
+    <div ref={canvas} data-plan-canvas className={compact ? 'h-72 w-full' : 'h-full w-full'}>
       <ReactFlow
         nodes={shown}
         edges={edges}
@@ -82,14 +85,14 @@ export function PlanGraph({
         edgesFocusable={false}
         colorMode="dark"
         fitView
-        fitViewOptions={{ nodes: focusOn, minZoom: 1, maxZoom: 1, padding: 0.15 }}
-        minZoom={1}
+        fitViewOptions={firstFit(compact, focusTask)}
+        minZoom={MIN_ZOOM}
         style={THEME}
       >
-        <Controls showInteractive={false} />
+        <Controls showInteractive={false} fitViewOptions={WHOLE_PLAN} />
         {!compact && <MiniMap pannable zoomable />}
         <Legend />
-        <FocusOn task={focusTask} />
+        <Camera size={size} compact={compact} focusTask={focusTask} lastClicked={lastClicked} />
       </ReactFlow>
     </div>
   )
@@ -125,13 +128,13 @@ function Legend() {
   )
 }
 
-/** Centres the focused task again whenever it changes after the first fit. */
-function FocusOn({ task }: { task: number | undefined }) {
-  const { fitView } = useReactFlow()
-  const ready = useNodesInitialized()
-  useEffect(() => {
-    if (task === undefined || !ready) return
-    void fitView({ nodes: [{ id: taskNodeId(task) }], maxZoom: 1, padding: 0.4, duration: 200 })
-  }, [task, ready, fitView])
+/** The view's behaviour, where `useReactFlow` can reach the canvas. */
+function Camera(props: {
+  size: CanvasSize | null
+  compact: boolean
+  focusTask: number | undefined
+  lastClicked: number | null
+}) {
+  useCamera(props)
   return null
 }

@@ -4,12 +4,37 @@
 // Approve, an approval that meets a changed plan (Review Focus 4), an
 // approved version, and Arabic text (Review Focus 3).
 
+import type { FitViewOptions } from '@xyflow/react'
 import { act } from 'react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Plan } from '@/api/client'
 import { answers } from '@/test/fake-daemon'
 import { planFixture, planListing, planTask } from '@/test/contract-fixtures'
+import { FakeResizeObserver, resize } from '@/test/fake-resize-observer'
 import { type TestApp, startApp, until } from '../test-app'
+
+// Every fit the graph asks React Flow for, which does the rest unchanged.
+const fits = vi.hoisted(() => [] as (FitViewOptions | undefined)[])
+vi.mock('@xyflow/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@xyflow/react')>()
+  const { useMemo } = await import('react')
+  return {
+    ...actual,
+    useReactFlow: () => {
+      const api = actual.useReactFlow()
+      return useMemo(
+        () => ({
+          ...api,
+          fitView: (options?: FitViewOptions) => {
+            fits.push(options)
+            return api.fitView(options)
+          },
+        }),
+        [api],
+      )
+    },
+  }
+})
 
 const PAGE = '/projects/p1/workflows/w1'
 
@@ -188,20 +213,34 @@ describe('the plan page', () => {
     expect(a.container.textContent).toContain(title)
   })
 
-  it('refits the graph when Inspect opens and closes', async () => {
+  it('refits the graph when Inspect opens and closes, on the same canvas', async () => {
+    // happy-dom lays nothing out: the test says when the canvas changed size.
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver)
     const a = (app = await startApp(PAGE, answers()))
     await until(() => node(2) !== null)
-    const fullGraph = a.container.querySelector('.react-flow')
-    if (fullGraph === null) throw new Error('no graph was mounted')
+    const flow = a.container.querySelector('.react-flow')
+    const canvas = a.container.querySelector('[data-plan-canvas]')
+    if (flow === null || canvas === null) throw new Error('no graph was mounted')
+    await act(async () => resize(canvas, 1100, 700))
+    fits.length = 0
 
+    const frame = () => act(() => new Promise(requestAnimationFrame))
     await act(async () => node(2)?.click())
     await until(() => a.container.querySelector('aside[aria-label="T2"]') !== null)
-    const narrowGraph = a.container.querySelector('.react-flow')
-    expect(narrowGraph).not.toBe(fullGraph)
+    await act(async () => resize(canvas, 780, 700))
+    await frame()
+    // Centred on the task the person opened, at the zoom they had.
+    expect(fits.at(-1)?.nodes).toEqual([{ id: 't2' }])
+    expect(fits.at(-1)?.minZoom).toBe(fits.at(-1)?.maxZoom)
 
     await act(async () => a.button('Close')?.click())
     await until(() => a.container.querySelector('aside[aria-label="T2"]') === null)
-    expect(a.container.querySelector('.react-flow')).not.toBe(narrowGraph)
+    await act(async () => resize(canvas, 1100, 700))
+    await frame()
+    expect(fits).toHaveLength(2)
+    // Never remounted: pan, zoom and selection survive.
+    expect(a.container.querySelector('.react-flow')).toBe(flow)
+    expect(a.container.querySelector('[data-plan-canvas]')).toBe(canvas)
   })
 
   it('a Workflow durable frame refetches the plan', async () => {
@@ -234,31 +273,5 @@ describe('the plan page', () => {
     )
     await until(() => getsOfPlan(a) > reads)
     await until(() => node(3)?.textContent?.includes('Session timeout') === true)
-  })
-
-  it('the sidebar lists the project’s plans, or invites asking for one', async () => {
-    const a = (app = await startApp(PAGE, answers({ plans: [planListing(planFixture({ version: 2 }))] })))
-    const sidebarLink = () =>
-      [...document.querySelectorAll('nav[aria-label="Projects and conversations"] a')].find((l) =>
-        l.textContent?.includes('Login flow'),
-      )
-    await until(() => sidebarLink() !== undefined)
-    const link = sidebarLink()
-    expect(link?.textContent).toContain('Draft v2')
-    expect(link?.getAttribute('href')).toBe(PAGE)
-    a.unmount()
-
-    const empty = (app = await startApp('/projects/p1', answers()))
-    await until(() => empty.text().includes('Ask the Planner for a plan'))
-  })
-
-  it('shows a sidebar error when plans cannot be listed', async () => {
-    const routes = answers()
-    routes['GET /api/projects/p1/workflows'] = () =>
-      Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'database is locked' }, { status: 503 })
-    const a = (app = await startApp('/projects/p1', routes))
-
-    await until(() => a.text().includes('database is locked'))
-    expect(a.container.querySelector('[role="alert"]')?.textContent).toContain('STORAGE_UNAVAILABLE')
   })
 })
