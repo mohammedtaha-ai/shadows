@@ -250,7 +250,8 @@ export interface paths {
          *       commit that appended to the journal). A commit that lands while the
          *       replay is being read shows up as a pending change, so it cannot fall into
          *       the gap between the replay's last read and the live phase.
-         *     - the transient bus, for what is never stored: deltas and turn ends.
+         *     - the transient bus, for what is never stored: deltas and turn ends;
+         *       and beside it the session's options and `plan_show`'s signals.
          *
          *     Durable events reach the client only by reading the journal after
          *     `last_seq` — in the replay, and again on every signal change in the live
@@ -661,6 +662,17 @@ export interface components {
          * @enum {string}
          */
         ErrorCode: "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "GRANT_SCOPE" | "GRANT_INVALID";
+        /**
+         * @description The task a person points at when they send a turn: the task's id, in the
+         *     plan version and at the revision they were looking at. It is checked to
+         *     belong to that version and kept with their message.
+         */
+        Focus: {
+            /** Format: int64 */
+            revision: number;
+            task_id: components["schemas"]["TaskId"];
+            workflow_id: components["schemas"]["WorkflowId"];
+        };
         /** @description Forks the thread from its last completed entry (spec §12.9). */
         ForkThread: {
             at_entry_id: components["schemas"]["ThreadEntryId"];
@@ -909,10 +921,17 @@ export interface components {
         };
         /** @description Starts a turn as one command (spec §12.7). */
         StartTurn: {
+            /**
+             * @description The sending tab's id, made once per page load (§13.9). Kept in memory
+             *     for the turn only, so a `plan-show` frame can name it; not part of the
+             *     command, never stored.
+             */
+            client_tab?: string | null;
             /** @description The idempotency key (spec §3.2). A retry sends the same one. */
             command_id: string;
             /** @description `null` exactly when the chosen model offers no effort (§12.4). */
             effort: string | null;
+            focus?: null | components["schemas"]["Focus"];
             mode: string;
             model: string;
             prompt: string;
@@ -1773,6 +1792,7 @@ export interface operations {
              *     - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.
              *     - `usage` — `{thread_id, context_used, context_window, limits}`: the session's context use and the account's limits as the harness last reported them; each is `null` when not reported. Transient.
              *     - `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.
+             *     - `plan-show` — `{thread_id, target_tab, workflow_id, version, task_number, place}`: the Planner showed a plan (§13.9). Its card arrives first, as the `durable` `PlanShown` event. Only the tab whose id is `target_tab` opens the panel or the page for `side` or `page`. Transient: never replayed.
              *     - `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.
              *     - `fatal` — data is a message as plain text: the journal could not be read and the stream ends.
              *
@@ -2169,7 +2189,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description SETTING_NOT_OFFERED: a model, mode or effort the session does not offer; HARNESS_UNAVAILABLE */
+            /** @description SETTING_NOT_OFFERED: a model, mode or effort the session does not offer; HARNESS_UNAVAILABLE; INVALID_COMMAND: the focus names a task not in that plan, or a plan not this thread's */
             422: {
                 headers: {
                     [name: string]: unknown;

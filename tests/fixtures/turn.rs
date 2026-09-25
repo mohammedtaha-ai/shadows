@@ -60,6 +60,7 @@ pub fn new_turn<'a>(
         settings,
         prompt_version: Some(shadows::planner::prompt_version()),
         instructions_version: None,
+        focus: None,
     }
 }
 
@@ -103,6 +104,8 @@ pub async fn start_direct(
             operation_id: started.operation_id,
             prompt: prompt.into(),
             settings,
+            focus: None,
+            client_tab: None,
             events,
         },
         bus.clone(),

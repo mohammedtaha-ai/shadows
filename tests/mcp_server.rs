@@ -93,7 +93,13 @@ async fn the_tool_list_depends_on_the_grant_kind() {
     thread_tools.sort();
     assert_eq!(
         thread_tools,
-        ["draft_start", "plan_edit", "task_get", "workflow_get"]
+        [
+            "draft_start",
+            "plan_edit",
+            "plan_show",
+            "task_get",
+            "workflow_get"
+        ]
     );
     let (_, external) = project_client(&l).await;
     let mut project_tools = names(external.list_all_tools().await.unwrap());
@@ -152,7 +158,13 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
     names.sort();
     assert_eq!(
         names,
-        ["draft_start", "plan_edit", "task_get", "workflow_get"]
+        [
+            "draft_start",
+            "plan_edit",
+            "plan_show",
+            "task_get",
+            "workflow_get"
+        ]
     );
 }
 
@@ -200,7 +212,7 @@ async fn the_discover_lifecycle_works_without_a_session() {
     let tools = answer["result"]["tools"]
         .as_array()
         .unwrap_or_else(|| panic!("{answer}"));
-    assert_eq!(tools.len(), 4, "{answer}");
+    assert_eq!(tools.len(), 5, "{answer}");
     assert_eq!(answer["result"]["cacheScope"], "private", "{answer}");
 
     let get = request(

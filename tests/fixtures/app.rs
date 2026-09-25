@@ -25,7 +25,7 @@ use shadows::command::{CommandContext, fingerprint};
 use shadows::operation::{Operation, OperationId};
 use shadows::planner::{LiveHandles, Sessions, SessionsConfig};
 use shadows::project::{ProjectDirectory, ProjectId};
-use shadows::protocol::{AppState, router};
+use shadows::protocol::{AppState, UiSignal, router};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use shadows::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
@@ -43,6 +43,8 @@ pub struct App {
     pub handles: Arc<LiveHandles>,
     pub sessions: Arc<Sessions>,
     pub bus: Bus,
+    /// The live-only signals `plan_show` sends (§13.9).
+    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
     pub router: Router,
     pub project: ProjectId,
     pub thread: ThreadId,
@@ -115,6 +117,7 @@ pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) ->
     );
     let handles = Arc::new(LiveHandles::default());
     let (bus, _) = tokio::sync::broadcast::channel(256);
+    let (ui, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let router = router(AppState {
         runtime: runtime.clone(),
@@ -122,6 +125,7 @@ pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) ->
         handles: handles.clone(),
         sessions: sessions.clone(),
         bus: bus.clone(),
+        ui: ui.clone(),
         allowed_origins: Vec::new(),
         mcp_url: mcp_url.to_string(),
         shutdown,
@@ -133,6 +137,7 @@ pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) ->
         handles,
         sessions,
         bus,
+        ui,
         router,
         project: project.id,
         thread,
@@ -322,41 +327,73 @@ pub struct Subscription {
 /// Subscribes to `thread` from its start and waits until the replay is over,
 /// so what the next frames carry happened after this call.
 pub async fn subscribe(app: &App, thread: &ThreadId) -> Subscription {
+    let mut sub = subscribe_from(app, thread, 0).await;
+    next_frame_named(&mut sub, "caught-up").await;
+    sub
+}
+
+/// Subscribes to `thread` after `after`, reading nothing yet: the replay's
+/// frames are still to come.
+pub async fn subscribe_from(app: &App, thread: &ThreadId, after: i64) -> Subscription {
     let response = app
         .router
         .clone()
         .oneshot(
-            Request::get(format!("/api/subscribe?thread_id={thread}"))
+            Request::get(format!("/api/subscribe?thread_id={thread}&after={after}"))
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .unwrap();
-    let mut sub = Subscription {
+    Subscription {
         body: response.into_body().into_data_stream(),
         buffer: String::new(),
-    };
-    next_frame_named(&mut sub, "caught-up").await;
-    sub
+    }
+}
+
+/// Every frame as `(event, data)`, up to and including the first for which
+/// `last` holds.
+pub async fn frames_until(
+    sub: &mut Subscription,
+    last: impl Fn(&str, &Value) -> bool,
+) -> Vec<(String, Value)> {
+    let mut frames = Vec::new();
+    loop {
+        let (event, data) = next_frame(sub).await;
+        let done = last(&event, &data);
+        frames.push((event, data));
+        if done {
+            return frames;
+        }
+    }
+}
+
+/// The next frame's `event:` and data, whatever it is.
+async fn next_frame(sub: &mut Subscription) -> (String, Value) {
+    use tokio_stream::StreamExt;
+    loop {
+        if let Some(end) = sub.buffer.find("\n\n") {
+            let frame: String = sub.buffer.drain(..end + 2).collect();
+            let event = frame.lines().find_map(|l| l.strip_prefix("event: "));
+            let data = frame.lines().find_map(|l| l.strip_prefix("data: "));
+            let data = serde_json::from_str(data.unwrap_or("null")).unwrap_or(Value::Null);
+            return (event.unwrap_or_default().to_string(), data);
+        }
+        let chunk = tokio::time::timeout(Duration::from_secs(10), sub.body.next())
+            .await
+            .unwrap_or_else(|_| panic!("no frame in time: {}", sub.buffer))
+            .expect("the stream ended")
+            .unwrap();
+        sub.buffer.push_str(std::str::from_utf8(&chunk).unwrap());
+    }
 }
 
 /// The data of the next frame whose `event:` is `name`, skipping others.
 pub async fn next_frame_named(sub: &mut Subscription, name: &str) -> Value {
-    use tokio_stream::StreamExt;
     loop {
-        while let Some(end) = sub.buffer.find("\n\n") {
-            let frame: String = sub.buffer.drain(..end + 2).collect();
-            let event = frame.lines().find_map(|l| l.strip_prefix("event: "));
-            let data = frame.lines().find_map(|l| l.strip_prefix("data: "));
-            if event == Some(name) {
-                return serde_json::from_str(data.unwrap_or("null")).unwrap_or(Value::Null);
-            }
+        let (event, data) = next_frame(sub).await;
+        if event == name {
+            return data;
         }
-        let chunk = tokio::time::timeout(Duration::from_secs(10), sub.body.next())
-            .await
-            .unwrap_or_else(|_| panic!("no {name} frame in time: {}", sub.buffer))
-            .expect("the stream ended")
-            .unwrap();
-        sub.buffer.push_str(std::str::from_utf8(&chunk).unwrap());
     }
 }

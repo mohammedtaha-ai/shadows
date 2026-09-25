@@ -1,6 +1,7 @@
 //! One job: a plan version's task and link rows (spec §13.3, §13.15) —
-//! the columns a task's content is stored in, reading them back, and making
-//! them say what an edit left. The version row itself is `workflow*.rs`.
+//! the columns a task's content is stored in, reading them back (one task by
+//! id or by number included), and making them say what an edit left. The
+//! version row itself is `workflow*.rs`.
 
 use std::collections::HashMap;
 
@@ -54,6 +55,42 @@ pub(super) async fn tasks_of(
             })
         })
         .collect()
+}
+
+/// The number and title of task `id`, if it is a task of `workflow`.
+pub(super) async fn task_of(
+    conn: &mut SqliteConnection,
+    workflow: &WorkflowId,
+    id: &TaskId,
+) -> Result<Option<(u32, String)>, StorageError> {
+    let row: Option<(u32, String)> =
+        sqlx::query_as("SELECT number, contract_json FROM task WHERE id = ? AND workflow_id = ?")
+            .bind(id.as_str())
+            .bind(workflow.as_str())
+            .fetch_optional(&mut *conn)
+            .await?;
+    row.map(|(number, contract)| Ok((number, title(&contract)?)))
+        .transpose()
+}
+
+/// The id and title of `workflow`'s task numbered `number`, if it has one.
+pub(super) async fn task_numbered(
+    conn: &mut SqliteConnection,
+    workflow: &WorkflowId,
+    number: u32,
+) -> Result<Option<(TaskId, String)>, StorageError> {
+    let row: Option<(String, String)> =
+        sqlx::query_as("SELECT id, contract_json FROM task WHERE workflow_id = ? AND number = ?")
+            .bind(workflow.as_str())
+            .bind(number)
+            .fetch_optional(&mut *conn)
+            .await?;
+    row.map(|(id, contract)| Ok((TaskId::from_stored(id), title(&contract)?)))
+        .transpose()
+}
+
+fn title(contract_json: &str) -> Result<String, StorageError> {
+    Ok(serde_json::from_str::<Contract>(contract_json)?.title)
 }
 
 /// In an explicit order: the waiting task's number, the number it waits

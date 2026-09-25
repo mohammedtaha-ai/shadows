@@ -10,13 +10,15 @@ use super::command::{classify, record_command};
 use super::entry::append_entry_in;
 use super::harness::remember_settings;
 use super::operation::insert_pending;
+use super::task::task_of;
 use super::{Storage, StorageError, now};
 use crate::agent::TurnSettings;
 use crate::command::CommandContext;
 use crate::events::Actor;
 use crate::operation::OperationId;
 use crate::runtime::RuntimeInstanceId;
-use crate::thread::{NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId};
+use crate::thread::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId};
+use crate::workflow::Focus;
 
 /// Everything the turn command records. The paths and versions are the
 /// adapter's and the CLI's it runs (§12.2), frozen on the invocation.
@@ -36,6 +38,8 @@ pub struct NewTurn<'a> {
     pub prompt_version: Option<&'a str>,
     /// The project's current `planner_instructions_version` id, if it has one.
     pub instructions_version: Option<&'a str>,
+    /// The task the person points at (§13.9), kept with their message.
+    pub focus: Option<&'a Focus>,
 }
 
 /// What the command recorded; `replayed` when it had already happened.
@@ -44,6 +48,9 @@ pub struct StartedTurn {
     pub operation_id: OperationId,
     pub entry_id: ThreadEntryId,
     pub replayed: bool,
+    /// The focused task's number and title, read in the transaction that
+    /// checked it (§13.9); `None` without a focus, and on a replay.
+    pub focus_task: Option<(u32, String)>,
 }
 
 const SCOPE: &str = "Thread";
@@ -60,7 +67,29 @@ fn recorded(outcome: &str) -> Result<StartedTurn, StorageError> {
         operation_id: OperationId::from_stored(text("operation_id")?),
         entry_id: ThreadEntryId::from_stored(text("entry_id")?),
         replayed: true,
+        focus_task: None,
     })
+}
+
+/// The focused task's number and title, when it is a task of the focus's
+/// version and that version is this thread's (§13.9).
+async fn focused(
+    conn: &mut SqliteConnection,
+    thread: &ThreadId,
+    focus: &Focus,
+) -> Result<(u32, String), StorageError> {
+    let owner: Option<String> = sqlx::query_scalar("SELECT thread_id FROM workflow WHERE id = ?")
+        .bind(focus.workflow_id.as_str())
+        .fetch_optional(&mut *conn)
+        .await?;
+    if owner.as_deref() != Some(thread.as_str()) {
+        return Err(StorageError::TaskNotInPlan(
+            "the chosen plan is not this conversation's".into(),
+        ));
+    }
+    task_of(conn, &focus.workflow_id, &focus.task_id)
+        .await?
+        .ok_or_else(|| StorageError::TaskNotInPlan("the chosen task is not in that plan".into()))
 }
 
 /// Whether the thread has a turn that has not reached a terminal status.
@@ -95,6 +124,7 @@ impl Storage {
         let runtime = turn.runtime.clone();
         let prompt = turn.prompt.to_string();
         let settings = turn.settings.clone();
+        let focus = turn.focus.cloned();
         let versions = (
             turn.prompt_version.map(str::to_owned),
             turn.instructions_version.map(str::to_owned),
@@ -117,6 +147,17 @@ impl Storage {
                     if has_open_operation(conn, &thread).await? {
                         return Err(StorageError::ThreadBusy);
                     }
+                    let focus_task = match &focus {
+                        Some(focus) => Some(focused(conn, &thread, focus).await?),
+                        None => None,
+                    };
+                    let refs = focus.iter().flat_map(|f| {
+                        [
+                            EntryRef::Workflow(f.workflow_id.clone()),
+                            EntryRef::Task(f.task_id.clone()),
+                        ]
+                    });
+                    let refs: Vec<EntryRef> = refs.collect();
                     let op = OperationId::generate();
                     let transition = insert_pending(conn, &op, &thread, &runtime, &ts).await?;
                     let entry = append_entry_in(
@@ -126,7 +167,7 @@ impl Storage {
                             kind: ThreadEntryKind::UserMessage,
                             author: Actor::user(&ctx.principal_id),
                             body: &prompt,
-                            refs: &[],
+                            refs: &refs,
                             operation_id: Some(&op),
                         },
                         &ts,
@@ -183,6 +224,7 @@ impl Storage {
                         operation_id: op,
                         entry_id: entry.id,
                         replayed: false,
+                        focus_task,
                     };
                     Ok((started, Some(transition)))
                 })

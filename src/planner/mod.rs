@@ -19,5 +19,5 @@ pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig}
 pub use settings::ModelRefused;
 pub use setup::prompt_version;
 pub use shutdown::shut_down;
-pub use spawn::{PlannerTurnRequest, StartError};
+pub use spawn::{PlannerTurnRequest, StartError, focus_block};
 pub use turn::{PlannerTurn, StopOutcome};

@@ -20,8 +20,9 @@ use super::server::Shadows;
 use crate::command::derive::{Anchor, derived_id};
 use crate::command::{CommandContext, Writer, fingerprint};
 use crate::error::ErrorCode;
+use crate::protocol::UiSignal;
 use crate::storage::StorageError;
-use crate::workflow::{Plan, PlanOp, WorkflowId};
+use crate::workflow::{Place, Plan, PlanOp, PlanShown, WorkflowId};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct PlanArgs {
@@ -75,6 +76,20 @@ struct PlanEditArgs {
     /// answers the first result.
     #[serde(default)]
     command_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct PlanShowArgs {
+    /// As for `workflow_get`.
+    #[serde(default)]
+    #[schemars(with = "Option<String>")]
+    workflow_id: Option<WorkflowId>,
+    /// A task to show, by its number: 4 for T4. Leave it out to show the plan.
+    #[serde(default)]
+    task_number: Option<u32>,
+    /// `inline` as a card in the conversation, `side` in a panel beside it,
+    /// `page` on the plan's own page. Every place also leaves a card.
+    place: Place,
 }
 
 #[tool_router(vis = "pub(super)")]
@@ -156,6 +171,17 @@ impl Shadows {
         Parameters(args): Parameters<PlanEditArgs>,
     ) -> CallToolResult {
         answer(self.edit(&grant, args).await)
+    }
+
+    #[tool(
+        description = "Show the person the plan, or one task of it, while they talk with you: inline in the conversation, side in a panel beside it, or page on its own page. Changes no plan."
+    )]
+    async fn plan_show(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<PlanShowArgs>,
+    ) -> CallToolResult {
+        answer(self.show(&grant, args).await)
     }
 }
 
@@ -331,6 +357,47 @@ impl Shadows {
             .edit_plan(&ctx, &writer, &plan.id, expected, &args.ops)
             .await?;
         Ok(json!(outcome))
+    }
+}
+
+impl Shadows {
+    /// `plan_show` (§13.9): the card, under the running turn's command
+    /// identity, then one live signal naming the tab that sent the turn. A
+    /// replayed call signals nothing: its card is already there.
+    async fn show(&self, grant: &Grant, args: PlanShowArgs) -> Result<PlanShown, Refusal> {
+        let plan = self.plan_in_scope(grant, args.workflow_id.as_ref()).await?;
+        let thread = own_thread(grant)?;
+        let (op, tab) = (self.state.handles.running_turn(thread).await).ok_or_else(|| {
+            Refusal::new(
+                ErrorCode::InvalidCommand,
+                "no turn is running for this conversation",
+            )
+        })?;
+        let writer = writer_of(grant)?;
+        let params =
+            json!({ "workflow": plan.id, "task_number": args.task_number, "place": args.place });
+        let fp = fingerprint("PlanShow", &params);
+        let ctx = command(
+            &writer,
+            derived_id(Anchor::Operation(&op), &fp),
+            "PlanShow",
+            fp,
+        );
+        let shown = (self.state.storage)
+            .show_plan(&ctx, &writer, &op, &plan.id, args.task_number, args.place)
+            .await?;
+        if !shown.replayed {
+            // No live subscriber is not a failure: the card is journaled.
+            let _ = self.state.ui.send(UiSignal {
+                thread_id: thread.clone(),
+                target_tab: tab,
+                workflow_id: shown.workflow_id.clone(),
+                version: shown.version,
+                task_number: shown.task_number,
+                place: shown.place,
+            });
+        }
+        Ok(shown)
     }
 }
 

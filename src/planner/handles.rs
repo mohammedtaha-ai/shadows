@@ -13,6 +13,9 @@ pub(crate) struct LiveTurn {
     /// The session the prompt runs on: Stop cancels on it, and terminates
     /// its adapter — never one that replaced it.
     pub(crate) session: OpenSession,
+    /// The tab that sent the turn (§13.9): transport state, kept here only,
+    /// never stored.
+    pub(crate) client_tab: Option<String>,
     pub(crate) turn_end_seen: Arc<AtomicBool>,
     pub(crate) cancel_requested: Arc<AtomicBool>,
     pub(crate) span: tracing::Span,
@@ -54,11 +57,16 @@ impl LiveHandles {
     /// The turn running on `thread`, if one is: what the Planner's
     /// `draft_start` anchors its derived command id to (spec §13.5).
     pub async fn running_for(&self, thread: &ThreadId) -> Option<OperationId> {
+        self.running_turn(thread).await.map(|(op, _)| op)
+    }
+    /// As `running_for`, with the tab that sent the turn: whom `plan_show`
+    /// signals (spec §13.9).
+    pub async fn running_turn(&self, thread: &ThreadId) -> Option<(OperationId, Option<String>)> {
         let r = self.0.lock().await;
         r.turns
             .iter()
             .find(|(_, turn)| &turn.thread_id == thread)
-            .map(|(op, _)| op.clone())
+            .map(|(op, turn)| (op.clone(), turn.client_tab.clone()))
     }
     pub async fn is_closed(&self) -> bool {
         self.0.lock().await.closed

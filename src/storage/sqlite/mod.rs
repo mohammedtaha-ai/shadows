@@ -19,6 +19,7 @@ mod harness;
 mod instructions;
 mod operation;
 mod operation_read;
+mod plan_view;
 mod project;
 mod runtime;
 mod task;
@@ -81,6 +82,10 @@ pub enum StorageError {
     /// Spec §13.6: the plan, thread or draft ref is outside the writer's grant.
     #[error("outside what the grant allows")]
     GrantScope,
+    /// Spec §13.9: a task named by a focus or by `plan_show` is not in that
+    /// plan version. The text says which.
+    #[error("{0}")]
+    TaskNotInPlan(String),
     #[error("stored JSON is invalid: {0}")]
     Json(#[from] serde_json::Error),
     #[error(transparent)]

@@ -57,6 +57,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         handles: Arc::new(LiveHandles::default()),
         sessions: sessions.clone(),
         bus,
+        ui: tokio::sync::broadcast::channel(256).0,
         allowed_origins: config.allowed_origins.clone(),
         mcp_url,
         shutdown,

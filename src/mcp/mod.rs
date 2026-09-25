@@ -24,14 +24,17 @@ use rmcp::transport::streamable_http_server::session::never::NeverSessionManager
 use rmcp::transport::{StreamableHttpServerConfig, StreamableHttpService};
 
 use crate::planner::LiveHandles;
+use crate::protocol::UiSignal;
 use crate::storage::Storage;
 
-/// What a tool reaches: plan storage, and the live turns a Planner's
-/// `draft_start` anchors to.
+/// What a tool reaches: plan storage, the live turns a Planner's
+/// `draft_start` and `plan_show` anchor to, and the live-only signal
+/// `plan_show` sends (§13.9).
 #[derive(Clone)]
 pub struct McpState {
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
+    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
 }
 
 /// `/mcp`: the bearer check, then `rmcp`'s Streamable HTTP service.

@@ -66,6 +66,7 @@ impl From<StorageError> for Refusal {
                 "this command id, or this draft_ref, already did something different; \
                  for a new plan call draft_prepare again",
             ),
+            StorageError::TaskNotInPlan(message) => Self::new(ErrorCode::InvalidCommand, message),
             StorageError::NotFound(what) => {
                 Self::new(ErrorCode::InvalidCommand, format!("no such {what}"))
             }

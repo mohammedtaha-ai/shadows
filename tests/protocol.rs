@@ -50,6 +50,7 @@ async fn fixture() -> Fixture {
         sessions: sessions.clone(),
         bus,
         allowed_origins: Vec::new(),
+        ui: tokio::sync::broadcast::channel(16).0,
         mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });

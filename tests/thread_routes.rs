@@ -195,6 +195,7 @@ async fn a_browser_may_send_patch_from_an_allowed_origin() {
         sessions: app.sessions.clone(),
         bus: app.bus.clone(),
         allowed_origins: vec![origin.to_string()],
+        ui: app.ui.clone(),
         mcp_url: acp::MCP_URL.to_string(),
         shutdown: tokio::sync::watch::channel(false).1,
     });

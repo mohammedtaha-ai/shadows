@@ -197,7 +197,7 @@ impl Cli {
 }
 ```
 
-## `src/cli/mod.rs` — 169 lines
+## `src/cli/mod.rs` — 170 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -425,17 +425,18 @@ pub struct IssuedGrant {
 }
 ```
 
-## `src/mcp/mod.rs` — 59 lines
+## `src/mcp/mod.rs` — 62 lines
 
 ```rust
 pub struct McpState {
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
+    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
 }
 pub fn service(state: McpState) -> Router
 ```
 
-## `src/mcp/refusal.rs` — 98 lines
+## `src/mcp/refusal.rs` — 99 lines
 
 ```rust
 pub(super) struct Refusal {}
@@ -448,7 +449,7 @@ impl Refusal {
 pub(super) fn answer<T: serde::Serialize>(outcome: Result<T, Refusal>) -> CallToolResult
 ```
 
-## `src/mcp/server.rs` — 150 lines
+## `src/mcp/server.rs` — 157 lines
 
 ```rust
 pub(super) struct Tools(Arc<Routers>);
@@ -465,7 +466,7 @@ impl Shadows {
 }
 ```
 
-## `src/mcp/tools.rs` — 369 lines
+## `src/mcp/tools.rs` — 436 lines
 
 Nothing reachable from outside this file.
 
@@ -554,12 +555,13 @@ impl Collector {
 }
 ```
 
-## `src/planner/handles.rs` — 75 lines
+## `src/planner/handles.rs` — 83 lines
 
 ```rust
 pub(crate) struct LiveTurn {
     pub(crate) thread_id: ThreadId,
     pub(crate) session: OpenSession,
+    pub(crate) client_tab: Option<String>,
     pub(crate) turn_end_seen: Arc<AtomicBool>,
     pub(crate) cancel_requested: Arc<AtomicBool>,
     pub(crate) span: tracing::Span,
@@ -576,6 +578,7 @@ impl LiveHandles {
     pub(crate) async fn restore(&self, op: OperationId, turn: LiveTurn)
     pub(crate) async fn close(&self) -> Vec<OperationId>
     pub async fn running_for(&self, thread: &ThreadId) -> Option<OperationId>
+    pub async fn running_turn(&self, thread: &ThreadId) -> Option<(OperationId, Option<String>)>
     pub async fn is_closed(&self) -> bool
     pub async fn contains(&self, op: &OperationId) -> bool
     pub async fn close_for_test(&self)
@@ -592,7 +595,7 @@ pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig}
 pub use settings::ModelRefused;
 pub use setup::prompt_version;
 pub use shutdown::shut_down;
-pub use spawn::{PlannerTurnRequest, StartError};
+pub use spawn::{PlannerTurnRequest, StartError, focus_block};
 pub use turn::{PlannerTurn, StopOutcome};
 ```
 
@@ -712,19 +715,22 @@ impl Setups {
 pub async fn shut_down(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, confirm_within: Duration, escalate: impl Future<Output = ()>) -> Result<StopKind, StorageError>
 ```
 
-## `src/planner/spawn.rs` — 169 lines
+## `src/planner/spawn.rs` — 189 lines
 
 ```rust
 pub enum StartError {
     RuntimeStopping,
     Storage(StorageError),
 }
+pub fn focus_block(focus: &Focus, number: u32, title: &str) -> String
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
     pub harness: String,
     pub operation_id: OperationId,
     pub prompt: String,
     pub settings: TurnSettings,
+    pub focus: Option<String>,
+    pub client_tab: Option<String>,
     pub events: mpsc::UnboundedReceiver<HarnessEvent>,
 }
 impl PlannerTurn {
@@ -858,13 +864,13 @@ pub struct Project {
 }
 ```
 
-## `src/protocol/conversation.rs` — 339 lines
+## `src/protocol/conversation.rs` — 377 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
 pub(super) async fn list_operations(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<Operation>>, Failure>
 pub(super) struct StartTurn {}
-// + 5 private fields
+// + 7 private fields
 pub(super) struct TurnStarted {}
 // + 1 private field
 pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<ThreadId>, Json(body): Json<StartTurn>) -> Result<(StatusCode, Json<TurnStarted>), Failure>
@@ -872,7 +878,7 @@ pub(super) async fn detached<T: Send + 'static>(work: impl Future<Output = Resul
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
 ```
 
-## `src/protocol/failure.rs` — 354 lines
+## `src/protocol/failure.rs` — 357 lines
 
 ```rust
 pub struct Failure {}
@@ -956,17 +962,19 @@ pub(super) struct SaveInstructions {}
 pub(super) async fn save_instructions(State(s): State<AppState>, Path(project): Path<ProjectId>, Json(body): Json<SaveInstructions>) -> Result<Json<InstructionsVersion>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 196 lines
+## `src/protocol/mod.rs` — 203 lines
 
 ```rust
 pub use failure::Failure;
 pub use openapi::document as openapi_document;
+pub use ui_signal::UiSignal;
 pub struct AppState {
     pub runtime: Arc<Runtime>,
     pub storage: Arc<Storage>,
     pub handles: Arc<LiveHandles>,
     pub sessions: Arc<Sessions>,
     pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
+    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
     pub allowed_origins: Vec<String>,
     pub mcp_url: String,
     pub shutdown: tokio::sync::watch::Receiver<bool>,
@@ -999,7 +1007,7 @@ pub(super) struct UpdateProject {}
 pub(super) async fn update_project(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<UpdateProject>) -> Result<Json<Project>, Failure>
 ```
 
-## `src/protocol/sse.rs` — 328 lines
+## `src/protocol/sse.rs` — 373 lines
 
 ```rust
 pub struct SubscribeQuery {
@@ -1019,6 +1027,19 @@ pub(super) async fn update_thread(State(s): State<AppState>, Path(thread): Path<
 pub(super) struct ForkThread {}
 // + 2 private fields
 pub(super) async fn fork_thread(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<ForkThread>) -> Result<(StatusCode, Json<PlanningThread>), Failure>
+```
+
+## `src/protocol/ui_signal.rs` — 20 lines
+
+```rust
+pub struct UiSignal {
+    pub thread_id: ThreadId,
+    pub target_tab: Option<String>,
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task_number: Option<u32>,
+    pub place: Place,
+}
 ```
 
 ## `src/protocol/workflow.rs` — 95 lines
@@ -1155,7 +1176,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/mod.rs` — 299 lines
+## `src/storage/sqlite/mod.rs` — 304 lines
 
 ```rust
 pub use events_read::StoredEvent;
@@ -1178,6 +1199,7 @@ pub enum StorageError {
     PlanInvalid(Vec<Problem>),
     GrantInvalid,
     GrantScope,
+    TaskNotInPlan(String),
     Json(serde_json::Error),
     Database(sqlx::Error),
 }
@@ -1217,6 +1239,14 @@ impl Storage {
 pub(super) async fn invocation_of(conn: &mut SqliteConnection, op: &OperationId) -> Result<Option<InvocationView>, StorageError>
 ```
 
+## `src/storage/sqlite/plan_view.rs` — 101 lines
+
+```rust
+impl Storage {
+    pub async fn show_plan(&self, ctx: &CommandContext, writer: &Writer, turn: &OperationId, workflow: &WorkflowId, task_number: Option<u32>, place: Place) -> Result<PlanShown, StorageError>
+}
+```
+
 ## `src/storage/sqlite/project.rs` — 250 lines
 
 ```rust
@@ -1246,10 +1276,12 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/task.rs` — 208 lines
+## `src/storage/sqlite/task.rs` — 245 lines
 
 ```rust
 pub(super) async fn tasks_of(conn: &mut SqliteConnection, workflow: &WorkflowId) -> Result<Vec<PlanTask>, StorageError>
+pub(super) async fn task_of(conn: &mut SqliteConnection, workflow: &WorkflowId, id: &TaskId) -> Result<Option<(u32, String)>, StorageError>
+pub(super) async fn task_numbered(conn: &mut SqliteConnection, workflow: &WorkflowId, number: u32) -> Result<Option<(TaskId, String)>, StorageError>
 pub(super) async fn links_of(conn: &mut SqliteConnection, workflow: &WorkflowId) -> Result<Vec<Link>, StorageError>
 pub(super) async fn write_content(conn: &mut SqliteConnection, workflow: &WorkflowId, before: &[PlanTask], after: &PlanContent, ts: &str) -> Result<(), StorageError>
 ```
@@ -1291,7 +1323,7 @@ impl Transition {
 pub(super) async fn record(conn: &mut SqliteConnection, op_id: &OperationId, before: Before, to: &str, event: DurableEvent, ts: &str) -> Result<Transition, StorageError>
 ```
 
-## `src/storage/sqlite/turn.rs` — 241 lines
+## `src/storage/sqlite/turn.rs` — 283 lines
 
 ```rust
 pub struct NewTurn<'a> {
@@ -1307,11 +1339,13 @@ pub struct NewTurn<'a> {
     pub settings: &'a TurnSettings,
     pub prompt_version: Option<&'a str>,
     pub instructions_version: Option<&'a str>,
+    pub focus: Option<&'a Focus>,
 }
 pub struct StartedTurn {
     pub operation_id: OperationId,
     pub entry_id: ThreadEntryId,
     pub replayed: bool,
+    pub focus_task: Option<(u32, String)>,
 }
 pub(super) async fn has_open_operation(conn: &mut SqliteConnection, thread: &ThreadId) -> Result<bool, StorageError>
 impl Storage {
@@ -1456,10 +1490,34 @@ pub fn approval_problems(content: &PlanContent) -> Vec<Problem>
 pub(super) fn edit_problems_after_removing(content: &PlanContent, removed: &BTreeSet<u32>) -> Vec<Problem>
 ```
 
-## `src/workflow/mod.rs` — 242 lines
+## `src/workflow/conversation.rs` — 44 lines
+
+```rust
+pub struct Focus {
+    pub workflow_id: WorkflowId,
+    pub task_id: TaskId,
+    pub revision: i64,
+}
+pub enum Place {
+    Inline,
+    Side,
+    Page,
+}
+pub struct PlanShown {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task_number: Option<u32>,
+    pub place: Place,
+    pub entry_id: ThreadEntryId,
+    pub replayed: bool,
+}
+```
+
+## `src/workflow/mod.rs` — 244 lines
 
 ```rust
 pub use check::{Problem, approval_problems, edit_problems};
+pub use conversation::{Focus, Place, PlanShown};
 pub use ops::{Applied, PlanOp, apply};
 pub struct WorkflowId(String);
 impl WorkflowId {

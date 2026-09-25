@@ -420,6 +420,8 @@ async fn a_stop_while_pending_cancels_the_turn_before_its_prompt() {
             operation_id: op.clone(),
             prompt: "hello".into(),
             settings,
+            focus: None,
+            client_tab: None,
             events,
         },
         app.bus.clone(),

@@ -23,8 +23,15 @@ use super::McpState;
 use super::grant::{Grant, GrantKind};
 
 /// The internal Planner's tools. It never lists plans or prepares a draft ref:
-/// its grant fixes the thread, and the thread fixes the plan.
-const THREAD_TOOLS: [&str; 4] = ["workflow_get", "task_get", "draft_start", "plan_edit"];
+/// its grant fixes the thread, and the thread fixes the plan. Only it shows a
+/// plan: an external agent can read plans but cannot move a person's screen.
+const THREAD_TOOLS: [&str; 5] = [
+    "workflow_get",
+    "task_get",
+    "draft_start",
+    "plan_edit",
+    "plan_show",
+];
 
 /// An external agent's tools, within its project.
 const PROJECT_TOOLS: [&str; 6] = [

@@ -8,9 +8,11 @@
 use std::collections::BTreeMap;
 
 pub mod check;
+pub mod conversation;
 pub mod ops;
 
 pub use check::{Problem, approval_problems, edit_problems};
+pub use conversation::{Focus, Place, PlanShown};
 pub use ops::{Applied, PlanOp, apply};
 
 use crate::id::newtype_id;

@@ -197,6 +197,7 @@ async fn the_document_is_served_and_every_path_it_names_is_routed() {
         sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
         bus,
         allowed_origins: Vec::new(),
+        ui: tokio::sync::broadcast::channel(16).0,
         mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });

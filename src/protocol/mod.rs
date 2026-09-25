@@ -9,7 +9,8 @@
 //! a thread itself), `workflow.rs` (plan versions and their approval),
 //! `grants.rs` (external agents' MCP grants), `instructions.rs` (a project's
 //! Planner instructions),
-//! `sse.rs` (the replay-then-live stream), `fs.rs` (choosing a project directory),
+//! `sse.rs` (the replay-then-live stream), `ui_signal.rs` (the live-only
+//! signal that moves a tab), `fs.rs` (choosing a project directory),
 //! `openapi.rs` (the document describing all of it), `failure.rs` (the
 //! transport mapping), `guard.rs` (refusing requests pages were made to send).
 //! A new feature adds a file or a route to one of them.
@@ -29,10 +30,12 @@ mod openapi;
 mod project;
 pub mod sse;
 mod thread;
+mod ui_signal;
 mod workflow;
 
 pub use failure::Failure;
 pub use openapi::document as openapi_document;
+pub use ui_signal::UiSignal;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -59,6 +62,9 @@ pub struct AppState {
     pub handles: Arc<LiveHandles>,
     pub sessions: Arc<Sessions>,
     pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
+    /// What `plan_show` signals the tab that sent the turn (§13.9): live
+    /// only, never stored.
+    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
     /// Spec §1: the only origins a browser may call this daemon from. Every
     /// client is cross-origin, because the daemon serves no page. Validated
     /// by `config::allowed_origin` before it gets here.
@@ -92,6 +98,7 @@ pub fn router(state: AppState) -> Router {
         .merge(crate::mcp::service(crate::mcp::McpState {
             storage: state.storage.clone(),
             handles: state.handles.clone(),
+            ui: state.ui.clone(),
         }))
         // Inside the CORS layer: a preflight is answered before it gets here,
         // and a refusal sent to an allowed origin still carries the header

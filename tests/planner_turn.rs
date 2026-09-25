@@ -99,6 +99,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
         sessions: sessions.clone(),
         bus: bus.clone(),
         allowed_origins: Vec::new(),
+        ui: tokio::sync::broadcast::channel(16).0,
         mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });

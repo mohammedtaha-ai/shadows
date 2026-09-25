@@ -112,6 +112,9 @@ impl From<StorageError> for Failure {
                     "the daemon refused its own request",
                 )
             }
+            StorageError::TaskNotInPlan(_) => {
+                return own(StatusCode::UNPROCESSABLE_ENTITY, ErrorCode::InvalidCommand);
+            }
             StorageError::ForkPointNotSupported => {
                 return own(
                     StatusCode::UNPROCESSABLE_ENTITY,
