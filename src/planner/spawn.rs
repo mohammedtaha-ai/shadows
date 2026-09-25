@@ -60,15 +60,26 @@ impl PlannerTurn {
             events,
         } = request;
         let span = tracing::info_span!(parent: None, "planner.turn", operation_id = %op_id, thread_id = %thread_id);
-        if let Err(reason) = sessions.prepare_turn(&thread_id, &opened, &settings).await {
-            tracing::info!(parent: &span, %reason, "planner.prepare_refused");
-            sessions.give_back_events(&thread_id, &opened, events).await;
-            runtime
-                .storage
-                .mark_operation_failed(&op_id, FailureStage::Prepare, &reason)
-                .await?;
-            return Ok(op_id);
-        }
+        // §13.8: what changed since the session last heard, read while this
+        // turn is still `Pending` and so not yet its thread's latest.
+        let context = sessions.setups().context_before_turn(&thread_id).await;
+        let prepared = match context {
+            Ok(context) => (sessions.prepare_turn(&thread_id, &opened, &settings).await)
+                .map(|()| context.into_iter().collect::<Vec<String>>()),
+            Err(error) => Err(error.to_string()),
+        };
+        let context = match prepared {
+            Ok(context) => context,
+            Err(reason) => {
+                tracing::info!(parent: &span, %reason, "planner.prepare_refused");
+                sessions.give_back_events(&thread_id, &opened, events).await;
+                runtime
+                    .storage
+                    .mark_operation_failed(&op_id, FailureStage::Prepare, &reason)
+                    .await?;
+                return Ok(op_id);
+            }
+        };
         let turn_end_seen = Arc::new(AtomicBool::new(false));
         let cancel_requested = Arc::new(AtomicBool::new(false));
         if let Err(_turn) = handles
@@ -145,6 +156,7 @@ impl PlannerTurn {
                 thread_id,
                 harness,
                 prompt,
+                context,
                 turn_end_seen,
                 cancel_requested,
                 span,

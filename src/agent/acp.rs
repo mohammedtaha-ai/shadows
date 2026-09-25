@@ -4,11 +4,11 @@ use std::path::Path;
 use agent_client_protocol::schema::{
     ProtocolVersion,
     v1::{
-        CancelNotification, ContentBlock, ForkSessionRequest, InitializeRequest, NewSessionRequest,
-        PermissionOptionKind, PromptRequest, RequestPermissionOutcome, RequestPermissionRequest,
-        RequestPermissionResponse, ResumeSessionRequest, SelectedPermissionOutcome,
-        SessionConfigOptionValue, SessionNotification, SessionUpdate,
-        SetSessionConfigOptionRequest, StopReason, TextContent,
+        CancelNotification, ContentBlock, ForkSessionRequest, HttpHeader, InitializeRequest,
+        McpServer, McpServerHttp, Meta, NewSessionRequest, PermissionOptionKind, PromptRequest,
+        RequestPermissionOutcome, RequestPermissionRequest, RequestPermissionResponse,
+        ResumeSessionRequest, SelectedPermissionOutcome, SessionConfigOptionValue,
+        SessionNotification, SessionUpdate, SetSessionConfigOptionRequest, StopReason, TextContent,
     },
 };
 use agent_client_protocol::{Agent, ByteStreams, Client, ConnectionTo};
@@ -24,6 +24,65 @@ pub enum SessionStart {
     New,
     Resume(String),
     Fork(String),
+}
+
+/// What a session opens with (spec §13.8's table): sent alike on
+/// `session/new`, `session/resume` and a fork's opening. On a resume Claude
+/// Code keeps the `append` its session was created with, but reads
+/// `mcp_servers` again, so a new adapter's grant reaches it.
+#[derive(Debug, Clone, Default)]
+pub struct SessionSetup {
+    /// Shadows' own MCP server.
+    pub mcp: Option<McpServerSpec>,
+    /// Appended to Claude Code's prompt, which is kept (`_meta.systemPrompt`).
+    pub append: Option<String>,
+    /// Pre-approved tools (`_meta.claudeCode.options.allowedTools`).
+    pub allowed_tools: Vec<String>,
+}
+
+/// One HTTP MCP server, reached with `Authorization: Bearer <bearer>`.
+#[derive(Clone)]
+pub struct McpServerSpec {
+    pub name: String,
+    pub url: String,
+    pub bearer: String,
+}
+
+/// The bearer is a live grant's token: never in a log line.
+impl std::fmt::Debug for McpServerSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("McpServerSpec")
+            .field("name", &self.name)
+            .field("url", &self.url)
+            .finish_non_exhaustive()
+    }
+}
+
+impl SessionSetup {
+    fn mcp_servers(&self) -> Vec<McpServer> {
+        self.mcp
+            .iter()
+            .map(|m| {
+                let auth = HttpHeader::new("Authorization", format!("Bearer {}", m.bearer));
+                McpServer::Http(McpServerHttp::new(&m.name, &m.url).headers(vec![auth]))
+            })
+            .collect()
+    }
+
+    fn meta(&self) -> Option<Meta> {
+        let mut meta = Meta::new();
+        if let Some(append) = &self.append {
+            meta.insert(
+                "systemPrompt".into(),
+                serde_json::json!({ "append": append }),
+            );
+        }
+        if !self.allowed_tools.is_empty() {
+            let options = serde_json::json!({ "options": { "allowedTools": self.allowed_tools } });
+            meta.insert("claudeCode".into(), options);
+        }
+        (!meta.is_empty()).then_some(meta)
+    }
 }
 
 #[derive(Debug)]
@@ -123,12 +182,26 @@ impl Connection {
         Ok(Self { cx })
     }
 
-    pub async fn start_session(&self, cwd: &Path, how: SessionStart) -> Result<Opened, AcpError> {
+    pub async fn start_session(
+        &self,
+        cwd: &Path,
+        how: SessionStart,
+        setup: &SessionSetup,
+    ) -> Result<Opened, AcpError> {
+        let (servers, meta) = (setup.mcp_servers(), setup.meta());
+        let resume = |id: String| {
+            ResumeSessionRequest::new(id, cwd)
+                .mcp_servers(servers.clone())
+                .meta(meta.clone())
+        };
         let (session_id, options) = match how {
             SessionStart::New => {
+                let request = NewSessionRequest::new(cwd)
+                    .mcp_servers(servers.clone())
+                    .meta(meta.clone());
                 let r = self
                     .cx
-                    .send_request(NewSessionRequest::new(cwd))
+                    .send_request(request)
                     .block_task()
                     .await
                     .map_err(rpc)?;
@@ -137,23 +210,26 @@ impl Connection {
             SessionStart::Resume(id) => {
                 let r = self
                     .cx
-                    .send_request(ResumeSessionRequest::new(id.clone(), cwd))
+                    .send_request(resume(id.clone()))
                     .block_task()
                     .await
                     .map_err(rpc)?;
                 (id, r.config_options)
             }
             SessionStart::Fork(src) => {
+                let request = ForkSessionRequest::new(src, cwd)
+                    .mcp_servers(servers.clone())
+                    .meta(meta.clone());
                 let fork = self
                     .cx
-                    .send_request(ForkSessionRequest::new(src, cwd))
+                    .send_request(request)
                     .block_task()
                     .await
                     .map_err(rpc)?;
                 let id = fork.session_id.to_string();
                 let r = self
                     .cx
-                    .send_request(ResumeSessionRequest::new(id.clone(), cwd))
+                    .send_request(resume(id.clone()))
                     .block_task()
                     .await
                     .map_err(rpc)?;
@@ -185,13 +261,21 @@ impl Connection {
         Ok(serde_json::to_value(r.config_options).unwrap_or(Value::Null))
     }
 
-    pub async fn prompt(&self, session: &str, text: &str) -> Result<TurnEnd, AcpError> {
+    /// The person's text is the first content block; each `context` entry
+    /// is one more text block after it (§13.8).
+    pub async fn prompt(
+        &self,
+        session: &str,
+        text: &str,
+        context: &[String],
+    ) -> Result<TurnEnd, AcpError> {
+        let blocks = std::iter::once(text)
+            .chain(context.iter().map(String::as_str))
+            .map(|t| ContentBlock::Text(TextContent::new(t)))
+            .collect();
         let r = self
             .cx
-            .send_request(PromptRequest::new(
-                session.to_owned(),
-                vec![ContentBlock::Text(TextContent::new(text))],
-            ))
+            .send_request(PromptRequest::new(session.to_owned(), blocks))
             .block_task()
             .await
             .map_err(rpc)?;

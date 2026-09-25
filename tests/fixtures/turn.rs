@@ -58,6 +58,8 @@ pub fn new_turn<'a>(
         agent_path: "fake_acp",
         agent_version: "fake-claude-1",
         settings,
+        prompt_version: Some(shadows::planner::prompt_version()),
+        instructions_version: None,
     }
 }
 

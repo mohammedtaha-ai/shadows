@@ -32,6 +32,10 @@ pub struct NewTurn<'a> {
     pub agent_path: &'a str,
     pub agent_version: &'a str,
     pub settings: &'a TurnSettings,
+    /// `planner::prompt_version()` when the turn started (§13.8).
+    pub prompt_version: Option<&'a str>,
+    /// The project's current `planner_instructions_version` id, if it has one.
+    pub instructions_version: Option<&'a str>,
 }
 
 /// What the command recorded; `replayed` when it had already happened.
@@ -91,6 +95,10 @@ impl Storage {
         let runtime = turn.runtime.clone();
         let prompt = turn.prompt.to_string();
         let settings = turn.settings.clone();
+        let versions = (
+            turn.prompt_version.map(str::to_owned),
+            turn.instructions_version.map(str::to_owned),
+        );
         let invocation = [
             turn.role,
             turn.harness_kind,
@@ -136,8 +144,9 @@ impl Storage {
                         "INSERT INTO agent_invocation
                            (id, operation_id, role, harness_kind, harness_path, harness_version,
                             agent_path, agent_version, requested_model, requested_mode,
-                            requested_effort, created_at)
-                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                            requested_effort, prompt_version,
+                            planner_instructions_version_id, created_at)
+                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     )
                     .bind(uuid::Uuid::new_v4().to_string())
                     .bind(op.as_str())
@@ -150,6 +159,8 @@ impl Storage {
                     .bind(&settings.model)
                     .bind(&settings.mode)
                     .bind(&settings.effort)
+                    .bind(&versions.0)
+                    .bind(&versions.1)
                     .bind(&ts)
                     .execute(&mut *conn)
                     .await?;
@@ -196,6 +207,29 @@ impl Storage {
             Some(outcome) => Ok(Some(recorded(&outcome)?)),
             None => Ok(None),
         }
+    }
+
+    /// `(prompt_version, planner_instructions_version_id)` of the thread's
+    /// latest invocation, by its turn's order (the ordinal of the turn's own
+    /// entry); `None` when it has none. Only a turn that started counts: one
+    /// refused or stopped before its prompt went out delivered nothing to the
+    /// session, and a turn being started now is still `Pending` (§13.8).
+    pub async fn latest_invocation_versions(
+        &self,
+        thread: &ThreadId,
+    ) -> Result<Option<(Option<String>, Option<String>)>, StorageError> {
+        Ok(sqlx::query_as(
+            "SELECT i.prompt_version, i.planner_instructions_version_id
+               FROM agent_invocation i
+               JOIN operation o ON o.id = i.operation_id
+               JOIN thread_entry e ON e.operation_id = o.id AND e.thread_id = o.thread_id
+              WHERE o.thread_id = ? AND o.started_at IS NOT NULL AND e.kind = 'UserMessage'
+              ORDER BY e.ordinal DESC
+              LIMIT 1",
+        )
+        .bind(thread.as_str())
+        .fetch_optional(self.reader())
+        .await?)
     }
 
     /// Whether the thread has a turn that has not ended: checked before a new

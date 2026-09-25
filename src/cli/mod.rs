@@ -29,6 +29,12 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     let version = harness_version(&config.harness_path).await;
     let adapter_version = adapter_version(&config.adapter_path);
     tracing::info!(adapter_version, claude_version = %version, "harness.versions");
+    // Bound first: a grant's `claude mcp add` names the address actually
+    // bound, which differs from `config.bind` when that asks for port 0, and
+    // every Planner session opens with that `/mcp` (§13.8).
+    let listener = tokio::net::TcpListener::bind(config.bind).await?;
+    let addr = listener.local_addr()?;
+    let mcp_url = format!("http://{addr}/mcp");
     let sessions = Sessions::new(
         Arc::new(ClaudeAdapter {
             node: config.node_path.clone(),
@@ -38,14 +44,13 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
             agent_version: version.clone(),
         }),
         Storage::open(&config.db_path).await?,
-        SessionsConfig::default(),
+        SessionsConfig {
+            mcp_url: Some(mcp_url.clone()),
+            ..SessionsConfig::default()
+        },
     );
     let (bus, _) = tokio::sync::broadcast::channel(4096);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
-    // Bound first: a grant's `claude mcp add` names the address actually
-    // bound, which differs from `config.bind` when that asks for port 0.
-    let listener = tokio::net::TcpListener::bind(config.bind).await?;
-    let addr = listener.local_addr()?;
     let state = AppState {
         runtime: runtime.clone(),
         storage,
@@ -53,7 +58,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         sessions: sessions.clone(),
         bus,
         allowed_origins: config.allowed_origins.clone(),
-        mcp_url: format!("http://{addr}/mcp"),
+        mcp_url,
         shutdown,
     };
 

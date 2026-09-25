@@ -17,7 +17,12 @@ use serde_json::Value;
 use shadows::mcp::grant::GrantId;
 use shadows::thread::ThreadId;
 
-use super::app::{App, test_app};
+use std::path::Path;
+
+use shadows::planner::SessionsConfig;
+
+use super::acp;
+use super::app::{App, test_app_with};
 use super::plan::issue_grant;
 
 /// A connected MCP client, as `mcp_client` answers it.
@@ -29,12 +34,31 @@ pub struct Listening {
     pub base: String,
 }
 
-/// `test_app()`, listening on `127.0.0.1` at a port the system chose. The
-/// server runs until the test's runtime ends.
+/// `test_app()`, listening on `127.0.0.1` at a port the system chose, its
+/// sessions opening with this `/mcp` (§13.8). The server runs until the
+/// test's runtime ends.
 pub async fn listening_app() -> Listening {
-    let app = test_app().await;
+    listening_with(acp::test_config()).await
+}
+
+/// As `listening_app`, with the sessions' own configuration.
+pub async fn listening_with(config: SessionsConfig) -> Listening {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut l = listening_at(tmp.path(), config).await;
+    l.app = l.app.owning(tmp);
+    l
+}
+
+/// As `listening_with`, on the database in `dir` (see `test_app_at`).
+pub async fn listening_at(dir: &Path, config: SessionsConfig) -> Listening {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
+    let mcp_url = format!("{base}/mcp");
+    let config = SessionsConfig {
+        mcp_url: Some(mcp_url.clone()),
+        ..config
+    };
+    let app = test_app_with(dir, config, &mcp_url).await;
     let router = app.router.clone();
     tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
     Listening { app, base }

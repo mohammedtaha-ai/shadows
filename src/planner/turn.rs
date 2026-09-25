@@ -78,6 +78,8 @@ pub(crate) struct TurnWatch {
     /// The thread's harness, whose account limits a usage report updates.
     pub harness: String,
     pub prompt: String,
+    /// Context blocks sent after the person's text (§13.8).
+    pub context: Vec<String>,
     pub turn_end_seen: Arc<AtomicBool>,
     pub cancel_requested: Arc<AtomicBool>,
     pub span: tracing::Span,
@@ -169,11 +171,8 @@ pub(crate) fn watch_turn(
         tracing::info!(session_id = %w.opened.session_id, how = w.opened.how, "agent.invocation.start");
         // Notifications between turns belong to neither prompt.
         while let Ok(stale) = rx.try_recv() { tracing::trace!(?stale, "planner.stale_event"); }
-        let connection = w.opened.connection().clone();
-        let session_id = w.opened.session_id.clone();
-        let prompt = w.prompt.clone();
         let answer = {
-            let prompt_future = connection.prompt(&session_id, &prompt);
+            let prompt_future = w.opened.connection().prompt(&w.opened.session_id, &w.prompt, &w.context);
             tokio::pin!(prompt_future);
             loop {
                 tokio::select! {

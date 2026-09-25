@@ -19,7 +19,9 @@ use crate::agent::policy;
 use crate::command::CommandContext;
 use crate::events::Actor;
 use crate::operation::{Operation, OperationId};
-use crate::planner::{LeaseError, OpenSession, PlannerTurn, PlannerTurnRequest, StopOutcome};
+use crate::planner::{
+    LeaseError, OpenSession, PlannerTurn, PlannerTurnRequest, StopOutcome, prompt_version,
+};
 use crate::storage::{NewTurn, StartedTurn, StorageError};
 use crate::thread::{ThreadEntry, ThreadId, TurnContext};
 
@@ -221,6 +223,8 @@ async fn record(
         adapter.adapter.to_string_lossy().into_owned(),
         adapter.agent.to_string_lossy().into_owned(),
     );
+    // §13.8: recorded so a later turn tells the session only what changed.
+    let instructions = (s.storage.current_planner_instructions(&context.project_id)).await?;
     let started = s
         .storage
         .start_turn(
@@ -236,6 +240,8 @@ async fn record(
                 agent_path: &agent_path,
                 agent_version: &adapter.agent_version,
                 settings,
+                prompt_version: Some(prompt_version()),
+                instructions_version: instructions.as_ref().map(|v| v.id.as_str()),
             },
         )
         .await;

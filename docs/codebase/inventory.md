@@ -15,13 +15,23 @@ declaration, this file only says that it exists and what shape it has. What each
 module *owns* is a judgement no generator can make — that lives in
 [README.md](./README.md).
 
-## `src/agent/acp.rs` — 297 lines
+## `src/agent/acp.rs` — 381 lines
 
 ```rust
 pub enum SessionStart {
     New,
     Resume(String),
     Fork(String),
+}
+pub struct SessionSetup {
+    pub mcp: Option<McpServerSpec>,
+    pub append: Option<String>,
+    pub allowed_tools: Vec<String>,
+}
+pub struct McpServerSpec {
+    pub name: String,
+    pub url: String,
+    pub bearer: String,
 }
 pub struct Opened {
     pub session_id: String,
@@ -41,9 +51,9 @@ pub struct Connection {}
 impl Connection {
     pub fn is_closed(&self) -> bool
     pub async fn open(handle: &mut ProcessHandle, events: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static) -> Result<Self, AcpError>
-    pub async fn start_session(&self, cwd: &Path, how: SessionStart) -> Result<Opened, AcpError>
+    pub async fn start_session(&self, cwd: &Path, how: SessionStart, setup: &SessionSetup) -> Result<Opened, AcpError>
     pub async fn set_option(&self, session: &str, config_id: &str, value: &str) -> Result<Value, AcpError>
-    pub async fn prompt(&self, session: &str, text: &str) -> Result<TurnEnd, AcpError>
+    pub async fn prompt(&self, session: &str, text: &str, context: &[String]) -> Result<TurnEnd, AcpError>
     pub fn cancel(&self, session: &str)
 }
 ```
@@ -169,7 +179,7 @@ pub fn is_available(kind: &str) -> bool
 pub fn default_modes() -> BTreeMap<String, Vec<String>>
 ```
 
-## `src/bin/fake_acp.rs` — 257 lines
+## `src/bin/fake_acp.rs` — 342 lines
 
 Nothing reachable from outside this file.
 
@@ -187,7 +197,7 @@ impl Cli {
 }
 ```
 
-## `src/cli/mod.rs` — 164 lines
+## `src/cli/mod.rs` — 169 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -572,7 +582,7 @@ impl LiveHandles {
 }
 ```
 
-## `src/planner/mod.rs` — 21 lines
+## `src/planner/mod.rs` — 23 lines
 
 ```rust
 pub use context::NoBreakdown;
@@ -580,6 +590,7 @@ pub use handles::LiveHandles;
 pub(crate) use handles::LiveTurn;
 pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig};
 pub use settings::ModelRefused;
+pub use setup::prompt_version;
 pub use shutdown::shut_down;
 pub use spawn::{PlannerTurnRequest, StartError};
 pub use turn::{PlannerTurn, StopOutcome};
@@ -601,13 +612,14 @@ impl Offers {
 pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, to: mpsc::UnboundedSender<HarnessEvent>) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static
 ```
 
-## `src/planner/sessions.rs` — 458 lines
+## `src/planner/sessions.rs` — 482 lines
 
 ```rust
 pub struct SessionsConfig {
     pub idle_after: Duration,
     pub cancel_wait: Duration,
     pub context_wait: Duration,
+    pub mcp_url: Option<String>,
 }
 pub enum OpenError {
     Storage(StorageError),
@@ -639,7 +651,7 @@ pub struct Sessions {
     pub(super) live: Mutex<HashMap<ThreadId, Live>>,
     pub(super) offers: Arc<Offers>,
 }
-// + 3 private fields
+// + 4 private fields
 impl Sessions {
     pub fn new(adapter: Arc<ClaudeAdapter>, storage: Storage, config: SessionsConfig) -> Arc<Self>
     pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError>
@@ -658,6 +670,7 @@ impl Sessions {
     pub async fn force_termination_failure(&self, thread: &ThreadId) -> bool
     pub fn adapter(&self) -> &ClaudeAdapter
     pub fn cancel_wait(&self) -> Duration
+    pub(crate) fn setups(&self) -> &Setups
 }
 
 pub(super) fn workspace(context: &TurnContext) -> Result<PathBuf, String>
@@ -679,13 +692,27 @@ impl Sessions {
 }
 ```
 
+## `src/planner/setup.rs` — 179 lines
+
+```rust
+pub fn prompt_version() -> &'static str
+pub(crate) struct Setups {}
+// + 3 private fields
+impl Setups {
+    pub(crate) fn new(storage: Arc<Storage>, mcp_url: Option<String>) -> Self
+    pub(crate) async fn for_opening(&self, thread: &ThreadId, project: &ProjectId) -> Result<SessionSetup, String>
+    pub(crate) async fn context_before_turn(&self, thread: &ThreadId) -> Result<Option<String>, StorageError>
+    pub(crate) async fn forget(&self, thread: &ThreadId)
+}
+```
+
 ## `src/planner/shutdown.rs` — 160 lines
 
 ```rust
 pub async fn shut_down(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, confirm_within: Duration, escalate: impl Future<Output = ()>) -> Result<StopKind, StorageError>
 ```
 
-## `src/planner/spawn.rs` — 157 lines
+## `src/planner/spawn.rs` — 169 lines
 
 ```rust
 pub enum StartError {
@@ -705,7 +732,7 @@ impl PlannerTurn {
 }
 ```
 
-## `src/planner/turn.rs` — 300 lines
+## `src/planner/turn.rs` — 299 lines
 
 ```rust
 pub struct PlannerTurn;
@@ -724,6 +751,7 @@ pub(crate) struct TurnWatch {
     pub thread_id: ThreadId,
     pub harness: String,
     pub prompt: String,
+    pub context: Vec<String>,
     pub turn_end_seen: Arc<AtomicBool>,
     pub cancel_requested: Arc<AtomicBool>,
     pub span: tracing::Span,
@@ -830,7 +858,7 @@ pub struct Project {
 }
 ```
 
-## `src/protocol/conversation.rs` — 333 lines
+## `src/protocol/conversation.rs` — 339 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
@@ -1263,7 +1291,7 @@ impl Transition {
 pub(super) async fn record(conn: &mut SqliteConnection, op_id: &OperationId, before: Before, to: &str, event: DurableEvent, ts: &str) -> Result<Transition, StorageError>
 ```
 
-## `src/storage/sqlite/turn.rs` — 207 lines
+## `src/storage/sqlite/turn.rs` — 241 lines
 
 ```rust
 pub struct NewTurn<'a> {
@@ -1277,6 +1305,8 @@ pub struct NewTurn<'a> {
     pub agent_path: &'a str,
     pub agent_version: &'a str,
     pub settings: &'a TurnSettings,
+    pub prompt_version: Option<&'a str>,
+    pub instructions_version: Option<&'a str>,
 }
 pub struct StartedTurn {
     pub operation_id: OperationId,
@@ -1287,6 +1317,7 @@ pub(super) async fn has_open_operation(conn: &mut SqliteConnection, thread: &Thr
 impl Storage {
     pub async fn start_turn(&self, ctx: &CommandContext, turn: NewTurn<'_>) -> Result<StartedTurn, StorageError>
     pub async fn replayed_turn(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<Option<StartedTurn>, StorageError>
+    pub async fn latest_invocation_versions(&self, thread: &ThreadId) -> Result<Option<(Option<String>, Option<String>)>, StorageError>
     pub async fn thread_is_busy(&self, thread: &ThreadId) -> Result<bool, StorageError>
 }
 ```

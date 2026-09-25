@@ -72,7 +72,10 @@ async fn fixture(config: SessionsConfig) -> Fixture {
 
 async fn prompt_text(fx: &Fixture, s: &OpenSession, text: &str) -> String {
     let mut events = fx.sessions.take_events(&fx.thread).await.unwrap();
-    s.connection().prompt(&s.session_id, text).await.unwrap();
+    s.connection()
+        .prompt(&s.session_id, text, &[])
+        .await
+        .unwrap();
     let mut result = String::new();
     while let Ok(event) = events.try_recv() {
         if let HarnessEvent::Chunk { text, .. } = event {
@@ -162,7 +165,7 @@ async fn idle_close_before_first_turn_discards_the_unrecorded_session() {
 async fn a_dead_connection_is_replaced_on_the_next_opening() {
     let fx = fixture(SessionsConfig::default()).await;
     let s = fx.sessions.open(&fx.thread).await.unwrap();
-    let _ = s.connection().prompt(&s.session_id, "exit").await;
+    let _ = s.connection().prompt(&s.session_id, "exit", &[]).await;
     let again = fx.sessions.open(&fx.thread).await.unwrap();
     assert_eq!(prompt_text(&fx, &again, "hi").await, "hello from fake_acp");
     fx.sessions.close_all().await.unwrap();

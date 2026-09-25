@@ -36,6 +36,7 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/protocol/instructions.rs` | the routes over a project's Planner instructions | `src/protocol/instructions.rs` |
 | `src/planner/sessions.rs` | the live adapter connection each open thread holds | `src/planner/sessions.rs` |
 | `src/planner/settings.rs` | setting an open session's options | `src/planner/settings.rs` |
+| `src/planner/setup.rs` | what a Planner session opens with | `src/planner/setup.rs` |
 | `src/planner/turn.rs` | the recorded ending of a live Planner turn | `src/planner/turn.rs` |
 | `src/planner/entries.rs` | turning harness events into durable entries | `src/planner/entries.rs` |
 | `src/bin/` | test apparatus that no product code links | `src/bin/tree_probe.rs` |

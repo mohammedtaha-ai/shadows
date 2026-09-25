@@ -23,7 +23,7 @@ use shadows::agent::events::HarnessEvent;
 use shadows::agent::policy;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::operation::{Operation, OperationId};
-use shadows::planner::{LiveHandles, Sessions};
+use shadows::planner::{LiveHandles, Sessions, SessionsConfig};
 use shadows::project::{ProjectDirectory, ProjectId};
 use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
@@ -63,15 +63,27 @@ pub fn ctx(id: &str, kind: &str) -> CommandContext {
 
 pub async fn test_app() -> App {
     let tmp = tempfile::tempdir().unwrap();
-    let mut app = test_app_at(tmp.path()).await;
-    app._tmp = Some(tmp);
-    app
+    test_app_at(tmp.path()).await.owning(tmp)
+}
+
+impl App {
+    /// The app, keeping `tmp` (its directory) until it is dropped.
+    pub fn owning(mut self, tmp: tempfile::TempDir) -> Self {
+        self._tmp = Some(tmp);
+        self
+    }
 }
 
 /// A daemon on the database in `dir`. Called twice on one directory, the
 /// second is the first one restarted: the project and thread are found again,
 /// not created twice.
 pub async fn test_app_at(dir: &Path) -> App {
+    test_app_with(dir, acp::test_config(), acp::MCP_URL).await
+}
+
+/// As `test_app_at`, with the sessions' own configuration and the `/mcp` URL
+/// the daemon reports.
+pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) -> App {
     let db = dir.join("s.sqlite3");
     let storage = Arc::new(Storage::open(&db).await.unwrap());
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
@@ -99,7 +111,7 @@ pub async fn test_app_at(dir: &Path) -> App {
     let sessions = Sessions::new(
         acp::fake_adapter(),
         Storage::open(&db).await.unwrap(),
-        acp::test_config(),
+        config,
     );
     let handles = Arc::new(LiveHandles::default());
     let (bus, _) = tokio::sync::broadcast::channel(256);
@@ -111,7 +123,7 @@ pub async fn test_app_at(dir: &Path) -> App {
         sessions: sessions.clone(),
         bus: bus.clone(),
         allowed_origins: Vec::new(),
-        mcp_url: acp::MCP_URL.to_string(),
+        mcp_url: mcp_url.to_string(),
         shutdown,
     });
     App {

@@ -1,7 +1,7 @@
 use std::{path::PathBuf, time::Duration};
 
 use shadows::agent::{
-    acp::{AcpError, Connection, SessionStart, TurnEnd},
+    acp::{AcpError, Connection, SessionSetup, SessionStart, TurnEnd},
     claude::ClaudeAdapter,
     events::HarnessEvent,
 };
@@ -47,11 +47,14 @@ fn drain(rx: &mut mpsc::UnboundedReceiver<HarnessEvent>) -> Vec<HarnessEvent> {
 #[tokio::test]
 async fn a_new_session_answers_its_options_and_a_prompt_streams_then_ends() {
     let (_h, c, mut ev) = open_fake().await;
-    let opened = c.start_session(&tmp(), SessionStart::New).await.unwrap();
+    let opened = c
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
+        .await
+        .unwrap();
     assert!(opened.session_id.starts_with("fake-"));
     assert!(opened.options.to_string().contains("fake-large"));
     assert_eq!(
-        c.prompt(&opened.session_id, "hi").await.unwrap(),
+        c.prompt(&opened.session_id, "hi", &[]).await.unwrap(),
         TurnEnd::Ended
     );
     let chunks = drain(&mut ev);
@@ -64,13 +67,13 @@ async fn a_new_session_answers_its_options_and_a_prompt_streams_then_ends() {
 async fn a_cancelled_prompt_answers_cancelled() {
     let (_h, c, _ev) = open_fake().await;
     let s = c
-        .start_session(&tmp(), SessionStart::New)
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
         .await
         .unwrap()
         .session_id;
     let c2 = c.clone();
     let s2 = s.clone();
-    let turn = tokio::spawn(async move { c2.prompt(&s2, "hang").await });
+    let turn = tokio::spawn(async move { c2.prompt(&s2, "hang", &[]).await });
     tokio::time::sleep(Duration::from_millis(200)).await;
     c.cancel(&s);
     assert_eq!(turn.await.unwrap().unwrap(), TurnEnd::Cancelled);
@@ -80,11 +83,11 @@ async fn a_cancelled_prompt_answers_cancelled() {
 async fn a_permission_request_is_refused_and_reported() {
     let (_h, c, mut ev) = open_fake().await;
     let s = c
-        .start_session(&tmp(), SessionStart::New)
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
         .await
         .unwrap()
         .session_id;
-    c.prompt(&s, "ask-permission").await.unwrap();
+    c.prompt(&s, "ask-permission", &[]).await.unwrap();
     let got = drain(&mut ev);
     assert!(got.iter().any(
         |e| matches!(e, HarnessEvent::PermissionRefused { title } if title == "Run echo probe")
@@ -98,7 +101,7 @@ async fn a_permission_request_is_refused_and_reported() {
 async fn setting_the_model_answers_the_new_effort_list() {
     let (_h, c, _ev) = open_fake().await;
     let s = c
-        .start_session(&tmp(), SessionStart::New)
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
         .await
         .unwrap()
         .session_id;
@@ -110,11 +113,11 @@ async fn setting_the_model_answers_the_new_effort_list() {
 async fn a_process_that_exits_mid_prompt_is_closed() {
     let (_h, c, _ev) = open_fake().await;
     let s = c
-        .start_session(&tmp(), SessionStart::New)
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
         .await
         .unwrap()
         .session_id;
-    let result = c.prompt(&s, "exit").await;
+    let result = c.prompt(&s, "exit", &[]).await;
     assert!(matches!(result, Err(AcpError::Closed)), "{result:?}");
 }
 
@@ -122,11 +125,11 @@ async fn a_process_that_exits_mid_prompt_is_closed() {
 async fn usage_carries_context_model_and_rate_limit() {
     let (_h, c, mut ev) = open_fake().await;
     let s = c
-        .start_session(&tmp(), SessionStart::New)
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
         .await
         .unwrap()
         .session_id;
-    c.prompt(&s, "usage").await.unwrap();
+    c.prompt(&s, "usage", &[]).await.unwrap();
     let usages: Vec<_> = drain(&mut ev)
         .into_iter()
         .filter_map(|e| match e {
@@ -152,11 +155,11 @@ async fn usage_carries_context_model_and_rate_limit() {
 async fn a_tool_call_reports_its_real_title_and_final_status() {
     let (_h, c, mut ev) = open_fake().await;
     let s = c
-        .start_session(&tmp(), SessionStart::New)
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
         .await
         .unwrap()
         .session_id;
-    c.prompt(&s, "two-messages").await.unwrap();
+    c.prompt(&s, "two-messages", &[]).await.unwrap();
     let tools: Vec<_> = drain(&mut ev)
         .into_iter()
         .filter_map(|e| match e {
@@ -178,17 +181,21 @@ async fn a_tool_call_reports_its_real_title_and_final_status() {
 async fn a_fork_is_resumed_before_it_is_answered() {
     let (_h, c, _ev) = open_fake().await;
     let src = c
-        .start_session(&tmp(), SessionStart::New)
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
         .await
         .unwrap()
         .session_id;
     let fork = c
-        .start_session(&tmp(), SessionStart::Fork(src.clone()))
+        .start_session(
+            &tmp(),
+            SessionStart::Fork(src.clone()),
+            &SessionSetup::default(),
+        )
         .await
         .unwrap();
     assert_eq!(fork.session_id, format!("fork-of-{src}"));
     assert_eq!(
-        c.prompt(&fork.session_id, "hi").await.unwrap(),
+        c.prompt(&fork.session_id, "hi", &[]).await.unwrap(),
         TurnEnd::Ended
     );
 }
@@ -197,7 +204,7 @@ async fn a_fork_is_resumed_before_it_is_answered() {
 async fn a_model_the_account_cannot_use_is_refused_with_the_harness_message() {
     let (_h, c, _ev) = open_fake().await;
     let s = c
-        .start_session(&tmp(), SessionStart::New)
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
         .await
         .unwrap()
         .session_id;
@@ -209,12 +216,12 @@ async fn a_model_the_account_cannot_use_is_refused_with_the_harness_message() {
 async fn a_refused_prompt_names_the_acp_stop_reason() {
     let (_h, c, _ev) = open_fake().await;
     let s = c
-        .start_session(&tmp(), SessionStart::New)
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
         .await
         .unwrap()
         .session_id;
     assert_eq!(
-        c.prompt(&s, "refuse").await.unwrap(),
+        c.prompt(&s, "refuse", &[]).await.unwrap(),
         TurnEnd::Refused("max_tokens".into())
     );
 }
@@ -245,12 +252,12 @@ fn claude_adapter_launches_node_with_the_explicit_agent() {
 async fn changing_model_adjusts_mode_and_resuming_starts_at_personal_defaults() {
     let (_h, c, mut ev) = open_fake().await;
     let s = c
-        .start_session(&tmp(), SessionStart::New)
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
         .await
         .unwrap()
         .session_id;
     c.set_option(&s, "model", "fake-small").await.unwrap();
-    assert_eq!(c.prompt(&s, "report").await.unwrap(), TurnEnd::Ended);
+    assert_eq!(c.prompt(&s, "report", &[]).await.unwrap(), TurnEnd::Ended);
     let changed = drain(&mut ev)
         .into_iter()
         .find_map(|e| match e {
@@ -266,10 +273,14 @@ async fn changing_model_adjusts_mode_and_resuming_starts_at_personal_defaults() 
         c.set_option(&s, "mode", "auto").await,
         Err(AcpError::Rpc(_))
     ));
-    c.start_session(&tmp(), SessionStart::Resume(s.clone()))
-        .await
-        .unwrap();
-    c.prompt(&s, "report").await.unwrap();
+    c.start_session(
+        &tmp(),
+        SessionStart::Resume(s.clone()),
+        &SessionSetup::default(),
+    )
+    .await
+    .unwrap();
+    c.prompt(&s, "report", &[]).await.unwrap();
     let resumed = drain(&mut ev)
         .into_iter()
         .find_map(|e| match e {
