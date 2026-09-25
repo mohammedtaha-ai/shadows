@@ -10,8 +10,9 @@ restate them.
 ## Where we are
 
 **Milestone 2 (§13, the Planner writes a plan) is being built** on branch
-`milestone-2/plan-workflow`. The backend and the first two web tasks are done.
-Still to do: W2's review, W3, the whole-branch review, and Mohammed's run.
+`milestone-2/plan-workflow-ggu7l6`. Every task and the whole-branch review are done
+(302 Rust, 135 web tests). Still to do: Mohammed's run on Windows (§13.14), its
+evidence, and the PR.
 Handoff and ledger:
 [`superpowers/plans/2026-09-25-milestone-2-execution-ledger.md`](./superpowers/plans/2026-09-25-milestone-2-execution-ledger.md).
 

@@ -6,8 +6,7 @@
 
 ## Handoff — where it stands (2026-09-25)
 
-Branch `milestone-2/plan-workflow`, not pushed. Everything up to W2's implementation is
-committed; the tree is clean.
+Branch pushed as `milestone-2/plan-workflow-ggu7l6` (the desktop's `milestone-2/plan-workflow` is behind it — pull this one). All code tasks and the whole-branch review are committed; the tree is clean.
 
 | Task | State |
 |---|---|
@@ -17,7 +16,7 @@ committed; the tree is clean.
 | W1 (plan page + graph) | done and reviewed (one fix round) — 116 web tests |
 | W2 (plan in the conversation) | done and reviewed (opus, cloud) — 125 web tests |
 | W3 (project settings) | done and reviewed (opus, cloud) — 133 web tests |
-| Task I | not started: whole-branch review, then Mohammed's run on Windows (§13.14's nine steps), evidence, status, PR only when Mohammed says |
+| Task I | step 1 (whole-branch review) done — 302 Rust, 135 web. **Next: Mohammed's Windows run** (§13.14's nine steps; watch list at the end of the ledger), evidence, status, PR only when Mohammed says |
 
 ### Next steps, in order
 1. **Review W2**: range `21e74b9..9476bb4`. Brief = plan's "Task W2"; implementer report
@@ -179,3 +178,7 @@ Task W3: complete (commits b733646..db09c8b, opus review fixed 2 Important: sett
 - Ruling (reviewer's view): no "Done" button for the shown command — §13.7/§13.11 ask only for once + Copy + notice; leaving the page drops it — cost if wrong: one button.
 Task W3: minor (deferred): every Revoke button shares one accessible name (external-agents.tsx:137); a save from another tab while this one has unsaved edits is overwritten silently on Save (instructions-editor.tsx:40).
 Web (W1–W3) complete: 133 web. Task I step 1 (whole-branch review, opus): dispatched, BASE db09c8b.
+Task I step 1: complete (commits 9b97251..33b9887, opus whole-branch review). Fixed 1 Important: prompt.txt never named plan_show nor how to reach an earlier version (§13.14 step 2 depended on it) — new prompt_version, so existing threads get the new instructions once. Fixed minors: approved-version banner (§13.11 amended), B6 Draft source → INVALID_COMMAND (§13.6 amended), F2 startApp cleanup, W2 Fork on a plan card (forks from the hidden last entry; fork rule unchanged), W3 per-grant Revoke labels. Controller re-ran the gate: 302 Rust, 135 web, fmt/clippy clean.
+- Left (for a follow-up, one backend change): tool entries store only `[tool: title]`, so a refused plan_edit still reads "Plan edited" and tool lines lack "· N changes"/Open plan (src/planner/entries.rs, src/planner/turn.rs:88). Blocks none of §13.14.
+- Left: B7 save race (repeats one block at most); W3 cross-tab save overwrites silently (every version is kept); src/storage/sqlite/mod.rs at 304 lines, one job (facade + its errors).
+Windows-run watch list from the review: (1) tool lines read "Plan started/edited" only if the adapter titles MCP tools `mcp__shadows__<name>`; (3) a refused cycle's line still says "Plan edited"; (4) Fork on "Plan v1 approved" is refused (pre-M2 rule); (6) an externally started thread appears in the sidebar only after refocus/reload; record what Claude Code shows after Revoke; (9) check `SELECT kind, revoked_at FROM mcp_grant` — every thread row revoked except the one the reopened conversation issued.
