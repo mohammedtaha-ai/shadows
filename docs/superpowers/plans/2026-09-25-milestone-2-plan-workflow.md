@@ -16,6 +16,7 @@
 - Every subagent runs on opus, stated explicitly in the dispatch.
 - Read `docs/codebase/README.md` and `docs/codebase/inventory.md` first; open only the files a task names (CLAUDE.md "How agents work here").
 - `rmcp = { version = "=3.4.1", default-features = false, features = ["server", "macros", "transport-streamable-http-server"] }`. **Never** enable `transport-child-process` or `which-command`: `tokio::process` stays private to `process/`. The test client features (`client`, `transport-streamable-http-client-reqwest`) are enabled only through the `test-support` feature.
+- Rust dependencies added in this milestone, besides `rmcp`: `petgraph = "0.8"` (B1, the cycle check) and `schemars = "1"` (B6, the same major `rmcp` 3.4.1's `server` feature pulls in, for tool input schemas). Library-first: a hand-written graph algorithm or JSON Schema is a defect.
 - Web dependencies added in this milestone, exactly: `@xyflow/react` and `@dagrejs/dagre`. Not `dagre`.
 - Link kinds are the strings `needs` and `completes_after`. Plan states used: `Draft`, `Frozen`; the client shows `Frozen` as "Approved".
 - Error codes: add `WorkflowFrozenImmutable` (409), `WorkflowValidationFailed` (422), `RevisionConflict` (409), `GrantScope`, `GrantInvalid` (MCP tool results only) to `src/error.rs`. Wire names are the existing SCREAMING_SNAKE rendering.
@@ -294,47 +295,32 @@ fn arabic_text_survives_an_edit() {
 ```
 
 - [ ] **Step 2: Run** `cargo test --test workflow_rules`. Expected: compile failure (`workflow` not found).
-- [ ] **Step 3: Implement.** The cycle check in `check.rs`:
+- [ ] **Step 3: Implement.** The cycle check in `check.rs` uses `petgraph` (library-first; `petgraph = "0.8"` added to `Cargo.toml` in this task):
 
 ```rust
+use petgraph::{algo::tarjan_scc, graph::DiGraph};
+
 /// §13.4: each task is two events, start and complete, start before complete.
 /// `B needs A`: complete(A) → start(B). `B completes_after A`: complete(A) → complete(B).
+/// A cycle is a strongly connected set of more than one event; its tasks are
+/// named, never a task that merely comes after it. When several exist, the one
+/// whose sorted task list is smallest is reported, so the message is stable.
 fn cycle(content: &PlanContent) -> Option<Vec<u32>> {
-    let numbers: Vec<u32> = content.tasks.keys().copied().collect();
-    let index = |n: u32| numbers.iter().position(|&m| m == n);
-    let (start, complete) = (|i: usize| 2 * i, |i: usize| 2 * i + 1);
-    let mut edges = vec![Vec::new(); numbers.len() * 2];
-    for i in 0..numbers.len() { edges[start(i)].push(complete(i)); }
+    let mut g = DiGraph::<u32, ()>::new();
+    let events: std::collections::BTreeMap<u32, _> = content.tasks.keys()
+        .map(|&n| { let s = g.add_node(n); let c = g.add_node(n); g.add_edge(s, c, ()); (n, (s, c)) })
+        .collect();
     for l in &content.links {
-        let (Some(b), Some(a)) = (index(l.task), index(l.after)) else { continue };
-        let to = match l.kind { LinkKind::Needs => start(b), LinkKind::CompletesAfter => complete(b) };
-        edges[complete(a)].push(to);
+        if l.task == l.after { continue; } // reported as "cannot be linked to itself"
+        let (Some(&(b_start, b_complete)), Some(&(_, a_complete))) = (events.get(&l.task), events.get(&l.after))
+            else { continue }; // reported as a missing task
+        let to = match l.kind { LinkKind::Needs => b_start, LinkKind::CompletesAfter => b_complete };
+        g.add_edge(a_complete, to, ());
     }
-    // Depth-first with colours: an edge to a node still on the stack closes a
-    // cycle, read off the stack — only the tasks on it, never ones merely after it.
-    let mut colour = vec![0u8; edges.len()]; // 0 unvisited, 1 on the stack, 2 done
-    for root in 0..edges.len() {
-        if colour[root] != 0 { continue; }
-        colour[root] = 1;
-        let mut stack: Vec<(usize, usize)> = vec![(root, 0)];
-        while let Some(top) = stack.len().checked_sub(1) {
-            let (v, i) = stack[top];
-            let Some(&t) = edges[v].get(i) else { colour[v] = 2; stack.pop(); continue };
-            stack[top].1 += 1;
-            match colour[t] {
-                0 => { colour[t] = 1; stack.push((t, 0)); }
-                1 => {
-                    let from = stack.iter().position(|&(u, _)| u == t).expect("on the stack");
-                    let mut tasks: Vec<u32> = stack[from..].iter().map(|&(u, _)| numbers[u / 2]).collect();
-                    tasks.sort_unstable();
-                    tasks.dedup();
-                    return Some(tasks);
-                }
-                _ => {}
-            }
-        }
-    }
-    None
+    tarjan_scc(&g).into_iter()
+        .filter(|scc| scc.len() > 1)
+        .map(|scc| { let mut t: Vec<u32> = scc.iter().map(|&i| g[i]).collect(); t.sort_unstable(); t.dedup(); t })
+        .min()
 }
 ```
 
@@ -745,6 +731,7 @@ Cargo:
 
 ```toml
 rmcp = { version = "=3.4.1", default-features = false, features = ["server", "macros", "transport-streamable-http-server"] }
+schemars = "1"   # the major rmcp 3.4.1's `server` feature uses; tool input schemas are derived, never hand-written
 reqwest = { version = "0.12", optional = true, default-features = false, features = ["json", "rustls-tls"] }
 
 [features]
@@ -756,7 +743,8 @@ test-support = ["rmcp/client", "rmcp/transport-streamable-http-client-reqwest", 
 Behaviour (§13.6):
 - `auth.rs` is an axum middleware on the `/mcp` router: `Authorization: Bearer <t>` → `storage.grant_for_token(t)`; none or `None` → **401** with an empty body; otherwise insert the `Grant` into the request extensions. The existing `refuse_foreign_pages` guard runs first (403 `ORIGIN_REFUSED` for a foreign `Origin`).
 - `server.rs`: the handler reads the `Grant` from the request extensions `rmcp` passes to the tool context (`RequestContext` → `extensions` → `http::request::Parts` → `extensions`); confirm the exact path in `rmcp` 3.4.1's `transport::streamable_http_server` docs before writing it, and state in the task report which it was. `list_tools` returns only the grant kind's tools (table in §13.6; `plan_show` arrives in B8). A call to a tool outside the list answers the JSON-RPC "tool not found" error `rmcp` produces for an unknown tool.
-- Stateless: configure the Streamable HTTP service with no protocol sessions (MCP 2026-07-28; record in the report which `rmcp` config field does this).
+- Stateless: `StreamableHttpServerConfig { legacy_session_mode: false, json_response: true, .. }` (Task 0: Claude Code 2.1.281 opens with `server/discover` at `2026-07-28`, which `rmcp` always serves statelessly, and falls back to `initialize` at `2025-11-25` for servers without it; `legacy_session_mode: false` keeps the fallback stateless too). Do not enable the `transport-streamable-http-server-session` feature. `rmcp`'s own `allowed_hosts` default is loopback-only, which matches the daemon's bind; leave its `allowed_origins` empty — the daemon's `refuse_foreign_pages` guard owns Origin.
+- Tools are declared with `rmcp`'s `#[tool_router]`/`#[tool]` macros and `Parameters<T>`; argument types derive `schemars::JsonSchema`, and so do the workflow content types they embed (`PlanOp`, `TaskContent`, `Link`, `LinkKind`, `AcceptanceItem` — add the derive in `src/workflow/` in this task; `domain stays pure` concerns persistence imports only).
 - `tools.rs`:
   - `workflow_get { workflow_id? }` — thread grant: its thread's latest version (`thread_plan`), `workflow_id` ignored if given and different → `GRANT_SCOPE`; project grant: required, must be in the grant's project → else `GRANT_SCOPE`.
   - `task_get { workflow_id?, number }`.
