@@ -25,10 +25,7 @@ export function InstructionsEditor({ projectId }: { projectId: string }) {
         </p>
       </div>
       {saved.error !== null && <ErrorLine error={saved.error} />}
-      {saved.data !== undefined && (
-        // Keyed by version, so a save that lands elsewhere replaces the text.
-        <Editor key={saved.data?.number ?? 0} projectId={projectId} saved={saved.data} />
-      )}
+      {saved.data !== undefined && <Editor projectId={projectId} saved={saved.data} />}
     </section>
   )
 }
@@ -36,6 +33,15 @@ export function InstructionsEditor({ projectId }: { projectId: string }) {
 function Editor({ projectId, saved }: { projectId: string; saved: InstructionsVersion | null }) {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState(saved?.body ?? '')
+  // The version the draft was last in step with. A newer one — this page's
+  // own save, or another tab's brought by a refetch — replaces the text only
+  // when the person has not changed it since; unsaved edits, including those
+  // typed while a save was on its way, are never overwritten.
+  const [base, setBase] = useState(saved)
+  if ((saved?.number ?? 0) !== (base?.number ?? 0)) {
+    setBase(saved)
+    if (draft === (base?.body ?? '')) setDraft(saved?.body ?? '')
+  }
   const pending = useRef<Attempt | null>(null)
 
   const save = useMutation({

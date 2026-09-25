@@ -27,8 +27,11 @@ export function ProjectSettings() {
             </p>
           )}
         </header>
-        <InstructionsEditor projectId={projectId} />
-        <ExternalAgents projectId={projectId} />
+        {/* The router keeps this page mounted when only the project changes, so
+            each section is keyed by it: one project's unsaved draft, pending
+            command id or one-time Connect command never shows under another. */}
+        <InstructionsEditor key={`instructions-${projectId}`} projectId={projectId} />
+        <ExternalAgents key={`agents-${projectId}`} projectId={projectId} />
       </div>
     </div>
   )

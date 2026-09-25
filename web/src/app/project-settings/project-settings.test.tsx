@@ -123,6 +123,45 @@ describe('project settings', () => {
     expect(document.querySelectorAll('[data-grant]')).toHaveLength(2)
   })
 
+  it('a newer version fetched in the background keeps unsaved edits', async () => {
+    const table = answers({
+      instructions: { body: 'Plan in small steps.', number: 1, created_at: '2026-09-24T08:00:00Z' },
+    })
+    const app = (open = await startApp(PAGE, table))
+    await until(() => textarea()?.value === 'Plan in small steps.')
+    typeInto(textarea()!, 'Plan in small steps, and ask first.')
+
+    // Another tab saved version 2; a refetch (on focus, say) brings it here.
+    table['GET /api/projects/p1/planner-instructions'] = {
+      body: 'Saved elsewhere.',
+      number: 2,
+      created_at: '2026-09-25T08:00:00Z',
+    }
+    await act(() => app.queryClient.invalidateQueries())
+    await until(() => app.text().includes('version 2'))
+    expect(textarea()?.value).toBe('Plan in small steps, and ask first.')
+  })
+
+  it("another project's settings do not show this one's command or draft", async () => {
+    const table = answers()
+    table['GET /api/projects/p2/planner-instructions'] = null
+    table['GET /api/projects/p2/mcp-grants'] = []
+    const app = (open = await startApp(PAGE, table))
+    await until(() => app.button('Connect') !== undefined && textarea() !== null)
+    typeInto(textarea()!, 'Only for p1.')
+    click(app, 'Connect')
+    await until(() => codeBlocks().length === 1)
+
+    const { router } = await import('@/router')
+    await act(() =>
+      router.navigate({ to: '/projects/$projectId/settings', params: { projectId: 'p2' } }),
+    )
+    await until(() => app.calls.includes('GET /api/projects/p2/mcp-grants'))
+    await until(() => textarea() !== null)
+    expect(codeBlocks()).toHaveLength(0)
+    expect(textarea()?.value).toBe('')
+  })
+
   it('the grant list is polled every 10 s while the page is open', async () => {
     const app = (open = await startApp(PAGE, answers()))
     await until(() => app.calls.includes('GET /api/projects/p1/mcp-grants'))

@@ -7,30 +7,33 @@
 // Planner's grant belongs to its session and is not the person's to manage.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, PlugZap } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { type Grant, type IssuedGrant, issueGrant, revokeGrant } from '@/api/client'
+import { PlugZap } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { type Grant, issueGrant, revokeGrant } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { grantsQuery } from '@/api/queries'
 import { Button } from '@/components/ui/button'
+import { CopyButton } from '../copy-button'
 import { ErrorLine } from '../error-line'
 import { when } from './when'
-
-/** How long "Copied" shows after a copy. */
-const COPIED_MS = 1500
 
 export function ExternalAgents({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient()
   // Polled every 10 s while shown (see `grantsQuery`).
   const grants = useQuery(grantsQuery(projectId))
-  const [issued, setIssued] = useState<IssuedGrant | null>(null)
+  // What the last Connect answered: its command, or `null` for a replay that
+  // no longer has one; `undefined` before any.
+  const [issued, setIssued] = useState<string | null | undefined>(undefined)
   const pending = useRef<Attempt | null>(null)
 
   const connect = useMutation({
     mutationFn: (commandId: string) => issueGrant(projectId, commandId),
+    // The answer holds the token: dropped from the shared mutation cache as
+    // soon as this page no longer watches it, so only `issued` ever has it.
+    gcTime: 0,
     onSuccess: (answer) => {
       pending.current = null
-      setIssued(answer)
+      setIssued(answer.token != null ? (answer.command ?? null) : null)
       void queryClient.invalidateQueries({ queryKey: grantsQuery(projectId).queryKey })
     },
   })
@@ -59,7 +62,7 @@ export function ExternalAgents({ projectId }: { projectId: string }) {
         </Button>
       </div>
       {connect.error !== null && <ErrorLine error={connect.error} />}
-      {issued !== null && <Issued issued={issued} />}
+      {issued !== undefined && <Issued command={issued} />}
       {grants.error !== null && <ErrorLine error={grants.error} />}
       {shown !== undefined && shown.length === 0 && (
         <p className="text-xs text-faint-foreground">No external agent is connected.</p>
@@ -72,29 +75,13 @@ export function ExternalAgents({ projectId }: { projectId: string }) {
 }
 
 /** Connect's answer: the command to copy, or why a replay has none. */
-function Issued({ issued }: { issued: IssuedGrant }) {
-  const command = issued.token != null ? issued.command : null
-  const [copied, setCopied] = useState(false)
-  useEffect(() => {
-    if (!copied) return
-    const timer = setTimeout(() => setCopied(false), COPIED_MS)
-    return () => clearTimeout(timer)
-  }, [copied])
-
-  if (command == null) {
+function Issued({ command }: { command: string | null }) {
+  if (command === null) {
     return (
       <p className="rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
         This connection was already created; its command is no longer shown. Revoke it and connect
         again if you need it.
       </p>
-    )
-  }
-
-  const copy = () => {
-    navigator.clipboard.writeText(command).then(
-      () => setCopied(true),
-      // The browser refused: nothing was copied, and the button does not say it was.
-      () => setCopied(false),
     )
   }
 
@@ -107,15 +94,7 @@ function Issued({ issued }: { issued: IssuedGrant }) {
         <pre className="min-w-0 flex-1 overflow-x-auto rounded bg-background px-2 py-1.5 font-mono text-xs">
           {command}
         </pre>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={copy}
-          aria-label={copied ? 'Copied' : 'Copy'}
-          title={copied ? 'Copied' : 'Copy'}
-        >
-          {copied ? <Check /> : <Copy />}
-        </Button>
+        <CopyButton text={command} size="sm" />
       </div>
       <p className="text-xs text-muted-foreground">
         Claude Code stores this token in plain text in ~/.claude.json. Revoking it here stops
