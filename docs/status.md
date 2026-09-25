@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-09-24 (after the Phase B run)
+**Updated:** 2026-09-25 (after Milestone 2's Windows run)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,10 +9,14 @@ restate them.
 
 ## Where we are
 
-**Milestone 2 (§13, the Planner writes a plan) is being built** on branch
-`milestone-2/plan-workflow-ggu7l6`. Every task and the whole-branch review are done
-(302 Rust, 135 web tests). Still to do: Mohammed's run on Windows (§13.14), its
-evidence, and the PR.
+**Milestone 2 (§13, the Planner writes a plan) is built and Mohammed ran it on
+Windows** (branch `milestone-2/plan-workflow`; 304 Rust, 135 web tests). A
+12-task plan, Approve freezing v1 while an edit made v2, project instructions
+reaching both a new and an existing conversation, and Connect and Revoke from
+an external Claude Code all worked. The run found that a harness opening took
+up to 5.7 s against a 5 s bound, which is now fixed:
+[`evidence/milestone2/WINDOWS_RUN.md`](./evidence/milestone2/WINDOWS_RUN.md).
+Still to do: the PR.
 Handoff and ledger:
 [`superpowers/plans/2026-09-25-milestone-2-execution-ledger.md`](./superpowers/plans/2026-09-25-milestone-2-execution-ledger.md).
 

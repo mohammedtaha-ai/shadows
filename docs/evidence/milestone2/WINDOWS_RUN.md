@@ -19,8 +19,98 @@ Read from the debug log `shadows-20260925T174327Z-20464.log`:
 His verdict: the result is good as a first version; the larger idea behind
 Shadows is not in it yet.
 
-The log records no Approve, no edit of project instructions, and no Connect or
-Revoke, so §13.14's steps 4–6 were not run.
+That log records no Approve, no edit of project instructions, and no Connect
+or Revoke. Steps 4–6 were run after the fix below. Steps 1–3 were used, not
+checked item by item. The plan has 12 tasks and 18 links, and the Planner showed
+it with `plan_show`, but whether a cycle was refused was not checked.
+
+## Step 4: an approved plan is not edited; the edit makes v2 — pass
+
+On the fixed build (log `shadows-20260925T185231Z-11580.log`), for a 12-task,
+18-link plan titled "موقع توصيل طعام - المرحلة 1 (MVP)":
+
+1. Mohammed pressed **Approve**. The daemon logged
+   `POST /api/workflows/818462e4…/approve 200`.
+2. He asked for a change. That turn made five `POST /mcp` calls and ended `success`.
+
+The API afterwards:
+
+| | v1 `818462e4…` | v2 `e83a79f6…` |
+|---|---|---|
+| state | `Frozen`, `frozen_at` 18:53:40 | `Draft` |
+| revision | 1: the original 30 changes (12 tasks added, 18 links) | 1: "4 changes: updated T2, updated T8, updated T9, updated T12" |
+| lineage | `next` = v2 | `previous` = v1 |
+
+v1 kept its 12 tasks and 18 links, and its last edit is still the one that
+created it.
+
+## Step 5: project instructions reach the Planner — pass for a new conversation
+
+At 18:59:58 Mohammed saved project instructions number 1: "ابداء كل رد ب كلمه
+حاضر" (start every reply with the word حاضر). He then opened a new conversation
+`fa79fc78…` and sent two messages:
+
+| Mohammed | The Planner's reply, first words |
+|---|---|
+| هاي | حاضر، أهلاً! 👋 … |
+| كيفك | حاضر، أنا بخير، شكراً لسؤالك … |
+
+A conversation opened after the change gets the instructions when its Claude
+session is created (§13.8).
+
+**A conversation opened before the change gets them too.** The plan
+conversation `ffa4ba70…` was created before the instructions existed, so its
+Claude session holds none; `MCP_PROBE.md` §3 found that a resume cannot add
+any. At 19:05:24 Mohammed wrote "شكرا لك" in it, and the reply began
+"حاضر، العفو 🙏". The instructions reached it as the context block of the next
+turn (§13.8).
+
+## Step 6: Connect — the external Claude Code connects
+
+At 19:02:07 **Connect** made a project grant:
+`POST /api/projects/…/mcp-grants 200`, then `kind: project, revoked_at: null`.
+
+Mohammed ran the command it gave in a separate Claude Code session, which
+reported:
+
+- the server was added as `shadows` at `http://127.0.0.1:4318/mcp`, local
+  scope, for the project `E:\Globalprojects\shadows`;
+- `claude mcp get shadows` shows it `Connected`, and the daemon logged two
+  `POST /mcp 200` at 19:02:53;
+- a session that is already running cannot see a server added after it
+  started, so the tools are available from the next session.
+
+That Claude Code also warned that the bearer is stored in plain text in
+`~\.claude.json`, and that `claude mcp get` prints it in full.
+
+## Step 6: Revoke — the external Claude Code is refused
+
+- 19:06:03: **Revoke**, `DELETE /api/mcp-grants/33e2a473… 200`; the grant now
+  has `revoked_at` 19:06:03.
+- 19:06:32: a new Claude Code session with the old bearer tried twice:
+  `POST /mcp 401`, twice.
+
+That session told Mohammed that the `shadows` server was not connected because
+it had refused the `Authorization` token with HTTP 401. It guessed that the
+grant was revoked or that the daemon had another database, and said it could
+not call the tools. This is what `MCP_PROBE.md` §5 saw: a failed connection,
+no OAuth.
+
+**Not observed:** a session that was already using the tools when the grant
+was revoked. That session had started after the Revoke. The daemon refuses a
+revoked bearer on every request (§13.7), so such a session's next call gets
+the same 401; what Claude Code shows the person then was not seen.
+
+## Watch list
+
+- **Tool lines.** The adapter titles Shadows' tools `mcp__shadows__<name>`,
+  which is the form the client turns into "Plan started" and "Plan edited". The
+  plan conversation holds `draft_start` ×2, `plan_edit` ×2, `workflow_get` ×5
+  and `plan_show` ×2 under those titles.
+- **The Planner inherits the person's Claude configuration**, as
+  `MCP_PROBE.md` §1 found: in the plan conversation it wrote two files to
+  Claude Code's auto-memory for `F:\testing`
+  (`~\.claude\projects\F--testing\memory\`), outside the project directory.
 
 ## Defect: the harness could not start — fixed
 
