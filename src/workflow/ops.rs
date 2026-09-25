@@ -11,7 +11,15 @@ use super::check::{Problem, edit_problems_after_removing};
 use super::{Link, LinkKind, PlanContent, TaskContent, link_name};
 
 /// One edit operation. The names are the `plan_edit` tool's, exactly.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum PlanOp {
     PlanPut {

@@ -48,6 +48,10 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `src/id.rs` | the UUID id newtype pattern | `src/id.rs` |
 | `src/mcp/` | Shadows' MCP server | `src/mcp/mod.rs` |
 | `src/mcp/grant.rs` | who may do what on `/mcp` | `src/mcp/grant.rs` |
+| `src/mcp/auth.rs` | refusing a `/mcp` request that holds no live grant | `src/mcp/auth.rs` |
+| `src/mcp/server.rs` | the tools a grant's kind may see | `src/mcp/server.rs` |
+| `src/mcp/tools.rs` | each MCP tool's storage call | `src/mcp/tools.rs` |
+| `src/mcp/refusal.rs` | what an MCP tool call answers | `src/mcp/refusal.rs` |
 | `src/operation/` | the operation lifecycle's shape | `src/operation/mod.rs` |
 | `src/planner/` | the Planner turn's spawn-through-termination lifecycle | `src/planner/mod.rs` |
 | `src/process/` | OS process ownership with whole-tree containment | `src/process/mod.rs` |

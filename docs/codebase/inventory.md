@@ -368,6 +368,12 @@ Nothing reachable from outside this file.
 
 Nothing reachable from outside this file.
 
+## `src/mcp/auth.rs` — 51 lines
+
+```rust
+pub(super) async fn require_grant(State(storage): State<Arc<Storage>>, mut request: Request, next: Next) -> Response
+```
+
 ## `src/mcp/grant.rs` — 92 lines
 
 ```rust
@@ -409,7 +415,47 @@ pub struct IssuedGrant {
 }
 ```
 
-## `src/mcp/mod.rs` — 7 lines
+## `src/mcp/mod.rs` — 59 lines
+
+```rust
+pub struct McpState {
+    pub storage: Arc<Storage>,
+    pub handles: Arc<LiveHandles>,
+}
+pub fn service(state: McpState) -> Router
+```
+
+## `src/mcp/refusal.rs` — 98 lines
+
+```rust
+pub(super) struct Refusal {}
+// + 2 private fields
+impl Refusal {
+    pub(super) fn new(code: ErrorCode, message: impl Into<String>) -> Self
+    pub(super) fn scope(message: impl Into<String>) -> Self
+}
+
+pub(super) fn answer<T: serde::Serialize>(outcome: Result<T, Refusal>) -> CallToolResult
+```
+
+## `src/mcp/server.rs` — 150 lines
+
+```rust
+pub(super) struct Tools(Arc<Routers>);
+impl Tools {
+    pub(super) fn new() -> Self
+}
+
+pub(super) struct Shadows {
+    pub(super) state: McpState,
+}
+// + 1 private field
+impl Shadows {
+    pub(super) fn new(state: McpState, tools: Tools) -> Self
+}
+```
+
+## `src/mcp/tools.rs` — 359 lines
 
 Nothing reachable from outside this file.
 
@@ -498,7 +544,7 @@ impl Collector {
 }
 ```
 
-## `src/planner/handles.rs` — 66 lines
+## `src/planner/handles.rs` — 75 lines
 
 ```rust
 pub(crate) struct LiveTurn {
@@ -519,6 +565,7 @@ impl LiveHandles {
     pub(crate) async fn contains_internal(&self, op: &OperationId) -> bool
     pub(crate) async fn restore(&self, op: OperationId, turn: LiveTurn)
     pub(crate) async fn close(&self) -> Vec<OperationId>
+    pub async fn running_for(&self, thread: &ThreadId) -> Option<OperationId>
     pub async fn is_closed(&self) -> bool
     pub async fn contains(&self, op: &OperationId) -> bool
     pub async fn close_for_test(&self)
@@ -881,7 +928,7 @@ pub(super) struct SaveInstructions {}
 pub(super) async fn save_instructions(State(s): State<AppState>, Path(project): Path<ProjectId>, Json(body): Json<SaveInstructions>) -> Result<Json<InstructionsVersion>, Failure>
 ```
 
-## `src/protocol/mod.rs` — 190 lines
+## `src/protocol/mod.rs` — 196 lines
 
 ```rust
 pub use failure::Failure;
@@ -1378,7 +1425,7 @@ pub fn approval_problems(content: &PlanContent) -> Vec<Problem>
 pub(super) fn edit_problems_after_removing(content: &PlanContent, removed: &BTreeSet<u32>) -> Vec<Problem>
 ```
 
-## `src/workflow/mod.rs` — 209 lines
+## `src/workflow/mod.rs` — 242 lines
 
 ```rust
 pub use check::{Problem, approval_problems, edit_problems};
@@ -1495,7 +1542,7 @@ pub struct PlanListing {
 }
 ```
 
-## `src/workflow/ops.rs` — 232 lines
+## `src/workflow/ops.rs` — 240 lines
 
 ```rust
 pub enum PlanOp {

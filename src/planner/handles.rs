@@ -51,6 +51,15 @@ impl LiveHandles {
         r.closed = true;
         r.turns.keys().cloned().collect()
     }
+    /// The turn running on `thread`, if one is: what the Planner's
+    /// `draft_start` anchors its derived command id to (spec §13.5).
+    pub async fn running_for(&self, thread: &ThreadId) -> Option<OperationId> {
+        let r = self.0.lock().await;
+        r.turns
+            .iter()
+            .find(|(_, turn)| &turn.thread_id == thread)
+            .map(|(op, _)| op.clone())
+    }
     pub async fn is_closed(&self) -> bool {
         self.0.lock().await.closed
     }

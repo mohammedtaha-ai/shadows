@@ -40,7 +40,16 @@ pub enum WorkflowState {
 
 /// Spec §13.3. How a link's `task` waits for its `after`.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum LinkKind {
@@ -68,14 +77,30 @@ fn link_name(task: u32, after: u32, kind: LinkKind) -> String {
 }
 
 /// Spec §13.3. One sentence someone can check, numbered within its task.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
 pub struct AcceptanceItem {
     pub number: u32,
     pub text: String,
 }
 
 /// Spec §13.3. A task as the plan holds it, shown as `T{number}`.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
 pub struct TaskContent {
     pub number: u32,
     pub title: String,
@@ -88,7 +113,15 @@ pub struct TaskContent {
 }
 
 /// Spec §13.3. `task` waits for `after`.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
 pub struct Link {
     pub task: u32,
     pub after: u32,

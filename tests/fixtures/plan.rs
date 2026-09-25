@@ -105,21 +105,32 @@ pub async fn insert_grant(
     project: &ProjectId,
     thread: Option<&ThreadId>,
 ) -> GrantId {
-    let grant = match (kind, thread) {
-        ("thread", Some(thread)) => app.storage.issue_thread_grant(thread).await.unwrap().0,
+    issue_grant(app, kind, project, thread).await.0
+}
+
+/// As `insert_grant`, with the bearer token the grant answers to: what an MCP
+/// client sends.
+pub async fn issue_grant(
+    app: &App,
+    kind: &str,
+    project: &ProjectId,
+    thread: Option<&ThreadId>,
+) -> (GrantId, String) {
+    let (grant, token) = match (kind, thread) {
+        ("thread", Some(thread)) => app.storage.issue_thread_grant(thread).await.unwrap(),
         ("project", None) => {
             let command = format!("grant-{}", uuid::Uuid::new_v4());
             let c = writer_ctx(&Writer::Person, &command, "McpGrantIssue", json!({}));
-            app.storage
-                .issue_project_grant(&c, project)
-                .await
-                .unwrap()
-                .grant
+            let issued = app.storage.issue_project_grant(&c, project).await.unwrap();
+            (
+                issued.grant,
+                issued.token.expect("a new grant shows its token"),
+            )
         }
         other => panic!("no such grant: {other:?}"),
     };
     assert_eq!(&grant.project_id, project);
-    grant.id
+    (grant.id, token.as_str().to_string())
 }
 
 pub async fn revoke_grant(app: &App, grant: &GrantId) {

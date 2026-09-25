@@ -81,12 +81,18 @@ pub fn router(state: AppState) -> Router {
     let guard = axum::middleware::from_fn_with_state(state.clone(), guard::refuse_foreign_pages);
     let (routes, _document) = routes().split_for_parts();
     routes
-        .with_state(state)
+        .with_state(state.clone())
         // Innermost: an extractor's plain-text refusal becomes an `ErrorBody`
         // before anything outside adds its headers to it.
         .layer(axum::middleware::map_response(
             failure::rejections_as_error_bodies,
         ))
+        // `/mcp` is MCP's own transport (§13.6): its refusals are not
+        // `ErrorBody`s, so it joins after that layer and before the guard.
+        .merge(crate::mcp::service(crate::mcp::McpState {
+            storage: state.storage.clone(),
+            handles: state.handles.clone(),
+        }))
         // Inside the CORS layer: a preflight is answered before it gets here,
         // and a refusal sent to an allowed origin still carries the header
         // that lets that client read why.
