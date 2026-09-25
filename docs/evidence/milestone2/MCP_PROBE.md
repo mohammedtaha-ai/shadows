@@ -116,7 +116,7 @@ No request carried `Mcp-Session-Id`.
 
 - `ProtocolVersion::KNOWN_VERSIONS` is `2024-11-05`, `2025-03-26`, `2025-06-18`, `2025-11-25`, `2026-07-28`, and `LATEST` is `2025-11-25`.
 - `ServerHandler::discover` answers `server/discover`. `StreamableHttpServerConfig::legacy_session_mode` reads: "sessions are removed from the `2026-07-28` version, so requests negotiating that version are always served statelessly"; with `false`, the legacy fallback is stateless too.
-- Session support is a separate feature, `transport-streamable-http-server-session`, which Shadows does not enable.
+- Session support is a separate feature, `transport-streamable-http-server-session`. **Corrected 2026-09-25 (B6):** `transport-streamable-http-server` enables it itself (rmcp 3.4.1 `Cargo.toml`), so it cannot be left out; the server is stateless by its config (`legacy_session_mode: false`, `NeverSessionManager`).
 - The `server` feature pulls in `schemars` 1.0, from which `rmcp`'s `#[tool]` macros derive tool input schemas.
 - `allowed_hosts` defaults to loopback only; `allowed_origins` is empty (no Origin check) by default.
 
