@@ -375,7 +375,7 @@ async fn after_approval_start_draft_copies_tasks_and_links_with_their_numbers() 
     );
 }
 
-/// §13.5 step 1: a Planner writes only its own thread's plan.
+/// §13.3: task scope stays in scope_json, separate from its contract.
 #[tokio::test]
 async fn reads_and_writes_are_stored_in_scope_json() {
     let app = test_app().await;

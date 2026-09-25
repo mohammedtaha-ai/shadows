@@ -52,6 +52,12 @@ impl Storage {
                     Some(id) => Some(load_plan(conn, &id).await?),
                     None => None,
                 };
+                if matches!(writer, Writer::External { .. })
+                    && draft_ref.is_none()
+                    && !matches!(&latest, Some(plan) if plan.state == WorkflowState::Draft)
+                {
+                    return Err(StorageError::GrantScope);
+                }
                 let id = match (latest, fresh) {
                     (Some(draft), _) if draft.state == WorkflowState::Draft => draft.id,
                     (Some(frozen), _) => {
@@ -116,6 +122,9 @@ impl Storage {
         self.write_txn(move |conn| {
             Box::pin(async move {
                 check_writer(conn, &writer, &project, None).await?;
+                if matches!(writer, Writer::External { .. }) && draft_ref.is_none() {
+                    return Err(StorageError::GrantScope);
+                }
                 if let Some(id) = classify(conn, &ctx, "Project", project.as_str()).await? {
                     return started(conn, &WorkflowId::from_stored(id)).await;
                 }

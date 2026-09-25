@@ -298,3 +298,73 @@ async fn start_thread_with_draft_creates_both_and_records_the_grant_as_actor() {
         );
     }
 }
+
+#[tokio::test]
+async fn external_draft_starts_require_a_draft_ref() {
+    let app = test_app().await;
+    let grant = insert_grant(&app, "project", &app.project, None).await;
+    let external = Writer::External { grant };
+
+    let scratch = app
+        .storage
+        .start_thread_with_draft(
+            &writer_ctx(&external, "scratch-without-ref", "DraftStart", json!({})),
+            &external,
+            &app.project,
+            "Search",
+            "find things",
+            None,
+        )
+        .await;
+    assert!(
+        matches!(scratch, Err(StorageError::GrantScope)),
+        "{scratch:?}"
+    );
+
+    let frozen = approved_v1(&app).await;
+    let in_thread = app
+        .storage
+        .start_draft(
+            &writer_ctx(&external, "thread-without-ref", "DraftStart", json!({})),
+            &external,
+            &app.thread,
+            None,
+            None,
+        )
+        .await;
+    assert!(
+        matches!(in_thread, Err(StorageError::GrantScope)),
+        "{in_thread:?}"
+    );
+    assert_eq!(
+        app.storage.thread_plan(&app.thread).await.unwrap(),
+        Some(frozen)
+    );
+    assert_eq!(
+        app.storage
+            .list_threads_for_project(&app.project)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn an_external_start_returns_an_existing_draft_without_a_ref() {
+    let app = test_app().await;
+    let first = draft(&app).await;
+    let grant = insert_grant(&app, "project", &app.project, None).await;
+    let external = Writer::External { grant };
+    let repeated = app
+        .storage
+        .start_draft(
+            &writer_ctx(&external, "existing-draft", "DraftStart", json!({})),
+            &external,
+            &app.thread,
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(repeated.unwrap(), first);
+}

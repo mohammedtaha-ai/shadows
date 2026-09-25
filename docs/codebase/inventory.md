@@ -1155,7 +1155,7 @@ impl Storage {
 }
 ```
 
-## `src/storage/sqlite/workflow_draft.rs` — 230 lines
+## `src/storage/sqlite/workflow_draft.rs` — 239 lines
 
 ```rust
 impl Storage {
