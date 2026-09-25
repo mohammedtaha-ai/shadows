@@ -11,8 +11,16 @@ export type Problem =
    * the answer because this page's origin is not in `--allow-origin`. A
    * browser reports both identically, so the client cannot tell them apart. */
   | { kind: 'unreachable' }
-  /** The daemon answered with its own `ErrorBody` (spec §3.4). Match on `code`. */
-  | { kind: 'daemon'; status: number; code: ErrorCode }
+  /** The daemon answered with its own `ErrorBody` (spec §3.4). Match on `code`.
+   * `currentRevision` and `problems` are present only for the codes that
+   * carry them (`REVISION_CONFLICT`, `WORKFLOW_VALIDATION_FAILED`). */
+  | {
+      kind: 'daemon'
+      status: number
+      code: ErrorCode
+      currentRevision?: number
+      problems?: string[]
+    }
   /** An HTTP failure that is not an `ErrorBody`. The daemon answers every
    * error it makes with one; this is a route it does not have (an empty 404
    * or 405), or something between the two that answered instead. */
@@ -33,7 +41,13 @@ export class ApiError extends Error {
 export function toApiError(response: Response, body: unknown): ApiError {
   if (isErrorBody(body)) {
     return new ApiError(
-      { kind: 'daemon', status: response.status, code: body.code },
+      {
+        kind: 'daemon',
+        status: response.status,
+        code: body.code,
+        ...(body.current_revision != null && { currentRevision: body.current_revision }),
+        ...(body.problems != null && { problems: body.problems }),
+      },
       body.message,
     )
   }

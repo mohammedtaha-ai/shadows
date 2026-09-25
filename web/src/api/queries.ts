@@ -2,10 +2,12 @@
 
 import { queryOptions } from '@tanstack/react-query'
 import {
+  getPlan,
   listDirs,
   listEntries,
   listHarnesses,
   listOperations,
+  listPlans,
   listProjects,
   listThreads,
 } from './client'
@@ -60,6 +62,30 @@ export function operationsQuery(threadId: string) {
   return queryOptions({
     queryKey: threadOperationsKey(threadId),
     queryFn: () => listOperations(threadId),
+  })
+}
+
+/** Every plan query, lists and versions alike: a thread's `Workflow*` event
+ * or an approval invalidates this prefix, since a new draft also changes its
+ * predecessor's `next`. */
+export const workflowsKey = ['workflows'] as const
+
+/** A project's plans, each conversation's latest version (spec §13.10). No
+ * thread's stream carries the list, so it is polled every 10 s while shown;
+ * TanStack Query pauses the poll while the window is hidden. */
+export function plansQuery(projectId: string) {
+  return queryOptions({
+    queryKey: [...workflowsKey, 'list', projectId],
+    queryFn: () => listPlans(projectId),
+    refetchInterval: 10_000,
+  })
+}
+
+/** One plan version, as the Workflows page and the conversation's cards show it. */
+export function planQuery(workflowId: string) {
+  return queryOptions({
+    queryKey: [...workflowsKey, 'plan', workflowId],
+    queryFn: () => getPlan(workflowId),
   })
 }
 

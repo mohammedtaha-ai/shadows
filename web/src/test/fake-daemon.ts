@@ -1,14 +1,16 @@
 // One job: the route table of a daemon holding one project (`p1`) with one
-// conversation (`t1`), for `startApp`. Each answer is the contract fixture
+// conversation (`t1`) and no plan unless a test gives it one (`w1`), for
+// `startApp`. Each answer is the contract fixture
 // unless the test overrides it. Test-only.
 
-import type { Operation, Project, ThreadEntry } from '@/api/client'
+import type { Operation, PlanListing, Project, ThreadEntry } from '@/api/client'
 import type { Answer } from '@/app/test-app'
 import {
   agentEntry,
   claudeHarness,
   codexHarness,
   fakeChoices,
+  planFixture,
   projectFixture,
   threadFixture,
   userEntry,
@@ -29,6 +31,12 @@ export interface Overrides {
   fork?: Answer
   /** `GET /api/threads/t1/context` */
   context?: Answer
+  /** `GET /api/projects/p1/workflows`; none by default. */
+  plans?: PlanListing[]
+  /** `GET /api/workflows/w1`; `planFixture()` by default. */
+  plan?: Answer
+  /** `POST /api/workflows/w1/approve` */
+  approve?: Answer
 }
 
 export function answers(o: Overrides = {}): Record<string, Answer> {
@@ -63,5 +71,16 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'POST /api/threads/t1/fork':
       o.fork ?? (() => Response.json({ ...threadFixture, id: 't9' }, { status: 201 })),
     'GET /api/threads/t1/context': o.context ?? { categories: null, reason: 'No turn has run yet' },
+    'GET /api/projects/p1/workflows': o.plans ?? [],
+    'GET /api/workflows/w1': o.plan ?? planFixture(),
+    'POST /api/workflows/w1/approve':
+      o.approve ??
+      (() =>
+        Response.json({
+          workflow_id: 'w1',
+          version: 1,
+          revision: 3,
+          frozen_at: '2026-09-25T00:00:00Z',
+        })),
   }
 }

@@ -1,5 +1,5 @@
 // One job: the sidebar's projects, each with its folder, and the open one's
-// conversations under it.
+// conversations and plans under it.
 
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
@@ -7,10 +7,11 @@ import { Folder, FolderOpen } from 'lucide-react'
 import type { Project } from '@/api/client'
 import { projectsQuery } from '@/api/queries'
 import { ThreadList } from './thread-list'
+import { WorkflowList } from './workflow-list'
 
 export function ProjectList() {
   const { data: projects } = useQuery(projectsQuery)
-  const { projectId, threadId } = useParams({ strict: false })
+  const { projectId, threadId, workflowId } = useParams({ strict: false })
 
   if (projects === undefined) return null
   if (projects.length === 0) {
@@ -22,7 +23,12 @@ export function ProjectList() {
       {projects.map((project) => (
         <li key={project.id}>
           <ProjectRow project={project} open={project.id === projectId} />
-          {project.id === projectId && <ThreadList projectId={project.id} selected={threadId} />}
+          {project.id === projectId && (
+            <>
+              <ThreadList projectId={project.id} selected={threadId} />
+              <WorkflowList projectId={project.id} selected={workflowId} />
+            </>
+          )}
         </li>
       ))}
     </ul>

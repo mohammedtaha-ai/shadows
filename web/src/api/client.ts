@@ -26,6 +26,11 @@ export type LimitWindow = Schemas['LimitWindow']
 export type InvocationView = Schemas['InvocationView']
 export type TurnSettings = Schemas['TurnSettings']
 export type ContextBreakdown = Schemas['ContextBreakdown']
+export type Plan = Schemas['Plan']
+export type PlanTask = Schemas['PlanTask']
+export type PlanLink = Schemas['Link']
+export type PlanListing = Schemas['PlanListing']
+export type Approved = Schemas['Approved']
 
 /** The daemon's origin, without a trailing slash. */
 export const DAEMON_URL = (import.meta.env.VITE_SHADOWS_URL ?? 'http://127.0.0.1:4318').replace(
@@ -164,6 +169,32 @@ export function forkThread(
 export function stopTurn(operationId: string): Promise<Operation> {
   return unwrap(
     client.POST('/api/operations/{id}/stop', { params: { path: { id: operationId } } }),
+  )
+}
+
+/** Each conversation's latest plan version in a project (spec §13.10). */
+export function listPlans(projectId: string): Promise<PlanListing[]> {
+  return unwrap(client.GET('/api/projects/{id}/workflows', { params: { path: { id: projectId } } }))
+}
+
+/** One plan version: tasks, links, revision, its neighbours, what blocks its
+ * approval and what the last edit changed (spec §13.10). */
+export function getPlan(workflowId: string): Promise<Plan> {
+  return unwrap(client.GET('/api/workflows/{id}', { params: { path: { id: workflowId } } }))
+}
+
+/** Approves a Draft at the revision the person saw (spec §13.2). Answers what
+ * the approval did, not the plan: the caller reads the plan again. */
+export function approvePlan(
+  workflowId: string,
+  commandId: string,
+  expectedRevision: number,
+): Promise<Approved> {
+  return unwrap(
+    client.POST('/api/workflows/{id}/approve', {
+      params: { path: { id: workflowId } },
+      body: { command_id: commandId, expected_revision: expectedRevision },
+    }),
   )
 }
 

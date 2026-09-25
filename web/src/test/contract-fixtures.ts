@@ -10,6 +10,9 @@ import type {
   HarnessInfo,
   InvocationView,
   Operation,
+  Plan,
+  PlanListing,
+  PlanTask,
   PlanningThread,
   Project,
   SessionChoices,
@@ -128,3 +131,51 @@ export function entryOfKind(
 
 export const userEntry = (id: string, body: string) => entryOfKind(id, 'UserMessage', body)
 export const agentEntry = (id: string, body: string) => entryOfKind(id, 'AgentMessage', body)
+
+/** Task `T{number}` of a plan, with one acceptance item. */
+export function planTask(number: number, title: string, extra: Partial<PlanTask> = {}): PlanTask {
+  return {
+    id: `task-${number}`,
+    number,
+    title,
+    goal: `The goal of ${title}`,
+    reads: [],
+    writes: [],
+    acceptance: [{ number: 1, text: `${title} works` }],
+    ...extra,
+  }
+}
+
+/** Plan version `w1` of thread `t1`: a Draft of two tasks, T2 needing T1. */
+export function planFixture(extra: Partial<Plan> = {}): Plan {
+  return {
+    id: 'w1',
+    project_id: 'p1',
+    thread_id: 't1',
+    title: 'Login flow',
+    goal: 'People can sign in',
+    state: 'Draft',
+    version: 1,
+    revision: 3,
+    created_at: '2026-09-25T00:00:00Z',
+    frozen_at: null,
+    previous: null,
+    next: null,
+    blockers: [],
+    last_edit: null,
+    tasks: [planTask(1, 'Schema'), planTask(2, 'Login screen')],
+    links: [{ task: 2, after: 1, kind: 'needs', label: 'the users table', waiting_items: [] }],
+    ...extra,
+  }
+}
+
+export function planListing(plan: Plan): PlanListing {
+  return {
+    id: plan.id,
+    thread_id: plan.thread_id,
+    title: plan.title,
+    state: plan.state,
+    version: plan.version,
+    updated_at: plan.created_at,
+  }
+}

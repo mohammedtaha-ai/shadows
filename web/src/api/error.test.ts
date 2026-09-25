@@ -31,6 +31,34 @@ describe('unwrap', () => {
     expect(error.message).toBe('database is locked')
   })
 
+  it('keeps the current revision and the problems an ErrorBody carries', async () => {
+    const conflict = clientAnswering(async () =>
+      Response.json(
+        { code: 'REVISION_CONFLICT', message: 'the plan changed', current_revision: 4 },
+        { status: 409 },
+      ),
+    )
+    const invalid = clientAnswering(async () =>
+      Response.json(
+        { code: 'WORKFLOW_VALIDATION_FAILED', message: 'T1 has no goal', problems: ['T1 has no goal'] },
+        { status: 422 },
+      ),
+    )
+
+    expect((await failureOf(unwrap(conflict.GET('/api/projects')))).problem).toStrictEqual({
+      kind: 'daemon',
+      status: 409,
+      code: 'REVISION_CONFLICT',
+      currentRevision: 4,
+    })
+    expect((await failureOf(unwrap(invalid.GET('/api/projects')))).problem).toStrictEqual({
+      kind: 'daemon',
+      status: 422,
+      code: 'WORKFLOW_VALIDATION_FAILED',
+      problems: ['T1 has no goal'],
+    })
+  })
+
   it("maps axum's plain-text rejection to an http problem", async () => {
     const client = clientAnswering(
       async () => new Response('Failed to deserialize query string', { status: 400 }),
