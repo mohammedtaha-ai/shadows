@@ -1,215 +1,312 @@
-# Section 14 — One Application Core (Milestone 2.5)
+# Section 14 — A Workspace Around One Application Core (Milestone 2.5)
 
 > Part of the [Shadows design specification](./README.md). Section numbers are
 > stable across files, and every `§x.y` reference resolves through the ownership
 > map there.
 
-- **Date:** 2026-09-26
-- **Status:** Designed with Mohammed on 2026-09-26, section by section. Each
-  section was checked against the code, and a second model reviewed §14.5–§14.8.
-  Not yet built.
+- **Date:** 2026-09-26, rewritten 2026-09-27.
+- **Status:** Designed with Mohammed on 2026-09-26/27.
+  - The first version, one crate with a facade and guard tests, was replaced
+    after he asked for "clean work" and for how large Rust projects actually do
+    this (§14.2).
+  - Not yet built.
 - **Builds on:** Milestone 2 (§13), on `main` at `ddcaed5`.
 
-Milestone 2.5 changes **where the code lives, not what it does.** Every
-operation Shadows performs gets one home: one method on one service inside an
-`AppCore`. The HTTP API, the MCP server and the daemon's startup call that
-method and hold no logic of their own. No feature is added. No behaviour a client
-can observe changes.
+Milestone 2.5 changes **where the code lives, not what it does.** Shadows
+becomes a Cargo workspace:
+- one `shadows-core` crate holds the whole application behind one object,
+  `AppCore`;
+- small crates around it translate HTTP, MCP and the command line;
+- two infrastructure crates run the harness and processes.
 
-It comes before Milestone 3 (the code index, `docs/vision.md` §2.4). The index
-is the first thing Shadows will serve to agents about *their* projects, and
-Shadows' own code must first be organized the way the index assumes a project
-is: one discoverable place for each operation.
+The compiler enforces the boundaries. No feature is added, and nothing a client
+observes changes.
+
+It comes before Milestone 3, the code index (`docs/vision.md` §2.4). The index
+assumes a project where every operation has one discoverable place, and Shadows'
+own code must be that project first.
 
 ## 14.1 Scope
 
 In:
 
-1. **`AppCore`** and eight services, built once at startup and passed down
-   (§14.3).
-2. **Thin adapters.** `protocol/`, `mcp/` and `cli/` translate a request into
-   one service call and translate its result back (§14.4).
-3. **Two guards against bypassing the core:** the compiler, and an architecture
-   test (§14.5).
-4. **A contract per service**, in the shape of Mohammed's source-contract
-   template, kept current by a test (§14.6).
+1. **A workspace** with a flat `crates/` directory (§14.3).
+2. **`AppCore`** and eight services inside `shadows-core`, one folder per
+   service (§14.4).
+3. **Adapters that only translate:** `shadows-http`, `shadows-mcp`, and the
+   `shadows` binary (§14.5).
+4. **Boundaries the compiler enforces**, and the one check the compiler cannot
+   make (§14.6).
+5. **A contract per service**, in Mohammed's source-contract template, that a
+   test keeps current (§14.7).
 
 Out:
 
 - Any new feature, route, MCP tool, or change to a route's JSON.
-- Moving `planner/`, `workflow/`, `agent/`, `runtime/` or `process/` into
-  `core/` (§14.5, OPEN).
-- The web client. `api/openapi.json` does not change (§14.8).
-- The deferred items in `docs/status.md`: effort at once, one lock per session.
+- A crate per service. Services stay folders inside `shadows-core` until their
+  boundaries are proven (§14.4, OPEN).
+- The web client. `api/openapi.json` does not change.
+- The deferred items in `docs/status.md`: effort at once, and one lock per
+  session.
 
-## 14.2 Why: what the code does today
+## 14.2 Why, and what large Rust projects do
 
-This was measured on `main` at `ddcaed5`, reading implementations rather than
-comments:
+**What the code does today** (measured on `main` at `ddcaed5`):
 
-- **The entry points call storage directly.** The route files in `protocol/`
-  and the MCP tools in `mcp/tools.rs` call `Storage` methods themselves, and so
-  do `mcp/auth.rs` and `cli/mod.rs`. No layer holds the application's
-  operations.
-- **One rule is checked in several places.**
-  - `thread_is_busy` is called before a session is touched in
-    `protocol/conversation.rs` (`start_turn`) and in `protocol/harness.rs`
-    (`change_model`).
-  - `turn_context` is read from `protocol/conversation.rs`, `harness.rs`,
-    `thread.rs`, `sse.rs` and `planner/`.
-- **One operation spans layers.** Sending a message runs through
-  `protocol/conversation.rs`, `planner/spawn.rs`, `planner/turn.rs` and
-  `storage/sqlite/turn.rs`. An agent has no single place to learn it from.
-- **The same capability exists twice.** Reading a plan is `get_plan` in
-  `protocol/workflow.rs` and `workflow_get` / `task_get` in `mcp/tools.rs`.
-  Each calls `storage.get_plan` itself.
-- **Two application states.** `protocol::AppState` and `mcp::McpState` each
-  gather their own `Arc<Storage>`, `Arc<LiveHandles>` and UI sender.
+- **The entry points call storage directly.** The route files in `protocol/`,
+  the MCP tools in `mcp/tools.rs`, `mcp/auth.rs` and `cli/mod.rs` all call
+  `Storage` methods themselves. No layer holds the application's operations.
+- **One rule lives in several places.**
+  - `thread_is_busy` is checked in `protocol/conversation.rs` and in
+    `protocol/harness.rs`.
+  - `turn_context` is read from five places.
+  - Reading a plan exists twice: `get_plan` in `protocol/workflow.rs`, and
+    `workflow_get` / `task_get` in `mcp/tools.rs`.
+- **One capability is spread across layers.** Plans live in seven files in four
+  modules: `workflow/`, `storage/sqlite/{workflow,workflow_draft,workflow_read,task,plan_view}.rs`
+  and `mcp/tools.rs`. An agent has no single place to learn them from, and two
+  places to add to them.
+- **The boundaries are conventions.** `storage` is `pub` to the whole crate, so
+  nothing but review stops a route from calling it.
 
-An agent that must find "where sending a turn lives" has to read four modules,
-and one that must add a plan capability has two places to put it. This is the
-kind of structure that makes an agent duplicate code or assume a wrong flow
-(`docs/vision.md` §1).
+**What large Rust projects do**, researched on 2026-09-27:
 
-## 14.3 `AppCore` and its services
+- **rust-analyzer** (about 40 crates) makes crates its API boundaries. It writes
+  down "Architecture Invariants", and its tests go through the public API.
+  Source: its `docs/book/src/contributing/architecture.md`.
+- **Zed** (about 230 crates) keeps one workspace with a flat `crates/`
+  directory and consistent names (`agent`, `agent_ui`, `agent_settings`).
+- **Codex CLI** (100+ crates), the project closest to Shadows' domain, has one
+  large `core` crate with many internal modules. Around it sit small crates:
+  `protocol`, `cli`, `codex-mcp`, `config`, `state`.
+- **matklad**, the author of rust-analyzer, recommends a flat `crates/`
+  workspace with a virtual root manifest for anything from 10k to 1M lines:
+  "tree structure tends to deteriorate over time, while flat structure doesn't
+  need maintenance". Folder names equal crate names. Source: "Large Rust
+  Workspaces", 2021.
 
-`AppCore` is the application. It is built once by the daemon's startup
-(`AppCore::start(config)`) and shared as `Arc<AppCore>`. It is **not** a
-global: no `static`, no `OnceLock`, no service locator. Every adapter receives
-it explicitly.
+The lesson: **a crate is the one boundary the compiler enforces.** Folders
+inside a crate, `pub(crate)`, guard tests and allowlists are conventions that
+decay. And a project starts with a large core crate, splitting it only along
+boundaries that have proven themselves, as Codex does, rather than guessing
+them up front.
 
-Its fields are private. A caller reaches a service only through an accessor:
-`core.plans()`, `core.turns()`, and so on. Each service is a struct with
-methods and a single responsibility, and holds only what it needs.
+**Why services are not crates yet.** The domain types form real cycles today:
+- `thread` ↔ `workflow` and `thread` ↔ `events` import each other;
+- `Threads` closes a `Harness` session, and `Harness` reads a thread's context;
+- `Plans` creates a thread.
 
-| Service | Its one job | Methods (what they replace) |
-|---|---|---|
-| `Projects` | the projects and the folders a person picks them from | list, create, set modes (`protocol/project.rs`); list and create folders (`protocol/fs.rs`) |
-| `Threads` | the planning threads and what they recorded | list, create, update, fork (`protocol/project.rs`, `thread.rs`); entries, operations (`conversation.rs`) |
-| `Turns` | starting and stopping a Planner turn | send, stop (`protocol/conversation.rs`, `planner/spawn.rs`, `planner/turn.rs`) |
-| `Harness` | the harnesses and each thread's open session | list harnesses, open session, change model, context breakdown (`protocol/harness.rs`, `planner/sessions.rs`, `settings.rs`, `context.rs`) |
-| `Plans` | plan versions under §13's rules | list, get, task, approve (`protocol/workflow.rs`); prepare draft, start draft, edit, show (`mcp/tools.rs`) |
-| `Grants` | MCP grants from issue to revocation | issue, list, revoke (`protocol/grants.rs`); authorize a bearer (`mcp/auth.rs`); revoke thread grants at startup (`cli/mod.rs`) |
-| `Instructions` | a project's Planner instructions | current, save (`protocol/instructions.rs`, `planner/setup.rs`) |
-| `Events` | what clients watch live | subscribe after a sequence, the live bus, the UI signal (`protocol/sse.rs`, `protocol/ui_signal.rs`) |
+A crate per service would make the compiler refuse those cycles and force a
+redesign of the types inside a milestone whose rule is "behaviour does not
+change". So they stay folders in `shadows-core`, where the cycles are legal,
+and the crate boundary goes where it holds today: between the application and
+everything that talks to it.
 
-- The method names above describe the capability. The implementation plan fixes
-  exact signatures, keeping the argument and result types that exist today.
-- **One capability, one method.** An HTTP route and an MCP tool that do the same
-  thing call the same method. The route `get_plan` and the tools `workflow_get`
-  and `task_get` all end in `Plans`.
-- The service is where a checked precondition lives (§14.7). Its callers never
-  repeat it.
-- **Who emits, who delivers.** A service emits what it causes, as the code does
-  today:
-  - `Turns`, through `planner/turn.rs`, sends a turn's live harness events on
-    the bus;
-  - `Plans` sends `plan_show`'s UI signal.
+## 14.3 The workspace
 
-  `Events` owns only subscription and delivery. It emits nothing of its own, and
-  no other service reads the bus.
-- The services use the domain modules as they are today: `workflow/` for plan
-  rules, `planner/` for the turn lifecycle and sessions, `agent/` for ACP,
-  `runtime/` for the runtime instance, and `storage/` for persistence. They do
-  not reimplement them.
-- A service that crosses 300 lines follows `CLAUDE.md`'s file rule. It splits by
-  responsibility inside `core/<service>/`, never into a second service with the
-  same job.
+```text
+Cargo.toml                 virtual manifest: [workspace], shared deps and lints, no package
+crates/
+  shadows/                 the binary: main, the CLI, startup (builds AppCore once)
+  shadows-http/            the HTTP API and SSE (axum, utoipa)
+  shadows-mcp/             the MCP server (rmcp)
+  shadows-core/            the application: AppCore, the services, storage, runtime
+  shadows-agent/           the ACP client for a harness adapter
+  shadows-process/         OS processes with whole-tree containment
+  shadows-testkit/         test fixtures shared by the crates' tests (dev-dependency only)
+  fake-acp/                the fake ACP adapter tests drive (binary)
+api/  web/  docs/          unchanged
+```
 
-## 14.4 Adapters
+- **Folder name equals package name.** No crate is named `core`, which would
+  shadow Rust's own `core`.
+- **Dependencies point one way:**
 
-- **`protocol/` (HTTP API and SSE).** A route reads its path, query and body,
-  makes one service call, and turns the result or the failure into a response.
-  `protocol::AppState` becomes:
-
-  ```rust
-  pub struct AppState {
-      pub core: Arc<AppCore>,
-      pub allowed_origins: Vec<String>,   // transport: the Origin guard (§1)
-      pub mcp_url: String,                // transport: what a grant's command names
-      pub shutdown: watch::Receiver<bool>,// transport: ending live streams
-  }
+  ```text
+  shadows ─┬─► shadows-http ─┐
+           ├─► shadows-mcp  ─┼─► shadows-core ─► shadows-agent ─► shadows-process
+           └────────────────►┘
   ```
 
-  Its `runtime`, `storage`, `handles`, `sessions`, `bus` and `ui` fields go into
-  the core.
-- **`mcp/` (MCP server).** A tool reads its arguments, makes one service call,
-  and turns the result into a tool result (`mcp/refusal.rs` stays the owner of
-  that shape). `McpState` becomes `Arc<AppCore>`. The bearer check in
-  `mcp/auth.rs` calls `core.grants()`.
-- **`cli/` (daemon startup).** It resolves configuration, calls
-  `AppCore::start`, binds the listener, and serves both adapters.
-  `AppCore::start` absorbs what `cli/mod.rs` does today before binding:
-  - opening storage;
-  - starting the runtime (recovery included);
-  - revoking thread grants;
-  - reading the harness versions;
-  - building the sessions.
-- **Shutdown is split the same way.** `AppCore::shut_down()` stops every
-  running turn and closes every adapter. This is what `planner::shut_down` does
-  today, called from `cli/mod.rs`. `cli/` keeps what belongs to the process and
-  the transport:
+  Cargo refuses a cycle, so `shadows-core` can never depend on an adapter.
+- **Shared dependency versions and lints** are declared once, in the root
+  `[workspace.dependencies]` and `[workspace.lints]`.
+- `shadows-process` keeps `tree_probe` as its own test binary, because only its
+  containment tests use it.
+- `fake-acp` is a separate binary crate. Tests in other crates locate it through
+  **`escargot`** (0.5, maintained by `crate-ci`). Cargo's `CARGO_BIN_EXE_*` only
+  names binaries of the test's own package.
+- **Where each current module goes** (§14.8 gives the order):
+
+| Today | Goes to |
+|---|---|
+| `process/`, `bin/tree_probe.rs` | `shadows-process` |
+| `agent/` | `shadows-agent` |
+| `protocol/` | `shadows-http` |
+| `mcp/` (except `grant.rs`) | `shadows-mcp` |
+| `cli/`, `main.rs`, `config.rs`, `tracing.rs` | `shadows` |
+| `bin/fake_acp.rs` | `fake-acp` |
+| everything else: `project/`, `thread/`, `workflow/`, `planner/`, `runtime/`, `operation/`, `events/`, `command/`, `storage/`, `mcp/grant.rs`, `error.rs`, `id.rs` | `shadows-core`, arranged by service (§14.4) |
+| `tests/*.rs`, `tests/fixtures/` | the crate each test exercises; shared fixtures in `shadows-testkit` |
+
+## 14.4 `shadows-core`: `AppCore` and its services
+
+`AppCore` is the application. The binary builds it once, with
+`AppCore::start(config, mcp_url)`, and shares it as `Arc<AppCore>`. It is **not**
+a global: no `static`, no `OnceLock`, no service locator. Rust's idiom is a
+composition root written by hand and checked by the compiler, so no
+dependency-injection library is used. `shaku` and the like add macros and
+indirection and buy nothing here.
+
+A caller reaches a service through an accessor: `core.plans()`, `core.turns()`,
+and so on. Each service is a struct with methods and one job.
+
+```text
+crates/shadows-core/src/
+  lib.rs            the public surface: AppCore, CoreError, ErrorCode, and the domain types adapters serialize
+  app.rs            AppCore: start, the accessors, shut_down
+  error.rs          CoreError, ErrorCode
+  command.rs        command identity and idempotency
+  db/               the SQLite pool, write transactions, migrations, the durable journal, command replay
+  runtime/          the runtime instance and recovery
+  projects/  threads/  turns/  harness/  plans/  grants/  instructions/  events/
+    mod.rs          the service: its public methods
+    model.rs        its types (no sqlx; the domain stays pure)
+    rules.rs        its checks, where it has any
+    store.rs        its SQLite queries
+    contract.yaml   its contract (§14.7)
+```
+
+| Service | Its one job | Takes over |
+|---|---|---|
+| `Projects` | the projects and the folders a person picks them from | `project/`, `storage/sqlite/project.rs`, `protocol/project.rs` and `fs.rs` logic |
+| `Threads` | the planning threads and what they recorded | `thread/`, `storage/sqlite/{thread,entry,fork}.rs`, the logic of `protocol/thread.rs` and the entry and operation lists |
+| `Turns` | starting and stopping a Planner turn | `planner/{spawn,turn,entries,handles,shutdown}.rs`, `storage/sqlite/{turn,operation,operation_read,transition}.rs`, `operation/`, the logic of `protocol/conversation.rs` |
+| `Harness` | the harnesses and each thread's open session | `planner/{sessions,settings,setup,offers,context}.rs`, `storage/sqlite/harness.rs`, the logic of `protocol/harness.rs` |
+| `Plans` | plan versions under §13's rules | `workflow/`, `storage/sqlite/{workflow,workflow_draft,workflow_read,task,plan_view}.rs`, the logic of `protocol/workflow.rs` and `mcp/tools.rs` |
+| `Grants` | MCP grants, from issue to revocation | `mcp/grant.rs`, `storage/sqlite/grant.rs`, the logic of `protocol/grants.rs` and `mcp/auth.rs` |
+| `Instructions` | a project's Planner instructions | `storage/sqlite/instructions.rs`, the logic of `protocol/instructions.rs` |
+| `Events` | what clients watch live | `events/`, `storage/sqlite/{events,events_read}.rs`, the loop of `protocol/sse.rs`, `UiSignal` |
+
+- **One capability, one method.** An HTTP route and an MCP tool that do the same
+  thing call the same method. `get_plan`, `workflow_get` and `task_get` all
+  end in `Plans`.
+- **A service builds its own `CommandContext`**, with the same command kinds and
+  fingerprint parameters as today, so every replay still matches.
+- **Who emits, who delivers.** A service emits what it causes: `Turns` sends a
+  turn's live events on the bus, and `Plans` sends `plan_show`'s UI signal.
+  `Events` owns subscription and delivery, and emits nothing of its own.
+- **Shutdown.** `AppCore::shut_down()` stops every running turn and closes every
+  adapter, which is `planner::shut_down` today. The binary keeps what belongs to
+  the process and the transport:
   - catching the signal;
   - the second Ctrl+C;
   - raising `stopping` so live streams end;
   - axum's graceful shutdown.
 
   The order stays as it is today.
-- An adapter may keep what belongs to its transport: parsing, status codes,
-  `Failure` mapping, OpenAPI annotations, rmcp's schemas. It may not keep a rule.
+- **Startup binds first.** Today `serve` recovers and only then binds. The
+  sessions need `mcp_url`, which names the address actually bound, so the binary
+  binds first and then calls `AppCore::start(config, mcp_url)`. That is also
+  safer. Today a second daemon started on the same database and port runs
+  recovery first, marking the first daemon's live operations `Interrupted`, and
+  only then fails to bind. With the bind first, it fails before it touches
+  anything.
+- **`CoreError`** is the one failure type services return, in words no adapter
+  owns. Each adapter maps it to its own shape: `Failure` for HTTP, `Refusal` for
+  MCP. Codes and messages stay exactly as today.
+- **Inside the crate** a service may call another service's public methods.
+  Cycles between them are legal here, and that is why the services are not
+  crates yet. A service never reaches into another's `store.rs` or `model.rs`
+  privates.
 
-## 14.5 Guards: nothing reaches past the core
+> **OPEN — a crate per service.** Services become their own crates once their
+> types stop forming cycles (`thread` ↔ `workflow`, `thread` ↔ `events`, and
+> `Threads` ↔ `Harness`). **Trigger:** the first milestone that adds a service
+> with no cycle to the rest, which is likely Milestone 5's executors, or a
+> `shadows-core` build time that slows work down. **Why it does not block:**
+> the adapter boundary, which is the one that hurt, is enforced now.
 
-Two layers enforce the boundary.
+## 14.5 Adapters
 
-**1. The compiler.** The adapters' states hold `Arc<AppCore>` and nothing it
-contains. `AppCore`'s fields and every service's fields are private, so a route
-that writes `s.storage` or `s.sessions` does not build.
+- **`shadows-http`.** A route reads its path, query and body, calls one service
+  method, and turns the result or `CoreError` into a response. It keeps what
+  belongs to HTTP:
+  - status codes, `Failure` and `ErrorBody`;
+  - the OpenAPI annotations and `api/openapi.json`;
+  - the Origin guard, CORS and the trace layer;
+  - SSE framing;
+  - `detached`, so a client that disconnects does not cancel the work.
 
-**2. `tests/architecture.rs`.** The compiler cannot see everything. A later
-change could add `pub fn storage(&self)` to `AppCore`, or `use crate::storage`
-in a route file. The test uses `syn`, as `tests/codemap` already does, and
-fails when:
+  Its state is `{ core: Arc<AppCore>, allowed_origins, shutdown }`.
+- **`shadows-mcp`.** A tool reads its arguments, calls one service method, and
+  turns the result into a tool result. It keeps `rmcp`'s wiring, the tools'
+  argument schemas and `Refusal`. The bearer check calls `core.grants()`.
+- **`shadows`.** It resolves configuration, binds, calls `AppCore::start`, and
+  serves both adapters. It keeps `args`, `config`, `tracing` and the signal
+  handling.
+- A request or response shape that is part of the HTTP contract stays in
+  `shadows-http`. A shape a service computes moves to that service's `model.rs`,
+  with the same name, fields and derives, so `api/openapi.json` does not change.
+  `HarnessInfo` and `ContextBreakdown` are examples.
 
-1. a file under `src/protocol/`, `src/mcp/` or `src/cli/` names
-   `crate::storage`, `Storage`, `Sessions`, `LiveHandles` or `Runtime`;
-2. `AppCore` or a service has a public field, or a public method whose return
-   type names `Storage`, `Sessions`, `LiveHandles` or `Runtime`.
+## 14.6 Boundaries
 
-Its failure message names the rule and the service to use instead.
+**The compiler enforces:**
 
-The modules allowed to use `storage/` are `core/`, and the domain modules
-`core/` drives: `planner/` and `runtime/`.
+1. **The adapters see only `shadows-core`'s public surface:** `AppCore`,
+   `CoreError`, `ErrorCode` and the domain types they serialize. Storage,
+   sessions, the live-turn registry and the runtime are private to the crate.
+2. **`shadows-core` cannot import an adapter**, because Cargo refuses the cycle.
+3. **`shadows-agent` and `shadows-process` know nothing of plans, threads or
+   HTTP**, because they depend on nothing above them.
 
-**A shrinking allowlist.** Task 0 of the plan writes the test with an allowlist
-of today's violations, file by file. From then on:
+**Tests need more than the public surface.** The 22 storage tests open
+`Storage` directly. `shadows-core` exposes it, and the fixtures they need, only
+under its `test-support` feature:
 
-- a new violation fails at once;
-- each task that moves a service removes its files from the list;
-- when Milestone 2.5 ends the list is empty, and the test refuses any entry.
+```rust
+#[cfg(feature = "test-support")]
+pub mod testing;
+```
 
-> **OPEN — the compiler as the only guard.** `storage/` stays `pub` because
-> 22 integration test files open `Storage` directly, and moving the domain
-> modules under `core/` with `pub(super)` storage would rewrite them. **Trigger:**
-> the first milestone that rewrites those tests for another reason, or the first
-> bypass that the architecture test misses. **Why it does not block:** the two
-> layers above catch every bypass known today.
+A crate enables that feature only in its `[dev-dependencies]`. Resolver 2 does
+not unify dev-dependency features into a normal build, so:
 
-## 14.6 Contracts
+- **the gate runs `cargo check --workspace` without tests.** A non-test crate
+  that reaches `shadows_core::testing` fails to build. This extends the CI check
+  that already proves `test-support` never reaches the shipped binary
+  (`cargo tree -e features,no-dev`).
 
-Every service has one contract, `docs/codebase/contracts/<service>.yaml`, which
-makes eight files. Each follows Mohammed's source-contract template, kept in
-the repository as `docs/codebase/contracts/TEMPLATE.yaml`:
+**What the compiler cannot see:** inside `shadows-core`, one service reaching
+into another's private module. There, `pub(crate)` is a convention. Two things
+cover it:
+- each service's `contract.yaml` names its public methods and its
+  `not_the_caller's`;
+- review reads it.
+
+That is the price of keeping the services in one crate for now (§14.4, OPEN).
+
+**Architecture Invariants** are written into `docs/codebase/README.md`, in
+rust-analyzer's style, one line each:
+- "`shadows-http` knows HTTP; nothing below it does."
+- "`shadows-core` never imports `axum` or `rmcp`."
+- "a service's `store.rs` is called only by that service."
+
+## 14.7 Contracts
+
+Every service has one contract, `crates/shadows-core/src/<service>/contract.yaml`,
+next to its code. That makes eight contracts. Each follows Mohammed's
+source-contract template, kept at `docs/codebase/contracts/TEMPLATE.yaml`:
 
 - **header comment:** what the service alone owns, and the trap a reader would
   otherwise fall into;
 - **`name`, `version`, `status`, `source`**;
 - **`functions`:** the service's public methods and their signatures, grouped
   as reads, writes and checks, or however the service reads best;
-- **`obligations`:** each rule with `tested_by`, which names a test, or says
-  `none` or `unknown`;
-- **`not_the_caller's`:** what a caller must not do itself, with the reason;
-- **`gaps`, `open_questions`, `tests`**, as the template defines them.
+- **`obligations`**, each with `tested_by`;
+- **`not_the_caller's`**;
+- **`gaps`, `open_questions`, `tests`.**
 
 The template's rules hold:
 - trace the implementation, never restate comments;
@@ -217,120 +314,125 @@ The template's rules hold:
 - another module's types are referenced, never copied.
 
 **One contract per service, not per file.** A hundred per-file contracts would
-cost more to keep than they return. `mx` failed for that reason
-(`docs/vision.md` §1.4). The service is the one entry an agent uses, so that is
-where its contract belongs.
+cost more to keep than they return; `mx` failed for that reason
+(`docs/vision.md` §1.4). The service is the one entry an agent uses.
 
-**`tests/contracts.rs` keeps them true.** It fails when:
+**`crates/shadows-core/tests/contracts.rs` keeps them true.** It parses each file
+with **`yaml-rust2`**, the maintained successor of the archived `serde_yaml`
+line, and the sources with `syn`. It fails when:
 
 1. a contract is not valid YAML;
 2. its `source` does not exist;
-3. a symbol in `functions` or in a gap's `at` does not exist in that source;
-4. a name in `tested_by` or `tests` is not a test function in `tests/` or in a
-   `#[cfg(test)]` module under `src/`;
+3. a symbol in `functions`, or in a gap's `at`, is not in that source;
+4. a name in `tested_by` or `tests` is not a test function in the workspace;
 5. a public method of the service has no entry in `functions`;
-6. an obligation says `tested_by: none` or `unknown` without a `note` that says
-   what a test would need.
+6. an obligation says `tested_by: none` or `unknown` without a `note`.
 
-Every rule listed in §14.7 must name a real test. Any other obligation may say
-`none`, with its note, and the gap stays visible in the contract instead of
-being hidden.
+Every rule in §14.9 must name a real test. What the test cannot check is whether
+a rule's prose is true; the reviewer owns that.
 
-What it cannot check is whether a rule's prose is true. That stays with the
-reviewer of the change.
+## 14.8 Order of work
 
-The contracts are also the first real use of what Milestone 3 serves: a map an
-agent reads instead of the code.
+The tree builds and every test passes after each step.
 
-## 14.7 Rules that move, and must not be lost
+| # | Step | What moves |
+|---|---|---|
+| 0 | The workspace | A virtual root manifest. The current crate moves whole into `crates/shadows`. The CI and the gate use `--workspace`. |
+| 1 | `shadows-process` | `process/`, `tree_probe`, the containment tests |
+| 2 | `shadows-agent` | `agent/`, the ACP tests |
+| 3 | `shadows-core`, as it is | Every core module moves unchanged, still `pub`. `shadows-testkit` and `fake-acp` are created, and `escargot` is added. |
+| 4 | `shadows-http`, `shadows-mcp` | The adapters leave the binary and depend on `shadows-core`, still through its `pub` internals. |
+| 5 | `AppCore`, `CoreError`, `Plans` | The services begin. Plans' files move into `plans/`, its internals become private, and the routes and tools call `core.plans()`. |
+| 6 | `Grants` | Plus the grant types. |
+| 7 | `Turns` | **Risk:** Stop, the session lease, the end of a turn. |
+| 8 | `Harness` | |
+| 9 | `Projects`, `Threads`, `Instructions` | |
+| 10 | `Events`; `storage` private | **Risk:** journal → caught-up → live. The last internal becomes private, and `cargo check --workspace` now proves the boundary. |
+| 11 | Contracts and docs | Eight contracts pass. The code map spans the crates, and the invariants are written down. |
 
-Moving code into a service carries each rule with its reason. The rules found
-so far, each of which becomes an obligation in its service's contract:
+From step 5 onward, each step narrows `shadows-core`'s `pub` surface for the
+service it moves. The compiler then refuses any adapter code still reaching past
+it, which is a boundary that only tightens.
+
+**Risk, `Turns` (step 7).** It moves the code around Stop, the session lease and
+a turn's end. That is where Milestone 2 found its races (F1, F2), and the tests
+may not cover every timing. Its review reads the old path and the new path side
+by side, and the acceptance run stops a live turn.
+
+**Risk, `Events` (step 10).** A subscription reads the durable journal after the
+client's `after`, sends `caught-up`, then goes live. It re-reads the journal
+each time storage's committed-sequence signal moves (§2.4, §6.18). Moving it
+must keep three things:
+- no frame is lost or repeated across that switch;
+- frames stay in `durable_seq` order;
+- a reconnect with `after` resumes exactly where the client stopped.
+
+`tests/resync.rs` and the SSE tests pass unchanged.
+
+## 14.9 Rules that move, and must not be lost
+
+Each of these becomes an obligation in its service's contract, with a real test:
 
 - **Busy, twice, for two reasons.** `start_turn` and `change_model` check
-  `thread_is_busy` before touching the session. The reason is so that a
-  model or setting is never changed under a running turn. `start_turn`'s write
-  transaction checks `has_open_operation` again, inside `write_txn`
-  (`BEGIN IMMEDIATE`), and that check is the atomic guarantee.
+  `thread_is_busy` before touching the session, so that a model or setting is
+  never changed under a running turn. `start_turn`'s write transaction checks
+  `has_open_operation` again, inside `BEGIN IMMEDIATE`, and that check is the
+  atomic guarantee.
 
   Both stay. The early check moves into `Turns::send` and
   `Harness::change_model`, and no caller performs it.
 - **Session before lease.** A turn opens the session, then leases its events
-  before prompting (`protocol/conversation.rs`). A second start or a
-  `/context` read cannot use the session until the turn gives it back.
-- **Harness availability.** `policy::is_available` is checked before any
-  session work, in `start_turn` and `change_model`.
+  before prompting. Neither a second start nor a `/context` read can use the
+  session until the turn gives it back.
+- **Harness availability.** `policy::is_available` is checked before any session
+  work.
 - **Grant scope.** A tool call's grant decides which plans it sees (§13.7). The
-  scope check (`plan_in_scope`, `own_thread`, `writer_of`) moves into `Plans`
-  unchanged.
+  checks (`plan_in_scope`, `own_thread`, `writer_of`) move into `Plans`
+  unchanged, refusal texts included.
+- **Replay.** A retried command with the same id and the same request answers
+  what it answered first. Its command kind and fingerprint parameters do not
+  change.
 
-The implementer of each task adds any further rule it finds to that service's
-contract. Dropping a rule is a defect, even when every test passes.
+An implementer who finds another rule adds it to the contract. Dropping a rule
+is a defect even when every test passes.
 
-## 14.8 Order of work and what proves nothing broke
-
-| # | Task | Why here |
-|---|---|---|
-| 0 | `tests/architecture.rs` with today's allowlist; `tests/contracts.rs` and `TEMPLATE.yaml` | The guard exists before anything moves. |
-| 1 | `AppCore::start`, the eight service shells, `AppState` and `McpState` holding `Arc<AppCore>` | The frame the services go into. |
-| 2 | `Plans` | The largest duplication, HTTP and MCP, so the largest gain first. |
-| 3 | `Grants` | Split between the HTTP routes, the bearer check and startup. |
-| 4 | `Turns` | The most delicate logic: the busy checks, the lease, Stop. |
-| 5 | `Harness` | Shares the busy rule with `Turns`. |
-| 6 | `Projects`, `Threads`, `Instructions` | Mostly reads and writes. |
-| 7 | `Events`; the allowlist becomes empty | SSE is the most timing-sensitive path, so it goes last. |
-| 8 | The eight contracts completed; `CLAUDE.md`, `docs/codebase/README.md` and this index updated | Documents what was built. |
-
-Each task:
-
-- ends with every existing test passing, unchanged in what it asserts: 304
-  Rust, 135 web as of `ddcaed5`;
-- keeps `api/openapi.json` byte-identical, which `tests/openapi.rs` already
-  checks;
-- regenerates the code map (`UPDATE_CODEMAP=1 cargo test --test codemap`);
-- writes that service's contract.
-
-**Risk: `Events` (task 7).** A subscription reads the durable journal after
-the client's `after`, sends `caught-up`, then goes live. It re-reads the
-journal each time storage's committed-sequence signal moves (§2.4, §6.18).
-Moving it must keep three things:
-- a frame is never lost or repeated across that switch;
-- frames stay in `durable_seq` order;
-- a reconnect with `after` resumes exactly where the client stopped.
-
-Its review compares the old and new `subscribe` path by path. `tests/resync.rs`
-and the SSE tests must pass unchanged.
-
-**Risk: `Turns` (task 4).** It moves the code around Stop, the session lease
-and the end of a turn. That is where Milestone 2 found its races (F1, F2), and
-the tests may not cover every timing. Its review reads the old path and the new
-path side by side, and the acceptance run stops a live turn.
-
-## 14.9 Acceptance
+## 14.10 Acceptance
 
 Milestone 2.5 is done when:
 
-1. The Rust and web gates pass on Windows and on CI's Linux job.
-2. `tests/architecture.rs` passes with an empty allowlist.
-3. `tests/contracts.rs` passes, with eight contracts.
-4. Mohammed runs the debug build in the browser:
+1. **The gates pass on Windows and on CI's Linux job:**
+   - `cargo fmt --check`;
+   - `cargo clippy --workspace --all-targets -- -D warnings`;
+   - `cargo test --workspace`, with the Rust test count at least 304;
+   - `cargo check --workspace`, with no tests and so no `test-support`;
+   - the web gate, still 135 tests;
+   - `api/openapi.json` byte-identical.
+2. `contracts.rs` passes with eight contracts.
+3. **Mohammed runs the debug build in the browser:**
    1. sends a message and stops it;
    2. restarts the daemon, and the conversation is still there;
    3. edits and approves a plan;
    4. connects an external Claude Code with **Connect**, reads a plan, then
       **Revoke**s it.
 
-   Each works as it did on `ddcaed5`.
+   Each works as it did on `ddcaed5`. The evidence goes in
+   `docs/evidence/milestone2_5/WINDOWS_RUN.md`.
 
-The evidence goes in `docs/evidence/milestone2_5/WINDOWS_RUN.md`.
+## 14.11 Changes to other documents
 
-## 14.10 Changes to other documents
-
-- **`CLAUDE.md`** gains two rules:
-  - a new operation is a new method on one service, with a line in its contract;
-  - a route or tool translates and holds no rule.
-
-  Its ownership table gains a `core/` row: the application's operations.
-- **`docs/codebase/README.md`** gains `core/` and each service. The rows of
-  `protocol/` and `mcp/` change to "translating HTTP" and "translating MCP".
+- **§1 (`2026-09-21-architecture-design.md`):** "a single crate" becomes this
+  workspace. §1 refers here for the crate list.
+- **§2.9:** backend-specific SQL stays inside a service's `store.rs` and
+  `shadows-core/src/db/`, never outside `shadows-core`. When PostgreSQL comes,
+  it arrives as a backend module beside each store.
+- **`CLAUDE.md`:**
+  - "Architecture" describes the workspace;
+  - the ownership table names crates;
+  - two rules are added:
+    - a new operation is a new method on one service, with its line in that
+      service's contract;
+    - an adapter translates and holds no rule.
+- **`docs/codebase/`:**
+  - the README maps crates and services, and holds the Architecture Invariants;
+  - the generated inventory spans every crate.
 - **This index** gains §14.
