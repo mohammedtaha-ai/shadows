@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-09-25 (after Milestone 2's Windows run)
+**Updated:** 2026-09-26 (Milestone 2 merged; Milestone 2.5 next)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,8 +9,8 @@ restate them.
 
 ## Where we are
 
-**Milestone 2 (§13, the Planner writes a plan) is built and Mohammed ran it on
-Windows** (branch `milestone-2/plan-workflow`; 304 Rust, 135 web tests). A
+**Milestone 2 (§13, the Planner writes a plan) is on `main`** (PR #6,
+2026-09-25; 304 Rust, 135 web tests), and Mohammed ran it on Windows. A
 12-task plan, Approve freezing v1 while an edit made v2, project instructions
 reaching both a new and an existing conversation, and Connect and Revoke from
 an external Claude Code all worked. The run found that a harness opening took
@@ -81,16 +81,23 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **Effort at once, without `default`.** Mohammed's ruling after the
+1. **Milestone 2.5: one application core.** Today HTTP routes and MCP tools
+   call storage directly, so one rule lives in several places. For example,
+   `thread_is_busy` is checked in two route files, and `turn_context` is read
+   from five places. Every operation moves to one method on one service under an
+   `AppCore`, which is built once and passed down. Storage becomes private to the
+   core. Each service gets a contract that a test keeps current. Behaviour does
+   not change. The spec comes first.
+2. **Milestone 3: the code index** (`vision.md` §2.4), with tree-sitter embedded.
+3. **Effort at once, without `default`.** Mohammed's ruling after the
    Windows run: picking an effort sets it on the session at once, as the
    model is, and Claude's `default` effort is not offered. Amends §12.4 and
    §12.7.
-2. **One lock for every open session.** `Sessions` holds a single lock through
+4. **One lock for every open session.** `Sessions` holds a single lock through
    an adapter's startup (typically 3–6 s on Windows, bounded at 20 s) and
    through each termination wait, so
    opening one conversation can delay Stop on another. This is latency, not a
-   correctness defect. The fix is one slot per thread. It is its own task,
-   after the PR.
+   correctness defect. The fix is one slot per thread, as its own task.
 
 ## Standing risks
 

@@ -44,48 +44,49 @@
 ## Project
 
 - **Slug:** shadows
-- **Stack:** Rust 1.94+ candidate floor from SQLx 0.9, single crate, 15 top-level modules + cross-cutting
-- **Status:** Architecture baseline accepted. The next deliverable is the first runnable browser Planner vertical slice, not the full schema or platform.
+- **Stack:** Rust 1.94+ candidate floor from SQLx 0.9, single crate; the modules below, plus a React client in `web/`
+- **Status:** Milestones 0–2 are on `main` and ran on Windows. See [docs/status.md](./docs/status.md) for where the project is, and [docs/vision.md](./docs/vision.md) for where it is going.
 - **Purpose:** Local-first AI orchestration layer (planning + workflow + context + execution + verification + continuity). Clean rewrite of `shadow` avoiding patching pattern.
 
 ## Architecture
 
 Single Rust crate `shadows` with library + single binary (two modes: `serve` daemon + CLI client), plus an independent browser client. `shadows serve` serves the product locally but never opens a browser automatically.
 
-### Top-level modules (15)
+### Top-level modules
+
+Built:
 
 ```text
 project/         thread/         command/        runtime/
 agent/           planner/        workflow/       operation/
-scheduler/       execution/      verification/   events/
-storage/         protocol/       cli/
+events/          storage/        protocol/       cli/
 ```
+
+Planned, and not created until their first user exists: `scheduler/`,
+`execution/`, `verification/`.
 
 ### Cross-cutting
 
-`config`, `secrets`, `error`, `tracing`, `process`, `mcp`
+Built: `config`, `error`, `tracing`, `process`, `mcp`. Planned: `secrets`.
 
-### Single-ownership rules (5)
+### Single-ownership rules
 
 | Module | Sole owner of |
 |---|---|
 | `agent/` | AI subprocess harness (the ACP `Connection`) |
 | `storage/` | SQLite (and future PostgreSQL adapter) |
-| `protocol/` | HTTP/SSE transport |
+| `protocol/` | The HTTP API and SSE (`/api/…`) |
+| `mcp/` | Shadows' MCP server at `/mcp`, a separate interface from the HTTP API (spec §13.6) |
 | `process/` | `tokio::process` / `process-wrap` (private to `process/` only) |
-| `secrets/` | Secret value resolution (config holds refs only) |
+| `secrets/` (planned) | Secret value resolution (config holds refs only) |
 
 ### Persistence (spike outcome)
 
 **Winner: SQLx 0.9 only.** The delta validated SQLx and SeaORM 2.0.3 end-to-end against PostgreSQL 16.15; SQLx retained the edge and SeaQuery had no demonstrated use case. See `docs/evidence/persistence/DELTA_VALIDATION.md`.
 
-### First runnable milestone
-
-The first milestone is deliberately vertical: start `shadows serve`, manually open any browser, select a local project, create/resume a planning thread, run one real Claude Planner turn with live output, stop it with confirmed process-tree termination, restart the daemon, and recover the durable conversation. Workflow scheduling, verification, MCP, team sync, and the full proposed schema do not block this milestone.
-
 ### External tools
 
-`gcode` is an optional external executable. Shadows may invoke it through the normal process/tool boundary when code search is added, but does not vendor or depend on `gobby-cli`, `gcore`, PostgreSQL, FalkorDB, or Qdrant. `ghook` and `gwiki` are not part of the first milestone.
+`gcode` is an optional external executable. Shadows may invoke it through the normal process/tool boundary when code search is added, but does not vendor or depend on `gobby-cli`, `gcore`, PostgreSQL, FalkorDB, or Qdrant. `ghook` and `gwiki` are not planned.
 
 ## Rules (project-specific)
 
