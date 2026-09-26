@@ -113,7 +113,6 @@ crates/
   shadows-core/            the application: AppCore, the services, storage, runtime
   shadows-agent/           the ACP client for a harness adapter
   shadows-process/         OS processes with whole-tree containment
-  shadows-testkit/         test fixtures shared by the crates' tests (dev-dependency only)
   fake-acp/                the fake ACP adapter tests drive (binary)
 api/  web/  docs/          unchanged
 ```
@@ -147,7 +146,10 @@ api/  web/  docs/          unchanged
 | `cli/`, `main.rs`, `config.rs`, `tracing.rs` | `shadows` |
 | `bin/fake_acp.rs` | `fake-acp` |
 | everything else: `project/`, `thread/`, `workflow/`, `planner/`, `runtime/`, `operation/`, `events/`, `command/`, `storage/`, `mcp/grant.rs`, `error.rs`, `id.rs` | `shadows-core`, arranged by service (§14.4) |
-| `tests/*.rs`, `tests/fixtures/` | the crate each test exercises; shared fixtures in `shadows-testkit` |
+| `tests/*.rs`, `tests/fixtures/` | By what the test drives:<br>• only the core → `shadows-core/tests`, with its fixtures;<br>• HTTP, MCP or `serve` → `crates/shadows/tests`, the one crate that sees every adapter.<br>What both share, such as where the fake adapter is and a command context, is in `shadows_core::testing`. |
+
+There is no shared test-kit crate. The core's tests would depend on a crate that
+depends on the core, and Cargo would build two copies of its types.
 
 ## 14.4 `shadows-core`: `AppCore` and its services
 
@@ -239,6 +241,12 @@ crates/shadows-core/src/
   - `detached`, so a client that disconnects does not cancel the work.
 
   Its state is `{ core: Arc<AppCore>, allowed_origins, shutdown }`.
+
+  **`/mcp` is mounted by the HTTP router, at the same layer as today.** It goes
+  inside the Origin guard, CORS and the trace layer, and outside the layer that
+  turns rejections into `ErrorBody`. It arrives as a parameter,
+  `shadows_http::router(state, mcp: axum::Router)`, so `shadows-http` never
+  depends on `shadows-mcp`. The binary passes `shadows_mcp::service(core)`.
 - **`shadows-mcp`.** A tool reads its arguments, calls one service method, and
   turns the result into a tool result. It keeps `rmcp`'s wiring, the tools'
   argument schemas and `Refusal`. The bearer check calls `core.grants()`.
@@ -340,7 +348,7 @@ The tree builds and every test passes after each step.
 | 0 | The workspace | A virtual root manifest. The current crate moves whole into `crates/shadows`. The CI and the gate use `--workspace`. |
 | 1 | `shadows-process` | `process/`, `tree_probe`, the containment tests |
 | 2 | `shadows-agent` | `agent/`, the ACP tests |
-| 3 | `shadows-core`, as it is | Every core module moves unchanged, still `pub`. `shadows-testkit` and `fake-acp` are created, and `escargot` is added. |
+| 3 | `shadows-core`, as it is | Every core module moves unchanged, still `pub`. `fake-acp` is created, and `escargot` is added. |
 | 4 | `shadows-http`, `shadows-mcp` | The adapters leave the binary and depend on `shadows-core`, still through its `pub` internals. |
 | 5 | `AppCore`, `CoreError`, `Plans` | The services begin. Plans' files move into `plans/`, its internals become private, and the routes and tools call `core.plans()`. |
 | 6 | `Grants` | Plus the grant types. |
