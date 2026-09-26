@@ -22,11 +22,13 @@
   - No route, MCP tool, JSON field, status code, error code or error message changes.
   - `api/openapi.json` stays byte-identical, which `tests/openapi.rs` checks. So `web/` is not touched.
   - Existing tests change only their construction and imports, never what they assert. If an assertion must change, stop and report.
-- **The dependency direction** is `cli/`, `protocol/`, `mcp/` → `core/` → the domain modules (`planner/`, `workflow/`, `agent/`, `runtime/`, `project/`, `thread/`, `grant/`) → `storage/`. `core/` never imports `protocol/` or `mcp/`, and the domain modules never import `core/`.
+- **The dependency direction** is `cli/`, `protocol/`, `mcp/` → `core/` → the domain modules (`planner/`, `workflow/`, `agent/`, `runtime/`, `project/`, `thread/`, `grant/`) → `storage/`. `core/` never imports `protocol/` or `mcp/`, and the domain modules never import `core/`. (`grant/` does not exist today: the grant types live in `src/mcp/grant.rs`, and Task 2 Step 0 moves them, before `core/plans.rs` first needs them.)
+- **The module is named `core`, like Rust's own `core` crate.** Inside `src/`, always write `crate::core::…`, never a bare `core::…` path, and let an adapter's `use` say `crate::core::AppCore`. Tests reach it as `shadows::core::…`.
+- **An adapter never names `crate::storage`, not even for `StorageError`.** `src/core/error.rs` re-exports it (`pub use crate::storage::StorageError;`, re-exported from `core/mod.rs`), because `CoreError::Storage` carries it. An adapter that maps it (`failure.rs`, `refusal.rs`) imports `crate::core::StorageError`.
 - **Idempotency moves with the operation.** A service builds its own `CommandContext`, with the same `command_kind` strings and the same fingerprint parameters the route or tool builds today. A changed fingerprint breaks replay, and the tests catch it.
 - **Detachment stays in the HTTP adapter.** `protocol/conversation.rs::detached` spawns the work, so a client that disconnects does not cancel it. A route that calls it today still calls it, around the service call.
 - **Files:** 300 lines needs a stated reason, and at 500 the file splits (CLAUDE.md). A service that grows past 300 splits by responsibility into `core/<service>/`.
-- Every signature change regenerates the code map in the same commit: `UPDATE_CODEMAP=1 cargo test --test codemap`. A new module gets its one-job line in `docs/codebase/README.md`.
+- Every signature change regenerates the code map in the same commit: `UPDATE_CODEMAP=1 cargo test --test codemap`. A new module gets its one-job line in `docs/codebase/README.md`. `the_ownership_map_accounts_for_every_module` fails on a top-level module with no row (`src/core/`, `src/grant/`), on a row whose module or reference file no longer exists (`src/protocol/ui_signal.rs` after Task 1, `src/mcp/grant.rs` after Task 2), and on a job stated with " and ". So a task that creates, moves or deletes a file fixes its README row in the same commit.
 - **The gate before every commit:**
   - `cargo fmt --check`
   - `cargo clippy --all-targets -- -D warnings`
@@ -36,6 +38,8 @@
   `CARGO_TARGET_DIR=C:/Users/Mohammed/AppData/Local/Temp/claude/E--Globalprojects-shadows/e86a610a-4c5b-4114-884d-faf050ce6a96/scratchpad/target CARGO_INCREMENTAL=0`,
   because E: fills up. Stop any running `shadows.exe` preview before `cargo test`, or it cannot overwrite the binary.
 - **Each task writes or extends its service's contract**, `docs/codebase/contracts/<service>.yaml`, from `TEMPLATE.yaml`. It records every rule the task moved (§14.7) with `tested_by`. §14.7's rules need a real test; any other `none` or `unknown` needs a `note`.
+  - **One deviation from the template's shape, which §14.6 makes:** the template puts its function groups (`reads:`, `writes:`, `checks:`) at the top level; a Shadows contract nests them under one `functions:` key, because that is the key `tests/contracts.rs` reads. A group placed at the top level is invisible to rules 3 and 5.
+  - `source` names the service's file (`src/core/plans.rs`). If a service splits into `src/core/<service>/`, `source` names the file that holds its `impl` with the public methods.
 
 ## Review Focus
 
@@ -52,8 +56,8 @@
 ```text
 Task 0  guards: tests/architecture.rs (allowlist = today) + tests/contracts.rs + TEMPLATE.yaml
 Task 1  core/: AppCore, CoreParts, CoreError, service shells; AppState/McpState hold Arc<AppCore>; shut_down
-Task 2  Plans          (protocol/workflow.rs, mcp/tools.rs)
-Task 3  Grants         (protocol/grants.rs, mcp/auth.rs, cli startup) + grant types move to src/grant/
+Task 2  grant types move to src/grant/; Plans (protocol/workflow.rs, mcp/tools.rs)
+Task 3  Grants         (protocol/grants.rs, mcp/auth.rs, core startup)
 Task 4  Turns          (protocol/conversation.rs start/stop)             ← risk: Stop, lease, turn end
 Task 5  Harness        (protocol/harness.rs)
 Task 6  Projects, Threads, Instructions (protocol/project.rs, fs.rs, thread.rs, instructions.rs, conversation.rs lists)
@@ -72,12 +76,12 @@ Tasks run in order, each with one implementer and then one review. Every task le
 - Create: `tests/architecture.rs`
 - Create: `tests/contracts.rs`
 - Create: `docs/codebase/contracts/TEMPLATE.yaml`: Mohammed's template, copied verbatim from `C:\Users\Mohammed\Downloads\Telegram Desktop\GENERIC_SOURCE_CONTRACT_TEMPLATE.yaml`
-- Modify: `Cargo.toml` (`[dev-dependencies]`: `yaml-rust2 = "0.13"`)
+- Modify: `Cargo.toml` (`[dev-dependencies]`: `yaml-rust2 = "0.13"`, with a comment naming `tests/contracts.rs` as its one user, as the file's other dev-dependencies have). If `0.13` does not resolve, take the newest `yaml-rust2` that does and name it in the report.
 
 **Interfaces:**
 - Produces: `ALLOWLIST` in `tests/architecture.rs`, which later tasks shrink. And the contract rules later tasks' contracts must pass.
 
-- [ ] **Step 1: Write `tests/architecture.rs`.** It walks `src/protocol/`, `src/mcp/` and `src/cli/`, tokenizes each file with `proc_macro2`, and fails on a forbidden identifier. Comments are not tokens, and doc comments become string literals, so prose never trips it.
+- [ ] **Step 1: Write `tests/architecture.rs`.** It walks `src/protocol/`, `src/mcp/` and `src/cli/`, tokenizes each file with `proc_macro2`, and fails on a forbidden identifier. Comments are not tokens, and doc comments become string literals, so prose never trips it. One identifier is not a bypass: an error enum's variant (`CoreError::Storage`, `StartError::Storage`, `OpenError::Storage`), which names a failure the adapter maps, not a way past the core. Without that exemption `failure.rs` could never leave the allowlist, because it must map `CoreError::Storage`.
 
 ```rust
 //! Spec §14.5: the adapters (`protocol/`, `mcp/`, `cli/`) reach the
@@ -117,10 +121,23 @@ fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
+/// Every identifier in `tokens`, except an error enum's variant
+/// (`CoreError::Storage`, `StartError::Storage`): that names a failure the
+/// adapter maps, not a way past the core.
 fn idents(tokens: TokenStream, found: &mut Vec<String>) {
-    for tree in tokens {
+    let trees: Vec<TokenTree> = tokens.into_iter().collect();
+    let colon = |t: &TokenTree| matches!(t, TokenTree::Punct(p) if p.as_char() == ':');
+    for (n, tree) in trees.iter().enumerate() {
         match tree {
-            TokenTree::Ident(i) => found.push(i.to_string()),
+            TokenTree::Ident(i) => {
+                let error_variant = n >= 3
+                    && colon(&trees[n - 1])
+                    && colon(&trees[n - 2])
+                    && matches!(&trees[n - 3], TokenTree::Ident(e) if e.to_string().ends_with("Error"));
+                if !error_variant {
+                    found.push(i.to_string());
+                }
+            }
             TokenTree::Group(g) => idents(g.stream(), found),
             _ => {}
         }
@@ -179,19 +196,22 @@ fn adapters_reach_the_application_only_through_the_core() {
 
 - [ ] **Step 2: Fill the allowlist from reality.** Run `cargo test --test architecture`. It fails and prints every violating file. Copy exactly those paths into `ALLOWLIST`, one per line with a comment naming the task that removes it:
 
+The table below was read from `main` at `ddcaed5` with this test's rule applied (fifteen files):
+
 | File | Removed by |
 |---|---|
-| `src/protocol/workflow.rs`, `src/mcp/tools.rs`, `src/mcp/server.rs` | Task 2 |
+| `src/protocol/mod.rs`, `src/mcp/mod.rs`, `src/cli/mod.rs` | Task 1 |
+| `src/protocol/failure.rs`, `src/mcp/refusal.rs` (each imports `crate::storage::StorageError`) | Task 1, which switches them to `crate::core::StorageError` |
+| `src/protocol/workflow.rs`, `src/mcp/tools.rs` | Task 2 |
 | `src/protocol/grants.rs`, `src/mcp/auth.rs` | Task 3 |
-| `src/protocol/conversation.rs` | Task 6. Task 4 moves start and stop, and Task 6 moves the lists. |
 | `src/protocol/harness.rs` | Task 5 |
+| `src/protocol/conversation.rs` | Task 6. Task 4 moves start and stop, and Task 6 moves the lists. |
 | `src/protocol/project.rs`, `src/protocol/thread.rs`, `src/protocol/instructions.rs` | Task 6 |
 | `src/protocol/sse.rs` | Task 7 |
-| `src/protocol/mod.rs`, `src/mcp/mod.rs`, `src/cli/mod.rs` | Task 1 |
 
-Run again. Expected: PASS. A path the run printed that is not in the table goes to the task whose service owns it, and the report says so.
+`src/mcp/server.rs`, `src/protocol/fs.rs`, `guard.rs`, `openapi.rs`, `ui_signal.rs` and `src/cli/args.rs` name nothing forbidden and are not on the list. Run again. Expected: PASS. A path the run printed that is not in the table goes to the task whose service owns it, and the report says so.
 
-- [ ] **Step 3: Write `tests/contracts.rs`.** It loads every `docs/codebase/contracts/*.yaml` except `TEMPLATE.yaml`, parses it with `yaml_rust2::YamlLoader::load_from_str`, and checks §14.6's six rules. The service source is the file named by `source`, and the public methods are collected with `syn`, from `pub fn` and `pub async fn` in that file's `impl` blocks. Test names are collected with `syn` from every `#[test]` or `#[tokio::test]` function in `tests/**/*.rs` and in `src/**/*.rs`.
+- [ ] **Step 3: Copy the template to `docs/codebase/contracts/TEMPLATE.yaml` first** (the test's `read_dir` panics on a missing directory), **then write `tests/contracts.rs`.** It loads every `docs/codebase/contracts/*.yaml` except `TEMPLATE.yaml`, parses it with `yaml_rust2::YamlLoader::load_from_str`, and checks §14.6's six rules. The service source is the file named by `source`, and the public methods are collected with `syn`, from `pub fn` and `pub async fn` in that file's `impl` blocks. Test names are collected with `syn` from every `#[test]` or `#[tokio::test]` function in `tests/**/*.rs` and in `src/**/*.rs`.
 
 ```rust
 //! Spec §14.6: a service contract that no longer matches its code fails here.
@@ -317,6 +337,8 @@ fn every_contract_matches_its_service() {
             if (t == "none" || t == "unknown") && o["note"].as_str().is_none() {
                 problems.push(format!("{name}: an obligation says tested_by: {t} without a note")) }
         } }
+        if let Some(ags) = doc["agreements"].as_vec() { for a in ags {
+            if let Some(t) = a["tested_by"].as_str() { named.push(t.to_string()) } } }
         if let Some(ts) = doc["tests"].as_vec() { for t in ts { if let Some(n) = t["name"].as_str() { named.push(n.to_string()) } } }
         for n in named {
             let bare = n.trim_start_matches("integration: ").to_string();
@@ -332,9 +354,10 @@ fn every_contract_matches_its_service() {
 ```
 
 - [ ] **Step 4: Prove each guard bites.**
-  - Add `use crate::storage::Storage;` to a file not on the allowlist, such as `src/protocol/failure.rs`. Run `cargo test --test architecture` and expect FAIL. Revert.
-  - Write a scratch `docs/codebase/contracts/scratch.yaml` with `source: src/config.rs` and `functions: { nope: "() -> ()" }`. Run `cargo test --test contracts` and expect FAIL naming `nope`. Delete the scratch file.
-- [ ] **Step 5: Copy the template, then run the gate.** Expect 306 Rust (304 + 2), all passing.
+  - Add `use crate::storage::Storage;` to a file not on the allowlist: `src/protocol/guard.rs` (`failure.rs` is on the list, so it would prove nothing). Run `cargo test --test architecture` and expect FAIL naming `guard.rs`. Revert.
+  - Replace that line with `const _X: &str = stringify!(CoreError::Storage);` (`stringify!` compiles whatever tokens it is given, and `CoreError` does not exist yet) and run again: expect PASS, which shows the error-variant exemption holds. Revert.
+  - Write a scratch `docs/codebase/contracts/scratch.yaml` with `source: src/config.rs`, `functions: { nope: "() -> ()" }` and one obligation `{ rule: x, tested_by: no_such_test }`. Run `cargo test --test contracts` and expect FAIL naming both `nope` and `no_such_test`. Delete the scratch file.
+- [ ] **Step 5: Run the gate.** Expect 306 Rust (304 + 2), all passing.
 - [ ] **Step 6: Commit.** `test(architecture): guard the adapters and the service contracts (§14.5, §14.6)`
 
 ---
@@ -344,12 +367,13 @@ fn every_contract_matches_its_service() {
 **Files:**
 - Create: `src/core/mod.rs`: `AppCore`, `CoreParts`, accessors, `start`, `assemble`, `shut_down`
 - Create: `src/core/error.rs`: `CoreError`
-- Create: `src/core/{projects,threads,turns,harness,plans,grants,instructions,events}.rs`: each a struct holding the `Arc`s it needs, with no methods yet
+- Create: `src/core/{projects,threads,turns,harness,plans,grants,instructions,events}.rs`: each an empty struct with no fields and no methods yet (see Step 3 for why empty)
 - Modify: `src/lib.rs` (`pub mod core;`)
-- Modify: `src/protocol/mod.rs` (`AppState`), `src/mcp/mod.rs` (`McpState` → `Arc<AppCore>`), `src/cli/mod.rs`
-- Modify: `src/protocol/failure.rs` (`impl From<CoreError> for Failure`), `src/mcp/refusal.rs` (`impl From<CoreError> for Refusal`)
-- Move: `UiSignal`, from `src/protocol/ui_signal.rs` to `src/core/events.rs`
-- Modify: `tests/fixtures/app.rs`, `tests/fixtures/listening.rs`, and the nine tests that build `AppState` themselves (`cors`, `debug_log`, `disconnect`, `fs_routes`, `openapi`, `planner_turn`, `project_directory`, `protocol`, `resync`). Only their construction changes.
+- Modify: `src/protocol/mod.rs` (`AppState`; `router` mounts `crate::mcp::service(state.core.clone())`), `src/mcp/mod.rs` (`McpState` → `Arc<AppCore>`), `src/mcp/server.rs` (`Shadows` holds `core: Arc<AppCore>`, because `McpState` is gone), `src/mcp/tools.rs` (`self.state.storage` → `self.core.storage()`, and so on), `src/mcp/auth.rs` (`require_grant` takes `State<Arc<AppCore>>` and reads `core.storage()`, so `mcp/mod.rs` names no storage), `src/cli/mod.rs`, and every `protocol/` handler that reads a moved field
+- Modify: `src/protocol/failure.rs` (`impl From<CoreError> for Failure`), `src/mcp/refusal.rs` (`impl From<CoreError> for Refusal`); both import `crate::core::StorageError`, no longer `crate::storage::StorageError`
+- Move: `UiSignal`, from `src/protocol/ui_signal.rs` to `src/core/events.rs`. `ui_signal.rs` holds nothing else, so it is deleted, with `mod ui_signal;` and `pub use ui_signal::UiSignal;` in `protocol/mod.rs`.
+- Modify: `docs/codebase/README.md`: add `src/core/` ("the application's operations, one method per operation", reference `src/core/mod.rs`); delete the `src/protocol/ui_signal.rs` row; add `src/core/events.rs` ("what clients watch live", reference itself), which now holds `UiSignal`.
+- Modify: `tests/fixtures/app.rs` and the twelve tests that build `AppState` themselves (`cors`, `debug_log`, `disconnect`, `fs_routes`, `openapi`, `planner_turn`, `project_directory`, `protocol`, `resync`, `shutdown`, `stream_frames`, `thread_routes`). Only their construction and imports change. `tests/fixtures/listening.rs` builds through `test_app_with` and needs no change.
 - Test: `tests/core.rs` (new)
 
 **Interfaces:**
@@ -375,9 +399,18 @@ pub struct CoreParts {
 pub struct AppCore {
     projects: Projects, threads: Threads, turns: Turns, harness: Harness,
     plans: Plans, grants: Grants, instructions: Instructions, events: Events,
-    // Held for shut_down only; never returned.
+    // Held for shut_down; never returned once Task 7 deletes the getters.
     runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>,
+    // Held only for Task 1's temporary getters. Each goes with its last getter
+    // (an unread private field fails clippy), and Task 7 removes the last.
+    storage: Arc<Storage>, bus: Bus, ui: tokio::sync::broadcast::Sender<UiSignal>, mcp_url: String,
 }
+
+/// The one `CommandContext` a person's command carries: principal `User`,
+/// id `local`, schema version 1, the fingerprint of `params`. The same body
+/// as `protocol::project::ctx` today, so no fingerprint moves. Every service
+/// that takes a person's `command_id` builds its context here.
+pub(crate) fn user_command(command_id: String, kind: &str, params: serde_json::Value) -> CommandContext;
 
 impl AppCore {
     /// Production startup, in today's order: open storage, start the runtime
@@ -394,15 +427,18 @@ impl AppCore {
     pub fn grants(&self) -> &Grants;
     pub fn instructions(&self) -> &Instructions;
     pub fn events(&self) -> &Events;
-    /// Spec §8.5 through `planner::shut_down`, unchanged: stop every running
-    /// turn, close every adapter, record the stop.
+    /// Spec §8.5 through `planner::shut_down(runtime, handles, sessions,
+    /// confirm_within, escalate)`, unchanged: stop every running turn, close
+    /// every adapter, record the stop.
     pub async fn shut_down(
         &self,
         bound: Duration,
         second_signal: impl Future<Output = ()>,
-    ) -> Result<StopKind, ShutdownError>;
+    ) -> Result<StopKind, CoreError>;
 }
 ```
+
+`planner::shut_down` returns `Result<StopKind, StorageError>` (`src/planner/shutdown.rs`); `StopKind` is `storage::StopKind`. The error becomes `CoreError::Storage`, whose `Display` is transparent, so `shutdown.unrecorded`'s `%error` text is unchanged.
 
 ```rust
 // src/core/error.rs — every way a service call fails, in words no adapter owns.
@@ -425,15 +461,23 @@ pub enum CoreError {
 impl From<OpenError> for CoreError { /* Storage→Storage, Start(r)→HarnessStartFailed(r), Workspace(r)→ProjectDirectoryUnusable(r) */ }
 ```
 
-- `StopKind` and `ShutdownError` are whatever `planner::shut_down` returns today. Name them exactly as `src/planner/shutdown.rs` declares them.
-- `AppState` becomes `{ core: Arc<AppCore>, allowed_origins: Vec<String>, shutdown: watch::Receiver<bool> }`. `mcp_url` moves into `CoreParts`, because `Grants::issue` builds the command from it (Task 3). This amends §14.4's `AppState` sketch, and Step 7 amends the spec text to match.
+- `AppState` becomes `{ core: Arc<AppCore>, allowed_origins: Vec<String>, shutdown: watch::Receiver<bool> }`, still `#[derive(Clone)]`. `mcp_url` moves into `CoreParts`, because `Grants::issue` builds the command from it (Task 3). This amends §14.4's `AppState` sketch, and Step 7 amends the spec text to match.
+- **Startup order changes in one place, and §14.3/§14.4 are amended for it (Step 7).** Today `serve` opens storage, recovers, revokes thread grants and reads the harness versions, and only then binds. The sessions need `mcp_url`, which names the address actually bound (port 0 in tests), so `serve` now binds first and then calls `AppCore::start(&config, mcp_url)`. Nothing is served until `start` returns, so no client sees the difference; a bind failure now happens before recovery rather than after it.
 - `McpState` is replaced by `Arc<AppCore>`. `mcp::service(core: Arc<AppCore>) -> Router`.
 
 - [ ] **Step 1: Write the failing test `tests/core.rs`.**
 
 ```rust
-mod fixtures;
-use fixtures::app::*;
+//! Spec §14.3, §14.4: the application is one `AppCore`, and both adapters
+//! and shutdown reach it through that.
+
+#[path = "fixtures/acp.rs"]
+mod acp;
+#[path = "fixtures/app.rs"]
+mod app;
+
+use app::{call, default_settings, names, start_on, test_app, wait_terminal};
+use shadows::storage::StopKind;
 
 #[tokio::test]
 async fn the_app_state_reaches_services_only_through_the_core() {
@@ -448,17 +492,22 @@ async fn the_app_state_reaches_services_only_through_the_core() {
 async fn shut_down_through_the_core_cancels_and_records() {
     let app = test_app().await;
     let op = start_on(&app, app.thread.as_str(), "hang", default_settings()).await;
-    app.core.shut_down(std::time::Duration::from_secs(10), std::future::pending()).await.unwrap();
+    let kind = app
+        .core
+        .shut_down(std::time::Duration::from_secs(10), std::future::pending())
+        .await
+        .unwrap();
+    assert_eq!(kind, StopKind::Graceful);
     let done = wait_terminal(&app, &op).await;
-    assert_eq!(done.state.as_str(), "Cancelled");
+    assert_eq!(done.status_kind, "Cancelled");
 }
 ```
 
-The fixture's `App` gains `pub core: Arc<AppCore>`, built with `AppCore::assemble(CoreParts { … })` from the same `Arc`s it already holds. Every other field of `App` stays, so the 363 existing uses of `app.storage` and the rest compile unchanged. If `Operation.state` is not a string-like enum with `as_str`, assert the way `tests/shutdown.rs` asserts a cancelled operation. Read it first.
+Tests include fixtures by `#[path]`, as every existing test does; there is no `tests/fixtures/mod.rs`. `Operation`'s state is the string `status_kind` (as `tests/shutdown.rs` asserts it). If `StopKind` does not derive `PartialEq`, match on it instead of adding a derive. The fixture's `App` gains `pub core: Arc<AppCore>`, built with `AppCore::assemble(CoreParts { … })` from the same `Arc`s it already holds, and its router is built from `AppState { core: core.clone(), … }`. Every other field of `App` stays, so the existing uses of `app.storage` and the rest compile unchanged.
 
 - [ ] **Step 2: Run it.** `cargo test --test core`. Expected: FAIL to compile (`shadows::core` does not exist).
 - [ ] **Step 3: Implement `src/core/`.**
-  - The shells hold, and only hold, what their later task needs:
+  - **The shells are empty in this task** (`pub struct Plans {}` and so on), because a private field nothing reads fails `cargo clippy -D warnings`. Each later task adds, in `assemble`, the fields its methods read, and only those:
     - `Plans`: storage, handles, ui
     - `Grants`: storage, mcp_url
     - `Turns`: storage, runtime, handles, sessions, bus
@@ -466,18 +515,20 @@ The fixture's `App` gains `pub core: Arc<AppCore>`, built with `AppCore::assembl
     - `Projects`: storage
     - `Threads`: storage, sessions
     - `Instructions`: storage
-    - `Events`: storage, sessions, bus, ui
+    - `Events`: storage, sessions, bus, ui, and a `Harness` for the `options` frame (Task 7 calls `Harness::choices`; one capability, one method). So `Harness` derives `Clone`, and holds only `Arc`s.
+  - `user_command` (above) is not written in this task: it would be dead code, which clippy refuses. Task 2 adds it with its first caller, `Plans::approve`. `protocol::project::ctx` stays until Task 6 removes its last caller, then is deleted.
   - `start` moves `serve`'s pre-bind body out of `cli/mod.rs`, including `harness_version`. Keep it in `src/core/mod.rs`, or in `src/core/start.rs` if `mod.rs` passes 300 lines.
   - `serve` becomes: bind, then `AppCore::start(&config, mcp_url)`, print the address, and serve `protocol::router(AppState { core, allowed_origins, shutdown })`. The graceful-shutdown future calls `core.shut_down(CONFIRMATION_BOUND, second_signal)` and then `stopping.send_replace(true)`, in today's order, keeping every log line (`shutdown.recorded`, `shutdown.unrecorded`, `shutdown.signal_unavailable`).
   - Handlers keep working this task by reading through the core. Add temporary `pub(crate)` getters on `AppCore` with exactly these names:
-    - `storage()`, `sessions()`, `handles()`, `runtime()` and `bus()`, each returning its `&Arc<…>`;
-    - `ui_bus()` for the UI sender.
+    - `storage()`, `sessions()`, `handles()`, `runtime()` and `bus()`, each returning its `&Arc<…>` (`bus()` its `&Bus`);
+    - `ui_bus()` for the UI sender;
+    - `mcp_url()` returning `&str`, for `protocol/grants.rs` until Task 3.
 
-    Change `s.storage` to `s.core.storage()` in each handler. **These getters are the allowlist's shadow:**
+    Change `s.storage` to `s.core.storage()` in each handler and `self.state.storage` to `self.core.storage()` in each tool. **These getters are the allowlist's shadow:**
     - every handler that uses one still names a `FORBIDDEN` identifier, so its file stays on `ALLOWLIST`;
     - each later task deletes the getters its routes no longer need;
     - Task 7 deletes the last one, and `the_core_exposes_no_storage` (Task 7) proves they are gone.
-  - `UiSignal` moves now from `src/protocol/ui_signal.rs` to `src/core/events.rs`, with its fields and derives unchanged, because `CoreParts` names it and `core/` must not import `protocol/`. Update its imports in `mcp/tools.rs`, `protocol/sse.rs` and `tests/fixtures/app.rs`. `protocol/ui_signal.rs` keeps whatever else it holds, or is deleted if the struct was all.
+  - `UiSignal` moves now from `src/protocol/ui_signal.rs` to `src/core/events.rs`, with its fields and derives unchanged, because `CoreParts` names it and `core/` must not import `protocol/`. Update its imports in `mcp/tools.rs`, `protocol/sse.rs` and `tests/fixtures/app.rs`. The struct is all `ui_signal.rs` holds, so the file is deleted and its README row with it.
 - [ ] **Step 4: Map `CoreError` in each adapter.**
   - `impl From<CoreError> for Failure` calls the constructors that exist today:
     - `Storage`, `Start` and `Directory` go through the existing `From`s;
@@ -493,25 +544,28 @@ The fixture's `App` gains `pub core: Arc<AppCore>`, built with `AppCore::assembl
     - `Storage` goes through the existing `From`;
     - `Refused` → `Refusal::new(code, message)`;
     - every other variant → `Refusal::new(<its ErrorCode>, e.to_string())`.
-- [ ] **Step 5: Update the fixtures and the nine test files' `AppState` literals.** No assertion changes.
-- [ ] **Step 6: Run the gate.** Expect 308 Rust. `tests/architecture.rs` must pass: `protocol/mod.rs`, `mcp/mod.rs` and `cli/mod.rs` now name only `core` types, so remove them from `ALLOWLIST`.
-- [ ] **Step 7: Amend §14.4** so the `AppState` sketch shows `mcp_url` in the core, not in `AppState`. Record `CoreError` in §14.3 in one sentence.
+- [ ] **Step 5: Update the fixture and the twelve test files' `AppState` literals.** No assertion changes. Tests that import `shadows::protocol::UiSignal` import `shadows::core::UiSignal` (a re-export from `core/mod.rs`).
+- [ ] **Step 6: Run the gate.** Expect 308 Rust. `tests/architecture.rs` must pass: `protocol/mod.rs`, `mcp/mod.rs`, `cli/mod.rs`, `protocol/failure.rs` and `mcp/refusal.rs` now name only `core` types, so remove them from `ALLOWLIST` (its stale check fails until you do).
+- [ ] **Step 7: Amend the spec.**
+  - §14.4: the `AppState` sketch shows `mcp_url` in the core, not in `AppState`.
+  - §14.3 and §14.4: `AppCore::start(config, mcp_url)`, and `cli/` binds the listener before calling it, because the sessions need the bound address (see the startup-order note above).
+  - §14.3: record `CoreError` in one sentence.
 - [ ] **Step 8: Commit.** `feat(core): AppCore holds the application; adapters hold only Arc<AppCore> (§14.3, §14.4)`
 
 ---
 
-### Task 2: `Plans`
+### Task 2: the grant types move, then `Plans`
 
 **Files:**
-- Modify: `src/core/plans.rs`
+- Move (Step 0): `src/mcp/grant.rs` → `src/grant/mod.rs`, contents unchanged. `Grant`, `GrantId`, `GrantKind`, `IssuedGrant`, `Token` and `hash_token` are domain types: `storage/sqlite/grant.rs`, `command/mod.rs` and `planner/setup.rs` use them, and `core/plans.rs` is about to, which must not import `mcp/`. Add `pub mod grant;` to `src/lib.rs` and drop `pub mod grant;` from `src/mcp/mod.rs`. Update every `crate::mcp::grant` import in `src/` (`command/mod.rs`, `planner/setup.rs`, `storage/sqlite/grant.rs`, `mcp/server.rs`, `mcp/tools.rs`, `protocol/grants.rs`), and `shadows::mcp::grant` in `src/bin/fake_acp.rs`, `tests/fixtures/listening.rs`, `tests/fixtures/plan.rs` and `tests/grants.rs`. README: replace the `src/mcp/grant.rs` row with `src/grant/` ("who may do what on `/mcp`", reference `src/grant/mod.rs`).
+- Modify: `src/core/plans.rs`, `src/core/mod.rs` (`user_command`, and `Plans`' fields in `assemble`)
 - Modify: `src/protocol/workflow.rs` (`list_plans`, `get_plan`, `approve_plan` → one call each)
-- Modify: `src/mcp/tools.rs` (every tool → one call). `plan_in_scope`, `planner_draft`, `external_draft`, `edit`, `show`, `own_thread` and `writer_of` move into `Plans` unchanged in logic and text.
-- Modify: `src/mcp/server.rs` (`Shadows` holds `Arc<AppCore>`)
+- Modify: `src/mcp/tools.rs` (every tool → one call). `plan_in_scope`, `planner_draft`, `external_draft`, `edit`, `show`, `own_thread`, `writer_of` and `command` move into `Plans` unchanged in logic and text.
 - Create: `docs/codebase/contracts/plans.yaml`
 - Test: `tests/core_plans.rs` (new)
 
 **Interfaces:**
-- Consumes: `CoreError::Refused` (Task 1), `Grant` and `GrantKind` from `crate::mcp::grant` (they move in Task 3; import them from where they are).
+- Consumes: `CoreError::Refused` (Task 1), `Grant` and `GrantKind` from `crate::grant` (Step 0).
 - Produces:
 
 ```rust
@@ -542,13 +596,29 @@ pub struct PlanEdit { pub workflow_id: Option<WorkflowId>, pub expected_revision
 pub struct PlanShow { pub workflow_id: Option<WorkflowId>, pub task_number: Option<u32>, pub place: Place }
 ```
 
-`get_for`'s old `latest_only` flag stays private: `edit` calls the private `in_scope(grant, named, true)`, and `get_for` and `task_for` call it with `false`. Every refusal text moves verbatim. `Refusal::scope(msg)` becomes `CoreError::Refused { code: ErrorCode::GrantScope, message }`, and `Refusal::new(code, msg)` becomes `CoreError::Refused { code, message }`.
+`get_for`'s old `latest_only` flag stays private: `edit` calls the private `in_scope(grant, named, true)`, and `get_for` and `task_for` call it with `false`. Every refusal text moves verbatim. `Refusal::scope(msg)` becomes `CoreError::Refused { code: ErrorCode::GrantScope, message }`, and `Refusal::new(code, msg)` becomes `CoreError::Refused { code, message }`. A `StorageError` a tool returns today (`own_thread`'s `StorageError::GrantScope`, `external_draft`'s `StorageError::PlanInvalid`) stays a `StorageError`, carried as `CoreError::Storage`, so `Refusal`'s existing `From<StorageError>` still writes its text. `edit` returns `EditOutcome` and `start_draft` returns `DraftStarted`, where the tools return `json!(…)` of them today: the serialized answer is the same.
 
+The fingerprints that must not move: `"PlanApprove"` { workflow, expected_revision }; `"DraftStart"` { thread, title, goal } (Planner, anchored to the running turn) and { title, goal, from_workflow_id } (external, anchored to the `draft_ref`); `"PlanEdit"` { workflow, expected_revision, ops }; `"PlanShow"` { workflow, task_number, place }. Copy the `json!` literals, do not retype them.
+
+- [ ] **Step 0: Move the grant types** (Files above), run the gate, and commit alone: `refactor(grant): the grant types are domain types, not the MCP server's`. Nothing else changes, so a failure here is an import.
 - [ ] **Step 1: Write the failing tests `tests/core_plans.rs`.** They pin the moved behaviour through the adapters, which is what a client sees. Use the existing helpers in `tests/fixtures/plan.rs` and `tests/fixtures/listening.rs`.
 
 ```rust
-mod fixtures;
-use fixtures::listening::*;
+//! Spec §14.3, §14.7: plan operations answer the same after moving into
+//! `Plans` — a replay is the first answer, and a grant's scope still holds.
+
+#[path = "fixtures/acp.rs"]
+mod acp;
+#[path = "fixtures/app.rs"]
+mod app;
+#[path = "fixtures/listening.rs"]
+mod listening;
+#[path = "fixtures/plan.rs"]
+mod plan;
+
+use app::other_project;
+use listening::{listening_app, ok, project_client, refused};
+use plan::{add, draft_on};
 use serde_json::json;
 
 #[tokio::test]
@@ -560,24 +630,27 @@ async fn plan_commands_replay_after_the_move() {
     let first = ok(&client, "draft_start", args.clone()).await;
     let again = ok(&client, "draft_start", args).await;
     assert_eq!(first["workflow_id"], again["workflow_id"]);
-    let edit = json!({ "workflow_id": first["workflow_id"], "expected_revision": first["revision"],
-        "ops": [{ "op": "task_add", "number": 1, "title": "A" }], "command_id": "e1" });
+    // A new draft is at revision 0 (tests/mcp_tools.rs edits it so).
+    let edit = json!({ "workflow_id": first["workflow_id"], "expected_revision": 0,
+        "ops": [add(1)], "command_id": "e1" });
     let e1 = ok(&client, "plan_edit", edit.clone()).await;
     let e2 = ok(&client, "plan_edit", edit).await;
     assert_eq!(e1, e2);
+    assert_eq!(e1["revision"], 1, "the replay answered the first edit, not a second one");
 }
 
 #[tokio::test]
 async fn a_project_grant_is_refused_another_projects_plan_after_the_move() {
     let l = listening_app().await;
     let (_g, client) = project_client(&l).await;
-    let other = fixtures::plan::plan_in_other_project(&l).await;
+    let (_, their_thread) = other_project(&l.app).await;
+    let other = draft_on(&l.app, &their_thread, "their-start").await.workflow_id;
     let text = refused(&client, "workflow_get", json!({ "workflow_id": other })).await;
     assert!(text.starts_with("GRANT_SCOPE: that plan is not in this grant's project"), "{text}");
 }
 ```
 
-Adjust the tool arguments' field names to what `DraftStarted` and `EditOutcome` serialize as today. Read `src/workflow/mod.rs`. If `plan_in_other_project` does not exist in `tests/fixtures/plan.rs`, add it there, using the same pattern `tests/plan_grants.rs` uses for a second project's plan.
+Match the `use` lines to what `listening.rs` needs beside it (it names `super::acp`, `super::app` and `super::plan`); read an existing user such as `tests/mcp_tools.rs` first.
 
 - [ ] **Step 2: Run them.** `cargo test --test core_plans`. They pass against the old code; that is expected, because these pin behaviour across the move. Record that they passed before the move.
 - [ ] **Step 3: Move the logic into `Plans`.** The routes and tools become one call plus a conversion:
@@ -595,8 +668,8 @@ async fn workflow_get(&self, Extension(grant): Extension<Grant>,
 }
 ```
 
-  Delete the `AppCore` getters no route or tool uses any more.
-- [ ] **Step 4: Remove `src/protocol/workflow.rs`, `src/mcp/tools.rs` and `src/mcp/server.rs` from `ALLOWLIST`, then run the gate.** Expect 310 Rust. Rerun `tests/core_plans.rs` and the existing `tests/mcp_tools.rs`, `tests/plan_grants.rs`, `tests/plan_storage.rs`, `tests/planner_mcp.rs` and `tests/plan_in_conversation.rs`, all unchanged.
+  Delete the `AppCore` getters no route or tool uses any more, and any `AppCore` field only they read.
+- [ ] **Step 4: Remove `src/protocol/workflow.rs` and `src/mcp/tools.rs` from `ALLOWLIST`, then run the gate.** Expect 310 Rust. Rerun `tests/core_plans.rs` and the existing `tests/mcp_tools.rs`, `tests/plan_grants.rs`, `tests/plan_storage.rs`, `tests/planner_mcp.rs` and `tests/plan_in_conversation.rs`, all unchanged.
 - [ ] **Step 5: Write `docs/codebase/contracts/plans.yaml`** from the template. Its obligations include:
   - grant scope, with `tested_by` the scope tests in `tests/plan_grants.rs`;
   - replay;
@@ -607,11 +680,10 @@ async fn workflow_get(&self, Extension(grant): Extension<Grant>,
 
 ---
 
-### Task 3: `Grants`, and the grant types move to `src/grant/`
+### Task 3: `Grants`
 
 **Files:**
-- Move: `src/mcp/grant.rs` → `src/grant/mod.rs`. `Grant`, `GrantId`, `GrantKind`, `IssuedGrant`, `Token` and `hash_token` are domain types, used by storage and `command/`. Update every `crate::mcp::grant` import, and the four test and bin imports: `tests/fixtures/listening.rs`, `tests/fixtures/plan.rs`, `tests/grants.rs`, `src/bin/fake_acp.rs`.
-- Modify: `src/core/grants.rs`, `src/protocol/grants.rs`, `src/mcp/auth.rs`, `src/core/mod.rs` (`start` calls `grants.revoke_thread_grants()`)
+- Modify: `src/core/grants.rs`, `src/protocol/grants.rs`, `src/mcp/auth.rs`, `src/core/mod.rs` (`start` calls `grants.revoke_thread_grants()` where it calls storage today, keeping the `recovery.thread_grants_revoked` log line; the `mcp_url()` getter goes)
 - Create: `docs/codebase/contracts/grants.yaml`
 - Test: extend `tests/core.rs`
 
@@ -634,29 +706,30 @@ impl Grants {
 pub struct IssuedView { pub grant: Grant, pub token: Option<String>, pub command: Option<String> }
 ```
 
-`protocol/grants.rs`'s `IssuedGrantBody` keeps its name and fields, so OpenAPI is unchanged, and it is built from `IssuedView`. `mcp/auth.rs::require_grant` takes `State<Arc<AppCore>>` and calls `core.grants().authorize(token)`, keeping its three answers (401, 401, 503) and its log lines.
+`protocol/grants.rs`'s `IssuedGrantBody` keeps its name and fields, so OpenAPI is unchanged, and it is built from `IssuedView`. `mcp/auth.rs::require_grant` already takes `State<Arc<AppCore>>` (Task 1); it now calls `core.grants().authorize(token)`, keeping its three answers (401, 401, 503) and its log lines.
 
-- [ ] **Step 1: Failing test.** `revoked_grant_is_refused_after_the_move`:
-  - issue a grant through `POST /api/projects/{id}/mcp-grants`;
-  - connect an MCP client with its token and call `workflow_list`, which succeeds;
-  - `DELETE` the grant;
-  - the next `mcp_client` connection with that token fails with 401. Use `listening.rs`'s pattern from `tests/grants.rs`.
+- [ ] **Step 1: Failing test**, in `tests/core.rs`: `revoked_grant_is_refused_after_the_move`. Read the exact route paths in `protocol/grants.rs`'s `#[utoipa::path]`s first.
+  - issue a grant through the issue route over HTTP, and take the token from its body;
+  - connect with `listening::mcp_client(&l.base, &token)` and call `workflow_list`, which succeeds;
+  - revoke it through the revoke route (`DELETE`, `command_id` in the query);
+  - a raw `POST {base}/mcp` with that bearer answers 401. Do not use `mcp_client` for this step: it panics when the connection fails. Follow `tests/mcp_server.rs::a_revoked_token_is_401`, which already sends such a request.
 
-  Run it; it passes before the move, and this pins it.
-- [ ] **Step 2: Move the files and the logic.** Delete the getters no longer needed. Remove `src/protocol/grants.rs` and `src/mcp/auth.rs` from `ALLOWLIST`.
-- [ ] **Step 3: Run the gate.** `tests/grants.rs` and `tests/plan_grants.rs` pass unchanged, except for their `use` lines.
+  `tests/core.rs` then also includes `fixtures/listening.rs` and `fixtures/plan.rs`. Run it; it passes before the move, and this pins it.
+- [ ] **Step 2: Move the logic.** Delete the getters no longer needed. Remove `src/protocol/grants.rs` and `src/mcp/auth.rs` from `ALLOWLIST`.
+- [ ] **Step 3: Run the gate.** `tests/grants.rs`, `tests/plan_grants.rs` and `tests/mcp_server.rs` pass unchanged.
 - [ ] **Step 4: Write `grants.yaml`.** Among its obligations:
   - the token is stored only as its hash;
   - a replayed issue returns no token;
   - thread grants die at startup.
-- [ ] **Step 5: Commit.** `refactor(core): Grants owns issue, revoke and the bearer check; grant types become src/grant (§14.3)`
+- [ ] **Step 5: Commit.** `refactor(core): Grants owns issue, revoke and the bearer check (§14.3)`
 
 ---
 
 ### Task 4: `Turns` (the risk task)
 
 **Files:**
-- Modify: `src/core/turns.rs`. `start`, `record`, `offer_for_model` and `focus_block`'s call move from `protocol/conversation.rs`, and `stop_turn`'s body moves too.
+- Modify: `src/core/turns.rs`. `start`, the `Turn` struct, `record`, `offer_for_model` and `focus_block`'s call move from `protocol/conversation.rs`, and `stop_turn`'s body moves too. The command is built with `user_command` (Task 2), whose body is `protocol::project::ctx`'s, so the `"turn.start"` fingerprint does not move.
+- Modify: `src/core/mod.rs` (`Turns`' fields in `assemble`; delete the getters and fields no adapter reads any more)
 - Modify: `src/protocol/conversation.rs`. `start_turn` and `stop_turn` each become `detached(one call)`. The list routes stay until Task 6.
 - Create: `docs/codebase/contracts/turns.yaml`
 - Test: `tests/core_turns.rs` (new)
@@ -687,14 +760,14 @@ impl Turns {
 }
 ```
 
-`Turns` holds `Arc`s and is `Clone`, so the route does `let core = s.core.clone(); detached(async move { core.turns().send(thread_id, turn).await.map_err(Failure::from) })`.
+The route clones the `Arc<AppCore>` into the detached task: `let core = s.core.clone(); detached(async move { core.turns().send(thread_id, turn).await.map_err(Failure::from) })`. `stop_turn` does the same with `core.turns().stop(&op_id)`.
 
 - [ ] **Step 1: Failing tests `tests/core_turns.rs`.** They pin behaviour and pass before the move.
   - `turn_start_replays_after_the_move`: the same `command_id` posted twice gives one operation id, `202` both times.
   - `stop_after_the_move_records_cancelled`: start with prompt `hang`, stop it, and the operation is `Cancelled`.
   - `a_second_start_while_busy_is_thread_busy`: start `hang`, and a second start with a new `command_id` gets 409 `THREAD_BUSY`.
 
-  Use `start_on`, `http_start`, `wait_terminal` and `fresh_command` from `tests/fixtures/app.rs`.
+  Use `start_on`, `http_start`, `wait_terminal` and `fresh_command` from `tests/fixtures/app.rs`, included by `#[path]` as in `tests/core.rs`. Stop through the route `POST /api/operations/{id}/stop`, not `PlannerTurn::stop`, so the test crosses the adapter.
 - [ ] **Step 2: Move the logic.** Read the old `start` and the new `send` side by side, statement by statement. Nothing reorders.
 - [ ] **Step 3: Run the gate.** These pass unchanged: `tests/planner_turn.rs`, `turn_command.rs`, `operation_lifecycle.rs`, `shutdown.rs`, `disconnect.rs`, `recovery.rs`, `containment.rs` and `plan_in_conversation.rs`.
 - [ ] **Step 4: Write `turns.yaml`.** Its obligations are §14.7's first three rules, each with `tested_by`:
@@ -731,7 +804,9 @@ impl Harness {
 
 `HarnessInfo`, `RememberedSettings` and `ContextBreakdown` move from `protocol/harness.rs` to `src/core/harness.rs`, with the same names, fields and derives (`serde::Serialize`, `utoipa::ToSchema`). `label()` moves with them, so `api/openapi.json` is unchanged. `protocol/openapi.rs` imports them from their new path. `choices_for` becomes `Harness::choices`, and `open_failure` becomes `From<OpenError> for CoreError`.
 
-- [ ] **Step 1: Failing test.** `change_model_is_refused_while_a_turn_runs`: start `hang`, then `PUT /api/threads/{id}/session/model` gives 409 `THREAD_BUSY`. Read the exact path in `protocol/mod.rs`'s route table or `api/openapi.json`. It passes before the move.
+`Harness` gains its fields (storage, sessions) in `assemble` and derives `Clone`, because `Events` holds one (Task 7). `open_failure` and `choices_for` have callers in `protocol/conversation.rs` (Task 4 moved them into `Turns`) and `protocol/sse.rs` (`options_event`, until Task 7): this task switches `sse.rs`'s `options_event` to `s.core.harness().choices(…)`, so `choices_for` is deleted, not left behind (`sse.rs` stays on the allowlist for its other reads).
+
+- [ ] **Step 1: Failing test.** `change_model_is_refused_while_a_turn_runs`: start `hang`, then `PUT /api/threads/{id}/session/model` (the path in `harness.rs`'s `#[utoipa::path]`) with a model the fake offers gives 409 `THREAD_BUSY`, and the running operation still finishes as it would have (stop it and see `Cancelled`), so the session was not touched. It passes before the move.
 - [ ] **Step 2: Move, remove `src/protocol/harness.rs` from `ALLOWLIST`, then run the gate.**
 - [ ] **Step 3: Write `harness.yaml`.** Its obligations include the busy rule, shared with `Turns`, and the availability rule.
 - [ ] **Step 4: Commit.** `refactor(core): Harness owns the harness list, sessions and model changes (§14.3)`
@@ -785,9 +860,9 @@ impl Instructions {
 }
 ```
 
-`fs.rs`'s `blocking` helper moves with `list_dirs` and `create_dir` into `Projects`, because it is how the browse calls run and not a transport detail. `known_harness` becomes a private check in `Threads` and `Projects`, and returns `CoreError::SettingNotOffered { what: "harness" … }`.
+`fs.rs`'s `blocking` helper moves with `list_dirs` and `create_dir` into `Projects`, because it is how the browse calls run and not a transport detail. `known_harness` becomes one `pub(super)` function in `src/core/threads.rs`, which `Projects` also calls (one rule, one place), and returns `CoreError::SettingNotOffered { what: "harness" … }`.
 
-- [ ] **Step 1: Pin the tests.** The existing tests `tests/protocol.rs`, `thread_contract.rs`, `fs_routes.rs`, `project_directory.rs` and `storage_contract.rs`, plus the instructions tests in `tests/planner_mcp.rs`, cover these routes. Add `project_create_replays_after_the_move` to `tests/core.rs`: the same `command_id` posted twice gives one project.
+- [ ] **Step 1: Pin the tests.** The existing tests `tests/protocol.rs`, `thread_contract.rs`, `thread_routes.rs`, `fork.rs`, `fs_routes.rs`, `project_directory.rs`, `project_contract.rs`, `planner_instructions.rs` and `storage_contract.rs` cover these routes. Every service command is built with `user_command`, so no fingerprint moves, and `protocol::project::ctx` is deleted once its last caller is gone. Add `project_create_replays_after_the_move` to `tests/core.rs`: the same `command_id` posted twice gives one project.
 - [ ] **Step 2: Move the logic, then remove `project.rs`, `thread.rs`, `instructions.rs` and `conversation.rs` from `ALLOWLIST`.** `fs.rs` was never on it.
 - [ ] **Step 3: Run the gate, then write the three contracts.**
 - [ ] **Step 4: Commit.** `refactor(core): Projects, Threads and Instructions own their operations (§14.3)`
@@ -805,26 +880,36 @@ impl Instructions {
 **Interfaces:**
 
 ```rust
-/// What a subscription yields, in order, as today's stream sends it.
+/// One frame's worth of what today's `stream` sends, one per `sse.rs` frame kind.
 pub enum Delivery {
-    Journal(Vec<DurableEvent>),          // the events after `after`, in durable_seq order
-    CaughtUp { last_seq: i64 },
-    Live(ThreadId, OperationId, HarnessEvent),
-    Options(SessionChoices),
-    Ui(UiSignal),
+    Durable(StoredEvent),                 // one journal event, `seq` order, replay and live alike
+    CaughtUp { seq: i64 },
+    Delta { op: OperationId, text: String },
+    TurnEnd { op: OperationId, subtype: &'static str, stop_reason: Option<String> },
+    Usage { thread: ThreadId, used: u64, size: u64, limits: Option<AccountLimits> },
+    Options { thread: ThreadId, choices: SessionChoices },
+    PlanShow(UiSignal),
+    Lagged,
+    Fatal(String),                        // the journal could not be read; the stream ends after it
 }
 impl Events {
-    /// Replay after `after`, then `CaughtUp`, then live; re-reads the journal
-    /// whenever storage's committed-sequence signal moves (§2.4, §6.18).
-    pub async fn subscribe(&self, thread: ThreadId, after: i64)
-        -> Result<impl futures::Stream<Item = Result<Delivery, CoreError>> + Send, CoreError>;
+    /// Takes the committed-sequence watch, the bus, the options watch and the
+    /// UI receiver *before* anything is read, as `sse::subscribe` does today,
+    /// then answers the replay, `CaughtUp`, then live (§2.4, §6.18).
+    pub fn subscribe(&self, thread: ThreadId, after: i64) -> Subscription;
+}
+pub struct Subscription { /* private: the four receivers, last_seq, a buffer of journal events */ }
+impl Subscription {
+    /// The next frame, or `Err(why)` once the stream is over, `why` being the
+    /// text `sse.closed` logs today ("client gone" stays in `sse.rs`).
+    pub async fn next(&mut self) -> Result<Delivery, &'static str>;
 }
 ```
 
-`DurableEvent` is the type `send_journal_after` reads today; use its real name from `src/protocol/sse.rs`. If the loop's shape does not fit a `Stream`, `subscribe` may return a struct with an `async fn next(&mut self) -> Option<Result<Delivery, CoreError>>` instead. Name it in the report. **What must not change:**
-- the order of `select!` arms;
+The journal type is `storage::StoredEvent`, which `Storage::read_events_after` returns, not `events::DurableEvent`. `Usage` carries the limits `usage_event` reads today (`turn_context`, then `latest_limits`), because that read is storage and so belongs in the core. `sse.rs` keeps the framing: event names, JSON bodies, `lagged`, `fatal`, the bounded channel and `sse.subscribe`/`sse.caught_up`/`sse.closed`. **What must not change:**
+- the order of the `select!` arms. Today `shutdown` is the first `biased` arm of the same `select!` as the others. It stays in `sse.rs`, because it is the transport's, so `sse.rs` runs `select! { biased; _ = shutdown.wait_for(..) => …, d = sub.next() => … }`, and `next` keeps the rest in today's order: committed, bus, options, signals;
 - the re-read on the committed-sequence signal;
-- the `stopping` check. It stays in `sse.rs`, because it is the transport's.
+- the receivers taken before the replay is read.
 
 - [ ] **Step 1: Pin the tests.** `tests/resync.rs`, `tests/disconnect.rs` and every `subscribe` test in `tests/protocol.rs` are the pins. Read their bodies before moving anything.
 - [ ] **Step 2: Move the loop.** Read the old and new paths side by side, as §14.8's risk note requires. Delete the last `AppCore` getters. Remove `src/protocol/sse.rs` from `ALLOWLIST`: **it is now empty.** Change the test so that a non-empty `ALLOWLIST` itself fails, by adding `assert!(ALLOWLIST.is_empty())` at the end. Then add §14.5's second rule to `tests/architecture.rs`:
@@ -833,8 +918,17 @@ impl Events {
 /// Spec §14.5 rule 2: `AppCore` and its services expose nothing an adapter
 /// could use to bypass them — no public or `pub(crate)` field, and no
 /// public or `pub(crate)` method whose return type names a FORBIDDEN type.
+/// Only these nine structs: the plain-data types beside them (`SendTurn`,
+/// `IssuedView`, `HarnessInfo`, `UiSignal`, `CoreParts` …) have public
+/// fields by design, and `CoreParts` exists so tests can assemble the core.
+const GUARDED: &[&str] = &[
+    "AppCore", "Projects", "Threads", "Turns", "Harness",
+    "Plans", "Grants", "Instructions", "Events",
+];
+
 #[test]
 fn the_core_exposes_no_storage() {
+    use quote::ToTokens;
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut files = Vec::new();
     rust_files(&root.join("src/core"), &mut files);
@@ -844,41 +938,39 @@ fn the_core_exposes_no_storage() {
         let parsed = syn::parse_file(&std::fs::read_to_string(&file).unwrap()).unwrap();
         for item in &parsed.items {
             match item {
-                syn::Item::Struct(s) => for f in &s.fields {
-                    if !matches!(f.vis, syn::Visibility::Inherited) {
-                        problems.push(format!("{}: {} has a visible field", file.display(), s.ident));
-                    }
-                },
-                syn::Item::Impl(i) => for it in &i.items {
-                    if let syn::ImplItem::Fn(m) = it
-                        && !matches!(m.vis, syn::Visibility::Inherited)
-                    {
-                        let ret = quote_ret(&m.sig.output);
-                        if types.iter().any(|t| ret.contains(t)) {
-                            problems.push(format!("{}: {} returns {ret}", file.display(), m.sig.ident));
+                syn::Item::Struct(s) if GUARDED.contains(&s.ident.to_string().as_str()) => {
+                    for f in &s.fields {
+                        if !matches!(f.vis, syn::Visibility::Inherited) {
+                            problems.push(format!("{}: {} has a visible field", file.display(), s.ident));
                         }
                     }
-                },
+                }
+                syn::Item::Impl(i) if i.trait_.is_none()
+                    && GUARDED.iter().any(|g| i.self_ty.to_token_stream().to_string() == *g) =>
+                {
+                    for it in &i.items {
+                        if let syn::ImplItem::Fn(m) = it
+                            && !matches!(m.vis, syn::Visibility::Inherited)
+                            && let syn::ReturnType::Type(_, ty) = &m.sig.output
+                        {
+                            // Compared by identifier, so `StorageError` is not `Storage`.
+                            let mut named = Vec::new();
+                            idents(ty.to_token_stream(), &mut named);
+                            if named.iter().any(|n| types.contains(&n.as_str())) {
+                                problems.push(format!("{}: {} returns a type it must not", file.display(), m.sig.ident));
+                            }
+                        }
+                    }
+                }
                 _ => {}
             }
         }
     }
     assert!(problems.is_empty(), "the core exposes what adapters must not reach (§14.5):\n{problems:#?}");
 }
-
-fn quote_ret(out: &syn::ReturnType) -> String {
-    match out {
-        syn::ReturnType::Default => String::new(),
-        syn::ReturnType::Type(_, ty) => {
-            let mut s = proc_macro2::TokenStream::new();
-            syn::__private::ToTokens::to_tokens(ty.as_ref(), &mut s);
-            s.to_string()
-        }
-    }
-}
 ```
 
-`CoreParts` is the one struct whose fields are public by design, because tests assemble it. Exempt it by name (`s.ident == "CoreParts"`) and say so in a comment. If `syn::__private::ToTokens` is not reachable, use `prettyplease`, or add `quote = "1"` to `[dev-dependencies]`, which is already in the graph through `syn`, and say which in the report. Break the test once, by making a service field `pub`, to prove it bites.
+This adds `syn` (already a dev-dependency) and `quote = "1"` to `[dev-dependencies]`, which is already in the lock file through `syn`; state it in the report. Break the test twice to prove it bites: make a service field `pub`, then give `AppCore` a `pub(crate) fn storage(&self) -> &Arc<Storage>`. Both must fail.
 - [ ] **Step 3: Run the gate.** The pins pass unchanged.
 - [ ] **Step 4: Write `events.yaml`.** Among its obligations:
   - no frame is lost or repeated across the switch from journal to live;
@@ -897,12 +989,14 @@ fn quote_ret(out: &syn::ReturnType) -> String {
 - Review: all eight `docs/codebase/contracts/*.yaml` exist and `tests/contracts.rs` passes.
 - Modify: `CLAUDE.md`.
   - The ownership table gains `core/`: "the application's operations, one method per operation".
+  - The "Built:" module list under Architecture gains `core/` and `grant/`.
   - Two rules join "Rules (project-specific)":
     - a new operation is a new method on one service, with its line in that service's contract;
     - a route or tool translates and holds no rule.
 - Modify: `docs/codebase/README.md`.
   - `src/core/` and each service get their rows.
-  - `src/protocol/` becomes "translating HTTP and SSE to core calls" (no "and": write "the HTTP surface over the core"), and `src/mcp/` becomes "the MCP surface over the core".
+  - `src/protocol/` becomes "the HTTP surface over the core", and `src/mcp/` becomes "the MCP surface over the core". The codemap test refuses a job stated with " and ", so do not write "HTTP and SSE".
+  - `src/core/` gets one row per service file, each with its job from §14.3's table.
   - `src/mcp/tools.rs` becomes "each MCP tool's call into the core".
 - Modify: `docs/superpowers/specs/2026-09-26-application-core-design.md`. Status: "Built" with the commit range.
 - Modify: `docs/status.md`. Milestone 2.5 is built, and the Windows run is next.
