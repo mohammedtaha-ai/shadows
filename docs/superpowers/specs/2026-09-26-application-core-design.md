@@ -100,6 +100,14 @@ methods and a single responsibility, and holds only what it needs.
   and `task_get` all end in `Plans`.
 - The service is where a checked precondition lives (§14.7). Its callers never
   repeat it.
+- **Who emits, who delivers.** A service emits what it causes, as the code does
+  today:
+  - `Turns`, through `planner/turn.rs`, sends a turn's live harness events on
+    the bus;
+  - `Plans` sends `plan_show`'s UI signal.
+
+  `Events` owns only subscription and delivery. It emits nothing of its own, and
+  no other service reads the bus.
 - The services use the domain modules as they are today: `workflow/` for plan
   rules, `planner/` for the turn lifecycle and sessions, `agent/` for ACP,
   `runtime/` for the runtime instance, and `storage/` for persistence. They do
@@ -137,6 +145,16 @@ methods and a single responsibility, and holds only what it needs.
   - revoking thread grants;
   - reading the harness versions;
   - building the sessions.
+- **Shutdown is split the same way.** `AppCore::shut_down()` stops every
+  running turn and closes every adapter. This is what `planner::shut_down` does
+  today, called from `cli/mod.rs`. `cli/` keeps what belongs to the process and
+  the transport:
+  - catching the signal;
+  - the second Ctrl+C;
+  - raising `stopping` so live streams end;
+  - axum's graceful shutdown.
+
+  The order stays as it is today.
 - An adapter may keep what belongs to its transport: parsing, status codes,
   `Failure` mapping, OpenAPI annotations, rmcp's schemas. It may not keep a rule.
 
@@ -210,7 +228,13 @@ where its contract belongs.
 3. a symbol in `functions` or in a gap's `at` does not exist in that source;
 4. a name in `tested_by` or `tests` is not a test function in `tests/` or in a
    `#[cfg(test)]` module under `src/`;
-5. a public method of the service has no entry in `functions`.
+5. a public method of the service has no entry in `functions`;
+6. an obligation says `tested_by: none` or `unknown` without a `note` that says
+   what a test would need.
+
+Every rule listed in §14.7 must name a real test. Any other obligation may say
+`none`, with its note, and the gap stays visible in the contract instead of
+being hidden.
 
 What it cannot check is whether a rule's prose is true. That stays with the
 reviewer of the change.
@@ -265,6 +289,17 @@ Each task:
   checks;
 - regenerates the code map (`UPDATE_CODEMAP=1 cargo test --test codemap`);
 - writes that service's contract.
+
+**Risk: `Events` (task 7).** A subscription reads the durable journal after
+the client's `after`, sends `caught-up`, then goes live. It re-reads the
+journal each time storage's committed-sequence signal moves (§2.4, §6.18).
+Moving it must keep three things:
+- a frame is never lost or repeated across that switch;
+- frames stay in `durable_seq` order;
+- a reconnect with `after` resumes exactly where the client stopped.
+
+Its review compares the old and new `subscribe` path by path. `tests/resync.rs`
+and the SSE tests must pass unchanged.
 
 **Risk: `Turns` (task 4).** It moves the code around Stop, the session lease
 and the end of a turn. That is where Milestone 2 found its races (F1, F2), and
