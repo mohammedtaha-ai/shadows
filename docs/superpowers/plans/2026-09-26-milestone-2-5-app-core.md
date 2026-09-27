@@ -40,7 +40,9 @@ The boundary only ever tightens, and nothing needs an allowlist or a guard test.
   - `api/openapi.json` stays byte-identical, and `web/` is not touched.
   - Existing tests change only their location, construction and imports, never what they assert. If an assertion must change, stop and report.
 - **Moves are moves.** Use `git mv` so history follows each file. A task that moves files changes only paths, `use` lines and visibility. Logic changes happen only in the service tasks (5–10), and only as the task describes.
-  - **Store helpers that one write shares across services.** The `storage/sqlite/*.rs` files call each other's private helpers inside one `write_txn`: `classify`, `record_command` (`command.rs`), `append_event` (`events.rs`), `append_entry_in` (`entry.rs`), `insert_thread`, `load_thread` (`thread.rs`), `check_writer`, `bind_draft_ref` (`grant.rs`), `task_of`, `write_content` (`task.rs`), `remember_settings` (`harness.rs`), `has_open_operation` (`turn.rs`), and `now()` (`sqlite/mod.rs`). They are `pub(super)` or `pub(in crate::storage)` today. When a task moves a store file out of `storage/sqlite/`, each helper it still calls in a file that has not moved, or in another service's `store`, widens to `pub(crate)` — never `pub` — and keeps its body. That is a visibility change, which a move may make. It means §14.6's third invariant ("a service's `store.rs` is called only by that service") does not hold for these in-transaction calls; Task 11 handles that.
+  - **Store helpers that one write shares across services.** The `storage/sqlite/*.rs` files call each other's private helpers inside one `write_txn`: `classify`, `record_command` (`command.rs`), `append_event` (`events.rs`), `append_entry_in` (`entry.rs`), `insert_thread`, `load_thread` (`thread.rs`), `check_writer`, `bind_draft_ref` (`grant.rs`), `task_of`, `write_content` (`task.rs`), `remember_settings` (`harness.rs`), `has_open_operation` (`turn.rs`), and `now()` (`sqlite/mod.rs`). They are `pub(super)` or `pub(in crate::storage)` today. When a task moves a store file out of `storage/sqlite/`, each helper it still calls in a file that has not moved, or in another service's `store`, widens to `pub(crate)` — never `pub` — and keeps its body. That is a visibility change, which a move may make.
+    - **The ruling (§14.6):** each helper stays in the service that owns its table. When its store moves into a service, it goes into that service's `contract.yaml` under `shared_in_transaction` (a map, name → `"<callers>: <why>"`), and `contracts.rs` rule 9 refuses any `pub(crate)` store function not declared there. Nothing else in a store is `pub(crate)`.
+    - Helpers that belong to no service — `classify`, `record_command`, `append_event`, `now()` — go to `db/` (the command log, the journal and the clock), not into a service's store.
 - **Writing a contract** (§14.7; the template is `docs/codebase/contracts/TEMPLATE.yaml`, read it whole first). A contract is written by tracing the service's code after its move, never from comments or this plan's prose.
   - `tested_by` names a test whose **body** you read and which proves the rule. A test that proves less goes in with a `note` saying what it misses.
   - Where one rule has two paths, write an `agreements` entry: busy in `Turns::send` and `Harness::change_model`; one plan through `get_plan`, `workflow_get` and `task_get`.
@@ -634,6 +636,21 @@ fn symbols(dir: &Path) -> (BTreeSet<String>, BTreeSet<String>) {
     (all, public)
 }
 
+/// Rule 9: the `pub(crate)` free functions of a service's `store` (`store.rs` or `store/`),
+/// which are exactly the ones another service may call inside one write (§14.6).
+fn shared(dir: &Path) -> BTreeSet<String> {
+    let mut files = Vec::new(); rs_files(&dir.join("store"), &mut files);
+    if dir.join("store.rs").exists() { files.push(dir.join("store.rs")) }
+    let mut out = BTreeSet::new();
+    for f in files {
+        let Ok(file) = syn::parse_file(&std::fs::read_to_string(&f).unwrap()) else { continue };
+        for item in &file.items { if let syn::Item::Fn(x) = item {
+            if let syn::Visibility::Restricted(r) = &x.vis { if r.in_token.is_none() && r.path.is_ident("crate") {
+                out.insert(x.sig.ident.to_string()); } } } }
+    }
+    out
+}
+
 fn listed(y: &Yaml, out: &mut BTreeSet<String>) {
     if let Yaml::Hash(h) = y { for (k, v) in h {
         let named = matches!(v, Yaml::String(_))
@@ -691,6 +708,11 @@ fn every_contract_matches_its_service() {
         for n in named { let bare = n.trim_start_matches("integration: ").to_string();
             if bare != "none" && bare != "unknown" && !tests.contains(&bare) { problems.push(format!("{name}: test `{bare}` does not exist")) } }
         for m in &public { if !fns.contains(m) { problems.push(format!("{name}: public method `{m}` has no entry in functions")) } }
+        // Rule 9: what a store shares inside one write is declared, and only that.
+        let actual = shared(&source_dir);
+        let mut declared_shared = BTreeSet::new(); listed(&doc["shared_in_transaction"], &mut declared_shared);
+        for s in actual.difference(&declared_shared) { problems.push(format!("{name}: store function `{s}` is pub(crate) but not in shared_in_transaction")) }
+        for s in declared_shared.difference(&actual) { problems.push(format!("{name}: shared_in_transaction names `{s}`, which is not a pub(crate) store function")) }
     }
     assert!(problems.is_empty(), "contracts out of date (spec §14.7):\n{}", problems.join("\n"));
 }
@@ -1005,10 +1027,7 @@ The journal type is `StoredEvent`, which `read_events_after` returns.
   - An **Architecture Invariants** section, rust-analyzer style:
     - "`shadows-http` knows HTTP; nothing below it does";
     - "`shadows-core` never imports `axum` or `rmcp`";
-    - "a service's `store.rs` is called only by that service";
-    - "no service reaches into another's private module".
-
-    **Stop before writing the last two** if the store helpers listed under Global Constraints ("Store helpers that one write shares across services") are still called across services, which they will be: one write transaction spans several services' tables. Write the first two, and report the conflict with §14.6 for Mohammed to rule on (for example: those helpers live in `db/`, or the invariant names them as the exception). Do not write an invariant the code breaks.
+    - "a service's `store` is called by another service only through a function its contract declares under `shared_in_transaction`, inside one write" (§14.6, ruled 2026-09-27).
 - Modify: the code map test, so the inventory groups its files by crate (it has walked every `crates/*/src` since Task 0).
 - Modify: `docs/superpowers/specs/2026-09-26-application-core-design.md` (status: Built, with the commit range), and `docs/status.md`.
 

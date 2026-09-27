@@ -296,11 +296,23 @@ cover it:
 
 That is the price of keeping the services in one crate for now (§14.4, OPEN).
 
+**Store functions one write shares across services** (ruled by Mohammed,
+2026-09-27). One write transaction touches several services' tables: saving a
+plan draft calls `insert_thread` (Threads), `check_writer` (Grants) and
+`append_entry_in`. Each such function **stays in the service that owns its
+table**, becomes `pub(crate)`, and is declared in that service's contract under
+`shared_in_transaction`, with who calls it and why. Nothing else in a `store`
+is `pub(crate)`. Moving them all into `db/` was rejected: `db/` would become a
+pile of functions from every service with no owner. `contracts.rs` enforces it
+(§14.7, rule 9): every `pub(crate)` function in a service's `store` is declared,
+and every declared one exists.
+
 **Architecture Invariants** are written into `docs/codebase/README.md`, in
 rust-analyzer's style, one line each:
 - "`shadows-http` knows HTTP; nothing below it does."
 - "`shadows-core` never imports `axum` or `rmcp`."
-- "a service's `store.rs` is called only by that service."
+- "a service's `store` is called by another service only through a function
+  its contract declares under `shared_in_transaction`, inside one write."
 
 ## 14.7 Contracts
 
@@ -321,6 +333,9 @@ source-contract template, kept at `docs/codebase/contracts/TEMPLATE.yaml`:
   the same answer. Shadows has these by design: busy is checked in both
   `Turns::send` and `Harness::change_model`, and one plan is read by
   `get_plan`, `workflow_get` and `task_get`;
+- **`shared_in_transaction`:** the `store` functions other services may call
+  inside one write, each with its callers and why (§14.6). A section Shadows
+  adds to the template;
 - **`not_the_caller's`**;
 - **`gaps`, `open_questions`, `tests`.**
 
@@ -357,7 +372,9 @@ line, and the sources with `syn`. It fails when:
 7. a name in `shapes`, or in an agreement's `between`, is not in that source
    (a path in another service is written `harness::change_model` and looked
    up in that service's folder);
-8. an agreement says `holds: false` and no `gap` names one of its symbols.
+8. an agreement says `holds: false` and no `gap` names one of its symbols;
+9. a `pub(crate)` function in the service's `store` is missing from
+   `shared_in_transaction`, or a name there is not such a function (§14.6).
 
 Every rule in §14.9 must name a real test. What the test cannot check is whether
 a rule's prose is true, or whether a named test's body proves it; the reviewer
