@@ -5,13 +5,14 @@ checked:
 
 | File | Kind | Answers |
 |---|---|---|
-| [`inventory.md`](./inventory.md) | generated from `src/` | *Does this already exist?* Every reachable declaration with its full signature. |
+| [`inventory.md`](./inventory.md) | generated from each `crates/*/src` | *Does this already exist?* Every reachable declaration with its full signature. |
 | this file | written by hand | *Where does my new code go?* The one job each module holds. |
 
-`cargo test --test codemap` fails when either has drifted from the tree, so
-neither can go stale quietly. Regenerate the inventory with
-`UPDATE_CODEMAP=1 cargo test --test codemap` in the same commit as the code
-change that moved it.
+`cargo test -p shadows --test codemap` fails when either has drifted from the
+tree, so neither can go stale quietly. The map spans the whole workspace: every
+path below is relative to the repository root. Regenerate the inventory with
+`UPDATE_CODEMAP=1 cargo test -p shadows --test codemap` in the same commit as
+the code change that moved it.
 
 ## What each module owns
 
@@ -21,59 +22,59 @@ before adding to that module: it is the pattern to follow, not merely an example
 
 | Module | Its one job | Reference file |
 |---|---|---|
-| `src/agent/` | the AI subprocess harness contract | `src/agent/acp.rs` |
-| `src/agent/acp.rs` | the ACP client connection to one adapter process | `src/agent/acp.rs` |
-| `src/agent/events.rs` | what a harness connection reports | `src/agent/events.rs` |
-| `src/agent/policy.rs` | the modes Shadows allows per harness | `src/agent/policy.rs` |
-| `src/agent/choices.rs` | reading the harness's offered choices | `src/agent/choices.rs` |
-| `src/agent/breakdown.rs` | reading Claude's `/context` answer | `src/agent/breakdown.rs` |
-| `src/planner/offers.rs` | the latest choices each open session offers | `src/planner/offers.rs` |
-| `src/planner/context.rs` | reading a session's context breakdown on demand | `src/planner/context.rs` |
-| `src/protocol/harness.rs` | the routes over harnesses, their sessions included | `src/protocol/harness.rs` |
-| `src/protocol/thread.rs` | the routes that change a planning thread itself | `src/protocol/thread.rs` |
-| `src/protocol/workflow.rs` | the routes over plan versions | `src/protocol/workflow.rs` |
-| `src/protocol/grants.rs` | the routes over external agents' MCP grants | `src/protocol/grants.rs` |
-| `src/protocol/instructions.rs` | the routes over a project's Planner instructions | `src/protocol/instructions.rs` |
-| `src/protocol/ui_signal.rs` | the live-only signal that moves a person's screen | `src/protocol/ui_signal.rs` |
-| `src/planner/sessions.rs` | the live adapter connection each open thread holds | `src/planner/sessions.rs` |
-| `src/planner/settings.rs` | setting an open session's options | `src/planner/settings.rs` |
-| `src/planner/setup.rs` | what a Planner session opens with | `src/planner/setup.rs` |
-| `src/planner/turn.rs` | the recorded ending of a live Planner turn | `src/planner/turn.rs` |
-| `src/planner/entries.rs` | turning harness events into durable entries | `src/planner/entries.rs` |
-| `src/bin/` | test apparatus that no product code links | `src/bin/tree_probe.rs` |
-| `src/cli/` | daemon startup | `src/cli/args.rs` |
-| `src/command/` | external-command identity for idempotency | `src/command/mod.rs` |
-| `src/command/derive.rs` | command ids Shadows derives when a caller names none | `src/command/derive.rs` |
-| `src/config.rs` | startup configuration resolved once | `src/config.rs` |
-| `src/error.rs` | the stable failure taxonomy clients match on | `src/error.rs` |
-| `src/events/` | the durable event record's shape | `src/events/mod.rs` |
-| `src/id.rs` | the UUID id newtype pattern | `src/id.rs` |
-| `src/mcp/` | Shadows' MCP server | `src/mcp/mod.rs` |
-| `src/mcp/grant.rs` | who may do what on `/mcp` | `src/mcp/grant.rs` |
-| `src/mcp/auth.rs` | refusing a `/mcp` request that holds no live grant | `src/mcp/auth.rs` |
-| `src/mcp/server.rs` | the tools a grant's kind may see | `src/mcp/server.rs` |
-| `src/mcp/tools.rs` | each MCP tool's storage call | `src/mcp/tools.rs` |
-| `src/mcp/refusal.rs` | what an MCP tool call answers | `src/mcp/refusal.rs` |
-| `src/operation/` | the operation lifecycle's shape | `src/operation/mod.rs` |
-| `src/planner/` | the Planner turn's spawn-through-termination lifecycle | `src/planner/mod.rs` |
-| `src/process/` | OS process ownership with whole-tree containment | `src/process/mod.rs` |
-| `src/project/` | the project: its identity, the directory it owns | `src/project/mod.rs` |
-| `src/protocol/` | the HTTP/SSE surface every client talks to | `src/protocol/project.rs` |
-| `src/runtime/` | the runtime instance's lifecycle | `src/runtime/mod.rs` |
-| `src/storage/` | persistence | `src/storage/sqlite/project.rs` |
-| `src/storage/sqlite/workflow.rs` | changing a plan version | `src/storage/sqlite/workflow.rs` |
-| `src/storage/sqlite/workflow_draft.rs` | starting a plan version | `src/storage/sqlite/workflow_draft.rs` |
-| `src/storage/sqlite/workflow_read.rs` | reading plan versions | `src/storage/sqlite/workflow_read.rs` |
-| `src/storage/sqlite/task.rs` | a plan version's task graph rows | `src/storage/sqlite/task.rs` |
-| `src/storage/sqlite/grant.rs` | an MCP grant's rows, from issue to revocation | `src/storage/sqlite/grant.rs` |
-| `src/storage/sqlite/instructions.rs` | a project's numbered Planner instructions | `src/storage/sqlite/instructions.rs` |
-| `src/storage/sqlite/plan_view.rs` | showing a plan version in its conversation | `src/storage/sqlite/plan_view.rs` |
-| `src/thread/` | the planning thread's shape | `src/thread/mod.rs` |
-| `src/tracing.rs` | tracing subscriber setup | `src/tracing.rs` |
-| `src/workflow/` | a plan's content under the rules of §13 | `src/workflow/mod.rs` |
-| `src/workflow/ops.rs` | applying one batch of plan edits | `src/workflow/ops.rs` |
-| `src/workflow/check.rs` | what makes a plan invalid or unready | `src/workflow/check.rs` |
-| `src/workflow/conversation.rs` | the plan in the conversation | `src/workflow/conversation.rs` |
+| `crates/shadows/src/agent/` | the AI subprocess harness contract | `crates/shadows/src/agent/acp.rs` |
+| `crates/shadows/src/agent/acp.rs` | the ACP client connection to one adapter process | `crates/shadows/src/agent/acp.rs` |
+| `crates/shadows/src/agent/events.rs` | what a harness connection reports | `crates/shadows/src/agent/events.rs` |
+| `crates/shadows/src/agent/policy.rs` | the modes Shadows allows per harness | `crates/shadows/src/agent/policy.rs` |
+| `crates/shadows/src/agent/choices.rs` | reading the harness's offered choices | `crates/shadows/src/agent/choices.rs` |
+| `crates/shadows/src/agent/breakdown.rs` | reading Claude's `/context` answer | `crates/shadows/src/agent/breakdown.rs` |
+| `crates/shadows/src/planner/offers.rs` | the latest choices each open session offers | `crates/shadows/src/planner/offers.rs` |
+| `crates/shadows/src/planner/context.rs` | reading a session's context breakdown on demand | `crates/shadows/src/planner/context.rs` |
+| `crates/shadows/src/protocol/harness.rs` | the routes over harnesses, their sessions included | `crates/shadows/src/protocol/harness.rs` |
+| `crates/shadows/src/protocol/thread.rs` | the routes that change a planning thread itself | `crates/shadows/src/protocol/thread.rs` |
+| `crates/shadows/src/protocol/workflow.rs` | the routes over plan versions | `crates/shadows/src/protocol/workflow.rs` |
+| `crates/shadows/src/protocol/grants.rs` | the routes over external agents' MCP grants | `crates/shadows/src/protocol/grants.rs` |
+| `crates/shadows/src/protocol/instructions.rs` | the routes over a project's Planner instructions | `crates/shadows/src/protocol/instructions.rs` |
+| `crates/shadows/src/protocol/ui_signal.rs` | the live-only signal that moves a person's screen | `crates/shadows/src/protocol/ui_signal.rs` |
+| `crates/shadows/src/planner/sessions.rs` | the live adapter connection each open thread holds | `crates/shadows/src/planner/sessions.rs` |
+| `crates/shadows/src/planner/settings.rs` | setting an open session's options | `crates/shadows/src/planner/settings.rs` |
+| `crates/shadows/src/planner/setup.rs` | what a Planner session opens with | `crates/shadows/src/planner/setup.rs` |
+| `crates/shadows/src/planner/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows/src/planner/turn.rs` |
+| `crates/shadows/src/planner/entries.rs` | turning harness events into durable entries | `crates/shadows/src/planner/entries.rs` |
+| `crates/shadows/src/bin/` | test apparatus that no product code links | `crates/shadows/src/bin/tree_probe.rs` |
+| `crates/shadows/src/cli/` | daemon startup | `crates/shadows/src/cli/args.rs` |
+| `crates/shadows/src/command/` | external-command identity for idempotency | `crates/shadows/src/command/mod.rs` |
+| `crates/shadows/src/command/derive.rs` | command ids Shadows derives when a caller names none | `crates/shadows/src/command/derive.rs` |
+| `crates/shadows/src/config.rs` | startup configuration resolved once | `crates/shadows/src/config.rs` |
+| `crates/shadows/src/error.rs` | the stable failure taxonomy clients match on | `crates/shadows/src/error.rs` |
+| `crates/shadows/src/events/` | the durable event record's shape | `crates/shadows/src/events/mod.rs` |
+| `crates/shadows/src/id.rs` | the UUID id newtype pattern | `crates/shadows/src/id.rs` |
+| `crates/shadows/src/mcp/` | Shadows' MCP server | `crates/shadows/src/mcp/mod.rs` |
+| `crates/shadows/src/mcp/grant.rs` | who may do what on `/mcp` | `crates/shadows/src/mcp/grant.rs` |
+| `crates/shadows/src/mcp/auth.rs` | refusing a `/mcp` request that holds no live grant | `crates/shadows/src/mcp/auth.rs` |
+| `crates/shadows/src/mcp/server.rs` | the tools a grant's kind may see | `crates/shadows/src/mcp/server.rs` |
+| `crates/shadows/src/mcp/tools.rs` | each MCP tool's storage call | `crates/shadows/src/mcp/tools.rs` |
+| `crates/shadows/src/mcp/refusal.rs` | what an MCP tool call answers | `crates/shadows/src/mcp/refusal.rs` |
+| `crates/shadows/src/operation/` | the operation lifecycle's shape | `crates/shadows/src/operation/mod.rs` |
+| `crates/shadows/src/planner/` | the Planner turn's spawn-through-termination lifecycle | `crates/shadows/src/planner/mod.rs` |
+| `crates/shadows/src/process/` | OS process ownership with whole-tree containment | `crates/shadows/src/process/mod.rs` |
+| `crates/shadows/src/project/` | the project: its identity, the directory it owns | `crates/shadows/src/project/mod.rs` |
+| `crates/shadows/src/protocol/` | the HTTP/SSE surface every client talks to | `crates/shadows/src/protocol/project.rs` |
+| `crates/shadows/src/runtime/` | the runtime instance's lifecycle | `crates/shadows/src/runtime/mod.rs` |
+| `crates/shadows/src/storage/` | persistence | `crates/shadows/src/storage/sqlite/project.rs` |
+| `crates/shadows/src/storage/sqlite/workflow.rs` | changing a plan version | `crates/shadows/src/storage/sqlite/workflow.rs` |
+| `crates/shadows/src/storage/sqlite/workflow_draft.rs` | starting a plan version | `crates/shadows/src/storage/sqlite/workflow_draft.rs` |
+| `crates/shadows/src/storage/sqlite/workflow_read.rs` | reading plan versions | `crates/shadows/src/storage/sqlite/workflow_read.rs` |
+| `crates/shadows/src/storage/sqlite/task.rs` | a plan version's task graph rows | `crates/shadows/src/storage/sqlite/task.rs` |
+| `crates/shadows/src/storage/sqlite/grant.rs` | an MCP grant's rows, from issue to revocation | `crates/shadows/src/storage/sqlite/grant.rs` |
+| `crates/shadows/src/storage/sqlite/instructions.rs` | a project's numbered Planner instructions | `crates/shadows/src/storage/sqlite/instructions.rs` |
+| `crates/shadows/src/storage/sqlite/plan_view.rs` | showing a plan version in its conversation | `crates/shadows/src/storage/sqlite/plan_view.rs` |
+| `crates/shadows/src/thread/` | the planning thread's shape | `crates/shadows/src/thread/mod.rs` |
+| `crates/shadows/src/tracing.rs` | tracing subscriber setup | `crates/shadows/src/tracing.rs` |
+| `crates/shadows/src/workflow/` | a plan's content under the rules of §13 | `crates/shadows/src/workflow/mod.rs` |
+| `crates/shadows/src/workflow/ops.rs` | applying one batch of plan edits | `crates/shadows/src/workflow/ops.rs` |
+| `crates/shadows/src/workflow/check.rs` | what makes a plan invalid or unready | `crates/shadows/src/workflow/check.rs` |
+| `crates/shadows/src/workflow/conversation.rs` | the plan in the conversation | `crates/shadows/src/workflow/conversation.rs` |
 
 The Web client in `web/` is a separate program outside this crate and this map;
 [`web/README.md`](../../web/README.md) describes it.

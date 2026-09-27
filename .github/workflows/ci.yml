@@ -14,8 +14,9 @@ name: CI
 #
 # Linux is the COMPILE gate only. It proves the crate still builds, lints, and
 # passes its platform-neutral tests on a Unix target. It does NOT certify
-# process-tree containment there: `src/process/containment_unix.rs` covers
-# deliberate termination only, and the parent-death half of spec §1.5 is a
+# process-tree containment there:
+# `crates/shadows/src/process/containment_unix.rs` covers deliberate
+# termination only, and the parent-death half of spec §1.5 is a
 # known, recorded gap. Tests that would assert that gap are `#[ignore]`d with
 # the reason in the source. Never silence one to make this job green — a green
 # job that hides a gap is exactly the failure this project exists to avoid.
@@ -23,8 +24,8 @@ name: CI
 # Web is the third job, and it runs on Linux only because the client is
 # platform-neutral: it is TypeScript for a browser, and nothing in it touches
 # the machine. It certifies the client builds against the daemon's protocol as
-# checked in — `api/openapi.json`, which `tests/openapi.rs` keeps current — and
-# nothing about a running daemon; the client talking to one is a manual check.
+# checked in — `api/openapi.json`, which `crates/shadows/tests/openapi.rs`
+# keeps current — and nothing about a running daemon; the client talking to one is a manual check.
 
 on:
   push:
@@ -47,9 +48,9 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Format
-        run: cargo fmt --check
+        run: cargo fmt --all --check
       - name: Lint
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Ship build — the test-only seams must not be in it
         # Three seams exist in this tree only because `test-support` is off in
         # an ordinary build: `storage::test_support` (a durable event appended
@@ -73,7 +74,7 @@ jobs:
             exit 1
           fi
       - name: Test
-        run: cargo test
+        run: cargo test --workspace
 
   linux:
     name: Linux — compile gate only
@@ -90,9 +91,9 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Format
-        run: cargo fmt --check
+        run: cargo fmt --all --check
       - name: Lint
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Ship build — the test-only seams must not be in it
         # Three seams exist in this tree only because `test-support` is off in
         # an ordinary build: `storage::test_support` (a durable event appended
@@ -116,7 +117,7 @@ jobs:
             exit 1
           fi
       - name: Test (ignored tests stay ignored; see the note at the top)
-        run: cargo test
+        run: cargo test --workspace
 
   web:
     name: Web — client build gate

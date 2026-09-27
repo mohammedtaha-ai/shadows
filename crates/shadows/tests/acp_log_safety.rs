@@ -5,7 +5,11 @@
 fn acp_request_debug_is_excluded_from_console_and_debug_file() {
     // This test binary has one test and sets the process environment before
     // installing its one global subscriber.
-    unsafe { std::env::set_var("RUST_LOG", "trace") };
+    // `set_var` is unsafe in edition 2024, and RUST_LOG must be set before the logger starts.
+    #[allow(unsafe_code)]
+    unsafe {
+        std::env::set_var("RUST_LOG", "trace")
+    };
     let tmp = tempfile::tempdir().unwrap();
     let log = shadows::tracing::init(false, Some(tmp.path()))
         .unwrap()

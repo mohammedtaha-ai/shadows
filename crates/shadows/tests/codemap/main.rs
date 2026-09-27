@@ -4,8 +4,8 @@
 //! and a rotted map is worse than none: it is read with the same trust as a
 //! true one. So the map is split by what can be checked.
 //!
-//! - `docs/codebase/inventory.md` is **generated** from `src/` and holds the
-//!   mechanical facts — every externally reachable declaration, with its full
+//! - `docs/codebase/inventory.md` is **generated** from every `crates/*/src`
+//!   and holds the mechanical facts — every externally reachable declaration, with its full
 //!   signature. The first test below regenerates it and fails on any
 //!   difference, so `cargo test` is what stops it from drifting. Since Windows
 //!   `cargo test` is the CI acceptance gate, a stale map cannot reach `main`.
@@ -23,21 +23,23 @@
 //! record one fact in three places, which is the failure this project's
 //! documentation rules exist to prevent.
 //!
-//! Regenerate with `UPDATE_CODEMAP=1 cargo test --test codemap`.
+//! Regenerate with `UPDATE_CODEMAP=1 cargo test -p shadows --test codemap`.
 
 mod render;
 mod scan;
 
 use std::path::{Path, PathBuf};
 
-fn crate_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+/// The workspace root, two levels above this crate's manifest. The map spans
+/// every crate in the workspace, and `docs/codebase/` lives at the root.
+fn workspace_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
 #[test]
 fn the_inventory_matches_the_source_tree() {
-    let root = crate_root();
-    let generated = render::document(&scan::scan(&root.join("src")));
+    let root = workspace_root();
+    let generated = render::document(&scan::scan(&root));
     let target = root.join("docs/codebase/inventory.md");
 
     if std::env::var_os("UPDATE_CODEMAP").is_some() {
@@ -73,9 +75,9 @@ fn the_inventory_matches_the_source_tree() {
         });
 
     panic!(
-        "docs/codebase/inventory.md no longer describes src/.\n\n{mismatch}\n\n\
+        "docs/codebase/inventory.md no longer describes crates/*/src.\n\n{mismatch}\n\n\
          Regenerate it and include it in the same commit as the code change:\n\
-         \n    UPDATE_CODEMAP=1 cargo test --test codemap\n"
+         \n    UPDATE_CODEMAP=1 cargo test -p shadows --test codemap\n"
     );
 }
 
@@ -86,7 +88,7 @@ fn the_inventory_matches_the_source_tree() {
 /// acquires a second responsibility without anyone deciding to give it one.
 #[test]
 fn the_ownership_map_accounts_for_every_module() {
-    let root = crate_root();
+    let root = workspace_root();
     let readme = root.join("docs/codebase/README.md");
     let text = std::fs::read_to_string(&readme).expect("reading docs/codebase/README.md");
 
@@ -117,7 +119,7 @@ fn the_ownership_map_accounts_for_every_module() {
         );
     }
 
-    for module in top_level_modules(&root.join("src")) {
+    for module in top_level_modules(&root) {
         assert!(
             rows.iter().any(|r| r.module == module),
             "`{module}` exists in the tree and is not in docs/codebase/README.md. \
@@ -133,7 +135,7 @@ struct Row {
     reference: String,
 }
 
-/// `| `src/storage/` | SQLite persistence | `src/storage/sqlite/project.rs` |`
+/// `| `crates/shadows/src/storage/` | persistence | `crates/shadows/src/storage/sqlite/project.rs` |`
 fn parse_row(line: &str) -> Option<Row> {
     let line = line.trim();
     if !line.starts_with('|') {
@@ -144,7 +146,7 @@ fn parse_row(line: &str) -> Option<Row> {
         return None;
     }
     let module = cells[0].trim_matches('`');
-    if !module.starts_with("src/") {
+    if !names_a_crate_source(module) {
         return None; // the header row and its `|---|` separator
     }
     Some(Row {
@@ -154,25 +156,39 @@ fn parse_row(line: &str) -> Option<Row> {
     })
 }
 
-/// Each direct child of `src/` is a unit someone must own. `lib.rs` and
-/// `main.rs` are the crate's two entry points rather than modules, so they are
-/// the only exemptions.
-fn top_level_modules(src: &Path) -> Vec<String> {
+/// `crates/<crate>/src/…`: a path inside one workspace crate's source tree.
+fn names_a_crate_source(path: &str) -> bool {
+    let mut parts = path.split('/');
+    parts.next() == Some("crates")
+        && parts.next().is_some_and(|name| !name.is_empty())
+        && parts.next() == Some("src")
+        && parts.next().is_some_and(|rest| !rest.is_empty())
+}
+
+/// Each direct child of every `crates/*/src` is a unit someone must own.
+/// `lib.rs` and `main.rs` are a crate's two entry points rather than modules,
+/// so they are the only exemptions.
+fn top_level_modules(workspace: &Path) -> Vec<String> {
     let mut modules = Vec::new();
-    for entry in std::fs::read_dir(src).expect("reading src/") {
-        let path = entry.expect("directory entry").path();
-        let name = path
-            .file_name()
-            .expect("a named entry")
-            .to_string_lossy()
-            .to_string();
-        if name == "lib.rs" || name == "main.rs" {
-            continue;
+    for (krate, src) in scan::crate_sources(workspace) {
+        for entry in
+            std::fs::read_dir(&src).unwrap_or_else(|e| panic!("reading {}: {e}", src.display()))
+        {
+            let path = entry.expect("directory entry").path();
+            let name = path
+                .file_name()
+                .expect("a named entry")
+                .to_string_lossy()
+                .to_string();
+            if name == "lib.rs" || name == "main.rs" {
+                continue;
+            }
+            // A directory keeps its bare name (`crates/shadows/src/storage`)
+            // and a single-file module keeps its extension
+            // (`crates/shadows/src/config.rs`), because both forms are then
+            // checked for existence exactly as written.
+            modules.push(format!("crates/{krate}/src/{name}"));
         }
-        // A directory keeps its bare name (`src/storage`) and a single-file
-        // module keeps its extension (`src/config.rs`), because both forms are
-        // then checked for existence exactly as written.
-        modules.push(format!("src/{name}"));
     }
     modules.sort();
     modules

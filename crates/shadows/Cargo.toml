@@ -1,0 +1,77 @@
+[package]
+name = "shadows"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+agent-client-protocol = { workspace = true }
+axum = { workspace = true }
+clap = { workspace = true }
+dunce = { workspace = true }
+futures-core = { workspace = true }
+petgraph = { workspace = true }
+process-wrap = { workspace = true }
+rmcp = { workspace = true }
+schemars = { workspace = true }
+reqwest = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+tokio-util = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+utoipa = { workspace = true }
+utoipa-axum = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+# Test apparatus, not product (docs/codebase: `src/bin/`). Built only with
+# `test-support`, which `cargo test` enables through the self dev-dependency
+# below, so `cargo build --release` and `cargo install` never ship them.
+[[bin]]
+name = "tree_probe"
+path = "src/bin/tree_probe.rs"
+required-features = ["test-support"]
+
+[[bin]]
+name = "fake_acp"
+path = "src/bin/fake_acp.rs"
+required-features = ["test-support"]
+
+[features]
+# Compiles in `storage::test_support`, a hook onto an otherwise-private
+# capability (`append_event` without a state write) that must never ship in
+# an ordinary build — see cross-cutting rule 10. Also `rmcp`'s MCP client, for
+# tests that call `/mcp` as an agent does. Enabled for `cargo test` only via
+# the self dev-dependency below, never a default feature.
+test-support = [
+    "rmcp/client",
+    "rmcp/transport-streamable-http-client-reqwest",
+    "dep:reqwest",
+]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+syn = { workspace = true }
+prettyplease = { workspace = true }
+proc-macro2 = { workspace = true }
+tower = { workspace = true }
+# Enables `test-support` for integration tests (tests/*.rs) without turning
+# it on for `cargo build` or `cargo run`: Cargo's feature resolver unifies
+# features per build/test graph, so this only affects `cargo test`.
+shadows = { path = ".", features = ["test-support"] }

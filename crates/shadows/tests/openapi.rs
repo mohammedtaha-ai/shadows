@@ -31,7 +31,7 @@ use tower::ServiceExt;
 mod acp;
 
 fn checked_in() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("api/openapi.json")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../api/openapi.json")
 }
 
 fn document() -> Value {

@@ -6,7 +6,7 @@
 //! out. Inline `mod` blocks are walked, because a `pub fn` inside a private
 //! inline module is not reachable and must not appear.
 //!
-//! One macro is expanded rather than skipped: `newtype_id!` (`src/id.rs`), which
+//! One macro is expanded rather than skipped: `newtype_id!` (`id.rs`), which
 //! declares every domain id and its constructors. Left unexpanded, `ThreadId`
 //! and its siblings would be missing from a document that claims to list every
 //! reachable declaration — the very types a caller most often needs the shape
@@ -15,7 +15,7 @@
 //! macro invocation is still invisible; a second item-declaring macro is the
 //! trigger to generalise this.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use proc_macro2::{Group, TokenStream, TokenTree};
 
@@ -31,22 +31,56 @@ pub enum Decl {
 }
 
 pub struct FileEntry {
-    /// Forward-slashed and relative to the crate root, so the generated file is
+    /// Forward-slashed and relative to the workspace root
+    /// (`crates/shadows/src/agent/acp.rs`), so the generated file is
     /// byte-identical on Windows and Linux. CI runs both.
     pub path: String,
     pub lines: usize,
     pub decls: Vec<Decl>,
 }
 
-/// Every `.rs` file under `root`, sorted by path. Sorting is what makes the
-/// output stable: directory iteration order is a filesystem detail, and letting
-/// it through would make the generated file differ between machines while
-/// nothing had actually changed.
-pub fn scan(root: &Path) -> Vec<FileEntry> {
+/// Every workspace crate's `src/` directory as `(crate folder, path)`, sorted
+/// by folder name. A folder under `crates/` without a `src/` is not a crate
+/// the map describes.
+pub fn crate_sources(workspace: &Path) -> Vec<(String, PathBuf)> {
+    let crates = workspace.join("crates");
+    let mut out: Vec<(String, PathBuf)> = std::fs::read_dir(&crates)
+        .unwrap_or_else(|e| panic!("reading {}: {e}", crates.display()))
+        .map(|entry| entry.expect("directory entry").path())
+        .filter(|path| path.join("src").is_dir())
+        .map(|path| {
+            let name = path
+                .file_name()
+                .expect("a named entry")
+                .to_string_lossy()
+                .to_string();
+            (name, path.join("src"))
+        })
+        .collect();
+    out.sort();
+    out
+}
+
+/// Every `.rs` file under every `crates/*/src`, sorted by path. Sorting is
+/// what makes the output stable: directory iteration order is a filesystem
+/// detail, and letting it through would make the generated file differ between
+/// machines while nothing had actually changed.
+pub fn scan(workspace: &Path) -> Vec<FileEntry> {
+    let sources = crate_sources(workspace);
     let mut files = Vec::new();
-    collect(root, &mut files);
+    for (_, src) in &sources {
+        collect(src, &mut files);
+    }
+    // Sorted as paths (component by component), not as strings, so `a/b.rs`
+    // and `a.rs` keep the order they always had.
     files.sort();
-    let newtype_id = newtype_id_template(&root.join("id.rs"));
+
+    // `newtype_id!` lives in whichever crate's `id.rs` defines it. Reading one
+    // fixed path would answer `None` once `id.rs` moved, silently dropping
+    // every id from the map, so every crate is asked.
+    let newtype_id = sources
+        .iter()
+        .find_map(|(_, src)| newtype_id_template(&src.join("id.rs")));
 
     files
         .iter()
@@ -60,7 +94,7 @@ pub fn scan(root: &Path) -> Vec<FileEntry> {
             walk(&parsed.items, &newtype_id, &mut decls);
 
             FileEntry {
-                path: relative(root, abs),
+                path: relative(workspace, abs),
                 lines: source.lines().count(),
                 decls,
             }
@@ -68,7 +102,7 @@ pub fn scan(root: &Path) -> Vec<FileEntry> {
         .collect()
 }
 
-fn collect(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
+fn collect(dir: &Path, out: &mut Vec<PathBuf>) {
     let entries =
         std::fs::read_dir(dir).unwrap_or_else(|e| panic!("reading {}: {e}", dir.display()));
     for entry in entries {
@@ -81,9 +115,8 @@ fn collect(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
     }
 }
 
-fn relative(root: &Path, abs: &Path) -> String {
-    let root_parent = root.parent().unwrap_or(root);
-    abs.strip_prefix(root_parent)
+fn relative(workspace: &Path, abs: &Path) -> String {
+    abs.strip_prefix(workspace)
         .unwrap_or(abs)
         .to_string_lossy()
         .replace('\\', "/")
@@ -95,7 +128,7 @@ fn walk(items: &[syn::Item], newtype_id: &Option<TokenStream>, out: &mut Vec<Dec
             syn::Item::Macro(m) if m.mac.path.is_ident("newtype_id") => {
                 let template = newtype_id
                     .as_ref()
-                    .expect("`newtype_id!` is invoked, so src/id.rs must define it");
+                    .expect("`newtype_id!` is invoked, so some crates/*/src/id.rs must define it");
                 let name = m
                     .mac
                     .tokens
@@ -154,7 +187,7 @@ fn walk(items: &[syn::Item], newtype_id: &Option<TokenStream>, out: &mut Vec<Dec
 /// such macro (then any invocation is a contradiction and `walk` says so).
 fn newtype_id_template(id_rs: &Path) -> Option<TokenStream> {
     let source = std::fs::read_to_string(id_rs).ok()?;
-    let parsed = syn::parse_file(&source).expect("parsing src/id.rs");
+    let parsed = syn::parse_file(&source).expect("parsing id.rs");
     parsed.items.iter().find_map(|item| match item {
         syn::Item::Macro(m) if m.ident.as_ref().is_some_and(|i| i == "newtype_id") => {
             // `(matcher) => { body }`: the body is the last brace group.

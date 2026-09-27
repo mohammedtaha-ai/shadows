@@ -16,10 +16,10 @@ pub fn document(entries: &[FileEntry]) -> String {
     out.push_str("# Code inventory\n\n");
     out.push_str(BANNER);
     out.push_str(
-        "\n\nEvery declaration in `src/` that something outside its own file can reach,\
-         \nwith its full signature. Regenerate with:\n\n\
+        "\n\nEvery declaration in each `crates/*/src` that something outside its own file\
+         \ncan reach, with its full signature. Regenerate with:\n\n\
          ```bash\n\
-         UPDATE_CODEMAP=1 cargo test --test codemap\n\
+         UPDATE_CODEMAP=1 cargo test -p shadows --test codemap\n\
          ```\n\n\
          `cargo test` fails when this file has drifted from the tree, so it cannot go\n\
          stale quietly. Attributes and doc comments are stripped: the source explains a\n\
