@@ -1,0 +1,346 @@
+# Generic source contract / code map template.
+#
+# A source contract describes ONE source module/file as the code actually behaves.
+# It captures externally meaningful structure, behavior, invariants, boundaries,
+# known defects, unanswered questions, and the tests that hold those claims.
+#
+# The implementation is the source of truth. Comments, documentation, test names,
+# and neighboring modules are evidence only when their relevant bodies are inspected.
+#
+# Everything below "THE SHAPE" is an example structure. Copy the STRUCTURE and the
+# VOICE, not the example content. Delete sections that have no equivalent and add
+# sections when the source genuinely needs them.
+
+
+# ═══ THE RULES ═══════════════════════════════════════════════════════════════
+
+# ── 1. Trace, never skim ─────────────────────────────────────────────────────
+#
+# Every behavioral claim must come from implementation that was actually inspected.
+# If a comment or documentation disagrees with the implementation, describe what
+# the CODE does and record the disagreement as a gap.
+#
+# A contract produced by merely restating comments or module documentation is not
+# a reliable map of the implementation.
+
+
+# ── 2. A gap names a symbol inside the source being described ────────────────
+#
+# A `gap` is current behavior that is wrong, incomplete, misleading, unsafe, or
+# otherwise problematic for a stated reason, and is verified in code you inspected.
+#
+# Format:
+#
+#   at: some_function
+#
+# `at` names a function, method, type, constant, schema object, or other stable
+# symbol. Never use source line numbers as identifiers: line numbers drift silently
+# as files change, while names remain searchable and meaningful.
+#
+# For a gap concerning one statement rather than an entire symbol, name the owning
+# symbol and quote or describe the relevant fragment in the gap text.
+#
+# A suspicion about behavior owned by ANOTHER source file/module is an
+# `open_question`, not a gap. Do not assert behavior of code you did not inspect.
+#
+# Test: could the claim be disproved by opening a source you did not inspect?
+# If yes, record it as a question.
+
+
+# ── 3. An obligation names the test that holds it ────────────────────────────
+#
+# Every obligation should identify the test that verifies it, or explicitly say
+# that no known test does.
+#
+# Read test BODIES, not just test names. A test name can promise more than its
+# assertions prove. If the body verifies less than the name suggests, record that.
+#
+# `tested_by` may contain:
+#
+#   a test name                 — a test inspected in this source
+#   integration: <name>         — an inspected integration/system test
+#   none                        — no test exercises the obligation
+#   unknown                     — a relevant test may exist in uninspected code
+#
+# Use `note` when context matters, such as where an integration test lives, which
+# public entry point reaches a private rule, or what a missing test would need to
+# exercise.
+
+
+# ── 4. Reference externally owned types; do not duplicate them ───────────────
+#
+# When an enum, schema, protocol type, or other definition is owned elsewhere,
+# reference its canonical source instead of copying its members into this contract.
+#
+# Example:
+#
+#   enums:
+#     Status:
+#       source: path::to::Status
+#       values: []
+#
+# A type DECLARED IN THE SOURCE BEING DESCRIBED is different: its variants or
+# meaningful shape are part of this source's design and should be recorded.
+
+
+# ── 5. Describe only what this source owns ───────────────────────────────────
+#
+# If a function consumes or returns a type defined elsewhere, name the type and
+# stop. Do not redefine another module's shapes or behavior.
+#
+# This keeps ownership clear and prevents multiple contracts from disagreeing about
+# the same externally owned definition.
+
+
+# ── 6. Say what only this source can do ──────────────────────────────────────
+#
+# The header should explain why this source exists and what rules, transformations,
+# invariants, or boundaries it uniquely owns.
+#
+# Do not turn the header into a list of functions. Capture the responsibility that
+# would otherwise have no clear owner.
+
+
+# ── 7. Group functions according to the source ───────────────────────────────
+#
+# Use groups that make the source legible:
+#
+#   reads / writes / checks
+#   queries / commands
+#   constructors / operations
+#   parsing / encoding
+#   public_api / helpers
+#
+# These are examples, not required names.
+#
+# Mark a function `private: true` when its privacy is itself important to an
+# invariant—for example, when a guard cannot be bypassed because it is reachable
+# only through controlled public entry points.
+
+
+# ── 8. Multiple implementations of one rule must agree ──────────────────────
+#
+# A source may implement the same logical operation through multiple paths:
+# scalar and batch forms, synchronous and asynchronous forms, wrappers and internal
+# variants, cached and uncached paths, or platform-specific implementations.
+#
+# When those paths are expected to produce the same answer, that agreement is an
+# obligation in its own right.
+#
+# Example:
+#
+#   agreements:
+#     - between: [get_one, get_many]
+#       must: produce equivalent results for the same input
+#       holds: true
+#       why: >
+#         Both paths apply the same filtering and transformation rules.
+#       tested_by: equivalent_single_and_batch_results
+#
+# If `holds: false`, also record the defect once in `gaps`; keep the detailed
+# comparison here.
+
+
+# ── 9. Keep the file valid YAML ──────────────────────────────────────────────
+#
+# Parse the finished file with a YAML parser before considering it complete.
+#
+# Quote scalars that contain YAML-sensitive syntax, especially signatures or inline
+# structural descriptions containing `: `.
+#
+# Example:
+#
+#   signature: "(key: string, value: int) -> Result"
+#   InvalidRange: "{ start: int, end: int }"
+
+
+# ── 10. Contradict yourself nowhere ──────────────────────────────────────────
+#
+# Shapes, function notes, obligations, agreements, gaps, and tests may describe the
+# same behavior from different angles. They must agree.
+#
+# Re-read findings against the implementation and against each other before
+# finishing.
+
+
+# ═══ THE SHAPE ═══════════════════════════════════════════════════════════════
+#
+# Sections are shown in a useful default order. Delete sections that have no
+# equivalent in the source. Add a section when the source genuinely requires one.
+#
+# Keep the judgement/audit sections at the end when applicable:
+# obligations, agreements, not_the_caller's, gaps, open_questions, tests.
+
+
+# ── header ───────────────────────────────────────────────────────────────────
+#
+# Put a comment block above `name:` describing:
+#
+#   • what this source/module is,
+#   • what it uniquely owns,
+#   • important invariants or boundaries,
+#   • any trap a reader would otherwise misunderstand.
+#
+# Example:
+#
+#   # Owns parsing and validation of incoming records.
+#   #
+#   # Parsing establishes structural validity only. Semantic validation happens
+#   # separately, so a successfully parsed record is not necessarily acceptable.
+#   #
+#   # All byte offsets refer to the original input, not the decoded representation.
+
+name: layer-module
+version: 1
+status: current                 # current | ahead | stale, or project-defined states
+source: path/to/source.ext
+
+
+# ── shapes ───────────────────────────────────────────────────────────────────
+#
+# One block per meaningful struct, class, record, enum, union, schema, or equivalent
+# declared by this source.
+#
+# Use the type notation appropriate for the project. Comments should explain what a
+# reader could misunderstand, rather than repeating field names.
+
+SomeRecord:
+  id: int
+  category: Category
+  # Describes properties of this record itself, not of the referenced object.
+  enabled: bool
+  created_at: int
+
+SomeError:
+  InvalidInput: string
+  NotAllowed: Category
+  StorageFailure: ExternalError
+
+
+# ── functions ────────────────────────────────────────────────────────────────
+#
+# Group operations by what makes this source easiest to understand.
+#
+# Signatures may be language-neutral or use the source language's notation.
+# Comments belong where the signature under-describes behavior or where a shared
+# rule applies to an entire group.
+
+reads:
+  get: "(context, id) -> SomeRecord | null"
+  list: "(context, filter) -> [SomeRecord]"
+
+writes:
+  create: "(context, input) -> id"
+  delete: "(context, id) -> bool"
+
+checks:
+  validate:
+    signature: "(input) -> Result"
+    private: true
+
+
+# ── externally owned enums/types ─────────────────────────────────────────────
+#
+# Reference only; do not duplicate definitions owned elsewhere.
+
+enums:
+  Category:
+    source: path::to::Category
+    values: []
+
+
+# ── obligations ──────────────────────────────────────────────────────────────
+#
+# Rules that must remain true for this source to behave correctly.
+#
+# `tested_by` identifies evidence for the rule. `note` records useful qualification
+# such as an untested edge case, indirect test path, or missing fixture.
+
+obligations:
+  - rule: >
+      Invalid input is rejected before any persistent state is changed.
+    tested_by: invalid_input_does_not_mutate_state
+
+  - rule: >
+      Deleting a missing identifier returns false and does not modify unrelated
+      records.
+    tested_by: none
+    note: >
+      A test should create unrelated records, attempt deletion of a missing id,
+      and verify that all existing records remain unchanged.
+
+
+# ── agreements ───────────────────────────────────────────────────────────────
+#
+# Use when two or more implementations are intended to express the same rule.
+# Delete this section when there is no such pair/group.
+
+agreements:
+  - between: [get, list]
+    must: >
+      represent the same record identically when `list` includes the id returned
+      by `get`
+    holds: true
+    why: >
+      Both paths use the same conversion helper after retrieval.
+    tested_by: single_and_list_results_match
+
+
+# ── not_the_caller's ─────────────────────────────────────────────────────────
+#
+# Things callers must not reproduce, bypass, assume, or perform themselves because
+# this source owns the rule or operation.
+#
+# Phrase each entry as the trap to avoid.
+
+not_the_caller's:
+  - >
+      Reimplement validation before calling `create`; callers should pass the input
+      through the module's public operation so there is one authoritative rule.
+
+
+# ── gaps ─────────────────────────────────────────────────────────────────────
+#
+# Verified problems in THIS source.
+#
+# A gap may be a correctness defect, incomplete behavior, misleading contract,
+# missing validation, unsafe assumption, significant cost, or an incompletely
+# traced part of this contract. State which.
+#
+# Name a stable symbol in `at`; never cite a source line number.
+
+gaps:
+  - at: some_function
+    gap: >
+      Describe what the inspected implementation currently does, why that behavior
+      is problematic, and what consequence it has.
+
+
+# ── open_questions ───────────────────────────────────────────────────────────
+#
+# Questions that require inspecting code or information outside this source.
+#
+# Do not guess the answer. State what must be inspected to resolve it.
+
+open_questions:
+  - >
+      Does the external storage operation guarantee atomic replacement when the
+      destination already exists? Answering requires inspecting the storage adapter
+      implementation.
+
+
+# ── tests ────────────────────────────────────────────────────────────────────
+#
+# Every inspected test in this source, by name, with what its BODY actually proves.
+# Keep descriptions compact and based on assertions rather than test names.
+
+tests:
+  - name: invalid_input_does_not_mutate_state
+    checks: >
+      Invalid input returns an error and the previously stored records remain
+      unchanged.
+
+  - name: single_and_list_results_match
+    checks: >
+      The same stored record has equal observable fields through the single-item
+      and list retrieval paths.

@@ -311,16 +311,33 @@ source-contract template, kept at `docs/codebase/contracts/TEMPLATE.yaml`:
 - **header comment:** what the service alone owns, and the trap a reader would
   otherwise fall into;
 - **`name`, `version`, `status`, `source`**;
+- **`shapes`:** the types the service itself declares that a caller meets, with
+  what a reader could misread about them; types owned elsewhere go under
+  `enums` as a `source` reference only;
 - **`functions`:** the service's public methods and their signatures, grouped
   as reads, writes and checks, or however the service reads best;
 - **`obligations`**, each with `tested_by`;
+- **`agreements`:** wherever one rule has two paths, the paths that must give
+  the same answer. Shadows has these by design: busy is checked in both
+  `Turns::send` and `Harness::change_model`, and one plan is read by
+  `get_plan`, `workflow_get` and `task_get`;
 - **`not_the_caller's`**;
 - **`gaps`, `open_questions`, `tests`.**
 
-The template's rules hold:
-- trace the implementation, never restate comments;
-- a `gap` names a symbol, never a line;
-- another module's types are referenced, never copied.
+All ten of the template's rules hold. The ones a reader breaks first:
+- trace the implementation, never restate comments; a comment that disagrees
+  with the code is a `gap`;
+- a `gap` names a symbol, never a line; a suspicion about another service is an
+  `open_question`, never a gap;
+- `tested_by` is chosen by reading the test's **body**, not its name;
+- another module's types are referenced, never copied;
+- the sections never contradict each other.
+
+**The contract is the entry point, and it moves with the code.** An agent reads
+a service's `contract.yaml` before it changes that service. A change to a
+service's behaviour, methods or tests updates its contract in the same commit,
+as a code change regenerates the code map. This is what lets any agent work on
+Shadows without a person or one model's memory in the loop.
 
 **One contract per service, not per file.** A hundred per-file contracts would
 cost more to keep than they return; `mx` failed for that reason
@@ -335,10 +352,16 @@ line, and the sources with `syn`. It fails when:
 3. a symbol in `functions`, or in a gap's `at`, is not in that source;
 4. a name in `tested_by` or `tests` is not a test function in the workspace;
 5. a public method of the service has no entry in `functions`;
-6. an obligation says `tested_by: none` or `unknown` without a `note`.
+6. an obligation or agreement says `tested_by: none` or `unknown` without a
+   `note`;
+7. a name in `shapes`, or in an agreement's `between`, is not in that source
+   (a path in another service is written `harness::change_model` and looked
+   up in that service's folder);
+8. an agreement says `holds: false` and no `gap` names one of its symbols.
 
 Every rule in §14.9 must name a real test. What the test cannot check is whether
-a rule's prose is true; the reviewer owns that.
+a rule's prose is true, or whether a named test's body proves it; the reviewer
+owns that, and reads every `tested_by` body it rules on.
 
 ## 14.8 Order of work
 

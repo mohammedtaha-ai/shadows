@@ -41,6 +41,11 @@ The boundary only ever tightens, and nothing needs an allowlist or a guard test.
   - Existing tests change only their location, construction and imports, never what they assert. If an assertion must change, stop and report.
 - **Moves are moves.** Use `git mv` so history follows each file. A task that moves files changes only paths, `use` lines and visibility. Logic changes happen only in the service tasks (5–10), and only as the task describes.
   - **Store helpers that one write shares across services.** The `storage/sqlite/*.rs` files call each other's private helpers inside one `write_txn`: `classify`, `record_command` (`command.rs`), `append_event` (`events.rs`), `append_entry_in` (`entry.rs`), `insert_thread`, `load_thread` (`thread.rs`), `check_writer`, `bind_draft_ref` (`grant.rs`), `task_of`, `write_content` (`task.rs`), `remember_settings` (`harness.rs`), `has_open_operation` (`turn.rs`), and `now()` (`sqlite/mod.rs`). They are `pub(super)` or `pub(in crate::storage)` today. When a task moves a store file out of `storage/sqlite/`, each helper it still calls in a file that has not moved, or in another service's `store`, widens to `pub(crate)` — never `pub` — and keeps its body. That is a visibility change, which a move may make. It means §14.6's third invariant ("a service's `store.rs` is called only by that service") does not hold for these in-transaction calls; Task 11 handles that.
+- **Writing a contract** (§14.7; the template is `docs/codebase/contracts/TEMPLATE.yaml`, read it whole first). A contract is written by tracing the service's code after its move, never from comments or this plan's prose.
+  - `tested_by` names a test whose **body** you read and which proves the rule. A test that proves less goes in with a `note` saying what it misses.
+  - Where one rule has two paths, write an `agreements` entry: busy in `Turns::send` and `Harness::change_model`; one plan through `get_plan`, `workflow_get` and `task_get`.
+  - A comment that disagrees with the code is a `gap`. A doubt about another service is an `open_question`.
+  - The reviewer checks the contract against the code and the test bodies, not only that `contracts.rs` passes.
 - **Log targets.** A log line's `target` is its module path, so it moves with its file (`shadows::planner::turn` becomes `shadows_core::turns::…`). Its message and fields do not change. `tracing.rs`'s default filters (`shadows=info,warn`, `shadows=debug,…`) still select every crate's lines, because `EnvFilter` matches a target by string prefix (`tracing-subscriber` 0.3, `filter/env/directive.rs`) and every product crate's name starts with `shadows`. Do not change the filters.
 - **Names:**
   - folder name equals package name (`crates/shadows-core` is the package `shadows-core`, lib `shadows_core`);
@@ -358,7 +363,7 @@ This task starts the services, so it also lays the frame the later service tasks
 - Create: `crates/shadows-core/src/plans/` with `mod.rs` (the `Plans` service), `model.rs`, `rules.rs` and `store.rs`.
   - `git mv` puts `workflow/mod.rs` → `plans/model.rs`, `workflow/check.rs` → `plans/rules.rs`, `workflow/ops.rs` → `plans/ops.rs` and `workflow/conversation.rs` → `plans/conversation.rs`.
   - `storage/sqlite/{workflow,workflow_draft,workflow_read,task,plan_view}.rs` → `plans/store/{edit,draft,read,task,view}.rs`, each still `impl Storage { … }` over the shared `Storage` (§14.4: the queries live with their service, and the pool stays in `db`).
-- Create: `crates/shadows-core/src/plans/contract.yaml`, `docs/codebase/contracts/TEMPLATE.yaml` (copied verbatim from `C:\Users\Mohammed\Downloads\Telegram Desktop\GENERIC_SOURCE_CONTRACT_TEMPLATE.yaml`), and `crates/shadows-core/tests/contracts.rs`.
+- Create: `crates/shadows-core/src/plans/contract.yaml`, and `crates/shadows-core/tests/contracts.rs`.
 - Modify: `crates/shadows-core/src/lib.rs`:
   - add `pub mod app;` and `pub mod plans;`, and re-export `AppCore`, `CoreParts`, `CoreError`, `UiSignal`, `StopKind`, and every plan type that appears in a public signature or a public field, because an adapter or a test names it or serializes it. Today that is all of `workflow/mod.rs`'s types, `workflow/conversation.rs`'s and `PlanOp`: `WorkflowId`, `TaskId`, `WorkflowState`, `LinkKind`, `AcceptanceItem`, `TaskContent`, `Link`, `PlanContent`, `PlanTask`, `LastEdit`, `Plan`, `EditOutcome`, `DraftStarted`, `Approved`, `PlanListing`, `PlanOp`, `Problem` (inside `StorageError::PlanInvalid`), `Focus` (in `shadows-http`'s `StartTurn`), `Place` and `PlanShown`. A type left out is unnameable outside the crate, which Task 10's `unnameable_types` refuses;
   - `workflow` stops being a public module;
@@ -563,7 +568,7 @@ async fn shut_down_through_the_core_cancels_and_records() {
 
 Match the `use` lines to what the fixtures need; `listening.rs` names `super::acp`, `super::app` and `super::plan`. Read `tests/mcp_tools.rs` first. `core.rs` needs `App.core`, which Step 3 adds; until then it is expected not to compile.
 
-- [ ] **Step 2: Add the contracts test and the template.** Copy the template first, because the test reads the directory. `crates/shadows-core/tests/contracts.rs`:
+- [ ] **Step 2: Add the contracts test.** The template is already in the repo at `docs/codebase/contracts/TEMPLATE.yaml`. `crates/shadows-core/tests/contracts.rs`:
   - finds every `crates/shadows-core/src/*/contract.yaml`;
   - parses it with `yaml_rust2::YamlLoader::load_from_str`;
   - collects the source's declared symbols and the service's public methods with `syn`, and test names from every `#[test]` / `#[tokio::test]` under `crates/*/tests` and `crates/*/src`;
@@ -655,8 +660,24 @@ fn every_contract_matches_its_service() {
         let (declared, public) = symbols(&source_dir);
         let mut fns = BTreeSet::new(); listed(&doc["functions"], &mut fns);
         for f in &fns { if !declared.contains(f) { problems.push(format!("{name}: `{f}` is not in {source}")) } }
+        let mut gap_at = BTreeSet::new();
         if let Some(gaps) = doc["gaps"].as_vec() { for g in gaps { if let Some(at) = g["at"].as_str() {
+            gap_at.insert(at.to_string());
             if !declared.contains(at) { problems.push(format!("{name}: gap at `{at}` is not in {source}")) } } } }
+        // Rule 7: a shape is a type this service declares.
+        if let Yaml::Hash(h) = &doc["shapes"] { for k in h.keys() { if let Some(k) = k.as_str() {
+            if !declared.contains(k) { problems.push(format!("{name}: shape `{k}` is not in {source}")) } } } }
+        // Rules 7 and 8: an agreement names real symbols, and a broken one is also a gap.
+        if let Some(ags) = doc["agreements"].as_vec() { for a in ags {
+            let between: Vec<&str> = a["between"].as_vec().map(|v| v.iter().filter_map(Yaml::as_str).collect()).unwrap_or_default();
+            if between.len() < 2 { problems.push(format!("{name}: an agreement names fewer than two paths")) }
+            // A path in another service is written `harness::change_model` and looked up in that folder.
+            for s in &between { let found = match s.split_once("::") {
+                    Some((svc, sym)) => symbols(&src.join(svc)).0.contains(sym),
+                    None => declared.contains(*s) };
+                if !found { problems.push(format!("{name}: agreement path `{s}` does not exist")) } }
+            if a["holds"].as_bool() == Some(false) && !between.iter().any(|s| gap_at.contains(*s)) {
+                problems.push(format!("{name}: agreement {between:?} does not hold and no gap names it")) } } }
         let mut named = Vec::new();
         // The template's `agreements` carry `tested_by` too; rule 4 covers every one.
         for section in ["obligations", "agreements"] {
@@ -675,7 +696,7 @@ fn every_contract_matches_its_service() {
 }
 ```
 
-  `source` in a contract is the service's folder relative to the workspace, for example `crates/shadows-core/src/plans`. The public methods counted are those in `impl` blocks of the folder's `mod.rs`. Prove the test bites: write a scratch `crates/shadows-core/src/scratch/contract.yaml` with `source: crates/shadows-core/src/plans` and `functions: { nope: "() -> ()" }`, see it fail naming `nope`, then delete it.
+  `source` in a contract is the service's folder relative to the workspace, for example `crates/shadows-core/src/plans`. The public methods counted are those in `impl` blocks of the folder's `mod.rs`. Prove the test bites: write a scratch `crates/shadows-core/src/scratch/contract.yaml` with `source: crates/shadows-core/src/plans` and `functions: { nope: "() -> ()" }`, see it fail naming `nope`. Then, in the same scratch file, replace `functions` with `agreements: [{ between: [nope, also_nope], holds: false, tested_by: none, note: x }]` and see it fail three ways: two missing paths, and no gap. Then delete it.
 - [ ] **Step 3: Build `AppCore`, `CoreError` and `Plans`, and move plans' files into `plans/`** (see Files). Point the routes and tools at `core.plans()`:
 
 ```rust
@@ -700,6 +721,8 @@ async fn workflow_get(&self, Extension(grant): Extension<Grant>,
   - grant scope, with `tested_by` the scope tests in `plan_grants.rs`;
   - replay: `plan_commands_replay_after_the_move`;
   - the UI signal sent only when not replayed, with `tested_by` the `plan_show` test in `plan_in_conversation.rs`.
+
+  Its `agreements`: `between: [get, get_for]` — for a grant whose scope covers the plan, both return the same `Plan` — and `between: [get_for, task_for]` — a task read through `task_for` is the task inside `get_for`'s plan. Name a test whose body compares them, or `tested_by: none` with a `note` naming the test that would.
 
   `not_the_caller's`: "check a grant's scope before calling a `*_for` method".
 - [ ] **Step 6: Run the gate.** Expect 309 Rust: 304, plus 2 in `core_plans`, plus 2 in `core`, plus 1 contracts test. Report the real number. `api/openapi.json` is unchanged.
@@ -834,7 +857,7 @@ impl Harness {
 - [ ] **Step 2: Move and narrow.**
   - If `sessions.rs` grows past 500 lines while moving, split it by responsibility inside `harness/`, and state each file's job.
   - Gate.
-  - Write `harness/contract.yaml`: the busy rule shared with `Turns`, and the availability rule.
+  - Write `harness/contract.yaml`: the busy rule shared with `Turns`, and the availability rule. The busy rule is an agreement: `between: [change_model, turns::send]`, both refuse while the thread has an open operation, with `tested_by` `change_model_is_refused_while_a_turn_runs` and the busy test of `send`.
 - [ ] **Step 3: Commit.** `refactor(core): Harness owns the harness list, sessions and model changes (§14.4)`
 
 ---
@@ -973,6 +996,10 @@ The journal type is `StoredEvent`, which `read_events_after` returns.
   - "Rules (project-specific)" gains two rules:
     - a new operation is a new method on one service, with its line in that service's contract;
     - an adapter translates and holds no rule.
+  - "How agents work here" gains, right after the code-map rule:
+    - **the contract is the entry point for a service.** Read `crates/shadows-core/src/<service>/contract.yaml` before changing that service; open its code for what the contract points to;
+    - **a change to a service updates its contract in the same commit**: its methods, obligations, agreements and tests, following `docs/codebase/contracts/TEMPLATE.yaml`. `contracts.rs` catches a missing name; the reviewer catches a false rule.
+  - The "AI Start Here" table gains a row for the contracts: one per service, next to its code, and the template.
 - Modify: `docs/codebase/README.md`.
   - One row per crate, and one per service folder, each job without "and".
   - An **Architecture Invariants** section, rust-analyzer style:
@@ -985,7 +1012,7 @@ The journal type is `StoredEvent`, which `read_events_after` returns.
 - Modify: the code map test, so the inventory groups its files by crate (it has walked every `crates/*/src` since Task 0).
 - Modify: `docs/superpowers/specs/2026-09-26-application-core-design.md` (status: Built, with the commit range), and `docs/status.md`.
 
-- [ ] **Step 1:** Read each contract once against its service: are `functions` complete, and is every `not_the_caller's` true?
+- [ ] **Step 1:** Read each contract once against its service, by the template's ten rules: are `shapes` and `functions` complete; does every `tested_by` body prove its rule; is every place one rule has two paths an `agreements` entry; is every `not_the_caller's` true; do the sections contradict each other anywhere?
 - [ ] **Step 2:** Update the documents, regenerate the code map, and run the gate.
 - [ ] **Step 3:** Commit: `docs: the workspace and the application core in CLAUDE.md, the code map, §1, §2.9 and status (§14.11)`
 
@@ -998,7 +1025,8 @@ The journal type is `StoredEvent`, which `read_events_after` returns.
    - no fingerprint changed;
    - `detached` wraps the same calls;
    - no service returns an adapter type;
-   - `git log --follow` works across the moves.
+   - `git log --follow` works across the moves;
+   - each of the eight contracts is true against its code: it picks three obligations per contract and reads the `tested_by` bodies.
 2. **Mohammed's run on the debug build** (§14.10):
    1. send a message and stop it;
    2. restart the daemon, and the conversation is still there;
