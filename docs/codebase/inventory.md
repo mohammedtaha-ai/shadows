@@ -183,10 +183,6 @@ pub fn default_modes() -> BTreeMap<String, Vec<String>>
 
 Nothing reachable from outside this file.
 
-## `crates/shadows/src/bin/tree_probe.rs` — 63 lines
-
-Nothing reachable from outside this file.
-
 ## `crates/shadows/src/cli/args.rs` — 88 lines
 
 ```rust
@@ -197,7 +193,7 @@ impl Cli {
 }
 ```
 
-## `crates/shadows/src/cli/mod.rs` — 170 lines
+## `crates/shadows/src/cli/mod.rs` — 171 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -370,7 +366,7 @@ impl DurableEvent {
 pub(crate) use newtype_id;
 ```
 
-## `crates/shadows/src/lib.rs` — 18 lines
+## `crates/shadows/src/lib.rs` — 17 lines
 
 Nothing reachable from outside this file.
 
@@ -767,36 +763,6 @@ pub(crate) fn watch_turn(w: TurnWatch, mut rx: mpsc::UnboundedReceiver<HarnessEv
 impl PlannerTurn {
     pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, op_id: &OperationId, requester: Actor) -> Result<StopOutcome, StorageError>
 }
-```
-
-## `crates/shadows/src/process/mod.rs` — 265 lines
-
-```rust
-pub struct ProcessSpec {
-    pub executable: PathBuf,
-    pub args: Vec<String>,
-    pub cwd: PathBuf,
-    pub env: Vec<(String, String)>,
-    pub capture_stdout: bool,
-    pub pipe_stdin: bool,
-}
-pub type ChildIn = ChildStdin;
-pub type ChildOut = ChildStdout;
-pub type ChildErr = ChildStderr;
-pub type StdoutLines = Lines<BufReader<ChildStdout>>;
-pub struct ProcessHandle {}
-// + 6 private fields
-impl ProcessHandle {
-    pub fn id(&self) -> Option<u32>
-    pub fn take_stdout_lines(&mut self) -> Option<Lines<BufReader<ChildStdout>>>
-    pub fn take_stdio(&mut self) -> Option<(ChildIn, ChildOut, ChildErr)>
-    pub async fn wait(&mut self) -> io::Result<std::process::ExitStatus>
-    pub fn has_exited(&mut self) -> bool
-    pub fn terminate_tree(&mut self) -> io::Result<()>
-    pub fn force_termination_failure(&mut self)
-}
-
-pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle>
 ```
 
 ## `crates/shadows/src/project/browse.rs` — 184 lines
@@ -1649,5 +1615,39 @@ pub struct Applied {
     pub summary: String,
 }
 pub fn apply(current: &PlanContent, ops: &[PlanOp]) -> Result<Applied, Vec<Problem>>
+```
+
+## `crates/shadows-process/src/bin/tree_probe.rs` — 63 lines
+
+Nothing reachable from outside this file.
+
+## `crates/shadows-process/src/lib.rs` — 265 lines
+
+```rust
+pub struct ProcessSpec {
+    pub executable: PathBuf,
+    pub args: Vec<String>,
+    pub cwd: PathBuf,
+    pub env: Vec<(String, String)>,
+    pub capture_stdout: bool,
+    pub pipe_stdin: bool,
+}
+pub type ChildIn = ChildStdin;
+pub type ChildOut = ChildStdout;
+pub type ChildErr = ChildStderr;
+pub type StdoutLines = Lines<BufReader<ChildStdout>>;
+pub struct ProcessHandle {}
+// + 6 private fields
+impl ProcessHandle {
+    pub fn id(&self) -> Option<u32>
+    pub fn take_stdout_lines(&mut self) -> Option<Lines<BufReader<ChildStdout>>>
+    pub fn take_stdio(&mut self) -> Option<(ChildIn, ChildOut, ChildErr)>
+    pub async fn wait(&mut self) -> io::Result<std::process::ExitStatus>
+    pub fn has_exited(&mut self) -> bool
+    pub fn terminate_tree(&mut self) -> io::Result<()>
+    pub fn force_termination_failure(&mut self)
+}
+
+pub fn spawn(spec: ProcessSpec) -> io::Result<ProcessHandle>
 ```
 

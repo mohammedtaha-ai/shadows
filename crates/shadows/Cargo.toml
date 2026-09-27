@@ -16,7 +16,7 @@ clap = { workspace = true }
 dunce = { workspace = true }
 futures-core = { workspace = true }
 petgraph = { workspace = true }
-process-wrap = { workspace = true }
+shadows-process = { path = "../shadows-process" }
 rmcp = { workspace = true }
 schemars = { workspace = true }
 reqwest = { workspace = true, optional = true }
@@ -37,17 +37,9 @@ uuid = { workspace = true }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 
-[target.'cfg(unix)'.dependencies]
-libc = { workspace = true }
-
 # Test apparatus, not product (docs/codebase: `src/bin/`). Built only with
 # `test-support`, which `cargo test` enables through the self dev-dependency
 # below, so `cargo build --release` and `cargo install` never ship them.
-[[bin]]
-name = "tree_probe"
-path = "src/bin/tree_probe.rs"
-required-features = ["test-support"]
-
 [[bin]]
 name = "fake_acp"
 path = "src/bin/fake_acp.rs"
@@ -63,6 +55,7 @@ test-support = [
     "rmcp/client",
     "rmcp/transport-streamable-http-client-reqwest",
     "dep:reqwest",
+    "shadows-process/test-support",
 ]
 
 [dev-dependencies]
@@ -71,6 +64,7 @@ syn = { workspace = true }
 prettyplease = { workspace = true }
 proc-macro2 = { workspace = true }
 tower = { workspace = true }
+escargot = { workspace = true }
 # Enables `test-support` for integration tests (tests/*.rs) without turning
 # it on for `cargo build` or `cargo run`: Cargo's feature resolver unifies
 # features per build/test graph, so this only affects `cargo test`.

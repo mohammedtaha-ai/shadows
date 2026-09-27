@@ -41,7 +41,8 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows/src/planner/setup.rs` | what a Planner session opens with | `crates/shadows/src/planner/setup.rs` |
 | `crates/shadows/src/planner/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows/src/planner/turn.rs` |
 | `crates/shadows/src/planner/entries.rs` | turning harness events into durable entries | `crates/shadows/src/planner/entries.rs` |
-| `crates/shadows/src/bin/` | test apparatus that no product code links | `crates/shadows/src/bin/tree_probe.rs` |
+| `crates/shadows/src/bin/` | test apparatus that no product code links | `crates/shadows/src/bin/fake_acp.rs` |
+| `crates/shadows-process/src/bin/` | test apparatus that no product code links | `crates/shadows-process/src/bin/tree_probe.rs` |
 | `crates/shadows/src/cli/` | daemon startup | `crates/shadows/src/cli/args.rs` |
 | `crates/shadows/src/command/` | external-command identity for idempotency | `crates/shadows/src/command/mod.rs` |
 | `crates/shadows/src/command/derive.rs` | command ids Shadows derives when a caller names none | `crates/shadows/src/command/derive.rs` |
@@ -57,7 +58,7 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows/src/mcp/refusal.rs` | what an MCP tool call answers | `crates/shadows/src/mcp/refusal.rs` |
 | `crates/shadows/src/operation/` | the operation lifecycle's shape | `crates/shadows/src/operation/mod.rs` |
 | `crates/shadows/src/planner/` | the Planner turn's spawn-through-termination lifecycle | `crates/shadows/src/planner/mod.rs` |
-| `crates/shadows/src/process/` | OS process ownership with whole-tree containment | `crates/shadows/src/process/mod.rs` |
+| `crates/shadows-process/src/lib.rs` | OS process ownership with whole-tree containment | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows/src/project/` | the project: its identity, the directory it owns | `crates/shadows/src/project/mod.rs` |
 | `crates/shadows/src/protocol/` | the HTTP/SSE surface every client talks to | `crates/shadows/src/protocol/project.rs` |
 | `crates/shadows/src/runtime/` | the runtime instance's lifecycle | `crates/shadows/src/runtime/mod.rs` |

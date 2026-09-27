@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use shadows::process::{ProcessSpec, spawn};
+use shadows_process::{ProcessSpec, spawn};
 
 #[cfg(windows)]
 fn is_alive(pid: u32) -> bool {
@@ -32,7 +32,7 @@ fn is_alive(pid: u32) -> bool {
 
 /// Spawns `tree_probe --spawn-grandchild` as a managed tree and answers its
 /// handle with the leader's and the grandchild's pids, both confirmed alive.
-async fn spawn_probe_tree() -> (shadows::process::ProcessHandle, u32, u32) {
+async fn spawn_probe_tree() -> (shadows_process::ProcessHandle, u32, u32) {
     let mut handle = spawn(ProcessSpec {
         executable: env!("CARGO_BIN_EXE_tree_probe").into(),
         args: vec!["--spawn-grandchild".into()],
@@ -262,7 +262,7 @@ async fn a_spawned_child_has_no_inherited_stdin() {
 
 #[tokio::test]
 async fn a_piped_child_echoes_stdin_and_its_tree_is_contained() {
-    let mut handle = shadows::process::spawn(ProcessSpec {
+    let mut handle = shadows_process::spawn(ProcessSpec {
         executable: env!("CARGO_BIN_EXE_tree_probe").into(),
         args: vec!["echo".into()],
         cwd: std::env::temp_dir(),

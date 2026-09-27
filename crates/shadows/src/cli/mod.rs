@@ -6,10 +6,11 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
+use shadows_process::{ProcessSpec, spawn};
+
 use crate::agent::claude::ClaudeAdapter;
 use crate::config::{Config, adapter_version};
 use crate::planner::{LiveHandles, Sessions, SessionsConfig, shut_down};
-use crate::process::{ProcessSpec, spawn};
 use crate::protocol::{AppState, router};
 use crate::runtime::Runtime;
 use crate::storage::Storage;

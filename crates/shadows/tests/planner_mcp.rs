@@ -20,6 +20,8 @@ mod app;
 mod listening;
 #[path = "fixtures/plan.rs"]
 mod plan;
+#[path = "fixtures/probe.rs"]
+mod probe;
 #[path = "fixtures/serve.rs"]
 mod serve;
 
@@ -190,7 +192,7 @@ async fn restart_revokes_every_internal_grant() {
 
     drop(serve(
         &dir.path().join("s.sqlite3"),
-        env!("CARGO_BIN_EXE_tree_probe"),
+        probe::tree_probe_path().to_str().unwrap(),
     ));
     let thread: Vec<_> = thread_grants(&storage).await;
     assert_eq!(thread.len(), 2);

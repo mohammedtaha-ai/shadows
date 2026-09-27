@@ -13,11 +13,11 @@ use agent_client_protocol::schema::{
 };
 use agent_client_protocol::{Agent, ByteStreams, Client, ConnectionTo};
 use serde_json::Value;
+use shadows_process::{ChildErr, ProcessHandle};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
 use super::events::HarnessEvent;
-use crate::process::{ChildErr, ProcessHandle};
 
 #[derive(Debug, Clone)]
 pub enum SessionStart {

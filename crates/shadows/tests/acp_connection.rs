@@ -5,7 +5,7 @@ use shadows::agent::{
     claude::ClaudeAdapter,
     events::HarnessEvent,
 };
-use shadows::process::{self, ProcessHandle, ProcessSpec};
+use shadows_process::{self as process, ProcessHandle, ProcessSpec};
 use tokio::sync::mpsc;
 
 fn tmp() -> PathBuf {

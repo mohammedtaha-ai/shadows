@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::process::ProcessSpec;
+use shadows_process::ProcessSpec;
 
 /// The pinned Node ACP adapter launched with the configured Claude executable.
 pub struct ClaudeAdapter {

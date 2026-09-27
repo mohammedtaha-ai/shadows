@@ -11,6 +11,7 @@ use std::{
     time::Duration,
 };
 
+use shadows_process::{self as process, ProcessHandle};
 use tokio::{
     sync::{Mutex, broadcast, mpsc},
     time::Instant,
@@ -27,7 +28,6 @@ use crate::{
         events::HarnessEvent,
         policy,
     },
-    process::{self, ProcessHandle},
     storage::{Storage, StorageError},
     thread::{ThreadId, TurnContext},
 };

@@ -8,7 +8,6 @@ pub mod id;
 pub mod mcp;
 pub mod operation;
 pub mod planner;
-pub mod process;
 pub mod project;
 pub mod protocol;
 pub mod runtime;
