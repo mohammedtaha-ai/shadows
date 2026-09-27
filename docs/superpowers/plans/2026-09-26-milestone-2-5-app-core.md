@@ -33,7 +33,7 @@ The boundary only ever tightens, and nothing needs an allowlist or a guard test.
   - No git worktrees.
   - Commit per task (a task may commit its steps separately where it says so).
   - Push only when Mohammed asks.
-- **Execution:** every subagent runs on opus, stated explicitly. The reviewer is Codex `gpt-6-sol`, which fixes what it finds. The controller verifies the review and does not repeat it.
+- **Execution:** every subagent runs on opus, stated explicitly. The reviewer is an opus agent (Codex is unavailable since 2026-09-27), which fixes what it finds, runs the gate and commits. The controller verifies the review and does not repeat it.
 - **Read first:** `docs/codebase/README.md` and `docs/codebase/inventory.md`. Open only the files the task names.
 - **Behaviour does not change.**
   - No route, MCP tool, JSON field, status code, error code, error message, log line, command kind or fingerprint changes.
@@ -1039,7 +1039,7 @@ The journal type is `StoredEvent`, which `read_events_after` returns.
 
 ### Task I: Whole-branch review, Mohammed's run, merge (controller)
 
-1. **Whole-branch review.** Codex `gpt-6-sol` reads `main..milestone-2.5/app-core`, fixes what it finds, and reports. It checks:
+1. **Whole-branch review.** An opus agent reads `main..milestone-2.5/app-core`, fixes what it finds, and reports. It checks:
    - every §14.9 rule is in its service;
    - no fingerprint changed;
    - `detached` wraps the same calls;
