@@ -130,11 +130,12 @@ api/  web/  docs/          unchanged
   Cargo refuses a cycle, so `shadows-core` can never depend on an adapter.
 - **Shared dependency versions and lints** are declared once, in the root
   `[workspace.dependencies]` and `[workspace.lints]`.
-- `shadows-process` keeps `tree_probe` as its own test binary, because only its
-  containment tests use it.
-- `fake-acp` is a separate binary crate. Tests in other crates locate it through
-  **`escargot`** (0.5, maintained by `crate-ci`). Cargo's `CARGO_BIN_EXE_*` only
-  names binaries of the test's own package.
+- `shadows-process` keeps `tree_probe` as its own test binary. Its containment
+  tests name it directly; two daemon tests in `crates/shadows` (`serve_smoke`,
+  `planner_mcp`) also run it as a stand-in executable, and locate it as below.
+- `fake-acp` is a separate binary crate. Tests in other crates locate it, and
+  `tree_probe`, through **`escargot`** (0.5, maintained by `crate-ci`). Cargo's
+  `CARGO_BIN_EXE_*` only names binaries of the test's own package.
 - **Where each current module goes** (§14.8 gives the order):
 
 | Today | Goes to |
@@ -346,9 +347,9 @@ The tree builds and every test passes after each step.
 | # | Step | What moves |
 |---|---|---|
 | 0 | The workspace | A virtual root manifest. The current crate moves whole into `crates/shadows`. The CI and the gate use `--workspace`. |
-| 1 | `shadows-process` | `process/`, `tree_probe`, the containment tests |
+| 1 | `shadows-process` | `process/`, `tree_probe`, the containment tests. `escargot` is added, for the daemon tests that run `tree_probe`. |
 | 2 | `shadows-agent` | `agent/`, the ACP tests |
-| 3 | `shadows-core`, as it is | Every core module moves unchanged, still `pub`. `fake-acp` is created, and `escargot` is added. |
+| 3 | `shadows-core`, as it is | Every core module moves unchanged, still `pub`. `fake-acp` is created, and located through `escargot`. |
 | 4 | `shadows-http`, `shadows-mcp` | The adapters leave the binary and depend on `shadows-core`, still through its `pub` internals. |
 | 5 | `AppCore`, `CoreError`, `Plans` | The services begin. Plans' files move into `plans/`, its internals become private, and the routes and tools call `core.plans()`. |
 | 6 | `Grants` | Plus the grant types. |

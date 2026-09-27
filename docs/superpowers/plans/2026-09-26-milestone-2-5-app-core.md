@@ -22,7 +22,7 @@ Then the services go in one by one. Each task:
 The boundary only ever tightens, and nothing needs an allowlist or a guard test.
 
 **Tech Stack:** Rust 2024 edition (resolver 3), axum 0.8, utoipa, SQLx 0.9 on SQLite, `rmcp` 3.4.1. New dev-only dependencies:
-- `escargot = "0.5"`, so tests in other crates can locate the `fake-acp` binary;
+- `escargot = "0.5"`, so tests in other crates can locate the `tree_probe` binary (from Task 1) and the `fake-acp` binary (from Task 3);
 - `yaml-rust2 = "0.13"`, for the contracts test.
 
 **Spec:** `docs/superpowers/specs/2026-09-26-application-core-design.md` (§14). Where this plan and §14 disagree, §14 is right and the plan is the defect: stop and report.
@@ -40,6 +40,8 @@ The boundary only ever tightens, and nothing needs an allowlist or a guard test.
   - `api/openapi.json` stays byte-identical, and `web/` is not touched.
   - Existing tests change only their location, construction and imports, never what they assert. If an assertion must change, stop and report.
 - **Moves are moves.** Use `git mv` so history follows each file. A task that moves files changes only paths, `use` lines and visibility. Logic changes happen only in the service tasks (5–10), and only as the task describes.
+  - **Store helpers that one write shares across services.** The `storage/sqlite/*.rs` files call each other's private helpers inside one `write_txn`: `classify`, `record_command` (`command.rs`), `append_event` (`events.rs`), `append_entry_in` (`entry.rs`), `insert_thread`, `load_thread` (`thread.rs`), `check_writer`, `bind_draft_ref` (`grant.rs`), `task_of`, `write_content` (`task.rs`), `remember_settings` (`harness.rs`), `has_open_operation` (`turn.rs`), and `now()` (`sqlite/mod.rs`). They are `pub(super)` or `pub(in crate::storage)` today. When a task moves a store file out of `storage/sqlite/`, each helper it still calls in a file that has not moved, or in another service's `store`, widens to `pub(crate)` — never `pub` — and keeps its body. That is a visibility change, which a move may make. It means §14.6's third invariant ("a service's `store.rs` is called only by that service") does not hold for these in-transaction calls; Task 11 handles that.
+- **Log targets.** A log line's `target` is its module path, so it moves with its file (`shadows::planner::turn` becomes `shadows_core::turns::…`). Its message and fields do not change. `tracing.rs`'s default filters (`shadows=info,warn`, `shadows=debug,…`) still select every crate's lines, because `EnvFilter` matches a target by string prefix (`tracing-subscriber` 0.3, `filter/env/directive.rs`) and every product crate's name starts with `shadows`. Do not change the filters.
 - **Names:**
   - folder name equals package name (`crates/shadows-core` is the package `shadows-core`, lib `shadows_core`);
   - no package is named `core`.
@@ -52,12 +54,12 @@ The boundary only ever tightens, and nothing needs an allowlist or a guard test.
   Stop any running `shadows.exe` preview before building.
 - **The gate before every commit:**
   1. `cargo fmt --all --check`
-  2. `cargo clippy --workspace --all-targets -- -D warnings`
+  2. `cargo clippy --workspace --all-targets -- -D warnings`. From Task 3 on, `cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings`: `fake-acp`'s binary builds only with its own `test-support` (Task 3), and without the flag nothing lints it.
   3. `cargo test --workspace`
   4. From Task 10 on, also `cargo clippy --workspace -- -D warnings`, **without** `--all-targets`. This is the build without `test-support`, where the boundary is checked.
 
   Report the Rust test count. It is 304 at the start, and it may only grow. The web count, 135, must not move.
-- **Code map:** every signature change regenerates it in the same commit: `UPDATE_CODEMAP=1 cargo test -p shadows --test codemap` from Task 0 on. A new module gets its one-job line in `docs/codebase/README.md`.
+- **Code map:** every signature change regenerates it in the same commit: `UPDATE_CODEMAP=1 cargo test -p shadows --test codemap` from Task 0 on. From Task 0 the test reads every `crates/*/src` and the README's rows name workspace-relative paths (`crates/shadows/src/agent/`), so every task that moves a module also moves its README rows to the new path, in the same commit, or the ownership test fails. A new module gets its one-job line in `docs/codebase/README.md`.
 
 ## Review Focus
 
@@ -92,13 +94,19 @@ Task I   (controller) whole-branch review, Mohammed's run, evidence, PR
 ### Task 0: The workspace
 
 **Files:**
-- Move, with `git mv`: `src/`, `tests/`, `migrations/` and `Cargo.toml` into `crates/shadows/`. `api/`, `web/`, `docs/`, `harness/`, `.github/` and `Cargo.lock` stay at the root.
+- Move, with `git mv`: `src/`, `tests/`, `migrations/`, `build.rs` and `Cargo.toml` into `crates/shadows/`. `api/`, `web/`, `docs/`, `harness/`, `.github/` and `Cargo.lock` stay at the root. `build.rs` (`cargo:rerun-if-changed=migrations`) must sit beside the manifest whose crate runs `sqlx::migrate!`; a virtual root manifest runs no build script.
 - Create: the root `Cargo.toml`, a virtual manifest.
 - Modify: `crates/shadows/Cargo.toml`, which uses `workspace = true` for version, edition, rust-version, lints and every dependency.
 - Modify: every path that assumed the crate was the root:
   - `tests/openapi.rs` (`CARGO_MANIFEST_DIR` + `../../api/openapi.json`);
-  - `tests/codemap/main.rs` (its source root and the `docs/codebase` paths, now `../../`);
+  - `tests/codemap/` — see "The code map spans the workspace" below;
   - `tests/project_directory.rs` (migrations stay beside the crate, so no change, but check it).
+- Modify: `tests/codemap/{main,scan}.rs` and `docs/codebase/README.md` — **the code map spans the workspace from this task on**, because Tasks 1–10 each take modules out of `crates/shadows/src` and the test must keep passing after each one (§14.8):
+  - the root is the workspace (`CARGO_MANIFEST_DIR/../..`), and `docs/codebase/*` is read from there;
+  - the inventory scans every `crates/*/src`, sorted, with paths relative to the workspace (`crates/shadows/src/agent/acp.rs`);
+  - the `newtype_id!` template is read from whichever `crates/*/src/id.rs` exists (`scan.rs`'s `newtype_id_template` answers `None` for a missing file, which would silently drop every id from the map);
+  - the README's rows, and `parse_row`'s prefix check, name `crates/<crate>/src/…`; `top_level_modules` lists each `crates/*/src`'s children;
+  - regenerate the inventory, and rewrite each README row's path (`src/agent/` → `crates/shadows/src/agent/`). The jobs do not change.
 - Modify: `.github/workflows/ci.yml`:
   - `cargo clippy --workspace --all-targets -- -D warnings`;
   - `cargo test --workspace`;
@@ -135,7 +143,7 @@ unsafe_code = "forbid"
 
 Copy any `[lints]` today's `Cargo.toml` has into `[workspace.lints]`. If it has none, keep `unsafe_code = "forbid"` only if `src/` has no `unsafe` block; `grep -rn "unsafe" crates/shadows/src` decides. `[workspace.lints.clippy]` stays empty, and the gate's `-D warnings` is the policy.
 
-- [ ] **Step 1:** `git mv src tests migrations crates/shadows/`, then `git mv Cargo.toml crates/shadows/Cargo.toml`, then write the root manifest.
+- [ ] **Step 1:** `git mv src tests migrations build.rs crates/shadows/`, then `git mv Cargo.toml crates/shadows/Cargo.toml`, then write the root manifest.
 - [ ] **Step 2:** Rewrite `crates/shadows/Cargo.toml` to take everything from the workspace:
 
 ```toml
@@ -155,8 +163,8 @@ anyhow = { workspace = true }
 ```
 
   Keep `[[bin]]`, `[features]` and the self dev-dependency in the package manifest.
-- [ ] **Step 3:** Fix the paths listed under Files.
-- [ ] **Step 4:** Run the gate. Expect 304 Rust tests, all passing. `api/openapi.json` is unchanged (`git diff --exit-code api/`).
+- [ ] **Step 3:** Fix the paths listed under Files, and make the code map span the workspace.
+- [ ] **Step 4:** Run the gate. Expect 304 Rust tests, all passing. `api/openapi.json` is unchanged (`git diff --exit-code api/`). The regenerated inventory differs from the old one only in its paths and its header's wording.
 - [ ] **Step 5:** Commit: `build: a Cargo workspace; the crate moves whole into crates/shadows (§14.3)`
 
 ---
@@ -168,14 +176,39 @@ anyhow = { workspace = true }
 - Move: `crates/shadows/src/process/mod.rs` → `crates/shadows-process/src/lib.rs`; `crates/shadows/src/bin/tree_probe.rs` → `crates/shadows-process/src/bin/tree_probe.rs`. Keep `required-features = ["test-support"]` with a `test-support` feature and a self dev-dependency, as `shadows` has.
 - Move: `crates/shadows/tests/containment.rs` → `crates/shadows-process/tests/containment.rs`. Its `CARGO_BIN_EXE_tree_probe` now resolves inside the same package.
 - Modify: `crates/shadows/Cargo.toml` (depends on `shadows-process = { path = "../shadows-process" }`), and every `crate::process` → `shadows_process` in `crates/shadows/src`.
+- Modify: the features. `ProcessHandle::force_termination_failure` is gated on `shadows-process`'s own `test-support` now, and `planner/sessions.rs` calls it under `shadows`' `test-support`. So `shadows`' `test-support` gains `"shadows-process/test-support"`; without it the `shadows` tests that force a termination failure (`planner_turn`, `protocol`, `shutdown`) do not compile.
+- Modify: the two tests that stay in `crates/shadows/tests` and run `tree_probe` as a stand-in executable: `serve_smoke.rs` (`--node`, and `--harness` for the version timeout) and `planner_mcp.rs` (`serve(…, CARGO_BIN_EXE_tree_probe)`). `CARGO_BIN_EXE_tree_probe` no longer exists in `shadows`. Add `escargot` to the root `[workspace.dependencies]` and to `shadows`' `[dev-dependencies]`, and a fixture `crates/shadows/tests/fixtures/probe.rs`:
+
+```rust
+//! Where `tree_probe` is: `shadows-process`'s test binary, which
+//! `CARGO_BIN_EXE_*` names only inside that package (spec §14.3).
+pub fn tree_probe_path() -> std::path::PathBuf {
+    static PATH: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+    PATH.get_or_init(|| {
+        escargot::CargoBuild::new()
+            .package("shadows-process")
+            .bin("tree_probe")
+            .features("test-support")
+            .current_release()
+            .run()
+            .expect("tree_probe builds")
+            .path()
+            .to_path_buf()
+    })
+    .clone()
+}
+```
+
+  No `.current_target()`: it passes `--target`, which builds into `target/<triple>/` and compiles every dependency a second time. Task 3 moves this function into `shadows_core::testing` and deletes the fixture.
 
 **Interfaces:**
 - Produces: `shadows_process::{ProcessSpec, ProcessHandle, spawn, …}`, the same items `crate::process` exports today, under the new path. Read `docs/codebase/inventory.md`'s `process` section for the list.
 
 - [ ] **Step 1:** Create the crate and move the files.
 - [ ] **Step 2:** Fix the imports. `tokio::process` stays private to this crate, now with the compiler's help: no other crate depends on `process-wrap`.
-- [ ] **Step 3:** Run the gate. The count is unchanged: `containment` moved but still runs.
-- [ ] **Step 4:** Commit: `build: shadows-process is its own crate (§14.3)`
+- [ ] **Step 3:** Point `serve_smoke.rs` and `planner_mcp.rs` at `probe::tree_probe_path()`. Check `escargot` 0.5's API (`features`, `current_release`, `run`, `path`) before relying on it, and adjust to it. In the README, `process/`'s row becomes `crates/shadows-process/src/lib.rs`; `crates/shadows-process/src/bin/` gets a row (reference `tree_probe.rs`); and `crates/shadows/src/bin/`'s reference file becomes `fake_acp.rs`, which stays until Task 3.
+- [ ] **Step 4:** Run the gate. The count is unchanged: `containment` moved but still runs.
+- [ ] **Step 5:** Commit: `build: shadows-process is its own crate (§14.3)`
 
 ---
 
@@ -203,14 +236,30 @@ anyhow = { workspace = true }
 ### Task 3: `shadows-core` as it is, and `fake-acp`
 
 **Files:**
-- Create: `crates/shadows-core/Cargo.toml`. It takes the dependencies the moved modules use, plus `shadows-agent` and `shadows-process`, and has a `test-support` feature and a self dev-dependency. Move the part of `shadows`' `test-support` feature that belongs to storage (`storage::test_support`) into this crate's feature.
+- Create: `crates/shadows-core/Cargo.toml`. It takes the dependencies the moved modules use (`schemars` and `utoipa` included: the domain types derive both), plus `shadows-agent` and `shadows-process`, and has a `test-support` feature and a self dev-dependency. Every `#[cfg(feature = "test-support")]` in the moved modules now reads this crate's feature: `storage::test_support`, `newtype_id!`'s `from_literal` (`id.rs`), `planner/handles.rs`, `planner/sessions.rs` and `storage/sqlite/harness.rs`. So:
+  - `shadows-core`'s `test-support = ["dep:escargot", "shadows-process/test-support"]`;
+  - `shadows`' `test-support` becomes `["shadows-core/test-support", "rmcp/client", "rmcp/transport-streamable-http-client-reqwest", "dep:reqwest"]`, because its tests call `from_literal` and `force_termination_failure` too.
+- Move: `crates/shadows/build.rs` → `crates/shadows-core/build.rs`, with the migrations.
 - Move, unchanged except for paths:
   - `project/`, `thread/`, `workflow/`, `planner/` (with `prompt.txt`), `runtime/`, `operation/`, `events/`, `command/` and `storage/`;
   - `mcp/grant.rs`, which goes to `crates/shadows-core/src/grant/mod.rs`, because it is a domain type (§14.3's table);
   - `error.rs` and `id.rs`;
   - `migrations/`, to `crates/shadows-core/migrations/`, because `sqlx::migrate!` resolves beside the crate's manifest.
 - Create: `crates/shadows-core/src/lib.rs`, with every moved module `pub mod`, exactly as `crates/shadows/src/lib.rs` has them today. **Nothing is private yet.**
-- Create: `crates/fake-acp/`. It is a binary crate, `src/main.rs`, moved from `crates/shadows/src/bin/fake_acp.rs`. It depends on `shadows-core` for `grant::hash_token`, and on `agent-client-protocol`.
+- Create: `crates/fake-acp/`. It is a binary crate, `src/main.rs`, moved from `crates/shadows/src/bin/fake_acp.rs`. It uses `shadows-core` (`grant::hash_token`), `agent-client-protocol`, `tokio`, `serde_json`, and `rmcp`'s MCP client (`client`, `transport-streamable-http-client-reqwest`, with `reqwest` as `shadows` declares it). **None of that may reach a normal workspace build.** A virtual manifest's `cargo build` and the boundary check's `cargo clippy --workspace` (Task 10) build every member together, and Cargo unifies features across them: a plain `shadows-core = { features = ["test-support"] }` in `fake-acp` would switch `test-support` on for `shadows-http` as well, and Task 10's proof that `shadows_core::testing` is unreachable would pass for the wrong reason. So `fake-acp` is gated exactly as `fake_acp` was:
+
+```toml
+[[bin]]
+name = "fake-acp"
+path = "src/main.rs"
+required-features = ["test-support"]
+
+[features]
+test-support = ["shadows-core/test-support", "rmcp/client",
+                "rmcp/transport-streamable-http-client-reqwest", "dep:reqwest"]
+```
+
+  with `shadows-core` a plain dependency and `rmcp` at the workspace's server-only features. `testing::fake_acp_path()` builds it with `.features("test-support")`. Its lint is gate step 2's `--features fake-acp/test-support`. This is how §14.6's "a crate enables that feature only in its `[dev-dependencies]`" holds for a test binary that is its own package: nothing enables it except a build that asks for it.
 - Create: `crates/shadows-core/src/testing.rs`, behind `#[cfg(feature = "test-support")] pub mod testing;`, with:
 
 ```rust
@@ -222,18 +271,28 @@ anyhow = { workspace = true }
 /// package, so it is located through `escargot` (spec §14.3).
 pub fn fake_acp_path() -> std::path::PathBuf {
     static PATH: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
-    PATH.get_or_init(|| {
-        escargot::CargoBuild::new()
-            .package("fake-acp")
-            .bin("fake-acp")
-            .current_release()
-            .current_target()
-            .run()
-            .expect("fake-acp builds")
-            .path()
-            .to_path_buf()
-    })
-    .clone()
+    PATH.get_or_init(|| built("fake-acp", "fake-acp")).clone()
+}
+
+/// `shadows-process`'s `tree_probe`, which the daemon tests run as a stand-in
+/// executable (moved here from Task 1's `fixtures/probe.rs`).
+pub fn tree_probe_path() -> std::path::PathBuf {
+    static PATH: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+    PATH.get_or_init(|| built("shadows-process", "tree_probe")).clone()
+}
+
+/// No `.current_target()`: it passes `--target`, which builds into
+/// `target/<triple>/` and compiles every dependency a second time.
+fn built(package: &str, bin: &str) -> std::path::PathBuf {
+    escargot::CargoBuild::new()
+        .package(package)
+        .bin(bin)
+        .features("test-support")
+        .current_release()
+        .run()
+        .unwrap_or_else(|e| panic!("{bin} builds: {e}"))
+        .path()
+        .to_path_buf()
 }
 
 /// The Planner's instructions, as `harness/setup` compiles them in.
@@ -245,8 +304,10 @@ pub fn migrations_dir() -> std::path::PathBuf {
 }
 ```
 
-  `escargot` is an optional dependency, enabled by `test-support`. The `OnceLock` here is test apparatus, not the forbidden global `AppCore`. Check `escargot`'s current 0.5 API before relying on the calls above (`current_release`, `run`, `path`), and adjust to it.
-- Modify: `tests/fixtures/acp.rs` (`fake_adapter()` uses `shadows_core::testing::fake_acp_path()` in place of `env!("CARGO_BIN_EXE_fake_acp")`), and every other `CARGO_BIN_EXE_fake_acp`: `acp_connection.rs`, `planner_mcp.rs`, `sessions.rs`. `tests/planner_mcp.rs`'s `include_str!("../src/planner/prompt.txt")` becomes `shadows_core::testing::PROMPT`, and `project_directory.rs`'s migrations path becomes `shadows_core::testing::migrations_dir()`.
+  `escargot` is an optional dependency, enabled by `test-support`. The `OnceLock` here is test apparatus, not the forbidden global `AppCore`.
+- Modify: `tests/fixtures/acp.rs` (`adapter_at`'s and `fake_adapter()`'s `env!("CARGO_BIN_EXE_fake_acp")` become `shadows_core::testing::fake_acp_path()`), and every other `CARGO_BIN_EXE_fake_acp`: `acp_connection.rs`, `planner_mcp.rs`, `sessions.rs`. `serve_smoke.rs` and `planner_mcp.rs` call `shadows_core::testing::tree_probe_path()`, and `fixtures/probe.rs` is deleted. `tests/planner_mcp.rs`'s `include_str!("../src/planner/prompt.txt")` becomes `shadows_core::testing::PROMPT`, and `project_directory.rs`'s migrations path becomes `shadows_core::testing::migrations_dir()`.
+- Modify: `crates/shadows/Cargo.toml` drops the `fake_acp` `[[bin]]`; the tests that stay in `crates/shadows` depend on `shadows-core` with `test-support` through `shadows`' own feature above.
+- Modify: `docs/codebase/README.md`. Each moved module's row takes its `crates/shadows-core/src/…` path, `mcp/grant.rs`'s becomes `crates/shadows-core/src/grant/`, `crates/shadows/src/bin/`'s row goes, and `crates/fake-acp/src/main.rs` gets one.
 - Move: the tests that compile against `shadows-core` alone, meaning no router, no `protocol`, no `mcp` service, no `config`, into `crates/shadows-core/tests/`, with the fixtures they include. These are the storage, workflow, thread, planner-session and recovery tests, plus `acp_connection.rs`. A test that includes `fixtures/app.rs`, `listening.rs` or `serve.rs` stays in `crates/shadows/tests/`. A fixture both sides include is copied, and the report names each copy. Copies are allowed because Task 10 folds shared helpers into `shadows_core::testing`.
 - Modify: `crates/shadows/src/lib.rs` drops the moved modules. `crates/shadows/src/**` imports `shadows_core::…` in place of `crate::…`.
 
@@ -265,6 +326,7 @@ pub fn migrations_dir() -> std::path::PathBuf {
 **Files:**
 - Create: `crates/shadows-http/`, holding `crates/shadows/src/protocol/*`, with `mod.rs` → `lib.rs`. It depends on `shadows-core`, `shadows-agent` for the types routes serialize today, `axum`, `tower-http`, `utoipa`, `utoipa-axum`, `serde` and `serde_json`. **It does not depend on `shadows-mcp`.**
 - Create: `crates/shadows-mcp/`, holding `crates/shadows/src/mcp/*` except `grant.rs`, which moved in Task 3, with `mod.rs` → `lib.rs`. It depends on `shadows-core`, `rmcp`, `schemars` and `axum`. The `rmcp` client features and `reqwest` move to the test side (`test-support` or `[dev-dependencies]` of the crate whose tests use the MCP client).
+- Move, first: `UiSignal`, from `protocol/ui_signal.rs` into `crates/shadows-core/src/events/mod.rs` (today's `events` module), unchanged, with its doc comment. `mcp/mod.rs` and `mcp/tools.rs` import `crate::protocol::UiSignal` today, so without this `shadows-mcp` would need `shadows-http`. `ui_signal.rs` is deleted, and its README row goes to the `events/` row.
 - Modify: `shadows_http::router` takes the MCP router and mounts it at today's layer, so the order is unchanged (§14.5):
 
 ```rust
@@ -278,7 +340,7 @@ pub fn router(state: AppState, mcp: axum::Router) -> Router {
 - Modify: `crates/shadows/src/cli/mod.rs`, which serves `shadows_http::router(state, shadows_mcp::service(mcp_state))`. `crates/shadows/src/lib.rs` keeps `cli` and `tracing`, and `config.rs` stays in the binary.
 - Modify: every test in `crates/shadows/tests/` and its fixtures (`app.rs`, `listening.rs`), for the new paths and the router's second argument. Tests stay in `crates/shadows/tests/`: they drive HTTP and MCP together, and this crate is the one that sees both. `openapi.rs` stays too.
 
-- [ ] **Step 1:** Move `protocol/` into `shadows-http`. The router takes `mcp: Router`.
+- [ ] **Step 1:** Move `UiSignal` into `shadows_core::events`. Move `protocol/` into `shadows-http`. The router takes `mcp: Router`.
 - [ ] **Step 2:** Move `mcp/` into `shadows-mcp`.
 - [ ] **Step 3:** Update the binary and the tests, run the gate, and check that `api/openapi.json` is unchanged.
 - [ ] **Step 4:** Check the direction with `cargo tree -p shadows-http --depth 1` and `cargo tree -p shadows-mcp --depth 1`. Neither names the other, and `shadows-core` names neither.
@@ -292,15 +354,16 @@ This task starts the services, so it also lays the frame the later service tasks
 
 **Files:**
 - Create: `crates/shadows-core/src/app.rs`, holding `AppCore`, `CoreParts`, the accessors, `start`, `assemble`, `shut_down` and `user_command`.
-- Create: `crates/shadows-core/src/error.rs`. `CoreError` joins `ErrorCode`, which is already there.
+- Modify: `crates/shadows-core/src/error.rs`, which moved in Task 3. `CoreError` joins `ErrorCode`, which is already there.
 - Create: `crates/shadows-core/src/plans/` with `mod.rs` (the `Plans` service), `model.rs`, `rules.rs` and `store.rs`.
   - `git mv` puts `workflow/mod.rs` → `plans/model.rs`, `workflow/check.rs` → `plans/rules.rs`, `workflow/ops.rs` → `plans/ops.rs` and `workflow/conversation.rs` → `plans/conversation.rs`.
   - `storage/sqlite/{workflow,workflow_draft,workflow_read,task,plan_view}.rs` → `plans/store/{edit,draft,read,task,view}.rs`, each still `impl Storage { … }` over the shared `Storage` (§14.4: the queries live with their service, and the pool stays in `db`).
 - Create: `crates/shadows-core/src/plans/contract.yaml`, `docs/codebase/contracts/TEMPLATE.yaml` (copied verbatim from `C:\Users\Mohammed\Downloads\Telegram Desktop\GENERIC_SOURCE_CONTRACT_TEMPLATE.yaml`), and `crates/shadows-core/tests/contracts.rs`.
 - Modify: `crates/shadows-core/src/lib.rs`:
-  - add `pub mod app;` and `pub mod plans;`, and re-export `AppCore`, `CoreParts`, `CoreError`, `UiSignal`, and the plan types adapters serialize (`Plan`, `PlanListing`, `PlanTask`, `Approved`, `DraftStarted`, `EditOutcome`, `PlanShown`, `PlanOp`, `Place`, `WorkflowId`, `WorkflowState`);
-  - `workflow` stops being a public module.
-- Move: `UiSignal`, from `shadows-http/src/ui_signal.rs` to `crates/shadows-core/src/events/mod.rs`, which is today's `events` module. `core` must not depend on `http`.
+  - add `pub mod app;` and `pub mod plans;`, and re-export `AppCore`, `CoreParts`, `CoreError`, `UiSignal`, `StopKind`, and every plan type that appears in a public signature or a public field, because an adapter or a test names it or serializes it. Today that is all of `workflow/mod.rs`'s types, `workflow/conversation.rs`'s and `PlanOp`: `WorkflowId`, `TaskId`, `WorkflowState`, `LinkKind`, `AcceptanceItem`, `TaskContent`, `Link`, `PlanContent`, `PlanTask`, `LastEdit`, `Plan`, `EditOutcome`, `DraftStarted`, `Approved`, `PlanListing`, `PlanOp`, `Problem` (inside `StorageError::PlanInvalid`), `Focus` (in `shadows-http`'s `StartTurn`), `Place` and `PlanShown`. A type left out is unnameable outside the crate, which Task 10's `unnameable_types` refuses;
+  - `workflow` stops being a public module;
+  - the pure rules `apply`, `Applied`, `edit_problems` and `approval_problems` are not re-exported. `tests/workflow_rules.rs` (18 tests, `use shadows::workflow::*`) reaches them through `shadows_core::testing`, which re-exports them under `test-support`, and the other tests that named `shadows_core::workflow::…` import the root re-exports.
+- Move: `harness_version` and `VERSION_BOUND` from `crates/shadows/src/cli/mod.rs`, and `adapter_version` from `crates/shadows/src/config.rs`, into `app.rs`, unchanged, with the `harness.version_timeout` and `harness.versions` log lines. `start` reads the versions, and the binary's `config.rs` keeps argument parsing only. Task 8 may move them into `harness/`.
 - Modify:
   - `shadows-http`: `AppState` is `{ core: Arc<AppCore>, allowed_origins, shutdown }`, and `workflow.rs` routes are one call each;
   - `shadows-mcp`: `McpState` is replaced by `Arc<AppCore>`, `service(core: Arc<AppCore>)`, and every plan tool is one call;
@@ -426,7 +489,7 @@ pub struct PlanShow { pub workflow_id: Option<WorkflowId>, pub task_number: Opti
   Copy the `json!` literals; do not retype them.
 
 **How `CoreError` maps in each adapter:**
-- `Failure`: each variant calls today's constructor (`project_directory_unusable`, `harness_start_failed`, `harness_unavailable`, `setting_not_offered(&what, &id, detail.as_deref())`, `mode_not_allowed`, `runtime_stopping`, `termination_failed`). `Refused` gets a new `Failure::refused(code, message)`, status 422; no HTTP route produces it in this milestone.
+- `Failure`: `Storage`, `Start` and `Directory` go through the existing `From<StorageError>`, `From<StartError>` and `From<DirectoryError>` for `Failure`, so their statuses, codes and texts do not move. Every other variant calls today's constructor (`project_directory_unusable`, `harness_start_failed`, `harness_unavailable`, `setting_not_offered(&what, &id, detail.as_deref())`, `mode_not_allowed`, `runtime_stopping`, `termination_failed`). `Refused` gets a new `Failure::refused(code, message)`, status 422; no HTTP route produces it in this milestone.
 - `Refusal`: `Storage` goes through the existing `From`, `Refused` → `Refusal::new(code, message)`, and every other variant → `Refusal::new(<its code>, e.to_string())`.
 
 - [ ] **Step 1: Pin the behaviour.** Write the two test files below. They pass against the code before this task, and they pin it across the move.
@@ -506,7 +569,7 @@ Match the `use` lines to what the fixtures need; `listening.rs` names `super::ac
   - collects the source's declared symbols and the service's public methods with `syn`, and test names from every `#[test]` / `#[tokio::test]` under `crates/*/tests` and `crates/*/src`;
   - fails on §14.7's six rules.
 
-  Its code is the one below, with the paths changed.
+  `syn` (with `full`) and `yaml-rust2` join `shadows-core`'s `[dev-dependencies]`. Check `yaml-rust2` 0.13's API (`YamlLoader::load_from_str`, `Yaml::Hash`, `as_vec`) before relying on it, and adjust to it. A contract nests the template's top-level `reads:` / `writes:` / `checks:` groups under one `functions:` key, as §14.7 says; the test reads only `functions`. Its code is the one below, with the paths changed.
 
 ```rust
 //! Spec §14.7: a service contract that no longer matches its code fails here.
@@ -557,7 +620,9 @@ fn symbols(dir: &Path) -> (BTreeSet<String>, BTreeSet<String>) {
             syn::Item::Type(x) => { all.insert(x.ident.to_string()); }
             syn::Item::Impl(i) => for it in &i.items { if let syn::ImplItem::Fn(m) = it {
                 all.insert(m.sig.ident.to_string());
-                if matches!(m.vis, syn::Visibility::Public(_)) && i.trait_.is_none() && f.ends_with("mod.rs") {
+                // The service's own `mod.rs` only: `Path::ends_with` would also
+                // take `store/mod.rs`, whose `impl Storage` methods are not the service's.
+                if matches!(m.vis, syn::Visibility::Public(_)) && i.trait_.is_none() && f == dir.join("mod.rs") {
                     public.insert(m.sig.ident.to_string()); } } },
             _ => {} } }
     }
@@ -593,12 +658,14 @@ fn every_contract_matches_its_service() {
         if let Some(gaps) = doc["gaps"].as_vec() { for g in gaps { if let Some(at) = g["at"].as_str() {
             if !declared.contains(at) { problems.push(format!("{name}: gap at `{at}` is not in {source}")) } } } }
         let mut named = Vec::new();
-        if let Some(obs) = doc["obligations"].as_vec() { for o in obs {
+        // The template's `agreements` carry `tested_by` too; rule 4 covers every one.
+        for section in ["obligations", "agreements"] {
+        if let Some(obs) = doc[section].as_vec() { for o in obs {
             match &o["tested_by"] { Yaml::String(s) => named.push(s.clone()),
                 Yaml::Array(a) => named.extend(a.iter().filter_map(|t| t.as_str().map(str::to_string))), _ => {} }
             let t = o["tested_by"].as_str().unwrap_or("");
             if (t == "none" || t == "unknown") && o["note"].as_str().is_none() {
-                problems.push(format!("{name}: an obligation says tested_by: {t} without a note")) } } }
+                problems.push(format!("{name}: an entry of {section} says tested_by: {t} without a note")) } } } }
         if let Some(ts) = doc["tests"].as_vec() { for t in ts { if let Some(n) = t["name"].as_str() { named.push(n.to_string()) } } }
         for n in named { let bare = n.trim_start_matches("integration: ").to_string();
             if bare != "none" && bare != "unknown" && !tests.contains(&bare) { problems.push(format!("{name}: test `{bare}` does not exist")) } }
@@ -824,16 +891,18 @@ impl Instructions {
 ### Task 10: `Events`, and the boundary closes
 
 **Files:**
-- Create: `crates/shadows-core/src/events/`, holding today's `events/`, `UiSignal`, `storage/sqlite/{events,events_read}.rs` → `events/store.rs`, and the journal-then-live loop from `shadows-http/src/sse.rs`.
+- Create: `crates/shadows-core/src/events/`, holding today's `events/`, `UiSignal`, `storage/sqlite/events_read.rs` → `events/store.rs`, and the journal-then-live loop from `shadows-http/src/sse.rs`.
 - Create: `crates/shadows-core/src/db/`, holding what is left of `storage/`:
   - `mod.rs`, which is the `Storage` pool and `write_txn`;
   - `command.rs`, for idempotency;
+  - `journal.rs`, from `storage/sqlite/events.rs`: `append_event`, which every service's write calls inside its own transaction. §14.4 puts "the durable journal" in `db/`, and "Events emits nothing of its own": appending is the writer's act, reading and delivering is Events';
+  - `storage::test_support`, which appends through `journal.rs`;
   - migrations, which run from here;
   - `runtime.rs`, which moves to `crates/shadows-core/src/runtime/` with the runtime.
 
   `db` and `runtime` are private modules.
 - Modify: `shadows-http/src/sse.rs`. It keeps the framing: event names, JSON bodies, `lagged`, `fatal`, the bounded channel and the `sse.*` log lines. It turns each `Delivery` into today's frame.
-- Modify: `crates/shadows-core/src/testing.rs`. It exposes what the core's own tests need and nothing more: `pub use crate::db::Storage;`, the fixtures' helpers, and `fake_acp_path`. Fold in the helper copies Task 3 made.
+- Modify: `crates/shadows-core/src/testing.rs`. It exposes what the core's own tests need and nothing more: `pub use crate::db::Storage;`, the fixtures' helpers, `fake_acp_path`, `tree_probe_path`, and Task 5's plan-rule re-exports. Fold in the helper copies Task 3 made.
 - Modify: the root `Cargo.toml`, with `[workspace.lints.rust] unnameable_types = "warn"`. A public method that returns a type from a private module is then refused under `-D warnings`.
 - Modify: `.github/workflows/ci.yml`, which adds `cargo clippy --workspace -- -D warnings` (no `--all-targets`).
 
@@ -879,7 +948,7 @@ The journal type is `StoredEvent`, which `read_events_after` returns.
   - `lib.rs`'s public surface is `AppCore`, `CoreParts`, `StartConfig`, `CoreError`, `ErrorCode`, the services and the domain types adapters serialize, plus `testing` under `test-support`.
   - Run `cargo clippy --workspace -- -D warnings` without `--all-targets`, and fix every adapter that reached past a service by calling the service. Never widen a visibility.
 - [ ] **Step 4: Prove the boundary bites.**
-  - Add `use shadows_core::testing;` to `shadows-http/src/lib.rs`, and see `cargo clippy --workspace -- -D warnings` fail. Revert.
+  - Add `use shadows_core::testing;` to `shadows-http/src/lib.rs`, and see `cargo clippy --workspace -- -D warnings` fail. Revert. If it does not fail, some member enables `shadows-core/test-support` outside `[dev-dependencies]` (check `fake-acp`, Task 3): fix that, never the check.
   - Add `pub fn storage(&self) -> &Storage` to `AppCore`, and see `unnameable_types` fail. Revert.
 - [ ] **Step 5: Gate, and write `events/contract.yaml`.** Its obligations:
   - no frame lost or repeated across journal → live;
@@ -911,7 +980,9 @@ The journal type is `StoredEvent`, which `read_events_after` returns.
     - "`shadows-core` never imports `axum` or `rmcp`";
     - "a service's `store.rs` is called only by that service";
     - "no service reaches into another's private module".
-- Modify: the code map test, so it walks every `crates/*/src` and groups the inventory by crate.
+
+    **Stop before writing the last two** if the store helpers listed under Global Constraints ("Store helpers that one write shares across services") are still called across services, which they will be: one write transaction spans several services' tables. Write the first two, and report the conflict with §14.6 for Mohammed to rule on (for example: those helpers live in `db/`, or the invariant names them as the exception). Do not write an invariant the code breaks.
+- Modify: the code map test, so the inventory groups its files by crate (it has walked every `crates/*/src` since Task 0).
 - Modify: `docs/superpowers/specs/2026-09-26-application-core-design.md` (status: Built, with the commit range), and `docs/status.md`.
 
 - [ ] **Step 1:** Read each contract once against its service: are `functions` complete, and is every `not_the_caller's` true?
