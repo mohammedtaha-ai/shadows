@@ -125,7 +125,11 @@ obligations:
       thread grant only its own thread's, and for an edit only the latest; a
       project grant only versions it names in its own project. Anything else
       is refused GRANT_SCOPE, with the texts `in_scope` writes, before
-      storage is written.
+      storage is written. Two refusals are not GRANT_SCOPE: a thread grant
+      whose thread has no plan yet is INVALID_COMMAND ("this conversation has
+      no plan yet"), and one naming a version that does not exist is the
+      storage's INVALID_COMMAND "no such workflow"; a project grant naming
+      one is GRANT_SCOPE.
     tested_by:
       - a_thread_grant_edits_only_its_own_threads_plan
       - a_project_grant_cannot_reach_another_project
@@ -156,15 +160,19 @@ obligations:
       from_workflow_id } for an external agent, PlanEdit { workflow,
       expected_revision, ops }, PlanShow { workflow, task_number, place }.
     tested_by:
+      - plan_command_fingerprints_do_not_move
       - plan_commands_replay_after_the_move
       - a_repeated_edit_returns_the_first_result
       - a_replayed_approval_answers_the_first_result
       - a_thread_grant_starts_a_draft_only_inside_a_turn
       - draft_ref_replays_and_distinct_refs_make_distinct_plans
     note: >
-      Each test replays within one database, so it proves the request matches
-      itself; none pins a fingerprint's bytes, so a parameter set changed on
-      both calls would still pass. The parameter lists above are the guard.
+      Only `plan_command_fingerprints_do_not_move` pins the kinds, schema
+      version and parameter sets above, against the command log; it passes on
+      the code before the move. The others replay within one database, so they
+      prove a request matches itself and would still pass with a parameter set
+      changed on both calls. None pins the principal or the derived command
+      ids.
 
   - rule: >
       `show` sends its UI signal only when the card was newly recorded, never
@@ -261,6 +269,12 @@ open_questions:
 
 
 tests:
+  - name: plan_command_fingerprints_do_not_move
+    checks: >
+      A Planner's DraftStart, PlanEdit and PlanShow, an external DraftStart
+      from scratch and a person's PlanApprove each leave one command_record
+      whose kind, schema version 1 and fingerprint equal `fingerprint` of the
+      parameter literal listed in the replay obligation.
   - name: plan_commands_replay_after_the_move
     checks: >
       Over MCP with a project grant, a draft_start repeated with the same

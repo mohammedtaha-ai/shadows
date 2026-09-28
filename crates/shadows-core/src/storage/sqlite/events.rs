@@ -7,12 +7,9 @@ use crate::events::DurableEvent;
 /// `append_event`: an event is appended only inside a capability that also
 /// writes the state it describes.
 ///
-/// Visibility is `pub(in crate::storage)` rather than `pub(super)`: besides
-/// its Task 4-9 callers in sibling modules under `storage::sqlite` (which
-/// `pub(super)` alone would reach), `storage::test_support` — a sibling of
-/// `sqlite` itself, not a descendant of it — also needs to call this for the
-/// atomicity contract test. `pub(in crate::storage)` is the narrowest
-/// visibility that reaches both without making the function `pub`.
+/// Visibility is `pub(crate)`, never `pub`: besides its callers in sibling
+/// modules under `storage::sqlite` and `storage::test_support` (the atomicity
+/// contract test), `plans::store` calls it inside its own writes (spec §14.6).
 pub(crate) async fn append_event(
     conn: &mut SqliteConnection,
     event: &DurableEvent,

@@ -1201,7 +1201,7 @@ impl Storage {
 }
 ```
 
-## `crates/shadows-core/src/storage/sqlite/events.rs` — 52 lines
+## `crates/shadows-core/src/storage/sqlite/events.rs` — 49 lines
 
 ```rust
 pub(crate) async fn append_event(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>

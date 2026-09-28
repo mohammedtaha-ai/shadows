@@ -4,7 +4,6 @@
 //! settings and limits.
 
 use serde_json::{Value, json};
-use shadows_core::{AppCore, CoreParts};
 
 #[path = "fixtures/acp.rs"]
 mod acp;
@@ -190,15 +189,7 @@ async fn a_browser_may_send_patch_from_an_allowed_origin() {
     let origin = "http://localhost:5173";
     let app = test_app().await;
     let state_router = shadows::cli::router(shadows_http::AppState {
-        core: AppCore::assemble(CoreParts {
-            storage: app.storage.clone(),
-            runtime: app.runtime.clone(),
-            sessions: app.sessions.clone(),
-            handles: app.handles.clone(),
-            bus: app.bus.clone(),
-            ui: app.ui.clone(),
-            mcp_url: acp::MCP_URL.to_string(),
-        }),
+        core: app.core.clone(),
         allowed_origins: vec![origin.to_string()],
         shutdown: tokio::sync::watch::channel(false).1,
     });

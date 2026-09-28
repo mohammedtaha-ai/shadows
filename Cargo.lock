@@ -2191,7 +2191,6 @@ dependencies = [
  "shadows-core",
  "shadows-http",
  "shadows-mcp",
- "shadows-process",
  "sqlx",
  "syn 2.0.119",
  "tempfile",
