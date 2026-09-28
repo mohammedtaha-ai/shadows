@@ -950,6 +950,7 @@ impl Instructions {
 - Modify: `crates/shadows-core/src/testing.rs`. It exposes what the core's own tests need and nothing more: `pub use crate::db::Storage;`, the fixtures' helpers, `fake_acp_path`, `tree_probe_path`, and Task 5's plan-rule re-exports. Fold in the helper copies Task 3 made.
 - Modify: the root `Cargo.toml`, with `[workspace.lints.rust] unnameable_types = "warn"`. A public method that returns a type from a private module is then refused under `-D warnings`.
 - Modify: `.github/workflows/ci.yml`, which adds `cargo clippy --workspace -- -D warnings` (no `--all-targets`).
+- Modify: every service's `store` (Task 5 review finding F6). The `impl Storage` methods a service's store adds are `pub` today; once `Storage` is private they narrow to `pub(super)` (called by their own service) or `pub(crate)` (called by another service's write, and then declared under `shared_in_transaction`). `contracts.rs` rule 9 extends to count `pub(crate)` methods in a store's `impl` blocks as well as free functions, and the §14.7 rule 9 line says "function or method". Prove it bites with a scratch `pub(crate)` method.
 
 **Interfaces:**
 
