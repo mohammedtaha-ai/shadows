@@ -15,7 +15,7 @@ name: CI
 # Linux is the COMPILE gate only. It proves the crate still builds, lints, and
 # passes its platform-neutral tests on a Unix target. It does NOT certify
 # process-tree containment there:
-# `crates/shadows/src/process/containment_unix.rs` covers deliberate
+# `crates/shadows-process/src/lib.rs`'s unix path covers deliberate
 # termination only, and the parent-death half of spec §1.5 is a
 # known, recorded gap. Tests that would assert that gap are `#[ignore]`d with
 # the reason in the source. Never silence one to make this job green — a green

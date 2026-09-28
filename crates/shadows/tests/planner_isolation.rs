@@ -3,7 +3,8 @@
 //! its adapter's tree and records it `Cancelled`, and the other keeps running
 //! and then completes normally. The
 //! process-level half of the same claim — a tree's termination never reaches
-//! another tree or a process outside every tree — is `tests/containment.rs`.
+//! another tree or a process outside every tree — is
+//! `crates/shadows-process/tests/containment.rs`.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -69,8 +70,8 @@ async fn wait_for_status(runtime: &Runtime, op: &OperationId, wanted: &str) -> O
     panic!("operation never reached {wanted}");
 }
 
-/// Duplicated from `tests/containment.rs`, for the reason `tests/planner_turn.rs`
-/// gives.
+/// Duplicated from `crates/shadows-process/tests/containment.rs`, for the reason
+/// `tests/planner_turn.rs` gives.
 #[cfg(windows)]
 fn is_alive(pid: u32) -> bool {
     let out = std::process::Command::new("powershell")

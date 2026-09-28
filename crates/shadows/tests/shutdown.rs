@@ -147,8 +147,8 @@ fn no_second_signal() -> impl Future<Output = ()> {
     std::future::pending()
 }
 
-/// Duplicated from `tests/containment.rs`, for the reason `tests/planner_turn.rs`
-/// gives.
+/// Duplicated from `crates/shadows-process/tests/containment.rs`, for the reason
+/// `tests/planner_turn.rs` gives.
 #[cfg(windows)]
 fn is_alive(pid: u32) -> bool {
     let out = std::process::Command::new("powershell")
