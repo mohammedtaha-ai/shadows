@@ -38,3 +38,8 @@ pub const PROMPT: &str = include_str!("planner/prompt.txt");
 pub fn migrations_dir() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations")
 }
+
+/// Plans' pure rules, which `tests/workflow_rules.rs` calls directly. They
+/// are private to `plans` everywhere else: a caller changes a plan through
+/// `Plans` only.
+pub use crate::plans::for_tests::{Applied, apply, approval_problems, edit_problems};

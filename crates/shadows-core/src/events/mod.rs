@@ -1,7 +1,7 @@
 use crate::operation::OperationId;
+use crate::plans::{Place, WorkflowId};
 use crate::project::ProjectId;
 use crate::thread::ThreadId;
-use crate::workflow::{Place, WorkflowId};
 
 /// Spec §6.18. `seq` is assigned by the INSERT, which on SQLite can only run
 /// while holding the write lock, so assignment order equals commit order. That

@@ -18,9 +18,7 @@ use shadows_core::command::{CommandContext, Writer, fingerprint};
 use shadows_core::grant::GrantId;
 use shadows_core::project::ProjectId;
 use shadows_core::thread::ThreadId;
-use shadows_core::workflow::{
-    AcceptanceItem, DraftStarted, Link, LinkKind, PlanOp, TaskContent, WorkflowId,
-};
+use shadows_core::{AcceptanceItem, DraftStarted, Link, LinkKind, PlanOp, TaskContent, WorkflowId};
 
 use super::app::{App, ctx};
 

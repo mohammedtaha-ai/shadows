@@ -1,20 +1,15 @@
-//! One job: a plan's content under the rules of spec §13.
+//! One job: the plan types callers meet (spec §13).
 //!
-//! Pure: no storage, no I/O. A plan is changed only by [`apply`]ing a batch of
-//! [`PlanOp`]s, and judged only by [`edit_problems`] and [`approval_problems`],
+//! Pure: no storage, no I/O. A plan is changed only by
+//! [`apply`](super::ops::apply)ing a batch of [`PlanOp`](super::ops::PlanOp)s,
+//! and judged only by [`edit_problems`](super::rules::edit_problems) and
+//! [`approval_problems`](super::rules::approval_problems),
 //! so every writer — the Planner's MCP tools, the HTTP routes — and every reader
 //! that lists what blocks approval share one set of rules (§13.4).
 
 use std::collections::BTreeMap;
 
-pub mod check;
-pub mod conversation;
-pub mod ops;
-
-pub use check::{Problem, approval_problems, edit_problems};
-pub use conversation::{Focus, Place, PlanShown};
-pub use ops::{Applied, PlanOp, apply};
-
+use super::rules::Problem;
 use crate::id::newtype_id;
 use crate::project::ProjectId;
 use crate::thread::ThreadId;
@@ -74,7 +69,7 @@ impl LinkKind {
 
 /// How a refusal names one link: `the needs link T2 → T1`, the arrow pointing
 /// from the task that waits to the task it waits for.
-fn link_name(task: u32, after: u32, kind: LinkKind) -> String {
+pub(super) fn link_name(task: u32, after: u32, kind: LinkKind) -> String {
     format!("the {} link T{task} → T{after}", kind.as_str())
 }
 
@@ -188,7 +183,7 @@ pub struct Plan {
 }
 
 impl Plan {
-    /// The content [`apply`] and the checks work on.
+    /// The content [`apply`](super::ops::apply) and the checks work on.
     pub fn content(&self) -> PlanContent {
         PlanContent {
             title: self.title.clone(),

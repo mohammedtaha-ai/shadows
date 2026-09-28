@@ -19,6 +19,7 @@ use shadows_core::operation::{Operation, OperationId};
 use shadows_core::planner::{LiveHandles, PlannerTurn, Sessions, StopOutcome};
 use shadows_core::runtime::Runtime;
 use shadows_core::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
+use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tower::ServiceExt;
 
@@ -94,14 +95,16 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
     let (bus, _) = tokio::sync::broadcast::channel(256);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let router = router(AppState {
-        runtime: runtime.clone(),
-        storage,
-        handles: handles.clone(),
-        sessions: sessions.clone(),
-        bus: bus.clone(),
+        core: AppCore::assemble(CoreParts {
+            storage,
+            runtime: runtime.clone(),
+            sessions: sessions.clone(),
+            handles: handles.clone(),
+            bus: bus.clone(),
+            ui: tokio::sync::broadcast::channel(16).0,
+            mcp_url: acp::MCP_URL.to_string(),
+        }),
         allowed_origins: Vec::new(),
-        ui: tokio::sync::broadcast::channel(16).0,
-        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
     App {

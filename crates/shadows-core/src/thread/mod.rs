@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use crate::events::Actor;
 use crate::id::newtype_id;
 use crate::operation::OperationId;
+use crate::plans::{TaskId, WorkflowId};
 use crate::project::ProjectId;
-use crate::workflow::{TaskId, WorkflowId};
 
 newtype_id! {
     /// Spec §4.1.

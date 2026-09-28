@@ -14,7 +14,7 @@ use crate::thread::{
 /// inserts it, and journals `ThreadEntryAppended`. The turn command (§12.7)
 /// writes its user entry with the operation it creates, so this cannot own a
 /// transaction of its own.
-pub(super) async fn append_entry_in(
+pub(crate) async fn append_entry_in(
     conn: &mut SqliteConnection,
     thread_id: &ThreadId,
     entry: NewThreadEntry<'_>,

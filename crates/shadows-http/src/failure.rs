@@ -11,6 +11,7 @@
 use axum::Json;
 use axum::http::StatusCode;
 
+use shadows_core::CoreError;
 use shadows_core::error::ErrorCode;
 use shadows_core::planner::StartError;
 use shadows_core::project::DirectoryError;
@@ -231,6 +232,18 @@ impl Failure {
         }
     }
 
+    /// A refusal whose code and text a service wrote. 422: the request was
+    /// understood and refused. No HTTP route produces one in Milestone 2.5.
+    pub(super) fn refused(code: ErrorCode, message: String) -> Self {
+        Failure {
+            status: StatusCode::UNPROCESSABLE_ENTITY,
+            code,
+            message,
+            cause: None,
+            detail: Detail::default(),
+        }
+    }
+
     /// Spec §1: a browser sent this on behalf of a page that is not one of
     /// this daemon's clients (`guard.rs`). 403: the request is refused for
     /// who sent it, whatever it asks.
@@ -256,6 +269,30 @@ impl Failure {
                 .into(),
             cause: None,
             detail: Detail::default(),
+        }
+    }
+}
+
+impl From<CoreError> for Failure {
+    /// Each variant through the mapping it had before services returned
+    /// `CoreError`, so no status, code or text moves.
+    fn from(e: CoreError) -> Self {
+        match e {
+            CoreError::Storage(e) => e.into(),
+            CoreError::Start(e) => e.into(),
+            CoreError::Directory(e) => e.into(),
+            CoreError::ProjectDirectoryUnusable(reason) => {
+                Failure::project_directory_unusable(reason)
+            }
+            CoreError::HarnessStartFailed(reason) => Failure::harness_start_failed(reason),
+            CoreError::HarnessUnavailable(harness) => Failure::harness_unavailable(&harness),
+            CoreError::SettingNotOffered { what, id, detail } => {
+                Failure::setting_not_offered(&what, &id, detail.as_deref())
+            }
+            CoreError::ModeNotAllowed(mode) => Failure::mode_not_allowed(&mode),
+            CoreError::RuntimeStopping => Failure::runtime_stopping(),
+            CoreError::TerminationFailed => Failure::termination_failed(),
+            CoreError::Refused { code, message } => Failure::refused(code, message),
         }
     }
 }

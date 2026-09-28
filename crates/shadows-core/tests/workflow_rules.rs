@@ -1,4 +1,5 @@
-use shadows_core::workflow::*;
+use shadows_core::testing::{apply, approval_problems, edit_problems};
+use shadows_core::{AcceptanceItem, Link, LinkKind, PlanContent, PlanOp, Problem, TaskContent};
 
 fn task(n: u32, title: &str) -> TaskContent {
     TaskContent {

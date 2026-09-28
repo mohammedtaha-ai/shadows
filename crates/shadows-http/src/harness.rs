@@ -69,7 +69,8 @@ pub(super) async fn list_harnesses(
     for kind in policy::KNOWN {
         let available = policy::is_available(kind);
         let remembered = s
-            .storage
+            .core
+            .storage()
             .remembered_settings(kind)
             .await?
             .map(|(model, effort)| RememberedSettings { model, effort });
@@ -79,7 +80,7 @@ pub(super) async fn list_harnesses(
             available,
             reason: (!available).then(|| "Coming later".to_string()),
             remembered,
-            limits: s.storage.latest_limits(kind).await?,
+            limits: s.core.storage().latest_limits(kind).await?,
         });
     }
     Ok(Json(list))
@@ -132,16 +133,22 @@ pub(super) async fn open_session(
     State(s): State<AppState>,
     Path(thread): Path<ThreadId>,
 ) -> Result<Json<SessionChoices>, Failure> {
-    let context = s.storage.turn_context(&thread).await?;
+    let context = s.core.storage().turn_context(&thread).await?;
     if !policy::is_available(&context.harness) {
         return Err(Failure::harness_unavailable(&context.harness));
     }
-    s.sessions.open(&thread).await.map_err(open_failure)?;
+    s.core
+        .sessions()
+        .open(&thread)
+        .await
+        .map_err(open_failure)?;
     let offered =
-        s.sessions.offered(&thread).await.ok_or_else(|| {
+        s.core.sessions().offered(&thread).await.ok_or_else(|| {
             Failure::harness_start_failed("the session closed as it opened".into())
         })?;
-    Ok(Json(choices_for(&s.storage, &thread, &offered).await?))
+    Ok(Json(
+        choices_for(s.core.storage(), &thread, &offered).await?,
+    ))
 }
 
 /// The model a person picked (spec §12.7).
@@ -178,16 +185,22 @@ pub(super) async fn change_model(
     Json(body): Json<ChangeModel>,
 ) -> Result<Json<SessionChoices>, Failure> {
     let choices = detached(async move {
-        let context = s.storage.turn_context(&thread).await?;
+        let context = s.core.storage().turn_context(&thread).await?;
         if !policy::is_available(&context.harness) {
             return Err(Failure::harness_unavailable(&context.harness));
         }
-        if s.storage.thread_is_busy(&thread).await? {
+        if s.core.storage().thread_is_busy(&thread).await? {
             return Err(StorageError::ThreadBusy.into());
         }
-        let opened = s.sessions.open(&thread).await.map_err(open_failure)?;
+        let opened = s
+            .core
+            .sessions()
+            .open(&thread)
+            .await
+            .map_err(open_failure)?;
         let offered = s
-            .sessions
+            .core
+            .sessions()
             .change_model(&thread, &opened, &body.model)
             .await
             .map_err(|refused| match refused {
@@ -202,7 +215,7 @@ pub(super) async fn change_model(
                     Failure::harness_start_failed(e.to_string())
                 }
             })?;
-        choices_for(&s.storage, &thread, &offered).await
+        choices_for(s.core.storage(), &thread, &offered).await
     })
     .await?;
     Ok(Json(choices))
@@ -237,8 +250,8 @@ pub(super) async fn thread_context(
     State(s): State<AppState>,
     Path(thread): Path<ThreadId>,
 ) -> Result<Json<ContextBreakdown>, Failure> {
-    s.storage.turn_context(&thread).await?;
-    Ok(Json(match s.sessions.context(&thread).await {
+    s.core.storage().turn_context(&thread).await?;
+    Ok(Json(match s.core.sessions().context(&thread).await {
         Ok(categories) => ContextBreakdown {
             categories: Some(categories),
             reason: None,

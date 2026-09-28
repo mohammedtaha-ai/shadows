@@ -30,6 +30,7 @@ use shadows_core::project::{ProjectDirectory, ProjectId};
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
 use shadows_core::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
+use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tower::ServiceExt;
 
@@ -47,6 +48,8 @@ pub struct App {
     pub bus: Bus,
     /// The live-only signals `plan_show` sends (§13.9).
     pub ui: tokio::sync::broadcast::Sender<UiSignal>,
+    /// The application the router is built from, on the same `Arc`s as above.
+    pub core: Arc<AppCore>,
     pub router: Router,
     pub project: ProjectId,
     pub thread: ThreadId,
@@ -121,15 +124,18 @@ pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) ->
     let (bus, _) = tokio::sync::broadcast::channel(256);
     let (ui, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
-    let router = router(AppState {
-        runtime: runtime.clone(),
+    let core = AppCore::assemble(CoreParts {
         storage: storage.clone(),
-        handles: handles.clone(),
+        runtime: runtime.clone(),
         sessions: sessions.clone(),
+        handles: handles.clone(),
         bus: bus.clone(),
         ui: ui.clone(),
-        allowed_origins: Vec::new(),
         mcp_url: mcp_url.to_string(),
+    });
+    let router = router(AppState {
+        core: core.clone(),
+        allowed_origins: Vec::new(),
         shutdown,
     });
     App {
@@ -140,6 +146,7 @@ pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) ->
         sessions,
         bus,
         ui,
+        core,
         router,
         project: project.id,
         thread,

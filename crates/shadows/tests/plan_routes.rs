@@ -3,7 +3,7 @@
 
 use serde_json::{Value, json};
 use shadows_core::thread::ThreadId;
-use shadows_core::workflow::{PlanOp, TaskContent};
+use shadows_core::{PlanOp, TaskContent};
 
 #[path = "fixtures/acp.rs"]
 mod acp;

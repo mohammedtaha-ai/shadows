@@ -1,16 +1,16 @@
 //! One job: a plan version's task and link rows (spec §13.3, §13.15) —
 //! the columns a task's content is stored in, reading them back (one task by
 //! id or by number included), and making them say what an edit left. The
-//! version row itself is `workflow*.rs`.
+//! version row itself is `edit.rs`, `draft.rs` and `read.rs`.
 
 use std::collections::HashMap;
 
 use sqlx::SqliteConnection;
 
-use super::StorageError;
-use crate::workflow::{
+use crate::plans::model::{
     AcceptanceItem, Link, LinkKind, PlanContent, PlanTask, TaskContent, TaskId, WorkflowId,
 };
+use crate::storage::StorageError;
 
 /// `contract_json` as stored: title, goal and acceptance (§13.3).
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -58,7 +58,7 @@ pub(super) async fn tasks_of(
 }
 
 /// The number and title of task `id`, if it is a task of `workflow`.
-pub(super) async fn task_of(
+pub(crate) async fn task_of(
     conn: &mut SqliteConnection,
     workflow: &WorkflowId,
     id: &TaskId,

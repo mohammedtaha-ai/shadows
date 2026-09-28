@@ -45,32 +45,16 @@ use tower_http::trace::TraceLayer;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-use shadows_agent::events::HarnessEvent;
-use shadows_core::events::UiSignal;
-use shadows_core::operation::OperationId;
-use shadows_core::planner::{LiveHandles, Sessions};
-use shadows_core::runtime::Runtime;
-use shadows_core::storage::Storage;
-use shadows_core::thread::ThreadId;
+use shadows_core::AppCore;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub runtime: Arc<Runtime>,
-    pub storage: Arc<Storage>,
-    pub handles: Arc<LiveHandles>,
-    pub sessions: Arc<Sessions>,
-    pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
-    /// What `plan_show` signals the tab that sent the turn (§13.9): live
-    /// only, never stored.
-    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
+    /// The application every route calls (spec §14.5).
+    pub core: Arc<AppCore>,
     /// Spec §1: the only origins a browser may call this daemon from. Every
     /// client is cross-origin, because the daemon serves no page. Validated
     /// by `config::allowed_origin` before it gets here.
     pub allowed_origins: Vec<String>,
-    /// This daemon's MCP endpoint, `http://<bound address>/mcp` (spec §13.6),
-    /// built from the address the listener actually bound: what a grant's
-    /// `claude mcp add` command names.
-    pub mcp_url: String,
     /// Becomes `true` once the daemon is stopping. A live stream has no end of
     /// its own, and a graceful HTTP shutdown waits for every open response to
     /// finish — so without this, one open browser tab holds the daemon up

@@ -1,7 +1,8 @@
 //! Spec §1.4's one rule, and how the pinned adapter's version is read: the
 //! configuration a harness is started from, not anything it answers.
 
-use shadows::config::{ConfigError, adapter_version, harness_path};
+use shadows::config::{ConfigError, harness_path};
+use shadows_core::app::adapter_version;
 
 /// Spec §1.4: the harness is resolved from explicit configuration, never from
 /// `PATH`. `claude` is what a PATH lookup looks like when it is spelled as a

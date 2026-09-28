@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use petgraph::{algo::tarjan_scc, graph::DiGraph};
 
-use super::{Link, LinkKind, PlanContent, link_name};
+use super::model::{Link, LinkKind, PlanContent, link_name};
 
 /// One broken or missing thing, named so a person can act on it: tasks as `T4`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]

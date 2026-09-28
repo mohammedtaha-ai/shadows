@@ -2,17 +2,17 @@
 //! `PlanView` card a Planner's `plan_show` writes, under the running turn's
 //! command identity.
 
-use super::command::{classify, record_command};
-use super::entry::append_entry_in;
-use super::events::append_event;
-use super::grant::check_writer;
+use super::read::{load_plan, recorded_outcome};
 use super::task::task_numbered;
-use super::workflow_read::{load_plan, recorded_outcome};
-use super::{Storage, StorageError, now};
 use crate::command::{CommandContext, Writer};
 use crate::operation::OperationId;
+use crate::plans::conversation::{Place, PlanShown};
+use crate::plans::model::WorkflowId;
+use crate::storage::{
+    Storage, StorageError, append_entry_in, append_event, check_writer, classify, now,
+    record_command,
+};
 use crate::thread::{EntryRef, NewThreadEntry, ThreadEntryKind};
-use crate::workflow::{Place, PlanShown, WorkflowId};
 
 impl Storage {
     /// Writes the card — a `PlanView` entry of `turn`, headed by the version

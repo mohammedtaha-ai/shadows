@@ -58,7 +58,7 @@ pub(super) struct CreateProject {
 pub(super) async fn list_projects(
     State(s): State<AppState>,
 ) -> Result<Json<Vec<Project>>, Failure> {
-    Ok(Json(s.storage.list_projects().await?))
+    Ok(Json(s.core.storage().list_projects().await?))
 }
 
 /// Creates a project owning an existing directory.
@@ -88,7 +88,8 @@ pub(super) async fn create_project(
     });
     let c = ctx(body.command_id, "project.create", params);
     Ok(Json(
-        s.storage
+        s.core
+            .storage()
             .create_project(
                 &c,
                 &body.slug,
@@ -115,7 +116,12 @@ pub(super) async fn list_threads(
     State(s): State<AppState>,
     Path(project_id): Path<ProjectId>,
 ) -> Result<Json<Vec<PlanningThread>>, Failure> {
-    Ok(Json(s.storage.list_threads_for_project(&project_id).await?))
+    Ok(Json(
+        s.core
+            .storage()
+            .list_threads_for_project(&project_id)
+            .await?,
+    ))
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -154,7 +160,8 @@ pub(super) async fn create_thread(
     });
     let c = ctx(body.command_id, "thread.create", params);
     Ok(Json(
-        s.storage
+        s.core
+            .storage()
             .create_planning_thread(&c, &project_id, &body.title, harness)
             .await?,
     ))
@@ -211,6 +218,9 @@ pub(super) async fn update_project(
     let params = serde_json::json!({ "project": project_id, "allowed_modes": modes });
     let c = ctx(body.command_id, "project.modes", params);
     Ok(Json(
-        s.storage.set_project_modes(&c, &project_id, &modes).await?,
+        s.core
+            .storage()
+            .set_project_modes(&c, &project_id, &modes)
+            .await?,
     ))
 }

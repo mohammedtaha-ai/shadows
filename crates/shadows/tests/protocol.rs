@@ -19,6 +19,7 @@ use shadows_core::planner::{LiveHandles, Sessions};
 use shadows_core::runtime::{Runtime, RuntimeInstanceId};
 use shadows_core::storage::Storage;
 use shadows_core::thread::ThreadId;
+use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tower::ServiceExt;
@@ -45,14 +46,16 @@ async fn fixture() -> Fixture {
     let handles = Arc::new(LiveHandles::default());
     let sessions = acp::fake_sessions(&tmp.path().join("s.sqlite3")).await;
     let app = router(AppState {
-        runtime: Arc::new(runtime),
-        storage: storage.clone(),
-        handles: handles.clone(),
-        sessions: sessions.clone(),
-        bus,
+        core: AppCore::assemble(CoreParts {
+            storage: storage.clone(),
+            runtime: Arc::new(runtime),
+            sessions: sessions.clone(),
+            handles: handles.clone(),
+            bus,
+            ui: tokio::sync::broadcast::channel(16).0,
+            mcp_url: acp::MCP_URL.to_string(),
+        }),
         allowed_origins: Vec::new(),
-        ui: tokio::sync::broadcast::channel(16).0,
-        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
     Fixture {

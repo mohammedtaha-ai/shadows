@@ -14,12 +14,14 @@ use std::time::Duration;
 use axum::body::Body;
 use axum::http::Request;
 use shadows::cli::router;
+use shadows_core::app::Bus;
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::events::Actor;
 use shadows_core::operation::OperationId;
-use shadows_core::planner::{LiveHandles, PlannerTurn};
+use shadows_core::planner::{LiveHandles, PlannerTurn, Sessions};
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
+use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tower::ServiceExt;
 
@@ -44,12 +46,12 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
         "{name}"
     );
 
-    let (state, _stopping) = app_state(&tmp).await;
-    let thread = seed_thread(&state.runtime).await;
+    let (daemon, _stopping) = app_state(&tmp).await;
+    let thread = seed_thread(&daemon.runtime).await;
 
     // Through the router, as a client starts one: the turn outlives the
     // request that started it, and its lines must not claim otherwise.
-    let response = router(state.clone())
+    let response = router(daemon.state.clone())
         .oneshot(
             Request::post(format!("/api/threads/{thread}/turns"))
                 .header("content-type", "application/json")
@@ -66,22 +68,22 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
         .unwrap();
     let started: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let completed = OperationId::from_literal(started["operation_id"].as_str().unwrap());
-    wait_for_terminal(&state.runtime, &completed).await;
+    wait_for_terminal(&daemon.runtime, &completed).await;
 
     // `ignore-cancel`: the harness never confirms, so Stop terminates the
     // adapter and its log shows the tree reaped.
-    let stopped = start(&state, &thread, "ignore-cancel").await;
+    let stopped = start(&daemon, &thread, "ignore-cancel").await;
     PlannerTurn::stop(
-        state.runtime.clone(),
-        state.handles.clone(),
-        state.sessions.clone(),
+        daemon.runtime.clone(),
+        daemon.handles.clone(),
+        daemon.sessions.clone(),
         &stopped,
         Actor::user("local"),
     )
     .await
     .unwrap();
 
-    let response = router(state.clone())
+    let response = router(daemon.state.clone())
         .oneshot(Request::get("/api/projects").body(Body::empty()).unwrap())
         .await
         .unwrap();
@@ -162,7 +164,7 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
 }
 
 async fn start(
-    state: &AppState,
+    state: &Daemon,
     thread: &shadows_core::thread::ThreadId,
     prompt: &str,
 ) -> OperationId {
@@ -178,25 +180,47 @@ async fn start(
     .unwrap()
 }
 
-async fn app_state(tmp: &tempfile::TempDir) -> (AppState, tokio::sync::watch::Sender<bool>) {
+/// The daemon's state, and the handles on its `Arc`s the test drives turns
+/// through directly.
+struct Daemon {
+    state: AppState,
+    runtime: Arc<Runtime>,
+    handles: Arc<LiveHandles>,
+    sessions: Arc<Sessions>,
+    bus: Bus,
+}
+
+async fn app_state(tmp: &tempfile::TempDir) -> (Daemon, tokio::sync::watch::Sender<bool>) {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let runtime = Arc::new(runtime);
+    let handles = Arc::new(LiveHandles::default());
+    let sessions = acp::fake_sessions(&tmp.path().join("s.sqlite3")).await;
     let (bus, _) = tokio::sync::broadcast::channel(64);
     // The sender is returned and held by the test: dropped, it would read as
     // a stopping daemon.
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {
-        runtime: Arc::new(runtime),
-        storage,
-        handles: Arc::new(LiveHandles::default()),
-        sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
-        bus,
+        core: AppCore::assemble(CoreParts {
+            storage,
+            runtime: runtime.clone(),
+            sessions: sessions.clone(),
+            handles: handles.clone(),
+            bus: bus.clone(),
+            ui: tokio::sync::broadcast::channel(16).0,
+            mcp_url: acp::MCP_URL.to_string(),
+        }),
         allowed_origins: Vec::new(),
-        ui: tokio::sync::broadcast::channel(16).0,
-        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     };
-    (state, stopping)
+    let daemon = Daemon {
+        state,
+        runtime,
+        handles,
+        sessions,
+        bus,
+    };
+    (daemon, stopping)
 }
 
 async fn seed_thread(runtime: &Runtime) -> shadows_core::thread::ThreadId {

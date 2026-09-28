@@ -19,7 +19,7 @@ use rmcp::model::{
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, ServerHandler};
 
-use super::McpState;
+use shadows_core::AppCore;
 use shadows_core::grant::{Grant, GrantKind};
 
 /// The internal Planner's tools. It never lists plans or prepares a draft ref:
@@ -85,13 +85,13 @@ impl Tools {
 /// One request's handler: the state every tool reaches, and the tool sets.
 #[derive(Clone)]
 pub(super) struct Shadows {
-    pub(super) state: McpState,
+    pub(super) core: Arc<AppCore>,
     tools: Tools,
 }
 
 impl Shadows {
-    pub(super) fn new(state: McpState, tools: Tools) -> Self {
-        Self { state, tools }
+    pub(super) fn new(core: Arc<AppCore>, tools: Tools) -> Self {
+        Self { core, tools }
     }
 }
 

@@ -7,7 +7,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Connection, SqliteConnection, SqlitePool};
 use tokio::sync::{Mutex, watch};
 
-use crate::workflow::Problem;
+use crate::plans::Problem;
 
 mod command;
 mod entry;
@@ -19,25 +19,28 @@ mod harness;
 mod instructions;
 mod operation;
 mod operation_read;
-mod plan_view;
 mod project;
 mod runtime;
-mod task;
 mod thread;
 mod transition;
 mod turn;
-mod workflow;
-mod workflow_draft;
-mod workflow_read;
 
 pub use events_read::StoredEvent;
 pub use instructions::InstructionsVersion;
 pub use runtime::{ReconcileReport, StopKind};
 pub use turn::{NewTurn, StartedTurn};
 
+// Store helpers a plan write shares inside its one transaction (spec §14.6).
+// Each stays with the table it writes; `plans::store` names them from here.
+pub(crate) use command::{classify, record_command};
+pub(crate) use entry::append_entry_in;
+pub(crate) use events::append_event;
+pub(crate) use grant::{bind_draft_ref, check_writer};
+pub(crate) use thread::insert_thread;
+
 const MAX_SEQ: &str = "SELECT MAX(seq) FROM durable_event";
 
-pub(super) fn now() -> String {
+pub(crate) fn now() -> String {
     time::OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .expect("RFC3339 formatting cannot fail")

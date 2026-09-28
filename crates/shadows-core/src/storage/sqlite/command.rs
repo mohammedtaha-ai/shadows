@@ -16,7 +16,7 @@ use crate::command::CommandContext;
 /// fingerprints under different versions do not prove the requests are the
 /// same one. Dropping it from this comparison would replay an outcome computed
 /// under rules that no longer apply, and nothing would fail.
-pub(in crate::storage) async fn classify(
+pub(crate) async fn classify(
     conn: &mut SqliteConnection,
     ctx: &CommandContext,
     scope_kind: &str,
@@ -54,7 +54,7 @@ pub(in crate::storage) async fn classify(
     }
 }
 
-pub(in crate::storage) async fn record_command(
+pub(crate) async fn record_command(
     conn: &mut SqliteConnection,
     ctx: &CommandContext,
     scope_kind: &str,

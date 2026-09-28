@@ -9,7 +9,7 @@ use shadows_core::command::{Writer, fingerprint};
 use shadows_core::operation::OperationId;
 use shadows_core::storage::StorageError;
 use shadows_core::thread::{EntryRef, ThreadEntryKind};
-use shadows_core::workflow::{LinkKind, Plan, PlanOp, TaskContent, WorkflowState};
+use shadows_core::{LinkKind, Plan, PlanOp, TaskContent, WorkflowState};
 
 #[path = "fixtures/acp.rs"]
 mod acp;
@@ -414,7 +414,7 @@ async fn reads_and_writes_are_stored_in_scope_json() {
 async fn completes_after_links_keep_their_waiting_items() {
     let app = test_app().await;
     let v1 = draft(&app).await.workflow_id;
-    let link = shadows_core::workflow::Link {
+    let link = shadows_core::Link {
         task: 2,
         after: 1,
         kind: LinkKind::CompletesAfter,

@@ -2,24 +2,23 @@
 //! revision check, or the approval that freezes it. Every command here
 //! answers only what was fixed when it committed: a replay reads that answer
 //! back from its event, never the plan as it is later. Starting a version is
-//! `workflow_draft.rs`; reading one is `workflow_read.rs`.
+//! `draft.rs`; reading one is `read.rs`.
 
 use sqlx::SqliteConnection;
 
-use super::command::{classify, record_command};
-use super::entry::append_entry_in;
-use super::events::append_event;
-use super::grant::check_writer;
+use super::read::{edits_of, load_plan, recorded_outcome};
 use super::task::write_content;
-use super::workflow_read::{edits_of, load_plan, recorded_outcome};
-use super::{Storage, StorageError, now};
 use crate::command::{CommandContext, Writer};
 use crate::events::{Actor, DurableEvent};
+use crate::plans::model::{Approved, EditOutcome, WorkflowId, WorkflowState};
+use crate::plans::ops::{PlanOp, apply};
+use crate::plans::rules::approval_problems;
 use crate::project::ProjectId;
-use crate::thread::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId};
-use crate::workflow::{
-    Approved, EditOutcome, PlanOp, WorkflowId, WorkflowState, apply, approval_problems,
+use crate::storage::{
+    Storage, StorageError, append_entry_in, append_event, check_writer, classify, now,
+    record_command,
 };
+use crate::thread::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId};
 
 impl Storage {
     /// §13.5's order of work: the grant, then a recorded command (answered

@@ -29,7 +29,10 @@ pub(super) async fn get_instructions(
     Path(project): Path<ProjectId>,
 ) -> Result<Json<Option<InstructionsVersion>>, Failure> {
     Ok(Json(
-        s.storage.current_planner_instructions(&project).await?,
+        s.core
+            .storage()
+            .current_planner_instructions(&project)
+            .await?,
     ))
 }
 
@@ -65,7 +68,8 @@ pub(super) async fn save_instructions(
     let params = serde_json::json!({ "project": project, "body": body.body });
     let c = ctx(body.command_id, "PlannerInstructionsSave", params);
     Ok(Json(
-        s.storage
+        s.core
+            .storage()
             .save_planner_instructions(&c, &project, &body.body)
             .await?,
     ))

@@ -16,6 +16,7 @@ use shadows_core::operation::{Operation, OperationId};
 use shadows_core::planner::LiveHandles;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
+use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tower::ServiceExt;
 
@@ -27,14 +28,16 @@ async fn app(storage: Arc<Storage>, db: &Path) -> (Router, tokio::sync::watch::S
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
-        runtime: Arc::new(runtime),
-        storage,
-        handles: Arc::new(LiveHandles::default()),
-        sessions: acp::fake_sessions(db).await,
-        bus,
+        core: AppCore::assemble(CoreParts {
+            storage,
+            runtime: Arc::new(runtime),
+            sessions: acp::fake_sessions(db).await,
+            handles: Arc::new(LiveHandles::default()),
+            bus,
+            ui: tokio::sync::broadcast::channel(16).0,
+            mcp_url: acp::MCP_URL.to_string(),
+        }),
         allowed_origins: Vec::new(),
-        ui: tokio::sync::broadcast::channel(16).0,
-        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
     (app, stopping)

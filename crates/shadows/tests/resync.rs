@@ -23,6 +23,7 @@ use shadows_core::project::Project;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
 use shadows_core::thread::{NewThreadEntry, PlanningThread, ThreadEntryKind, ThreadId};
+use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use shadows_http::sse::{SubscribeQuery, subscribe};
 use tokio_stream::StreamExt;
@@ -288,7 +289,7 @@ async fn operation_transitions_reach_their_threads_stream() {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
     let live = Live::start(&tmp, storage.clone()).await;
-    let runtime = &live.state.runtime.instance_id;
+    let runtime = &live.runtime.instance_id;
     let op = storage
         .create_pending_operation(&thread.id, runtime)
         .await
@@ -329,6 +330,7 @@ fn durable_kinds(text: &str) -> Vec<String> {
 /// The daemon's state as `subscribe` sees it, with a bus the test publishes on.
 struct Live {
     state: AppState,
+    runtime: Arc<Runtime>,
     bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
     // Held for the whole test: a dropped sender reads as a stopping daemon,
     // which ends the live phase the test is waiting on.
@@ -338,21 +340,25 @@ struct Live {
 impl Live {
     async fn start(tmp: &tempfile::TempDir, storage: Arc<Storage>) -> Self {
         let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+        let runtime = Arc::new(runtime);
         let (bus, _) = tokio::sync::broadcast::channel(64);
         let (stopping, shutdown) = tokio::sync::watch::channel(false);
         let state = AppState {
-            runtime: Arc::new(runtime),
-            storage,
-            handles: Arc::new(LiveHandles::default()),
-            sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
-            bus: bus.clone(),
+            core: AppCore::assemble(CoreParts {
+                storage,
+                runtime: runtime.clone(),
+                sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
+                handles: Arc::new(LiveHandles::default()),
+                bus: bus.clone(),
+                ui: tokio::sync::broadcast::channel(16).0,
+                mcp_url: acp::MCP_URL.to_string(),
+            }),
             allowed_origins: Vec::new(),
-            ui: tokio::sync::broadcast::channel(16).0,
-            mcp_url: acp::MCP_URL.to_string(),
             shutdown,
         };
         Live {
             state,
+            runtime,
             bus,
             _stopping: stopping,
         }

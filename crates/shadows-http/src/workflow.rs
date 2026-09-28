@@ -8,10 +8,9 @@ use axum::Json;
 use axum::extract::{Path, State};
 
 use super::failure::ErrorBody;
-use super::project::ctx;
 use super::{AppState, Failure};
 use shadows_core::project::ProjectId;
-use shadows_core::workflow::{Approved, Plan, PlanListing, WorkflowId};
+use shadows_core::{Approved, Plan, PlanListing, WorkflowId};
 
 /// Each planning thread's latest plan version in a project. An unknown
 /// project has none.
@@ -29,7 +28,7 @@ pub(super) async fn list_plans(
     State(s): State<AppState>,
     Path(project_id): Path<ProjectId>,
 ) -> Result<Json<Vec<PlanListing>>, Failure> {
-    Ok(Json(s.storage.list_plans(&project_id).await?))
+    Ok(Json(s.core.plans().list(&project_id).await?))
 }
 
 /// One plan version: its tasks, links and revision, the versions before and
@@ -49,7 +48,7 @@ pub(super) async fn get_plan(
     State(s): State<AppState>,
     Path(workflow): Path<WorkflowId>,
 ) -> Result<Json<Plan>, Failure> {
-    Ok(Json(s.storage.get_plan(&workflow).await?))
+    Ok(Json(s.core.plans().get(&workflow).await?))
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -83,13 +82,10 @@ pub(super) async fn approve_plan(
     Path(workflow): Path<WorkflowId>,
     Json(body): Json<ApprovePlan>,
 ) -> Result<Json<Approved>, Failure> {
-    let params = serde_json::json!({
-        "workflow": workflow, "expected_revision": body.expected_revision,
-    });
-    let c = ctx(body.command_id, "PlanApprove", params);
     Ok(Json(
-        s.storage
-            .approve_plan(&c, &workflow, body.expected_revision)
+        s.core
+            .plans()
+            .approve(body.command_id, &workflow, body.expected_revision)
             .await?,
     ))
 }

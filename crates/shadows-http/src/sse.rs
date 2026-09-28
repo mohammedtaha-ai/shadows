@@ -63,10 +63,10 @@ pub async fn subscribe(
 ) -> Sse<ReceiverStream<Result<Event, Infallible>>> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(1024);
     // Both taken before the replay is read; see above.
-    let committed = state.storage.watch_committed();
-    let live = state.bus.subscribe();
-    let options = state.sessions.watch_options();
-    let signals = state.ui.subscribe();
+    let committed = state.core.storage().watch_committed();
+    let live = state.core.bus().subscribe();
+    let options = state.core.sessions().watch_options();
+    let signals = state.core.ui_bus().subscribe();
     let span = tracing::debug_span!("sse", thread_id = %q.thread_id);
     tracing::debug!(parent: &span, after = q.after, "sse.subscribe");
 
@@ -109,7 +109,9 @@ async fn stream(
     } = live;
     // 1. Durable replay.
     let mut last_seq = q.after;
-    if let Err(why) = send_journal_after(&state.storage, &q.thread_id, &mut last_seq, &tx).await {
+    if let Err(why) =
+        send_journal_after(state.core.storage(), &q.thread_id, &mut last_seq, &tx).await
+    {
         return why;
     }
 
@@ -191,7 +193,7 @@ async fn stream(
         }
         let Some(received) = received else {
             if let Err(why) =
-                send_journal_after(&state.storage, &q.thread_id, &mut last_seq, &tx).await
+                send_journal_after(state.core.storage(), &q.thread_id, &mut last_seq, &tx).await
             {
                 return why;
             }
@@ -323,9 +325,10 @@ async fn send_journal_after(
 /// limits, which the watcher recorded before publishing it (§12.8). A `size`
 /// of 0 is no window.
 async fn usage_event(state: &AppState, thread: &ThreadId, used: u64, size: u64) -> Option<Event> {
-    let limits = match state.storage.turn_context(thread).await {
+    let limits = match state.core.storage().turn_context(thread).await {
         Ok(context) => state
-            .storage
+            .core
+            .storage()
             .latest_limits(&context.harness)
             .await
             .ok()
@@ -344,7 +347,7 @@ async fn usage_event(state: &AppState, thread: &ThreadId, used: u64, size: u64) 
 /// The `options` frame: the thread's new offer as a client sees it (§12.4).
 /// `None` when the thread's policy cannot be read; the next opening answers.
 async fn options_event(state: &AppState, thread: &ThreadId, offered: &Offered) -> Option<Event> {
-    let choices = super::harness::choices_for(&state.storage, thread, offered)
+    let choices = super::harness::choices_for(state.core.storage(), thread, offered)
         .await
         .ok()?;
     Some(

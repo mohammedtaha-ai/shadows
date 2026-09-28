@@ -64,6 +64,9 @@ escargot = "0.5"
 # neither is a product dependency and neither ships.
 syn = { version = "2", features = ["full", "parsing", "printing", "clone-impls"] }
 prettyplease = "0.2"
+# `shadows-core`'s `tests/contracts.rs` parses each service's `contract.yaml` (spec §14.7):
+# the maintained successor of the archived `serde_yaml` line. Never a product dependency.
+yaml-rust2 = "0.13"
 # Token trees for expanding `newtype_id!` in the code map; already syn's own.
 proc-macro2 = "1"
 # `tests/protocol.rs` drives the real router in-process with `oneshot`. Already

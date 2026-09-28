@@ -1,67 +1,35 @@
-//! One job: the daemon's entry point — assemble the product and serve it.
+//! One job: the daemon's entry point — bind, start the application, serve it.
 
 pub mod args;
 
-use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use shadows_process::{ProcessSpec, spawn};
-
-use crate::config::{Config, adapter_version};
-use shadows_agent::claude::ClaudeAdapter;
-use shadows_core::planner::{LiveHandles, Sessions, SessionsConfig, shut_down};
-use shadows_core::runtime::Runtime;
-use shadows_core::storage::Storage;
+use crate::config::Config;
+use shadows_core::{AppCore, StartConfig};
 use shadows_http::AppState;
-use shadows_mcp::McpState;
 
 /// Binds, prints exactly one address, and serves. Spec §1.0: it never opens a
 /// browser. The user chooses which browser to use.
 pub async fn serve(config: Config) -> anyhow::Result<()> {
-    let storage = Arc::new(Storage::open(&config.db_path).await?);
-    // `Runtime::start` logs recovery (`recovery.reconcile`).
-    let (runtime, _report) = Runtime::start(storage.clone()).await?;
-    let runtime = Arc::new(runtime);
-    // Spec §13.7: a Planner's grant lives as long as its adapter, and every
-    // adapter of an earlier daemon is gone. Before anything is served.
-    let revoked = storage.revoke_all_thread_grants().await?;
-    tracing::info!(revoked, "recovery.thread_grants_revoked");
-
-    let version = harness_version(&config.harness_path).await;
-    let adapter_version = adapter_version(&config.adapter_path);
-    tracing::info!(adapter_version, claude_version = %version, "harness.versions");
-    // Bound first: a grant's `claude mcp add` names the address actually
-    // bound, which differs from `config.bind` when that asks for port 0, and
-    // every Planner session opens with that `/mcp` (§13.8).
+    // Bound first (§14.4): a grant's `claude mcp add` names the address
+    // actually bound, which differs from `config.bind` when that asks for port
+    // 0, and every Planner session opens with that `/mcp` (§13.8). A daemon
+    // that cannot bind stops here, before recovery touches anything.
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
     let addr = listener.local_addr()?;
     let mcp_url = format!("http://{addr}/mcp");
-    let sessions = Sessions::new(
-        Arc::new(ClaudeAdapter {
-            node: config.node_path.clone(),
-            adapter: config.adapter_path.clone(),
-            agent: config.harness_path.clone(),
-            adapter_version: adapter_version.to_string(),
-            agent_version: version.clone(),
-        }),
-        Storage::open(&config.db_path).await?,
-        SessionsConfig {
-            mcp_url: Some(mcp_url.clone()),
-            ..SessionsConfig::default()
-        },
-    );
-    let (bus, _) = tokio::sync::broadcast::channel(4096);
+    let start = StartConfig {
+        db_path: config.db_path.clone(),
+        node_path: config.node_path.clone(),
+        adapter_path: config.adapter_path.clone(),
+        harness_path: config.harness_path.clone(),
+    };
+    let core = AppCore::start(&start, mcp_url).await?;
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {
-        runtime: runtime.clone(),
-        storage,
-        handles: Arc::new(LiveHandles::default()),
-        sessions: sessions.clone(),
-        bus,
-        ui: tokio::sync::broadcast::channel(256).0,
+        core: core.clone(),
         allowed_origins: config.allowed_origins.clone(),
-        mcp_url,
         shutdown,
     };
 
@@ -74,7 +42,6 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     // The listener keeps accepting until this future returns — axum stops
     // accepting only then — so a turn requested meanwhile is refused by the
     // closed registry, not by the socket.
-    let handles = state.handles.clone();
     axum::serve(listener, router(state))
         .with_graceful_shutdown(async move {
             if let Err(error) = tokio::signal::ctrl_c().await {
@@ -92,15 +59,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
                     std::future::pending::<()>().await;
                 }
             };
-            match shut_down(
-                runtime,
-                handles,
-                sessions.clone(),
-                CONFIRMATION_BOUND,
-                second_signal,
-            )
-            .await
-            {
+            match core.shut_down(CONFIRMATION_BOUND, second_signal).await {
                 Ok(kind) => tracing::info!(stop_kind = ?kind, "shutdown.recorded"),
                 Err(error) => {
                     tracing::error!(%error, "shutdown.unrecorded: the stop could not be written")
@@ -115,15 +74,11 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
 }
 
 /// The daemon's whole router: the HTTP routes with `/mcp` mounted (spec
-/// §14.5). `/mcp` reaches the same storage, live turns and signal channel as
-/// the HTTP routes, because it is built from the `AppState`'s own `Arc`s.
-/// `serve` serves it, and the tests drive it, so both run one wiring.
+/// §14.5). `/mcp` reaches the same application as the HTTP routes, because
+/// both are built from the `AppState`'s one `AppCore`. `serve` serves it, and
+/// the tests drive it, so both run one wiring.
 pub fn router(state: AppState) -> axum::Router {
-    let mcp = shadows_mcp::service(McpState {
-        storage: state.storage.clone(),
-        handles: state.handles.clone(),
-        ui: state.ui.clone(),
-    });
+    let mcp = shadows_mcp::service(Arc::clone(&state.core));
     shadows_http::router(state, mcp)
 }
 
@@ -132,54 +87,3 @@ pub fn router(state: AppState) -> axum::Router {
 /// tree is reaped, and its outcome written, in milliseconds; the bound exists
 /// for the turn that never confirms, so a daemon told once to stop still ends.
 const CONFIRMATION_BOUND: Duration = Duration::from_secs(10);
-
-/// Spec §1.4: read the harness's self-reported version and record it. The
-/// measured stream contract belongs to one installation at one version.
-///
-/// It goes through `process::spawn` rather than `tokio::process` directly:
-/// CLAUDE.md makes `process/` the sole owner of that API, and a version probe
-/// is no less a child process than a turn is. An unreadable version is not a
-/// startup failure — the daemon still serves, and records that it does not
-/// know.
-async fn harness_version(path: &Path) -> String {
-    let Ok(cwd) = std::env::current_dir() else {
-        return "unknown".to_string();
-    };
-    let mut handle = match spawn(ProcessSpec {
-        executable: path.to_path_buf(),
-        args: vec!["--version".to_string()],
-        cwd,
-        env: Vec::new(),
-        capture_stdout: true,
-        pipe_stdin: false,
-    }) {
-        Ok(h) => h,
-        Err(_) => return "unknown".to_string(),
-    };
-    let lines = handle.take_stdout_lines();
-    // Bounded: this runs before the daemon binds, so an executable that never
-    // answers `--version` would otherwise hold startup forever. On expiry the
-    // handle is dropped here, and its kill-on-drop ends the probe's tree.
-    let probe = async {
-        let first = match lines {
-            Some(mut lines) => lines.next_line().await.ok().flatten(),
-            None => None,
-        };
-        let _ = handle.wait().await;
-        first
-    };
-    match tokio::time::timeout(VERSION_BOUND, probe).await {
-        Ok(Some(line)) if !line.trim().is_empty() => line.trim().to_string(),
-        Ok(_) => "unknown".to_string(),
-        Err(_) => {
-            tracing::warn!(
-                executable = %path.display(),
-                "harness.version_timeout: `--version` did not answer; recorded as unknown"
-            );
-            "unknown".to_string()
-        }
-    }
-}
-
-/// How long startup waits for the harness to state its version.
-const VERSION_BOUND: Duration = Duration::from_secs(5);

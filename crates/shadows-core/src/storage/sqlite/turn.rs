@@ -10,14 +10,14 @@ use super::command::{classify, record_command};
 use super::entry::append_entry_in;
 use super::harness::remember_settings;
 use super::operation::insert_pending;
-use super::task::task_of;
 use super::{Storage, StorageError, now};
 use crate::command::CommandContext;
 use crate::events::Actor;
 use crate::operation::OperationId;
+use crate::plans::Focus;
+use crate::plans::task_of;
 use crate::runtime::RuntimeInstanceId;
 use crate::thread::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId};
-use crate::workflow::Focus;
 use shadows_agent::TurnSettings;
 
 /// Everything the turn command records. The paths and versions are the

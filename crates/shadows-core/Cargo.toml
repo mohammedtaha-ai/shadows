@@ -9,6 +9,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
 dunce = { workspace = true }
 escargot = { workspace = true, optional = true }
 futures-core = { workspace = true }
@@ -40,6 +41,9 @@ test-support = ["dep:escargot", "shadows-process/test-support"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
+# `tests/contracts.rs` (spec §14.7): the contracts are YAML, the sources Rust.
+syn = { workspace = true }
+yaml-rust2 = { workspace = true }
 # Enables `test-support` for integration tests (tests/*.rs) without turning
 # it on for `cargo build` or `cargo run`.
 shadows-core = { path = ".", features = ["test-support"] }

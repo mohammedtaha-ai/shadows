@@ -11,10 +11,10 @@ use super::{
 use crate::{
     events::Actor,
     operation::{FailureStage, OperationId},
+    plans::Focus,
     runtime::Runtime,
     storage::StorageError,
     thread::ThreadId,
-    workflow::Focus,
 };
 use shadows_agent::{TurnSettings, events::HarnessEvent};
 use std::sync::{Arc, atomic::AtomicBool};

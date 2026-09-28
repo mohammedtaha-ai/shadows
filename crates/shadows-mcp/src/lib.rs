@@ -2,8 +2,8 @@
 //!
 //! `shadows_core::grant` says who may do what (§13.7); `auth.rs` answers a request
 //! without a live grant with 401; `server.rs` is the `rmcp` handler, which
-//! lists the tools a grant's kind holds; `tools.rs` maps each tool onto plan
-//! storage; `refusal.rs` is what a tool answers, refusals included. The route
+//! lists the tools a grant's kind holds; `tools.rs` maps each tool onto one
+//! `Plans` method; `refusal.rs` is what a tool answers, refusals included. The route
 //! itself is mounted by `shadows_http::router`, under the daemon's request guard.
 //!
 //! Streamable HTTP without protocol sessions: `rmcp` serves MCP `2026-07-28`
@@ -22,40 +22,28 @@ use axum::Router;
 use rmcp::transport::streamable_http_server::session::never::NeverSessionManager;
 use rmcp::transport::{StreamableHttpServerConfig, StreamableHttpService};
 
-use shadows_core::events::UiSignal;
-use shadows_core::planner::LiveHandles;
-use shadows_core::storage::Storage;
-
-/// What a tool reaches: plan storage, the live turns a Planner's
-/// `draft_start` and `plan_show` anchor to, and the live-only signal
-/// `plan_show` sends (§13.9).
-#[derive(Clone)]
-pub struct McpState {
-    pub storage: Arc<Storage>,
-    pub handles: Arc<LiveHandles>,
-    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
-}
+use shadows_core::AppCore;
 
 /// `/mcp`: the bearer check, then `rmcp`'s Streamable HTTP service.
 ///
 /// `rmcp`'s own `Host` check stays at its default, loopback names on any port,
 /// which is what the daemon binds; its `Origin` list stays empty, because the
 /// daemon's guard in front of this router owns `Origin`.
-pub fn service(state: McpState) -> Router {
+pub fn service(core: Arc<AppCore>) -> Router {
     let tools = server::Tools::new();
-    let handler_state = state.clone();
+    let handler_core = core.clone();
     let config = StreamableHttpServerConfig::default()
         .with_legacy_session_mode(false)
         .with_json_response(true);
     let mcp = StreamableHttpService::new(
-        move || Ok(server::Shadows::new(handler_state.clone(), tools.clone())),
+        move || Ok(server::Shadows::new(handler_core.clone(), tools.clone())),
         Arc::new(NeverSessionManager::default()),
         config,
     );
     Router::new()
         .route_service("/mcp", mcp)
         .route_layer(axum::middleware::from_fn_with_state(
-            state.storage,
+            core,
             auth::require_grant,
         ))
 }

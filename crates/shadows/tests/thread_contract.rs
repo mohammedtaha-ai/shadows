@@ -10,7 +10,7 @@ use shadows_core::operation::OperationId;
 use shadows_core::project::ProjectDirectory;
 use shadows_core::storage::{Storage, StorageError};
 use shadows_core::thread::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId};
-use shadows_core::workflow::{TaskId, WorkflowId};
+use shadows_core::{TaskId, WorkflowId};
 
 #[path = "fixtures/acp.rs"]
 mod acp;

@@ -5,12 +5,11 @@
 use sqlx::SqliteConnection;
 
 use super::task::{links_of, tasks_of};
-use super::{Storage, StorageError};
+use crate::plans::model::{EditOutcome, LastEdit, Plan, PlanListing, WorkflowId, WorkflowState};
+use crate::plans::rules::approval_problems;
 use crate::project::ProjectId;
+use crate::storage::{Storage, StorageError};
 use crate::thread::ThreadId;
-use crate::workflow::{
-    EditOutcome, LastEdit, Plan, PlanListing, WorkflowId, WorkflowState, approval_problems,
-};
 
 impl Storage {
     pub async fn get_plan(&self, workflow: &WorkflowId) -> Result<Plan, StorageError> {

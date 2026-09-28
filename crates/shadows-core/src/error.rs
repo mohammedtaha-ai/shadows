@@ -1,5 +1,9 @@
 use std::fmt;
 
+use crate::planner::{OpenError, StartError};
+use crate::project::DirectoryError;
+use crate::storage::StorageError;
+
 /// Stable codes clients pattern-match on. Never match on human text.
 /// Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
@@ -97,4 +101,50 @@ impl std::error::Error for AppFailure {}
 pub struct FailureReport {
     pub failure: AppFailure,
     pub source: Option<Box<dyn std::error::Error + Send + Sync>>,
+}
+
+/// The one failure a service returns (spec §14.4), in words no adapter owns.
+/// Each adapter maps it to its own shape — `Failure` for HTTP, `Refusal` for
+/// MCP — and the codes and texts clients see stay exactly what they were.
+#[derive(Debug, thiserror::Error)]
+pub enum CoreError {
+    #[error(transparent)]
+    Storage(#[from] StorageError),
+    #[error(transparent)]
+    Start(#[from] StartError),
+    #[error(transparent)]
+    Directory(#[from] DirectoryError),
+    /// The project's directory cannot be run in; the text is the reason.
+    #[error("{0}")]
+    ProjectDirectoryUnusable(String),
+    #[error("the harness could not start: {0}")]
+    HarnessStartFailed(String),
+    #[error("the {0} harness is not available yet")]
+    HarnessUnavailable(String),
+    /// `detail`, when given, is the harness's own refusal (§12.4).
+    #[error("{what} {id} is not offered")]
+    SettingNotOffered {
+        what: String,
+        id: String,
+        detail: Option<String>,
+    },
+    #[error("this project does not allow the {0} mode")]
+    ModeNotAllowed(String),
+    #[error("the daemon is stopping")]
+    RuntimeStopping,
+    #[error("the turn's process tree could not be terminated")]
+    TerminationFailed,
+    /// A refusal whose code and exact text a service writes, as the MCP tools do today.
+    #[error("{message}")]
+    Refused { code: ErrorCode, message: String },
+}
+
+impl From<OpenError> for CoreError {
+    fn from(e: OpenError) -> Self {
+        match e {
+            OpenError::Storage(e) => CoreError::Storage(e),
+            OpenError::Start(reason) => CoreError::HarnessStartFailed(reason),
+            OpenError::Workspace(reason) => CoreError::ProjectDirectoryUnusable(reason),
+        }
+    }
 }

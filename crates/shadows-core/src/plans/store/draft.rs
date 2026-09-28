@@ -2,22 +2,22 @@
 //! of a thread's plan, the next one copied from a frozen version, or the
 //! Draft already there. `DraftStarted` names the version, which never changes
 //! as the draft is edited, so a replay answers the same. Changing a version
-//! is `workflow.rs`.
+//! is `edit.rs`.
 
 use sqlx::SqliteConnection;
 
-use super::command::{classify, record_command};
-use super::events::append_event;
-use super::grant::{bind_draft_ref, check_writer};
+use super::read::{latest_version, load_plan};
 use super::task::write_content;
-use super::thread::insert_thread;
-use super::workflow_read::{latest_version, load_plan};
-use super::{Storage, StorageError, now};
 use crate::command::{CommandContext, Writer};
 use crate::events::DurableEvent;
+use crate::plans::model::{DraftStarted, PlanContent, WorkflowId, WorkflowState};
+use crate::plans::rules::Problem;
 use crate::project::ProjectId;
+use crate::storage::{
+    Storage, StorageError, append_event, bind_draft_ref, check_writer, classify, insert_thread,
+    now, record_command,
+};
 use crate::thread::ThreadId;
-use crate::workflow::{DraftStarted, PlanContent, Problem, WorkflowId, WorkflowState};
 use shadows_agent::policy;
 
 impl Storage {

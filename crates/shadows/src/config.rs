@@ -101,21 +101,3 @@ pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError> {
         ))
     }
 }
-
-/// Reads the installed ACP adapter's package version from its entry point's
-/// package root. A missing or malformed package is recorded as unknown so the
-/// daemon can still start and report the configuration problem at runtime.
-pub fn adapter_version(adapter_entry: &Path) -> String {
-    let Some(package_json) = adapter_entry
-        .parent()
-        .and_then(Path::parent)
-        .map(|root| root.join("package.json"))
-    else {
-        return "unknown".to_string();
-    };
-    std::fs::read(package_json)
-        .ok()
-        .and_then(|contents| serde_json::from_slice::<serde_json::Value>(&contents).ok())
-        .and_then(|package| package.get("version")?.as_str().map(str::to_string))
-        .unwrap_or_else(|| "unknown".to_string())
-}

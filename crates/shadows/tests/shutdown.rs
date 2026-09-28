@@ -21,6 +21,7 @@ use shadows_core::planner::{LiveHandles, Sessions, StartError, shut_down};
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::{StopKind, Storage};
 use shadows_core::thread::ThreadId;
+use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tower::ServiceExt;
 
@@ -349,14 +350,16 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
 
     let (_stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
-        runtime: f.runtime.clone(),
-        storage: f.runtime.storage.clone(),
-        handles: f.handles.clone(),
-        sessions: f.sessions.clone(),
-        bus: f.bus.clone(),
+        core: AppCore::assemble(CoreParts {
+            storage: f.runtime.storage.clone(),
+            runtime: f.runtime.clone(),
+            sessions: f.sessions.clone(),
+            handles: f.handles.clone(),
+            bus: f.bus.clone(),
+            ui: tokio::sync::broadcast::channel(16).0,
+            mcp_url: acp::MCP_URL.to_string(),
+        }),
         allowed_origins: Vec::new(),
-        ui: tokio::sync::broadcast::channel(16).0,
-        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
     let response = app

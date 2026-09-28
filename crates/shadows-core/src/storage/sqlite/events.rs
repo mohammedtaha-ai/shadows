@@ -13,7 +13,7 @@ use crate::events::DurableEvent;
 /// `sqlite` itself, not a descendant of it — also needs to call this for the
 /// atomicity contract test. `pub(in crate::storage)` is the narrowest
 /// visibility that reaches both without making the function `pub`.
-pub(in crate::storage) async fn append_event(
+pub(crate) async fn append_event(
     conn: &mut SqliteConnection,
     event: &DurableEvent,
     now: &str,

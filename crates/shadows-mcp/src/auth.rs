@@ -14,10 +14,10 @@ use axum::http::{StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
-use shadows_core::storage::Storage;
+use shadows_core::AppCore;
 
 pub(super) async fn require_grant(
-    State(storage): State<Arc<Storage>>,
+    State(core): State<Arc<AppCore>>,
     mut request: Request,
     next: Next,
 ) -> Response {
@@ -25,7 +25,7 @@ pub(super) async fn require_grant(
         tracing::info!("mcp.unauthorized");
         return StatusCode::UNAUTHORIZED.into_response();
     };
-    match storage.grant_for_token(token).await {
+    match core.storage().grant_for_token(token).await {
         Ok(Some(grant)) => {
             request.extensions_mut().insert(grant);
             next.run(request).await

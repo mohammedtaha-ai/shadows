@@ -1,7 +1,7 @@
 //! One job: the plan in the conversation (spec §13.9) — the task a person
 //! points at, and where a shown plan goes.
 
-use super::{TaskId, WorkflowId};
+use super::model::{TaskId, WorkflowId};
 use crate::thread::ThreadEntryId;
 
 /// The task a person points at when they send a turn: the task's id, in the

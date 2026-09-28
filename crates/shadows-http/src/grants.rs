@@ -30,7 +30,7 @@ pub(super) async fn list_grants(
     State(s): State<AppState>,
     Path(project): Path<ProjectId>,
 ) -> Result<Json<Vec<Grant>>, Failure> {
-    Ok(Json(s.storage.list_project_grants(&project).await?))
+    Ok(Json(s.core.storage().list_project_grants(&project).await?))
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -75,11 +75,11 @@ pub(super) async fn issue_grant(
         "McpGrantIssue",
         serde_json::json!({ "project": project }),
     );
-    let issued = s.storage.issue_project_grant(&c, &project).await?;
+    let issued = s.core.storage().issue_project_grant(&c, &project).await?;
     let command = issued.token.as_ref().map(|token| {
         format!(
             "claude mcp add --transport http shadows {} --header \"Authorization: Bearer {}\"",
-            s.mcp_url,
+            s.core.mcp_url(),
             token.as_str()
         )
     });
@@ -123,5 +123,5 @@ pub(super) async fn revoke_grant(
         "McpGrantRevoke",
         serde_json::json!({ "grant": grant }),
     );
-    Ok(Json(s.storage.revoke_grant(&c, &grant).await?))
+    Ok(Json(s.core.storage().revoke_grant(&c, &grant).await?))
 }

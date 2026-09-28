@@ -16,9 +16,9 @@ use super::{Storage, StorageError, now};
 use crate::command::{CommandContext, Writer};
 use crate::events::{Actor, DurableEvent};
 use crate::grant::{Grant, GrantId, GrantKind, IssuedGrant, Token, hash_token};
+use crate::plans::WorkflowId;
 use crate::project::ProjectId;
 use crate::thread::ThreadId;
-use crate::workflow::WorkflowId;
 
 /// How long an unused `draft_ref` can still start a plan (§13.5).
 const DRAFT_REF_LIFETIME: time::Duration = time::Duration::HOUR;
@@ -367,7 +367,7 @@ fn rfc3339(at: time::OffsetDateTime) -> String {
 /// unknown or revoked; `GrantScope` when the write's thread and project are
 /// outside it — a Planner writes only its own thread, an external agent only
 /// its project. `thread` is `None` for a thread not yet created.
-pub(super) async fn check_writer(
+pub(crate) async fn check_writer(
     conn: &mut SqliteConnection,
     writer: &Writer,
     project: &ProjectId,
@@ -407,7 +407,7 @@ pub(super) async fn check_writer(
 /// use: a ref already bound to this plan stays good. Zero rows — another
 /// grant's ref, an expired one, one bound to another plan — or a plan outside
 /// the grant's project is `GrantScope`.
-pub(super) async fn bind_draft_ref(
+pub(crate) async fn bind_draft_ref(
     conn: &mut SqliteConnection,
     writer: &Writer,
     draft_ref: &str,

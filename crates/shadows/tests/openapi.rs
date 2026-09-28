@@ -25,6 +25,7 @@ use shadows::cli::router;
 use shadows_core::planner::LiveHandles;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
+use shadows_core::{AppCore, CoreParts};
 use shadows_http::{AppState, openapi_document};
 use tower::ServiceExt;
 
@@ -192,14 +193,16 @@ async fn the_document_is_served_and_every_path_it_names_is_routed() {
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (_stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
-        runtime: Arc::new(runtime),
-        storage,
-        handles: Arc::new(LiveHandles::default()),
-        sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
-        bus,
+        core: AppCore::assemble(CoreParts {
+            storage,
+            runtime: Arc::new(runtime),
+            sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
+            handles: Arc::new(LiveHandles::default()),
+            bus,
+            ui: tokio::sync::broadcast::channel(16).0,
+            mcp_url: acp::MCP_URL.to_string(),
+        }),
         allowed_origins: Vec::new(),
-        ui: tokio::sync::broadcast::channel(16).0,
-        mcp_url: acp::MCP_URL.to_string(),
         shutdown,
     });
 

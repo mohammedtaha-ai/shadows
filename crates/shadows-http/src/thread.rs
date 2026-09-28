@@ -54,15 +54,16 @@ pub(super) async fn update_thread(
     Json(body): Json<UpdateThread>,
 ) -> Result<Json<PlanningThread>, Failure> {
     known_harness(&body.harness)?;
-    let before = s.storage.turn_context(&thread).await?.harness;
+    let before = s.core.storage().turn_context(&thread).await?.harness;
     let params = serde_json::json!({ "thread_id": thread, "harness": body.harness });
     let c = ctx(body.command_id, "thread.harness", params);
     let updated = s
-        .storage
+        .core
+        .storage()
         .set_thread_harness(&c, &thread, &body.harness)
         .await?;
     if updated.harness != before
-        && let Err(error) = s.sessions.terminate(&thread).await
+        && let Err(error) = s.core.sessions().terminate(&thread).await
     {
         tracing::error!(%error, thread_id = %thread, "thread.harness_change_close_failed");
     }
@@ -103,7 +104,8 @@ pub(super) async fn fork_thread(
     let params = serde_json::json!({ "thread_id": thread, "at_entry_id": body.at_entry_id });
     let c = ctx(body.command_id, "thread.fork", params);
     let fork = s
-        .storage
+        .core
+        .storage()
         .fork_thread(&c, &thread, &body.at_entry_id)
         .await?;
     Ok((StatusCode::CREATED, Json(fork)))

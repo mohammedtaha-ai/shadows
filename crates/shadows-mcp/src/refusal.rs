@@ -7,7 +7,10 @@
 
 use rmcp::model::{CallToolResult, ContentBlock};
 
+use shadows_core::CoreError;
 use shadows_core::error::ErrorCode;
+use shadows_core::planner::StartError;
+use shadows_core::project::DirectoryError;
 use shadows_core::storage::StorageError;
 
 pub(super) struct Refusal {
@@ -78,6 +81,53 @@ impl From<StorageError> for Refusal {
                 )
             }
         }
+    }
+}
+
+impl From<CoreError> for Refusal {
+    /// A storage failure keeps the text written above; a service's own refusal
+    /// keeps its code and text; anything else, which no tool meets in this
+    /// milestone, answers its code and its own words.
+    fn from(e: CoreError) -> Self {
+        match e {
+            CoreError::Storage(e) | CoreError::Start(StartError::Storage(e)) => e.into(),
+            CoreError::Refused { code, message } => Self::new(code, message),
+            other => Self::new(code_of(&other), other.to_string()),
+        }
+    }
+}
+
+/// The code HTTP answers the same failure with.
+fn code_of(e: &CoreError) -> ErrorCode {
+    match e {
+        CoreError::Storage(_) | CoreError::Start(StartError::Storage(_)) => {
+            ErrorCode::StorageUnavailable
+        }
+        CoreError::Refused { code, .. } => *code,
+        CoreError::Start(StartError::RuntimeStopping) | CoreError::RuntimeStopping => {
+            ErrorCode::RuntimeStopping
+        }
+        CoreError::Directory(d) => directory_code(d),
+        CoreError::ProjectDirectoryUnusable(_) => ErrorCode::PathNotFound,
+        CoreError::HarnessStartFailed(_) => ErrorCode::HarnessStartFailed,
+        CoreError::HarnessUnavailable(_) => ErrorCode::HarnessUnavailable,
+        CoreError::SettingNotOffered { .. } => ErrorCode::SettingNotOffered,
+        CoreError::ModeNotAllowed(_) => ErrorCode::ModeNotAllowed,
+        CoreError::TerminationFailed => ErrorCode::ProcessTerminationFailed,
+    }
+}
+
+/// The code HTTP answers the same directory failure with.
+fn directory_code(e: &DirectoryError) -> ErrorCode {
+    match e {
+        DirectoryError::NotAbsolute(_)
+        | DirectoryError::NotUtf8
+        | DirectoryError::InvalidName { .. } => ErrorCode::PathInvalid,
+        DirectoryError::AlreadyExists(_) => ErrorCode::PathAlreadyExists,
+        DirectoryError::NotFound(_) => ErrorCode::PathNotFound,
+        DirectoryError::NotADirectory(_) => ErrorCode::PathNotADirectory,
+        DirectoryError::AccessDenied(_) => ErrorCode::PathAccessDenied,
+        DirectoryError::Unavailable { .. } => ErrorCode::PathUnavailable,
     }
 }
 
