@@ -1,6 +1,6 @@
 //! One job: turn ACP updates into complete durable conversation entries.
 
-use crate::agent::events::HarnessEvent;
+use shadows_agent::events::HarnessEvent;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Durable {

@@ -8,8 +8,8 @@ use axum::http::StatusCode;
 use super::failure::ErrorBody;
 use super::project::ctx;
 use super::{AppState, Failure};
-use crate::agent::policy;
 use crate::thread::{PlanningThread, ThreadEntryId, ThreadId};
+use shadows_agent::policy;
 
 /// Changes the thread's CLI. Refused once the thread has run a turn, and on
 /// a fork from birth (`HARNESS_LOCKED`).

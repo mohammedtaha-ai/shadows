@@ -10,8 +10,6 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use shadows::agent::claude::ClaudeAdapter;
-use shadows::agent::events::HarnessEvent;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::Actor;
 use shadows::operation::{Operation, OperationId};
@@ -19,6 +17,8 @@ use shadows::planner::{LiveHandles, PlannerTurn, Sessions, StopOutcome};
 use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
 use shadows::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
+use shadows_agent::claude::ClaudeAdapter;
+use shadows_agent::events::HarnessEvent;
 use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
@@ -68,7 +68,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
             "demo",
             "Demo",
             &shadows::project::ProjectDirectory::resolve(tmp.path()).unwrap(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();

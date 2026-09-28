@@ -4,10 +4,10 @@
 //! turn's settings before the prompt.
 
 use serde_json::{Value, json};
-use shadows::agent::TurnSettings;
 use shadows::operation::FailureStage;
 use shadows::storage::{StartedTurn, StorageError};
 use shadows::thread::ThreadEntryKind;
+use shadows_agent::TurnSettings;
 
 #[path = "fixtures/acp.rs"]
 mod acp;

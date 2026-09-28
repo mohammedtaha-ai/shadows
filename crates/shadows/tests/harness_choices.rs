@@ -4,7 +4,7 @@
 //! harness list (§12.10).
 
 use serde_json::{Value, json};
-use shadows::agent::policy;
+use shadows_agent::policy;
 
 #[path = "fixtures/acp.rs"]
 mod acp;

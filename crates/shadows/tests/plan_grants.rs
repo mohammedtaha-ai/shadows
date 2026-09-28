@@ -78,7 +78,7 @@ async fn a_draft_ref_binds_in_both_paths() {
             "other",
             "Other",
             &ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap()

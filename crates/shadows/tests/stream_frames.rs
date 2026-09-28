@@ -64,7 +64,7 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
             "demo",
             "Demo",
             &dir,
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();

@@ -19,8 +19,6 @@ use axum::body::Body;
 use axum::http::Request;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
-use shadows::agent::events::HarnessEvent;
-use shadows::agent::policy;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::operation::{Operation, OperationId};
 use shadows::planner::{LiveHandles, Sessions, SessionsConfig};
@@ -29,6 +27,8 @@ use shadows::protocol::{AppState, UiSignal, router};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use shadows::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
+use shadows_agent::events::HarnessEvent;
+use shadows_agent::policy;
 use tower::ServiceExt;
 
 use super::acp;

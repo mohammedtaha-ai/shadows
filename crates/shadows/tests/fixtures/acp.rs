@@ -8,9 +8,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use shadows::agent::claude::ClaudeAdapter;
 use shadows::planner::{Sessions, SessionsConfig};
 use shadows::storage::Storage;
+use shadows_agent::claude::ClaudeAdapter;
 
 /// The `/mcp` URL a daemon built from these fixtures reports: the address
 /// `serve` would have bound, which no test binds.

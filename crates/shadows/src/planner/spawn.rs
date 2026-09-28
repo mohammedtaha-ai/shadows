@@ -9,7 +9,6 @@ use super::{
     turn::{PlannerTurn, TurnWatch, watch_turn},
 };
 use crate::{
-    agent::{TurnSettings, events::HarnessEvent},
     events::Actor,
     operation::{FailureStage, OperationId},
     runtime::Runtime,
@@ -17,6 +16,7 @@ use crate::{
     thread::ThreadId,
     workflow::Focus,
 };
+use shadows_agent::{TurnSettings, events::HarnessEvent};
 use std::sync::{Arc, atomic::AtomicBool};
 use tokio::sync::{broadcast, mpsc};
 

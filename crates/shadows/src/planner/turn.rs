@@ -39,15 +39,15 @@ use super::{
     entries::{Collector, Durable},
 };
 use crate::{
-    agent::{
-        acp::{AcpError, TurnEnd},
-        events::{HarnessEvent, TurnObservation, limits_from},
-    },
     events::Actor,
     operation::{FailureStage, OperationId},
     runtime::Runtime,
     storage::StorageError,
     thread::{NewThreadEntry, ThreadEntryKind, ThreadId},
+};
+use shadows_agent::{
+    acp::{AcpError, TurnEnd},
+    events::{HarnessEvent, TurnObservation, limits_from},
 };
 use std::sync::{
     Arc,

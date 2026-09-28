@@ -225,13 +225,13 @@ async fn wait_for_delta(
     rx: &mut tokio::sync::broadcast::Receiver<(
         ThreadId,
         OperationId,
-        shadows::agent::events::HarnessEvent,
+        shadows_agent::events::HarnessEvent,
     )>,
 ) {
     tokio::time::timeout(std::time::Duration::from_secs(10), async {
         loop {
             let (_, _, event) = rx.recv().await.unwrap();
-            if matches!(event, shadows::agent::events::HarnessEvent::Chunk { .. }) {
+            if matches!(event, shadows_agent::events::HarnessEvent::Chunk { .. }) {
                 return;
             }
         }

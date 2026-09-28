@@ -7,10 +7,10 @@
 //! adapter, within `SessionsConfig::context_wait`.
 
 use super::Sessions;
-use crate::agent::acp::AcpError;
-use crate::agent::breakdown::{Category, parse};
-use crate::agent::events::HarnessEvent;
 use crate::thread::ThreadId;
+use shadows_agent::acp::AcpError;
+use shadows_agent::breakdown::{Category, parse};
+use shadows_agent::events::HarnessEvent;
 
 /// Why there is no breakdown to show.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

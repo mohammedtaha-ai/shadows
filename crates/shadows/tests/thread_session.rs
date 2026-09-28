@@ -8,7 +8,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::Value;
-use shadows::agent::events::HarnessEvent;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::Actor;
 use shadows::operation::OperationId;
@@ -17,6 +16,7 @@ use shadows::project::ProjectDirectory;
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use shadows::thread::{ThreadEntryKind, ThreadId};
+use shadows_agent::events::HarnessEvent;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
@@ -50,7 +50,7 @@ async fn fixture() -> (Fixture, ThreadId, ThreadId) {
             "demo",
             "Demo",
             &dir,
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();

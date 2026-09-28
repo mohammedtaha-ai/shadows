@@ -310,7 +310,7 @@ async fn after_a_restart_the_next_turn_resumes_the_recorded_session() {
             "demo",
             "Demo",
             &dir,
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();

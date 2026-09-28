@@ -5,13 +5,13 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use shadows::agent::policy;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::Actor;
 use shadows::project::{Project, ProjectDirectory};
 use shadows::runtime::Runtime;
 use shadows::storage::{Storage, StorageError};
 use shadows::thread::{NewThreadEntry, ThreadEntryKind, ThreadId};
+use shadows_agent::policy;
 
 struct Fixture {
     _tmp: tempfile::TempDir,

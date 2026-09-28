@@ -12,10 +12,6 @@ use super::failure::ErrorBody;
 use super::harness::open_failure;
 use super::project::ctx;
 use super::{AppState, Failure};
-use crate::agent::TurnSettings;
-use crate::agent::acp::AcpError;
-use crate::agent::choices::{Offered, refusal};
-use crate::agent::policy;
 use crate::command::CommandContext;
 use crate::events::Actor;
 use crate::operation::{Operation, OperationId};
@@ -26,6 +22,10 @@ use crate::planner::{
 use crate::storage::{NewTurn, StartedTurn, StorageError};
 use crate::thread::{ThreadEntry, ThreadId, TurnContext};
 use crate::workflow::Focus;
+use shadows_agent::TurnSettings;
+use shadows_agent::acp::AcpError;
+use shadows_agent::choices::{Offered, refusal};
+use shadows_agent::policy;
 
 /// A thread's entries in ordinal order.
 #[utoipa::path(

@@ -362,7 +362,7 @@ async fn a_thread_grant_can_read_and_show_its_older_version_but_not_another_thre
             &app::ctx("other-thread-in-project", "thread.create"),
             &l.app.project,
             "Other",
-            shadows::agent::policy::CLAUDE_CODE,
+            shadows_agent::policy::CLAUDE_CODE,
         )
         .await
         .unwrap();

@@ -43,7 +43,7 @@ async fn replaying_an_identical_command_returns_the_stored_outcome() {
             "demo",
             "Demo",
             &dir(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -53,7 +53,7 @@ async fn replaying_an_identical_command_returns_the_stored_outcome() {
             "demo",
             "Demo",
             &dir(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -88,7 +88,7 @@ async fn the_same_command_id_with_a_different_request_is_a_conflict() {
             "demo",
             "Demo",
             &dir(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -100,7 +100,7 @@ async fn the_same_command_id_with_a_different_request_is_a_conflict() {
             "other",
             "Other",
             &dir(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .expect_err("a reused command id with a different request must be refused");
@@ -170,7 +170,7 @@ async fn the_same_command_id_under_a_different_schema_version_is_a_conflict() {
             "demo",
             "Demo",
             &dir(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -189,7 +189,7 @@ async fn the_same_command_id_under_a_different_schema_version_is_a_conflict() {
             "demo",
             "Demo",
             &dir(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .expect_err("a reused command id under a new schema version must be refused");
@@ -232,7 +232,7 @@ async fn projects_are_listed_in_creation_order_whatever_their_timestamp_text() {
                 &slug,
                 &slug,
                 &dir(),
-                &shadows::agent::policy::default_modes(),
+                &shadows_agent::policy::default_modes(),
             )
             .await
             .unwrap();

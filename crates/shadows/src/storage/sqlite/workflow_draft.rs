@@ -13,12 +13,12 @@ use super::task::write_content;
 use super::thread::insert_thread;
 use super::workflow_read::{latest_version, load_plan};
 use super::{Storage, StorageError, now};
-use crate::agent::policy;
 use crate::command::{CommandContext, Writer};
 use crate::events::DurableEvent;
 use crate::project::ProjectId;
 use crate::thread::ThreadId;
 use crate::workflow::{DraftStarted, PlanContent, Problem, WorkflowId, WorkflowState};
+use shadows_agent::policy;
 
 impl Storage {
     /// §13.6 draft_start in a thread: v1 from `fresh` when the thread has no

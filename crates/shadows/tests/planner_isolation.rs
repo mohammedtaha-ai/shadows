@@ -41,7 +41,7 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
             slug,
             slug,
             &shadows::project::ProjectDirectory::resolve(dir).unwrap(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();

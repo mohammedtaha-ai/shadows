@@ -46,7 +46,7 @@ fn adapter_version_is_read_from_its_package() {
 /// exit 127). The value is passed by name, never the whole environment.
 #[test]
 fn the_adapter_inherits_path_by_name_and_names_its_claude() {
-    let adapter = shadows::agent::claude::ClaudeAdapter {
+    let adapter = shadows_agent::claude::ClaudeAdapter {
         node: "/usr/bin/node".into(),
         adapter: "/opt/adapter/index.js".into(),
         agent: "/opt/claude".into(),

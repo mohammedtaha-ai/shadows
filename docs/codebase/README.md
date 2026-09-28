@@ -22,12 +22,13 @@ before adding to that module: it is the pattern to follow, not merely an example
 
 | Module | Its one job | Reference file |
 |---|---|---|
-| `crates/shadows/src/agent/` | the AI subprocess harness contract | `crates/shadows/src/agent/acp.rs` |
-| `crates/shadows/src/agent/acp.rs` | the ACP client connection to one adapter process | `crates/shadows/src/agent/acp.rs` |
-| `crates/shadows/src/agent/events.rs` | what a harness connection reports | `crates/shadows/src/agent/events.rs` |
-| `crates/shadows/src/agent/policy.rs` | the modes Shadows allows per harness | `crates/shadows/src/agent/policy.rs` |
-| `crates/shadows/src/agent/choices.rs` | reading the harness's offered choices | `crates/shadows/src/agent/choices.rs` |
-| `crates/shadows/src/agent/breakdown.rs` | reading Claude's `/context` answer | `crates/shadows/src/agent/breakdown.rs` |
+| `crates/shadows-agent/src/lib.rs` | the AI subprocess harness contract | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/acp.rs` | the ACP client connection to one adapter process | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/events.rs` | what a harness connection reports | `crates/shadows-agent/src/events.rs` |
+| `crates/shadows-agent/src/policy.rs` | the modes Shadows allows per harness | `crates/shadows-agent/src/policy.rs` |
+| `crates/shadows-agent/src/choices.rs` | reading the harness's offered choices | `crates/shadows-agent/src/choices.rs` |
+| `crates/shadows-agent/src/breakdown.rs` | reading Claude's `/context` answer | `crates/shadows-agent/src/breakdown.rs` |
+| `crates/shadows-agent/src/claude.rs` | the launch spec of the pinned Claude ACP adapter | `crates/shadows-agent/src/claude.rs` |
 | `crates/shadows/src/planner/offers.rs` | the latest choices each open session offers | `crates/shadows/src/planner/offers.rs` |
 | `crates/shadows/src/planner/context.rs` | reading a session's context breakdown on demand | `crates/shadows/src/planner/context.rs` |
 | `crates/shadows/src/protocol/harness.rs` | the routes over harnesses, their sessions included | `crates/shadows/src/protocol/harness.rs` |

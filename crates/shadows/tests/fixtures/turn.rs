@@ -7,14 +7,14 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use shadows::agent::TurnSettings;
-use shadows::agent::events::HarnessEvent;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::operation::OperationId;
 use shadows::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest, Sessions, StartError};
 use shadows::runtime::Runtime;
 use shadows::storage::NewTurn;
 use shadows::thread::ThreadId;
+use shadows_agent::TurnSettings;
+use shadows_agent::events::HarnessEvent;
 
 /// The fake's own settings, which every turn can run with.
 pub fn default_turn_settings() -> TurnSettings {

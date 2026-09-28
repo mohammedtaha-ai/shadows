@@ -54,7 +54,7 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
             "demo",
             "Demo",
             &dir(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -130,7 +130,7 @@ async fn entries_are_read_in_ordinal_order() {
             "demo",
             "Demo",
             &dir(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -183,7 +183,7 @@ async fn entry_refs_round_trip_through_storage() {
             "demo",
             "Demo",
             &dir(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -235,7 +235,7 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
             "demo",
             "Demo",
             &dir(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();
@@ -307,7 +307,7 @@ async fn threads_are_listed_in_creation_order_whatever_their_timestamp_text() {
             "demo",
             "Demo",
             &dir(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();

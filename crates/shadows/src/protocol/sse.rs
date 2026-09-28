@@ -9,12 +9,12 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 
 use super::{AppState, UiSignal};
-use crate::agent::choices::Offered;
-use crate::agent::events::HarnessEvent;
 use crate::events::EventCursor;
 use crate::operation::OperationId;
 use crate::storage::Storage;
 use crate::thread::ThreadId;
+use shadows_agent::choices::Offered;
+use shadows_agent::events::HarnessEvent;
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]

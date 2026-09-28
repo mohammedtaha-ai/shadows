@@ -1,13 +1,13 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use shadows::{
-    agent::{claude::ClaudeAdapter, events::HarnessEvent},
     command::{CommandContext, fingerprint},
     planner::{OpenError, OpenSession, Sessions, SessionsConfig},
     project::ProjectDirectory,
     storage::Storage,
     thread::ThreadId,
 };
+use shadows_agent::{claude::ClaudeAdapter, events::HarnessEvent};
 
 struct Fixture {
     _tmp: tempfile::TempDir,
@@ -37,7 +37,7 @@ async fn fixture(config: SessionsConfig) -> Fixture {
             "demo",
             "Demo",
             &ProjectDirectory::resolve(&project_dir).unwrap(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();

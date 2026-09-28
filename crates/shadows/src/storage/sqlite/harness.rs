@@ -7,8 +7,8 @@
 use sqlx::SqliteConnection;
 
 use super::{Storage, StorageError};
-use crate::agent::TurnSettings;
-use crate::agent::events::{AccountLimits, LimitWindow};
+use shadows_agent::TurnSettings;
+use shadows_agent::events::{AccountLimits, LimitWindow};
 
 /// Remembers the model and effort of the turn being started for its harness.
 /// The mode is never remembered (§12.4).

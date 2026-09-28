@@ -10,9 +10,9 @@ use std::sync::Mutex;
 use serde_json::Value;
 use tokio::sync::{broadcast, mpsc};
 
-use crate::agent::choices::{Offered, parse};
-use crate::agent::events::HarnessEvent;
 use crate::thread::ThreadId;
+use shadows_agent::choices::{Offered, parse};
+use shadows_agent::events::HarnessEvent;
 
 pub(super) struct Offers {
     latest: Mutex<HashMap<ThreadId, Offered>>,

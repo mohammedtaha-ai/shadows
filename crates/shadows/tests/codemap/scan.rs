@@ -32,7 +32,7 @@ pub enum Decl {
 
 pub struct FileEntry {
     /// Forward-slashed and relative to the workspace root
-    /// (`crates/shadows/src/agent/acp.rs`), so the generated file is
+    /// (`crates/shadows-agent/src/acp.rs`), so the generated file is
     /// byte-identical on Windows and Linux. CI runs both.
     pub path: String,
     pub lines: usize,

@@ -14,7 +14,6 @@ use std::time::Duration;
 
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
-use shadows::agent::events::HarnessEvent;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::events::{Actor, EventCursor};
 use shadows::operation::OperationId;
@@ -25,6 +24,7 @@ use shadows::protocol::sse::{SubscribeQuery, subscribe};
 use shadows::runtime::Runtime;
 use shadows::storage::Storage;
 use shadows::thread::{NewThreadEntry, PlanningThread, ThreadEntryKind, ThreadId};
+use shadows_agent::events::HarnessEvent;
 use tokio_stream::StreamExt;
 
 #[path = "fixtures/acp.rs"]
@@ -49,7 +49,7 @@ async fn seed(storage: &Storage) -> (Project, PlanningThread) {
             "demo",
             "Demo",
             &dir,
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();

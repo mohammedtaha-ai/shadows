@@ -12,13 +12,13 @@ use super::harness::remember_settings;
 use super::operation::insert_pending;
 use super::task::task_of;
 use super::{Storage, StorageError, now};
-use crate::agent::TurnSettings;
 use crate::command::CommandContext;
 use crate::events::Actor;
 use crate::operation::OperationId;
 use crate::runtime::RuntimeInstanceId;
 use crate::thread::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId};
 use crate::workflow::Focus;
+use shadows_agent::TurnSettings;
 
 /// Everything the turn command records. The paths and versions are the
 /// adapter's and the CLI's it runs (§12.2), frozen on the invocation.

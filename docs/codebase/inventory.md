@@ -15,170 +15,6 @@ declaration, this file only says that it exists and what shape it has. What each
 module *owns* is a judgement no generator can make — that lives in
 [README.md](./README.md).
 
-## `crates/shadows/src/agent/acp.rs` — 381 lines
-
-```rust
-pub enum SessionStart {
-    New,
-    Resume(String),
-    Fork(String),
-}
-pub struct SessionSetup {
-    pub mcp: Option<McpServerSpec>,
-    pub append: Option<String>,
-    pub allowed_tools: Vec<String>,
-}
-pub struct McpServerSpec {
-    pub name: String,
-    pub url: String,
-    pub bearer: String,
-}
-pub struct Opened {
-    pub session_id: String,
-    pub options: Value,
-}
-pub enum TurnEnd {
-    Ended,
-    Cancelled,
-    Refused(String),
-}
-pub enum AcpError {
-    Closed,
-    Rpc(String),
-}
-pub struct Connection {}
-// + 1 private field
-impl Connection {
-    pub fn is_closed(&self) -> bool
-    pub async fn open(handle: &mut ProcessHandle, events: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static) -> Result<Self, AcpError>
-    pub async fn start_session(&self, cwd: &Path, how: SessionStart, setup: &SessionSetup) -> Result<Opened, AcpError>
-    pub async fn set_option(&self, session: &str, config_id: &str, value: &str) -> Result<Value, AcpError>
-    pub async fn prompt(&self, session: &str, text: &str, context: &[String]) -> Result<TurnEnd, AcpError>
-    pub fn cancel(&self, session: &str)
-}
-```
-
-## `crates/shadows/src/agent/breakdown.rs` — 86 lines
-
-```rust
-pub struct Category {
-    pub name: String,
-    pub tokens: u64,
-    pub percent: f64,
-}
-pub fn parse(markdown: &str) -> Option<Vec<Category>>
-```
-
-## `crates/shadows/src/agent/choices.rs` — 350 lines
-
-```rust
-pub struct Choice {
-    pub id: String,
-    pub label: String,
-    pub description: Option<String>,
-    pub enabled: bool,
-    pub reason: Option<String>,
-}
-pub struct SessionChoices {
-    pub models: Vec<Choice>,
-    pub efforts: Vec<Choice>,
-    pub modes: Vec<Choice>,
-    pub current: TurnSettings,
-}
-pub struct OptionIds {
-    pub model: String,
-    pub effort: Option<String>,
-    pub mode: String,
-}
-pub struct Offered {
-    pub models: Vec<Choice>,
-    pub efforts: Vec<Choice>,
-    pub modes: Vec<Choice>,
-    pub current: TurnSettings,
-    pub ids: OptionIds,
-}
-impl Offered {
-    pub fn offers_model(&self, id: &str) -> bool
-    pub fn offers_effort(&self, id: &str) -> bool
-    pub fn offers_mode(&self, id: &str) -> bool
-}
-
-pub const NOT_ALLOWED: &str = "Not allowed in this project";
-pub fn parse(options: &Value) -> Result<Offered, String>
-pub fn for_client(offered: &Offered, harness: &str, allowed: &[String]) -> SessionChoices
-pub fn refusal(offered: &Offered, harness: &str, s: &TurnSettings) -> Option<(&'static str, String)>
-```
-
-## `crates/shadows/src/agent/claude.rs` — 48 lines
-
-```rust
-pub struct ClaudeAdapter {
-    pub node: PathBuf,
-    pub adapter: PathBuf,
-    pub agent: PathBuf,
-    pub adapter_version: String,
-    pub agent_version: String,
-}
-impl ClaudeAdapter {
-    pub fn process_spec(&self, cwd: &Path) -> ProcessSpec
-}
-```
-
-## `crates/shadows/src/agent/events.rs` — 142 lines
-
-```rust
-pub enum HarnessEvent {
-    Chunk { message_id: Option<String>, text: String },
-    ToolCall { id: String, title: Option<String>, status: Option<String> },
-    PermissionRefused { title: String },
-    Usage { used: u64, size: u64, model: Option<String>, rate_limit: Option<Value> },
-    Options(Value),
-    TurnEnd { subtype: &'static str, stop_reason: Option<String> },
-}
-pub struct LimitWindow {
-    pub utilization: f64,
-    pub resets_at: i64,
-}
-pub struct AccountLimits {
-    pub five_hour: Option<LimitWindow>,
-    pub seven_day: Option<LimitWindow>,
-    pub observed_at: String,
-}
-pub fn limits_from(rate_limit: &Value, observed_at: &str) -> Option<AccountLimits>
-pub struct TurnObservation {
-    pub native_session_id: Option<String>,
-    pub observed_model: Option<String>,
-    pub context_used: Option<u64>,
-    pub context_window: Option<u64>,
-}
-impl TurnObservation {
-    pub fn from_usage(last: Option<&HarnessEvent>) -> Self
-}
-```
-
-## `crates/shadows/src/agent/mod.rs` — 16 lines
-
-```rust
-pub struct TurnSettings {
-    pub model: String,
-    pub mode: String,
-    pub effort: Option<String>,
-}
-```
-
-## `crates/shadows/src/agent/policy.rs` — 57 lines
-
-```rust
-pub const CLAUDE_CODE: &str = "claude-code";
-pub const CODEX: &str = "codex";
-pub const KNOWN: [&str; 2] = [CLAUDE_CODE, CODEX];
-pub fn allowed_modes(kind: &str) -> &'static [&'static str]
-pub fn default_mode(kind: &str) -> Option<&'static str>
-pub fn is_known(kind: &str) -> bool
-pub fn is_available(kind: &str) -> bool
-pub fn default_modes() -> BTreeMap<String, Vec<String>>
-```
-
 ## `crates/shadows/src/bin/fake_acp.rs` — 347 lines
 
 Nothing reachable from outside this file.
@@ -366,7 +202,7 @@ impl DurableEvent {
 pub(crate) use newtype_id;
 ```
 
-## `crates/shadows/src/lib.rs` — 17 lines
+## `crates/shadows/src/lib.rs` — 16 lines
 
 Nothing reachable from outside this file.
 
@@ -676,7 +512,7 @@ impl Sessions {
 pub(super) fn workspace(context: &TurnContext) -> Result<PathBuf, String>
 ```
 
-## `crates/shadows/src/planner/settings.rs` — 206 lines
+## `crates/shadows/src/planner/settings.rs` — 204 lines
 
 ```rust
 pub enum ModelRefused {
@@ -1615,6 +1451,170 @@ pub struct Applied {
     pub summary: String,
 }
 pub fn apply(current: &PlanContent, ops: &[PlanOp]) -> Result<Applied, Vec<Problem>>
+```
+
+## `crates/shadows-agent/src/acp.rs` — 381 lines
+
+```rust
+pub enum SessionStart {
+    New,
+    Resume(String),
+    Fork(String),
+}
+pub struct SessionSetup {
+    pub mcp: Option<McpServerSpec>,
+    pub append: Option<String>,
+    pub allowed_tools: Vec<String>,
+}
+pub struct McpServerSpec {
+    pub name: String,
+    pub url: String,
+    pub bearer: String,
+}
+pub struct Opened {
+    pub session_id: String,
+    pub options: Value,
+}
+pub enum TurnEnd {
+    Ended,
+    Cancelled,
+    Refused(String),
+}
+pub enum AcpError {
+    Closed,
+    Rpc(String),
+}
+pub struct Connection {}
+// + 1 private field
+impl Connection {
+    pub fn is_closed(&self) -> bool
+    pub async fn open(handle: &mut ProcessHandle, events: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static) -> Result<Self, AcpError>
+    pub async fn start_session(&self, cwd: &Path, how: SessionStart, setup: &SessionSetup) -> Result<Opened, AcpError>
+    pub async fn set_option(&self, session: &str, config_id: &str, value: &str) -> Result<Value, AcpError>
+    pub async fn prompt(&self, session: &str, text: &str, context: &[String]) -> Result<TurnEnd, AcpError>
+    pub fn cancel(&self, session: &str)
+}
+```
+
+## `crates/shadows-agent/src/breakdown.rs` — 86 lines
+
+```rust
+pub struct Category {
+    pub name: String,
+    pub tokens: u64,
+    pub percent: f64,
+}
+pub fn parse(markdown: &str) -> Option<Vec<Category>>
+```
+
+## `crates/shadows-agent/src/choices.rs` — 350 lines
+
+```rust
+pub struct Choice {
+    pub id: String,
+    pub label: String,
+    pub description: Option<String>,
+    pub enabled: bool,
+    pub reason: Option<String>,
+}
+pub struct SessionChoices {
+    pub models: Vec<Choice>,
+    pub efforts: Vec<Choice>,
+    pub modes: Vec<Choice>,
+    pub current: TurnSettings,
+}
+pub struct OptionIds {
+    pub model: String,
+    pub effort: Option<String>,
+    pub mode: String,
+}
+pub struct Offered {
+    pub models: Vec<Choice>,
+    pub efforts: Vec<Choice>,
+    pub modes: Vec<Choice>,
+    pub current: TurnSettings,
+    pub ids: OptionIds,
+}
+impl Offered {
+    pub fn offers_model(&self, id: &str) -> bool
+    pub fn offers_effort(&self, id: &str) -> bool
+    pub fn offers_mode(&self, id: &str) -> bool
+}
+
+pub const NOT_ALLOWED: &str = "Not allowed in this project";
+pub fn parse(options: &Value) -> Result<Offered, String>
+pub fn for_client(offered: &Offered, harness: &str, allowed: &[String]) -> SessionChoices
+pub fn refusal(offered: &Offered, harness: &str, s: &TurnSettings) -> Option<(&'static str, String)>
+```
+
+## `crates/shadows-agent/src/claude.rs` — 48 lines
+
+```rust
+pub struct ClaudeAdapter {
+    pub node: PathBuf,
+    pub adapter: PathBuf,
+    pub agent: PathBuf,
+    pub adapter_version: String,
+    pub agent_version: String,
+}
+impl ClaudeAdapter {
+    pub fn process_spec(&self, cwd: &Path) -> ProcessSpec
+}
+```
+
+## `crates/shadows-agent/src/events.rs` — 142 lines
+
+```rust
+pub enum HarnessEvent {
+    Chunk { message_id: Option<String>, text: String },
+    ToolCall { id: String, title: Option<String>, status: Option<String> },
+    PermissionRefused { title: String },
+    Usage { used: u64, size: u64, model: Option<String>, rate_limit: Option<Value> },
+    Options(Value),
+    TurnEnd { subtype: &'static str, stop_reason: Option<String> },
+}
+pub struct LimitWindow {
+    pub utilization: f64,
+    pub resets_at: i64,
+}
+pub struct AccountLimits {
+    pub five_hour: Option<LimitWindow>,
+    pub seven_day: Option<LimitWindow>,
+    pub observed_at: String,
+}
+pub fn limits_from(rate_limit: &Value, observed_at: &str) -> Option<AccountLimits>
+pub struct TurnObservation {
+    pub native_session_id: Option<String>,
+    pub observed_model: Option<String>,
+    pub context_used: Option<u64>,
+    pub context_window: Option<u64>,
+}
+impl TurnObservation {
+    pub fn from_usage(last: Option<&HarnessEvent>) -> Self
+}
+```
+
+## `crates/shadows-agent/src/lib.rs` — 16 lines
+
+```rust
+pub struct TurnSettings {
+    pub model: String,
+    pub mode: String,
+    pub effort: Option<String>,
+}
+```
+
+## `crates/shadows-agent/src/policy.rs` — 57 lines
+
+```rust
+pub const CLAUDE_CODE: &str = "claude-code";
+pub const CODEX: &str = "codex";
+pub const KNOWN: [&str; 2] = [CLAUDE_CODE, CODEX];
+pub fn allowed_modes(kind: &str) -> &'static [&'static str]
+pub fn default_mode(kind: &str) -> Option<&'static str>
+pub fn is_known(kind: &str) -> bool
+pub fn is_available(kind: &str) -> bool
+pub fn default_modes() -> BTreeMap<String, Vec<String>>
 ```
 
 ## `crates/shadows-process/src/bin/tree_probe.rs` — 63 lines

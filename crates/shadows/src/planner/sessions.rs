@@ -21,15 +21,15 @@ use tracing::Instrument;
 use super::offers::{Offers, intercept};
 use super::setup::Setups;
 use crate::{
-    agent::{
-        acp::{Connection, SessionStart},
-        choices::Offered,
-        claude::ClaudeAdapter,
-        events::HarnessEvent,
-        policy,
-    },
     storage::{Storage, StorageError},
     thread::{ThreadId, TurnContext},
+};
+use shadows_agent::{
+    acp::{Connection, SessionStart},
+    choices::Offered,
+    claude::ClaudeAdapter,
+    events::HarnessEvent,
+    policy,
 };
 
 #[derive(Debug, Clone)]

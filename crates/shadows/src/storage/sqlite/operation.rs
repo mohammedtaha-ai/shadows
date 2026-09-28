@@ -11,7 +11,7 @@ use sqlx::SqliteConnection;
 use super::operation_read::invocation_of;
 use super::transition::{Before, Transition, existed, read_before, record};
 use super::{Storage, StorageError, now};
-use crate::agent::events::TurnObservation;
+use shadows_agent::events::TurnObservation;
 
 /// Inserts a `Pending` operation and its `OperationCreated` event inside the
 /// caller's transaction; refused for a stopped runtime (see

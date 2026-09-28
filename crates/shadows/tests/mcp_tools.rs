@@ -4,9 +4,9 @@
 //! `mcp_server.rs`.
 
 use serde_json::json;
-use shadows::agent::policy;
 use shadows::thread::ThreadId;
 use shadows::workflow::WorkflowId;
+use shadows_agent::policy;
 
 #[path = "fixtures/acp.rs"]
 mod acp;

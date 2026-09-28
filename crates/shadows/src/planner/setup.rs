@@ -13,11 +13,11 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use sha2::{Digest, Sha256};
 
-use crate::agent::acp::{McpServerSpec, SessionSetup};
 use crate::mcp::grant::GrantId;
 use crate::project::ProjectId;
 use crate::storage::{InstructionsVersion, Storage, StorageError};
 use crate::thread::ThreadId;
+use shadows_agent::acp::{McpServerSpec, SessionSetup};
 
 /// Shadows' instructions to the Planner, compiled in.
 const PROMPT: &str = include_str!("prompt.txt");

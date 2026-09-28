@@ -13,7 +13,6 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use shadows::agent::events::HarnessEvent;
 use shadows::command::{CommandContext, fingerprint};
 use shadows::operation::{Operation, OperationId};
 use shadows::planner::{LiveHandles, Sessions, StartError, shut_down};
@@ -21,6 +20,7 @@ use shadows::protocol::{AppState, router};
 use shadows::runtime::Runtime;
 use shadows::storage::{StopKind, Storage};
 use shadows::thread::ThreadId;
+use shadows_agent::events::HarnessEvent;
 use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
@@ -61,7 +61,7 @@ async fn fixture() -> Fixture {
             "demo",
             "Demo",
             &shadows::project::ProjectDirectory::resolve(tmp.path()).unwrap(),
-            &shadows::agent::policy::default_modes(),
+            &shadows_agent::policy::default_modes(),
         )
         .await
         .unwrap();

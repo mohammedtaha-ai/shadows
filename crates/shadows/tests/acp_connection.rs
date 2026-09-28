@@ -1,6 +1,6 @@
 use std::{path::PathBuf, time::Duration};
 
-use shadows::agent::{
+use shadows_agent::{
     acp::{AcpError, Connection, SessionSetup, SessionStart, TurnEnd},
     claude::ClaudeAdapter,
     events::HarnessEvent,
