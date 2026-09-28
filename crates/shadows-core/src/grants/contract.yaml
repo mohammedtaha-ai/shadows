@@ -14,9 +14,10 @@
 # and `check_writer` inside each plan write's own transaction, so a write that
 # began before a revocation does not commit after it.
 #
-# Trap: thread grants are the Planner's, not the person's. They are issued
-# and revoked by the planner's sessions on `Storage` (`issue_thread_grant`,
-# `revoke_thread_grant`), never through `Grants`; `revoke` refuses one as not
+# Trap: thread grants are the Planner's, not the person's. The planner's
+# sessions issue and revoke each one on `Storage` (`issue_thread_grant`,
+# `revoke_thread_grant`), not through `Grants`; the only `Grants` method that
+# touches them is startup's `revoke_thread_grants`. `revoke` refuses one as not
 # found, and `list` never shows one. Trap: `IssuedView` carries a bearer
 # token; it has no Debug on purpose.
 
@@ -105,9 +106,10 @@ functions:
       # not the write's.
     bind_draft_ref:
       signature: "(conn, writer: &Writer, draft_ref: &str, workflow: &WorkflowId, project: &ProjectId, ts: &str) -> Result<(), StorageError>"
-      # GrantScope unless exactly one `draft_intent` row of the writer's grant
-      # was bound — unused and unexpired (by `julianday`), or already bound to
-      # this workflow — and the grant's project is `project`.
+      # GrantScope for a writer with no grant (a person). Otherwise GrantScope
+      # unless exactly one `draft_intent` row of the writer's grant was bound
+      # — unused and unexpired (by `julianday`), or already bound to this
+      # workflow — and the grant's project is `project`.
 
 
 enums:
