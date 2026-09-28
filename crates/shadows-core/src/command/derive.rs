@@ -7,7 +7,7 @@
 //! a different one is a different command. A `draft_ref` names one intended
 //! plan, so the same ref with different arguments is a `CommandConflict`.
 
-use crate::operation::OperationId;
+use crate::turns::OperationId;
 
 /// What a derived id is anchored to.
 #[derive(Debug, Clone, Copy)]

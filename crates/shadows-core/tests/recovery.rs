@@ -1,4 +1,4 @@
-use shadows_core::operation::OperationId;
+use shadows_core::OperationId;
 use shadows_core::runtime::RuntimeInstanceId;
 use shadows_core::storage::{StopKind, Storage};
 
@@ -221,7 +221,7 @@ mod turn;
 /// registry and its adapters, as `shadows serve` assembles them.
 struct Daemon {
     runtime: std::sync::Arc<shadows_core::runtime::Runtime>,
-    handles: std::sync::Arc<shadows_core::planner::LiveHandles>,
+    handles: std::sync::Arc<shadows_core::testing::LiveHandles>,
     sessions: std::sync::Arc<shadows_core::planner::Sessions>,
 }
 
@@ -269,7 +269,7 @@ impl Daemon {
     }
 
     async fn stop(self) {
-        let kind = shadows_core::planner::shut_down(
+        let kind = shadows_core::testing::shut_down(
             self.runtime,
             self.handles,
             self.sessions.clone(),

@@ -12,7 +12,7 @@ use shadows_agent::events::{AccountLimits, LimitWindow};
 
 /// Remembers the model and effort of the turn being started for its harness.
 /// The mode is never remembered (§12.4).
-pub(in crate::storage) async fn remember_settings(
+pub(crate) async fn remember_settings(
     conn: &mut SqliteConnection,
     kind: &str,
     settings: &TurnSettings,

@@ -41,9 +41,9 @@ use crate::command::fingerprint;
 use crate::error::{CoreError, ErrorCode};
 use crate::events::UiSignal;
 use crate::grants::{Grant, GrantKind};
-use crate::planner::LiveHandles;
 use crate::project::ProjectId;
 use crate::storage::Storage;
+use crate::turns::LiveHandles;
 
 /// The pure rules, for `shadows_core::testing` only: its rule tests call them
 /// directly, and nothing outside the crate does.

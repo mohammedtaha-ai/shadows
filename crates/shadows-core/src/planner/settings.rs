@@ -162,7 +162,7 @@ impl Sessions {
     /// effort and mode, one call per value that differs from what the session
     /// holds. `Err` names the setting the harness refused, in its words;
     /// nothing has been sent to the model.
-    pub(super) async fn prepare_turn(
+    pub(crate) async fn prepare_turn(
         &self,
         thread: &ThreadId,
         opened: &OpenSession,

@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use shadows_core::operation::OperationId;
+use shadows_core::OperationId;
 use shadows_core::thread::{EntryRef, ThreadEntryKind};
 use shadows_core::{TaskId, WorkflowId};
 

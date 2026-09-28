@@ -39,8 +39,8 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows-core/src/planner/sessions.rs` | the live adapter connection each open thread holds | `crates/shadows-core/src/planner/sessions.rs` |
 | `crates/shadows-core/src/planner/settings.rs` | setting an open session's options | `crates/shadows-core/src/planner/settings.rs` |
 | `crates/shadows-core/src/planner/setup.rs` | what a Planner session opens with | `crates/shadows-core/src/planner/setup.rs` |
-| `crates/shadows-core/src/planner/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows-core/src/planner/turn.rs` |
-| `crates/shadows-core/src/planner/entries.rs` | turning harness events into durable entries | `crates/shadows-core/src/planner/entries.rs` |
+| `crates/shadows-core/src/turns/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows-core/src/turns/turn.rs` |
+| `crates/shadows-core/src/turns/entries.rs` | turning harness events into durable entries | `crates/shadows-core/src/turns/entries.rs` |
 | `crates/fake-acp/src/main.rs` | test apparatus that no product code links | `crates/fake-acp/src/main.rs` |
 | `crates/shadows-core/src/testing.rs` | the test apparatus every crate's tests share | `crates/shadows-core/src/testing.rs` |
 | `crates/shadows-process/src/bin/` | test apparatus that no product code links | `crates/shadows-process/src/bin/tree_probe.rs` |
@@ -59,8 +59,10 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows-mcp/src/server.rs` | the tools a grant's kind may see | `crates/shadows-mcp/src/server.rs` |
 | `crates/shadows-mcp/src/tools.rs` | each MCP tool's `Plans` call | `crates/shadows-mcp/src/tools.rs` |
 | `crates/shadows-mcp/src/refusal.rs` | what an MCP tool call answers | `crates/shadows-mcp/src/refusal.rs` |
-| `crates/shadows-core/src/operation/` | the operation lifecycle's shape | `crates/shadows-core/src/operation/mod.rs` |
-| `crates/shadows-core/src/planner/` | the Planner turn's spawn-through-termination lifecycle | `crates/shadows-core/src/planner/mod.rs` |
+| `crates/shadows-core/src/turns/model.rs` | the operation types callers meet | `crates/shadows-core/src/turns/model.rs` |
+| `crates/shadows-core/src/planner/` | the Planner session a thread holds | `crates/shadows-core/src/planner/sessions.rs` |
+| `crates/shadows-core/src/turns/` | Planner turns, from start to stop | `crates/shadows-core/src/turns/mod.rs` |
+| `crates/shadows-core/src/turns/store/` | turns' SQLite queries | `crates/shadows-core/src/turns/store/turn.rs` |
 | `crates/shadows-process/src/lib.rs` | OS process ownership with whole-tree containment | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-core/src/project/` | the project: its identity, the directory it owns | `crates/shadows-core/src/project/mod.rs` |
 | `crates/shadows-http/src/lib.rs` | the HTTP/SSE surface every client talks to | `crates/shadows-http/src/project.rs` |

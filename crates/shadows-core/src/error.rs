@@ -1,8 +1,9 @@
 use std::fmt;
 
-use crate::planner::{OpenError, StartError};
+use crate::planner::OpenError;
 use crate::project::DirectoryError;
 use crate::storage::StorageError;
+use crate::turns::StartError;
 
 /// Stable codes clients pattern-match on. Never match on human text.
 /// Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.

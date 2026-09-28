@@ -18,8 +18,10 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::{LiveHandles, PlannerTurn, Sessions, StopOutcome};
+use super::handles::LiveHandles;
+use super::turn::{PlannerTurn, StopOutcome};
 use crate::events::Actor;
+use crate::planner::Sessions;
 use crate::runtime::Runtime;
 use crate::storage::{StopKind, StorageError};
 

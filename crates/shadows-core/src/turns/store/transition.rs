@@ -15,14 +15,14 @@
 
 use sqlx::SqliteConnection;
 
-use super::{StorageError, events::append_event};
 use crate::events::DurableEvent;
-use crate::operation::OperationId;
+use crate::storage::{StorageError, append_event};
 use crate::thread::ThreadId;
+use crate::turns::model::OperationId;
 
 /// An operation's status and thread as the open write transaction found them,
 /// before the transition changes the status.
-pub(super) struct Before {
+pub(crate) struct Before {
     status: String,
     thread: Option<ThreadId>,
 }
@@ -44,7 +44,7 @@ impl Before {
 /// The state [`read_before`] found, once the transition's compare-and-swap has
 /// matched a row. A matched row existed when it was read, so `None` here means
 /// the CAS and the read disagree — reported, not assumed away.
-pub(super) fn existed(before: Option<Before>) -> Result<Before, StorageError> {
+pub(crate) fn existed(before: Option<Before>) -> Result<Before, StorageError> {
     before.ok_or(StorageError::NotFound("operation"))
 }
 
@@ -52,7 +52,7 @@ pub(super) fn existed(before: Option<Before>) -> Result<Before, StorageError> {
 /// `BEGIN IMMEDIATE` holds the write lock, so nothing changes the row between
 /// this read and the compare-and-swap that follows it. `None` when no such
 /// operation exists.
-pub(super) async fn read_before(
+pub(crate) async fn read_before(
     conn: &mut SqliteConnection,
     op_id: &OperationId,
 ) -> Result<Option<Before>, StorageError> {
@@ -73,7 +73,7 @@ pub(super) async fn read_before(
 /// `#[must_use]`: dropping it instead of calling [`Transition::log`] after the
 /// commit is a transition nobody can see in the logs.
 #[must_use]
-pub(super) struct Transition {
+pub(crate) struct Transition {
     op_id: OperationId,
     thread: Option<ThreadId>,
     event: String,
@@ -84,14 +84,14 @@ pub(super) struct Transition {
 }
 
 impl Transition {
-    pub(super) fn with_detail(mut self, detail: String) -> Self {
+    pub(crate) fn with_detail(mut self, detail: String) -> Self {
         self.detail = Some(detail);
         self
     }
 
     /// Exactly one line per committed transition. Call only after `write_txn`
     /// returned `Ok`.
-    pub(super) fn log(&self) {
+    pub(crate) fn log(&self) {
         tracing::info!(
             operation_id = %self.op_id,
             thread_id = %self.thread.as_ref().map_or("none", |t| t.as_str()),
@@ -108,7 +108,7 @@ impl Transition {
 /// one — its thread. The schema allows an operation with no thread; that event
 /// keeps a NULL thread, as it has no stream to reach. `to` is the status the
 /// transition leaves the row in; a cancellation request leaves it unchanged.
-pub(super) async fn record(
+pub(crate) async fn record(
     conn: &mut SqliteConnection,
     op_id: &OperationId,
     before: Before,

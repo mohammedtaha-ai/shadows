@@ -3,10 +3,10 @@
 //! source's harness session; the source is unchanged.
 
 use serde_json::{Value, json};
+use shadows_core::OperationId;
 use shadows_core::events::Actor;
-use shadows_core::operation::OperationId;
-use shadows_core::planner::PlannerTurn;
 use shadows_core::storage::StorageError;
+use shadows_core::testing::PlannerTurn;
 use shadows_core::thread::ThreadId;
 
 #[path = "fixtures/acp.rs"]

@@ -1,23 +1,13 @@
-//! Planner turns run as ACP prompts on the adapter each thread holds (§12.3).
-//! `spawn` registers before Running. `turn` arbitrates terminal state with Stop.
+//! Planner sessions: the adapter each thread holds, what it opens with, and
+//! what it offers (§12.2–§12.4). A turn on one is `turns`' (§14.4).
 
 mod context;
-mod entries;
-mod handles;
 mod offers;
 mod sessions;
 mod settings;
 mod setup;
-mod shutdown;
-mod spawn;
-mod turn;
 
 pub use context::NoBreakdown;
-pub use handles::LiveHandles;
-pub(crate) use handles::LiveTurn;
 pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig};
 pub use settings::ModelRefused;
 pub use setup::prompt_version;
-pub use shutdown::shut_down;
-pub use spawn::{PlannerTurnRequest, StartError, focus_block};
-pub use turn::{PlannerTurn, StopOutcome};

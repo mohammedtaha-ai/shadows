@@ -4,9 +4,9 @@
 //! and transaction contracts.
 
 use serde_json::json;
+use shadows_core::OperationId;
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::events::Actor;
-use shadows_core::operation::OperationId;
 use shadows_core::project::ProjectDirectory;
 use shadows_core::storage::{Storage, StorageError};
 use shadows_core::thread::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId};

@@ -18,12 +18,12 @@ use crate::command::{CommandContext, fingerprint};
 use crate::error::CoreError;
 use crate::events::UiSignal;
 use crate::grants::Grants;
-use crate::operation::OperationId;
-use crate::planner::{LiveHandles, Sessions, SessionsConfig};
+use crate::planner::{Sessions, SessionsConfig};
 use crate::plans::Plans;
 use crate::runtime::Runtime;
 use crate::storage::{StopKind, Storage};
 use crate::thread::ThreadId;
+use crate::turns::{LiveHandles, OperationId, Turns};
 
 /// A running turn's live harness events, for every live subscriber.
 pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
@@ -48,12 +48,11 @@ pub struct CoreParts {
 pub struct AppCore {
     plans: Plans,
     grants: Grants,
+    turns: Turns,
     // Held while adapters still reach them (Tasks 5–9); each goes when its
     // last reader moves into a service, and Task 10 removes the last.
     storage: Arc<Storage>,
-    runtime: Arc<Runtime>,
     sessions: Arc<Sessions>,
-    handles: Arc<LiveHandles>,
     bus: Bus,
     ui: tokio::sync::broadcast::Sender<UiSignal>,
 }
@@ -155,10 +154,15 @@ impl AppCore {
         Arc::new(AppCore {
             plans: Plans::new(storage.clone(), handles.clone(), ui.clone()),
             grants: Grants::new(storage.clone(), mcp_url),
+            turns: Turns::new(
+                storage.clone(),
+                runtime,
+                sessions.clone(),
+                handles,
+                bus.clone(),
+            ),
             storage,
-            runtime,
             sessions,
-            handles,
             bus,
             ui,
         })
@@ -172,7 +176,11 @@ impl AppCore {
         &self.grants
     }
 
-    /// §8.5 through `planner::shut_down(runtime, handles, sessions, bound,
+    pub fn turns(&self) -> &Turns {
+        &self.turns
+    }
+
+    /// §8.5 through `turns::shut_down(runtime, handles, sessions, bound,
     /// second_signal)`, unchanged: every running turn is stopped and every
     /// adapter closed. The binary keeps the signals and the transport.
     pub async fn shut_down(
@@ -180,14 +188,7 @@ impl AppCore {
         bound: Duration,
         second_signal: impl Future<Output = ()>,
     ) -> Result<StopKind, CoreError> {
-        Ok(crate::planner::shut_down(
-            self.runtime.clone(),
-            self.handles.clone(),
-            self.sessions.clone(),
-            bound,
-            second_signal,
-        )
-        .await?)
+        Ok(self.turns.shut_down(bound, second_signal).await?)
     }
 
     #[doc(hidden)]
@@ -197,21 +198,9 @@ impl AppCore {
     }
 
     #[doc(hidden)]
-    // transitional: removed by Task 7
-    pub fn runtime(&self) -> &Arc<Runtime> {
-        &self.runtime
-    }
-
-    #[doc(hidden)]
     // transitional: removed by Task 10
     pub fn sessions(&self) -> &Arc<Sessions> {
         &self.sessions
-    }
-
-    #[doc(hidden)]
-    // transitional: removed by Task 7
-    pub fn handles(&self) -> &Arc<LiveHandles> {
-        &self.handles
     }
 
     #[doc(hidden)]

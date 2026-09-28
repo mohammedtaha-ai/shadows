@@ -1,6 +1,6 @@
 //! Spec §8.5, daemon shutdown: `Graceful` is written only when every operation
 //! the runtime owns is terminal; anything short of that is `Escalated`, and a
-//! stopping runtime takes no new turn. Driven through `planner::shut_down`,
+//! stopping runtime takes no new turn. Driven through `testing::shut_down`,
 //! which is what `shadows serve` runs on its stop signal, with `fake_acp`
 //! standing in for the adapter.
 //!
@@ -15,13 +15,15 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use shadows::cli::router;
 use shadows_agent::events::HarnessEvent;
+use shadows_core::StartError;
 use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::operation::{Operation, OperationId};
-use shadows_core::planner::{LiveHandles, Sessions, StartError, shut_down};
+use shadows_core::planner::Sessions;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::{StopKind, Storage};
+use shadows_core::testing::{LiveHandles, shut_down};
 use shadows_core::thread::ThreadId;
 use shadows_core::{AppCore, CoreParts};
+use shadows_core::{Operation, OperationId};
 use shadows_http::AppState;
 use tower::ServiceExt;
 

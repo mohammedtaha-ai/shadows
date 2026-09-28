@@ -24,13 +24,14 @@ use shadows_agent::events::HarnessEvent;
 use shadows_agent::policy;
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::events::UiSignal;
-use shadows_core::operation::{Operation, OperationId};
-use shadows_core::planner::{LiveHandles, Sessions, SessionsConfig};
+use shadows_core::planner::{Sessions, SessionsConfig};
 use shadows_core::project::{ProjectDirectory, ProjectId};
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
+use shadows_core::testing::LiveHandles;
 use shadows_core::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_core::{AppCore, CoreParts};
+use shadows_core::{Operation, OperationId};
 use shadows_http::AppState;
 use tower::ServiceExt;
 
@@ -157,7 +158,7 @@ pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) ->
 /// Stops the daemon as `serve` does on a signal, so the directory can be
 /// opened again by `test_app_at`.
 pub async fn shut_down_app(app: App) {
-    shadows_core::planner::shut_down(
+    shadows_core::testing::shut_down(
         app.runtime.clone(),
         app.handles.clone(),
         app.sessions.clone(),

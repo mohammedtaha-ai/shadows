@@ -43,3 +43,11 @@ pub fn migrations_dir() -> std::path::PathBuf {
 /// are private to `plans` everywhere else: a caller changes a plan through
 /// `Plans` only.
 pub use crate::plans::for_tests::{Applied, apply, approval_problems, edit_problems};
+
+/// The turn machinery below `Turns`, which the turn, shutdown and recovery
+/// tests drive directly. Private to `turns` everywhere else: a caller starts
+/// or stops a turn through `Turns` only.
+pub use crate::turns::LiveHandles;
+pub use crate::turns::for_tests::{
+    FailureStage, NewTurn, PlannerTurn, PlannerTurnRequest, StartedTurn, StopOutcome, shut_down,
+};

@@ -1,7 +1,7 @@
 use shadows_core::events::Actor;
-use shadows_core::operation::FailureStage;
 use shadows_core::runtime::RuntimeInstanceId;
 use shadows_core::storage::{Storage, StorageError};
+use shadows_core::testing::FailureStage;
 use shadows_core::thread::ThreadId;
 
 async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) {
@@ -250,8 +250,7 @@ async fn a_cancellation_request_does_not_make_an_operation_terminal() {
 #[tokio::test]
 async fn a_cancellation_request_for_an_unknown_operation_is_not_found() {
     let (_tmp, storage, _runtime, _thread) = fixture().await;
-    let unknown =
-        shadows_core::operation::OperationId::from_literal("00000000-0000-4000-8000-000000000000");
+    let unknown = shadows_core::OperationId::from_literal("00000000-0000-4000-8000-000000000000");
     let answer = storage
         .request_cancellation(&unknown, Actor::user("local"))
         .await;

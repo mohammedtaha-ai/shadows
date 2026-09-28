@@ -10,11 +10,11 @@ use sqlx::SqliteConnection;
 use super::command::{classify, record_command};
 use super::events::append_event;
 use super::thread::load_thread;
-use super::turn::has_open_operation;
 use super::{Storage, StorageError, now};
 use crate::command::CommandContext;
 use crate::events::{Actor, DurableEvent};
 use crate::thread::{PlanningThread, ThreadEntryId, ThreadId};
+use crate::turns::has_open_operation;
 
 /// The session to fork, when `at` is a valid fork point of `source`.
 async fn fork_point(

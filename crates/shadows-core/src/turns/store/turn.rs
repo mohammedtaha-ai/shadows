@@ -6,18 +6,17 @@
 
 use sqlx::SqliteConnection;
 
-use super::command::{classify, record_command};
-use super::entry::append_entry_in;
-use super::harness::remember_settings;
 use super::operation::insert_pending;
-use super::{Storage, StorageError, now};
 use crate::command::CommandContext;
 use crate::events::Actor;
-use crate::operation::OperationId;
 use crate::plans::Focus;
 use crate::plans::task_of;
 use crate::runtime::RuntimeInstanceId;
+use crate::storage::{
+    Storage, StorageError, append_entry_in, classify, now, record_command, remember_settings,
+};
 use crate::thread::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId};
+use crate::turns::model::OperationId;
 use shadows_agent::TurnSettings;
 
 /// Everything the turn command records. The paths and versions are the
@@ -93,7 +92,7 @@ async fn focused(
 }
 
 /// Whether the thread has a turn that has not reached a terminal status.
-pub(super) async fn has_open_operation(
+pub(crate) async fn has_open_operation(
     conn: &mut SqliteConnection,
     thread: &ThreadId,
 ) -> Result<bool, StorageError> {

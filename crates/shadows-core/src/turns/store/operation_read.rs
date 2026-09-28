@@ -8,11 +8,11 @@ use std::collections::HashMap;
 
 use sqlx::SqliteConnection;
 
-use crate::operation::{InvocationView, Operation, OperationId};
 use crate::runtime::RuntimeInstanceId;
 use crate::thread::ThreadId;
+use crate::turns::model::{InvocationView, Operation, OperationId};
 
-use super::{Storage, StorageError};
+use crate::storage::{Storage, StorageError};
 
 /// The thirteen `operation` columns both reads below select, in select order.
 /// A row alias, not a domain type: [`into_operation`] maps it into `Operation`.

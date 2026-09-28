@@ -9,11 +9,13 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use shadows_agent::TurnSettings;
 use shadows_agent::events::HarnessEvent;
+use shadows_core::OperationId;
+use shadows_core::StartError;
 use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::operation::OperationId;
-use shadows_core::planner::{LiveHandles, PlannerTurn, PlannerTurnRequest, Sessions, StartError};
+use shadows_core::planner::Sessions;
 use shadows_core::runtime::Runtime;
-use shadows_core::storage::NewTurn;
+use shadows_core::testing::NewTurn;
+use shadows_core::testing::{LiveHandles, PlannerTurn, PlannerTurnRequest};
 use shadows_core::thread::ThreadId;
 
 /// The fake's own settings, which every turn can run with.

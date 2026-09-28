@@ -9,13 +9,14 @@ use std::time::Duration;
 
 use serde_json::Value;
 use shadows_agent::events::HarnessEvent;
+use shadows_core::OperationId;
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::events::Actor;
-use shadows_core::operation::OperationId;
-use shadows_core::planner::{LiveHandles, PlannerTurn, Sessions, StopOutcome};
+use shadows_core::planner::Sessions;
 use shadows_core::project::ProjectDirectory;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
+use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
 use shadows_core::thread::{ThreadEntryKind, ThreadId};
 
 #[path = "fixtures/acp.rs"]

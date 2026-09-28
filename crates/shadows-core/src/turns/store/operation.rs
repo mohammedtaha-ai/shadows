@@ -2,15 +2,15 @@
 //! event. Reading operations back is `operation_read.rs`.
 
 use crate::events::{Actor, DurableEvent};
-use crate::operation::{FailureStage, OperationId};
 use crate::runtime::RuntimeInstanceId;
 use crate::thread::ThreadId;
+use crate::turns::model::{FailureStage, OperationId};
 
 use sqlx::SqliteConnection;
 
 use super::operation_read::invocation_of;
 use super::transition::{Before, Transition, existed, read_before, record};
-use super::{Storage, StorageError, now};
+use crate::storage::{Storage, StorageError, now};
 use shadows_agent::events::TurnObservation;
 
 /// Inserts a `Pending` operation and its `OperationCreated` event inside the

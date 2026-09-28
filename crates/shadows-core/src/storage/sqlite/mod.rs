@@ -16,24 +16,21 @@ mod events_read;
 mod fork;
 mod harness;
 mod instructions;
-mod operation;
-mod operation_read;
 mod project;
 mod runtime;
 mod thread;
-mod transition;
-mod turn;
 
 pub use events_read::StoredEvent;
 pub use instructions::InstructionsVersion;
 pub use runtime::{ReconcileReport, StopKind};
-pub use turn::{NewTurn, StartedTurn};
 
-// Store helpers a plan write shares inside its one transaction (spec §14.6).
-// Each stays with the table it writes; `plans::store` names them from here.
+// Store helpers a plan or turn write shares inside its one transaction (spec §14.6).
+// Each stays with the table it writes; `plans::store` and `turns::store` name
+// them from here.
 pub(crate) use command::{classify, record_command};
 pub(crate) use entry::append_entry_in;
 pub(crate) use events::append_event;
+pub(crate) use harness::remember_settings;
 pub(crate) use thread::insert_thread;
 
 const MAX_SEQ: &str = "SELECT MAX(seq) FROM durable_event";

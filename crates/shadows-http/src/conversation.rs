@@ -9,23 +9,9 @@ use axum::http::StatusCode;
 use tracing::Instrument;
 
 use super::failure::ErrorBody;
-use super::harness::open_failure;
-use super::project::ctx;
 use super::{AppState, Failure};
-use shadows_agent::TurnSettings;
-use shadows_agent::acp::AcpError;
-use shadows_agent::choices::{Offered, refusal};
-use shadows_agent::policy;
-use shadows_core::Focus;
-use shadows_core::command::CommandContext;
-use shadows_core::events::Actor;
-use shadows_core::operation::{Operation, OperationId};
-use shadows_core::planner::{
-    LeaseError, OpenSession, PlannerTurn, PlannerTurnRequest, StopOutcome, focus_block,
-    prompt_version,
-};
-use shadows_core::storage::{NewTurn, StartedTurn, StorageError};
-use shadows_core::thread::{ThreadEntry, ThreadId, TurnContext};
+use shadows_core::thread::{ThreadEntry, ThreadId};
+use shadows_core::{Focus, Operation, OperationId, SendTurn};
 
 /// A thread's entries in ordinal order.
 #[utoipa::path(
@@ -135,13 +121,6 @@ pub(super) async fn start_turn(
     Path(thread_id): Path<ThreadId>,
     Json(body): Json<StartTurn>,
 ) -> Result<(StatusCode, Json<TurnStarted>), Failure> {
-    let operation_id = detached(start(s, thread_id, body)).await?;
-    Ok((StatusCode::ACCEPTED, Json(TurnStarted { operation_id })))
-}
-
-/// §12.7's order: a replay first, answered before anything else; then every
-/// check, before any write; then the one transaction; then the run.
-async fn start(s: AppState, thread_id: ThreadId, body: StartTurn) -> Result<OperationId, Failure> {
     let StartTurn {
         command_id,
         prompt,
@@ -151,192 +130,24 @@ async fn start(s: AppState, thread_id: ThreadId, body: StartTurn) -> Result<Oper
         focus,
         client_tab,
     } = body;
-    let mut params = serde_json::json!({
-        "thread_id": thread_id, "prompt": prompt, "model": model, "mode": mode, "effort": effort,
-    });
-    // Absent without a focus, so a turn recorded before §13.9 replays as it did.
-    if let Some(focus) = &focus {
-        params["focus"] = serde_json::json!(focus);
-    }
-    let command = ctx(command_id, "turn.start", params);
-    if let Some(replay) = s.core.storage().replayed_turn(&command, &thread_id).await? {
-        return Ok(replay.operation_id);
-    }
-    if s.core.handles().is_closed().await {
-        return Err(Failure::runtime_stopping());
-    }
-    let settings = TurnSettings {
+    let turn = SendTurn {
+        command_id,
+        prompt,
         model,
         mode,
         effort,
-    };
-    let context = s.core.storage().turn_context(&thread_id).await?;
-    if !policy::is_available(&context.harness) {
-        return Err(Failure::harness_unavailable(&context.harness));
-    }
-    // Checked before the session is touched: setting a model below would
-    // change the session a running turn is using.
-    if s.core.storage().thread_is_busy(&thread_id).await? {
-        return Err(StorageError::ThreadBusy.into());
-    }
-    let opened = s
-        .core
-        .sessions()
-        .open(&thread_id)
-        .await
-        .map_err(open_failure)?;
-    // The turn holds the session from here: a second start, or a `/context`
-    // read, cannot change or prompt it until this turn gives it back.
-    let events = s
-        .core
-        .sessions()
-        .lease_events(&thread_id, &opened)
-        .await
-        .map_err(|e| match e {
-            LeaseError::Busy => Failure::from(StorageError::ThreadBusy),
-            LeaseError::Closed => Failure::harness_start_failed(e.to_string()),
-        })?;
-    let turn = Turn {
-        command: &command,
-        prompt: &prompt,
-        settings: &settings,
-        focus: focus.as_ref(),
-    };
-    let started = match record(&s, &thread_id, &opened, &context, turn).await {
-        Ok(started) if !started.replayed => started,
-        other => {
-            s.core
-                .sessions()
-                .give_back_events(&thread_id, &opened, events)
-                .await;
-            return other.map(|replay| replay.operation_id);
-        }
-    };
-    Ok(PlannerTurn::start(
-        s.core.runtime().clone(),
-        s.core.handles().clone(),
-        s.core.sessions().clone(),
-        opened,
-        PlannerTurnRequest {
-            thread_id,
-            harness: context.harness,
-            operation_id: started.operation_id,
-            prompt,
-            settings,
-            focus: focus
-                .zip(started.focus_task)
-                .map(|(focus, (number, title))| focus_block(&focus, number, &title)),
-            client_tab,
-            events,
-        },
-        s.core.bus().clone(),
-    )
-    .await?)
-}
-
-/// What the person asked for: the command and what it records.
-struct Turn<'a> {
-    command: &'a CommandContext,
-    prompt: &'a str,
-    settings: &'a TurnSettings,
-    focus: Option<&'a Focus>,
-}
-
-/// The rest of §12.7's checks on the leased session, then the one
-/// transaction.
-async fn record(
-    s: &AppState,
-    thread_id: &ThreadId,
-    opened: &OpenSession,
-    context: &TurnContext,
-    turn: Turn<'_>,
-) -> Result<StartedTurn, Failure> {
-    let Turn {
-        command,
-        prompt,
-        settings,
         focus,
-    } = turn;
-    let offered = offer_for_model(s, thread_id, opened, &settings.model).await?;
-    if let Some((what, id)) = refusal(&offered, &context.harness, settings) {
-        return Err(Failure::setting_not_offered(what, &id, None));
-    }
-    let project = s.core.storage().get_project(&context.project_id).await?;
-    let allowed = project.allowed_modes.get(&context.harness);
-    if !allowed.is_some_and(|modes| modes.contains(&settings.mode)) {
-        return Err(Failure::mode_not_allowed(&settings.mode));
-    }
-
-    let adapter = s.core.sessions().adapter();
-    let (harness_path, agent_path) = (
-        adapter.adapter.to_string_lossy().into_owned(),
-        adapter.agent.to_string_lossy().into_owned(),
-    );
-    // §13.8: recorded so a later turn tells the session only what changed.
-    let instructions = (s
-        .core
-        .storage()
-        .current_planner_instructions(&context.project_id))
+        client_tab,
+    };
+    let core = s.core.clone();
+    let operation_id = detached(async move {
+        core.turns()
+            .send(thread_id, turn)
+            .await
+            .map_err(Failure::from)
+    })
     .await?;
-    let started = s
-        .core
-        .storage()
-        .start_turn(
-            command,
-            NewTurn {
-                thread_id,
-                runtime: &s.core.runtime().instance_id,
-                prompt,
-                role: "Planner",
-                harness_kind: &context.harness,
-                harness_path: &harness_path,
-                harness_version: &adapter.adapter_version,
-                agent_path: &agent_path,
-                agent_version: &adapter.agent_version,
-                settings,
-                prompt_version: Some(prompt_version()),
-                instructions_version: instructions.as_ref().map(|v| v.id.as_str()),
-                focus,
-            },
-        )
-        .await;
-    match started {
-        Ok(started) => Ok(started),
-        Err(StorageError::TransitionConflict { .. }) if s.core.handles().is_closed().await => {
-            Err(Failure::runtime_stopping())
-        }
-        Err(e) => Err(e.into()),
-    }
-}
-
-/// The session's offer for `model`. Efforts belong to a model, so a turn
-/// naming another model than the session holds sets it first (§12.7): the
-/// only session change made before the transaction, since it records
-/// nothing. The harness refusing it is `SETTING_NOT_OFFERED` in its words.
-async fn offer_for_model(
-    s: &AppState,
-    thread: &ThreadId,
-    opened: &OpenSession,
-    model: &str,
-) -> Result<Offered, Failure> {
-    let closed = || Failure::harness_start_failed("the harness session closed".into());
-    let offered = s.core.sessions().offered(thread).await.ok_or_else(closed)?;
-    if offered.current.model == model || !offered.offers_model(model) {
-        return Ok(offered);
-    }
-    let id = offered.ids.model.clone();
-    match s
-        .core
-        .sessions()
-        .set_option(thread, opened, &id, model)
-        .await
-    {
-        Ok(next) => Ok(next),
-        Err(AcpError::Rpc(message)) => {
-            Err(Failure::setting_not_offered("model", model, Some(&message)))
-        }
-        Err(AcpError::Closed) => Err(closed()),
-    }
+    Ok((StatusCode::ACCEPTED, Json(TurnStarted { operation_id })))
 }
 
 /// Spec §8.4 case 7: a client disconnecting cancels nothing. Hyper drops a
@@ -380,20 +191,8 @@ pub(super) async fn stop_turn(
     State(s): State<AppState>,
     Path(op_id): Path<OperationId>,
 ) -> Result<Json<Operation>, Failure> {
-    let operation = detached(async move {
-        let outcome = PlannerTurn::stop(
-            s.core.runtime().clone(),
-            s.core.handles().clone(),
-            s.core.sessions().clone(),
-            &op_id,
-            Actor::user("local"),
-        )
-        .await?;
-        if outcome == StopOutcome::TerminationFailed {
-            return Err(Failure::termination_failed());
-        }
-        Ok(s.core.storage().get_operation(&op_id).await?)
-    })
-    .await?;
+    let core = s.core.clone();
+    let operation =
+        detached(async move { core.turns().stop(&op_id).await.map_err(Failure::from) }).await?;
     Ok(Json(operation))
 }

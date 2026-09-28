@@ -5,12 +5,13 @@
 //! file sets the session to the turn's settings, registers the prompt, and
 //! commits `Running`; `turn.rs` takes it from there.
 use super::{
-    LiveHandles, LiveTurn, OpenSession, Sessions,
+    handles::{LiveHandles, LiveTurn},
+    model::{FailureStage, OperationId},
     turn::{PlannerTurn, TurnWatch, watch_turn},
 };
 use crate::{
     events::Actor,
-    operation::{FailureStage, OperationId},
+    planner::{OpenSession, Sessions},
     plans::Focus,
     runtime::Runtime,
     storage::StorageError,

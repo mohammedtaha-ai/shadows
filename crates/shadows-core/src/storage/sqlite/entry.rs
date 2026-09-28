@@ -5,10 +5,10 @@ use sqlx::SqliteConnection;
 
 use super::{Storage, StorageError, events::append_event, now};
 use crate::events::{Actor, DurableEvent};
-use crate::operation::OperationId;
 use crate::thread::{
     EntryRef, NewThreadEntry, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId,
 };
+use crate::turns::OperationId;
 
 /// Appends one entry inside the caller's transaction: allocates its ordinal,
 /// inserts it, and journals `ThreadEntryAppended`. The turn command (§12.7)

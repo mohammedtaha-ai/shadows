@@ -1,0 +1,454 @@
+# Owns starting and stopping a Planner turn (spec §12.3, §12.7, §14.4): the
+# "turn.start" command from its replay to its run, Stop as the local user, and
+# the arbitration between a turn's own ending and a Stop (`turn.rs`), plus
+# shutdown's stop of every live turn (§8.5), which `AppCore::shut_down` calls.
+#
+# `send`'s order is the rule (§14.9), and every step reads durable or live
+# state the step before it relies on: a replay is answered first, before the
+# registry, the harness or the thread is looked at; the harness's availability
+# is checked before any session work; the thread's busyness before the session
+# is touched; the session is opened, then its events leased, before any
+# setting changes; the one transaction checks busyness again under
+# `BEGIN IMMEDIATE`; only a committed, non-replayed turn is started. Any
+# refusal after the lease gives the events back.
+#
+# `Cancelled` means the turn is confirmed stopped and that was written
+# (§2.3): by the watcher when the harness answers `cancelled` after a Stop, or
+# by `PlannerTurn::stop` after it terminated and reaped the adapter's tree.
+# A tree that cannot be terminated writes nothing terminal.
+#
+# Trap: `send` and `stop` must be run to their end. Dropping `send` between its
+# commit and `PlannerTurn::start` strands a `Pending` operation nothing will
+# start; dropping `stop` between terminating the tree and writing `Cancelled`
+# leaves a dead turn `Running`. The HTTP routes run both in `detached`.
+# Trap: the early busy check is not redundant with the lease. The lease waits
+# (context_wait + cancel_wait + 1s) before answering Busy, and a turn whose
+# watcher gave the events back but whose ending is not yet recorded holds no
+# lease: only `thread_is_busy` refuses a start there before the session's
+# model is changed.
+
+name: turns
+version: 1
+status: current
+source: crates/shadows-core/src/turns
+
+
+shapes:
+  Turns:
+    storage: Arc<Storage>
+    # Owns the operations: its `instance_id` goes on every new one.
+    runtime: Arc<Runtime>
+    sessions: Arc<Sessions>
+    # The registry of live turns; closed by shutdown, after which `send`
+    # refuses a new turn with RuntimeStopping.
+    handles: Arc<LiveHandles>
+    # A running turn's live harness events, for every live subscriber.
+    bus: Bus
+  SendTurn:
+    command_id: String
+    prompt: String
+    model: String
+    mode: String
+    # `None` exactly when the chosen model offers no effort (§12.4).
+    effort: Option<String>
+    # Part of the command's fingerprint; checked to be a task of that plan
+    # version, which must be this thread's (TaskNotInPlan otherwise).
+    focus: Option<Focus>
+    # Transport only: not in the fingerprint, never stored; a replay from
+    # another tab is still a replay.
+    client_tab: Option<String>
+  StartError:
+    # What `PlannerTurn::start` answers; carried by `CoreError::Start`, which
+    # is why it is public.
+    RuntimeStopping: unit
+    Storage: StorageError
+  StopOutcome:
+    # The watcher saw the turn's ending, or the harness confirmed the cancel.
+    Cancelled: unit
+    ResolvedByTurn: unit
+    # Nothing registered: the request is recorded and nothing is terminal.
+    NotLive: unit
+    # The registration is restored; nothing terminal is written.
+    TerminationFailed: unit
+  LiveHandles:
+    # A registry of live turns keyed by operation, closed once at shutdown.
+    "0": Mutex<Registry>
+  Operation:
+    id: OperationId
+    kind: String
+    status_kind: String
+    # A plain String, not ThreadId.
+    thread_id: Option<String>
+    runtime_instance_id: RuntimeInstanceId
+    outcome_json: Option<String>
+    failure_stage: Option<String>
+    failure_reason: Option<String>
+    interrupt_reason: Option<String>
+    cancel_requested_at: Option<String>
+    created_at: String
+    started_at: Option<String>
+    finished_at: Option<String>
+    # `None` for an operation from before invocations were recorded.
+    invocation: Option<InvocationView>
+  StartedTurn:
+    operation_id: OperationId
+    entry_id: ThreadEntryId
+    # True when the transaction found the command already recorded.
+    replayed: bool
+    # The focused task's number and title; `None` without a focus and on a
+    # replay.
+    focus_task: Option<(u32, String)>
+
+
+functions:
+  service:
+    send:
+      signature: "(&self, thread_id: ThreadId, turn: SendTurn) -> Result<OperationId, CoreError>"
+      # "turn.start", principal User/local, schema 1, params { thread_id,
+      # prompt, model, mode, effort } and "focus" only when given. Refusals:
+      # RuntimeStopping (registry closed, or TransitionConflict from
+      # `start_turn` while it is closed); HarnessUnavailable; ThreadBusy (early
+      # check, lease Busy, or the transaction); HarnessStartFailed (open, lease
+      # Closed, or the session gone while reading its offer);
+      # SettingNotOffered; ModeNotAllowed; CommandConflict; TaskNotInPlan.
+    stop:
+      signature: "(&self, op: &OperationId) -> Result<Operation, CoreError>"
+      # `PlannerTurn::stop` as `Actor::user("local")`; TerminationFailed is
+      # CoreError::TerminationFailed; otherwise the operation as it now
+      # stands, which may still be Running (NotLive, or a watcher recording).
+      # An unknown operation is NotFound from `request_cancellation`.
+    shut_down:
+      signature: "(&self, bound: Duration, second_signal: impl Future<Output = ()>) -> Result<StopKind, StorageError>"
+      # pub(crate): `AppCore::shut_down`'s only path.
+  steps:
+    record:
+      signature: "(&self, thread_id, opened, context, turn: Turn) -> Result<StartedTurn, CoreError>"
+      private: true
+      # The checks on the leased session, then `start_turn`.
+    offer_for_model:
+      signature: "(&self, thread, opened, model: &str) -> Result<Offered, CoreError>"
+      private: true
+      # The one session change before the transaction: sets the model when
+      # it differs and is offered. It is not undone when a later check refuses.
+    focus_block:
+      signature: "(focus: &Focus, number: u32, title: &str) -> String"
+  live:
+    start:
+      signature: "(runtime, handles, sessions, opened, request: PlannerTurnRequest, bus) -> Result<OperationId, StartError>"
+      # Prepare (context, settings) → register → re-read the cancel request →
+      # mark Running → watch. A refused prepare is Failed { Prepare }.
+    watch_turn:
+      signature: "(w: TurnWatch, rx, bus)"
+      private: true
+  store:
+    start_turn:
+      signature: "(&self, ctx: &CommandContext, turn: NewTurn) -> Result<StartedTurn, StorageError>"
+      # One write: classify (replay), has_open_operation (busy), focus,
+      # insert_pending, the UserMessage entry, agent_invocation,
+      # remember_settings, record_command.
+    replayed_turn:
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<Option<StartedTurn>, StorageError>"
+    thread_is_busy:
+      signature: "(&self, thread: &ThreadId) -> Result<bool, StorageError>"
+    has_open_operation:
+      signature: "(conn, thread: &ThreadId) -> Result<bool, StorageError>"
+      # Any operation of the thread not Completed, Failed, Cancelled or
+      # Interrupted.
+    get_operation:
+      signature: "(&self, op_id: &OperationId) -> Result<Operation, StorageError>"
+    read_before:
+      signature: "(conn, op_id: &OperationId) -> Result<Option<Before>, StorageError>"
+    existed:
+      signature: "(before: Option<Before>) -> Result<Before, StorageError>"
+    record:
+      signature: "(conn, op_id, before: Before, to: &str, event: DurableEvent, ts: &str) -> Result<Transition, StorageError>"
+
+
+enums:
+  Focus:
+    source: crate::plans::Focus
+    values: []
+  Sessions:
+    source: crate::planner::Sessions
+    values: []
+  LeaseError:
+    source: crate::planner::LeaseError
+    values: []
+  CoreError:
+    source: crate::error::CoreError
+    values: []
+  StorageError:
+    source: crate::storage::StorageError
+    values: []
+  StopKind:
+    source: crate::storage::StopKind
+    values: []
+
+
+shared_in_transaction:
+  has_open_operation: "Threads' fork (storage/sqlite/fork.rs fork_thread): a thread with a turn not yet ended cannot be forked, judged inside the fork's own write"
+  read_before: "Runtime recovery (storage/sqlite/runtime.rs reconcile_orphans): reads each orphan's status and thread inside the write that marks it Interrupted"
+  existed: "Runtime recovery (storage/sqlite/runtime.rs reconcile_orphans): the orphan read by read_before existed when its compare-and-swap matched"
+  record: "Runtime recovery (storage/sqlite/runtime.rs reconcile_orphans): each OperationInterrupted event is journaled in the same write as its row, and logged after commit"
+
+
+obligations:
+  - rule: >
+      Replay first. A turn start whose command id and request match a
+      recorded one answers the first operation and starts nothing, before the
+      registry, the harness, the thread's busyness or the project's modes are
+      looked at: a replay is answered while the daemon stops and after the
+      mode was disallowed.
+    tested_by:
+      - turn_start_replays_after_the_move
+      - a_replay_is_answered_while_the_daemon_is_stopping
+      - a_replay_is_answered_even_after_the_mode_was_disallowed
+      - a_replayed_turn_start_starts_nothing_and_returns_the_first_operation
+    note: >
+      The first sends one body twice while the first turn runs and gets one
+      operation id and one operation; the last drives `start_turn` at the
+      store, where the transaction answers the replay.
+
+  - rule: >
+      Replay identity. "turn.start", schema version 1, principal User/local,
+      the caller's command id, params { thread_id, prompt, model, mode,
+      effort }, and "focus" only when one is given; `client_tab` is not a
+      parameter. The same id with another body, or another focus, is
+      CommandConflict.
+    tested_by:
+      - turn_command_fingerprints_do_not_move
+      - a_replay_with_another_body_over_http_is_a_command_conflict
+      - the_same_command_with_another_focus_is_a_command_conflict
+    note: >
+      The first reads the command log for a plain and a focused turn and
+      compares every column with `fingerprint` of those literals; it passes
+      on the code before the move (dc0255e).
+
+  - rule: >
+      A closed registry refuses a new turn with RuntimeStopping, and nothing
+      durable is written for it.
+    tested_by:
+      - a_replay_is_answered_while_the_daemon_is_stopping
+      - a_turn_requested_after_shutdown_began_is_refused
+
+  - rule: >
+      Harness availability. `policy::is_available` is checked on the thread's
+      harness before any session work: an unavailable one is
+      HarnessUnavailable and no adapter is opened.
+    tested_by:
+      - an_unavailable_harness_opens_no_session
+      - a_turn_on_a_codex_thread_is_harness_unavailable
+
+  - rule: >
+      Busy, early. `send` checks `thread_is_busy` after the harness and
+      before `Sessions::open`: a thread with an operation not yet ended is
+      ThreadBusy without an adapter being opened, leased or its model set.
+      No caller performs this check; `send` does.
+    tested_by:
+      - a_busy_thread_is_refused_before_its_session_opens
+      - a_second_start_while_busy_is_thread_busy
+      - a_second_turn_over_http_while_one_runs_is_thread_busy_and_writes_nothing
+    note: >
+      The first holds a Pending operation with no live turn and no lease, so
+      only the early check can refuse it before the session opens; it
+      asserts no session is live. Removing the check fails it (tried on
+      dc0255e).
+
+  - rule: >
+      Busy, atomically. `start_turn` checks `has_open_operation` again inside
+      its `write_txn` (BEGIN IMMEDIATE), after the replay and before any
+      insert: two starts cannot both commit a turn on one thread.
+    tested_by: a_second_turn_while_one_is_running_is_thread_busy
+    note: >
+      It calls `start_turn` twice in sequence at the store; the second is
+      ThreadBusy. No test races two starts: the atomicity rests on
+      `write_txn`'s serialized BEGIN IMMEDIATE, which storage's own tests hold.
+
+  - rule: >
+      Session before lease. The session is opened, then its events leased,
+      before any setting is changed or any row written; the turn holds them
+      from its checks to its ending. A refusal after the lease, a replay found
+      by the transaction, and a Stop before the prompt each give them back.
+    tested_by:
+      - a_refused_start_gives_the_session_back
+      - a_turn_started_during_a_breakdown_read_keeps_its_output
+      - no_breakdown_before_the_first_turn_or_while_one_runs
+      - a_stop_while_pending_cancels_the_turn_before_its_prompt
+    note: >
+      The order itself is structural: `lease_events` takes the `OpenSession`
+      `open` answered. The first test fails when a refused start keeps the
+      events (the next start waits out the lease and is THREAD_BUSY; tried on
+      dc0255e). The replay-in-transaction give-back has no test.
+
+  - rule: >
+      Every check comes before any write: a refused start records no
+      message, operation or command.
+    tested_by:
+      - a_mode_the_project_no_longer_allows_is_refused
+      - an_effort_the_model_does_not_offer_is_refused
+      - a_turn_whose_adapter_cannot_start_writes_nothing
+
+  - rule: >
+      Stop records Cancelled only when the turn is confirmed stopped; a tree
+      that cannot be terminated is TerminationFailed (500
+      PROCESS_TERMINATION_FAILED over HTTP) and the operation stays Running.
+    tested_by:
+      - stop_after_the_move_records_cancelled
+      - stop_is_confirmed_by_the_harness_when_it_answers_cancelled
+      - stop_terminates_the_adapter_when_the_harness_does_not_confirm
+      - a_stop_whose_termination_fails_answers_500_and_cancels_nothing
+
+  - rule: >
+      Shutdown closes the registry, stops every live turn and records the
+      stop kind that is true; its order is unchanged by the move.
+    tested_by: shut_down_through_the_core_cancels_and_records
+    note: >
+      It starts `hang` over HTTP and shuts down through `AppCore`: Graceful,
+      and the turn Cancelled. `tests/shutdown.rs` drives the same
+      `shut_down` below `Turns`.
+
+
+agreements:
+  - between: [thread_is_busy, start_turn]
+    must: >
+      judge a thread busy identically: the early check and the transaction's
+      check refuse the same threads
+    holds: true
+    why: >
+      Both call `has_open_operation`, one on a read connection, one inside
+      the write transaction; nothing else decides busyness on this path.
+    tested_by:
+      - a_busy_thread_is_refused_before_its_session_opens
+      - a_second_turn_while_one_is_running_is_thread_busy
+    note: >
+      Each test proves one side. The same rule's agreement with
+      `harness::change_model` is Harness's contract (Task 8).
+
+  - between: [replayed_turn, start_turn]
+    must: >
+      answer the same recorded command the same way: the early replay and
+      the transaction's replay find the same record and answer its operation
+    holds: true
+    why: >
+      Both call `classify` with the scope "Thread" and the thread's id, and
+      both turn the recorded outcome into a `StartedTurn` through `recorded`.
+    tested_by:
+      - turn_start_replays_after_the_move
+      - a_replayed_turn_start_starts_nothing_and_returns_the_first_operation
+
+
+not_the_caller's:
+  - >
+      Check `thread_is_busy`, or open or lease a session, before `send`:
+      `send` does all three, in the only safe order.
+  - >
+      Build the "turn.start" command or fingerprint it; `send` does, from the
+      same parameters as before the move, so a replay still matches.
+  - >
+      Map a `StopOutcome`, or read the operation after a Stop; `stop` answers
+      TerminationFailed or the operation as it now stands.
+
+
+open_questions:
+  - >
+      `spawn.rs` calls Harness's internals directly (`Sessions::prepare_turn`,
+      widened to pub(crate) for this move, and `setups().context_before_turn`).
+      Whether they go behind `Harness` methods is Task 8's.
+  - >
+      Runtime recovery (`storage/sqlite/runtime.rs reconcile_orphans`) writes
+      operation transitions through this store's `read_before`, `existed` and
+      `record`. Whether recovery moves next to them is for Task 10's
+      narrowing of the store.
+  - >
+      `list_operations_for_thread` and `get_operation` are still called by
+      `shadows-http`'s list route and by tests directly on `Storage`; the
+      list route moves in Task 9, the `impl Storage` methods narrow in Task 10
+      (ruling F6).
+
+
+tests:
+  - name: turn_start_replays_after_the_move
+    checks: >
+      One body sent twice over HTTP answers 202 twice with the same operation
+      id, and the thread has one operation.
+  - name: turn_command_fingerprints_do_not_move
+    checks: >
+      A plain and a focused turn over HTTP leave two command records whose
+      principal, id, kind, schema version and fingerprint equal the literals'.
+  - name: stop_after_the_move_records_cancelled
+    checks: >
+      `hang` started, POST stop answers 200 with the operation; it ends
+      Cancelled.
+  - name: a_second_start_while_busy_is_thread_busy
+    checks: A second start with a new id while `hang` runs is 409 THREAD_BUSY.
+  - name: a_busy_thread_is_refused_before_its_session_opens
+    checks: >
+      With a Pending operation written at the store and nothing live, a start
+      is 409 THREAD_BUSY and no session is live.
+  - name: an_unavailable_harness_opens_no_session
+    checks: A start on a codex thread is 422 HARNESS_UNAVAILABLE and no session is live.
+  - name: a_refused_start_gives_the_session_back
+    checks: >
+      A start with an unlisted model is 422 SETTING_NOT_OFFERED after the
+      session opened; the next start runs to Completed.
+  - name: a_replay_is_answered_while_the_daemon_is_stopping
+    checks: >
+      After the registry closes, the first body replays 202 with its
+      operation id and a new command is 503 RUNTIME_STOPPING.
+  - name: a_replay_is_answered_even_after_the_mode_was_disallowed
+    checks: >
+      After the project drops the turn's mode, the same body replays with the
+      first operation id and one UserMessage exists.
+  - name: a_replayed_turn_start_starts_nothing_and_returns_the_first_operation
+    checks: >
+      At the store, a second `start_turn` with the same command is replayed:
+      same operation and entry, one entry, one operation.
+  - name: a_replay_with_another_body_over_http_is_a_command_conflict
+    checks: The same id with another prompt is 409 COMMAND_CONFLICT.
+  - name: the_same_command_with_another_focus_is_a_command_conflict
+    checks: >
+      The same focus from another tab replays; another focus under the same
+      id is 409 COMMAND_CONFLICT.
+  - name: a_turn_requested_after_shutdown_began_is_refused
+    checks: >
+      After shutdown, a start is RuntimeStopping at the fixture, storage
+      refuses a Pending operation, and HTTP answers 503 RUNTIME_STOPPING with
+      no operation and no entry.
+  - name: a_turn_on_a_codex_thread_is_harness_unavailable
+    checks: A start on a codex thread is 422 HARNESS_UNAVAILABLE.
+  - name: a_second_turn_over_http_while_one_runs_is_thread_busy_and_writes_nothing
+    checks: >
+      While `hang` runs, a second start is 409 THREAD_BUSY and only the
+      running turn's prompt is an entry.
+  - name: a_second_turn_while_one_is_running_is_thread_busy
+    checks: A second `start_turn` at the store while the first is Pending is ThreadBusy.
+  - name: a_turn_started_during_a_breakdown_read_keeps_its_output
+    checks: >
+      A turn sent while `/context` holds the session runs after it and keeps
+      its own reply; no entry holds the breakdown.
+  - name: no_breakdown_before_the_first_turn_or_while_one_runs
+    checks: While `hang` runs, `/context` answers no categories, reason "running".
+  - name: a_stop_while_pending_cancels_the_turn_before_its_prompt
+    checks: >
+      A Stop while Pending is NotLive; the turn then ends Cancelled with only
+      the UserMessage, and the next turn completes on the given-back session.
+  - name: a_mode_the_project_no_longer_allows_is_refused
+    checks: A disallowed mode is 403 MODE_NOT_ALLOWED and there are no entries.
+  - name: an_effort_the_model_does_not_offer_is_refused
+    checks: An unoffered effort is 422 SETTING_NOT_OFFERED and there are no entries.
+  - name: a_turn_whose_adapter_cannot_start_writes_nothing
+    checks: A missing node is 502 HARNESS_START_FAILED, no entries, no operations.
+  - name: stop_is_confirmed_by_the_harness_when_it_answers_cancelled
+    checks: Stop on `hang` is ResolvedByTurn, Cancelled, and the adapter survives.
+  - name: stop_terminates_the_adapter_when_the_harness_does_not_confirm
+    checks: >
+      Stop on `ignore-cancel` is Cancelled after the adapter is terminated
+      (no session live); the next turn completes.
+  - name: a_stop_whose_termination_fails_answers_500_and_cancels_nothing
+    checks: >
+      With termination forced to fail, POST stop is 500
+      PROCESS_TERMINATION_FAILED and the operation stays Running.
+  - name: shut_down_through_the_core_cancels_and_records
+    checks: >
+      `AppCore::shut_down` with `hang` running answers Graceful and the turn
+      ends Cancelled.

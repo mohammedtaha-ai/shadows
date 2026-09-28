@@ -15,11 +15,12 @@ use shadows_agent::claude::ClaudeAdapter;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::events::Actor;
-use shadows_core::operation::{Operation, OperationId};
-use shadows_core::planner::{LiveHandles, PlannerTurn, Sessions, StopOutcome};
+use shadows_core::planner::Sessions;
 use shadows_core::runtime::Runtime;
+use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
 use shadows_core::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_core::{AppCore, CoreParts};
+use shadows_core::{Operation, OperationId};
 use shadows_http::AppState;
 use tower::ServiceExt;
 

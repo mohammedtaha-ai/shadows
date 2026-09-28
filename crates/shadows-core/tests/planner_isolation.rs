@@ -12,11 +12,11 @@ use std::time::Duration;
 
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::events::Actor;
-use shadows_core::operation::{Operation, OperationId};
-use shadows_core::planner::{LiveHandles, PlannerTurn, StopOutcome};
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
+use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
 use shadows_core::thread::ThreadId;
+use shadows_core::{Operation, OperationId};
 
 #[path = "fixtures/acp.rs"]
 mod acp;

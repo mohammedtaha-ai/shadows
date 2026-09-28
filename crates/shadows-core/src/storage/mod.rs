@@ -1,12 +1,11 @@
 mod sqlite;
 
 pub use sqlite::{
-    InstructionsVersion, NewTurn, ReconcileReport, StartedTurn, StopKind, Storage, StorageError,
-    StoredEvent,
+    InstructionsVersion, ReconcileReport, StopKind, Storage, StorageError, StoredEvent,
 };
-// Store helpers a plan write shares inside its one transaction (spec §14.6).
+// Store helpers a plan or turn write shares inside its one transaction (spec §14.6).
 pub(crate) use sqlite::{
-    append_entry_in, append_event, classify, insert_thread, now, record_command,
+    append_entry_in, append_event, classify, insert_thread, now, record_command, remember_settings,
 };
 
 /// Test-only access to a private capability. Compiled in only when the

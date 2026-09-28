@@ -35,12 +35,13 @@
 //! | the adapter exits mid-turn | `Failed { stage: Run }`, "the harness exited during the turn" |
 
 use super::{
-    LiveHandles, OpenSession, Sessions,
     entries::{Collector, Durable},
+    handles::LiveHandles,
+    model::{FailureStage, OperationId},
 };
 use crate::{
     events::Actor,
-    operation::{FailureStage, OperationId},
+    planner::{OpenSession, Sessions},
     runtime::Runtime,
     storage::StorageError,
     thread::{NewThreadEntry, ThreadEntryKind, ThreadId},

@@ -243,7 +243,7 @@ pub fn is_available(kind: &str) -> bool
 pub fn default_modes() -> BTreeMap<String, Vec<String>>
 ```
 
-## `crates/shadows-core/src/app.rs` — 297 lines
+## `crates/shadows-core/src/app.rs` — 286 lines
 
 ```rust
 pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
@@ -257,7 +257,7 @@ pub struct CoreParts {
     pub mcp_url: String,
 }
 pub struct AppCore {}
-// + 8 private fields
+// + 7 private fields
 pub struct StartConfig {
     pub db_path: PathBuf,
     pub node_path: PathBuf,
@@ -270,11 +270,10 @@ impl AppCore {
     pub fn assemble(parts: CoreParts) -> Arc<AppCore>
     pub fn plans(&self) -> &Plans
     pub fn grants(&self) -> &Grants
+    pub fn turns(&self) -> &Turns
     pub async fn shut_down(&self, bound: Duration, second_signal: impl Future<Output = ()>) -> Result<StopKind, CoreError>
     pub fn storage(&self) -> &Arc<Storage>
-    pub fn runtime(&self) -> &Arc<Runtime>
     pub fn sessions(&self) -> &Arc<Sessions>
-    pub fn handles(&self) -> &Arc<LiveHandles>
     pub fn bus(&self) -> &Bus
     pub fn ui_bus(&self) -> &tokio::sync::broadcast::Sender<UiSignal>
 }
@@ -318,7 +317,7 @@ impl Writer {
 pub fn fingerprint(command_kind: &str, params: &serde_json::Value) -> String
 ```
 
-## `crates/shadows-core/src/error.rs` — 150 lines
+## `crates/shadows-core/src/error.rs` — 151 lines
 
 ```rust
 pub enum ErrorCode {
@@ -530,7 +529,7 @@ pub(crate) async fn bind_draft_ref(conn: &mut SqliteConnection, writer: &Writer,
 pub(crate) use newtype_id;
 ```
 
-## `crates/shadows-core/src/lib.rs` — 28 lines
+## `crates/shadows-core/src/lib.rs` — 30 lines
 
 ```rust
 pub use app::{AppCore, CoreParts, StartConfig};
@@ -539,55 +538,7 @@ pub use events::UiSignal;
 pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};
 pub use plans::{ AcceptanceItem, Approved, DraftStart, DraftStarted, EditOutcome, Focus, LastEdit, Link, LinkKind, Place, Plan, PlanContent, PlanEdit, PlanListing, PlanOp, PlanShow, PlanShown, PlanTask, Plans, Problem, TaskContent, TaskId, WorkflowId, WorkflowState, };
 pub use storage::StopKind;
-```
-
-## `crates/shadows-core/src/operation/mod.rs` — 75 lines
-
-```rust
-pub struct OperationId(String);
-impl OperationId {
-    pub fn generate() -> Self
-    pub fn as_str(&self) -> &str
-    pub(crate) fn from_stored(id: String) -> Self
-    pub fn from_literal(id: impl Into<String>) -> Self
-}
-
-pub enum FailureStage {
-    Prepare,
-    Spawn,
-    Run,
-}
-impl FailureStage {
-    pub fn as_str(self) -> &'static str
-}
-
-pub struct Operation {
-    pub id: OperationId,
-    pub kind: String,
-    pub status_kind: String,
-    pub thread_id: Option<String>,
-    pub runtime_instance_id: RuntimeInstanceId,
-    pub outcome_json: Option<String>,
-    pub failure_stage: Option<String>,
-    pub failure_reason: Option<String>,
-    pub interrupt_reason: Option<String>,
-    pub cancel_requested_at: Option<String>,
-    pub created_at: String,
-    pub started_at: Option<String>,
-    pub finished_at: Option<String>,
-    pub invocation: Option<InvocationView>,
-}
-pub struct InvocationView {
-    pub harness_kind: String,
-    pub harness_version: String,
-    pub agent_version: String,
-    pub requested_model: String,
-    pub requested_mode: String,
-    pub requested_effort: Option<String>,
-    pub observed_model: Option<String>,
-    pub context_used: Option<i64>,
-    pub context_window: Option<i64>,
-}
+pub use turns::{InvocationView, Operation, OperationId, SendTurn, StartError, Turns};
 ```
 
 ## `crates/shadows-core/src/planner/context.rs` — 101 lines
@@ -609,65 +560,13 @@ impl Sessions {
 }
 ```
 
-## `crates/shadows-core/src/planner/entries.rs` — 151 lines
-
-```rust
-pub(crate) enum Durable {
-    Message(String),
-    Tool(String),
-    PermissionRefused(String),
-}
-pub(crate) struct Collector {}
-// + 3 private fields
-impl Collector {
-    pub(crate) fn new() -> Self
-    pub(crate) fn push(&mut self, event: &HarnessEvent) -> Vec<Durable>
-    pub(crate) fn finish(&mut self) -> Vec<Durable>
-}
-```
-
-## `crates/shadows-core/src/planner/handles.rs` — 83 lines
-
-```rust
-pub(crate) struct LiveTurn {
-    pub(crate) thread_id: ThreadId,
-    pub(crate) session: OpenSession,
-    pub(crate) client_tab: Option<String>,
-    pub(crate) turn_end_seen: Arc<AtomicBool>,
-    pub(crate) cancel_requested: Arc<AtomicBool>,
-    pub(crate) span: tracing::Span,
-}
-pub(crate) struct Registry {
-    pub(crate) turns: HashMap<OperationId, LiveTurn>,
-}
-// + 1 private field
-pub struct LiveHandles(pub(crate) Mutex<Registry>);
-impl LiveHandles {
-    pub(crate) async fn register(&self, op: OperationId, turn: LiveTurn) -> Result<(), Box<LiveTurn>>
-    pub(crate) async fn claim(&self, op: &OperationId) -> Option<LiveTurn>
-    pub(crate) async fn contains_internal(&self, op: &OperationId) -> bool
-    pub(crate) async fn restore(&self, op: OperationId, turn: LiveTurn)
-    pub(crate) async fn close(&self) -> Vec<OperationId>
-    pub async fn running_for(&self, thread: &ThreadId) -> Option<OperationId>
-    pub async fn running_turn(&self, thread: &ThreadId) -> Option<(OperationId, Option<String>)>
-    pub async fn is_closed(&self) -> bool
-    pub async fn contains(&self, op: &OperationId) -> bool
-    pub async fn close_for_test(&self)
-}
-```
-
-## `crates/shadows-core/src/planner/mod.rs` — 23 lines
+## `crates/shadows-core/src/planner/mod.rs` — 13 lines
 
 ```rust
 pub use context::NoBreakdown;
-pub use handles::LiveHandles;
-pub(crate) use handles::LiveTurn;
 pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig};
 pub use settings::ModelRefused;
 pub use setup::prompt_version;
-pub use shutdown::shut_down;
-pub use spawn::{PlannerTurnRequest, StartError, focus_block};
-pub use turn::{PlannerTurn, StopOutcome};
 ```
 
 ## `crates/shadows-core/src/planner/offers.rs` — 78 lines
@@ -763,7 +662,7 @@ impl Sessions {
     pub async fn set_option(&self, thread: &ThreadId, opened: &OpenSession, config_id: &str, value: &str) -> Result<Offered, AcpError>
     pub async fn change_model(&self, thread: &ThreadId, opened: &OpenSession, model: &str) -> Result<Offered, ModelRefused>
     pub(super) async fn apply_opening_settings(&self, thread: &ThreadId, opened: &OpenSession, mut offered: Offered, default_mode: &str, remembered: Option<(String, Option<String>)>) -> Result<(), AcpError>
-    pub(super) async fn prepare_turn(&self, thread: &ThreadId, opened: &OpenSession, settings: &TurnSettings) -> Result<(), String>
+    pub(crate) async fn prepare_turn(&self, thread: &ThreadId, opened: &OpenSession, settings: &TurnSettings) -> Result<(), String>
 }
 ```
 
@@ -778,65 +677,6 @@ impl Setups {
     pub(crate) async fn for_opening(&self, thread: &ThreadId, project: &ProjectId) -> Result<SessionSetup, String>
     pub(crate) async fn context_before_turn(&self, thread: &ThreadId) -> Result<Option<String>, StorageError>
     pub(crate) async fn forget(&self, thread: &ThreadId)
-}
-```
-
-## `crates/shadows-core/src/planner/shutdown.rs` — 160 lines
-
-```rust
-pub async fn shut_down(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, confirm_within: Duration, escalate: impl Future<Output = ()>) -> Result<StopKind, StorageError>
-```
-
-## `crates/shadows-core/src/planner/spawn.rs` — 189 lines
-
-```rust
-pub enum StartError {
-    RuntimeStopping,
-    Storage(StorageError),
-}
-pub fn focus_block(focus: &Focus, number: u32, title: &str) -> String
-pub struct PlannerTurnRequest {
-    pub thread_id: ThreadId,
-    pub harness: String,
-    pub operation_id: OperationId,
-    pub prompt: String,
-    pub settings: TurnSettings,
-    pub focus: Option<String>,
-    pub client_tab: Option<String>,
-    pub events: mpsc::UnboundedReceiver<HarnessEvent>,
-}
-impl PlannerTurn {
-    pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, opened: OpenSession, request: PlannerTurnRequest, bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>) -> Result<OperationId, StartError>
-}
-```
-
-## `crates/shadows-core/src/planner/turn.rs` — 299 lines
-
-```rust
-pub struct PlannerTurn;
-pub enum StopOutcome {
-    Cancelled,
-    ResolvedByTurn,
-    NotLive,
-    TerminationFailed,
-}
-pub(crate) struct TurnWatch {
-    pub op_id: OperationId,
-    pub runtime: Arc<Runtime>,
-    pub handles: Arc<LiveHandles>,
-    pub sessions: Arc<Sessions>,
-    pub opened: OpenSession,
-    pub thread_id: ThreadId,
-    pub harness: String,
-    pub prompt: String,
-    pub context: Vec<String>,
-    pub turn_end_seen: Arc<AtomicBool>,
-    pub cancel_requested: Arc<AtomicBool>,
-    pub span: tracing::Span,
-}
-pub(crate) fn watch_turn(w: TurnWatch, mut rx: mpsc::UnboundedReceiver<HarnessEvent>, bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>)
-impl PlannerTurn {
-    pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, op_id: &OperationId, requester: Actor) -> Result<StopOutcome, StorageError>
 }
 ```
 
@@ -1217,11 +1057,11 @@ impl Runtime {
 }
 ```
 
-## `crates/shadows-core/src/storage/mod.rs` — 33 lines
+## `crates/shadows-core/src/storage/mod.rs` — 32 lines
 
 ```rust
-pub use sqlite::{ InstructionsVersion, NewTurn, ReconcileReport, StartedTurn, StopKind, Storage, StorageError, StoredEvent, };
-pub(crate) use sqlite::{ append_entry_in, append_event, classify, insert_thread, now, record_command, };
+pub use sqlite::{ InstructionsVersion, ReconcileReport, StopKind, Storage, StorageError, StoredEvent, };
+pub(crate) use sqlite::{ append_entry_in, append_event, classify, insert_thread, now, record_command, remember_settings, };
 pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
@@ -1278,7 +1118,7 @@ impl Storage {
 ## `crates/shadows-core/src/storage/sqlite/harness.rs` — 128 lines
 
 ```rust
-pub(in crate::storage) async fn remember_settings(conn: &mut SqliteConnection, kind: &str, settings: &TurnSettings, ts: &str) -> Result<(), StorageError>
+pub(crate) async fn remember_settings(conn: &mut SqliteConnection, kind: &str, settings: &TurnSettings, ts: &str) -> Result<(), StorageError>
 impl Storage {
     pub async fn remembered_settings(&self, kind: &str) -> Result<Option<(String, Option<String>)>, StorageError>
     pub async fn remember_for_test(&self, kind: &str, model: &str, effort: Option<&str>)
@@ -1302,16 +1142,16 @@ impl Storage {
 }
 ```
 
-## `crates/shadows-core/src/storage/sqlite/mod.rs` — 305 lines
+## `crates/shadows-core/src/storage/sqlite/mod.rs` — 302 lines
 
 ```rust
 pub use events_read::StoredEvent;
 pub use instructions::InstructionsVersion;
 pub use runtime::{ReconcileReport, StopKind};
-pub use turn::{NewTurn, StartedTurn};
 pub(crate) use command::{classify, record_command};
 pub(crate) use entry::append_entry_in;
 pub(crate) use events::append_event;
+pub(crate) use harness::remember_settings;
 pub(crate) use thread::insert_thread;
 pub(crate) fn now() -> String
 pub enum StorageError {
@@ -1341,32 +1181,6 @@ impl Storage {
     pub fn watch_committed(&self) -> watch::Receiver<i64>
     pub async fn write_txn<F, T>(&self, f: F) -> Result<T, StorageError> where F: for<'a> FnOnce(&'a mut SqliteConnection) -> BoxFuture<'a, Result<T, StorageError>>,
 }
-```
-
-## `crates/shadows-core/src/storage/sqlite/operation.rs` — 336 lines
-
-```rust
-pub(super) async fn insert_pending(conn: &mut SqliteConnection, op_id: &OperationId, thread_id: &ThreadId, runtime_id: &RuntimeInstanceId, ts: &str) -> Result<Transition, StorageError>
-impl Storage {
-    pub async fn create_pending_operation(&self, thread_id: &ThreadId, runtime_instance_id: &RuntimeInstanceId) -> Result<OperationId, StorageError>
-    pub async fn mark_operation_started(&self, op_id: &OperationId, expected_runtime: &RuntimeInstanceId) -> Result<(), StorageError>
-    pub async fn mark_operation_completed(&self, op_id: &OperationId, outcome: serde_json::Value, observation: &TurnObservation) -> Result<(), StorageError>
-    pub async fn mark_operation_failed(&self, op_id: &OperationId, stage: FailureStage, reason: &str) -> Result<(), StorageError>
-    pub async fn request_cancellation(&self, op_id: &OperationId, requester: Actor) -> Result<(), StorageError>
-    pub async fn mark_operation_cancelled(&self, op_id: &OperationId) -> Result<(), StorageError>
-}
-```
-
-## `crates/shadows-core/src/storage/sqlite/operation_read.rs` — 182 lines
-
-```rust
-impl Storage {
-    pub async fn get_operation(&self, op_id: &OperationId) -> Result<Operation, StorageError>
-    pub async fn list_operations_for_thread(&self, thread_id: &ThreadId) -> Result<Vec<Operation>, StorageError>
-    pub async fn non_terminal_operations_owned_by(&self, runtime: &RuntimeInstanceId) -> Result<Vec<OperationId>, StorageError>
-}
-
-pub(super) async fn invocation_of(conn: &mut SqliteConnection, op: &OperationId) -> Result<Option<InvocationView>, StorageError>
 ```
 
 ## `crates/shadows-core/src/storage/sqlite/project.rs` — 250 lines
@@ -1413,62 +1227,7 @@ pub(crate) async fn insert_thread(conn: &mut SqliteConnection, project_id: &Proj
 pub(super) async fn load_thread(conn: &mut SqliteConnection, id: &ThreadId) -> Result<PlanningThread, StorageError>
 ```
 
-## `crates/shadows-core/src/storage/sqlite/transition.rs` — 132 lines
-
-```rust
-pub(super) struct Before {}
-// + 2 private fields
-impl Before {
-    pub(super) fn creating(thread: ThreadId) -> Self
-    pub(super) fn status(&self) -> &str
-}
-
-pub(super) fn existed(before: Option<Before>) -> Result<Before, StorageError>
-pub(super) async fn read_before(conn: &mut SqliteConnection, op_id: &OperationId) -> Result<Option<Before>, StorageError>
-pub(super) struct Transition {}
-// + 6 private fields
-impl Transition {
-    pub(super) fn with_detail(mut self, detail: String) -> Self
-    pub(super) fn log(&self)
-}
-
-pub(super) async fn record(conn: &mut SqliteConnection, op_id: &OperationId, before: Before, to: &str, event: DurableEvent, ts: &str) -> Result<Transition, StorageError>
-```
-
-## `crates/shadows-core/src/storage/sqlite/turn.rs` — 283 lines
-
-```rust
-pub struct NewTurn<'a> {
-    pub thread_id: &'a ThreadId,
-    pub runtime: &'a RuntimeInstanceId,
-    pub prompt: &'a str,
-    pub role: &'a str,
-    pub harness_kind: &'a str,
-    pub harness_path: &'a str,
-    pub harness_version: &'a str,
-    pub agent_path: &'a str,
-    pub agent_version: &'a str,
-    pub settings: &'a TurnSettings,
-    pub prompt_version: Option<&'a str>,
-    pub instructions_version: Option<&'a str>,
-    pub focus: Option<&'a Focus>,
-}
-pub struct StartedTurn {
-    pub operation_id: OperationId,
-    pub entry_id: ThreadEntryId,
-    pub replayed: bool,
-    pub focus_task: Option<(u32, String)>,
-}
-pub(super) async fn has_open_operation(conn: &mut SqliteConnection, thread: &ThreadId) -> Result<bool, StorageError>
-impl Storage {
-    pub async fn start_turn(&self, ctx: &CommandContext, turn: NewTurn<'_>) -> Result<StartedTurn, StorageError>
-    pub async fn replayed_turn(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<Option<StartedTurn>, StorageError>
-    pub async fn latest_invocation_versions(&self, thread: &ThreadId) -> Result<Option<(Option<String>, Option<String>)>, StorageError>
-    pub async fn thread_is_busy(&self, thread: &ThreadId) -> Result<bool, StorageError>
-}
-```
-
-## `crates/shadows-core/src/testing.rs` — 45 lines
+## `crates/shadows-core/src/testing.rs` — 53 lines
 
 ```rust
 pub fn fake_acp_path() -> std::path::PathBuf
@@ -1476,6 +1235,8 @@ pub fn tree_probe_path() -> std::path::PathBuf
 pub const PROMPT: &str = include_str!("planner/prompt.txt");
 pub fn migrations_dir() -> std::path::PathBuf
 pub use crate::plans::for_tests::{Applied, apply, approval_problems, edit_problems};
+pub use crate::turns::LiveHandles;
+pub use crate::turns::for_tests::{ FailureStage, NewTurn, PlannerTurn, PlannerTurnRequest, StartedTurn, StopOutcome, shut_down, };
 ```
 
 ## `crates/shadows-core/src/thread/mod.rs` — 149 lines
@@ -1552,7 +1313,282 @@ pub enum EntryRef {
 }
 ```
 
-## `crates/shadows-http/src/conversation.rs` — 399 lines
+## `crates/shadows-core/src/turns/entries.rs` — 151 lines
+
+```rust
+pub(crate) enum Durable {
+    Message(String),
+    Tool(String),
+    PermissionRefused(String),
+}
+pub(crate) struct Collector {}
+// + 3 private fields
+impl Collector {
+    pub(crate) fn new() -> Self
+    pub(crate) fn push(&mut self, event: &HarnessEvent) -> Vec<Durable>
+    pub(crate) fn finish(&mut self) -> Vec<Durable>
+}
+```
+
+## `crates/shadows-core/src/turns/handles.rs` — 83 lines
+
+```rust
+pub(crate) struct LiveTurn {
+    pub(crate) thread_id: ThreadId,
+    pub(crate) session: OpenSession,
+    pub(crate) client_tab: Option<String>,
+    pub(crate) turn_end_seen: Arc<AtomicBool>,
+    pub(crate) cancel_requested: Arc<AtomicBool>,
+    pub(crate) span: tracing::Span,
+}
+pub(crate) struct Registry {
+    pub(crate) turns: HashMap<OperationId, LiveTurn>,
+}
+// + 1 private field
+pub struct LiveHandles(pub(crate) Mutex<Registry>);
+impl LiveHandles {
+    pub(crate) async fn register(&self, op: OperationId, turn: LiveTurn) -> Result<(), Box<LiveTurn>>
+    pub(crate) async fn claim(&self, op: &OperationId) -> Option<LiveTurn>
+    pub(crate) async fn contains_internal(&self, op: &OperationId) -> bool
+    pub(crate) async fn restore(&self, op: OperationId, turn: LiveTurn)
+    pub(crate) async fn close(&self) -> Vec<OperationId>
+    pub async fn running_for(&self, thread: &ThreadId) -> Option<OperationId>
+    pub async fn running_turn(&self, thread: &ThreadId) -> Option<(OperationId, Option<String>)>
+    pub async fn is_closed(&self) -> bool
+    pub async fn contains(&self, op: &OperationId) -> bool
+    pub async fn close_for_test(&self)
+}
+```
+
+## `crates/shadows-core/src/turns/mod.rs` — 341 lines
+
+```rust
+pub use handles::LiveHandles;
+pub use model::{InvocationView, Operation, OperationId};
+pub use spawn::StartError;
+pub(crate) use store::{existed, has_open_operation, read_before, record};
+pub use super::model::FailureStage;
+pub use super::shutdown::shut_down;
+pub use super::spawn::PlannerTurnRequest;
+pub use super::store::{NewTurn, StartedTurn};
+pub use super::turn::{PlannerTurn, StopOutcome};
+pub struct Turns {}
+// + 5 private fields
+pub struct SendTurn {
+    pub command_id: String,
+    pub prompt: String,
+    pub model: String,
+    pub mode: String,
+    pub effort: Option<String>,
+    pub focus: Option<Focus>,
+    pub client_tab: Option<String>,
+}
+impl Turns {
+    pub(crate) fn new(storage: Arc<Storage>, runtime: Arc<Runtime>, sessions: Arc<Sessions>, handles: Arc<LiveHandles>, bus: Bus) -> Self
+    pub async fn send(&self, thread_id: ThreadId, turn: SendTurn) -> Result<OperationId, CoreError>
+    pub async fn stop(&self, op: &OperationId) -> Result<Operation, CoreError>
+    pub(crate) async fn shut_down(&self, bound: Duration, second_signal: impl Future<Output = ()>) -> Result<StopKind, StorageError>
+}
+```
+
+## `crates/shadows-core/src/turns/model.rs` — 75 lines
+
+```rust
+pub struct OperationId(String);
+impl OperationId {
+    pub fn generate() -> Self
+    pub fn as_str(&self) -> &str
+    pub(crate) fn from_stored(id: String) -> Self
+    pub fn from_literal(id: impl Into<String>) -> Self
+}
+
+pub enum FailureStage {
+    Prepare,
+    Spawn,
+    Run,
+}
+impl FailureStage {
+    pub fn as_str(self) -> &'static str
+}
+
+pub struct Operation {
+    pub id: OperationId,
+    pub kind: String,
+    pub status_kind: String,
+    pub thread_id: Option<String>,
+    pub runtime_instance_id: RuntimeInstanceId,
+    pub outcome_json: Option<String>,
+    pub failure_stage: Option<String>,
+    pub failure_reason: Option<String>,
+    pub interrupt_reason: Option<String>,
+    pub cancel_requested_at: Option<String>,
+    pub created_at: String,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
+    pub invocation: Option<InvocationView>,
+}
+pub struct InvocationView {
+    pub harness_kind: String,
+    pub harness_version: String,
+    pub agent_version: String,
+    pub requested_model: String,
+    pub requested_mode: String,
+    pub requested_effort: Option<String>,
+    pub observed_model: Option<String>,
+    pub context_used: Option<i64>,
+    pub context_window: Option<i64>,
+}
+```
+
+## `crates/shadows-core/src/turns/shutdown.rs` — 162 lines
+
+```rust
+pub async fn shut_down(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, confirm_within: Duration, escalate: impl Future<Output = ()>) -> Result<StopKind, StorageError>
+```
+
+## `crates/shadows-core/src/turns/spawn.rs` — 190 lines
+
+```rust
+pub enum StartError {
+    RuntimeStopping,
+    Storage(StorageError),
+}
+pub fn focus_block(focus: &Focus, number: u32, title: &str) -> String
+pub struct PlannerTurnRequest {
+    pub thread_id: ThreadId,
+    pub harness: String,
+    pub operation_id: OperationId,
+    pub prompt: String,
+    pub settings: TurnSettings,
+    pub focus: Option<String>,
+    pub client_tab: Option<String>,
+    pub events: mpsc::UnboundedReceiver<HarnessEvent>,
+}
+impl PlannerTurn {
+    pub async fn start(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, opened: OpenSession, request: PlannerTurnRequest, bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>) -> Result<OperationId, StartError>
+}
+```
+
+## `crates/shadows-core/src/turns/store/mod.rs` — 18 lines
+
+```rust
+pub(crate) use transition::{existed, read_before, record};
+pub(crate) use turn::has_open_operation;
+pub use turn::{NewTurn, StartedTurn};
+```
+
+## `crates/shadows-core/src/turns/store/operation.rs` — 336 lines
+
+```rust
+pub(super) async fn insert_pending(conn: &mut SqliteConnection, op_id: &OperationId, thread_id: &ThreadId, runtime_id: &RuntimeInstanceId, ts: &str) -> Result<Transition, StorageError>
+impl Storage {
+    pub async fn create_pending_operation(&self, thread_id: &ThreadId, runtime_instance_id: &RuntimeInstanceId) -> Result<OperationId, StorageError>
+    pub async fn mark_operation_started(&self, op_id: &OperationId, expected_runtime: &RuntimeInstanceId) -> Result<(), StorageError>
+    pub async fn mark_operation_completed(&self, op_id: &OperationId, outcome: serde_json::Value, observation: &TurnObservation) -> Result<(), StorageError>
+    pub async fn mark_operation_failed(&self, op_id: &OperationId, stage: FailureStage, reason: &str) -> Result<(), StorageError>
+    pub async fn request_cancellation(&self, op_id: &OperationId, requester: Actor) -> Result<(), StorageError>
+    pub async fn mark_operation_cancelled(&self, op_id: &OperationId) -> Result<(), StorageError>
+}
+```
+
+## `crates/shadows-core/src/turns/store/operation_read.rs` — 182 lines
+
+```rust
+impl Storage {
+    pub async fn get_operation(&self, op_id: &OperationId) -> Result<Operation, StorageError>
+    pub async fn list_operations_for_thread(&self, thread_id: &ThreadId) -> Result<Vec<Operation>, StorageError>
+    pub async fn non_terminal_operations_owned_by(&self, runtime: &RuntimeInstanceId) -> Result<Vec<OperationId>, StorageError>
+}
+
+pub(super) async fn invocation_of(conn: &mut SqliteConnection, op: &OperationId) -> Result<Option<InvocationView>, StorageError>
+```
+
+## `crates/shadows-core/src/turns/store/transition.rs` — 132 lines
+
+```rust
+pub(crate) struct Before {}
+// + 2 private fields
+impl Before {
+    pub(super) fn creating(thread: ThreadId) -> Self
+    pub(super) fn status(&self) -> &str
+}
+
+pub(crate) fn existed(before: Option<Before>) -> Result<Before, StorageError>
+pub(crate) async fn read_before(conn: &mut SqliteConnection, op_id: &OperationId) -> Result<Option<Before>, StorageError>
+pub(crate) struct Transition {}
+// + 6 private fields
+impl Transition {
+    pub(crate) fn with_detail(mut self, detail: String) -> Self
+    pub(crate) fn log(&self)
+}
+
+pub(crate) async fn record(conn: &mut SqliteConnection, op_id: &OperationId, before: Before, to: &str, event: DurableEvent, ts: &str) -> Result<Transition, StorageError>
+```
+
+## `crates/shadows-core/src/turns/store/turn.rs` — 282 lines
+
+```rust
+pub struct NewTurn<'a> {
+    pub thread_id: &'a ThreadId,
+    pub runtime: &'a RuntimeInstanceId,
+    pub prompt: &'a str,
+    pub role: &'a str,
+    pub harness_kind: &'a str,
+    pub harness_path: &'a str,
+    pub harness_version: &'a str,
+    pub agent_path: &'a str,
+    pub agent_version: &'a str,
+    pub settings: &'a TurnSettings,
+    pub prompt_version: Option<&'a str>,
+    pub instructions_version: Option<&'a str>,
+    pub focus: Option<&'a Focus>,
+}
+pub struct StartedTurn {
+    pub operation_id: OperationId,
+    pub entry_id: ThreadEntryId,
+    pub replayed: bool,
+    pub focus_task: Option<(u32, String)>,
+}
+pub(crate) async fn has_open_operation(conn: &mut SqliteConnection, thread: &ThreadId) -> Result<bool, StorageError>
+impl Storage {
+    pub async fn start_turn(&self, ctx: &CommandContext, turn: NewTurn<'_>) -> Result<StartedTurn, StorageError>
+    pub async fn replayed_turn(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<Option<StartedTurn>, StorageError>
+    pub async fn latest_invocation_versions(&self, thread: &ThreadId) -> Result<Option<(Option<String>, Option<String>)>, StorageError>
+    pub async fn thread_is_busy(&self, thread: &ThreadId) -> Result<bool, StorageError>
+}
+```
+
+## `crates/shadows-core/src/turns/turn.rs` — 300 lines
+
+```rust
+pub struct PlannerTurn;
+pub enum StopOutcome {
+    Cancelled,
+    ResolvedByTurn,
+    NotLive,
+    TerminationFailed,
+}
+pub(crate) struct TurnWatch {
+    pub op_id: OperationId,
+    pub runtime: Arc<Runtime>,
+    pub handles: Arc<LiveHandles>,
+    pub sessions: Arc<Sessions>,
+    pub opened: OpenSession,
+    pub thread_id: ThreadId,
+    pub harness: String,
+    pub prompt: String,
+    pub context: Vec<String>,
+    pub turn_end_seen: Arc<AtomicBool>,
+    pub cancel_requested: Arc<AtomicBool>,
+    pub span: tracing::Span,
+}
+pub(crate) fn watch_turn(w: TurnWatch, mut rx: mpsc::UnboundedReceiver<HarnessEvent>, bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>)
+impl PlannerTurn {
+    pub async fn stop(runtime: Arc<Runtime>, handles: Arc<LiveHandles>, sessions: Arc<Sessions>, op_id: &OperationId, requester: Actor) -> Result<StopOutcome, StorageError>
+}
+```
+
+## `crates/shadows-http/src/conversation.rs` — 198 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
