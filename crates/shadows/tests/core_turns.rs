@@ -10,7 +10,8 @@ mod app;
 mod plan;
 
 use app::{
-    App, create_thread, default_settings, http_start, post, start_settled, test_app, wait_terminal,
+    App, create_thread, default_settings, get_json, http_start, post, start_settled, test_app,
+    wait_terminal,
 };
 use plan::{add, draft, edit};
 use serde_json::{Value, json};
@@ -107,6 +108,42 @@ async fn a_refused_start_gives_the_session_back() {
     let (s, b) = http_start(&app, app.thread.as_str(), body).await;
     assert_eq!((s, b["code"].as_str()), (422, Some("SETTING_NOT_OFFERED")));
     assert_eq!(app.sessions.live_count().await, 1, "the session was opened");
+    let op = start_settled(&app, "hi").await;
+    assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
+}
+
+/// A replay found only by the transaction also gives the session back. Two
+/// sends of one command both pass the early replay check while a `/context`
+/// read holds the session; the first to lease it commits and runs, and the
+/// other, leasing after that turn, is answered the first operation by
+/// `start_turn`. Were its events kept, the next turn would wait out the lease
+/// and be busy.
+#[tokio::test]
+async fn a_replay_found_by_the_transaction_gives_the_session_back() {
+    let app = test_app().await;
+    wait_terminal(&app, &start_settled(&app, "hi").await).await;
+    let thread = app.thread.as_str().to_string();
+    let path = format!("/api/threads/{thread}/context");
+    // The fake answers an adapter's first `/context` after a second.
+    let (breakdown, ((s1, first), (s2, again))) =
+        tokio::join!(get_json::<Value>(&app, &path), async {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            tokio::join!(
+                http_start(&app, &thread, turn("raced", "hi")),
+                http_start(&app, &thread, turn("raced", "hi")),
+            )
+        });
+    assert!(breakdown["categories"].is_array(), "{breakdown}");
+    assert_eq!((s1, s2), (202, 202), "{first} {again}");
+    assert_eq!(first["operation_id"], again["operation_id"]);
+    let ops = app
+        .storage
+        .list_operations_for_thread(&app.thread)
+        .await
+        .unwrap();
+    assert_eq!(ops.len(), 2, "the settled turn and one raced turn");
+    let raced = OperationId::from_literal(first["operation_id"].as_str().unwrap());
+    wait_terminal(&app, &raced).await;
     let op = start_settled(&app, "hi").await;
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
 }

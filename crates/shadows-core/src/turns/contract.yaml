@@ -205,9 +205,12 @@ obligations:
       - a_replay_is_answered_even_after_the_mode_was_disallowed
       - a_replayed_turn_start_starts_nothing_and_returns_the_first_operation
     note: >
-      The first sends one body twice while the first turn runs and gets one
-      operation id and one operation; the last drives `start_turn` at the
-      store, where the transaction answers the replay.
+      The first sends one body twice and gets one operation id and one
+      operation; it does not hold the first turn running, so it proves the
+      answer, not the order. The order is proved against the registry and the
+      modes by the next two; no test replays while the harness is unavailable
+      or the thread busy. The last drives `start_turn` at the store, where the
+      transaction answers the replay.
 
   - rule: >
       Replay identity. "turn.start", schema version 1, principal User/local,
@@ -271,6 +274,7 @@ obligations:
       by the transaction, and a Stop before the prompt each give them back.
     tested_by:
       - a_refused_start_gives_the_session_back
+      - a_replay_found_by_the_transaction_gives_the_session_back
       - a_turn_started_during_a_breakdown_read_keeps_its_output
       - no_breakdown_before_the_first_turn_or_while_one_runs
       - a_stop_while_pending_cancels_the_turn_before_its_prompt
@@ -278,7 +282,10 @@ obligations:
       The order itself is structural: `lease_events` takes the `OpenSession`
       `open` answered. The first test fails when a refused start keeps the
       events (the next start waits out the lease and is THREAD_BUSY; tried on
-      dc0255e). The replay-in-transaction give-back has no test.
+      dc0255e). The second races two sends of one command behind a
+      `/context` read, so the later one's replay is found only by
+      `start_turn`; it fails when that path keeps the events (tried on
+      a6fa191).
 
   - rule: >
       Every check comes before any write: a refused start records no
@@ -391,6 +398,11 @@ tests:
     checks: >
       A start with an unlisted model is 422 SETTING_NOT_OFFERED after the
       session opened; the next start runs to Completed.
+  - name: a_replay_found_by_the_transaction_gives_the_session_back
+    checks: >
+      Two sends of one command while a `/context` read holds the session both
+      answer 202 with one operation id and one operation is written; the next
+      start runs to Completed.
   - name: a_replay_is_answered_while_the_daemon_is_stopping
     checks: >
       After the registry closes, the first body replays 202 with its
