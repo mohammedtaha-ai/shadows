@@ -9,8 +9,7 @@
 //! a thread itself), `workflow.rs` (plan versions and their approval),
 //! `grants.rs` (external agents' MCP grants), `instructions.rs` (a project's
 //! Planner instructions),
-//! `sse.rs` (the replay-then-live stream), `ui_signal.rs` (the live-only
-//! signal that moves a tab), `fs.rs` (choosing a project directory),
+//! `sse.rs` (the replay-then-live stream), `fs.rs` (choosing a project directory),
 //! `openapi.rs` (the document describing all of it), `failure.rs` (the
 //! transport mapping), `guard.rs` (refusing requests pages were made to send).
 //! A new feature adds a file or a route to one of them.
@@ -30,12 +29,10 @@ mod openapi;
 mod project;
 pub mod sse;
 mod thread;
-mod ui_signal;
 mod workflow;
 
 pub use failure::Failure;
 pub use openapi::document as openapi_document;
-pub use ui_signal::UiSignal;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -49,6 +46,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
 use shadows_agent::events::HarnessEvent;
+use shadows_core::events::UiSignal;
 use shadows_core::operation::OperationId;
 use shadows_core::planner::{LiveHandles, Sessions};
 use shadows_core::runtime::Runtime;
@@ -82,7 +80,11 @@ pub struct AppState {
 
 /// Spec §1: the daemon serves no page — there is no `GET /`. A client is
 /// served from its own origin and reaches this API cross-origin.
-pub fn router(state: AppState) -> Router {
+///
+/// `mcp` is `/mcp` (`shadows_mcp::service`), passed in so this crate does not
+/// depend on the MCP adapter (spec §14.5). It is mounted outside
+/// `rejections_as_error_bodies` and inside the guard, as it always was.
+pub fn router(state: AppState, mcp: Router) -> Router {
     let cors = cors(&state.allowed_origins);
     let guard = axum::middleware::from_fn_with_state(state.clone(), guard::refuse_foreign_pages);
     let (routes, _document) = routes().split_for_parts();
@@ -95,11 +97,7 @@ pub fn router(state: AppState) -> Router {
         ))
         // `/mcp` is MCP's own transport (§13.6): its refusals are not
         // `ErrorBody`s, so it joins after that layer and before the guard.
-        .merge(crate::mcp::service(crate::mcp::McpState {
-            storage: state.storage.clone(),
-            handles: state.handles.clone(),
-            ui: state.ui.clone(),
-        }))
+        .merge(mcp)
         // Inside the CORS layer: a preflight is answered before it gets here,
         // and a refusal sent to an allowed origin still carries the header
         // that lets that client read why.

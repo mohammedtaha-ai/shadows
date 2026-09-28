@@ -19,19 +19,24 @@ use axum::body::Body;
 use axum::http::Request;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
-use shadows::protocol::{AppState, UiSignal, router};
 use shadows_agent::events::HarnessEvent;
 use shadows_agent::policy;
 use shadows_core::command::{CommandContext, fingerprint};
+use shadows_core::events::UiSignal;
 use shadows_core::operation::{Operation, OperationId};
 use shadows_core::planner::{LiveHandles, Sessions, SessionsConfig};
 use shadows_core::project::{ProjectDirectory, ProjectId};
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
 use shadows_core::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
+use shadows_http::AppState;
 use tower::ServiceExt;
 
 use super::acp;
+
+#[path = "daemon.rs"]
+pub mod daemon;
+use daemon::router;
 
 pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
 

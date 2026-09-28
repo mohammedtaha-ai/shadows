@@ -22,7 +22,8 @@ petgraph = "0.8"
 process-wrap = { version = "10", features = ["tokio1"] }
 # Spec §13.6: Shadows' MCP server, over Streamable HTTP on the daemon's own
 # listener. Never `transport-child-process` or `which-command`: `tokio::process`
-# stays private to `process/`. The client features are `test-support` only.
+# stays private to `process/`. The client features are test-side only: a
+# `shadows` dev-dependency and `fake-acp`'s `test-support`.
 rmcp = { version = "=3.4.1", default-features = false, features = ["server", "macros", "transport-streamable-http-server"] }
 # The major rmcp 3.4.1's `server` feature uses: MCP tool input schemas are
 # derived from the argument types, never written by hand.

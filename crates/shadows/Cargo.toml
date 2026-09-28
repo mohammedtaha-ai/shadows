@@ -14,35 +14,23 @@ axum = { workspace = true }
 clap = { workspace = true }
 shadows-agent = { path = "../shadows-agent" }
 shadows-core = { path = "../shadows-core" }
+shadows-http = { path = "../shadows-http" }
+shadows-mcp = { path = "../shadows-mcp" }
 shadows-process = { path = "../shadows-process" }
-rmcp = { workspace = true }
-schemars = { workspace = true }
-reqwest = { workspace = true, optional = true }
-serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
-tokio-stream = { workspace = true }
-tower-http = { workspace = true }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }
-utoipa = { workspace = true }
-utoipa-axum = { workspace = true }
 
 [features]
 # Compiles in `shadows-core`'s test hooks (`storage::test_support`,
 # `from_literal`, `force_termination_failure`, `testing`), which must never
-# ship in an ordinary build — see cross-cutting rule 10. Also `rmcp`'s MCP
-# client, for tests that call `/mcp` as an agent does. Enabled for
+# ship in an ordinary build — see cross-cutting rule 10. Enabled for
 # `cargo test` only via the self dev-dependency below, never a default feature.
-test-support = [
-    "shadows-core/test-support",
-    "rmcp/client",
-    "rmcp/transport-streamable-http-client-reqwest",
-    "dep:reqwest",
-]
+test-support = ["shadows-core/test-support"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
@@ -51,11 +39,17 @@ prettyplease = { workspace = true }
 proc-macro2 = { workspace = true }
 tower = { workspace = true }
 # Used by the tests only, since the modules that used them moved to
-# `shadows-core`.
+# `shadows-core`, `shadows-http` and `shadows-mcp`.
 agent-client-protocol = { workspace = true }
 dunce = { workspace = true }
+serde = { workspace = true }
 sqlx = { workspace = true }
+tokio-stream = { workspace = true }
 uuid = { workspace = true }
+# `rmcp`'s MCP client, for tests that call `/mcp` as an agent does. A
+# dev-dependency, so its features reach `cargo test` only, never the daemon.
+rmcp = { workspace = true, features = ["client", "transport-streamable-http-client-reqwest"] }
+reqwest = { workspace = true }
 # Enables `test-support` for integration tests (tests/*.rs) without turning
 # it on for `cargo build` or `cargo run`: Cargo's feature resolver unifies
 # features per build/test graph, so this only affects `cargo test`.

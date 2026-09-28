@@ -16,10 +16,11 @@ use serde_json::json;
 
 use super::refusal::{Refusal, answer};
 use super::server::Shadows;
-use crate::protocol::UiSignal;
+
 use shadows_core::command::derive::{Anchor, derived_id};
 use shadows_core::command::{CommandContext, Writer, fingerprint};
 use shadows_core::error::ErrorCode;
+use shadows_core::events::UiSignal;
 use shadows_core::grant::{Grant, GrantKind};
 use shadows_core::storage::StorageError;
 use shadows_core::workflow::{Place, Plan, PlanOp, PlanShown, WorkflowId};

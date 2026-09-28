@@ -9,11 +9,12 @@ use std::time::Duration;
 use shadows_process::{ProcessSpec, spawn};
 
 use crate::config::{Config, adapter_version};
-use crate::protocol::{AppState, router};
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_core::planner::{LiveHandles, Sessions, SessionsConfig, shut_down};
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
+use shadows_http::{AppState, router};
+use shadows_mcp::McpState;
 
 /// Binds, prints exactly one address, and serves. Spec §1.0: it never opens a
 /// browser. The user chooses which browser to use.
@@ -74,7 +75,14 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     // accepting only then — so a turn requested meanwhile is refused by the
     // closed registry, not by the socket.
     let handles = state.handles.clone();
-    axum::serve(listener, router(state))
+    // `/mcp` reaches the same storage, live turns and signal channel as the
+    // HTTP routes: built from the `AppState`'s own `Arc`s.
+    let mcp = shadows_mcp::service(McpState {
+        storage: state.storage.clone(),
+        handles: state.handles.clone(),
+        ui: state.ui.clone(),
+    });
+    axum::serve(listener, router(state, mcp))
         .with_graceful_shutdown(async move {
             if let Err(error) = tokio::signal::ctrl_c().await {
                 // Without a signal there is no way to be asked to stop, and

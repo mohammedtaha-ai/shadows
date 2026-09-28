@@ -31,12 +31,11 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows-agent/src/claude.rs` | the launch spec of the pinned Claude ACP adapter | `crates/shadows-agent/src/claude.rs` |
 | `crates/shadows-core/src/planner/offers.rs` | the latest choices each open session offers | `crates/shadows-core/src/planner/offers.rs` |
 | `crates/shadows-core/src/planner/context.rs` | reading a session's context breakdown on demand | `crates/shadows-core/src/planner/context.rs` |
-| `crates/shadows/src/protocol/harness.rs` | the routes over harnesses, their sessions included | `crates/shadows/src/protocol/harness.rs` |
-| `crates/shadows/src/protocol/thread.rs` | the routes that change a planning thread itself | `crates/shadows/src/protocol/thread.rs` |
-| `crates/shadows/src/protocol/workflow.rs` | the routes over plan versions | `crates/shadows/src/protocol/workflow.rs` |
-| `crates/shadows/src/protocol/grants.rs` | the routes over external agents' MCP grants | `crates/shadows/src/protocol/grants.rs` |
-| `crates/shadows/src/protocol/instructions.rs` | the routes over a project's Planner instructions | `crates/shadows/src/protocol/instructions.rs` |
-| `crates/shadows/src/protocol/ui_signal.rs` | the live-only signal that moves a person's screen | `crates/shadows/src/protocol/ui_signal.rs` |
+| `crates/shadows-http/src/harness.rs` | the routes over harnesses, their sessions included | `crates/shadows-http/src/harness.rs` |
+| `crates/shadows-http/src/thread.rs` | the routes that change a planning thread itself | `crates/shadows-http/src/thread.rs` |
+| `crates/shadows-http/src/workflow.rs` | the routes over plan versions | `crates/shadows-http/src/workflow.rs` |
+| `crates/shadows-http/src/grants.rs` | the routes over external agents' MCP grants | `crates/shadows-http/src/grants.rs` |
+| `crates/shadows-http/src/instructions.rs` | the routes over a project's Planner instructions | `crates/shadows-http/src/instructions.rs` |
 | `crates/shadows-core/src/planner/sessions.rs` | the live adapter connection each open thread holds | `crates/shadows-core/src/planner/sessions.rs` |
 | `crates/shadows-core/src/planner/settings.rs` | setting an open session's options | `crates/shadows-core/src/planner/settings.rs` |
 | `crates/shadows-core/src/planner/setup.rs` | what a Planner session opens with | `crates/shadows-core/src/planner/setup.rs` |
@@ -50,19 +49,26 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows-core/src/command/derive.rs` | command ids Shadows derives when a caller names none | `crates/shadows-core/src/command/derive.rs` |
 | `crates/shadows/src/config.rs` | startup configuration resolved once | `crates/shadows/src/config.rs` |
 | `crates/shadows-core/src/error.rs` | the stable failure taxonomy clients match on | `crates/shadows-core/src/error.rs` |
-| `crates/shadows-core/src/events/` | the durable event record's shape | `crates/shadows-core/src/events/mod.rs` |
+| `crates/shadows-core/src/events/` | the event shapes the product records or signals | `crates/shadows-core/src/events/mod.rs` |
 | `crates/shadows-core/src/id.rs` | the UUID id newtype pattern | `crates/shadows-core/src/id.rs` |
-| `crates/shadows/src/mcp/` | Shadows' MCP server | `crates/shadows/src/mcp/mod.rs` |
+| `crates/shadows-mcp/src/lib.rs` | Shadows' MCP server | `crates/shadows-mcp/src/lib.rs` |
 | `crates/shadows-core/src/grant/` | who may do what on `/mcp` | `crates/shadows-core/src/grant/mod.rs` |
-| `crates/shadows/src/mcp/auth.rs` | refusing a `/mcp` request that holds no live grant | `crates/shadows/src/mcp/auth.rs` |
-| `crates/shadows/src/mcp/server.rs` | the tools a grant's kind may see | `crates/shadows/src/mcp/server.rs` |
-| `crates/shadows/src/mcp/tools.rs` | each MCP tool's storage call | `crates/shadows/src/mcp/tools.rs` |
-| `crates/shadows/src/mcp/refusal.rs` | what an MCP tool call answers | `crates/shadows/src/mcp/refusal.rs` |
+| `crates/shadows-mcp/src/auth.rs` | refusing a `/mcp` request that holds no live grant | `crates/shadows-mcp/src/auth.rs` |
+| `crates/shadows-mcp/src/server.rs` | the tools a grant's kind may see | `crates/shadows-mcp/src/server.rs` |
+| `crates/shadows-mcp/src/tools.rs` | each MCP tool's storage call | `crates/shadows-mcp/src/tools.rs` |
+| `crates/shadows-mcp/src/refusal.rs` | what an MCP tool call answers | `crates/shadows-mcp/src/refusal.rs` |
 | `crates/shadows-core/src/operation/` | the operation lifecycle's shape | `crates/shadows-core/src/operation/mod.rs` |
 | `crates/shadows-core/src/planner/` | the Planner turn's spawn-through-termination lifecycle | `crates/shadows-core/src/planner/mod.rs` |
 | `crates/shadows-process/src/lib.rs` | OS process ownership with whole-tree containment | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-core/src/project/` | the project: its identity, the directory it owns | `crates/shadows-core/src/project/mod.rs` |
-| `crates/shadows/src/protocol/` | the HTTP/SSE surface every client talks to | `crates/shadows/src/protocol/project.rs` |
+| `crates/shadows-http/src/lib.rs` | the HTTP/SSE surface every client talks to | `crates/shadows-http/src/project.rs` |
+| `crates/shadows-http/src/project.rs` | the routes over projects, their threads included | `crates/shadows-http/src/project.rs` |
+| `crates/shadows-http/src/conversation.rs` | the routes over a thread's conversation | `crates/shadows-http/src/conversation.rs` |
+| `crates/shadows-http/src/sse.rs` | the replay-then-live stream | `crates/shadows-http/src/sse.rs` |
+| `crates/shadows-http/src/fs.rs` | choosing a project directory on this machine | `crates/shadows-http/src/fs.rs` |
+| `crates/shadows-http/src/openapi.rs` | the OpenAPI document describing this API | `crates/shadows-http/src/openapi.rs` |
+| `crates/shadows-http/src/failure.rs` | the transport mapping of a failure | `crates/shadows-http/src/failure.rs` |
+| `crates/shadows-http/src/guard.rs` | refusing requests pages were made to send | `crates/shadows-http/src/guard.rs` |
 | `crates/shadows-core/src/runtime/` | the runtime instance's lifecycle | `crates/shadows-core/src/runtime/mod.rs` |
 | `crates/shadows-core/src/storage/` | persistence | `crates/shadows-core/src/storage/sqlite/project.rs` |
 | `crates/shadows-core/src/storage/sqlite/workflow.rs` | changing a plan version | `crates/shadows-core/src/storage/sqlite/workflow.rs` |

@@ -10,16 +10,19 @@ use std::time::Duration;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use daemon::router;
 use serde_json::{Value, json};
-use shadows::protocol::{AppState, router};
 use shadows_core::operation::{Operation, OperationId};
 use shadows_core::planner::LiveHandles;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
+use shadows_http::AppState;
 use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
+#[path = "fixtures/daemon.rs"]
+mod daemon;
 
 async fn app(storage: Arc<Storage>, db: &Path) -> (Router, tokio::sync::watch::Sender<bool>) {
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();

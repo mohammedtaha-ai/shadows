@@ -4,7 +4,7 @@
 //! without a live grant with 401; `server.rs` is the `rmcp` handler, which
 //! lists the tools a grant's kind holds; `tools.rs` maps each tool onto plan
 //! storage; `refusal.rs` is what a tool answers, refusals included. The route
-//! itself is mounted by `protocol::router`, under the daemon's request guard.
+//! itself is mounted by `shadows_http::router`, under the daemon's request guard.
 //!
 //! Streamable HTTP without protocol sessions: `rmcp` serves MCP `2026-07-28`
 //! statelessly always, and the `2025-11-25` fallback Claude Code 2.1.281 uses
@@ -22,7 +22,7 @@ use axum::Router;
 use rmcp::transport::streamable_http_server::session::never::NeverSessionManager;
 use rmcp::transport::{StreamableHttpServerConfig, StreamableHttpService};
 
-use crate::protocol::UiSignal;
+use shadows_core::events::UiSignal;
 use shadows_core::planner::LiveHandles;
 use shadows_core::storage::Storage;
 

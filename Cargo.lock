@@ -2157,12 +2157,13 @@ dependencies = [
  "proc-macro2",
  "reqwest",
  "rmcp",
- "schemars 1.2.2",
  "serde",
  "serde_json",
  "shadows",
  "shadows-agent",
  "shadows-core",
+ "shadows-http",
+ "shadows-mcp",
  "shadows-process",
  "sqlx",
  "syn 2.0.119",
@@ -2172,12 +2173,9 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tower",
- "tower-http",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "utoipa",
- "utoipa-axum",
  "uuid",
 ]
 
@@ -2219,6 +2217,37 @@ dependencies = [
  "tracing",
  "utoipa",
  "uuid",
+]
+
+[[package]]
+name = "shadows-http"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "serde",
+ "serde_json",
+ "shadows-agent",
+ "shadows-core",
+ "tokio",
+ "tokio-stream",
+ "tower-http",
+ "tracing",
+ "utoipa",
+ "utoipa-axum",
+]
+
+[[package]]
+name = "shadows-mcp"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "rmcp",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "shadows-core",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -13,17 +13,20 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::Request;
+use daemon::router;
 use serde_json::Value;
-use shadows::protocol::{AppState, router};
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::planner::LiveHandles;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
+use shadows_http::AppState;
 use tokio_stream::StreamExt;
 use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
+#[path = "fixtures/daemon.rs"]
+mod daemon;
 
 /// A durable frame names its operation and its thread, and its `payload` is
 /// the event's JSON object, not a string holding JSON. `caught-up` is JSON

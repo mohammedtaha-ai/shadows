@@ -29,7 +29,7 @@ impl Cli {
 }
 ```
 
-## `crates/shadows/src/cli/mod.rs` — 171 lines
+## `crates/shadows/src/cli/mod.rs` — 179 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
@@ -59,252 +59,13 @@ pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError>
 pub fn adapter_version(adapter_entry: &Path) -> String
 ```
 
-## `crates/shadows/src/lib.rs` — 5 lines
+## `crates/shadows/src/lib.rs` — 3 lines
 
 Nothing reachable from outside this file.
 
 ## `crates/shadows/src/main.rs` — 7 lines
 
 Nothing reachable from outside this file.
-
-## `crates/shadows/src/mcp/auth.rs` — 51 lines
-
-```rust
-pub(super) async fn require_grant(State(storage): State<Arc<Storage>>, mut request: Request, next: Next) -> Response
-```
-
-## `crates/shadows/src/mcp/mod.rs` — 61 lines
-
-```rust
-pub struct McpState {
-    pub storage: Arc<Storage>,
-    pub handles: Arc<LiveHandles>,
-    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
-}
-pub fn service(state: McpState) -> Router
-```
-
-## `crates/shadows/src/mcp/refusal.rs` — 99 lines
-
-```rust
-pub(super) struct Refusal {}
-// + 2 private fields
-impl Refusal {
-    pub(super) fn new(code: ErrorCode, message: impl Into<String>) -> Self
-    pub(super) fn scope(message: impl Into<String>) -> Self
-}
-
-pub(super) fn answer<T: serde::Serialize>(outcome: Result<T, Refusal>) -> CallToolResult
-```
-
-## `crates/shadows/src/mcp/server.rs` — 157 lines
-
-```rust
-pub(super) struct Tools(Arc<Routers>);
-impl Tools {
-    pub(super) fn new() -> Self
-}
-
-pub(super) struct Shadows {
-    pub(super) state: McpState,
-}
-// + 1 private field
-impl Shadows {
-    pub(super) fn new(state: McpState, tools: Tools) -> Self
-}
-```
-
-## `crates/shadows/src/mcp/tools.rs` — 459 lines
-
-Nothing reachable from outside this file.
-
-## `crates/shadows/src/protocol/conversation.rs` — 377 lines
-
-```rust
-pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
-pub(super) async fn list_operations(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<Operation>>, Failure>
-pub(super) struct StartTurn {}
-// + 7 private fields
-pub(super) struct TurnStarted {}
-// + 1 private field
-pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<ThreadId>, Json(body): Json<StartTurn>) -> Result<(StatusCode, Json<TurnStarted>), Failure>
-pub(super) async fn detached<T: Send + 'static>(work: impl Future<Output = Result<T, Failure>> + Send + 'static) -> Result<T, Failure>
-pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
-```
-
-## `crates/shadows/src/protocol/failure.rs` — 357 lines
-
-```rust
-pub struct Failure {}
-// + 5 private fields
-pub struct ErrorBody {
-    pub code: ErrorCode,
-    pub message: String,
-    pub current_revision: Option<i64>,
-    pub problems: Option<Vec<String>>,
-}
-impl Failure {
-    pub(super) fn project_directory_unusable(reason: String) -> Self
-    pub(super) fn harness_start_failed(reason: String) -> Self
-    pub(super) fn harness_unavailable(harness: &str) -> Self
-    pub(super) fn setting_not_offered(what: &str, id: &str, detail: Option<&str>) -> Self
-    pub(super) fn mode_not_allowed(mode: &str) -> Self
-    pub(super) fn runtime_stopping() -> Self
-    pub(super) fn origin_refused(why: &'static str) -> Self
-    pub(super) fn termination_failed() -> Self
-}
-
-pub(super) async fn rejections_as_error_bodies(response: axum::response::Response) -> axum::response::Response
-```
-
-## `crates/shadows/src/protocol/fs.rs` — 99 lines
-
-```rust
-pub(super) struct DirsQuery {}
-// + 1 private field
-pub(super) async fn list_dirs(Query(q): Query<DirsQuery>) -> Result<Json<DirectoryListing>, Failure>
-pub(super) struct CreateDir {}
-// + 2 private fields
-pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCode, Json<DirectoryEntry>), Failure>
-```
-
-## `crates/shadows/src/protocol/grants.rs` — 127 lines
-
-```rust
-pub(super) async fn list_grants(State(s): State<AppState>, Path(project): Path<ProjectId>) -> Result<Json<Vec<Grant>>, Failure>
-pub(super) struct IssueGrant {}
-// + 1 private field
-pub(super) struct IssuedGrantBody {}
-// + 3 private fields
-pub(super) async fn issue_grant(State(s): State<AppState>, Path(project): Path<ProjectId>, Json(body): Json<IssueGrant>) -> Result<Json<IssuedGrantBody>, Failure>
-pub(super) struct RevokeQuery {}
-// + 1 private field
-pub(super) async fn revoke_grant(State(s): State<AppState>, Path(grant): Path<GrantId>, Query(q): Query<RevokeQuery>) -> Result<Json<Grant>, Failure>
-```
-
-## `crates/shadows/src/protocol/guard.rs` — 85 lines
-
-```rust
-pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
-```
-
-## `crates/shadows/src/protocol/harness.rs` — 251 lines
-
-```rust
-pub(super) struct RememberedSettings {}
-// + 2 private fields
-pub(super) struct HarnessInfo {}
-// + 6 private fields
-pub(super) async fn list_harnesses(State(s): State<AppState>) -> Result<Json<Vec<HarnessInfo>>, Failure>
-pub(super) fn open_failure(e: OpenError) -> Failure
-pub(super) async fn choices_for(storage: &Storage, thread: &ThreadId, offered: &Offered) -> Result<SessionChoices, Failure>
-pub(super) async fn open_session(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<SessionChoices>, Failure>
-pub(super) struct ChangeModel {}
-// + 1 private field
-pub(super) async fn change_model(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<ChangeModel>) -> Result<Json<SessionChoices>, Failure>
-pub(super) struct ContextBreakdown {}
-// + 2 private fields
-pub(super) async fn thread_context(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<ContextBreakdown>, Failure>
-```
-
-## `crates/shadows/src/protocol/instructions.rs` — 72 lines
-
-```rust
-pub(super) async fn get_instructions(State(s): State<AppState>, Path(project): Path<ProjectId>) -> Result<Json<Option<InstructionsVersion>>, Failure>
-pub(super) struct SaveInstructions {}
-// + 2 private fields
-pub(super) async fn save_instructions(State(s): State<AppState>, Path(project): Path<ProjectId>, Json(body): Json<SaveInstructions>) -> Result<Json<InstructionsVersion>, Failure>
-```
-
-## `crates/shadows/src/protocol/mod.rs` — 203 lines
-
-```rust
-pub use failure::Failure;
-pub use openapi::document as openapi_document;
-pub use ui_signal::UiSignal;
-pub struct AppState {
-    pub runtime: Arc<Runtime>,
-    pub storage: Arc<Storage>,
-    pub handles: Arc<LiveHandles>,
-    pub sessions: Arc<Sessions>,
-    pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
-    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
-    pub allowed_origins: Vec<String>,
-    pub mcp_url: String,
-    pub shutdown: tokio::sync::watch::Receiver<bool>,
-}
-pub fn router(state: AppState) -> Router
-```
-
-## `crates/shadows/src/protocol/openapi.rs` — 83 lines
-
-```rust
-pub(super) fn base() -> utoipa::openapi::OpenApi
-pub fn document() -> String
-pub(super) async fn serve() -> ([(header::HeaderName, &'static str); 1], String)
-```
-
-## `crates/shadows/src/protocol/project.rs` — 216 lines
-
-```rust
-pub(super) fn ctx(command_id: String, kind: &str, params: serde_json::Value) -> CommandContext
-pub(super) struct CreateProject {}
-// + 4 private fields
-pub(super) async fn list_projects(State(s): State<AppState>) -> Result<Json<Vec<Project>>, Failure>
-pub(super) async fn create_project(State(s): State<AppState>, Json(body): Json<CreateProject>) -> Result<Json<Project>, Failure>
-pub(super) async fn list_threads(State(s): State<AppState>, Path(project_id): Path<ProjectId>) -> Result<Json<Vec<PlanningThread>>, Failure>
-pub(super) struct CreateThread {}
-// + 3 private fields
-pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<PlanningThread>, Failure>
-pub(super) struct UpdateProject {}
-// + 2 private fields
-pub(super) async fn update_project(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<UpdateProject>) -> Result<Json<Project>, Failure>
-```
-
-## `crates/shadows/src/protocol/sse.rs` — 373 lines
-
-```rust
-pub struct SubscribeQuery {
-    pub thread_id: ThreadId,
-    pub after: i64,
-}
-pub async fn subscribe(State(state): State<AppState>, Query(q): Query<SubscribeQuery>) -> Sse<ReceiverStream<Result<Event, Infallible>>>
-```
-
-## `crates/shadows/src/protocol/thread.rs` — 110 lines
-
-```rust
-pub(super) struct UpdateThread {}
-// + 2 private fields
-pub(super) fn known_harness(harness: &str) -> Result<(), Failure>
-pub(super) async fn update_thread(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<UpdateThread>) -> Result<Json<PlanningThread>, Failure>
-pub(super) struct ForkThread {}
-// + 2 private fields
-pub(super) async fn fork_thread(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<ForkThread>) -> Result<(StatusCode, Json<PlanningThread>), Failure>
-```
-
-## `crates/shadows/src/protocol/ui_signal.rs` — 20 lines
-
-```rust
-pub struct UiSignal {
-    pub thread_id: ThreadId,
-    pub target_tab: Option<String>,
-    pub workflow_id: WorkflowId,
-    pub version: i64,
-    pub task_number: Option<u32>,
-    pub place: Place,
-}
-```
-
-## `crates/shadows/src/protocol/workflow.rs` — 95 lines
-
-```rust
-pub(super) async fn list_plans(State(s): State<AppState>, Path(project_id): Path<ProjectId>) -> Result<Json<Vec<PlanListing>>, Failure>
-pub(super) async fn get_plan(State(s): State<AppState>, Path(workflow): Path<WorkflowId>) -> Result<Json<Plan>, Failure>
-pub(super) struct ApprovePlan {}
-// + 2 private fields
-pub(super) async fn approve_plan(State(s): State<AppState>, Path(workflow): Path<WorkflowId>, Json(body): Json<ApprovePlan>) -> Result<Json<Approved>, Failure>
-```
 
 ## `crates/shadows/src/tracing.rs` — 126 lines
 
@@ -580,7 +341,7 @@ pub struct FailureReport {
 }
 ```
 
-## `crates/shadows-core/src/events/mod.rs` — 107 lines
+## `crates/shadows-core/src/events/mod.rs` — 125 lines
 
 ```rust
 pub struct EventCursor(pub i64);
@@ -616,6 +377,15 @@ impl DurableEvent {
     pub fn with_causation(mut self, kind: impl Into<String>, reference: impl Into<String>) -> Self
     pub fn with_correlation(mut self, id: impl Into<String>) -> Self
     pub fn with_payload(mut self, v: serde_json::Value) -> Self
+}
+
+pub struct UiSignal {
+    pub thread_id: ThreadId,
+    pub target_tab: Option<String>,
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task_number: Option<u32>,
+    pub place: Place,
 }
 ```
 
@@ -1629,6 +1399,231 @@ pub struct Applied {
 }
 pub fn apply(current: &PlanContent, ops: &[PlanOp]) -> Result<Applied, Vec<Problem>>
 ```
+
+## `crates/shadows-http/src/conversation.rs` — 377 lines
+
+```rust
+pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
+pub(super) async fn list_operations(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<Operation>>, Failure>
+pub(super) struct StartTurn {}
+// + 7 private fields
+pub(super) struct TurnStarted {}
+// + 1 private field
+pub(super) async fn start_turn(State(s): State<AppState>, Path(thread_id): Path<ThreadId>, Json(body): Json<StartTurn>) -> Result<(StatusCode, Json<TurnStarted>), Failure>
+pub(super) async fn detached<T: Send + 'static>(work: impl Future<Output = Result<T, Failure>> + Send + 'static) -> Result<T, Failure>
+pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
+```
+
+## `crates/shadows-http/src/failure.rs` — 357 lines
+
+```rust
+pub struct Failure {}
+// + 5 private fields
+pub struct ErrorBody {
+    pub code: ErrorCode,
+    pub message: String,
+    pub current_revision: Option<i64>,
+    pub problems: Option<Vec<String>>,
+}
+impl Failure {
+    pub(super) fn project_directory_unusable(reason: String) -> Self
+    pub(super) fn harness_start_failed(reason: String) -> Self
+    pub(super) fn harness_unavailable(harness: &str) -> Self
+    pub(super) fn setting_not_offered(what: &str, id: &str, detail: Option<&str>) -> Self
+    pub(super) fn mode_not_allowed(mode: &str) -> Self
+    pub(super) fn runtime_stopping() -> Self
+    pub(super) fn origin_refused(why: &'static str) -> Self
+    pub(super) fn termination_failed() -> Self
+}
+
+pub(super) async fn rejections_as_error_bodies(response: axum::response::Response) -> axum::response::Response
+```
+
+## `crates/shadows-http/src/fs.rs` — 99 lines
+
+```rust
+pub(super) struct DirsQuery {}
+// + 1 private field
+pub(super) async fn list_dirs(Query(q): Query<DirsQuery>) -> Result<Json<DirectoryListing>, Failure>
+pub(super) struct CreateDir {}
+// + 2 private fields
+pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCode, Json<DirectoryEntry>), Failure>
+```
+
+## `crates/shadows-http/src/grants.rs` — 127 lines
+
+```rust
+pub(super) async fn list_grants(State(s): State<AppState>, Path(project): Path<ProjectId>) -> Result<Json<Vec<Grant>>, Failure>
+pub(super) struct IssueGrant {}
+// + 1 private field
+pub(super) struct IssuedGrantBody {}
+// + 3 private fields
+pub(super) async fn issue_grant(State(s): State<AppState>, Path(project): Path<ProjectId>, Json(body): Json<IssueGrant>) -> Result<Json<IssuedGrantBody>, Failure>
+pub(super) struct RevokeQuery {}
+// + 1 private field
+pub(super) async fn revoke_grant(State(s): State<AppState>, Path(grant): Path<GrantId>, Query(q): Query<RevokeQuery>) -> Result<Json<Grant>, Failure>
+```
+
+## `crates/shadows-http/src/guard.rs` — 85 lines
+
+```rust
+pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
+```
+
+## `crates/shadows-http/src/harness.rs` — 251 lines
+
+```rust
+pub(super) struct RememberedSettings {}
+// + 2 private fields
+pub(super) struct HarnessInfo {}
+// + 6 private fields
+pub(super) async fn list_harnesses(State(s): State<AppState>) -> Result<Json<Vec<HarnessInfo>>, Failure>
+pub(super) fn open_failure(e: OpenError) -> Failure
+pub(super) async fn choices_for(storage: &Storage, thread: &ThreadId, offered: &Offered) -> Result<SessionChoices, Failure>
+pub(super) async fn open_session(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<SessionChoices>, Failure>
+pub(super) struct ChangeModel {}
+// + 1 private field
+pub(super) async fn change_model(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<ChangeModel>) -> Result<Json<SessionChoices>, Failure>
+pub(super) struct ContextBreakdown {}
+// + 2 private fields
+pub(super) async fn thread_context(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<ContextBreakdown>, Failure>
+```
+
+## `crates/shadows-http/src/instructions.rs` — 72 lines
+
+```rust
+pub(super) async fn get_instructions(State(s): State<AppState>, Path(project): Path<ProjectId>) -> Result<Json<Option<InstructionsVersion>>, Failure>
+pub(super) struct SaveInstructions {}
+// + 2 private fields
+pub(super) async fn save_instructions(State(s): State<AppState>, Path(project): Path<ProjectId>, Json(body): Json<SaveInstructions>) -> Result<Json<InstructionsVersion>, Failure>
+```
+
+## `crates/shadows-http/src/lib.rs` — 201 lines
+
+```rust
+pub use failure::Failure;
+pub use openapi::document as openapi_document;
+pub struct AppState {
+    pub runtime: Arc<Runtime>,
+    pub storage: Arc<Storage>,
+    pub handles: Arc<LiveHandles>,
+    pub sessions: Arc<Sessions>,
+    pub bus: tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
+    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
+    pub allowed_origins: Vec<String>,
+    pub mcp_url: String,
+    pub shutdown: tokio::sync::watch::Receiver<bool>,
+}
+pub fn router(state: AppState, mcp: Router) -> Router
+```
+
+## `crates/shadows-http/src/openapi.rs` — 83 lines
+
+```rust
+pub(super) fn base() -> utoipa::openapi::OpenApi
+pub fn document() -> String
+pub(super) async fn serve() -> ([(header::HeaderName, &'static str); 1], String)
+```
+
+## `crates/shadows-http/src/project.rs` — 216 lines
+
+```rust
+pub(super) fn ctx(command_id: String, kind: &str, params: serde_json::Value) -> CommandContext
+pub(super) struct CreateProject {}
+// + 4 private fields
+pub(super) async fn list_projects(State(s): State<AppState>) -> Result<Json<Vec<Project>>, Failure>
+pub(super) async fn create_project(State(s): State<AppState>, Json(body): Json<CreateProject>) -> Result<Json<Project>, Failure>
+pub(super) async fn list_threads(State(s): State<AppState>, Path(project_id): Path<ProjectId>) -> Result<Json<Vec<PlanningThread>>, Failure>
+pub(super) struct CreateThread {}
+// + 3 private fields
+pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<CreateThread>) -> Result<Json<PlanningThread>, Failure>
+pub(super) struct UpdateProject {}
+// + 2 private fields
+pub(super) async fn update_project(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<UpdateProject>) -> Result<Json<Project>, Failure>
+```
+
+## `crates/shadows-http/src/sse.rs` — 373 lines
+
+```rust
+pub struct SubscribeQuery {
+    pub thread_id: ThreadId,
+    pub after: i64,
+}
+pub async fn subscribe(State(state): State<AppState>, Query(q): Query<SubscribeQuery>) -> Sse<ReceiverStream<Result<Event, Infallible>>>
+```
+
+## `crates/shadows-http/src/thread.rs` — 110 lines
+
+```rust
+pub(super) struct UpdateThread {}
+// + 2 private fields
+pub(super) fn known_harness(harness: &str) -> Result<(), Failure>
+pub(super) async fn update_thread(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<UpdateThread>) -> Result<Json<PlanningThread>, Failure>
+pub(super) struct ForkThread {}
+// + 2 private fields
+pub(super) async fn fork_thread(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<ForkThread>) -> Result<(StatusCode, Json<PlanningThread>), Failure>
+```
+
+## `crates/shadows-http/src/workflow.rs` — 95 lines
+
+```rust
+pub(super) async fn list_plans(State(s): State<AppState>, Path(project_id): Path<ProjectId>) -> Result<Json<Vec<PlanListing>>, Failure>
+pub(super) async fn get_plan(State(s): State<AppState>, Path(workflow): Path<WorkflowId>) -> Result<Json<Plan>, Failure>
+pub(super) struct ApprovePlan {}
+// + 2 private fields
+pub(super) async fn approve_plan(State(s): State<AppState>, Path(workflow): Path<WorkflowId>, Json(body): Json<ApprovePlan>) -> Result<Json<Approved>, Failure>
+```
+
+## `crates/shadows-mcp/src/auth.rs` — 51 lines
+
+```rust
+pub(super) async fn require_grant(State(storage): State<Arc<Storage>>, mut request: Request, next: Next) -> Response
+```
+
+## `crates/shadows-mcp/src/lib.rs` — 61 lines
+
+```rust
+pub struct McpState {
+    pub storage: Arc<Storage>,
+    pub handles: Arc<LiveHandles>,
+    pub ui: tokio::sync::broadcast::Sender<UiSignal>,
+}
+pub fn service(state: McpState) -> Router
+```
+
+## `crates/shadows-mcp/src/refusal.rs` — 99 lines
+
+```rust
+pub(super) struct Refusal {}
+// + 2 private fields
+impl Refusal {
+    pub(super) fn new(code: ErrorCode, message: impl Into<String>) -> Self
+    pub(super) fn scope(message: impl Into<String>) -> Self
+}
+
+pub(super) fn answer<T: serde::Serialize>(outcome: Result<T, Refusal>) -> CallToolResult
+```
+
+## `crates/shadows-mcp/src/server.rs` — 157 lines
+
+```rust
+pub(super) struct Tools(Arc<Routers>);
+impl Tools {
+    pub(super) fn new() -> Self
+}
+
+pub(super) struct Shadows {
+    pub(super) state: McpState,
+}
+// + 1 private field
+impl Shadows {
+    pub(super) fn new(state: McpState, tools: Tools) -> Self
+}
+```
+
+## `crates/shadows-mcp/src/tools.rs` — 460 lines
+
+Nothing reachable from outside this file.
 
 ## `crates/shadows-process/src/bin/tree_probe.rs` — 63 lines
 

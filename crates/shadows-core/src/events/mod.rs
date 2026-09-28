@@ -1,6 +1,7 @@
 use crate::operation::OperationId;
 use crate::project::ProjectId;
 use crate::thread::ThreadId;
+use crate::workflow::{Place, WorkflowId};
 
 /// Spec §6.18. `seq` is assigned by the INSERT, which on SQLite can only run
 /// while holding the write lock, so assignment order equals commit order. That
@@ -104,4 +105,21 @@ impl DurableEvent {
         self.payload_json = v.to_string();
         self
     }
+}
+
+/// One job: the live-only signal that moves a person's screen (spec §13.9).
+///
+/// `plan_show` sends one after its card commits. It is transport state
+/// (§2.10): never stored, never journaled, never replayed. The thread's
+/// stream (`sse.rs`) turns it into a `plan-show` frame for every live
+/// subscriber; only the tab it names opens the panel or the page.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct UiSignal {
+    pub thread_id: ThreadId,
+    /// The tab that sent the turn, as it sent it; `None` when it named none.
+    pub target_tab: Option<String>,
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task_number: Option<u32>,
+    pub place: Place,
 }

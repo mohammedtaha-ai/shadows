@@ -8,10 +8,10 @@ use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 
-use super::{AppState, UiSignal};
+use super::AppState;
 use shadows_agent::choices::Offered;
 use shadows_agent::events::HarnessEvent;
-use shadows_core::events::EventCursor;
+use shadows_core::events::{EventCursor, UiSignal};
 use shadows_core::operation::OperationId;
 use shadows_core::storage::Storage;
 use shadows_core::thread::ThreadId;

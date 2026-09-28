@@ -14,8 +14,6 @@ use std::time::Duration;
 
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
-use shadows::protocol::AppState;
-use shadows::protocol::sse::{SubscribeQuery, subscribe};
 use shadows_agent::events::HarnessEvent;
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::events::{Actor, EventCursor};
@@ -25,6 +23,8 @@ use shadows_core::project::Project;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
 use shadows_core::thread::{NewThreadEntry, PlanningThread, ThreadEntryKind, ThreadId};
+use shadows_http::AppState;
+use shadows_http::sse::{SubscribeQuery, subscribe};
 use tokio_stream::StreamExt;
 
 #[path = "fixtures/acp.rs"]
