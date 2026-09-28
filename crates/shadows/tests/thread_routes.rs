@@ -188,7 +188,7 @@ async fn a_browser_may_send_patch_from_an_allowed_origin() {
     use tower::ServiceExt;
     let origin = "http://localhost:5173";
     let app = test_app().await;
-    let state_router = app::daemon::router(shadows_http::AppState {
+    let state_router = shadows::cli::router(shadows_http::AppState {
         runtime: app.runtime.clone(),
         storage: app.storage.clone(),
         handles: app.handles.clone(),

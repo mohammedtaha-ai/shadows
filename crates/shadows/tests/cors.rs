@@ -8,7 +8,7 @@ use std::sync::Arc;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
-use daemon::router;
+use shadows::cli::router;
 use shadows::config::{ConfigError, allowed_origin};
 use shadows_core::planner::LiveHandles;
 use shadows_core::runtime::Runtime;
@@ -18,8 +18,6 @@ use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
-#[path = "fixtures/daemon.rs"]
-mod daemon;
 
 const ALLOWED: &str = "http://localhost:5173";
 

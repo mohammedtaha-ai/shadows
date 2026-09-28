@@ -9,8 +9,8 @@ use std::time::Duration;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use daemon::router;
 use serde_json::{Value, json};
+use shadows::cli::router;
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::command::{CommandContext, fingerprint};
@@ -24,8 +24,6 @@ use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
-#[path = "fixtures/daemon.rs"]
-mod daemon;
 
 type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
 

@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use daemon::router;
+use shadows::cli::router;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::operation::{Operation, OperationId};
@@ -26,8 +26,6 @@ use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
-#[path = "fixtures/daemon.rs"]
-mod daemon;
 #[path = "fixtures/turn.rs"]
 mod turn;
 

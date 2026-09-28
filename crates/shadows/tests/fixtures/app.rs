@@ -19,6 +19,7 @@ use axum::body::Body;
 use axum::http::Request;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
+use shadows::cli::router;
 use shadows_agent::events::HarnessEvent;
 use shadows_agent::policy;
 use shadows_core::command::{CommandContext, fingerprint};
@@ -33,10 +34,6 @@ use shadows_http::AppState;
 use tower::ServiceExt;
 
 use super::acp;
-
-#[path = "daemon.rs"]
-pub mod daemon;
-use daemon::router;
 
 pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
 

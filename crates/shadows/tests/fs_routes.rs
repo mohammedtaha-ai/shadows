@@ -9,8 +9,8 @@ use std::sync::Arc;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use daemon::router;
 use serde_json::{Value, json};
+use shadows::cli::router;
 use shadows_core::planner::LiveHandles;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
@@ -19,8 +19,6 @@ use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
-#[path = "fixtures/daemon.rs"]
-mod daemon;
 
 async fn app(tmp: &Path) -> (Router, tokio::sync::watch::Sender<bool>) {
     let storage = Arc::new(Storage::open(&tmp.join("s.sqlite3")).await.unwrap());

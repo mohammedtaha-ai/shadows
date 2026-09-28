@@ -13,7 +13,7 @@ use shadows_agent::claude::ClaudeAdapter;
 use shadows_core::planner::{LiveHandles, Sessions, SessionsConfig, shut_down};
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
-use shadows_http::{AppState, router};
+use shadows_http::AppState;
 use shadows_mcp::McpState;
 
 /// Binds, prints exactly one address, and serves. Spec §1.0: it never opens a
@@ -75,14 +75,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     // accepting only then — so a turn requested meanwhile is refused by the
     // closed registry, not by the socket.
     let handles = state.handles.clone();
-    // `/mcp` reaches the same storage, live turns and signal channel as the
-    // HTTP routes: built from the `AppState`'s own `Arc`s.
-    let mcp = shadows_mcp::service(McpState {
-        storage: state.storage.clone(),
-        handles: state.handles.clone(),
-        ui: state.ui.clone(),
-    });
-    axum::serve(listener, router(state, mcp))
+    axum::serve(listener, router(state))
         .with_graceful_shutdown(async move {
             if let Err(error) = tokio::signal::ctrl_c().await {
                 // Without a signal there is no way to be asked to stop, and
@@ -119,6 +112,19 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         })
         .await?;
     Ok(())
+}
+
+/// The daemon's whole router: the HTTP routes with `/mcp` mounted (spec
+/// §14.5). `/mcp` reaches the same storage, live turns and signal channel as
+/// the HTTP routes, because it is built from the `AppState`'s own `Arc`s.
+/// `serve` serves it, and the tests drive it, so both run one wiring.
+pub fn router(state: AppState) -> axum::Router {
+    let mcp = shadows_mcp::service(McpState {
+        storage: state.storage.clone(),
+        handles: state.handles.clone(),
+        ui: state.ui.clone(),
+    });
+    shadows_http::router(state, mcp)
 }
 
 /// How long shutdown waits for every owned operation to be confirmed terminal

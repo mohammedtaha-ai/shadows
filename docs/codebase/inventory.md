@@ -29,10 +29,11 @@ impl Cli {
 }
 ```
 
-## `crates/shadows/src/cli/mod.rs` — 179 lines
+## `crates/shadows/src/cli/mod.rs` — 185 lines
 
 ```rust
 pub async fn serve(config: Config) -> anyhow::Result<()>
+pub fn router(state: AppState) -> axum::Router
 ```
 
 ## `crates/shadows/src/config.rs` — 121 lines

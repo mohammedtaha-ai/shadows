@@ -12,8 +12,8 @@ use std::time::Duration;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use daemon::router;
 use serde_json::{Value, json};
+use shadows::cli::router;
 use shadows_core::operation::OperationId;
 use shadows_core::planner::{LiveHandles, Sessions};
 use shadows_core::runtime::{Runtime, RuntimeInstanceId};
@@ -25,8 +25,6 @@ use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
-#[path = "fixtures/daemon.rs"]
-mod daemon;
 
 struct Fixture {
     _tmp: tempfile::TempDir,
