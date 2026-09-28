@@ -10,14 +10,12 @@
 
 use sqlx::SqliteConnection;
 
-use super::command::{classify, record_command};
-use super::events::append_event;
-use super::{Storage, StorageError, now};
+use super::model::{Grant, GrantId, GrantKind, IssuedGrant, Token, hash_token};
 use crate::command::{CommandContext, Writer};
 use crate::events::{Actor, DurableEvent};
-use crate::grant::{Grant, GrantId, GrantKind, IssuedGrant, Token, hash_token};
 use crate::plans::WorkflowId;
 use crate::project::ProjectId;
+use crate::storage::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::thread::ThreadId;
 
 /// How long an unused `draft_ref` can still start a plan (§13.5).

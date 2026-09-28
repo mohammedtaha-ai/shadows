@@ -53,7 +53,8 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows-core/src/events/` | the event shapes the product records or signals | `crates/shadows-core/src/events/mod.rs` |
 | `crates/shadows-core/src/id.rs` | the UUID id newtype pattern | `crates/shadows-core/src/id.rs` |
 | `crates/shadows-mcp/src/lib.rs` | Shadows' MCP server | `crates/shadows-mcp/src/lib.rs` |
-| `crates/shadows-core/src/grant/` | who may do what on `/mcp` | `crates/shadows-core/src/grant/mod.rs` |
+| `crates/shadows-core/src/grants/` | MCP grants, from issue to revocation | `crates/shadows-core/src/grants/mod.rs` |
+| `crates/shadows-core/src/grants/model.rs` | the grant types callers meet | `crates/shadows-core/src/grants/model.rs` |
 | `crates/shadows-mcp/src/auth.rs` | refusing a `/mcp` request that holds no live grant | `crates/shadows-mcp/src/auth.rs` |
 | `crates/shadows-mcp/src/server.rs` | the tools a grant's kind may see | `crates/shadows-mcp/src/server.rs` |
 | `crates/shadows-mcp/src/tools.rs` | each MCP tool's `Plans` call | `crates/shadows-mcp/src/tools.rs` |
@@ -76,7 +77,7 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows-core/src/plans/store/draft.rs` | starting a plan version | `crates/shadows-core/src/plans/store/draft.rs` |
 | `crates/shadows-core/src/plans/store/read.rs` | reading plan versions | `crates/shadows-core/src/plans/store/read.rs` |
 | `crates/shadows-core/src/plans/store/task.rs` | a plan version's task graph rows | `crates/shadows-core/src/plans/store/task.rs` |
-| `crates/shadows-core/src/storage/sqlite/grant.rs` | an MCP grant's rows, from issue to revocation | `crates/shadows-core/src/storage/sqlite/grant.rs` |
+| `crates/shadows-core/src/grants/store.rs` | an MCP grant's rows, from issue to revocation | `crates/shadows-core/src/grants/store.rs` |
 | `crates/shadows-core/src/storage/sqlite/instructions.rs` | a project's numbered Planner instructions | `crates/shadows-core/src/storage/sqlite/instructions.rs` |
 | `crates/shadows-core/src/plans/store/view.rs` | showing a plan version in its conversation | `crates/shadows-core/src/plans/store/view.rs` |
 | `crates/shadows-core/src/thread/` | the planning thread's shape | `crates/shadows-core/src/thread/mod.rs` |

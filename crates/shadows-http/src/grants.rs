@@ -9,10 +9,9 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 
 use super::failure::ErrorBody;
-use super::project::ctx;
 use super::{AppState, Failure};
-use shadows_core::grant::{Grant, GrantId};
 use shadows_core::project::ProjectId;
+use shadows_core::{Grant, GrantId};
 
 /// A project's grants for external agents, revoked ones included, newest
 /// first. Never a token.
@@ -30,7 +29,7 @@ pub(super) async fn list_grants(
     State(s): State<AppState>,
     Path(project): Path<ProjectId>,
 ) -> Result<Json<Vec<Grant>>, Failure> {
-    Ok(Json(s.core.storage().list_project_grants(&project).await?))
+    Ok(Json(s.core.grants().list(&project).await?))
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -70,23 +69,11 @@ pub(super) async fn issue_grant(
     Path(project): Path<ProjectId>,
     Json(body): Json<IssueGrant>,
 ) -> Result<Json<IssuedGrantBody>, Failure> {
-    let c = ctx(
-        body.command_id,
-        "McpGrantIssue",
-        serde_json::json!({ "project": project }),
-    );
-    let issued = s.core.storage().issue_project_grant(&c, &project).await?;
-    let command = issued.token.as_ref().map(|token| {
-        format!(
-            "claude mcp add --transport http shadows {} --header \"Authorization: Bearer {}\"",
-            s.core.mcp_url(),
-            token.as_str()
-        )
-    });
+    let issued = s.core.grants().issue(body.command_id, &project).await?;
     Ok(Json(IssuedGrantBody {
         grant: issued.grant,
-        token: issued.token.map(|t| t.as_str().to_string()),
-        command,
+        token: issued.token,
+        command: issued.command,
     }))
 }
 
@@ -118,10 +105,5 @@ pub(super) async fn revoke_grant(
     Path(grant): Path<GrantId>,
     Query(q): Query<RevokeQuery>,
 ) -> Result<Json<Grant>, Failure> {
-    let c = ctx(
-        q.command_id,
-        "McpGrantRevoke",
-        serde_json::json!({ "grant": grant }),
-    );
-    Ok(Json(s.core.storage().revoke_grant(&c, &grant).await?))
+    Ok(Json(s.core.grants().revoke(q.command_id, &grant).await?))
 }

@@ -16,7 +16,7 @@ use serde_json::json;
 use super::refusal::{Refusal, answer};
 use super::server::Shadows;
 
-use shadows_core::grant::Grant;
+use shadows_core::Grant;
 use shadows_core::{DraftStart, Place, PlanEdit, PlanOp, PlanShow, WorkflowId};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]

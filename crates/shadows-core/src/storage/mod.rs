@@ -6,8 +6,7 @@ pub use sqlite::{
 };
 // Store helpers a plan write shares inside its one transaction (spec §14.6).
 pub(crate) use sqlite::{
-    append_entry_in, append_event, bind_draft_ref, check_writer, classify, insert_thread, now,
-    record_command,
+    append_entry_in, append_event, classify, insert_thread, now, record_command,
 };
 
 /// Test-only access to a private capability. Compiled in only when the

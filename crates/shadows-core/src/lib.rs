@@ -2,7 +2,7 @@ pub mod app;
 pub mod command;
 pub mod error;
 pub mod events;
-pub mod grant;
+pub mod grants;
 pub mod id;
 pub mod operation;
 pub mod planner;
@@ -19,6 +19,7 @@ pub mod thread;
 pub use app::{AppCore, CoreParts, StartConfig};
 pub use error::CoreError;
 pub use events::UiSignal;
+pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};
 pub use plans::{
     AcceptanceItem, Approved, DraftStart, DraftStarted, EditOutcome, Focus, LastEdit, Link,
     LinkKind, Place, Plan, PlanContent, PlanEdit, PlanListing, PlanOp, PlanShow, PlanShown,

@@ -17,6 +17,7 @@ use shadows_process::{ProcessSpec, spawn};
 use crate::command::{CommandContext, fingerprint};
 use crate::error::CoreError;
 use crate::events::UiSignal;
+use crate::grants::Grants;
 use crate::operation::OperationId;
 use crate::planner::{LiveHandles, Sessions, SessionsConfig};
 use crate::plans::Plans;
@@ -46,6 +47,7 @@ pub struct CoreParts {
 /// The application: every service, built once.
 pub struct AppCore {
     plans: Plans,
+    grants: Grants,
     // Held while adapters still reach them (Tasks 5–9); each goes when its
     // last reader moves into a service, and Task 10 removes the last.
     storage: Arc<Storage>,
@@ -54,7 +56,6 @@ pub struct AppCore {
     handles: Arc<LiveHandles>,
     bus: Bus,
     ui: tokio::sync::broadcast::Sender<UiSignal>,
-    mcp_url: String,
 }
 
 /// What `start` needs from the binary's `Config`: the database path, node,
@@ -102,7 +103,11 @@ impl AppCore {
         let runtime = Arc::new(runtime);
         // Spec §13.7: a Planner's grant lives as long as its adapter, and every
         // adapter of an earlier daemon is gone. Before anything is served.
-        let revoked = storage.revoke_all_thread_grants().await?;
+        // Through a `Grants` of its own: `assemble` builds the core's after
+        // the sessions, and the revocation keeps its place before them.
+        let revoked = Grants::new(storage.clone(), mcp_url.clone())
+            .revoke_thread_grants()
+            .await?;
         tracing::info!(revoked, "recovery.thread_grants_revoked");
 
         let version = harness_version(&config.harness_path).await;
@@ -149,18 +154,22 @@ impl AppCore {
         } = parts;
         Arc::new(AppCore {
             plans: Plans::new(storage.clone(), handles.clone(), ui.clone()),
+            grants: Grants::new(storage.clone(), mcp_url),
             storage,
             runtime,
             sessions,
             handles,
             bus,
             ui,
-            mcp_url,
         })
     }
 
     pub fn plans(&self) -> &Plans {
         &self.plans
+    }
+
+    pub fn grants(&self) -> &Grants {
+        &self.grants
     }
 
     /// §8.5 through `planner::shut_down(runtime, handles, sessions, bound,
@@ -215,12 +224,6 @@ impl AppCore {
     // transitional: removed by Task 10
     pub fn ui_bus(&self) -> &tokio::sync::broadcast::Sender<UiSignal> {
         &self.ui
-    }
-
-    #[doc(hidden)]
-    // transitional: removed by Task 6
-    pub fn mcp_url(&self) -> &str {
-        &self.mcp_url
     }
 }
 

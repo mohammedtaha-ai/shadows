@@ -1,6 +1,6 @@
 //! One job: Shadows' MCP server (spec §13.6), served at `/mcp`.
 //!
-//! `shadows_core::grant` says who may do what (§13.7); `auth.rs` answers a request
+//! `shadows_core::grants` says who may do what (§13.7); `auth.rs` answers a request
 //! without a live grant with 401; `server.rs` is the `rmcp` handler, which
 //! lists the tools a grant's kind holds; `tools.rs` maps each tool onto one
 //! `Plans` method; `refusal.rs` is what a tool answers, refusals included. The route

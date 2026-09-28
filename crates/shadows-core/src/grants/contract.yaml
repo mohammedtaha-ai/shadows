@@ -1,0 +1,355 @@
+# Owns MCP grants from issue to revocation (spec §13.7): a person's issue and
+# revoke of an external agent's project grant, the bearer check `/mcp` asks of
+# every request, and startup's revocation of every thread grant an earlier
+# daemon left live (§14.4).
+#
+# A token exists in clear only between `Token::generate` and the one answer
+# that issues it. The row keeps its SHA-256 (`hash_token`), no event carries
+# either, and `Token`'s Debug prints `Token(shd_…)`. A replayed issue answers
+# the grant with no token and no `claude mcp add` line: it cannot show a token
+# it never kept.
+#
+# A grant is live while `revoked_at` is NULL. Two readers judge that: the
+# bearer check (`authorize`, through `grant_for_token`) before a tool runs,
+# and `check_writer` inside each plan write's own transaction, so a write that
+# began before a revocation does not commit after it.
+#
+# Trap: thread grants are the Planner's, not the person's. They are issued
+# and revoked by the planner's sessions on `Storage` (`issue_thread_grant`,
+# `revoke_thread_grant`), never through `Grants`; `revoke` refuses one as not
+# found, and `list` never shows one. Trap: `IssuedView` carries a bearer
+# token; it has no Debug on purpose.
+
+name: grants
+version: 1
+status: current
+source: crates/shadows-core/src/grants
+
+
+shapes:
+  Grants:
+    storage: Arc<Storage>
+    # `http://<bound address>/mcp`, from `CoreParts::mcp_url`: what `issue`'s
+    # `command` names. It differs from the configured address on port 0.
+    mcp_url: String
+  IssuedView:
+    grant: Grant
+    # The bearer in clear, first issue only; `None` on a replay.
+    token: Option<String>
+    # `claude mcp add --transport http shadows <mcp_url> --header
+    # "Authorization: Bearer <token>"`; present exactly when `token` is.
+    command: Option<String>
+  Grant:
+    id: GrantId
+    kind: GrantKind
+    project_id: ProjectId
+    # `None` for a project grant.
+    thread_id: Option<ThreadId>
+    created_at: String
+    # `None` while live.
+    revoked_at: Option<String>
+  GrantKind:
+    # `thread` and `project` on the wire and in `mcp_grant.kind`.
+    Thread: unit
+    Project: unit
+  Token:
+    # `shd_` and two simple v4 UUIDs: 68 characters, 244 random bits.
+    # Private field; Debug never prints it.
+    "0": String
+  IssuedGrant:
+    # What `issue_project_grant` answers; `Grants::issue` turns it into
+    # `IssuedView`.
+    grant: Grant
+    token: Option<Token>
+
+
+functions:
+  reads:
+    list:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<Grant>, CoreError>"
+      # Project grants only, revoked ones included, newest first by the seq of
+      # each one's `McpGrantIssued` event, never by `created_at`.
+    authorize:
+      signature: "(&self, token: &str) -> Result<Option<Grant>, CoreError>"
+      # Looks up `hash_token(token)` among rows with `revoked_at IS NULL`;
+      # `Ok(None)` for an unknown or revoked token.
+  writes:
+    issue:
+      signature: "(&self, command_id: String, project: &ProjectId) -> Result<IssuedView, CoreError>"
+      # "McpGrantIssue", params { project }, principal User/local, scope
+      # ("Project", project). An unknown project is NotFound("project").
+    revoke:
+      signature: "(&self, command_id: String, grant: &GrantId) -> Result<Grant, CoreError>"
+      # "McpGrantRevoke", params { grant }, scope ("Grant", grant). A thread
+      # grant or an unknown id is NotFound("project grant"). Revoking a
+      # revoked grant under a new command leaves it as it was and journals no
+      # second McpGrantRevoked.
+    revoke_thread_grants:
+      signature: "(&self) -> Result<u64, CoreError>"
+      # Every live thread grant, ORDER BY id, each with its `McpGrantRevoked`
+      # event; answers how many.
+  store:
+    insert_grant:
+      signature: "(conn, project, thread: Option<&ThreadId>, actor, ts) -> Result<(Grant, Token), StorageError>"
+      private: true
+      # The one place a token is generated and its hash written.
+    revoke_in:
+      signature: "(conn, grant: &Grant, actor, ts) -> Result<(), StorageError>"
+      private: true
+      # `UPDATE … WHERE revoked_at IS NULL`; no event when no row changed.
+    check_writer:
+      signature: "(conn, writer: &Writer, project: &ProjectId, thread: Option<&ThreadId>) -> Result<(), StorageError>"
+      # Ok for a person. GrantInvalid for an unknown or revoked grant;
+      # GrantScope when a Planner's grant is not its own thread's, or its
+      # write's thread is not that thread, or an external grant's project is
+      # not the write's.
+    bind_draft_ref:
+      signature: "(conn, writer: &Writer, draft_ref: &str, workflow: &WorkflowId, project: &ProjectId, ts: &str) -> Result<(), StorageError>"
+      # GrantScope unless exactly one `draft_intent` row of the writer's grant
+      # was bound — unused and unexpired (by `julianday`), or already bound to
+      # this workflow — and the grant's project is `project`.
+
+
+enums:
+  ProjectId:
+    source: crate::project::ProjectId
+    values: []
+  ThreadId:
+    source: crate::thread::ThreadId
+    values: []
+  Writer:
+    source: crate::command::Writer
+    values: []
+  CoreError:
+    source: crate::error::CoreError
+    values: []
+  StorageError:
+    source: crate::storage::StorageError
+    values: []
+
+
+shared_in_transaction:
+  check_writer: "Plans' store (plans/store/draft.rs start_draft and start_thread_with_draft, edit.rs edit_plan, view.rs show_plan): the writer's grant is judged live and in scope inside the plan write's own transaction, so a revocation between the tool's bearer check and the write stops the write"
+  bind_draft_ref: "Plans' store (plans/store/draft.rs start_draft and start_thread_with_draft): the draft_ref is bound to the version the same transaction creates, so a refused ref leaves no thread or version behind"
+
+
+obligations:
+  - rule: >
+      Only the token's hash is stored. `mcp_grant.token_hash` holds
+      `hash_token(token)`; no table cell holds the raw token; no durable
+      event carries the token or its hash (`McpGrantIssued` carries
+      { grant_id, kind }, `McpGrantRevoked` { grant_id }); `Token`'s Debug
+      does not print it.
+    tested_by:
+      - a_token_is_stored_only_as_its_hash
+      - grant_events_never_carry_the_token
+    note: >
+      The first scans every text cell of every table for the raw token, for a
+      project grant and a thread grant; the second compares the four grant
+      events' payloads exactly and scans every payload for token and hash.
+
+  - rule: >
+      A replayed issue returns no token. The same command id with the same
+      project answers the grant it issued first, with `token` and `command`
+      both null; the grant it answers is equal to the first.
+    tested_by: a_replayed_issue_does_not_show_the_token_again
+    note: >
+      It asserts over the HTTP route that the first answer's `command` is the
+      `claude mcp add` line with the test's MCP URL and token, and the
+      replay's `token` and `command` are null; and at the store that a replay
+      answers `token: None`.
+
+  - rule: >
+      Thread grants die at startup. `AppCore::start` revokes every live thread
+      grant through `revoke_thread_grants` after `Runtime::start` and before
+      the sessions are built, logging `recovery.thread_grants_revoked` with
+      the count. Project grants survive a restart.
+    tested_by:
+      - startup_revokes_every_thread_grant_and_keeps_project_grants
+      - "integration: restart_revokes_every_internal_grant"
+    note: >
+      The first drives the store (`revoke_all_thread_grants`) directly: 3
+      revoked, the project grant still resolves, a second run revokes 0. The
+      second restarts the real binary (`serve`) on the same database, so it
+      goes through `AppCore::start`: both thread grants end revoked and the
+      project grant does not. Neither asserts the log line.
+
+  - rule: >
+      A revoked or unknown token is not a grant: `authorize` answers
+      `Ok(None)`, and `/mcp` answers 401 with an empty body.
+    tested_by:
+      - a_revoked_grant_no_longer_resolves
+      - revoked_grant_is_refused_after_the_move
+      - "integration: a_revoked_token_is_401"
+      - "integration: a_request_without_a_token_is_401"
+    note: >
+      `revoked_grant_is_refused_after_the_move` issues and revokes through the
+      HTTP routes and checks the token worked on `/mcp` before. The two
+      integration tests revoke by writing the row, below `Grants`.
+
+  - rule: >
+      The person revokes project grants only: `revoke` of a thread grant is
+      NotFound, and a replayed revoke answers the grant as it now stands.
+    tested_by:
+      - a_revoked_grant_no_longer_resolves
+      - a_grant_is_revoked_by_delete_with_its_command_id_in_the_query
+
+  - rule: >
+      Replay identity. Issue is "McpGrantIssue" with params { project },
+      revoke "McpGrantRevoke" with params { grant }, both schema version 1,
+      principal User/local, the command id the caller sent.
+    tested_by: grant_command_fingerprints_do_not_move
+    note: >
+      It reads the command log and compares principal, command id, kind,
+      schema version and fingerprint with `fingerprint` of those literals; it
+      passes on the code before the move (3906c27).
+
+  - rule: >
+      A plan write under a grant checks the grant again in its own
+      transaction: a revoked grant writes nothing (GrantInvalid), a Planner's
+      grant writes only its own thread, an external grant only its project
+      (GrantScope).
+    tested_by:
+      - an_edit_by_a_revoked_grant_writes_nothing
+      - a_planner_grant_edits_only_its_own_thread
+    note: >
+      Both drive `edit_plan` in plans' store; the revocation is written to the
+      row directly, before the write starts, so neither races a revocation
+      against a write in flight.
+
+  - rule: >
+      A draft_ref binds once, to the grant that holds it, before it expires;
+      an expired ref, another grant's ref, or a plan outside the grant's
+      project is GrantScope and leaves the ref unbound and no thread behind.
+    tested_by: a_draft_ref_binds_in_both_paths
+    note: >
+      The branch that accepts a ref already bound to the same workflow is not
+      reached by it: its replay answers from the command log before
+      `bind_draft_ref` runs.
+
+
+agreements:
+  - between: [authorize, check_writer]
+    must: >
+      judge the same grant live or not: a grant `authorize` refuses as revoked
+      is one `check_writer` refuses as GrantInvalid
+    holds: true
+    why: >
+      Both read `mcp_grant.revoked_at` for the grant: `grant_for_token`
+      filters `revoked_at IS NULL`, `check_writer` refuses a row whose
+      `revoked_at` is set, and neither reads anything else to decide liveness.
+    tested_by:
+      - a_revoked_grant_no_longer_resolves
+      - an_edit_by_a_revoked_grant_writes_nothing
+    note: >
+      Each test proves one side; no test revokes one grant and asks both.
+
+  - between: [issue, list]
+    must: >
+      show a project grant identically in the issue answer and in the list
+    holds: true
+    why: >
+      `insert_grant` answers the grant through `load_grant`, and `list` reads
+      the same columns through the same `into_grant`.
+    tested_by: a_replayed_issue_does_not_show_the_token_again
+
+
+not_the_caller's:
+  - >
+      Build the `claude mcp add` line or know the `/mcp` address; `issue`
+      builds it from the bound address, and only when a token is shown.
+  - >
+      Build a CommandContext or fingerprint a grant command; `issue` and
+      `revoke` do, so a replay matches only when the same parameters reach
+      this service.
+  - >
+      Hash a bearer token or compare hashes; `authorize` looks the token up
+      and answers only a live grant.
+
+
+gaps:
+  - at: draft_intent
+    gap: >
+      `Storage::draft_intent` has no caller in the crate: only tests call it.
+      The start path checks a ref inside the write through `bind_draft_ref`,
+      which applies the same owner and expiry rules with its own SQL, so the
+      two could drift unnoticed.
+
+
+open_questions:
+  - >
+      `Plans::prepare_draft` and the planner's sessions call this store's
+      `impl Storage` methods (`prepare_draft`, `issue_thread_grant`,
+      `revoke_thread_grant`) directly, not through `Grants`. Whether they move
+      behind a `Grants` method or stay store calls is Task 10's narrowing of
+      the store's `impl` methods (ruling F6), not decided here.
+  - >
+      `require_grant` answers 503 when `authorize` fails; no test makes the
+      grant lookup fail. That answer belongs to `shadows-mcp`'s `auth.rs`.
+
+
+tests:
+  - name: revoked_grant_is_refused_after_the_move
+    checks: >
+      A grant issued by POST, whose token lists workflows over `/mcp`, is
+      revoked by DELETE with `command_id` in the query; a raw POST to `/mcp`
+      with its bearer then answers 401 with an empty body.
+  - name: grant_command_fingerprints_do_not_move
+    checks: >
+      An issue and a revoke over HTTP leave two command records whose
+      principal User/local, command ids, kinds, schema version 1 and
+      fingerprints equal `fingerprint` of { project } and { grant }.
+  - name: a_token_is_stored_only_as_its_hash
+    checks: >
+      Project and thread tokens are `shd_` plus 64 characters, absent from
+      Debug and from every table cell; `token_hash` equals `hash_token`; each
+      resolves to its grant; an unknown token resolves to none.
+  - name: grant_events_never_carry_the_token
+    checks: >
+      Issue and revoke of a project and a thread grant journal exactly four
+      McpGrant events with { grant_id, kind } and { grant_id }; no payload
+      holds a token or its hash.
+  - name: a_replayed_issue_does_not_show_the_token_again
+    checks: >
+      The first POST answers token and `claude mcp add` line; the replay
+      answers the same grant with both null; the list is newest first and
+      carries no token; the store's replay answers no token.
+  - name: a_revoked_grant_no_longer_resolves
+    checks: >
+      A revoked project grant's token resolves to none, a replayed revoke
+      answers the same grant; a thread grant revoked internally resolves to
+      none, and the person's revoke of it is NotFound.
+  - name: a_grant_is_revoked_by_delete_with_its_command_id_in_the_query
+    checks: >
+      DELETE without `command_id` is 400; with it, 200 and `revoked_at` set;
+      the replay answers the same body; the token no longer resolves; an
+      unknown grant is 404.
+  - name: startup_revokes_every_thread_grant_and_keeps_project_grants
+    checks: >
+      Three thread grants across two projects are revoked (count 3) and no
+      longer resolve; the project grant resolves and is listed; a second run
+      answers 0.
+  - name: restart_revokes_every_internal_grant
+    checks: >
+      After an in-process daemon stops leaving one live thread grant, the
+      real binary starting on that database leaves every thread grant revoked
+      and the project grant live.
+  - name: a_revoked_token_is_401
+    checks: >
+      A project grant's token initializes over raw `/mcp`; after its row is
+      marked revoked the same request is 401 with an empty body.
+  - name: a_request_without_a_token_is_401
+    checks: >
+      No bearer and an unknown bearer are each 401, empty, without
+      WWW-Authenticate.
+  - name: an_edit_by_a_revoked_grant_writes_nothing
+    checks: The store refuses a revoked external grant's edit with GrantInvalid; revision stays 0.
+  - name: a_planner_grant_edits_only_its_own_thread
+    checks: >
+      A Planner writer on another thread's plan is refused GrantScope; on its
+      own thread the edit is recorded.
+  - name: a_draft_ref_binds_in_both_paths
+    checks: >
+      A ref binds to a from-scratch v1 and to a next version; a foreign-project
+      thread, an expired ref and another grant's ref are GrantScope and stay
+      unbound, with no thread created; a replay after expiry answers the first.

@@ -1,4 +1,4 @@
-//! One job: who may do what on `/mcp` (spec §13.7).
+//! One job: a grant's types (spec §13.7) — who may do what on `/mcp`.
 
 use sha2::{Digest, Sha256};
 

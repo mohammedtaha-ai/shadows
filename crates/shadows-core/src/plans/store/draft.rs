@@ -10,12 +10,12 @@ use super::read::{latest_version, load_plan};
 use super::task::write_content;
 use crate::command::{CommandContext, Writer};
 use crate::events::DurableEvent;
+use crate::grants::{bind_draft_ref, check_writer};
 use crate::plans::model::{DraftStarted, PlanContent, WorkflowId, WorkflowState};
 use crate::plans::rules::Problem;
 use crate::project::ProjectId;
 use crate::storage::{
-    Storage, StorageError, append_event, bind_draft_ref, check_writer, classify, insert_thread,
-    now, record_command,
+    Storage, StorageError, append_event, classify, insert_thread, now, record_command,
 };
 use crate::thread::ThreadId;
 use shadows_agent::policy;

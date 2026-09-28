@@ -14,7 +14,7 @@ use rmcp::transport::StreamableHttpClientTransport;
 use rmcp::transport::streamable_http_client::StreamableHttpClientTransportConfig;
 use rmcp::{RoleClient, ServiceExt};
 use serde_json::Value;
-use shadows_core::grant::GrantId;
+use shadows_core::GrantId;
 use shadows_core::thread::ThreadId;
 
 use std::path::Path;

@@ -13,9 +13,9 @@
 #![allow(dead_code)]
 
 use serde_json::{Value, json};
+use shadows_core::GrantId;
 use shadows_core::command::derive::{Anchor, derived_id};
 use shadows_core::command::{CommandContext, Writer, fingerprint};
-use shadows_core::grant::GrantId;
 use shadows_core::project::ProjectId;
 use shadows_core::thread::ThreadId;
 use shadows_core::{AcceptanceItem, DraftStarted, Link, LinkKind, PlanOp, TaskContent, WorkflowId};

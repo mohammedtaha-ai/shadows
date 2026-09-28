@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use sha2::{Digest, Sha256};
 
-use crate::grant::GrantId;
+use crate::grants::GrantId;
 use crate::project::ProjectId;
 use crate::storage::{InstructionsVersion, Storage, StorageError};
 use crate::thread::ThreadId;

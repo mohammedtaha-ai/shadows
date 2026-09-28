@@ -5,12 +5,12 @@
 use super::read::{load_plan, recorded_outcome};
 use super::task::task_numbered;
 use crate::command::{CommandContext, Writer};
+use crate::grants::check_writer;
 use crate::operation::OperationId;
 use crate::plans::conversation::{Place, PlanShown};
 use crate::plans::model::WorkflowId;
 use crate::storage::{
-    Storage, StorageError, append_entry_in, append_event, check_writer, classify, now,
-    record_command,
+    Storage, StorageError, append_entry_in, append_event, classify, now, record_command,
 };
 use crate::thread::{EntryRef, NewThreadEntry, ThreadEntryKind};
 

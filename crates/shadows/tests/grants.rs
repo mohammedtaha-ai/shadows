@@ -4,9 +4,10 @@
 //! plans with (§13.5).
 
 use serde_json::{Value, json};
+use shadows_core::GrantKind;
 use shadows_core::command::Writer;
 use shadows_core::command::derive::{Anchor, derived_id};
-use shadows_core::grant::{GrantKind, hash_token};
+use shadows_core::grants::hash_token;
 use shadows_core::storage::StorageError;
 
 #[path = "fixtures/acp.rs"]

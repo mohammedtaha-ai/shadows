@@ -40,7 +40,7 @@ use crate::command::derive::{Anchor, derived_id};
 use crate::command::fingerprint;
 use crate::error::{CoreError, ErrorCode};
 use crate::events::UiSignal;
-use crate::grant::{Grant, GrantKind};
+use crate::grants::{Grant, GrantKind};
 use crate::planner::LiveHandles;
 use crate::project::ProjectId;
 use crate::storage::Storage;

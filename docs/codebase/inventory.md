@@ -243,7 +243,7 @@ pub fn is_available(kind: &str) -> bool
 pub fn default_modes() -> BTreeMap<String, Vec<String>>
 ```
 
-## `crates/shadows-core/src/app.rs` — 294 lines
+## `crates/shadows-core/src/app.rs` — 297 lines
 
 ```rust
 pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
@@ -269,6 +269,7 @@ impl AppCore {
     pub async fn start(config: &StartConfig, mcp_url: String) -> anyhow::Result<Arc<AppCore>>
     pub fn assemble(parts: CoreParts) -> Arc<AppCore>
     pub fn plans(&self) -> &Plans
+    pub fn grants(&self) -> &Grants
     pub async fn shut_down(&self, bound: Duration, second_signal: impl Future<Output = ()>) -> Result<StopKind, CoreError>
     pub fn storage(&self) -> &Arc<Storage>
     pub fn runtime(&self) -> &Arc<Runtime>
@@ -276,7 +277,6 @@ impl AppCore {
     pub fn handles(&self) -> &Arc<LiveHandles>
     pub fn bus(&self) -> &Bus
     pub fn ui_bus(&self) -> &tokio::sync::broadcast::Sender<UiSignal>
-    pub fn mcp_url(&self) -> &str
 }
 
 pub fn adapter_version(adapter_entry: &Path) -> String
@@ -441,7 +441,30 @@ pub struct UiSignal {
 }
 ```
 
-## `crates/shadows-core/src/grant/mod.rs` — 92 lines
+## `crates/shadows-core/src/grants/mod.rs` — 108 lines
+
+```rust
+pub use model::hash_token;
+pub use model::{Grant, GrantId, GrantKind};
+pub(crate) use store::{bind_draft_ref, check_writer};
+pub struct Grants {}
+// + 2 private fields
+pub struct IssuedView {
+    pub grant: Grant,
+    pub token: Option<String>,
+    pub command: Option<String>,
+}
+impl Grants {
+    pub(crate) fn new(storage: Arc<Storage>, mcp_url: String) -> Self
+    pub async fn list(&self, project: &ProjectId) -> Result<Vec<Grant>, CoreError>
+    pub async fn issue(&self, command_id: String, project: &ProjectId) -> Result<IssuedView, CoreError>
+    pub async fn revoke(&self, command_id: String, grant: &GrantId) -> Result<Grant, CoreError>
+    pub async fn authorize(&self, token: &str) -> Result<Option<Grant>, CoreError>
+    pub async fn revoke_thread_grants(&self) -> Result<u64, CoreError>
+}
+```
+
+## `crates/shadows-core/src/grants/model.rs` — 92 lines
 
 ```rust
 pub struct GrantId(String);
@@ -482,18 +505,38 @@ pub struct IssuedGrant {
 }
 ```
 
+## `crates/shadows-core/src/grants/store.rs` — 442 lines
+
+```rust
+impl Storage {
+    pub async fn issue_project_grant(&self, ctx: &CommandContext, project: &ProjectId) -> Result<IssuedGrant, StorageError>
+    pub async fn issue_thread_grant(&self, thread: &ThreadId) -> Result<(Grant, Token), StorageError>
+    pub async fn revoke_grant(&self, ctx: &CommandContext, id: &GrantId) -> Result<Grant, StorageError>
+    pub async fn revoke_thread_grant(&self, id: &GrantId) -> Result<(), StorageError>
+    pub async fn revoke_all_thread_grants(&self) -> Result<u64, StorageError>
+    pub async fn grant_for_token(&self, raw: &str) -> Result<Option<Grant>, StorageError>
+    pub async fn list_project_grants(&self, project: &ProjectId) -> Result<Vec<Grant>, StorageError>
+    pub async fn prepare_draft(&self, grant: &GrantId) -> Result<String, StorageError>
+    pub async fn draft_intent(&self, grant: &GrantId, draft_ref: &str) -> Result<Option<WorkflowId>, StorageError>
+}
+
+pub(crate) async fn check_writer(conn: &mut SqliteConnection, writer: &Writer, project: &ProjectId, thread: Option<&ThreadId>) -> Result<(), StorageError>
+pub(crate) async fn bind_draft_ref(conn: &mut SqliteConnection, writer: &Writer, draft_ref: &str, workflow: &WorkflowId, project: &ProjectId, ts: &str) -> Result<(), StorageError>
+```
+
 ## `crates/shadows-core/src/id.rs` — 101 lines
 
 ```rust
 pub(crate) use newtype_id;
 ```
 
-## `crates/shadows-core/src/lib.rs` — 27 lines
+## `crates/shadows-core/src/lib.rs` — 28 lines
 
 ```rust
 pub use app::{AppCore, CoreParts, StartConfig};
 pub use error::CoreError;
 pub use events::UiSignal;
+pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};
 pub use plans::{ AcceptanceItem, Approved, DraftStart, DraftStarted, EditOutcome, Focus, LastEdit, Link, LinkKind, Place, Plan, PlanContent, PlanEdit, PlanListing, PlanOp, PlanShow, PlanShown, PlanTask, Plans, Problem, TaskContent, TaskId, WorkflowId, WorkflowState, };
 pub use storage::StopKind;
 ```
@@ -1174,11 +1217,11 @@ impl Runtime {
 }
 ```
 
-## `crates/shadows-core/src/storage/mod.rs` — 34 lines
+## `crates/shadows-core/src/storage/mod.rs` — 33 lines
 
 ```rust
 pub use sqlite::{ InstructionsVersion, NewTurn, ReconcileReport, StartedTurn, StopKind, Storage, StorageError, StoredEvent, };
-pub(crate) use sqlite::{ append_entry_in, append_event, bind_draft_ref, check_writer, classify, insert_thread, now, record_command, };
+pub(crate) use sqlite::{ append_entry_in, append_event, classify, insert_thread, now, record_command, };
 pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
@@ -1232,25 +1275,6 @@ impl Storage {
 }
 ```
 
-## `crates/shadows-core/src/storage/sqlite/grant.rs` — 444 lines
-
-```rust
-impl Storage {
-    pub async fn issue_project_grant(&self, ctx: &CommandContext, project: &ProjectId) -> Result<IssuedGrant, StorageError>
-    pub async fn issue_thread_grant(&self, thread: &ThreadId) -> Result<(Grant, Token), StorageError>
-    pub async fn revoke_grant(&self, ctx: &CommandContext, id: &GrantId) -> Result<Grant, StorageError>
-    pub async fn revoke_thread_grant(&self, id: &GrantId) -> Result<(), StorageError>
-    pub async fn revoke_all_thread_grants(&self) -> Result<u64, StorageError>
-    pub async fn grant_for_token(&self, raw: &str) -> Result<Option<Grant>, StorageError>
-    pub async fn list_project_grants(&self, project: &ProjectId) -> Result<Vec<Grant>, StorageError>
-    pub async fn prepare_draft(&self, grant: &GrantId) -> Result<String, StorageError>
-    pub async fn draft_intent(&self, grant: &GrantId, draft_ref: &str) -> Result<Option<WorkflowId>, StorageError>
-}
-
-pub(crate) async fn check_writer(conn: &mut SqliteConnection, writer: &Writer, project: &ProjectId, thread: Option<&ThreadId>) -> Result<(), StorageError>
-pub(crate) async fn bind_draft_ref(conn: &mut SqliteConnection, writer: &Writer, draft_ref: &str, workflow: &WorkflowId, project: &ProjectId, ts: &str) -> Result<(), StorageError>
-```
-
 ## `crates/shadows-core/src/storage/sqlite/harness.rs` — 128 lines
 
 ```rust
@@ -1278,7 +1302,7 @@ impl Storage {
 }
 ```
 
-## `crates/shadows-core/src/storage/sqlite/mod.rs` — 307 lines
+## `crates/shadows-core/src/storage/sqlite/mod.rs` — 305 lines
 
 ```rust
 pub use events_read::StoredEvent;
@@ -1288,7 +1312,6 @@ pub use turn::{NewTurn, StartedTurn};
 pub(crate) use command::{classify, record_command};
 pub(crate) use entry::append_entry_in;
 pub(crate) use events::append_event;
-pub(crate) use grant::{bind_draft_ref, check_writer};
 pub(crate) use thread::insert_thread;
 pub(crate) fn now() -> String
 pub enum StorageError {
@@ -1580,7 +1603,7 @@ pub(super) struct CreateDir {}
 pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCode, Json<DirectoryEntry>), Failure>
 ```
 
-## `crates/shadows-http/src/grants.rs` — 127 lines
+## `crates/shadows-http/src/grants.rs` — 109 lines
 
 ```rust
 pub(super) async fn list_grants(State(s): State<AppState>, Path(project): Path<ProjectId>) -> Result<Json<Vec<Grant>>, Failure>

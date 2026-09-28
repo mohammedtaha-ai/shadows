@@ -11,7 +11,7 @@ use super::{DraftStart, Plans};
 use crate::command::derive::{Anchor, derived_id};
 use crate::command::{CommandContext, Writer, fingerprint};
 use crate::error::{CoreError, ErrorCode};
-use crate::grant::{Grant, GrantKind};
+use crate::grants::{Grant, GrantKind};
 use crate::storage::StorageError;
 use crate::thread::ThreadId;
 

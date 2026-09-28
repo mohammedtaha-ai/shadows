@@ -25,7 +25,7 @@ pub(super) async fn require_grant(
         tracing::info!("mcp.unauthorized");
         return StatusCode::UNAUTHORIZED.into_response();
     };
-    match core.storage().grant_for_token(token).await {
+    match core.grants().authorize(token).await {
         Ok(Some(grant)) => {
             request.extensions_mut().insert(grant);
             next.run(request).await
