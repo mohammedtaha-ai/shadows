@@ -30,8 +30,10 @@ utoipa = { workspace = true }
 [features]
 # Compiles in `storage::test_support`, a hook onto an otherwise-private
 # capability (`append_event` without a state write) that must never ship in
-# an ordinary build — see cross-cutting rule 10 — and `testing`, which builds
-# the test binaries through `escargot`. Enabled for `cargo test` only via the
+# an ordinary build — see cross-cutting rule 10 — plus `<Id>::from_literal`,
+# the test hooks in `planner` and the harness store, `shadows-process`'s
+# `force_termination_failure`, and `testing`, which builds the test binaries
+# through `escargot`. Enabled for `cargo test` only via the
 # self dev-dependency below, and by `shadows`' and `fake-acp`'s own
 # `test-support`; never a default feature.
 test-support = ["dep:escargot", "shadows-process/test-support"]

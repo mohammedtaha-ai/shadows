@@ -53,8 +53,10 @@ libc = "0.2"
 
 # Dev-dependencies.
 tempfile = "3"
-# Builds `shadows-process`'s `tree_probe` for `shadows`' tests: `CARGO_BIN_EXE_*`
-# names a binary only inside its own package (spec §14.3).
+# `shadows_core::testing` builds `fake-acp` and `shadows-process`'s `tree_probe`
+# for tests in other packages: `CARGO_BIN_EXE_*` names a binary only inside its
+# own package (spec §14.3). An optional dependency of `shadows-core`, enabled
+# only by its `test-support`.
 escargot = "0.5"
 # `tests/codemap` generates docs/codebase/inventory.md from the source tree and
 # fails when the checked-in file has drifted. syn parses, prettyplease prints —
