@@ -13,12 +13,12 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use shadows::operation::OperationId;
-use shadows::planner::{LiveHandles, Sessions};
 use shadows::protocol::{AppState, router};
-use shadows::runtime::{Runtime, RuntimeInstanceId};
-use shadows::storage::Storage;
-use shadows::thread::ThreadId;
+use shadows_core::operation::OperationId;
+use shadows_core::planner::{LiveHandles, Sessions};
+use shadows_core::runtime::{Runtime, RuntimeInstanceId};
+use shadows_core::storage::Storage;
+use shadows_core::thread::ThreadId;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tower::ServiceExt;
 

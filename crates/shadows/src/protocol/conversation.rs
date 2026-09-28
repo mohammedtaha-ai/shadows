@@ -12,20 +12,20 @@ use super::failure::ErrorBody;
 use super::harness::open_failure;
 use super::project::ctx;
 use super::{AppState, Failure};
-use crate::command::CommandContext;
-use crate::events::Actor;
-use crate::operation::{Operation, OperationId};
-use crate::planner::{
-    LeaseError, OpenSession, PlannerTurn, PlannerTurnRequest, StopOutcome, focus_block,
-    prompt_version,
-};
-use crate::storage::{NewTurn, StartedTurn, StorageError};
-use crate::thread::{ThreadEntry, ThreadId, TurnContext};
-use crate::workflow::Focus;
 use shadows_agent::TurnSettings;
 use shadows_agent::acp::AcpError;
 use shadows_agent::choices::{Offered, refusal};
 use shadows_agent::policy;
+use shadows_core::command::CommandContext;
+use shadows_core::events::Actor;
+use shadows_core::operation::{Operation, OperationId};
+use shadows_core::planner::{
+    LeaseError, OpenSession, PlannerTurn, PlannerTurnRequest, StopOutcome, focus_block,
+    prompt_version,
+};
+use shadows_core::storage::{NewTurn, StartedTurn, StorageError};
+use shadows_core::thread::{ThreadEntry, ThreadId, TurnContext};
+use shadows_core::workflow::Focus;
 
 /// A thread's entries in ordinal order.
 #[utoipa::path(

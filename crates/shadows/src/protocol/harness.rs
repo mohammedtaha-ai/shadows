@@ -11,13 +11,13 @@ use axum::extract::{Path, State};
 use super::conversation::detached;
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
-use crate::planner::{LeaseError, ModelRefused, OpenError};
-use crate::storage::{Storage, StorageError};
-use crate::thread::ThreadId;
 use shadows_agent::breakdown::Category;
 use shadows_agent::choices::{Offered, SessionChoices, for_client};
 use shadows_agent::events::AccountLimits;
 use shadows_agent::policy;
+use shadows_core::planner::{LeaseError, ModelRefused, OpenError};
+use shadows_core::storage::{Storage, StorageError};
+use shadows_core::thread::ThreadId;
 
 /// The model and effort last chosen for this harness (spec §12.4).
 #[derive(serde::Serialize, utoipa::ToSchema)]

@@ -8,9 +8,9 @@
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use shadows::planner::{SessionsConfig, prompt_version};
-use shadows::storage::Storage;
-use shadows::workflow::WorkflowId;
+use shadows_core::planner::{SessionsConfig, prompt_version};
+use shadows_core::storage::Storage;
+use shadows_core::workflow::WorkflowId;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
@@ -20,8 +20,6 @@ mod app;
 mod listening;
 #[path = "fixtures/plan.rs"]
 mod plan;
-#[path = "fixtures/probe.rs"]
-mod probe;
 #[path = "fixtures/serve.rs"]
 mod serve;
 
@@ -33,7 +31,7 @@ use listening::{listening_app, listening_at, listening_with};
 use plan::{add, events, issue_grant};
 use serve::serve;
 
-const PROMPT: &str = include_str!("../src/planner/prompt.txt");
+const PROMPT: &str = shadows_core::testing::PROMPT;
 const CHANGED: &str = "[Shadows] The project's Planner instructions changed.";
 const OURS: &str = "[Shadows] Shadows' instructions for you:";
 
@@ -192,7 +190,7 @@ async fn restart_revokes_every_internal_grant() {
 
     drop(serve(
         &dir.path().join("s.sqlite3"),
-        probe::tree_probe_path().to_str().unwrap(),
+        shadows_core::testing::tree_probe_path().to_str().unwrap(),
     ));
     let thread: Vec<_> = thread_grants(&storage).await;
     assert_eq!(thread.len(), 2);
@@ -215,7 +213,7 @@ async fn the_daemon_opens_sessions_with_its_own_mcp_address() {
     std::fs::create_dir(&project_dir).unwrap();
     let daemon = serve(
         &tmp.path().join("s.sqlite3"),
-        env!("CARGO_BIN_EXE_fake_acp"),
+        shadows_core::testing::fake_acp_path().to_str().unwrap(),
     );
     let http = reqwest::Client::new();
     let post = async |path: &str, body: Value| -> Value {

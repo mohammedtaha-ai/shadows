@@ -17,7 +17,7 @@ async fn open_fake() -> (
     Connection,
     mpsc::UnboundedReceiver<HarnessEvent>,
 ) {
-    let executable = PathBuf::from(env!("CARGO_BIN_EXE_fake_acp"));
+    let executable = shadows_core::testing::fake_acp_path();
     let mut handle = process::spawn(ProcessSpec {
         executable,
         args: vec!["anything".into()],

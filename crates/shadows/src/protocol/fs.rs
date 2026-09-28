@@ -18,8 +18,8 @@ use axum::http::StatusCode;
 
 use super::Failure;
 use super::failure::ErrorBody;
-use crate::project::DirectoryError;
-use crate::project::browse::{self, DirectoryEntry, DirectoryListing};
+use shadows_core::project::DirectoryError;
+use shadows_core::project::browse::{self, DirectoryEntry, DirectoryListing};
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]

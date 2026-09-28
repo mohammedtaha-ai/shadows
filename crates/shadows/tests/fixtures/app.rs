@@ -19,16 +19,16 @@ use axum::body::Body;
 use axum::http::Request;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
-use shadows::command::{CommandContext, fingerprint};
-use shadows::operation::{Operation, OperationId};
-use shadows::planner::{LiveHandles, Sessions, SessionsConfig};
-use shadows::project::{ProjectDirectory, ProjectId};
 use shadows::protocol::{AppState, UiSignal, router};
-use shadows::runtime::Runtime;
-use shadows::storage::Storage;
-use shadows::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_agent::events::HarnessEvent;
 use shadows_agent::policy;
+use shadows_core::command::{CommandContext, fingerprint};
+use shadows_core::operation::{Operation, OperationId};
+use shadows_core::planner::{LiveHandles, Sessions, SessionsConfig};
+use shadows_core::project::{ProjectDirectory, ProjectId};
+use shadows_core::runtime::Runtime;
+use shadows_core::storage::Storage;
+use shadows_core::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
 use tower::ServiceExt;
 
 use super::acp;
@@ -148,7 +148,7 @@ pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) ->
 /// Stops the daemon as `serve` does on a signal, so the directory can be
 /// opened again by `test_app_at`.
 pub async fn shut_down_app(app: App) {
-    shadows::planner::shut_down(
+    shadows_core::planner::shut_down(
         app.runtime.clone(),
         app.handles.clone(),
         app.sessions.clone(),

@@ -7,8 +7,8 @@
 
 use rmcp::model::{CallToolResult, ContentBlock};
 
-use crate::error::ErrorCode;
-use crate::storage::StorageError;
+use shadows_core::error::ErrorCode;
+use shadows_core::storage::StorageError;
 
 pub(super) struct Refusal {
     code: ErrorCode,

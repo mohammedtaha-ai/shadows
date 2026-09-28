@@ -21,10 +21,10 @@ use std::sync::Arc;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
-use shadows::planner::LiveHandles;
 use shadows::protocol::{AppState, openapi_document, router};
-use shadows::runtime::Runtime;
-use shadows::storage::Storage;
+use shadows_core::planner::LiveHandles;
+use shadows_core::runtime::Runtime;
+use shadows_core::storage::Storage;
 use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]

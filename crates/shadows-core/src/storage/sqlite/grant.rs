@@ -15,7 +15,7 @@ use super::events::append_event;
 use super::{Storage, StorageError, now};
 use crate::command::{CommandContext, Writer};
 use crate::events::{Actor, DurableEvent};
-use crate::mcp::grant::{Grant, GrantId, GrantKind, IssuedGrant, Token, hash_token};
+use crate::grant::{Grant, GrantId, GrantKind, IssuedGrant, Token, hash_token};
 use crate::project::ProjectId;
 use crate::thread::ThreadId;
 use crate::workflow::WorkflowId;

@@ -9,11 +9,11 @@ use std::time::Duration;
 use shadows_process::{ProcessSpec, spawn};
 
 use crate::config::{Config, adapter_version};
-use crate::planner::{LiveHandles, Sessions, SessionsConfig, shut_down};
 use crate::protocol::{AppState, router};
-use crate::runtime::Runtime;
-use crate::storage::Storage;
 use shadows_agent::claude::ClaudeAdapter;
+use shadows_core::planner::{LiveHandles, Sessions, SessionsConfig, shut_down};
+use shadows_core::runtime::Runtime;
+use shadows_core::storage::Storage;
 
 /// Binds, prints exactly one address, and serves. Spec §1.0: it never opens a
 /// browser. The user chooses which browser to use.

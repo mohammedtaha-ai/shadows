@@ -8,15 +8,15 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::Value;
-use shadows::command::{CommandContext, fingerprint};
-use shadows::events::Actor;
-use shadows::operation::OperationId;
-use shadows::planner::{LiveHandles, PlannerTurn, Sessions, StopOutcome};
-use shadows::project::ProjectDirectory;
-use shadows::runtime::Runtime;
-use shadows::storage::Storage;
-use shadows::thread::{ThreadEntryKind, ThreadId};
 use shadows_agent::events::HarnessEvent;
+use shadows_core::command::{CommandContext, fingerprint};
+use shadows_core::events::Actor;
+use shadows_core::operation::OperationId;
+use shadows_core::planner::{LiveHandles, PlannerTurn, Sessions, StopOutcome};
+use shadows_core::project::ProjectDirectory;
+use shadows_core::runtime::Runtime;
+use shadows_core::storage::Storage;
+use shadows_core::thread::{ThreadEntryKind, ThreadId};
 
 #[path = "fixtures/acp.rs"]
 mod acp;

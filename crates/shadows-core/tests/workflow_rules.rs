@@ -1,4 +1,4 @@
-use shadows::workflow::*;
+use shadows_core::workflow::*;
 
 fn task(n: u32, title: &str) -> TaskContent {
     TaskContent {

@@ -14,7 +14,7 @@ use axum::http::{StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
-use crate::storage::Storage;
+use shadows_core::storage::Storage;
 
 pub(super) async fn require_grant(
     State(storage): State<Arc<Storage>>,

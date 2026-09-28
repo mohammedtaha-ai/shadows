@@ -1,9 +1,6 @@
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 
-#[path = "fixtures/probe.rs"]
-mod probe;
-
 /// `shadows serve` must print exactly one local address and must not open a
 /// browser. Spec §1.0 and §11.1 both require the daemon to stop at printing.
 #[test]
@@ -26,7 +23,7 @@ fn serve_prints_one_local_address_and_does_not_open_a_browser() {
         .arg("--harness")
         .arg(harness)
         .arg("--node")
-        .arg(probe::tree_probe_path())
+        .arg(shadows_core::testing::tree_probe_path())
         .arg("--adapter")
         .arg(adapter)
         .stdout(Stdio::piped())
@@ -116,9 +113,9 @@ fn a_harness_that_never_answers_its_version_does_not_hold_startup() {
         .arg("--bind")
         .arg("127.0.0.1:0")
         .arg("--harness")
-        .arg(probe::tree_probe_path())
+        .arg(shadows_core::testing::tree_probe_path())
         .arg("--node")
-        .arg(probe::tree_probe_path())
+        .arg(shadows_core::testing::tree_probe_path())
         .arg("--adapter")
         .arg(adapter)
         .stdout(Stdio::piped())

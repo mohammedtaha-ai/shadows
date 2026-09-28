@@ -14,11 +14,11 @@ use std::time::Duration;
 use axum::body::Body;
 use axum::http::Request;
 use serde_json::Value;
-use shadows::command::{CommandContext, fingerprint};
-use shadows::planner::LiveHandles;
 use shadows::protocol::{AppState, router};
-use shadows::runtime::Runtime;
-use shadows::storage::Storage;
+use shadows_core::command::{CommandContext, fingerprint};
+use shadows_core::planner::LiveHandles;
+use shadows_core::runtime::Runtime;
+use shadows_core::storage::Storage;
 use tokio_stream::StreamExt;
 use tower::ServiceExt;
 
@@ -57,7 +57,7 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
         command_schema_ver: 1,
         request_fingerprint: fingerprint(kind, &params),
     };
-    let dir = shadows::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
+    let dir = shadows_core::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
     let project = storage
         .create_project(
             &ctx("c1", "project.create"),

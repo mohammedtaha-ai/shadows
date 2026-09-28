@@ -9,8 +9,8 @@ use axum::extract::{Path, State};
 use super::failure::ErrorBody;
 use super::project::ctx;
 use super::{AppState, Failure};
-use crate::project::ProjectId;
-use crate::storage::InstructionsVersion;
+use shadows_core::project::ProjectId;
+use shadows_core::storage::InstructionsVersion;
 
 /// The project's current instructions — its highest-numbered version — or
 /// `null` before the first save.

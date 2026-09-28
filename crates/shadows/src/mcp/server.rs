@@ -20,7 +20,7 @@ use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, ServerHandler};
 
 use super::McpState;
-use super::grant::{Grant, GrantKind};
+use shadows_core::grant::{Grant, GrantKind};
 
 /// The internal Planner's tools. It never lists plans or prepares a draft ref:
 /// its grant fixes the thread, and the thread fixes the plan. Only it shows a

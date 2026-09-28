@@ -1,13 +1,13 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use shadows::{
+use shadows_agent::{claude::ClaudeAdapter, events::HarnessEvent};
+use shadows_core::{
     command::{CommandContext, fingerprint},
     planner::{OpenError, OpenSession, Sessions, SessionsConfig},
     project::ProjectDirectory,
     storage::Storage,
     thread::ThreadId,
 };
-use shadows_agent::{claude::ClaudeAdapter, events::HarnessEvent};
 
 struct Fixture {
     _tmp: tempfile::TempDir,
@@ -53,7 +53,7 @@ async fn fixture(config: SessionsConfig) -> Fixture {
         .unwrap()
         .id;
     let adapter = Arc::new(ClaudeAdapter {
-        node: PathBuf::from(env!("CARGO_BIN_EXE_fake_acp")),
+        node: shadows_core::testing::fake_acp_path(),
         adapter: PathBuf::from("unused"),
         agent: PathBuf::from("unused"),
         adapter_version: "fake".into(),

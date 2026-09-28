@@ -3,10 +3,10 @@
 //! draft refs an external agent starts plans with.
 
 use serde_json::json;
-use shadows::command::Writer;
-use shadows::command::derive::{Anchor, derived_id};
-use shadows::project::ProjectDirectory;
-use shadows::storage::StorageError;
+use shadows_core::command::Writer;
+use shadows_core::command::derive::{Anchor, derived_id};
+use shadows_core::project::ProjectDirectory;
+use shadows_core::storage::StorageError;
 
 #[path = "fixtures/acp.rs"]
 mod acp;

@@ -1,6 +1,6 @@
 //! One job: Shadows' MCP server (spec §13.6), served at `/mcp`.
 //!
-//! `grant.rs` says who may do what (§13.7); `auth.rs` answers a request
+//! `shadows_core::grant` says who may do what (§13.7); `auth.rs` answers a request
 //! without a live grant with 401; `server.rs` is the `rmcp` handler, which
 //! lists the tools a grant's kind holds; `tools.rs` maps each tool onto plan
 //! storage; `refusal.rs` is what a tool answers, refusals included. The route
@@ -12,7 +12,6 @@
 //! request stands alone, with its own bearer.
 
 mod auth;
-pub mod grant;
 mod refusal;
 mod server;
 mod tools;
@@ -23,9 +22,9 @@ use axum::Router;
 use rmcp::transport::streamable_http_server::session::never::NeverSessionManager;
 use rmcp::transport::{StreamableHttpServerConfig, StreamableHttpService};
 
-use crate::planner::LiveHandles;
 use crate::protocol::UiSignal;
-use crate::storage::Storage;
+use shadows_core::planner::LiveHandles;
+use shadows_core::storage::Storage;
 
 /// What a tool reaches: plan storage, the live turns a Planner's
 /// `draft_start` and `plan_show` anchor to, and the live-only signal

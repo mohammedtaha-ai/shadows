@@ -11,11 +11,11 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use shadows::operation::{Operation, OperationId};
-use shadows::planner::LiveHandles;
 use shadows::protocol::{AppState, router};
-use shadows::runtime::Runtime;
-use shadows::storage::Storage;
+use shadows_core::operation::{Operation, OperationId};
+use shadows_core::planner::LiveHandles;
+use shadows_core::runtime::Runtime;
+use shadows_core::storage::Storage;
 use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
@@ -297,7 +297,7 @@ const LEGACY_THREAD: &str = "00000000-0000-4000-8000-0000000000a2";
 async fn seed_pre_directory_database(tmp: &Path, db: &Path) {
     let old = tmp.join("pre-0003");
     std::fs::create_dir(&old).unwrap();
-    let migrations = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+    let migrations = shadows_core::testing::migrations_dir();
     for name in ["0001_milestone0.sql", "0002_operation_event_thread.sql"] {
         std::fs::copy(migrations.join(name), old.join(name)).unwrap();
     }

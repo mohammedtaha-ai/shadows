@@ -6,9 +6,9 @@
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use shadows::operation::OperationId;
-use shadows::thread::{EntryRef, ThreadEntryKind};
-use shadows::workflow::{TaskId, WorkflowId};
+use shadows_core::operation::OperationId;
+use shadows_core::thread::{EntryRef, ThreadEntryKind};
+use shadows_core::workflow::{TaskId, WorkflowId};
 
 #[path = "fixtures/acp.rs"]
 mod acp;

@@ -1,22 +1,22 @@
-use shadows::events::Actor;
-use shadows::operation::FailureStage;
-use shadows::runtime::RuntimeInstanceId;
-use shadows::storage::{Storage, StorageError};
-use shadows::thread::ThreadId;
+use shadows_core::events::Actor;
+use shadows_core::operation::FailureStage;
+use shadows_core::runtime::RuntimeInstanceId;
+use shadows_core::storage::{Storage, StorageError};
+use shadows_core::thread::ThreadId;
 
 async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let runtime = storage.register_runtime_instance("test").await.unwrap();
-    let dir = shadows::project::ProjectDirectory::resolve(tmp.path()).unwrap();
+    let dir = shadows_core::project::ProjectDirectory::resolve(tmp.path()).unwrap();
     let params = serde_json::json!({ "slug": "demo" });
-    let ctx = shadows::command::CommandContext {
+    let ctx = shadows_core::command::CommandContext {
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: "c1".into(),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: shadows::command::fingerprint("project.create", &params),
+        request_fingerprint: shadows_core::command::fingerprint("project.create", &params),
     };
     let project = storage
         .create_project(
@@ -28,10 +28,10 @@ async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) 
         )
         .await
         .unwrap();
-    let tctx = shadows::command::CommandContext {
+    let tctx = shadows_core::command::CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
-        request_fingerprint: shadows::command::fingerprint("thread.create", &params),
+        request_fingerprint: shadows_core::command::fingerprint("thread.create", &params),
         ..ctx
     };
     let thread = storage
@@ -251,7 +251,7 @@ async fn a_cancellation_request_does_not_make_an_operation_terminal() {
 async fn a_cancellation_request_for_an_unknown_operation_is_not_found() {
     let (_tmp, storage, _runtime, _thread) = fixture().await;
     let unknown =
-        shadows::operation::OperationId::from_literal("00000000-0000-4000-8000-000000000000");
+        shadows_core::operation::OperationId::from_literal("00000000-0000-4000-8000-000000000000");
     let answer = storage
         .request_cancellation(&unknown, Actor::user("local"))
         .await;

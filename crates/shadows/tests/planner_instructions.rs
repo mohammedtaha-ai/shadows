@@ -10,9 +10,10 @@ mod app;
 
 use app::{call, ctx, get_json, other_project, test_app};
 
-fn save_ctx(id: &str, body: &str) -> shadows::command::CommandContext {
+fn save_ctx(id: &str, body: &str) -> shadows_core::command::CommandContext {
     let mut c = ctx(id, "PlannerInstructionsSave");
-    c.request_fingerprint = shadows::command::fingerprint("PlannerInstructionsSave", &json!(body));
+    c.request_fingerprint =
+        shadows_core::command::fingerprint("PlannerInstructionsSave", &json!(body));
     c
 }
 

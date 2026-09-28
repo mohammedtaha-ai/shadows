@@ -29,54 +29,55 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows-agent/src/choices.rs` | reading the harness's offered choices | `crates/shadows-agent/src/choices.rs` |
 | `crates/shadows-agent/src/breakdown.rs` | reading Claude's `/context` answer | `crates/shadows-agent/src/breakdown.rs` |
 | `crates/shadows-agent/src/claude.rs` | the launch spec of the pinned Claude ACP adapter | `crates/shadows-agent/src/claude.rs` |
-| `crates/shadows/src/planner/offers.rs` | the latest choices each open session offers | `crates/shadows/src/planner/offers.rs` |
-| `crates/shadows/src/planner/context.rs` | reading a session's context breakdown on demand | `crates/shadows/src/planner/context.rs` |
+| `crates/shadows-core/src/planner/offers.rs` | the latest choices each open session offers | `crates/shadows-core/src/planner/offers.rs` |
+| `crates/shadows-core/src/planner/context.rs` | reading a session's context breakdown on demand | `crates/shadows-core/src/planner/context.rs` |
 | `crates/shadows/src/protocol/harness.rs` | the routes over harnesses, their sessions included | `crates/shadows/src/protocol/harness.rs` |
 | `crates/shadows/src/protocol/thread.rs` | the routes that change a planning thread itself | `crates/shadows/src/protocol/thread.rs` |
 | `crates/shadows/src/protocol/workflow.rs` | the routes over plan versions | `crates/shadows/src/protocol/workflow.rs` |
 | `crates/shadows/src/protocol/grants.rs` | the routes over external agents' MCP grants | `crates/shadows/src/protocol/grants.rs` |
 | `crates/shadows/src/protocol/instructions.rs` | the routes over a project's Planner instructions | `crates/shadows/src/protocol/instructions.rs` |
 | `crates/shadows/src/protocol/ui_signal.rs` | the live-only signal that moves a person's screen | `crates/shadows/src/protocol/ui_signal.rs` |
-| `crates/shadows/src/planner/sessions.rs` | the live adapter connection each open thread holds | `crates/shadows/src/planner/sessions.rs` |
-| `crates/shadows/src/planner/settings.rs` | setting an open session's options | `crates/shadows/src/planner/settings.rs` |
-| `crates/shadows/src/planner/setup.rs` | what a Planner session opens with | `crates/shadows/src/planner/setup.rs` |
-| `crates/shadows/src/planner/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows/src/planner/turn.rs` |
-| `crates/shadows/src/planner/entries.rs` | turning harness events into durable entries | `crates/shadows/src/planner/entries.rs` |
-| `crates/shadows/src/bin/` | test apparatus that no product code links | `crates/shadows/src/bin/fake_acp.rs` |
+| `crates/shadows-core/src/planner/sessions.rs` | the live adapter connection each open thread holds | `crates/shadows-core/src/planner/sessions.rs` |
+| `crates/shadows-core/src/planner/settings.rs` | setting an open session's options | `crates/shadows-core/src/planner/settings.rs` |
+| `crates/shadows-core/src/planner/setup.rs` | what a Planner session opens with | `crates/shadows-core/src/planner/setup.rs` |
+| `crates/shadows-core/src/planner/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows-core/src/planner/turn.rs` |
+| `crates/shadows-core/src/planner/entries.rs` | turning harness events into durable entries | `crates/shadows-core/src/planner/entries.rs` |
+| `crates/fake-acp/src/main.rs` | test apparatus that no product code links | `crates/fake-acp/src/main.rs` |
+| `crates/shadows-core/src/testing.rs` | the test apparatus every crate's tests share | `crates/shadows-core/src/testing.rs` |
 | `crates/shadows-process/src/bin/` | test apparatus that no product code links | `crates/shadows-process/src/bin/tree_probe.rs` |
 | `crates/shadows/src/cli/` | daemon startup | `crates/shadows/src/cli/args.rs` |
-| `crates/shadows/src/command/` | external-command identity for idempotency | `crates/shadows/src/command/mod.rs` |
-| `crates/shadows/src/command/derive.rs` | command ids Shadows derives when a caller names none | `crates/shadows/src/command/derive.rs` |
+| `crates/shadows-core/src/command/` | external-command identity for idempotency | `crates/shadows-core/src/command/mod.rs` |
+| `crates/shadows-core/src/command/derive.rs` | command ids Shadows derives when a caller names none | `crates/shadows-core/src/command/derive.rs` |
 | `crates/shadows/src/config.rs` | startup configuration resolved once | `crates/shadows/src/config.rs` |
-| `crates/shadows/src/error.rs` | the stable failure taxonomy clients match on | `crates/shadows/src/error.rs` |
-| `crates/shadows/src/events/` | the durable event record's shape | `crates/shadows/src/events/mod.rs` |
-| `crates/shadows/src/id.rs` | the UUID id newtype pattern | `crates/shadows/src/id.rs` |
+| `crates/shadows-core/src/error.rs` | the stable failure taxonomy clients match on | `crates/shadows-core/src/error.rs` |
+| `crates/shadows-core/src/events/` | the durable event record's shape | `crates/shadows-core/src/events/mod.rs` |
+| `crates/shadows-core/src/id.rs` | the UUID id newtype pattern | `crates/shadows-core/src/id.rs` |
 | `crates/shadows/src/mcp/` | Shadows' MCP server | `crates/shadows/src/mcp/mod.rs` |
-| `crates/shadows/src/mcp/grant.rs` | who may do what on `/mcp` | `crates/shadows/src/mcp/grant.rs` |
+| `crates/shadows-core/src/grant/` | who may do what on `/mcp` | `crates/shadows-core/src/grant/mod.rs` |
 | `crates/shadows/src/mcp/auth.rs` | refusing a `/mcp` request that holds no live grant | `crates/shadows/src/mcp/auth.rs` |
 | `crates/shadows/src/mcp/server.rs` | the tools a grant's kind may see | `crates/shadows/src/mcp/server.rs` |
 | `crates/shadows/src/mcp/tools.rs` | each MCP tool's storage call | `crates/shadows/src/mcp/tools.rs` |
 | `crates/shadows/src/mcp/refusal.rs` | what an MCP tool call answers | `crates/shadows/src/mcp/refusal.rs` |
-| `crates/shadows/src/operation/` | the operation lifecycle's shape | `crates/shadows/src/operation/mod.rs` |
-| `crates/shadows/src/planner/` | the Planner turn's spawn-through-termination lifecycle | `crates/shadows/src/planner/mod.rs` |
+| `crates/shadows-core/src/operation/` | the operation lifecycle's shape | `crates/shadows-core/src/operation/mod.rs` |
+| `crates/shadows-core/src/planner/` | the Planner turn's spawn-through-termination lifecycle | `crates/shadows-core/src/planner/mod.rs` |
 | `crates/shadows-process/src/lib.rs` | OS process ownership with whole-tree containment | `crates/shadows-process/src/lib.rs` |
-| `crates/shadows/src/project/` | the project: its identity, the directory it owns | `crates/shadows/src/project/mod.rs` |
+| `crates/shadows-core/src/project/` | the project: its identity, the directory it owns | `crates/shadows-core/src/project/mod.rs` |
 | `crates/shadows/src/protocol/` | the HTTP/SSE surface every client talks to | `crates/shadows/src/protocol/project.rs` |
-| `crates/shadows/src/runtime/` | the runtime instance's lifecycle | `crates/shadows/src/runtime/mod.rs` |
-| `crates/shadows/src/storage/` | persistence | `crates/shadows/src/storage/sqlite/project.rs` |
-| `crates/shadows/src/storage/sqlite/workflow.rs` | changing a plan version | `crates/shadows/src/storage/sqlite/workflow.rs` |
-| `crates/shadows/src/storage/sqlite/workflow_draft.rs` | starting a plan version | `crates/shadows/src/storage/sqlite/workflow_draft.rs` |
-| `crates/shadows/src/storage/sqlite/workflow_read.rs` | reading plan versions | `crates/shadows/src/storage/sqlite/workflow_read.rs` |
-| `crates/shadows/src/storage/sqlite/task.rs` | a plan version's task graph rows | `crates/shadows/src/storage/sqlite/task.rs` |
-| `crates/shadows/src/storage/sqlite/grant.rs` | an MCP grant's rows, from issue to revocation | `crates/shadows/src/storage/sqlite/grant.rs` |
-| `crates/shadows/src/storage/sqlite/instructions.rs` | a project's numbered Planner instructions | `crates/shadows/src/storage/sqlite/instructions.rs` |
-| `crates/shadows/src/storage/sqlite/plan_view.rs` | showing a plan version in its conversation | `crates/shadows/src/storage/sqlite/plan_view.rs` |
-| `crates/shadows/src/thread/` | the planning thread's shape | `crates/shadows/src/thread/mod.rs` |
+| `crates/shadows-core/src/runtime/` | the runtime instance's lifecycle | `crates/shadows-core/src/runtime/mod.rs` |
+| `crates/shadows-core/src/storage/` | persistence | `crates/shadows-core/src/storage/sqlite/project.rs` |
+| `crates/shadows-core/src/storage/sqlite/workflow.rs` | changing a plan version | `crates/shadows-core/src/storage/sqlite/workflow.rs` |
+| `crates/shadows-core/src/storage/sqlite/workflow_draft.rs` | starting a plan version | `crates/shadows-core/src/storage/sqlite/workflow_draft.rs` |
+| `crates/shadows-core/src/storage/sqlite/workflow_read.rs` | reading plan versions | `crates/shadows-core/src/storage/sqlite/workflow_read.rs` |
+| `crates/shadows-core/src/storage/sqlite/task.rs` | a plan version's task graph rows | `crates/shadows-core/src/storage/sqlite/task.rs` |
+| `crates/shadows-core/src/storage/sqlite/grant.rs` | an MCP grant's rows, from issue to revocation | `crates/shadows-core/src/storage/sqlite/grant.rs` |
+| `crates/shadows-core/src/storage/sqlite/instructions.rs` | a project's numbered Planner instructions | `crates/shadows-core/src/storage/sqlite/instructions.rs` |
+| `crates/shadows-core/src/storage/sqlite/plan_view.rs` | showing a plan version in its conversation | `crates/shadows-core/src/storage/sqlite/plan_view.rs` |
+| `crates/shadows-core/src/thread/` | the planning thread's shape | `crates/shadows-core/src/thread/mod.rs` |
 | `crates/shadows/src/tracing.rs` | tracing subscriber setup | `crates/shadows/src/tracing.rs` |
-| `crates/shadows/src/workflow/` | a plan's content under the rules of §13 | `crates/shadows/src/workflow/mod.rs` |
-| `crates/shadows/src/workflow/ops.rs` | applying one batch of plan edits | `crates/shadows/src/workflow/ops.rs` |
-| `crates/shadows/src/workflow/check.rs` | what makes a plan invalid or unready | `crates/shadows/src/workflow/check.rs` |
-| `crates/shadows/src/workflow/conversation.rs` | the plan in the conversation | `crates/shadows/src/workflow/conversation.rs` |
+| `crates/shadows-core/src/workflow/` | a plan's content under the rules of §13 | `crates/shadows-core/src/workflow/mod.rs` |
+| `crates/shadows-core/src/workflow/ops.rs` | applying one batch of plan edits | `crates/shadows-core/src/workflow/ops.rs` |
+| `crates/shadows-core/src/workflow/check.rs` | what makes a plan invalid or unready | `crates/shadows-core/src/workflow/check.rs` |
+| `crates/shadows-core/src/workflow/conversation.rs` | the plan in the conversation | `crates/shadows-core/src/workflow/conversation.rs` |
 
 The Web client in `web/` is a separate program outside this crate and this map;
 [`web/README.md`](../../web/README.md) describes it.

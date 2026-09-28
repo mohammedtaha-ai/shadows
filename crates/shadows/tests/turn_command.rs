@@ -4,10 +4,10 @@
 //! turn's settings before the prompt.
 
 use serde_json::{Value, json};
-use shadows::operation::FailureStage;
-use shadows::storage::{StartedTurn, StorageError};
-use shadows::thread::ThreadEntryKind;
 use shadows_agent::TurnSettings;
+use shadows_core::operation::FailureStage;
+use shadows_core::storage::{StartedTurn, StorageError};
+use shadows_core::thread::ThreadEntryKind;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
@@ -256,7 +256,8 @@ async fn a_model_without_efforts_runs_with_none() {
     )
     .await;
     assert_eq!(s, 202, "{b}");
-    let op = shadows::operation::OperationId::from_literal(b["operation_id"].as_str().unwrap());
+    let op =
+        shadows_core::operation::OperationId::from_literal(b["operation_id"].as_str().unwrap());
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
     let r: Value = serde_json::from_str(&last_agent_entry(&app).await.body).unwrap();
     assert_eq!(
@@ -288,7 +289,8 @@ async fn auto_on_a_model_without_it_fails_at_prepare_with_the_harness_message() 
     )
     .await;
     assert_eq!(s, 202, "{b}");
-    let op = shadows::operation::OperationId::from_literal(b["operation_id"].as_str().unwrap());
+    let op =
+        shadows_core::operation::OperationId::from_literal(b["operation_id"].as_str().unwrap());
     let done = wait_terminal(&app, &op).await;
     assert_eq!(done.status_kind, "Failed");
     assert_eq!(done.failure_stage.as_deref(), Some("Prepare"));
@@ -305,7 +307,8 @@ async fn a_replay_is_answered_even_after_the_mode_was_disallowed() {
     let body = json!({ "command_id": "t1", "prompt": "hi", "model": "fake-large", "mode": "auto", "effort": "high" });
     let (s1, b1) = http_start(&app, &thread(&app), body.clone()).await;
     assert_eq!(s1, 202, "{b1}");
-    let op = shadows::operation::OperationId::from_literal(b1["operation_id"].as_str().unwrap());
+    let op =
+        shadows_core::operation::OperationId::from_literal(b1["operation_id"].as_str().unwrap());
     wait_terminal(&app, &op).await;
     patch_modes(&app, &["acceptEdits"]).await;
     let (s2, b2) = http_start(&app, &thread(&app), body).await;
@@ -325,7 +328,8 @@ async fn a_replay_with_another_body_over_http_is_a_command_conflict() {
     let app = test_app().await;
     let body = json!({ "command_id": "t1", "prompt": "hi", "model": "fake-large", "mode": "acceptEdits", "effort": "high" });
     let (_, b1) = http_start(&app, &thread(&app), body).await;
-    let op = shadows::operation::OperationId::from_literal(b1["operation_id"].as_str().unwrap());
+    let op =
+        shadows_core::operation::OperationId::from_literal(b1["operation_id"].as_str().unwrap());
     wait_terminal(&app, &op).await;
     let (s, b) = http_start(
         &app,
@@ -341,7 +345,8 @@ async fn a_replay_is_answered_while_the_daemon_is_stopping() {
     let app = test_app().await;
     let body = json!({ "command_id": "t1", "prompt": "hi", "model": "fake-small", "mode": "acceptEdits", "effort": "high" });
     let (_, first) = http_start(&app, &thread(&app), body.clone()).await;
-    let op = shadows::operation::OperationId::from_literal(first["operation_id"].as_str().unwrap());
+    let op =
+        shadows_core::operation::OperationId::from_literal(first["operation_id"].as_str().unwrap());
     wait_terminal(&app, &op).await;
     app.handles.close_for_test().await; // what shutdown does first
     let (s, again) = http_start(&app, &thread(&app), body).await;
@@ -364,7 +369,8 @@ async fn the_harness_runs_with_the_chosen_model_mode_and_effort() {
         json!({ "command_id": "t1", "prompt": "report", "model": "fake-large", "mode": "auto", "effort": "max" }),
     )
     .await;
-    let op = shadows::operation::OperationId::from_literal(b["operation_id"].as_str().unwrap());
+    let op =
+        shadows_core::operation::OperationId::from_literal(b["operation_id"].as_str().unwrap());
     wait_terminal(&app, &op).await;
     let r: Value = serde_json::from_str(&last_agent_entry(&app).await.body).unwrap();
     assert_eq!(
@@ -387,8 +393,8 @@ async fn the_harness_runs_with_the_chosen_model_mode_and_effort() {
 /// sees it once registered and ends `Cancelled` without prompting the model.
 #[tokio::test]
 async fn a_stop_while_pending_cancels_the_turn_before_its_prompt() {
-    use shadows::events::Actor;
-    use shadows::planner::{PlannerTurn, PlannerTurnRequest, StopOutcome};
+    use shadows_core::events::Actor;
+    use shadows_core::planner::{PlannerTurn, PlannerTurnRequest, StopOutcome};
     let app = test_app().await;
     let opened = app.sessions.open(&app.thread).await.unwrap();
     let events = app

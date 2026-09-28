@@ -11,8 +11,8 @@ use axum::extract::{Path, Query, State};
 use super::failure::ErrorBody;
 use super::project::ctx;
 use super::{AppState, Failure};
-use crate::mcp::grant::{Grant, GrantId};
-use crate::project::ProjectId;
+use shadows_core::grant::{Grant, GrantId};
+use shadows_core::project::ProjectId;
 
 /// A project's grants for external agents, revoked ones included, newest
 /// first. Never a token.

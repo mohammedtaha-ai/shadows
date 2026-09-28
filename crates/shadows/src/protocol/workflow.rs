@@ -10,8 +10,8 @@ use axum::extract::{Path, State};
 use super::failure::ErrorBody;
 use super::project::ctx;
 use super::{AppState, Failure};
-use crate::project::ProjectId;
-use crate::workflow::{Approved, Plan, PlanListing, WorkflowId};
+use shadows_core::project::ProjectId;
+use shadows_core::workflow::{Approved, Plan, PlanListing, WorkflowId};
 
 /// Each planning thread's latest plan version in a project. An unknown
 /// project has none.

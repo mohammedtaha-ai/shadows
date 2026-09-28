@@ -5,8 +5,8 @@
 //! stream (`sse.rs`) turns it into a `plan-show` frame for every live
 //! subscriber; only the tab it names opens the panel or the page.
 
-use crate::thread::ThreadId;
-use crate::workflow::{Place, WorkflowId};
+use shadows_core::thread::ThreadId;
+use shadows_core::workflow::{Place, WorkflowId};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct UiSignal {

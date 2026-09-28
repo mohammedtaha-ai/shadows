@@ -13,12 +13,12 @@
 #![allow(dead_code)]
 
 use serde_json::{Value, json};
-use shadows::command::derive::{Anchor, derived_id};
-use shadows::command::{CommandContext, Writer, fingerprint};
-use shadows::mcp::grant::GrantId;
-use shadows::project::ProjectId;
-use shadows::thread::ThreadId;
-use shadows::workflow::{
+use shadows_core::command::derive::{Anchor, derived_id};
+use shadows_core::command::{CommandContext, Writer, fingerprint};
+use shadows_core::grant::GrantId;
+use shadows_core::project::ProjectId;
+use shadows_core::thread::ThreadId;
+use shadows_core::workflow::{
     AcceptanceItem, DraftStarted, Link, LinkKind, PlanOp, TaskContent, WorkflowId,
 };
 

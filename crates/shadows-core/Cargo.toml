@@ -1,0 +1,43 @@
+[package]
+name = "shadows-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+dunce = { workspace = true }
+escargot = { workspace = true, optional = true }
+futures-core = { workspace = true }
+petgraph = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+shadows-agent = { path = "../shadows-agent" }
+shadows-process = { path = "../shadows-process" }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+utoipa = { workspace = true }
+
+[features]
+# Compiles in `storage::test_support`, a hook onto an otherwise-private
+# capability (`append_event` without a state write) that must never ship in
+# an ordinary build — see cross-cutting rule 10 — and `testing`, which builds
+# the test binaries through `escargot`. Enabled for `cargo test` only via the
+# self dev-dependency below, and by `shadows`' and `fake-acp`'s own
+# `test-support`; never a default feature.
+test-support = ["dep:escargot", "shadows-process/test-support"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+# Enables `test-support` for integration tests (tests/*.rs) without turning
+# it on for `cargo build` or `cargo run`.
+shadows-core = { path = ".", features = ["test-support"] }

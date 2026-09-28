@@ -2,8 +2,8 @@
 //! read, and the person's approval with its refusals.
 
 use serde_json::{Value, json};
-use shadows::thread::ThreadId;
-use shadows::workflow::{PlanOp, TaskContent};
+use shadows_core::thread::ThreadId;
+use shadows_core::workflow::{PlanOp, TaskContent};
 
 #[path = "fixtures/acp.rs"]
 mod acp;

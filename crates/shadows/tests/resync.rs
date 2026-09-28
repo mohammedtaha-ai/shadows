@@ -14,17 +14,17 @@ use std::time::Duration;
 
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
-use shadows::command::{CommandContext, fingerprint};
-use shadows::events::{Actor, EventCursor};
-use shadows::operation::OperationId;
-use shadows::planner::LiveHandles;
-use shadows::project::Project;
 use shadows::protocol::AppState;
 use shadows::protocol::sse::{SubscribeQuery, subscribe};
-use shadows::runtime::Runtime;
-use shadows::storage::Storage;
-use shadows::thread::{NewThreadEntry, PlanningThread, ThreadEntryKind, ThreadId};
 use shadows_agent::events::HarnessEvent;
+use shadows_core::command::{CommandContext, fingerprint};
+use shadows_core::events::{Actor, EventCursor};
+use shadows_core::operation::OperationId;
+use shadows_core::planner::LiveHandles;
+use shadows_core::project::Project;
+use shadows_core::runtime::Runtime;
+use shadows_core::storage::Storage;
+use shadows_core::thread::{NewThreadEntry, PlanningThread, ThreadEntryKind, ThreadId};
 use tokio_stream::StreamExt;
 
 #[path = "fixtures/acp.rs"]
@@ -42,7 +42,7 @@ async fn seed(storage: &Storage) -> (Project, PlanningThread) {
         command_schema_ver: 1,
         request_fingerprint: fingerprint("project.create", &params),
     };
-    let dir = shadows::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
+    let dir = shadows_core::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
     let project = storage
         .create_project(
             &ctx,

@@ -1,16 +1,5 @@
 pub mod cli;
-pub mod command;
 pub mod config;
-pub mod error;
-pub mod events;
-pub mod id;
 pub mod mcp;
-pub mod operation;
-pub mod planner;
-pub mod project;
 pub mod protocol;
-pub mod runtime;
-pub mod storage;
-pub mod thread;
 pub mod tracing;
-pub mod workflow;

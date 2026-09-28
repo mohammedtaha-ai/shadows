@@ -804,6 +804,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "fake-acp"
+version = "0.1.0"
+dependencies = [
+ "agent-client-protocol",
+ "reqwest",
+ "rmcp",
+ "serde_json",
+ "shadows-core",
+ "tokio",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2141,9 +2153,6 @@ dependencies = [
  "axum",
  "clap",
  "dunce",
- "escargot",
- "futures-core",
- "petgraph",
  "prettyplease",
  "proc-macro2",
  "reqwest",
@@ -2151,9 +2160,9 @@ dependencies = [
  "schemars 1.2.2",
  "serde",
  "serde_json",
- "sha2 0.10.9",
  "shadows",
  "shadows-agent",
+ "shadows-core",
  "shadows-process",
  "sqlx",
  "syn 2.0.119",
@@ -2185,6 +2194,31 @@ dependencies = [
  "tokio-util",
  "tracing",
  "utoipa",
+]
+
+[[package]]
+name = "shadows-core"
+version = "0.1.0"
+dependencies = [
+ "dunce",
+ "escargot",
+ "futures-core",
+ "petgraph",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "shadows-agent",
+ "shadows-core",
+ "shadows-process",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
 ]
 
 [[package]]

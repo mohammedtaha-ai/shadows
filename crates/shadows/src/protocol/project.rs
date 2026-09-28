@@ -13,10 +13,10 @@ use std::collections::BTreeMap;
 use super::failure::ErrorBody;
 use super::thread::known_harness;
 use super::{AppState, Failure};
-use crate::command::{CommandContext, fingerprint};
-use crate::project::{Project, ProjectDirectory, ProjectId};
-use crate::thread::PlanningThread;
 use shadows_agent::policy;
+use shadows_core::command::{CommandContext, fingerprint};
+use shadows_core::project::{Project, ProjectDirectory, ProjectId};
+use shadows_core::thread::PlanningThread;
 
 /// Every route that mutates carries the caller's command id (spec §3.2), and
 /// the fingerprint is derived from the same parameters the capability is about

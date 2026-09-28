@@ -1,7 +1,7 @@
 use sha2::{Digest, Sha256};
 
 use crate::events::Actor;
-use crate::mcp::grant::GrantId;
+use crate::grant::GrantId;
 use crate::thread::ThreadId;
 
 pub mod derive;

@@ -10,13 +10,13 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use shadows::command::{CommandContext, fingerprint};
-use shadows::events::Actor;
-use shadows::operation::{Operation, OperationId};
-use shadows::planner::{LiveHandles, PlannerTurn, StopOutcome};
-use shadows::runtime::Runtime;
-use shadows::storage::Storage;
-use shadows::thread::ThreadId;
+use shadows_core::command::{CommandContext, fingerprint};
+use shadows_core::events::Actor;
+use shadows_core::operation::{Operation, OperationId};
+use shadows_core::planner::{LiveHandles, PlannerTurn, StopOutcome};
+use shadows_core::runtime::Runtime;
+use shadows_core::storage::Storage;
+use shadows_core::thread::ThreadId;
 
 #[path = "fixtures/acp.rs"]
 mod acp;
@@ -40,7 +40,7 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
             &ctx,
             slug,
             slug,
-            &shadows::project::ProjectDirectory::resolve(dir).unwrap(),
+            &shadows_core::project::ProjectDirectory::resolve(dir).unwrap(),
             &shadows_agent::policy::default_modes(),
         )
         .await

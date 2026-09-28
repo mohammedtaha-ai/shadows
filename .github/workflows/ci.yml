@@ -50,7 +50,7 @@ jobs:
       - name: Format
         run: cargo fmt --all --check
       - name: Lint
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings
       - name: Ship build — the test-only seams must not be in it
         # Three seams exist in this tree only because `test-support` is off in
         # an ordinary build: `storage::test_support` (a durable event appended
@@ -93,7 +93,7 @@ jobs:
       - name: Format
         run: cargo fmt --all --check
       - name: Lint
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings
       - name: Ship build — the test-only seams must not be in it
         # Three seams exist in this tree only because `test-support` is off in
         # an ordinary build: `storage::test_support` (a durable event appended

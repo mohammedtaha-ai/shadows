@@ -13,13 +13,13 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::Request;
-use shadows::command::{CommandContext, fingerprint};
-use shadows::events::Actor;
-use shadows::operation::OperationId;
-use shadows::planner::{LiveHandles, PlannerTurn};
 use shadows::protocol::{AppState, router};
-use shadows::runtime::Runtime;
-use shadows::storage::Storage;
+use shadows_core::command::{CommandContext, fingerprint};
+use shadows_core::events::Actor;
+use shadows_core::operation::OperationId;
+use shadows_core::planner::{LiveHandles, PlannerTurn};
+use shadows_core::runtime::Runtime;
+use shadows_core::storage::Storage;
 use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
@@ -160,7 +160,11 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
     );
 }
 
-async fn start(state: &AppState, thread: &shadows::thread::ThreadId, prompt: &str) -> OperationId {
+async fn start(
+    state: &AppState,
+    thread: &shadows_core::thread::ThreadId,
+    prompt: &str,
+) -> OperationId {
     turn::start_direct(
         &state.runtime,
         &state.handles,
@@ -194,7 +198,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (AppState, tokio::sync::watch::Se
     (state, stopping)
 }
 
-async fn seed_thread(runtime: &Runtime) -> shadows::thread::ThreadId {
+async fn seed_thread(runtime: &Runtime) -> shadows_core::thread::ThreadId {
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = CommandContext {
         principal_kind: "User".into(),
@@ -210,7 +214,7 @@ async fn seed_thread(runtime: &Runtime) -> shadows::thread::ThreadId {
             &ctx,
             "demo",
             "Demo",
-            &shadows::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+            &shadows_core::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
             &shadows_agent::policy::default_modes(),
         )
         .await

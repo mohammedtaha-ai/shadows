@@ -1,9 +1,9 @@
 use std::str::FromStr;
 use std::time::Duration;
 
-use shadows::events::{Actor, DurableEvent};
-use shadows::project::ProjectId;
-use shadows::storage::Storage;
+use shadows_core::events::{Actor, DurableEvent};
+use shadows_core::project::ProjectId;
+use shadows_core::storage::Storage;
 use sqlx::Connection;
 
 #[tokio::test]
@@ -78,7 +78,7 @@ async fn state_and_event_commit_atomically_or_not_at_all() {
                     .bind("2026-09-21T00:00:00Z")
                     .execute(&mut *conn)
                     .await?;
-                shadows::storage::test_support::append_event_for_test(
+                shadows_core::storage::test_support::append_event_for_test(
                     conn,
                     &DurableEvent::new("ProjectCreated", Actor::system())
                         .with_project(&ProjectId::from_literal("p-1"))
@@ -86,7 +86,7 @@ async fn state_and_event_commit_atomically_or_not_at_all() {
                     "2026-09-21T00:00:00Z",
                 )
                 .await?;
-                Err::<(), _>(shadows::storage::StorageError::NotFound("forced"))
+                Err::<(), _>(shadows_core::storage::StorageError::NotFound("forced"))
             })
         })
         .await;
@@ -171,7 +171,7 @@ async fn write_txn_recovers_after_a_panicking_transaction() {
 
     let storage2 = storage.clone();
     let handle = tokio::spawn(async move {
-        let _: Result<(), shadows::storage::StorageError> = storage2
+        let _: Result<(), shadows_core::storage::StorageError> = storage2
             .write_txn(|conn| {
                 Box::pin(async move {
                     sqlx::query(
@@ -335,7 +335,7 @@ async fn event_provenance_round_trips_through_append_event() {
                     .bind("2026-09-21T00:00:00Z")
                     .execute(&mut *conn)
                     .await?;
-                shadows::storage::test_support::append_event_for_test(
+                shadows_core::storage::test_support::append_event_for_test(
                     conn,
                     &DurableEvent::new("ProjectCreated", Actor::system())
                         .with_project(&ProjectId::from_literal("p-1"))
@@ -385,7 +385,7 @@ async fn the_committed_signal_moves_on_commit_and_never_on_rollback() {
         let outcome = storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    let seq = shadows::storage::test_support::append_event_for_test(
+                    let seq = shadows_core::storage::test_support::append_event_for_test(
                         conn,
                         &DurableEvent::new("Probe", Actor::system())
                             .with_payload(serde_json::json!({})),
@@ -395,7 +395,7 @@ async fn the_committed_signal_moves_on_commit_and_never_on_rollback() {
                     if commit {
                         Ok(seq)
                     } else {
-                        Err(shadows::storage::StorageError::NotFound("forced"))
+                        Err(shadows_core::storage::StorageError::NotFound("forced"))
                     }
                 })
             })

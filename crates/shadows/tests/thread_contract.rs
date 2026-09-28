@@ -4,13 +4,13 @@
 //! and transaction contracts.
 
 use serde_json::json;
-use shadows::command::{CommandContext, fingerprint};
-use shadows::events::Actor;
-use shadows::operation::OperationId;
-use shadows::project::ProjectDirectory;
-use shadows::storage::{Storage, StorageError};
-use shadows::thread::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId};
-use shadows::workflow::{TaskId, WorkflowId};
+use shadows_core::command::{CommandContext, fingerprint};
+use shadows_core::events::Actor;
+use shadows_core::operation::OperationId;
+use shadows_core::project::ProjectDirectory;
+use shadows_core::storage::{Storage, StorageError};
+use shadows_core::thread::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId};
+use shadows_core::workflow::{TaskId, WorkflowId};
 
 #[path = "fixtures/acp.rs"]
 mod acp;

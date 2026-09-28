@@ -48,12 +48,12 @@ use tower_http::trace::TraceLayer;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-use crate::operation::OperationId;
-use crate::planner::{LiveHandles, Sessions};
-use crate::runtime::Runtime;
-use crate::storage::Storage;
-use crate::thread::ThreadId;
 use shadows_agent::events::HarnessEvent;
+use shadows_core::operation::OperationId;
+use shadows_core::planner::{LiveHandles, Sessions};
+use shadows_core::runtime::Runtime;
+use shadows_core::storage::Storage;
+use shadows_core::thread::ThreadId;
 
 #[derive(Clone)]
 pub struct AppState {

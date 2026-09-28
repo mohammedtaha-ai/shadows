@@ -14,15 +14,15 @@ use rmcp::{tool, tool_router};
 use serde::Deserialize;
 use serde_json::json;
 
-use super::grant::{Grant, GrantKind};
 use super::refusal::{Refusal, answer};
 use super::server::Shadows;
-use crate::command::derive::{Anchor, derived_id};
-use crate::command::{CommandContext, Writer, fingerprint};
-use crate::error::ErrorCode;
 use crate::protocol::UiSignal;
-use crate::storage::StorageError;
-use crate::workflow::{Place, Plan, PlanOp, PlanShown, WorkflowId};
+use shadows_core::command::derive::{Anchor, derived_id};
+use shadows_core::command::{CommandContext, Writer, fingerprint};
+use shadows_core::error::ErrorCode;
+use shadows_core::grant::{Grant, GrantKind};
+use shadows_core::storage::StorageError;
+use shadows_core::workflow::{Place, Plan, PlanOp, PlanShown, WorkflowId};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct PlanArgs {
@@ -323,7 +323,7 @@ impl Shadows {
                     return Err(Refusal::scope("that plan is not in this grant's project"));
                 }
                 // A state error, not a scope one: the plan is in the project.
-                if plan.state != crate::workflow::WorkflowState::Frozen {
+                if plan.state != shadows_core::workflow::WorkflowState::Frozen {
                     return Err(Refusal::new(
                         ErrorCode::InvalidCommand,
                         "that plan version is a draft: edit it with plan_edit, or start a \
@@ -336,10 +336,12 @@ impl Shadows {
             }
             None => {
                 let (Some(title), Some(goal)) = (&args.title, &args.goal) else {
-                    return Err(StorageError::PlanInvalid(vec![crate::workflow::Problem {
-                        message: "a plan's first version needs a title and a goal".into(),
-                    }])
-                    .into());
+                    return Err(
+                        StorageError::PlanInvalid(vec![shadows_core::workflow::Problem {
+                            message: "a plan's first version needs a title and a goal".into(),
+                        }])
+                        .into(),
+                    );
                 };
                 storage
                     .start_thread_with_draft(
@@ -423,7 +425,7 @@ impl Shadows {
 }
 
 /// A thread grant's thread. Storage never issues one without it.
-fn own_thread(grant: &Grant) -> Result<&crate::thread::ThreadId, Refusal> {
+fn own_thread(grant: &Grant) -> Result<&shadows_core::thread::ThreadId, Refusal> {
     grant
         .thread_id
         .as_ref()

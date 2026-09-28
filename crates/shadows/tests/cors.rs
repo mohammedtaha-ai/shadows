@@ -9,10 +9,10 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use shadows::config::{ConfigError, allowed_origin};
-use shadows::planner::LiveHandles;
 use shadows::protocol::{AppState, router};
-use shadows::runtime::Runtime;
-use shadows::storage::Storage;
+use shadows_core::planner::LiveHandles;
+use shadows_core::runtime::Runtime;
+use shadows_core::storage::Storage;
 use tower::ServiceExt;
 
 #[path = "fixtures/acp.rs"]
