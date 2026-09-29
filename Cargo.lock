@@ -133,6 +133,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
+name = "arraydeque"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236"
+
+[[package]]
 name = "async-channel"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -747,6 +753,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "encoding_rs"
+version = "0.8.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -760,6 +775,17 @@ checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
  "windows-sys",
+]
+
+[[package]]
+name = "escargot"
+version = "0.5.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11c3aea32bc97b500c9ca6a72b768a26e558264303d101d3409cf6d57a9ed0cf"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -790,6 +816,17 @@ checksum = "8be9f3dfaaffdae2972880079a491a1a8bb7cbed0b8dd7a347f668b4150a3b93"
 dependencies = [
  "event-listener",
  "pin-project-lite",
+]
+
+[[package]]
+name = "fake-acp"
+version = "0.1.0"
+dependencies = [
+ "agent-client-protocol",
+ "rmcp",
+ "serde_json",
+ "shadows-core",
+ "tokio",
 ]
 
 [[package]]
@@ -1020,6 +1057,9 @@ name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+dependencies = [
+ "foldhash 0.2.0",
+]
 
 [[package]]
 name = "hashlink"
@@ -1028,6 +1068,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "824e001ac4f3012dd16a264bec811403a67ca9deb6c102fc5049b32c4574b35f"
 dependencies = [
  "hashbrown 0.16.1",
+]
+
+[[package]]
+name = "hashlink"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a596f1b20ed2cc5ecac41a164aaebc7258057060f06c0cf7a2ba3991ee7990fb"
+dependencies = [
+ "hashbrown 0.17.1",
 ]
 
 [[package]]
@@ -2130,19 +2179,17 @@ dependencies = [
  "axum",
  "clap",
  "dunce",
- "futures-core",
- "libc",
- "petgraph",
  "prettyplease",
  "proc-macro2",
- "process-wrap",
  "reqwest",
  "rmcp",
- "schemars 1.2.2",
  "serde",
  "serde_json",
- "sha2 0.10.9",
  "shadows",
+ "shadows-agent",
+ "shadows-core",
+ "shadows-http",
+ "shadows-mcp",
  "sqlx",
  "syn 2.0.119",
  "tempfile",
@@ -2150,15 +2197,94 @@ dependencies = [
  "time",
  "tokio",
  "tokio-stream",
- "tokio-util",
  "tower",
- "tower-http",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "shadows-agent"
+version = "0.1.0"
+dependencies = [
+ "agent-client-protocol",
+ "serde",
+ "serde_json",
+ "shadows-process",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "utoipa",
+]
+
+[[package]]
+name = "shadows-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dunce",
+ "escargot",
+ "futures-core",
+ "petgraph",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "shadows-agent",
+ "shadows-core",
+ "shadows-process",
+ "sqlx",
+ "syn 2.0.119",
+ "tempfile",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
+ "yaml-rust2",
+]
+
+[[package]]
+name = "shadows-http"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "serde",
+ "serde_json",
+ "shadows-core",
+ "tokio",
+ "tokio-stream",
+ "tower-http",
+ "tracing",
  "utoipa",
  "utoipa-axum",
- "uuid",
+]
+
+[[package]]
+name = "shadows-mcp"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "rmcp",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "shadows-core",
+ "tracing",
+]
+
+[[package]]
+name = "shadows-process"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "process-wrap",
+ "shadows-process",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -2257,7 +2383,7 @@ dependencies = [
  "futures-io",
  "futures-util",
  "hashbrown 0.16.1",
- "hashlink",
+ "hashlink 0.11.1",
  "indexmap 2.14.2",
  "log",
  "memchr",
@@ -3144,6 +3270,17 @@ name = "writeable"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
+
+[[package]]
+name = "yaml-rust2"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57e5b818a27a4cd30884ea380857a5e56f7ec3ba24a3990a3cc0b95af3238e18"
+dependencies = [
+ "arraydeque",
+ "encoding_rs",
+ "hashlink 0.12.2",
+]
 
 [[package]]
 name = "yoke"

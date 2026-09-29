@@ -1,0 +1,58 @@
+[package]
+name = "shadows"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+# `cargo run` from the workspace root: `fake-acp` and `tree_probe` are binaries too.
+default-run = "shadows"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+clap = { workspace = true }
+shadows-core = { path = "../shadows-core" }
+shadows-http = { path = "../shadows-http" }
+shadows-mcp = { path = "../shadows-mcp" }
+thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[features]
+# Compiles in `shadows-core`'s test hooks (`testing`,
+# `from_literal`, `force_termination_failure`), which must never
+# ship in an ordinary build — see cross-cutting rule 10. Enabled for
+# `cargo test` only via the self dev-dependency below, never a default feature.
+test-support = ["shadows-core/test-support"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+syn = { workspace = true }
+prettyplease = { workspace = true }
+proc-macro2 = { workspace = true }
+tower = { workspace = true }
+# Used by the tests only, since the modules that used them moved to
+# `shadows-core`, `shadows-http` and `shadows-mcp`; `shadows-agent` and
+# `serde_json` since `start` moved into `shadows_core::app` (Task 5).
+shadows-agent = { path = "../shadows-agent" }
+serde_json = { workspace = true }
+agent-client-protocol = { workspace = true }
+dunce = { workspace = true }
+serde = { workspace = true }
+sqlx = { workspace = true }
+tokio-stream = { workspace = true }
+uuid = { workspace = true }
+# `rmcp`'s MCP client, for tests that call `/mcp` as an agent does. A
+# dev-dependency, so its features reach `cargo test` only, never the daemon.
+rmcp = { workspace = true, features = ["client", "transport-streamable-http-client-reqwest"] }
+reqwest = { workspace = true }
+# Enables `test-support` for integration tests (tests/*.rs) without turning
+# it on for `cargo build` or `cargo run`: Cargo's feature resolver unifies
+# features per build/test graph, so this only affects `cargo test`.
+shadows = { path = ".", features = ["test-support"] }

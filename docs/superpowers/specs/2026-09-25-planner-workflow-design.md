@@ -340,7 +340,7 @@ A grant is Shadows' answer to "who may do what" on `/mcp` (§2.12's
 
 ## 13.8 Planner instructions and the session
 
-**Shadows' instructions** are `src/planner/prompt.txt`, compiled in with
+**Shadows' instructions** are `crates/shadows-core/src/harness/prompt.txt`, compiled in with
 `include_str!`. Their version is a hash of the compiled text, computed once when the daemon starts.
 They tell the Planner:
 

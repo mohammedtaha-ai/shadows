@@ -1,0 +1,481 @@
+# Owns plan versions under the rules of spec §13: every read, start, edit,
+# showing and approval of a plan ends in a `Plans` method, whether a person
+# asked over HTTP or an agent over MCP (§14.4).
+#
+# A grant decides reach and writer. A thread grant (the internal Planner)
+# reaches its own thread's plan versions, edits only the latest one, and
+# writes as its thread; a project grant (an external agent) must name a
+# version, reaches any version in its project, and writes as its grant. That
+# check (`in_scope`) runs before storage; storage checks the writer again
+# inside every write's transaction (`check_writer`, owned by Grants' store).
+#
+# Trap: the `*_for` methods ARE the scope check. A caller that reads through
+# `get` or `list` for an agent has skipped it — those two are the person's
+# reads and check nothing. Trap: `DraftStart`, `PlanEdit` and `PlanShow`
+# carry what the tool received; the command id and fingerprint are built
+# here, never by the caller, so a replay matches only when the same
+# parameters reach this service.
+
+name: plans
+version: 1
+status: current
+source: crates/shadows-core/src/plans
+
+
+shapes:
+  Plans:
+    storage: Arc<Storage>
+    handles: Arc<LiveHandles>
+    # Live only: a `plan_show` signal nobody receives is not a failure.
+    ui: broadcast::Sender<UiSignal>
+  DraftStart:
+    title: Option<String>
+    goal: Option<String>
+    # External agents only. A Planner's is checked to be in its own thread and
+    # otherwise ignored (see gaps).
+    from_workflow_id: Option<WorkflowId>
+    # External agents only; required for them, and it is the command's id.
+    draft_ref: Option<String>
+  PlanEdit:
+    # A Planner leaves it out, or names its thread's latest version only.
+    workflow_id: Option<WorkflowId>
+    expected_revision: i64
+    ops: Vec<PlanOp>
+    # When absent, derived from `expected_revision` and the fingerprint.
+    command_id: Option<String>
+  PlanShow:
+    # May name an older version of the Planner's own thread.
+    workflow_id: Option<WorkflowId>
+    task_number: Option<u32>
+    place: Place
+  PlanShown:
+    workflow_id: WorkflowId
+    version: i64
+    task_number: Option<u32>
+    place: Place
+    entry_id: ThreadEntryId
+    # Never serialized or recorded: true when the call replayed a recorded one.
+    replayed: bool
+  Plan:
+    # One plan version as stored: id, thread_id, project_id, version,
+    # revision, state, title, goal, previous, tasks, links, last_edit,
+    # frozen_at, created_at, and the two below.
+    # Empty for a Frozen version; `approval_problems` of the content for a Draft.
+    blockers: Vec<Problem>
+    # The version copied from this one; changes after the fact, which is why a
+    # replayed approval answers `Approved`, never the plan.
+    next: Option<WorkflowId>
+  PlanListing:
+    # A thread's latest version only, ordered by the thread's creation event.
+    id: WorkflowId
+    thread_id: ThreadId
+    title: String
+    version: i64
+    state: WorkflowState
+    updated_at: String
+  PlanContent:
+    # What an edit batch changes; `Plan::content()` rebuilds it from a Plan.
+    title: String
+    goal: String
+    # Keyed by task number, not by id.
+    tasks: BTreeMap<u32, TaskContent>
+    links: Vec<Link>
+  PlanTask:
+    # The stable id; the number is inside `content`, flattened on the wire.
+    id: TaskId
+    content: TaskContent
+  TaskContent:
+    # A plan-local number: `T4` is task 4 of this version only.
+    number: u32
+    title: String
+    goal: String
+    reads: Vec<String>
+    writes: Vec<String>
+    acceptance: Vec<AcceptanceItem>
+  AcceptanceItem:
+    number: u32
+    text: String
+  Link:
+    # `task` waits on `after`; at most one link of each kind between two tasks.
+    task: u32
+    after: u32
+    kind: LinkKind
+    label: String
+    # Defaults to empty when absent.
+    waiting_items: Vec<u32>
+  LinkKind:
+    Needs: unit
+    CompletesAfter: unit
+  WorkflowState:
+    Draft: unit
+    Frozen: unit
+  LastEdit:
+    revision: i64
+    summary: String
+    changed_tasks: Vec<u32>
+  EditOutcome:
+    # What a replayed edit answers too: the recorded one, not a re-read.
+    workflow_id: WorkflowId
+    version: i64
+    revision: i64
+    summary: String
+    changed_tasks: Vec<u32>
+  DraftStarted:
+    workflow_id: WorkflowId
+    thread_id: ThreadId
+    version: i64
+  Approved:
+    # The `WorkflowFrozen` payload, never the plan, so a replay answers what
+    # the first approval answered.
+    workflow_id: WorkflowId
+    version: i64
+    revision: i64
+    frozen_at: String
+  PlanOp:
+    # Tagged `op`, snake_case. `link_put` replaces the link with the same
+    # task, after and kind.
+    PlanPut: "{ title: String, goal: String }"
+    TaskAdd: "{ task: TaskContent }"
+    TaskUpdate: "{ task: TaskContent }"
+    TaskRemove: "{ number: u32 }"
+    LinkPut: "{ link: Link }"
+    LinkRemove: "{ task: u32, after: u32, kind: LinkKind }"
+  Applied:
+    # Test-only outside the crate (`testing`): a batch that held.
+    content: PlanContent
+    # Sorted, without repeats.
+    changed_tasks: Vec<u32>
+    summary: String
+  Problem:
+    # Named so a person can act on it: tasks as `T4`.
+    message: String
+  Focus:
+    # The task a person points at, at the version and revision they saw;
+    # checked by Turns' `start_turn` through `task_of`.
+    workflow_id: WorkflowId
+    task_id: TaskId
+    revision: i64
+  Place:
+    # Every shown plan is a card; `Side` and `Page` also act in the sending
+    # tab, live only.
+    Inline: unit
+    Side: unit
+    Page: unit
+
+
+functions:
+  reads:
+    list: "(&self, project: &ProjectId) -> Result<Vec<PlanListing>, CoreError>"
+    get: "(&self, workflow: &WorkflowId) -> Result<Plan, CoreError>"
+    list_for: "(&self, grant: &Grant) -> Result<Vec<PlanListing>, CoreError>"
+    get_for: "(&self, grant: &Grant, named: Option<&WorkflowId>) -> Result<Plan, CoreError>"
+    task_for:
+      signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, number: u32) -> Result<PlanTask, CoreError>"
+      # INVALID_COMMAND "T{n} does not exist in this plan" when the number is absent.
+  writes:
+    approve:
+      signature: "(&self, command_id: String, workflow: &WorkflowId, expected_revision: i64) -> Result<Approved, CoreError>"
+      # "PlanApprove", params { workflow, expected_revision }, principal User/local.
+    prepare_draft: "(&self, grant: &Grant) -> Result<String, CoreError>"
+    start_draft:
+      signature: "(&self, grant: &Grant, args: DraftStart) -> Result<DraftStarted, CoreError>"
+      # "DraftStart". Thread grant: { thread, title, goal }, id anchored to the
+      # running turn. Project grant: { title, goal, from_workflow_id }, id from
+      # the draft_ref.
+    edit:
+      signature: "(&self, grant: &Grant, args: PlanEdit) -> Result<EditOutcome, CoreError>"
+      # "PlanEdit", params { workflow, expected_revision, ops }.
+    show:
+      signature: "(&self, grant: &Grant, args: PlanShow) -> Result<PlanShown, CoreError>"
+      # "PlanShow", params { workflow, task_number, place }, id anchored to the
+      # running turn. Records first, then signals unless replayed.
+  checks:
+    in_scope:
+      signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, latest_only: bool) -> Result<Plan, CoreError>"
+      private: true
+      # `edit` passes latest_only = true; `get_for`, `task_for` and `show` false.
+    own_thread:
+      signature: "(grant: &Grant) -> Result<&ThreadId, CoreError>"
+      private: true
+    writer_of:
+      signature: "(grant: &Grant) -> Result<Writer, CoreError>"
+      private: true
+    planner_draft:
+      signature: "(&self, grant: &Grant, args: DraftStart) -> Result<DraftStarted, CoreError>"
+      private: true
+      # `start_draft` for a thread grant; see gaps.
+    external_draft:
+      signature: "(&self, grant: &Grant, args: DraftStart) -> Result<DraftStarted, CoreError>"
+      private: true
+      # `start_draft` for a project grant: the draft_ref is required and is
+      # the command id.
+  store:
+    # Each write that takes a `Writer` checks it inside its own transaction,
+    # through Grants' `check_writer`; `approve_plan` is the person's and
+    # takes none.
+    list_plans: "(&self, project: &ProjectId) -> Result<Vec<PlanListing>, StorageError>"
+    get_plan: "(&self, workflow: &WorkflowId) -> Result<Plan, StorageError>"
+    edit_plan: "(&self, ctx: &CommandContext, writer: &Writer, workflow: &WorkflowId, expected_revision: i64, ops: &[PlanOp]) -> Result<EditOutcome, StorageError>"
+    approve_plan: "(&self, ctx: &CommandContext, workflow: &WorkflowId, expected_revision: i64) -> Result<Approved, StorageError>"
+    start_draft: "(&self, ctx: &CommandContext, writer: &Writer, thread: &ThreadId, fresh: Option<(&str, &str)>, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>"
+    start_thread_with_draft: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, title: &str, goal: &str, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>"
+    show_plan: "(&self, ctx: &CommandContext, writer: &Writer, turn: &OperationId, workflow: &WorkflowId, task_number: Option<u32>, place: Place) -> Result<PlanShown, StorageError>"
+    thread_plan:
+      signature: "(&self, thread: &ThreadId) -> Result<Option<WorkflowId>, StorageError>"
+      # The thread's latest version: what `in_scope` resolves a thread
+      # grant's call to.
+    task_of:
+      signature: "(conn, workflow: &WorkflowId, id: &TaskId) -> Result<Option<(u32, String)>, StorageError>"
+  model:
+    content:
+      signature: "(&self) -> PlanContent"
+      # On `Plan`: the content an edit batch applies to, keyed by number.
+    as_str:
+      signature: "(&self) -> &'static str"
+      # On `LinkKind`: "needs" or "completes_after", as stored.
+  for_tests:
+    # The pure rules, re-exported by `testing` for the rule tests.
+    apply: "(current: &PlanContent, ops: &[PlanOp]) -> Result<Applied, Vec<Problem>>"
+    edit_problems: "(content: &PlanContent) -> Vec<Problem>"
+    approval_problems: "(content: &PlanContent) -> Vec<Problem>"
+
+
+enums:
+  Grant:
+    source: crate::grants::Grant
+    values: []
+  CoreError:
+    source: crate::error::CoreError
+    values: []
+  Writer:
+    source: crate::command::Writer
+    values: []
+
+
+shared_in_transaction:
+  task_of: "Turns' store (turns/store/turn.rs `focused`): start_turn checks a Focus's task belongs to its version inside the turn's own write"
+
+
+obligations:
+  - rule: >
+      A tool call's grant decides which plan versions it reaches (§13.6): a
+      thread grant only its own thread's, and for an edit only the latest; a
+      project grant only versions it names in its own project. Anything else
+      is refused GRANT_SCOPE, with the texts `in_scope` writes, before
+      storage is written. Two refusals are not GRANT_SCOPE: a thread grant
+      whose thread has no plan yet is INVALID_COMMAND ("this conversation has
+      no plan yet"), and one naming a version that does not exist is the
+      storage's INVALID_COMMAND "no such workflow"; a project grant naming
+      one is GRANT_SCOPE.
+    tested_by:
+      - a_thread_grant_edits_only_its_own_threads_plan
+      - a_project_grant_cannot_reach_another_project
+      - a_project_grant_must_name_a_plan_to_read_or_edit
+      - a_thread_grant_can_read_and_show_its_older_version_but_not_another_thread
+      - a_project_grant_is_refused_another_projects_plan_after_the_move
+    note: >
+      Only the last asserts a full refusal text ("that plan is not in this
+      grant's project"); the others assert the GRANT_SCOPE prefix.
+
+  - rule: >
+      Every write checks its writer again inside its own transaction (§13.7):
+      a revoked grant, a Planner outside its thread, or an external start
+      without a draft_ref writes nothing.
+    tested_by:
+      - a_planner_grant_edits_only_its_own_thread
+      - an_edit_by_a_revoked_grant_writes_nothing
+      - external_draft_starts_require_a_draft_ref
+    note: >
+      These drive the store directly, below `Plans`; they prove the
+      in-transaction check, not `in_scope`.
+
+  - rule: >
+      Replay: a retried command with the same id and the same request answers
+      what it answered first, and writes nothing. The command kinds and
+      fingerprint parameters are PlanApprove { workflow, expected_revision },
+      DraftStart { thread, title, goal } for a Planner and { title, goal,
+      from_workflow_id } for an external agent, PlanEdit { workflow,
+      expected_revision, ops }, PlanShow { workflow, task_number, place }.
+    tested_by:
+      - plan_command_fingerprints_do_not_move
+      - plan_commands_replay_after_the_move
+      - a_repeated_edit_returns_the_first_result
+      - a_replayed_approval_answers_the_first_result
+      - a_thread_grant_starts_a_draft_only_inside_a_turn
+      - draft_ref_replays_and_distinct_refs_make_distinct_plans
+    note: >
+      Only `plan_command_fingerprints_do_not_move` pins the kinds, schema
+      version and parameter sets above, against the command log; it passes on
+      the code before the move. The others replay within one database, so they
+      prove a request matches itself and would still pass with a parameter set
+      changed on both calls. None pins the principal or the derived command
+      ids.
+
+  - rule: >
+      `show` sends its UI signal only when the card was newly recorded, never
+      on a replay, and only after the card is journaled; the signal names the
+      tab that sent the turn.
+    tested_by:
+      - plan_show_twice_in_one_turn_for_different_tasks_writes_two_cards
+      - plan_show_writes_a_card_and_signals_only_the_sending_tab
+    note: >
+      The first asserts a replayed call sends nothing; the second that one
+      signal follows the journaled card and names the sending tab.
+
+  - rule: >
+      A Planner's `start_draft` and `show` are anchored to its thread's
+      running turn; with none running they are refused INVALID_COMMAND "no
+      turn is running for this conversation".
+    tested_by:
+      - a_thread_grant_starts_a_draft_only_inside_a_turn
+      - plan_show_twice_in_one_turn_for_different_tasks_writes_two_cards
+
+  - rule: >
+      An external agent starts a next version only from a Frozen version in
+      its project; a Draft source is a state error (INVALID_COMMAND), not a
+      scope one.
+    tested_by: an_external_draft_source_must_be_frozen
+
+
+agreements:
+  - between: [get, get_for]
+    must: >
+      answer the same Plan for a version the grant's scope covers
+    holds: true
+    why: >
+      `get_for` runs `in_scope`, which reads the version with the same
+      `Storage::get_plan` as `get` and returns it unchanged once its checks pass.
+    tested_by: none
+    note: >
+      A test would read one version through GET /api/workflows/{id} and through
+      `workflow_get` under a project grant, and assert the two JSON bodies equal.
+
+  - between: [get_for, task_for]
+    must: >
+      a task read through `task_for` is the task with that number inside the
+      plan `get_for` answers for the same grant and version
+    holds: true
+    why: >
+      `task_for` calls `in_scope` with the same arguments as `get_for` and
+      picks the task by number from the plan it returns.
+    tested_by: arabic_plan_round_trips_through_mcp
+    note: >
+      It compares the one field `title` of T1 through `workflow_get` and
+      `task_get`, not the whole task.
+
+  - between: [list, list_for]
+    must: >
+      list the same plans for the grant's project as a person's list of that project
+    holds: true
+    why: Both are `Storage::list_plans` of one project.
+    tested_by: none
+    note: >
+      `the_project_lists_each_threads_latest_version` covers `list` and
+      `a_project_grant_cannot_reach_another_project` covers `list_for` (empty);
+      a test listing one project both ways would hold the agreement.
+
+
+not_the_caller's:
+  - >
+      Check a grant's scope before calling a `*_for` method; `in_scope` is that
+      check, and a second one in an adapter would drift from its texts.
+  - >
+      Build a CommandContext, derive a command id or fingerprint a plan
+      command; the service does, so every path replays alike.
+  - >
+      Send `plan_show`'s UI signal; `show` sends it, after the card is recorded
+      and never on a replay.
+
+
+gaps:
+  - at: planner_draft
+    gap: >
+      A Planner's `from_workflow_id` is checked to be in its own thread and
+      then ignored: the version started is always the thread's latest Draft,
+      or the next copy of its latest Frozen version. It is also not in the
+      Planner's DraftStart fingerprint, so a retry naming another version of
+      the thread replays the first answer without a CommandConflict.
+
+
+open_questions:
+  - >
+      `show` reads the running turn from `LiveHandles::running_turn` before its
+      write; whether a turn that ends between that read and `show_plan`'s
+      transaction can still receive a card anchored to it is decided by the
+      operation store and the turn's end (Turns), not here.
+
+
+tests:
+  - name: plan_command_fingerprints_do_not_move
+    checks: >
+      A Planner's DraftStart, PlanEdit and PlanShow, an external DraftStart
+      from scratch and a person's PlanApprove each leave one command_record
+      whose kind, schema version 1 and fingerprint equal `fingerprint` of the
+      parameter literal listed in the replay obligation.
+  - name: plan_commands_replay_after_the_move
+    checks: >
+      Over MCP with a project grant, a draft_start repeated with the same
+      draft_ref answers the same workflow, and a plan_edit repeated with the
+      same command_id answers the identical outcome at revision 1.
+  - name: a_project_grant_is_refused_another_projects_plan_after_the_move
+    checks: >
+      workflow_get for a plan in another project is refused with the text
+      "GRANT_SCOPE: that plan is not in this grant's project".
+  - name: a_thread_grant_edits_only_its_own_threads_plan
+    checks: >
+      A Planner's plan_edit and workflow_get on another thread's plan are
+      GRANT_SCOPE and leave it at revision 0; naming nothing edits its own.
+  - name: a_project_grant_cannot_reach_another_project
+    checks: >
+      workflow_get, task_get and plan_edit on another project's plan are
+      GRANT_SCOPE; workflow_list answers []; the plan stays at revision 0.
+  - name: a_project_grant_must_name_a_plan_to_read_or_edit
+    checks: >
+      Without workflow_id, or with an unknown one, workflow_get, task_get and
+      plan_edit under a project grant are GRANT_SCOPE.
+  - name: a_thread_grant_can_read_and_show_its_older_version_but_not_another_thread
+    checks: >
+      A Planner reads and shows its older version, reads its latest by naming
+      nothing, is GRANT_SCOPE editing the older one or touching another thread.
+  - name: a_planner_grant_edits_only_its_own_thread
+    checks: >
+      The store refuses a Planner writer on another thread's plan with
+      GrantScope and records its own thread's edit under the thread.
+  - name: an_edit_by_a_revoked_grant_writes_nothing
+    checks: The store refuses a revoked grant's edit with GrantInvalid; revision stays 0.
+  - name: external_draft_starts_require_a_draft_ref
+    checks: >
+      The store refuses an external start without a draft_ref, from scratch or
+      in a thread, and creates no thread or version.
+  - name: a_repeated_edit_returns_the_first_result
+    checks: >
+      A Planner's plan_edit without a command_id, repeated, answers the same
+      outcome and journals one WorkflowEdited.
+  - name: a_replayed_approval_answers_the_first_result
+    checks: >
+      The same approve command answers the same body; the same id with another
+      revision is 409 COMMAND_CONFLICT; one WorkflowFrozen is journaled.
+  - name: a_thread_grant_starts_a_draft_only_inside_a_turn
+    checks: >
+      draft_start with no running turn is refused "no turn is running for this
+      conversation"; inside a turn it starts v1, and a repeat is a replay.
+  - name: draft_ref_replays_and_distinct_refs_make_distinct_plans
+    checks: >
+      One draft_ref with the same arguments replays; another ref makes another
+      thread and plan; the first ref with changed arguments is COMMAND_CONFLICT.
+  - name: plan_show_twice_in_one_turn_for_different_tasks_writes_two_cards
+    checks: >
+      Idle plan_show is INVALID_COMMAND; two shows write two cards; a repeated
+      show answers the first and sends no second signal; T9 is refused.
+  - name: plan_show_writes_a_card_and_signals_only_the_sending_tab
+    checks: >
+      One plan-show frame per subscriber, after the PlanShown event, naming
+      the sending tab; the card is a PlanView entry of the turn.
+  - name: an_external_draft_source_must_be_frozen
+    checks: >
+      draft_start from a Draft version under a project grant is INVALID_COMMAND
+      mentioning plan_edit; from a Frozen one it answers the thread's Draft.
+  - name: arabic_plan_round_trips_through_mcp
+    checks: >
+      Arabic text survives plan_edit and workflow_get; task_get's T1 title
+      equals the title in the plan.

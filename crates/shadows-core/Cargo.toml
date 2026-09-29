@@ -1,0 +1,49 @@
+[package]
+name = "shadows-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+dunce = { workspace = true }
+escargot = { workspace = true, optional = true }
+futures-core = { workspace = true }
+petgraph = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+shadows-agent = { path = "../shadows-agent" }
+shadows-process = { path = "../shadows-process" }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+utoipa = { workspace = true }
+
+[features]
+# Compiles in `testing` (spec §14.6): storage, the runtime and the sessions
+# below the services, `append_event_for_test` (a hook onto an otherwise-private
+# capability, `append_event` without a state write, that must never ship in an
+# ordinary build — see cross-cutting rule 10), and the test binaries it builds
+# through `escargot`; plus `<Id>::from_literal`, the test-only store methods
+# and `shadows-process`'s `force_termination_failure`. Enabled for
+# `cargo test` only via the self dev-dependency below, and by `shadows`' and
+# `fake-acp`'s own `test-support`; never a default feature.
+test-support = ["dep:escargot", "shadows-process/test-support"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+# `tests/contracts.rs` (spec §14.7): the contracts are YAML, the sources Rust.
+syn = { workspace = true }
+yaml-rust2 = { workspace = true }
+# Enables `test-support` for integration tests (tests/*.rs) without turning
+# it on for `cargo build` or `cargo run`.
+shadows-core = { path = ".", features = ["test-support"] }

@@ -14,8 +14,9 @@ name: CI
 #
 # Linux is the COMPILE gate only. It proves the crate still builds, lints, and
 # passes its platform-neutral tests on a Unix target. It does NOT certify
-# process-tree containment there: `src/process/containment_unix.rs` covers
-# deliberate termination only, and the parent-death half of spec §1.5 is a
+# process-tree containment there:
+# `crates/shadows-process/src/lib.rs`'s unix path covers deliberate
+# termination only, and the parent-death half of spec §1.5 is a
 # known, recorded gap. Tests that would assert that gap are `#[ignore]`d with
 # the reason in the source. Never silence one to make this job green — a green
 # job that hides a gap is exactly the failure this project exists to avoid.
@@ -23,8 +24,8 @@ name: CI
 # Web is the third job, and it runs on Linux only because the client is
 # platform-neutral: it is TypeScript for a browser, and nothing in it touches
 # the machine. It certifies the client builds against the daemon's protocol as
-# checked in — `api/openapi.json`, which `tests/openapi.rs` keeps current — and
-# nothing about a running daemon; the client talking to one is a manual check.
+# checked in — `api/openapi.json`, which `crates/shadows/tests/openapi.rs`
+# keeps current — and nothing about a running daemon; the client talking to one is a manual check.
 
 on:
   push:
@@ -47,33 +48,43 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Format
-        run: cargo fmt --check
+        run: cargo fmt --all --check
       - name: Lint
-        run: cargo clippy --all-targets -- -D warnings
-      - name: Ship build — the test-only seams must not be in it
-        # Three seams exist in this tree only because `test-support` is off in
-        # an ordinary build: `storage::test_support` (a durable event appended
-        # with no state write), `<Id>::from_literal` (an id minted from
-        # arbitrary text), and `ProcessHandle::force_termination_failure`
-        # (termination that reports failure on demand). `cargo test` turns that
-        # feature on through the self dev-dependency, so every other step in
-        # this job builds WITH it and none of them can notice if it became a
-        # default feature or a dependency started requesting it. The whole
-        # suite would stay green while all three shipped.
+        run: cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings
+      - name: Boundary — the adapters see only the core's public surface
+        # Spec §14.6. Every other step builds with `test-support`, which opens
+        # `shadows_core::testing` (storage, the runtime and the sessions below
+        # the services). This one builds without it, as the binary ships: a
+        # crate that reaches past a service fails to compile here, and a
+        # public method answering a type from a private module fails
+        # `unnameable_types`.
+        run: cargo clippy --workspace -- -D warnings
+      - name: Ship build — nothing behind test-support may be in it
+        # What `test-support` compiles in exists only because the feature is
+        # off in an ordinary build: `shadows_core::testing` (storage, the
+        # runtime and the sessions, which no adapter may reach, and
+        # `append_event_for_test`, a durable event appended with no state
+        # write), `<Id>::from_literal` (an id minted from arbitrary text), and
+        # `ProcessHandle::force_termination_failure` (termination that reports
+        # failure on demand). A crate enables the feature only in its
+        # `[dev-dependencies]`, so every step that builds tests builds WITH it
+        # and none of them can notice if it became a default feature or a
+        # normal dependency started requesting it. The whole suite would stay
+        # green while all of it shipped.
         #
-        # So this step builds what ships and then asks Cargo, of the non-dev
-        # graph, whether the feature is on. A failure here means a test-only
-        # seam has entered the product build: fix the gating, never relax the
-        # step.
+        # So this step builds what ships and then asks Cargo, of the whole
+        # workspace's non-dev graph, whether the feature is on. A failure here
+        # means test-only code has entered the product build: fix the gating,
+        # never relax the step.
         shell: bash
         run: |
           cargo build
-          if cargo tree -e features,no-dev --package shadows | grep -q 'test-support'; then
-            echo "::error::test-support is enabled in the shipping build - a test-only seam would ship"
+          if cargo tree -e features,no-dev --workspace | grep -q 'test-support'; then
+            echo "::error::test-support is enabled in the shipping build - test-only code would ship"
             exit 1
           fi
       - name: Test
-        run: cargo test
+        run: cargo test --workspace
 
   linux:
     name: Linux — compile gate only
@@ -90,33 +101,43 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Format
-        run: cargo fmt --check
+        run: cargo fmt --all --check
       - name: Lint
-        run: cargo clippy --all-targets -- -D warnings
-      - name: Ship build — the test-only seams must not be in it
-        # Three seams exist in this tree only because `test-support` is off in
-        # an ordinary build: `storage::test_support` (a durable event appended
-        # with no state write), `<Id>::from_literal` (an id minted from
-        # arbitrary text), and `ProcessHandle::force_termination_failure`
-        # (termination that reports failure on demand). `cargo test` turns that
-        # feature on through the self dev-dependency, so every other step in
-        # this job builds WITH it and none of them can notice if it became a
-        # default feature or a dependency started requesting it. The whole
-        # suite would stay green while all three shipped.
+        run: cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings
+      - name: Boundary — the adapters see only the core's public surface
+        # Spec §14.6. Every other step builds with `test-support`, which opens
+        # `shadows_core::testing` (storage, the runtime and the sessions below
+        # the services). This one builds without it, as the binary ships: a
+        # crate that reaches past a service fails to compile here, and a
+        # public method answering a type from a private module fails
+        # `unnameable_types`.
+        run: cargo clippy --workspace -- -D warnings
+      - name: Ship build — nothing behind test-support may be in it
+        # What `test-support` compiles in exists only because the feature is
+        # off in an ordinary build: `shadows_core::testing` (storage, the
+        # runtime and the sessions, which no adapter may reach, and
+        # `append_event_for_test`, a durable event appended with no state
+        # write), `<Id>::from_literal` (an id minted from arbitrary text), and
+        # `ProcessHandle::force_termination_failure` (termination that reports
+        # failure on demand). A crate enables the feature only in its
+        # `[dev-dependencies]`, so every step that builds tests builds WITH it
+        # and none of them can notice if it became a default feature or a
+        # normal dependency started requesting it. The whole suite would stay
+        # green while all of it shipped.
         #
-        # So this step builds what ships and then asks Cargo, of the non-dev
-        # graph, whether the feature is on. A failure here means a test-only
-        # seam has entered the product build: fix the gating, never relax the
-        # step.
+        # So this step builds what ships and then asks Cargo, of the whole
+        # workspace's non-dev graph, whether the feature is on. A failure here
+        # means test-only code has entered the product build: fix the gating,
+        # never relax the step.
         shell: bash
         run: |
           cargo build
-          if cargo tree -e features,no-dev --package shadows | grep -q 'test-support'; then
-            echo "::error::test-support is enabled in the shipping build - a test-only seam would ship"
+          if cargo tree -e features,no-dev --workspace | grep -q 'test-support'; then
+            echo "::error::test-support is enabled in the shipping build - test-only code would ship"
             exit 1
           fi
       - name: Test (ignored tests stay ignored; see the note at the top)
-        run: cargo test
+        run: cargo test --workspace
 
   web:
     name: Web — client build gate

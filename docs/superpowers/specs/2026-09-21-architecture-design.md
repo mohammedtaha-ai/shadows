@@ -4,7 +4,7 @@
 > stable across files, and every `§x.y` reference resolves through the ownership
 > map there — many of them point into a different file.
 
-`shadows` starts as one Rust crate exposing a library and a binary. The product client is an independent browser application that communicates only through the local protocol.
+`shadows` is a Cargo workspace: one application crate, `shadows-core`, with small crates around it that translate HTTP, MCP and the command line, and two infrastructure crates that run the harness and processes. §14.3 owns the crate list and the direction of their dependencies (decided 2026-09-27; it was one crate exposing a library and a binary until Milestone 2.5). The product client is an independent browser application that communicates only through the local protocol.
 
 The binary has two primary modes:
 
@@ -18,7 +18,7 @@ shadows ...      # CLI client
 **The daemon does not serve or embed the client** (decided 2026-09-23, superseding the single-page `include_str!` recommendation in `docs/evidence/harness/SERVE_STREAM_SPIKE.md` Finding 1). The backend stays on the machine that owns the projects, the processes, and the harness; clients reach it over the protocol, the way a hosted web app reaches a locally running agent. The Web client is the first client, a desktop client is a later one, and a hosted Web client reaching a remote daemon is a later deployment of the same one. Consequences:
 
 - The Web client lives in `web/` in this repository, built and deployed on its own. It is React + TypeScript on Vite, with TanStack Router and TanStack Query, shadcn/ui on Tailwind v4 (theme as CSS variables in one place), Motion for animation, and Streamdown for rendering streamed markdown. Anything else earns its place the day a screen needs it.
-- **The protocol is described, not copied.** The daemon generates an OpenAPI document from its routes (`utoipa` + `utoipa-axum`), and every client's types and HTTP client are generated from it (`openapi-typescript` + `openapi-fetch`). A route change that the client has not followed fails the client's build. The daemon serves the document at `GET /api/openapi.json` and it is checked in at `api/openapi.json`, kept current by `tests/openapi.rs` the way the code map is (`UPDATE_OPENAPI=1 cargo test --test openapi` regenerates it); its keys are sorted so it changes only when the protocol does. Id newtypes appear as named `uuid`-format strings. The SSE stream (§2.10) is documented there too, but it is consumed by a hand-written hook, because its replay, then live, then dedupe-by-seq contract is ours.
+- **The protocol is described, not copied.** The daemon generates an OpenAPI document from its routes (`utoipa` + `utoipa-axum`), and every client's types and HTTP client are generated from it (`openapi-typescript` + `openapi-fetch`). A route change that the client has not followed fails the client's build. The daemon serves the document at `GET /api/openapi.json` and it is checked in at `api/openapi.json`, kept current by `crates/shadows/tests/openapi.rs` the way the code map is (`UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` regenerates it); its keys are sorted so it changes only when the protocol does. Id newtypes appear as named `uuid`-format strings. The SSE stream (§2.10) is documented there too, but it is consumed by a hand-written hook, because its replay, then live, then dedupe-by-seq contract is ours.
 - The daemon allows cross-origin requests only from origins listed in configuration: `shadows serve --allow-origin <origin>`, repeatable, an exact `scheme://host[:port]` checked at startup. Unset, the list is Vite's dev server under both of its names, `http://localhost:5173` and `http://127.0.0.1:5173`; given at all, it replaces them. No credentials are allowed. There is no `GET /`. CORS only decides whether a page may read an answer, so before any route the daemon also refuses (`403 ORIGIN_REFUSED`) a request whose `Host` is not `localhost` or an IP address (DNS rebinding), whose `Origin` is present and not listed, or that a browser marks as sent from another site (`Sec-Fetch-Site`) without an `Origin` (a no-cors request such as an `<img>` aimed at the disk routes). A request with none of those headers is not from a browser and passes.
 - Filesystem browsing, for choosing or creating a project directory, is a daemon route: only the daemon can see the machine's disk. `GET /api/fs/dirs` lists one directory's subdirectories (or, with no path, the roots), flagging hidden ones rather than filtering them and skipping entries it cannot read; `POST /api/fs/dirs` creates one directory whose name is a single component Windows would accept. They expose the disk to every client the CORS list admits, which is sound only under the OPEN block below.
 
@@ -68,6 +68,12 @@ protocol/
 cli/
 ```
 
+These name responsibilities, not folders of one crate. Since Milestone 2.5 the
+application ones are services and modules inside `shadows-core` (§14.4), and the
+adapters are crates: `protocol/` is `shadows-http`, `cli/` is the `shadows`
+binary, `agent/` is `shadows-agent` (§14.3). `scheduler/`, `execution/` and
+`verification/` are not built yet.
+
 ## 1.2 Cross-cutting / infrastructure modules
 
 ```text
@@ -79,27 +85,27 @@ error/
 tracing/
 ```
 
-These are still normal modules in the same crate; “cross-cutting” describes responsibility, not a separate architectural layer.
+`process/` is the `shadows-process` crate and `mcp/` the `shadows-mcp` crate; `config/` and `tracing/` are modules of the `shadows` binary, and `error/` is `shadows-core`'s (§14.3). `secrets/` is not built yet. “Cross-cutting” describes responsibility, not a separate architectural layer.
 
 ## 1.3 Ownership rules
 
-| Module | Sole owner of |
+| Owner | Sole owner of |
 |---|---|
-| `agent/` | Agent-harness abstraction and harness-specific translation from `AgentInvocation` to `ProcessSpec` |
-| `process/` | OS process primitives: `tokio::process`, process trees/groups/job objects, `ProcessSpec`, `ProcessHandle` |
-| `storage/` | SQLx, SQLite schema/query code, migrations, future backend adapters |
-| `protocol/` | HTTP/SSE transport |
-| `mcp/` | MCP adapter and MCP request/response translation |
-| `secrets/` | `SecretRef` resolution; secret values are resolved only at spawn |
-| `scheduler/` | Pure scheduling decision logic; no I/O |
-| `events/` | Durable-event vocabulary, cursor semantics, transient live-event abstraction |
+| `shadows-agent` | Agent-harness abstraction and harness-specific translation from `AgentInvocation` to `ProcessSpec` |
+| `shadows-process` | OS process primitives: `tokio::process`, process trees/groups/job objects, `ProcessSpec`, `ProcessHandle` |
+| `shadows-core`: `db/`, each service's `store` and `runtime/store.rs` | SQLx, SQLite schema/query code, migrations, future backend adapters (§2.9) |
+| `shadows-http` | HTTP/SSE transport |
+| `shadows-mcp` | MCP adapter and MCP request/response translation |
+| `secrets` (planned) | `SecretRef` resolution; secret values are resolved only at spawn |
+| `scheduler` (planned) | Pure scheduling decision logic; no I/O |
+| `shadows-core`'s `events` | Durable-event vocabulary, cursor semantics, transient live-event abstraction |
 
 ### Mechanical boundary examples
 
-- `agent/` may construct `ProcessSpec`, but only `process/` may call `tokio::process`.
-- `verification/` may construct a deterministic process check, but process spawning still goes through `process/`.
-- `storage/` may import SQLx; application/domain modules may not.
-- `protocol/` and `mcp/` call application/domain operations; they do not access SQL directly.
+- `shadows-agent` may construct `ProcessSpec`, but only `shadows-process` may call `tokio::process`.
+- `verification` may construct a deterministic process check, but process spawning still goes through `shadows-process`.
+- `shadows-core`'s stores (each service's `store`, `runtime/store.rs`) and `db/` may import SQLx; a service's `model.rs` and every other crate's product code may not.
+- `shadows-http` and `shadows-mcp` call `AppCore`'s services; they cannot reach storage, which is private to `shadows-core` (§14.6).
 
 ## 1.4 Agent abstraction
 
@@ -248,7 +254,7 @@ invariant and Linux does not.
   opts into it.
 - **Linux — NOT satisfied.** `ProcessSession` is `setsid` plus `killpg`. That
   kills the tree when Shadows asks, which is §8.3's requirement, and it is what
-  `tests/containment.rs` proves. It supplies no parent-death containment
+  `crates/shadows-process/tests/containment.rs` proves. It supplies no parent-death containment
   whatsoever: kill the daemon with `SIGKILL` and the harness keeps running,
   which is precisely the case the paragraph above refuses to accept a process
   group as proof of.

@@ -1,0 +1,29 @@
+[package]
+name = "fake-acp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+agent-client-protocol = { workspace = true }
+rmcp = { workspace = true }
+serde_json = { workspace = true }
+shadows-core = { path = "../shadows-core" }
+tokio = { workspace = true }
+
+# Test apparatus, not product (docs/codebase: `crates/fake-acp/`). Built only
+# with `test-support`, which `shadows_core::testing::fake_acp_path()` asks for,
+# so a normal workspace build neither builds it nor unifies its features onto
+# any other crate (spec §14.6).
+[[bin]]
+name = "fake-acp"
+path = "src/main.rs"
+required-features = ["test-support"]
+
+[features]
+test-support = ["shadows-core/test-support", "rmcp/client",
+                "rmcp/transport-streamable-http-client-reqwest"]

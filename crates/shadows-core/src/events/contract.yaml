@@ -1,0 +1,362 @@
+# Owns what clients watch live (spec §2.10, §14.4): one subscriber's stream
+# over one thread — the durable journal after the client's `after`, then
+# `CaughtUp`, then live — and reading the journal back (`store.rs`).
+#
+# The no-gap handoff is the whole point. `subscribe` takes the
+# committed-sequence watch, the bus, the options watch and the UI receiver
+# before a single journal row is read, so a commit or a live item that lands
+# during the replay is already pending on a receiver. Durable events are
+# delivered only by reading the journal after `last_seq` — in the replay,
+# and again each time the committed signal moves — so each is delivered
+# once, in `seq` order; the bus's `Entry` items are never delivered.
+#
+# Trap: `Events` emits nothing of its own. It holds the bus and UI senders
+# only to subscribe to them; a writer appends its durable event inside its
+# own transaction (`db::append_event`), `Turns` sends a turn's live items and
+# `Plans` sends `plan_show`'s signal.
+# Trap: the frames themselves — event names, JSON bodies, `durable`'s payload
+# parse, the bounded channel, `shutdown` and the `sse.*` lines around a
+# delivery — are `shadows-http/src/sse.rs`'s. A `Delivery` is not a frame.
+
+name: events
+version: 1
+status: current
+source: crates/shadows-core/src/events
+
+
+shapes:
+  Events:
+    storage: Arc<Storage>
+    harness: Arc<Harness>
+    bus: Bus
+    ui: broadcast::Sender<UiSignal>
+  Subscription:
+    thread: ThreadId
+    # The four receivers `subscribe` took (`Live`).
+    live: Live
+    # Starts at the client's `after`; raised as each `Durable` is delivered.
+    last_seq: i64
+    # Journal rows read and not yet delivered, in `seq` order.
+    read: VecDeque<StoredEvent>
+    # The journal may hold rows after `last_seq`: true for the replay, and
+    # again each time the committed signal moves.
+    reading: bool
+    caught_up: bool
+    # Set once the stream is over; every later `next` answers it.
+    over: Option<&'static str>
+  Live:
+    committed: watch::Receiver<i64>
+    bus: broadcast::Receiver<(ThreadId, OperationId, HarnessEvent)>
+    options: broadcast::Receiver<(ThreadId, Offered)>
+    signals: broadcast::Receiver<UiSignal>
+  Delivery:
+    Durable: StoredEvent
+    CaughtUp: "{ seq: i64 }"
+    Delta: "{ op: OperationId, text: String }"
+    TurnEnd: "{ op: OperationId, subtype: &'static str, stop_reason: Option<String> }"
+    # `limits` is `None` when unknown or unreadable; `size` 0 is no window.
+    Usage: "{ thread: ThreadId, used: u64, size: u64, limits: Option<AccountLimits> }"
+    Options: "{ thread: ThreadId, choices: SessionChoices }"
+    PlanShow: UiSignal
+    # A live source dropped items for this subscriber; durable ones never are.
+    Lagged: unit
+    # The journal could not be read; the text the client is told.
+    Fatal: String
+  StoredEvent:
+    seq: i64
+    kind: String
+    operation_id: Option<OperationId>
+    thread_id: Option<ThreadId>
+    # Unparsed: the writer's JSON, which `sse.rs` parses into the frame.
+    payload_json: String
+    created_at: String
+  EventCursor:
+    # The last `seq` a reader has; reading after it answers what is newer.
+    "0": i64
+  DurableEvent:
+    # What a writer appends; its builders are typed, so an event cannot be
+    # scoped to the wrong entity.
+    event_id: String
+    kind: String
+    project_id: Option<ProjectId>
+    thread_id: Option<ThreadId>
+    operation_id: Option<OperationId>
+    actor: Actor
+    causation: Option<Causation>
+    correlation_id: Option<String>
+    payload_json: String
+  Actor:
+    kind: String
+    id: String
+  Causation:
+    kind: String
+    reference: String
+  UiSignal:
+    # Live only: never stored, never replayed.
+    thread_id: ThreadId
+    target_tab: Option<String>
+    workflow_id: WorkflowId
+    version: i64
+    task_number: Option<u32>
+    place: Place
+
+
+functions:
+  service:
+    subscribe:
+      signature: "(&self, thread: ThreadId, after: i64) -> Subscription"
+      # Takes `storage.watch_committed()`, `bus.subscribe()`,
+      # `harness.watch_options()` and `ui.subscribe()`, in that order, and
+      # reads nothing.
+  subscription:
+    next:
+      signature: "(&mut self) -> Result<Delivery, &'static str>"
+      # Once over, `Err(why)` every time. Otherwise: a row already read →
+      # Durable (last_seq = its seq); while `reading`, read 500 after
+      # last_seq (a failure logs `sse.replay_failed`, sets over "error:
+      # journal read failed" and answers Fatal("the journal could not be
+      # read")); an empty read ends `reading`, and the first one answers
+      # CaughtUp { seq: last_seq }; else `live`.
+    live:
+      signature: "(&mut self) -> Option<Result<Delivery, &'static str>>"
+      private: true
+      # `select!` biased: committed, bus, options, signals. Committed →
+      # `reading` again (Err "shutdown: storage closed" when its sender is
+      # gone). This thread's bus item → `transient`; its offer →
+      # `Harness::choices` → Options, or nothing on Err; its signal →
+      # PlanShow. Another thread's item → nothing. Lagged on any of the
+      # three → Lagged. Closed → Err "shutdown: bus closed" / "options
+      # closed" / "signals closed".
+    transient:
+      signature: "(&self, thread, op, item: HarnessEvent) -> Option<Delivery>"
+      private: true
+      # Usage → Usage with `Harness::limits_of`; Chunk → Delta; TurnEnd →
+      # TurnEnd; anything else (Entry, ToolCall, Options, …) → None.
+  builders:
+    # What every writer in the crate uses to build the event it appends
+    # through `db::append_event`; appending is not this service's.
+    new:
+      signature: "(kind: impl Into<String>, actor: Actor) -> DurableEvent"
+      # A fresh v4 `event_id`, no scope, payload "{}".
+    with_project:
+      signature: "(self, id: &ProjectId) -> Self"
+      # Typed ids, so an event cannot be scoped to the wrong entity.
+    with_thread:
+      signature: "(self, id: &ThreadId) -> Self"
+    with_operation:
+      signature: "(self, id: &OperationId) -> Self"
+    with_payload:
+      signature: "(self, v: Value) -> Self"
+    with_causation:
+      signature: "(self, kind, reference) -> Self"
+      # test-support only.
+    with_correlation:
+      signature: "(self, id) -> Self"
+      # test-support only.
+    system:
+      signature: "() -> Actor"
+      # On `Actor`.
+    user:
+      signature: "(id: impl Into<String>) -> Actor"
+      # On `Actor`.
+  store:
+    read_events_after:
+      signature: "(&self, cursor: EventCursor, thread_id: &ThreadId, limit: i64) -> Result<Vec<StoredEvent>, StorageError>"
+      # WHERE thread_id = ? AND seq > ? ORDER BY seq LIMIT ?: explicit order,
+      # never insertion order.
+    current_cursor:
+      signature: "(&self) -> Result<EventCursor, StorageError>"
+      # test-support only: MAX(seq), 0 for an empty journal.
+
+
+enums:
+  Storage:
+    source: crate::db::Storage
+    values: []
+  StorageError:
+    source: crate::db::StorageError
+    values: []
+  Harness:
+    source: crate::harness::Harness
+    values: []
+  Bus:
+    source: crate::app::Bus
+    values: []
+  HarnessEvent:
+    source: shadows_agent::events::HarnessEvent
+    values: []
+  AccountLimits:
+    source: shadows_agent::events::AccountLimits
+    values: []
+  SessionChoices:
+    source: shadows_agent::choices::SessionChoices
+    values: []
+
+
+obligations:
+  - rule: >
+      No frame is lost or repeated across journal → live. Every receiver is
+      taken before the replay is read: a live item sent before the replay
+      task runs is delivered after CaughtUp, and a durable event committed in
+      that window is delivered exactly once.
+    tested_by:
+      - an_event_published_during_the_replay_survives_the_handoff
+      - a_durable_event_committed_during_the_replay_arrives_exactly_once
+      - thread_routes_create_list_and_run_a_turn_to_its_entries
+    note: >
+      The first sends on the bus with no await after `subscribe` returns and
+      asserts durable < caught-up < the live item, and 3 durable frames. The
+      second commits before the replay task runs, then a marker after
+      CaughtUp, and asserts the entry's seq once and no repeat. The third
+      (protocol.rs) runs a turn on an open stream and reads its two entries
+      live, once each, in order, with no `entry` frame.
+
+  - rule: >
+      Durable events are delivered in `durable_seq` order, in the replay and
+      live alike, and a committed event reaches an open stream without a
+      reconnect.
+    tested_by:
+      - reading_after_a_cursor_returns_the_unseen_tail_in_order
+      - a_durable_event_committed_after_the_handoff_arrives_live
+      - operation_transitions_reach_their_threads_stream
+      - durable_frames_name_their_operation_and_thread_and_caught_up_is_json
+    note: >
+      The first is the store read (`ORDER BY seq`); the next two are the
+      live re-read on the committed signal; the last asserts CaughtUp's seq
+      is the last replayed durable frame's.
+
+  - rule: >
+      `after` resumes exactly: a subscriber is delivered every durable event
+      of its thread after `after`, in order, and none at or before it; then
+      CaughtUp names the last. A zero `after` replays the whole thread.
+    tested_by:
+      - a_reconnect_with_after_resumes_exactly_where_the_client_stopped
+      - reading_after_a_cursor_returns_the_unseen_tail_in_order
+      - a_zero_cursor_replays_the_whole_thread
+
+  - rule: >
+      A subscription carries only its own thread: another thread's bus
+      items, offers and signals are not delivered.
+    tested_by: a_subscriber_receives_only_its_own_threads_live_items
+    note: >
+      It proves the bus only. The offer and signal filters are the same
+      comparison and no test sends another thread's.
+
+  - rule: >
+      Transient deliveries: a usage report with the harness's latest limits,
+      a `plan_show` signal after its durable card and never in a replay.
+    tested_by:
+      - a_usage_frame_reaches_a_subscriber_of_the_thread
+      - plan_show_writes_a_card_and_signals_only_the_sending_tab
+      - a_replayed_subscription_gets_the_card_but_no_plan_show_frame
+
+  - rule: >
+      Events emits nothing of its own: nothing in `events/` sends on the bus
+      or the UI channel, or appends to the journal.
+    tested_by: none
+    note: >
+      Structural: `Events` calls only `subscribe` on its senders, and
+      appending is `db::append_event`, which no file here calls. A test
+      would have to observe the bus and the journal across a subscription
+      that receives every kind of delivery.
+
+  - rule: >
+      A stream ends when the daemon stops, even mid-replay or live, so an
+      open tab never holds up shutdown.
+    tested_by: an_open_live_stream_does_not_hold_up_shutdown
+    note: >
+      `shutdown` is `sse.rs`'s first `biased` arm around `next`; the test
+      waits for caught-up, then stops the server, so it proves the live
+      phase only. No test stops the daemon mid-replay; there the stream now
+      ends before `caught-up`, where 81d9628 finished the replay first.
+
+
+not_the_caller's:
+  - >
+      Take a live receiver after reading the journal, or read the journal to
+      resume a client; `subscribe` takes them first and `next` reads after
+      `after`.
+  - >
+      De-duplicate durable events by `seq`, or forward the bus's `Entry`
+      items; `next` delivers each durable event once, from the journal.
+  - >
+      Filter another thread's live items, or compute a usage's limits or an
+      offer's choices; `next` does, through `Harness`.
+
+
+open_questions:
+  - >
+      Harness' sessions append `McpGrantIssued`/`McpGrantRevoked` through
+      their own `Storage` (see Harness' contract), so those thread events do
+      not raise the committed signal `subscribe` watches; they arrive at the
+      next commit through the core's pool.
+
+
+tests:
+  - name: reading_after_a_cursor_returns_the_unseen_tail_in_order
+    checks: >
+      Three entries after a mid cursor read back as exactly 3, in seq order,
+      all ThreadEntryAppended; re-reading is the same; after the last, none.
+  - name: a_zero_cursor_replays_the_whole_thread
+    checks: Cursor 0 reads PlanningThreadCreated then ThreadEntryAppended.
+  - name: an_event_published_during_the_replay_survives_the_handoff
+    checks: >
+      A bus send right after `subscribe` returns succeeds and arrives after
+      caught-up, which follows the durable replay; exactly 3 durable frames.
+  - name: a_durable_event_committed_after_the_handoff_arrives_live
+    checks: An entry committed after caught-up arrives live with its seq last.
+  - name: a_durable_event_committed_during_the_replay_arrives_exactly_once
+    checks: >
+      An entry committed before the replay task runs appears once, and no
+      durable seq repeats up to a marker committed after caught-up.
+  - name: a_reconnect_with_after_resumes_exactly_where_the_client_stopped
+    checks: >
+      A second stream opened with the first's last seq, after two more
+      entries, sends exactly those two seqs in order, and caught-up names the
+      last.
+  - name: a_subscriber_receives_only_its_own_threads_live_items
+    checks: Thread B's delta, sent first, never reaches thread A's stream.
+  - name: operation_transitions_reach_their_threads_stream
+    checks: >
+      OperationStarted is in the replay; OperationCompleted arrives live as
+      the last durable kind.
+  - name: durable_frames_name_their_operation_and_thread_and_caught_up_is_json
+    checks: >
+      A durable frame carries operation_id, thread_id and an object payload,
+      null for no operation; caught-up's seq is the last durable seq.
+  - name: thread_routes_create_list_and_run_a_turn_to_its_entries
+    checks: >
+      A turn's two entries reach an open stream live as durable frames, once
+      each and in seq order, with turn-end and no `entry` frame.
+  - name: a_usage_frame_reaches_a_subscriber_of_the_thread
+    checks: >
+      Two usage frames for the thread: 1234/200000, then a window of 1000000
+      with a seven_day limit object.
+  - name: plan_show_writes_a_card_and_signals_only_the_sending_tab
+    checks: >
+      Each of two tabs gets one plan-show frame after the PlanShown durable
+      frame, naming tab-a, the thread, the plan, version 1 and place page.
+  - name: a_replayed_subscription_gets_the_card_but_no_plan_show_frame
+    checks: >
+      A later subscription from 0 replays PlanShown and no plan-show frame,
+      and none follows within 300 ms.
+  - name: an_open_live_stream_does_not_hold_up_shutdown
+    checks: >
+      With a raw TCP stream past caught-up, raising `stopping` lets serve
+      return within 5 s.
+  - name: a_usage_frame_reaches_a_subscriber_of_the_thread
+    checks: >
+      A turn's two usage reports reach the thread's stream with its id,
+      context used and window; the second carries the harness's limits.
+  - name: plan_show_writes_a_card_and_signals_only_the_sending_tab
+    checks: >
+      One plan-show frame per subscriber, after the PlanShown event, naming
+      the sending tab.
+  - name: a_replayed_subscription_gets_the_card_but_no_plan_show_frame
+    checks: >
+      A stream opened at 0 after the turn replays the PlanShown event, sends
+      no plan-show frame up to caught-up, and none in the next 300 ms.
+  - name: an_open_live_stream_does_not_hold_up_shutdown
+    checks: >
+      A raw stream read up to caught-up, then the graceful shutdown: `serve`
+      returns within 5 s.

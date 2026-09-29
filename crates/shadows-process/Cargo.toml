@@ -1,0 +1,36 @@
+[package]
+name = "shadows-process"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+process-wrap = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+# Test apparatus, not product (docs/codebase: `src/bin/`). Built only with
+# `test-support`, which `cargo test` enables through the self dev-dependency
+# below, so `cargo build --release` and `cargo install` never ship it.
+[[bin]]
+name = "tree_probe"
+path = "src/bin/tree_probe.rs"
+required-features = ["test-support"]
+
+[features]
+# Compiles in `ProcessHandle::force_termination_failure`, a hook that makes
+# the next `terminate_tree` fail. Enabled for `cargo test` only via the self
+# dev-dependency below, and by `shadows`' own `test-support`; never a default.
+test-support = []
+
+[dev-dependencies]
+# Enables `test-support` for integration tests (tests/*.rs) without turning
+# it on for `cargo build` or `cargo run`.
+shadows-process = { path = ".", features = ["test-support"] }

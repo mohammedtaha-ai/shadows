@@ -1,0 +1,370 @@
+# Owns the planning threads and what they recorded (spec §4.2, §6.5, §12.6,
+# §12.9, §14.4): creating a thread, the harness it runs on, forking it, and
+# reading its entries and operations. Its store also owns the thread row's
+# session id and a thread's entries, which other services write.
+#
+# The harness rule: a thread runs on a harness Shadows knows
+# (`known_harness`, the one rule Projects also calls), `claude-code` when
+# none is named. It changes only while the thread has no operation and is not
+# a fork (`set_thread_harness` checks both inside its write, and the
+# `planning_thread_harness_locked` trigger refuses it again below). When a
+# change moves the harness, `set_harness` closes the thread's session through
+# `Harness::close_session`; a failure to close is logged
+# (`thread.harness_change_close_failed`) and the change still answers.
+#
+# The fork rule (§12.9): the fork point is judged from durable rows inside
+# the fork's own write: the entry is the source's last, it names an
+# operation, that operation is Completed, and the source has a harness
+# session; and the source has no operation not yet ended
+# (`turns::has_open_operation`). The fork copies entries up to that point
+# under new ids and ordinals, keeps their `operation_id` and refs, and names
+# the source's session, which its first opening forks.
+#
+# Trap: an entry's ordinal is allocated inside the appending write by
+# `UPDATE … RETURNING`, never MAX+1, so a failed append consumes none.
+# Trap: a replay of `set_harness` answers the thread as it stands and closes
+# nothing, even once the harness is locked: the close is decided by comparing
+# the harness before and after, not by the request.
+
+name: threads
+version: 1
+status: current
+source: crates/shadows-core/src/threads
+
+
+shapes:
+  Threads:
+    storage: Arc<Storage>
+    # The core's own `Harness`, shared: a harness change closes its session.
+    harness: Arc<Harness>
+  PlanningThread:
+    id: ThreadId
+    project_id: ProjectId
+    title: String
+    # "Open"; nothing else writes another status yet.
+    status: String
+    created_at: String
+    harness: String
+    # Set on a fork only; a fork's title is the source's with " (fork)".
+    forked_from_thread: Option<ThreadId>
+  TurnContext:
+    # What a turn inherits from durable state, never from its caller.
+    project_directory: Option<PathBuf>
+    harness_session_id: Option<String>
+    harness: String
+    project_id: ProjectId
+    # A fork's source session until the fork records one of its own.
+    fork_session_id: Option<String>
+  ThreadEntry:
+    id: ThreadEntryId
+    thread_id: ThreadId
+    # Orders entries within one thread; not an identity.
+    ordinal: i64
+    kind: ThreadEntryKind
+    author: Actor
+    body: String
+    refs: Vec<EntryRef>
+    created_at: String
+    # A fork's copied entries keep the source's: provenance only.
+    operation_id: Option<OperationId>
+  NewThreadEntry:
+    kind: ThreadEntryKind
+    author: Actor
+    body: "&str"
+    refs: "&[EntryRef]"
+    operation_id: Option<&OperationId>
+  ThreadEntryKind:
+    # Each stored as its name, which is also the wire name.
+    UserMessage: unit
+    AgentMessage: unit
+    PermissionRefused: unit
+    PlanView: unit
+    PlanApproved: unit
+  EntryRef:
+    Operation: OperationId
+    Decision: String
+    Research: String
+    Workflow: WorkflowId
+    Task: TaskId
+
+
+functions:
+  service:
+    list:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, CoreError>"
+      # Oldest first by the `PlanningThreadCreated` event's seq; an unknown
+      # project has none.
+    create:
+      signature: "(&self, command_id: String, project: &ProjectId, title: &str, harness: Option<&str>) -> Result<PlanningThread, CoreError>"
+      # harness or `claude-code` → known_harness → "thread.create",
+      # principal User/local, schema 1, params { project, title, harness }
+      # → `create_planning_thread`. Refusals: SettingNotOffered; NotFound (no
+      # such project); CommandConflict.
+    set_harness:
+      signature: "(&self, command_id: String, thread: &ThreadId, harness: &str) -> Result<PlanningThread, CoreError>"
+      # known_harness → turn_context (NotFound) → "thread.harness", params
+      # { thread_id, harness } → `set_thread_harness` (HarnessLocked,
+      # CommandConflict) → close the session when the harness moved.
+    fork:
+      signature: "(&self, command_id: String, thread: &ThreadId, at: &ThreadEntryId) -> Result<PlanningThread, CoreError>"
+      # "thread.fork", params { thread_id, at_entry_id } → `fork_thread`.
+      # Refusals: NotFound (thread, or an entry not the source's);
+      # ThreadBusy; ForkPointNotSupported; CommandConflict.
+    entries:
+      signature: "(&self, thread: &ThreadId) -> Result<Vec<ThreadEntry>, CoreError>"
+      # In ordinal order.
+    operations:
+      signature: "(&self, thread: &ThreadId) -> Result<Vec<Operation>, CoreError>"
+      # Turns' `list_operations_for_thread`: newest first.
+  model:
+    as_str:
+      signature: "(self) -> &'static str"
+      # On `ThreadEntryKind`: the stored text, which is also the wire name.
+    parse:
+      signature: "(s: &str) -> Option<ThreadEntryKind>"
+      # The inverse of `as_str`; `None` for text no variant names.
+  rules:
+    known_harness:
+      signature: "(harness: &str) -> Result<(), CoreError>"
+      # `policy::is_known`, else SettingNotOffered { "harness", id, None }.
+  store:
+    create_planning_thread:
+      signature: "(&self, ctx, project_id, title, harness) -> Result<PlanningThread, StorageError>"
+      # One write: classify (scope Project) → insert_thread → record_command.
+    set_thread_harness:
+      signature: "(&self, ctx, thread, harness) -> Result<PlanningThread, StorageError>"
+      # One write: classify (scope Thread; a replay answers the thread) →
+      # load → fork or any operation is HarnessLocked → UPDATE (the trigger's
+      # refusal also HarnessLocked) → `PlanningThreadHarnessChanged` →
+      # record_command.
+    turn_context:
+      signature: "(&self, thread_id: &ThreadId) -> Result<TurnContext, StorageError>"
+      # NotFound for an unknown thread. Read by Turns, Harness and Sessions.
+    record_harness_session:
+      signature: "(&self, thread_id, session_id) -> Result<bool, StorageError>"
+      # Written once: only while NULL. A turn's watcher calls it; no command,
+      # no event.
+    list_threads_for_project:
+      signature: "(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>"
+    append_thread_entry:
+      signature: "(&self, thread_id, entry: NewThreadEntry) -> Result<ThreadEntry, StorageError>"
+      # Its own write around `append_entry_in`; no command. A turn's watcher
+      # appends the agent's entries through it.
+    list_thread_entries:
+      signature: "(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>"
+    fork_thread:
+      signature: "(&self, ctx, source, at_entry) -> Result<PlanningThread, StorageError>"
+      # One write: classify (scope Thread, the source) → load → busy →
+      # fork_point → the row → `PlanningThreadCreated` with the fork's
+      # provenance → copy_entries → next ordinal → record_command.
+    fork_point:
+      signature: "(conn, source, at) -> Result<(i64, String), StorageError>"
+      private: true
+    copy_entries:
+      signature: "(conn, source, fork, upto, ts) -> Result<i64, StorageError>"
+      private: true
+    insert_thread:
+      signature: "(conn, project_id, title, harness, actor: Actor, ts) -> Result<ThreadId, StorageError>"
+      # NotFound for a project that does not exist, not the foreign key's
+      # constraint failure; journals `PlanningThreadCreated` { title, harness }.
+    load_thread:
+      signature: "(conn, id: &ThreadId) -> Result<PlanningThread, StorageError>"
+      # pub(super): create, set_harness and fork, all in this store.
+    append_entry_in:
+      signature: "(conn, thread_id, entry: NewThreadEntry, ts) -> Result<ThreadEntry, StorageError>"
+      # Allocates the ordinal by UPDATE … RETURNING, inserts, journals
+      # `ThreadEntryAppended` { ordinal, kind }.
+
+
+enums:
+  CoreError:
+    source: crate::error::CoreError
+    values: []
+  StorageError:
+    source: crate::db::StorageError
+    values: []
+  Operation:
+    source: crate::turns::Operation
+    values: []
+  OperationId:
+    source: crate::turns::OperationId
+    values: []
+  Actor:
+    source: crate::events::Actor
+    values: []
+  Harness:
+    source: crate::harness::Harness
+    values: []
+
+
+shared_in_transaction:
+  insert_thread: "Plans' draft from scratch (plans/store/draft.rs start_thread_with_draft): the planning thread is created in the same write that records its v1 and the command, so a refused draft leaves no thread"
+  append_entry_in: "Turns' start (turns/store/turn.rs start_turn), Plans' approval (plans/store/edit.rs approve_plan) and plan_show (plans/store/view.rs show_plan): each writes its entry in the write that records its command, so the entry and the command commit together"
+
+
+called_by_other_services:
+  turn_context: "Harness (harness/mod.rs open_session, change_model, context, choices, limits_of; harness/sessions.rs open_live; harness/setup.rs context_before_turn) and Turns (turns/mod.rs send): the thread's project and harness, read before any session or turn work; NotFound for an unknown thread"
+  append_thread_entry: "Turns (turns/turn.rs persist): a turn's watcher appends the agent's entries as they arrive, each in its own write"
+  record_harness_session: "Turns (turns/turn.rs watch_turn): the watcher records the session id the harness answered, once, while it is NULL"
+
+
+obligations:
+  - rule: >
+      A thread's harness is one Shadows knows, `claude-code` when none is
+      named; an unknown one is 422 SETTING_NOT_OFFERED on create and on
+      change, and nothing is written.
+    tested_by:
+      - a_thread_created_without_a_harness_runs_on_claude_code
+      - an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
+
+  - rule: >
+      The harness changes only before the thread's first operation, and
+      never on a fork: HarnessLocked (409), checked in the write and again by
+      the trigger. A replay answers the thread as it stands, even once
+      locked.
+    tested_by:
+      - a_thread_can_be_created_on_a_harness_and_changed_until_its_first_turn
+      - a_fork_is_locked_to_its_sources_harness_from_birth
+
+  - rule: >
+      A harness change that moves the harness closes the thread's session
+      (its adapter ends).
+    tested_by: changing_the_harness_closes_the_threads_adapter
+    note: >
+      It opens a session, changes claude-code to codex, and sees no session
+      live. No test covers a replay or an unchanged harness closing nothing,
+      nor a close that fails (logged, the change still answered).
+
+  - rule: >
+      Replay identity. "thread.create" params { project, title, harness }
+      with the default named, "thread.harness" params { thread_id, harness },
+      "thread.fork" params { thread_id, at_entry_id }; principal User/local,
+      schema version 1.
+    tested_by: project_thread_and_instructions_command_fingerprints_do_not_move
+    note: >
+      It reads the command log; it passes on 33ec030 and fails there when the
+      fork's `at_entry_id` key is renamed.
+
+  - rule: >
+      A fork is taken only from the source's last entry written by a
+      Completed turn; an earlier entry, or a last turn that was stopped, is
+      FORK_POINT_NOT_SUPPORTED; an entry not the source's is 404
+      INVALID_COMMAND; a source with a turn running is THREAD_BUSY. A replay
+      answers the fork already made.
+    tested_by:
+      - only_the_last_completed_entry_is_a_fork_point
+      - a_stopped_last_turn_is_not_a_fork_point
+      - an_entry_of_another_thread_is_not_found
+      - fork_while_a_turn_runs_is_thread_busy_and_a_replay_returns_the_same_fork
+    note: >
+      `an_entry_of_another_thread_is_not_found` sends an id no entry has, not
+      another thread's entry; `fork_point` reads the entry `WHERE id = ? AND
+      thread_id = ?`, so both are NotFound, but no test sends a real entry of
+      another thread.
+
+  - rule: >
+      A fork copies the source's entries under new ids with the same kinds,
+      bodies and ordinals and the source's `operation_id`, has no operation
+      of its own, leaves the source unchanged, and its first opening forks
+      the source's session.
+    tested_by:
+      - fork_copies_entries_keeps_their_operation_and_leaves_the_source_alone
+      - the_forks_first_opening_forks_the_source_session
+
+  - rule: >
+      Entry ordinals are allocated inside the appending write: concurrent
+      appends give a contiguous, duplicate-free run, and a failed append
+      consumes none. Entries are read in ordinal order.
+    tested_by:
+      - concurrent_entry_appends_allocate_contiguous_unique_ordinals
+      - a_failed_entry_insert_rolls_back_its_allocated_ordinal
+      - entries_are_read_in_ordinal_order
+    note: >
+      `entries_are_read_in_ordinal_order` appends in ordinal order, so it
+      cannot tell `ORDER BY ordinal` from insertion order; the order is
+      held by the query's explicit key, not by a test that would fail
+      without it.
+
+  - rule: >
+      Threads are listed in creation order, by the durable sequence of their
+      `PlanningThreadCreated` event, never by `created_at` text.
+    tested_by: threads_are_listed_in_creation_order_whatever_their_timestamp_text
+
+  - rule: >
+      A thread's operations are listed newest first, each as it stands, and
+      only that thread's.
+    tested_by: a_threads_operations_are_listed_newest_first_with_their_status
+
+
+agreements:
+  - between: [create, set_harness]
+    must: judge whether a harness is known identically
+    holds: true
+    why: Both call `known_harness` first, before any read or write.
+    tested_by: an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
+    note: The test sends "gemini" to both; `projects::set_modes` shares the rule.
+
+
+not_the_caller's:
+  - >
+      Check the harness is known, default it, or build a thread command's
+      fingerprint; `create`, `set_harness` and `fork` do, from the same
+      parameters as before the move.
+  - >
+      Close the thread's session after a harness change, or reach `Sessions`
+      for it; `set_harness` does, through `Harness`.
+  - >
+      Judge a fork point or a busy source; `fork_thread` does inside its own
+      write.
+
+
+tests:
+  - name: a_thread_created_without_a_harness_runs_on_claude_code
+    checks: A create with no harness answers harness "claude-code".
+  - name: an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
+    checks: >
+      "gemini" on thread change and create, and a mode outside the policy on
+      the project, are 422 SETTING_NOT_OFFERED.
+  - name: a_thread_can_be_created_on_a_harness_and_changed_until_its_first_turn
+    checks: >
+      codex → claude-code is 200; after a completed turn a new change is 409
+      HARNESS_LOCKED and the first change's replay is 200.
+  - name: a_fork_is_locked_to_its_sources_harness_from_birth
+    checks: >
+      A change on a fork is 409 HARNESS_LOCKED over HTTP and at the store,
+      and a raw UPDATE is refused by the trigger.
+  - name: changing_the_harness_closes_the_threads_adapter
+    checks: One session live, the harness changed to codex, none live.
+  - name: project_thread_and_instructions_command_fingerprints_do_not_move
+    checks: >
+      The command log's thread.create, thread.harness and thread.fork rows
+      equal the pinned literals' fingerprints.
+  - name: only_the_last_completed_entry_is_a_fork_point
+    checks: Forking at the first entry is 422 FORK_POINT_NOT_SUPPORTED.
+  - name: a_stopped_last_turn_is_not_a_fork_point
+    checks: After a Cancelled turn, forking at the last entry is 422 FORK_POINT_NOT_SUPPORTED.
+  - name: an_entry_of_another_thread_is_not_found
+    checks: An unknown entry id is 404 INVALID_COMMAND.
+  - name: fork_while_a_turn_runs_is_thread_busy_and_a_replay_returns_the_same_fork
+    checks: The same command twice answers one fork; a new one while `hang` runs is 409 THREAD_BUSY.
+  - name: fork_copies_entries_keeps_their_operation_and_leaves_the_source_alone
+    checks: >
+      Copies have new ids, the same kinds, bodies, ordinals and last
+      operation_id; the source is unchanged; the fork has no operations;
+      two threads are listed.
+  - name: the_forks_first_opening_forks_the_source_session
+    checks: >
+      The fork's first turn reports "fork" of the source's session, records
+      it, and the source still runs.
+  - name: concurrent_entry_appends_allocate_contiguous_unique_ordinals
+    checks: 8 × 25 concurrent appends give ordinals 1..=200 and next ordinal 201.
+  - name: a_failed_entry_insert_rolls_back_its_allocated_ordinal
+    checks: An append refused by a trigger leaves the next append at ordinal 1.
+  - name: entries_are_read_in_ordinal_order
+    checks: Entries read back in ordinal order.
+  - name: threads_are_listed_in_creation_order_whatever_their_timestamp_text
+    checks: Two threads whose created_at text sorts backwards list in creation order.
+  - name: a_threads_operations_are_listed_newest_first_with_their_status
+    checks: >
+      Over HTTP, the thread's two operations list Running then Completed;
+      the other thread's is absent.

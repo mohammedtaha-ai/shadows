@@ -6,7 +6,7 @@
   subsystems are not prerequisites for that slice.
 - **Slug:** `shadows`
 - **Stack:** Rust **1.94+** minimum for the selected SQLx 0.9 line; development
-  validation performed on Rust 1.96. Single Rust crate, library + binary, plus
+  validation performed on Rust 1.96. A Cargo workspace (§14.3), plus
   an independent browser client.
 - **Purpose:** Local-first AI software-delivery orchestration runtime for
   planning, workflow, context, execution, verification, and durable continuity
@@ -31,6 +31,7 @@ design-note, and status narratives.
 | §9–§11 | [`2026-09-21-rules-scope-and-milestones-design.md`](./2026-09-21-rules-scope-and-milestones-design.md) |
 | §12 | [`2026-09-24-harness-controls-design.md`](./2026-09-24-harness-controls-design.md) |
 | §13 | [`2026-09-25-planner-workflow-design.md`](./2026-09-25-planner-workflow-design.md) |
+| §14 | [`2026-09-26-application-core-design.md`](./2026-09-26-application-core-design.md) |
 
 ## Maintenance rules
 
