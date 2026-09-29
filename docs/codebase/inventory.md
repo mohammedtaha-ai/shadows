@@ -1081,7 +1081,7 @@ pub fn approval_problems(content: &PlanContent) -> Vec<Problem>
 pub(super) fn edit_problems_after_removing(content: &PlanContent, removed: &BTreeSet<u32>) -> Vec<Problem>
 ```
 
-### `crates/shadows-core/src/plans/scope.rs` — 225 lines
+### `crates/shadows-core/src/plans/scope.rs` — 231 lines
 
 ```rust
 impl Plans {

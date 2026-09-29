@@ -8,7 +8,7 @@ use shadows_agent::policy;
 use shadows_core::ThreadId;
 use shadows_core::WorkflowId;
 
-use shadows_core::testing::acp;
+use shadows_core::testing::{acp, fingerprint};
 #[path = "fixtures/app.rs"]
 mod app;
 #[path = "fixtures/listening.rs"]
@@ -371,4 +371,50 @@ async fn a_thread_grant_starts_a_draft_only_inside_a_turn() {
         l.app.storage.thread_plan(&l.app.thread).await.unwrap(),
         Some(id)
     );
+}
+
+/// A Planner's `from_workflow_id` is part of its DraftStart (§13.5): within
+/// one turn, the same call is a replay, and a call naming another version of
+/// the thread is its own command, not a replay of the first one's answer.
+#[tokio::test]
+async fn a_planner_draft_start_naming_another_version_is_another_command() {
+    let l = listening_app().await;
+    let v1 = approved_v1(&l.app).await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let op = start_settled(&l.app, "hang").await;
+    for _ in 0..200 {
+        if l.app.handles.running_for(&l.app.thread).await.as_ref() == Some(&op) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    let from_v1 = json!({ "from_workflow_id": v1 });
+    let v2 = ok(&planner, "draft_start", from_v1.clone()).await;
+    assert_eq!(v2["version"], 2);
+    // The identical call is a replay of the first answer.
+    assert_eq!(ok(&planner, "draft_start", from_v1).await, v2);
+    // Naming v2 is a different request: the thread's Draft, as a new command.
+    let from_v2 = json!({ "from_workflow_id": v2["workflow_id"] });
+    assert_eq!(ok(&planner, "draft_start", from_v2).await, v2);
+
+    let mut recorded: Vec<String> = sqlx::query_scalar(
+        "SELECT request_fingerprint FROM command_record
+          WHERE command_kind = 'DraftStart' AND command_id LIKE 'op:%'",
+    )
+    .fetch_all(l.app.storage.reader())
+    .await
+    .unwrap();
+    recorded.sort();
+    let named = |from: &serde_json::Value| {
+        fingerprint(
+            "DraftStart",
+            &json!({ "thread": l.app.thread, "title": null, "goal": null,
+                     "from_workflow_id": from }),
+        )
+    };
+    let mut expected = vec![named(&json!(v1)), named(&v2["workflow_id"])];
+    expected.sort();
+    assert_eq!(recorded, expected, "one command per version named");
+    let events = events_of(&l.app, &l.app.thread, "WorkflowDraftStarted").await;
+    assert_eq!(events.len(), 2, "v1 and v2 only");
 }

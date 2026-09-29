@@ -31,8 +31,9 @@ shapes:
   DraftStart:
     title: Option<String>
     goal: Option<String>
-    # External agents only. A Planner's is checked to be in its own thread and
-    # otherwise ignored (see gaps).
+    # An external agent's source version. A Planner's is checked to be in its
+    # own thread and fingerprinted when present, but does not choose the
+    # version started (see gaps).
     from_workflow_id: Option<WorkflowId>
     # External agents only; required for them, and it is the command's id.
     draft_ref: Option<String>
@@ -179,9 +180,9 @@ functions:
     prepare_draft: "(&self, grant: &Grant) -> Result<String, CoreError>"
     start_draft:
       signature: "(&self, grant: &Grant, args: DraftStart) -> Result<DraftStarted, CoreError>"
-      # "DraftStart". Thread grant: { thread, title, goal }, id anchored to the
-      # running turn. Project grant: { title, goal, from_workflow_id }, id from
-      # the draft_ref.
+      # "DraftStart". Thread grant: { thread, title, goal }, plus
+      # from_workflow_id when present, id anchored to the running turn.
+      # Project grant: { title, goal, from_workflow_id }, id from the draft_ref.
     edit:
       signature: "(&self, grant: &Grant, args: PlanEdit) -> Result<EditOutcome, CoreError>"
       # "PlanEdit", params { workflow, expected_revision, ops }.
@@ -203,7 +204,9 @@ functions:
     planner_draft:
       signature: "(&self, grant: &Grant, args: DraftStart) -> Result<DraftStarted, CoreError>"
       private: true
-      # `start_draft` for a thread grant; see gaps.
+      # `start_draft` for a thread grant: from_workflow_id is in the
+      # fingerprint only when present, so a start recorded without one
+      # replays as it did; it does not choose the version (see gaps).
     external_draft:
       signature: "(&self, grant: &Grant, args: DraftStart) -> Result<DraftStarted, CoreError>"
       private: true
@@ -293,18 +296,24 @@ obligations:
       Replay: a retried command with the same id and the same request answers
       what it answered first, and writes nothing. The command kinds and
       fingerprint parameters are PlanApprove { workflow, expected_revision },
-      DraftStart { thread, title, goal } for a Planner and { title, goal,
-      from_workflow_id } for an external agent, PlanEdit { workflow,
-      expected_revision, ops }, PlanShow { workflow, task_number, place }.
+      DraftStart { thread, title, goal } for a Planner, with from_workflow_id
+      added only when it names one, and { title, goal, from_workflow_id } for
+      an external agent, PlanEdit { workflow, expected_revision, ops },
+      PlanShow { workflow, task_number, place }. A Planner's id carries the
+      fingerprint (§13.5), so a call naming another source in the same turn is
+      another command, never a replay of the first answer.
     tested_by:
       - plan_command_fingerprints_do_not_move
       - plan_commands_replay_after_the_move
       - a_repeated_edit_returns_the_first_result
       - a_replayed_approval_answers_the_first_result
       - a_thread_grant_starts_a_draft_only_inside_a_turn
+      - a_planner_draft_start_naming_another_version_is_another_command
       - draft_ref_replays_and_distinct_refs_make_distinct_plans
     note: >
-      Only `plan_command_fingerprints_do_not_move` pins the kinds, schema
+      `a_planner_draft_start_naming_another_version_is_another_command` pins
+      the Planner's parameter set with from_workflow_id against the command
+      log. Only `plan_command_fingerprints_do_not_move` pins the kinds, schema
       version and parameter sets above, against the command log; it passes on
       the code before the move. The others replay within one database, so they
       prove a request matches itself and would still pass with a parameter set
@@ -391,10 +400,11 @@ gaps:
   - at: planner_draft
     gap: >
       A Planner's `from_workflow_id` is checked to be in its own thread and
-      then ignored: the version started is always the thread's latest Draft,
-      or the next copy of its latest Frozen version. It is also not in the
-      Planner's DraftStart fingerprint, so a retry naming another version of
-      the thread replays the first answer without a CommandConflict.
+      fingerprinted, but does not choose the version started: that is always
+      the thread's latest Draft, or the next copy of its latest Frozen
+      version, whichever version it names. §13.6 does not say what a
+      Planner's source must do (start from it, or be refused unless it is the
+      thread's latest Frozen version); that is the person's ruling to make.
 
 
 open_questions:
@@ -459,6 +469,12 @@ tests:
     checks: >
       draft_start with no running turn is refused "no turn is running for this
       conversation"; inside a turn it starts v1, and a repeat is a replay.
+  - name: a_planner_draft_start_naming_another_version_is_another_command
+    checks: >
+      Inside a turn, draft_start from Frozen v1 starts v2 and the same call
+      replays it; the call naming v2 answers v2 as its own command. The
+      command log holds the two fingerprints { thread, title, goal,
+      from_workflow_id } for v1 and v2, and two WorkflowDraftStarted events.
   - name: draft_ref_replays_and_distinct_refs_make_distinct_plans
     checks: >
       One draft_ref with the same arguments replays; another ref makes another

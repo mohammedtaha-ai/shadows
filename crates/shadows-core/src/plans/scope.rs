@@ -65,7 +65,9 @@ impl Plans {
     }
 
     /// The Planner's `draft_start`: in its own thread, anchored to the turn
-    /// that is running, so a retry within the turn answers the first result.
+    /// that is running, so the same call within the turn answers the first
+    /// result and a call naming another source is another command (§13.5).
+    /// The source is checked to be in the thread and otherwise not used.
     pub(super) async fn planner_draft(
         &self,
         grant: &Grant,
@@ -86,7 +88,11 @@ impl Plans {
             )
         })?;
         let writer = writer_of(grant)?;
-        let params = json!({ "thread": thread, "title": args.title, "goal": args.goal });
+        let mut params = json!({ "thread": thread, "title": args.title, "goal": args.goal });
+        // Absent without a source, so a start recorded without one replays as it did.
+        if let Some(from) = &args.from_workflow_id {
+            params["from_workflow_id"] = json!(from);
+        }
         let fp = fingerprint("DraftStart", &params);
         let ctx = command(
             &writer,
