@@ -597,6 +597,11 @@ A project with no directory is in the scope, with the state `NoDirectory`.
   - **Writing:** one `write_txn` per file. It deletes the file's tags, upserts its row, and inserts its tags.
   - **After the walk:** delete the rows, and their tags, of every `path_key` the walk did not see.
   - A failed write of one file is `tracing::warn!(project, path, error, "code.index_failed")`, and the walk goes on.
+  - **One rule, one function.** Two `pub(super)` functions in `scan.rs` hold the rules, and every path that indexes goes through them:
+    - `keeps(path) -> bool`: the walk's filter (`target`, `node_modules`, `language_for`). Task 3's watcher filter calls it too; the ignore files are the walk's own.
+    - `index_file(project, dir, path)`: steps 2–5 for one file, or deleting its rows if it is gone. The scan calls it per file; Task 3's `Files` and `Recheck` jobs call it too.
+
+    A second copy of either would drift, and the index would then depend on which path saw the change.
 - [ ] **Step 6: `store.rs`.** The queries, all through `self.reader()` except the writes:
   - **exact name:** `WHERE project_id IN (…) AND name = ? AND role = ?`, ordered by the scope's order, then `path`, `line`, `kind`. With `LIMIT 51`: 51 rows means `more = true`, and the answer keeps 50. (`code_tag` has no key, so ordering never falls back to insertion order; two identical rows are indistinguishable anyway. CLAUDE.md: ordering is explicit.)
   - **suggestions:** `SELECT DISTINCT name … WHERE project_id IN (…) AND role = ? AND name LIKE '%' || ? || '%' ESCAPE '\'`, with `%`, `_` and `\` escaped in the text, `ORDER BY name LIMIT 10`. The role is the question's own, so `definitions` never suggests a name that is only used.
@@ -607,10 +612,11 @@ A project with no directory is in the scope, with the state `NoDirectory`.
   - Until Task 3, the state is `Ready` for a project with rows, and `Inactive` for one without.
   - `app.rs` builds `Code::new(storage.clone())` in `from_parts` and adds the accessor.
   - `lib.rs` re-exports `Code`, `Asker`, `Answer`, `Hit`, `IndexState`, `ProjectStatus` and `Skipped`.
-- [ ] **Step 8: `code/contract.yaml`.** Read `docs/codebase/contracts/TEMPLATE.yaml` whole, then write the contract from the code you wrote:
-  - the methods;
-  - the obligations: never read outside a folder; one transaction per file; answers ≤ 50;
-  - the test `indexing_follows_the_files` under what it proves;
+- [ ] **Step 8: `code/contract.yaml`.** Read `docs/codebase/contracts/TEMPLATE.yaml` whole, and follow its ten rules. Write the contract from the code you wrote, not from this plan:
+  - the methods, grouped as questions and indexing;
+  - the obligations, each with its `tested_by` (a test name, or `none` with a `note`): never read outside a folder; one transaction per file; answers ≤ 50;
+  - `not_the_caller's`: an adapter never checks the scope or joins a path itself; it passes the text to `Code`;
+  - `tests`: `indexing_follows_the_files`, with what its **body** proves;
   - a `gap`, if any rule is not yet tested.
 - [ ] **Step 9: Run the test until it passes, then the gate.** `cargo test -p shadows-core --test code_index`, then `cargo test -p shadows-core --test contracts`. Add the README rows for `crates/shadows-core/src/code/`, regenerate the code map, and run the whole gate.
 - [ ] **Step 10: Commit.**
@@ -746,7 +752,7 @@ async fn only_the_most_recent_projects_are_watched() {
   - `lib.rs` re-exports `CodeConfig`.
   - `shut_down` calls `self.code.shut_down().await` before `turns.shut_down`, and leaves §8.5 as it is.
   - Add the calls to `touch` in `Turns::send`, `Threads::list` and `Projects::create`, and name them in those services' contracts and in `Code`'s.
-- [ ] **Step 5: Run the tests until they pass, then the gate.** Update `code/contract.yaml` with the rules and the two tests. Add the README rows for `watch.rs` and `active.rs`, and regenerate the code map.
+- [ ] **Step 5: Run the tests until they pass, then the gate.** Update `code/contract.yaml` with the rules and the two tests, and with an `agreements` entry (TEMPLATE rule 8): `between: [scan, Files job, Recheck job]`, `must: index a file the same way`, `why: all three call index_file`; and one for the walk's filter and the watcher's (`keeps`). Add the README rows for `watch.rs` and `active.rs`, and regenerate the code map.
 - [ ] **Step 6: Commit.**
 
 ```bash
