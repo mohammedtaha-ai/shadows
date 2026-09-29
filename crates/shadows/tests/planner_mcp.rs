@@ -239,6 +239,11 @@ async fn the_daemon_opens_sessions_with_its_own_mcp_address() {
         daemon.base,
         thread["id"].as_str().unwrap()
     );
+    let operations = format!(
+        "{}/api/threads/{}/operations",
+        daemon.base,
+        thread["id"].as_str().unwrap()
+    );
     let mut replies = Vec::new();
     for (n, prompt) in ["report", r#"mcp draft_start {"title":"Login","goal":"g"}"#]
         .iter()
@@ -271,6 +276,30 @@ async fn the_daemon_opens_sessions_with_its_own_mcp_address() {
         .await
         .expect("daemon turn did not produce an AgentMessage");
         replies.push(reply);
+        // The reply is recorded before the turn's terminal transition, and
+        // the next start is THREAD_BUSY until that transition commits: wait
+        // for it, or under load the second POST races the first turn's end.
+        tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                let ops: Vec<Value> = http
+                    .get(&operations)
+                    .send()
+                    .await
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+                if ops
+                    .iter()
+                    .all(|op| !matches!(op["status_kind"].as_str(), Some("Pending" | "Running")))
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        })
+        .await
+        .expect("daemon turn did not end");
     }
     let r: Value = serde_json::from_str(&replies[0]).unwrap();
     assert_eq!(r["mcp"]["url"], format!("{}/mcp", daemon.base));
