@@ -7,17 +7,21 @@ mod acp;
 #[path = "fixtures/app.rs"]
 mod app;
 
-use app::{App, call, create_thread, post, start_settled, test_app, wait_terminal};
+use std::time::Duration;
+
+use app::{App, call, create_thread, post, start_settled, test_app, test_app_with, wait_terminal};
 use serde_json::{Value, json};
+use shadows_core::harness::SessionsConfig;
 
 async fn put_model(app: &App, thread: &str, model: &str) -> (u16, Value) {
     let path = format!("/api/threads/{thread}/session/model");
     call(app, "PUT", &path, Some(json!({ "model": model }))).await
 }
 
-/// Busy, both checks (§14.9): a model change while a turn runs is THREAD_BUSY,
-/// and the running turn's session keeps the model it holds. Stopping the turn
-/// then records `Cancelled`.
+/// Busy (§14.9): a model change while a turn runs is THREAD_BUSY, and the
+/// running turn's session keeps the model it holds. Stopping the turn then
+/// records `Cancelled`. Either check alone refuses it (the early one at once,
+/// the lease after its wait), so this pins the answer, not which check gave it.
 #[tokio::test]
 async fn change_model_is_refused_while_a_turn_runs() {
     let app = test_app().await;
@@ -34,6 +38,42 @@ async fn change_model_is_refused_while_a_turn_runs() {
     let (s, b) = post(&app, &format!("/api/operations/{op}/stop"), json!({})).await;
     assert_eq!(s, 200, "{b}");
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Cancelled");
+}
+
+/// Busy, under the lease (§14.9): whoever holds the session's events has it
+/// to itself, even with no operation for the early check to see (a `/context`
+/// read, or a turn taking the session between the check and the change). The
+/// change waits out the lease, is THREAD_BUSY, and leaves the model alone;
+/// once the events are given back, the same change is made.
+#[tokio::test]
+async fn change_model_is_refused_while_another_holds_the_session() {
+    let tmp = tempfile::tempdir().unwrap();
+    let config = SessionsConfig {
+        context_wait: Duration::from_millis(200),
+        cancel_wait: Duration::from_millis(200),
+        ..acp::test_config()
+    };
+    let app = test_app_with(tmp.path(), config, acp::MCP_URL)
+        .await
+        .owning(tmp);
+    let opened = app.sessions.open(&app.thread).await.unwrap();
+    let held = app
+        .sessions
+        .lease_events(&app.thread, &opened)
+        .await
+        .unwrap();
+    let (s, b) = put_model(&app, app.thread.as_str(), "fake-small").await;
+    assert_eq!((s, b["code"].as_str()), (409, Some("THREAD_BUSY")), "{b}");
+    let offered = app.sessions.offered(&app.thread).await.unwrap();
+    assert_eq!(offered.current.model, "fake-large", "session untouched");
+    app.sessions
+        .give_back_events(&app.thread, &opened, held)
+        .await;
+    let (s, b) = put_model(&app, app.thread.as_str(), "fake-small").await;
+    assert_eq!(
+        (s, b["current"]["model"].as_str()),
+        (200, Some("fake-small"))
+    );
 }
 
 /// The early busy check comes before the session: a thread with an operation

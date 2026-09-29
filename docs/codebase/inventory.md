@@ -543,7 +543,7 @@ impl Sessions {
 }
 ```
 
-## `crates/shadows-core/src/harness/mod.rs` — 159 lines
+## `crates/shadows-core/src/harness/mod.rs` — 161 lines
 
 ```rust
 pub use model::{ContextBreakdown, HarnessInfo, RememberedSettings};

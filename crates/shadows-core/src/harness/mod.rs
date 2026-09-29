@@ -90,8 +90,10 @@ impl Harness {
     /// Sets the thread's session to `model` (spec §12.7), opening it first if
     /// it is not open, and answers its choices as `open_session` does. The
     /// harness is checked, then the thread's busyness, before the session is
-    /// touched (§14.9): a running turn's session is not changed. Nothing
-    /// durable is written, and the remembered model does not move (§12.4).
+    /// touched (§14.9): a running turn's session is not changed. The change
+    /// itself writes nothing durable (an opening it causes issues the thread's
+    /// grant, as any opening does), and the remembered model does not move
+    /// (§12.4).
     pub async fn change_model(
         &self,
         thread: &ThreadId,

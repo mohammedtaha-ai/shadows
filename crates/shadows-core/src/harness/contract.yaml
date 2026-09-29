@@ -9,8 +9,9 @@
 # touches anything; the model is then set under the session's lease
 # (`Sessions::change_model` takes the events the way a turn does and gives
 # them back whatever the outcome), so a turn that took the session between
-# the early check and the change refuses it as Busy. Nothing is written:
-# no command, no event, and the remembered model does not move.
+# the early check and the change refuses it as Busy. The change itself writes
+# nothing: no command, no event, and the remembered model does not move. An
+# opening it causes writes what any opening writes (the thread grant, below).
 #
 # Trap: the early busy check is not redundant with the lease. A thread with an
 # operation not yet ended but no live turn holding the events (a Pending
@@ -197,7 +198,8 @@ obligations:
       The first holds a Pending operation with no live turn and no lease, so
       only the early check can refuse it; it asserts no session is live.
       Removing the check fails it (200 with the model changed; tried on
-      b4d614e).
+      b4d614e and on the moved code). The second does not pin this check: with
+      it removed the lease still refuses, after its wait.
 
   - rule: >
       Busy, under the lease. The model is set only while `change_model`
@@ -205,14 +207,17 @@ obligations:
       outcome: a running turn's session is refused as ThreadBusy and keeps
       its model.
     tested_by:
+      - change_model_is_refused_while_another_holds_the_session
       - change_model_is_refused_while_a_turn_runs
       - a_running_turns_model_is_not_changed
     note: >
-      The first starts `hang`, asserts 409 THREAD_BUSY and the session's
-      current model unchanged, then stops the turn to Cancelled. With the
-      early check removed it still passes (tried on b4d614e): the lease
-      refuses it, which is what this obligation claims. The second then sets
-      the model once the turn ended, so the lease was given back.
+      Only the first pins the lease with the early check in place: it holds
+      the events with no operation, asserts 409 THREAD_BUSY with the model
+      unchanged, and after the give-back the same change is 200. Removing the
+      lease from `Sessions::change_model` fails it and no other test (tried
+      in the Task 8 review). The second and third run under a live turn, where
+      the early check answers first; they prove the lease only with that
+      check removed. The third also sets the model once the turn ended.
 
   - rule: >
       A refused model change maps as the route did before the move: a model
@@ -224,9 +229,10 @@ obligations:
       - a_model_the_harness_refuses_is_not_offered_in_its_words
 
   - rule: >
-      Nothing durable. Opening a session, changing its model and reading its
+      No command. Opening a session, changing its model and reading its
       breakdown record no command, write no entry or operation, and leave the
-      remembered model where the last turn put it.
+      remembered model where the last turn put it. An opening does write the
+      thread grant and its event when `mcp_url` is set (the Trap above).
     tested_by:
       - harness_calls_record_no_command
       - picking_a_model_answers_that_models_efforts
@@ -307,15 +313,26 @@ not_the_caller's:
 open_questions:
   - >
       `Sessions` opens its own `Storage` in `AppCore::start` rather than
-      sharing the core's `Arc`; tests build it the same way. Whether it takes
-      the shared one is for Task 10, when `storage` becomes private.
+      sharing the core's `Arc`; tests build it the same way. Both were so
+      before Task 8 (b4d614e). Two pools then write one file (the grant rows
+      `Setups` issues go through the second). Whether it takes the shared one is for Task 10, when
+      `storage` becomes private.
   - >
-      `shadows-http`'s SSE loop still calls `core.sessions().watch_options()`
-      and the thread delete route `core.sessions().terminate`; they move with
-      Events and Threads (Tasks 9–10).
+      `AppCore::sessions()` has two callers, both in `shadows-http`: the SSE
+      loop's `watch_options()` (`sse.rs`) and the thread delete route's
+      `terminate` (`thread.rs`). Neither passes a Harness rule: one subscribes
+      to offers, the other closes a deleted thread's adapter. No test calls
+      it; tests hold `CoreParts`' `Arc<Sessions>`. `sse.rs`'s usage frame also
+      reads `core.storage().latest_limits` directly (ruling F6). They move with
+      Threads and Events (Tasks 9–10).
 
 
 tests:
+  - name: change_model_is_refused_while_another_holds_the_session
+    checks: >
+      With the session's events leased by the test and no operation, PUT
+      model is 409 THREAD_BUSY and the model stays fake-large; after the
+      give-back the same PUT answers fake-small.
   - name: change_model_is_refused_while_a_turn_runs
     checks: >
       With `hang` running, PUT model is 409 THREAD_BUSY, the session's model
