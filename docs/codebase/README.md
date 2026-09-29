@@ -118,6 +118,9 @@ pattern to follow, not merely an example.
 | `crates/shadows-agent/src/choices.rs` | reading the harness's offered choices | `crates/shadows-agent/src/choices.rs` |
 | `crates/shadows-agent/src/breakdown.rs` | reading Claude's `/context` answer | `crates/shadows-agent/src/breakdown.rs` |
 | `crates/shadows-agent/src/claude.rs` | the launch spec of the pinned Claude ACP adapter | `crates/shadows-agent/src/claude.rs` |
+| `crates/shadows-index/src/lib.rs` | one file's text turned into its tags | `crates/shadows-index/src/extract.rs` |
+| `crates/shadows-index/src/languages.rs` | the table of languages Shadows indexes | `crates/shadows-index/src/languages.rs` |
+| `crates/shadows-index/src/extract.rs` | one file's text in, its tags out | `crates/shadows-index/src/extract.rs` |
 | `crates/shadows-process/src/lib.rs` | OS process ownership with whole-tree containment | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-process/src/bin/` | test apparatus that no product code links | `crates/shadows-process/src/bin/tree_probe.rs` |
 | `crates/fake-acp/src/main.rs` | test apparatus that no product code links | `crates/fake-acp/src/main.rs` |

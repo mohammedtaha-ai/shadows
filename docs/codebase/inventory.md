@@ -1910,6 +1910,43 @@ pub(super) struct ApprovePlan {}
 pub(super) async fn approve_plan(State(s): State<AppState>, Path(workflow): Path<WorkflowId>, Json(body): Json<ApprovePlan>) -> Result<Json<Approved>, Failure>
 ```
 
+## Crate `shadows-index`
+
+### `crates/shadows-index/src/extract.rs` — 75 lines
+
+```rust
+pub enum Role {
+    Definition,
+    Reference,
+}
+pub struct Tag {
+    pub name: String,
+    pub kind: String,
+    pub role: Role,
+    pub line: u32,
+    pub signature: Option<String>,
+}
+pub fn extract(language: &Language, text: &str) -> Vec<Tag>
+```
+
+### `crates/shadows-index/src/languages.rs` — 71 lines
+
+```rust
+pub struct Language {
+    pub name: &'static str,
+    pub extensions: &'static [&'static str],
+    pub(crate) config: TagsConfiguration,
+}
+pub fn language_for(path: &Path) -> Option<&'static Language>
+```
+
+### `crates/shadows-index/src/lib.rs` — 8 lines
+
+```rust
+pub use extract::{Role, Tag, extract};
+pub use languages::{Language, language_for};
+```
+
 ## Crate `shadows-mcp`
 
 ### `crates/shadows-mcp/src/auth.rs` — 51 lines
