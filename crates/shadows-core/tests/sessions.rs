@@ -12,7 +12,7 @@ use shadows_core::{
 struct Fixture {
     _tmp: tempfile::TempDir,
     project_dir: PathBuf,
-    storage: Storage,
+    storage: Arc<Storage>,
     sessions: Arc<Sessions>,
     thread: ThreadId,
 }
@@ -21,7 +21,7 @@ async fn fixture(config: SessionsConfig) -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
     let project_dir = tmp.path().join("project");
     std::fs::create_dir(&project_dir).unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = CommandContext {
         principal_kind: "User".into(),
@@ -59,8 +59,7 @@ async fn fixture(config: SessionsConfig) -> Fixture {
         adapter_version: "fake".into(),
         agent_version: "fake".into(),
     });
-    let stored = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
-    let sessions = Sessions::new(adapter, stored, config);
+    let sessions = Sessions::new(adapter, storage.clone(), config);
     Fixture {
         _tmp: tmp,
         project_dir,

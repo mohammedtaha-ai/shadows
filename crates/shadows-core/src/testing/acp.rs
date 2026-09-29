@@ -42,7 +42,7 @@ pub fn test_config() -> SessionsConfig {
 pub async fn fake_sessions(db: &Path) -> Arc<Sessions> {
     Sessions::new(
         fake_adapter(),
-        Storage::open(db).await.unwrap(),
+        Arc::new(Storage::open(db).await.unwrap()),
         test_config(),
     )
 }

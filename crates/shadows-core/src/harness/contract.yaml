@@ -67,8 +67,9 @@ shapes:
     Unreadable: unit
   Sessions:
     # One live adapter per thread, the offers it made, and the setups it
-    # opened with. Built with its own `Storage` (the open question below);
-    # shared as one `Arc` by `Harness` and `Turns`.
+    # opened with. Built on the core's `Arc<Storage>`, so the grant rows
+    # `Setups` writes commit through the one pool `Events` watches; shared as
+    # one `Arc` by `Harness` and `Turns`.
     config: SessionsConfig
   SessionsConfig:
     # Defaults: 15 min, 10 s, 20 s, 5 s, None.
@@ -196,8 +197,8 @@ functions:
       # invocation records.
   construction:
     new:
-      signature: "(adapter: Arc<ClaudeAdapter>, storage: Storage, config: SessionsConfig) -> Arc<Sessions>"
-      # `AppCore::start` builds one; its idle sweep runs every idle_after/4,
+      signature: "(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig) -> Arc<Sessions>"
+      # `AppCore::start` builds one on the core's `storage`; its idle sweep runs every idle_after/4,
       # at most 60 s.
   for_tests:
     # Behind `test-support`, reached through `shadows_core::testing`.
@@ -353,6 +354,21 @@ obligations:
       - no_breakdown_before_the_first_turn_or_while_one_runs
       - a_turn_started_during_a_breakdown_read_keeps_its_output
 
+  - rule: >
+      One pool. `Sessions` writes through the core's `Arc<Storage>`, never a
+      `Storage` of its own: the `McpGrantIssued` an opening appends (and the
+      `McpGrantRevoked` a close appends) raises the committed-sequence signal
+      `Events` watches, so a thread's subscriber reads it at once, not at the
+      next commit through another pool.
+    tested_by:
+      - a_sessions_grant_reaches_a_subscriber_live
+    note: >
+      The test fails on 099ef69, where `AppCore::start` and the test fixture
+      opened a second `Storage` for `Sessions` ("no frame in time": the grant
+      event never reached the subscriber), and passes with the `Arc` shared.
+      Only the opening's event is tested; the close revokes through the same
+      `Setups` and pool.
+
 
 agreements:
   - between: [change_model, turns::send]
@@ -391,22 +407,6 @@ not_the_caller's:
       `CoreError`, or a `ContextBreakdown` with its reason.
   - >
       Filter the offer by policy or the project's modes; `choices` does.
-
-
-open_questions:
-  - >
-      `Sessions` opens its own `Storage` in `AppCore::start` rather than
-      sharing the core's `Arc`; tests build it the same way. Both were so
-      before Task 8 (b4d614e). Two pools then write one file (the grant rows
-      `Setups` issues go through the second). Task 10 left it as it is, by
-      the controller's ruling. A consequence it did not change: the
-      `McpGrantIssued` and `McpGrantRevoked` events a session's opening and
-      closing append name the thread, but commit through the second pool, so
-      they raise that `Storage`'s committed-sequence signal and not the one
-      `Events` watches; a live subscriber reads them at the next commit
-      through the core's pool (a turn's own transitions follow at once).
-      **Trigger:** a client that must see a grant event live, or a second
-      writer through `Sessions`' pool.
 
 
 tests:
@@ -473,3 +473,8 @@ tests:
     checks: >
       Turns' side: with a Pending operation, a turn start is 409 THREAD_BUSY
       and no session is live.
+  - name: a_sessions_grant_reaches_a_subscriber_live
+    checks: >
+      With `mcp_url` set, a subscriber taken before POST session reads the
+      thread's `McpGrantIssued` as its next durable frame, within the frame
+      wait.

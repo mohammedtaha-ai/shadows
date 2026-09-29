@@ -451,3 +451,26 @@ async fn a_thread_grant_cannot_name_a_thread_of_another_project() {
         .unwrap();
     assert_ne!(grant.project_id, app.project);
 }
+
+/// §13.7: the grant a session's opening issues is a durable event of the
+/// thread, and a subscriber reads it at once, not at some later commit.
+#[tokio::test]
+async fn a_sessions_grant_reaches_a_subscriber_live() {
+    let tmp = tempfile::tempdir().unwrap();
+    let config = shadows_core::testing::SessionsConfig {
+        mcp_url: Some(acp::MCP_URL.into()),
+        ..acp::test_config()
+    };
+    let app = app::test_app_with(tmp.path(), config, acp::MCP_URL)
+        .await
+        .owning(tmp);
+    let mut sub = app::subscribe(&app, &app.thread).await;
+    let path = format!("/api/threads/{}/session", app.thread);
+    let (s, _) = post(&app, &path, json!({})).await;
+    assert_eq!(s, 200);
+    let frame = app::next_frame_named(&mut sub, "durable").await;
+    assert_eq!(
+        (frame["kind"].as_str(), frame["thread_id"].as_str()),
+        (Some("McpGrantIssued"), Some(app.thread.as_str()))
+    );
+}

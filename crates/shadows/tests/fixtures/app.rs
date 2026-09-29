@@ -117,11 +117,7 @@ pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) ->
         .await
         .unwrap()
         .id;
-    let sessions = Sessions::new(
-        acp::fake_adapter(),
-        Storage::open(&db).await.unwrap(),
-        config,
-    );
+    let sessions = Sessions::new(acp::fake_adapter(), storage.clone(), config);
     let handles = Arc::new(LiveHandles::default());
     let (bus, _) = tokio::sync::broadcast::channel(256);
     let (ui, _) = tokio::sync::broadcast::channel(64);

@@ -699,7 +699,7 @@ impl Offers {
 pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, to: mpsc::UnboundedSender<HarnessEvent>) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static
 ```
 
-### `crates/shadows-core/src/harness/sessions.rs` — 486 lines
+### `crates/shadows-core/src/harness/sessions.rs` — 491 lines
 
 ```rust
 pub struct SessionsConfig {
@@ -741,7 +741,7 @@ pub struct Sessions {
 }
 // + 4 private fields
 impl Sessions {
-    pub fn new(adapter: Arc<ClaudeAdapter>, storage: Storage, config: SessionsConfig) -> Arc<Self>
+    pub fn new(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig) -> Arc<Self>
     pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError>
     pub async fn offered(&self, thread: &ThreadId) -> Option<Offered>
     pub fn watch_options(&self) -> broadcast::Receiver<(ThreadId, Offered)>

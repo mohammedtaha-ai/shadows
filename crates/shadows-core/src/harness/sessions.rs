@@ -122,8 +122,13 @@ pub struct Sessions {
 }
 
 impl Sessions {
-    pub fn new(adapter: Arc<ClaudeAdapter>, storage: Storage, config: SessionsConfig) -> Arc<Self> {
-        let storage = Arc::new(storage);
+    /// Shares the core's `storage`, so the grant events an opening and a
+    /// close append raise the committed signal `Events` watches (§13.7).
+    pub fn new(
+        adapter: Arc<ClaudeAdapter>,
+        storage: Arc<Storage>,
+        config: SessionsConfig,
+    ) -> Arc<Self> {
         let period = (config.idle_after / 4)
             .min(Duration::from_secs(60))
             .max(Duration::from_millis(1));
