@@ -25,7 +25,7 @@
 
 - **Branch** `milestone-3/code-index`, which already holds the spec commits.
   - No git worktrees.
-  - One commit per task.
+  - One commit per task. Task 0 has two: its source, then its evidence and the deletion.
   - Push only when Mohammed asks.
 - **Execution:** every subagent runs on opus, stated explicitly. The reviewer is an opus agent that fixes what it finds, runs the gate and commits. The controller verifies the review and does not repeat it (CLAUDE.md).
 - **Read first:** `docs/codebase/README.md`, `docs/codebase/inventory.md`, and the contract of any service you change (`crates/shadows-core/src/<service>/contract.yaml`). Then open only the files the task names.
@@ -118,16 +118,23 @@ A spike. Its code is **deleted** once its evidence file is written (CLAUDE.md). 
   - reading only `metadata()` (size and modified time).
 
   Run it 10 times, with Windows Defender on as it normally is. Record the files seen, and the median and worst time.
-- [ ] **Step 5: Write `docs/evidence/milestone3/PROBE.md`.** Include:
-  - the date;
-  - the commit it ran on;
-  - the raw outputs, trimmed to what matters;
-  - one line per question: what §15 assumed, what was measured, and what Task 1 or Task 3 must do.
-- [ ] **Step 6: Delete the probe.** Remove `crates/probe-index/` and any workspace entry for it. `PROBE.md` names the commit that held its source.
-- [ ] **Step 7: Commit.** Run the gate: nothing but docs changed, so fmt and test suffice.
+- [ ] **Step 5: Commit the probe's source**, so Git history keeps it (CLAUDE.md). Run `cargo fmt --all --check` and `cargo clippy -p probe-index -- -D warnings` first.
 
 ```bash
-git add docs/evidence/milestone3/PROBE.md Cargo.toml Cargo.lock
+git add crates/probe-index Cargo.toml Cargo.lock
+git commit -m "spike(M3): the probe's source, deleted in the next commit"
+```
+
+- [ ] **Step 6: Write `docs/evidence/milestone3/PROBE.md`.** Include:
+  - the date;
+  - the commit that holds the probe's source (Step 5);
+  - the raw outputs, trimmed to what matters;
+  - one line per question: what §15 assumed, what was measured, and what Task 1 or Task 3 must do.
+- [ ] **Step 7: Delete the probe.** Remove `crates/probe-index/` and its workspace entry. `Cargo.toml` and `Cargo.lock` must then equal their state before Step 5 (`git diff <before Step 5> -- Cargo.toml Cargo.lock` is empty).
+- [ ] **Step 8: Commit.** Run the whole gate: the tree is back to product code only.
+
+```bash
+git add -A crates/probe-index docs/evidence/milestone3/PROBE.md Cargo.toml Cargo.lock
 git commit -m "evidence(M3): the probe — tags queries, grammar cost, notify on Windows, scan cost"
 ```
 
@@ -211,11 +218,12 @@ fn rust_tags() {
     let d = defs(&tags);
     assert!(d.contains(&("Storage".into(), "class".into(), 1)), "{d:?}");
     assert!(d.contains(&("open".into(), "method".into(), 3)), "{d:?}");
-    assert!(d.iter().any(|(n, _, l)| n == "LIMIT" && *l == 7), "const is a definition: {d:?}");
+    // Lines: 1 struct, 2 impl, 3 fn open, 4 the long line, 5–7 the body's end, 8 const, 9 main, 10 helper.
+    assert!(d.iter().any(|(n, _, l)| n == "LIMIT" && *l == 8), "const is a definition: {d:?}");
     let open = tags.iter().find(|t| t.name == "open" && t.role == Role::Definition).unwrap();
     assert_eq!(open.signature.as_deref(), Some("pub fn open(path: &str) -> Self {"));
     // A reference through a path, and a plain call.
-    assert!(tags.iter().any(|t| t.name == "open" && t.role == Role::Reference && t.line == 8));
+    assert!(tags.iter().any(|t| t.name == "open" && t.role == Role::Reference && t.line == 9));
     assert!(tags.iter().any(|t| t.name == "helper" && t.role == Role::Reference));
     // The long line is no definition, but every signature respects the limit.
     assert!(tags.iter().filter_map(|t| t.signature.as_ref()).all(|s| s.chars().count() <= 200));
@@ -422,7 +430,10 @@ pub enum Asker<'a> {
 }
 
 // code/mod.rs
-pub struct Code { /* storage, and from Task 3 the active set */ }
+/// Cheap to clone: `Projects`, `Threads` and `Turns` hold a clone to call
+/// `touch` (Task 3, §15.8).
+#[derive(Clone)]
+pub struct Code { inner: Arc<Inner> } // Inner: storage, and from Task 3 the active set and workers
 impl Code {
     pub(crate) fn new(storage: Arc<Storage>) -> Self;
     pub async fn definitions(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CoreError>;
@@ -587,9 +598,9 @@ A project with no directory is in the scope, with the state `NoDirectory`.
   - **After the walk:** delete the rows, and their tags, of every `path_key` the walk did not see.
   - A failed write of one file is `tracing::warn!(project, path, error, "code.index_failed")`, and the walk goes on.
 - [ ] **Step 6: `store.rs`.** The queries, all through `self.reader()` except the writes:
-  - **exact name:** `WHERE project_id IN (…) AND name = ? AND role = ?`, ordered by the scope's order, then `path`, then `line`, with `LIMIT 51`. 51 rows means `more = true`, and the answer keeps 50.
-  - **suggestions:** `SELECT DISTINCT name … WHERE name LIKE '%' || ? || '%' ESCAPE '\'`, with `%`, `_` and `\` escaped in the text, `ORDER BY name LIMIT 10`.
-  - **outline:** definitions where `path_key = ?` or `path_key LIKE ? || '/%'`, or every definition when the path is empty; ordered by `path`, `line`, with `LIMIT 51`.
+  - **exact name:** `WHERE project_id IN (…) AND name = ? AND role = ?`, ordered by the scope's order, then `path`, `line`, `kind`. With `LIMIT 51`: 51 rows means `more = true`, and the answer keeps 50. (`code_tag` has no key, so ordering never falls back to insertion order; two identical rows are indistinguishable anyway. CLAUDE.md: ordering is explicit.)
+  - **suggestions:** `SELECT DISTINCT name … WHERE project_id IN (…) AND role = ? AND name LIKE '%' || ? || '%' ESCAPE '\'`, with `%`, `_` and `\` escaped in the text, `ORDER BY name LIMIT 10`. The role is the question's own, so `definitions` never suggests a name that is only used.
+  - **outline:** definitions where `path_key = ?` or `path_key LIKE ? || '/%' ESCAPE '\'` (escaped as above, since `_` is common in paths; the key of the asked path, lowercased as §15.4 says), or every definition when the path is empty; ordered by `path`, `line`, `name`, with `LIMIT 51`.
   - **status counts:** files, and the skipped files grouped by reason.
 - [ ] **Step 7: `mod.rs` and `AppCore`.**
   - The questions resolve the scope, run the query, and fill `status` per project.
@@ -653,7 +664,7 @@ impl Code {
   `Job` has three kinds:
   - `Scan`, which runs Task 2's `scan`;
   - `Files(Vec<String>)`, which indexes those relative paths or deletes their rows;
-  - `Recheck(Vec<String>, oneshot::Sender<()>)`, which indexes those paths if their size or modified time changed, then replies.
+  - `Recheck(Vec<String>, oneshot::Sender<()>)`, which indexes those paths if their size or modified time changed, deletes the rows of those that are gone, then replies.
 
   The debouncer's handler:
   - filters paths through the walk's rules: the ignore files, `target` and `node_modules`, and `language_for`;
@@ -662,15 +673,17 @@ impl Code {
 
   The interval sends `Scan`. A folder that is gone sets the state `DirectoryMissing` and drops the debouncer. The next periodic scan that finds the folder rebuilds the debouncer and scans.
 - **The state** of each active project lives in memory: `Indexing { done, found }` while a scan runs, and `Ready` after it. Answers read it. A project not in the set answers `Inactive`.
-- **The re-check (§15.5):** before answering, `definitions`, `references` and `outline` compare the size and modified time of the hits' files with their rows. When any differ and the project has a worker, they send `Recheck`, await the reply for at most 2 s, and run the query again once.
+- **The re-check (§15.5):** before answering, `definitions`, `references` and `outline` compare the size and modified time of the hits' files with their rows. A file that is gone counts as changed. When any differ and the project has a worker, they send `Recheck`, await the reply for at most 2 s, and run the query again once. A project with no worker yet (just touched) answers from its rows, with its status `indexing`: the status says the answer may be stale.
 - **The active set** (`active.rs`):
   - At `start`, the order is the newest `operation.created_at` among each project's threads, with `project.created_at` for a project with no operation. Only projects with a directory count. Find the columns in `0001`/`0002` and the thread table.
   - The first `active_limit` projects are active. That number is read from `code_setting`.
   - `touch(p)`: `p`'s direct links become most recent first, then `p` itself.
     - A project that becomes active gets a worker and a `Scan`.
     - Whoever falls past the limit loses its worker.
-  - A question about an inactive project calls `touch`, and answers `Indexing` for it.
+  - Every question touches the asker's project (§15.6: "a code question names it"), which brings its links in too. A project that was inactive answers `Indexing`.
+  - **Before `start`,** `touch` only appends to the order. `start` builds the order from the database as above, then applies the touches recorded before it, oldest first.
 - **Callers of `touch`:** `Turns::send` after its checks pass, `Threads::list`, and `Projects::create`. `touch` never fails the caller: it logs and returns.
+- **How they hold `Code`:** `from_parts` builds `Code` before `Projects`, `Threads` and `Turns`, and passes each a clone (§15.8). `Code`'s contract lists the three under `called_by_other_services` for `touch`.
 
 - [ ] **Step 1: Write the failing tests** in `code_index.rs`.
 
@@ -722,13 +735,15 @@ async fn only_the_most_recent_projects_are_watched() {
 
   - `eventually` polls every 50 ms for up to 10 s.
   - `pause_watcher_for_test`, `active_for_test` (projects in order of use, most recent first) and `shut_down_for_test` are exposed through `testing` only.
-  - The six projects get distinct creation times and no turns, so the order is known.
+  - `pause_watcher_for_test` makes that project's worker drop every `Files` job until shutdown; the watcher and the interval keep running. It does **not** stop the watcher, because the periodic scan restarts a stopped one, and a restarted watcher could report `b.rs` itself: then the test would pass without proving the periodic scan.
+  - `core_with_project` and `core_with_projects(n)` are fixtures in `code_index.rs`: a temporary database, and each project on its own `TempDir`. The six projects get distinct creation times and no turns, so the order is known.
 - [ ] **Step 2: Run the tests to watch them fail.** Expected: they fail to compile.
 - [ ] **Step 3: Implement `watch.rs`, `active.rs`, and the changes to `mod.rs`** as described above.
   - The debouncer's callback runs on `notify`'s own thread. It sends with `blocking_send`, or with `try_send` into a bounded channel whose overflow sends `Scan`, never with an `.await`.
   - Log `code.scan` with the project, the files seen, the files indexed and the elapsed milliseconds.
 - [ ] **Step 4: `AppCore`.**
-  - `start` calls `core.code().start(CodeConfig::default())` after `from_parts`.
+  - `start` calls `core.code().start(CodeConfig::default())` after `from_parts`. It returns once the active set is chosen and the workers are spawned; no scan is awaited (§15.8: `serve` does not wait for indexing).
+  - `lib.rs` re-exports `CodeConfig`.
   - `shut_down` calls `self.code.shut_down().await` before `turns.shut_down`, and leaves §8.5 as it is.
   - Add the calls to `touch` in `Turns::send`, `Threads::list` and `Projects::create`, and name them in those services' contracts and in `Code`'s.
 - [ ] **Step 5: Run the tests until they pass, then the gate.** Update `code/contract.yaml` with the rules and the two tests. Add the README rows for `watch.rs` and `active.rs`, and regenerate the code map.
@@ -772,6 +787,7 @@ impl Code {
 }
 ```
 
+- `lib.rs` re-exports `ProjectLink` and `CodeSettings`.
 - **The commands** follow `instructions/store.rs::save_planner_instructions` exactly:
   - a `user_command(command_id, kind, params)`;
   - in one `write_txn`: `classify` for a replay, the change, `append_event`, and `record_command`.
@@ -830,15 +846,17 @@ struct OutlineArgs {
 ```rust
 #[tokio::test]
 async fn the_scope_is_the_project_and_its_links_only() {
-    let l = listening_app().await;                                  // project A, with a folder
-    let (b, _) = other_project_with_folder(&l, "backend", "src/api.rs", "pub fn orders() {}\n").await;
-    let (c, _) = other_project_with_folder(&l, "secret", "src/k.rs", "pub fn key() {}\n").await;
+    let l = listening_app().await;                                  // project A: slug "demo", its folder the test's temp dir
+    let a = l.app.project.clone();
+    let (b, _dir_b) = other_project_with_folder(&l, "backend", "src/api.rs", "pub fn orders() {}\n").await;
+    let (c, _dir_c) = other_project_with_folder(&l, "secret", "src/k.rs", "pub fn key() {}\n").await;
     let (_, client) = project_client(&l).await;
+    l.app.core.code().start(CodeConfig::default()).await.unwrap();  // assemble does not start workers
 
     // Link A → B through the route; C stays unlinked.
-    let (status, _) = put_json(&l, &format!("/api/projects/{}/code/links/{b}", l.project), json!({"command_id": fresh_command()})).await;
+    let (status, _) = put_json(&l, &format!("/api/projects/{a}/code/links/{b}"), json!({"command_id": fresh_command()})).await;
     assert_eq!(status, 200);
-    settle_index(&l, &[&l.project, &b, &c]).await;                  // polls status until Ready
+    settle_index(&l, &[&a, &b, &c]).await;                          // touches each, polls status until Ready
 
     let found = text(&client, "where_is", json!({"name": "orders"})).await;
     assert!(found.contains("backend: src/api.rs:1 function orders"), "{found}");
@@ -849,22 +867,24 @@ async fn the_scope_is_the_project_and_its_links_only() {
     let refused_c = refused(&client, "where_is", json!({"name": "key", "project": "secret"})).await;
     assert!(refused_c.contains("GRANT_SCOPE"), "{refused_c}");
     assert!(!text(&client, "where_is", json!({"name": "key"})).await.contains("secret"));
-    let (status, body) = get(&l, &format!("/api/projects/{}/code/definitions?name=key&project=secret", l.project)).await;
-    assert_eq!((status, body["code"].as_str()), (400, Some("INVALID_COMMAND")));
+    let (status, body) = get(&l, &format!("/api/projects/{a}/code/definitions?name=key&project=secret")).await;
+    assert_eq!((status, body["code"].as_str()), (REFUSED, Some("INVALID_COMMAND")));
 
     // A path out of the folder is refused.
     let out = refused(&client, "outline", json!({"path": "../"})).await;
     assert!(out.contains("the path must be inside the project"), "{out}");
 
     // One way: B does not see A.
-    let (status, body) = get(&l, &format!("/api/projects/{b}/code/definitions?name=orders&project={}", l.project_slug)).await;
-    assert_eq!((status, body["code"].as_str()), (400, Some("INVALID_COMMAND")));
+    let (status, body) = get(&l, &format!("/api/projects/{b}/code/definitions?name=orders&project=demo")).await;
+    assert_eq!((status, body["code"].as_str()), (REFUSED, Some("INVALID_COMMAND")));
 }
 ```
 
-  - Write the small helpers `other_project_with_folder`, `put_json`, `get`, `text` and `settle_index` in the test file, or in `fixtures/` if two files use them.
-  - Take `refused` from `listening.rs`.
-  - The status for `INVALID_COMMAND` is whatever `Failure::refused` maps it to today. Read it, and assert that number.
+  - `Listening` has `app` and `base` only: the project is `l.app.project`, its slug `"demo"`, its core `l.app.core`.
+  - Take `refused` from `listening.rs`, and `fresh_command` from `fixtures/app.rs`.
+  - Write the small helpers `other_project_with_folder` (each project on its own `TempDir`, returned so it lives), `put_json`, `get`, `text` and `settle_index` in the test file, or in `fixtures/` if two files use them.
+  - **Never** use `fixtures::other_project` in a code test: its folder is the system temp directory, and indexing it walks the whole of it.
+  - `REFUSED` is a `const` in the test: the status `shadows-http/src/failure.rs` gives `CoreError::Refused` with `InvalidCommand` today. Read it; do not change it.
 - [ ] **Step 2: Run the test to watch it fail.** Expected: `where_is` is an unknown tool, or the file does not compile.
 - [ ] **Step 3: Implement** `links.rs`, the store queries, the tools, the routes and the route table.
   - Regenerate `api/openapi.json` the way `crates/shadows/tests/openapi.rs` says. Run that test to see how.
@@ -900,7 +920,7 @@ git commit -m "feat(M3): links, the active limit, the code MCP tools and routes 
 - `docs/status.md`: where M3 is, with the test count.
 
 - [ ] **Step 1:** Make each change. Every amendment is in place, and refers to §15 rather than copying it (CLAUDE.md documentation rules).
-- [ ] **Step 2:** In §15.2, update the file list of `code/` to what Tasks 2–4 built: `mod`, `model`, `store`, `scan`, `scope`, `watch`, `active`, `links`.
+- [ ] **Step 2:** Check that §15.2's file list of `code/` and §15.4's columns match what Tasks 2–4 built. Amend §15 in place where they do not.
 - [ ] **Step 3:** Run the gate (the code map test reads the README).
 - [ ] **Step 4: Commit.**
 

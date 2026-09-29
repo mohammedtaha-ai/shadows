@@ -51,7 +51,10 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
   - `mod.rs`: the service's methods;
   - `model.rs`: its types;
   - `scan.rs`: walking a project and indexing what changed;
-  - `watch.rs`: the file watcher of the active projects;
+  - `scope.rs`: which projects and paths a question may read;
+  - `watch.rs`: one active project's worker and watcher;
+  - `active.rs`: which projects are active, in order of use;
+  - `links.rs`: the links and the active limit, as commands;
   - `store.rs`: its SQLite queries.
 - **`shadows-mcp`** and **`shadows-http`** each call one `Code` method per tool
   or route (§14.5).
@@ -110,14 +113,14 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
 
 **Tables (migration 0008):**
 
-- `code_file`: `project_id`, `path`, `size`, `modified_at`, `language`,
-  `skipped_reason` (null when indexed).
-- `code_tag`: `project_id`, `path`, `name`, `kind`, `role`, `line`,
-  `signature`.
+- `code_file`: `project_id`, `path_key` (the key above), `path`, `size`,
+  `modified_ms`, `language`, `skipped_reason` (null when indexed).
+- `code_tag`: `project_id`, `path_key`, `path`, `name`, `kind`, `role`,
+  `line`, `signature`.
   - An index on `(project_id, name)` serves the name questions.
-  - An index on `(project_id, path, line)` serves `outline`.
+  - An index on `(project_id, path_key, line)` serves `outline`.
 - `code_setting`: one row holding `active_limit`, default 5.
-- `project_link`: `project_id`, `linked_project_id`.
+- `project_link`: `project_id`, `linked_project_id`, `created_at`.
 
 **Scanning a project:**
 
