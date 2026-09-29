@@ -845,7 +845,7 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/lib.rs` — 45 lines
+### `crates/shadows-core/src/lib.rs` — 49 lines
 
 ```rust
 pub use app::CoreParts;
@@ -861,6 +861,7 @@ pub use projects::{ DirectoryEntry, DirectoryError, DirectoryListing, Project, P
 pub use runtime::{RuntimeInstanceId, StopKind};
 pub use threads::{ EntryRef, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads, };
 pub use turns::{InvocationView, Operation, OperationId, SendTurn, StartError, Turns};
+pub use shadows_agent::choices::SessionChoices;
 ```
 
 ### `crates/shadows-core/src/plans/conversation.rs` — 44 lines
@@ -1821,7 +1822,7 @@ pub(super) async fn revoke_grant(State(s): State<AppState>, Path(grant): Path<Gr
 pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
 ```
 
-### `crates/shadows-http/src/harness.rs` — 119 lines
+### `crates/shadows-http/src/harness.rs` — 118 lines
 
 ```rust
 pub(super) async fn list_harnesses(State(s): State<AppState>) -> Result<Json<Vec<HarnessInfo>>, Failure>

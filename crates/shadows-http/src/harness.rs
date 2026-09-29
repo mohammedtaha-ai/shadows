@@ -12,9 +12,8 @@ use axum::extract::{Path, State};
 use super::conversation::detached;
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
-use shadows_agent::choices::SessionChoices;
 use shadows_core::ThreadId;
-use shadows_core::{ContextBreakdown, HarnessInfo};
+use shadows_core::{ContextBreakdown, HarnessInfo, SessionChoices};
 
 /// Every harness Shadows knows, runnable or not, with the model and effort
 /// last used on it and the account limits it last reported.
