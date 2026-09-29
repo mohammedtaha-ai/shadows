@@ -49,6 +49,11 @@ pub(super) fn path_key(path: &str) -> String {
     }
 }
 
+/// Whether the project's folder is there: rows are deleted only while it is.
+async fn folder_exists(dir: &Path) -> bool {
+    tokio::fs::metadata(dir).await.is_ok_and(|m| m.is_dir())
+}
+
 /// What the walk found: every kept file relative to the folder with '/', and
 /// whether any entry could not be read.
 struct Walked {
@@ -102,8 +107,10 @@ impl Code {
     /// Steps 2–5 for one file, `path` relative to `dir` with '/': skipped
     /// when its path, size and modified time equal its row, else read, parsed
     /// on a blocking thread and written in one transaction. A file that is
-    /// gone has its rows deleted. On failure the file keeps its old row, so
-    /// the next scan does it again.
+    /// gone, or is no longer a regular file (a link is never followed), has
+    /// its rows deleted, but only while the folder itself exists (§15.4): a
+    /// folder that vanished keeps its index. On failure the file keeps its
+    /// old row, so the next scan does it again.
     pub(super) async fn index_file(
         &self,
         project: &ProjectId,
@@ -113,13 +120,17 @@ impl Code {
         let storage = &self.inner.storage;
         let key = path_key(path);
         let full = dir.join(path);
-        let meta = match tokio::fs::metadata(&full).await {
-            Ok(m) if m.is_file() => m,
-            Ok(_) => return Ok(storage.delete_code_file(project, &key).await?),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(storage.delete_code_file(project, &key).await?);
-            }
+        let meta = match tokio::fs::symlink_metadata(&full).await {
+            Ok(m) if m.is_file() => Some(m),
+            Ok(_) => None,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
             Err(e) => return Err(e.into()),
+        };
+        let Some(meta) = meta else {
+            if folder_exists(dir).await {
+                storage.delete_code_file(project, &key).await?;
+            }
+            return Ok(());
         };
         let Some(language) = language_for(Path::new(path)) else {
             return Ok(());
@@ -170,7 +181,7 @@ impl Code {
             return Ok(());
         };
         let dir = PathBuf::from(directory);
-        if !tokio::fs::metadata(&dir).await.is_ok_and(|m| m.is_dir()) {
+        if !folder_exists(&dir).await {
             return Ok(());
         }
         let walked = {
@@ -192,7 +203,8 @@ impl Code {
         }
         // Step 6. A walk that could not read an entry may have missed files
         // that are still there, so it deletes nothing; the next scan does.
-        if walked.incomplete {
+        // Nor does a folder that vanished during the scan: its index is kept.
+        if walked.incomplete || !folder_exists(&dir).await {
             tracing::warn!(project = project.as_str(), "code.walk_incomplete");
             return Ok(());
         }

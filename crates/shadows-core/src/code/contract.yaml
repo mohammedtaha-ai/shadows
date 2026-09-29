@@ -128,10 +128,12 @@ functions:
       # No folder, or a missing one: nothing changes. Walks on a blocking
       # thread, `index_file` per kept path (a failure is
       # `code.index_failed` and the walk goes on), then deletes the rows of
-      # every key the walk did not see — unless the walk was incomplete.
+      # every key the walk did not see — unless the walk was incomplete or
+      # the folder vanished during the scan.
     index_file:
       signature: "(&self, project: &ProjectId, dir: &Path, path: &str) -> anyhow::Result<()>"
-      # Gone or not a file: its rows are deleted. Unchanged path, size and
+      # Gone, or not a regular file (`symlink_metadata`: a link is never
+      # followed): its rows are deleted, only while `dir` exists. Unchanged path, size and
       # modified time: nothing. Over 1 048 576 bytes: too_large, unread. A
       # NUL in the first 8 KiB: binary. Not UTF-8: not_utf8. Else `extract`
       # on a blocking thread. Then one `write_code_file`.
@@ -147,6 +149,10 @@ functions:
       # WalkBuilder: parents(false), git_global(false), require_git(false),
       # follow_links(false), hidden entries skipped (its default), and a
       # filter_entry refusing folders named target or node_modules.
+    folder_exists:
+      signature: "(dir: &Path) -> bool"
+      private: true
+      # Rows are deleted only while the project's folder is there (§15.4).
     never_walked:
       signature: "(name: &str) -> bool"
       private: true
@@ -211,13 +217,26 @@ obligations:
   - rule: >
       No path outside the project's folder is ever read. The walk reads no
       parent's ignore file and no global one, and follows no link;
-      `outline` refuses an absolute path, a ':' or a '..' component, and
-      reads the index only.
+      `index_file` stats with `symlink_metadata`, so a file that became a
+      link since it was indexed is not followed; `outline` refuses an
+      absolute path, a ':' or a '..' component, and reads the index only.
     tested_by: none
     note: >
-      `inside` and the WalkBuilder settings are the whole rule. A test would
-      ask `outline` for "../x", "/x" and "C:/x" and expect INVALID_COMMAND,
-      and walk a folder holding a link to a file outside it.
+      `inside`, the WalkBuilder settings and `index_file`'s
+      `symlink_metadata` are the whole rule. A test would ask `outline` for
+      "../x", "/x" and "C:/x" and expect INVALID_COMMAND, and walk a folder
+      holding a link to a file outside it. A linked folder component
+      between the project's folder and the file is not checked; only the
+      walk (which follows none) produces the paths `index_file` gets today.
+
+  - rule: >
+      A folder that is missing, or vanishes during a scan, keeps its index:
+      `scan_project` returns before walking, skips step 6, and
+      `index_file` deletes a gone file's rows only while `folder_exists`.
+    tested_by: none
+    note: >
+      A test would index a folder, rename it away, scan, and find the hits
+      still answered.
 
   - rule: >
       One short transaction per file: `write_code_file` and

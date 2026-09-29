@@ -346,7 +346,7 @@ pub struct Answer {
 }
 ```
 
-### `crates/shadows-core/src/code/scan.rs` — 208 lines
+### `crates/shadows-core/src/code/scan.rs` — 220 lines
 
 ```rust
 pub(super) fn keeps(path: &Path) -> bool
