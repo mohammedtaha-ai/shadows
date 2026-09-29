@@ -30,8 +30,8 @@ again what already exists, and it does not read the whole project to find out.
 
 - The Planner's access to the tools. Its column in §13.6 stays "—" (§15.7).
 - Executors. They reach the same tools through their grant when they exist.
-- Framework links, such as a route to its controller. They are left to
-  `vision.md` §9.
+- Framework links, such as a route to its controller. §15.12 adds them to
+  `vision.md` §9's open questions.
 - Type-aware references. "Who uses X" matches by name (§15.5).
 
 ## 15.2 Parts
@@ -70,23 +70,33 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
 - **Adding a language** is one entry, one grammar crate, and its tags query.
   Nothing else changes: not `Code`, not its store, not the tools.
 - **Tags come from `tree-sitter-tags`**, the standard tree-sitter tagging, using
-  each grammar's own `tags.scm` where it has one. Where the query misses
-  something we need, we add our own query next to the entry. Task 0 finds out
-  which queries need this (§15.10).
+  each grammar crate's `TAGS_QUERY`. TypeScript's query holds only what
+  TypeScript adds, so the TypeScript and TSX entries use TypeScript's query
+  followed by JavaScript's, as the grammar's own `tree-sitter.json` does. Where
+  a query misses something we need, we add our own patterns next to the entry.
+  Rust's misses `const`, `static` and calls through a path (`Storage::open`).
+  Task 0 settles the full list (§15.10).
+- **One tag per name.** When two patterns match the same name, such as a
+  function inside an `impl`, `tree-sitter-tags` keeps the earlier pattern's
+  tag, so that function is a `method`.
 - **`extract(language, text) -> Vec<Tag>`.** A `Tag` holds:
   - `name`;
   - `kind`: the capture's kind, such as `function`, `method`, `class`,
     `interface`, `module`, `macro`, `type` or `constant`;
   - `role`: `Definition` or `Reference`;
-  - `line`, starting at 1;
-  - `signature`: the first line of a definition, trimmed, at most 200
-    characters. There is none for a reference.
+  - `line`: the line the name is on, starting at 1;
+  - `signature`: the definition's first line, which is that same line,
+    trimmed, at most 200 characters. `extract` cuts it from the text itself,
+    because `Tag::line_range` stops at 180 bytes. There is none for a
+    reference.
 - A file tree-sitter cannot fully parse, such as half-written code, still
   gives the tags it found. That is normal and is not an error.
-- **Extraction is blocking work.** `TagsContext` is not `Send`, so `Code` runs
-  `extract` on a blocking thread, never across an `await`.
-- **Grammar versions** are pinned in `[workspace.dependencies]` with the
-  `tree-sitter` and `tree-sitter-tags` versions they agree with.
+- **Extraction is blocking work.** Parsing is CPU-bound, so `Code` runs
+  `extract` on a blocking thread, never on the async runtime.
+- **Versions** are pinned in `[workspace.dependencies]`. The grammar crates
+  depend on `tree-sitter-language`, not on `tree-sitter`; what must agree is
+  each grammar's ABI with the `tree-sitter` that `tree-sitter-tags` uses.
+  Task 0 checks it.
 
 ## 15.4 Indexing
 
@@ -111,9 +121,13 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
 
 **Scanning a project:**
 
-1. Walk its folder with the `ignore` crate's `WalkBuilder`. It honours
-   `.gitignore`, so `target/` and `node_modules/` are not walked. Only files
-   whose extension is in the language table are kept.
+1. Walk its folder with the `ignore` crate's `WalkBuilder`. It honours the
+   folder's `.gitignore` files, whether or not it is a Git repository
+   (`require_git(false)`). It reads no ignore file outside the folder:
+   `parents(false)` and `git_global(false)`, whose defaults would read the
+   folders above it and the user's global Git excludes. It follows no link.
+   `target/` and `node_modules/` are never walked, with or without a
+   `.gitignore`. Only files whose extension is in the language table are kept.
 2. Skip a file whose size and modified time equal its `code_file` row.
 3. Read a changed file. A file over **1 MB**, a binary one, or one that is not
    UTF-8 is not parsed. Its row records why.
@@ -129,16 +143,30 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
 - `notify-debouncer-full` watches each active project's folder recursively.
   Events are gathered for about 500 ms, because editors save by writing a
   temporary file and renaming it.
-- Every changed path is filtered through the project's `.gitignore` (the
-  `ignore` crate's `Gitignore`) and the language table. Then it goes through
-  steps 3–5, or its rows are deleted if the file is gone.
+- Every changed path is filtered through the same rules as the walk and the
+  language table. Then it goes through steps 3–5, or its rows are deleted if
+  the file is gone. A changed `.gitignore` starts a full scan.
 - **A watcher error or lost events start a full scan** of that project, and
-  write a log line. On Windows, a folder full of changes, such as `target/`
-  during a build, can overflow the watcher's buffer even though the files are
-  ignored. The full scan is what keeps the index true after that.
+  write a log line. Lost events arrive as an event whose `need_rescan()` is
+  true. On Windows, a folder full of changes, such as `target/` during a
+  build, can overflow the watcher's buffer even though the files are ignored.
+  The full scan is what keeps the index true after that.
+- **But `notify` 8.2.0 does not report that loss on Windows.** Its
+  `windows.rs` passes a buffer overflow on silently, and on
+  `ERROR_NOTIFY_ENUM_DIR` or a deleted folder it stops watching without telling
+  the handler; its `main` branch sends the rescan event. Task 0 settles how Shadows
+  learns of both, and this section is amended before Task 3.
 - **A missing folder** stops that project's watcher, and its status becomes
-  `directory missing`. Its index is kept. When the folder returns, or the
-  project's folder is changed, it is scanned again.
+  `directory missing`. Its index is kept. When the folder returns it is
+  scanned again.
+- **A project's folder never changes, and a project is never deleted:**
+  `Projects` has neither method, and the rows that reference a `project`
+  forbid deleting it.
+
+> **OPEN — a moved or deleted project.** Changing a project's folder must
+> drop its index and scan the new one; deleting a project must delete its
+> index, its links and the links to it. **Trigger:** the change that adds
+> either method to `Projects`. **Why it does not block:** neither exists.
 
 **Each active project has one worker.** It does the project's scans and the
 files its watcher reports, one after another, so two writes of one file never
@@ -150,14 +178,18 @@ daemon:** a failure in it affects the index only, never turns or plans.
 
 ## 15.5 Questions
 
-Every question reads SQLite directly and never waits for indexing.
+Every question reads SQLite only, never the disk, and never waits for
+indexing.
 
-**The answer carries the project's status**, one of:
+**The answer carries the status of each project it covers**, one of:
 
 - `ready`;
 - `indexing` with files done and files found, e.g. `indexing: 340/1200`, so an
   agent knows the answer may be incomplete;
-- `not indexed: no directory`, for a project with no folder;
+- `inactive`: not in the active set, so the index is as it was when the
+  project left it (§15.6);
+- `not indexed: no directory`, for a project with no folder (only projects
+  created before migration 0003 can have none);
 - `directory missing`.
 
 It also says how many files were skipped and why.
@@ -179,11 +211,13 @@ It also says how many files were skipped and why.
   agent takes it for more than it is.
 - **`outline`'s `path`** is relative to the project's folder. A path that is
   absolute, or that leaves the folder through `..`, is refused
-  `INVALID_COMMAND` ("the path must be inside the project"), and nothing
-  outside the folder is read.
+  `INVALID_COMMAND` ("the path must be inside the project"). `outline` reads
+  the index, so it never opens a path.
 - **The scope** is the project asked about plus the projects it links to
-  (§15.6). A question may name one project in that scope. With none named, it
-  covers them all.
+  directly (§15.6); a link's own links are not in it. A question may name one
+  project in that scope, by its slug. With none named, it covers them all. A
+  project outside the scope is refused `GRANT_SCOPE` over MCP (§15.7) and
+  `INVALID_COMMAND` over HTTP, which has no grant.
 
 **A question about a project that is not active** makes it active (§15.6).
 It answers from what is stored, with the status `indexing`.
@@ -193,23 +227,26 @@ It answers from what is stored, with the status `indexing`.
 **Only the most recently used projects are active: indexed and watched.**
 
 - **At startup,** the active projects are the `active_limit` projects with a
-  folder whose last turn is newest. A project with no turn yet counts from its
-  creation.
+  folder whose last turn (the newest `operation.created_at` of its threads) is
+  newest. A project with no turn yet counts from its creation.
+- **The order of use is kept in memory, not stored.** After a restart it
+  starts again from the last turns.
 - **Using a project** makes it active at once. Using it means:
-  - a turn starts in it;
-  - the web client opens it;
-  - a code question names it.
+  - a turn starts in it: `Turns::send`;
+  - the web client opens it, which lists its threads: `Threads::list`;
+  - a code question names it;
+  - it is created: `Projects::create`.
 
-  `Projects` and `Turns` call `Code::touch(project)`. These calls are declared
-  under `called_by_other_services` in `Code`'s contract.
+  `Turns`, `Threads` and `Projects` call `Code::touch(project)`, a public
+  method (§14.4). It returns at once; the scan runs in the project's worker.
+  `Code`'s contract names these callers under `touch`.
 - **When the set is full,** the least recently used project leaves it. Its
   watcher stops and its index stays stored. When it comes back, a scan redoes
   only what changed while it was away.
-- **`active_limit`** is a setting, default 5, from 1 to 20. Setting it is a
-  command with a `CommandId` (kind `code_active_limit_set`). Lowering it stops
-  the least recently used projects' watchers at once.
-- **A new project, or a changed folder,** while the daemon runs: `Projects`
-  calls `Code::touch`, which scans it and watches the new folder.
+- **`active_limit`** is a setting, default 5, from 1 to 20; another value is
+  refused `INVALID_COMMAND`. Setting it is a command with a `CommandId` (kind
+  `CodeActiveLimitSet`). Lowering it stops the least recently used projects'
+  watchers at once.
 
 **A project can read the index of the projects it is linked to.**
 
@@ -221,10 +258,12 @@ It answers from what is stored, with the status `indexing`.
 - **Only a project can be linked.** A folder that is not a project is added as
   a project first. So every linked folder has its own index, status and
   watcher, and there is no second kind of index.
-- **When a project becomes active, its linked projects do too.** They count
-  toward `active_limit`.
+- **When a project becomes active, its linked projects do too,** just before
+  it, so the project itself is always the most recent. They count toward
+  `active_limit`. When the limit cannot hold them all, the links touched first
+  leave, and answer with the status `inactive`. Activation is not transitive.
 - Adding and removing a link are commands with a `CommandId` (kinds
-  `project_link_put` and `project_link_remove`). A link to itself, or to a
+  `ProjectLinkPut` and `ProjectLinkRemove`). A link to itself, or to a
   project that does not exist, is refused `INVALID_COMMAND`.
 - **No path outside a project's folder is ever read,** linked or not.
 
@@ -239,8 +278,8 @@ It answers from what is stored, with the status `indexing`.
 | `outline` | — | ✓ | no |
 
 - A tool takes no project id. **The project comes from the grant.** The tool
-  may name a linked project by name. A project outside the grant's project and
-  its links is refused `GRANT_SCOPE`.
+  may name a linked project by its slug. A project outside the grant's project
+  and its links is refused `GRANT_SCOPE`.
 - Each tool calls one `Code` method, and its text answer lists one hit per line:
   `project: path:line kind name — signature`.
 
@@ -261,17 +300,22 @@ It answers from what is stored, with the status `indexing`.
 | `GET …/code/links`, `PUT …/code/links/{linked_id}`, `DELETE …/code/links/{linked_id}` | the links |
 
 - The active limit is `GET` and `PUT /api/code/settings`.
-- The routes that change something take a command id, as the others do (§2).
+- The routes that change something take a `command_id` under §4's
+  idempotency rule (§13.5): `PUT` in the body, `DELETE` in the query, as the
+  grant revoke route does.
 - The routes are added to `api/openapi.json`.
 
 ## 15.8 Startup and shutdown
 
-- `AppCore::start` builds `Code` before `Projects` and `Turns`, which hold it
-  to call `touch`. `Code` then chooses the active set and starts the workers in
-  the background. **`serve` does not wait for indexing.**
-- `AppCore::shut_down` stops the watchers and workers **before** the storage
-  closes, in §8.5's order. A write that was running finishes, or is dropped
-  whole with its transaction. The next start redoes what did not land.
+- `AppCore::from_parts` builds `Code` before `Projects`, `Threads` and
+  `Turns`, which hold it to call `touch`. Then `AppCore::start` has `Code`
+  choose the active set and start the workers in the background. Tests that
+  build the core with `assemble` start them only when they ask. **`serve`
+  does not wait for indexing.**
+- `AppCore::shut_down` first stops `Code`'s watchers and workers, then runs
+  §8.5 unchanged. A worker stops after the file it is on: that file's
+  transaction commits whole or not at all. The next start redoes what did not
+  land.
 
 ## 15.9 The web client
 
@@ -286,13 +330,16 @@ Milestone 3.
 ## 15.10 Order of work
 
 0. **Probe** (Task 0), before any product code. It answers:
-   - whether the Rust, TypeScript, TSX and JavaScript tags queries capture what
-     §15.3 needs. For example, whether TypeScript's query needs JavaScript's
-     with it, and whether Rust's catches `const` and `static`;
-   - how much each grammar adds to a clean build;
+   - which patterns each language needs beyond its grammar's query for
+     §15.3, starting from the known gaps: Rust's `const`, `static`, calls
+     through a path, and uses of a type;
+   - that each grammar loads under the `tree-sitter` that `tree-sitter-tags`
+     0.27 uses, and how much each adds to a clean build;
    - how `notify` behaves on Windows: a save through rename, a build writing
      into an ignored `target/`, and whether a watched folder can still be
-     renamed.
+     renamed;
+   - how Shadows learns that `notify` lost events or stopped watching on
+     Windows (§15.4): a `notify` release that reports it, or another check.
 
    Its output goes to `docs/evidence/milestone3/`, and its code is deleted
    (CLAUDE.md). If it proves a part of this section wrong, this section is
@@ -339,13 +386,14 @@ The run is recorded in `docs/evidence/milestone3/WINDOWS_RUN.md`.
 
 - `specs/README.md`: §15's row.
 - §14.3: `shadows-index` in the crate list and the dependency diagram.
-- §14.4: `Code` in the service table.
+- §14.4: `Code` in the service table, and `Code` stopping first in its
+  shutdown bullet.
 - §13.6: the three tools' rows.
 - §6: the four tables of §15.4.
 - `CLAUDE.md`: the crate, the diagram, the service list and the single-ownership
   table.
 - `docs/codebase/README.md`: `shadows-index` and `code/`, and the invariant
   "`shadows-index` knows nothing of SQLite or projects".
-- `vision.md` §2.4's **Today** line, and the "Where is X?" open question in §9,
-  which this section answers.
+- `vision.md` §2.4's **Today** line; in §9, the "Where is X?" open question,
+  which this section answers, and a new one for framework links.
 - `docs/status.md`.
