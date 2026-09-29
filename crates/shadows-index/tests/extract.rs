@@ -10,7 +10,8 @@ fn defs(tags: &[Tag]) -> Vec<(String, String, u32)> {
 
 #[test]
 fn rust_tags() {
-    let long = format!("    let s = \"{}\";", "سلام ".repeat(60)); // > 200 chars, Arabic
+    // A definition whose line is > 200 chars, of multi-byte Arabic: its signature is cut.
+    let long = format!("    const GREETING: &str = \"{}\";", "سلام ".repeat(60));
     let src = format!(
         "pub struct Storage;\n\
          impl Storage {{\n    pub fn open(path: &str) -> Self {{\n{long}\n        Storage\n    }}\n}}\n\
@@ -23,7 +24,7 @@ fn rust_tags() {
     let d = defs(&tags);
     assert!(d.contains(&("Storage".into(), "class".into(), 1)), "{d:?}");
     assert!(d.contains(&("open".into(), "method".into(), 3)), "{d:?}");
-    // Lines: 1 struct, 2 impl, 3 fn open, 4 the long line, 5–7 the body's end, 8 const, 9 main, 10 helper.
+    // Lines: 1 struct, 2 impl, 3 fn open, 4 the long const, 5–7 the body's end, 8 const, 9 main, 10 helper.
     assert!(
         d.iter().any(|(n, _, l)| n == "LIMIT" && *l == 8),
         "const is a definition: {d:?}"
@@ -45,12 +46,20 @@ fn rust_tags() {
         tags.iter()
             .any(|t| t.name == "helper" && t.role == Role::Reference)
     );
-    // The long line is no definition, but every signature respects the limit.
+    // Every signature respects the limit; the long definition's is cut at exactly
+    // 200 whole characters, a prefix of its trimmed line.
     assert!(
         tags.iter()
             .filter_map(|t| t.signature.as_ref())
             .all(|s| s.chars().count() <= 200)
     );
+    let greeting = tags
+        .iter()
+        .find(|t| t.name == "GREETING" && t.role == Role::Definition && t.line == 4)
+        .expect("the long const is a definition");
+    let sig = greeting.signature.as_deref().unwrap();
+    assert_eq!(sig.chars().count(), 200);
+    assert!(long.trim().starts_with(sig), "{sig}");
 }
 
 #[test]
