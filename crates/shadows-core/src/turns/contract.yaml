@@ -189,7 +189,7 @@ enums:
 
 
 shared_in_transaction:
-  has_open_operation: "Threads' fork (storage/sqlite/fork.rs fork_thread): a thread with a turn not yet ended cannot be forked, judged inside the fork's own write"
+  has_open_operation: "Threads' fork (threads/store/fork.rs fork_thread): a thread with a turn not yet ended cannot be forked, judged inside the fork's own write"
   read_before: "Runtime recovery (storage/sqlite/runtime.rs reconcile_orphans): reads each orphan's status and thread inside the write that marks it Interrupted"
   existed: "Runtime recovery (storage/sqlite/runtime.rs reconcile_orphans): the orphan read by read_before existed when its compare-and-swap matched"
   record: "Runtime recovery (storage/sqlite/runtime.rs reconcile_orphans): each OperationInterrupted event is journaled in the same write as its row, and logged after commit"
@@ -366,10 +366,11 @@ open_questions:
       `record`. Whether recovery moves next to them is for Task 10's
       narrowing of the store.
   - >
-      `list_operations_for_thread` and `get_operation` are still called by
-      `shadows-http`'s list route and by tests directly on `Storage`; the
-      list route moves in Task 9, the `impl Storage` methods narrow in Task 10
-      (ruling F6).
+      `list_operations_for_thread` is called by `Threads::operations` (the
+      thread's operation list, spec §14.4 gives the list to Threads) and,
+      with `get_operation`, by tests directly on `Storage`. Whether the list
+      becomes a `Turns` method Threads calls is for Task 10's narrowing of
+      the `impl Storage` methods (ruling F6).
 
 
 tests:

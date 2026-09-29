@@ -21,7 +21,7 @@ use shadows_core::harness::Sessions;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::{StopKind, Storage};
 use shadows_core::testing::{LiveHandles, shut_down};
-use shadows_core::thread::ThreadId;
+use shadows_core::threads::ThreadId;
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
 use shadows_http::AppState;
@@ -64,7 +64,7 @@ async fn fixture() -> Fixture {
             &ctx,
             "demo",
             "Demo",
-            &shadows_core::project::ProjectDirectory::resolve(tmp.path()).unwrap(),
+            &shadows_core::projects::ProjectDirectory::resolve(tmp.path()).unwrap(),
             &shadows_agent::policy::default_modes(),
         )
         .await

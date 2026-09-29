@@ -15,7 +15,7 @@ use crate::{
     plans::Focus,
     runtime::Runtime,
     storage::StorageError,
-    thread::ThreadId,
+    threads::ThreadId,
 };
 use shadows_agent::{TurnSettings, events::HarnessEvent};
 use std::sync::{Arc, atomic::AtomicBool};

@@ -8,18 +8,16 @@
 //! only while every client is on this machine; spec §1's OPEN block on remote
 //! access names the trigger that ends it.
 //!
-//! What the disk says is `project::browse`'s business; these handlers only
-//! move it onto a blocking thread and back, because listing a large or slow
-//! directory must not stall the async runtime.
+//! What the disk says is `Projects`' business (`core.projects()`), which
+//! reads it on a blocking thread; these handlers only carry it over HTTP.
 
 use axum::Json;
-use axum::extract::Query;
+use axum::extract::{Query, State};
 use axum::http::StatusCode;
 
-use super::Failure;
 use super::failure::ErrorBody;
-use shadows_core::project::DirectoryError;
-use shadows_core::project::browse::{self, DirectoryEntry, DirectoryListing};
+use super::{AppState, Failure};
+use shadows_core::{DirectoryEntry, DirectoryListing};
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
@@ -47,11 +45,10 @@ pub(super) struct DirsQuery {
     )
 )]
 pub(super) async fn list_dirs(
+    State(s): State<AppState>,
     Query(q): Query<DirsQuery>,
 ) -> Result<Json<DirectoryListing>, Failure> {
-    let path = q.path.filter(|p| !p.is_empty());
-    let listing = blocking(move || browse::list(path.as_deref().map(std::path::Path::new))).await?;
-    Ok(Json(listing))
+    Ok(Json(s.core.projects().list_dirs(q.path).await?))
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -78,22 +75,9 @@ pub(super) struct CreateDir {
     )
 )]
 pub(super) async fn create_dir(
+    State(s): State<AppState>,
     Json(body): Json<CreateDir>,
 ) -> Result<(StatusCode, Json<DirectoryEntry>), Failure> {
-    let entry = blocking(move || {
-        browse::create_subdirectory(std::path::Path::new(&body.parent), &body.name)
-    })
-    .await?;
+    let entry = s.core.projects().create_dir(body.parent, body.name).await?;
     Ok((StatusCode::CREATED, Json(entry)))
-}
-
-async fn blocking<T: Send + 'static>(
-    work: impl FnOnce() -> Result<T, DirectoryError> + Send + 'static,
-) -> Result<T, DirectoryError> {
-    tokio::task::spawn_blocking(work)
-        .await
-        .map_err(|e| DirectoryError::Unavailable {
-            path: String::new(),
-            source: std::io::Error::other(e),
-        })?
 }

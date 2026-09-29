@@ -243,7 +243,7 @@ pub fn is_available(kind: &str) -> bool
 pub fn default_modes() -> BTreeMap<String, Vec<String>>
 ```
 
-## `crates/shadows-core/src/app.rs` — 292 lines
+## `crates/shadows-core/src/app.rs` — 314 lines
 
 ```rust
 pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
@@ -257,7 +257,7 @@ pub struct CoreParts {
     pub mcp_url: String,
 }
 pub struct AppCore {}
-// + 8 private fields
+// + 11 private fields
 pub struct StartConfig {
     pub db_path: PathBuf,
     pub node_path: PathBuf,
@@ -272,6 +272,9 @@ impl AppCore {
     pub fn grants(&self) -> &Grants
     pub fn turns(&self) -> &Turns
     pub fn harness(&self) -> &Harness
+    pub fn projects(&self) -> &Projects
+    pub fn threads(&self) -> &Threads
+    pub fn instructions(&self) -> &Instructions
     pub async fn shut_down(&self, bound: Duration, second_signal: impl Future<Output = ()>) -> Result<StopKind, CoreError>
     pub fn storage(&self) -> &Arc<Storage>
     pub fn sessions(&self) -> &Arc<Sessions>
@@ -543,7 +546,7 @@ impl Sessions {
 }
 ```
 
-## `crates/shadows-core/src/harness/mod.rs` — 161 lines
+## `crates/shadows-core/src/harness/mod.rs` — 168 lines
 
 ```rust
 pub use model::{ContextBreakdown, HarnessInfo, RememberedSettings};
@@ -558,6 +561,7 @@ impl Harness {
     pub async fn open_session(&self, thread: &ThreadId) -> Result<SessionChoices, CoreError>
     pub async fn change_model(&self, thread: &ThreadId, model: &str) -> Result<SessionChoices, CoreError>
     pub async fn context(&self, thread: &ThreadId) -> Result<ContextBreakdown, CoreError>
+    pub(crate) async fn close_session(&self, thread: &ThreadId) -> std::io::Result<()>
     pub async fn choices(&self, thread: &ThreadId, offered: &Offered) -> Result<SessionChoices, CoreError>
 }
 ```
@@ -681,7 +685,7 @@ impl Sessions {
 }
 ```
 
-## `crates/shadows-core/src/harness/setup.rs` — 181 lines
+## `crates/shadows-core/src/harness/setup.rs` — 182 lines
 
 ```rust
 pub fn prompt_version() -> &'static str
@@ -713,7 +717,40 @@ impl Storage {
 pub(crate) use newtype_id;
 ```
 
-## `crates/shadows-core/src/lib.rs` — 31 lines
+## `crates/shadows-core/src/instructions/mod.rs` — 52 lines
+
+```rust
+pub use model::InstructionsVersion;
+pub struct Instructions {}
+// + 1 private field
+impl Instructions {
+    pub(crate) fn new(storage: Arc<Storage>) -> Self
+    pub async fn current(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, CoreError>
+    pub async fn save(&self, command_id: String, project: &ProjectId, body: &str) -> Result<InstructionsVersion, CoreError>
+}
+```
+
+## `crates/shadows-core/src/instructions/model.rs` — 13 lines
+
+```rust
+pub struct InstructionsVersion {
+    pub id: String,
+    pub number: i64,
+    pub body: String,
+    pub created_at: String,
+}
+```
+
+## `crates/shadows-core/src/instructions/store.rs` — 107 lines
+
+```rust
+impl Storage {
+    pub async fn save_planner_instructions(&self, ctx: &CommandContext, project: &ProjectId, body: &str) -> Result<InstructionsVersion, StorageError>
+    pub async fn current_planner_instructions(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, StorageError>
+}
+```
+
+## `crates/shadows-core/src/lib.rs` — 37 lines
 
 ```rust
 pub use app::{AppCore, CoreParts, StartConfig};
@@ -721,8 +758,11 @@ pub use error::CoreError;
 pub use events::UiSignal;
 pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};
 pub use harness::{ContextBreakdown, Harness, HarnessInfo, RememberedSettings};
+pub use instructions::{Instructions, InstructionsVersion};
 pub use plans::{ AcceptanceItem, Approved, DraftStart, DraftStarted, EditOutcome, Focus, LastEdit, Link, LinkKind, Place, Plan, PlanContent, PlanEdit, PlanListing, PlanOp, PlanShow, PlanShown, PlanTask, Plans, Problem, TaskContent, TaskId, WorkflowId, WorkflowState, };
+pub use projects::{ DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects, };
 pub use storage::StopKind;
+pub use threads::{PlanningThread, ThreadEntry, ThreadEntryId, ThreadId, Threads};
 pub use turns::{InvocationView, Operation, OperationId, SendTurn, StartError, Turns};
 ```
 
@@ -959,7 +999,7 @@ pub(super) fn writer_of(grant: &Grant) -> Result<Writer, CoreError>
 pub(super) fn command(writer: &Writer, command_id: String, kind: &str, fp: String) -> CommandContext
 ```
 
-## `crates/shadows-core/src/plans/store/draft.rs` — 239 lines
+## `crates/shadows-core/src/plans/store/draft.rs` — 237 lines
 
 ```rust
 impl Storage {
@@ -968,7 +1008,7 @@ impl Storage {
 }
 ```
 
-## `crates/shadows-core/src/plans/store/edit.rs` — 223 lines
+## `crates/shadows-core/src/plans/store/edit.rs` — 221 lines
 
 ```rust
 impl Storage {
@@ -1008,7 +1048,7 @@ pub(super) async fn links_of(conn: &mut SqliteConnection, workflow: &WorkflowId)
 pub(super) async fn write_content(conn: &mut SqliteConnection, workflow: &WorkflowId, before: &[PlanTask], after: &PlanContent, ts: &str) -> Result<(), StorageError>
 ```
 
-## `crates/shadows-core/src/plans/store/view.rs` — 101 lines
+## `crates/shadows-core/src/plans/store/view.rs` — 99 lines
 
 ```rust
 impl Storage {
@@ -1016,7 +1056,7 @@ impl Storage {
 }
 ```
 
-## `crates/shadows-core/src/project/browse.rs` — 184 lines
+## `crates/shadows-core/src/projects/browse.rs` — 200 lines
 
 ```rust
 pub struct DirectoryEntry {
@@ -1029,11 +1069,12 @@ pub struct DirectoryListing {
     pub parent: Option<String>,
     pub entries: Vec<DirectoryEntry>,
 }
-pub fn list(path: Option<&Path>) -> Result<DirectoryListing, DirectoryError>
-pub fn create_subdirectory(parent: &Path, name: &str) -> Result<DirectoryEntry, DirectoryError>
+pub(super) fn list(path: Option<&Path>) -> Result<DirectoryListing, DirectoryError>
+pub(super) fn create_subdirectory(parent: &Path, name: &str) -> Result<DirectoryEntry, DirectoryError>
+pub(super) async fn blocking<T: Send + 'static>(work: impl FnOnce() -> Result<T, DirectoryError> + Send + 'static) -> Result<T, DirectoryError>
 ```
 
-## `crates/shadows-core/src/project/directory.rs` — 100 lines
+## `crates/shadows-core/src/projects/directory.rs` — 100 lines
 
 ```rust
 pub enum DirectoryError {
@@ -1060,10 +1101,27 @@ pub(crate) fn canonical_dir(raw: &Path) -> Result<PathBuf, DirectoryError>
 pub(crate) fn utf8(path: PathBuf) -> Result<String, DirectoryError>
 ```
 
-## `crates/shadows-core/src/project/mod.rs` — 33 lines
+## `crates/shadows-core/src/projects/mod.rs` — 124 lines
 
 ```rust
+pub use browse::{DirectoryEntry, DirectoryListing};
 pub use directory::{DirectoryError, ProjectDirectory};
+pub use model::{Project, ProjectId};
+pub struct Projects {}
+// + 1 private field
+impl Projects {
+    pub(crate) fn new(storage: Arc<Storage>) -> Self
+    pub async fn list(&self) -> Result<Vec<Project>, CoreError>
+    pub async fn create(&self, command_id: String, slug: &str, name: &str, directory: &str) -> Result<Project, CoreError>
+    pub async fn set_modes(&self, command_id: String, project: &ProjectId, allowed_modes: BTreeMap<String, Vec<String>>) -> Result<Project, CoreError>
+    pub async fn list_dirs(&self, path: Option<String>) -> Result<DirectoryListing, CoreError>
+    pub async fn create_dir(&self, parent: String, name: String) -> Result<DirectoryEntry, CoreError>
+}
+```
+
+## `crates/shadows-core/src/projects/model.rs` — 30 lines
+
+```rust
 pub struct ProjectId(String);
 impl ProjectId {
     pub fn generate() -> Self
@@ -1079,6 +1137,17 @@ pub struct Project {
     pub directory: Option<String>,
     pub created_at: String,
     pub allowed_modes: BTreeMap<String, Vec<String>>,
+}
+```
+
+## `crates/shadows-core/src/projects/store.rs` — 252 lines
+
+```rust
+impl Storage {
+    pub async fn create_project(&self, ctx: &CommandContext, slug: &str, name: &str, directory: &ProjectDirectory, default_modes: &BTreeMap<String, Vec<String>>) -> Result<Project, StorageError>
+    pub async fn list_projects(&self) -> Result<Vec<Project>, StorageError>
+    pub async fn get_project(&self, id: &ProjectId) -> Result<Project, StorageError>
+    pub async fn set_project_modes(&self, ctx: &CommandContext, project_id: &ProjectId, modes: &BTreeMap<String, Vec<String>>) -> Result<Project, StorageError>
 }
 ```
 
@@ -1103,11 +1172,11 @@ impl Runtime {
 }
 ```
 
-## `crates/shadows-core/src/storage/mod.rs` — 32 lines
+## `crates/shadows-core/src/storage/mod.rs` — 28 lines
 
 ```rust
-pub use sqlite::{ InstructionsVersion, ReconcileReport, StopKind, Storage, StorageError, StoredEvent, };
-pub(crate) use sqlite::{ append_entry_in, append_event, classify, insert_thread, now, record_command, };
+pub use sqlite::{ReconcileReport, StopKind, Storage, StorageError, StoredEvent};
+pub(crate) use sqlite::{append_event, classify, now, record_command};
 pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
@@ -1116,18 +1185,6 @@ pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableE
 ```rust
 pub(crate) async fn classify(conn: &mut SqliteConnection, ctx: &CommandContext, scope_kind: &str, scope_key: &str) -> Result<Option<String>, StorageError>
 pub(crate) async fn record_command(conn: &mut SqliteConnection, ctx: &CommandContext, scope_kind: &str, scope_key: &str, entity_kind: &str, outcome_ref: &str, ts: &str) -> Result<(), StorageError>
-```
-
-## `crates/shadows-core/src/storage/sqlite/entry.rs` — 160 lines
-
-```rust
-pub(crate) async fn append_entry_in(conn: &mut SqliteConnection, thread_id: &ThreadId, entry: NewThreadEntry<'_>, ts: &str) -> Result<ThreadEntry, StorageError>
-pub(super) type EntryRow = (String, String, i64, String, String, String, String, String, String, Option<String>);
-pub(super) fn into_entry(r: EntryRow) -> Result<ThreadEntry, StorageError>
-impl Storage {
-    pub async fn append_thread_entry(&self, thread_id: &ThreadId, entry: NewThreadEntry<'_>) -> Result<ThreadEntry, StorageError>
-    pub async fn list_thread_entries(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>
-}
 ```
 
 ## `crates/shadows-core/src/storage/sqlite/events.rs` — 49 lines
@@ -1153,39 +1210,13 @@ impl Storage {
 }
 ```
 
-## `crates/shadows-core/src/storage/sqlite/fork.rs` — 203 lines
-
-```rust
-impl Storage {
-    pub async fn fork_thread(&self, ctx: &CommandContext, source: &ThreadId, at_entry: &ThreadEntryId) -> Result<PlanningThread, StorageError>
-}
-```
-
-## `crates/shadows-core/src/storage/sqlite/instructions.rs` — 120 lines
-
-```rust
-pub struct InstructionsVersion {
-    pub id: String,
-    pub number: i64,
-    pub body: String,
-    pub created_at: String,
-}
-impl Storage {
-    pub async fn save_planner_instructions(&self, ctx: &CommandContext, project: &ProjectId, body: &str) -> Result<InstructionsVersion, StorageError>
-    pub async fn current_planner_instructions(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, StorageError>
-}
-```
-
-## `crates/shadows-core/src/storage/sqlite/mod.rs` — 300 lines
+## `crates/shadows-core/src/storage/sqlite/mod.rs` — 292 lines
 
 ```rust
 pub use events_read::StoredEvent;
-pub use instructions::InstructionsVersion;
 pub use runtime::{ReconcileReport, StopKind};
 pub(crate) use command::{classify, record_command};
-pub(crate) use entry::append_entry_in;
 pub(crate) use events::append_event;
-pub(crate) use thread::insert_thread;
 pub(crate) fn now() -> String
 pub enum StorageError {
     Unavailable(String),
@@ -1216,17 +1247,6 @@ impl Storage {
 }
 ```
 
-## `crates/shadows-core/src/storage/sqlite/project.rs` — 250 lines
-
-```rust
-impl Storage {
-    pub async fn create_project(&self, ctx: &CommandContext, slug: &str, name: &str, directory: &ProjectDirectory, default_modes: &BTreeMap<String, Vec<String>>) -> Result<Project, StorageError>
-    pub async fn list_projects(&self) -> Result<Vec<Project>, StorageError>
-    pub async fn get_project(&self, id: &ProjectId) -> Result<Project, StorageError>
-    pub async fn set_project_modes(&self, ctx: &CommandContext, project_id: &ProjectId, modes: &BTreeMap<String, Vec<String>>) -> Result<Project, StorageError>
-}
-```
-
 ## `crates/shadows-core/src/storage/sqlite/runtime.rs` — 203 lines
 
 ```rust
@@ -1245,21 +1265,6 @@ impl Storage {
 }
 ```
 
-## `crates/shadows-core/src/storage/sqlite/thread.rs` — 295 lines
-
-```rust
-impl Storage {
-    pub async fn create_planning_thread(&self, ctx: &CommandContext, project_id: &ProjectId, title: &str, harness: &str) -> Result<PlanningThread, StorageError>
-    pub async fn set_thread_harness(&self, ctx: &CommandContext, thread: &ThreadId, harness: &str) -> Result<PlanningThread, StorageError>
-    pub async fn turn_context(&self, thread_id: &ThreadId) -> Result<TurnContext, StorageError>
-    pub async fn record_harness_session(&self, thread_id: &ThreadId, session_id: &str) -> Result<bool, StorageError>
-    pub async fn list_threads_for_project(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>
-}
-
-pub(crate) async fn insert_thread(conn: &mut SqliteConnection, project_id: &ProjectId, title: &str, harness: &str, actor: Actor, ts: &str) -> Result<ThreadId, StorageError>
-pub(super) async fn load_thread(conn: &mut SqliteConnection, id: &ThreadId) -> Result<PlanningThread, StorageError>
-```
-
 ## `crates/shadows-core/src/testing.rs` — 53 lines
 
 ```rust
@@ -1272,7 +1277,26 @@ pub use crate::turns::LiveHandles;
 pub use crate::turns::for_tests::{ FailureStage, NewTurn, PlannerTurn, PlannerTurnRequest, StartedTurn, StopOutcome, shut_down, };
 ```
 
-## `crates/shadows-core/src/thread/mod.rs` — 149 lines
+## `crates/shadows-core/src/threads/mod.rs` — 120 lines
+
+```rust
+pub use model::{ EntryRef, NewThreadEntry, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, TurnContext, };
+pub(crate) use rules::known_harness;
+pub(crate) use store::{append_entry_in, insert_thread};
+pub struct Threads {}
+// + 2 private fields
+impl Threads {
+    pub(crate) fn new(storage: Arc<Storage>, harness: Arc<Harness>) -> Self
+    pub async fn list(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, CoreError>
+    pub async fn create(&self, command_id: String, project: &ProjectId, title: &str, harness: Option<&str>) -> Result<PlanningThread, CoreError>
+    pub async fn set_harness(&self, command_id: String, thread: &ThreadId, harness: &str) -> Result<PlanningThread, CoreError>
+    pub async fn fork(&self, command_id: String, thread: &ThreadId, at: &ThreadEntryId) -> Result<PlanningThread, CoreError>
+    pub async fn entries(&self, thread: &ThreadId) -> Result<Vec<ThreadEntry>, CoreError>
+    pub async fn operations(&self, thread: &ThreadId) -> Result<Vec<Operation>, CoreError>
+}
+```
+
+## `crates/shadows-core/src/threads/model.rs` — 151 lines
 
 ```rust
 pub struct ThreadId(String);
@@ -1344,6 +1368,54 @@ pub enum EntryRef {
     Workflow(WorkflowId),
     Task(TaskId),
 }
+```
+
+## `crates/shadows-core/src/threads/rules.rs` — 20 lines
+
+```rust
+pub(crate) fn known_harness(harness: &str) -> Result<(), CoreError>
+```
+
+## `crates/shadows-core/src/threads/store/entry.rs` — 160 lines
+
+```rust
+pub(crate) async fn append_entry_in(conn: &mut SqliteConnection, thread_id: &ThreadId, entry: NewThreadEntry<'_>, ts: &str) -> Result<ThreadEntry, StorageError>
+pub(super) type EntryRow = (String, String, i64, String, String, String, String, String, String, Option<String>);
+pub(super) fn into_entry(r: EntryRow) -> Result<ThreadEntry, StorageError>
+impl Storage {
+    pub async fn append_thread_entry(&self, thread_id: &ThreadId, entry: NewThreadEntry<'_>) -> Result<ThreadEntry, StorageError>
+    pub async fn list_thread_entries(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>
+}
+```
+
+## `crates/shadows-core/src/threads/store/fork.rs` — 201 lines
+
+```rust
+impl Storage {
+    pub async fn fork_thread(&self, ctx: &CommandContext, source: &ThreadId, at_entry: &ThreadEntryId) -> Result<PlanningThread, StorageError>
+}
+```
+
+## `crates/shadows-core/src/threads/store/mod.rs` — 10 lines
+
+```rust
+pub(crate) use entry::append_entry_in;
+pub(crate) use thread::insert_thread;
+```
+
+## `crates/shadows-core/src/threads/store/thread.rs` — 294 lines
+
+```rust
+impl Storage {
+    pub async fn create_planning_thread(&self, ctx: &CommandContext, project_id: &ProjectId, title: &str, harness: &str) -> Result<PlanningThread, StorageError>
+    pub async fn set_thread_harness(&self, ctx: &CommandContext, thread: &ThreadId, harness: &str) -> Result<PlanningThread, StorageError>
+    pub async fn turn_context(&self, thread_id: &ThreadId) -> Result<TurnContext, StorageError>
+    pub async fn record_harness_session(&self, thread_id: &ThreadId, session_id: &str) -> Result<bool, StorageError>
+    pub async fn list_threads_for_project(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>
+}
+
+pub(crate) async fn insert_thread(conn: &mut SqliteConnection, project_id: &ProjectId, title: &str, harness: &str, actor: Actor, ts: &str) -> Result<ThreadId, StorageError>
+pub(super) async fn load_thread(conn: &mut SqliteConnection, id: &ThreadId) -> Result<PlanningThread, StorageError>
 ```
 
 ## `crates/shadows-core/src/turns/entries.rs` — 151 lines
@@ -1558,7 +1630,7 @@ impl Transition {
 pub(crate) async fn record(conn: &mut SqliteConnection, op_id: &OperationId, before: Before, to: &str, event: DurableEvent, ts: &str) -> Result<Transition, StorageError>
 ```
 
-## `crates/shadows-core/src/turns/store/turn.rs` — 281 lines
+## `crates/shadows-core/src/turns/store/turn.rs` — 283 lines
 
 ```rust
 pub struct NewTurn<'a> {
@@ -1621,7 +1693,7 @@ impl PlannerTurn {
 }
 ```
 
-## `crates/shadows-http/src/conversation.rs` — 198 lines
+## `crates/shadows-http/src/conversation.rs` — 190 lines
 
 ```rust
 pub(super) async fn list_entries(State(s): State<AppState>, Path(thread_id): Path<ThreadId>) -> Result<Json<Vec<ThreadEntry>>, Failure>
@@ -1661,15 +1733,15 @@ impl Failure {
 pub(super) async fn rejections_as_error_bodies(response: axum::response::Response) -> axum::response::Response
 ```
 
-## `crates/shadows-http/src/fs.rs` — 99 lines
+## `crates/shadows-http/src/fs.rs` — 83 lines
 
 ```rust
 pub(super) struct DirsQuery {}
 // + 1 private field
-pub(super) async fn list_dirs(Query(q): Query<DirsQuery>) -> Result<Json<DirectoryListing>, Failure>
+pub(super) async fn list_dirs(State(s): State<AppState>, Query(q): Query<DirsQuery>) -> Result<Json<DirectoryListing>, Failure>
 pub(super) struct CreateDir {}
 // + 2 private fields
-pub(super) async fn create_dir(Json(body): Json<CreateDir>) -> Result<(StatusCode, Json<DirectoryEntry>), Failure>
+pub(super) async fn create_dir(State(s): State<AppState>, Json(body): Json<CreateDir>) -> Result<(StatusCode, Json<DirectoryEntry>), Failure>
 ```
 
 ## `crates/shadows-http/src/grants.rs` — 109 lines
@@ -1703,7 +1775,7 @@ pub(super) async fn change_model(State(s): State<AppState>, Path(thread): Path<T
 pub(super) async fn thread_context(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<ContextBreakdown>, Failure>
 ```
 
-## `crates/shadows-http/src/instructions.rs` — 76 lines
+## `crates/shadows-http/src/instructions.rs` — 67 lines
 
 ```rust
 pub(super) async fn get_instructions(State(s): State<AppState>, Path(project): Path<ProjectId>) -> Result<Json<Option<InstructionsVersion>>, Failure>
@@ -1733,10 +1805,9 @@ pub fn document() -> String
 pub(super) async fn serve() -> ([(header::HeaderName, &'static str); 1], String)
 ```
 
-## `crates/shadows-http/src/project.rs` — 226 lines
+## `crates/shadows-http/src/project.rs` — 175 lines
 
 ```rust
-pub(super) fn ctx(command_id: String, kind: &str, params: serde_json::Value) -> CommandContext
 pub(super) struct CreateProject {}
 // + 4 private fields
 pub(super) async fn list_projects(State(s): State<AppState>) -> Result<Json<Vec<Project>>, Failure>
@@ -1760,12 +1831,11 @@ pub struct SubscribeQuery {
 pub async fn subscribe(State(state): State<AppState>, Query(q): Query<SubscribeQuery>) -> Sse<ReceiverStream<Result<Event, Infallible>>>
 ```
 
-## `crates/shadows-http/src/thread.rs` — 112 lines
+## `crates/shadows-http/src/thread.rs` — 90 lines
 
 ```rust
 pub(super) struct UpdateThread {}
 // + 2 private fields
-pub(super) fn known_harness(harness: &str) -> Result<(), Failure>
 pub(super) async fn update_thread(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<UpdateThread>) -> Result<Json<PlanningThread>, Failure>
 pub(super) struct ForkThread {}
 // + 2 private fields

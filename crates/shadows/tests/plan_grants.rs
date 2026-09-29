@@ -5,7 +5,7 @@
 use serde_json::json;
 use shadows_core::command::Writer;
 use shadows_core::command::derive::{Anchor, derived_id};
-use shadows_core::project::ProjectDirectory;
+use shadows_core::projects::ProjectDirectory;
 use shadows_core::storage::StorageError;
 
 #[path = "fixtures/acp.rs"]

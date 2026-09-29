@@ -9,7 +9,7 @@
 use serde_json::Value;
 
 use super::{LeaseError, OpenSession, Sessions};
-use crate::thread::ThreadId;
+use crate::threads::ThreadId;
 use shadows_agent::{TurnSettings, acp::AcpError, choices::Offered};
 
 /// Why the session's model was not changed (spec §12.7).

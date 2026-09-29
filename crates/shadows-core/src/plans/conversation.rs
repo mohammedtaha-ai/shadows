@@ -2,7 +2,7 @@
 //! points at, and where a shown plan goes.
 
 use super::model::{TaskId, WorkflowId};
-use crate::thread::ThreadEntryId;
+use crate::threads::ThreadEntryId;
 
 /// The task a person points at when they send a turn: the task's id, in the
 /// plan version and at the revision they were looking at. It is checked to

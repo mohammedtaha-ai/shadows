@@ -114,10 +114,10 @@ functions:
 
 enums:
   ProjectId:
-    source: crate::project::ProjectId
+    source: crate::projects::ProjectId
     values: []
   ThreadId:
-    source: crate::thread::ThreadId
+    source: crate::threads::ThreadId
     values: []
   Writer:
     source: crate::command::Writer

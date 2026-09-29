@@ -41,7 +41,7 @@ pub struct DirectoryListing {
 /// `path`'s subdirectories, or the roots when it is `None`. `path` must be an
 /// absolute path to a readable directory; entries inside it that cannot be
 /// read are skipped rather than failing the whole listing.
-pub fn list(path: Option<&Path>) -> Result<DirectoryListing, DirectoryError> {
+pub(super) fn list(path: Option<&Path>) -> Result<DirectoryListing, DirectoryError> {
     let Some(path) = path else {
         return Ok(DirectoryListing {
             path: None,
@@ -67,7 +67,10 @@ pub fn list(path: Option<&Path>) -> Result<DirectoryListing, DirectoryError> {
 /// component that Windows would also accept, so a project folder made here can
 /// be opened on any machine the project reaches. An existing directory is
 /// `AlreadyExists`, never silently reused: the person asked for a new one.
-pub fn create_subdirectory(parent: &Path, name: &str) -> Result<DirectoryEntry, DirectoryError> {
+pub(super) fn create_subdirectory(
+    parent: &Path,
+    name: &str,
+) -> Result<DirectoryEntry, DirectoryError> {
     check_name(name)?;
     let parent = canonical_dir(parent)?;
     let path = parent.join(name);
@@ -143,6 +146,19 @@ fn root_entry(root: PathBuf) -> Option<DirectoryEntry> {
         path,
         hidden: false,
     })
+}
+
+/// Runs `work` on a blocking thread: listing a large or slow directory must
+/// not stall the async runtime. A panicked or cancelled task is `Unavailable`.
+pub(super) async fn blocking<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, DirectoryError> + Send + 'static,
+) -> Result<T, DirectoryError> {
+    tokio::task::spawn_blocking(work)
+        .await
+        .map_err(|e| DirectoryError::Unavailable {
+            path: String::new(),
+            source: std::io::Error::other(e),
+        })?
 }
 
 /// Refuses anything that is not exactly one new name: empty, `.`, `..`, a

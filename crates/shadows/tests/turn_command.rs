@@ -8,7 +8,7 @@ use shadows_agent::TurnSettings;
 use shadows_core::storage::StorageError;
 use shadows_core::testing::FailureStage;
 use shadows_core::testing::StartedTurn;
-use shadows_core::thread::ThreadEntryKind;
+use shadows_core::threads::ThreadEntryKind;
 
 #[path = "fixtures/acp.rs"]
 mod acp;

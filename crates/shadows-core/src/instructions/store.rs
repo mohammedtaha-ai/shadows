@@ -5,24 +5,11 @@
 
 use sqlx::SqliteConnection;
 
-use super::command::{classify, record_command};
-use super::events::append_event;
-use super::{Storage, StorageError, now};
+use super::model::InstructionsVersion;
 use crate::command::CommandContext;
 use crate::events::{Actor, DurableEvent};
-use crate::project::ProjectId;
-
-/// One saved version of a project's instructions. `id` is what an
-/// `agent_invocation` records (§13.15); a client sees the number instead.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
-pub struct InstructionsVersion {
-    #[serde(skip)]
-    pub id: String,
-    /// 1, 2, 3 … within the project.
-    pub number: i64,
-    pub body: String,
-    pub created_at: String,
-}
+use crate::projects::ProjectId;
+use crate::storage::{Storage, StorageError, append_event, classify, now, record_command};
 
 type VersionRow = (String, i64, String, String);
 

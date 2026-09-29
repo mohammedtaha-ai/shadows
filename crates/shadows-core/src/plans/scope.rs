@@ -13,7 +13,7 @@ use crate::command::{CommandContext, Writer, fingerprint};
 use crate::error::{CoreError, ErrorCode};
 use crate::grants::{Grant, GrantKind};
 use crate::storage::StorageError;
-use crate::thread::ThreadId;
+use crate::threads::ThreadId;
 
 impl Plans {
     /// The plan version a call reaches (§13.6): reads and cards can name an

@@ -1,12 +1,14 @@
+//! One job: a project's rows — the project itself and the modes it allows.
+
 use std::collections::BTreeMap;
 
 use sqlx::SqliteConnection;
 
-use super::command::{classify, record_command};
-use super::{Storage, StorageError, events::append_event, now};
+use super::directory::ProjectDirectory;
+use super::model::{Project, ProjectId};
 use crate::command::CommandContext;
 use crate::events::{Actor, DurableEvent};
-use crate::project::{Project, ProjectDirectory, ProjectId};
+use crate::storage::{Storage, StorageError, append_event, classify, now, record_command};
 use shadows_agent::policy;
 
 impl Storage {

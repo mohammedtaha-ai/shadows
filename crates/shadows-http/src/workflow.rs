@@ -9,7 +9,7 @@ use axum::extract::{Path, State};
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
-use shadows_core::project::ProjectId;
+use shadows_core::ProjectId;
 use shadows_core::{Approved, Plan, PlanListing, WorkflowId};
 
 /// Each planning thread's latest plan version in a project. An unknown

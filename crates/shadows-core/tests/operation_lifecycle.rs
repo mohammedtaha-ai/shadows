@@ -2,13 +2,13 @@ use shadows_core::events::Actor;
 use shadows_core::runtime::RuntimeInstanceId;
 use shadows_core::storage::{Storage, StorageError};
 use shadows_core::testing::FailureStage;
-use shadows_core::thread::ThreadId;
+use shadows_core::threads::ThreadId;
 
 async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let runtime = storage.register_runtime_instance("test").await.unwrap();
-    let dir = shadows_core::project::ProjectDirectory::resolve(tmp.path()).unwrap();
+    let dir = shadows_core::projects::ProjectDirectory::resolve(tmp.path()).unwrap();
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = shadows_core::command::CommandContext {
         principal_kind: "User".into(),

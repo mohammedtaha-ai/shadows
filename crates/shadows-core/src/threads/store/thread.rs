@@ -5,12 +5,11 @@ use std::path::PathBuf;
 
 use sqlx::SqliteConnection;
 
-use super::command::{classify, record_command};
-use super::{Storage, StorageError, events::append_event, now};
 use crate::command::CommandContext;
 use crate::events::{Actor, DurableEvent};
-use crate::project::ProjectId;
-use crate::thread::{PlanningThread, ThreadId, TurnContext};
+use crate::projects::ProjectId;
+use crate::storage::{Storage, StorageError, append_event, classify, now, record_command};
+use crate::threads::model::{PlanningThread, ThreadId, TurnContext};
 
 impl Storage {
     /// `harness` is the thread's CLI (spec §12.6); the caller checks it is one

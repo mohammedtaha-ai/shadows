@@ -19,10 +19,12 @@ use crate::error::CoreError;
 use crate::events::UiSignal;
 use crate::grants::Grants;
 use crate::harness::{Harness, Sessions, SessionsConfig};
+use crate::instructions::Instructions;
 use crate::plans::Plans;
+use crate::projects::Projects;
 use crate::runtime::Runtime;
 use crate::storage::{StopKind, Storage};
-use crate::thread::ThreadId;
+use crate::threads::{ThreadId, Threads};
 use crate::turns::{LiveHandles, OperationId, Turns};
 
 /// A running turn's live harness events, for every live subscriber.
@@ -49,7 +51,10 @@ pub struct AppCore {
     plans: Plans,
     grants: Grants,
     turns: Turns,
-    harness: Harness,
+    harness: Arc<Harness>,
+    projects: Projects,
+    threads: Threads,
+    instructions: Instructions,
     // Held while adapters still reach them (Tasks 5–9); each goes when its
     // last reader moves into a service, and Task 10 removes the last.
     storage: Arc<Storage>,
@@ -69,8 +74,8 @@ pub struct StartConfig {
 }
 
 /// The `CommandContext` a person's command carries: principal `User`, id
-/// `local`, schema version 1, the fingerprint of `params`. The same body as
-/// `shadows_http::project::ctx`, so no fingerprint moves.
+/// `local`, schema version 1, the fingerprint of `params`. The same body the
+/// routes built before the services did, so no fingerprint moves.
 ///
 /// Every route that mutates carries the caller's command id (spec §3.2), and
 /// the fingerprint is derived from the same parameters the capability is about
@@ -152,6 +157,8 @@ impl AppCore {
             ui,
             mcp_url,
         } = parts;
+        let harness = Arc::new(Harness::new(storage.clone(), sessions.clone()));
+        let threads = Threads::new(storage.clone(), harness.clone());
         Arc::new(AppCore {
             plans: Plans::new(storage.clone(), handles.clone(), ui.clone()),
             grants: Grants::new(storage.clone(), mcp_url),
@@ -162,7 +169,10 @@ impl AppCore {
                 handles,
                 bus.clone(),
             ),
-            harness: Harness::new(storage.clone(), sessions.clone()),
+            harness,
+            projects: Projects::new(storage.clone()),
+            threads,
+            instructions: Instructions::new(storage.clone()),
             storage,
             sessions,
             bus,
@@ -184,6 +194,18 @@ impl AppCore {
 
     pub fn harness(&self) -> &Harness {
         &self.harness
+    }
+
+    pub fn projects(&self) -> &Projects {
+        &self.projects
+    }
+
+    pub fn threads(&self) -> &Threads {
+        &self.threads
+    }
+
+    pub fn instructions(&self) -> &Instructions {
+        &self.instructions
     }
 
     /// §8.5 through `turns::shut_down(runtime, handles, sessions, bound,

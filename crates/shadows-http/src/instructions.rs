@@ -7,10 +7,8 @@ use axum::Json;
 use axum::extract::{Path, State};
 
 use super::failure::ErrorBody;
-use super::project::ctx;
 use super::{AppState, Failure};
-use shadows_core::project::ProjectId;
-use shadows_core::storage::InstructionsVersion;
+use shadows_core::{InstructionsVersion, ProjectId};
 
 /// The project's current instructions — its highest-numbered version — or
 /// `null` before the first save.
@@ -28,12 +26,7 @@ pub(super) async fn get_instructions(
     State(s): State<AppState>,
     Path(project): Path<ProjectId>,
 ) -> Result<Json<Option<InstructionsVersion>>, Failure> {
-    Ok(Json(
-        s.core
-            .storage()
-            .current_planner_instructions(&project)
-            .await?,
-    ))
+    Ok(Json(s.core.instructions().current(&project).await?))
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -65,12 +58,10 @@ pub(super) async fn save_instructions(
     Path(project): Path<ProjectId>,
     Json(body): Json<SaveInstructions>,
 ) -> Result<Json<InstructionsVersion>, Failure> {
-    let params = serde_json::json!({ "project": project, "body": body.body });
-    let c = ctx(body.command_id, "PlannerInstructionsSave", params);
     Ok(Json(
         s.core
-            .storage()
-            .save_planner_instructions(&c, &project, &body.body)
+            .instructions()
+            .save(body.command_id, &project, &body.body)
             .await?,
     ))
 }

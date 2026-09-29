@@ -15,7 +15,7 @@ use shadows_core::events::Actor;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
 use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
-use shadows_core::thread::ThreadId;
+use shadows_core::threads::ThreadId;
 use shadows_core::{Operation, OperationId};
 
 #[path = "fixtures/acp.rs"]
@@ -40,7 +40,7 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
             &ctx,
             slug,
             slug,
-            &shadows_core::project::ProjectDirectory::resolve(dir).unwrap(),
+            &shadows_core::projects::ProjectDirectory::resolve(dir).unwrap(),
             &shadows_agent::policy::default_modes(),
         )
         .await

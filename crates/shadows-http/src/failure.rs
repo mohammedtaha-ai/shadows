@@ -12,9 +12,9 @@ use axum::Json;
 use axum::http::StatusCode;
 
 use shadows_core::CoreError;
+use shadows_core::DirectoryError;
 use shadows_core::StartError;
 use shadows_core::error::ErrorCode;
-use shadows_core::project::DirectoryError;
 use shadows_core::storage::StorageError;
 
 /// A failed request: its status and the body it answers with.

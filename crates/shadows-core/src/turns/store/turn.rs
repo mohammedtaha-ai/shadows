@@ -13,8 +13,10 @@ use crate::harness::remember_settings;
 use crate::plans::Focus;
 use crate::plans::task_of;
 use crate::runtime::RuntimeInstanceId;
-use crate::storage::{Storage, StorageError, append_entry_in, classify, now, record_command};
-use crate::thread::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId};
+use crate::storage::{Storage, StorageError, classify, now, record_command};
+use crate::threads::{
+    EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, append_entry_in,
+};
 use crate::turns::model::OperationId;
 use shadows_agent::TurnSettings;
 

@@ -1,6 +1,6 @@
 use crate::plans::{Place, WorkflowId};
-use crate::project::ProjectId;
-use crate::thread::ThreadId;
+use crate::projects::ProjectId;
+use crate::threads::ThreadId;
 use crate::turns::OperationId;
 
 /// Spec §6.18. `seq` is assigned by the INSERT, which on SQLite can only run

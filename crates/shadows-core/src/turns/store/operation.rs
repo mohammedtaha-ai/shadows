@@ -3,7 +3,7 @@
 
 use crate::events::{Actor, DurableEvent};
 use crate::runtime::RuntimeInstanceId;
-use crate::thread::ThreadId;
+use crate::threads::ThreadId;
 use crate::turns::model::{FailureStage, OperationId};
 
 use sqlx::SqliteConnection;

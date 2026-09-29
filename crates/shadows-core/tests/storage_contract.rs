@@ -2,7 +2,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use shadows_core::events::{Actor, DurableEvent};
-use shadows_core::project::ProjectId;
+use shadows_core::projects::ProjectId;
 use shadows_core::storage::Storage;
 use sqlx::Connection;
 

@@ -41,7 +41,7 @@ use crate::command::fingerprint;
 use crate::error::{CoreError, ErrorCode};
 use crate::events::UiSignal;
 use crate::grants::{Grant, GrantKind};
-use crate::project::ProjectId;
+use crate::projects::ProjectId;
 use crate::storage::Storage;
 use crate::turns::LiveHandles;
 

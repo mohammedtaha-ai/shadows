@@ -7,7 +7,7 @@
 //! adapter, within `SessionsConfig::context_wait`.
 
 use super::Sessions;
-use crate::thread::ThreadId;
+use crate::threads::ThreadId;
 use shadows_agent::acp::AcpError;
 use shadows_agent::breakdown::{Category, parse};
 use shadows_agent::events::HarnessEvent;

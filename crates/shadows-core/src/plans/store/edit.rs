@@ -14,11 +14,9 @@ use crate::grants::check_writer;
 use crate::plans::model::{Approved, EditOutcome, WorkflowId, WorkflowState};
 use crate::plans::ops::{PlanOp, apply};
 use crate::plans::rules::approval_problems;
-use crate::project::ProjectId;
-use crate::storage::{
-    Storage, StorageError, append_entry_in, append_event, classify, now, record_command,
-};
-use crate::thread::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId};
+use crate::projects::ProjectId;
+use crate::storage::{Storage, StorageError, append_event, classify, now, record_command};
+use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId, append_entry_in};
 
 impl Storage {
     /// §13.5's order of work: the grant, then a recorded command (answered

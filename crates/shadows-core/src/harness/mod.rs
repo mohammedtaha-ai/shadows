@@ -37,7 +37,7 @@ use settings::ModelRefused;
 
 use crate::error::CoreError;
 use crate::storage::{Storage, StorageError};
-use crate::thread::ThreadId;
+use crate::threads::ThreadId;
 
 /// Harness: what storage holds, and the sessions each open thread has.
 pub struct Harness {
@@ -140,6 +140,13 @@ impl Harness {
                 reason: Some(why.reason().to_string()),
             },
         })
+    }
+
+    /// Closes the thread's open session, if it has one (§12.2): its adapter's
+    /// tree is ended and its grant revoked. `Threads` calls it when a thread's
+    /// harness changes.
+    pub(crate) async fn close_session(&self, thread: &ThreadId) -> std::io::Result<()> {
+        self.sessions.terminate(thread).await
     }
 
     /// What a client is offered on `thread`: the session's choices after the

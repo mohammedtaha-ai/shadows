@@ -294,7 +294,7 @@ async fn startup_revokes_every_thread_grant_and_keeps_project_grants() {
     let (_, other_thread) = other_project(&app).await;
     let second_thread = app::create_thread(&app, json!({ "command_id": "t2", "title": "B" })).await;
     let second_thread =
-        serde_json::from_value::<shadows_core::thread::ThreadId>(second_thread["id"].clone())
+        serde_json::from_value::<shadows_core::threads::ThreadId>(second_thread["id"].clone())
             .unwrap();
     let mut thread_tokens = Vec::new();
     for thread in [&app.thread, &second_thread, &other_thread] {

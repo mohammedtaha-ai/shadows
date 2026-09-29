@@ -11,27 +11,8 @@ use axum::extract::{Path, State};
 use std::collections::BTreeMap;
 
 use super::failure::ErrorBody;
-use super::thread::known_harness;
 use super::{AppState, Failure};
-use shadows_agent::policy;
-use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::project::{Project, ProjectDirectory, ProjectId};
-use shadows_core::thread::PlanningThread;
-
-/// Every route that mutates carries the caller's command id (spec §3.2), and
-/// the fingerprint is derived from the same parameters the capability is about
-/// to act on — never supplied by the client, which would let a replay with a
-/// different body claim to be the same command.
-pub(super) fn ctx(command_id: String, kind: &str, params: serde_json::Value) -> CommandContext {
-    CommandContext {
-        principal_kind: "User".into(),
-        principal_id: "local".into(),
-        command_id,
-        command_kind: kind.into(),
-        command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, &params),
-    }
-}
+use shadows_core::{PlanningThread, Project, ProjectId};
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct CreateProject {
@@ -58,7 +39,7 @@ pub(super) struct CreateProject {
 pub(super) async fn list_projects(
     State(s): State<AppState>,
 ) -> Result<Json<Vec<Project>>, Failure> {
-    Ok(Json(s.core.storage().list_projects().await?))
+    Ok(Json(s.core.projects().list().await?))
 }
 
 /// Creates a project owning an existing directory.
@@ -80,23 +61,16 @@ pub(super) async fn create_project(
     State(s): State<AppState>,
     Json(body): Json<CreateProject>,
 ) -> Result<Json<Project>, Failure> {
-    // Resolved before the fingerprint is taken, so two spellings of one
-    // folder are one request, and a bad path is refused before any write.
-    let directory = ProjectDirectory::resolve(std::path::Path::new(&body.directory))?;
-    let params = serde_json::json!({
-        "slug": body.slug, "name": body.name, "directory": directory.as_str(),
-    });
-    let c = ctx(body.command_id, "project.create", params);
+    let CreateProject {
+        command_id,
+        slug,
+        name,
+        directory,
+    } = body;
     Ok(Json(
         s.core
-            .storage()
-            .create_project(
-                &c,
-                &body.slug,
-                &body.name,
-                &directory,
-                &policy::default_modes(),
-            )
+            .projects()
+            .create(command_id, &slug, &name, &directory)
             .await?,
     ))
 }
@@ -116,12 +90,7 @@ pub(super) async fn list_threads(
     State(s): State<AppState>,
     Path(project_id): Path<ProjectId>,
 ) -> Result<Json<Vec<PlanningThread>>, Failure> {
-    Ok(Json(
-        s.core
-            .storage()
-            .list_threads_for_project(&project_id)
-            .await?,
-    ))
+    Ok(Json(s.core.threads().list(&project_id).await?))
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -153,16 +122,15 @@ pub(super) async fn create_thread(
     Path(project_id): Path<ProjectId>,
     Json(body): Json<CreateThread>,
 ) -> Result<Json<PlanningThread>, Failure> {
-    let harness = body.harness.as_deref().unwrap_or(policy::CLAUDE_CODE);
-    known_harness(harness)?;
-    let params = serde_json::json!({
-        "project": project_id, "title": body.title, "harness": harness,
-    });
-    let c = ctx(body.command_id, "thread.create", params);
     Ok(Json(
         s.core
-            .storage()
-            .create_planning_thread(&c, &project_id, &body.title, harness)
+            .threads()
+            .create(
+                body.command_id,
+                &project_id,
+                &body.title,
+                body.harness.as_deref(),
+            )
             .await?,
     ))
 }
@@ -198,29 +166,10 @@ pub(super) async fn update_project(
     Path(project_id): Path<ProjectId>,
     Json(body): Json<UpdateProject>,
 ) -> Result<Json<Project>, Failure> {
-    let mut modes = BTreeMap::new();
-    for (harness, list) in body.allowed_modes {
-        known_harness(&harness)?;
-        let policy = policy::allowed_modes(&harness);
-        let mut set: Vec<String> = Vec::new();
-        for mode in list {
-            if !policy.contains(&mode.as_str()) {
-                return Err(Failure::setting_not_offered("mode", &mode, None));
-            }
-            if !set.contains(&mode) {
-                set.push(mode);
-            }
-        }
-        // A set: the order it was sent in is not part of the request.
-        set.sort();
-        modes.insert(harness, set);
-    }
-    let params = serde_json::json!({ "project": project_id, "allowed_modes": modes });
-    let c = ctx(body.command_id, "project.modes", params);
     Ok(Json(
         s.core
-            .storage()
-            .set_project_modes(&c, &project_id, &modes)
+            .projects()
+            .set_modes(body.command_id, &project_id, body.allowed_modes)
             .await?,
     ))
 }

@@ -18,7 +18,7 @@ use shadows_core::events::Actor;
 use shadows_core::harness::Sessions;
 use shadows_core::runtime::Runtime;
 use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
-use shadows_core::thread::{ThreadEntry, ThreadEntryKind, ThreadId};
+use shadows_core::threads::{ThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
 use shadows_http::AppState;
@@ -70,7 +70,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
             &ctx,
             "demo",
             "Demo",
-            &shadows_core::project::ProjectDirectory::resolve(tmp.path()).unwrap(),
+            &shadows_core::projects::ProjectDirectory::resolve(tmp.path()).unwrap(),
             &shadows_agent::policy::default_modes(),
         )
         .await

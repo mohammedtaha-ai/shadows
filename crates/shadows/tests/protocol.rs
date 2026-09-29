@@ -19,7 +19,7 @@ use shadows_core::harness::Sessions;
 use shadows_core::runtime::{Runtime, RuntimeInstanceId};
 use shadows_core::storage::Storage;
 use shadows_core::testing::LiveHandles;
-use shadows_core::thread::ThreadId;
+use shadows_core::threads::ThreadId;
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};

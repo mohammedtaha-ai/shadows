@@ -1,12 +1,8 @@
 mod sqlite;
 
-pub use sqlite::{
-    InstructionsVersion, ReconcileReport, StopKind, Storage, StorageError, StoredEvent,
-};
-// Store helpers a plan or turn write shares inside its one transaction (spec §14.6).
-pub(crate) use sqlite::{
-    append_entry_in, append_event, classify, insert_thread, now, record_command,
-};
+pub use sqlite::{ReconcileReport, StopKind, Storage, StorageError, StoredEvent};
+// Store helpers every service's write shares inside its one transaction (spec §14.6).
+pub(crate) use sqlite::{append_event, classify, now, record_command};
 
 /// Test-only access to a private capability. Compiled in only when the
 /// `test-support` feature is enabled — enabled automatically for `cargo test`

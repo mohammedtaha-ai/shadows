@@ -6,10 +6,8 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 
 use super::failure::ErrorBody;
-use super::project::ctx;
 use super::{AppState, Failure};
-use shadows_agent::policy;
-use shadows_core::thread::{PlanningThread, ThreadEntryId, ThreadId};
+use shadows_core::{PlanningThread, ThreadEntryId, ThreadId};
 
 /// Changes the thread's CLI. Refused once the thread has run a turn, and on
 /// a fork from birth (`HARNESS_LOCKED`).
@@ -19,15 +17,6 @@ pub(super) struct UpdateThread {
     command_id: String,
     /// `claude-code` or `codex`.
     harness: String,
-}
-
-/// A harness Shadows knows, or `SETTING_NOT_OFFERED` naming it.
-pub(super) fn known_harness(harness: &str) -> Result<(), Failure> {
-    if policy::is_known(harness) {
-        Ok(())
-    } else {
-        Err(Failure::setting_not_offered("harness", harness, None))
-    }
 }
 
 /// Changes the thread's CLI before its first turn (spec §12.6). A replay
@@ -53,21 +42,12 @@ pub(super) async fn update_thread(
     Path(thread): Path<ThreadId>,
     Json(body): Json<UpdateThread>,
 ) -> Result<Json<PlanningThread>, Failure> {
-    known_harness(&body.harness)?;
-    let before = s.core.storage().turn_context(&thread).await?.harness;
-    let params = serde_json::json!({ "thread_id": thread, "harness": body.harness });
-    let c = ctx(body.command_id, "thread.harness", params);
-    let updated = s
-        .core
-        .storage()
-        .set_thread_harness(&c, &thread, &body.harness)
-        .await?;
-    if updated.harness != before
-        && let Err(error) = s.core.sessions().terminate(&thread).await
-    {
-        tracing::error!(%error, thread_id = %thread, "thread.harness_change_close_failed");
-    }
-    Ok(Json(updated))
+    Ok(Json(
+        s.core
+            .threads()
+            .set_harness(body.command_id, &thread, &body.harness)
+            .await?,
+    ))
 }
 
 /// Forks the thread from its last completed entry (spec §12.9).
@@ -101,12 +81,10 @@ pub(super) async fn fork_thread(
     Path(thread): Path<ThreadId>,
     Json(body): Json<ForkThread>,
 ) -> Result<(StatusCode, Json<PlanningThread>), Failure> {
-    let params = serde_json::json!({ "thread_id": thread, "at_entry_id": body.at_entry_id });
-    let c = ctx(body.command_id, "thread.fork", params);
     let fork = s
         .core
-        .storage()
-        .fork_thread(&c, &thread, &body.at_entry_id)
+        .threads()
+        .fork(body.command_id, &thread, &body.at_entry_id)
         .await?;
     Ok((StatusCode::CREATED, Json(fork)))
 }

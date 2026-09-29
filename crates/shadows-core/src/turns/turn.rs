@@ -44,7 +44,7 @@ use crate::{
     harness::{OpenSession, Sessions},
     runtime::Runtime,
     storage::StorageError,
-    thread::{NewThreadEntry, ThreadEntryKind, ThreadId},
+    threads::{NewThreadEntry, ThreadEntryKind, ThreadId},
 };
 use shadows_agent::{
     acp::{AcpError, TurnEnd},

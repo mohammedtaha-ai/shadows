@@ -15,7 +15,7 @@ use shadows::cli::router;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
 use shadows_core::testing::LiveHandles;
-use shadows_core::thread::ThreadId;
+use shadows_core::threads::ThreadId;
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tower::ServiceExt;

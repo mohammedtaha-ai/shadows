@@ -61,7 +61,7 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
         command_schema_ver: 1,
         request_fingerprint: fingerprint(kind, &params),
     };
-    let dir = shadows_core::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
+    let dir = shadows_core::projects::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
     let project = storage
         .create_project(
             &ctx("c1", "project.create"),

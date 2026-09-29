@@ -16,7 +16,7 @@ use shadows_core::harness::Sessions;
 use shadows_core::runtime::Runtime;
 use shadows_core::testing::NewTurn;
 use shadows_core::testing::{LiveHandles, PlannerTurn, PlannerTurnRequest};
-use shadows_core::thread::ThreadId;
+use shadows_core::threads::ThreadId;
 
 /// The fake's own settings, which every turn can run with.
 pub fn default_turn_settings() -> TurnSettings {

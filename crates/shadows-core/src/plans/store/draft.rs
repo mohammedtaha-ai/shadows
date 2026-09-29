@@ -13,11 +13,9 @@ use crate::events::DurableEvent;
 use crate::grants::{bind_draft_ref, check_writer};
 use crate::plans::model::{DraftStarted, PlanContent, WorkflowId, WorkflowState};
 use crate::plans::rules::Problem;
-use crate::project::ProjectId;
-use crate::storage::{
-    Storage, StorageError, append_event, classify, insert_thread, now, record_command,
-};
-use crate::thread::ThreadId;
+use crate::projects::ProjectId;
+use crate::storage::{Storage, StorageError, append_event, classify, now, record_command};
+use crate::threads::{ThreadId, insert_thread};
 use shadows_agent::policy;
 
 impl Storage {

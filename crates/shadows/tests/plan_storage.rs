@@ -8,7 +8,7 @@ use shadows_core::OperationId;
 use shadows_core::command::derive::{Anchor, derived_id};
 use shadows_core::command::{Writer, fingerprint};
 use shadows_core::storage::StorageError;
-use shadows_core::thread::{EntryRef, ThreadEntryKind};
+use shadows_core::threads::{EntryRef, ThreadEntryKind};
 use shadows_core::{LinkKind, Plan, PlanOp, TaskContent, WorkflowState};
 
 #[path = "fixtures/acp.rs"]

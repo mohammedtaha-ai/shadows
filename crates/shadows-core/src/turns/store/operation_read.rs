@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use sqlx::SqliteConnection;
 
 use crate::runtime::RuntimeInstanceId;
-use crate::thread::ThreadId;
+use crate::threads::ThreadId;
 use crate::turns::model::{InvocationView, Operation, OperationId};
 
 use crate::storage::{Storage, StorageError};

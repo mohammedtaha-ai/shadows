@@ -2,7 +2,7 @@
 //! read, and the person's approval with its refusals.
 
 use serde_json::{Value, json};
-use shadows_core::thread::ThreadId;
+use shadows_core::threads::ThreadId;
 use shadows_core::{PlanOp, TaskContent};
 
 #[path = "fixtures/acp.rs"]

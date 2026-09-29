@@ -10,7 +10,7 @@ use axum::extract::{Path, Query, State};
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
-use shadows_core::project::ProjectId;
+use shadows_core::ProjectId;
 use shadows_core::{Grant, GrantId};
 
 /// A project's grants for external agents, revoked ones included, newest

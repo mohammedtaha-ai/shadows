@@ -166,7 +166,7 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
 
 async fn start(
     state: &Daemon,
-    thread: &shadows_core::thread::ThreadId,
+    thread: &shadows_core::threads::ThreadId,
     prompt: &str,
 ) -> OperationId {
     turn::start_direct(
@@ -224,7 +224,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (Daemon, tokio::sync::watch::Send
     (daemon, stopping)
 }
 
-async fn seed_thread(runtime: &Runtime) -> shadows_core::thread::ThreadId {
+async fn seed_thread(runtime: &Runtime) -> shadows_core::threads::ThreadId {
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = CommandContext {
         principal_kind: "User".into(),
@@ -240,7 +240,7 @@ async fn seed_thread(runtime: &Runtime) -> shadows_core::thread::ThreadId {
             &ctx,
             "demo",
             "Demo",
-            &shadows_core::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+            &shadows_core::projects::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
             &shadows_agent::policy::default_modes(),
         )
         .await

@@ -6,7 +6,7 @@
 use serde_json::json;
 use shadows_agent::policy;
 use shadows_core::WorkflowId;
-use shadows_core::thread::ThreadId;
+use shadows_core::threads::ThreadId;
 
 #[path = "fixtures/acp.rs"]
 mod acp;

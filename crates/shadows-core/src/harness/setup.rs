@@ -14,9 +14,10 @@ use std::sync::{Arc, Mutex, OnceLock};
 use sha2::{Digest, Sha256};
 
 use crate::grants::GrantId;
-use crate::project::ProjectId;
-use crate::storage::{InstructionsVersion, Storage, StorageError};
-use crate::thread::ThreadId;
+use crate::instructions::InstructionsVersion;
+use crate::projects::ProjectId;
+use crate::storage::{Storage, StorageError};
+use crate::threads::ThreadId;
 use shadows_agent::acp::{McpServerSpec, SessionSetup};
 
 /// Shadows' instructions to the Planner, compiled in.

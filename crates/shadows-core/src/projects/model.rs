@@ -1,9 +1,6 @@
+//! One job: the project types callers meet.
+
 use std::collections::BTreeMap;
-
-pub mod browse;
-pub mod directory;
-
-pub use directory::{DirectoryError, ProjectDirectory};
 
 use crate::id::newtype_id;
 

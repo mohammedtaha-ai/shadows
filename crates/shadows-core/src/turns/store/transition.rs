@@ -17,7 +17,7 @@ use sqlx::SqliteConnection;
 
 use crate::events::DurableEvent;
 use crate::storage::{StorageError, append_event};
-use crate::thread::ThreadId;
+use crate::threads::ThreadId;
 use crate::turns::model::OperationId;
 
 /// An operation's status and thread as the open write transaction found them,

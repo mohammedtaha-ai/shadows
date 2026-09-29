@@ -13,7 +13,7 @@ use super::conversation::detached;
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
 use shadows_agent::choices::SessionChoices;
-use shadows_core::thread::ThreadId;
+use shadows_core::ThreadId;
 use shadows_core::{ContextBreakdown, HarnessInfo};
 
 /// Every harness Shadows knows, runnable or not, with the model and effort

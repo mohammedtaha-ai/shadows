@@ -22,7 +22,7 @@ use super::offers::{Offers, intercept};
 use super::setup::Setups;
 use crate::{
     storage::{Storage, StorageError},
-    thread::{ThreadId, TurnContext},
+    threads::{ThreadId, TurnContext},
 };
 use shadows_agent::{
     acp::{Connection, SessionStart},

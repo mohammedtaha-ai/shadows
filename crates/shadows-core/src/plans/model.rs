@@ -11,8 +11,8 @@ use std::collections::BTreeMap;
 
 use super::rules::Problem;
 use crate::id::newtype_id;
-use crate::project::ProjectId;
-use crate::thread::ThreadId;
+use crate::projects::ProjectId;
+use crate::threads::ThreadId;
 
 newtype_id! {
     /// Spec §13.2. One version of a plan.

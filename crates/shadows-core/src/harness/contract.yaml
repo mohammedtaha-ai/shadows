@@ -98,6 +98,13 @@ functions:
       signature: "(&self, thread: &ThreadId, offered: &Offered) -> Result<SessionChoices, CoreError>"
       # `for_client` over the thread's harness and its project's allowed
       # modes. Also the SSE `options` frame's; Events takes it in Task 10.
+  for_threads:
+    close_session:
+      signature: "(&self, thread: &ThreadId) -> io::Result<()>"
+      # pub(crate): `Threads::set_harness` closes the thread's session when
+      # its harness changed. `Sessions::terminate`: the adapter's tree is
+      # stopped, its offer forgotten and its grant revoked
+      # (`Setups::forget`); no open session is Ok.
   sessions_for_turns:
     # `Turns` holds the same `Arc<Sessions>` and drives a turn through these,
     # a documented cross-service call (§14.6): the session lease is one
@@ -318,13 +325,11 @@ open_questions:
       `Setups` issues go through the second). Whether it takes the shared one is for Task 10, when
       `storage` becomes private.
   - >
-      `AppCore::sessions()` has two callers, both in `shadows-http`: the SSE
-      loop's `watch_options()` (`sse.rs`) and the thread delete route's
-      `terminate` (`thread.rs`). Neither passes a Harness rule: one subscribes
-      to offers, the other closes a deleted thread's adapter. No test calls
-      it; tests hold `CoreParts`' `Arc<Sessions>`. `sse.rs`'s usage frame also
-      reads `core.storage().latest_limits` directly (ruling F6). They move with
-      Threads and Events (Tasks 9–10).
+      `AppCore::sessions()` has one caller left, the SSE loop's
+      `watch_options()` (`shadows-http/src/sse.rs`), which subscribes to
+      offers. No test calls it; tests hold `CoreParts`' `Arc<Sessions>`.
+      `sse.rs`'s usage frame also reads `core.storage().latest_limits`
+      directly (ruling F6). Both move with Events (Task 10).
 
 
 tests:

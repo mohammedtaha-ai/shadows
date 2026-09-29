@@ -18,11 +18,11 @@ use shadows_agent::events::HarnessEvent;
 use shadows_core::OperationId;
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::events::{Actor, EventCursor};
-use shadows_core::project::Project;
+use shadows_core::projects::Project;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
 use shadows_core::testing::LiveHandles;
-use shadows_core::thread::{NewThreadEntry, PlanningThread, ThreadEntryKind, ThreadId};
+use shadows_core::threads::{NewThreadEntry, PlanningThread, ThreadEntryKind, ThreadId};
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use shadows_http::sse::{SubscribeQuery, subscribe};
@@ -43,7 +43,7 @@ async fn seed(storage: &Storage) -> (Project, PlanningThread) {
         command_schema_ver: 1,
         request_fingerprint: fingerprint("project.create", &params),
     };
-    let dir = shadows_core::project::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
+    let dir = shadows_core::projects::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
     let project = storage
         .create_project(
             &ctx,

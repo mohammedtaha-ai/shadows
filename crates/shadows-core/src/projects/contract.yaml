@@ -1,0 +1,303 @@
+# Owns the projects and the folders a person picks them from (spec §4.1,
+# §4.2, §11.1, §12.5, §14.4): listing and creating a project, the modes it
+# allows per harness, and showing or making the directories a project may own.
+#
+# `create`'s order is the rule: the directory is resolved
+# (`ProjectDirectory::resolve`: absolute, canonical through `dunce`, UTF-8, a
+# directory now) BEFORE the fingerprint is taken, so two spellings of one
+# folder are one request and a bad path is refused before any write. The
+# fingerprint is over the canonical text, never the text the caller sent.
+#
+# `set_modes` normalizes before the fingerprint too: every harness must be
+# known (`threads::known_harness`, the one rule Threads also uses), every
+# mode in `policy::allowed_modes` of its harness, and each list is
+# deduplicated and sorted. A harness not named keeps its modes.
+#
+# Trap: a `ProjectDirectory` proves the check ran when it was built, not
+# later: a directory deleted after `create` is caught when a turn opens its
+# session (Harness), not here.
+# Trap: `list_dirs` and `create_dir` touch the disk only; they record no
+# command and no event, and a directory made here belongs to no project until
+# a `create` names it.
+
+name: projects
+version: 1
+status: current
+source: crates/shadows-core/src/projects
+
+
+shapes:
+  Projects:
+    storage: Arc<Storage>
+  Project:
+    id: ProjectId
+    slug: String
+    name: String
+    # Canonical, as `ProjectDirectory` resolved it; `None` only for a project
+    # created before projects owned one (migration 0003).
+    directory: Option<String>
+    created_at: String
+    # Every known harness is present (`empty_modes` fills the gaps); each list
+    # is a set read in `mode_id` order, and an empty list allows no turn.
+    allowed_modes: BTreeMap<String, Vec<String>>
+  ProjectDirectory:
+    # Built only by `resolve`, so a value is proof the check ran.
+    "0": String
+  DirectoryError:
+    NotAbsolute: String
+    NotUtf8: unit
+    NotFound: String
+    NotADirectory: String
+    AccessDenied: String
+    InvalidName: "{ name: String, why: &'static str }"
+    AlreadyExists: String
+    # Also what a panicked or cancelled blocking task becomes, with an empty path.
+    Unavailable: "{ path: String, source: io::Error }"
+  DirectoryListing:
+    # `None` for the roots.
+    path: Option<String>
+    # `None` at a root, and for the roots themselves.
+    parent: Option<String>
+    # Directories only, sorted by lowercased name then exact name.
+    entries: Vec<DirectoryEntry>
+  DirectoryEntry:
+    name: String
+    path: String
+    # A leading dot, or Windows' hidden or system attribute; flagged, not filtered.
+    hidden: bool
+
+
+functions:
+  service:
+    list:
+      signature: "(&self) -> Result<Vec<Project>, CoreError>"
+      # `list_projects`: oldest first by the `ProjectCreated` event's seq.
+    create:
+      signature: "(&self, command_id: String, slug: &str, name: &str, directory: &str) -> Result<Project, CoreError>"
+      # resolve (DirectoryError → CoreError::Directory) → "project.create",
+      # principal User/local, schema 1, params { slug, name, directory:
+      # canonical } → `create_project` with `policy::default_modes()`.
+      # Refusals: Directory; CommandConflict; Constraint (the slug in use).
+    set_modes:
+      signature: "(&self, command_id: String, project: &ProjectId, allowed_modes: BTreeMap<String, Vec<String>>) -> Result<Project, CoreError>"
+      # known_harness (SettingNotOffered "harness") → each mode in policy
+      # (SettingNotOffered "mode", the first offending one) → dedup, sort →
+      # "project.modes", params { project, allowed_modes: normalized } →
+      # `set_project_modes`. Refusals also: NotFound (no such project);
+      # CommandConflict.
+    list_dirs:
+      signature: "(&self, path: Option<String>) -> Result<DirectoryListing, CoreError>"
+      # An empty `path` is the same as none: the roots. On a blocking thread.
+    create_dir:
+      signature: "(&self, parent: String, name: String) -> Result<DirectoryEntry, CoreError>"
+      # `check_name`, then the parent resolved, then `create_dir`; an
+      # existing one is AlreadyExists, never reused. On a blocking thread.
+  directory:
+    resolve:
+      signature: "(raw: &Path) -> Result<ProjectDirectory, DirectoryError>"
+    canonical_dir:
+      signature: "(raw: &Path) -> Result<PathBuf, DirectoryError>"
+    from_io:
+      signature: "(path: &Path, error: io::Error) -> DirectoryError"
+      # NotFound, PermissionDenied, NotADirectory, AlreadyExists kept as
+      # their own variants; anything else Unavailable.
+  browse:
+    list:
+      signature: "(path: Option<&Path>) -> Result<DirectoryListing, DirectoryError>"
+      private: true
+      # An unreadable or non-UTF-8 entry is skipped, never a failure.
+    create_subdirectory:
+      signature: "(parent: &Path, name: &str) -> Result<DirectoryEntry, DirectoryError>"
+      private: true
+    check_name:
+      signature: "(name: &str) -> Result<(), DirectoryError>"
+      private: true
+      # Empty, `.`, `..`, a separator, Windows' reserved characters or
+      # control characters, a trailing dot or space, a device name.
+    blocking:
+      signature: "(work) -> Result<T, DirectoryError>"
+      private: true
+  store:
+    create_project:
+      signature: "(&self, ctx: &CommandContext, slug, name, directory: &ProjectDirectory, default_modes) -> Result<Project, StorageError>"
+      # One write: classify (scope Global) → the row, its modes,
+      # `ProjectCreated` { slug, name, directory }, record_command.
+    list_projects:
+      signature: "(&self) -> Result<Vec<Project>, StorageError>"
+    get_project:
+      signature: "(&self, id: &ProjectId) -> Result<Project, StorageError>"
+      # Also read by Turns (a turn's mode check) and Harness (`choices`).
+    set_project_modes:
+      signature: "(&self, ctx, project_id, modes) -> Result<Project, StorageError>"
+      # One write: classify (scope Project) → the project must exist →
+      # replace the named harnesses' rows → `ProjectModesChanged` →
+      # record_command. A replay answers the project as it now stands.
+
+
+enums:
+  CoreError:
+    source: crate::error::CoreError
+    values: []
+  StorageError:
+    source: crate::storage::StorageError
+    values: []
+  CommandContext:
+    source: crate::command::CommandContext
+    values: []
+
+
+obligations:
+  - rule: >
+      Replay. A project create with the same command id and request answers
+      the first project and creates nothing; another request under the id is
+      CommandConflict and creates nothing.
+    tested_by:
+      - project_create_replays_after_the_move
+      - project_routes_create_list_replay_and_conflict
+      - replaying_an_identical_command_returns_the_stored_outcome
+      - the_same_command_id_with_a_different_request_is_a_conflict
+    note: >
+      The last two drive `create_project` at the store and count the rows
+      and events a replay and a conflict leave.
+
+  - rule: >
+      The directory is resolved before the fingerprint: two spellings of one
+      folder (here, with and without a trailing separator) replay one
+      command.
+    tested_by: project_create_replays_after_the_move
+    note: >
+      Fingerprinting the raw text fails it with 409 COMMAND_CONFLICT (tried
+      on 33ec030).
+
+  - rule: >
+      Replay identity. "project.create" params { slug, name, directory } with
+      the canonical directory, and "project.modes" params { project,
+      allowed_modes } with each list deduplicated and sorted; principal
+      User/local, schema version 1.
+    tested_by: project_thread_and_instructions_command_fingerprints_do_not_move
+    note: >
+      It reads the command log and compares each column with `fingerprint`
+      of those literals; it passes on 33ec030 and fails there with the sort
+      removed.
+
+  - rule: >
+      A bad directory is refused before any write, each with its own code:
+      relative PATH_INVALID, missing PATH_NOT_FOUND, a file
+      PATH_NOT_A_DIRECTORY; no project is created.
+    tested_by: an_unusable_directory_is_refused_with_a_stable_code
+
+  - rule: >
+      Modes are checked against Shadows' policy: an unknown harness, or a
+      mode outside its harness's policy, is 422 SETTING_NOT_OFFERED and
+      nothing is written. A replay of a mode change answers the project as
+      it stands; another body under the id conflicts.
+    tested_by:
+      - an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
+      - a_project_s_modes_can_be_replaced_and_a_replay_changes_nothing
+    note: >
+      The first checks the mode refusal's code only; no test sends an unknown
+      harness to `set_modes` (it sends one to thread create and change).
+
+  - rule: >
+      Projects are listed in creation order, by the durable sequence of their
+      `ProjectCreated` event, never by `created_at` text.
+    tested_by: projects_are_listed_in_creation_order_whatever_their_timestamp_text
+
+  - rule: >
+      A listing holds only subdirectories, sorted without case, hidden ones
+      flagged, with the canonical path and parent; no path lists the roots,
+      whose parent is null.
+    tested_by:
+      - a_listing_holds_subdirectories_sorted_without_case_and_flags_hidden_ones
+      - with_no_path_the_listing_is_the_roots
+    note: No test sends an empty `path`, which `list_dirs` treats as none.
+
+  - rule: >
+      A listing that cannot be made, or a directory that cannot be created,
+      is refused with its own code: PATH_INVALID, PATH_NOT_FOUND,
+      PATH_NOT_A_DIRECTORY, PATH_ALREADY_EXISTS; an invalid name creates
+      nothing.
+    tested_by:
+      - a_listing_that_cannot_be_made_is_refused_with_a_stable_code
+      - creating_a_directory_returns_it_and_a_second_time_is_a_conflict
+      - a_name_that_is_not_one_valid_component_is_refused
+
+
+agreements:
+  - between: [set_modes, threads::create]
+    must: judge whether a harness is known identically
+    holds: true
+    why: >
+      Both call `threads::known_harness` (`threads/rules.rs`), the one rule,
+      which answers SettingNotOffered { "harness", id, None }.
+    tested_by: an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
+    note: >
+      The test proves Threads' side (create and change) with "gemini"; no
+      test sends an unknown harness to `set_modes`.
+
+
+not_the_caller's:
+  - >
+      Resolve or canonicalize the directory, or build the "project.create"
+      fingerprint; `create` does, in the order that makes two spellings one
+      request.
+  - >
+      Check modes against policy, dedup or sort them; `set_modes` does, and
+      the fingerprint is over what it normalized.
+  - >
+      Move the disk work onto a blocking thread; `list_dirs` and `create_dir`
+      do.
+
+
+open_questions:
+  - >
+      `get_project` is read by Turns (`record`, the mode check) and Harness
+      (`choices`) directly on `Storage`, not through `Projects`. Whether they
+      go through a Projects method is for Task 10's narrowing of the
+      `impl Storage` methods (ruling F6).
+
+
+tests:
+  - name: project_create_replays_after_the_move
+    checks: >
+      One body twice (the second with a trailing separator) answers one id
+      and two projects are listed; another name under the id is 409
+      COMMAND_CONFLICT.
+  - name: project_thread_and_instructions_command_fingerprints_do_not_move
+    checks: >
+      Six commands over HTTP leave command records whose principal, id, kind,
+      schema version and fingerprint equal those of the pinned literals.
+  - name: project_routes_create_list_replay_and_conflict
+    checks: A replay answers the first id, another name conflicts, one project is listed.
+  - name: replaying_an_identical_command_returns_the_stored_outcome
+    checks: At the store, a replay answers the same id; one project, one event.
+  - name: the_same_command_id_with_a_different_request_is_a_conflict
+    checks: At the store, another request is CommandConflict; one project.
+  - name: an_unusable_directory_is_refused_with_a_stable_code
+    checks: >
+      Relative, missing and a file answer PATH_INVALID, PATH_NOT_FOUND,
+      PATH_NOT_A_DIRECTORY; the list stays empty.
+  - name: an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set
+    checks: >
+      "gemini" on thread change and create, and bypassPermissions on a
+      project's modes, are 422 SETTING_NOT_OFFERED.
+  - name: a_project_s_modes_can_be_replaced_and_a_replay_changes_nothing
+    checks: >
+      The modes become ["acceptEdits"], the replay answers the same project,
+      and another list under the id is 409 COMMAND_CONFLICT.
+  - name: projects_are_listed_in_creation_order_whatever_their_timestamp_text
+    checks: Two projects whose created_at text sorts backwards list in creation order.
+  - name: a_listing_holds_subdirectories_sorted_without_case_and_flags_hidden_ones
+    checks: >
+      Four directories and a file list as .hidden, alpha, beta, Zeta with
+      canonical paths and parent; only .hidden is hidden.
+  - name: with_no_path_the_listing_is_the_roots
+    checks: No path answers null path and parent and includes the temp dir's root, whose parent is null.
+  - name: a_listing_that_cannot_be_made_is_refused_with_a_stable_code
+    checks: Relative, missing and a file are PATH_INVALID, PATH_NOT_FOUND, PATH_NOT_A_DIRECTORY.
+  - name: creating_a_directory_returns_it_and_a_second_time_is_a_conflict
+    checks: >
+      201 with the canonical path and the directory exists; again is 409
+      PATH_ALREADY_EXISTS; a missing parent is 404 PATH_NOT_FOUND.
+  - name: a_name_that_is_not_one_valid_component_is_refused
+    checks: Seventeen bad names are 400 PATH_INVALID and the parent stays empty.

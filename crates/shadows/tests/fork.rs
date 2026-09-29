@@ -7,7 +7,7 @@ use shadows_core::OperationId;
 use shadows_core::events::Actor;
 use shadows_core::storage::StorageError;
 use shadows_core::testing::PlannerTurn;
-use shadows_core::thread::ThreadId;
+use shadows_core::threads::ThreadId;
 
 #[path = "fixtures/acp.rs"]
 mod acp;

@@ -3,9 +3,9 @@
 
 use sqlx::SqliteConnection;
 
-use super::{Storage, StorageError, events::append_event, now};
 use crate::events::{Actor, DurableEvent};
-use crate::thread::{
+use crate::storage::{Storage, StorageError, append_event, now};
+use crate::threads::model::{
     EntryRef, NewThreadEntry, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId,
 };
 use crate::turns::OperationId;

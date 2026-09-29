@@ -239,7 +239,7 @@ impl Daemon {
     }
 
     /// Runs one turn to its end and answers the text of its last entry.
-    async fn turn(&self, thread: &shadows_core::thread::ThreadId, prompt: &str) -> String {
+    async fn turn(&self, thread: &shadows_core::threads::ThreadId, prompt: &str) -> String {
         let bus = tokio::sync::broadcast::channel(16).0;
         let op = turn::start_direct(
             &self.runtime,
@@ -307,7 +307,7 @@ async fn after_a_restart_the_next_turn_resumes_the_recorded_session() {
             &serde_json::json!({ "id": id }),
         ),
     };
-    let dir = shadows_core::project::ProjectDirectory::resolve(tmp.path()).unwrap();
+    let dir = shadows_core::projects::ProjectDirectory::resolve(tmp.path()).unwrap();
     let storage = &first.runtime.storage;
     let project = storage
         .create_project(

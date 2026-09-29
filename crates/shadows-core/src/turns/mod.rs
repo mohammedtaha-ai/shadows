@@ -50,7 +50,7 @@ use crate::harness::{LeaseError, OpenSession, Sessions, prompt_version};
 use crate::plans::Focus;
 use crate::runtime::Runtime;
 use crate::storage::{StopKind, Storage, StorageError};
-use crate::thread::{ThreadId, TurnContext};
+use crate::threads::{ThreadId, TurnContext};
 
 /// What the turn machinery needs for tests that drive it below `Turns`:
 /// `shadows_core::testing` re-exports these, and nothing outside the crate

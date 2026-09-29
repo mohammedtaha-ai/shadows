@@ -1,0 +1,136 @@
+# Owns a project's Planner instructions (spec §13.8, §13.10, §14.4): saving
+# the next version and reading the current one.
+#
+# Each save is a new row numbered one past the project's highest, inside the
+# save's own write; nothing is overwritten, and the current instructions are
+# the highest number, so no pointer can name another project's row. The
+# `PlannerInstructionsSaved` event carries the number, never the body: the
+# journal a client replays holds no instructions text.
+#
+# Trap: saving tells no running Planner anything. A turn records the version
+# it ran under (`instructions_version` on its invocation, Turns), and the
+# session is told what changed before its next turn (Harness' `Setups`),
+# never mid-turn. Both read `current_planner_instructions` directly.
+# Trap: `id` is `#[serde(skip)]`: a client sees `number`, `body` and
+# `created_at` only.
+
+name: instructions
+version: 1
+status: current
+source: crates/shadows-core/src/instructions
+
+
+shapes:
+  Instructions:
+    storage: Arc<Storage>
+  InstructionsVersion:
+    # What an `agent_invocation` records; never serialized.
+    id: String
+    # 1, 2, 3 … within the project.
+    number: i64
+    body: String
+    created_at: String
+
+
+functions:
+  service:
+    current:
+      signature: "(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, CoreError>"
+      # `None` before the first save, and for an unknown project.
+    save:
+      signature: "(&self, command_id: String, project: &ProjectId, body: &str) -> Result<InstructionsVersion, CoreError>"
+      # "PlannerInstructionsSave", principal User/local, schema 1, params
+      # { project, body } → `save_planner_instructions`. Refusals: NotFound
+      # (no such project); CommandConflict.
+  store:
+    save_planner_instructions:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, body: &str) -> Result<InstructionsVersion, StorageError>"
+      # One write: classify (scope Project; a replay answers the version it
+      # saved) → the project must exist → MAX(number)+1 → the row →
+      # `PlannerInstructionsSaved` { number } → record_command.
+    current_planner_instructions:
+      signature: "(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, StorageError>"
+      # Also read by Turns (`record`) and Harness (`Setups`).
+    load_version:
+      signature: "(conn, id: &str) -> Result<InstructionsVersion, StorageError>"
+      private: true
+
+
+enums:
+  CoreError:
+    source: crate::error::CoreError
+    values: []
+  StorageError:
+    source: crate::storage::StorageError
+    values: []
+  ProjectId:
+    source: crate::projects::ProjectId
+    values: []
+
+
+obligations:
+  - rule: >
+      Each save is a new version numbered one past the project's highest,
+      per project from 1; the current one is the highest. A replay answers
+      the version it saved and saves nothing.
+    tested_by:
+      - each_save_is_a_new_numbered_version
+      - current_instructions_are_the_highest_number
+    note: >
+      Both drive the store. The numbering runs inside the save's write
+      (`BEGIN IMMEDIATE`), which is why MAX+1 cannot race; no test races two
+      saves.
+
+  - rule: >
+      The saved event carries the number, never the body.
+    tested_by: the_saved_event_does_not_carry_the_body
+
+  - rule: >
+      Over HTTP: null before the first save; a save answers number, body and
+      created_at only; another body under the same id is 409
+      COMMAND_CONFLICT; an unknown project is 404.
+    tested_by: the_routes_read_and_save_a_version
+
+  - rule: >
+      Replay identity. "PlannerInstructionsSave" params { project, body },
+      principal User/local, schema version 1.
+    tested_by: project_thread_and_instructions_command_fingerprints_do_not_move
+    note: It reads the command log; it passes on 33ec030.
+
+
+not_the_caller's:
+  - >
+      Number a version or read the highest yourself; `save` numbers inside
+      its write, and `current` answers the highest.
+  - >
+      Build the "PlannerInstructionsSave" fingerprint; `save` does, from the
+      same parameters as before the move.
+
+
+open_questions:
+  - >
+      Turns and Harness' `Setups` read `current_planner_instructions`
+      directly on `Storage`, not through `Instructions::current`. Whether
+      they go through the service is for Task 10's narrowing of the
+      `impl Storage` methods (ruling F6).
+
+
+tests:
+  - name: each_save_is_a_new_numbered_version
+    checks: >
+      Two saves are 1 and 2 with their bodies; the first's replay equals it
+      and two rows exist.
+  - name: current_instructions_are_the_highest_number
+    checks: >
+      None before a save; after three, 3 "three"; another project has none,
+      then its first save is 1.
+  - name: the_saved_event_does_not_carry_the_body
+    checks: >
+      The one saved event's payload is { number: 1 } and no payload holds the
+      body.
+  - name: the_routes_read_and_save_a_version
+    checks: >
+      GET null, PUT answers three fields, GET equals it, another body under
+      the id is 409 COMMAND_CONFLICT, an unknown project is 404.
+  - name: project_thread_and_instructions_command_fingerprints_do_not_move
+    checks: The command log's PlannerInstructionsSave row equals the pinned literal's fingerprint.

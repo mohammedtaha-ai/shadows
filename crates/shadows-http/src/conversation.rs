@@ -10,8 +10,7 @@ use tracing::Instrument;
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
-use shadows_core::thread::{ThreadEntry, ThreadId};
-use shadows_core::{Focus, Operation, OperationId, SendTurn};
+use shadows_core::{Focus, Operation, OperationId, SendTurn, ThreadEntry, ThreadId};
 
 /// A thread's entries in ordinal order.
 #[utoipa::path(
@@ -28,9 +27,7 @@ pub(super) async fn list_entries(
     State(s): State<AppState>,
     Path(thread_id): Path<ThreadId>,
 ) -> Result<Json<Vec<ThreadEntry>>, Failure> {
-    Ok(Json(
-        s.core.storage().list_thread_entries(&thread_id).await?,
-    ))
+    Ok(Json(s.core.threads().entries(&thread_id).await?))
 }
 
 /// A thread's operations — its turns — newest first, each as it now stands.
@@ -51,12 +48,7 @@ pub(super) async fn list_operations(
     State(s): State<AppState>,
     Path(thread_id): Path<ThreadId>,
 ) -> Result<Json<Vec<Operation>>, Failure> {
-    Ok(Json(
-        s.core
-            .storage()
-            .list_operations_for_thread(&thread_id)
-            .await?,
-    ))
+    Ok(Json(s.core.threads().operations(&thread_id).await?))
 }
 
 /// Starts a turn as one command (spec §12.7).

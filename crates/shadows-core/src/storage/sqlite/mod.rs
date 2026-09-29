@@ -10,26 +10,18 @@ use tokio::sync::{Mutex, watch};
 use crate::plans::Problem;
 
 mod command;
-mod entry;
 pub(super) mod events;
 mod events_read;
-mod fork;
-mod instructions;
-mod project;
 mod runtime;
-mod thread;
 
 pub use events_read::StoredEvent;
-pub use instructions::InstructionsVersion;
 pub use runtime::{ReconcileReport, StopKind};
 
-// Store helpers a plan or turn write shares inside its one transaction (spec §14.6).
-// Each stays with the table it writes; `plans::store` and `turns::store` name
-// them from here.
+// Store helpers every service's write shares inside its one transaction (spec
+// §14.6): the command log and the journal, which belong to no service (`db/`
+// takes them in Task 10).
 pub(crate) use command::{classify, record_command};
-pub(crate) use entry::append_entry_in;
 pub(crate) use events::append_event;
-pub(crate) use thread::insert_thread;
 
 const MAX_SEQ: &str = "SELECT MAX(seq) FROM durable_event";
 

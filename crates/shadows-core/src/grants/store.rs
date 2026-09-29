@@ -14,9 +14,9 @@ use super::model::{Grant, GrantId, GrantKind, IssuedGrant, Token, hash_token};
 use crate::command::{CommandContext, Writer};
 use crate::events::{Actor, DurableEvent};
 use crate::plans::WorkflowId;
-use crate::project::ProjectId;
+use crate::projects::ProjectId;
 use crate::storage::{Storage, StorageError, append_event, classify, now, record_command};
-use crate::thread::ThreadId;
+use crate::threads::ThreadId;
 
 /// How long an unused `draft_ref` can still start a plan (§13.5).
 const DRAFT_REF_LIFETIME: time::Duration = time::Duration::HOUR;

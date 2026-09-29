@@ -7,9 +7,9 @@ use serde_json::json;
 use shadows_core::OperationId;
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::events::Actor;
-use shadows_core::project::ProjectDirectory;
+use shadows_core::projects::ProjectDirectory;
 use shadows_core::storage::{Storage, StorageError};
-use shadows_core::thread::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId};
+use shadows_core::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_core::{TaskId, WorkflowId};
 
 #[path = "fixtures/acp.rs"]

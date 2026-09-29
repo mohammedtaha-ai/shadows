@@ -4,7 +4,7 @@
 //! one job is the connection and transaction contracts.
 
 use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::project::ProjectDirectory;
+use shadows_core::projects::ProjectDirectory;
 use shadows_core::storage::Storage;
 
 /// Any directory that exists: these tests are about identity and

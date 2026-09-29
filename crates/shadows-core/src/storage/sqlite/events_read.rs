@@ -8,7 +8,7 @@
 
 use super::{Storage, StorageError};
 use crate::events::EventCursor;
-use crate::thread::ThreadId;
+use crate::threads::ThreadId;
 use crate::turns::OperationId;
 
 /// One replayed journal row, as a client resuming a thread sees it.

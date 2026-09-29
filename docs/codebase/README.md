@@ -66,7 +66,10 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows-core/src/turns/` | Planner turns, from start to stop | `crates/shadows-core/src/turns/mod.rs` |
 | `crates/shadows-core/src/turns/store/` | turns' SQLite queries | `crates/shadows-core/src/turns/store/turn.rs` |
 | `crates/shadows-process/src/lib.rs` | OS process ownership with whole-tree containment | `crates/shadows-process/src/lib.rs` |
-| `crates/shadows-core/src/project/` | the project: its identity, the directory it owns | `crates/shadows-core/src/project/mod.rs` |
+| `crates/shadows-core/src/projects/` | the projects, the folders a person picks them from included | `crates/shadows-core/src/projects/mod.rs` |
+| `crates/shadows-core/src/projects/model.rs` | the project types callers meet | `crates/shadows-core/src/projects/model.rs` |
+| `crates/shadows-core/src/projects/store.rs` | a project's rows | `crates/shadows-core/src/projects/store.rs` |
+| `crates/shadows-core/src/projects/browse.rs` | showing a person the directories they can choose from | `crates/shadows-core/src/projects/browse.rs` |
 | `crates/shadows-http/src/lib.rs` | the HTTP/SSE surface every client talks to | `crates/shadows-http/src/project.rs` |
 | `crates/shadows-http/src/project.rs` | the routes over projects, their threads included | `crates/shadows-http/src/project.rs` |
 | `crates/shadows-http/src/conversation.rs` | the routes over a thread's conversation | `crates/shadows-http/src/conversation.rs` |
@@ -76,15 +79,18 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows-http/src/failure.rs` | the transport mapping of a failure | `crates/shadows-http/src/failure.rs` |
 | `crates/shadows-http/src/guard.rs` | refusing requests pages were made to send | `crates/shadows-http/src/guard.rs` |
 | `crates/shadows-core/src/runtime/` | the runtime instance's lifecycle | `crates/shadows-core/src/runtime/mod.rs` |
-| `crates/shadows-core/src/storage/` | persistence | `crates/shadows-core/src/storage/sqlite/project.rs` |
+| `crates/shadows-core/src/storage/` | persistence | `crates/shadows-core/src/storage/sqlite/mod.rs` |
 | `crates/shadows-core/src/plans/store/edit.rs` | changing a plan version | `crates/shadows-core/src/plans/store/edit.rs` |
 | `crates/shadows-core/src/plans/store/draft.rs` | starting a plan version | `crates/shadows-core/src/plans/store/draft.rs` |
 | `crates/shadows-core/src/plans/store/read.rs` | reading plan versions | `crates/shadows-core/src/plans/store/read.rs` |
 | `crates/shadows-core/src/plans/store/task.rs` | a plan version's task graph rows | `crates/shadows-core/src/plans/store/task.rs` |
 | `crates/shadows-core/src/grants/store.rs` | an MCP grant's rows, from issue to revocation | `crates/shadows-core/src/grants/store.rs` |
-| `crates/shadows-core/src/storage/sqlite/instructions.rs` | a project's numbered Planner instructions | `crates/shadows-core/src/storage/sqlite/instructions.rs` |
+| `crates/shadows-core/src/instructions/` | a project's numbered Planner instructions | `crates/shadows-core/src/instructions/mod.rs` |
 | `crates/shadows-core/src/plans/store/view.rs` | showing a plan version in its conversation | `crates/shadows-core/src/plans/store/view.rs` |
-| `crates/shadows-core/src/thread/` | the planning thread's shape | `crates/shadows-core/src/thread/mod.rs` |
+| `crates/shadows-core/src/threads/` | the planning threads, what they recorded included | `crates/shadows-core/src/threads/mod.rs` |
+| `crates/shadows-core/src/threads/model.rs` | the planning thread types callers meet | `crates/shadows-core/src/threads/model.rs` |
+| `crates/shadows-core/src/threads/rules.rs` | which harness a thread may name | `crates/shadows-core/src/threads/rules.rs` |
+| `crates/shadows-core/src/threads/store/` | threads' SQLite queries | `crates/shadows-core/src/threads/store/thread.rs` |
 | `crates/shadows/src/tracing.rs` | tracing subscriber setup | `crates/shadows/src/tracing.rs` |
 | `crates/shadows-core/src/plans/` | plan versions under the rules of §13 | `crates/shadows-core/src/plans/mod.rs` |
 | `crates/shadows-core/src/plans/model.rs` | the plan types callers meet | `crates/shadows-core/src/plans/model.rs` |
