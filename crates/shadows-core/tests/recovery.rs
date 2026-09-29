@@ -227,13 +227,13 @@ struct Daemon {
 impl Daemon {
     async fn start(db: &std::path::Path) -> Self {
         let storage = std::sync::Arc::new(Storage::open(db).await.unwrap());
-        let (runtime, _report) = shadows_core::testing::Runtime::start(storage)
+        let (runtime, _report) = shadows_core::testing::Runtime::start(storage.clone())
             .await
             .unwrap();
         Daemon {
             runtime: std::sync::Arc::new(runtime),
             handles: Default::default(),
-            sessions: acp::fake_sessions(db).await,
+            sessions: acp::fake_sessions(storage),
         }
     }
 

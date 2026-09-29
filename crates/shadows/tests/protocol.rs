@@ -45,7 +45,7 @@ async fn fixture() -> Fixture {
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let handles = Arc::new(LiveHandles::default());
-    let sessions = acp::fake_sessions(&tmp.path().join("s.sqlite3")).await;
+    let sessions = acp::fake_sessions(storage.clone());
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
             storage: storage.clone(),

@@ -94,17 +94,18 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **The five pre-existing defects Milestone 2.5 found,** each a `gap` in its
-   service's contract. Fixed: a model change is now set back when a later
-   check refuses the turn, `Sessions` shares the core's SQLite pool,
-   so a session's grant events wake SSE at once, a Planner's
-   `from_workflow_id` is in its DraftStart fingerprint, and the
-   harness-session routes' OpenAPI text (and §12.7) now say that an opening
-   issues the thread's MCP grant, and the test-only `draft_intent` is gone:
-   a draft_ref's owner and expiry are written once, in `bind_draft_ref`, and
-   its tests start plans through it. Left: what a Planner's `from_workflow_id`
-   must do, which §13.6 does not say (it still does not choose the version
-   started).
+1. **The five pre-existing defects Milestone 2.5 found,** recorded in their
+   services' contracts (two `gaps`, one open question) or found in review.
+   Fixed: a model set for a turn is set back when a later check refuses it;
+   `Sessions`, in the daemon and in every test fixture, shares the core's
+   SQLite pool, so a session's grant events wake SSE at once; a Planner's
+   `from_workflow_id` is in its DraftStart fingerprint; the harness-session
+   routes' OpenAPI text (and §12.7) say that an opening issues the thread's
+   MCP grant; the test-only `draft_intent` is gone, so a draft_ref's owner and
+   expiry are written once, in `bind_draft_ref`, and its tests start plans
+   through it. Left: what a Planner's `from_workflow_id` must do, which §13.6
+   does not say (it still does not choose the version started); the plans
+   contract's `gaps` holds it for the person's ruling.
 2. **Milestone 3: the code index** (`vision.md` §2.4), with tree-sitter embedded.
 3. **Effort at once, without `default`.** Mohammed's ruling after the
    Windows run: picking an effort sets it on the session at once, as the

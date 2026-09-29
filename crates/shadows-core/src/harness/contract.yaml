@@ -373,7 +373,10 @@ obligations:
       opened a second `Storage` for `Sessions` ("no frame in time": the grant
       event never reached the subscriber), and passes with the `Arc` shared.
       Only the opening's event is tested; the close revokes through the same
-      `Setups` and pool.
+      `Setups` and pool. The test proves the fixture's wiring, which
+      `testing::acp::fake_sessions` shares (it takes the core's `Arc`);
+      `AppCore::start`'s own wiring has no test that would catch a second
+      pool there.
 
 
 agreements:

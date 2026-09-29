@@ -41,7 +41,7 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
         core: AppCore::assemble(CoreParts {
             storage: storage.clone(),
             runtime: Arc::new(runtime),
-            sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
+            sessions: acp::fake_sessions(storage.clone()),
             handles: Arc::new(LiveHandles::default()),
             bus,
             ui: tokio::sync::broadcast::channel(16).0,

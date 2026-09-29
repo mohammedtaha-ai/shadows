@@ -37,7 +37,7 @@ async fn a_client_that_disconnects_mid_request_strands_nothing() {
         core: AppCore::assemble(CoreParts {
             storage: storage.clone(),
             runtime: Arc::new(runtime),
-            sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
+            sessions: acp::fake_sessions(storage.clone()),
             handles: handles.clone(),
             bus,
             ui: tokio::sync::broadcast::channel(16).0,

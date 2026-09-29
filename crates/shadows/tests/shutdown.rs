@@ -79,7 +79,7 @@ async fn fixture() -> Fixture {
         .create_planning_thread(&tctx, &project.id, "T", "claude-code")
         .await
         .unwrap();
-    let sessions = acp::fake_sessions(&tmp.path().join("s.sqlite3")).await;
+    let sessions = acp::fake_sessions(runtime.storage.clone());
     Fixture {
         _tmp: tmp,
         runtime,

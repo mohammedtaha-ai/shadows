@@ -1288,14 +1288,14 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/testing/acp.rs` — 48 lines
+### `crates/shadows-core/src/testing/acp.rs` — 45 lines
 
 ```rust
 pub const MCP_URL: &str = "http://127.0.0.1:4318/mcp";
 pub fn adapter_at(node: PathBuf) -> Arc<ClaudeAdapter>
 pub fn fake_adapter() -> Arc<ClaudeAdapter>
 pub fn test_config() -> SessionsConfig
-pub async fn fake_sessions(db: &Path) -> Arc<Sessions>
+pub fn fake_sessions(storage: Arc<Storage>) -> Arc<Sessions>
 ```
 
 ### `crates/shadows-core/src/testing/mod.rs` — 88 lines

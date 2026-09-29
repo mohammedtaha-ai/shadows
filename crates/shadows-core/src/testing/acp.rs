@@ -2,7 +2,7 @@
 //! the pinned ACP adapter, so a test runs a whole turn with nothing installed.
 //! Its prompts script the agent: `hang`, `exit`, `two-messages`, `report`, ...
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -38,11 +38,8 @@ pub fn test_config() -> SessionsConfig {
     }
 }
 
-/// Sessions over `fake_acp` on the database at `db`.
-pub async fn fake_sessions(db: &Path) -> Arc<Sessions> {
-    Sessions::new(
-        fake_adapter(),
-        Arc::new(Storage::open(db).await.unwrap()),
-        test_config(),
-    )
+/// Sessions over `fake_acp` on the core's `storage`, as `AppCore::start`
+/// builds them: one pool, so a session's grant events wake subscribers.
+pub fn fake_sessions(storage: Arc<Storage>) -> Arc<Sessions> {
+    Sessions::new(fake_adapter(), storage, test_config())
 }

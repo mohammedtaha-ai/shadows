@@ -164,7 +164,7 @@ async fn an_event_published_during_the_replay_survives_the_handoff() {
             .await
             .unwrap();
     }
-    let live = Live::start(&tmp, storage).await;
+    let live = Live::start(storage).await;
     let mut stream = live.open(&thread.id).await;
 
     // No await between the line above and this one: the replay task has not
@@ -200,7 +200,7 @@ async fn a_durable_event_committed_after_the_handoff_arrives_live() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
-    let live = Live::start(&tmp, storage.clone()).await;
+    let live = Live::start(storage.clone()).await;
     let mut stream = live.open(&thread.id).await;
     stream.read_until("event: caught-up").await;
 
@@ -223,7 +223,7 @@ async fn a_durable_event_committed_during_the_replay_arrives_exactly_once() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
-    let live = Live::start(&tmp, storage.clone()).await;
+    let live = Live::start(storage.clone()).await;
     let mut stream = live.open(&thread.id).await;
 
     storage
@@ -266,7 +266,7 @@ async fn a_reconnect_with_after_resumes_exactly_where_the_client_stopped() {
         .append_thread_entry(&thread.id, user_message("before"))
         .await
         .unwrap();
-    let live = Live::start(&tmp, storage.clone()).await;
+    let live = Live::start(storage.clone()).await;
 
     let mut first = live.open(&thread.id).await;
     let seen = durable_seqs(&first.read_until("event: caught-up").await);
@@ -315,7 +315,7 @@ async fn a_subscriber_receives_only_its_own_threads_live_items() {
         .create_planning_thread(&thread_ctx("c3"), &project.id, "B", "claude-code")
         .await
         .unwrap();
-    let live = Live::start(&tmp, storage).await;
+    let live = Live::start(storage).await;
     let mut stream = live.open(&thread_a.id).await;
     stream.read_until("event: caught-up").await;
 
@@ -339,7 +339,7 @@ async fn operation_transitions_reach_their_threads_stream() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (_project, thread) = seed(&storage).await;
-    let live = Live::start(&tmp, storage.clone()).await;
+    let live = Live::start(storage.clone()).await;
     let runtime = &live.runtime.instance_id;
     let op = storage
         .create_pending_operation(&thread.id, runtime)
@@ -389,16 +389,16 @@ struct Live {
 }
 
 impl Live {
-    async fn start(tmp: &tempfile::TempDir, storage: Arc<Storage>) -> Self {
+    async fn start(storage: Arc<Storage>) -> Self {
         let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
         let runtime = Arc::new(runtime);
         let (bus, _) = tokio::sync::broadcast::channel(64);
         let (stopping, shutdown) = tokio::sync::watch::channel(false);
         let state = AppState {
             core: AppCore::assemble(CoreParts {
+                sessions: acp::fake_sessions(storage.clone()),
                 storage,
                 runtime: runtime.clone(),
-                sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
                 handles: Arc::new(LiveHandles::default()),
                 bus: bus.clone(),
                 ui: tokio::sync::broadcast::channel(16).0,
