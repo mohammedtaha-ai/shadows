@@ -172,6 +172,30 @@ fn listed(y: &Yaml, out: &mut BTreeSet<String>) {
     }
 }
 
+/// The services: every `pub fn name(&self) -> &Service` of `impl AppCore`.
+fn accessors(app: &Path) -> BTreeSet<String> {
+    let file = syn::parse_file(&std::fs::read_to_string(app).unwrap()).unwrap();
+    let mut out = BTreeSet::new();
+    for item in &file.items {
+        let syn::Item::Impl(i) = item else { continue };
+        if i.trait_.is_some()
+            || !matches!(&*i.self_ty, syn::Type::Path(p) if p.path.is_ident("AppCore"))
+        {
+            continue;
+        }
+        for it in &i.items {
+            if let syn::ImplItem::Fn(m) = it
+                && matches!(m.vis, syn::Visibility::Public(_))
+                && m.sig.inputs.len() == 1
+                && matches!(&m.sig.output, syn::ReturnType::Type(_, t) if matches!(**t, syn::Type::Reference(_)))
+            {
+                out.insert(m.sig.ident.to_string());
+            }
+        }
+    }
+    out
+}
+
 #[test]
 fn every_contract_matches_its_service() {
     let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
@@ -331,19 +355,14 @@ fn every_contract_matches_its_service() {
             ))
         }
     }
-    // §14.10: eight services, eight contracts. A folder that loses its contract is skipped
-    // above, so the count is what catches it.
-    let services = [
-        "events",
-        "grants",
-        "harness",
-        "instructions",
-        "plans",
-        "projects",
-        "threads",
-        "turns",
-    ];
-    for s in services {
+    // §14.7: every service has a contract. A folder without one is skipped above, so the
+    // services are read from the code: `AppCore`'s accessors (`core.plans()`, §14.4), each
+    // named after its folder. A ninth service is required the day its accessor exists.
+    let services = accessors(&src.join("app.rs"));
+    if services.is_empty() {
+        problems.push("app.rs: no `AppCore` accessor found, so no service is checked".into())
+    }
+    for s in &services {
         if !found.contains(s) {
             problems.push(format!("{s}: the service has no contract.yaml"))
         }

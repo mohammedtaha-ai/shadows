@@ -315,7 +315,8 @@ A final deterministic result is represented by `Verdict`.
 The compiler/module structure is the first line of defense.
 
 **Where backend-specific SQL lives** (§14.11, Milestone 2.5): inside a
-service's `store` and `shadows-core/src/db/`, never outside `shadows-core`.
+`store` (each service's, and `runtime/store.rs` for recovery) and
+`shadows-core/src/db/`, never outside `shadows-core`.
 Storage is private to that crate (§14.6), so no adapter can reach it. When
 PostgreSQL comes, it arrives as a backend module beside each store, not as a
 second storage layer.

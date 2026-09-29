@@ -201,9 +201,11 @@ functions:
     running_turn:
       signature: "(&self, thread: &ThreadId) -> Option<(OperationId, Option<String>)>"
       # With the sending tab: whom `plan_show` signals (§13.9).
+  registry:
+    # `LiveHandles` methods only Turns calls (and `testing`), never Plans.
     is_closed:
       signature: "(&self) -> bool"
-      # Turns' own: `send` refuses a new turn once shutdown closed it.
+      # `send` refuses a new turn once shutdown closed it.
   for_tests:
     # Behind `test-support`, reached through `testing`.
     contains:

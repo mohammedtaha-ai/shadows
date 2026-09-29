@@ -60,7 +60,9 @@ shadows ─┬─► shadows-http ─┐
          └────────────────►┘
 ```
 
-Dependencies point one way, and Cargo refuses a cycle. `fake-acp` is the test
+Dependencies point one way, and Cargo refuses a cycle. `shadows-http` also
+depends on `shadows-agent` directly, for `SessionChoices`, which its routes
+serialize. `fake-acp` is the test
 adapter binary; no product crate links it. Inside `shadows-core`, `AppCore`
 holds eight services, one folder each: `projects`, `threads`, `turns`,
 `harness`, `plans`, `grants`, `instructions`, `events` (spec §14.4). Planned,
@@ -89,6 +91,16 @@ and `verification` services, and `secrets`.
 
 ## Rules (project-specific)
 
+- **The gate before every commit**, from the root; CI (`.github/workflows/ci.yml`)
+  runs steps 1–5:
+  1. `cargo fmt --all --check`
+  2. `cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings`
+     (`fake-acp` builds only with its `test-support`)
+  3. `cargo test --workspace`
+  4. `cargo clippy --workspace -- -D warnings`, without `--all-targets`: the build
+     without `test-support`, where the core's boundary is checked
+  5. `cargo tree -e features,no-dev --workspace | grep test-support` prints nothing
+  6. `git diff --exit-code api/`: `api/openapi.json` changes only with a route
 - **Library-first:** no custom ORM, no custom migration engine. Use Rust ecosystem crates.
 - **A file earns its size.** At **300 lines** a file stops being free: the change that
   pushes it over states, in its commit message or report, what that file's single
@@ -110,7 +122,7 @@ and `verification` services, and `secrets`.
   binary read a request, call one service method, and shape its answer (spec §14.5).
 - **Domain stays pure:** a service's `model.rs` carries no persistence imports (`sea_orm`, `sqlx`, `sea_query`, `Row`, `Entity`, `ActiveModel`, `Pg*`, `Sqlite*`); queries live in its `store`.
 - **Ordering is explicit:** durable event sequence, thread-entry ordinal, or another explicit stable domain key. No `rowid`, physical insertion order, or implicit `SELECT` order.
-- **DB-specific syntax isolation:** backend-specific SQL (FTS5, tsvector, `PRAGMA`, `rowid`, `strftime`) stays inside a service's `store` and `shadows-core/src/db/`, never outside `shadows-core`. Enforced by crate and module boundaries, contract tests, and review — not by a keyword blacklist scanned across the tree (spec §2.9).
+- **DB-specific syntax isolation:** backend-specific SQL (FTS5, tsvector, `PRAGMA`, `rowid`, `strftime`) stays inside a `store` (each service's, and `runtime/store.rs`) and `shadows-core/src/db/`, never outside `shadows-core`. Enforced by crate and module boundaries, contract tests, and review — not by a keyword blacklist scanned across the tree (spec §2.9).
 - **Idempotency:** mutating commands carry `CommandId`, command kind, schema version, and normalized request fingerprint. Replay requires fingerprint equality; mismatch is `CommandConflict`.
 - **PLAN_BLOCKED = Operation outcome, NOT HTTP error.** Structured refusal, not transport failure.
 

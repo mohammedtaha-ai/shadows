@@ -93,7 +93,7 @@ tracing/
 |---|---|
 | `shadows-agent` | Agent-harness abstraction and harness-specific translation from `AgentInvocation` to `ProcessSpec` |
 | `shadows-process` | OS process primitives: `tokio::process`, process trees/groups/job objects, `ProcessSpec`, `ProcessHandle` |
-| `shadows-core`: `db/` and each service's `store` | SQLx, SQLite schema/query code, migrations, future backend adapters (§2.9) |
+| `shadows-core`: `db/`, each service's `store` and `runtime/store.rs` | SQLx, SQLite schema/query code, migrations, future backend adapters (§2.9) |
 | `shadows-http` | HTTP/SSE transport |
 | `shadows-mcp` | MCP adapter and MCP request/response translation |
 | `secrets` (planned) | `SecretRef` resolution; secret values are resolved only at spawn |

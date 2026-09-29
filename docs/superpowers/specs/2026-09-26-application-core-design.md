@@ -284,7 +284,7 @@ pub mod testing;
 A crate enables that feature only in its `[dev-dependencies]`. Resolver 2 does
 not unify dev-dependency features into a normal build, so:
 
-- **the gate runs `cargo check --workspace` without tests.** A non-test crate
+- **the gate runs `cargo clippy --workspace -- -D warnings` without tests.** A non-test crate
   that reaches `shadows_core::testing` fails to build. This extends the CI check
   that already proves `test-support` never reaches the shipped binary
   (`cargo tree -e features,no-dev`).
@@ -421,7 +421,7 @@ The tree builds and every test passes after each step.
 | 7 | `Turns` | **Risk:** Stop, the session lease, the end of a turn. |
 | 8 | `Harness` | |
 | 9 | `Projects`, `Threads`, `Instructions` | |
-| 10 | `Events`; `storage` private | **Risk:** journal → caught-up → live. The last internal becomes private, and `cargo check --workspace` now proves the boundary. |
+| 10 | `Events`; `storage` private | **Risk:** journal → caught-up → live. The last internal becomes private, and `cargo clippy --workspace` (no `--all-targets`) now proves the boundary. |
 | 11 | Contracts and docs | Eight contracts pass. The code map spans the crates, and the invariants are written down. |
 
 From step 5 onward, each step narrows `shadows-core`'s `pub` surface for the
@@ -476,9 +476,9 @@ Milestone 2.5 is done when:
 
 1. **The gates pass on Windows and on CI's Linux job:**
    - `cargo fmt --check`;
-   - `cargo clippy --workspace --all-targets -- -D warnings`;
+   - `cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings`;
    - `cargo test --workspace`, with the Rust test count at least 304;
-   - `cargo check --workspace`, with no tests and so no `test-support`;
+   - `cargo clippy --workspace -- -D warnings`, with no tests and so no `test-support`;
    - the web gate, still 135 tests;
    - `api/openapi.json` byte-identical.
 2. `contracts.rs` passes with eight contracts.
