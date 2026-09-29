@@ -114,8 +114,14 @@ fn symbols(dir: &Path) -> (BTreeSet<String>, BTreeSet<String>) {
     (all, public)
 }
 
-/// Rule 9: the `pub(crate)` free functions of a service's `store` (`store.rs` or `store/`),
-/// which are exactly the ones another service may call inside one write (§14.6).
+/// `pub(crate)`, exactly: neither `pub(super)` nor `pub(in …)` nor `pub`.
+fn crate_visible(vis: &syn::Visibility) -> bool {
+    matches!(vis, syn::Visibility::Restricted(r) if r.in_token.is_none() && r.path.is_ident("crate"))
+}
+
+/// Rule 9: the `pub(crate)` functions of a service's `store` (`store.rs` or `store/`), free
+/// or a method of one of its `impl` blocks, which are exactly the ones another service may
+/// call inside one write (§14.6).
 fn shared(dir: &Path) -> BTreeSet<String> {
     let mut files = Vec::new();
     rs_files(&dir.join("store"), &mut files);
@@ -128,12 +134,20 @@ fn shared(dir: &Path) -> BTreeSet<String> {
             continue;
         };
         for item in &file.items {
-            if let syn::Item::Fn(x) = item
-                && let syn::Visibility::Restricted(r) = &x.vis
-                && r.in_token.is_none()
-                && r.path.is_ident("crate")
-            {
-                out.insert(x.sig.ident.to_string());
+            match item {
+                syn::Item::Fn(x) if crate_visible(&x.vis) => {
+                    out.insert(x.sig.ident.to_string());
+                }
+                syn::Item::Impl(i) => {
+                    for it in &i.items {
+                        if let syn::ImplItem::Fn(m) = it
+                            && crate_visible(&m.vis)
+                        {
+                            out.insert(m.sig.ident.to_string());
+                        }
+                    }
+                }
+                _ => {}
             }
         }
     }

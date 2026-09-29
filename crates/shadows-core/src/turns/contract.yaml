@@ -193,6 +193,8 @@ shared_in_transaction:
   read_before: "Runtime recovery (runtime/store.rs reconcile_orphans): reads each orphan's status and thread inside the write that marks it Interrupted"
   existed: "Runtime recovery (runtime/store.rs reconcile_orphans): the orphan read by read_before existed when its compare-and-swap matched"
   record: "Runtime recovery (runtime/store.rs reconcile_orphans): each OperationInterrupted event is journaled in the same write as its row, and logged after commit"
+  with_detail: "Runtime recovery (runtime/store.rs reconcile_orphans): the Transition `record` answered carries the interrupt reason into its log line, set inside the same write"
+  log: "Runtime recovery (runtime/store.rs reconcile_orphans): each recorded Transition's `operation.transition.committed` line, written after COMMIT, never inside the transaction (spec §8.7)"
 
 
 obligations:

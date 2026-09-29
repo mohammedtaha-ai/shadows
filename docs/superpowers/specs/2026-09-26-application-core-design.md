@@ -304,8 +304,8 @@ table**, becomes `pub(crate)`, and is declared in that service's contract under
 `shared_in_transaction`, with who calls it and why. Nothing else in a `store`
 is `pub(crate)`. Moving them all into `db/` was rejected: `db/` would become a
 pile of functions from every service with no owner. `contracts.rs` enforces it
-(§14.7, rule 9): every `pub(crate)` function in a service's `store` is declared,
-and every declared one exists.
+(§14.7, rule 9): every `pub(crate)` function or method in a service's `store`
+is declared, and every declared one exists.
 
 **Architecture Invariants** are written into `docs/codebase/README.md`, in
 rust-analyzer's style, one line each:
@@ -373,8 +373,9 @@ line, and the sources with `syn`. It fails when:
    (a path in another service is written `harness::change_model` and looked
    up in that service's folder);
 8. an agreement says `holds: false` and no `gap` names one of its symbols;
-9. a `pub(crate)` function in the service's `store` is missing from
-   `shared_in_transaction`, or a name there is not such a function (§14.6).
+9. a `pub(crate)` function or method in the service's `store` is missing
+   from `shared_in_transaction`, or a name there is not such a function or
+   method (§14.6).
 
 Every rule in §14.9 must name a real test. What the test cannot check is whether
 a rule's prose is true, or whether a named test's body proves it; the reviewer
