@@ -32,6 +32,7 @@ design-note, and status narratives.
 | §12 | [`2026-09-24-harness-controls-design.md`](./2026-09-24-harness-controls-design.md) |
 | §13 | [`2026-09-25-planner-workflow-design.md`](./2026-09-25-planner-workflow-design.md) |
 | §14 | [`2026-09-26-application-core-design.md`](./2026-09-26-application-core-design.md) |
+| §15 | [`2026-09-30-code-index-design.md`](./2026-09-30-code-index-design.md) |
 
 ## Maintenance rules
 
