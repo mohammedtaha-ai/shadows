@@ -243,6 +243,11 @@ obligations:
       - a_stopped_last_turn_is_not_a_fork_point
       - an_entry_of_another_thread_is_not_found
       - fork_while_a_turn_runs_is_thread_busy_and_a_replay_returns_the_same_fork
+    note: >
+      `an_entry_of_another_thread_is_not_found` sends an id no entry has, not
+      another thread's entry; `fork_point` reads the entry `WHERE id = ? AND
+      thread_id = ?`, so both are NotFound, but no test sends a real entry of
+      another thread.
 
   - rule: >
       A fork copies the source's entries under new ids with the same kinds,
@@ -261,6 +266,11 @@ obligations:
       - concurrent_entry_appends_allocate_contiguous_unique_ordinals
       - a_failed_entry_insert_rolls_back_its_allocated_ordinal
       - entries_are_read_in_ordinal_order
+    note: >
+      `entries_are_read_in_ordinal_order` appends in ordinal order, so it
+      cannot tell `ORDER BY ordinal` from insertion order; the order is
+      held by the query's explicit key, not by a test that would fail
+      without it.
 
   - rule: >
       Threads are listed in creation order, by the durable sequence of their
@@ -302,6 +312,10 @@ open_questions:
       `operations` reads Turns' `list_operations_for_thread` the same way.
       Whether each goes through a service method is for Task 10's narrowing
       of the `impl Storage` methods (ruling F6).
+  - >
+      `shadows-http`'s SSE usage frame (`sse.rs`) reads `turn_context`
+      directly through `core.storage()`, an adapter reaching this store
+      around `Threads`. It moves with Events (Task 10).
 
 
 tests:

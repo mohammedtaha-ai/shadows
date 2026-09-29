@@ -1088,7 +1088,7 @@ pub enum DirectoryError {
     Unavailable { path: String, source: io::Error },
 }
 impl DirectoryError {
-    pub(crate) fn from_io(path: &Path, error: io::Error) -> Self
+    pub(super) fn from_io(path: &Path, error: io::Error) -> Self
 }
 
 pub struct ProjectDirectory(String);
@@ -1097,8 +1097,8 @@ impl ProjectDirectory {
     pub fn as_str(&self) -> &str
 }
 
-pub(crate) fn canonical_dir(raw: &Path) -> Result<PathBuf, DirectoryError>
-pub(crate) fn utf8(path: PathBuf) -> Result<String, DirectoryError>
+pub(super) fn canonical_dir(raw: &Path) -> Result<PathBuf, DirectoryError>
+pub(super) fn utf8(path: PathBuf) -> Result<String, DirectoryError>
 ```
 
 ## `crates/shadows-core/src/projects/mod.rs` — 124 lines

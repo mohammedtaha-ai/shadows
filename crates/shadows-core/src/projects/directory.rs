@@ -35,7 +35,7 @@ impl DirectoryError {
     /// The operating system's answer, kept as the fact it states rather than
     /// flattened: "does not exist" and "may not look" ask different things of
     /// the person choosing a folder.
-    pub(crate) fn from_io(path: &Path, error: io::Error) -> Self {
+    pub(super) fn from_io(path: &Path, error: io::Error) -> Self {
         let shown = path.display().to_string();
         match error.kind() {
             io::ErrorKind::NotFound => Self::NotFound(shown),
@@ -78,7 +78,7 @@ impl ProjectDirectory {
 }
 
 /// `raw`, made canonical, provided it is absolute and names a directory.
-pub(crate) fn canonical_dir(raw: &Path) -> Result<PathBuf, DirectoryError> {
+pub(super) fn canonical_dir(raw: &Path) -> Result<PathBuf, DirectoryError> {
     if !raw.is_absolute() {
         return Err(DirectoryError::NotAbsolute(raw.display().to_string()));
     }
@@ -93,7 +93,7 @@ pub(crate) fn canonical_dir(raw: &Path) -> Result<PathBuf, DirectoryError> {
     Ok(canonical)
 }
 
-pub(crate) fn utf8(path: PathBuf) -> Result<String, DirectoryError> {
+pub(super) fn utf8(path: PathBuf) -> Result<String, DirectoryError> {
     path.into_os_string()
         .into_string()
         .map_err(|_| DirectoryError::NotUtf8)
