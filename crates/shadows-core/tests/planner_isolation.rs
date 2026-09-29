@@ -108,7 +108,7 @@ async fn stopping_one_turn_leaves_a_concurrent_turn_running_to_completion() {
 
     let handles = Arc::new(LiveHandles::default());
     let (bus, _rx) = tokio::sync::broadcast::channel(64);
-    let sessions = acp::fake_sessions(&tmp.path().join("s.sqlite3")).await;
+    let sessions = acp::fake_sessions(runtime.storage.clone());
     let start = async |thread: &ThreadId, prompt: &str| {
         turn::start_direct(&runtime, &handles, &sessions, &bus, thread, prompt)
             .await

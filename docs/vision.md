@@ -209,7 +209,38 @@ waits until personal use is complete.
 validated against PostgreSQL 16, and `CLAUDE.md` names a future PostgreSQL
 adapter. Nothing else exists.
 
-## 8. Open questions
+## 8. The plan belongs to the project, and remembers who decided what and why
+
+Mohammed told this on 2026-09-29.
+
+- **Any conversation can continue a plan.** Mohammed plans in one conversation,
+  then opens a new one on the same project, with the same model or another.
+  The new one reads the plan and carries the planning on with him, instead of
+  the first conversation growing until it is compacted and forgets.
+- **Every version and every edit records the conversation that wrote it.** So
+  it is known that v1 came from one conversation and a later change from
+  another.
+- **The reasons are kept, not only the changes.** The decisions behind the plan
+  and why they were taken are part of the plan. A new conversation learns what
+  was planned, why and how, from the plan itself, and starts with a small,
+  clean context.
+- **A point that is not clear can be asked about.** When a decision written in
+  an earlier conversation is not understood, the new conversation can leave a
+  message on that point, tied to the conversation that wrote it, asking what
+  was meant.
+
+**What it solves:** a new session no longer misses *why* things are the way
+they are (§1.2), and one long session no longer grows until its context is
+polluted or compacted (§1.3): the work moves to a fresh conversation without
+losing what was decided.
+
+**Today:** each plan belongs to one conversation (spec §13.2), and only that
+conversation's Planner reads or edits it (§13.6); another Planner on the same
+project cannot see it. An external agent over `/mcp` reads every plan in the
+project, and the web client shows them all. Every edit is a recorded command,
+but no reason is kept with it.
+
+## 9. Open questions
 
 Each one closes when the part it belongs to becomes a milestone.
 
@@ -227,17 +258,25 @@ Each one closes when the part it belongs to becomes a milestone.
   stays current while executors write code.
 - **The manager (§5).** What it sees, and whether it is one agent for the
   whole workflow or one per group of tasks.
+- **Writing one plan from two conversations (§8).** The plan keeps one Draft,
+  and an edit on a stale revision is already refused (spec §13.5); whether that
+  is enough when two conversations plan at once.
+- **What counts as a decision (§8).** Every edit with its reason, or only the
+  decisions the Planner writes down when it settles something.
+- **The clarifying message (§8).** A note left on the point for whoever comes
+  next, or Shadows resuming the earlier conversation to ask it and bringing
+  back its answer.
 
 ---
 
 ## Adding to this file
 
-- **A new feature or idea** gets a new numbered part before §8, and the parts
-  keep their numbers. Write it as:
+- **A new feature or idea** gets a new numbered part before the open questions,
+  and the parts before it keep their numbers. Write it as:
   - what the person does or sees;
   - which problem in §1 it solves, or a new problem added to §1;
   - a **Today** line.
 - **A changed idea** is edited in place, with a dated line saying what changed.
 - **A part that becomes a milestone** gets its design in an owner spec. The part
   keeps its idea and links to the spec.
-- **An answered open question** leaves §8, and its answer goes where it belongs.
+- **An answered open question** leaves the open questions, and its answer goes where it belongs.

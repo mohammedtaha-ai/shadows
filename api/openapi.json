@@ -2839,7 +2839,7 @@
             "description": "HARNESS_START_FAILED: the adapter did not start"
           }
         },
-        "summary": "Opens the thread's harness session (spec §12.2) and answers what it\noffers. Idempotent: an open session answers what it holds. A client calls\nit when it shows the conversation, so the menus are ready before the\nfirst message.",
+        "summary": "Opens the thread's harness session (spec §12.2) and answers what it\noffers. Idempotent: an open session answers what it holds. A client calls\nit when it shows the conversation, so the menus are ready before the\nfirst message. It carries no `command_id` and records no command, entry\nor operation. An opening that starts an adapter issues the thread's MCP\ngrant (spec §13.7): an `mcp_grant` row and a durable `McpGrantIssued`\nevent, after revoking with `McpGrantRevoked` the grant of any closed\nadapter it replaces; an opening that fails revokes the grant it issued.\nA session already open writes nothing.",
         "tags": [
           "threads"
         ]
@@ -2921,7 +2921,7 @@
             "description": "HARNESS_START_FAILED: the adapter did not start, or its session closed"
           }
         },
-        "summary": "Sets the thread's session to `model` as soon as a person picks it (spec\n§12.7), opening the session first if it is not open, and answers its\nchoices exactly as `POST .../session` does — the efforts are now the new\nmodel's. Nothing durable is written and no `command_id` is carried:\nsetting the same model twice is the same state, and a turn records its\nmodel in its own invocation. The remembered model does not move (§12.4).\nA running turn's session is not changed (`THREAD_BUSY`).",
+        "summary": "Sets the thread's session to `model` as soon as a person picks it (spec\n§12.7), opening the session first if it is not open, and answers its\nchoices exactly as `POST .../session` does — the efforts are now the new\nmodel's. The change itself writes nothing durable and no `command_id` is\ncarried: setting the same model twice is the same state, and a turn\nrecords its model in its own invocation. An opening it causes writes what\n`POST .../session` writes (the thread's MCP grant and its events). The\nremembered model does not move (§12.4).\nA running turn's session is not changed (`THREAD_BUSY`).",
         "tags": [
           "threads"
         ]

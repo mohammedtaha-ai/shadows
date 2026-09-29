@@ -193,9 +193,9 @@ async fn the_document_is_served_and_every_path_it_names_is_routed() {
     let (_stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            sessions: acp::fake_sessions(storage.clone()),
             storage,
             runtime: Arc::new(runtime),
-            sessions: acp::fake_sessions(&tmp.path().join("s.sqlite3")).await,
             handles: Arc::new(LiveHandles::default()),
             bus,
             ui: tokio::sync::broadcast::channel(16).0,

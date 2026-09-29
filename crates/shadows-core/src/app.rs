@@ -127,7 +127,7 @@ impl AppCore {
                 adapter_version: adapter_version.to_string(),
                 agent_version: version.clone(),
             }),
-            Storage::open(&config.db_path).await?,
+            storage.clone(),
             SessionsConfig {
                 mcp_url: Some(mcp_url.clone()),
                 ..SessionsConfig::default()

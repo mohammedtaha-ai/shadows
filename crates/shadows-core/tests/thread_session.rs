@@ -61,7 +61,7 @@ async fn fixture() -> (Fixture, ThreadId, ThreadId) {
             .unwrap();
         threads.push(thread.id);
     }
-    let sessions = acp::fake_sessions(&tmp.path().join("s.sqlite3")).await;
+    let sessions = acp::fake_sessions(storage.clone());
     let fixture = Fixture {
         _tmp: tmp,
         runtime: Arc::new(runtime),

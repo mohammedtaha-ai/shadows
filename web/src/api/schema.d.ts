@@ -389,7 +389,12 @@ export interface paths {
          * Opens the thread's harness session (spec §12.2) and answers what it
          *     offers. Idempotent: an open session answers what it holds. A client calls
          *     it when it shows the conversation, so the menus are ready before the
-         *     first message.
+         *     first message. It carries no `command_id` and records no command, entry
+         *     or operation. An opening that starts an adapter issues the thread's MCP
+         *     grant (spec §13.7): an `mcp_grant` row and a durable `McpGrantIssued`
+         *     event, after revoking with `McpGrantRevoked` the grant of any closed
+         *     adapter it replaces; an opening that fails revokes the grant it issued.
+         *     A session already open writes nothing.
          */
         post: operations["open_session"];
         delete?: never;
@@ -410,9 +415,11 @@ export interface paths {
          * Sets the thread's session to `model` as soon as a person picks it (spec
          *     §12.7), opening the session first if it is not open, and answers its
          *     choices exactly as `POST .../session` does — the efforts are now the new
-         *     model's. Nothing durable is written and no `command_id` is carried:
-         *     setting the same model twice is the same state, and a turn records its
-         *     model in its own invocation. The remembered model does not move (§12.4).
+         *     model's. The change itself writes nothing durable and no `command_id` is
+         *     carried: setting the same model twice is the same state, and a turn
+         *     records its model in its own invocation. An opening it causes writes what
+         *     `POST .../session` writes (the thread's MCP grant and its events). The
+         *     remembered model does not move (§12.4).
          *     A running turn's session is not changed (`THREAD_BUSY`).
          */
         put: operations["change_model"];

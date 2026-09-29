@@ -10,7 +10,8 @@
 # is touched; the session is opened, then its events leased, before any
 # setting changes; the one transaction checks busyness again under
 # `BEGIN IMMEDIATE`; only a committed, non-replayed turn is started. Any
-# refusal after the lease gives the events back.
+# refusal after the lease gives the events back, and any refusal after the
+# model was set sets the session's model back.
 #
 # `Cancelled` means the turn is confirmed stopped and that was written
 # (§2.3): by the watcher when the harness answers `cancelled` after a Stop, or
@@ -165,12 +166,24 @@ functions:
     record:
       signature: "(&self, thread_id, opened, context, turn: Turn) -> Result<StartedTurn, CoreError>"
       private: true
-      # The checks on the leased session, then `start_turn`.
+      # `offer_for_model`, then `start`; when `start` answers anything but a
+      # new turn (a refusal, an error, a replay found by the transaction) and
+      # the model was set for it, `set_model_back`.
+    start:
+      signature: "(&self, thread_id, context, turn: Turn, offered: &Offered) -> Result<StartedTurn, CoreError>"
+      private: true
+      # The offer's checks, the project's modes, then `start_turn`; the checks
+      # in the order they ran before the set-back existed.
     offer_for_model:
-      signature: "(&self, thread, opened, model: &str) -> Result<Offered, CoreError>"
+      signature: "(&self, thread, opened, model: &str) -> Result<(Offered, Option<String>), CoreError>"
       private: true
       # The one session change before the transaction: sets the model when
-      # it differs and is offered. It is not undone when a later check refuses.
+      # it differs and is offered, and answers the model it replaced.
+    set_model_back:
+      signature: "(&self, thread, opened, offered: &Offered, previous: &str)"
+      private: true
+      # The refusal stays the answer: a harness that will not take the model
+      # back is logged as `turn.model_not_set_back`, not returned.
     focus_block:
       signature: "(focus: &Focus, number: u32, title: &str) -> String"
   live:
@@ -400,6 +413,17 @@ obligations:
       - a_turn_whose_adapter_cannot_start_writes_nothing
 
   - rule: >
+      A refused start leaves the session on the model it held: a model set
+      for the turn is set back when the turn is not started.
+    tested_by:
+      - a_refused_effort_leaves_the_session_on_its_model
+      - a_refused_mode_leaves_the_session_on_its_model
+    note: >
+      Both fail on the code before the set-back: the session answers
+      `fake-small` after the refusal. A failed transaction and a replay found
+      by it take the same path in `record` and have no test of their own.
+
+  - rule: >
       Stop records Cancelled only when the turn is confirmed stopped; a tree
       that cannot be terminated is TerminationFailed (500
       PROCESS_TERMINATION_FAILED over HTTP) and the operation stays Running.
@@ -535,6 +559,14 @@ tests:
     checks: A disallowed mode is 403 MODE_NOT_ALLOWED and there are no entries.
   - name: an_effort_the_model_does_not_offer_is_refused
     checks: An unoffered effort is 422 SETTING_NOT_OFFERED and there are no entries.
+  - name: a_refused_effort_leaves_the_session_on_its_model
+    checks: >
+      A turn naming `fake-small` with effort `max` is 422 SETTING_NOT_OFFERED
+      and the session still answers `fake-large`.
+  - name: a_refused_mode_leaves_the_session_on_its_model
+    checks: >
+      With only acceptEdits allowed, a turn naming `fake-small` in `auto` is
+      403 MODE_NOT_ALLOWED and the session still answers `fake-large`.
   - name: a_turn_whose_adapter_cannot_start_writes_nothing
     checks: A missing node is 502 HARNESS_START_FAILED, no entries, no operations.
   - name: stop_is_confirmed_by_the_harness_when_it_answers_cancelled

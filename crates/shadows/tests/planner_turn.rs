@@ -86,11 +86,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
         .unwrap()
         .id;
 
-    let sessions = Sessions::new(
-        adapter,
-        shadows_core::testing::Storage::open(&db).await.unwrap(),
-        acp::test_config(),
-    );
+    let sessions = Sessions::new(adapter, storage.clone(), acp::test_config());
     let handles = Arc::new(LiveHandles::default());
     let (bus, _) = tokio::sync::broadcast::channel(256);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);

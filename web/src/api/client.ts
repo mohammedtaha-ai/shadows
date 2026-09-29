@@ -61,7 +61,8 @@ export function openSession(threadId: string): Promise<SessionChoices> {
 
 /** Sets the thread's session to `model` at once, opening it if needed;
  * answers what it offers now, the new model's efforts included (spec §12.7).
- * Writes nothing durable, so it carries no command id. */
+ * The change writes nothing durable, so it carries no command id; an opening
+ * it causes issues the thread's MCP grant, as any opening does (spec §13.7). */
 export function changeModel(threadId: string, model: string): Promise<SessionChoices> {
   return unwrap(
     client.PUT('/api/threads/{id}/session/model', {

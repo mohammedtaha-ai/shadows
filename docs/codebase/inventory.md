@@ -340,7 +340,7 @@ pub(crate) async fn append_event(conn: &mut SqliteConnection, event: &DurableEve
 pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
-### `crates/shadows-core/src/db/mod.rs` — 292 lines
+### `crates/shadows-core/src/db/mod.rs` — 296 lines
 
 ```rust
 pub(crate) use command::{classify, record_command};
@@ -364,6 +364,7 @@ pub enum StorageError {
     GrantInvalid,
     GrantScope,
     TaskNotInPlan(String),
+    NotLatestVersion(WorkflowId),
     Json(serde_json::Error),
     Database(sqlx::Error),
 }
@@ -601,7 +602,7 @@ pub struct IssuedGrant {
 }
 ```
 
-### `crates/shadows-core/src/grants/store.rs` — 443 lines
+### `crates/shadows-core/src/grants/store.rs` — 416 lines
 
 ```rust
 impl Storage {
@@ -613,7 +614,6 @@ impl Storage {
     pub async fn grant_for_token(&self, raw: &str) -> Result<Option<Grant>, StorageError>
     pub async fn list_project_grants(&self, project: &ProjectId) -> Result<Vec<Grant>, StorageError>
     pub async fn prepare_draft(&self, grant: &GrantId) -> Result<String, StorageError>
-    pub async fn draft_intent(&self, grant: &GrantId, draft_ref: &str) -> Result<Option<WorkflowId>, StorageError>
 }
 
 pub(crate) async fn check_writer(conn: &mut SqliteConnection, writer: &Writer, project: &ProjectId, thread: Option<&ThreadId>) -> Result<(), StorageError>
@@ -699,7 +699,7 @@ impl Offers {
 pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, to: mpsc::UnboundedSender<HarnessEvent>) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static
 ```
 
-### `crates/shadows-core/src/harness/sessions.rs` — 486 lines
+### `crates/shadows-core/src/harness/sessions.rs` — 491 lines
 
 ```rust
 pub struct SessionsConfig {
@@ -741,7 +741,7 @@ pub struct Sessions {
 }
 // + 4 private fields
 impl Sessions {
-    pub fn new(adapter: Arc<ClaudeAdapter>, storage: Storage, config: SessionsConfig) -> Arc<Self>
+    pub fn new(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig) -> Arc<Self>
     pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError>
     pub async fn offered(&self, thread: &ThreadId) -> Option<Offered>
     pub fn watch_options(&self) -> broadcast::Receiver<(ThreadId, Offered)>
@@ -1081,7 +1081,7 @@ pub fn approval_problems(content: &PlanContent) -> Vec<Problem>
 pub(super) fn edit_problems_after_removing(content: &PlanContent, removed: &BTreeSet<u32>) -> Vec<Problem>
 ```
 
-### `crates/shadows-core/src/plans/scope.rs` — 225 lines
+### `crates/shadows-core/src/plans/scope.rs` — 245 lines
 
 ```rust
 impl Plans {
@@ -1097,11 +1097,11 @@ pub(super) fn writer_of(grant: &Grant) -> Result<Writer, CoreError>
 pub(super) fn command(writer: &Writer, command_id: String, kind: &str, fp: String) -> CommandContext
 ```
 
-### `crates/shadows-core/src/plans/store/draft.rs` — 237 lines
+### `crates/shadows-core/src/plans/store/draft.rs` — 247 lines
 
 ```rust
 impl Storage {
-    pub async fn start_draft(&self, ctx: &CommandContext, writer: &Writer, thread: &ThreadId, fresh: Option<(&str, &str)>, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>
+    pub async fn start_draft(&self, ctx: &CommandContext, writer: &Writer, thread: &ThreadId, source: Option<&WorkflowId>, fresh: Option<(&str, &str)>, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>
     pub async fn start_thread_with_draft(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, title: &str, goal: &str, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>
 }
 ```
@@ -1289,14 +1289,14 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/testing/acp.rs` — 48 lines
+### `crates/shadows-core/src/testing/acp.rs` — 45 lines
 
 ```rust
 pub const MCP_URL: &str = "http://127.0.0.1:4318/mcp";
 pub fn adapter_at(node: PathBuf) -> Arc<ClaudeAdapter>
 pub fn fake_adapter() -> Arc<ClaudeAdapter>
 pub fn test_config() -> SessionsConfig
-pub async fn fake_sessions(db: &Path) -> Arc<Sessions>
+pub fn fake_sessions(storage: Arc<Storage>) -> Arc<Sessions>
 ```
 
 ### `crates/shadows-core/src/testing/mod.rs` — 88 lines
@@ -1521,7 +1521,7 @@ impl LiveHandles {
 }
 ```
 
-### `crates/shadows-core/src/turns/mod.rs` — 342 lines
+### `crates/shadows-core/src/turns/mod.rs` — 378 lines
 
 ```rust
 pub use handles::LiveHandles;
@@ -1822,7 +1822,7 @@ pub(super) async fn revoke_grant(State(s): State<AppState>, Path(grant): Path<Gr
 pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
 ```
 
-### `crates/shadows-http/src/harness.rs` — 118 lines
+### `crates/shadows-http/src/harness.rs` — 125 lines
 
 ```rust
 pub(super) async fn list_harnesses(State(s): State<AppState>) -> Result<Json<Vec<HarnessInfo>>, Failure>
@@ -1954,7 +1954,7 @@ impl Shadows {
 }
 ```
 
-### `crates/shadows-mcp/src/tools.rs` — 217 lines
+### `crates/shadows-mcp/src/tools.rs` — 219 lines
 
 Nothing reachable from outside this file.
 

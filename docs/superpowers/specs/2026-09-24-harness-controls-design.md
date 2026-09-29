@@ -285,11 +285,15 @@ setting. A trigger enforces the lock in storage, below the application.
 (`HarnessUnavailable`); its project's directory exists (`PathNotFound`, 409,
 whose message is the reason — it is about a directory the user chose, so it is
 public-safe, §3.2); its session is open, and is opened here if it is not
-(`HarnessStartFailed` when that fails — opening starts a process but writes
-nothing durable, §12.2); model, mode and effort are among the choices the session
+(`HarnessStartFailed` when that fails — opening starts a process and issues
+the thread's MCP grant, §13.7, but writes nothing of the turn's, §12.2); model, mode and effort are among the choices the session
 offers now, the effort is one the chosen model offers, and the mode passes §12.4's
 policy (`SettingNotOffered`); the mode is in the project's allowed set
 (`ModeNotAllowed`); no turn is running on the thread (`ThreadBusy`).
+Efforts belong to a model, so a turn naming another model than the session
+holds sets it before these checks; when a later check or the transaction
+refuses the turn, the session's model is set back, so a refused turn leaves the
+session as it found it.
 
 **One transaction** then commits, together or not at all (§2.1, §6.20):
 
@@ -318,9 +322,10 @@ leaves the session on the new model, and clients see it as an `options` frame.
 session only reports a model's efforts once it holds that model. So the client
 does not wait for Send: `PUT /api/threads/{id}/session/model` with `{ model }`
 opens the session if needed, sets the model when it differs, and answers the
-choices as `POST /session` does, the new model's efforts included. It writes
-nothing durable and carries no `CommandId`: setting the same model twice is
-the same state, and a turn records its model in its own invocation. It is
+choices as `POST /session` does, the new model's efforts included. The change
+writes nothing durable and carries no `CommandId`: setting the same model twice is
+the same state, and a turn records its model in its own invocation. An opening
+it causes issues the thread's grant, as any opening does (§13.7). It is
 `SettingNotOffered` for a model not on offer or refused by the harness (with
 the harness's message), and `ThreadBusy` while a turn runs, since a running
 turn's session is not changed under it. It does not touch the remembered
@@ -455,9 +460,9 @@ source with "(fork)":
 | Route | Change |
 |---|---|
 | `GET /api/harnesses` | new: each harness's kind, label, availability with a reason, remembered model and effort, latest limits |
-| `POST /api/threads/{id}/session` | new: open the thread's harness session (§12.2); answers the choices on offer — models, efforts of the current model, modes after §12.4's filter, current values. Idempotent: an open session answers what it holds |
+| `POST /api/threads/{id}/session` | new: open the thread's harness session (§12.2); answers the choices on offer — models, efforts of the current model, modes after §12.4's filter, current values. Idempotent: an open session answers what it holds. No `CommandId`; an opening issues the thread's MCP grant, a durable event (§13.7) |
 | `POST /api/threads/{id}/turns` | body becomes `{ command_id, prompt, model, mode, effort }` (§12.7) |
-| `PUT /api/threads/{id}/session/model` | new: `{ model }`; sets the open session's model when it is chosen and answers the choices as `POST /session` does (§12.7). Not durable, no `CommandId` |
+| `PUT /api/threads/{id}/session/model` | new: `{ model }`; sets the open session's model when it is chosen and answers the choices as `POST /session` does (§12.7). The change is not durable and has no `CommandId`; an opening it causes issues the grant (§13.7) |
 | `PATCH /api/threads/{id}` | new: `{ command_id, harness }`; `HarnessLocked` for a new command once an Operation exists, or at once for a fork (§12.6); a replay answers the thread as it stands |
 | create thread | gains optional `harness` (default `claude-code`) |
 | `GET /api/projects/{id}` | carries the allowed modes per harness |

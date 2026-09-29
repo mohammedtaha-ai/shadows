@@ -190,7 +190,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (Daemon, tokio::sync::watch::Send
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
     let runtime = Arc::new(runtime);
     let handles = Arc::new(LiveHandles::default());
-    let sessions = acp::fake_sessions(&tmp.path().join("s.sqlite3")).await;
+    let sessions = acp::fake_sessions(storage.clone());
     let (bus, _) = tokio::sync::broadcast::channel(64);
     // The sender is returned and held by the test: dropped, it would read as
     // a stopping daemon.

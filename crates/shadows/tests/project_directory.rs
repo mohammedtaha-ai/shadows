@@ -22,15 +22,15 @@ use tower::ServiceExt;
 
 use shadows_core::testing::acp;
 
-async fn app(storage: Arc<Storage>, db: &Path) -> (Router, tokio::sync::watch::Sender<bool>) {
+async fn app(storage: Arc<Storage>) -> (Router, tokio::sync::watch::Sender<bool>) {
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            sessions: acp::fake_sessions(storage.clone()),
             storage,
             runtime: Arc::new(runtime),
-            sessions: acp::fake_sessions(db).await,
             handles: Arc::new(LiveHandles::default()),
             bus,
             ui: tokio::sync::broadcast::channel(16).0,
@@ -93,7 +93,7 @@ async fn wait_for_terminal(storage: &Storage, op: &str) -> Operation {
 async fn a_turn_runs_in_its_projects_directory() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (app, _stopping) = app(storage.clone(), &tmp.path().join("s.sqlite3")).await;
+    let (app, _stopping) = app(storage.clone()).await;
     let work = tmp.path().join("work");
     std::fs::create_dir(&work).unwrap();
 
@@ -150,7 +150,7 @@ async fn a_turn_runs_in_its_projects_directory() {
 async fn an_unusable_directory_is_refused_with_a_stable_code() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (app, _stopping) = app(storage, &tmp.path().join("s.sqlite3")).await;
+    let (app, _stopping) = app(storage).await;
     let file = tmp.path().join("a-file.txt");
     std::fs::write(&file, "not a directory").unwrap();
 
@@ -191,7 +191,7 @@ async fn a_turn_on_a_deleted_directory_is_refused_with_its_reason() {
     let tmp = tempfile::tempdir().unwrap();
     let db = tmp.path().join("s.sqlite3");
     let storage = Arc::new(Storage::open(&db).await.unwrap());
-    let (app, _stopping) = app(storage.clone(), &db).await;
+    let (app, _stopping) = app(storage.clone()).await;
     let work = tmp.path().join("work");
     std::fs::create_dir(&work).unwrap();
     let (_, project) = create_project(&app, "c1", &work.display().to_string()).await;
@@ -241,7 +241,7 @@ async fn a_project_from_before_directories_has_its_turns_refused() {
     seed_pre_directory_database(tmp.path(), &db).await;
 
     let storage = Arc::new(Storage::open(&db).await.unwrap());
-    let (app, _stopping) = app(storage.clone(), &db).await;
+    let (app, _stopping) = app(storage.clone()).await;
 
     let (_, listed) = call(&app, "GET", "/api/projects", None).await;
     assert_eq!(listed[0]["directory"], Value::Null, "{listed}");

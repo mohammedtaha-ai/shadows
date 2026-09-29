@@ -60,7 +60,14 @@ async fn a_draft_ref_binds_in_both_paths() {
     let r2 = insert_draft_ref(&app, &grant, &in_an_hour()).await;
     let v2 = app
         .storage
-        .start_draft(&from_ref(&r2), &external, &app.thread, None, Some(&r2))
+        .start_draft(
+            &from_ref(&r2),
+            &external,
+            &app.thread,
+            None,
+            None,
+            Some(&r2),
+        )
         .await
         .unwrap();
     assert_eq!(v2.version, 2);
@@ -100,6 +107,7 @@ async fn a_draft_ref_binds_in_both_paths() {
             &from_ref(&r3),
             &external,
             &foreign_thread,
+            None,
             Some(("X", "x")),
             Some(&r3),
         )
@@ -329,6 +337,7 @@ async fn external_draft_starts_require_a_draft_ref() {
             &app.thread,
             None,
             None,
+            None,
         )
         .await;
     assert!(
@@ -361,6 +370,7 @@ async fn an_external_start_returns_an_existing_draft_without_a_ref() {
             &writer_ctx(&external, "existing-draft", "DraftStart", json!({})),
             &external,
             &app.thread,
+            None,
             None,
             None,
         )

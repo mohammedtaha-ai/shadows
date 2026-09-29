@@ -218,33 +218,6 @@ impl Storage {
         })
         .await
     }
-
-    /// The plan a draft_ref already started (bound refs never expire), or None
-    /// if unused and not expired; Err if unused and expired, unknown, or issued
-    /// to another grant. Expiry stops only a first use (§13.5).
-    #[cfg(feature = "test-support")]
-    pub async fn draft_intent(
-        &self,
-        grant: &GrantId,
-        draft_ref: &str,
-    ) -> Result<Option<WorkflowId>, StorageError> {
-        // `julianday`, not text order, for the reason `bind_draft_ref` gives.
-        let row: Option<(String, Option<String>, bool)> = sqlx::query_as(
-            "SELECT grant_id, workflow_id, julianday(expires_at) > julianday(?)
-               FROM draft_intent WHERE draft_ref = ?",
-        )
-        .bind(now())
-        .bind(draft_ref)
-        .fetch_optional(self.reader())
-        .await?;
-        match row {
-            Some((owner, Some(workflow), _)) if owner == grant.as_str() => {
-                Ok(Some(WorkflowId::from_stored(workflow)))
-            }
-            Some((owner, None, true)) if owner == grant.as_str() => Ok(None),
-            _ => Err(StorageError::GrantScope),
-        }
-    }
 }
 
 type GrantRow = (

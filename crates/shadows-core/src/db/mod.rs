@@ -11,7 +11,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Connection, SqliteConnection, SqlitePool};
 use tokio::sync::{Mutex, watch};
 
-use crate::plans::Problem;
+use crate::plans::{Problem, WorkflowId};
 
 mod command;
 mod journal;
@@ -74,6 +74,10 @@ pub enum StorageError {
     /// plan version. The text says which.
     #[error("{0}")]
     TaskNotInPlan(String),
+    /// Spec §13.6: a Planner's `draft_start` named a source other than the
+    /// version it starts from, its thread's latest, which this carries.
+    #[error("the source is not the thread's latest version, {0}")]
+    NotLatestVersion(WorkflowId),
     #[error("stored JSON is invalid: {0}")]
     Json(#[from] serde_json::Error),
     #[error(transparent)]

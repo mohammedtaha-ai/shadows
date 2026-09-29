@@ -284,14 +284,6 @@ not_the_caller's:
       offer's choices; `next` does, through `Harness`.
 
 
-open_questions:
-  - >
-      Harness' sessions append `McpGrantIssued`/`McpGrantRevoked` through
-      their own `Storage` (see Harness' contract), so those thread events do
-      not raise the committed signal `subscribe` watches; they arrive at the
-      next commit through the core's pool.
-
-
 tests:
   - name: reading_after_a_cursor_returns_the_unseen_tail_in_order
     checks: >
