@@ -38,6 +38,9 @@ shapes:
     storage: Arc<Storage>
     # Owns the operations: its `instance_id` goes on every new one.
     runtime: Arc<Runtime>
+    # Harness's. Every call a turn makes on it (`prepare_turn` and
+    # `setups().context_before_turn` in `spawn.rs` included) is declared in
+    # `harness/contract.yaml` under `functions.sessions_for_turns`.
     sessions: Arc<Sessions>
     # The registry of live turns; closed by shutdown, after which `send`
     # refuses a new turn with RuntimeStopping.
@@ -169,10 +172,10 @@ enums:
     source: crate::plans::Focus
     values: []
   Sessions:
-    source: crate::planner::Sessions
+    source: crate::harness::Sessions
     values: []
   LeaseError:
-    source: crate::planner::LeaseError
+    source: crate::harness::LeaseError
     values: []
   CoreError:
     source: crate::error::CoreError
@@ -329,7 +332,7 @@ agreements:
       - a_second_turn_while_one_is_running_is_thread_busy
     note: >
       Each test proves one side. The same rule's agreement with
-      `harness::change_model` is Harness's contract (Task 8).
+      `harness::change_model` is in Harness's contract.
 
   - between: [replayed_turn, start_turn]
     must: >
@@ -357,10 +360,6 @@ not_the_caller's:
 
 
 open_questions:
-  - >
-      `spawn.rs` calls Harness's internals directly (`Sessions::prepare_turn`,
-      widened to pub(crate) for this move, and `setups().context_before_turn`).
-      Whether they go behind `Harness` methods is Task 8's.
   - >
       Runtime recovery (`storage/sqlite/runtime.rs reconcile_orphans`) writes
       operation transitions through this store's `read_before`, `existed` and

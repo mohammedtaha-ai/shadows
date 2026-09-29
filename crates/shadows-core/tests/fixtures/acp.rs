@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use shadows_agent::claude::ClaudeAdapter;
-use shadows_core::planner::{Sessions, SessionsConfig};
+use shadows_core::harness::{Sessions, SessionsConfig};
 use shadows_core::storage::Storage;
 
 /// The `/mcp` URL a daemon built from these fixtures reports: the address

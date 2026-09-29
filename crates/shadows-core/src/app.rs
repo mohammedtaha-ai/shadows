@@ -18,7 +18,7 @@ use crate::command::{CommandContext, fingerprint};
 use crate::error::CoreError;
 use crate::events::UiSignal;
 use crate::grants::Grants;
-use crate::planner::{Sessions, SessionsConfig};
+use crate::harness::{Harness, Sessions, SessionsConfig};
 use crate::plans::Plans;
 use crate::runtime::Runtime;
 use crate::storage::{StopKind, Storage};
@@ -49,6 +49,7 @@ pub struct AppCore {
     plans: Plans,
     grants: Grants,
     turns: Turns,
+    harness: Harness,
     // Held while adapters still reach them (Tasks 5–9); each goes when its
     // last reader moves into a service, and Task 10 removes the last.
     storage: Arc<Storage>,
@@ -161,6 +162,7 @@ impl AppCore {
                 handles,
                 bus.clone(),
             ),
+            harness: Harness::new(storage.clone(), sessions.clone()),
             storage,
             sessions,
             bus,
@@ -178,6 +180,10 @@ impl AppCore {
 
     pub fn turns(&self) -> &Turns {
         &self.turns
+    }
+
+    pub fn harness(&self) -> &Harness {
+        &self.harness
     }
 
     /// §8.5 through `turns::shut_down(runtime, handles, sessions, bound,

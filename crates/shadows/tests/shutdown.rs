@@ -17,7 +17,7 @@ use shadows::cli::router;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::StartError;
 use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::planner::Sessions;
+use shadows_core::harness::Sessions;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::{StopKind, Storage};
 use shadows_core::testing::{LiveHandles, shut_down};

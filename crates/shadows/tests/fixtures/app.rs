@@ -24,7 +24,7 @@ use shadows_agent::events::HarnessEvent;
 use shadows_agent::policy;
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::events::UiSignal;
-use shadows_core::planner::{Sessions, SessionsConfig};
+use shadows_core::harness::{Sessions, SessionsConfig};
 use shadows_core::project::{ProjectDirectory, ProjectId};
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;

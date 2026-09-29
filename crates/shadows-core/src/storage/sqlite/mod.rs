@@ -14,7 +14,6 @@ mod entry;
 pub(super) mod events;
 mod events_read;
 mod fork;
-mod harness;
 mod instructions;
 mod project;
 mod runtime;
@@ -30,7 +29,6 @@ pub use runtime::{ReconcileReport, StopKind};
 pub(crate) use command::{classify, record_command};
 pub(crate) use entry::append_entry_in;
 pub(crate) use events::append_event;
-pub(crate) use harness::remember_settings;
 pub(crate) use thread::insert_thread;
 
 const MAX_SEQ: &str = "SELECT MAX(seq) FROM durable_event";

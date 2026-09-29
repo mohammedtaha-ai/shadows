@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::planner::OpenError;
+use crate::harness::OpenError;
 use crate::project::DirectoryError;
 use crate::storage::StorageError;
 use crate::turns::StartError;

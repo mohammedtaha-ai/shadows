@@ -222,7 +222,7 @@ mod turn;
 struct Daemon {
     runtime: std::sync::Arc<shadows_core::runtime::Runtime>,
     handles: std::sync::Arc<shadows_core::testing::LiveHandles>,
-    sessions: std::sync::Arc<shadows_core::planner::Sessions>,
+    sessions: std::sync::Arc<shadows_core::harness::Sessions>,
 }
 
 impl Daemon {

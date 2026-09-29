@@ -347,9 +347,7 @@ async fn usage_event(state: &AppState, thread: &ThreadId, used: u64, size: u64) 
 /// The `options` frame: the thread's new offer as a client sees it (§12.4).
 /// `None` when the thread's policy cannot be read; the next opening answers.
 async fn options_event(state: &AppState, thread: &ThreadId, offered: &Offered) -> Option<Event> {
-    let choices = super::harness::choices_for(state.core.storage(), thread, offered)
-        .await
-        .ok()?;
+    let choices = state.core.harness().choices(thread, offered).await.ok()?;
     Some(
         Event::default()
             .event("options")

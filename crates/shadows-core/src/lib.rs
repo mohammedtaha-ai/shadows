@@ -3,8 +3,8 @@ pub mod command;
 pub mod error;
 pub mod events;
 pub mod grants;
+pub mod harness;
 pub mod id;
-pub mod planner;
 pub mod plans;
 pub mod project;
 pub mod runtime;
@@ -20,6 +20,7 @@ pub use app::{AppCore, CoreParts, StartConfig};
 pub use error::CoreError;
 pub use events::UiSignal;
 pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};
+pub use harness::{ContextBreakdown, Harness, HarnessInfo, RememberedSettings};
 pub use plans::{
     AcceptanceItem, Approved, DraftStart, DraftStarted, EditOutcome, Focus, LastEdit, Link,
     LinkKind, Place, Plan, PlanContent, PlanEdit, PlanListing, PlanOp, PlanShow, PlanShown,

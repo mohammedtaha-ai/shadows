@@ -14,7 +14,7 @@ use shadows_agent::events::HarnessEvent;
 
 /// Why there is no breakdown to show.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NoBreakdown {
+pub(crate) enum NoBreakdown {
     NotOpen,
     NoTurnYet,
     Busy,
@@ -24,7 +24,7 @@ pub enum NoBreakdown {
 
 impl NoBreakdown {
     /// The reason in words a client shows as they are.
-    pub fn reason(self) -> &'static str {
+    pub(crate) fn reason(self) -> &'static str {
         match self {
             NoBreakdown::NotOpen => "the conversation's session is not open",
             NoBreakdown::NoTurnYet => {
@@ -42,7 +42,7 @@ impl Sessions {
     /// its answer. Takes the session's events while it runs, so a turn cannot
     /// interleave, and discards every one of them; gives them back after. On
     /// `TimedOut` the prompt is cancelled.
-    pub async fn context(&self, thread: &ThreadId) -> Result<Vec<Category>, NoBreakdown> {
+    pub(crate) async fn context(&self, thread: &ThreadId) -> Result<Vec<Category>, NoBreakdown> {
         let (opened, mut rx) = {
             let mut live = self.live.lock().await;
             let item = live.get_mut(thread).ok_or(NoBreakdown::NotOpen)?;

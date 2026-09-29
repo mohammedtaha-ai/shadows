@@ -3,7 +3,8 @@
 //! `GET /api/harnesses` lists the CLIs a conversation can run on; `POST
 //! /api/threads/{id}/session` opens a thread's harness session and answers
 //! what it offers, after Shadows' policy and the project's allowed modes;
-//! `PUT /api/threads/{id}/session/model` changes that session's model.
+//! `PUT /api/threads/{id}/session/model` changes that session's model. Each
+//! ends in `core.harness()`.
 
 use axum::Json;
 use axum::extract::{Path, State};
@@ -11,45 +12,9 @@ use axum::extract::{Path, State};
 use super::conversation::detached;
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
-use shadows_agent::breakdown::Category;
-use shadows_agent::choices::{Offered, SessionChoices, for_client};
-use shadows_agent::events::AccountLimits;
-use shadows_agent::policy;
-use shadows_core::planner::{LeaseError, ModelRefused, OpenError};
-use shadows_core::storage::{Storage, StorageError};
+use shadows_agent::choices::SessionChoices;
 use shadows_core::thread::ThreadId;
-
-/// The model and effort last chosen for this harness (spec §12.4).
-#[derive(serde::Serialize, utoipa::ToSchema)]
-pub(super) struct RememberedSettings {
-    model: String,
-    #[schema(required)]
-    effort: Option<String>,
-}
-
-/// A CLI a conversation can run on (spec §12.1). `kind` is `claude-code` or
-/// `codex`.
-#[derive(serde::Serialize, utoipa::ToSchema)]
-pub(super) struct HarnessInfo {
-    kind: String,
-    label: String,
-    available: bool,
-    /// Why it cannot run, when `available` is false.
-    #[schema(required)]
-    reason: Option<String>,
-    #[schema(required)]
-    remembered: Option<RememberedSettings>,
-    #[schema(required)]
-    limits: Option<AccountLimits>,
-}
-
-fn label(kind: &str) -> &'static str {
-    match kind {
-        policy::CLAUDE_CODE => "Claude Code",
-        policy::CODEX => "Codex",
-        _ => "Unknown",
-    }
-}
+use shadows_core::{ContextBreakdown, HarnessInfo};
 
 /// Every harness Shadows knows, runnable or not, with the model and effort
 /// last used on it and the account limits it last reported.
@@ -65,51 +30,7 @@ fn label(kind: &str) -> &'static str {
 pub(super) async fn list_harnesses(
     State(s): State<AppState>,
 ) -> Result<Json<Vec<HarnessInfo>>, Failure> {
-    let mut list = Vec::new();
-    for kind in policy::KNOWN {
-        let available = policy::is_available(kind);
-        let remembered = s
-            .core
-            .storage()
-            .remembered_settings(kind)
-            .await?
-            .map(|(model, effort)| RememberedSettings { model, effort });
-        list.push(HarnessInfo {
-            kind: kind.to_string(),
-            label: label(kind).to_string(),
-            available,
-            reason: (!available).then(|| "Coming later".to_string()),
-            remembered,
-            limits: s.core.storage().latest_limits(kind).await?,
-        });
-    }
-    Ok(Json(list))
-}
-
-/// A session opening failure as the client sees it (spec §12.7's order).
-pub(super) fn open_failure(e: OpenError) -> Failure {
-    match e {
-        OpenError::Storage(e) => Failure::from(e),
-        OpenError::Start(reason) => Failure::harness_start_failed(reason),
-        OpenError::Workspace(reason) => Failure::project_directory_unusable(reason),
-    }
-}
-
-/// What a client is offered on `thread`: the session's choices after the
-/// policy of the thread's harness and its project's allowed modes.
-pub(super) async fn choices_for(
-    storage: &Storage,
-    thread: &ThreadId,
-    offered: &Offered,
-) -> Result<SessionChoices, Failure> {
-    let context = storage.turn_context(thread).await?;
-    let project = storage.get_project(&context.project_id).await?;
-    let allowed = project
-        .allowed_modes
-        .get(&context.harness)
-        .cloned()
-        .unwrap_or_default();
-    Ok(for_client(offered, &context.harness, &allowed))
+    Ok(Json(s.core.harness().list().await?))
 }
 
 /// Opens the thread's harness session (spec §12.2) and answers what it
@@ -133,22 +54,7 @@ pub(super) async fn open_session(
     State(s): State<AppState>,
     Path(thread): Path<ThreadId>,
 ) -> Result<Json<SessionChoices>, Failure> {
-    let context = s.core.storage().turn_context(&thread).await?;
-    if !policy::is_available(&context.harness) {
-        return Err(Failure::harness_unavailable(&context.harness));
-    }
-    s.core
-        .sessions()
-        .open(&thread)
-        .await
-        .map_err(open_failure)?;
-    let offered =
-        s.core.sessions().offered(&thread).await.ok_or_else(|| {
-            Failure::harness_start_failed("the session closed as it opened".into())
-        })?;
-    Ok(Json(
-        choices_for(s.core.storage(), &thread, &offered).await?,
-    ))
+    Ok(Json(s.core.harness().open_session(&thread).await?))
 }
 
 /// The model a person picked (spec §12.7).
@@ -184,51 +90,10 @@ pub(super) async fn change_model(
     Path(thread): Path<ThreadId>,
     Json(body): Json<ChangeModel>,
 ) -> Result<Json<SessionChoices>, Failure> {
-    let choices = detached(async move {
-        let context = s.core.storage().turn_context(&thread).await?;
-        if !policy::is_available(&context.harness) {
-            return Err(Failure::harness_unavailable(&context.harness));
-        }
-        if s.core.storage().thread_is_busy(&thread).await? {
-            return Err(StorageError::ThreadBusy.into());
-        }
-        let opened = s
-            .core
-            .sessions()
-            .open(&thread)
-            .await
-            .map_err(open_failure)?;
-        let offered = s
-            .core
-            .sessions()
-            .change_model(&thread, &opened, &body.model)
-            .await
-            .map_err(|refused| match refused {
-                ModelRefused::NotOffered => {
-                    Failure::setting_not_offered("model", &body.model, None)
-                }
-                ModelRefused::Harness(message) => {
-                    Failure::setting_not_offered("model", &body.model, Some(&message))
-                }
-                ModelRefused::Lease(LeaseError::Busy) => StorageError::ThreadBusy.into(),
-                ModelRefused::Lease(e @ LeaseError::Closed) => {
-                    Failure::harness_start_failed(e.to_string())
-                }
-            })?;
-        choices_for(s.core.storage(), &thread, &offered).await
-    })
-    .await?;
+    let choices =
+        detached(async move { Ok(s.core.harness().change_model(&thread, &body.model).await?) })
+            .await?;
     Ok(Json(choices))
-}
-
-/// The context breakdown read on demand (spec §12.8): the categories, or none
-/// with the reason.
-#[derive(serde::Serialize, utoipa::ToSchema)]
-pub(super) struct ContextBreakdown {
-    #[schema(required)]
-    categories: Option<Vec<Category>>,
-    #[schema(required)]
-    reason: Option<String>,
 }
 
 /// The context breakdown of the thread's session, read on demand (spec
@@ -250,15 +115,5 @@ pub(super) async fn thread_context(
     State(s): State<AppState>,
     Path(thread): Path<ThreadId>,
 ) -> Result<Json<ContextBreakdown>, Failure> {
-    s.core.storage().turn_context(&thread).await?;
-    Ok(Json(match s.core.sessions().context(&thread).await {
-        Ok(categories) => ContextBreakdown {
-            categories: Some(categories),
-            reason: None,
-        },
-        Err(why) => ContextBreakdown {
-            categories: None,
-            reason: Some(why.reason().to_string()),
-        },
-    }))
+    Ok(Json(s.core.harness().context(&thread).await?))
 }

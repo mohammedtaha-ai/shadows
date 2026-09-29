@@ -15,7 +15,7 @@ use shadows_agent::claude::ClaudeAdapter;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::events::Actor;
-use shadows_core::planner::Sessions;
+use shadows_core::harness::Sessions;
 use shadows_core::runtime::Runtime;
 use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
 use shadows_core::thread::{ThreadEntry, ThreadEntryKind, ThreadId};

@@ -29,16 +29,16 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows-agent/src/choices.rs` | reading the harness's offered choices | `crates/shadows-agent/src/choices.rs` |
 | `crates/shadows-agent/src/breakdown.rs` | reading Claude's `/context` answer | `crates/shadows-agent/src/breakdown.rs` |
 | `crates/shadows-agent/src/claude.rs` | the launch spec of the pinned Claude ACP adapter | `crates/shadows-agent/src/claude.rs` |
-| `crates/shadows-core/src/planner/offers.rs` | the latest choices each open session offers | `crates/shadows-core/src/planner/offers.rs` |
-| `crates/shadows-core/src/planner/context.rs` | reading a session's context breakdown on demand | `crates/shadows-core/src/planner/context.rs` |
+| `crates/shadows-core/src/harness/offers.rs` | the latest choices each open session offers | `crates/shadows-core/src/harness/offers.rs` |
+| `crates/shadows-core/src/harness/context.rs` | reading a session's context breakdown on demand | `crates/shadows-core/src/harness/context.rs` |
 | `crates/shadows-http/src/harness.rs` | the routes over harnesses, their sessions included | `crates/shadows-http/src/harness.rs` |
 | `crates/shadows-http/src/thread.rs` | the routes that change a planning thread itself | `crates/shadows-http/src/thread.rs` |
 | `crates/shadows-http/src/workflow.rs` | the routes over plan versions | `crates/shadows-http/src/workflow.rs` |
 | `crates/shadows-http/src/grants.rs` | the routes over external agents' MCP grants | `crates/shadows-http/src/grants.rs` |
 | `crates/shadows-http/src/instructions.rs` | the routes over a project's Planner instructions | `crates/shadows-http/src/instructions.rs` |
-| `crates/shadows-core/src/planner/sessions.rs` | the live adapter connection each open thread holds | `crates/shadows-core/src/planner/sessions.rs` |
-| `crates/shadows-core/src/planner/settings.rs` | setting an open session's options | `crates/shadows-core/src/planner/settings.rs` |
-| `crates/shadows-core/src/planner/setup.rs` | what a Planner session opens with | `crates/shadows-core/src/planner/setup.rs` |
+| `crates/shadows-core/src/harness/sessions.rs` | the live adapter connection each open thread holds | `crates/shadows-core/src/harness/sessions.rs` |
+| `crates/shadows-core/src/harness/settings.rs` | setting an open session's options | `crates/shadows-core/src/harness/settings.rs` |
+| `crates/shadows-core/src/harness/setup.rs` | what a Planner session opens with | `crates/shadows-core/src/harness/setup.rs` |
 | `crates/shadows-core/src/turns/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows-core/src/turns/turn.rs` |
 | `crates/shadows-core/src/turns/entries.rs` | turning harness events into durable entries | `crates/shadows-core/src/turns/entries.rs` |
 | `crates/fake-acp/src/main.rs` | test apparatus that no product code links | `crates/fake-acp/src/main.rs` |
@@ -60,7 +60,9 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows-mcp/src/tools.rs` | each MCP tool's `Plans` call | `crates/shadows-mcp/src/tools.rs` |
 | `crates/shadows-mcp/src/refusal.rs` | what an MCP tool call answers | `crates/shadows-mcp/src/refusal.rs` |
 | `crates/shadows-core/src/turns/model.rs` | the operation types callers meet | `crates/shadows-core/src/turns/model.rs` |
-| `crates/shadows-core/src/planner/` | the Planner session a thread holds | `crates/shadows-core/src/planner/sessions.rs` |
+| `crates/shadows-core/src/harness/` | the harnesses, each thread's open session included | `crates/shadows-core/src/harness/mod.rs` |
+| `crates/shadows-core/src/harness/model.rs` | the harness shapes callers meet | `crates/shadows-core/src/harness/model.rs` |
+| `crates/shadows-core/src/harness/store.rs` | the rows kept per harness | `crates/shadows-core/src/harness/store.rs` |
 | `crates/shadows-core/src/turns/` | Planner turns, from start to stop | `crates/shadows-core/src/turns/mod.rs` |
 | `crates/shadows-core/src/turns/store/` | turns' SQLite queries | `crates/shadows-core/src/turns/store/turn.rs` |
 | `crates/shadows-process/src/lib.rs` | OS process ownership with whole-tree containment | `crates/shadows-process/src/lib.rs` |

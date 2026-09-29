@@ -46,7 +46,7 @@ use crate::app::{Bus, user_command};
 use crate::command::CommandContext;
 use crate::error::CoreError;
 use crate::events::Actor;
-use crate::planner::{LeaseError, OpenSession, Sessions, prompt_version};
+use crate::harness::{LeaseError, OpenSession, Sessions, prompt_version};
 use crate::plans::Focus;
 use crate::runtime::Runtime;
 use crate::storage::{StopKind, Storage, StorageError};

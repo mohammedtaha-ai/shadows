@@ -12,7 +12,7 @@ use shadows_agent::events::HarnessEvent;
 use shadows_core::OperationId;
 use shadows_core::StartError;
 use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::planner::Sessions;
+use shadows_core::harness::Sessions;
 use shadows_core::runtime::Runtime;
 use shadows_core::testing::NewTurn;
 use shadows_core::testing::{LiveHandles, PlannerTurn, PlannerTurnRequest};
@@ -60,7 +60,7 @@ pub fn new_turn<'a>(
         agent_path: "fake_acp",
         agent_version: "fake-claude-1",
         settings,
-        prompt_version: Some(shadows_core::planner::prompt_version()),
+        prompt_version: Some(shadows_core::harness::prompt_version()),
         instructions_version: None,
         focus: None,
     }

@@ -32,7 +32,7 @@ fn built(package: &str, bin: &str) -> std::path::PathBuf {
 }
 
 /// The Planner's instructions, as `harness/setup` compiles them in.
-pub const PROMPT: &str = include_str!("planner/prompt.txt");
+pub const PROMPT: &str = include_str!("harness/prompt.txt");
 
 /// This crate's migrations directory.
 pub fn migrations_dir() -> std::path::PathBuf {

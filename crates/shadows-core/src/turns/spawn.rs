@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     events::Actor,
-    planner::{OpenSession, Sessions},
+    harness::{OpenSession, Sessions},
     plans::Focus,
     runtime::Runtime,
     storage::StorageError,

@@ -21,7 +21,7 @@ use std::time::Duration;
 use super::handles::LiveHandles;
 use super::turn::{PlannerTurn, StopOutcome};
 use crate::events::Actor;
-use crate::planner::Sessions;
+use crate::harness::Sessions;
 use crate::runtime::Runtime;
 use crate::storage::{StopKind, StorageError};
 

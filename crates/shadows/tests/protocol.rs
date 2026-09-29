@@ -15,7 +15,7 @@ use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use shadows::cli::router;
 use shadows_core::OperationId;
-use shadows_core::planner::Sessions;
+use shadows_core::harness::Sessions;
 use shadows_core::runtime::{Runtime, RuntimeInstanceId};
 use shadows_core::storage::Storage;
 use shadows_core::testing::LiveHandles;

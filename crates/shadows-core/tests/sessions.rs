@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 use shadows_agent::{claude::ClaudeAdapter, events::HarnessEvent};
 use shadows_core::{
     command::{CommandContext, fingerprint},
-    planner::{OpenError, OpenSession, Sessions, SessionsConfig},
+    harness::{OpenError, OpenSession, Sessions, SessionsConfig},
     project::ProjectDirectory,
     storage::Storage,
     thread::ThreadId,

@@ -19,7 +19,7 @@ use shadows_core::thread::ThreadId;
 
 use std::path::Path;
 
-use shadows_core::planner::SessionsConfig;
+use shadows_core::harness::SessionsConfig;
 
 use super::acp;
 use super::app::{App, test_app_with};

@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 use shadows_core::WorkflowId;
-use shadows_core::planner::{SessionsConfig, prompt_version};
+use shadows_core::harness::{SessionsConfig, prompt_version};
 use shadows_core::storage::Storage;
 
 #[path = "fixtures/acp.rs"]

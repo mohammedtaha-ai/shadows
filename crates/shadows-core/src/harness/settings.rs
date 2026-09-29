@@ -14,7 +14,7 @@ use shadows_agent::{TurnSettings, acp::AcpError, choices::Offered};
 
 /// Why the session's model was not changed (spec §12.7).
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum ModelRefused {
+pub(crate) enum ModelRefused {
     /// The session's model list does not hold it.
     #[error("the session does not offer this model")]
     NotOffered,
@@ -48,7 +48,7 @@ impl Sessions {
     /// is held the way a turn holds it, so neither a turn nor a `/context`
     /// read runs while it changes; it is given back whatever the outcome.
     /// Nothing durable is written: a turn records its own model.
-    pub async fn change_model(
+    pub(crate) async fn change_model(
         &self,
         thread: &ThreadId,
         opened: &OpenSession,

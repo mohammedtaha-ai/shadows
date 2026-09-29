@@ -9,12 +9,11 @@ use sqlx::SqliteConnection;
 use super::operation::insert_pending;
 use crate::command::CommandContext;
 use crate::events::Actor;
+use crate::harness::remember_settings;
 use crate::plans::Focus;
 use crate::plans::task_of;
 use crate::runtime::RuntimeInstanceId;
-use crate::storage::{
-    Storage, StorageError, append_entry_in, classify, now, record_command, remember_settings,
-};
+use crate::storage::{Storage, StorageError, append_entry_in, classify, now, record_command};
 use crate::thread::{EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId};
 use crate::turns::model::OperationId;
 use shadows_agent::TurnSettings;
@@ -33,7 +32,7 @@ pub struct NewTurn<'a> {
     pub agent_path: &'a str,
     pub agent_version: &'a str,
     pub settings: &'a TurnSettings,
-    /// `planner::prompt_version()` when the turn started (§13.8).
+    /// `harness::prompt_version()` when the turn started (§13.8).
     pub prompt_version: Option<&'a str>,
     /// The project's current `planner_instructions_version` id, if it has one.
     pub instructions_version: Option<&'a str>,

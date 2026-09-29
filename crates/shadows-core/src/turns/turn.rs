@@ -41,7 +41,7 @@ use super::{
 };
 use crate::{
     events::Actor,
-    planner::{OpenSession, Sessions},
+    harness::{OpenSession, Sessions},
     runtime::Runtime,
     storage::StorageError,
     thread::{NewThreadEntry, ThreadEntryKind, ThreadId},

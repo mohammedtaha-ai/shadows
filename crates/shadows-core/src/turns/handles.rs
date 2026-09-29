@@ -1,6 +1,6 @@
 //! One job: register live turns for watcher/stop arbitration.
 use super::model::OperationId;
-use crate::planner::OpenSession;
+use crate::harness::OpenSession;
 use crate::thread::ThreadId;
 use std::{
     collections::HashMap,

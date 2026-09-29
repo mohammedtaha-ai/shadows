@@ -18,7 +18,7 @@ use shadows_core::OperationId;
 use shadows_core::app::Bus;
 use shadows_core::command::{CommandContext, fingerprint};
 use shadows_core::events::Actor;
-use shadows_core::planner::Sessions;
+use shadows_core::harness::Sessions;
 use shadows_core::runtime::Runtime;
 use shadows_core::storage::Storage;
 use shadows_core::testing::{LiveHandles, PlannerTurn};
