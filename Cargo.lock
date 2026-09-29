@@ -823,7 +823,6 @@ name = "fake-acp"
 version = "0.1.0"
 dependencies = [
  "agent-client-protocol",
- "reqwest",
  "rmcp",
  "serde_json",
  "shadows-core",
@@ -2255,7 +2254,6 @@ dependencies = [
  "axum",
  "serde",
  "serde_json",
- "shadows-agent",
  "shadows-core",
  "tokio",
  "tokio-stream",
@@ -2275,7 +2273,6 @@ dependencies = [
  "serde",
  "serde_json",
  "shadows-core",
- "tokio",
  "tracing",
 ]
 

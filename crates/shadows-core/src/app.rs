@@ -226,7 +226,7 @@ impl AppCore {
 /// measured stream contract belongs to one installation at one version.
 ///
 /// It goes through `process::spawn` rather than `tokio::process` directly:
-/// CLAUDE.md makes `process/` the sole owner of that API, and a version probe
+/// CLAUDE.md makes `shadows-process` the sole owner of that API, and a version probe
 /// is no less a child process than a turn is. An unreadable version is not a
 /// startup failure — the daemon still serves, and records that it does not
 /// know.

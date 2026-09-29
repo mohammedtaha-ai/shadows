@@ -10,7 +10,6 @@ workspace = true
 
 [dependencies]
 agent-client-protocol = { workspace = true }
-reqwest = { workspace = true, optional = true }
 rmcp = { workspace = true }
 serde_json = { workspace = true }
 shadows-core = { path = "../shadows-core" }
@@ -27,4 +26,4 @@ required-features = ["test-support"]
 
 [features]
 test-support = ["shadows-core/test-support", "rmcp/client",
-                "rmcp/transport-streamable-http-client-reqwest", "dep:reqwest"]
+                "rmcp/transport-streamable-http-client-reqwest"]

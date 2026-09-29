@@ -3,7 +3,7 @@
 //! Spec §1: only the daemon can see the machine's disk, so the check that a
 //! path names a real directory, and the form in which it is stored and shown,
 //! is made here, once, before anything records it. Nothing here knows about
-//! HTTP; `protocol/` maps [`DirectoryError`] to a status and a stable code.
+//! HTTP; `shadows-http` maps [`DirectoryError`] to a status and a stable code.
 
 use std::io;
 use std::path::{Path, PathBuf};

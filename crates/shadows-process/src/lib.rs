@@ -10,7 +10,7 @@ use process_wrap::tokio::{ChildWrapper, CommandWrap, KillOnDrop};
 use tokio::io::{AsyncBufReadExt, BufReader, Lines};
 use tokio::process::{ChildStderr, ChildStdin, ChildStdout, Command};
 
-/// OS-level intent and nothing else. Spec §1.5: `process/` knows nothing about
+/// OS-level intent and nothing else. Spec §1.5: `shadows-process` knows nothing about
 /// Role, Claude, Codex, planning, workflows, or verification.
 #[derive(Debug, Clone)]
 pub struct ProcessSpec {
@@ -32,7 +32,7 @@ pub type ChildErr = ChildStderr;
 
 /// A captured child's stdout, read line by line. Named here so callers can
 /// hold one in a signature without importing `tokio::process` themselves —
-/// only `process/` may touch that API (CLAUDE.md), and a type alias is the
+/// only `shadows-process` may touch that API (CLAUDE.md), and a type alias is the
 /// difference between honouring that boundary and a caller quietly crossing it.
 pub type StdoutLines = Lines<BufReader<ChildStdout>>;
 

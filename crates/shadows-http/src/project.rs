@@ -3,7 +3,7 @@
 //!
 //! Every handler here is `pub(super)`: the route table in the parent is the
 //! only thing that names them, and a route handler reachable from outside
-//! `protocol/` would be a second, undeclared entry point into the product.
+//! this crate would be a second, undeclared entry point into the product.
 
 use axum::Json;
 use axum::extract::{Path, State};
