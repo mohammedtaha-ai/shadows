@@ -1822,7 +1822,7 @@ pub(super) async fn revoke_grant(State(s): State<AppState>, Path(grant): Path<Gr
 pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
 ```
 
-### `crates/shadows-http/src/harness.rs` — 118 lines
+### `crates/shadows-http/src/harness.rs` — 125 lines
 
 ```rust
 pub(super) async fn list_harnesses(State(s): State<AppState>) -> Result<Json<Vec<HarnessInfo>>, Failure>

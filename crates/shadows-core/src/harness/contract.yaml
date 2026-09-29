@@ -315,17 +315,23 @@ obligations:
   - rule: >
       No command. Opening a session, changing its model and reading its
       breakdown record no command, write no entry or operation, and leave the
-      remembered model where the last turn put it. An opening does write the
-      thread grant and its event when `mcp_url` is set (the Trap above).
+      remembered model where the last turn put it. An opening that starts an
+      adapter does write, when `mcp_url` is set (always, under `shadows
+      serve`): the thread grant's `mcp_grant` row and `McpGrantIssued`, after
+      `McpGrantRevoked` for a closed adapter's grant it replaces (the Trap
+      above). The route texts in `shadows-http/src/harness.rs` say so.
     tested_by:
       - harness_calls_record_no_command
       - picking_a_model_answers_that_models_efforts
       - the_breakdown_is_read_on_demand_and_leaves_no_trace
+      - a_sessions_grant_reaches_a_subscriber_live
     note: >
       The first counts `command_record` before and after all three calls; it
       passes on b4d614e, so no harness call carries a fingerprint the move
       could shift. The second asserts `remembered` is still null after two
-      model changes.
+      model changes. The fourth is the write: POST session appends the
+      thread's `McpGrantIssued`. The revocation of a replaced grant has no
+      test of its own here.
 
   - rule: >
       Opening is idempotent: an open session answers the choices it holds,

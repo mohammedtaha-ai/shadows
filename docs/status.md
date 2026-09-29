@@ -97,11 +97,12 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 1. **The five pre-existing defects Milestone 2.5 found,** each a `gap` in its
    service's contract. Fixed: a model change is now set back when a later
    check refuses the turn, `Sessions` shares the core's SQLite pool,
-   so a session's grant events wake SSE at once, and a Planner's
-   `from_workflow_id` is in its DraftStart fingerprint. Left: the
-   harness-session route's OpenAPI text says nothing durable is written;
-   and what a Planner's `from_workflow_id` must do, which §13.6 does not
-   say (it still does not choose the version started).
+   so a session's grant events wake SSE at once, a Planner's
+   `from_workflow_id` is in its DraftStart fingerprint, and the
+   harness-session routes' OpenAPI text (and §12.7) now say that an opening
+   issues the thread's MCP grant. Left: what a Planner's `from_workflow_id`
+   must do, which §13.6 does not say (it still does not choose the version
+   started).
 2. **Milestone 3: the code index** (`vision.md` §2.4), with tree-sitter embedded.
 3. **Effort at once, without `default`.** Mohammed's ruling after the
    Windows run: picking an effort sets it on the session at once, as the
