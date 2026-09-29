@@ -9,14 +9,14 @@
 - A ninth service, `Code`, in `shadows-core`:
   - stores the tags in SQLite;
   - indexes the active projects;
-  - watches them with `notify-debouncer-full`, with a periodic scan as the safety net;
+  - watches them with a plain `notify` watcher and its own ~500 ms gathering, with a periodic scan as the safety net;
   - answers the questions.
 - `shadows-mcp` gets three tools, and `shadows-http` gets routes, each calling one `Code` method.
 
 **Tech Stack:** Rust 2024, SQLx 0.9 on SQLite, axum 0.8 + utoipa, `rmcp` 3.4.1. New dependencies, with versions confirmed by Task 0:
 - `tree-sitter` 0.27, `tree-sitter-tags` 0.27;
 - `tree-sitter-rust` 0.24, `tree-sitter-typescript` 0.23, `tree-sitter-javascript` 0.25;
-- `notify` 8.2, `notify-debouncer-full` 0.7;
+- `notify` 8.2 (no `notify-debouncer-full`: PROBE.md);
 - `ignore` 0.4.
 
 **Spec:** `docs/superpowers/specs/2026-09-30-code-index-design.md` (§15). Where this plan and §15 disagree, §15 is right and the plan is the defect: stop and report.
@@ -315,7 +315,12 @@ pub fn language_for(path: &Path) -> Option<&'static Language> {
 }
 ```
 
-If `TagsConfiguration` is not `Sync` in the pinned version, keep a `thread_local!` table instead of the `LazyLock`, and say so in the report. Add each extra `.scm` file that `PROBE.md` asks for, with the same `include_str!`.
+If `TagsConfiguration` is not `Sync` in the pinned version, keep a `thread_local!` table instead of the `LazyLock`, and say so in the report.
+
+The extra patterns are in `docs/evidence/milestone3/PROBE.md`, "The extra query patterns", copied verbatim into three files, each **after** the grammar's query (the earlier pattern wins):
+- `queries/rust.scm` → Rust: `[rust TAGS_QUERY, rust.scm]`;
+- `queries/typescript.scm` (TS_EXTRA) → TypeScript and TSX: `[ts, js, typescript.scm, javascript.scm]`;
+- `queries/javascript.scm` (JS_EXTRA) → JavaScript: `[js, javascript.scm]`.
 
 - [ ] **Step 5: `extract.rs`.**
 
@@ -634,7 +639,7 @@ git commit -m "feat(M3): Code — the index's tables, the scan and the three que
 - Create: `crates/shadows-core/src/code/watch.rs`: one active project's worker, with its watcher and its periodic scan.
 - Create: `crates/shadows-core/src/code/active.rs`: which projects are active, in order of use.
 - Modify: `code/mod.rs` (`start`, `touch`, `shut_down`, and the re-check in the questions), `code/model.rs` (`CodeConfig`), `code/contract.yaml`, `app.rs` (`start` starts `Code`; `shut_down` stops it first), `turns/mod.rs` (`send` touches), `threads/mod.rs` (`list` touches), `projects/mod.rs` (`create` touches), and the contracts of those three services (their calls to `Code::touch`).
-- Modify: `crates/shadows-core/Cargo.toml` (`notify`, `notify-debouncer-full`).
+- Modify: `crates/shadows-core/Cargo.toml` (`notify` only).
 - Test: `crates/shadows-core/tests/code_index.rs` (two tests added).
 
 **Interfaces:**
@@ -664,20 +669,21 @@ impl Code {
 
 - **Worker** (`watch.rs`): one `tokio` task per active project, owning:
   - an `mpsc::Receiver<Job>`;
-  - its debouncer;
-  - a `tokio::time::interval(rescan_every)`.
+  - its `notify::RecommendedWatcher` (a plain watcher, **not** `notify-debouncer-full`: §15.4 and PROBE.md);
+  - a set of pending paths, and a `tokio::time::interval(rescan_every)`.
 
   `Job` has three kinds:
   - `Scan`, which runs Task 2's `scan`;
   - `Files(Vec<String>)`, which indexes those relative paths or deletes their rows;
   - `Recheck(Vec<String>, oneshot::Sender<()>)`, which indexes those paths if their size or modified time changed, deletes the rows of those that are gone, then replies.
 
-  The debouncer's handler:
-  - filters paths through the walk's rules: the ignore files, `target` and `node_modules`, and `language_for`;
-  - sends `Files`;
-  - sends `Scan` on an error, on `need_rescan()`, or on a changed `.gitignore`.
+  The watcher's handler runs on `notify`'s thread and does little:
+  - it drops a path under `target/` or `node_modules/` first, cheaply (a build sends hundreds of such events);
+  - it forwards the rest, relative, to the worker; a changed `.gitignore`, an error, or `need_rescan()` sends `Scan` instead.
 
-  The interval sends `Scan`. A folder that is gone sets the state `DirectoryMissing` and drops the debouncer. The next periodic scan that finds the folder rebuilds the debouncer and scans.
+  The worker gathers forwarded paths into its set, and when no path has arrived for `debounce`, filters them with `keeps` and the ignore files and sends itself `Files`. `Files` decides by what is on disk (§15.4), never by the event's kind: a save through rename arrives as `Remove` then `Create`. A missing file's rows are deleted only if the project's folder exists.
+
+  The interval sends `Scan`. The scan first checks the folder exists: if not, the state becomes `DirectoryMissing` and the watcher is dropped. When a later periodic scan finds the folder again, it makes a **new** watcher (the old one stays dead after its folder is deleted, PROBE.md) and scans.
 - **The state** of each active project lives in memory: `Indexing { done, found }` while a scan runs, and `Ready` after it. Answers read it. A project not in the set answers `Inactive`.
 - **The re-check (§15.5):** before answering, `definitions`, `references` and `outline` compare the size and modified time of the hits' files with their rows. A file that is gone counts as changed. When any differ and the project has a worker, they send `Recheck`, await the reply for at most 2 s, and run the query again once. A project with no worker yet (just touched) answers from its rows, with its status `indexing`: the status says the answer may be stale.
 - **The active set** (`active.rs`):
@@ -745,7 +751,7 @@ async fn only_the_most_recent_projects_are_watched() {
   - `core_with_project` and `core_with_projects(n)` are fixtures in `code_index.rs`: a temporary database, and each project on its own `TempDir`. The six projects get distinct creation times and no turns, so the order is known.
 - [ ] **Step 2: Run the tests to watch them fail.** Expected: they fail to compile.
 - [ ] **Step 3: Implement `watch.rs`, `active.rs`, and the changes to `mod.rs`** as described above.
-  - The debouncer's callback runs on `notify`'s own thread. It sends with `blocking_send`, or with `try_send` into a bounded channel whose overflow sends `Scan`, never with an `.await`.
+  - The watcher's callback runs on `notify`'s own thread. It sends with `blocking_send`, or with `try_send` into a bounded channel whose overflow sends `Scan`, never with an `.await`.
   - Log `code.scan` with the project, the files seen, the files indexed and the elapsed milliseconds.
 - [ ] **Step 4: `AppCore`.**
   - `start` calls `core.code().start(CodeConfig::default())` after `from_parts`. It returns once the active set is chosen and the workers are spawned; no scan is awaited (§15.8: `serve` does not wait for indexing).

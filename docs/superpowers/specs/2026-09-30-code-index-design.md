@@ -76,16 +76,24 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
   each grammar crate's `TAGS_QUERY`. TypeScript's query holds only what
   TypeScript adds, so the TypeScript and TSX entries use TypeScript's query
   followed by JavaScript's, as the grammar's own `tree-sitter.json` does. Where
-  a query misses something we need, we add our own patterns next to the entry.
-  Rust's misses `const`, `static` and calls through a path (`Storage::open`).
-  Task 0 settles the full list (§15.10).
+  a query misses something we need, we add our own patterns next to the entry,
+  **after** the grammar's query, since the earlier pattern wins (below). The
+  patterns and what each catches are in `docs/evidence/milestone3/PROBE.md`:
+  for Rust, `const`, `static`, trait methods without a body, calls through a
+  path, turbofish and path-macro calls, and uses of a type; for TypeScript,
+  type aliases, `enum` and type uses inside generics; for both TypeScript and
+  JavaScript, top-level consts. An arrow function in a `const` is already
+  tagged `function`.
 - **One tag per name.** When two patterns match the same name, such as a
   function inside an `impl`, `tree-sitter-tags` keeps the earlier pattern's
   tag, so that function is a `method`.
 - **`extract(language, text) -> Vec<Tag>`.** A `Tag` holds:
   - `name`;
   - `kind`: the capture's kind, such as `function`, `method`, `class`,
-    `interface`, `module`, `macro`, `type` or `constant`;
+    `interface`, `module`, `macro`, `type`, `enum` or `constant` for a
+    definition, and `call`, `type`, `class` or `implementation` for a
+    reference. A Rust `struct`, `enum`, `union` and type alias are all
+    `class`, as the grammar's query tags them;
   - `role`: `Definition` or `Reference`;
   - `line`: the line the name is on, starting at 1;
   - `signature`: the definition's first line, which is that same line,
@@ -130,7 +138,10 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
    `parents(false)` and `git_global(false)`, whose defaults would read the
    folders above it and the user's global Git excludes. It follows no link.
    `target/` and `node_modules/` are never walked, with or without a
-   `.gitignore`. Only files whose extension is in the language table are kept.
+   `.gitignore`. Hidden entries, whose names start with `.` (`.git/`,
+   `.github/`, `.claude/`), are not walked either: `WalkBuilder`'s default,
+   kept on purpose. Only files whose extension is in the language table are
+   kept. On the Shadows repository this walk takes about 9 ms (PROBE.md).
 2. Skip a file whose size and modified time equal its `code_file` row.
 3. Read a changed file. A file over **1 MB**, a binary one, or one that is not
    UTF-8 is not parsed. Its row records why.
@@ -143,12 +154,19 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
 
 **Watching.**
 
-- `notify-debouncer-full` watches each active project's folder recursively.
-  Events are gathered for about 500 ms, because editors save by writing a
-  temporary file and renaming it.
+- A plain `notify::RecommendedWatcher` watches each active project's folder
+  recursively. Shadows gathers the changed paths itself, as a set, and
+  handles them once no event has arrived for about 500 ms, because editors
+  save by writing a temporary file and renaming it. Not
+  `notify-debouncer-full`: on Windows it lost 98.7 % of 20 000 deletions
+  without a word, and its default cache opens every file in the folder,
+  `target/` included, when a watch starts (`docs/evidence/milestone3/PROBE.md`).
 - Every changed path is filtered through the same rules as the walk and the
-  language table. Then it goes through steps 3–5, or its rows are deleted if
-  the file is gone. A changed `.gitignore` starts a full scan.
+  language table. What happens to it is decided by what is on disk once the
+  batch is handled, never by the event's kind: a save through rename arrives
+  as `Remove` then `Create`. A file that is there goes through steps 3–5; a
+  file that is gone has its rows deleted, but only while the project's folder
+  itself exists. A changed `.gitignore` starts a full scan.
 - **The watcher can lose changes without saying so.** On Windows, a folder
   full of changes, such as `target/` during a build, can overflow its buffer
   even though the files are ignored. `notify` 8.2.0 passes that overflow on
@@ -169,7 +187,10 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
     also covers a watcher that stopped.
 - **A missing folder**, found by the watcher or the periodic scan, stops that
   project's watcher, and its status becomes `directory missing`. Its index is
-  kept. When the folder returns it is scanned again.
+  kept. When the folder returns, a new watcher is made and it is scanned
+  again: the old watcher stays dead even when the folder is recreated. A
+  watched folder can be renamed, and the watcher then reports changes under
+  the old path, so the periodic scan checks that the folder exists.
 - **A project's folder never changes, and a project is never deleted:**
   `Projects` has neither method, and the rows that reference a `project`
   forbid deleting it.
