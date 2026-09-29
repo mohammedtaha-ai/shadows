@@ -146,19 +146,27 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
 - Every changed path is filtered through the same rules as the walk and the
   language table. Then it goes through steps 3–5, or its rows are deleted if
   the file is gone. A changed `.gitignore` starts a full scan.
-- **A watcher error or lost events start a full scan** of that project, and
-  write a log line. Lost events arrive as an event whose `need_rescan()` is
-  true. On Windows, a folder full of changes, such as `target/` during a
-  build, can overflow the watcher's buffer even though the files are ignored.
-  The full scan is what keeps the index true after that.
-- **But `notify` 8.2.0 does not report that loss on Windows.** Its
-  `windows.rs` passes a buffer overflow on silently, and on
-  `ERROR_NOTIFY_ENUM_DIR` or a deleted folder it stops watching without telling
-  the handler; its `main` branch sends the rescan event. Task 0 settles how Shadows
-  learns of both, and this section is amended before Task 3.
-- **A missing folder** stops that project's watcher, and its status becomes
-  `directory missing`. Its index is kept. When the folder returns it is
-  scanned again.
+- **The watcher can lose changes without saying so.** On Windows, a folder
+  full of changes, such as `target/` during a build, can overflow its buffer
+  even though the files are ignored. `notify` 8.2.0 passes that overflow on
+  silently, and on `ERROR_NOTIFY_ENUM_DIR` or a deleted folder it stops
+  watching without telling the handler (its `windows.rs`). So the watcher is
+  the fast path, and correctness does not rest on it:
+  - **A periodic scan** runs every **60 s** on each active project: steps 1–6,
+    which compare size and modified time and read only what changed. It opens
+    no unchanged file, so it costs one directory walk; Task 0 measures it. A
+    change the watcher lost is in the index within a minute.
+  - **A question checks its own hits** (§15.5), so an answer never points into
+    a file that changed since it was indexed.
+  - A watcher error, or an event whose `need_rescan()` is true, starts a scan at
+    once and writes a log line. A watcher that stopped is started again by the
+    next periodic scan.
+  - When a `notify` release reports the loss on Windows (its `main` branch
+    already does), Shadows moves to it. The periodic scan stays, because it
+    also covers a watcher that stopped.
+- **A missing folder**, found by the watcher or the periodic scan, stops that
+  project's watcher, and its status becomes `directory missing`. Its index is
+  kept. When the folder returns it is scanned again.
 - **A project's folder never changes, and a project is never deleted:**
   `Projects` has neither method, and the rows that reference a `project`
   forbid deleting it.
@@ -168,9 +176,9 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
 > index, its links and the links to it. **Trigger:** the change that adds
 > either method to `Projects`. **Why it does not block:** neither exists.
 
-**Each active project has one worker.** It does the project's scans and the
-files its watcher reports, one after another, so two writes of one file never
-race.
+**Each active project has one worker.** It does the project's scans, the files
+its watcher reports and the files a question re-checks, one after another, so
+two writes of one file never race.
 
 **A failed write of one file** is logged, and the file keeps its old row, so the
 next scan does it again. The worker goes on. **The index never stops the
@@ -178,8 +186,10 @@ daemon:** a failure in it affects the index only, never turns or plans.
 
 ## 15.5 Questions
 
-Every question reads SQLite only, never the disk, and never waits for
-indexing.
+Every question reads SQLite and never waits for indexing. **Before it
+answers, it checks the size and modified time of the files in its hits** (at
+most 50). A file that changed is indexed again first, and a file that is gone
+has its rows deleted, so no hit points at a stale line. It opens no other file.
 
 **The answer carries the status of each project it covers**, one of:
 
@@ -338,8 +348,9 @@ Milestone 3.
    - how `notify` behaves on Windows: a save through rename, a build writing
      into an ignored `target/`, and whether a watched folder can still be
      renamed;
-   - how Shadows learns that `notify` lost events or stopped watching on
-     Windows (§15.4): a `notify` release that reports it, or another check.
+   - how long the periodic scan (§15.4) takes on the Shadows repository on
+     Mohammed's machine, with Windows Defender on. If it is heavy, the 60 s
+     becomes longer or a setting.
 
    Its output goes to `docs/evidence/milestone3/`, and its code is deleted
    (CLAUDE.md). If it proves a part of this section wrong, this section is
@@ -361,7 +372,7 @@ fails, only for the scope rule of §15.5–§15.7.
 2. **Indexing:** a temporary project is scanned. Then a file changes, one is
    deleted, one is added, and one over 1 MB is skipped. The index follows each.
 3. **Watching:** a file written on disk is in the index within a bound, and a
-   simulated lost-events error starts a full scan.
+   change made while the watcher is off is caught by the periodic scan.
 4. **The active set:** of six projects, five are watched. Using the sixth
    brings it in and the oldest leaves.
 5. **The scope:** a linked project answers, an unlinked one is `GRANT_SCOPE`,
