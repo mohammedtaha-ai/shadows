@@ -1,27 +1,34 @@
-pub mod app;
-pub mod command;
-pub mod error;
-pub mod events;
-pub mod grants;
-pub mod harness;
-pub mod id;
+mod app;
+mod command;
+mod db;
+mod error;
+mod events;
+mod grants;
+mod harness;
+mod id;
 mod instructions;
-pub mod plans;
-pub mod projects;
-pub mod runtime;
-pub mod storage;
+mod plans;
+mod projects;
+mod runtime;
 #[cfg(feature = "test-support")]
 pub mod testing;
-pub mod threads;
+mod threads;
 mod turns;
 
-// The public surface (spec §14.4, §14.6): the application, its failure, and
-// every type an adapter or a test names or serializes.
-pub use app::{AppCore, CoreParts, StartConfig};
-pub use error::CoreError;
-pub use events::UiSignal;
+// The public surface (spec §14.4, §14.6): the application, its failure, the
+// services, and every type an adapter names or serializes. Storage, the
+// sessions, the live-turn registry and the runtime are private to the crate;
+// tests reach what they need through `testing`, under `test-support`.
+#[cfg(feature = "test-support")]
+pub use app::CoreParts;
+pub use app::{AppCore, StartConfig};
+// `StorageError`, `StartError` and `DirectoryError` are what `CoreError`
+// carries, which each adapter maps.
+pub use db::StorageError;
+pub use error::{CoreError, ErrorCode};
+pub use events::{Actor, Delivery, Events, StoredEvent, Subscription, UiSignal};
 pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};
-pub use harness::{ContextBreakdown, Harness, HarnessInfo, RememberedSettings};
+pub use harness::{ContextBreakdown, Harness, HarnessInfo, OpenError, RememberedSettings};
 pub use instructions::{Instructions, InstructionsVersion};
 pub use plans::{
     AcceptanceItem, Approved, DraftStart, DraftStarted, EditOutcome, Focus, LastEdit, Link,
@@ -31,7 +38,8 @@ pub use plans::{
 pub use projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
 };
-pub use storage::StopKind;
-pub use threads::{PlanningThread, ThreadEntry, ThreadEntryId, ThreadId, Threads};
-// `StartError` is what `CoreError::Start` carries, which each adapter maps.
+pub use runtime::{RuntimeInstanceId, StopKind};
+pub use threads::{
+    EntryRef, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,
+};
 pub use turns::{InvocationView, Operation, OperationId, SendTurn, StartError, Turns};

@@ -5,14 +5,13 @@
 
 use serde_json::{Value, json};
 use shadows_core::OperationId;
-use shadows_core::command::derive::{Anchor, derived_id};
-use shadows_core::command::{Writer, fingerprint};
-use shadows_core::storage::StorageError;
-use shadows_core::threads::{EntryRef, ThreadEntryKind};
+use shadows_core::StorageError;
+use shadows_core::testing::{Anchor, derived_id};
+use shadows_core::testing::{Writer, fingerprint};
+use shadows_core::{EntryRef, ThreadEntryKind};
 use shadows_core::{LinkKind, Plan, PlanOp, TaskContent, WorkflowState};
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 #[path = "fixtures/plan.rs"]

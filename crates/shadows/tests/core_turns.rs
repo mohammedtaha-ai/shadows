@@ -2,8 +2,7 @@
 //! `Turns`, and `send` keeps its order: the harness is checked, then the
 //! thread's busyness, before any session is touched.
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 #[path = "fixtures/plan.rs"]
@@ -16,7 +15,7 @@ use app::{
 use plan::{add, draft, edit};
 use serde_json::{Value, json};
 use shadows_core::OperationId;
-use shadows_core::command::fingerprint;
+use shadows_core::testing::fingerprint;
 
 /// A turn body with the fake's own settings.
 fn turn(command: &str, prompt: &str) -> Value {

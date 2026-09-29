@@ -15,21 +15,22 @@ use std::time::Duration;
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use shadows_agent::events::HarnessEvent;
+use shadows_core::Actor;
 use shadows_core::OperationId;
-use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::events::{Actor, EventCursor};
-use shadows_core::projects::Project;
-use shadows_core::runtime::Runtime;
-use shadows_core::storage::Storage;
+use shadows_core::Project;
+use shadows_core::testing::EventCursor;
 use shadows_core::testing::LiveHandles;
-use shadows_core::threads::{NewThreadEntry, PlanningThread, ThreadEntryKind, ThreadId};
+use shadows_core::testing::NewThreadEntry;
+use shadows_core::testing::Runtime;
+use shadows_core::testing::Storage;
+use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::{AppCore, CoreParts};
+use shadows_core::{PlanningThread, ThreadEntryKind, ThreadId};
 use shadows_http::AppState;
 use shadows_http::sse::{SubscribeQuery, subscribe};
 use tokio_stream::StreamExt;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 
 /// A project and a planning thread, which between them have already written
 /// two durable events: `ProjectCreated` (no thread) and `PlanningThreadCreated`.
@@ -43,7 +44,7 @@ async fn seed(storage: &Storage) -> (Project, PlanningThread) {
         command_schema_ver: 1,
         request_fingerprint: fingerprint("project.create", &params),
     };
-    let dir = shadows_core::projects::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
+    let dir = shadows_core::testing::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
     let project = storage
         .create_project(
             &ctx,
@@ -253,6 +254,56 @@ async fn a_durable_event_committed_during_the_replay_arrives_exactly_once() {
     assert_eq!(seqs, deduped, "no durable event is repeated: {text}");
 }
 
+/// Spec §2.10, §14.8: a client that reconnects with the last `seq` it applied
+/// resumes exactly there. It is sent every durable event after that `seq`,
+/// in order, and none it already had; `caught-up` then names the last.
+#[tokio::test]
+async fn a_reconnect_with_after_resumes_exactly_where_the_client_stopped() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let (_project, thread) = seed(&storage).await;
+    storage
+        .append_thread_entry(&thread.id, user_message("before"))
+        .await
+        .unwrap();
+    let live = Live::start(&tmp, storage.clone()).await;
+
+    let mut first = live.open(&thread.id).await;
+    let seen = durable_seqs(&first.read_until("event: caught-up").await);
+    let stopped_at = *seen.last().expect("the replay sent the thread's events");
+    drop(first);
+
+    for body in ["while away", "and again"] {
+        storage
+            .append_thread_entry(&thread.id, user_message(body))
+            .await
+            .unwrap();
+    }
+    let missed: Vec<i64> = storage
+        .read_events_after(EventCursor(stopped_at), &thread.id, 100)
+        .await
+        .unwrap()
+        .iter()
+        .map(|e| e.seq)
+        .collect();
+    assert_eq!(missed.len(), 2, "two events happened while away");
+
+    let mut again = live.open_after(&thread.id, stopped_at).await;
+    let text = again.read_until("event: caught-up").await;
+    assert_eq!(
+        durable_seqs(&text),
+        missed,
+        "exactly the missed events, in order: {text}"
+    );
+    let caught_up = text
+        .split("\n\n")
+        .find(|frame| frame.lines().any(|l| l == "event: caught-up"))
+        .and_then(|frame| frame.lines().find_map(|l| l.strip_prefix("data: ")))
+        .map(|data| serde_json::from_str::<serde_json::Value>(data).unwrap())
+        .unwrap();
+    assert_eq!(caught_up["seq"], *missed.last().unwrap(), "{text}");
+}
+
 /// A subscription names one thread. Another thread's transient items are not
 /// delivered to it, while its own are.
 #[tokio::test]
@@ -367,11 +418,17 @@ impl Live {
     /// Subscribes from the beginning of the thread. The replay task has not
     /// run when this returns.
     async fn open(&self, thread_id: &ThreadId) -> Stream {
+        self.open_after(thread_id, 0).await
+    }
+
+    /// Subscribes as a client that has already applied every event up to
+    /// `after`, as one reconnecting does.
+    async fn open_after(&self, thread_id: &ThreadId, after: i64) -> Stream {
         let response = subscribe(
             State(self.state.clone()),
             Query(SubscribeQuery {
                 thread_id: thread_id.clone(),
-                after: 0,
+                after,
             }),
         )
         .await

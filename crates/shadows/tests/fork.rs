@@ -3,14 +3,13 @@
 //! source's harness session; the source is unchanged.
 
 use serde_json::{Value, json};
+use shadows_core::Actor;
 use shadows_core::OperationId;
-use shadows_core::events::Actor;
-use shadows_core::storage::StorageError;
+use shadows_core::StorageError;
+use shadows_core::ThreadId;
 use shadows_core::testing::PlannerTurn;
-use shadows_core::threads::ThreadId;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 

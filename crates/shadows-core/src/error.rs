@@ -1,8 +1,6 @@
-use std::fmt;
-
+use crate::db::StorageError;
 use crate::harness::OpenError;
 use crate::projects::DirectoryError;
-use crate::storage::StorageError;
 use crate::turns::StartError;
 
 /// Stable codes clients pattern-match on. Never match on human text.
@@ -57,51 +55,6 @@ pub enum ErrorCode {
     /// An MCP grant unknown, or revoked while its call was in flight (§13.7).
     /// MCP tool results only: no HTTP route answers it.
     GrantInvalid,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum FailureClass {
-    Client,
-    Infrastructure,
-    Agent,
-    Storage,
-}
-
-/// Classifying a failure as retryable does not authorize an automatic retry.
-/// Spec §3.2.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum RetryClass {
-    Never,
-    Immediate,
-    Backoff,
-    AfterReconfiguration,
-    AfterUserAction,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct AppFailure {
-    pub code: ErrorCode,
-    pub class: FailureClass,
-    pub retry: RetryClass,
-    pub public_details: String,
-}
-
-impl fmt::Display for AppFailure {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}: {}", self.code, self.public_details)
-    }
-}
-
-impl std::error::Error for AppFailure {}
-
-/// The internal causal chain. Deliberately not `Serialize` — spec §3.2 requires
-/// that it cannot accidentally reach a client.
-#[derive(Debug)]
-pub struct FailureReport {
-    pub failure: AppFailure,
-    pub source: Option<Box<dyn std::error::Error + Send + Sync>>,
 }
 
 /// The one failure a service returns (spec §14.4), in words no adapter owns.

@@ -116,7 +116,7 @@ enums:
 
 
 shared_in_transaction:
-  task_of: "Turns' store (storage/sqlite/turn.rs `focused`): start_turn checks a Focus's task belongs to its version inside the turn's own write"
+  task_of: "Turns' store (turns/store/turn.rs `focused`): start_turn checks a Focus's task belongs to its version inside the turn's own write"
 
 
 obligations:

@@ -1,5 +1,5 @@
 //! One job: plans' SQLite queries (spec §14.4). Each file is `impl Storage`
-//! over the shared pool, which stays in `storage`: `edit.rs` changes a
+//! over the shared pool, which stays in `db`: `edit.rs` changes a
 //! version, `draft.rs` starts one, `read.rs` reads them, `task.rs` holds a
 //! version's task and link rows, `view.rs` shows one in its conversation.
 //!

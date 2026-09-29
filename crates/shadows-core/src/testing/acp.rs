@@ -2,15 +2,13 @@
 //! the pinned ACP adapter, so a test runs a whole turn with nothing installed.
 //! Its prompts script the agent: `hang`, `exit`, `two-messages`, `report`, ...
 
-#![allow(dead_code)]
-
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::db::Storage;
+use crate::harness::{Sessions, SessionsConfig};
 use shadows_agent::claude::ClaudeAdapter;
-use shadows_core::harness::{Sessions, SessionsConfig};
-use shadows_core::storage::Storage;
 
 /// The `/mcp` URL a daemon built from these fixtures reports: the address
 /// `serve` would have bound, which no test binds.
@@ -20,7 +18,7 @@ pub fn adapter_at(node: PathBuf) -> Arc<ClaudeAdapter> {
     Arc::new(ClaudeAdapter {
         node,
         adapter: PathBuf::from("fake-adapter/dist/index.js"),
-        agent: shadows_core::testing::fake_acp_path(),
+        agent: super::fake_acp_path(),
         // What `serve` reads from the adapter's package.json and from the
         // agent's `--version` (`fake_acp --version` answers the second).
         adapter_version: "fake-adapter-1".into(),
@@ -29,7 +27,7 @@ pub fn adapter_at(node: PathBuf) -> Arc<ClaudeAdapter> {
 }
 
 pub fn fake_adapter() -> Arc<ClaudeAdapter> {
-    adapter_at(shadows_core::testing::fake_acp_path())
+    adapter_at(super::fake_acp_path())
 }
 
 /// A short cancel wait, so a Stop the fake ignores escalates quickly.

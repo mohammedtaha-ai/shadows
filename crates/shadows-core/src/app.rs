@@ -2,8 +2,8 @@
 //! built once and shared as `Arc<AppCore>`.
 //!
 //! Not a global: no `static`, no `OnceLock`, no service locator. The binary
-//! builds it with `start`; tests build it with `assemble` from the `Arc`s they
-//! keep. A caller reaches a service through its accessor, `core.plans()`.
+//! builds it with `start`; tests build it with `assemble` (`testing`, under
+//! `test-support`) from the `Arc`s they keep. A caller reaches a service through its accessor, `core.plans()`.
 
 use std::future::Future;
 use std::path::{Path, PathBuf};
@@ -15,15 +15,16 @@ use shadows_agent::events::HarnessEvent;
 use shadows_process::{ProcessSpec, spawn};
 
 use crate::command::{CommandContext, fingerprint};
+use crate::db::Storage;
 use crate::error::CoreError;
-use crate::events::UiSignal;
+use crate::events::{Events, UiSignal};
 use crate::grants::Grants;
 use crate::harness::{Harness, Sessions, SessionsConfig};
 use crate::instructions::Instructions;
 use crate::plans::Plans;
 use crate::projects::Projects;
 use crate::runtime::Runtime;
-use crate::storage::{StopKind, Storage};
+use crate::runtime::StopKind;
 use crate::threads::{ThreadId, Threads};
 use crate::turns::{LiveHandles, OperationId, Turns};
 
@@ -33,6 +34,8 @@ pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEve
 /// What `AppCore` is assembled from. Tests build it so the fixture keeps its
 /// own handles on the same `Arc`s; production builds it in `start`. Its fields
 /// are public by design: it is the one way in, and only construction uses it.
+/// Outside the crate it is named only under `test-support` (§14.6): its
+/// fields are the internals no adapter reaches.
 pub struct CoreParts {
     pub storage: Arc<Storage>,
     pub runtime: Arc<Runtime>,
@@ -55,12 +58,7 @@ pub struct AppCore {
     projects: Projects,
     threads: Threads,
     instructions: Instructions,
-    // Held while adapters still reach them (Tasks 5–9); each goes when its
-    // last reader moves into a service, and Task 10 removes the last.
-    storage: Arc<Storage>,
-    sessions: Arc<Sessions>,
-    bus: Bus,
-    ui: tokio::sync::broadcast::Sender<UiSignal>,
+    events: Events,
 }
 
 /// What `start` needs from the binary's `Config`: the database path, node,
@@ -135,7 +133,7 @@ impl AppCore {
             },
         );
         let (bus, _) = tokio::sync::broadcast::channel(4096);
-        Ok(Self::assemble(CoreParts {
+        Ok(Self::from_parts(CoreParts {
             storage,
             runtime,
             sessions,
@@ -146,8 +144,9 @@ impl AppCore {
         }))
     }
 
-    /// The application over parts already built.
-    pub fn assemble(parts: CoreParts) -> Arc<AppCore> {
+    /// The application over parts already built. Tests reach it as
+    /// `AppCore::assemble` (`testing`).
+    pub(crate) fn from_parts(parts: CoreParts) -> Arc<AppCore> {
         let CoreParts {
             storage,
             runtime,
@@ -159,6 +158,7 @@ impl AppCore {
         } = parts;
         let harness = Arc::new(Harness::new(storage.clone(), sessions.clone()));
         let threads = Threads::new(storage.clone(), harness.clone());
+        let events = Events::new(storage.clone(), harness.clone(), bus.clone(), ui.clone());
         Arc::new(AppCore {
             plans: Plans::new(storage.clone(), handles.clone(), ui.clone()),
             grants: Grants::new(storage.clone(), mcp_url),
@@ -173,10 +173,7 @@ impl AppCore {
             projects: Projects::new(storage.clone()),
             threads,
             instructions: Instructions::new(storage.clone()),
-            storage,
-            sessions,
-            bus,
-            ui,
+            events,
         })
     }
 
@@ -208,6 +205,10 @@ impl AppCore {
         &self.instructions
     }
 
+    pub fn events(&self) -> &Events {
+        &self.events
+    }
+
     /// §8.5 through `turns::shut_down(runtime, handles, sessions, bound,
     /// second_signal)`, unchanged: every running turn is stopped and every
     /// adapter closed. The binary keeps the signals and the transport.
@@ -217,30 +218,6 @@ impl AppCore {
         second_signal: impl Future<Output = ()>,
     ) -> Result<StopKind, CoreError> {
         Ok(self.turns.shut_down(bound, second_signal).await?)
-    }
-
-    #[doc(hidden)]
-    // transitional: removed by Task 10
-    pub fn storage(&self) -> &Arc<Storage> {
-        &self.storage
-    }
-
-    #[doc(hidden)]
-    // transitional: removed by Task 10
-    pub fn sessions(&self) -> &Arc<Sessions> {
-        &self.sessions
-    }
-
-    #[doc(hidden)]
-    // transitional: removed by Task 10
-    pub fn bus(&self) -> &Bus {
-        &self.bus
-    }
-
-    #[doc(hidden)]
-    // transitional: removed by Task 10
-    pub fn ui_bus(&self) -> &tokio::sync::broadcast::Sender<UiSignal> {
-        &self.ui
     }
 }
 

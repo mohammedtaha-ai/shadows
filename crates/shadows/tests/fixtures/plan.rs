@@ -14,10 +14,10 @@
 
 use serde_json::{Value, json};
 use shadows_core::GrantId;
-use shadows_core::command::derive::{Anchor, derived_id};
-use shadows_core::command::{CommandContext, Writer, fingerprint};
-use shadows_core::projects::ProjectId;
-use shadows_core::threads::ThreadId;
+use shadows_core::ProjectId;
+use shadows_core::ThreadId;
+use shadows_core::testing::{Anchor, derived_id};
+use shadows_core::testing::{CommandContext, Writer, fingerprint};
 use shadows_core::{AcceptanceItem, DraftStarted, Link, LinkKind, PlanOp, TaskContent, WorkflowId};
 
 use super::app::{App, ctx};

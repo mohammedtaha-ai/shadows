@@ -1,5 +1,5 @@
 //! One job: turns' SQLite queries (spec §14.4). Each file is `impl Storage`
-//! over the shared pool, which stays in `storage`: `turn.rs` starts a turn as
+//! over the shared pool, which stays in `db`: `turn.rs` starts a turn as
 //! one command, `operation.rs` writes an operation's transitions,
 //! `operation_read.rs` reads operations back, `transition.rs` records a
 //! transition's event and log line.

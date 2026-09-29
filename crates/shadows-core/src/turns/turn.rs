@@ -40,10 +40,10 @@ use super::{
     model::{FailureStage, OperationId},
 };
 use crate::{
+    db::StorageError,
     events::Actor,
     harness::{OpenSession, Sessions},
     runtime::Runtime,
-    storage::StorageError,
     threads::{NewThreadEntry, ThreadEntryKind, ThreadId},
 };
 use shadows_agent::{

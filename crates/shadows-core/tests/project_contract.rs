@@ -3,9 +3,9 @@
 //! later mutating command. Separate from `tests/storage_contract.rs`, whose
 //! one job is the connection and transaction contracts.
 
-use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::projects::ProjectDirectory;
-use shadows_core::storage::Storage;
+use shadows_core::testing::ProjectDirectory;
+use shadows_core::testing::Storage;
+use shadows_core::testing::{CommandContext, fingerprint};
 
 /// Any directory that exists: these tests are about identity and
 /// idempotency, not about where a turn runs.
@@ -104,10 +104,7 @@ async fn the_same_command_id_with_a_different_request_is_a_conflict() {
         )
         .await
         .expect_err("a reused command id with a different request must be refused");
-    assert!(matches!(
-        err,
-        shadows_core::storage::StorageError::CommandConflict
-    ));
+    assert!(matches!(err, shadows_core::StorageError::CommandConflict));
 
     let projects: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
         .fetch_one(storage.reader())
@@ -193,10 +190,7 @@ async fn the_same_command_id_under_a_different_schema_version_is_a_conflict() {
         )
         .await
         .expect_err("a reused command id under a new schema version must be refused");
-    assert!(matches!(
-        err,
-        shadows_core::storage::StorageError::CommandConflict
-    ));
+    assert!(matches!(err, shadows_core::StorageError::CommandConflict));
 
     let projects: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM project")
         .fetch_one(storage.reader())

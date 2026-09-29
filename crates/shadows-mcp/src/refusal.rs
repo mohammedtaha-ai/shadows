@@ -9,9 +9,9 @@ use rmcp::model::{CallToolResult, ContentBlock};
 
 use shadows_core::CoreError;
 use shadows_core::DirectoryError;
+use shadows_core::ErrorCode;
 use shadows_core::StartError;
-use shadows_core::error::ErrorCode;
-use shadows_core::storage::StorageError;
+use shadows_core::StorageError;
 
 pub(super) struct Refusal {
     code: ErrorCode,

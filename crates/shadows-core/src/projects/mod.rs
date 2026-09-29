@@ -26,8 +26,8 @@ pub use directory::{DirectoryError, ProjectDirectory};
 pub use model::{Project, ProjectId};
 
 use crate::app::user_command;
+use crate::db::Storage;
 use crate::error::CoreError;
-use crate::storage::Storage;
 use crate::threads::known_harness;
 
 /// Projects: what storage holds.

@@ -9,11 +9,10 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 use shadows_core::WorkflowId;
-use shadows_core::harness::{SessionsConfig, prompt_version};
-use shadows_core::storage::Storage;
+use shadows_core::testing::Storage;
+use shadows_core::testing::{SessionsConfig, prompt_version};
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 #[path = "fixtures/listening.rs"]

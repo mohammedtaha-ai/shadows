@@ -7,8 +7,8 @@ use sqlx::SqliteConnection;
 use super::directory::ProjectDirectory;
 use super::model::{Project, ProjectId};
 use crate::command::CommandContext;
+use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::events::{Actor, DurableEvent};
-use crate::storage::{Storage, StorageError, append_event, classify, now, record_command};
 use shadows_agent::policy;
 
 impl Storage {

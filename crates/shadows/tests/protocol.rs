@@ -15,18 +15,18 @@ use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use shadows::cli::router;
 use shadows_core::OperationId;
-use shadows_core::harness::Sessions;
-use shadows_core::runtime::{Runtime, RuntimeInstanceId};
-use shadows_core::storage::Storage;
+use shadows_core::RuntimeInstanceId;
+use shadows_core::ThreadId;
 use shadows_core::testing::LiveHandles;
-use shadows_core::threads::ThreadId;
+use shadows_core::testing::Runtime;
+use shadows_core::testing::Sessions;
+use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tower::ServiceExt;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 
 struct Fixture {
     _tmp: tempfile::TempDir,

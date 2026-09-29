@@ -22,15 +22,14 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
 use shadows::cli::router;
-use shadows_core::runtime::Runtime;
-use shadows_core::storage::Storage;
 use shadows_core::testing::LiveHandles;
+use shadows_core::testing::Runtime;
+use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::{AppState, openapi_document};
 use tower::ServiceExt;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 
 fn checked_in() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../api/openapi.json")

@@ -1,12 +1,11 @@
-//! One job: read the durable event journal back out, after a cursor.
+//! One job: reading the durable journal back out, after a cursor.
 //!
-//! Writing an event is `events.rs`, and stays private because cross-cutting
-//! rule 10 forbids appending one without the state write it describes.
-//! Reading has no such hazard and no such caller: the replay half of spec
-//! §2.10 is a query, and it lives here rather than growing `events.rs` into a
-//! file that both writes and reads.
+//! Appending an event is `db/journal.rs`, and stays private because
+//! cross-cutting rule 10 forbids appending one without the state write it
+//! describes. Reading has no such hazard: the replay half of spec §2.10 is a
+//! query, and it is `Events`' (§14.4).
 
-use super::{Storage, StorageError};
+use crate::db::{Storage, StorageError};
 use crate::events::EventCursor;
 use crate::threads::ThreadId;
 use crate::turns::OperationId;
@@ -33,8 +32,9 @@ impl Storage {
     /// The highest sequence committed so far. Spec §2.10: the snapshot and the
     /// cursor must come from the same read, so a caller building a snapshot
     /// takes this inside that same read transaction.
+    #[cfg(feature = "test-support")]
     pub async fn current_cursor(&self) -> Result<EventCursor, StorageError> {
-        let seq: Option<i64> = sqlx::query_scalar(super::MAX_SEQ)
+        let seq: Option<i64> = sqlx::query_scalar(crate::db::MAX_SEQ)
             .fetch_one(self.reader())
             .await?;
         Ok(EventCursor(seq.unwrap_or(0)))

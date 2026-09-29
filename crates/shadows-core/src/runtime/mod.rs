@@ -2,7 +2,11 @@ use std::sync::Arc;
 
 use crate::id::newtype_id;
 
-use crate::storage::{ReconcileReport, StopKind, Storage, StorageError};
+use crate::db::{Storage, StorageError};
+
+mod store;
+
+pub use store::{ReconcileReport, StopKind};
 
 newtype_id! {
     /// Spec §4.1. Recovery is by ownership (§8.6), so this id is what a

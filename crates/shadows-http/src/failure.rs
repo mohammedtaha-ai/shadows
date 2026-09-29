@@ -13,9 +13,9 @@ use axum::http::StatusCode;
 
 use shadows_core::CoreError;
 use shadows_core::DirectoryError;
+use shadows_core::ErrorCode;
 use shadows_core::StartError;
-use shadows_core::error::ErrorCode;
-use shadows_core::storage::StorageError;
+use shadows_core::StorageError;
 
 /// A failed request: its status and the body it answers with.
 pub struct Failure {

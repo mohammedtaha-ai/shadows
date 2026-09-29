@@ -5,10 +5,10 @@
 use sqlx::SqliteConnection;
 
 use super::task::{links_of, tasks_of};
+use crate::db::{Storage, StorageError};
 use crate::plans::model::{EditOutcome, LastEdit, Plan, PlanListing, WorkflowId, WorkflowState};
 use crate::plans::rules::approval_problems;
 use crate::projects::ProjectId;
-use crate::storage::{Storage, StorageError};
 use crate::threads::ThreadId;
 
 impl Storage {

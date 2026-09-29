@@ -94,10 +94,23 @@ functions:
       # Sessions::context; its refusals are a reason, not an error. No
       # availability check: a thread whose harness cannot run has no session,
       # and answers NotOpen.
+  for_events:
+    # `Events` delivers a thread's offers and usage through these three, so
+    # no adapter reaches `Sessions` or the store for them (Task 10).
     choices:
       signature: "(&self, thread: &ThreadId, offered: &Offered) -> Result<SessionChoices, CoreError>"
-      # `for_client` over the thread's harness and its project's allowed
-      # modes. Also the SSE `options` frame's; Events takes it in Task 10.
+      # pub(crate). `for_client` over the thread's harness and its project's
+      # allowed modes; `open_session` and `change_model` answer through it,
+      # and `Events` for each offer it delivers (an `Err` delivers nothing).
+    watch_options:
+      signature: "(&self) -> broadcast::Receiver<(ThreadId, Offered)>"
+      # pub(crate). `Sessions::watch_options`: every thread's offer changes;
+      # `Events::subscribe` takes one before the journal is read.
+    limits_of:
+      signature: "(&self, thread: &ThreadId) -> Option<AccountLimits>"
+      # pub(crate). turn_context → latest_limits of its harness; `None` for
+      # an unknown thread, no limits, or a failed read, as the SSE usage
+      # frame did before the move.
   for_threads:
     close_session:
       signature: "(&self, thread: &ThreadId) -> io::Result<()>"
@@ -160,7 +173,7 @@ enums:
     source: crate::error::CoreError
     values: []
   StorageError:
-    source: crate::storage::StorageError
+    source: crate::db::StorageError
     values: []
   SessionChoices:
     source: shadows_agent::choices::SessionChoices
@@ -322,14 +335,15 @@ open_questions:
       `Sessions` opens its own `Storage` in `AppCore::start` rather than
       sharing the core's `Arc`; tests build it the same way. Both were so
       before Task 8 (b4d614e). Two pools then write one file (the grant rows
-      `Setups` issues go through the second). Whether it takes the shared one is for Task 10, when
-      `storage` becomes private.
-  - >
-      `AppCore::sessions()` has one caller left, the SSE loop's
-      `watch_options()` (`shadows-http/src/sse.rs`), which subscribes to
-      offers. No test calls it; tests hold `CoreParts`' `Arc<Sessions>`.
-      `sse.rs`'s usage frame also reads `core.storage().latest_limits`
-      directly (ruling F6). Both move with Events (Task 10).
+      `Setups` issues go through the second). Task 10 left it as it is, by
+      the controller's ruling. A consequence it did not change: the
+      `McpGrantIssued` and `McpGrantRevoked` events a session's opening and
+      closing append name the thread, but commit through the second pool, so
+      they raise that `Storage`'s committed-sequence signal and not the one
+      `Events` watches; a live subscriber reads them at the next commit
+      through the core's pool (a turn's own transitions follow at once).
+      **Trigger:** a client that must see a grant event live, or a second
+      writer through `Sessions`' pool.
 
 
 tests:

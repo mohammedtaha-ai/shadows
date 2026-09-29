@@ -12,16 +12,15 @@ use axum::body::Body;
 use axum::http::Request;
 use serde_json::{Value, json};
 use shadows::cli::router;
-use shadows_core::runtime::Runtime;
-use shadows_core::storage::Storage;
+use shadows_core::ThreadId;
 use shadows_core::testing::LiveHandles;
-use shadows_core::threads::ThreadId;
+use shadows_core::testing::Runtime;
+use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tower::ServiceExt;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 
 /// The turn still starts and runs, and the stop still terminates it and
 /// records `Cancelled` — nothing is left `Pending`, or `Running` over a dead

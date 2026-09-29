@@ -23,8 +23,8 @@ tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 [features]
-# Compiles in `shadows-core`'s test hooks (`storage::test_support`,
-# `from_literal`, `force_termination_failure`, `testing`), which must never
+# Compiles in `shadows-core`'s test hooks (`testing`,
+# `from_literal`, `force_termination_failure`), which must never
 # ship in an ordinary build — see cross-cutting rule 10. Enabled for
 # `cargo test` only via the self dev-dependency below, never a default feature.
 test-support = ["shadows-core/test-support"]

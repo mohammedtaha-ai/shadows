@@ -44,12 +44,13 @@ use turn::{PlannerTurn, StopOutcome};
 
 use crate::app::{Bus, user_command};
 use crate::command::CommandContext;
+use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
 use crate::events::Actor;
 use crate::harness::{LeaseError, OpenSession, Sessions, prompt_version};
 use crate::plans::Focus;
 use crate::runtime::Runtime;
-use crate::storage::{StopKind, Storage, StorageError};
+use crate::runtime::StopKind;
 use crate::threads::{ThreadId, TurnContext};
 
 /// What the turn machinery needs for tests that drive it below `Turns`:

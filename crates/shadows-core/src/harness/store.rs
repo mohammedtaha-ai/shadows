@@ -6,7 +6,7 @@
 
 use sqlx::SqliteConnection;
 
-use crate::storage::{Storage, StorageError};
+use crate::db::{Storage, StorageError};
 use shadows_agent::TurnSettings;
 use shadows_agent::events::{AccountLimits, LimitWindow};
 
@@ -60,7 +60,7 @@ impl Storage {
     /// Test-support: remember settings without starting a turn.
     #[cfg(feature = "test-support")]
     pub async fn remember_for_test(&self, kind: &str, model: &str, effort: Option<&str>) {
-        let (kind, ts) = (kind.to_string(), crate::storage::now());
+        let (kind, ts) = (kind.to_string(), crate::db::now());
         let settings = TurnSettings {
             model: model.into(),
             mode: String::new(),

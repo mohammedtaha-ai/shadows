@@ -2,8 +2,7 @@
 //! and a model change keeps its order: the harness is checked, then the
 //! thread's busyness, before any session is touched.
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 
@@ -11,7 +10,7 @@ use std::time::Duration;
 
 use app::{App, call, create_thread, post, start_settled, test_app, test_app_with, wait_terminal};
 use serde_json::{Value, json};
-use shadows_core::harness::SessionsConfig;
+use shadows_core::testing::SessionsConfig;
 
 async fn put_model(app: &App, thread: &str, model: &str) -> (u16, Value) {
     let path = format!("/api/threads/{thread}/session/model");

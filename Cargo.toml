@@ -75,5 +75,8 @@ tower = { version = "0.5", features = ["util"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
+# Spec §14.6: a public method that answers a type from a private module is
+# refused under `-D warnings`, so the boundary cannot leak by a return type.
+unnameable_types = "warn"
 
 [workspace.lints.clippy]

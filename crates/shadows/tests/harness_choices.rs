@@ -6,8 +6,7 @@
 use serde_json::{Value, json};
 use shadows_agent::policy;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 

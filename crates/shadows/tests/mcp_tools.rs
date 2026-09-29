@@ -5,11 +5,10 @@
 
 use serde_json::json;
 use shadows_agent::policy;
+use shadows_core::ThreadId;
 use shadows_core::WorkflowId;
-use shadows_core::threads::ThreadId;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 #[path = "fixtures/listening.rs"]

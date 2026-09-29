@@ -21,7 +21,7 @@ use tracing::Instrument;
 use super::offers::{Offers, intercept};
 use super::setup::Setups;
 use crate::{
-    storage::{Storage, StorageError},
+    db::{Storage, StorageError},
     threads::{ThreadId, TurnContext},
 };
 use shadows_agent::{
@@ -255,6 +255,7 @@ impl Sessions {
         self.offers.subscribe()
     }
 
+    #[cfg(feature = "test-support")]
     pub async fn take_events(
         &self,
         thread: &ThreadId,

@@ -8,12 +8,12 @@ use sqlx::SqliteConnection;
 
 use super::operation::insert_pending;
 use crate::command::CommandContext;
+use crate::db::{Storage, StorageError, classify, now, record_command};
 use crate::events::Actor;
 use crate::harness::remember_settings;
 use crate::plans::Focus;
 use crate::plans::task_of;
 use crate::runtime::RuntimeInstanceId;
-use crate::storage::{Storage, StorageError, classify, now, record_command};
 use crate::threads::{
     EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, append_entry_in,
 };

@@ -13,19 +13,18 @@ use serde_json::{Value, json};
 use shadows::cli::router;
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_agent::events::HarnessEvent;
-use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::events::Actor;
-use shadows_core::harness::Sessions;
-use shadows_core::runtime::Runtime;
+use shadows_core::Actor;
+use shadows_core::testing::Runtime;
+use shadows_core::testing::Sessions;
+use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
-use shadows_core::threads::{ThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
+use shadows_core::{ThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_http::AppState;
 use tower::ServiceExt;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 
 type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
 
@@ -52,7 +51,7 @@ async fn test_app_with_node(node: &str) -> App {
 async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
     let tmp = tempfile::tempdir().unwrap();
     let db = tmp.path().join("s.sqlite3");
-    let storage = Arc::new(shadows_core::storage::Storage::open(&db).await.unwrap());
+    let storage = Arc::new(shadows_core::testing::Storage::open(&db).await.unwrap());
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
     let runtime = Arc::new(runtime);
 
@@ -70,7 +69,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
             &ctx,
             "demo",
             "Demo",
-            &shadows_core::projects::ProjectDirectory::resolve(tmp.path()).unwrap(),
+            &shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap(),
             &shadows_agent::policy::default_modes(),
         )
         .await
@@ -89,7 +88,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
 
     let sessions = Sessions::new(
         adapter,
-        shadows_core::storage::Storage::open(&db).await.unwrap(),
+        shadows_core::testing::Storage::open(&db).await.unwrap(),
         acp::test_config(),
     );
     let handles = Arc::new(LiveHandles::default());

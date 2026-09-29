@@ -9,20 +9,18 @@ use std::time::Duration;
 
 use serde_json::Value;
 use shadows_agent::events::HarnessEvent;
+use shadows_core::Actor;
 use shadows_core::OperationId;
-use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::events::Actor;
-use shadows_core::harness::Sessions;
-use shadows_core::projects::ProjectDirectory;
-use shadows_core::runtime::Runtime;
-use shadows_core::storage::Storage;
+use shadows_core::testing::ProjectDirectory;
+use shadows_core::testing::Runtime;
+use shadows_core::testing::Sessions;
+use shadows_core::testing::Storage;
+use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
-use shadows_core::threads::{ThreadEntryKind, ThreadId};
+use shadows_core::{ThreadEntryKind, ThreadId};
 
-#[path = "fixtures/acp.rs"]
-mod acp;
-#[path = "fixtures/turn.rs"]
-mod turn;
+use shadows_core::testing::acp;
+use shadows_core::testing::turn;
 
 struct Fixture {
     _tmp: tempfile::TempDir,

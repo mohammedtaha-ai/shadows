@@ -1,9 +1,9 @@
 //! Shared apparatus: a whole daemon in-process — storage, runtime, sessions on
 //! `fake_acp`, and the real router driven with `oneshot` — with one project and
-//! one thread already created. Include beside `acp.rs`:
+//! one thread already created. Include beside `shadows_core::testing::acp`:
 //!
 //! ```ignore
-//! #[path = "fixtures/acp.rs"] mod acp;
+//! use shadows_core::testing::acp;
 //! #[path = "fixtures/app.rs"] mod app;
 //! ```
 
@@ -22,16 +22,17 @@ use serde_json::{Value, json};
 use shadows::cli::router;
 use shadows_agent::events::HarnessEvent;
 use shadows_agent::policy;
-use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::events::UiSignal;
-use shadows_core::harness::{Sessions, SessionsConfig};
-use shadows_core::projects::{ProjectDirectory, ProjectId};
-use shadows_core::runtime::Runtime;
-use shadows_core::storage::Storage;
+use shadows_core::ProjectId;
+use shadows_core::UiSignal;
 use shadows_core::testing::LiveHandles;
-use shadows_core::threads::{ThreadEntry, ThreadEntryKind, ThreadId};
+use shadows_core::testing::ProjectDirectory;
+use shadows_core::testing::Runtime;
+use shadows_core::testing::Storage;
+use shadows_core::testing::{CommandContext, fingerprint};
+use shadows_core::testing::{Sessions, SessionsConfig};
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
+use shadows_core::{ThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_http::AppState;
 use tower::ServiceExt;
 

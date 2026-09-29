@@ -20,10 +20,11 @@ use std::time::Duration;
 
 use super::handles::LiveHandles;
 use super::turn::{PlannerTurn, StopOutcome};
+use crate::db::StorageError;
 use crate::events::Actor;
 use crate::harness::Sessions;
 use crate::runtime::Runtime;
-use crate::storage::{StopKind, StorageError};
+use crate::runtime::StopKind;
 
 /// Stops every live turn, waits — at most `confirm_within`, and never past
 /// `escalate` — until every operation this runtime owns is terminal, then

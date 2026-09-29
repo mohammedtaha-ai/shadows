@@ -1,3 +1,7 @@
+//! One job: appending to the durable journal (spec §6.18). Reading it back is
+//! `Events`' (`events/store.rs`); appending is the writer's act, inside the
+//! transaction that writes the state the event describes (§14.4).
+
 use sqlx::SqliteConnection;
 
 use super::StorageError;
@@ -7,9 +11,9 @@ use crate::events::DurableEvent;
 /// `append_event`: an event is appended only inside a capability that also
 /// writes the state it describes.
 ///
-/// Visibility is `pub(crate)`, never `pub`: besides its callers in sibling
-/// modules under `storage::sqlite` and `storage::test_support` (the atomicity
-/// contract test), `plans::store` calls it inside its own writes (spec §14.6).
+/// Visibility is `pub(crate)`, never `pub`: every service's store calls it
+/// inside its own writes (spec §14.6), and `append_event_for_test` (the
+/// atomicity contract test) below.
 pub(crate) async fn append_event(
     conn: &mut SqliteConnection,
     event: &DurableEvent,
@@ -46,4 +50,17 @@ pub(crate) async fn append_event(
     .fetch_one(&mut *conn)
     .await?;
     Ok(seq)
+}
+
+/// Test-only access to a private capability: `append_event` without a state
+/// write. Compiled in only with the `test-support` feature, which a crate
+/// enables only in its `[dev-dependencies]`, so this capability does not ship
+/// (§14.6). Tests reach it as `shadows_core::testing::append_event_for_test`.
+#[cfg(feature = "test-support")]
+pub async fn append_event_for_test(
+    conn: &mut SqliteConnection,
+    event: &DurableEvent,
+    now: &str,
+) -> Result<i64, StorageError> {
+    append_event(conn, event, now).await
 }

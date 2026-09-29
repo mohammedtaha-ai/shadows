@@ -1,4 +1,8 @@
-//! One job: the durable-replay-then-live stream (spec §2.10).
+//! One job: the durable-replay-then-live stream (spec §2.10), framed as SSE.
+//!
+//! `Events` (`shadows-core`) owns what is delivered and in what order; this
+//! file owns the framing: each `Delivery` becomes today's frame, with its
+//! event name and JSON body, over a bounded channel, and the `sse.*` lines.
 
 use std::convert::Infallible;
 
@@ -9,12 +13,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 
 use super::AppState;
-use shadows_agent::choices::Offered;
-use shadows_agent::events::HarnessEvent;
-use shadows_core::OperationId;
-use shadows_core::ThreadId;
-use shadows_core::events::{EventCursor, UiSignal};
-use shadows_core::storage::Storage;
+use shadows_core::{Delivery, StoredEvent, Subscription, ThreadId};
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
@@ -62,22 +61,14 @@ pub async fn subscribe(
     Query(q): Query<SubscribeQuery>,
 ) -> Sse<ReceiverStream<Result<Event, Infallible>>> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(1024);
-    // Both taken before the replay is read; see above.
-    let committed = state.core.storage().watch_committed();
-    let live = state.core.bus().subscribe();
-    let options = state.core.sessions().watch_options();
-    let signals = state.core.ui_bus().subscribe();
+    // Every live source is taken here, before the replay is read; see above.
+    let sub = state.core.events().subscribe(q.thread_id.clone(), q.after);
     let span = tracing::debug_span!("sse", thread_id = %q.thread_id);
     tracing::debug!(parent: &span, after = q.after, "sse.subscribe");
 
     tokio::spawn(
         async move {
-            let live = Live {
-                bus: live,
-                options,
-                signals,
-            };
-            let why = stream(state, q, committed, live, tx).await;
+            let why = stream(state, sub, tx).await;
             tracing::debug!(why, "sse.closed");
         }
         .instrument(span),
@@ -86,144 +77,52 @@ pub async fn subscribe(
     Sse::new(ReceiverStream::new(rx))
 }
 
-/// The transient sources, taken before the replay is read.
-struct Live {
-    bus: tokio::sync::broadcast::Receiver<(ThreadId, OperationId, HarnessEvent)>,
-    options: tokio::sync::broadcast::Receiver<(ThreadId, Offered)>,
-    signals: tokio::sync::broadcast::Receiver<UiSignal>,
-}
-
-/// The replay, the handoff, and the live phase for one subscriber. Returns why
-/// the stream ended, for the `sse.closed` line.
+/// Sends one subscriber's deliveries as frames until the subscription ends,
+/// the client leaves, or the daemon stops (see `AppState::shutdown`); the
+/// client resubscribes with its last seq like after any other disconnect.
+/// Returns why the stream ended, for the `sse.closed` line.
 async fn stream(
     state: AppState,
-    q: SubscribeQuery,
-    mut committed: tokio::sync::watch::Receiver<i64>,
-    live: Live,
+    mut sub: Subscription,
     tx: Sender<Result<Event, Infallible>>,
 ) -> &'static str {
-    let Live {
-        bus: mut live,
-        mut options,
-        mut signals,
-    } = live;
-    // 1. Durable replay.
-    let mut last_seq = q.after;
-    if let Err(why) =
-        send_journal_after(state.core.storage(), &q.thread_id, &mut last_seq, &tx).await
-    {
-        return why;
-    }
-
-    // 2. Handoff. Tell the client where the durable replay ended.
-    tracing::debug!(last_seq, "sse.caught_up");
-    let _ = tx
-        .send(Ok(Event::default()
-            .event("caught-up")
-            .data(serde_json::json!({ "seq": last_seq }).to_string())))
-        .await;
-
-    // 3. Live. The stream ends when the daemon stops (see
-    // `AppState::shutdown`); the client resubscribes with its last seq
-    // like after any other disconnect.
     let mut shutdown = state.shutdown.clone();
     loop {
-        // The select only decides which source woke; acting on it happens
-        // after, so no borrowed `watch::Ref` is held across an await.
-        //
-        // `biased`, journal before bus: a publisher commits (raising the
-        // signal) before it sends the transient item that follows, so
-        // polling the signal first keeps a turn's `turn-end` behind the
-        // durable entry it ends.
-        let mut woke_options = None;
-        let mut woke_signal = None;
-        let received = tokio::select! {
+        let delivery = tokio::select! {
             biased;
             _ = shutdown.wait_for(|stopping| *stopping) => return "shutdown",
-            changed = committed.changed() => {
-                if changed.is_err() {
-                    return "shutdown: storage closed";
-                }
-                None
-            }
-            received = live.recv() => Some(received),
-            offered = options.recv() => {
-                woke_options = Some(offered);
-                None
-            }
-            signal = signals.recv() => {
-                woke_signal = Some(signal);
-                None
-            }
+            d = sub.next() => d,
         };
-        if let Some(signal) = woke_signal.take() {
-            let frame = match signal {
-                // The card's durable event was committed before the signal
-                // was sent, so the journal branch above has already sent it.
-                Ok(signal) if signal.thread_id == q.thread_id => Event::default()
-                    .event("plan-show")
-                    .data(serde_json::json!(signal).to_string()),
-                Ok(_) => continue,
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
-                    Event::default().event("lagged").data("")
-                }
-                Err(_) => return "shutdown: signals closed",
-            };
-            if tx.send(Ok(frame)).await.is_err() {
-                return CLIENT_GONE;
+        let frame = match delivery {
+            Err(why) => return why,
+            Ok(Delivery::CaughtUp { seq }) => {
+                // The handoff: tell the client where the durable replay ended.
+                tracing::debug!(last_seq = seq, "sse.caught_up");
+                let _ = tx
+                    .send(Ok(Event::default()
+                        .event("caught-up")
+                        .data(serde_json::json!({ "seq": seq }).to_string())))
+                    .await;
+                continue;
             }
-            continue;
-        }
-        if let Some(offered) = woke_options.take() {
-            match offered {
-                Ok((thread_id, offered)) if thread_id == q.thread_id => {
-                    if let Some(ev) = options_event(&state, &thread_id, &offered).await
-                        && tx.send(Ok(ev)).await.is_err()
-                    {
-                        return CLIENT_GONE;
-                    }
-                }
-                Ok(_) => {}
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
-                    let _ = tx.send(Ok(Event::default().event("lagged").data(""))).await;
-                }
-                Err(_) => return "shutdown: options closed",
+            Ok(Delivery::Fatal(message)) => {
+                // The subscription is over: the next `next` answers why.
+                let _ = tx
+                    .send(Ok(Event::default().event("fatal").data(message)))
+                    .await;
+                continue;
             }
-            continue;
-        }
-        let Some(received) = received else {
-            if let Err(why) =
-                send_journal_after(state.core.storage(), &q.thread_id, &mut last_seq, &tx).await
-            {
-                return why;
-            }
-            continue;
+            Ok(Delivery::Durable(ev)) => match durable_frame(&ev) {
+                Ok(frame) => frame,
+                Err(fatal) => {
+                    let _ = tx.send(Ok(fatal)).await;
+                    return "error: journal payload invalid";
+                }
+            },
+            Ok(delivery) => frame(delivery),
         };
-        match received {
-            Ok((thread_id, op_id, item)) => {
-                if thread_id != q.thread_id {
-                    continue;
-                }
-                let ev = match item {
-                    HarnessEvent::Usage { used, size, .. } => {
-                        usage_event(&state, &thread_id, used, size).await
-                    }
-                    item => transient_event(&op_id, item),
-                };
-                let Some(ev) = ev else {
-                    continue;
-                };
-                if tx.send(Ok(ev)).await.is_err() {
-                    return CLIENT_GONE;
-                }
-            }
-            // Spec §8.4 case 7: a client falling behind or
-            // disconnecting never cancels work. It resubscribes with
-            // its last seq.
-            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
-                let _ = tx.send(Ok(Event::default().event("lagged").data(""))).await;
-            }
-            Err(_) => return "shutdown: bus closed",
+        if tx.send(Ok(frame)).await.is_err() {
+            return CLIENT_GONE;
         }
     }
 }
@@ -258,117 +157,72 @@ The stream also ends when the daemon stops. Reconnect with the last `seq`.\n\n\
 A `durable` frame of kind `OperationCompleted` carries `payload.invocation`: the \
 turn's `InvocationView`.";
 
-/// Sends every journal event for `thread_id` after `last_seq`, advancing it.
-/// `Err` means the stream is over and says why: the client left, or storage
-/// failed and a `fatal` event was sent.
-async fn send_journal_after(
-    storage: &Storage,
-    thread_id: &ThreadId,
-    last_seq: &mut i64,
-    tx: &Sender<Result<Event, Infallible>>,
-) -> Result<(), &'static str> {
-    loop {
-        let batch = match storage
-            .read_events_after(EventCursor(*last_seq), thread_id, 500)
-            .await
-        {
-            Ok(b) => b,
-            Err(e) => {
-                // Spec §3.2: the cause is logged here; the client is told only what
-                // it needs to know — that the stream is over.
-                tracing::error!(error = %e, "sse.replay_failed");
-                let _ = tx
-                    .send(Ok(Event::default()
-                        .event("fatal")
-                        .data("the journal could not be read")))
-                    .await;
-                return Err("error: journal read failed");
-            }
-        };
-        if batch.is_empty() {
-            return Ok(());
+/// The `durable` frame of one journal event. Every payload was written by
+/// `serde_json` in the transaction that recorded its state change; one that no
+/// longer parses is a damaged journal, and `Err` is the `fatal` frame that ends
+/// the stream like a failed read.
+fn durable_frame(ev: &StoredEvent) -> Result<Event, Event> {
+    let payload: serde_json::Value = match serde_json::from_str(&ev.payload_json) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!(seq = ev.seq, error = %e, "sse.payload_invalid");
+            return Err(Event::default()
+                .event("fatal")
+                .data(format!("event {} has an invalid payload", ev.seq)));
         }
-        for ev in batch {
-            // Every payload was written by `serde_json` in the transaction
-            // that recorded its state change; one that no longer parses is a
-            // damaged journal, which ends the stream like a failed read.
-            let payload: serde_json::Value = match serde_json::from_str(&ev.payload_json) {
-                Ok(p) => p,
-                Err(e) => {
-                    tracing::error!(seq = ev.seq, error = %e, "sse.payload_invalid");
-                    let _ = tx
-                        .send(Ok(Event::default()
-                            .event("fatal")
-                            .data(format!("event {} has an invalid payload", ev.seq))))
-                        .await;
-                    return Err("error: journal payload invalid");
-                }
-            };
-            *last_seq = ev.seq;
-            let frame = serde_json::json!({
-                "seq": ev.seq,
-                "kind": ev.kind,
-                "operation_id": ev.operation_id,
-                "thread_id": ev.thread_id,
-                "payload": payload,
-            });
-            tx.send(Ok(Event::default()
-                .event("durable")
-                .data(frame.to_string())))
-                .await
-                .map_err(|_| CLIENT_GONE)?;
-        }
-    }
-}
-
-/// The `usage` frame: a usage report as it arrives, with the harness's latest
-/// limits, which the watcher recorded before publishing it (§12.8). A `size`
-/// of 0 is no window.
-async fn usage_event(state: &AppState, thread: &ThreadId, used: u64, size: u64) -> Option<Event> {
-    let limits = match state.core.storage().turn_context(thread).await {
-        Ok(context) => state
-            .core
-            .storage()
-            .latest_limits(&context.harness)
-            .await
-            .ok()
-            .flatten(),
-        Err(_) => None,
     };
     let frame = serde_json::json!({
-        "thread_id": thread,
-        "context_used": used,
-        "context_window": (size > 0).then_some(size),
-        "limits": limits,
+        "seq": ev.seq,
+        "kind": ev.kind,
+        "operation_id": ev.operation_id,
+        "thread_id": ev.thread_id,
+        "payload": payload,
     });
-    Some(Event::default().event("usage").data(frame.to_string()))
+    Ok(Event::default().event("durable").data(frame.to_string()))
 }
 
-/// The `options` frame: the thread's new offer as a client sees it (§12.4).
-/// `None` when the thread's policy cannot be read; the next opening answers.
-async fn options_event(state: &AppState, thread: &ThreadId, offered: &Offered) -> Option<Event> {
-    let choices = state.core.harness().choices(thread, offered).await.ok()?;
-    Some(
-        Event::default()
-            .event("options")
-            .data(serde_json::json!({ "thread_id": thread, "choices": choices }).to_string()),
-    )
-}
-
-/// The SSE form of a transient bus item, or `None` for one this stream does
-/// not forward: entries arrive durable, options through `options_event`.
-fn transient_event(op_id: &OperationId, item: HarnessEvent) -> Option<Event> {
-    Some(match item {
-        HarnessEvent::Chunk { text, .. } => Event::default()
+/// The frame of a transient delivery: `delta`, `turn-end`, `usage`,
+/// `options`, `plan-show` or `lagged`.
+fn frame(delivery: Delivery) -> Event {
+    match delivery {
+        Delivery::Delta { op, text } => Event::default()
             .event("delta")
-            .data(serde_json::json!({ "op": op_id, "text": text }).to_string()),
-        HarnessEvent::TurnEnd {
+            .data(serde_json::json!({ "op": op, "text": text }).to_string()),
+        Delivery::TurnEnd {
+            op,
             subtype,
             stop_reason,
         } => Event::default().event("turn-end").data(
-            serde_json::json!({ "op": op_id, "subtype": subtype, "stop_reason": stop_reason })
+            serde_json::json!({ "op": op, "subtype": subtype, "stop_reason": stop_reason })
                 .to_string(),
         ),
-        _ => return None,
-    })
+        // A usage report as it arrives, with the harness's latest limits,
+        // which the watcher recorded before publishing it (§12.8). A `size`
+        // of 0 is no window.
+        Delivery::Usage {
+            thread,
+            used,
+            size,
+            limits,
+        } => Event::default().event("usage").data(
+            serde_json::json!({
+                "thread_id": thread,
+                "context_used": used,
+                "context_window": (size > 0).then_some(size),
+                "limits": limits,
+            })
+            .to_string(),
+        ),
+        // The thread's new offer as a client sees it (§12.4).
+        Delivery::Options { thread, choices } => Event::default()
+            .event("options")
+            .data(serde_json::json!({ "thread_id": thread, "choices": choices }).to_string()),
+        Delivery::PlanShow(signal) => Event::default()
+            .event("plan-show")
+            .data(serde_json::json!(signal).to_string()),
+        Delivery::Lagged => Event::default().event("lagged").data(""),
+        Delivery::Durable(_) | Delivery::CaughtUp { .. } | Delivery::Fatal(_) => {
+            unreachable!("`stream` frames these itself")
+        }
+    }
 }

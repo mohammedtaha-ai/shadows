@@ -9,8 +9,8 @@ use sqlx::SqliteConnection;
 
 use super::thread::load_thread;
 use crate::command::CommandContext;
+use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::events::{Actor, DurableEvent};
-use crate::storage::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::threads::model::{PlanningThread, ThreadEntryId, ThreadId};
 use crate::turns::has_open_operation;
 

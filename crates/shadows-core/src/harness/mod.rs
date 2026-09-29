@@ -23,7 +23,9 @@ mod store;
 use std::sync::Arc;
 
 use shadows_agent::choices::{Offered, SessionChoices, for_client};
+use shadows_agent::events::AccountLimits;
 use shadows_agent::policy;
+use tokio::sync::broadcast;
 
 pub use model::{ContextBreakdown, HarnessInfo, RememberedSettings};
 pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig};
@@ -35,8 +37,8 @@ pub(crate) use store::remember_settings;
 use model::label;
 use settings::ModelRefused;
 
+use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
-use crate::storage::{Storage, StorageError};
 use crate::threads::ThreadId;
 
 /// Harness: what storage holds, and the sessions each open thread has.
@@ -149,9 +151,28 @@ impl Harness {
         self.sessions.terminate(thread).await
     }
 
+    /// Every change to any thread's offer, as it happens. `Events` takes it
+    /// for each subscriber, before the journal is read.
+    pub(crate) fn watch_options(&self) -> broadcast::Receiver<(ThreadId, Offered)> {
+        self.sessions.watch_options()
+    }
+
+    /// The account limits the thread's harness last reported (§12.8), which a
+    /// turn's watcher recorded before it published the usage that asks. `None`
+    /// when unknown, or when the thread or the limits cannot be read.
+    pub(crate) async fn limits_of(&self, thread: &ThreadId) -> Option<AccountLimits> {
+        let context = self.storage.turn_context(thread).await.ok()?;
+        self.storage
+            .latest_limits(&context.harness)
+            .await
+            .ok()
+            .flatten()
+    }
+
     /// What a client is offered on `thread`: the session's choices after the
     /// policy of the thread's harness and its project's allowed modes.
-    pub async fn choices(
+    /// `Events` calls it for each offer it delivers.
+    pub(crate) async fn choices(
         &self,
         thread: &ThreadId,
         offered: &Offered,

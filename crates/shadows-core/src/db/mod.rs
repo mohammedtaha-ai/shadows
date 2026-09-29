@@ -1,3 +1,7 @@
+//! One job: what belongs to no service (spec §14.4) — the SQLite pool, its
+//! write transactions and migrations, the command log, the journal's append,
+//! the clock. Private to the crate: an adapter reaches none of it (§14.6).
+
 use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
@@ -10,20 +14,16 @@ use tokio::sync::{Mutex, watch};
 use crate::plans::Problem;
 
 mod command;
-pub(super) mod events;
-mod events_read;
-mod runtime;
-
-pub use events_read::StoredEvent;
-pub use runtime::{ReconcileReport, StopKind};
+mod journal;
 
 // Store helpers every service's write shares inside its one transaction (spec
-// §14.6): the command log and the journal, which belong to no service (`db/`
-// takes them in Task 10).
+// §14.6): the command log and the journal, which belong to no service.
 pub(crate) use command::{classify, record_command};
-pub(crate) use events::append_event;
+pub(crate) use journal::append_event;
+#[cfg(feature = "test-support")]
+pub use journal::append_event_for_test;
 
-const MAX_SEQ: &str = "SELECT MAX(seq) FROM durable_event";
+pub(crate) const MAX_SEQ: &str = "SELECT MAX(seq) FROM durable_event";
 
 pub(crate) fn now() -> String {
     time::OffsetDateTime::now_utc()

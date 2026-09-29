@@ -298,7 +298,7 @@ async fn main() -> agent_client_protocol::Result<()> {
                     chunk(&cx, &id, "m2", "second")?;
                 },
                 "report" => {
-                    let bearer_hash = s.setup.bearer.as_deref().map(shadows_core::grants::hash_token);
+                    let bearer_hash = s.setup.bearer.as_deref().map(shadows_core::testing::hash_token);
                     let text = json!({"cwd":s.cwd,"session":id,"how":s.how,"model":s.model,"effort":s.effort,"mode":s.mode,"claude":std::env::var("CLAUDE_CODE_EXECUTABLE").unwrap_or_default(),
                         "mcp":s.setup.mcp,"bearer_hash":bearer_hash,"append":s.setup.append,"allowed":s.setup.allowed,"blocks":blocks,"resumes":resumes}).to_string();
                     chunk(&cx, &id, "m1", &text)?;

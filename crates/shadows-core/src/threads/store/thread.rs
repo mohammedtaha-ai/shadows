@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use sqlx::SqliteConnection;
 
 use crate::command::CommandContext;
+use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::events::{Actor, DurableEvent};
 use crate::projects::ProjectId;
-use crate::storage::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::threads::model::{PlanningThread, ThreadId, TurnContext};
 
 impl Storage {

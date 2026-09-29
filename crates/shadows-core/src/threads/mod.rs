@@ -28,10 +28,10 @@ pub(crate) use rules::known_harness;
 pub(crate) use store::{append_entry_in, insert_thread};
 
 use crate::app::user_command;
+use crate::db::Storage;
 use crate::error::CoreError;
 use crate::harness::Harness;
 use crate::projects::ProjectId;
-use crate::storage::Storage;
 use crate::turns::Operation;
 
 /// Threads: what storage holds, and the harness whose session a harness

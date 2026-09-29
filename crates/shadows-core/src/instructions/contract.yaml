@@ -61,7 +61,7 @@ enums:
     source: crate::error::CoreError
     values: []
   StorageError:
-    source: crate::storage::StorageError
+    source: crate::db::StorageError
     values: []
   ProjectId:
     source: crate::projects::ProjectId

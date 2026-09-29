@@ -12,7 +12,7 @@ use crate::runtime::RuntimeInstanceId;
 use crate::threads::ThreadId;
 use crate::turns::model::{InvocationView, Operation, OperationId};
 
-use crate::storage::{Storage, StorageError};
+use crate::db::{Storage, StorageError};
 
 /// The thirteen `operation` columns both reads below select, in select order.
 /// A row alias, not a domain type: [`into_operation`] maps it into `Operation`.

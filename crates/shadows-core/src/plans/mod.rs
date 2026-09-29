@@ -38,11 +38,11 @@ use scope::{command, own_thread, refused, writer_of};
 use crate::app::user_command;
 use crate::command::derive::{Anchor, derived_id};
 use crate::command::fingerprint;
+use crate::db::Storage;
 use crate::error::{CoreError, ErrorCode};
 use crate::events::UiSignal;
 use crate::grants::{Grant, GrantKind};
 use crate::projects::ProjectId;
-use crate::storage::Storage;
 use crate::turns::LiveHandles;
 
 /// The pure rules, for `shadows_core::testing` only: its rule tests call them

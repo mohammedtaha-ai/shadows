@@ -7,9 +7,9 @@ use sqlx::SqliteConnection;
 
 use super::model::InstructionsVersion;
 use crate::command::CommandContext;
+use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::events::{Actor, DurableEvent};
 use crate::projects::ProjectId;
-use crate::storage::{Storage, StorageError, append_event, classify, now, record_command};
 
 type VersionRow = (String, i64, String, String);
 

@@ -5,17 +5,15 @@
 
 use serde_json::{Value, json};
 use shadows_agent::TurnSettings;
-use shadows_core::storage::StorageError;
+use shadows_core::StorageError;
+use shadows_core::ThreadEntryKind;
 use shadows_core::testing::FailureStage;
 use shadows_core::testing::StartedTurn;
-use shadows_core::threads::ThreadEntryKind;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
-#[path = "fixtures/turn.rs"]
-mod turn;
+use shadows_core::testing::turn;
 
 use app::{App, ctx, entries, http_start, last_agent_entry, test_app, wait_terminal};
 use turn::{new_turn, turn_command};
@@ -388,7 +386,7 @@ async fn the_harness_runs_with_the_chosen_model_mode_and_effort() {
 /// sees it once registered and ends `Cancelled` without prompting the model.
 #[tokio::test]
 async fn a_stop_while_pending_cancels_the_turn_before_its_prompt() {
-    use shadows_core::events::Actor;
+    use shadows_core::Actor;
     use shadows_core::testing::{PlannerTurn, PlannerTurnRequest, StopOutcome};
     let app = test_app().await;
     let opened = app.sessions.open(&app.thread).await.unwrap();

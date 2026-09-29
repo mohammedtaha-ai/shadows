@@ -1,7 +1,6 @@
 //! Spec §14.4: the application is one `AppCore`; adapters and shutdown reach it through that.
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 #[path = "fixtures/listening.rs"]
@@ -14,7 +13,7 @@ use app::{
 };
 use listening::{listening_app, mcp_client, ok};
 use serde_json::json;
-use shadows_core::command::fingerprint;
+use shadows_core::testing::fingerprint;
 
 #[tokio::test]
 async fn the_router_is_built_from_the_core() {

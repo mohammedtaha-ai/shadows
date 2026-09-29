@@ -5,13 +5,12 @@
 
 use serde_json::{Value, json};
 use shadows_core::GrantKind;
-use shadows_core::command::Writer;
-use shadows_core::command::derive::{Anchor, derived_id};
-use shadows_core::grants::hash_token;
-use shadows_core::storage::StorageError;
+use shadows_core::StorageError;
+use shadows_core::testing::Writer;
+use shadows_core::testing::hash_token;
+use shadows_core::testing::{Anchor, derived_id};
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 #[path = "fixtures/plan.rs"]
@@ -20,7 +19,7 @@ mod plan;
 use app::{App, call, ctx, get_json, other_project, post, test_app};
 use plan::{an_hour_ago, insert_draft_ref, writer_ctx};
 
-fn issue_ctx(id: &str) -> shadows_core::command::CommandContext {
+fn issue_ctx(id: &str) -> shadows_core::testing::CommandContext {
     ctx(id, "McpGrantIssue")
 }
 
@@ -294,8 +293,7 @@ async fn startup_revokes_every_thread_grant_and_keeps_project_grants() {
     let (_, other_thread) = other_project(&app).await;
     let second_thread = app::create_thread(&app, json!({ "command_id": "t2", "title": "B" })).await;
     let second_thread =
-        serde_json::from_value::<shadows_core::threads::ThreadId>(second_thread["id"].clone())
-            .unwrap();
+        serde_json::from_value::<shadows_core::ThreadId>(second_thread["id"].clone()).unwrap();
     let mut thread_tokens = Vec::new();
     for thread in [&app.thread, &second_thread, &other_thread] {
         thread_tokens.push(app.storage.issue_thread_grant(thread).await.unwrap().1);

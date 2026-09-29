@@ -1,6 +1,7 @@
 use shadows_core::OperationId;
-use shadows_core::runtime::RuntimeInstanceId;
-use shadows_core::storage::{StopKind, Storage};
+use shadows_core::RuntimeInstanceId;
+use shadows_core::StopKind;
+use shadows_core::testing::Storage;
 
 async fn seed_operation(
     storage: &Storage,
@@ -172,7 +173,7 @@ async fn graceful_is_refused_while_the_runtime_owns_unfinished_work() {
     assert!(
         matches!(
             refused,
-            Err(shadows_core::storage::StorageError::TransitionConflict { .. })
+            Err(shadows_core::StorageError::TransitionConflict { .. })
         ),
         "Graceful over a Running operation must be refused, got {refused:?}"
     );
@@ -212,23 +213,21 @@ async fn the_current_runtimes_own_operations_are_left_alone() {
     assert_eq!(status, "Running");
 }
 
-#[path = "fixtures/acp.rs"]
-mod acp;
-#[path = "fixtures/turn.rs"]
-mod turn;
+use shadows_core::testing::acp;
+use shadows_core::testing::turn;
 
 /// One daemon's worth of state over the database at `db`: a runtime, its
 /// registry and its adapters, as `shadows serve` assembles them.
 struct Daemon {
-    runtime: std::sync::Arc<shadows_core::runtime::Runtime>,
+    runtime: std::sync::Arc<shadows_core::testing::Runtime>,
     handles: std::sync::Arc<shadows_core::testing::LiveHandles>,
-    sessions: std::sync::Arc<shadows_core::harness::Sessions>,
+    sessions: std::sync::Arc<shadows_core::testing::Sessions>,
 }
 
 impl Daemon {
     async fn start(db: &std::path::Path) -> Self {
         let storage = std::sync::Arc::new(Storage::open(db).await.unwrap());
-        let (runtime, _report) = shadows_core::runtime::Runtime::start(storage)
+        let (runtime, _report) = shadows_core::testing::Runtime::start(storage)
             .await
             .unwrap();
         Daemon {
@@ -239,7 +238,7 @@ impl Daemon {
     }
 
     /// Runs one turn to its end and answers the text of its last entry.
-    async fn turn(&self, thread: &shadows_core::threads::ThreadId, prompt: &str) -> String {
+    async fn turn(&self, thread: &shadows_core::ThreadId, prompt: &str) -> String {
         let bus = tokio::sync::broadcast::channel(16).0;
         let op = turn::start_direct(
             &self.runtime,
@@ -296,18 +295,18 @@ async fn after_a_restart_the_next_turn_resumes_the_recorded_session() {
     let tmp = tempfile::tempdir().unwrap();
     let db = tmp.path().join("s.sqlite3");
     let first = Daemon::start(&db).await;
-    let ctx = |id: &str, kind: &str| shadows_core::command::CommandContext {
+    let ctx = |id: &str, kind: &str| shadows_core::testing::CommandContext {
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: id.into(),
         command_kind: kind.into(),
         command_schema_ver: 1,
-        request_fingerprint: shadows_core::command::fingerprint(
+        request_fingerprint: shadows_core::testing::fingerprint(
             kind,
             &serde_json::json!({ "id": id }),
         ),
     };
-    let dir = shadows_core::projects::ProjectDirectory::resolve(tmp.path()).unwrap();
+    let dir = shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap();
     let storage = &first.runtime.storage;
     let project = storage
         .create_project(

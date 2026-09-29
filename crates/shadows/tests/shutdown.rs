@@ -16,21 +16,20 @@ use axum::http::{Request, StatusCode};
 use shadows::cli::router;
 use shadows_agent::events::HarnessEvent;
 use shadows_core::StartError;
-use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::harness::Sessions;
-use shadows_core::runtime::Runtime;
-use shadows_core::storage::{StopKind, Storage};
+use shadows_core::StopKind;
+use shadows_core::ThreadId;
+use shadows_core::testing::Runtime;
+use shadows_core::testing::Sessions;
+use shadows_core::testing::Storage;
+use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, shut_down};
-use shadows_core::threads::ThreadId;
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
 use shadows_http::AppState;
 use tower::ServiceExt;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
-#[path = "fixtures/turn.rs"]
-mod turn;
+use shadows_core::testing::acp;
+use shadows_core::testing::turn;
 
 type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
 
@@ -64,7 +63,7 @@ async fn fixture() -> Fixture {
             &ctx,
             "demo",
             "Demo",
-            &shadows_core::projects::ProjectDirectory::resolve(tmp.path()).unwrap(),
+            &shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap(),
             &shadows_agent::policy::default_modes(),
         )
         .await

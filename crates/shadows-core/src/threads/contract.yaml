@@ -174,7 +174,7 @@ enums:
     source: crate::error::CoreError
     values: []
   StorageError:
-    source: crate::storage::StorageError
+    source: crate::db::StorageError
     values: []
   Operation:
     source: crate::turns::Operation
@@ -311,11 +311,9 @@ open_questions:
       called directly on `Storage` by Turns, Harness and Sessions, and
       `operations` reads Turns' `list_operations_for_thread` the same way.
       Whether each goes through a service method is for Task 10's narrowing
-      of the `impl Storage` methods (ruling F6).
-  - >
-      `shadows-http`'s SSE usage frame (`sse.rs`) reads `turn_context`
-      directly through `core.storage()`, an adapter reaching this store
-      around `Threads`. It moves with Events (Task 10).
+      of the `impl Storage` methods (ruling F6). `Harness::limits_of`, which
+      `Events` calls for a usage frame, is one more such reader since Task 10;
+      no adapter reads this store any longer.
 
 
 tests:

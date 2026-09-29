@@ -12,16 +12,15 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use shadows::cli::router;
-use shadows_core::runtime::Runtime;
-use shadows_core::storage::Storage;
 use shadows_core::testing::LiveHandles;
+use shadows_core::testing::Runtime;
+use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
 use shadows_http::AppState;
 use tower::ServiceExt;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 
 async fn app(storage: Arc<Storage>, db: &Path) -> (Router, tokio::sync::watch::Sender<bool>) {
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();

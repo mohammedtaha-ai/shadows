@@ -15,17 +15,16 @@ use axum::body::Body;
 use axum::http::Request;
 use serde_json::Value;
 use shadows::cli::router;
-use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::runtime::Runtime;
-use shadows_core::storage::Storage;
 use shadows_core::testing::LiveHandles;
+use shadows_core::testing::Runtime;
+use shadows_core::testing::Storage;
+use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tokio_stream::StreamExt;
 use tower::ServiceExt;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 
 /// A durable frame names its operation and its thread, and its `payload` is
 /// the event's JSON object, not a string holding JSON. `caught-up` is JSON
@@ -61,7 +60,7 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
         command_schema_ver: 1,
         request_fingerprint: fingerprint(kind, &params),
     };
-    let dir = shadows_core::projects::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
+    let dir = shadows_core::testing::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap();
     let project = storage
         .create_project(
             &ctx("c1", "project.create"),

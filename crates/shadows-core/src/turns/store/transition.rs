@@ -15,8 +15,8 @@
 
 use sqlx::SqliteConnection;
 
+use crate::db::{StorageError, append_event};
 use crate::events::DurableEvent;
-use crate::storage::{StorageError, append_event};
 use crate::threads::ThreadId;
 use crate::turns::model::OperationId;
 

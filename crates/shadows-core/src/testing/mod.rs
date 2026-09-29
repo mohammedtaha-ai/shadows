@@ -1,5 +1,18 @@
-//! What tests in every crate share: where the fake adapter is, and the paths
-//! a test needs that belong to this crate. Compiled only with `test-support`.
+//! What tests in every crate share, and nothing more: the internals a test
+//! drives below the services, the fake adapter and the paths that belong to
+//! this crate. Compiled only with `test-support`, which a crate enables only in
+//! its `[dev-dependencies]` (spec §14.6): a normal build that names
+//! `shadows_core::testing` does not compile.
+//!
+//! `acp` builds sessions over the fake adapter, and `turn` starts a Planner
+//! turn without HTTP; both were fixture copies in two test crates.
+
+use std::sync::Arc;
+
+use crate::app::{AppCore, CoreParts};
+
+pub mod acp;
+pub mod turn;
 
 /// The `fake-acp` binary, built once per test process. `CARGO_BIN_EXE_*`
 /// only names binaries of the test's own package, and `fake-acp` is its own
@@ -32,7 +45,7 @@ fn built(package: &str, bin: &str) -> std::path::PathBuf {
 }
 
 /// The Planner's instructions, as `harness/setup` compiles them in.
-pub const PROMPT: &str = include_str!("harness/prompt.txt");
+pub const PROMPT: &str = include_str!("../harness/prompt.txt");
 
 /// This crate's migrations directory.
 pub fn migrations_dir() -> std::path::PathBuf {
@@ -51,3 +64,25 @@ pub use crate::turns::LiveHandles;
 pub use crate::turns::for_tests::{
     FailureStage, NewTurn, PlannerTurn, PlannerTurnRequest, StartedTurn, StopOutcome, shut_down,
 };
+
+/// Storage, the runtime and the sessions, which the storage, recovery and
+/// session tests open directly and `CoreParts` is built from. Private to the
+/// crate everywhere else (§14.6).
+pub use crate::app::{Bus, adapter_version};
+pub use crate::command::derive::{Anchor, derived_id};
+pub use crate::command::{CommandContext, Writer, fingerprint};
+pub use crate::db::{Storage, append_event_for_test};
+pub use crate::events::{Causation, DurableEvent, EventCursor};
+pub use crate::grants::{IssuedGrant, Token, hash_token};
+pub use crate::harness::{LeaseError, OpenSession, Sessions, SessionsConfig, prompt_version};
+pub use crate::projects::ProjectDirectory;
+pub use crate::runtime::{ReconcileReport, Runtime};
+pub use crate::threads::{NewThreadEntry, TurnContext};
+
+impl AppCore {
+    /// The application over parts a test built, so the test keeps its own
+    /// handles on the same `Arc`s. The binary builds it with `start`.
+    pub fn assemble(parts: CoreParts) -> Arc<AppCore> {
+        AppCore::from_parts(parts)
+    }
+}

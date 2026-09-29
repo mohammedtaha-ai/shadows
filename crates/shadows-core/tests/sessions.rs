@@ -2,11 +2,11 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use shadows_agent::{claude::ClaudeAdapter, events::HarnessEvent};
 use shadows_core::{
-    command::{CommandContext, fingerprint},
-    harness::{OpenError, OpenSession, Sessions, SessionsConfig},
-    projects::ProjectDirectory,
-    storage::Storage,
-    threads::ThreadId,
+    OpenError, ThreadId,
+    testing::{
+        CommandContext, OpenSession, ProjectDirectory, Sessions, SessionsConfig, Storage,
+        fingerprint,
+    },
 };
 
 struct Fixture {

@@ -16,6 +16,13 @@ pub enum FailureStage {
     /// workspace. The process never existed. Spec §8.3.
     Prepare,
     /// The OS refused to start the process. Spec §2.7.
+    #[cfg_attr(
+        not(feature = "test-support"),
+        expect(
+            dead_code,
+            reason = "no production path records a `Spawn` failure today; only tests do"
+        )
+    )]
     Spawn,
     /// The process ran and failed.
     Run,

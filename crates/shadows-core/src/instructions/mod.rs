@@ -12,9 +12,9 @@ use std::sync::Arc;
 pub use model::InstructionsVersion;
 
 use crate::app::user_command;
+use crate::db::Storage;
 use crate::error::CoreError;
 use crate::projects::ProjectId;
-use crate::storage::Storage;
 
 /// Instructions: what storage holds.
 pub struct Instructions {

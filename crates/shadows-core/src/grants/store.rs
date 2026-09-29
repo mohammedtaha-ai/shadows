@@ -12,10 +12,10 @@ use sqlx::SqliteConnection;
 
 use super::model::{Grant, GrantId, GrantKind, IssuedGrant, Token, hash_token};
 use crate::command::{CommandContext, Writer};
+use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::events::{Actor, DurableEvent};
 use crate::plans::WorkflowId;
 use crate::projects::ProjectId;
-use crate::storage::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::threads::ThreadId;
 
 /// How long an unused `draft_ref` can still start a plan (§13.5).
@@ -222,6 +222,7 @@ impl Storage {
     /// The plan a draft_ref already started (bound refs never expire), or None
     /// if unused and not expired; Err if unused and expired, unknown, or issued
     /// to another grant. Expiry stops only a first use (§13.5).
+    #[cfg(feature = "test-support")]
     pub async fn draft_intent(
         &self,
         grant: &GrantId,

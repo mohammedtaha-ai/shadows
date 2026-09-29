@@ -10,7 +10,7 @@ use sqlx::SqliteConnection;
 
 use super::operation_read::invocation_of;
 use super::transition::{Before, Transition, existed, read_before, record};
-use crate::storage::{Storage, StorageError, now};
+use crate::db::{Storage, StorageError, now};
 use shadows_agent::events::TurnObservation;
 
 /// Inserts a `Pending` operation and its `OperationCreated` event inside the
@@ -64,6 +64,7 @@ impl Storage {
     /// recorded (§8.5): a stopped runtime accepts no work, and an operation
     /// born after a `Graceful` stop would make that record a lie after the
     /// fact. `stop_runtime_instance` guards the other side of the same line.
+    #[cfg(feature = "test-support")]
     pub async fn create_pending_operation(
         &self,
         thread_id: &ThreadId,

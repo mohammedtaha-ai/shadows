@@ -10,18 +10,16 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::events::Actor;
-use shadows_core::runtime::Runtime;
-use shadows_core::storage::Storage;
+use shadows_core::Actor;
+use shadows_core::ThreadId;
+use shadows_core::testing::Runtime;
+use shadows_core::testing::Storage;
+use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn, StopOutcome};
-use shadows_core::threads::ThreadId;
 use shadows_core::{Operation, OperationId};
 
-#[path = "fixtures/acp.rs"]
-mod acp;
-#[path = "fixtures/turn.rs"]
-mod turn;
+use shadows_core::testing::acp;
+use shadows_core::testing::turn;
 
 /// A project with its own directory, and one thread in it.
 async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> ThreadId {
@@ -40,7 +38,7 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
             &ctx,
             slug,
             slug,
-            &shadows_core::projects::ProjectDirectory::resolve(dir).unwrap(),
+            &shadows_core::testing::ProjectDirectory::resolve(dir).unwrap(),
             &shadows_agent::policy::default_modes(),
         )
         .await

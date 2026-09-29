@@ -10,11 +10,11 @@ use super::{
     turn::{PlannerTurn, TurnWatch, watch_turn},
 };
 use crate::{
+    db::StorageError,
     events::Actor,
     harness::{OpenSession, Sessions},
     plans::Focus,
     runtime::Runtime,
-    storage::StorageError,
     threads::ThreadId,
 };
 use shadows_agent::{TurnSettings, events::HarnessEvent};

@@ -16,15 +16,15 @@ mod store;
 
 use std::sync::Arc;
 
-#[cfg(feature = "test-support")]
-pub use model::hash_token;
 pub use model::{Grant, GrantId, GrantKind};
+#[cfg(feature = "test-support")]
+pub use model::{IssuedGrant, Token, hash_token};
 pub(crate) use store::{bind_draft_ref, check_writer};
 
 use crate::app::user_command;
+use crate::db::Storage;
 use crate::error::CoreError;
 use crate::projects::ProjectId;
-use crate::storage::Storage;
 
 /// Grants: what storage holds, and the `/mcp` address a `claude mcp add`
 /// line names.

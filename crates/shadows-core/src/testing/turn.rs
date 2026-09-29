@@ -2,21 +2,17 @@
 //! route does (spec §12.7) — the operation is committed by
 //! `Storage::start_turn`, then `PlannerTurn::start` runs it.
 
-#![allow(dead_code)]
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::command::{CommandContext, fingerprint};
+use crate::harness::Sessions;
+use crate::runtime::Runtime;
+use crate::threads::ThreadId;
+use crate::turns::for_tests::{NewTurn, PlannerTurn, PlannerTurnRequest};
+use crate::turns::{LiveHandles, OperationId, StartError};
 use shadows_agent::TurnSettings;
 use shadows_agent::events::HarnessEvent;
-use shadows_core::OperationId;
-use shadows_core::StartError;
-use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::harness::Sessions;
-use shadows_core::runtime::Runtime;
-use shadows_core::testing::NewTurn;
-use shadows_core::testing::{LiveHandles, PlannerTurn, PlannerTurnRequest};
-use shadows_core::threads::ThreadId;
 
 /// The fake's own settings, which every turn can run with.
 pub fn default_turn_settings() -> TurnSettings {
@@ -60,7 +56,7 @@ pub fn new_turn<'a>(
         agent_path: "fake_acp",
         agent_version: "fake-claude-1",
         settings,
-        prompt_version: Some(shadows_core::harness::prompt_version()),
+        prompt_version: Some(crate::harness::prompt_version()),
         instructions_version: None,
         focus: None,
     }

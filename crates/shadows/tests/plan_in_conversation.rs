@@ -7,11 +7,10 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 use shadows_core::OperationId;
-use shadows_core::threads::{EntryRef, ThreadEntryKind};
+use shadows_core::{EntryRef, ThreadEntryKind};
 use shadows_core::{TaskId, WorkflowId};
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 #[path = "fixtures/listening.rs"]

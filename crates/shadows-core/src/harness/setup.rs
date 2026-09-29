@@ -13,10 +13,10 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use sha2::{Digest, Sha256};
 
+use crate::db::{Storage, StorageError};
 use crate::grants::GrantId;
 use crate::instructions::InstructionsVersion;
 use crate::projects::ProjectId;
-use crate::storage::{Storage, StorageError};
 use crate::threads::ThreadId;
 use shadows_agent::acp::{McpServerSpec, SessionSetup};
 

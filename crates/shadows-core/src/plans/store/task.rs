@@ -7,10 +7,10 @@ use std::collections::HashMap;
 
 use sqlx::SqliteConnection;
 
+use crate::db::StorageError;
 use crate::plans::model::{
     AcceptanceItem, Link, LinkKind, PlanContent, PlanTask, TaskContent, TaskId, WorkflowId,
 };
-use crate::storage::StorageError;
 
 /// `contract_json` as stored: title, goal and acceptance (§13.3).
 #[derive(serde::Serialize, serde::Deserialize)]

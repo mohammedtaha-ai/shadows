@@ -9,13 +9,13 @@ use sqlx::SqliteConnection;
 use super::read::{edits_of, load_plan, recorded_outcome};
 use super::task::write_content;
 use crate::command::{CommandContext, Writer};
+use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::events::{Actor, DurableEvent};
 use crate::grants::check_writer;
 use crate::plans::model::{Approved, EditOutcome, WorkflowId, WorkflowState};
 use crate::plans::ops::{PlanOp, apply};
 use crate::plans::rules::approval_problems;
 use crate::projects::ProjectId;
-use crate::storage::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId, append_entry_in};
 
 impl Storage {

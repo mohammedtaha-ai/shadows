@@ -1,22 +1,23 @@
-use shadows_core::events::Actor;
-use shadows_core::runtime::RuntimeInstanceId;
-use shadows_core::storage::{Storage, StorageError};
+use shadows_core::Actor;
+use shadows_core::RuntimeInstanceId;
+use shadows_core::StorageError;
+use shadows_core::ThreadId;
 use shadows_core::testing::FailureStage;
-use shadows_core::threads::ThreadId;
+use shadows_core::testing::Storage;
 
 async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
     let runtime = storage.register_runtime_instance("test").await.unwrap();
-    let dir = shadows_core::projects::ProjectDirectory::resolve(tmp.path()).unwrap();
+    let dir = shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap();
     let params = serde_json::json!({ "slug": "demo" });
-    let ctx = shadows_core::command::CommandContext {
+    let ctx = shadows_core::testing::CommandContext {
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: "c1".into(),
         command_kind: "project.create".into(),
         command_schema_ver: 1,
-        request_fingerprint: shadows_core::command::fingerprint("project.create", &params),
+        request_fingerprint: shadows_core::testing::fingerprint("project.create", &params),
     };
     let project = storage
         .create_project(
@@ -28,10 +29,10 @@ async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) 
         )
         .await
         .unwrap();
-    let tctx = shadows_core::command::CommandContext {
+    let tctx = shadows_core::testing::CommandContext {
         command_id: "c2".into(),
         command_kind: "thread.create".into(),
-        request_fingerprint: shadows_core::command::fingerprint("thread.create", &params),
+        request_fingerprint: shadows_core::testing::fingerprint("thread.create", &params),
         ..ctx
     };
     let thread = storage

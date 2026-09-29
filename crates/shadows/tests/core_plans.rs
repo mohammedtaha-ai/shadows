@@ -1,7 +1,6 @@
 //! Spec §14.9: plan operations answer the same after moving into `Plans`.
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 #[path = "fixtures/listening.rs"]
@@ -13,7 +12,7 @@ use app::{other_project, post, start_settled};
 use listening::{listening_app, ok, project_client, refused, thread_client};
 use plan::{add, draft_on};
 use serde_json::json;
-use shadows_core::command::fingerprint;
+use shadows_core::testing::fingerprint;
 
 /// A replay only matches a command recorded by an earlier daemon when its
 /// kind, schema version and fingerprint parameters are the ones that daemon

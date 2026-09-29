@@ -10,15 +10,14 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use shadows::cli::router;
 use shadows::config::{ConfigError, allowed_origin};
-use shadows_core::runtime::Runtime;
-use shadows_core::storage::Storage;
 use shadows_core::testing::LiveHandles;
+use shadows_core::testing::Runtime;
+use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tower::ServiceExt;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 
 const ALLOWED: &str = "http://localhost:5173";
 

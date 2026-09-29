@@ -1,4 +1,7 @@
-use super::{Storage, StorageError, events::append_event, now};
+//! One job: a runtime instance's rows — its start, its stop, and recovering
+//! what an earlier one left running (spec §8.1, §8.5, §8.6).
+
+use crate::db::{Storage, StorageError, append_event, now};
 use crate::events::{Actor, DurableEvent};
 use crate::runtime::RuntimeInstanceId;
 use crate::turns::OperationId;

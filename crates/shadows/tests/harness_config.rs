@@ -2,7 +2,7 @@
 //! configuration a harness is started from, not anything it answers.
 
 use shadows::config::{ConfigError, harness_path};
-use shadows_core::app::adapter_version;
+use shadows_core::testing::adapter_version;
 
 /// Spec §1.4: the harness is resolved from explicit configuration, never from
 /// `PATH`. `claude` is what a PATH lookup looks like when it is spelled as a

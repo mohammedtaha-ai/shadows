@@ -4,16 +4,17 @@
 //! and transaction contracts.
 
 use serde_json::json;
+use shadows_core::Actor;
 use shadows_core::OperationId;
-use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::events::Actor;
-use shadows_core::projects::ProjectDirectory;
-use shadows_core::storage::{Storage, StorageError};
-use shadows_core::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId};
+use shadows_core::StorageError;
+use shadows_core::testing::NewThreadEntry;
+use shadows_core::testing::ProjectDirectory;
+use shadows_core::testing::Storage;
+use shadows_core::testing::{CommandContext, fingerprint};
+use shadows_core::{EntryRef, ThreadEntryKind, ThreadId};
 use shadows_core::{TaskId, WorkflowId};
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 

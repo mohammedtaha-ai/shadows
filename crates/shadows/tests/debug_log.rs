@@ -14,22 +14,20 @@ use std::time::Duration;
 use axum::body::Body;
 use axum::http::Request;
 use shadows::cli::router;
+use shadows_core::Actor;
 use shadows_core::OperationId;
-use shadows_core::app::Bus;
-use shadows_core::command::{CommandContext, fingerprint};
-use shadows_core::events::Actor;
-use shadows_core::harness::Sessions;
-use shadows_core::runtime::Runtime;
-use shadows_core::storage::Storage;
+use shadows_core::testing::Bus;
+use shadows_core::testing::Runtime;
+use shadows_core::testing::Sessions;
+use shadows_core::testing::Storage;
+use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{LiveHandles, PlannerTurn};
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
 use tower::ServiceExt;
 
-#[path = "fixtures/acp.rs"]
-mod acp;
-#[path = "fixtures/turn.rs"]
-mod turn;
+use shadows_core::testing::acp;
+use shadows_core::testing::turn;
 
 const PROMPT: &str = "a prompt that must never reach a log 7f3a";
 
@@ -164,11 +162,7 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
     );
 }
 
-async fn start(
-    state: &Daemon,
-    thread: &shadows_core::threads::ThreadId,
-    prompt: &str,
-) -> OperationId {
+async fn start(state: &Daemon, thread: &shadows_core::ThreadId, prompt: &str) -> OperationId {
     turn::start_direct(
         &state.runtime,
         &state.handles,
@@ -224,7 +218,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (Daemon, tokio::sync::watch::Send
     (daemon, stopping)
 }
 
-async fn seed_thread(runtime: &Runtime) -> shadows_core::threads::ThreadId {
+async fn seed_thread(runtime: &Runtime) -> shadows_core::ThreadId {
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = CommandContext {
         principal_kind: "User".into(),
@@ -240,7 +234,7 @@ async fn seed_thread(runtime: &Runtime) -> shadows_core::threads::ThreadId {
             &ctx,
             "demo",
             "Demo",
-            &shadows_core::projects::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
+            &shadows_core::testing::ProjectDirectory::resolve(&std::env::temp_dir()).unwrap(),
             &shadows_agent::policy::default_modes(),
         )
         .await

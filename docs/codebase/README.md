@@ -42,7 +42,7 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows-core/src/turns/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows-core/src/turns/turn.rs` |
 | `crates/shadows-core/src/turns/entries.rs` | turning harness events into durable entries | `crates/shadows-core/src/turns/entries.rs` |
 | `crates/fake-acp/src/main.rs` | test apparatus that no product code links | `crates/fake-acp/src/main.rs` |
-| `crates/shadows-core/src/testing.rs` | the test apparatus every crate's tests share | `crates/shadows-core/src/testing.rs` |
+| `crates/shadows-core/src/testing/` | the test apparatus every crate's tests share | `crates/shadows-core/src/testing/mod.rs` |
 | `crates/shadows-process/src/bin/` | test apparatus that no product code links | `crates/shadows-process/src/bin/tree_probe.rs` |
 | `crates/shadows/src/cli/` | daemon startup | `crates/shadows/src/cli/args.rs` |
 | `crates/shadows-core/src/command/` | external-command identity for idempotency | `crates/shadows-core/src/command/mod.rs` |
@@ -50,7 +50,9 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows/src/config.rs` | startup configuration resolved once | `crates/shadows/src/config.rs` |
 | `crates/shadows-core/src/app.rs` | the application's composition root | `crates/shadows-core/src/app.rs` |
 | `crates/shadows-core/src/error.rs` | the stable failure taxonomy clients match on | `crates/shadows-core/src/error.rs` |
-| `crates/shadows-core/src/events/` | the event shapes the product records or signals | `crates/shadows-core/src/events/mod.rs` |
+| `crates/shadows-core/src/events/` | what clients watch live | `crates/shadows-core/src/events/mod.rs` |
+| `crates/shadows-core/src/events/model.rs` | the event shapes the product records or signals | `crates/shadows-core/src/events/model.rs` |
+| `crates/shadows-core/src/events/subscription.rs` | one subscriber's replay-then-live stream | `crates/shadows-core/src/events/subscription.rs` |
 | `crates/shadows-core/src/id.rs` | the UUID id newtype pattern | `crates/shadows-core/src/id.rs` |
 | `crates/shadows-mcp/src/lib.rs` | Shadows' MCP server | `crates/shadows-mcp/src/lib.rs` |
 | `crates/shadows-core/src/grants/` | MCP grants, from issue to revocation | `crates/shadows-core/src/grants/mod.rs` |
@@ -73,13 +75,13 @@ before adding to that module: it is the pattern to follow, not merely an example
 | `crates/shadows-http/src/lib.rs` | the HTTP/SSE surface every client talks to | `crates/shadows-http/src/project.rs` |
 | `crates/shadows-http/src/project.rs` | the routes over projects, their threads included | `crates/shadows-http/src/project.rs` |
 | `crates/shadows-http/src/conversation.rs` | the routes over a thread's conversation | `crates/shadows-http/src/conversation.rs` |
-| `crates/shadows-http/src/sse.rs` | the replay-then-live stream | `crates/shadows-http/src/sse.rs` |
+| `crates/shadows-http/src/sse.rs` | the replay-then-live stream's SSE framing | `crates/shadows-http/src/sse.rs` |
 | `crates/shadows-http/src/fs.rs` | choosing a project directory on this machine | `crates/shadows-http/src/fs.rs` |
 | `crates/shadows-http/src/openapi.rs` | the OpenAPI document describing this API | `crates/shadows-http/src/openapi.rs` |
 | `crates/shadows-http/src/failure.rs` | the transport mapping of a failure | `crates/shadows-http/src/failure.rs` |
 | `crates/shadows-http/src/guard.rs` | refusing requests pages were made to send | `crates/shadows-http/src/guard.rs` |
 | `crates/shadows-core/src/runtime/` | the runtime instance's lifecycle | `crates/shadows-core/src/runtime/mod.rs` |
-| `crates/shadows-core/src/storage/` | persistence | `crates/shadows-core/src/storage/sqlite/mod.rs` |
+| `crates/shadows-core/src/db/` | the database no service owns | `crates/shadows-core/src/db/mod.rs` |
 | `crates/shadows-core/src/plans/store/edit.rs` | changing a plan version | `crates/shadows-core/src/plans/store/edit.rs` |
 | `crates/shadows-core/src/plans/store/draft.rs` | starting a plan version | `crates/shadows-core/src/plans/store/draft.rs` |
 | `crates/shadows-core/src/plans/store/read.rs` | reading plan versions | `crates/shadows-core/src/plans/store/read.rs` |

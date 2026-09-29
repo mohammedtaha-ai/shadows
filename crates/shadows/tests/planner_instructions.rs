@@ -3,17 +3,16 @@
 
 use serde_json::{Value, json};
 
-#[path = "fixtures/acp.rs"]
-mod acp;
+use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 
 use app::{call, ctx, get_json, other_project, test_app};
 
-fn save_ctx(id: &str, body: &str) -> shadows_core::command::CommandContext {
+fn save_ctx(id: &str, body: &str) -> shadows_core::testing::CommandContext {
     let mut c = ctx(id, "PlannerInstructionsSave");
     c.request_fingerprint =
-        shadows_core::command::fingerprint("PlannerInstructionsSave", &json!(body));
+        shadows_core::testing::fingerprint("PlannerInstructionsSave", &json!(body));
     c
 }
 

@@ -15,11 +15,11 @@ use rmcp::transport::streamable_http_client::StreamableHttpClientTransportConfig
 use rmcp::{RoleClient, ServiceExt};
 use serde_json::Value;
 use shadows_core::GrantId;
-use shadows_core::threads::ThreadId;
+use shadows_core::ThreadId;
 
 use std::path::Path;
 
-use shadows_core::harness::SessionsConfig;
+use shadows_core::testing::SessionsConfig;
 
 use super::acp;
 use super::app::{App, test_app_with};
