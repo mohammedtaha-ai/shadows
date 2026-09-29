@@ -65,6 +65,38 @@ shapes:
     Busy: unit
     TimedOut: unit
     Unreadable: unit
+  Sessions:
+    # One live adapter per thread, the offers it made, and the setups it
+    # opened with. Built with its own `Storage` (the open question below);
+    # shared as one `Arc` by `Harness` and `Turns`.
+    config: SessionsConfig
+  SessionsConfig:
+    # Defaults: 15 min, 10 s, 20 s, 5 s, None.
+    idle_after: Duration
+    cancel_wait: Duration
+    setup_wait: Duration
+    context_wait: Duration
+    # Shadows' `/mcp` as bound; `None` issues no thread grant on opening.
+    mcp_url: Option<String>
+  OpenSession:
+    # Kept across a resume: the harness's own session id.
+    session_id: String
+    # "new", "resume" or "fork", decided from `turn_context`.
+    how: "&'static str"
+    # Private: the connection (read through `connection()`) and a generation,
+    # so a turn that outlives its adapter never gives its events to, marks,
+    # or terminates the adapter that replaced it.
+  OpenError:
+    Storage: StorageError
+    # Includes "harness setup timed out" after `setup_wait`.
+    Start: String
+    # The project directory cannot be run in; words a client may show.
+    Workspace: String
+  LeaseError:
+    # A turn, or a `/context` read that did not finish in time, holds it.
+    Busy: unit
+    # The adapter this session ran on is gone.
+    Closed: unit
 
 
 functions:
@@ -155,6 +187,33 @@ functions:
       signature: "(&self) -> &ClaudeAdapter"
     close_all:
       signature: "(&self) -> io::Result<()>"
+    connection:
+      signature: "(&self) -> &Connection"
+      # On `OpenSession`: a turn prompts and cancels through it.
+    prompt_version:
+      signature: "() -> &'static str"
+      # Free function in `setup.rs`: the Planner prompt's version a turn's
+      # invocation records.
+  construction:
+    new:
+      signature: "(adapter: Arc<ClaudeAdapter>, storage: Storage, config: SessionsConfig) -> Arc<Sessions>"
+      # `AppCore::start` builds one; its idle sweep runs every idle_after/4,
+      # at most 60 s.
+  for_tests:
+    # Behind `test-support`, reached through `shadows_core::testing`.
+    take_events:
+      signature: "(&self, thread: &ThreadId) -> Option<UnboundedReceiver<HarnessEvent>>"
+    terminate:
+      signature: "(&self, thread: &ThreadId) -> io::Result<()>"
+      # Not test-only: `close_session` is its product caller.
+    live_count:
+      signature: "(&self) -> usize"
+    pid:
+      signature: "(&self, thread: &ThreadId) -> Option<u32>"
+    force_termination_failure:
+      signature: "(&self, thread: &ThreadId) -> bool"
+    remember_for_test:
+      signature: "(&self, kind: &str, model: &str, effort: Option<&str>)"
   store:
     remembered_settings:
       signature: "(&self, kind: &str) -> Result<Option<(String, Option<String>)>, StorageError>"
@@ -189,7 +248,7 @@ enums:
     values: []
 
 
-read_by_other_services:
+called_by_other_services:
   record_limits: "Turns (turns/turn.rs accept): a turn's watcher records the account limits the harness reports, before it publishes the usage that `limits_of` answers (§12.8)"
 
 

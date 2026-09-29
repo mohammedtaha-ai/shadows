@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-09-26 (Milestone 2 merged; Milestone 2.5 next)
+**Updated:** 2026-09-29 (Milestone 2.5 built on its branch, pending Mohammed's Windows run)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -8,6 +8,18 @@ decision live in the topic owners indexed by
 restate them.
 
 ## Where we are
+
+**Milestone 2.5 (§14, one application core) is built on
+`milestone-2.5/app-core`, pending Mohammed's Windows run and the whole-branch
+review.** Shadows is now a Cargo workspace under `crates/`: the HTTP and MCP
+adapters are their own crates and reach the application only through
+`AppCore` in `shadows-core`, whose eight services each own their operations
+and carry a `contract.yaml` that `crates/shadows-core/tests/contracts.rs` keeps
+current. Behaviour did not change, and `api/openapi.json` is byte-identical.
+What remains is §14.10's run on the debug build (send and Stop, a restart, a
+plan edited and approved, Connect and Revoke), recorded in
+`evidence/milestone2_5/WINDOWS_RUN.md`, then the PR. The plan is
+`superpowers/plans/2026-09-26-milestone-2-5-app-core.md`.
 
 **Milestone 2 (§13, the Planner writes a plan) is on `main`** (PR #6,
 2026-09-25; 304 Rust, 135 web tests), and Mohammed ran it on Windows. A
@@ -81,13 +93,8 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **Milestone 2.5: one application core.** Today HTTP routes and MCP tools
-   call storage directly, so one rule lives in several places. For example,
-   `thread_is_busy` is checked in two route files, and `turn_context` is read
-   from five places. Every operation moves to one method on one service under an
-   `AppCore`, which is built once and passed down. Storage becomes private to the
-   core. Each service gets a contract that a test keeps current. Behaviour does
-   not change. The spec comes first.
+1. **Finish Milestone 2.5:** the whole-branch review, Mohammed's Windows run,
+   then the PR and the branch deleted.
 2. **Milestone 3: the code index** (`vision.md` §2.4), with tree-sitter embedded.
 3. **Effort at once, without `default`.** Mohammed's ruling after the
    Windows run: picking an effort sets it on the session at once, as the
@@ -107,7 +114,7 @@ The PR is #4; its execution ledger was removed from the branch before merge.
   result into a Linux claim.
 - **A harness that stops answering but keeps running** was the Milestone 0 risk.
   Stop no longer waits on a stream: after `cancel_wait` it terminates the
-  adapter's tree (§12.3). `fake_acp`'s `ignore-cancel` covers this; the real
+  adapter's tree (§12.3). `fake-acp`'s `ignore-cancel` covers this; the real
   harness was not driven into that state.
 - **Accept edits lets Claude Code delete files in the project folder without
   asking** (spec §12.5, measured in the Phase B run). This is the harness's

@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
+# `cargo run` from the workspace root: `fake-acp` and `tree_probe` are binaries too.
+default-run = "shadows"
 
 [lints]
 workspace = true

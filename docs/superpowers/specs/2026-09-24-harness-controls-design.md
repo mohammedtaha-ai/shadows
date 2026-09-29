@@ -173,7 +173,7 @@ answered before the cancel took ownership keeps the ending it answered with.
 **What is deleted.** `agent/claude.rs`'s stream-json `classify`, the
 `--print` argument builder, `StreamItem`'s line classes that only stream-json
 produced, and `src/bin/fake_claude.rs`. Tests run against a fake ACP agent
-(`src/bin/fake_acp.rs`, built on the same crate's agent side) instead.
+(the `fake-acp` crate since Milestone 2.5, built on `agent-client-protocol`'s agent side) instead.
 
 **Measured on 2026-09-24** against adapter 0.81.1 and Claude Code 2.1.281
 (`docs/evidence/harness/ACP_PROBE.md`): chunks carry `messageId`; a cancel

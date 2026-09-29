@@ -132,6 +132,33 @@ functions:
       private: true
       # Usage → Usage with `Harness::limits_of`; Chunk → Delta; TurnEnd →
       # TurnEnd; anything else (Entry, ToolCall, Options, …) → None.
+  builders:
+    # What every writer in the crate uses to build the event it appends
+    # through `db::append_event`; appending is not this service's.
+    new:
+      signature: "(kind: impl Into<String>, actor: Actor) -> DurableEvent"
+      # A fresh v4 `event_id`, no scope, payload "{}".
+    with_project:
+      signature: "(self, id: &ProjectId) -> Self"
+      # Typed ids, so an event cannot be scoped to the wrong entity.
+    with_thread:
+      signature: "(self, id: &ThreadId) -> Self"
+    with_operation:
+      signature: "(self, id: &OperationId) -> Self"
+    with_payload:
+      signature: "(self, v: Value) -> Self"
+    with_causation:
+      signature: "(self, kind, reference) -> Self"
+      # test-support only.
+    with_correlation:
+      signature: "(self, id) -> Self"
+      # test-support only.
+    system:
+      signature: "() -> Actor"
+      # On `Actor`.
+    user:
+      signature: "(id: impl Into<String>) -> Actor"
+      # On `Actor`.
   store:
     read_events_after:
       signature: "(&self, cursor: EventCursor, thread_id: &ThreadId, limit: i64) -> Result<Vec<StoredEvent>, StorageError>"
@@ -317,3 +344,19 @@ tests:
     checks: >
       With a raw TCP stream past caught-up, raising `stopping` lets serve
       return within 5 s.
+  - name: a_usage_frame_reaches_a_subscriber_of_the_thread
+    checks: >
+      A turn's two usage reports reach the thread's stream with its id,
+      context used and window; the second carries the harness's limits.
+  - name: plan_show_writes_a_card_and_signals_only_the_sending_tab
+    checks: >
+      One plan-show frame per subscriber, after the PlanShown event, naming
+      the sending tab.
+  - name: a_replayed_subscription_gets_the_card_but_no_plan_show_frame
+    checks: >
+      A stream opened at 0 after the turn replays the PlanShown event, sends
+      no plan-show frame up to caught-up, and none in the next 300 ms.
+  - name: an_open_live_stream_does_not_hold_up_shutdown
+    checks: >
+      A raw stream read up to caught-up, then the graceful shutdown: `serve`
+      returns within 5 s.

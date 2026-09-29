@@ -146,7 +146,7 @@ enums:
     values: []
 
 
-read_by_other_services:
+called_by_other_services:
   get_project: "Turns (turns/mod.rs record, the mode check) and Harness (harness/mod.rs choices): the project's allowed modes, which refuse a turn's mode and filter a session's offer (§12.5)"
 
 

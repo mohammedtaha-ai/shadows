@@ -314,19 +314,25 @@ A final deterministic result is represented by `Verdict`.
 
 The compiler/module structure is the first line of defense.
 
+**Where backend-specific SQL lives** (§14.11, Milestone 2.5): inside a
+service's `store` and `shadows-core/src/db/`, never outside `shadows-core`.
+Storage is private to that crate (§14.6), so no adapter can reach it. When
+PostgreSQL comes, it arrives as a backend module beside each store, not as a
+second storage layer.
+
 Mechanical architecture tests may verify obvious ownership rules such as:
 
 ```text
-no sqlx imports outside storage/
-no tokio::process outside process/
-no HTTP transport types inside domain/application modules
+no sqlx imports outside shadows-core's stores and db/
+no tokio::process outside shadows-process
+no HTTP transport types inside shadows-core
 ```
 
 Architecture tests are defense-in-depth, not semantic proof.
 
 Do **not** maintain a giant blacklist of SQL keywords such as `rowid`, `strftime`, or FTS syntax across the entire source tree. Semantic portability is established by storage contract tests, backend-specific containment, code review, and future SQLite/PostgreSQL parity tests.
 
-Because storage contract tests are named here as an enforcement mechanism, they are the one place outside `storage/` that may import the backend driver and issue backend-specific statements. A contract test asserting `PRAGMA journal_mode` is that mechanism working, not a breach of it. The rule it must still obey: a contract test may read backend state, and may not become the reason a backend-specific accessor is added to a product API. Putting `journal_mode()` on the public surface to keep `sqlx` out of a test would move SQLite vocabulary from a test, where it is contained, into the product, where it is permanent.
+Because storage contract tests are named here as an enforcement mechanism, they are the one place outside the stores and `db/` that may import the backend driver and issue backend-specific statements. A contract test asserting `PRAGMA journal_mode` is that mechanism working, not a breach of it. The rule it must still obey: a contract test may read backend state, and may not become the reason a backend-specific accessor is added to a product API. Putting `journal_mode()` on the public surface to keep `sqlx` out of a test would move SQLite vocabulary from a test, where it is contained, into the product, where it is permanent.
 
 ## 2.10 Disconnect / reconnect / resync
 

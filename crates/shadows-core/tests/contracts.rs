@@ -177,6 +177,7 @@ fn every_contract_matches_its_service() {
     let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let tests = all_tests();
     let mut problems = Vec::new();
+    let mut found = BTreeSet::new();
     for entry in std::fs::read_dir(&src).unwrap() {
         let dir = entry.unwrap().path();
         let path = dir.join("contract.yaml");
@@ -184,6 +185,7 @@ fn every_contract_matches_its_service() {
             continue;
         }
         let name = dir.file_name().unwrap().to_string_lossy().to_string();
+        found.insert(name.clone());
         let docs = match YamlLoader::load_from_str(&std::fs::read_to_string(&path).unwrap()) {
             Ok(d) => d,
             Err(e) => {
@@ -212,14 +214,14 @@ fn every_contract_matches_its_service() {
                 problems.push(format!("{name}: `{f}` is not in {source}"))
             }
         }
-        // Rule 9's reads (§14.6): a store method another service calls outside
+        // Rule 9's calls (§14.6): a store method another service calls outside
         // its own write is declared, and the declared name exists here.
-        let mut reads = BTreeSet::new();
-        listed(&doc["read_by_other_services"], &mut reads);
-        for r in &reads {
+        let mut calls = BTreeSet::new();
+        listed(&doc["called_by_other_services"], &mut calls);
+        for r in &calls {
             if !declared.contains(r) {
                 problems.push(format!(
-                    "{name}: read_by_other_services names `{r}`, which is not in {source}"
+                    "{name}: called_by_other_services names `{r}`, which is not in {source}"
                 ))
             }
         }
@@ -327,6 +329,23 @@ fn every_contract_matches_its_service() {
             problems.push(format!(
                 "{name}: shared_in_transaction names `{s}`, which is not a pub(crate) store function"
             ))
+        }
+    }
+    // §14.10: eight services, eight contracts. A folder that loses its contract is skipped
+    // above, so the count is what catches it.
+    let services = [
+        "events",
+        "grants",
+        "harness",
+        "instructions",
+        "plans",
+        "projects",
+        "threads",
+        "turns",
+    ];
+    for s in services {
+        if !found.contains(s) {
+            problems.push(format!("{s}: the service has no contract.yaml"))
         }
     }
     assert!(

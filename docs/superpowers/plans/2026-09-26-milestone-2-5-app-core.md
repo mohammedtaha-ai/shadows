@@ -1028,7 +1028,7 @@ The journal type is `StoredEvent`, which `read_events_after` returns.
   - An **Architecture Invariants** section, rust-analyzer style:
     - "`shadows-http` knows HTTP; nothing below it does";
     - "`shadows-core` never imports `axum` or `rmcp`";
-    - "another service calls a service's `store` only through a function or method that store's contract declares, under `shared_in_transaction` (inside one write) or `read_by_other_services`" (§14.6, ruled 2026-09-27; F6 ruling, Task 10).
+    - "another service calls a service's `store` only through a function or method that store's contract declares, under `shared_in_transaction` (inside one write) or `called_by_other_services`" (§14.6, ruled 2026-09-27; F6 ruling, Task 10).
 - Modify: the code map test, so the inventory groups its files by crate (it has walked every `crates/*/src` since Task 0).
 - Modify: `docs/superpowers/specs/2026-09-26-application-core-design.md` (status: Built, with the commit range), and `docs/status.md`.
 

@@ -6,7 +6,8 @@
 > |----------|---------|
 > | [CLAUDE.md](./CLAUDE.md) | Architecture, conventions, rules (this file) |
 > | [docs/superpowers/specs/README.md](./docs/superpowers/specs/README.md) | **Index of the authoritative design sections and their owners.** |
-> | [docs/codebase/README.md](./docs/codebase/README.md) | **The code map.** What each module owns, and every declaration that exists. Read before writing code. |
+> | [docs/codebase/README.md](./docs/codebase/README.md) | **The code map.** What each crate and module owns, the Architecture Invariants, and every declaration that exists. Read before writing code. |
+> | `crates/shadows-core/src/<service>/contract.yaml` | **One contract per service, next to its code**: its methods, obligations, agreements and tests. Read before changing that service. Written to [docs/codebase/contracts/TEMPLATE.yaml](./docs/codebase/contracts/TEMPLATE.yaml). |
 > | [docs/vision.md](./docs/vision.md) | **What Shadows is for and where it is going.** Read before specifying any new milestone. Decides nothing. |
 > | [docs/status.md](./docs/status.md) | Where the project is right now. Decides nothing. |
 > | [docs/evidence/](./docs/evidence/) | Dated measurement records. Facts, not decisions. |
@@ -25,60 +26,58 @@
 >   to produce an answer, not a codebase. Its raw output moves into
 >   `docs/evidence/`; its source stays in Git history and the evidence file names
 >   the commit. There is no `sandbox/` directory and no throwaway crate anywhere in
->   the tree — anything you find under `src/` is the product. Do not keep a spike
+>   the tree — anything you find under `crates/` is the product. Do not keep a spike
 >   around because it might be useful later; that is how a rewrite acquires a second
 >   codebase nobody maintains.
 > - Earlier specs, the runtime draft, and the four consolidated ADRs were absorbed
 >   into the topic specs and deleted. They remain in Git history and are not
 >   active references.
 > - **The code map is generated, never written.** `docs/codebase/inventory.md`
->   comes out of `src/` and `cargo test --test codemap` fails when it has
->   drifted, so a code change that moves a signature regenerates it in the same
->   commit: `UPDATE_CODEMAP=1 cargo test --test codemap`. The one part no
+>   comes out of every `crates/*/src` and `cargo test -p shadows --test codemap`
+>   fails when it has drifted, so a code change that moves a signature
+>   regenerates it in the same commit:
+>   `UPDATE_CODEMAP=1 cargo test -p shadows --test codemap`. The one part no
 >   generator can derive — what each module owns — is hand-written in
 >   `docs/codebase/README.md`, and the same test refuses a module with no owner
->   or a job stated with "and". `tests/codemap/main.rs` owns that decision and
->   states why line numbers are excluded.
+>   or a job stated with "and". `crates/shadows/tests/codemap/main.rs` owns that
+>   decision and states why line numbers are excluded.
 > - CLAUDE.md stays compact: links + rules + architecture. No long backlogs.
 
 ## Project
 
 - **Slug:** shadows
-- **Stack:** Rust 1.94+ candidate floor from SQLx 0.9, single crate; the modules below, plus a React client in `web/`
-- **Status:** Milestones 0–2 are on `main` and ran on Windows. See [docs/status.md](./docs/status.md) for where the project is, and [docs/vision.md](./docs/vision.md) for where it is going.
+- **Stack:** Rust 1.94+ candidate floor from SQLx 0.9, a Cargo workspace of the crates below, plus a React client in `web/`
+- **Status:** Milestones 0–2 are on `main` and ran on Windows; Milestone 2.5 (the workspace) is built on its branch. See [docs/status.md](./docs/status.md) for where the project is, and [docs/vision.md](./docs/vision.md) for where it is going.
 - **Purpose:** Local-first AI orchestration layer (planning + workflow + context + execution + verification + continuity). Clean rewrite of `shadow` avoiding patching pattern.
 
 ## Architecture
 
-Single Rust crate `shadows` with library + single binary (two modes: `serve` daemon + CLI client), plus an independent browser client. `shadows serve` serves the product locally but never opens a browser automatically.
-
-### Top-level modules
-
-Built:
+A Cargo workspace with a flat `crates/` directory (spec §14.3 owns the list), plus an independent browser client in `web/`. The one binary, `shadows serve`, serves the product locally but never opens a browser automatically.
 
 ```text
-project/         thread/         command/        runtime/
-agent/           planner/        workflow/       operation/
-events/          storage/        protocol/       cli/
+shadows ─┬─► shadows-http ─┐
+         ├─► shadows-mcp  ─┼─► shadows-core ─► shadows-agent ─► shadows-process
+         └────────────────►┘
 ```
 
-Planned, and not created until their first user exists: `scheduler/`,
-`execution/`, `verification/`.
-
-### Cross-cutting
-
-Built: `config`, `error`, `tracing`, `process`, `mcp`. Planned: `secrets`.
+Dependencies point one way, and Cargo refuses a cycle. `fake-acp` is the test
+adapter binary; no product crate links it. Inside `shadows-core`, `AppCore`
+holds eight services, one folder each: `projects`, `threads`, `turns`,
+`harness`, `plans`, `grants`, `instructions`, `events` (spec §14.4). Planned,
+and not created until their first user exists: the `scheduler`, `execution`
+and `verification` services, and `secrets`.
 
 ### Single-ownership rules
 
-| Module | Sole owner of |
+| Crate | Sole owner of |
 |---|---|
-| `agent/` | AI subprocess harness (the ACP `Connection`) |
-| `storage/` | SQLite (and future PostgreSQL adapter) |
-| `protocol/` | The HTTP API and SSE (`/api/…`) |
-| `mcp/` | Shadows' MCP server at `/mcp`, a separate interface from the HTTP API (spec §13.6) |
-| `process/` | `tokio::process` / `process-wrap` (private to `process/` only) |
-| `secrets/` (planned) | Secret value resolution (config holds refs only) |
+| `shadows` | The binary: configuration, tracing, binding, signals; builds `AppCore` once |
+| `shadows-http` | The HTTP API and SSE (`/api/…`), and mounting `/mcp` |
+| `shadows-mcp` | Shadows' MCP server at `/mcp`, a separate interface from the HTTP API (spec §13.6) |
+| `shadows-core` | The application: every operation is a method of one service. SQLite lives here only, in `db/` and the stores |
+| `shadows-agent` | The AI subprocess harness (the ACP `Connection`) |
+| `shadows-process` | `tokio::process` / `process-wrap` (private to this crate) |
+| `secrets` (planned) | Secret value resolution (config holds refs only) |
 
 ### Persistence (spike outcome)
 
@@ -99,14 +98,19 @@ Built: `config`, `error`, `tracing`, `process`, `mcp`. Planned: `secrets`.
   The test: name each resulting file's one job in a short phrase without using "and".
   These thresholds are a trigger for judgment, not a lint; a 520-line file with one
   genuine responsibility survives review by saying so.
-- **Known accretion points.** Three files take a change from nearly every task, so they
-  rot first and must be watched by name: `storage/mod.rs` (the facade — one capability
-  per task), `protocol/` (one route per feature, forever), and `tests/storage_contract.rs`
-  (four tasks append to it in Milestone 0 alone). When one of them grows, the split goes
-  by domain — `storage/sqlite/<entity>.rs` already does this — not into a second facade.
-- **Domain stays pure:** `domain/` types carry no persistence imports (`sea_orm`, `sqlx`, `sea_query`, `Row`, `Entity`, `ActiveModel`, `Pg*`, `Sqlite*`).
+- **Known accretion points.** Three places take a change from nearly every task, so they
+  rot first and must be watched by name: `shadows-core/src/db/mod.rs` (the pool and
+  write transaction every store shares), `shadows-http` (one route per feature,
+  forever), and `shadows-core/tests/storage_contract.rs`. When one of them grows, the
+  split goes by domain — each service's `store` already does this — not into a second
+  facade.
+- **A new operation is a new method on one service,** with its line in that service's
+  contract. An HTTP route and an MCP tool that do the same thing call the same method.
+- **An adapter translates and holds no rule.** `shadows-http`, `shadows-mcp` and the
+  binary read a request, call one service method, and shape its answer (spec §14.5).
+- **Domain stays pure:** a service's `model.rs` carries no persistence imports (`sea_orm`, `sqlx`, `sea_query`, `Row`, `Entity`, `ActiveModel`, `Pg*`, `Sqlite*`); queries live in its `store`.
 - **Ordering is explicit:** durable event sequence, thread-entry ordinal, or another explicit stable domain key. No `rowid`, physical insertion order, or implicit `SELECT` order.
-- **DB-specific syntax isolation:** backend-specific SQL (FTS5, tsvector, `PRAGMA`, `rowid`, `strftime`) stays inside `storage/<backend>/`. Enforced by module boundaries, contract tests, and review — not by a keyword blacklist scanned across the tree (spec §2.9).
+- **DB-specific syntax isolation:** backend-specific SQL (FTS5, tsvector, `PRAGMA`, `rowid`, `strftime`) stays inside a service's `store` and `shadows-core/src/db/`, never outside `shadows-core`. Enforced by crate and module boundaries, contract tests, and review — not by a keyword blacklist scanned across the tree (spec §2.9).
 - **Idempotency:** mutating commands carry `CommandId`, command kind, schema version, and normalized request fingerprint. Replay requires fingerprint equality; mismatch is `CommandConflict`.
 - **PLAN_BLOCKED = Operation outcome, NOT HTTP error.** Structured refusal, not transport failure.
 
@@ -122,6 +126,13 @@ a crawl, or a re-read was paid for and bought nothing.
   only the files the task names. Reading the tree to discover what a signature
   is means the code map failed or you skipped it — say which, in your report.
   A generated map that nobody reads is a file we maintain for nothing.
+- **The contract is the entry point for a service.** Read
+  `crates/shadows-core/src/<service>/contract.yaml` before changing that
+  service; open its code for what the contract points to.
+- **A change to a service updates its contract in the same commit:** its
+  methods, obligations, agreements and tests, following
+  `docs/codebase/contracts/TEMPLATE.yaml`. `contracts.rs` catches a missing
+  name; the reviewer catches a false rule.
 - **A reviewer fixes what it finds.** A review dispatch is one seat: find it,
   fix it, run the gate, commit, and report what changed and why — not a findings
   list that costs another dispatch to act on. It still reports everything it

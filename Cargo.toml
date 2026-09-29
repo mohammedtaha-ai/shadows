@@ -22,7 +22,7 @@ petgraph = "0.8"
 process-wrap = { version = "10", features = ["tokio1"] }
 # Spec §13.6: Shadows' MCP server, over Streamable HTTP on the daemon's own
 # listener. Never `transport-child-process` or `which-command`: `tokio::process`
-# stays private to `process/`. The client features are test-side only: a
+# stays private to `shadows-process`. The client features are test-side only: a
 # `shadows` dev-dependency and `fake-acp`'s `test-support`.
 rmcp = { version = "=3.4.1", default-features = false, features = ["server", "macros", "transport-streamable-http-server"] }
 # The major rmcp 3.4.1's `server` feature uses: MCP tool input schemas are
@@ -59,7 +59,7 @@ tempfile = "3"
 # own package (spec §14.3). An optional dependency of `shadows-core`, enabled
 # only by its `test-support`.
 escargot = "0.5"
-# `tests/codemap` generates docs/codebase/inventory.md from the source tree and
+# `crates/shadows/tests/codemap` generates docs/codebase/inventory.md from every crate and
 # fails when the checked-in file has drifted. syn parses, prettyplease prints —
 # neither is a product dependency and neither ships.
 syn = { version = "2", features = ["full", "parsing", "printing", "clone-impls"] }
@@ -69,7 +69,7 @@ prettyplease = "0.2"
 yaml-rust2 = "0.13"
 # Token trees for expanding `newtype_id!` in the code map; already syn's own.
 proc-macro2 = "1"
-# `tests/protocol.rs` drives the real router in-process with `oneshot`. Already
+# `crates/shadows/tests/protocol.rs` drives the real router in-process with `oneshot`. Already
 # in the graph through axum; listed here only to name its `util` trait.
 tower = { version = "0.5", features = ["util"] }
 

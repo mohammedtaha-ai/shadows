@@ -9,7 +9,9 @@
   - The first version, one crate with a facade and guard tests, was replaced
     after he asked for "clean work" and for how large Rust projects actually do
     this (§14.2).
-  - Not yet built.
+  - **Built** on `milestone-2.5/app-core`: `008e54c` (Task 0, the workspace)
+    through `d51fb8a` (Task 10), then Task 11's documents commit. Pending
+    Mohammed's Windows run (§14.10, item 3).
 - **Builds on:** Milestone 2 (§13), on `main` at `ddcaed5`.
 
 Milestone 2.5 changes **where the code lives, not what it does.** Shadows
@@ -313,12 +315,12 @@ is private to the core, and a test reaches it only through the test-only
 `testing::Storage`, so the adapter boundary is closed by the compiler. Inside
 the crate, a service that calls another's store method outside a write of its
 own (`turn_context`, `get_project`, `current_planner_instructions`, …) is
-declared in the owning service's contract under `read_by_other_services`,
+declared in the owning service's contract under `called_by_other_services`,
 with who calls it and why; `contracts.rs` refuses a declared name that is not
 in that service's folder.
 
-> **OPEN — the cross-service store reads become service methods.** Each name
-> under `read_by_other_services` is a call into another service's store, which
+> **OPEN — the cross-service store calls become service methods.** Each name
+> under `called_by_other_services` is a call into another service's store, which
 > a crate boundary would refuse. **Trigger:** the first milestone that splits
 > a service into its own crate (§14.4, OPEN); then each becomes a method of the
 > owning service. **Why it does not block:** the services share one crate, and
@@ -330,7 +332,7 @@ rust-analyzer's style, one line each:
 - "`shadows-core` never imports `axum` or `rmcp`."
 - "another service calls a service's `store` only through a function or
   method that store's contract declares, under `shared_in_transaction`
-  (inside one write) or `read_by_other_services`."
+  (inside one write) or `called_by_other_services`."
 
 ## 14.7 Contracts
 
@@ -354,7 +356,7 @@ source-contract template, kept at `docs/codebase/contracts/TEMPLATE.yaml`:
 - **`shared_in_transaction`:** the `store` functions other services may call
   inside one write, each with its callers and why (§14.6). A section Shadows
   adds to the template;
-- **`read_by_other_services`:** the `store` methods other services call
+- **`called_by_other_services`:** the `store` methods other services call
   outside a write of their own, each with its callers and why (§14.6). Also
   Shadows' own;
 - **`not_the_caller's`**;
@@ -396,7 +398,7 @@ line, and the sources with `syn`. It fails when:
 8. an agreement says `holds: false` and no `gap` names one of its symbols;
 9. a `pub(crate)` function or method in the service's `store` is missing
    from `shared_in_transaction`, or a name there is not such a function or
-   method; or a name under `read_by_other_services` is not a function or
+   method; or a name under `called_by_other_services` is not a function or
    method in the service's folder (§14.6).
 
 Every rule in §14.9 must name a real test. What the test cannot check is whether

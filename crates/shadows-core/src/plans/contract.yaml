@@ -57,11 +57,110 @@ shapes:
     # Never serialized or recorded: true when the call replayed a recorded one.
     replayed: bool
   Plan:
+    # One plan version as stored: id, thread_id, project_id, version,
+    # revision, state, title, goal, previous, tasks, links, last_edit,
+    # frozen_at, created_at, and the two below.
     # Empty for a Frozen version; `approval_problems` of the content for a Draft.
     blockers: Vec<Problem>
     # The version copied from this one; changes after the fact, which is why a
     # replayed approval answers `Approved`, never the plan.
     next: Option<WorkflowId>
+  PlanListing:
+    # A thread's latest version only, ordered by the thread's creation event.
+    id: WorkflowId
+    thread_id: ThreadId
+    title: String
+    version: i64
+    state: WorkflowState
+    updated_at: String
+  PlanContent:
+    # What an edit batch changes; `Plan::content()` rebuilds it from a Plan.
+    title: String
+    goal: String
+    # Keyed by task number, not by id.
+    tasks: BTreeMap<u32, TaskContent>
+    links: Vec<Link>
+  PlanTask:
+    # The stable id; the number is inside `content`, flattened on the wire.
+    id: TaskId
+    content: TaskContent
+  TaskContent:
+    # A plan-local number: `T4` is task 4 of this version only.
+    number: u32
+    title: String
+    goal: String
+    reads: Vec<String>
+    writes: Vec<String>
+    acceptance: Vec<AcceptanceItem>
+  AcceptanceItem:
+    number: u32
+    text: String
+  Link:
+    # `task` waits on `after`; at most one link of each kind between two tasks.
+    task: u32
+    after: u32
+    kind: LinkKind
+    label: String
+    # Defaults to empty when absent.
+    waiting_items: Vec<u32>
+  LinkKind:
+    Needs: unit
+    CompletesAfter: unit
+  WorkflowState:
+    Draft: unit
+    Frozen: unit
+  LastEdit:
+    revision: i64
+    summary: String
+    changed_tasks: Vec<u32>
+  EditOutcome:
+    # What a replayed edit answers too: the recorded one, not a re-read.
+    workflow_id: WorkflowId
+    version: i64
+    revision: i64
+    summary: String
+    changed_tasks: Vec<u32>
+  DraftStarted:
+    workflow_id: WorkflowId
+    thread_id: ThreadId
+    version: i64
+  Approved:
+    # The `WorkflowFrozen` payload, never the plan, so a replay answers what
+    # the first approval answered.
+    workflow_id: WorkflowId
+    version: i64
+    revision: i64
+    frozen_at: String
+  PlanOp:
+    # Tagged `op`, snake_case. `link_put` replaces the link with the same
+    # task, after and kind.
+    PlanPut: "{ title: String, goal: String }"
+    TaskAdd: "{ task: TaskContent }"
+    TaskUpdate: "{ task: TaskContent }"
+    TaskRemove: "{ number: u32 }"
+    LinkPut: "{ link: Link }"
+    LinkRemove: "{ task: u32, after: u32, kind: LinkKind }"
+  Applied:
+    # Test-only outside the crate (`testing`): a batch that held.
+    content: PlanContent
+    # Sorted, without repeats.
+    changed_tasks: Vec<u32>
+    summary: String
+  Problem:
+    # Named so a person can act on it: tasks as `T4`.
+    message: String
+  Focus:
+    # The task a person points at, at the version and revision they saw;
+    # checked by Turns' `start_turn` through `task_of`.
+    workflow_id: WorkflowId
+    task_id: TaskId
+    revision: i64
+  Place:
+    # Every shown plan is a card; `Side` and `Page` also act in the sending
+    # tab, live only.
+    Inline: unit
+    Side: unit
+    Page: unit
 
 
 functions:
@@ -101,11 +200,49 @@ functions:
     writer_of:
       signature: "(grant: &Grant) -> Result<Writer, CoreError>"
       private: true
+    planner_draft:
+      signature: "(&self, grant: &Grant, args: DraftStart) -> Result<DraftStarted, CoreError>"
+      private: true
+      # `start_draft` for a thread grant; see gaps.
+    external_draft:
+      signature: "(&self, grant: &Grant, args: DraftStart) -> Result<DraftStarted, CoreError>"
+      private: true
+      # `start_draft` for a project grant: the draft_ref is required and is
+      # the command id.
+  store:
+    # Each write that takes a `Writer` checks it inside its own transaction,
+    # through Grants' `check_writer`; `approve_plan` is the person's and
+    # takes none.
+    list_plans: "(&self, project: &ProjectId) -> Result<Vec<PlanListing>, StorageError>"
+    get_plan: "(&self, workflow: &WorkflowId) -> Result<Plan, StorageError>"
+    edit_plan: "(&self, ctx: &CommandContext, writer: &Writer, workflow: &WorkflowId, expected_revision: i64, ops: &[PlanOp]) -> Result<EditOutcome, StorageError>"
+    approve_plan: "(&self, ctx: &CommandContext, workflow: &WorkflowId, expected_revision: i64) -> Result<Approved, StorageError>"
+    start_draft: "(&self, ctx: &CommandContext, writer: &Writer, thread: &ThreadId, fresh: Option<(&str, &str)>, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>"
+    start_thread_with_draft: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, title: &str, goal: &str, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>"
+    show_plan: "(&self, ctx: &CommandContext, writer: &Writer, turn: &OperationId, workflow: &WorkflowId, task_number: Option<u32>, place: Place) -> Result<PlanShown, StorageError>"
+    thread_plan:
+      signature: "(&self, thread: &ThreadId) -> Result<Option<WorkflowId>, StorageError>"
+      # The thread's latest version: what `in_scope` resolves a thread
+      # grant's call to.
+    task_of:
+      signature: "(conn, workflow: &WorkflowId, id: &TaskId) -> Result<Option<(u32, String)>, StorageError>"
+  model:
+    content:
+      signature: "(&self) -> PlanContent"
+      # On `Plan`: the content an edit batch applies to, keyed by number.
+    as_str:
+      signature: "(&self) -> &'static str"
+      # On `LinkKind`: "needs" or "completes_after", as stored.
+  for_tests:
+    # The pure rules, re-exported by `testing` for the rule tests.
+    apply: "(current: &PlanContent, ops: &[PlanOp]) -> Result<Applied, Vec<Problem>>"
+    edit_problems: "(content: &PlanContent) -> Vec<Problem>"
+    approval_problems: "(content: &PlanContent) -> Vec<Problem>"
 
 
 enums:
   Grant:
-    source: crate::grant::Grant
+    source: crate::grants::Grant
     values: []
   CoreError:
     source: crate::error::CoreError

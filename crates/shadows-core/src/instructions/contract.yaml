@@ -68,7 +68,7 @@ enums:
     values: []
 
 
-read_by_other_services:
+called_by_other_services:
   current_planner_instructions: "Turns (turns/mod.rs record) and Harness (harness/setup.rs Setups::for_opening, context_before_turn): the version a turn records, and the instructions a session opens with or is told changed (§13.8)"
 
 

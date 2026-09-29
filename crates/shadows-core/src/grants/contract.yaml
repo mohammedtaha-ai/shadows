@@ -89,7 +89,42 @@ functions:
       signature: "(&self) -> Result<u64, CoreError>"
       # Every live thread grant, ORDER BY id, each with its `McpGrantRevoked`
       # event; answers how many.
+  tokens:
+    # `Token`, `IssuedGrant` and `hash_token` leave the crate only under
+    # `test-support`.
+    generate:
+      signature: "() -> Token"
+      # On `Token`; `insert_grant` is its one product caller.
+    hash:
+      signature: "(&self) -> String"
+    hash_token:
+      signature: "(raw: &str) -> String"
+      # Lowercase hex SHA-256, unsalted: 244 random bits need no salt.
   store:
+    issue_project_grant:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId) -> Result<IssuedGrant, StorageError>"
+    issue_thread_grant:
+      signature: "(&self, thread: &ThreadId) -> Result<(Grant, Token), StorageError>"
+      # No command: Harness' `Setups::for_opening` issues it for a session.
+    revoke_grant:
+      signature: "(&self, ctx: &CommandContext, id: &GrantId) -> Result<Grant, StorageError>"
+    revoke_thread_grant:
+      signature: "(&self, id: &GrantId) -> Result<(), StorageError>"
+      # No command: Harness' `Setups::forget`.
+    revoke_all_thread_grants:
+      signature: "(&self) -> Result<u64, StorageError>"
+    grant_for_token:
+      signature: "(&self, raw: &str) -> Result<Option<Grant>, StorageError>"
+    list_project_grants:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<Grant>, StorageError>"
+    prepare_draft:
+      signature: "(&self, grant: &GrantId) -> Result<String, StorageError>"
+      # A new `dr-<uuid>` for a live project grant, good for an hour; never
+      # deduplicated. GrantScope for a live thread grant, GrantInvalid for a
+      # revoked or unknown one.
+    draft_intent:
+      signature: "(&self, grant: &GrantId, draft_ref: &str) -> Result<Option<WorkflowId>, StorageError>"
+      # Behind `test-support`; see gaps.
     insert_grant:
       signature: "(conn, project, thread: Option<&ThreadId>, actor, ts) -> Result<(Grant, Token), StorageError>"
       private: true
@@ -135,7 +170,7 @@ shared_in_transaction:
   bind_draft_ref: "Plans' store (plans/store/draft.rs start_draft and start_thread_with_draft): the draft_ref is bound to the version the same transaction creates, so a refused ref leaves no thread or version behind"
 
 
-read_by_other_services:
+called_by_other_services:
   issue_thread_grant: "Harness (harness/setup.rs Setups::for_opening): a session's opening issues the thread's Planner grant, whose token its MCP setup carries (§13.7, §13.8)"
   revoke_thread_grant: "Harness (harness/setup.rs Setups::forget): a session's opening revokes the thread's previous grant, and its closing revokes the one it held (§13.7)"
   prepare_draft: "Plans (plans/mod.rs Plans::prepare_draft): the `draft_prepare` tool asks for a new draft_ref bound to the caller's grant (§13.5)"
@@ -278,7 +313,8 @@ not_the_caller's:
 gaps:
   - at: draft_intent
     gap: >
-      `Storage::draft_intent` has no caller in the crate: only tests call it.
+      `Storage::draft_intent` has no caller in the crate: it is compiled only
+      under `test-support`, and only tests call it.
       The start path checks a ref inside the write through `bind_draft_ref`,
       which applies the same owner and expiry rules with its own SQL, so the
       two could drift unnoticed.

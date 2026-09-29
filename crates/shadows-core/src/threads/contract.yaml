@@ -116,6 +116,13 @@ functions:
     operations:
       signature: "(&self, thread: &ThreadId) -> Result<Vec<Operation>, CoreError>"
       # Turns' `list_operations_for_thread`: newest first.
+  model:
+    as_str:
+      signature: "(self) -> &'static str"
+      # On `ThreadEntryKind`: the stored text, which is also the wire name.
+    parse:
+      signature: "(s: &str) -> Option<ThreadEntryKind>"
+      # The inverse of `as_str`; `None` for text no variant names.
   rules:
     known_harness:
       signature: "(harness: &str) -> Result<(), CoreError>"
@@ -195,7 +202,7 @@ shared_in_transaction:
   append_entry_in: "Turns' start (turns/store/turn.rs start_turn), Plans' approval (plans/store/edit.rs approve_plan) and plan_show (plans/store/view.rs show_plan): each writes its entry in the write that records its command, so the entry and the command commit together"
 
 
-read_by_other_services:
+called_by_other_services:
   turn_context: "Harness (harness/mod.rs open_session, change_model, context, choices, limits_of; harness/sessions.rs open_live; harness/setup.rs context_before_turn) and Turns (turns/mod.rs send): the thread's project and harness, read before any session or turn work; NotFound for an unknown thread"
   append_thread_entry: "Turns (turns/turn.rs persist): a turn's watcher appends the agent's entries as they arrive, each in its own write"
   record_harness_session: "Turns (turns/turn.rs watch_turn): the watcher records the session id the harness answered, once, while it is NULL"

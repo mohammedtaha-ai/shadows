@@ -1,7 +1,7 @@
 //! One job: wiring. What shared state a route may reach, which path reaches
 //! which handler, and which origins may call at all.
 //!
-//! CLAUDE.md names `protocol/` an accretion point: every feature this project
+//! CLAUDE.md names `shadows-http` an accretion point: every feature this project
 //! ever adds puts a route here. So routes are split by domain, and this file
 //! only wires them: `project.rs` (projects and their threads),
 //! `conversation.rs` (entries, a thread's turns, starting and stopping one),

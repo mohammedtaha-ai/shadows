@@ -101,6 +101,44 @@ shapes:
     # The focused task's number and title; `None` without a focus and on a
     # replay.
     focus_task: Option<(u32, String)>
+  InvocationView:
+    # What the turn asked for and what the harness reported; anything not
+    # reported is `None`, never estimated.
+    harness_kind: String
+    harness_version: String
+    agent_version: String
+    requested_model: String
+    requested_mode: String
+    requested_effort: Option<String>
+    observed_model: Option<String>
+    context_used: Option<i64>
+    context_window: Option<i64>
+  FailureStage:
+    # Test-only outside the crate (`testing`); `as_str` is what is stored.
+    Prepare: unit
+    # No production path records it today; only tests do.
+    Spawn: unit
+    Run: unit
+  NewTurn:
+    # What `start_turn` records: the thread, the runtime, the prompt, the
+    # role, the harness and agent paths and versions, the settings, the
+    # prompt and instructions versions, and the focus. Borrowed, never kept.
+    thread_id: "&ThreadId"
+  PlannerTurn:
+    # A unit struct: `start` and `stop` are associated functions.
+    unit: unit
+  PlannerTurnRequest:
+    # A turn whose operation `start_turn` committed Pending. `harness` is the
+    # one the command validated, so nothing is read between the commit and
+    # the run; `events` is the leased session's stream.
+    thread_id: ThreadId
+    harness: String
+    operation_id: OperationId
+    prompt: String
+    settings: TurnSettings
+    focus: Option<String>
+    client_tab: Option<String>
+    events: UnboundedReceiver<HarnessEvent>
 
 
 functions:
@@ -143,6 +181,59 @@ functions:
     watch_turn:
       signature: "(w: TurnWatch, rx, bus)"
       private: true
+    stop:
+      signature: "(runtime, handles, sessions, op: &OperationId, actor: Actor) -> Result<StopOutcome, StorageError>"
+      # On `PlannerTurn`. Records the cancel request, claims the live turn,
+      # asks the harness to cancel, and terminates the adapter when it does
+      # not confirm within `cancel_wait`.
+    shut_down:
+      signature: "(runtime, handles, sessions, bound: Duration, second_signal) -> Result<StopKind, StorageError>"
+      # Free function in `shutdown.rs`, behind `Turns::shut_down`; tests call
+      # it directly through `testing`.
+  registry_for_plans:
+    # `LiveHandles` methods `Plans` reads (plans/scope.rs, plans/mod.rs):
+    # not a store, so not under `called_by_other_services`, but the same kind
+    # of cross-service call (§14.6).
+    running_for:
+      signature: "(&self, thread: &ThreadId) -> Option<OperationId>"
+      # The running turn a Planner's `draft_start` anchors its derived
+      # command id to (§13.5).
+    running_turn:
+      signature: "(&self, thread: &ThreadId) -> Option<(OperationId, Option<String>)>"
+      # With the sending tab: whom `plan_show` signals (§13.9).
+    is_closed:
+      signature: "(&self) -> bool"
+      # Turns' own: `send` refuses a new turn once shutdown closed it.
+  for_tests:
+    # Behind `test-support`, reached through `testing`.
+    contains:
+      signature: "(&self, op: &OperationId) -> bool"
+    close_for_test:
+      signature: "(&self)"
+    create_pending_operation:
+      signature: "(&self, thread_id: &ThreadId, runtime_instance_id: &RuntimeInstanceId) -> Result<OperationId, StorageError>"
+  operation_store:
+    # The operation's lifecycle. Only the turn machinery calls these in the
+    # product (`spawn.rs`, `turn.rs`, `shutdown.rs`), except the two named
+    # under `called_by_other_services`; storage tests drive them directly.
+    mark_operation_started:
+      signature: "(&self, op_id: &OperationId, expected_runtime: &RuntimeInstanceId) -> Result<(), StorageError>"
+    mark_operation_completed:
+      signature: "(&self, op_id: &OperationId, outcome: Value, observation: &TurnObservation) -> Result<(), StorageError>"
+    mark_operation_failed:
+      signature: "(&self, op_id: &OperationId, stage: FailureStage, reason: &str) -> Result<(), StorageError>"
+    request_cancellation:
+      signature: "(&self, op_id: &OperationId, requester: Actor) -> Result<(), StorageError>"
+      # The first step of `PlannerTurn::stop`, before the registry is read.
+    mark_operation_cancelled:
+      signature: "(&self, op_id: &OperationId) -> Result<(), StorageError>"
+    non_terminal_operations_owned_by:
+      signature: "(&self, runtime: &RuntimeInstanceId) -> Result<Vec<OperationId>, StorageError>"
+      # Pending or Running under this runtime: what shutdown must stop.
+    list_operations_for_thread:
+      signature: "(&self, thread_id: &ThreadId) -> Result<Vec<Operation>, StorageError>"
+    latest_invocation_versions:
+      signature: "(&self, thread: &ThreadId) -> Result<Option<(Option<String>, Option<String>)>, StorageError>"
   store:
     start_turn:
       signature: "(&self, ctx: &CommandContext, turn: NewTurn) -> Result<StartedTurn, StorageError>"
@@ -197,7 +288,7 @@ shared_in_transaction:
   log: "Runtime recovery (runtime/store.rs reconcile_orphans): each recorded Transition's `operation.transition.committed` line, written after COMMIT, never inside the transaction (spec §8.7)"
 
 
-read_by_other_services:
+called_by_other_services:
   thread_is_busy: "Harness (harness/mod.rs change_model): the early busy check, after availability and before the session is touched (§14.9); `send` makes the same check in Turns"
   latest_invocation_versions: "Harness (harness/setup.rs context_before_turn): the prompt and instructions versions the thread's last turn ran under, so the session is told only what changed (§13.8)"
   list_operations_for_thread: "Threads (threads/mod.rs operations): a thread's operation list, which §14.4 gives to Threads"
