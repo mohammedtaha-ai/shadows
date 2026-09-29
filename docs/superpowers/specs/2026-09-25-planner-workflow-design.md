@@ -256,7 +256,7 @@ expire. The guarantee against a duplicate plan starts at `draft_start`.
 | `workflow_get` | ✓ its thread's plan | ✓ any plan in the project | no |
 | `task_get` | ✓ | ✓ | no |
 | `draft_prepare` | — | ✓ | issues a `draft_ref` |
-| `draft_start` | ✓ in its thread | ✓ from a frozen plan in the project, or from scratch with a new thread | yes |
+| `draft_start` | ✓ in its thread, from its latest version | ✓ from a frozen plan in the project, or from scratch with a new thread | yes |
 | `plan_edit` | ✓ | ✓ | yes |
 | `plan_show` | ✓ | — | a conversation entry (§13.9) |
 
@@ -265,6 +265,14 @@ expire. The guarantee against a duplicate plan starts at `draft_start`.
   and goal may be changed later with `plan_put`. In a thread that already has a
   `Draft`, it answers that draft and changes nothing. From an external agent,
   from scratch or from a frozen plan, it requires a `draft_ref` (§13.5).
+- **A Planner's `from_workflow_id`** is optional and never chooses the version:
+  when present it must name the version `draft_start` starts from anyway —
+  the thread's `Draft`, or with none its latest version, which is then
+  `Frozen`. Another version of its thread (an older frozen one, or the frozen
+  one a `Draft` was copied from) is refused `INVALID_COMMAND`, naming the
+  version it must be, and writes nothing; one outside its thread is
+  `GRANT_SCOPE`. The check follows the replay (§13.5): a start already
+  recorded answers what it answered, though its own `Draft` is now the latest.
 - **`plan_edit`** takes `expected_revision` and a list of operations —
   `plan_put` (title and goal), `task_add`, `task_update`, `task_remove`,
   `link_put`, `link_remove` — and answers the new revision. `task_add`
@@ -291,7 +299,8 @@ expire. The guarantee against a duplicate plan starts at `draft_start`.
    validator's list), `COMMAND_CONFLICT` (§13.5), and §3.4's
    `INVALID_COMMAND` for a request that cannot be done as asked — a task or
    plan that does not exist, a draft named as the source of a new version, a
-   Planner call that needs a running turn outside one. The text says what to
+   Planner's source that is not its thread's latest version, a Planner call
+   that needs a running turn outside one. The text says what to
    do, e.g. "T9 does not exist in this plan".
 3. **HTTP API status codes** (409, 422) belong to the HTTP API only (§13.10).
 

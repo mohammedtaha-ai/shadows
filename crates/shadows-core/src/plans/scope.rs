@@ -67,7 +67,9 @@ impl Plans {
     /// The Planner's `draft_start`: in its own thread, anchored to the turn
     /// that is running, so the same call within the turn answers the first
     /// result and a call naming another source is another command (§13.5).
-    /// The source is checked to be in the thread and otherwise not used.
+    /// A source must be in the thread, and be the version the start answers
+    /// anyway (§13.6): its Draft, or with none its latest Frozen version.
+    /// Storage checks the second after the replay, which a start moves on.
     pub(super) async fn planner_draft(
         &self,
         grant: &Grant,
@@ -101,10 +103,22 @@ impl Plans {
             fp,
         );
         let fresh = args.title.as_deref().zip(args.goal.as_deref());
-        Ok(self
+        let source = args.from_workflow_id.as_ref();
+        match self
             .storage
-            .start_draft(&ctx, &writer, thread, fresh, None)
-            .await?)
+            .start_draft(&ctx, &writer, thread, source, fresh, None)
+            .await
+        {
+            // A request naming the wrong version, not one outside the grant.
+            Err(StorageError::NotLatestVersion(latest)) => Err(refused(
+                ErrorCode::InvalidCommand,
+                format!(
+                    "a Planner starts a draft from its conversation's latest version, \
+                     {latest}; name it, or leave from_workflow_id out"
+                ),
+            )),
+            result => Ok(result?),
+        }
     }
 
     /// An external agent's `draft_start`: always under a `draft_ref`, which is
@@ -152,7 +166,7 @@ impl Plans {
                     ));
                 }
                 storage
-                    .start_draft(&ctx, &writer, &plan.thread_id, None, Some(draft_ref))
+                    .start_draft(&ctx, &writer, &plan.thread_id, None, None, Some(draft_ref))
                     .await?
             }
             None => {

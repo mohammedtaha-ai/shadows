@@ -21,16 +21,20 @@ use shadows_agent::policy;
 impl Storage {
     /// §13.6 draft_start in a thread: v1 from `fresh` when the thread has no
     /// plan; a copy of the latest frozen version otherwise (`fresh` ignored);
-    /// the existing Draft, unchanged, when there is one.
+    /// the existing Draft, unchanged, when there is one. A `source`, when
+    /// given, must be that latest version; it is checked after the replay,
+    /// because the version a start answered is no longer the latest one.
     pub async fn start_draft(
         &self,
         ctx: &CommandContext,
         writer: &Writer,
         thread: &ThreadId,
+        source: Option<&WorkflowId>,
         fresh: Option<(&str, &str)>,
         draft_ref: Option<&str>,
     ) -> Result<DraftStarted, StorageError> {
         let (ctx, writer, thread, ts) = (ctx.clone(), writer.clone(), thread.clone(), now());
+        let source = source.cloned();
         let fresh = fresh.map(|(t, g)| (t.to_string(), g.to_string()));
         let draft_ref = draft_ref.map(str::to_string);
         self.write_txn(move |conn| {
@@ -50,6 +54,12 @@ impl Storage {
                     Some(id) => Some(load_plan(conn, &id).await?),
                     None => None,
                 };
+                if let Some(source) = &source
+                    && let Some(latest) = &latest
+                    && &latest.id != source
+                {
+                    return Err(StorageError::NotLatestVersion(latest.id.clone()));
+                }
                 if matches!(writer, Writer::External { .. })
                     && draft_ref.is_none()
                     && !matches!(&latest, Some(plan) if plan.state == WorkflowState::Draft)

@@ -49,6 +49,8 @@ struct DraftStartArgs {
     goal: Option<String>,
     /// External agents: an approved plan in the project, to start its next
     /// version from. Without it, a new conversation and plan are created.
+    /// The Planner may leave it out; a version it names must be its
+    /// conversation's latest, the one draft_start starts from anyway.
     #[serde(default)]
     #[schemars(with = "Option<String>")]
     from_workflow_id: Option<WorkflowId>,

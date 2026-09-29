@@ -20,6 +20,17 @@ use app::{App, ctx, other_project, start_settled};
 use listening::{call, listening_app, ok, project_client, refused, thread_client};
 use plan::{add, an_hour_ago, approved_v1, draft, draft_on, events_of, insert_draft_ref, task};
 
+/// A turn of the app's thread that hangs, once `LiveHandles` sees it running.
+async fn turn_running(app: &App) {
+    let op = start_settled(app, "hang").await;
+    for _ in 0..200 {
+        if app.handles.running_for(&app.thread).await.as_ref() == Some(&op) {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+}
+
 async fn second_thread(app: &App) -> ThreadId {
     app.storage
         .create_planning_thread(
@@ -352,13 +363,7 @@ async fn a_thread_grant_starts_a_draft_only_inside_a_turn() {
         "{text}"
     );
 
-    let op = start_settled(&l.app, "hang").await;
-    for _ in 0..200 {
-        if l.app.handles.running_for(&l.app.thread).await.as_ref() == Some(&op) {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
+    turn_running(&l.app).await;
     let started = ok(&planner, "draft_start", start.clone()).await;
     assert_eq!(started["version"], 1);
     assert_eq!(started["thread_id"], json!(l.app.thread));
@@ -374,20 +379,14 @@ async fn a_thread_grant_starts_a_draft_only_inside_a_turn() {
 }
 
 /// A Planner's `from_workflow_id` is part of its DraftStart (§13.5): within
-/// one turn, the same call is a replay, and a call naming another version of
-/// the thread is its own command, not a replay of the first one's answer.
+/// one turn, the same call is a replay even after the Draft it started made
+/// v1 no longer the latest, and naming the Draft is its own command (§13.6).
 #[tokio::test]
 async fn a_planner_draft_start_naming_another_version_is_another_command() {
     let l = listening_app().await;
     let v1 = approved_v1(&l.app).await;
     let planner = thread_client(&l, &l.app.thread).await;
-    let op = start_settled(&l.app, "hang").await;
-    for _ in 0..200 {
-        if l.app.handles.running_for(&l.app.thread).await.as_ref() == Some(&op) {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
+    turn_running(&l.app).await;
     let from_v1 = json!({ "from_workflow_id": v1 });
     let v2 = ok(&planner, "draft_start", from_v1.clone()).await;
     assert_eq!(v2["version"], 2);
@@ -396,6 +395,10 @@ async fn a_planner_draft_start_naming_another_version_is_another_command() {
     // Naming v2 is a different request: the thread's Draft, as a new command.
     let from_v2 = json!({ "from_workflow_id": v2["workflow_id"] });
     assert_eq!(ok(&planner, "draft_start", from_v2).await, v2);
+    // A new request naming v1 now names a version that is not the latest.
+    let again = json!({ "from_workflow_id": v1, "title": "Again", "goal": "again" });
+    let text = refused(&planner, "draft_start", again).await;
+    assert!(text.starts_with("INVALID_COMMAND: "), "{text}");
 
     let mut recorded: Vec<String> = sqlx::query_scalar(
         "SELECT request_fingerprint FROM command_record
@@ -417,4 +420,75 @@ async fn a_planner_draft_start_naming_another_version_is_another_command() {
     assert_eq!(recorded, expected, "one command per version named");
     let events = events_of(&l.app, &l.app.thread, "WorkflowDraftStarted").await;
     assert_eq!(events.len(), 2, "v1 and v2 only");
+}
+
+/// A Planner's `from_workflow_id` names the version `draft_start` starts
+/// from anyway (§13.6): its thread's Draft, or with none its latest Frozen
+/// version. Any other version is refused, naming that one, and writes nothing.
+#[tokio::test]
+async fn a_planner_draft_start_names_only_its_latest_version() {
+    let l = listening_app().await;
+    let v1 = approved_v1(&l.app).await;
+    let v2 = draft_on(&l.app, &l.app.thread, "start-2").await.workflow_id;
+    l.app
+        .storage
+        .approve_plan(&ctx("approve-2", "PlanApprove"), &v2, 0)
+        .await
+        .unwrap();
+    let planner = thread_client(&l, &l.app.thread).await;
+    turn_running(&l.app).await;
+    let planner_commands = async || -> i64 {
+        sqlx::query_scalar(
+            "SELECT COUNT(*) FROM command_record
+              WHERE command_kind = 'DraftStart' AND command_id LIKE 'op:%'",
+        )
+        .fetch_one(l.app.storage.reader())
+        .await
+        .unwrap()
+    };
+    let must_be = |latest: &WorkflowId| {
+        format!(
+            "INVALID_COMMAND: a Planner starts a draft from its conversation's latest \
+             version, {latest}; name it, or leave from_workflow_id out"
+        )
+    };
+
+    // v2 is the latest Frozen version and there is no Draft: v1 is refused.
+    let text = refused(&planner, "draft_start", json!({ "from_workflow_id": v1 })).await;
+    assert_eq!(text, must_be(&v2));
+    assert_eq!(
+        l.app.storage.thread_plan(&l.app.thread).await.unwrap(),
+        Some(v2.clone())
+    );
+    assert_eq!(
+        planner_commands().await,
+        0,
+        "the refusal records no command"
+    );
+    let started = events_of(&l.app, &l.app.thread, "WorkflowDraftStarted").await;
+    assert_eq!(started.len(), 2, "v1 and v2 only");
+
+    // Naming the latest Frozen version starts its copy, as before.
+    let v3 = ok(&planner, "draft_start", json!({ "from_workflow_id": v2 })).await;
+    assert_eq!(v3["version"], 3);
+    let v3_id: WorkflowId = serde_json::from_value(v3["workflow_id"].clone()).unwrap();
+
+    // With a Draft, naming it answers it; naming a Frozen version is refused.
+    let named = ok(
+        &planner,
+        "draft_start",
+        json!({ "from_workflow_id": v3_id }),
+    )
+    .await;
+    assert_eq!(named, v3);
+    let from_v2 = json!({ "from_workflow_id": v2, "title": "Other", "goal": "other" });
+    assert_eq!(
+        refused(&planner, "draft_start", from_v2).await,
+        must_be(&v3_id)
+    );
+    let text = refused(&planner, "draft_start", json!({ "from_workflow_id": v1 })).await;
+    assert_eq!(text, must_be(&v3_id));
+    assert_eq!(planner_commands().await, 2, "v3 started, then answered");
+    let started = events_of(&l.app, &l.app.thread, "WorkflowDraftStarted").await;
+    assert_eq!(started.len(), 3, "v1, v2 and v3 only");
 }

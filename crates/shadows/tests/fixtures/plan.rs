@@ -220,6 +220,7 @@ pub async fn draft_on(app: &App, thread: &ThreadId, command: &str) -> DraftStart
             ),
             &Writer::Person,
             thread,
+            None,
             Some(("Login", "people can log in")),
             None,
         )

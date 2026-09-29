@@ -340,7 +340,7 @@ pub(crate) async fn append_event(conn: &mut SqliteConnection, event: &DurableEve
 pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
-### `crates/shadows-core/src/db/mod.rs` — 292 lines
+### `crates/shadows-core/src/db/mod.rs` — 296 lines
 
 ```rust
 pub(crate) use command::{classify, record_command};
@@ -364,6 +364,7 @@ pub enum StorageError {
     GrantInvalid,
     GrantScope,
     TaskNotInPlan(String),
+    NotLatestVersion(WorkflowId),
     Json(serde_json::Error),
     Database(sqlx::Error),
 }
@@ -1080,7 +1081,7 @@ pub fn approval_problems(content: &PlanContent) -> Vec<Problem>
 pub(super) fn edit_problems_after_removing(content: &PlanContent, removed: &BTreeSet<u32>) -> Vec<Problem>
 ```
 
-### `crates/shadows-core/src/plans/scope.rs` — 231 lines
+### `crates/shadows-core/src/plans/scope.rs` — 245 lines
 
 ```rust
 impl Plans {
@@ -1096,11 +1097,11 @@ pub(super) fn writer_of(grant: &Grant) -> Result<Writer, CoreError>
 pub(super) fn command(writer: &Writer, command_id: String, kind: &str, fp: String) -> CommandContext
 ```
 
-### `crates/shadows-core/src/plans/store/draft.rs` — 237 lines
+### `crates/shadows-core/src/plans/store/draft.rs` — 247 lines
 
 ```rust
 impl Storage {
-    pub async fn start_draft(&self, ctx: &CommandContext, writer: &Writer, thread: &ThreadId, fresh: Option<(&str, &str)>, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>
+    pub async fn start_draft(&self, ctx: &CommandContext, writer: &Writer, thread: &ThreadId, source: Option<&WorkflowId>, fresh: Option<(&str, &str)>, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>
     pub async fn start_thread_with_draft(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, title: &str, goal: &str, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>
 }
 ```
@@ -1953,7 +1954,7 @@ impl Shadows {
 }
 ```
 
-### `crates/shadows-mcp/src/tools.rs` — 217 lines
+### `crates/shadows-mcp/src/tools.rs` — 219 lines
 
 Nothing reachable from outside this file.
 
