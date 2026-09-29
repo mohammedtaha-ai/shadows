@@ -146,6 +146,10 @@ enums:
     values: []
 
 
+read_by_other_services:
+  get_project: "Turns (turns/mod.rs record, the mode check) and Harness (harness/mod.rs choices): the project's allowed modes, which refuse a turn's mode and filter a session's offer (§12.5)"
+
+
 obligations:
   - rule: >
       Replay. A project create with the same command id and request answers
@@ -247,14 +251,6 @@ not_the_caller's:
   - >
       Move the disk work onto a blocking thread; `list_dirs` and `create_dir`
       do.
-
-
-open_questions:
-  - >
-      `get_project` is read by Turns (`record`, the mode check) and Harness
-      (`choices`) directly on `Storage`, not through `Projects`. Whether they
-      go through a Projects method is for Task 10's narrowing of the
-      `impl Storage` methods (ruling F6).
 
 
 tests:

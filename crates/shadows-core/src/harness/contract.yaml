@@ -189,6 +189,10 @@ enums:
     values: []
 
 
+read_by_other_services:
+  record_limits: "Turns (turns/turn.rs accept): a turn's watcher records the account limits the harness reports, before it publishes the usage that `limits_of` answers (§12.8)"
+
+
 shared_in_transaction:
   remember_settings: "Turns' start (turns/store/turn.rs start_turn): the turn's model and effort are remembered for its harness in the same write that records the turn, so a refused or replayed start remembers nothing"
 

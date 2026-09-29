@@ -68,6 +68,10 @@ enums:
     values: []
 
 
+read_by_other_services:
+  current_planner_instructions: "Turns (turns/mod.rs record) and Harness (harness/setup.rs Setups::for_opening, context_before_turn): the version a turn records, and the instructions a session opens with or is told changed (§13.8)"
+
+
 obligations:
   - rule: >
       Each save is a new version numbered one past the project's highest,
@@ -105,14 +109,6 @@ not_the_caller's:
   - >
       Build the "PlannerInstructionsSave" fingerprint; `save` does, from the
       same parameters as before the move.
-
-
-open_questions:
-  - >
-      Turns and Harness' `Setups` read `current_planner_instructions`
-      directly on `Storage`, not through `Instructions::current`. Whether
-      they go through the service is for Task 10's narrowing of the
-      `impl Storage` methods (ruling F6).
 
 
 tests:

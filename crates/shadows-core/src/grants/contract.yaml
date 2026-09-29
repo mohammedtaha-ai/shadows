@@ -135,6 +135,12 @@ shared_in_transaction:
   bind_draft_ref: "Plans' store (plans/store/draft.rs start_draft and start_thread_with_draft): the draft_ref is bound to the version the same transaction creates, so a refused ref leaves no thread or version behind"
 
 
+read_by_other_services:
+  issue_thread_grant: "Harness (harness/setup.rs Setups::for_opening): a session's opening issues the thread's Planner grant, whose token its MCP setup carries (§13.7, §13.8)"
+  revoke_thread_grant: "Harness (harness/setup.rs Setups::forget): a session's opening revokes the thread's previous grant, and its closing revokes the one it held (§13.7)"
+  prepare_draft: "Plans (plans/mod.rs Plans::prepare_draft): the `draft_prepare` tool asks for a new draft_ref bound to the caller's grant (§13.5)"
+
+
 obligations:
   - rule: >
       Only the token's hash is stored. `mcp_grant.token_hash` holds
@@ -279,12 +285,6 @@ gaps:
 
 
 open_questions:
-  - >
-      `Plans::prepare_draft` and the planner's sessions call this store's
-      `impl Storage` methods (`prepare_draft`, `issue_thread_grant`,
-      `revoke_thread_grant`) directly, not through `Grants`. Whether they move
-      behind a `Grants` method or stay store calls is Task 10's narrowing of
-      the store's `impl` methods (ruling F6), not decided here.
   - >
       `require_grant` answers 503 when `authorize` fails; no test makes the
       grant lookup fail. That answer belongs to `shadows-mcp`'s `auth.rs`.

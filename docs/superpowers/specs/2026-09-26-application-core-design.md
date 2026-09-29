@@ -307,12 +307,30 @@ pile of functions from every service with no owner. `contracts.rs` enforces it
 (§14.7, rule 9): every `pub(crate)` function or method in a service's `store`
 is declared, and every declared one exists.
 
+**Store methods other services read or write outside their own write**
+(ruling F6, Task 10). The stores' `impl Storage` methods stay `pub`: `Storage`
+is private to the core, and a test reaches it only through the test-only
+`testing::Storage`, so the adapter boundary is closed by the compiler. Inside
+the crate, a service that calls another's store method outside a write of its
+own (`turn_context`, `get_project`, `current_planner_instructions`, …) is
+declared in the owning service's contract under `read_by_other_services`,
+with who calls it and why; `contracts.rs` refuses a declared name that is not
+in that service's folder.
+
+> **OPEN — the cross-service store reads become service methods.** Each name
+> under `read_by_other_services` is a call into another service's store, which
+> a crate boundary would refuse. **Trigger:** the first milestone that splits
+> a service into its own crate (§14.4, OPEN); then each becomes a method of the
+> owning service. **Why it does not block:** the services share one crate, and
+> the contracts name every such call.
+
 **Architecture Invariants** are written into `docs/codebase/README.md`, in
 rust-analyzer's style, one line each:
 - "`shadows-http` knows HTTP; nothing below it does."
 - "`shadows-core` never imports `axum` or `rmcp`."
-- "a service's `store` is called by another service only through a function
-  its contract declares under `shared_in_transaction`, inside one write."
+- "another service calls a service's `store` only through a function or
+  method that store's contract declares, under `shared_in_transaction`
+  (inside one write) or `read_by_other_services`."
 
 ## 14.7 Contracts
 
@@ -336,6 +354,9 @@ source-contract template, kept at `docs/codebase/contracts/TEMPLATE.yaml`:
 - **`shared_in_transaction`:** the `store` functions other services may call
   inside one write, each with its callers and why (§14.6). A section Shadows
   adds to the template;
+- **`read_by_other_services`:** the `store` methods other services call
+  outside a write of their own, each with its callers and why (§14.6). Also
+  Shadows' own;
 - **`not_the_caller's`**;
 - **`gaps`, `open_questions`, `tests`.**
 
@@ -375,7 +396,8 @@ line, and the sources with `syn`. It fails when:
 8. an agreement says `holds: false` and no `gap` names one of its symbols;
 9. a `pub(crate)` function or method in the service's `store` is missing
    from `shared_in_transaction`, or a name there is not such a function or
-   method (§14.6).
+   method; or a name under `read_by_other_services` is not a function or
+   method in the service's folder (§14.6).
 
 Every rule in §14.9 must name a real test. What the test cannot check is whether
 a rule's prose is true, or whether a named test's body proves it; the reviewer

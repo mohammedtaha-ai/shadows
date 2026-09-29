@@ -195,6 +195,12 @@ shared_in_transaction:
   append_entry_in: "Turns' start (turns/store/turn.rs start_turn), Plans' approval (plans/store/edit.rs approve_plan) and plan_show (plans/store/view.rs show_plan): each writes its entry in the write that records its command, so the entry and the command commit together"
 
 
+read_by_other_services:
+  turn_context: "Harness (harness/mod.rs open_session, change_model, context, choices, limits_of; harness/sessions.rs open_live; harness/setup.rs context_before_turn) and Turns (turns/mod.rs send): the thread's project and harness, read before any session or turn work; NotFound for an unknown thread"
+  append_thread_entry: "Turns (turns/turn.rs persist): a turn's watcher appends the agent's entries as they arrive, each in its own write"
+  record_harness_session: "Turns (turns/turn.rs watch_turn): the watcher records the session id the harness answered, once, while it is NULL"
+
+
 obligations:
   - rule: >
       A thread's harness is one Shadows knows, `claude-code` when none is
@@ -303,17 +309,6 @@ not_the_caller's:
   - >
       Judge a fork point or a busy source; `fork_thread` does inside its own
       write.
-
-
-open_questions:
-  - >
-      `turn_context`, `record_harness_session` and `append_thread_entry` are
-      called directly on `Storage` by Turns, Harness and Sessions, and
-      `operations` reads Turns' `list_operations_for_thread` the same way.
-      Whether each goes through a service method is for Task 10's narrowing
-      of the `impl Storage` methods (ruling F6). `Harness::limits_of`, which
-      `Events` calls for a usage frame, is one more such reader since Task 10;
-      no adapter reads this store any longer.
 
 
 tests:

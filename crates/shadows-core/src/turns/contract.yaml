@@ -197,6 +197,12 @@ shared_in_transaction:
   log: "Runtime recovery (runtime/store.rs reconcile_orphans): each recorded Transition's `operation.transition.committed` line, written after COMMIT, never inside the transaction (spec §8.7)"
 
 
+read_by_other_services:
+  thread_is_busy: "Harness (harness/mod.rs change_model): the early busy check, after availability and before the session is touched (§14.9); `send` makes the same check in Turns"
+  latest_invocation_versions: "Harness (harness/setup.rs context_before_turn): the prompt and instructions versions the thread's last turn ran under, so the session is told only what changed (§13.8)"
+  list_operations_for_thread: "Threads (threads/mod.rs operations): a thread's operation list, which §14.4 gives to Threads"
+
+
 obligations:
   - rule: >
       Replay first. A turn start whose command id and request match a
@@ -359,15 +365,6 @@ not_the_caller's:
   - >
       Map a `StopOutcome`, or read the operation after a Stop; `stop` answers
       TerminationFailed or the operation as it now stands.
-
-
-open_questions:
-  - >
-      `list_operations_for_thread` is called by `Threads::operations` (the
-      thread's operation list, spec §14.4 gives the list to Threads) and,
-      with `get_operation`, by tests directly on `Storage`. Whether the list
-      becomes a `Turns` method Threads calls is for Task 10's narrowing of
-      the `impl Storage` methods (ruling F6).
 
 
 tests:

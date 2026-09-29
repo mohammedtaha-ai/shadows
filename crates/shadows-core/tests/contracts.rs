@@ -212,6 +212,17 @@ fn every_contract_matches_its_service() {
                 problems.push(format!("{name}: `{f}` is not in {source}"))
             }
         }
+        // Rule 9's reads (§14.6): a store method another service calls outside
+        // its own write is declared, and the declared name exists here.
+        let mut reads = BTreeSet::new();
+        listed(&doc["read_by_other_services"], &mut reads);
+        for r in &reads {
+            if !declared.contains(r) {
+                problems.push(format!(
+                    "{name}: read_by_other_services names `{r}`, which is not in {source}"
+                ))
+            }
+        }
         let mut gap_at = BTreeSet::new();
         if let Some(gaps) = doc["gaps"].as_vec() {
             for g in gaps {
