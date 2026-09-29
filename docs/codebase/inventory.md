@@ -243,7 +243,7 @@ pub fn is_available(kind: &str) -> bool
 pub fn default_modes() -> BTreeMap<String, Vec<String>>
 ```
 
-## `crates/shadows-core/src/app.rs` — 291 lines
+## `crates/shadows-core/src/app.rs` — 292 lines
 
 ```rust
 pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;

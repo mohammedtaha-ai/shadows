@@ -3,7 +3,8 @@
 //!
 //! Not a global: no `static`, no `OnceLock`, no service locator. The binary
 //! builds it with `start`; tests build it with `assemble` (`testing`, under
-//! `test-support`) from the `Arc`s they keep. A caller reaches a service through its accessor, `core.plans()`.
+//! `test-support`) from the `Arc`s they keep. A caller reaches a service
+//! through its accessor, `core.plans()`.
 
 use std::future::Future;
 use std::path::{Path, PathBuf};

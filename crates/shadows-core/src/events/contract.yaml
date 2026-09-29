@@ -239,7 +239,9 @@ obligations:
     tested_by: an_open_live_stream_does_not_hold_up_shutdown
     note: >
       `shutdown` is `sse.rs`'s first `biased` arm around `next`; the test
-      waits for caught-up, then stops the server.
+      waits for caught-up, then stops the server, so it proves the live
+      phase only. No test stops the daemon mid-replay; there the stream now
+      ends before `caught-up`, where 81d9628 finished the replay first.
 
 
 not_the_caller's:
