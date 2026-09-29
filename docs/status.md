@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-09-29 (Milestone 2.5 built on its branch, pending Mohammed's Windows run)
+**Updated:** 2026-09-29 (Milestone 2.5 merged to `main`)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,17 +9,18 @@ restate them.
 
 ## Where we are
 
-**Milestone 2.5 (§14, one application core) is built on
-`milestone-2.5/app-core`, pending Mohammed's Windows run and the whole-branch
-review.** Shadows is now a Cargo workspace under `crates/`: the HTTP and MCP
-adapters are their own crates and reach the application only through
-`AppCore` in `shadows-core`, whose eight services each own their operations
-and carry a `contract.yaml` that `crates/shadows-core/tests/contracts.rs` keeps
-current. Behaviour did not change, and `api/openapi.json` is byte-identical.
-What remains is §14.10's run on the debug build (send and Stop, a restart, a
-plan edited and approved, Connect and Revoke), recorded in
-`evidence/milestone2_5/WINDOWS_RUN.md`, then the PR. The plan is
-`superpowers/plans/2026-09-26-milestone-2-5-app-core.md`.
+**Milestone 2.5 (§14, one application core) is on `main`** (PR #7,
+2026-09-29; 328 Rust tests). Shadows is now a Cargo workspace under `crates/`:
+the HTTP and MCP adapters are their own crates and reach the application only
+through `AppCore` in `shadows-core`, whose eight services each own their
+operations and carry a `contract.yaml` that
+`crates/shadows-core/tests/contracts.rs` keeps current. Behaviour did not
+change, and `api/openapi.json` is byte-identical. Mohammed ran it on Windows:
+six Planner turns completed and the Planner used Shadows' MCP server; Stop, a
+restart, Approve and Revoke were not exercised in that run
+([`evidence/milestone2_5/WINDOWS_RUN.md`](./evidence/milestone2_5/WINDOWS_RUN.md)).
+The plan is `superpowers/plans/2026-09-26-milestone-2-5-app-core.md`; its
+execution ledger was deleted after the merge.
 
 **Milestone 2 (§13, the Planner writes a plan) is on `main`** (PR #6,
 2026-09-25; 304 Rust, 135 web tests), and Mohammed ran it on Windows. A
@@ -93,8 +94,11 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **Finish Milestone 2.5:** the whole-branch review, Mohammed's Windows run,
-   then the PR and the branch deleted.
+1. **The five pre-existing defects Milestone 2.5 found,** each a `gap` in its
+   service's contract: a model change is not undone when a later check refuses
+   the turn; `Sessions` opens a second SQLite pool, so its events do not wake
+   SSE; `from_workflow_id` is not fingerprinted; the harness-session route's
+   OpenAPI text says nothing durable is written.
 2. **Milestone 3: the code index** (`vision.md` §2.4), with tree-sitter embedded.
 3. **Effort at once, without `default`.** Mohammed's ruling after the
    Windows run: picking an effort sets it on the session at once, as the
