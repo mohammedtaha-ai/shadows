@@ -601,7 +601,7 @@ pub struct IssuedGrant {
 }
 ```
 
-### `crates/shadows-core/src/grants/store.rs` — 443 lines
+### `crates/shadows-core/src/grants/store.rs` — 416 lines
 
 ```rust
 impl Storage {
@@ -613,7 +613,6 @@ impl Storage {
     pub async fn grant_for_token(&self, raw: &str) -> Result<Option<Grant>, StorageError>
     pub async fn list_project_grants(&self, project: &ProjectId) -> Result<Vec<Grant>, StorageError>
     pub async fn prepare_draft(&self, grant: &GrantId) -> Result<String, StorageError>
-    pub async fn draft_intent(&self, grant: &GrantId, draft_ref: &str) -> Result<Option<WorkflowId>, StorageError>
 }
 
 pub(crate) async fn check_writer(conn: &mut SqliteConnection, writer: &Writer, project: &ProjectId, thread: Option<&ThreadId>) -> Result<(), StorageError>

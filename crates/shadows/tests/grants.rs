@@ -8,7 +8,7 @@ use shadows_core::GrantKind;
 use shadows_core::StorageError;
 use shadows_core::testing::Writer;
 use shadows_core::testing::hash_token;
-use shadows_core::testing::{Anchor, derived_id};
+use shadows_core::{DraftStarted, GrantId};
 
 use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
@@ -17,7 +17,7 @@ mod app;
 mod plan;
 
 use app::{App, call, ctx, get_json, other_project, post, test_app};
-use plan::{an_hour_ago, insert_draft_ref, writer_ctx};
+use plan::{an_hour_ago, draft_ref_binding, insert_draft_ref, writer_ctx};
 
 fn issue_ctx(id: &str) -> shadows_core::testing::CommandContext {
     ctx(id, "McpGrantIssue")
@@ -327,6 +327,24 @@ async fn startup_revokes_every_thread_grant_and_keeps_project_grants() {
     assert_eq!(app.storage.revoke_all_thread_grants().await.unwrap(), 0);
 }
 
+/// An external start from scratch under `grant` with `draft_ref`. Each new
+/// `command` misses the command log, so the ref is judged by `bind_draft_ref`.
+async fn start(
+    app: &App,
+    grant: &GrantId,
+    command: &str,
+    draft_ref: &str,
+) -> Result<DraftStarted, StorageError> {
+    let writer = Writer::External {
+        grant: grant.clone(),
+    };
+    let ctx = writer_ctx(&writer, command, "DraftStart", json!({ "r": draft_ref }));
+    let (title, goal) = ("Search", "find things");
+    app.storage
+        .start_thread_with_draft(&ctx, &writer, &app.project, title, goal, Some(draft_ref))
+        .await
+}
+
 #[tokio::test]
 async fn a_draft_ref_expires_and_belongs_to_its_grant() {
     let app = test_app().await;
@@ -344,10 +362,9 @@ async fn a_draft_ref_expires_and_belongs_to_its_grant() {
         .unwrap()
         .grant
         .id;
-
     // Issued unused, for an hour, to the grant that asked.
     let fresh = app.storage.prepare_draft(&mine).await.unwrap();
-    assert_eq!(app.storage.draft_intent(&mine, &fresh).await.unwrap(), None);
+    assert_eq!(draft_ref_binding(&app, &fresh).await, None);
     let (created, expires): (String, String) =
         sqlx::query_as("SELECT created_at, expires_at FROM draft_intent WHERE draft_ref = ?")
             .bind(&fresh)
@@ -361,42 +378,33 @@ async fn a_draft_ref_expires_and_belongs_to_its_grant() {
     // Not deduplicated: a second call is a second ref.
     assert_ne!(app.storage.prepare_draft(&mine).await.unwrap(), fresh);
 
-    // Another grant's ref, an unknown one, and an expired one are refused.
-    let refused = app.storage.draft_intent(&theirs, &fresh).await;
-    assert!(
-        matches!(refused, Err(StorageError::GrantScope)),
-        "{refused:?}"
-    );
-    let unknown = app.storage.draft_intent(&mine, "dr-unknown").await;
-    assert!(
-        matches!(unknown, Err(StorageError::GrantScope)),
-        "{unknown:?}"
-    );
+    // Another grant's ref, an unknown one, and an expired one start nothing.
     let expired = insert_draft_ref(&app, &mine, &an_hour_ago()).await;
-    let late = app.storage.draft_intent(&mine, &expired).await;
-    assert!(matches!(late, Err(StorageError::GrantScope)), "{late:?}");
+    for (grant, command, draft_ref) in [
+        (&theirs, "c-theirs", fresh.as_str()),
+        (&mine, "c-unknown", "dr-unknown"),
+        (&mine, "c-expired", expired.as_str()),
+    ] {
+        let refused = start(&app, grant, command, draft_ref).await;
+        assert!(
+            matches!(refused, Err(StorageError::GrantScope)),
+            "{command}: {refused:?}"
+        );
+    }
+    assert_eq!(draft_ref_binding(&app, &fresh).await, None);
+    assert_eq!(draft_ref_binding(&app, &expired).await, None);
+    let threads = app.storage.list_threads_for_project(&app.project).await;
+    assert_eq!(threads.unwrap().len(), 1, "a refused start made no thread");
 
-    // Once it started a plan, the ref answers that plan, past its expiry too.
-    let external = Writer::External {
-        grant: mine.clone(),
-    };
-    let started = app
-        .storage
-        .start_thread_with_draft(
-            &writer_ctx(
-                &external,
-                &derived_id(Anchor::DraftRef(&fresh), ""),
-                "DraftStart",
-                json!({}),
-            ),
-            &external,
-            &app.project,
-            "Search",
-            "find things",
-            Some(&fresh),
-        )
-        .await
-        .unwrap();
+    // Its own grant starts a plan with it, and the ref is bound to that plan.
+    let started = start(&app, &mine, "c-first", &fresh).await.unwrap();
+    assert_eq!(
+        draft_ref_binding(&app, &fresh).await.as_deref(),
+        Some(started.workflow_id.as_str())
+    );
+
+    // Past its expiry, the start that used it still answers its plan; but a
+    // bound ref starts no second plan.
     sqlx::query("UPDATE draft_intent SET expires_at = ? WHERE draft_ref = ?")
         .bind(an_hour_ago())
         .bind(&fresh)
@@ -404,8 +412,17 @@ async fn a_draft_ref_expires_and_belongs_to_its_grant() {
         .await
         .unwrap();
     assert_eq!(
-        app.storage.draft_intent(&mine, &fresh).await.unwrap(),
-        Some(started.workflow_id)
+        start(&app, &mine, "c-first", &fresh).await.unwrap(),
+        started
+    );
+    let second = start(&app, &mine, "c-second", &fresh).await;
+    assert!(
+        matches!(second, Err(StorageError::GrantScope)),
+        "{second:?}"
+    );
+    assert_eq!(
+        draft_ref_binding(&app, &fresh).await.as_deref(),
+        Some(started.workflow_id.as_str())
     );
 
     // Only a live project grant prepares a draft.

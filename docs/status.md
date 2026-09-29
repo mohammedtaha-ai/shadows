@@ -100,7 +100,9 @@ The PR is #4; its execution ledger was removed from the branch before merge.
    so a session's grant events wake SSE at once, a Planner's
    `from_workflow_id` is in its DraftStart fingerprint, and the
    harness-session routes' OpenAPI text (and §12.7) now say that an opening
-   issues the thread's MCP grant. Left: what a Planner's `from_workflow_id`
+   issues the thread's MCP grant, and the test-only `draft_intent` is gone:
+   a draft_ref's owner and expiry are written once, in `bind_draft_ref`, and
+   its tests start plans through it. Left: what a Planner's `from_workflow_id`
    must do, which §13.6 does not say (it still does not choose the version
    started).
 2. **Milestone 3: the code index** (`vision.md` §2.4), with tree-sitter embedded.
