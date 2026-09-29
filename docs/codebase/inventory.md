@@ -251,7 +251,7 @@ pub fn default_modes() -> BTreeMap<String, Vec<String>>
 
 ## Crate `shadows-core`
 
-### `crates/shadows-core/src/app.rs` — 292 lines
+### `crates/shadows-core/src/app.rs` — 299 lines
 
 ```rust
 pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
@@ -265,7 +265,7 @@ pub struct CoreParts {
     pub mcp_url: String,
 }
 pub struct AppCore {}
-// + 8 private fields
+// + 9 private fields
 pub struct StartConfig {
     pub db_path: PathBuf,
     pub node_path: PathBuf,
@@ -284,10 +284,113 @@ impl AppCore {
     pub fn threads(&self) -> &Threads
     pub fn instructions(&self) -> &Instructions
     pub fn events(&self) -> &Events
+    pub fn code(&self) -> &Code
     pub async fn shut_down(&self, bound: Duration, second_signal: impl Future<Output = ()>) -> Result<StopKind, CoreError>
 }
 
 pub fn adapter_version(adapter_entry: &Path) -> String
+```
+
+### `crates/shadows-core/src/code/mod.rs` — 161 lines
+
+```rust
+pub use model::{Answer, Hit, IndexState, ProjectStatus, Skipped};
+pub use scope::Asker;
+pub struct Code {}
+// + 1 private field
+impl Code {
+    pub(crate) fn new(storage: Arc<Storage>) -> Self
+    pub async fn definitions(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CoreError>
+    pub async fn references(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CoreError>
+    pub async fn outline(&self, asker: Asker<'_>, only: Option<&str>, path: &str) -> Result<Answer, CoreError>
+    pub async fn status(&self, project: &ProjectId) -> Result<ProjectStatus, CoreError>
+    pub(crate) async fn scan(&self, project: &ProjectId) -> Result<(), CoreError>
+}
+```
+
+### `crates/shadows-core/src/code/model.rs` — 67 lines
+
+```rust
+pub enum IndexState {
+    Ready,
+    Indexing { done: u32, found: u32 },
+    Inactive,
+    NoDirectory,
+    DirectoryMissing,
+}
+pub struct ProjectStatus {
+    pub project: String,
+    pub state: IndexState,
+    pub files: u32,
+    pub skipped: Vec<Skipped>,
+    pub updated_at: Option<String>,
+}
+pub struct Skipped {
+    pub reason: String,
+    pub count: u32,
+}
+pub struct Hit {
+    pub project: String,
+    pub path: String,
+    pub line: u32,
+    pub kind: String,
+    pub name: String,
+    pub signature: Option<String>,
+    pub matched_by: Option<String>,
+}
+pub struct Answer {
+    pub hits: Vec<Hit>,
+    pub more: bool,
+    pub suggestions: Vec<String>,
+    pub status: Vec<ProjectStatus>,
+}
+```
+
+### `crates/shadows-core/src/code/scan.rs` — 208 lines
+
+```rust
+pub(super) fn keeps(path: &Path) -> bool
+pub(super) fn path_key(path: &str) -> String
+impl Code {
+    pub(super) async fn index_file(&self, project: &ProjectId, dir: &Path, path: &str) -> anyhow::Result<()>
+    pub(super) async fn scan_project(&self, project: &ProjectId) -> Result<(), CoreError>
+}
+```
+
+### `crates/shadows-core/src/code/scope.rs` — 64 lines
+
+```rust
+pub enum Asker<'a> {
+    Person(&'a ProjectId),
+    Grant(&'a Grant),
+}
+pub(super) async fn projects(storage: &Storage, asker: &Asker<'_>, only: Option<&str>) -> Result<Vec<ScopeRow>, CoreError>
+pub(super) fn inside(path: &str) -> Result<String, CoreError>
+```
+
+### `crates/shadows-core/src/code/store.rs` — 310 lines
+
+```rust
+pub(super) struct FileRow {
+    pub(super) path_key: String,
+    pub(super) path: String,
+    pub(super) size: i64,
+    pub(super) modified_ms: i64,
+    pub(super) language: &'static str,
+    pub(super) skipped: Option<&'static str>,
+}
+pub(super) type ScopeRow = (ProjectId, String, Option<String>);
+impl Storage {
+    pub(super) async fn code_file_stamp(&self, project: &ProjectId, path_key: &str) -> Result<Option<(String, i64, i64)>, StorageError>
+    pub(super) async fn code_file_keys(&self, project: &ProjectId) -> Result<Vec<String>, StorageError>
+    pub(super) async fn write_code_file(&self, project: &ProjectId, file: FileRow, tags: Vec<Tag>) -> Result<(), StorageError>
+    pub(super) async fn delete_code_file(&self, project: &ProjectId, path_key: &str) -> Result<(), StorageError>
+    pub(super) async fn code_scope(&self, home: &ProjectId) -> Result<Vec<ScopeRow>, StorageError>
+    pub(super) async fn code_by_name(&self, scope: &[ScopeRow], name: &str, role: &str) -> Result<Vec<Hit>, StorageError>
+    pub(super) async fn code_suggestions(&self, scope: &[ScopeRow], text: &str, role: &str) -> Result<Vec<String>, StorageError>
+    pub(super) async fn code_outline(&self, scope: &[ScopeRow], path_key: &str) -> Result<Vec<Hit>, StorageError>
+    pub(super) async fn code_counts(&self, project: &ProjectId) -> Result<(u32, Vec<Skipped>), StorageError>
+}
 ```
 
 ### `crates/shadows-core/src/command/derive.rs` — 32 lines
@@ -845,11 +948,12 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/lib.rs` — 49 lines
+### `crates/shadows-core/src/lib.rs` — 51 lines
 
 ```rust
 pub use app::CoreParts;
 pub use app::{AppCore, StartConfig};
+pub use code::{Answer, Asker, Code, Hit, IndexState, ProjectStatus, Skipped};
 pub use db::StorageError;
 pub use error::{CoreError, ErrorCode};
 pub use events::{Actor, Delivery, Events, StoredEvent, Subscription, UiSignal};
@@ -1299,7 +1403,7 @@ pub fn test_config() -> SessionsConfig
 pub fn fake_sessions(storage: Arc<Storage>) -> Arc<Sessions>
 ```
 
-### `crates/shadows-core/src/testing/mod.rs` — 88 lines
+### `crates/shadows-core/src/testing/mod.rs` — 99 lines
 
 ```rust
 pub fn fake_acp_path() -> std::path::PathBuf
@@ -1319,6 +1423,10 @@ pub use crate::harness::{ LeaseError, OpenSession, Sessions, SessionsConfig, pro
 pub use crate::projects::ProjectDirectory;
 pub use crate::runtime::{ReconcileReport, Runtime};
 pub use crate::threads::{NewThreadEntry, TurnContext};
+impl crate::code::Code {
+    pub async fn scan_for_test(&self, project: &crate::projects::ProjectId) -> Result<(), crate::error::CoreError>
+}
+
 impl AppCore {
     pub fn assemble(parts: CoreParts) -> Arc<AppCore>
 }

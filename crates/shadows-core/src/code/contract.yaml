@@ -1,0 +1,302 @@
+# Owns the code index (spec §15.4–§15.5): walking a project's folder into
+# `code_file` and `code_tag`, and answering three questions from them —
+# where a name is defined, who uses it, and what a path holds — within the
+# scope of projects the asker may read.
+#
+# The index is a copy derived from the files. It carries no CommandId and no
+# journal event, and can be deleted and rebuilt. Paths are stored relative
+# to the project's folder with '/'; the key is lowercased on Windows
+# (`path_key`), so `Foo.rs` and `foo.rs` are one row.
+#
+# Two functions hold the indexing rules and every path that indexes goes
+# through them: `keeps` (the walk's filter) and `index_file` (one file read,
+# parsed and written). The scan calls both; §15.4's watcher and a question's
+# re-check will call the same two.
+#
+# Trap: `references` matches by name only. Two functions with one name are
+# not told apart, which is why every such hit says `matched_by: name`.
+# Trap: until the active set of §15.6 exists, nothing scans on its own; a
+# project's state is `Ready` when it has rows and `Inactive` when it has none.
+
+name: code
+version: 1
+status: current
+source: crates/shadows-core/src/code
+
+
+shapes:
+  Code:
+    # Cheap to clone: an `Arc` over the storage.
+    inner: Arc<Inner>
+  Inner:
+    storage: Arc<Storage>
+  Asker:
+    # HTTP asks as a person, refusals INVALID_COMMAND; MCP under a grant,
+    # refusals GRANT_SCOPE. Either names the project the scope starts from.
+    Person: "&ProjectId"
+    Grant: "&Grant"
+  IndexState:
+    # serde internally tagged: { "state": "indexing", "done", "found" }.
+    Ready: unit
+    Indexing: "{ done: u32, found: u32 }"
+    Inactive: unit
+    NoDirectory: unit
+    DirectoryMissing: unit
+  ProjectStatus:
+    project: String      # the slug
+    state: IndexState
+    # Files indexed; a skipped file is counted in `skipped` only.
+    files: u32
+    skipped: Vec<Skipped>
+    # Always None today: no column records a scan's time.
+    updated_at: Option<String>
+  Skipped:
+    reason: String       # too_large | binary | not_utf8
+    count: u32
+  Hit:
+    project: String      # the slug
+    path: String         # relative, '/'
+    line: u32
+    kind: String
+    name: String
+    signature: Option<String>
+    matched_by: Option<String>
+  Answer:
+    hits: Vec<Hit>
+    more: bool
+    suggestions: Vec<String>
+    status: Vec<ProjectStatus>
+  FileRow:
+    # What `code_file` holds for one file.
+    path_key: String
+    path: String
+    size: i64
+    modified_ms: i64
+    language: "&'static str"
+    skipped: "Option<&'static str>"
+  Walked:
+    paths: Vec<String>
+    # An entry could not be read: the scan then deletes nothing.
+    incomplete: bool
+
+
+functions:
+  questions:
+    definitions:
+      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CoreError>"
+      # Exact, case-sensitive name, role definition. With no hit, up to 10
+      # definition names containing the text, case-insensitively.
+    references:
+      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CoreError>"
+      # As `definitions` with role reference; every hit matched_by "name".
+    outline:
+      signature: "(&self, asker: Asker<'_>, only: Option<&str>, path: &str) -> Result<Answer, CoreError>"
+      # `inside` first; then the definitions whose key is the path's or
+      # under it, every one for "" or "."; by path, line, name. No suggestions.
+    status:
+      signature: "(&self, project: &ProjectId) -> Result<ProjectStatus, CoreError>"
+      # NoDirectory for a project with no folder; else Ready with rows,
+      # Inactive without. NotFound for an unknown project.
+    by_name:
+      signature: "(&self, asker, only, name, role) -> Result<Answer, CoreError>"
+      private: true
+    answer:
+      signature: "(&self, scope, hits, suggestions) -> Result<Answer, CoreError>"
+      private: true
+      # Keeps 50 of at most 51 rows; `more` is the 51st. One status per
+      # project in the scope, in the scope's order.
+    status_of:
+      signature: "(&self, project: &ScopeRow) -> Result<ProjectStatus, CoreError>"
+      private: true
+  scope:
+    projects:
+      signature: "(storage: &Storage, asker: &Asker<'_>, only: Option<&str>) -> Result<Vec<ScopeRow>, CoreError>"
+      # The asker's project, then its direct links by slug. An `only` not in
+      # it: GRANT_SCOPE for a grant, INVALID_COMMAND for a person, "the
+      # project <slug> is not linked to this project".
+    inside:
+      signature: "(path: &str) -> Result<String, CoreError>"
+      # '\' becomes '/', "./" and a trailing '/' are dropped; absolute, a
+      # ':' or a ".." component is INVALID_COMMAND "the path must be inside
+      # the project".
+  indexing:
+    scan:
+      signature: "(&self, project: &ProjectId) -> Result<(), CoreError>"
+      # pub(crate): tests reach it as `scan_for_test` (`testing`).
+    scan_project:
+      signature: "(&self, project: &ProjectId) -> Result<(), CoreError>"
+      # No folder, or a missing one: nothing changes. Walks on a blocking
+      # thread, `index_file` per kept path (a failure is
+      # `code.index_failed` and the walk goes on), then deletes the rows of
+      # every key the walk did not see — unless the walk was incomplete.
+    index_file:
+      signature: "(&self, project: &ProjectId, dir: &Path, path: &str) -> anyhow::Result<()>"
+      # Gone or not a file: its rows are deleted. Unchanged path, size and
+      # modified time: nothing. Over 1 048 576 bytes: too_large, unread. A
+      # NUL in the first 8 KiB: binary. Not UTF-8: not_utf8. Else `extract`
+      # on a blocking thread. Then one `write_code_file`.
+    keeps:
+      signature: "(path: &Path) -> bool"
+      # Relative path: no component `target`, `node_modules` or starting
+      # with '.', and a language `language_for` knows.
+    path_key:
+      signature: "(path: &str) -> String"
+    walk:
+      signature: "(dir: &Path) -> Walked"
+      private: true
+      # WalkBuilder: parents(false), git_global(false), require_git(false),
+      # follow_links(false), hidden entries skipped (its default), and a
+      # filter_entry refusing folders named target or node_modules.
+    never_walked:
+      signature: "(name: &str) -> bool"
+      private: true
+  store:
+    code_file_stamp:
+      signature: "(&self, project: &ProjectId, path_key: &str) -> Result<Option<(String, i64, i64)>, StorageError>"
+    code_file_keys:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<String>, StorageError>"
+    write_code_file:
+      signature: "(&self, project: &ProjectId, file: FileRow, tags: Vec<Tag>) -> Result<(), StorageError>"
+      # One write: delete the file's tags, upsert its row, insert its tags.
+    delete_code_file:
+      signature: "(&self, project: &ProjectId, path_key: &str) -> Result<(), StorageError>"
+      # One write: the tags explicitly, then the row.
+    code_scope:
+      signature: "(&self, home: &ProjectId) -> Result<Vec<ScopeRow>, StorageError>"
+    code_by_name:
+      signature: "(&self, scope: &[ScopeRow], name: &str, role: &str) -> Result<Vec<Hit>, StorageError>"
+      # Per project in the scope's order, by path, line, kind; 51 rows in all.
+    code_suggestions:
+      signature: "(&self, scope: &[ScopeRow], text: &str, role: &str) -> Result<Vec<String>, StorageError>"
+      # LIKE with %, _ and \ escaped; each project's first 10, merged by name.
+    code_outline:
+      signature: "(&self, scope: &[ScopeRow], path_key: &str) -> Result<Vec<Hit>, StorageError>"
+    code_counts:
+      signature: "(&self, project: &ProjectId) -> Result<(u32, Vec<Skipped>), StorageError>"
+    hit:
+      signature: "(slug: &str, row: HitRow) -> Hit"
+      private: true
+    like_escape:
+      signature: "(text: &str) -> String"
+      private: true
+
+
+enums:
+  CoreError:
+    source: crate::error::CoreError
+    values: []
+  StorageError:
+    source: crate::db::StorageError
+    values: []
+  ProjectId:
+    source: crate::projects::ProjectId
+    values: []
+  Grant:
+    source: crate::grants::Grant
+    values: []
+  Tag:
+    source: shadows_index::Tag
+    values: []
+
+
+obligations:
+  - rule: >
+      The index follows the files: a scan indexes a new file, re-indexes a
+      changed one (its size or modified time differs), and deletes the rows
+      of one that is gone; `target/`, `node_modules/`, hidden entries and
+      what a `.gitignore` in the folder names (with no `.git` anywhere) are
+      never indexed; a file over 1 MB is recorded as too_large with no tags.
+    tested_by: indexing_follows_the_files
+
+  - rule: >
+      No path outside the project's folder is ever read. The walk reads no
+      parent's ignore file and no global one, and follows no link;
+      `outline` refuses an absolute path, a ':' or a '..' component, and
+      reads the index only.
+    tested_by: none
+    note: >
+      `inside` and the WalkBuilder settings are the whole rule. A test would
+      ask `outline` for "../x", "/x" and "C:/x" and expect INVALID_COMMAND,
+      and walk a folder holding a link to a file outside it.
+
+  - rule: >
+      One short transaction per file: `write_code_file` and
+      `delete_code_file` each run one `write_txn` for one file, and
+      `extract` runs before it, on a blocking thread, outside any
+      transaction.
+    tested_by: none
+    note: >
+      Structural: read in `index_file` and the two store methods. No test
+      holds the writer while a scan runs.
+
+  - rule: >
+      An answer carries at most 50 hits, ordered by the scope's order, then
+      path and line; `more` is true when a 51st exists.
+    tested_by: none
+    note: >
+      `indexing_follows_the_files` checks the order of two outline hits
+      only. A test would index 51 definitions of one name.
+
+  - rule: >
+      Suggestions come only when there is no hit, at most 10, in the
+      question's own role, containing the text case-insensitively.
+    tested_by: indexing_follows_the_files
+    note: The body checks "amm" suggests exactly "gamma".
+
+  - rule: >
+      A question's scope is the asker's project and its direct links; an
+      `only` outside it is refused GRANT_SCOPE under a grant and
+      INVALID_COMMAND for a person.
+    tested_by: none
+    note: >
+      No link can be made yet (§15.6 adds the commands), so a test can only
+      name an unknown slug; spec §15.11 asks for the scope test with links.
+
+
+agreements:
+  - between: [scan_project, index_file]
+    must: >
+      decide keep-or-skip and a file's rows by the same rules, so the index
+      does not depend on which path saw a change
+    holds: true
+    why: >
+      `scan_project` filters with `walk`, whose kept paths pass `keeps`, and
+      indexes each through `index_file`; it deletes the unseen keys itself
+      only because the walk, not the disk, decides they left the scope.
+    tested_by: indexing_follows_the_files
+
+
+not_the_caller's:
+  - >
+      Check the scope, resolve a slug, or join a path to a project's folder
+      yourself: an adapter passes the asker, `only` and the text to `Code`,
+      which owns `projects` and `inside`.
+  - >
+      Filter a changed path or write a file's rows yourself: `keeps` and
+      `index_file` are the only implementation of either.
+
+
+gaps:
+  - at: status_of
+    gap: >
+      Incomplete: the state is `Ready` or `Inactive` by whether the project
+      has rows, and `updated_at` is always None. `Indexing` and
+      `DirectoryMissing` are never answered until the active set and the
+      workers of §15.4 and §15.6 exist.
+  - at: by_name
+    gap: >
+      Incomplete: §15.5 has a question check the size and modified time of
+      its hits' files and re-index a changed one before answering; the
+      answer is read from the index as it stands.
+
+
+tests:
+  - name: indexing_follows_the_files
+    checks: >
+      After one scan: `alpha` is defined at src/a.rs:1 with its signature,
+      referenced from src/b.rs with matched_by "name"; definitions in
+      target/ and in a file a nested .gitignore names are absent; status
+      counts one too_large file. After changing a.rs (line 3), deleting b.rs
+      and adding c.ts: alpha is at line 3, has no reference, gamma has one
+      definition, outline "src" is [alpha, gamma], and "amm" answers no hit
+      with the suggestion ["gamma"].

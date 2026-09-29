@@ -79,6 +79,17 @@ pub use crate::projects::ProjectDirectory;
 pub use crate::runtime::{ReconcileReport, Runtime};
 pub use crate::threads::{NewThreadEntry, TurnContext};
 
+impl crate::code::Code {
+    /// `scan`, now, on the test's task: the index a test asks about is the
+    /// one its files were just written into.
+    pub async fn scan_for_test(
+        &self,
+        project: &crate::projects::ProjectId,
+    ) -> Result<(), crate::error::CoreError> {
+        self.scan(project).await
+    }
+}
+
 impl AppCore {
     /// The application over parts a test built, so the test keeps its own
     /// handles on the same `Arc`s. The binary builds it with `start`.

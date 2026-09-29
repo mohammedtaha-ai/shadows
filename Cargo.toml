@@ -50,6 +50,9 @@ tree-sitter-tags = "=0.27.0"
 tree-sitter-rust = "=0.24.2"
 tree-sitter-typescript = "=0.23.2"
 tree-sitter-javascript = "=0.25.0"
+# Spec §15.4: the walk of a project's folder, honouring its `.gitignore`
+# files whether or not it is a Git repository.
+ignore = "0.4.33"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1", features = ["v4", "serde"] }

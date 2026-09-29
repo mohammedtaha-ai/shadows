@@ -15,6 +15,7 @@ use shadows_agent::claude::ClaudeAdapter;
 use shadows_agent::events::HarnessEvent;
 use shadows_process::{ProcessSpec, spawn};
 
+use crate::code::Code;
 use crate::command::{CommandContext, fingerprint};
 use crate::db::Storage;
 use crate::error::CoreError;
@@ -60,6 +61,7 @@ pub struct AppCore {
     threads: Threads,
     instructions: Instructions,
     events: Events,
+    code: Code,
 }
 
 /// What `start` needs from the binary's `Config`: the database path, node,
@@ -175,6 +177,7 @@ impl AppCore {
             threads,
             instructions: Instructions::new(storage.clone()),
             events,
+            code: Code::new(storage.clone()),
         })
     }
 
@@ -208,6 +211,10 @@ impl AppCore {
 
     pub fn events(&self) -> &Events {
         &self.events
+    }
+
+    pub fn code(&self) -> &Code {
+        &self.code
     }
 
     /// §8.5 through `turns::shut_down(runtime, handles, sessions, bound,
