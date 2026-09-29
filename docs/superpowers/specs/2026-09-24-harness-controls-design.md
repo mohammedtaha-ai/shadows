@@ -290,6 +290,10 @@ nothing durable, §12.2); model, mode and effort are among the choices the sessi
 offers now, the effort is one the chosen model offers, and the mode passes §12.4's
 policy (`SettingNotOffered`); the mode is in the project's allowed set
 (`ModeNotAllowed`); no turn is running on the thread (`ThreadBusy`).
+Efforts belong to a model, so a turn naming another model than the session
+holds sets it before these checks; when a later check or the transaction
+refuses the turn, the session's model is set back, so a refused turn leaves the
+session as it found it.
 
 **One transaction** then commits, together or not at all (§2.1, §6.20):
 

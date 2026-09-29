@@ -222,6 +222,48 @@ async fn an_effort_the_model_does_not_offer_is_refused() {
     assert!(entries(&app).await.is_empty());
 }
 
+async fn session_model(app: &App) -> String {
+    let path = format!("/api/threads/{}/session", app.thread);
+    let (_, c) = app::post(app, &path, json!({})).await;
+    c["current"]["model"].as_str().unwrap().to_string()
+}
+
+/// §12.7: a refused turn leaves no trace, so a model set for it is set back.
+#[tokio::test]
+async fn a_refused_effort_leaves_the_session_on_its_model() {
+    let app = test_app().await;
+    assert_eq!(session_model(&app).await, "fake-large");
+    let (status, body) = http_start(
+        &app,
+        &thread(&app),
+        json!({ "command_id": "t1", "prompt": "hi", "model": "fake-small", "mode": "acceptEdits", "effort": "max" }),
+    )
+    .await;
+    assert_eq!(
+        (status, body["code"].as_str()),
+        (422, Some("SETTING_NOT_OFFERED"))
+    );
+    assert_eq!(session_model(&app).await, "fake-large");
+}
+
+#[tokio::test]
+async fn a_refused_mode_leaves_the_session_on_its_model() {
+    let app = test_app().await;
+    assert_eq!(session_model(&app).await, "fake-large");
+    patch_modes(&app, &["acceptEdits"]).await;
+    let (status, body) = http_start(
+        &app,
+        &thread(&app),
+        json!({ "command_id": "t1", "prompt": "hi", "model": "fake-small", "mode": "auto", "effort": "high" }),
+    )
+    .await;
+    assert_eq!(
+        (status, body["code"].as_str()),
+        (403, Some("MODE_NOT_ALLOWED"))
+    );
+    assert_eq!(session_model(&app).await, "fake-large");
+}
+
 #[tokio::test]
 async fn a_model_the_account_cannot_use_is_refused_with_the_harness_message() {
     let app = test_app().await;

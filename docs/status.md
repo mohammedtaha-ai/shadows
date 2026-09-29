@@ -95,8 +95,8 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 ## Next
 
 1. **The five pre-existing defects Milestone 2.5 found,** each a `gap` in its
-   service's contract: a model change is not undone when a later check refuses
-   the turn; `Sessions` opens a second SQLite pool, so its events do not wake
+   service's contract. Fixed: a model change is now set back when a later
+   check refuses the turn. Left: `Sessions` opens a second SQLite pool, so its events do not wake
    SSE; `from_workflow_id` is not fingerprinted; the harness-session route's
    OpenAPI text says nothing durable is written.
 2. **Milestone 3: the code index** (`vision.md` §2.4), with tree-sitter embedded.

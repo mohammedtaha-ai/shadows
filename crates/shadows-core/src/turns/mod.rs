@@ -244,7 +244,8 @@ impl Turns {
     }
 
     /// The rest of §12.7's checks on the leased session, then the one
-    /// transaction.
+    /// transaction. A model set for the turn is set back when the turn is not
+    /// started, so a refused turn leaves the session as it found it.
     async fn record(
         &self,
         thread_id: &ThreadId,
@@ -252,16 +253,34 @@ impl Turns {
         context: &TurnContext,
         turn: Turn<'_>,
     ) -> Result<StartedTurn, CoreError> {
+        let (offered, previous) = self
+            .offer_for_model(thread_id, opened, &turn.settings.model)
+            .await?;
+        let started = self.start(thread_id, context, turn, &offered).await;
+        if let Some(previous) = previous
+            && !matches!(&started, Ok(s) if !s.replayed)
+        {
+            self.set_model_back(thread_id, opened, &offered, &previous)
+                .await;
+        }
+        started
+    }
+
+    /// The offer's checks on the turn's settings, then `start_turn`.
+    async fn start(
+        &self,
+        thread_id: &ThreadId,
+        context: &TurnContext,
+        turn: Turn<'_>,
+        offered: &Offered,
+    ) -> Result<StartedTurn, CoreError> {
         let Turn {
             command,
             prompt,
             settings,
             focus,
         } = turn;
-        let offered = self
-            .offer_for_model(thread_id, opened, &settings.model)
-            .await?;
-        if let Some((what, id)) = refusal(&offered, &context.harness, settings) {
+        if let Some((what, id)) = refusal(offered, &context.harness, settings) {
             return Err(CoreError::SettingNotOffered {
                 what: what.to_string(),
                 id,
@@ -313,30 +332,47 @@ impl Turns {
         }
     }
 
-    /// The session's offer for `model`. Efforts belong to a model, so a turn
-    /// naming another model than the session holds sets it first (§12.7): the
-    /// only session change made before the transaction, since it records
-    /// nothing. The harness refusing it is `SettingNotOffered` in its words.
+    /// The session's offer for `model`, with the model it held when this set
+    /// another. Efforts belong to a model, so a turn naming another model than
+    /// the session holds sets it first (§12.7): the only session change made
+    /// before the transaction, since it records nothing. The harness refusing
+    /// it is `SettingNotOffered` in its words.
     async fn offer_for_model(
         &self,
         thread: &ThreadId,
         opened: &OpenSession,
         model: &str,
-    ) -> Result<Offered, CoreError> {
+    ) -> Result<(Offered, Option<String>), CoreError> {
         let closed = || CoreError::HarnessStartFailed("the harness session closed".into());
         let offered = self.sessions.offered(thread).await.ok_or_else(closed)?;
         if offered.current.model == model || !offered.offers_model(model) {
-            return Ok(offered);
+            return Ok((offered, None));
         }
         let id = offered.ids.model.clone();
         match self.sessions.set_option(thread, opened, &id, model).await {
-            Ok(next) => Ok(next),
+            Ok(next) => Ok((next, Some(offered.current.model))),
             Err(AcpError::Rpc(message)) => Err(CoreError::SettingNotOffered {
                 what: "model".into(),
                 id: model.into(),
                 detail: Some(message),
             }),
             Err(AcpError::Closed) => Err(closed()),
+        }
+    }
+
+    /// Sets back the model `offer_for_model` replaced. The turn's refusal is
+    /// the answer either way, so a harness that will not take the model back
+    /// is logged, not returned.
+    async fn set_model_back(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+        offered: &Offered,
+        previous: &str,
+    ) {
+        let id = &offered.ids.model;
+        if let Err(e) = self.sessions.set_option(thread, opened, id, previous).await {
+            tracing::warn!(thread_id = %thread, model = previous, error = %e, "turn.model_not_set_back");
         }
     }
 }
