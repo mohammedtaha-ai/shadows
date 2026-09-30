@@ -503,7 +503,18 @@ is open.
 
 - **Sidebar**, under a project: Conversations, **Workflows** (each thread's
   latest version with its state) and Project settings. With no plan yet, the
-  section invites the person to ask the Planner for one.
+  section invites the person to ask the Planner for one. Each project folds
+  open or closed from its row, as a tree, and several may be open at once;
+  folding never navigates, so the open conversation stays open. The project
+  the URL is in opens when the URL comes to it, and the open set is
+  remembered in the browser across reloads. A `+` on the row starts a new
+  conversation in that project.
+- **Text direction:** Arabic and English each read in their own direction.
+  Every block of a reply (paragraph, list item, heading, table cell) takes the
+  direction of its first strong character, as do the person's messages and
+  every conversation, plan and project name; a quote or list takes the
+  direction of its first letter. Inline code is a left-to-right island and a
+  fenced code block is always left to right.
 - **Workflows page** `/projects/{id}/workflows/{workflowId}`:
   - Header: title, `Draft v2` or `Approved v1`, a link to its conversation,
     previous/next version, zoom and fit, and **Approve** on a draft only,

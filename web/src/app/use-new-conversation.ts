@@ -36,5 +36,8 @@ export function useNewConversation(projectId: string) {
     create.mutate({ ...request, command_id: attempt.current.commandId })
   }
 
-  return { start, pending: create.isPending, error: create.error }
+  /** `start()` does nothing until the project's conversations are read: the
+   * title counts them. */
+  const ready = threads.data !== undefined
+  return { start, ready, pending: create.isPending, error: create.error }
 }

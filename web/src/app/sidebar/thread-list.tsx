@@ -1,4 +1,4 @@
-// One job: the open project's conversations in the sidebar, and the row that
+// One job: an open project's conversations in the sidebar, and the row that
 // starts a new one.
 
 import { useQuery } from '@tanstack/react-query'
@@ -29,7 +29,9 @@ export function ThreadList({ projectId, selected }: { projectId: string; selecte
               }`}
             >
               <MessageSquare className="size-3.5 shrink-0" />
-              <span className="truncate">{thread.title}</span>
+              <span dir="auto" className="min-w-0 flex-1 truncate text-start">
+                {thread.title}
+              </span>
             </Link>
           </li>
         )
