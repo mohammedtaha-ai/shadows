@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-01 (project removal merged)
+**Updated:** 2026-10-01 (sidebar, drafts and titles merged)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -8,6 +8,18 @@ decision live in the topic owners indexed by
 restate them.
 
 ## Where we are
+
+**The web client after Mohammed used it** (PR #11, 2026-10-01; 350 Rust,
+142 web tests). The changes:
+- the sidebar folds like the Claude app, with a `+` per project;
+- a new conversation is a draft until its first message;
+- a conversation is titled from its first message, then by the title Claude
+  Code generates (§4.2, §12.3);
+- Arabic and English each read in their own direction (§13.11);
+- the allowed modes moved into Project settings (§12.11).
+
+It ran against a copy of the dev database. That run found "New session", a
+placeholder title Claude Code sends, which is now ignored.
 
 **A project can be removed** (PR #10, 2026-10-01; 344 Rust tests): a soft
 removal, refused while the project has threads (spec §4.2), which drops its
