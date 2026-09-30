@@ -507,6 +507,7 @@
           "WORKFLOW_FROZEN_IMMUTABLE",
           "WORKFLOW_VALIDATION_FAILED",
           "REVISION_CONFLICT",
+          "PROJECT_HAS_THREADS",
           "GRANT_SCOPE",
           "GRANT_INVALID"
         ],
@@ -2355,6 +2356,85 @@
       }
     },
     "/api/projects/{id}": {
+      "delete": {
+        "operationId": "remove_project",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "The idempotency key (spec §3.2), scoped to the project.",
+            "in": "query",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            },
+            "description": "Removed, or the replay of the same command"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no `command_id`"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "PROJECT_HAS_THREADS, or COMMAND_CONFLICT"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Removes a project that holds no planning thread (spec §4.2): it is listed\nnowhere again, its code index, its links and its MCP grants go, and its\nslug stays taken. A replay answers the removed project.",
+        "tags": [
+          "projects"
+        ]
+      },
       "patch": {
         "operationId": "update_project",
         "parameters": [

@@ -84,6 +84,18 @@ spellings of one folder are one directory. It is not the project's identity
 none can be backfilled, so such a project's turns fail at Prepare rather than
 run in the daemon's working directory.
 
+A project can be **removed** (`DELETE /api/projects/{id}`, command
+`project.remove`). It is a soft remove: the durable log references the row
+and is never erased, so the row stays with `removed_at` set. Removal is
+refused while the project holds any planning thread (`ProjectHasThreads`,
+409), and nothing is written. Otherwise, in one write, its code index and its
+links both ways go (§15.4), its live project grants are revoked (§13.7), and
+`ProjectRemoved` is journaled. Afterwards it is NotFound everywhere: it is not
+listed, every request that acts on it — a thread, a grant, a turn, a code
+question, a link — is refused as not found, and a read of what it held (its
+threads, grants, instructions, links) answers as for an unknown project.
+Its slug stays taken: adding the same folder again needs another slug.
+
 ### PlanningThread
 
 ```rust

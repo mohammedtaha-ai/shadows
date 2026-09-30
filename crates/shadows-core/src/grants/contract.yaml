@@ -78,7 +78,8 @@ functions:
     issue:
       signature: "(&self, command_id: String, project: &ProjectId) -> Result<IssuedView, CoreError>"
       # "McpGrantIssue", params { project }, principal User/local, scope
-      # ("Project", project). An unknown project is NotFound("project").
+      # ("Project", project). An unknown or removed project is
+      # NotFound("project").
     revoke:
       signature: "(&self, command_id: String, grant: &GrantId) -> Result<Grant, CoreError>"
       # "McpGrantRevoke", params { grant }, scope ("Grant", grant). A thread
@@ -117,6 +118,7 @@ functions:
       signature: "(&self, raw: &str) -> Result<Option<Grant>, StorageError>"
     list_project_grants:
       signature: "(&self, project: &ProjectId) -> Result<Vec<Grant>, StorageError>"
+      # None for a removed project, as for an unknown one (§4.2).
     prepare_draft:
       signature: "(&self, grant: &GrantId) -> Result<String, StorageError>"
       # A new `dr-<uuid>` for a live project grant, good for an hour; never
@@ -130,6 +132,10 @@ functions:
       signature: "(conn, grant: &Grant, actor, ts) -> Result<(), StorageError>"
       private: true
       # `UPDATE … WHERE revoked_at IS NULL`; no event when no row changed.
+    revoke_project_grants_in:
+      signature: "(conn, project: &ProjectId, actor: Actor, ts: &str) -> Result<(), StorageError>"
+      # Every live project grant on the project, ORDER BY id, through
+      # `revoke_in`, inside the caller's write.
     check_writer:
       signature: "(conn, writer: &Writer, project: &ProjectId, thread: Option<&ThreadId>) -> Result<(), StorageError>"
       # Ok for a person. GrantInvalid for an unknown or revoked grant;
@@ -165,6 +171,7 @@ enums:
 shared_in_transaction:
   check_writer: "Plans' store (plans/store/draft.rs start_draft and start_thread_with_draft, edit.rs edit_plan, view.rs show_plan): the writer's grant is judged live and in scope inside the plan write's own transaction, so a revocation between the tool's bearer check and the write stops the write"
   bind_draft_ref: "Plans' store (plans/store/draft.rs start_draft and start_thread_with_draft): the draft_ref is bound to the version the same transaction creates, so a refused ref leaves no thread or version behind"
+  revoke_project_grants_in: "Projects' store (projects/store.rs remove_project): a removed project's live grants are revoked in the removal's own write, so its token stops with it (§4.2)"
 
 
 called_by_other_services:

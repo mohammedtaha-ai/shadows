@@ -210,10 +210,11 @@ pub(crate) async fn insert_thread(
     actor: Actor,
     ts: &str,
 ) -> Result<ThreadId, StorageError> {
-    let project: Option<String> = sqlx::query_scalar("SELECT id FROM project WHERE id = ?")
-        .bind(project_id.as_str())
-        .fetch_optional(&mut *conn)
-        .await?;
+    let project: Option<String> =
+        sqlx::query_scalar("SELECT id FROM project WHERE id = ? AND removed_at IS NULL")
+            .bind(project_id.as_str())
+            .fetch_optional(&mut *conn)
+            .await?;
     if project.is_none() {
         return Err(StorageError::NotFound("project"));
     }

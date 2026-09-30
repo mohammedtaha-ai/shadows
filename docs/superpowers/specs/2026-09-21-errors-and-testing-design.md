@@ -115,6 +115,8 @@ IdempotencyKeyRequired
 InvalidCommand
 InvalidCursor
 
+ProjectHasThreads    -- removing a project that holds a planning thread (§4.2); 409
+
 PathInvalid          -- not absolute, not UTF-8, or not a single valid name
 PathNotFound
 PathNotADirectory

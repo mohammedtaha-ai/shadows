@@ -30,6 +30,7 @@ use crate::error::CoreError;
 use crate::projects::ProjectId;
 use active::Active;
 use store::ScopeRow;
+pub(crate) use store::{delete_code_index_in, delete_code_links_in};
 use watch::Job;
 
 /// The hits an answer carries at most (§15.5).
@@ -95,6 +96,15 @@ impl Code {
             active.used(&rows);
             active.settle(self);
         }
+    }
+
+    /// The project was removed (§15.4): its watcher and worker stop, and it
+    /// leaves the active set, whose next project takes its place. It never
+    /// fails its caller; the rows went in the removal's own write.
+    pub async fn forget(&self, project: &ProjectId) {
+        let mut active = self.inner.active.lock().await;
+        active.forget(project);
+        active.settle(self);
     }
 
     /// Stops every watcher and worker; a worker finishes the file it is on.

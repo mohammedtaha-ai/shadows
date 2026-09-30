@@ -291,7 +291,7 @@ impl AppCore {
 pub fn adapter_version(adapter_entry: &Path) -> String
 ```
 
-### `crates/shadows-core/src/code/active.rs` — 162 lines
+### `crates/shadows-core/src/code/active.rs` — 177 lines
 
 ```rust
 pub(super) struct Active {}
@@ -303,6 +303,7 @@ impl Active {
     pub(super) fn used(&mut self, rows: &[(ProjectId, Option<PathBuf>)])
     pub(super) fn limit(&mut self, limit: usize)
     pub(super) fn settle(&mut self, code: &Code)
+    pub(super) fn forget(&mut self, project: &ProjectId)
     pub(super) fn worker(&self, project: &ProjectId) -> Option<&Worker>
     pub(super) fn active(&self) -> Vec<ProjectId>
     pub(super) fn close(&mut self) -> Vec<JoinHandle<()>>
@@ -321,17 +322,19 @@ impl Code {
 }
 ```
 
-### `crates/shadows-core/src/code/mod.rs` — 313 lines
+### `crates/shadows-core/src/code/mod.rs` — 323 lines
 
 ```rust
 pub use model::{ Answer, CodeConfig, CodeSettings, Hit, IndexState, ProjectLink, ProjectStatus, Skipped, };
 pub use scope::Asker;
+pub(crate) use store::{delete_code_index_in, delete_code_links_in};
 pub struct Code {}
 // + 1 private field
 impl Code {
     pub(crate) fn new(storage: Arc<Storage>) -> Self
     pub async fn start(&self, config: CodeConfig) -> Result<(), CoreError>
     pub async fn touch(&self, project: &ProjectId)
+    pub async fn forget(&self, project: &ProjectId)
     pub(crate) async fn shut_down(&self)
     pub(crate) async fn pause_watcher(&self, project: &ProjectId)
     pub(crate) async fn active_projects(&self) -> Vec<ProjectId>
@@ -427,7 +430,7 @@ pub(super) async fn projects(storage: &Storage, asker: &Asker<'_>, only: Option<
 pub(super) fn inside(path: &str) -> Result<String, CoreError>
 ```
 
-### `crates/shadows-core/src/code/store/links.rs` — 231 lines
+### `crates/shadows-core/src/code/store/links.rs` — 247 lines
 
 ```rust
 impl Storage {
@@ -437,11 +440,14 @@ impl Storage {
     pub(in crate::code) async fn remove_code_link(&self, ctx: &CommandContext, project: &ProjectId, linked: &ProjectId) -> Result<bool, StorageError>
     pub(in crate::code) async fn set_code_active_limit(&self, ctx: &CommandContext, limit: u32) -> Result<u32, StorageError>
 }
+
+pub(crate) async fn delete_code_links_in(conn: &mut SqliteConnection, project: &ProjectId) -> Result<(), StorageError>
 ```
 
-### `crates/shadows-core/src/code/store/mod.rs` — 362 lines
+### `crates/shadows-core/src/code/store/mod.rs` — 399 lines
 
 ```rust
+pub(crate) use links::delete_code_links_in;
 pub(super) struct FileRow {
     pub(super) path_key: String,
     pub(super) path: String,
@@ -464,6 +470,8 @@ impl Storage {
     pub(super) async fn code_outline(&self, scope: &[ScopeRow], path_key: &str) -> Result<Vec<Hit>, StorageError>
     pub(super) async fn code_counts(&self, project: &ProjectId) -> Result<(u32, Vec<Skipped>), StorageError>
 }
+
+pub(crate) async fn delete_code_index_in(conn: &mut SqliteConnection, project: &ProjectId) -> Result<(), StorageError>
 ```
 
 ### `crates/shadows-core/src/code/watch.rs` — 426 lines
@@ -535,7 +543,7 @@ pub(crate) async fn append_event(conn: &mut SqliteConnection, event: &DurableEve
 pub async fn append_event_for_test(conn: &mut SqliteConnection, event: &DurableEvent, now: &str) -> Result<i64, StorageError>
 ```
 
-### `crates/shadows-core/src/db/mod.rs` — 296 lines
+### `crates/shadows-core/src/db/mod.rs` — 299 lines
 
 ```rust
 pub(crate) use command::{classify, record_command};
@@ -560,6 +568,7 @@ pub enum StorageError {
     GrantScope,
     TaskNotInPlan(String),
     NotLatestVersion(WorkflowId),
+    ProjectHasThreads,
     Json(serde_json::Error),
     Database(sqlx::Error),
 }
@@ -573,7 +582,7 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/error.rs` — 104 lines
+### `crates/shadows-core/src/error.rs` — 106 lines
 
 ```rust
 pub enum ErrorCode {
@@ -607,6 +616,7 @@ pub enum ErrorCode {
     WorkflowFrozenImmutable,
     WorkflowValidationFailed,
     RevisionConflict,
+    ProjectHasThreads,
     GrantScope,
     GrantInvalid,
 }
@@ -738,7 +748,7 @@ impl Subscription {
 ```rust
 pub use model::{Grant, GrantId, GrantKind};
 pub use model::{IssuedGrant, Token, hash_token};
-pub(crate) use store::{bind_draft_ref, check_writer};
+pub(crate) use store::{bind_draft_ref, check_writer, revoke_project_grants_in};
 pub struct Grants {}
 // + 2 private fields
 pub struct IssuedView {
@@ -797,7 +807,7 @@ pub struct IssuedGrant {
 }
 ```
 
-### `crates/shadows-core/src/grants/store.rs` — 416 lines
+### `crates/shadows-core/src/grants/store.rs` — 441 lines
 
 ```rust
 impl Storage {
@@ -811,6 +821,7 @@ impl Storage {
     pub async fn prepare_draft(&self, grant: &GrantId) -> Result<String, StorageError>
 }
 
+pub(crate) async fn revoke_project_grants_in(conn: &mut SqliteConnection, project: &ProjectId, actor: Actor, ts: &str) -> Result<(), StorageError>
 pub(crate) async fn check_writer(conn: &mut SqliteConnection, writer: &Writer, project: &ProjectId, thread: Option<&ThreadId>) -> Result<(), StorageError>
 pub(crate) async fn bind_draft_ref(conn: &mut SqliteConnection, writer: &Writer, draft_ref: &str, workflow: &WorkflowId, project: &ProjectId, ts: &str) -> Result<(), StorageError>
 ```
@@ -1031,7 +1042,7 @@ pub struct InstructionsVersion {
 }
 ```
 
-### `crates/shadows-core/src/instructions/store.rs` — 107 lines
+### `crates/shadows-core/src/instructions/store.rs` — 110 lines
 
 ```rust
 impl Storage {
@@ -1395,7 +1406,7 @@ pub(super) fn canonical_dir(raw: &Path) -> Result<PathBuf, DirectoryError>
 pub(super) fn utf8(path: PathBuf) -> Result<String, DirectoryError>
 ```
 
-### `crates/shadows-core/src/projects/mod.rs` — 130 lines
+### `crates/shadows-core/src/projects/mod.rs` — 150 lines
 
 ```rust
 pub use browse::{DirectoryEntry, DirectoryListing};
@@ -1408,6 +1419,7 @@ impl Projects {
     pub async fn list(&self) -> Result<Vec<Project>, CoreError>
     pub async fn create(&self, command_id: String, slug: &str, name: &str, directory: &str) -> Result<Project, CoreError>
     pub async fn set_modes(&self, command_id: String, project: &ProjectId, allowed_modes: BTreeMap<String, Vec<String>>) -> Result<Project, CoreError>
+    pub async fn remove(&self, command_id: String, project: &ProjectId) -> Result<Project, CoreError>
     pub async fn list_dirs(&self, path: Option<String>) -> Result<DirectoryListing, CoreError>
     pub async fn create_dir(&self, parent: String, name: String) -> Result<DirectoryEntry, CoreError>
 }
@@ -1434,13 +1446,14 @@ pub struct Project {
 }
 ```
 
-### `crates/shadows-core/src/projects/store.rs` — 252 lines
+### `crates/shadows-core/src/projects/store.rs` — 319 lines
 
 ```rust
 impl Storage {
     pub async fn create_project(&self, ctx: &CommandContext, slug: &str, name: &str, directory: &ProjectDirectory, default_modes: &BTreeMap<String, Vec<String>>) -> Result<Project, StorageError>
     pub async fn list_projects(&self) -> Result<Vec<Project>, StorageError>
     pub async fn get_project(&self, id: &ProjectId) -> Result<Project, StorageError>
+    pub async fn remove_project(&self, ctx: &CommandContext, project_id: &ProjectId) -> Result<Project, StorageError>
     pub async fn set_project_modes(&self, ctx: &CommandContext, project_id: &ProjectId, modes: &BTreeMap<String, Vec<String>>) -> Result<Project, StorageError>
 }
 ```
@@ -1662,7 +1675,7 @@ pub(crate) use entry::append_entry_in;
 pub(crate) use thread::insert_thread;
 ```
 
-### `crates/shadows-core/src/threads/store/thread.rs` — 294 lines
+### `crates/shadows-core/src/threads/store/thread.rs` — 295 lines
 
 ```rust
 impl Storage {
@@ -1992,7 +2005,7 @@ pub(super) async fn detached<T: Send + 'static>(work: impl Future<Output = Resul
 pub(super) async fn stop_turn(State(s): State<AppState>, Path(op_id): Path<OperationId>) -> Result<Json<Operation>, Failure>
 ```
 
-### `crates/shadows-http/src/failure.rs` — 394 lines
+### `crates/shadows-http/src/failure.rs` — 397 lines
 
 ```rust
 pub struct Failure {}
@@ -2090,7 +2103,7 @@ pub fn document() -> String
 pub(super) async fn serve() -> ([(header::HeaderName, &'static str); 1], String)
 ```
 
-### `crates/shadows-http/src/project.rs` — 175 lines
+### `crates/shadows-http/src/project.rs` — 209 lines
 
 ```rust
 pub(super) struct CreateProject {}
@@ -2104,6 +2117,9 @@ pub(super) async fn create_thread(State(s): State<AppState>, Path(project_id): P
 pub(super) struct UpdateProject {}
 // + 2 private fields
 pub(super) async fn update_project(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Json(body): Json<UpdateProject>) -> Result<Json<Project>, Failure>
+pub(super) struct RemoveProjectQuery {}
+// + 1 private field
+pub(super) async fn remove_project(State(s): State<AppState>, Path(project_id): Path<ProjectId>, Query(q): Query<RemoveProjectQuery>) -> Result<Json<Project>, Failure>
 ```
 
 ### `crates/shadows-http/src/sse.rs` — 228 lines

@@ -164,6 +164,21 @@ impl Storage {
     }
 }
 
+/// Inside the caller's write: the project's links, the ones it reads and
+/// the ones reading it. Projects' `remove_project` calls it (§15.4); a
+/// removed link journals no `ProjectUnlinked`, the `ProjectRemoved` says it.
+pub(crate) async fn delete_code_links_in(
+    conn: &mut SqliteConnection,
+    project: &ProjectId,
+) -> Result<(), StorageError> {
+    sqlx::query("DELETE FROM project_link WHERE project_id = ? OR linked_project_id = ?")
+        .bind(project.as_str())
+        .bind(project.as_str())
+        .execute(&mut *conn)
+        .await?;
+    Ok(())
+}
+
 fn into_link((project, linked, created_at): LinkRow) -> ProjectLink {
     ProjectLink {
         project,
@@ -223,9 +238,10 @@ async fn replayed_link(
 }
 
 async fn is_project(conn: &mut SqliteConnection, id: &ProjectId) -> Result<bool, StorageError> {
-    let known: Option<i64> = sqlx::query_scalar("SELECT 1 FROM project WHERE id = ?")
-        .bind(id.as_str())
-        .fetch_optional(&mut *conn)
-        .await?;
+    let known: Option<i64> =
+        sqlx::query_scalar("SELECT 1 FROM project WHERE id = ? AND removed_at IS NULL")
+            .bind(id.as_str())
+            .fetch_optional(&mut *conn)
+            .await?;
     Ok(known.is_some())
 }

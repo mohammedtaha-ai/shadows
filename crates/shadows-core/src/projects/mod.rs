@@ -108,6 +108,26 @@ impl Projects {
         Ok(self.storage.set_project_modes(&c, project, &modes).await?)
     }
 
+    /// Removes a project that holds no planning thread (§4.2, §15.4):
+    /// "project.remove", params { "project" }. Its index, its links both ways
+    /// and its live project grants go in the same write; then the code index
+    /// forgets it, which never fails the removal. A replay answers the
+    /// removed project and changes nothing.
+    pub async fn remove(
+        &self,
+        command_id: String,
+        project: &ProjectId,
+    ) -> Result<Project, CoreError> {
+        let params = serde_json::json!({ "project": project });
+        let c = user_command(command_id, "project.remove", params);
+        let removed = self.storage.remove_project(&c, project).await?;
+        // On its own task: a caller dropped after the commit (a client that
+        // hung up) must not leave the removed project's worker running.
+        let (code, gone) = (self.code.clone(), project.clone());
+        let _ = tokio::spawn(async move { code.forget(&gone).await }).await;
+        Ok(removed)
+    }
+
     /// A directory's immediate subdirectories, or the roots when `path` is
     /// absent or empty. Read on a blocking thread.
     pub async fn list_dirs(&self, path: Option<String>) -> Result<DirectoryListing, CoreError> {

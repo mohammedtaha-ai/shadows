@@ -49,6 +49,8 @@ pub enum ErrorCode {
     /// `expected_revision` is stale (§13.5); the answer carries the current
     /// revision; 409.
     RevisionConflict,
+    /// A project that holds a planning thread is not removed (§4.2); 409.
+    ProjectHasThreads,
     /// An MCP call outside its grant's thread or project (§13.6). MCP tool
     /// results only: no HTTP route answers it.
     GrantScope,

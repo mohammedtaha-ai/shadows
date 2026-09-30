@@ -135,6 +135,21 @@ impl Active {
         }
     }
 
+    /// The project was removed (§15.4): it leaves the order, and its worker
+    /// stops after the file it is on, its task kept in `leaving` for
+    /// `close`. The caller's `settle` gives its place to the next project.
+    pub(super) fn forget(&mut self, project: &ProjectId) {
+        self.order.retain(|p| p != project);
+        self.dirs.remove(project);
+        self.early.retain(|p| p != project);
+        if let Some(running) = &mut self.running
+            && let Some(worker) = running.workers.remove(project)
+        {
+            tracing::info!(project = project.as_str(), "code.removed");
+            running.leaving.insert(project.clone(), worker.stop());
+        }
+    }
+
     /// The active project's worker, if it is active.
     pub(super) fn worker(&self, project: &ProjectId) -> Option<&Worker> {
         self.running.as_ref()?.workers.get(project)

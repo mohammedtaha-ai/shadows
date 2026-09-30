@@ -97,6 +97,7 @@ fn the_document_names_every_route() {
         named,
         [
             "DELETE /api/mcp-grants/{id}",
+            "DELETE /api/projects/{id}",
             "DELETE /api/projects/{id}/code/links/{linked}",
             "GET /api/code/settings",
             "GET /api/fs/dirs",

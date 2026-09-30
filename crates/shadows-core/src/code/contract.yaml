@@ -27,6 +27,9 @@
 # Trap: before `start` nothing is active — every project answers `Inactive`,
 # and `touch` only records the use. Tests that build with `assemble` start
 # `Code` only when they ask.
+# Trap: a removed project (§4.2) is none to every read here (`code_scope`,
+# `code_order`, `is_project`); its rows and links go in Projects' removal
+# write, through the two `_in` functions, and `forget` then stops its worker.
 #
 # Unlike the index, the links and the active limit are the person's choices:
 # commands with a CommandId (kinds ProjectLinkPut, ProjectLinkRemove,
@@ -185,6 +188,12 @@ functions:
       # After: `used_rows` (its `code_scope` read; NotFound quiet, any other
       # failure logged `code.touch_failed`), `used`, `settle`. After
       # `shut_down`: nothing.
+    forget:
+      signature: "(&self, project: &ProjectId)"
+      # Projects' `remove`, after its write: `Active::forget` (out of the
+      # order, its worker stopped after the file it is on, `code.removed`,
+      # the task kept in `leaving`), then `settle`, so the next project takes
+      # its place. Never fails.
     shut_down:
       signature: "(&self)"
       # `close` under the lock, then every worker's task awaited outside it.
@@ -367,6 +376,8 @@ functions:
       # without one (`code.active`), given that project's `leaving` task.
     worker:
       signature: "(&self, project: &ProjectId) -> Option<&Worker>"
+    forget:
+      signature: "(&mut self, project: &ProjectId)"
     active:
       signature: "(&self) -> Vec<ProjectId>"
       # test-support only.
@@ -465,7 +476,9 @@ functions:
       # `code_outline`: exact on every platform.
     write_code_file:
       signature: "(&self, project: &ProjectId, file: FileRow, tags: Vec<Tag>) -> Result<(), StorageError>"
-      # One write: delete the file's tags, upsert its row, insert its tags.
+      # One write: nothing for a removed project (so a worker finishing a
+      # file after a removal writes no row); else delete the file's tags,
+      # upsert its row, insert its tags.
     delete_code_file:
       signature: "(&self, project: &ProjectId, path_key: &str) -> Result<(), StorageError>"
       # One write: the tags explicitly, then the row.
@@ -473,7 +486,7 @@ functions:
       signature: "(&self) -> Result<Vec<(ProjectId, String)>, StorageError>"
       # Projects with a folder, by the newest `OperationCreated` seq among
       # their threads' operations, else their `ProjectCreated` seq,
-      # descending, then by id.
+      # descending, then by id. Removed projects left out.
     code_active_limit:
       signature: "(&self) -> Result<i64, StorageError>"
       # In store/links.rs, with the links' rows.
@@ -505,11 +518,20 @@ functions:
     is_project:
       signature: "(conn, id: &ProjectId) -> Result<bool, StorageError>"
       private: true
+      # A removed project is none.
+    delete_code_links_in:
+      signature: "(conn, project: &ProjectId) -> Result<(), StorageError>"
+      # In store/links.rs. Every link with the project at either end; no
+      # ProjectUnlinked, the caller's ProjectRemoved says it.
+    delete_code_index_in:
+      signature: "(conn, project: &ProjectId) -> Result<(), StorageError>"
+      # Its tags, then its files, inside the caller's write.
     into_link:
       signature: "(row: LinkRow) -> ProjectLink"
       private: true
     code_scope:
       signature: "(&self, home: &ProjectId) -> Result<Vec<ScopeRow>, StorageError>"
+      # NotFound for a removed project; removed links left out.
     code_by_name:
       signature: "(&self, scope: &[ScopeRow], name: &str, role: &str) -> Result<Vec<Hit>, StorageError>"
       # Per project in the scope's order, by path, line, kind; 51 rows in all.
@@ -530,8 +552,14 @@ functions:
       private: true
 
 
+shared_in_transaction:
+  delete_code_index_in: "Projects' store (projects/store.rs remove_project): a removed project's index goes in the removal's own write (§15.4)"
+  delete_code_links_in: "Projects' store (projects/store.rs remove_project): the links a removed project reads, and those reading it, go in the removal's own write (§15.4)"
+
+
 called_by_other_services:
   touch: "Turns (turns/mod.rs send, once its checks pass), Threads (threads/mod.rs list) and Projects (projects/mod.rs create): each is a use of the project (§15.6); it returns at once and never fails its caller"
+  forget: "Projects (projects/mod.rs remove), after its write: the removed project's worker stops and it leaves the active set (§15.4); it never fails its caller"
 
 
 enums:
@@ -758,8 +786,8 @@ not_the_caller's:
       Filter a changed path or write a file's rows yourself: `keeps` and
       `index_file` are the only implementation of either.
   - >
-      Start or stop a worker yourself: call `touch` for a use; `start` and
-      `shut_down` belong to `AppCore`.
+      Start or stop a worker yourself: call `touch` for a use, `forget` for
+      a removal; `start` and `shut_down` belong to `AppCore`.
 
 
 tests:

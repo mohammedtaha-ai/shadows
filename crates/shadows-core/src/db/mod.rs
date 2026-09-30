@@ -78,6 +78,9 @@ pub enum StorageError {
     /// version it starts from, its thread's latest, which this carries.
     #[error("the source is not the thread's latest version, {0}")]
     NotLatestVersion(WorkflowId),
+    /// Spec §4.2: a project that holds a planning thread is not removed.
+    #[error("the project has planning threads; it cannot be removed")]
+    ProjectHasThreads,
     #[error("stored JSON is invalid: {0}")]
     Json(#[from] serde_json::Error),
     #[error(transparent)]
