@@ -27,9 +27,16 @@
 # Trap: before `start` nothing is active — every project answers `Inactive`,
 # and `touch` only records the use. Tests that build with `assemble` start
 # `Code` only when they ask.
+#
+# Unlike the index, the links and the active limit are the person's choices:
+# commands with a CommandId (kinds ProjectLinkPut, ProjectLinkRemove,
+# CodeActiveLimitSet), each one write with its journal event (ProjectLinked,
+# ProjectUnlinked, CodeActiveLimitSet), as `save_planner_instructions` is.
+# Trap: a link's replay loads the link it made; once that link is removed,
+# the replay answers NotFound "project link".
 
 name: code
-version: 2
+version: 3
 status: current
 source: crates/shadows-core/src/code
 
@@ -84,6 +91,12 @@ shapes:
     more: bool
     suggestions: Vec<String>
     status: Vec<ProjectStatus>
+  ProjectLink:
+    project: String      # the slug of the project that reads
+    linked: String       # the slug of the project it reads
+    created_at: String
+  CodeSettings:
+    active_limit: u32    # 1..=20, default 5 (migration 0008)
   FileRow:
     # What `code_file` holds for one file.
     path_key: String
@@ -224,6 +237,33 @@ functions:
       private: true
       # NoDirectory with no folder; else the worker's `state` and
       # `updated_at`; Inactive and None without a worker.
+  links:
+    links:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CoreError>"
+      # By the linked slug; empty for an unknown project.
+    link:
+      signature: "(&self, command_id: String, project: &ProjectId, linked: &ProjectId) -> Result<ProjectLink, CoreError>"
+      # "ProjectLinkPut", principal User/local, schema 1, params
+      # { project, linked }, scope Project, key the project →
+      # `put_code_link`. Refusals: itself, or `linked` no project,
+      # INVALID_COMMAND; `project` no project, NotFound; CommandConflict.
+      # Linking twice answers the link already there. It does not touch.
+    unlink:
+      signature: "(&self, command_id: String, project: &ProjectId, linked: &ProjectId) -> Result<(), CoreError>"
+      # "ProjectLinkRemove", params { project, linked }, scope Project →
+      # `remove_code_link`. No such link: INVALID_COMMAND "no such link".
+    settings:
+      signature: "(&self) -> Result<CodeSettings, CoreError>"
+    set_active_limit:
+      signature: "(&self, command_id: String, active_limit: u32) -> Result<CodeSettings, CoreError>"
+      # Outside 1..=20: INVALID_COMMAND, before any write.
+      # "CodeActiveLimitSet", params { active_limit }, scope Code, key
+      # "settings" → `set_code_active_limit`; then, under the lock, `limit`
+      # with the stored value (a replay answers an older one) and `settle`:
+      # lowering it stops the least recently used workers at once.
+    invalid:
+      signature: "(message: String) -> CoreError"
+      private: true
   scope:
     projects:
       signature: "(storage: &Storage, asker: &Asker<'_>, only: Option<&str>) -> Result<Vec<ScopeRow>, CoreError>"
@@ -312,6 +352,9 @@ functions:
       signature: "(&mut self, rows: &[(ProjectId, Option<PathBuf>)])"
       # The links (the rows after the first) to the front in their order,
       # then the first; a row with no folder takes no place.
+    limit:
+      signature: "(&mut self, limit: usize)"
+      # The next `settle` follows it; before `start` it does nothing.
     settle:
       signature: "(&mut self, code: &Code)"
       # Stops the worker of every project past the limit (`code.inactive`),
@@ -416,6 +459,33 @@ functions:
       # descending, then by id.
     code_active_limit:
       signature: "(&self) -> Result<i64, StorageError>"
+      # In store/links.rs, with the links' rows.
+    code_links:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, StorageError>"
+    put_code_link:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, linked: &ProjectId) -> Result<Option<ProjectLink>, StorageError>"
+      # One write: classify (a replay loads the link its outcome ref, the
+      # linked id, names) → `project` must exist (NotFound) → `linked` must
+      # (else None) → INSERT … ON CONFLICT DO NOTHING → `ProjectLinked`
+      # { linked } only when a row was made → record_command → the link.
+    remove_code_link:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, linked: &ProjectId) -> Result<bool, StorageError>"
+      # One write: classify (a replay answers true) → DELETE; no row: false,
+      # nothing recorded → `ProjectUnlinked` { linked } → record_command.
+    set_code_active_limit:
+      signature: "(&self, ctx: &CommandContext, limit: u32) -> Result<u32, StorageError>"
+      # One write: classify (a replay answers the limit its outcome ref
+      # holds) → UPDATE code_setting → `CodeActiveLimitSet` { active_limit },
+      # no project → record_command.
+    load_link:
+      signature: "(conn, project: &ProjectId, linked: &ProjectId) -> Result<ProjectLink, StorageError>"
+      private: true
+    is_project:
+      signature: "(conn, id: &ProjectId) -> Result<bool, StorageError>"
+      private: true
+    into_link:
+      signature: "(row: LinkRow) -> ProjectLink"
+      private: true
     code_scope:
       signature: "(&self, home: &ProjectId) -> Result<Vec<ScopeRow>, StorageError>"
     code_by_name:
@@ -505,8 +575,8 @@ obligations:
       The one-writer part is structural (`settle` hands `leaving`'s task to
       `Worker::spawn`); no test evicts a project mid-scan.
       The body has six projects with no turn, so the order is by creation;
-      it does not order by a turn, and there are no links yet (§15.6's
-      commands are a later task).
+      it does not order by a turn, and it makes no link, so a link's
+      activation before its project is held by no test.
 
   - rule: >
       `touch` never fails its caller and never waits on a scan: an error is
@@ -524,11 +594,11 @@ obligations:
       path, so a link or junction on the way, or a name Windows normalises,
       is skipped and logged; `outline` refuses an absolute path, a ':' or a
       '..' component, and reads the index only.
-    tested_by: none
+    tested_by: the_scope_is_the_project_and_its_links_only
     note: >
       `inside`, the WalkBuilder settings, `symlink_metadata` and
-      `names_itself` are the whole rule. A test would ask `outline` for
-      "../x", "/x" and "C:/x" and expect INVALID_COMMAND, and have the
+      `names_itself` are the whole rule. The body asks `outline` for "../"
+      only; a test would also ask for "/x" and "C:/x", and have the
       watcher report a file under a junction leading out of the folder.
 
   - rule: >
@@ -578,13 +648,30 @@ obligations:
     note: The body checks "amm" suggests exactly "gamma".
 
   - rule: >
-      A question's scope is the asker's project and its direct links; an
-      `only` outside it is refused GRANT_SCOPE under a grant and
-      INVALID_COMMAND for a person.
-    tested_by: none
+      A question's scope is the asker's project and its direct links, one
+      way; an `only` outside it is refused GRANT_SCOPE under a grant and
+      INVALID_COMMAND for a person, and an unnamed question never answers
+      from a project outside it.
+    tested_by: the_scope_is_the_project_and_its_links_only
     note: >
-      No link can be made yet (§15.6 adds the commands), so a test can only
-      name an unknown slug; spec §15.11 asks for the scope test with links.
+      With `projects` made to let `only` name any project, the body fails at
+      its first `secret` assertion: `where_is` { key, project: secret } is
+      answered with secret's hit instead of refused. A link's own links
+      (activation or scope) are held by no test.
+
+  - rule: >
+      Links and the active limit change only by command: ProjectLinkPut,
+      ProjectLinkRemove and CodeActiveLimitSet, each one write with its
+      replay, its event and its command record. A link to itself or to no
+      project, removing a link that is not there, and a limit outside
+      1..=20 are INVALID_COMMAND, with nothing written; linking twice
+      answers the link. A new limit is followed at once.
+    tested_by: the_scope_is_the_project_and_its_links_only
+    note: >
+      The body makes one link through the route and nothing else; the
+      refusals, the replays, the events and the limit are held by no test.
+      A test would link twice, unlink twice, link to itself and to a random
+      id, and set the limit to 0, 21 and then 1 and see four workers stop.
 
 
 agreements:
@@ -620,6 +707,10 @@ not_the_caller's:
       yourself: an adapter passes the asker, `only` and the text to `Code`,
       which owns `projects` and `inside`.
   - >
+      Check a link or a limit, or build their fingerprints, yourself: an
+      adapter passes the command id and the ids or the number to `link`,
+      `unlink` or `set_active_limit`, which refuse and record.
+  - >
       Filter a changed path or write a file's rows yourself: `keeps` and
       `index_file` are the only implementation of either.
   - >
@@ -648,3 +739,12 @@ tests:
       Six projects, default config: five are active; the sixth answers
       status Inactive; a question about it answers Indexing or Ready; then
       it is active, five still are, and the least recently used one left.
+  - name: the_scope_is_the_project_and_its_links_only
+    checks: >
+      demo linked to backend through PUT …/code/links/{linked}; secret not
+      linked. Over a project grant: where_is orders answers "backend:
+      src/api.rs:1 function orders", and so does naming backend; naming
+      secret is GRANT_SCOPE; unnamed, `key` never mentions secret; over HTTP
+      naming secret is 422 INVALID_COMMAND; outline "../" is refused "the
+      path must be inside the project"; backend naming demo is 422
+      INVALID_COMMAND (one way).

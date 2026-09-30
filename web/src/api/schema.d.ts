@@ -4,6 +4,27 @@
  */
 
 export interface paths {
+    "/api/code/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The code index's settings. */
+        get: operations["get_settings"];
+        /**
+         * Sets how many projects are active at once (§15.6). Lowering it stops the
+         *     least recently used projects' watchers at once.
+         */
+        put: operations["put_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/fs/dirs": {
         parameters: {
             query?: never;
@@ -145,6 +166,121 @@ export interface paths {
          *     as it now stands.
          */
         patch: operations["update_project"];
+        trace?: never;
+    };
+    "/api/projects/{id}/code/definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Where a name is defined: per hit, its project, path, line, kind and
+         *     signature (§15.5).
+         */
+        get: operations["definitions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/code/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The projects this project reads, by slug. */
+        get: operations["links"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/code/links/{linked}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Lets the project read `linked`'s index, one way (§15.6). Linking twice
+         *     answers the link.
+         */
+        put: operations["put_link"];
+        post?: never;
+        /** Removes the link: the project no longer reads `linked`'s index. */
+        delete: operations["remove_link"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/code/outline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The definitions in a file or folder (§15.5). It reads the index and
+         *     opens no path.
+         */
+        get: operations["outline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/code/references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Where a name is used, matched by name only: every hit says
+         *     `matched_by: "name"` (§15.5).
+         */
+        get: operations["references"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/code/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How the project's index stands. Asking does not make it active. */
+        get: operations["status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/projects/{id}/mcp-grants": {
@@ -523,6 +659,20 @@ export interface components {
             id: string;
             kind: string;
         };
+        /** @description What a question answers. */
+        Answer: {
+            /**
+             * @description At most 50, by project (the asker's first, then its links by slug),
+             *     path and line.
+             */
+            hits: components["schemas"]["Hit"][];
+            /** @description More hits than the 50 answered. */
+            more: boolean;
+            /** @description One per project in the scope. */
+            status: components["schemas"]["ProjectStatus"][];
+            /** @description Up to 10 names containing the text, only when `hits` is empty. */
+            suggestions: string[];
+        };
         ApprovePlan: {
             /** @description The idempotency key (spec §13.5), scoped to the plan version. */
             command_id: string;
@@ -556,6 +706,14 @@ export interface components {
             id: string;
             label: string;
             reason: string | null;
+        };
+        /** @description The code index's settings (§15.6). */
+        CodeSettings: {
+            /**
+             * Format: int32
+             * @description How many projects are active at once: 1 to 20, default 5.
+             */
+            active_limit: number;
         };
         /**
          * @description The context breakdown read on demand (spec §12.8): the categories, or none
@@ -716,6 +874,41 @@ export interface components {
             /** @description Why it cannot run, when `available` is false. */
             reason: string | null;
             remembered: null | components["schemas"]["RememberedSettings"];
+        };
+        /** @description One tag an answer points at. */
+        Hit: {
+            kind: string;
+            /** Format: int32 */
+            line: number;
+            /** @description `Some("name")` on every `references` hit: matched by name only (§15.5). */
+            matched_by?: string | null;
+            name: string;
+            /** @description Relative to the project's folder, with '/'. */
+            path: string;
+            /** @description The project's slug. */
+            project: string;
+            signature?: string | null;
+        };
+        /** @description How a project's index stands (§15.5). */
+        IndexState: {
+            /** @enum {string} */
+            state: "ready";
+        } | {
+            /** Format: int32 */
+            done: number;
+            /** Format: int32 */
+            found: number;
+            /** @enum {string} */
+            state: "indexing";
+        } | {
+            /** @enum {string} */
+            state: "inactive";
+        } | {
+            /** @enum {string} */
+            state: "no_directory";
+        } | {
+            /** @enum {string} */
+            state: "directory_missing";
         };
         /**
          * @description One saved version of a project's instructions. `id` is what an
@@ -901,6 +1094,44 @@ export interface components {
         };
         /** Format: uuid */
         ProjectId: string;
+        /**
+         * @description A project reading another's index (§15.6). One way: `project` reads
+         *     `linked`, never the reverse.
+         */
+        ProjectLink: {
+            created_at: string;
+            /** @description The slug of the project it reads. */
+            linked: string;
+            /** @description The slug of the project that reads. */
+            project: string;
+        };
+        /** @description A project's index: its state, its counts and its last update. */
+        ProjectStatus: {
+            /**
+             * Format: int32
+             * @description Files indexed: the skipped ones are counted in `skipped` only.
+             */
+            files: number;
+            /** @description The project's slug. */
+            project: string;
+            /** @description One per reason, with its count, by reason. */
+            skipped: components["schemas"]["Skipped"][];
+            state: components["schemas"]["IndexState"];
+            updated_at?: string | null;
+        };
+        PutLink: {
+            /** @description The idempotency key (spec §13.5), scoped to the project. */
+            command_id: string;
+        };
+        PutSettings: {
+            /**
+             * Format: int32
+             * @description How many projects are active at once: 1 to 20.
+             */
+            active_limit: number;
+            /** @description The idempotency key (spec §13.5). */
+            command_id: string;
+        };
         /** @description The model and effort last chosen for this harness (spec §12.4). */
         RememberedSettings: {
             effort: string | null;
@@ -925,6 +1156,12 @@ export interface components {
             efforts: components["schemas"]["Choice"][];
             models: components["schemas"]["Choice"][];
             modes: components["schemas"]["Choice"][];
+        };
+        /** @description Files not parsed, for one reason: `too_large`, `binary` or `not_utf8`. */
+        Skipped: {
+            /** Format: int32 */
+            count: number;
+            reason: string;
         };
         /** @description Starts a turn as one command (spec §12.7). */
         StartTurn: {
@@ -1043,6 +1280,85 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeSettings"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    put_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutSettings"];
+            };
+        };
+        responses: {
+            /** @description Set, or the replay of the same command */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeSettings"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: outside 1 to 20 */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_dirs: {
         parameters: {
             query?: {
@@ -1469,6 +1785,399 @@ export interface operations {
             };
             /** @description SETTING_NOT_OFFERED: a mode outside Shadows' policy */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    definitions: {
+        parameters: {
+            query: {
+                /** @description The exact name, case-sensitively. */
+                name: string;
+                /**
+                 * @description A linked project's slug, to ask only it; none asks the project and
+                 *     every project it links to.
+                 */
+                project?: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project asked from */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Answer"];
+                };
+            };
+            /** @description INVALID_COMMAND: no `name` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: the project named is not linked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    links: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectLink"][];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    put_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project that reads */
+                id: components["schemas"]["ProjectId"];
+                /** @description The project it reads */
+                linked: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutLink"];
+            };
+        };
+        responses: {
+            /** @description Linked, or the link already there, or the replay of the same command */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectLink"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: a link to itself, or to no project */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    remove_link: {
+        parameters: {
+            query: {
+                /** @description The idempotency key (spec §13.5), scoped to the project. */
+                command_id: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project that reads */
+                id: components["schemas"]["ProjectId"];
+                /** @description The project it reads */
+                linked: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed, or the replay of the same command */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description INVALID_COMMAND: no `command_id` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such link */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    outline: {
+        parameters: {
+            query: {
+                /** @description A file or folder relative to the project's folder; "" for all of it. */
+                path: string;
+                /** @description As for `definitions`. */
+                project?: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project asked from */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Answer"];
+                };
+            };
+            /** @description INVALID_COMMAND: no `path` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: the path must be inside the project, or the project named is not linked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    references: {
+        parameters: {
+            query: {
+                /** @description The exact name, case-sensitively. */
+                name: string;
+                /**
+                 * @description A linked project's slug, to ask only it; none asks the project and
+                 *     every project it links to.
+                 */
+                project?: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project asked from */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Answer"];
+                };
+            };
+            /** @description INVALID_COMMAND: no `name` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: the project named is not linked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectStatus"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

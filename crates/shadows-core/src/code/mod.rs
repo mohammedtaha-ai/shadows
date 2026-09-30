@@ -5,9 +5,11 @@
 //!
 //! `model` holds the types, `store` the queries, `scan` the walk and the
 //! indexing of one file, `scope` who may read what, `watch` one active
-//! project's worker, `active` which projects have one.
+//! project's worker, `active` which projects have one, `links` the links
+//! and the active limit as commands.
 
 mod active;
+mod links;
 mod model;
 mod scan;
 mod scope;
@@ -18,7 +20,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-pub use model::{Answer, CodeConfig, Hit, IndexState, ProjectStatus, Skipped};
+pub use model::{
+    Answer, CodeConfig, CodeSettings, Hit, IndexState, ProjectLink, ProjectStatus, Skipped,
+};
 pub use scope::Asker;
 
 use crate::db::Storage;

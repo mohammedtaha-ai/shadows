@@ -1,6 +1,9 @@
 //! One job: the code index's SQLite queries (spec §15.4–§15.5). Every read
 //! goes through the reader pool; every write is one short `write_txn` for one
 //! file, so a first index never holds the single writer for long (§6.23).
+//! `links.rs` holds the rows of the links and the active limit (§15.6).
+
+mod links;
 
 use shadows_index::{Role, Tag};
 
@@ -166,15 +169,6 @@ impl Storage {
             .into_iter()
             .map(|(id, dir)| (ProjectId::from_stored(id), dir))
             .collect())
-    }
-
-    /// How many projects are active at once: `code_setting.active_limit`.
-    pub(super) async fn code_active_limit(&self) -> Result<i64, StorageError> {
-        Ok(
-            sqlx::query_scalar("SELECT active_limit FROM code_setting WHERE id = 1")
-                .fetch_one(self.reader())
-                .await?,
-        )
     }
 
     /// The asker's project, then the projects it links to directly, by slug.

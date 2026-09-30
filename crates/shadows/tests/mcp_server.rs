@@ -108,8 +108,11 @@ async fn the_tool_list_depends_on_the_grant_kind() {
         [
             "draft_prepare",
             "draft_start",
+            "outline",
             "plan_edit",
             "task_get",
+            "where_is",
+            "who_uses",
             "workflow_get",
             "workflow_list"
         ]

@@ -92,6 +92,14 @@ impl Active {
         }
     }
 
+    /// A new `active_limit`, which the next `settle` follows. Before `start`
+    /// there is nothing to change: `start` reads the stored limit.
+    pub(super) fn limit(&mut self, limit: usize) {
+        if let Some(running) = &mut self.running {
+            running.limit = limit;
+        }
+    }
+
     /// Every active project gets a worker, which scans at once; every
     /// project past the limit loses its worker, and its index stays.
     pub(super) fn settle(&mut self, code: &Code) {

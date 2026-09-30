@@ -69,6 +69,43 @@
         ],
         "type": "object"
       },
+      "Answer": {
+        "description": "What a question answers.",
+        "properties": {
+          "hits": {
+            "description": "At most 50, by project (the asker's first, then its links by slug),\npath and line.",
+            "items": {
+              "$ref": "#/components/schemas/Hit"
+            },
+            "type": "array"
+          },
+          "more": {
+            "description": "More hits than the 50 answered.",
+            "type": "boolean"
+          },
+          "status": {
+            "description": "One per project in the scope.",
+            "items": {
+              "$ref": "#/components/schemas/ProjectStatus"
+            },
+            "type": "array"
+          },
+          "suggestions": {
+            "description": "Up to 10 names containing the text, only when `hits` is empty.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "hits",
+          "more",
+          "suggestions",
+          "status"
+        ],
+        "type": "object"
+      },
       "ApprovePlan": {
         "properties": {
           "command_id": {
@@ -157,6 +194,21 @@
           "description",
           "enabled",
           "reason"
+        ],
+        "type": "object"
+      },
+      "CodeSettings": {
+        "description": "The code index's settings (§15.6).",
+        "properties": {
+          "active_limit": {
+            "description": "How many projects are active at once: 1 to 20, default 5.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active_limit"
         ],
         "type": "object"
       },
@@ -601,6 +653,141 @@
           "limits"
         ],
         "type": "object"
+      },
+      "Hit": {
+        "description": "One tag an answer points at.",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "line": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "matched_by": {
+            "description": "`Some(\"name\")` on every `references` hit: matched by name only (§15.5).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "description": "Relative to the project's folder, with '/'.",
+            "type": "string"
+          },
+          "project": {
+            "description": "The project's slug.",
+            "type": "string"
+          },
+          "signature": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "project",
+          "path",
+          "line",
+          "kind",
+          "name"
+        ],
+        "type": "object"
+      },
+      "IndexState": {
+        "description": "How a project's index stands (§15.5).",
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "ready"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Files done out of files found, so an agent knows an answer may be incomplete.",
+            "properties": {
+              "done": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "found": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "state": {
+                "enum": [
+                  "indexing"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "done",
+              "found",
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Not in the active set: the index is as it was when the project left it.",
+            "properties": {
+              "state": {
+                "enum": [
+                  "inactive"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A project created before projects owned a folder (migration 0003).",
+            "properties": {
+              "state": {
+                "enum": [
+                  "no_directory"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "directory_missing"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "InstructionsVersion": {
         "description": "One saved version of a project's instructions. `id` is what an\n`agent_invocation` records (§13.15); a client sees the number instead.",
@@ -1161,6 +1348,97 @@
         "format": "uuid",
         "type": "string"
       },
+      "ProjectLink": {
+        "description": "A project reading another's index (§15.6). One way: `project` reads\n`linked`, never the reverse.",
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "linked": {
+            "description": "The slug of the project it reads.",
+            "type": "string"
+          },
+          "project": {
+            "description": "The slug of the project that reads.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "linked",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ProjectStatus": {
+        "description": "A project's index: its state, its counts and its last update.",
+        "properties": {
+          "files": {
+            "description": "Files indexed: the skipped ones are counted in `skipped` only.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "project": {
+            "description": "The project's slug.",
+            "type": "string"
+          },
+          "skipped": {
+            "description": "One per reason, with its count, by reason.",
+            "items": {
+              "$ref": "#/components/schemas/Skipped"
+            },
+            "type": "array"
+          },
+          "state": {
+            "$ref": "#/components/schemas/IndexState"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "project",
+          "state",
+          "files",
+          "skipped"
+        ],
+        "type": "object"
+      },
+      "PutLink": {
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key (spec §13.5), scoped to the project.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id"
+        ],
+        "type": "object"
+      },
+      "PutSettings": {
+        "properties": {
+          "active_limit": {
+            "description": "How many projects are active at once: 1 to 20.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "command_id": {
+            "description": "The idempotency key (spec §13.5).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "active_limit"
+        ],
+        "type": "object"
+      },
       "RememberedSettings": {
         "description": "The model and effort last chosen for this harness (spec §12.4).",
         "properties": {
@@ -1231,6 +1509,24 @@
           "efforts",
           "modes",
           "current"
+        ],
+        "type": "object"
+      },
+      "Skipped": {
+        "description": "Files not parsed, for one reason: `too_large`, `binary` or `not_utf8`.",
+        "properties": {
+          "count": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "count"
         ],
         "type": "object"
       },
@@ -1508,6 +1804,96 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/code/settings": {
+      "get": {
+        "operationId": "get_settings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeSettings"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The code index's settings.",
+        "tags": [
+          "code"
+        ]
+      },
+      "put": {
+        "operationId": "put_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeSettings"
+                }
+              }
+            },
+            "description": "Set, or the replay of the same command"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: outside 1 to 20"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Sets how many projects are active at once (§15.6). Lowering it stops the\nleast recently used projects' watchers at once.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
     "/api/fs/dirs": {
       "get": {
         "description": "Exposes the machine's directory names to any client the CORS list admits;\nsee spec §1's OPEN block on remote access.",
@@ -2037,6 +2423,545 @@
         "summary": "Sets the modes this project allows, per harness (spec §12.5). A turn's\nmode is checked against them when it starts. A replay answers the project\nas it now stands.",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/projects/{id}/code/definitions": {
+      "get": {
+        "operationId": "definitions",
+        "parameters": [
+          {
+            "description": "The project asked from",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "The exact name, case-sensitively.",
+            "in": "query",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A linked project's slug, to ask only it; none asks the project and\nevery project it links to.",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Answer"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no `name`"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: the project named is not linked"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Where a name is defined: per hit, its project, path, line, kind and\nsignature (§15.5).",
+        "tags": [
+          "code"
+        ]
+      }
+    },
+    "/api/projects/{id}/code/links": {
+      "get": {
+        "operationId": "links",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectLink"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The projects this project reads, by slug.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
+    "/api/projects/{id}/code/links/{linked}": {
+      "delete": {
+        "operationId": "remove_link",
+        "parameters": [
+          {
+            "description": "The project that reads",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "The project it reads",
+            "in": "path",
+            "name": "linked",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "The idempotency key (spec §13.5), scoped to the project.",
+            "in": "query",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed, or the replay of the same command"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no `command_id`"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such link"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Removes the link: the project no longer reads `linked`'s index.",
+        "tags": [
+          "code"
+        ]
+      },
+      "put": {
+        "operationId": "put_link",
+        "parameters": [
+          {
+            "description": "The project that reads",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "The project it reads",
+            "in": "path",
+            "name": "linked",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutLink"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLink"
+                }
+              }
+            },
+            "description": "Linked, or the link already there, or the replay of the same command"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: a link to itself, or to no project"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Lets the project read `linked`'s index, one way (§15.6). Linking twice\nanswers the link.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
+    "/api/projects/{id}/code/outline": {
+      "get": {
+        "operationId": "outline",
+        "parameters": [
+          {
+            "description": "The project asked from",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "A file or folder relative to the project's folder; \"\" for all of it.",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "As for `definitions`.",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Answer"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no `path`"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: the path must be inside the project, or the project named is not linked"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The definitions in a file or folder (§15.5). It reads the index and\nopens no path.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
+    "/api/projects/{id}/code/references": {
+      "get": {
+        "operationId": "references",
+        "parameters": [
+          {
+            "description": "The project asked from",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "The exact name, case-sensitively.",
+            "in": "query",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A linked project's slug, to ask only it; none asks the project and\nevery project it links to.",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Answer"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no `name`"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: the project named is not linked"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Where a name is used, matched by name only: every hit says\n`matched_by: \"name\"` (§15.5).",
+        "tags": [
+          "code"
+        ]
+      }
+    },
+    "/api/projects/{id}/code/status": {
+      "get": {
+        "operationId": "status",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectStatus"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "How the project's index stands. Asking does not make it active.",
+        "tags": [
+          "code"
         ]
       }
     },
@@ -3195,6 +4120,10 @@
     {
       "description": "External agents' access to the MCP server",
       "name": "grants"
+    },
+    {
+      "description": "The code index: where a name is defined or used, what a path holds, and the projects a project reads",
+      "name": "code"
     },
     {
       "description": "The CLIs a conversation runs on, and the choices a session offers",

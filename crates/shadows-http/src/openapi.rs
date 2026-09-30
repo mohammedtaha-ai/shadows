@@ -28,6 +28,7 @@ use utoipa::OpenApi;
         (name = "turns", description = "Starting and stopping a Planner turn"),
         (name = "workflows", description = "Plan versions and a person's approval of one"),
         (name = "grants", description = "External agents' access to the MCP server"),
+        (name = "code", description = "The code index: where a name is defined or used, what a path holds, and the projects a project reads"),
         (name = "harnesses", description = "The CLIs a conversation runs on, and the choices a session offers"),
         (name = "stream", description = "The replay-then-live event stream"),
         (name = "filesystem", description = "Choosing a project directory on this machine"),

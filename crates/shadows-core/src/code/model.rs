@@ -1,4 +1,4 @@
-//! One job: the code index types callers meet (spec §15.5).
+//! One job: the code index types callers meet (spec §15.5–§15.6).
 
 /// How a project's index stands (§15.5).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
@@ -82,4 +82,22 @@ impl Default for CodeConfig {
             debounce: std::time::Duration::from_millis(500),
         }
     }
+}
+
+/// A project reading another's index (§15.6). One way: `project` reads
+/// `linked`, never the reverse.
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct ProjectLink {
+    /// The slug of the project that reads.
+    pub project: String,
+    /// The slug of the project it reads.
+    pub linked: String,
+    pub created_at: String,
+}
+
+/// The code index's settings (§15.6).
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct CodeSettings {
+    /// How many projects are active at once: 1 to 20, default 5.
+    pub active_limit: u32,
 }

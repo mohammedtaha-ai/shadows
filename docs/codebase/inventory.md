@@ -291,7 +291,7 @@ impl AppCore {
 pub fn adapter_version(adapter_entry: &Path) -> String
 ```
 
-### `crates/shadows-core/src/code/active.rs` — 152 lines
+### `crates/shadows-core/src/code/active.rs` — 160 lines
 
 ```rust
 pub(super) struct Active {}
@@ -301,6 +301,7 @@ impl Active {
     pub(super) fn record(&mut self, project: &ProjectId)
     pub(super) fn begin(&mut self, order: Vec<(ProjectId, PathBuf)>, limit: usize, config: CodeConfig) -> Vec<ProjectId>
     pub(super) fn used(&mut self, rows: &[(ProjectId, Option<PathBuf>)])
+    pub(super) fn limit(&mut self, limit: usize)
     pub(super) fn settle(&mut self, code: &Code)
     pub(super) fn worker(&self, project: &ProjectId) -> Option<&Worker>
     pub(super) fn active(&self) -> Vec<ProjectId>
@@ -308,10 +309,22 @@ impl Active {
 }
 ```
 
-### `crates/shadows-core/src/code/mod.rs` — 307 lines
+### `crates/shadows-core/src/code/links.rs` — 104 lines
 
 ```rust
-pub use model::{Answer, CodeConfig, Hit, IndexState, ProjectStatus, Skipped};
+impl Code {
+    pub async fn links(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CoreError>
+    pub async fn link(&self, command_id: String, project: &ProjectId, linked: &ProjectId) -> Result<ProjectLink, CoreError>
+    pub async fn unlink(&self, command_id: String, project: &ProjectId, linked: &ProjectId) -> Result<(), CoreError>
+    pub async fn settings(&self) -> Result<CodeSettings, CoreError>
+    pub async fn set_active_limit(&self, command_id: String, active_limit: u32) -> Result<CodeSettings, CoreError>
+}
+```
+
+### `crates/shadows-core/src/code/mod.rs` — 311 lines
+
+```rust
+pub use model::{ Answer, CodeConfig, CodeSettings, Hit, IndexState, ProjectLink, ProjectStatus, Skipped, };
 pub use scope::Asker;
 pub struct Code {}
 // + 1 private field
@@ -330,7 +343,7 @@ impl Code {
 }
 ```
 
-### `crates/shadows-core/src/code/model.rs` — 85 lines
+### `crates/shadows-core/src/code/model.rs` — 103 lines
 
 ```rust
 pub enum IndexState {
@@ -370,6 +383,14 @@ pub struct CodeConfig {
     pub rescan_every: std::time::Duration,
     pub debounce: std::time::Duration,
 }
+pub struct ProjectLink {
+    pub project: String,
+    pub linked: String,
+    pub created_at: String,
+}
+pub struct CodeSettings {
+    pub active_limit: u32,
+}
 ```
 
 ### `crates/shadows-core/src/code/scan.rs` — 364 lines
@@ -406,7 +427,19 @@ pub(super) async fn projects(storage: &Storage, asker: &Asker<'_>, only: Option<
 pub(super) fn inside(path: &str) -> Result<String, CoreError>
 ```
 
-### `crates/shadows-core/src/code/store.rs` — 345 lines
+### `crates/shadows-core/src/code/store/links.rs` — 197 lines
+
+```rust
+impl Storage {
+    pub(in crate::code) async fn code_active_limit(&self) -> Result<i64, StorageError>
+    pub(in crate::code) async fn code_links(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, StorageError>
+    pub(in crate::code) async fn put_code_link(&self, ctx: &CommandContext, project: &ProjectId, linked: &ProjectId) -> Result<Option<ProjectLink>, StorageError>
+    pub(in crate::code) async fn remove_code_link(&self, ctx: &CommandContext, project: &ProjectId, linked: &ProjectId) -> Result<bool, StorageError>
+    pub(in crate::code) async fn set_code_active_limit(&self, ctx: &CommandContext, limit: u32) -> Result<u32, StorageError>
+}
+```
+
+### `crates/shadows-core/src/code/store/mod.rs` — 339 lines
 
 ```rust
 pub(super) struct FileRow {
@@ -424,7 +457,6 @@ impl Storage {
     pub(super) async fn write_code_file(&self, project: &ProjectId, file: FileRow, tags: Vec<Tag>) -> Result<(), StorageError>
     pub(super) async fn delete_code_file(&self, project: &ProjectId, path_key: &str) -> Result<(), StorageError>
     pub(super) async fn code_order(&self) -> Result<Vec<(ProjectId, String)>, StorageError>
-    pub(super) async fn code_active_limit(&self) -> Result<i64, StorageError>
     pub(super) async fn code_scope(&self, home: &ProjectId) -> Result<Vec<ScopeRow>, StorageError>
     pub(super) async fn code_by_name(&self, scope: &[ScopeRow], name: &str, role: &str) -> Result<Vec<Hit>, StorageError>
     pub(super) async fn code_suggestions(&self, scope: &[ScopeRow], text: &str, role: &str) -> Result<Vec<String>, StorageError>
@@ -1007,12 +1039,12 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/lib.rs` — 51 lines
+### `crates/shadows-core/src/lib.rs` — 54 lines
 
 ```rust
 pub use app::CoreParts;
 pub use app::{AppCore, StartConfig};
-pub use code::{Answer, Asker, Code, CodeConfig, Hit, IndexState, ProjectStatus, Skipped};
+pub use code::{ Answer, Asker, Code, CodeConfig, CodeSettings, Hit, IndexState, ProjectLink, ProjectStatus, Skipped, };
 pub use db::StorageError;
 pub use error::{CoreError, ErrorCode};
 pub use events::{Actor, Delivery, Events, StoredEvent, Subscription, UiSignal};
@@ -1921,6 +1953,30 @@ impl PlannerTurn {
 
 ## Crate `shadows-http`
 
+### `crates/shadows-http/src/code.rs` — 264 lines
+
+```rust
+pub(super) struct NameQuery {}
+// + 2 private fields
+pub(super) struct PathQuery {}
+// + 2 private fields
+pub(super) async fn definitions(State(s): State<AppState>, Path(project): Path<ProjectId>, Query(q): Query<NameQuery>) -> Result<Json<Answer>, Failure>
+pub(super) async fn references(State(s): State<AppState>, Path(project): Path<ProjectId>, Query(q): Query<NameQuery>) -> Result<Json<Answer>, Failure>
+pub(super) async fn outline(State(s): State<AppState>, Path(project): Path<ProjectId>, Query(q): Query<PathQuery>) -> Result<Json<Answer>, Failure>
+pub(super) async fn status(State(s): State<AppState>, Path(project): Path<ProjectId>) -> Result<Json<ProjectStatus>, Failure>
+pub(super) async fn links(State(s): State<AppState>, Path(project): Path<ProjectId>) -> Result<Json<Vec<ProjectLink>>, Failure>
+pub(super) struct PutLink {}
+// + 1 private field
+pub(super) async fn put_link(State(s): State<AppState>, Path((project, linked)): Path<(ProjectId, ProjectId)>, Json(body): Json<PutLink>) -> Result<Json<ProjectLink>, Failure>
+pub(super) struct RemoveLinkQuery {}
+// + 1 private field
+pub(super) async fn remove_link(State(s): State<AppState>, Path((project, linked)): Path<(ProjectId, ProjectId)>, Query(q): Query<RemoveLinkQuery>) -> Result<StatusCode, Failure>
+pub(super) async fn get_settings(State(s): State<AppState>) -> Result<Json<CodeSettings>, Failure>
+pub(super) struct PutSettings {}
+// + 2 private fields
+pub(super) async fn put_settings(State(s): State<AppState>, Json(body): Json<PutSettings>) -> Result<Json<CodeSettings>, Failure>
+```
+
 ### `crates/shadows-http/src/conversation.rs` — 190 lines
 
 ```rust
@@ -2012,7 +2068,7 @@ pub(super) struct SaveInstructions {}
 pub(super) async fn save_instructions(State(s): State<AppState>, Path(project): Path<ProjectId>, Json(body): Json<SaveInstructions>) -> Result<Json<InstructionsVersion>, Failure>
 ```
 
-### `crates/shadows-http/src/lib.rs` — 185 lines
+### `crates/shadows-http/src/lib.rs` — 193 lines
 
 ```rust
 pub use failure::Failure;
@@ -2025,7 +2081,7 @@ pub struct AppState {
 pub fn router(state: AppState, mcp: Router) -> Router
 ```
 
-### `crates/shadows-http/src/openapi.rs` — 83 lines
+### `crates/shadows-http/src/openapi.rs` — 84 lines
 
 ```rust
 pub(super) fn base() -> utoipa::openapi::OpenApi
@@ -2131,7 +2187,7 @@ pub(super) async fn require_grant(State(core): State<Arc<AppCore>>, mut request:
 pub fn service(core: Arc<AppCore>) -> Router
 ```
 
-### `crates/shadows-mcp/src/refusal.rs` — 149 lines
+### `crates/shadows-mcp/src/refusal.rs` — 163 lines
 
 ```rust
 pub(super) struct Refusal {}
@@ -2142,9 +2198,10 @@ impl Refusal {
 }
 
 pub(super) fn answer<T: serde::Serialize>(outcome: Result<T, Refusal>) -> CallToolResult
+pub(super) fn text(outcome: Result<String, Refusal>) -> CallToolResult
 ```
 
-### `crates/shadows-mcp/src/server.rs` — 157 lines
+### `crates/shadows-mcp/src/server.rs` — 161 lines
 
 ```rust
 pub(super) struct Tools(Arc<Routers>);
@@ -2161,7 +2218,7 @@ impl Shadows {
 }
 ```
 
-### `crates/shadows-mcp/src/tools.rs` — 219 lines
+### `crates/shadows-mcp/src/tools.rs` — 338 lines
 
 Nothing reachable from outside this file.
 
