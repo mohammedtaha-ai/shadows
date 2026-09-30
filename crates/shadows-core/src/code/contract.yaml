@@ -395,8 +395,9 @@ functions:
       private: true
       # One select, biased: stop; a job; the interval (its first tick, at
       # once, is the first scan); a seen path (into `pending`) or Rescan (a
-      # scan); `debounce` with no new path (`pending` through `keeps`, as
-      # `Files`). After each, a set `lost` means a scan
+      # scan); `debounce` with no new path: `folder_changed` makes the batch
+      # one scan (`code.folder_changed`), else `pending` through `keeps`, as
+      # `Files`. After each, a set `lost` means a scan
       # (`code.watcher_overflow`).
     scan:
       signature: "(&mut self)"
@@ -419,6 +420,12 @@ functions:
       # regular file it does not keep is left alone, anything else (gone, a
       # link, a folder) goes to `index_file`, which deletes its rows. Ends
       # after the file it is on once `stopping`.
+    folder_changed:
+      signature: "(&self) -> bool"
+      private: true
+      # A pending path `keeps` does not take, with no hidden component, that
+      # is now a folder or gone (`symlink_metadata`). A gone non-code file
+      # (a README.md) passes too: the scan is cheap.
     recheck:
       signature: "(&mut self, paths: Vec<String>)"
       private: true
@@ -561,6 +568,23 @@ obligations:
       writing b.rs, so only the periodic scan can index it. The watcher's
       own path (create, delete, a `.gitignore` starting a scan) was run once
       by hand and is held by no test.
+
+  - rule: >
+      A folder renamed or deleted inside an active project is in the index
+      once no path has arrived for `debounce`, not at the next periodic scan:
+      the watcher reports only the folder, so a batch holding a path that is
+      now a folder, or is gone and not a code file, is handled as one scan
+      (outside target/, node_modules/ and hidden entries, which never start
+      one). One batch starts at most one scan, and the worker runs it
+      inline, so no second is queued behind it.
+    tested_by: none
+    note: >
+      Mohammed's Windows run, check 3, exercises it. Checked once by hand
+      with a throwaway test (rescan_every 60 s, debounce 500 ms): a renamed
+      folder's function answered at its new path in about 0.7 s, a deleted
+      folder's rows were gone in about 0.7 s; with the rule switched off,
+      neither within 10 s. On Windows a file created or renamed in a folder
+      also reports that folder, so such a save becomes a scan too.
 
   - rule: >
       A question never points at a stale line: before it answers,

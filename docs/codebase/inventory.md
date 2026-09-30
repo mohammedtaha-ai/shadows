@@ -465,7 +465,7 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/code/watch.rs` — 387 lines
+### `crates/shadows-core/src/code/watch.rs` — 413 lines
 
 ```rust
 pub(super) enum Job {

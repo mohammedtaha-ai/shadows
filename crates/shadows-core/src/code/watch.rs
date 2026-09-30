@@ -182,13 +182,21 @@ impl Run {
                     Some(Seen::Rescan) | None => self.handle(Job::Scan).await,
                 },
                 _ = quiet, if !self.pending.is_empty() => {
-                    let paths: Vec<String> = self
-                        .pending
-                        .drain()
-                        .filter(|p| keeps(Path::new(p)))
-                        .collect();
-                    if !paths.is_empty() {
-                        self.handle(Job::Files(paths)).await;
+                    // A folder renamed or deleted is reported alone, never
+                    // the files in it: the whole batch becomes one scan,
+                    // which takes every pending path with it.
+                    if self.folder_changed().await {
+                        tracing::info!(project = self.project.as_str(), "code.folder_changed");
+                        self.handle(Job::Scan).await;
+                    } else {
+                        let paths: Vec<String> = self
+                            .pending
+                            .drain()
+                            .filter(|p| keeps(Path::new(p)))
+                            .collect();
+                        if !paths.is_empty() {
+                            self.handle(Job::Files(paths)).await;
+                        }
                     }
                 }
             }
@@ -298,6 +306,24 @@ impl Run {
             }
             self.index(&path).await;
         }
+    }
+
+    /// Whether a gathered path may be a folder renamed or deleted: one that
+    /// `keeps` does not take, is not hidden, and is now a folder or gone.
+    /// A gone file the table does not know (a `README.md`) passes too: the
+    /// scan it starts reads only what changed.
+    async fn folder_changed(&self) -> bool {
+        for path in &self.pending {
+            if keeps(Path::new(path)) || path.split('/').any(|c| c.starts_with('.')) {
+                continue;
+            }
+            match tokio::fs::symlink_metadata(self.dir.join(path)).await {
+                Ok(meta) if meta.is_dir() => return true,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => return true,
+                _ => {}
+            }
+        }
+        false
     }
 
     /// A question's hits whose files changed: `index_file` for each.

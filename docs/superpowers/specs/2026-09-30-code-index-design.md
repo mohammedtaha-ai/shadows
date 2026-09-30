@@ -168,7 +168,10 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
   batch is handled, never by the event's kind: a save through rename arrives
   as `Remove` then `Create`. A file that is there goes through steps 3–5; a
   file that is gone has its rows deleted, but only while the project's folder
-  itself exists. A changed `.gitignore` starts a full scan.
+  itself exists. A changed `.gitignore` starts a full scan. A changed path
+  that is a folder, or a gone path that is not a code file, starts one full
+  scan at once for the whole batch, because renaming or deleting a folder
+  reports only the folder.
 - **The watcher can lose changes without saying so.** On Windows, a folder
   full of changes, such as `target/` during a build, can overflow its buffer
   even though the files are ignored. `notify` 8.2.0 passes that overflow on
