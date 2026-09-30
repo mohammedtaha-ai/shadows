@@ -76,16 +76,22 @@ impl Storage {
                 }
                 let (upto, session) = fork_point(conn, &source, &at).await?;
                 let id = ThreadId::generate();
+                // The fork's title keeps its source's `title_source` (§4.2):
+                // a name a person gave is still theirs, and the harness may
+                // title the fork's own session as it would its source's.
                 let title = format!("{} (fork)", original.title);
                 sqlx::query(
                     "INSERT INTO planning_thread
-                       (id, project_id, title, status, next_entry_ordinal, harness_kind,
-                        forked_from_thread, forked_from_entry, fork_session_id, created_at)
-                     VALUES (?,?,?, 'Open', ?, ?, ?, ?, ?, ?)",
+                       (id, project_id, title, title_source, status, next_entry_ordinal,
+                        harness_kind, forked_from_thread, forked_from_entry, fork_session_id,
+                        created_at)
+                     VALUES (?,?,?, (SELECT title_source FROM planning_thread WHERE id = ?),
+                             'Open', ?, ?, ?, ?, ?, ?)",
                 )
                 .bind(id.as_str())
                 .bind(original.project_id.as_str())
                 .bind(&title)
+                .bind(source.as_str())
                 .bind(upto + 1)
                 .bind(&original.harness)
                 .bind(source.as_str())

@@ -1,9 +1,10 @@
 //! ACP test agent. Prompts: ordinary (two chunks), `two-messages` (tool updates),
 //! `report` (session state), `/context` (delayed first report), `hang` (cancel),
 //! `ignore-cancel` (never), `exit` (code 3), `ask-permission` (reject),
-//! `usage` (two context updates), `refuse` (max_tokens), and `mcp <tool> <json>`
-//! (calls the session's MCP server, §13.8). `report` also shows what the
-//! session opened with and the prompt's blocks. Models:
+//! `usage` (two context updates), `refuse` (max_tokens), `title <text>` (names
+//! the session `<text>` in a `session_info_update` after answering), and
+//! `mcp <tool> <json>` (calls the session's MCP server, §13.8). `report` also
+//! shows what the session opened with and the prompt's blocks. Models:
 //! `fake-large` (efforts, `auto`), `fake-small` (efforts, no `auto`),
 //! `fake-tiny` (no effort), `fake-locked` (refused, as an account without
 //! credits is). A session starts at `fake-large`, `high`, `auto`: as the real
@@ -20,7 +21,7 @@ use agent_client_protocol::schema::v1::{
     ForkSessionResponse, InitializeRequest, InitializeResponse, McpServer, Meta, NewSessionRequest,
     NewSessionResponse, PermissionOption, PermissionOptionKind, PromptRequest, PromptResponse,
     RequestPermissionRequest, ResumeSessionRequest, ResumeSessionResponse, SessionConfigOption,
-    SessionNotification, SessionUpdate, SetSessionConfigOptionRequest,
+    SessionInfoUpdate, SessionNotification, SessionUpdate, SetSessionConfigOptionRequest,
     SetSessionConfigOptionResponse, StopReason, TextContent, ToolCall, ToolCallUpdate, UsageUpdate,
 };
 use agent_client_protocol::{Agent, Client, ConnectionTo, Responder, Stdio};
@@ -338,6 +339,13 @@ async fn main() -> agent_client_protocol::Result<()> {
                 },
                 "refuse" => return responder.respond(PromptResponse::new(StopReason::MaxTokens)),
                 line if line.starts_with("mcp ") => { let text = call_mcp(&s.setup, line).await; chunk(&cx, &id, "m1", &text)?; },
+                // As the real adapter does: the title is sent after the turn has answered.
+                line if line.starts_with("title ") => {
+                    chunk(&cx, &id, "m1", "titled")?;
+                    responder.respond(PromptResponse::new(StopReason::EndTurn))?;
+                    let title = line.strip_prefix("title ").unwrap_or_default();
+                    return update(&cx, &id, SessionUpdate::SessionInfoUpdate(SessionInfoUpdate::new().title(title.to_owned())));
+                },
                 _ => { chunk(&cx, &id, "m1", "hello ")?; chunk(&cx, &id, "m1", "from fake_acp")?; },
             }
             responder.respond(PromptResponse::new(StopReason::EndTurn))

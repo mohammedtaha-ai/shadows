@@ -1,8 +1,9 @@
 //! One job: starting a turn as one command (spec §12.7).
 //!
 //! The user's entry, the `Pending` operation, its invocation, the remembered
-//! settings and the command record commit together or not at all, so a
-//! retried request can never become a second message or a second run.
+//! settings, the thread's title from its first message (§4.2) and the
+//! command record commit together or not at all, so a retried request can
+//! never become a second message or a second run.
 
 use sqlx::SqliteConnection;
 
@@ -16,6 +17,7 @@ use crate::plans::task_of;
 use crate::runtime::RuntimeInstanceId;
 use crate::threads::{
     EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, append_entry_in,
+    title_from_first_message_in,
 };
 use crate::turns::model::OperationId;
 use shadows_agent::TurnSettings;
@@ -173,6 +175,9 @@ impl Storage {
                         &ts,
                     )
                     .await?;
+                    let author = Actor::user(&ctx.principal_id);
+                    title_from_first_message_in(conn, &thread, &entry.id, &prompt, author, &ts)
+                        .await?;
                     let [
                         role,
                         kind,

@@ -152,4 +152,24 @@ describe('useThreadStream', () => {
       [2, true],
     ])
   })
+
+  it('reads the thread lists again on a retitle: live at once, replayed at the caught-up', () => {
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const lists = () =>
+      invalidate.mock.calls.filter(([filters]) => filters?.predicate !== undefined).length
+    queryClient.setQueryData(['projects', 'p1', 'threads'], [])
+    queryClient.setQueryData(['projects', 'p1'], {})
+    show('t1')
+
+    act(() => current().durable(1, 'ThreadRetitled', null, { title: 'A', source: 'harness' }))
+    expect(lists()).toBe(0)
+    act(() => current().caughtUp(1))
+    expect(lists()).toBe(1)
+    act(() => current().caughtUp(1))
+    expect(lists()).toBe(1)
+    act(() => current().durable(2, 'ThreadRetitled', null, { title: 'B', source: 'harness' }))
+    expect(lists()).toBe(2)
+    expect(queryClient.getQueryState(['projects', 'p1', 'threads'])?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(['projects', 'p1'])?.isInvalidated).toBe(false)
+  })
 })

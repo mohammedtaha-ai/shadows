@@ -181,6 +181,18 @@ answers `cancelled` in about 60 ms; `session/resume` after the adapter was
 killed continues the conversation; a rejected permission ends the tool call
 `failed` and the turn `end_turn`. This section rests on those findings.
 
+**The session's title.** At a turn's end the adapter asks Claude Code to
+generate a title for the session (`generate_session_title`, at most once per
+session, in the background) and sends it as a `session/update` of kind
+`session_info_update` carrying `title` (and `updatedAt`). When it cannot
+generate one yet, it may send the stored summary, which is the raw first prompt.
+The same kind also arrives with only `_meta` (a goal, a file-change report);
+Shadows reads the `title` and nothing else. Because the title is generated
+after `session/prompt` has answered, it arrives when no turn reads the thread's
+events: the connection's own dispatch hands it to Threads, which applies §4.2's
+title rule and journals `ThreadRetitled`. Titles from one adapter are written in
+the order it sent them.
+
 ## 12.4 Choices come from the harness
 
 The model, mode and effort lists are the harness's, read from the ACP session:
@@ -472,6 +484,7 @@ source with "(fork)":
 | thread snapshot, operation events | carry the invocation's requested and observed values |
 | entries | a new kind, `PermissionRefused` |
 | SSE | new transient frames: `usage` (context and limits), `options` (the session's choices changed) |
+| thread stream | a durable `ThreadRetitled` { title, source } when §4.2's rule changes the title; the web client reads the project's threads again on it |
 
 New stable error codes (§3.4):
 

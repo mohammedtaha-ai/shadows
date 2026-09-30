@@ -20,6 +20,7 @@ use tracing::Instrument;
 
 use super::offers::{Offers, intercept};
 use super::setup::Setups;
+use super::titles::keep_titles;
 use crate::{
     db::{Storage, StorageError},
     threads::{ThreadId, TurnContext},
@@ -204,6 +205,7 @@ impl Sessions {
         };
         let (tx, rx) = mpsc::unbounded_channel();
         let events = intercept(self.offers.clone(), thread.clone(), tx);
+        let events = keep_titles(self.storage.clone(), thread.clone(), events);
         let setup = tokio::time::timeout(self.config.setup_wait, async {
             let connection = Connection::open(&mut handle, events)
                 .await

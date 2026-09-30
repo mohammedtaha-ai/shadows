@@ -81,6 +81,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/threads/` | the planning threads, what they recorded included | `crates/shadows-core/src/threads/mod.rs` |
 | `crates/shadows-core/src/threads/model.rs` | the planning thread types callers meet | `crates/shadows-core/src/threads/model.rs` |
 | `crates/shadows-core/src/threads/rules.rs` | which harness a thread may name | `crates/shadows-core/src/threads/rules.rs` |
+| `crates/shadows-core/src/threads/title.rs` | the text a title taken from a conversation may read | `crates/shadows-core/src/threads/title.rs` |
 | `crates/shadows-core/src/threads/store/` | threads' SQLite queries | `crates/shadows-core/src/threads/store/thread.rs` |
 | `crates/shadows-core/src/turns/` | Planner turns, from start to stop | `crates/shadows-core/src/turns/mod.rs` |
 | `crates/shadows-core/src/turns/model.rs` | the operation types callers meet | `crates/shadows-core/src/turns/model.rs` |
@@ -95,6 +96,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/harness/setup.rs` | what a Planner session opens with | `crates/shadows-core/src/harness/setup.rs` |
 | `crates/shadows-core/src/harness/offers.rs` | the latest choices each open session offers | `crates/shadows-core/src/harness/offers.rs` |
 | `crates/shadows-core/src/harness/context.rs` | reading a session's context breakdown on demand | `crates/shadows-core/src/harness/context.rs` |
+| `crates/shadows-core/src/harness/titles.rs` | handing the titles a harness sends to its thread | `crates/shadows-core/src/harness/titles.rs` |
 | `crates/shadows-core/src/plans/` | plan versions under the rules of §13 | `crates/shadows-core/src/plans/mod.rs` |
 | `crates/shadows-core/src/plans/model.rs` | the plan types callers meet | `crates/shadows-core/src/plans/model.rs` |
 | `crates/shadows-core/src/plans/store/` | plans' SQLite queries | `crates/shadows-core/src/plans/store/edit.rs` |

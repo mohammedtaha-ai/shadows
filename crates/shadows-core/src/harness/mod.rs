@@ -9,8 +9,9 @@
 //! `sessions` holds the live adapter each open thread has, `settings` sets an
 //! open session's options, `setup` is what a session opens with, `offers` the
 //! latest choices each session offers, `context` the breakdown read on demand,
-//! `model` the shapes a caller meets and `store` the queries. `Turns` drives a
-//! turn through `Sessions`, the methods `contract.yaml` names.
+//! `titles` the titles a harness sends, `model` the shapes a caller meets and
+//! `store` the queries. `Turns` drives a turn through `Sessions`, the methods
+//! `contract.yaml` names.
 
 mod context;
 mod model;
@@ -19,6 +20,7 @@ mod sessions;
 mod settings;
 mod setup;
 mod store;
+mod titles;
 
 use std::sync::Arc;
 

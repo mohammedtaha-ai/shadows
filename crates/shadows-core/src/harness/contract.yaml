@@ -22,6 +22,9 @@
 # Trap: an opening issues the thread's MCP grant (`Setups::for_opening`, on
 # `Storage::issue_thread_grant`) and every close revokes it (`Setups::forget`).
 # Those are Grants' rows written from here, not through `Grants`.
+# Trap: a harness title is taken off the connection in its dispatch, never
+# from a turn's events: it arrives after the turn has ended. Threads' store
+# owns whether it replaces the title.
 
 name: harness
 version: 1
@@ -200,6 +203,14 @@ functions:
       signature: "(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig) -> Arc<Sessions>"
       # `AppCore::start` builds one on the core's `storage`; its idle sweep runs every idle_after/4,
       # at most 60 s.
+  titles:
+    keep_titles:
+      signature: "(storage: Arc<Storage>, thread: ThreadId, next: impl Fn(HarnessEvent)) -> impl Fn(HarnessEvent)"
+      # pub(super): wraps every opening's event sink. A `SessionTitle` goes
+      # to one task per adapter that calls Threads' `title_from_harness` in
+      # order (a failure is logged, `thread.harness_title_failed`); every
+      # other event goes on to `next`. The adapter sends its title after the
+      # turn answered, when no turn reads the events (§12.3).
   for_tests:
     # Behind `test-support`, reached through `shadows_core::testing`.
     take_events:

@@ -2,7 +2,7 @@
 use std::path::Path;
 
 use agent_client_protocol::schema::{
-    ProtocolVersion,
+    MaybeUndefined, ProtocolVersion,
     v1::{
         CancelNotification, ContentBlock, ForkSessionRequest, HttpHeader, InitializeRequest,
         McpServer, McpServerHttp, Meta, NewSessionRequest, PermissionOptionKind, PromptRequest,
@@ -348,6 +348,13 @@ fn forward(events: &impl Fn(HarnessEvent), update: SessionUpdate) {
         SessionUpdate::ConfigOptionUpdate(o) => Some(HarnessEvent::Options(
             serde_json::to_value(o.config_options).unwrap_or(Value::Null),
         )),
+        // A title, or only `_meta` (a goal, a file-change report): the rest is
+        // not Shadows'. A `null` title clears the harness's own; Shadows keeps
+        // its thread's.
+        SessionUpdate::SessionInfoUpdate(i) => match i.title {
+            MaybeUndefined::Value(title) => Some(HarnessEvent::SessionTitle { title }),
+            _ => None,
+        },
         other => {
             tracing::trace!(?other, "ignored ACP update");
             None
