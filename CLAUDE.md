@@ -47,7 +47,7 @@
 
 - **Slug:** shadows
 - **Stack:** Rust 1.94+ candidate floor from SQLx 0.9, a Cargo workspace of the crates below, plus a React client in `web/`
-- **Status:** Milestones 0–2.5 are on `main` and ran on Windows; Milestone 2.5 turned the code into the workspace below. See [docs/status.md](./docs/status.md) for where the project is, and [docs/vision.md](./docs/vision.md) for where it is going.
+- **Status:** Milestones 0–3 are on `main` and ran on Windows; Milestone 3 added the code index (§15). See [docs/status.md](./docs/status.md) for where the project is, and [docs/vision.md](./docs/vision.md) for where it is going.
 - **Purpose:** Local-first AI orchestration layer (planning + workflow + context + execution + verification + continuity). Clean rewrite of `shadow` avoiding patching pattern.
 
 ## Architecture
