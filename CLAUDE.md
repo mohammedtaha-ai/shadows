@@ -140,6 +140,14 @@ a crawl, or a re-read was paid for and bought nothing.
   only the files the task names. Reading the tree to discover what a signature
   is means the code map failed or you skipped it — say which, in your report.
   A generated map that nobody reads is a file we maintain for nothing.
+- **Ask the code index before searching the tree.** When the `shadows` MCP
+  server is connected, `where_is`, `who_uses` and `outline` answer where a
+  name is defined, where it is used, and what a file declares, with file,
+  line and signature. Use them before Grep or opening files to find a
+  signature; open the file only at the line they name. They answer where,
+  not how or why: that is the contract, the owner spec, and the code itself.
+  If the server is not connected, say so in your report and fall back to the
+  code map.
 - **The contract is the entry point for a service.** Read
   `crates/shadows-core/src/<service>/contract.yaml` before changing that
   service; open its code for what the contract points to.
