@@ -261,8 +261,11 @@ It answers from what is stored, with the status `indexing`.
 **Only the most recently used projects are active: indexed and watched.**
 
 - **At startup,** the active projects are the `active_limit` projects with a
-  folder whose last turn (the newest `operation.created_at` of its threads) is
-  newest. A project with no turn yet counts from its creation.
+  folder whose last turn is newest: the durable sequence of the newest
+  `OperationCreated` event among its threads' operations. A project with no
+  turn yet counts from its `ProjectCreated` event. The sequence, not
+  `operation.created_at`, because ordering is explicit (CLAUDE.md) and that
+  text does not sort in time order within a second.
 - **The order of use is kept in memory, not stored.** After a restart it
   starts again from the last turns.
 - **Using a project** makes it active at once. Using it means:

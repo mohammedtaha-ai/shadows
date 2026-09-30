@@ -33,6 +33,11 @@ struct Running {
     config: CodeConfig,
     limit: usize,
     workers: HashMap<ProjectId, Worker>,
+    /// The tasks of workers past the limit, finishing the file they are on,
+    /// by project: a project active again waits for its own before its new
+    /// worker starts, so one project never has two writers, and `close`
+    /// hands the rest to shutdown, so none outlives it.
+    leaving: HashMap<ProjectId, JoinHandle<()>>,
 }
 
 impl Active {
@@ -67,6 +72,7 @@ impl Active {
             config,
             limit,
             workers: HashMap::new(),
+            leaving: HashMap::new(),
         });
         std::mem::take(&mut self.early)
     }
@@ -92,6 +98,7 @@ impl Active {
         let Some(running) = &mut self.running else {
             return;
         };
+        running.leaving.retain(|_, task| !task.is_finished());
         let active = &self.order[..self.order.len().min(running.limit)];
         let gone: Vec<ProjectId> = running
             .workers
@@ -102,7 +109,7 @@ impl Active {
         for p in gone {
             if let Some(worker) = running.workers.remove(&p) {
                 tracing::info!(project = p.as_str(), "code.inactive");
-                drop(worker.stop());
+                running.leaving.insert(p, worker.stop());
             }
         }
         for p in active {
@@ -110,7 +117,9 @@ impl Active {
                 && let Some(dir) = self.dirs.get(p)
             {
                 tracing::info!(project = p.as_str(), "code.active");
-                let worker = Worker::spawn(code.clone(), p.clone(), dir.clone(), running.config);
+                let before = running.leaving.remove(p);
+                let worker =
+                    Worker::spawn(code.clone(), p.clone(), dir.clone(), running.config, before);
                 running.workers.insert(p.clone(), worker);
             }
         }
@@ -128,13 +137,16 @@ impl Active {
         self.order.iter().take(limit).cloned().collect()
     }
 
-    /// Stops every worker; answers their tasks, to wait for outside the lock.
+    /// Stops every worker; answers their tasks, and those of the workers
+    /// still leaving, to wait for outside the lock.
     pub(super) fn close(&mut self) -> Vec<JoinHandle<()>> {
         self.closed = true;
         self.early.clear();
         let Some(running) = self.running.take() else {
             return Vec::new();
         };
-        running.workers.into_values().map(Worker::stop).collect()
+        let mut tasks: Vec<_> = running.leaving.into_values().collect();
+        tasks.extend(running.workers.into_values().map(Worker::stop));
+        tasks
     }
 }

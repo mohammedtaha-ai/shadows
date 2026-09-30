@@ -68,7 +68,15 @@ pub(super) struct Worker {
 
 impl Worker {
     /// Starts the worker; its first act is a scan, which starts the watcher.
-    pub(super) fn spawn(code: Code, project: ProjectId, dir: PathBuf, config: CodeConfig) -> Self {
+    /// With `before`, the task of the project's previous worker, still on its
+    /// last file, it waits for that task first: one writer per project.
+    pub(super) fn spawn(
+        code: Code,
+        project: ProjectId,
+        dir: PathBuf,
+        config: CodeConfig,
+        before: Option<JoinHandle<()>>,
+    ) -> Self {
         let (jobs, jobs_rx) = mpsc::channel(64);
         let (seen, seen_rx) = mpsc::channel(SEEN_CAPACITY);
         let shared = Arc::new(Shared::default());
@@ -82,7 +90,12 @@ impl Worker {
             lost: Arc::new(AtomicBool::new(false)),
             pending: HashSet::new(),
         };
-        let task = tokio::spawn(run.run(jobs_rx, seen_rx, config));
+        let task = tokio::spawn(async move {
+            if let Some(before) = before {
+                let _ = before.await;
+            }
+            run.run(jobs_rx, seen_rx, config).await;
+        });
         Self { jobs, shared, task }
     }
 
@@ -179,7 +192,7 @@ impl Run {
                     }
                 }
             }
-            if self.shared.progress.stop.load(Ordering::Relaxed) {
+            if self.stopping() {
                 break;
             }
             if self.lost.swap(false, Ordering::Relaxed) {
@@ -229,6 +242,10 @@ impl Run {
         s.scanning.store(true, Ordering::Relaxed);
         let result = self.code.scan_project(&self.project, &s.progress).await;
         s.scanning.store(false, Ordering::Relaxed);
+        // A scan cut short by `stop` is no evidence the watcher stopped.
+        if self.stopping() {
+            return;
+        }
         s.scanned.store(true, Ordering::Relaxed);
         if let Ok(mut at) = s.updated_at.lock() {
             *at = Some(crate::db::now());
@@ -240,8 +257,11 @@ impl Run {
                     indexed,
                     "code.watcher_restarted"
                 );
-                self.watcher = None;
-                self.watcher = self.watch();
+                // The new one watches before the old one is dropped, so no
+                // change falls between them; a failure keeps the old one.
+                if let Some(new) = self.watch() {
+                    self.watcher = Some(new);
+                }
             }
             Ok(_) => {}
             Err(error) => {
@@ -267,6 +287,9 @@ impl Run {
                 .unwrap_or_default()
         };
         for path in paths {
+            if self.stopping() {
+                return;
+            }
             let regular = tokio::fs::symlink_metadata(self.dir.join(&path))
                 .await
                 .is_ok_and(|m| m.is_file());
@@ -280,8 +303,17 @@ impl Run {
     /// A question's hits whose files changed: `index_file` for each.
     async fn recheck(&mut self, paths: Vec<String>) {
         for path in paths {
+            if self.stopping() {
+                return;
+            }
             self.index(&path).await;
         }
+    }
+
+    /// The worker was told to stop: like a scan, a batch ends after the file
+    /// it is on (§15.8).
+    fn stopping(&self) -> bool {
+        self.shared.progress.stop.load(Ordering::Relaxed)
     }
 
     async fn index(&self, path: &str) {

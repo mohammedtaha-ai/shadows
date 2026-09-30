@@ -119,6 +119,11 @@ shapes:
     limit: usize
     # Exactly the first `limit` of `order`, after every `settle`.
     workers: HashMap<ProjectId, Worker>
+    # The tasks of stopped workers past the limit, by project, until they
+    # finish: a project active again hands its own to its new worker, which
+    # waits for it (one writer per project); `close` hands the rest to
+    # `shut_down`.
+    leaving: HashMap<ProjectId, JoinHandle<()>>
   Job:
     Scan: unit
     Files: Vec<String>
@@ -309,8 +314,9 @@ functions:
       # then the first; a row with no folder takes no place.
     settle:
       signature: "(&mut self, code: &Code)"
-      # Stops the worker of every project past the limit (`code.inactive`);
-      # spawns one for every active project without one (`code.active`).
+      # Stops the worker of every project past the limit (`code.inactive`),
+      # its task kept in `leaving`; spawns one for every active project
+      # without one (`code.active`), given that project's `leaving` task.
     worker:
       signature: "(&self, project: &ProjectId) -> Option<&Worker>"
     active:
@@ -318,9 +324,11 @@ functions:
       # test-support only.
     close:
       signature: "(&mut self) -> Vec<JoinHandle<()>>"
+      # Every worker stopped; answers their tasks and the `leaving` ones.
   worker:
     spawn:
-      signature: "(code: Code, project: ProjectId, dir: PathBuf, config: CodeConfig) -> Self"
+      signature: "(code: Code, project: ProjectId, dir: PathBuf, config: CodeConfig, before: Option<JoinHandle<()>>) -> Self"
+      # The task awaits `before`, the project's previous worker, first.
     state:
       signature: "(&self) -> (IndexState, Option<String>)"
       # DirectoryMissing while missing; Indexing { done, found } while a
@@ -342,6 +350,15 @@ functions:
       # scan); `debounce` with no new path (`pending` through `keeps`, as
       # `Files`). After each, a set `lost` means a scan
       # (`code.watcher_overflow`).
+    scan:
+      signature: "(&mut self)"
+      private: true
+      # Clears `pending`; a missing folder is `folder_missing`; a folder back
+      # gets a new watcher. After `scan_project`, one that wrote or deleted
+      # files while no path was pending restarts the watcher
+      # (`code.watcher_restarted`: notify can stop without a word), the new
+      # one made before the old is dropped. A scan cut short by `stop` does
+      # neither, and marks nothing scanned.
     handle:
       signature: "(&mut self, job: Job)"
       private: true
@@ -352,12 +369,16 @@ functions:
       # Folder gone: `folder_missing`. Else by what is on disk now, never by
       # the events' kind: a regular file `kept_now` keeps is indexed, a
       # regular file it does not keep is left alone, anything else (gone, a
-      # link, a folder) goes to `index_file`, which deletes its rows.
+      # link, a folder) goes to `index_file`, which deletes its rows. Ends
+      # after the file it is on once `stopping`.
     recheck:
       signature: "(&mut self, paths: Vec<String>)"
       private: true
       # `index_file` for each: it rewrites a changed file and deletes the
-      # rows of a gone one.
+      # rows of a gone one. Ends after the file it is on once `stopping`.
+    stopping:
+      signature: "(&self) -> bool"
+      private: true
     index:
       signature: "(&self, path: &str)"
       private: true
@@ -477,8 +498,12 @@ obligations:
       threads, a creation, a question) puts the project's links, then the
       project, first, the least recently used leaving. A question about an
       inactive project answers from its rows with the state Indexing.
+      A project evicted and used again before its old worker finished its
+      file never has two writers: the new worker awaits the old task first.
     tested_by: only_the_most_recent_projects_are_watched
     note: >
+      The one-writer part is structural (`settle` hands `leaving`'s task to
+      `Worker::spawn`); no test evicts a project mid-scan.
       The body has six projects with no turn, so the order is by creation;
       it does not order by a turn, and there are no links yet (§15.6's
       commands are a later task).
@@ -529,8 +554,10 @@ obligations:
 
   - rule: >
       Shutdown stops every worker after the file it is on: `stop` sets the
-      flag `scan_project` checks between files and wakes the task, and
-      `shut_down` awaits every task before `AppCore::shut_down` runs §8.5.
+      flag that `scan_project`, `files` and `recheck` check between files
+      and wakes the task, and `shut_down` awaits every task, those of
+      workers that left the active set included, before
+      `AppCore::shut_down` runs §8.5.
     tested_by: none
     note: >
       Both new tests end with `shut_down_for_test`, which returns; none

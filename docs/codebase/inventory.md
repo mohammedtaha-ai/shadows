@@ -291,7 +291,7 @@ impl AppCore {
 pub fn adapter_version(adapter_entry: &Path) -> String
 ```
 
-### `crates/shadows-core/src/code/active.rs` — 140 lines
+### `crates/shadows-core/src/code/active.rs` — 152 lines
 
 ```rust
 pub(super) struct Active {}
@@ -433,7 +433,7 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/code/watch.rs` — 355 lines
+### `crates/shadows-core/src/code/watch.rs` — 387 lines
 
 ```rust
 pub(super) enum Job {
@@ -444,7 +444,7 @@ pub(super) enum Job {
 pub(super) struct Worker {}
 // + 3 private fields
 impl Worker {
-    pub(super) fn spawn(code: Code, project: ProjectId, dir: PathBuf, config: CodeConfig) -> Self
+    pub(super) fn spawn(code: Code, project: ProjectId, dir: PathBuf, config: CodeConfig, before: Option<JoinHandle<()>>) -> Self
     pub(super) fn state(&self) -> (IndexState, Option<String>)
     pub(super) fn jobs(&self) -> mpsc::Sender<Job>
     pub(super) fn pause(&self)
