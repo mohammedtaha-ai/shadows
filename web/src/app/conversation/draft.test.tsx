@@ -4,6 +4,7 @@
 // which creates the thread, starts its turn with the chosen mode, and replaces
 // the draft's URL with the thread's.
 
+import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
@@ -42,5 +43,31 @@ describe('the draft', () => {
       model: 'fake-large',
       effort: 'high',
     })
+  })
+})
+
+describe('leaving a draft while it sends', () => {
+  it('keeps the person where they went', async () => {
+    const routes = answers()
+    let answer: (r: Response) => void = () => {}
+    routes['POST /api/projects/p1/threads'] = () =>
+      new Promise<Response>((resolve) => {
+        answer = resolve
+      })
+    const app = (open = await startApp('/projects/p1/new', routes))
+    typeInto(document.querySelector('textarea')!, 'Plan the release')
+    await until(() => app.button('Send')?.disabled === false)
+    app.button('Send')?.click()
+    await until(() => app.calls.includes('POST /api/projects/p1/threads'))
+
+    const { router } = await import('@/router')
+    await act(() =>
+      router.navigate({ to: '/projects/$projectId/settings', params: { projectId: 'p1' } }),
+    )
+    answer(Response.json(threadFixture, { status: 201 }))
+    await until(() => app.calls.includes('POST /api/threads/t1/turns'))
+    // Past the moment the draft would have opened the thread.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
+    expect(app.path()).toBe('/projects/p1/settings')
   })
 })

@@ -112,7 +112,7 @@ function ProjectRow({
           params={{ projectId: project.id }}
           aria-label={`New conversation in ${project.name}`}
           title="New conversation"
-          className="absolute top-1 right-1 rounded-md p-1 text-faint-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-secondary hover:text-sidebar-foreground focus-visible:opacity-100"
+          className="absolute top-1 right-1 rounded-md p-1 text-faint-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-secondary hover:text-sidebar-foreground focus-visible:opacity-100 pointer-coarse:opacity-100"
         >
           <Plus aria-hidden className="size-3.5" />
         </Link>

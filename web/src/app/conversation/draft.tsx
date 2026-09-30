@@ -5,7 +5,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { MessageSquarePlus } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   type SessionChoices,
   type TurnSettings,
@@ -112,23 +112,34 @@ function draftSession(harness: string, allowed: string[] | undefined): SessionVi
  * holds, start the turn with the chosen mode, then replace the draft's URL
  * with the thread's. A failed create stays in the draft for a retry with the
  * same command id; a turn that fails once the thread exists goes to the
- * thread with its text and error, so a retry never makes a second thread. */
+ * thread with its text and error, so a retry never makes a second thread.
+ * A person who left the draft while it sent stays where they went: the
+ * thread shows in the sidebar, and nothing pulls them back to it. */
 function useFirstSend(projectId: string, harness: string) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useRef<Attempt | null>(null)
+  const shown = useRef(true)
+  useEffect(() => {
+    shown.current = true
+    return () => {
+      shown.current = false
+    }
+  }, [])
 
   return async (commandId: string, text: string, chosen: TurnSettings): Promise<string> => {
     const request = { title: DRAFT_TITLE, harness }
     create.current = attemptFor(create.current, request)
     const thread = await createThread(projectId, { ...request, command_id: create.current.commandId })
     void queryClient.invalidateQueries({ queryKey: threadsQuery(projectId).queryKey })
-    const open = () =>
-      navigate({
+    const open = async () => {
+      if (!shown.current) return
+      await navigate({
         to: '/projects/$projectId/threads/$threadId',
         params: { projectId, threadId: thread.id },
         replace: true,
       })
+    }
 
     let settings: TurnSettings | null = null
     try {

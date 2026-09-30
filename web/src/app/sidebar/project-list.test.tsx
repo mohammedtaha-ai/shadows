@@ -7,6 +7,7 @@
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Answer } from '@/app/test-app'
+import { threadsQuery } from '@/api/queries'
 import { projectFixture, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, until } from '../test-app'
@@ -78,5 +79,12 @@ describe('the project tree', () => {
     await until(() => a.path() === '/projects/p2/new')
     await until(() => a.text().includes('The conversation starts with your first message'))
     expect(a.calls.filter((c) => c.endsWith('/threads') && c.startsWith('POST'))).toEqual([])
+  })
+
+  it('an open project’s conversations are polled, so a title the harness sends later shows', async () => {
+    const a = (app = await startApp('/projects/p1/threads/t1', twoProjects()))
+    await until(() => link('Conversation 1') !== undefined)
+    const query = a.queryClient.getQueryCache().find({ queryKey: threadsQuery('p1').queryKey })
+    expect(query?.options).toMatchObject({ refetchInterval: 10_000 })
   })
 })

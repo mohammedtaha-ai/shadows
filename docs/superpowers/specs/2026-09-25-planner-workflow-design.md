@@ -520,7 +520,9 @@ is open.
   thread's, leaving no history entry. A failed create stays in the draft with
   the text, and a retry reuses its command id. A turn that fails once the
   thread exists goes to the thread with its text and error, so a retry there
-  never makes a second thread. Leaving the draft leaves nothing behind.
+  never makes a second thread. Leaving the draft leaves nothing behind; one
+  left while its send is under way finishes that send, and the new thread
+  shows in the sidebar without taking the person back to it.
   `/projects/{id}` has no page of its own and redirects to the draft, which is
   also where a newly created project lands: a project is opened to talk in.
 - **Text direction:** Arabic and English each read in their own direction.

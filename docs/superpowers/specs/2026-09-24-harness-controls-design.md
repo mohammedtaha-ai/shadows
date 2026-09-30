@@ -484,7 +484,7 @@ source with "(fork)":
 | thread snapshot, operation events | carry the invocation's requested and observed values |
 | entries | a new kind, `PermissionRefused` |
 | SSE | new transient frames: `usage` (context and limits), `options` (the session's choices changed) |
-| thread stream | a durable `ThreadRetitled` { title, source } when §4.2's rule changes the title; the web client reads the project's threads again on it |
+| thread stream | a durable `ThreadRetitled` { title, source } when §4.2's rule changes the title; the web client reads the project's threads again on it. No project-level stream exists, and the harness's title usually lands after the person has left the conversation, so the web client also polls each open project's threads every 10 s, as it does its plans |
 
 New stable error codes (§3.4):
 

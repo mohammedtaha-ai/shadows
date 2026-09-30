@@ -34,11 +34,16 @@ export const projectsQuery = queryOptions({
  * screen that shows them refetches on focus like any other query. */
 export const harnessesQuery = queryOptions({ queryKey: ['harnesses'], queryFn: listHarnesses })
 
-/** A project's planning threads, oldest first. */
+/** A project's planning threads, oldest first. A thread's own stream
+ * refreshes the list on its `ThreadRetitled`, but the harness titles a thread
+ * after its turn has ended, often once the person has left it, and a plan
+ * started from outside makes a thread no open stream names: so the list is
+ * also polled every 10 s while shown, as the plans are (spec §12.10). */
 export function threadsQuery(projectId: string) {
   return queryOptions({
     queryKey: ['projects', projectId, 'threads'],
     queryFn: () => listThreads(projectId),
+    refetchInterval: 10_000,
   })
 }
 
