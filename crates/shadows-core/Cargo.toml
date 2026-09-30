@@ -13,12 +13,15 @@ anyhow = { workspace = true }
 dunce = { workspace = true }
 escargot = { workspace = true, optional = true }
 futures-core = { workspace = true }
+ignore = { workspace = true }
+notify = { workspace = true }
 petgraph = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 shadows-agent = { path = "../shadows-agent" }
+shadows-index = { path = "../shadows-index" }
 shadows-process = { path = "../shadows-process" }
 sqlx = { workspace = true }
 thiserror = { workspace = true }

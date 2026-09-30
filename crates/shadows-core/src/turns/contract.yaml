@@ -48,6 +48,8 @@ shapes:
     handles: Arc<LiveHandles>
     # A running turn's live harness events, for every live subscriber.
     bus: Bus
+    # A clone of the core's `Code`: `send` touches the thread's project (§15.6).
+    code: Code
   SendTurn:
     command_id: String
     prompt: String
@@ -153,6 +155,9 @@ functions:
       # check, lease Busy, or the transaction); HarnessStartFailed (open, lease
       # Closed, or the session gone while reading its offer);
       # SettingNotOffered; ModeNotAllowed; CommandConflict; TaskNotInPlan.
+      # Once the checks up to the busy check pass, before the session is
+      # opened: `Code::touch` of the thread's project (§15.6), which never
+      # fails or delays the turn.
     stop:
       signature: "(&self, op: &OperationId) -> Result<Operation, CoreError>"
       # `PlannerTurn::stop` as `Actor::user("local")`; TerminationFailed is

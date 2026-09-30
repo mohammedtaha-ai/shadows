@@ -15,6 +15,7 @@ use shadows_agent::claude::ClaudeAdapter;
 use shadows_agent::events::HarnessEvent;
 use shadows_process::{ProcessSpec, spawn};
 
+use crate::code::{Code, CodeConfig};
 use crate::command::{CommandContext, fingerprint};
 use crate::db::Storage;
 use crate::error::CoreError;
@@ -60,6 +61,7 @@ pub struct AppCore {
     threads: Threads,
     instructions: Instructions,
     events: Events,
+    code: Code,
 }
 
 /// What `start` needs from the binary's `Config`: the database path, node,
@@ -134,7 +136,7 @@ impl AppCore {
             },
         );
         let (bus, _) = tokio::sync::broadcast::channel(4096);
-        Ok(Self::from_parts(CoreParts {
+        let core = Self::from_parts(CoreParts {
             storage,
             runtime,
             sessions,
@@ -142,7 +144,13 @@ impl AppCore {
             bus,
             ui: tokio::sync::broadcast::channel(256).0,
             mcp_url,
-        }))
+        });
+        // §15.8: the active set is chosen and the workers spawned; `serve`
+        // waits for no scan. The index never stops the daemon (§15.4).
+        if let Err(error) = core.code.start(CodeConfig::default()).await {
+            tracing::warn!(error = %error, "code.start_failed");
+        }
+        Ok(core)
     }
 
     /// The application over parts already built. Tests reach it as
@@ -157,8 +165,10 @@ impl AppCore {
             ui,
             mcp_url,
         } = parts;
+        // Before the three services that hold it to call `touch` (§15.8).
+        let code = Code::new(storage.clone());
         let harness = Arc::new(Harness::new(storage.clone(), sessions.clone()));
-        let threads = Threads::new(storage.clone(), harness.clone());
+        let threads = Threads::new(storage.clone(), harness.clone(), code.clone());
         let events = Events::new(storage.clone(), harness.clone(), bus.clone(), ui.clone());
         Arc::new(AppCore {
             plans: Plans::new(storage.clone(), handles.clone(), ui.clone()),
@@ -169,12 +179,14 @@ impl AppCore {
                 sessions.clone(),
                 handles,
                 bus.clone(),
+                code.clone(),
             ),
             harness,
-            projects: Projects::new(storage.clone()),
+            projects: Projects::new(storage.clone(), code.clone()),
             threads,
             instructions: Instructions::new(storage.clone()),
             events,
+            code,
         })
     }
 
@@ -210,14 +222,21 @@ impl AppCore {
         &self.events
     }
 
-    /// §8.5 through `turns::shut_down(runtime, handles, sessions, bound,
-    /// second_signal)`, unchanged: every running turn is stopped and every
-    /// adapter closed. The binary keeps the signals and the transport.
+    pub fn code(&self) -> &Code {
+        &self.code
+    }
+
+    /// First `Code`'s watchers and workers stop (§15.8), each after the file
+    /// it is on; then §8.5 through `turns::shut_down(runtime, handles,
+    /// sessions, bound, second_signal)`, unchanged: every running turn is
+    /// stopped and every adapter closed. The binary keeps the signals and the
+    /// transport.
     pub async fn shut_down(
         &self,
         bound: Duration,
         second_signal: impl Future<Output = ()>,
     ) -> Result<StopKind, CoreError> {
+        self.code.shut_down().await;
         Ok(self.turns.shut_down(bound, second_signal).await?)
     }
 }

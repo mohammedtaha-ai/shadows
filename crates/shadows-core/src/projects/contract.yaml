@@ -29,6 +29,8 @@ source: crates/shadows-core/src/projects
 shapes:
   Projects:
     storage: Arc<Storage>
+    # A clone of the core's `Code`: `create` touches the new project (§15.6).
+    code: Code
   Project:
     id: ProjectId
     slug: String
@@ -77,6 +79,8 @@ functions:
       # resolve (DirectoryError → CoreError::Directory) → "project.create",
       # principal User/local, schema 1, params { slug, name, directory:
       # canonical } → `create_project` with `policy::default_modes()`.
+      # Then `Code::touch` of the project, a replay included (§15.6); it
+      # never fails the create.
       # Refusals: Directory; CommandConflict; Constraint (the slug in use).
     set_modes:
       signature: "(&self, command_id: String, project: &ProjectId, allowed_modes: BTreeMap<String, Vec<String>>) -> Result<Project, CoreError>"

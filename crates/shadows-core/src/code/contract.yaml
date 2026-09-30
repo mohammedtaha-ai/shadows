@@ -1,0 +1,794 @@
+# Owns the code index (spec §15.4–§15.6): walking a project's folder into
+# `code_file` and `code_tag`, keeping that copy true while the project is
+# one of the most recently used, and answering three questions from it —
+# where a name is defined, who uses it, and what a path holds — within the
+# scope of projects the asker may read.
+#
+# The index is a copy derived from the files. It carries no CommandId and no
+# journal event, and can be deleted and rebuilt. Paths are stored relative
+# to the project's folder with '/'; the key is lowercased on Windows
+# (`path_key`), so `Foo.rs` and `foo.rs` are one row.
+#
+# Two functions hold the indexing rules and every path that indexes goes
+# through them: `keeps` (the walk's filter) and `index_file` (one file read,
+# parsed and written). The scan, the watcher's batches (`files`) and a
+# question's re-check (`recheck`) call the same two.
+#
+# Each active project has one worker (`watch.rs`), a tokio task that does its
+# scans, its watcher's batches and its re-checks one after another, so two
+# writes of one file never race. The watcher is the fast path only: notify
+# 8.2.0 can lose changes on Windows without a word (PROBE.md), so a periodic
+# scan runs beside it and every question checks its own hits.
+#
+# Trap: `references` matches by name only. Two functions with one name are
+# not told apart, which is why every such hit says `matched_by: name`.
+# Trap: the order of use lives in memory only (§15.6); after a restart
+# `start` rebuilds it from the durable sequence of the last turns.
+# Trap: before `start` nothing is active — every project answers `Inactive`,
+# and `touch` only records the use. Tests that build with `assemble` start
+# `Code` only when they ask.
+#
+# Unlike the index, the links and the active limit are the person's choices:
+# commands with a CommandId (kinds ProjectLinkPut, ProjectLinkRemove,
+# CodeActiveLimitSet), each one write with its journal event (ProjectLinked,
+# ProjectUnlinked, CodeActiveLimitSet), as `save_planner_instructions` is.
+# Trap: a link's replay answers the link as it stands; once that link is
+# removed, the link as the command left it, dated by its command record.
+
+name: code
+version: 3
+status: current
+source: crates/shadows-core/src/code
+
+
+shapes:
+  Code:
+    # Cheap to clone: an `Arc` over the storage and the active set.
+    # `Projects`, `Threads`, `Turns` and every worker hold a clone.
+    inner: Arc<Inner>
+  Inner:
+    storage: Arc<Storage>
+    # Held across reads only: `code_scope` in `touch` and `start`, and
+    # `code_active_limit` in `start` and `set_active_limit`; never across a
+    # write, and no worker takes it.
+    active: tokio::sync::Mutex<Active>
+  CodeConfig:
+    rescan_every: Duration   # default 60 s
+    debounce: Duration       # default 500 ms
+  Asker:
+    # HTTP asks as a person, refusals INVALID_COMMAND; MCP under a grant,
+    # refusals GRANT_SCOPE. Either names the project the scope starts from.
+    Person: "&ProjectId"
+    Grant: "&Grant"
+  IndexState:
+    # serde internally tagged: { "state": "indexing", "done", "found" }.
+    Ready: unit
+    Indexing: "{ done: u32, found: u32 }"
+    Inactive: unit
+    NoDirectory: unit
+    DirectoryMissing: unit
+  ProjectStatus:
+    project: String      # the slug
+    state: IndexState
+    # Files indexed; a skipped file is counted in `skipped` only.
+    files: u32
+    skipped: Vec<Skipped>
+    # When the worker's last scan ended (RFC 3339), in memory only: None
+    # for a project with no worker, or before its first scan ends.
+    updated_at: Option<String>
+  Skipped:
+    reason: String       # too_large | binary | not_utf8
+    count: u32
+  Hit:
+    project: String      # the slug
+    path: String         # relative, '/'
+    line: u32
+    kind: String
+    name: String
+    signature: Option<String>
+    matched_by: Option<String>
+  Answer:
+    hits: Vec<Hit>
+    more: bool
+    suggestions: Vec<String>
+    status: Vec<ProjectStatus>
+  ProjectLink:
+    project: String      # the slug of the project that reads
+    linked: String       # the slug of the project it reads
+    created_at: String
+  CodeSettings:
+    active_limit: u32    # 1..=20, default 5 (migration 0008)
+  FileRow:
+    # What `code_file` holds for one file.
+    path_key: String
+    path: String
+    size: i64
+    modified_ms: i64
+    language: "&'static str"
+    skipped: "Option<&'static str>"
+  Walked:
+    paths: Vec<String>
+    # An entry could not be read: the scan then deletes nothing.
+    incomplete: bool
+  Only:
+    # A walk limited to these file keys and the folder keys above them.
+    files: HashSet<String>
+    folders: HashSet<String>
+  Progress:
+    # A running scan's counts, and the worker's stop: checked between files.
+    found: AtomicU32
+    done: AtomicU32
+    stop: AtomicBool
+  Active:
+    # Most recent first; only projects with a folder.
+    order: Vec<ProjectId>
+    dirs: HashMap<ProjectId, PathBuf>
+    # Touches before `start`, oldest first.
+    early: Vec<ProjectId>
+    running: Option<Running>
+    closed: bool
+  Running:
+    config: CodeConfig
+    # `code_setting.active_limit`: read by `start`, then set by
+    # `set_active_limit`, each reading it under the lock.
+    limit: usize
+    # Exactly the first `limit` of `order`, after every `settle`.
+    workers: HashMap<ProjectId, Worker>
+    # The tasks of stopped workers past the limit, by project, until they
+    # finish: a project active again hands its own to its new worker, which
+    # waits for it (one writer per project); `close` hands the rest to
+    # `shut_down`.
+    leaving: HashMap<ProjectId, JoinHandle<()>>
+  Job:
+    Scan: unit
+    Files: Vec<String>
+    Recheck: "(Vec<String>, oneshot::Sender<()>)"
+  Seen:
+    # What the watcher's thread passes on.
+    Path: String
+    Rescan: unit
+  Worker:
+    jobs: mpsc::Sender<Job>        # bounded, 64
+    shared: Arc<Shared>
+    task: JoinHandle<()>
+  Shared:
+    progress: Progress
+    scanning: AtomicBool
+    scanned: AtomicBool
+    missing: AtomicBool
+    paused: AtomicBool   # test only
+    updated_at: Mutex<Option<String>>
+    stopping: Notify
+  Run:
+    # The worker's own state, owned by its task.
+    code: Code
+    project: ProjectId
+    dir: PathBuf
+    shared: Arc<Shared>
+    watcher: Option<RecommendedWatcher>
+    seen: mpsc::Sender<Seen>       # bounded, 8192; kept so it outlives a watcher
+    lost: Arc<AtomicBool>
+    pending: HashSet<String>
+
+
+functions:
+  lifecycle:
+    start:
+      signature: "(&self, config: CodeConfig) -> Result<(), CoreError>"
+      # `code_order`, then under the lock: `code_active_limit`, `begin`,
+      # the touches recorded before it applied oldest first, `settle`.
+      # Awaits no scan. A second call does nothing; so does one after
+      # `shut_down`.
+    touch:
+      signature: "(&self, project: &ProjectId)"
+      # Never fails, never waits on a scan. Before `start`: `record` only.
+      # After: `used_rows` (its `code_scope` read; NotFound quiet, any other
+      # failure logged `code.touch_failed`), `used`, `settle`. After
+      # `shut_down`: nothing.
+    shut_down:
+      signature: "(&self)"
+      # `close` under the lock, then every worker's task awaited outside it.
+      # pub(crate): `AppCore::shut_down` calls it before §8.5; tests reach it
+      # as `shut_down_for_test` (`testing`).
+    pause_watcher:
+      signature: "(&self, project: &ProjectId)"
+      # test-support only; tests reach it as `pause_watcher_for_test`.
+    active_projects:
+      signature: "(&self) -> Vec<ProjectId>"
+      # test-support only; tests reach it as `active_for_test`.
+    used_rows:
+      signature: "(&self, project: &ProjectId) -> Option<Vec<(ProjectId, Option<PathBuf>)>>"
+      private: true
+  questions:
+    definitions:
+      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CoreError>"
+      # Exact, case-sensitive name, role definition. With no hit, up to 10
+      # definition names containing the text, case-insensitively.
+    references:
+      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CoreError>"
+      # As `definitions` with role reference; every hit matched_by "name".
+    outline:
+      signature: "(&self, asker: Asker<'_>, only: Option<&str>, path: &str) -> Result<Answer, CoreError>"
+      # `inside` first; the scope; `touch` of the asker's project; the
+      # definitions whose key is the path's or under it, every one for ""
+      # or "."; `recheck`, and the query once more when it sent any. No
+      # suggestions.
+    status:
+      signature: "(&self, project: &ProjectId) -> Result<ProjectStatus, CoreError>"
+      # `status_of`; it does not touch. NotFound for an unknown project.
+    by_name:
+      signature: "(&self, asker, only, name, role) -> Result<Answer, CoreError>"
+      private: true
+      # The scope (its refusals first), `touch` of the asker's project, the
+      # query, `recheck` and the query once more when it sent any, then the
+      # suggestions when there is no hit.
+    recheck:
+      signature: "(&self, scope: &[ScopeRow], hits: &[Hit]) -> bool"
+      private: true
+      # Per project with a folder: the distinct paths of the first 50 hits
+      # through `stale`; the changed ones go as one `Job::Recheck` to its
+      # worker, if it has one. Sending and every reply are awaited within
+      # 2 s in all (`code.recheck_timeout` past it). True when any was sent.
+    answer:
+      signature: "(&self, scope, hits, suggestions) -> Result<Answer, CoreError>"
+      private: true
+      # Keeps 50 of at most 51 rows; `more` is the 51st. One status per
+      # project in the scope, in the scope's order.
+    status_of:
+      signature: "(&self, project: &ScopeRow) -> Result<ProjectStatus, CoreError>"
+      private: true
+      # NoDirectory with no folder; else the worker's `state` and
+      # `updated_at`; Inactive and None without a worker.
+  links:
+    links:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CoreError>"
+      # By the linked slug; empty for an unknown project.
+    link:
+      signature: "(&self, command_id: String, project: &ProjectId, linked: &ProjectId) -> Result<ProjectLink, CoreError>"
+      # "ProjectLinkPut", principal User/local, schema 1, params
+      # { project, linked }, scope Project, key the project →
+      # `put_code_link`. Refusals: itself, or `linked` no project,
+      # INVALID_COMMAND; `project` no project, NotFound; CommandConflict.
+      # Linking twice answers the link already there. It does not touch.
+    unlink:
+      signature: "(&self, command_id: String, project: &ProjectId, linked: &ProjectId) -> Result<(), CoreError>"
+      # "ProjectLinkRemove", params { project, linked }, scope Project →
+      # `remove_code_link`. No such link: INVALID_COMMAND "no such link".
+    settings:
+      signature: "(&self) -> Result<CodeSettings, CoreError>"
+    set_active_limit:
+      signature: "(&self, command_id: String, active_limit: u32) -> Result<CodeSettings, CoreError>"
+      # Outside 1..=20: INVALID_COMMAND, before any write.
+      # "CodeActiveLimitSet", params { active_limit }, scope Code, key
+      # "settings" → `set_code_active_limit`; then, under the lock, `limit`
+      # with the stored value read there (a replay answers an older one; of
+      # two calls at once, the last to lock reads the newer) and `settle`:
+      # lowering it stops the least recently used workers at once.
+    invalid:
+      signature: "(message: String) -> CoreError"
+      private: true
+  scope:
+    projects:
+      signature: "(storage: &Storage, asker: &Asker<'_>, only: Option<&str>) -> Result<Vec<ScopeRow>, CoreError>"
+      # The asker's project, then its direct links by slug. An `only` not in
+      # it: GRANT_SCOPE for a grant, INVALID_COMMAND for a person, "the
+      # project <slug> is not linked to this project".
+    home:
+      signature: "(asker: &Asker<'a>) -> &'a ProjectId"
+      # The project a question starts from, and touches.
+    inside:
+      signature: "(path: &str) -> Result<String, CoreError>"
+      # '\' becomes '/', "./" and a trailing '/' are dropped; absolute, a
+      # ':' or a ".." component is INVALID_COMMAND "the path must be inside
+      # the project".
+  indexing:
+    scan:
+      signature: "(&self, project: &ProjectId) -> Result<(), CoreError>"
+      # pub(crate): tests reach it as `scan_for_test` (`testing`). A worker
+      # calls `scan_project` with its own `Progress`.
+    scan_project:
+      signature: "(&self, project: &ProjectId, progress: &Progress) -> Result<u32, CoreError>"
+      # No folder, or a missing one: nothing changes. Walks on a blocking
+      # thread, sets `found`, `index_file` per kept path (a failure is
+      # `code.index_failed` and the walk goes on), `done` after each, and
+      # returns early once `stop` is set; then deletes the rows of every key
+      # the walk did not see, unless the walk was incomplete or the folder
+      # vanished during the scan. Logs `code.scan` { project, seen,
+      # indexed, elapsed_ms }. Answers the files written or deleted.
+    index_file:
+      signature: "(&self, project: &ProjectId, dir: &Path, path: &str) -> anyhow::Result<bool>"
+      # Gone, or not a regular file (`symlink_metadata`: a link is never
+      # followed): its rows are deleted, only while `dir` exists. Unchanged
+      # path, size and modified time: nothing. Then, before any read, the
+      # canonical file must be `path` inside the canonical `dir`
+      # (`names_itself`), else `code.outside_folder` and nothing. Over
+      # 1 048 576 bytes: too_large, unread; at most one byte past it is
+      # read, so a file grown past it since its stat is too_large. A NUL in
+      # the first 8 KiB: binary. Not UTF-8: not_utf8. Else `extract` on a blocking thread.
+      # Then one `write_code_file`. True when it wrote or deleted.
+    stale:
+      signature: "(&self, project: &ProjectId, dir: &Path, paths: impl IntoIterator<Item = &'a str>) -> Vec<String>"
+      # The paths whose `symlink_metadata` stamp differs from their row, or
+      # that are gone, not regular files, or have no row. Opens no file.
+      # None while the folder is missing.
+    keeps:
+      signature: "(path: &Path) -> bool"
+      # Relative path: no component `target`, `node_modules` or starting
+      # with '.', and a language `language_for` knows.
+    kept_now:
+      signature: "(dir: &Path, paths: &[String]) -> HashSet<String>"
+      # Blocking. `walk` limited (`Only`) to those files and the folders
+      # above them: the keys the walk keeps now, the ignore files on the way
+      # included.
+    names_itself:
+      signature: "(real: &Path, canonical_dir: &Path, path: &str) -> bool"
+      private: true
+      # A link or junction on the way, or a name Windows normalises
+      # (`a.rs.`), makes the canonical path another file: refused.
+    relative:
+      signature: "(dir: &Path, path: &Path) -> Option<String>"
+    stamp:
+      signature: "(meta: &std::fs::Metadata) -> (i64, i64)"
+      # Size and modified milliseconds, as `code_file` stores them.
+    path_key:
+      signature: "(path: &str) -> String"
+    walk:
+      signature: "(dir: &Path, only: Option<Arc<Only>>) -> Walked"
+      private: true
+      # WalkBuilder: parents(false), git_global(false), require_git(false),
+      # follow_links(false), hidden entries skipped (its default), and a
+      # filter_entry refusing folders named target or node_modules and,
+      # with `only`, any entry outside it.
+    folder_exists:
+      signature: "(dir: &Path) -> bool"
+      # Rows are deleted only while the project's folder is there (§15.4).
+    never_walked:
+      signature: "(name: &str) -> bool"
+  active:
+    running:
+      signature: "(&self) -> bool"
+    record:
+      signature: "(&mut self, project: &ProjectId)"
+      # Once per project, at its last use: a core never started does not grow it.
+    begin:
+      signature: "(&mut self, order: Vec<(ProjectId, PathBuf)>, limit: usize, config: CodeConfig) -> Vec<ProjectId>"
+      # Once: the database's order and the limit; answers the early touches.
+    used:
+      signature: "(&mut self, rows: &[(ProjectId, Option<PathBuf>)])"
+      # The links (the rows after the first) to the front in their order,
+      # then the first; a row with no folder takes no place.
+    limit:
+      signature: "(&mut self, limit: usize)"
+      # The next `settle` follows it; before `start` it does nothing.
+    settle:
+      signature: "(&mut self, code: &Code)"
+      # Stops the worker of every project past the limit (`code.inactive`),
+      # its task kept in `leaving`; spawns one for every active project
+      # without one (`code.active`), given that project's `leaving` task.
+    worker:
+      signature: "(&self, project: &ProjectId) -> Option<&Worker>"
+    active:
+      signature: "(&self) -> Vec<ProjectId>"
+      # test-support only.
+    close:
+      signature: "(&mut self) -> Vec<JoinHandle<()>>"
+      # Every worker stopped; answers their tasks and the `leaving` ones.
+  worker:
+    spawn:
+      signature: "(code: Code, project: ProjectId, dir: PathBuf, config: CodeConfig, before: Option<JoinHandle<()>>) -> Self"
+      # The task awaits `before`, the project's previous worker, first.
+    state:
+      signature: "(&self) -> (IndexState, Option<String>)"
+      # DirectoryMissing while missing; Indexing { done, found } while a
+      # scan runs or before the first ends; Ready after.
+    jobs:
+      signature: "(&self) -> mpsc::Sender<Job>"
+    pause:
+      signature: "(&self)"
+      # test-support only.
+    stop:
+      signature: "(self) -> JoinHandle<()>"
+      # Sets `progress.stop` and wakes the task: it ends after the file it
+      # is on, dropping its watcher.
+    run:
+      signature: "(mut self, jobs, seen, config: CodeConfig)"
+      private: true
+      # One select, biased: stop; a job; the interval (its first tick, at
+      # once, is the first scan); a seen path (into `pending`) or Rescan (a
+      # scan); `debounce` with no new path: `folder_changed` makes the batch
+      # one scan (`code.folder_changed`), else `pending` through `keeps`, as
+      # `Files`. After each, a set `lost` means a scan
+      # (`code.watcher_overflow`).
+    scan:
+      signature: "(&mut self)"
+      private: true
+      # Clears `pending`; a missing folder is `folder_missing`; a folder back
+      # gets a new watcher. After `scan_project`, one that wrote or deleted
+      # files while no path was pending restarts the watcher
+      # (`code.watcher_restarted`: notify can stop without a word), the new
+      # one made before the old is dropped. A scan cut short by `stop` does
+      # neither, and marks nothing scanned.
+    handle:
+      signature: "(&mut self, job: Job)"
+      private: true
+      # Files are dropped while `paused`; Recheck replies after its files.
+    files:
+      signature: "(&mut self, paths: Vec<String>)"
+      private: true
+      # Folder gone: `folder_missing`. Else by what is on disk now, never by
+      # the events' kind: a regular file `kept_now` keeps is indexed, a
+      # regular file it does not keep is left alone, anything else (gone, a
+      # link, a folder) goes to `index_file`, which deletes its rows. Ends
+      # after the file it is on once `stopping`.
+    folder_changed:
+      signature: "(&self) -> bool"
+      private: true
+      # A pending path `keeps` does not take, with no hidden component, that
+      # is gone, or is a folder `code_files_under` finds nothing under (a
+      # failed read counts as nothing) (`symlink_metadata`). A gone non-code
+      # file (a README.md) passes too: the scan is cheap.
+    recheck:
+      signature: "(&mut self, paths: Vec<String>)"
+      private: true
+      # `index_file` for each: it rewrites a changed file and deletes the
+      # rows of a gone one. Ends after the file it is on once `stopping`.
+    stopping:
+      signature: "(&self) -> bool"
+      private: true
+    index:
+      signature: "(&self, path: &str)"
+      private: true
+    folder_missing:
+      signature: "(&mut self)"
+      private: true
+      # `missing` set (`code.directory_missing`, once), the watcher dropped.
+    watch:
+      signature: "(&self) -> Option<RecommendedWatcher>"
+      private: true
+      # A new recursive `RecommendedWatcher`; a failure is
+      # `code.watcher_failed`, and the next scan tries again.
+    forward:
+      signature: "(dir: &Path, seen: &mpsc::Sender<Seen>, lost: &AtomicBool, event: notify::Result<notify::Event>)"
+      private: true
+      # On notify's thread, with no await: an error or `need_rescan()` sends
+      # Rescan (logged); per path, relative, one under target/ or
+      # node_modules/ is dropped, a `.gitignore` sends Rescan, the rest
+      # Path. `try_send`: a full or closed channel sets `lost`.
+  store:
+    code_file_stamp:
+      signature: "(&self, project: &ProjectId, path_key: &str) -> Result<Option<(String, i64, i64)>, StorageError>"
+    code_file_keys:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<String>, StorageError>"
+    code_files_under:
+      signature: "(&self, project: &ProjectId, folder_key: &str) -> Result<bool, StorageError>"
+      # A row at the key or in the byte range `key/` to `key0`, as
+      # `code_outline`: exact on every platform.
+    write_code_file:
+      signature: "(&self, project: &ProjectId, file: FileRow, tags: Vec<Tag>) -> Result<(), StorageError>"
+      # One write: delete the file's tags, upsert its row, insert its tags.
+    delete_code_file:
+      signature: "(&self, project: &ProjectId, path_key: &str) -> Result<(), StorageError>"
+      # One write: the tags explicitly, then the row.
+    code_order:
+      signature: "(&self) -> Result<Vec<(ProjectId, String)>, StorageError>"
+      # Projects with a folder, by the newest `OperationCreated` seq among
+      # their threads' operations, else their `ProjectCreated` seq,
+      # descending, then by id.
+    code_active_limit:
+      signature: "(&self) -> Result<i64, StorageError>"
+      # In store/links.rs, with the links' rows.
+    code_links:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, StorageError>"
+    put_code_link:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, linked: &ProjectId) -> Result<Option<ProjectLink>, StorageError>"
+      # One write: classify (a replay answers `replayed_link` for its outcome ref, the
+      # linked id, names) → `project` must exist (NotFound) → `linked` must
+      # (else None) → INSERT … ON CONFLICT DO NOTHING → `ProjectLinked`
+      # { linked } only when a row was made → record_command → the link.
+    remove_code_link:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, linked: &ProjectId) -> Result<bool, StorageError>"
+      # One write: classify (a replay answers true) → DELETE; no row: false,
+      # nothing recorded → `ProjectUnlinked` { linked } → record_command.
+    set_code_active_limit:
+      signature: "(&self, ctx: &CommandContext, limit: u32) -> Result<u32, StorageError>"
+      # One write: classify (a replay answers the limit its outcome ref
+      # holds) → UPDATE code_setting → `CodeActiveLimitSet` { active_limit },
+      # no project → record_command.
+    load_link:
+      signature: "(conn, project: &ProjectId, linked: &ProjectId) -> Result<ProjectLink, StorageError>"
+      private: true
+    replayed_link:
+      signature: "(conn, ctx: &CommandContext, project: &ProjectId, linked: &ProjectId) -> Result<ProjectLink, StorageError>"
+      # The link as it stands, else rebuilt from the command record: never
+      # NotFound for a command that happened (§14.9).
+      private: true
+    is_project:
+      signature: "(conn, id: &ProjectId) -> Result<bool, StorageError>"
+      private: true
+    into_link:
+      signature: "(row: LinkRow) -> ProjectLink"
+      private: true
+    code_scope:
+      signature: "(&self, home: &ProjectId) -> Result<Vec<ScopeRow>, StorageError>"
+    code_by_name:
+      signature: "(&self, scope: &[ScopeRow], name: &str, role: &str) -> Result<Vec<Hit>, StorageError>"
+      # Per project in the scope's order, by path, line, kind; 51 rows in all.
+    code_suggestions:
+      signature: "(&self, scope: &[ScopeRow], text: &str, role: &str) -> Result<Vec<String>, StorageError>"
+      # LIKE with %, _ and \ escaped; each project's first 10, merged by name.
+    code_outline:
+      signature: "(&self, scope: &[ScopeRow], path_key: &str) -> Result<Vec<Hit>, StorageError>"
+      # Under `path_key` is the byte range `key/` to `key0`, exact on every
+      # platform (`LIKE` would ignore ASCII case).
+    code_counts:
+      signature: "(&self, project: &ProjectId) -> Result<(u32, Vec<Skipped>), StorageError>"
+    hit:
+      signature: "(slug: &str, row: HitRow) -> Hit"
+      private: true
+    like_escape:
+      signature: "(text: &str) -> String"
+      private: true
+
+
+called_by_other_services:
+  touch: "Turns (turns/mod.rs send, once its checks pass), Threads (threads/mod.rs list) and Projects (projects/mod.rs create): each is a use of the project (§15.6); it returns at once and never fails its caller"
+
+
+enums:
+  CoreError:
+    source: crate::error::CoreError
+    values: []
+  StorageError:
+    source: crate::db::StorageError
+    values: []
+  ProjectId:
+    source: crate::projects::ProjectId
+    values: []
+  Grant:
+    source: crate::grants::Grant
+    values: []
+  Tag:
+    source: shadows_index::Tag
+    values: []
+
+
+obligations:
+  - rule: >
+      The index follows the files: a scan indexes a new file, re-indexes a
+      changed one (its size or modified time differs), and deletes the rows
+      of one that is gone; `target/`, `node_modules/`, hidden entries and
+      what a `.gitignore` in the folder names (with no `.git` anywhere) are
+      never indexed; a file over 1 MB is recorded as too_large with no tags.
+    tested_by: indexing_follows_the_files
+
+  - rule: >
+      While a project is active its index stays true without a request: the
+      worker's first scan indexes it, a change the watcher reports is
+      indexed once no path has arrived for `debounce`, and a change the
+      watcher never delivers is found by the periodic scan within
+      `rescan_every`.
+    tested_by: watching_and_the_periodic_scan_keep_the_index_true
+    note: >
+      The body pauses the worker's `Files` jobs (not its watcher) before
+      writing b.rs, so only the periodic scan can index it. The watcher's
+      own path (create, delete, a `.gitignore` starting a scan) was run once
+      by hand and is held by no test.
+
+  - rule: >
+      A folder renamed or deleted inside an active project is in the index
+      once no path has arrived for `debounce`, not at the next periodic scan:
+      the watcher reports only the folder, so a batch holding a path that is
+      gone and not a code file, or a folder the index holds no file under
+      (moved in), is handled as one scan (outside target/, node_modules/ and
+      hidden entries, which never start one). A folder with indexed files,
+      which Windows reports on every save inside it, starts none: its files'
+      own paths go as `Files`. One batch starts at most one scan, and the
+      worker runs it inline, so no second is queued behind it.
+    tested_by: none
+    note: >
+      Mohammed's Windows run, check 3, exercises it. Checked once by hand
+      with a throwaway test (rescan_every 60 s, debounce 500 ms): a renamed
+      folder's function answered at its new path in about 0.7 s, a deleted
+      folder's rows were gone in about 0.7 s, a folder moved in from outside
+      was answered in about 0.6 s, and saves and a new file inside an indexed
+      subfolder started no scan; with the rule switched off, a rename was not
+      answered within 10 s.
+
+  - rule: >
+      A question never points at a stale line: before it answers,
+      `definitions`, `references` and `outline` stat the files of their
+      first 50 hits, send the changed or gone ones to the project's worker
+      as `Recheck`, wait at most 2 s, and ask again once.
+    tested_by: watching_and_the_periodic_scan_keep_the_index_true
+    note: >
+      A save through rename (write `.a.rs.tmp`, rename it over a.rs) is
+      answered at its new line at once; with `recheck` made to send nothing
+      the body fails at that assertion.
+
+  - rule: >
+      Only the `active_limit` most recently used projects with a folder are
+      active, each with one worker; `start` orders them by their last turn
+      (else their creation), and a use (`touch`: a turn, a listing of
+      threads, a creation, a question) puts the project's links, then the
+      project, first, the least recently used leaving. A question about an
+      inactive project answers from its rows with the state Indexing.
+      A project evicted and used again before its old worker finished its
+      file never has two writers: the new worker awaits the old task first.
+    tested_by: only_the_most_recent_projects_are_watched
+    note: >
+      The one-writer part is structural (`settle` hands `leaving`'s task to
+      `Worker::spawn`); no test evicts a project mid-scan.
+      The body has six projects with no turn, so the order is by creation;
+      it does not order by a turn, and it makes no link, so a link's
+      activation before its project is held by no test.
+
+  - rule: >
+      `touch` never fails its caller and never waits on a scan: an error is
+      logged and dropped, and the scan runs in the worker.
+    tested_by: none
+    note: >
+      Structural: `touch` returns `()`. `Turns::send`, `Threads::list` and
+      `Projects::create` call it after their own work succeeded.
+
+  - rule: >
+      No path outside the project's folder is ever read. The walk reads no
+      parent's ignore file and no global one, and follows no link;
+      `index_file` stats with `symlink_metadata`, and before it opens a file
+      its canonical path must be the path inside the folder's canonical
+      path, so a link or junction on the way, or a name Windows normalises,
+      is skipped and logged; `outline` refuses an absolute path, a ':' or a
+      '..' component, and reads the index only.
+    tested_by: the_scope_is_the_project_and_its_links_only
+    note: >
+      `inside`, the WalkBuilder settings, `symlink_metadata` and
+      `names_itself` are the whole rule. The body asks `outline` for "../"
+      only; a test would also ask for "/x" and "C:/x", and have the
+      watcher report a file under a junction leading out of the folder.
+
+  - rule: >
+      A folder that is missing, or vanishes, keeps its index: the scan
+      returns before walking and skips step 6, `index_file` deletes a gone
+      file's rows only while `folder_exists`, and the worker answers
+      DirectoryMissing and drops its watcher. When a periodic scan finds
+      the folder again, a new watcher is made and the folder scanned.
+    tested_by: none
+    note: >
+      A test would index a folder, rename it away, wait a periodic scan,
+      find the hits still answered with DirectoryMissing, bring it back and
+      see a new file indexed through the watcher.
+
+  - rule: >
+      One short transaction per file: `write_code_file` and
+      `delete_code_file` each run one `write_txn` for one file, and
+      `extract` runs before it, on a blocking thread, outside any
+      transaction. The watcher's handler never awaits.
+    tested_by: none
+    note: >
+      Structural: read in `index_file`, the two store methods and `forward`.
+
+  - rule: >
+      Shutdown stops every worker after the file it is on: `stop` sets the
+      flag that `scan_project`, `files` and `recheck` check between files
+      and wakes the task, and `shut_down` awaits every task, those of
+      workers that left the active set included, before
+      `AppCore::shut_down` runs §8.5.
+    tested_by: none
+    note: >
+      Both new tests end with `shut_down_for_test`, which returns; none
+      stops a worker in the middle of a scan.
+
+  - rule: >
+      An answer carries at most 50 hits, ordered by the scope's order, then
+      path and line; `more` is true when a 51st exists.
+    tested_by: none
+    note: >
+      `indexing_follows_the_files` checks the order of two outline hits
+      only. A test would index 51 definitions of one name.
+
+  - rule: >
+      Suggestions come only when there is no hit, at most 10, in the
+      question's own role, containing the text case-insensitively.
+    tested_by: indexing_follows_the_files
+    note: The body checks "amm" suggests exactly "gamma".
+
+  - rule: >
+      A question's scope is the asker's project and its direct links, one
+      way; an `only` outside it is refused GRANT_SCOPE under a grant and
+      INVALID_COMMAND for a person, and an unnamed question never answers
+      from a project outside it.
+    tested_by: the_scope_is_the_project_and_its_links_only
+    note: >
+      With `projects` made to let `only` name any project, the body fails at
+      its first `secret` assertion: `where_is` { key, project: secret } is
+      answered with secret's hit instead of refused. A link's own links
+      (activation or scope) are held by no test.
+
+  - rule: >
+      Links and the active limit change only by command: ProjectLinkPut,
+      ProjectLinkRemove and CodeActiveLimitSet, each one write with its
+      replay, its event and its command record. A link to itself or to no
+      project, removing a link that is not there, and a limit outside
+      1..=20 are INVALID_COMMAND, with nothing written; linking twice
+      answers the link. A new limit is followed at once.
+    tested_by: the_scope_is_the_project_and_its_links_only
+    note: >
+      The body makes one link through the route and nothing else; the
+      refusals, the replays, the events and the limit are held by no test.
+      A test would link twice, unlink twice, link to itself and to a random
+      id, and set the limit to 0, 21 and then 1 and see four workers stop.
+
+
+agreements:
+  - between: [scan_project, files, recheck]
+    must: index a file the same way
+    holds: true
+    why: >
+      All three call `index_file` for each path, and nothing else writes a
+      file's rows; `scan_project` deletes the keys its walk did not see
+      itself only because the walk, not the disk, decides they left the
+      scope.
+    tested_by: watching_and_the_periodic_scan_keep_the_index_true
+  - between: [walk, files]
+    must: >
+      decide keep-or-skip by the same rules, so the index does not depend on
+      which path saw a change
+    holds: true
+    why: >
+      `walk` keeps what passes `keeps` and the ignore files; the watcher's
+      batch passes `keeps`, then `kept_now`, which is `walk` limited to the
+      batch's files and the folders above them, reading the same ignore
+      files. `forward` drops target/ and node_modules/ with the walk's own
+      `never_walked`.
+    tested_by: indexing_follows_the_files
+    note: >
+      The test holds the walk's side; the watcher's `.gitignore` handling
+      was run once by hand.
+
+
+not_the_caller's:
+  - >
+      Check the scope, resolve a slug, or join a path to a project's folder
+      yourself: an adapter passes the asker, `only` and the text to `Code`,
+      which owns `projects` and `inside`.
+  - >
+      Check a link or a limit, or build their fingerprints, yourself: an
+      adapter passes the command id and the ids or the number to `link`,
+      `unlink` or `set_active_limit`, which refuse and record.
+  - >
+      Filter a changed path or write a file's rows yourself: `keeps` and
+      `index_file` are the only implementation of either.
+  - >
+      Start or stop a worker yourself: call `touch` for a use; `start` and
+      `shut_down` belong to `AppCore`.
+
+
+tests:
+  - name: indexing_follows_the_files
+    checks: >
+      After one scan: `alpha` is defined at src/a.rs:1 with its signature,
+      referenced from src/b.rs with matched_by "name"; definitions in
+      target/ and in a file a nested .gitignore names are absent; status
+      counts one too_large file. After changing a.rs (line 3), deleting b.rs
+      and adding c.ts: alpha is at line 3, has no reference, gamma has one
+      definition, outline "src" is [alpha, gamma], and "amm" answers no hit
+      with the suggestion ["gamma"].
+  - name: watching_and_the_periodic_scan_keep_the_index_true
+    checks: >
+      With a 400 ms scan and a 100 ms debounce: `one` is found after start;
+      a save through rename is answered at line 2 at once (the re-check);
+      with the worker's `Files` jobs dropped, a new b.rs's `two` is found
+      (the periodic scan).
+  - name: only_the_most_recent_projects_are_watched
+    checks: >
+      Six projects, default config: five are active; the sixth answers
+      status Inactive; a question about it answers Indexing or Ready; then
+      it is active, five still are, and the least recently used one left.
+  - name: the_scope_is_the_project_and_its_links_only
+    checks: >
+      demo linked to backend through PUT …/code/links/{linked}; secret not
+      linked. Over a project grant: where_is orders answers "backend:
+      src/api.rs:1 function orders", and so does naming backend; naming
+      secret is GRANT_SCOPE; unnamed, `key` never mentions secret; over HTTP
+      naming secret is 422 INVALID_COMMAND; outline "../" is refused "the
+      path must be inside the project"; backend naming demo is 422
+      INVALID_COMMAND (one way).

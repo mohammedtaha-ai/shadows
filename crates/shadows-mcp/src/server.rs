@@ -33,14 +33,18 @@ const THREAD_TOOLS: [&str; 5] = [
     "plan_show",
 ];
 
-/// An external agent's tools, within its project.
-const PROJECT_TOOLS: [&str; 6] = [
+/// An external agent's tools, within its project: the plan tools, and the
+/// code tools over the project and the projects it links to (§15.7).
+const PROJECT_TOOLS: [&str; 9] = [
     "workflow_list",
     "workflow_get",
     "task_get",
     "draft_prepare",
     "draft_start",
     "plan_edit",
+    "where_is",
+    "who_uses",
+    "outline",
 ];
 
 /// Every tool once, and each grant kind's share of them, built once per

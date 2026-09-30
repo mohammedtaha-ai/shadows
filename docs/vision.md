@@ -61,10 +61,11 @@ it asks before it writes. It does not re-read the project every session
 
 **Today:** Milestone 2 has the planning half. The Planner writes a durable plan
 of tasks and links, with versions, Approve and freezing. Tasks do not yet carry
-contracts or function specifications. The MCP server that Milestone 2 built is
-the channel that "Where is X?" would use. No code index answers it yet;
-`docs/codebase/inventory.md` is a hand-run version of the idea, and `gcode` is
-already named in `CLAUDE.md` as an optional code-search tool.
+contracts or function specifications. Milestone 3 answers "Where is X?": a code
+index built with tree-sitter, kept current by watching the files, and asked
+over the MCP server by an external agent's grant, with the tools `where_is`,
+`who_uses` and `outline` ([spec §15](./superpowers/specs/2026-09-30-code-index-design.md)).
+The Planner and executors do not ask it yet.
 
 ## 3. A failing test that belongs to another task
 
@@ -253,9 +254,10 @@ Each one closes when the part it belongs to becomes a milestone.
   Whether Codex has a usable ACP adapter also needs checking.
 - **Pending tests (§3).** How a test is marked as waiting on task N, and who
   owns it when it fails after task N completes.
-- **The "Where is X?" index (§2.4).** Where it comes from: generated from the
-  code as `inventory.md` is, a parser, `gcode`, or another tool. And how it
-  stays current while executors write code.
+- **Framework links (§2.4).** "Where is X?" answers from names only (spec
+  §15.1). Whether the index should also know what a framework joins without a
+  name in common, such as a route to its controller, and where that knowledge
+  would come from.
 - **The manager (§5).** What it sees, and whether it is one agent for the
   whole workflow or one per group of tasks.
 - **Writing one plan from two conversations (§8).** The plan keeps one Draft,

@@ -1,4 +1,5 @@
 mod app;
+mod code;
 mod command;
 mod db;
 mod error;
@@ -22,6 +23,10 @@ mod turns;
 #[cfg(feature = "test-support")]
 pub use app::CoreParts;
 pub use app::{AppCore, StartConfig};
+pub use code::{
+    Answer, Asker, Code, CodeConfig, CodeSettings, Hit, IndexState, ProjectLink, ProjectStatus,
+    Skipped,
+};
 // `StorageError`, `StartError` and `DirectoryError` are what `CoreError`
 // carries, which each adapter maps.
 pub use db::StorageError;

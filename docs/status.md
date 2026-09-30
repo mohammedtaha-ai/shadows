@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-09-29 (Milestone 2.5 merged to `main`)
+**Updated:** 2026-09-30 (Milestone 3 built on its branch)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -8,6 +8,16 @@ decision live in the topic owners indexed by
 restate them.
 
 ## Where we are
+
+**Milestone 3 (§15, the code index) is built on the branch
+`milestone-3/code-index`** (340 Rust tests) and ran on Windows on 2026-09-30:
+§15.11's five acceptance steps passed
+([`evidence/milestone3/WINDOWS_RUN.md`](./evidence/milestone3/WINDOWS_RUN.md)).
+It is not merged yet. It adds the crate `shadows-index`, the ninth service `Code`,
+and the MCP tools `where_is`, `who_uses` and `outline` for an external agent's
+grant, with their HTTP routes. The probe's measurements are in
+[`evidence/milestone3/PROBE.md`](./evidence/milestone3/PROBE.md). The plan is
+`superpowers/plans/2026-09-30-milestone-3-code-index.md`.
 
 **Milestone 2.5 (§14, one application core) is on `main`** (PR #7,
 2026-09-29; 328 Rust tests). Shadows is now a Cargo workspace under `crates/`:
@@ -94,24 +104,13 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **The five pre-existing defects Milestone 2.5 found,** recorded in their
-   services' contracts (two `gaps`, one open question) or found in review.
-   Fixed: a model set for a turn is set back when a later check refuses it;
-   `Sessions`, in the daemon and in every test fixture, shares the core's
-   SQLite pool, so a session's grant events wake SSE at once; a Planner's
-   `from_workflow_id` is in its DraftStart fingerprint, and by the person's
-   ruling (§13.6) must name its thread's latest version, the one a start
-   answers anyway, or is refused `INVALID_COMMAND`; the harness-session
-   routes' OpenAPI text (and §12.7) say that an opening issues the thread's
-   MCP grant; the test-only `draft_intent` is gone, so a draft_ref's owner and
-   expiry are written once, in `bind_draft_ref`, and its tests start plans
-   through it. All five are fixed.
-2. **Milestone 3: the code index** (`vision.md` §2.4), with tree-sitter embedded.
-3. **Effort at once, without `default`.** Mohammed's ruling after the
+1. **Finishing Milestone 3:** the Windows run passed; the PR to `main` is
+   open for Mohammed to merge.
+2. **Effort at once, without `default`.** Mohammed's ruling after the
    Windows run: picking an effort sets it on the session at once, as the
    model is, and Claude's `default` effort is not offered. Amends §12.4 and
    §12.7.
-4. **One lock for every open session.** `Sessions` holds a single lock through
+3. **One lock for every open session.** `Sessions` holds a single lock through
    an adapter's startup (typically 3–6 s on Windows, bounded at 20 s) and
    through each termination wait, so
    opening one conversation can delay Stop on another. This is latency, not a

@@ -9,7 +9,10 @@ No migration SQL is written until this schema proposal is accepted.
 ## 6.1 Table set
 
 **17 ordinary tables + 1 FTS5 virtual table.** Milestone 2 adds three more,
-`planner_instructions_version`, `mcp_grant` and `draft_intent` (§13.15):
+`planner_instructions_version`, `mcp_grant` and `draft_intent` (§13.15).
+Milestone 3 adds four in migration 0008, `code_file`, `code_tag`,
+`code_setting` and `project_link`; §15.4 owns their columns and why the code
+index is a copy derived from the files:
 
 ```text
 project

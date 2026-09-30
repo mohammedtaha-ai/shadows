@@ -8,7 +8,7 @@
 //! `harness.rs` (the harnesses and a thread's session), `thread.rs` (changing
 //! a thread itself), `workflow.rs` (plan versions and their approval),
 //! `grants.rs` (external agents' MCP grants), `instructions.rs` (a project's
-//! Planner instructions),
+//! Planner instructions), `code.rs` (the code index: questions, links, settings),
 //! `sse.rs` (the replay-then-live stream), `fs.rs` (choosing a project directory),
 //! `openapi.rs` (the document describing all of it), `failure.rs` (the
 //! transport mapping), `guard.rs` (refusing requests pages were made to send).
@@ -18,6 +18,7 @@
 //! of them appear in a domain or application signature; a handler is where
 //! `axum` stops.
 
+mod code;
 mod conversation;
 mod failure;
 mod fs;
@@ -143,6 +144,13 @@ fn routes() -> OpenApiRouter<AppState> {
             instructions::get_instructions,
             instructions::save_instructions
         ))
+        .routes(routes!(code::definitions))
+        .routes(routes!(code::references))
+        .routes(routes!(code::outline))
+        .routes(routes!(code::status))
+        .routes(routes!(code::links))
+        .routes(routes!(code::put_link, code::remove_link))
+        .routes(routes!(code::get_settings, code::put_settings))
         .routes(routes!(sse::subscribe))
         .routes(routes!(fs::list_dirs, fs::create_dir))
         .routes(routes!(openapi::serve))

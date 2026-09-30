@@ -42,6 +42,21 @@ tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["compat"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 tracing = "0.1"
+# Spec §15.3: `shadows-index`'s tagging. Pinned exactly by the probe
+# (docs/evidence/milestone3/PROBE.md): each grammar's ABI must be one the
+# `tree-sitter` under `tree-sitter-tags` accepts, and one `tree-sitter` is built.
+tree-sitter = "=0.27.0"
+tree-sitter-tags = "=0.27.0"
+tree-sitter-rust = "=0.24.2"
+tree-sitter-typescript = "=0.23.2"
+tree-sitter-javascript = "=0.25.0"
+# Spec §15.4: the walk of a project's folder, honouring its `.gitignore`
+# files whether or not it is a Git repository.
+ignore = "0.4.33"
+# Spec §15.4: a plain `RecommendedWatcher` per active project. Not
+# `notify-debouncer-full`, which lost 98.7 % of 20 000 deletions on Windows
+# (docs/evidence/milestone3/PROBE.md); Shadows gathers the paths itself.
+notify = "=8.2.0"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1", features = ["v4", "serde"] }

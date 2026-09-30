@@ -26,6 +26,8 @@ What the code keeps true, in rust-analyzer's style. Spec §14.6 owns them.
   status code; the types an adapter serializes derive `utoipa::ToSchema`, which
   describes a shape and names no route.
 - `shadows-core` never imports `axum` or `rmcp`.
+- `shadows-index` knows nothing of SQLite or projects. It depends on no
+  Shadows crate, nor on a database library; spec §15.2 owns this one.
 - Another service calls a service's `store` only through a function or method
   that store's contract declares, under `shared_in_transaction` (inside one
   write) or `called_by_other_services`.
@@ -52,6 +54,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/workflow.rs` | the routes over plan versions | `crates/shadows-http/src/workflow.rs` |
 | `crates/shadows-http/src/grants.rs` | the routes over external agents' MCP grants | `crates/shadows-http/src/grants.rs` |
 | `crates/shadows-http/src/instructions.rs` | the routes over a project's Planner instructions | `crates/shadows-http/src/instructions.rs` |
+| `crates/shadows-http/src/code.rs` | the routes over the code index | `crates/shadows-http/src/code.rs` |
 | `crates/shadows-http/src/sse.rs` | the replay-then-live stream's SSE framing | `crates/shadows-http/src/sse.rs` |
 | `crates/shadows-http/src/fs.rs` | choosing a project directory on this machine | `crates/shadows-http/src/fs.rs` |
 | `crates/shadows-http/src/openapi.rs` | the OpenAPI document describing this API | `crates/shadows-http/src/openapi.rs` |
@@ -60,7 +63,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-mcp/src/lib.rs` | Shadows' MCP server | `crates/shadows-mcp/src/lib.rs` |
 | `crates/shadows-mcp/src/auth.rs` | refusing a `/mcp` request that holds no live grant | `crates/shadows-mcp/src/auth.rs` |
 | `crates/shadows-mcp/src/server.rs` | the tools a grant's kind may see | `crates/shadows-mcp/src/server.rs` |
-| `crates/shadows-mcp/src/tools.rs` | each MCP tool's `Plans` call | `crates/shadows-mcp/src/tools.rs` |
+| `crates/shadows-mcp/src/tools.rs` | each MCP tool's one service call | `crates/shadows-mcp/src/tools.rs` |
 | `crates/shadows-mcp/src/refusal.rs` | what an MCP tool call answers | `crates/shadows-mcp/src/refusal.rs` |
 | `crates/shadows-core/src/lib.rs` | the application behind `AppCore` | `crates/shadows-core/src/app.rs` |
 | `crates/shadows-core/src/app.rs` | the application's composition root | `crates/shadows-core/src/app.rs` |
@@ -108,6 +111,15 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/grants/model.rs` | the grant types callers meet | `crates/shadows-core/src/grants/model.rs` |
 | `crates/shadows-core/src/grants/store.rs` | an MCP grant's rows, from issue to revocation | `crates/shadows-core/src/grants/store.rs` |
 | `crates/shadows-core/src/instructions/` | a project's numbered Planner instructions | `crates/shadows-core/src/instructions/mod.rs` |
+| `crates/shadows-core/src/code/` | the code index of each project's folder | `crates/shadows-core/src/code/mod.rs` |
+| `crates/shadows-core/src/code/model.rs` | the code index types callers meet | `crates/shadows-core/src/code/model.rs` |
+| `crates/shadows-core/src/code/store/` | the code index's SQLite queries | `crates/shadows-core/src/code/store/mod.rs` |
+| `crates/shadows-core/src/code/store/links.rs` | the rows a person's code choices write | `crates/shadows-core/src/code/store/links.rs` |
+| `crates/shadows-core/src/code/scan.rs` | walking a project's folder into the index | `crates/shadows-core/src/code/scan.rs` |
+| `crates/shadows-core/src/code/scope.rs` | what a code question may read | `crates/shadows-core/src/code/scope.rs` |
+| `crates/shadows-core/src/code/watch.rs` | keeping one active project's index current | `crates/shadows-core/src/code/watch.rs` |
+| `crates/shadows-core/src/code/active.rs` | which projects are active, in order of use | `crates/shadows-core/src/code/active.rs` |
+| `crates/shadows-core/src/code/links.rs` | the commands over links or the active limit | `crates/shadows-core/src/code/links.rs` |
 | `crates/shadows-core/src/events/` | what clients watch live | `crates/shadows-core/src/events/mod.rs` |
 | `crates/shadows-core/src/events/model.rs` | the event shapes the product records or signals | `crates/shadows-core/src/events/model.rs` |
 | `crates/shadows-core/src/events/subscription.rs` | one subscriber's replay-then-live stream | `crates/shadows-core/src/events/subscription.rs` |
@@ -118,6 +130,9 @@ pattern to follow, not merely an example.
 | `crates/shadows-agent/src/choices.rs` | reading the harness's offered choices | `crates/shadows-agent/src/choices.rs` |
 | `crates/shadows-agent/src/breakdown.rs` | reading Claude's `/context` answer | `crates/shadows-agent/src/breakdown.rs` |
 | `crates/shadows-agent/src/claude.rs` | the launch spec of the pinned Claude ACP adapter | `crates/shadows-agent/src/claude.rs` |
+| `crates/shadows-index/src/lib.rs` | one file's text turned into its tags | `crates/shadows-index/src/extract.rs` |
+| `crates/shadows-index/src/languages.rs` | the table of languages Shadows indexes | `crates/shadows-index/src/languages.rs` |
+| `crates/shadows-index/src/extract.rs` | one file's text in, its tags out | `crates/shadows-index/src/extract.rs` |
 | `crates/shadows-process/src/lib.rs` | OS process ownership with whole-tree containment | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-process/src/bin/` | test apparatus that no product code links | `crates/shadows-process/src/bin/tree_probe.rs` |
 | `crates/fake-acp/src/main.rs` | test apparatus that no product code links | `crates/fake-acp/src/main.rs` |

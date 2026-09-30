@@ -1,8 +1,9 @@
 //! One job: what a tool call answers (spec §13.6, the second error layer).
 //!
 //! Once a tool has started, it answers a result, never a JSON-RPC error: its
-//! JSON as text, or `isError` with text that begins with the stable code a
-//! client matches on (`REVISION_CONFLICT: …`) and goes on to say what to do.
+//! JSON as text (the code tools' own lines, as they are), or `isError` with
+//! text that begins with the stable code a client matches on
+//! (`REVISION_CONFLICT: …`) and goes on to say what to do.
 //! A JSON-RPC error would reach the model as an opaque failure.
 
 use rmcp::model::{CallToolResult, ContentBlock};
@@ -138,6 +139,19 @@ pub(super) fn answer<T: serde::Serialize>(outcome: Result<T, Refusal>) -> CallTo
         Ok(Err(e)) => Refusal::from(StorageError::Json(e)),
         Err(refusal) => refusal,
     };
+    refused(refusal)
+}
+
+/// The tool result for `outcome`: its text as it is, or the refusal's text.
+pub(super) fn text(outcome: Result<String, Refusal>) -> CallToolResult {
+    match outcome {
+        Ok(text) => CallToolResult::success(vec![ContentBlock::text(text)]),
+        Err(refusal) => refused(refusal),
+    }
+}
+
+/// `isError`, with the code a client matches on, then what to do.
+fn refused(refusal: Refusal) -> CallToolResult {
     let code = serde_json::to_value(refusal.code)
         .ok()
         .and_then(|v| v.as_str().map(str::to_string))

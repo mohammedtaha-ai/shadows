@@ -37,6 +37,8 @@ shapes:
     storage: Arc<Storage>
     # The core's own `Harness`, shared: a harness change closes its session.
     harness: Arc<Harness>
+    # A clone of the core's `Code`: `list` touches the project (§15.6).
+    code: Code
   PlanningThread:
     id: ThreadId
     project_id: ProjectId
@@ -94,6 +96,8 @@ functions:
       signature: "(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, CoreError>"
       # Oldest first by the `PlanningThreadCreated` event's seq; an unknown
       # project has none.
+      # Then `Code::touch` of the project: the web client opening a project
+      # lists its threads (§15.6). It never fails the listing.
     create:
       signature: "(&self, command_id: String, project: &ProjectId, title: &str, harness: Option<&str>) -> Result<PlanningThread, CoreError>"
       # harness or `claude-code` → known_harness → "thread.create",

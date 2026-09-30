@@ -43,6 +43,7 @@ use store::{NewTurn, StartedTurn};
 use turn::{PlannerTurn, StopOutcome};
 
 use crate::app::{Bus, user_command};
+use crate::code::Code;
 use crate::command::CommandContext;
 use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
@@ -66,14 +67,15 @@ pub(crate) mod for_tests {
 }
 
 /// Turns: what storage holds, the runtime that owns their operations, the
-/// sessions they prompt on, the registry of live turns, and the bus their
-/// live events go out on.
+/// sessions they prompt on, the registry of live turns, the bus their live
+/// events go out on, and the code index a turn's project is touched in.
 pub struct Turns {
     storage: Arc<Storage>,
     runtime: Arc<Runtime>,
     sessions: Arc<Sessions>,
     handles: Arc<LiveHandles>,
     bus: Bus,
+    code: Code,
 }
 
 /// A person's turn, as the route received it (§12.7, §13.9).
@@ -106,6 +108,7 @@ impl Turns {
         sessions: Arc<Sessions>,
         handles: Arc<LiveHandles>,
         bus: Bus,
+        code: Code,
     ) -> Self {
         Self {
             storage,
@@ -113,6 +116,7 @@ impl Turns {
             sessions,
             handles,
             bus,
+            code,
         }
     }
 
@@ -163,6 +167,8 @@ impl Turns {
         if self.storage.thread_is_busy(&thread_id).await? {
             return Err(StorageError::ThreadBusy.into());
         }
+        // The checks passed: a turn starts in this project, which is used (§15.6).
+        self.code.touch(&context.project_id).await;
         let opened = self.sessions.open(&thread_id).await?;
         // The turn holds the session from here: a second start, or a `/context`
         // read, cannot change or prompt it until this turn gives it back.
