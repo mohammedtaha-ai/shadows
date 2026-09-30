@@ -284,7 +284,8 @@ expire. The guarantee against a duplicate plan starts at `draft_start`.
   number; both carry the whole task.
 - **`draft_start` from scratch** (external only) creates a planning thread and
   its first plan together, in the grant's project. The thread's title is the
-  plan's title; the durable event that creates them records the grant as
+  plan's title, and it stays: neither a first message nor the harness renames
+  it (`title_source` `plan`, §4.2). The durable event that creates them records the grant as
   its actor (`planning_thread` has no author column). It lists with the project's
   conversations with no messages; if a person writes in it, the Shadows
   Planner continues there and reads the plan with its tools.

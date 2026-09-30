@@ -22,15 +22,16 @@
 # the source's session, which its first opening forks.
 #
 # The title rule (§4.2): a thread's `title_source` says who wrote its
-# title — `client` (the name given at create), `first_message`, `harness`, or
+# title — `client` (the name given at create), `plan` (a draft from scratch
+# made the thread for its plan, §13.6), `first_message`, `harness`, or
 # `person` (no rename writes it yet). A source replaces only the ones below
 # it, in the UPDATE's own WHERE: the first message replaces `client` once,
 # inside the turn's write, only when it is the thread's first UserMessage; a
 # harness title replaces `client`, `first_message` or `harness`, only when it
-# differs, in its own write. Neither replaces `person`. Each change journals
-# `ThreadRetitled` { title, source } in the same write; neither records a
-# CommandId. A fork keeps its source's `title_source`. The source is not in
-# `PlanningThread`: no client needs it yet.
+# differs, in its own write. Neither replaces `plan` or `person`. Each
+# change journals `ThreadRetitled` { title, source } in the same write;
+# neither records a CommandId. A fork keeps its source's `title_source`.
+# The source is not in `PlanningThread`: no client needs it yet.
 #
 # Trap: an entry's ordinal is allocated inside the appending write by
 # `UPDATE … RETURNING`, never MAX+1, so a failed append consumes none.
@@ -95,6 +96,12 @@ shapes:
     PermissionRefused: unit
     PlanView: unit
     PlanApproved: unit
+  CreatedTitle:
+    # pub(crate): who named a thread at create, its first `title_source`.
+    # `Client` (create_thread) is replaced by the first message and the
+    # harness; `Plan` (Plans' draft from scratch) by neither.
+    Client: unit
+    Plan: unit
   EntryRef:
     Operation: OperationId
     Decision: String
@@ -181,7 +188,7 @@ functions:
       signature: "(conn, source, fork, upto, ts) -> Result<i64, StorageError>"
       private: true
     insert_thread:
-      signature: "(conn, project_id, title, harness, actor: Actor, ts) -> Result<ThreadId, StorageError>"
+      signature: "(conn, project_id, title, named_by: CreatedTitle, harness, actor: Actor, ts) -> Result<ThreadId, StorageError>"
       # NotFound for a project that does not exist, not the foreign key's
       # constraint failure; journals `PlanningThreadCreated` { title, harness }.
     load_thread:
@@ -364,6 +371,19 @@ obligations:
       harness UPDATE's `title_source IN (…)` guard fails it (break-to-prove,
       2026-10-01).
 
+  - rule: >
+      A thread a draft from scratch created keeps its plan's title: it is
+      inserted as `plan`, which neither rule replaces. Migration 0010 marks
+      the earlier ones `plan` too: a v1 with the thread's timestamp and title.
+    tested_by: a_plan_thread_keeps_its_plan_title
+    note: The backfill in migration 0010 has no test of its own.
+
+  - rule: >
+      A thread whose messages predate its `client` source (every thread
+      migration 0010 found with messages) is never titled by a later
+      message: the first-message UPDATE requires no other UserMessage.
+    tested_by: a_thread_that_had_messages_before_migration_0010_keeps_its_title
+
 
 agreements:
   - between: [create, set_harness]
@@ -450,3 +470,11 @@ tests:
     checks: >
       A `person` row keeps "Mine" through a first message and a direct
       harness title, and journals no ThreadRetitled.
+  - name: a_plan_thread_keeps_its_plan_title
+    checks: >
+      A draft from scratch titled "Search" is `plan`; a first message and a
+      direct harness title leave "Search".
+  - name: a_thread_that_had_messages_before_migration_0010_keeps_its_title
+    checks: >
+      After a first message the row is set back to "T", `client`; a second
+      message leaves "T", `client`.

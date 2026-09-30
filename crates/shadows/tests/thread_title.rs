@@ -5,25 +5,38 @@ use std::time::Duration;
 
 use serde_json::Value;
 
+use shadows_core::ThreadId;
+use shadows_core::testing::Writer;
 use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
+#[path = "fixtures/plan.rs"]
+mod plan;
 
-use app::{App, default_settings, start_and_finish, test_app};
+use app::{App, default_settings, start_and_finish, start_and_finish_on, test_app};
+use plan::writer_ctx;
 
 async fn title(app: &App) -> String {
+    title_of(app, &app.thread).await
+}
+
+async fn title_of(app: &App, thread: &ThreadId) -> String {
     let threads = app
         .storage
         .list_threads_for_project(&app.project)
         .await
         .unwrap();
-    let thread = threads.iter().find(|t| t.id == app.thread).unwrap();
-    thread.title.clone()
+    let found = threads.iter().find(|t| &t.id == thread).unwrap();
+    found.title.clone()
 }
 
 async fn source(app: &App) -> String {
+    source_of(app, &app.thread).await
+}
+
+async fn source_of(app: &App, thread: &ThreadId) -> String {
     sqlx::query_scalar("SELECT title_source FROM planning_thread WHERE id = ?")
-        .bind(app.thread.as_str())
+        .bind(thread.as_str())
         .fetch_one(app.storage.reader())
         .await
         .unwrap()
@@ -135,4 +148,48 @@ async fn a_title_a_person_gave_is_never_replaced() {
         ("Mine".into(), "person".into())
     );
     assert!(retitled(&app).await.is_empty());
+}
+
+#[tokio::test]
+async fn a_plan_thread_keeps_its_plan_title() {
+    let app = test_app().await;
+    let ctx = writer_ctx(&Writer::Person, "d1", "DraftStart", serde_json::json!({}));
+    let started = app
+        .storage
+        .start_thread_with_draft(&ctx, &Writer::Person, &app.project, "Search", "find", None)
+        .await
+        .unwrap();
+    let thread = started.thread_id;
+    assert_eq!(source_of(&app, &thread).await, "plan");
+    start_and_finish_on(
+        &app,
+        thread.as_str(),
+        "the first message",
+        default_settings(),
+    )
+    .await;
+    let changed = app
+        .storage
+        .title_from_harness(&thread, "From the harness")
+        .await
+        .unwrap();
+    assert!(!changed);
+    assert_eq!(title_of(&app, &thread).await, "Search");
+}
+
+#[tokio::test]
+async fn a_thread_that_had_messages_before_migration_0010_keeps_its_title() {
+    let app = test_app().await;
+    start_and_finish(&app, "the first message", default_settings()).await;
+    // As migration 0010 leaves a thread that already had messages.
+    sqlx::query("UPDATE planning_thread SET title = 'T', title_source = 'client' WHERE id = ?")
+        .bind(app.thread.as_str())
+        .execute(app.storage.reader())
+        .await
+        .unwrap();
+    start_and_finish(&app, "a later message", default_settings()).await;
+    assert_eq!(
+        (title(&app).await, source(&app).await),
+        ("T".into(), "client".into())
+    );
 }

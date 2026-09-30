@@ -9,7 +9,7 @@ use crate::command::CommandContext;
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::events::{Actor, DurableEvent};
 use crate::projects::ProjectId;
-use crate::threads::model::{PlanningThread, ThreadId, TurnContext};
+use crate::threads::model::{CreatedTitle, PlanningThread, ThreadId, TurnContext};
 
 impl Storage {
     /// `harness` is the thread's CLI (spec §12.6); the caller checks it is one
@@ -35,7 +35,16 @@ impl Storage {
                     return load_thread(conn, &ThreadId::from_stored(id)).await;
                 }
                 let actor = Actor::user(&ctx.principal_id);
-                let id = insert_thread(conn, &project_id, &title, &harness, actor, &ts).await?;
+                let id = insert_thread(
+                    conn,
+                    &project_id,
+                    &title,
+                    CreatedTitle::Client,
+                    &harness,
+                    actor,
+                    &ts,
+                )
+                .await?;
                 record_command(
                     conn,
                     &ctx,
@@ -198,14 +207,16 @@ impl Storage {
     }
 }
 
-/// Creates an open thread in `project_id` and journals `PlanningThreadCreated`
-/// by `actor`, inside the caller's transaction. `NotFound`, not the foreign
-/// key's constraint failure: a thread asked for under a project that does not
-/// exist names something missing, not a conflict with what is stored.
+/// Creates an open thread in `project_id`, named by `named_by` (§4.2), and
+/// journals `PlanningThreadCreated` by `actor`, inside the caller's
+/// transaction. `NotFound`, not the foreign key's constraint failure: a
+/// thread asked for under a project that does not exist names something
+/// missing, not a conflict with what is stored.
 pub(crate) async fn insert_thread(
     conn: &mut SqliteConnection,
     project_id: &ProjectId,
     title: &str,
+    named_by: CreatedTitle,
     harness: &str,
     actor: Actor,
     ts: &str,
@@ -221,12 +232,14 @@ pub(crate) async fn insert_thread(
     let id = ThreadId::generate();
     sqlx::query(
         "INSERT INTO planning_thread
-           (id, project_id, title, status, next_entry_ordinal, harness_kind, created_at)
-         VALUES (?,?,?, 'Open', 1, ?, ?)",
+           (id, project_id, title, title_source, status, next_entry_ordinal, harness_kind,
+            created_at)
+         VALUES (?,?,?,?, 'Open', 1, ?, ?)",
     )
     .bind(id.as_str())
     .bind(project_id.as_str())
     .bind(title)
+    .bind(named_by.as_str())
     .bind(harness)
     .bind(ts)
     .execute(&mut *conn)

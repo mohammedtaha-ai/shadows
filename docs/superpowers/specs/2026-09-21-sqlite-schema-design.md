@@ -87,7 +87,7 @@ next_entry_ordinal  INTEGER NOT NULL DEFAULT 1 CHECK next_entry_ordinal > 0
 created_at          TEXT NOT NULL
 harness_session_id  TEXT NULL
 title_source        TEXT NOT NULL DEFAULT 'client'
-                    CHECK title_source IN ('client','first_message','harness','person')
+                    CHECK title_source IN ('client','plan','first_message','harness','person')
 ```
 
 `harness_session_id` (§4.2, migration 0004) is written once, by an update
@@ -95,7 +95,9 @@ guarded on `IS NULL`, and never cleared.
 
 `title_source` (§4.2, migration 0010) says who wrote `title`. Each automatic
 retitle is one UPDATE whose WHERE names the sources it may replace, so a
-`person` title is never overwritten.
+`plan` or `person` title is never overwritten. The migration marks `plan`
+every earlier thread whose version 1 was written with it (same `created_at`
+and title).
 
 Index:
 

@@ -1311,7 +1311,7 @@ pub(super) fn writer_of(grant: &Grant) -> Result<Writer, CoreError>
 pub(super) fn command(writer: &Writer, command_id: String, kind: &str, fp: String) -> CommandContext
 ```
 
-### `crates/shadows-core/src/plans/store/draft.rs` — 247 lines
+### `crates/shadows-core/src/plans/store/draft.rs` — 248 lines
 
 ```rust
 impl Storage {
@@ -1556,11 +1556,12 @@ pub fn new_turn<'a>(thread: &'a ThreadId, runtime: &'a Runtime, prompt: &'a str,
 pub async fn start_direct(runtime: &Arc<Runtime>, handles: &Arc<LiveHandles>, sessions: &Arc<Sessions>, bus: &tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>, thread: &ThreadId, prompt: &str) -> Result<OperationId, StartError>
 ```
 
-### `crates/shadows-core/src/threads/mod.rs` — 133 lines
+### `crates/shadows-core/src/threads/mod.rs` — 134 lines
 
 ```rust
 pub use model::{ EntryRef, NewThreadEntry, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, TurnContext, };
 pub(crate) use rules::known_harness;
+pub(crate) use model::CreatedTitle;
 pub(crate) use store::{append_entry_in, insert_thread, title_from_first_message_in};
 pub struct Threads {}
 // + 3 private fields
@@ -1575,7 +1576,7 @@ impl Threads {
 }
 ```
 
-### `crates/shadows-core/src/threads/model.rs` — 151 lines
+### `crates/shadows-core/src/threads/model.rs` — 171 lines
 
 ```rust
 pub struct ThreadId(String);
@@ -1592,6 +1593,14 @@ impl ThreadEntryId {
     pub fn as_str(&self) -> &str
     pub(crate) fn from_stored(id: String) -> Self
     pub fn from_literal(id: impl Into<String>) -> Self
+}
+
+pub(crate) enum CreatedTitle {
+    Client,
+    Plan,
+}
+impl CreatedTitle {
+    pub(crate) fn as_str(self) -> &'static str
 }
 
 pub struct PlanningThread {
@@ -1683,7 +1692,7 @@ pub(crate) use thread::insert_thread;
 pub(crate) use title::title_from_first_message_in;
 ```
 
-### `crates/shadows-core/src/threads/store/thread.rs` — 295 lines
+### `crates/shadows-core/src/threads/store/thread.rs` — 308 lines
 
 ```rust
 impl Storage {
@@ -1694,7 +1703,7 @@ impl Storage {
     pub async fn list_threads_for_project(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>
 }
 
-pub(crate) async fn insert_thread(conn: &mut SqliteConnection, project_id: &ProjectId, title: &str, harness: &str, actor: Actor, ts: &str) -> Result<ThreadId, StorageError>
+pub(crate) async fn insert_thread(conn: &mut SqliteConnection, project_id: &ProjectId, title: &str, named_by: CreatedTitle, harness: &str, actor: Actor, ts: &str) -> Result<ThreadId, StorageError>
 pub(super) async fn load_thread(conn: &mut SqliteConnection, id: &ThreadId) -> Result<PlanningThread, StorageError>
 ```
 

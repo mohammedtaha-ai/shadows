@@ -110,19 +110,22 @@ struct PlanningThread {
 ```
 
 **The title.** A thread is created with the name its client gave it; the web
-client gives "Conversation N". The name then follows the conversation, the way
-Claude names its own sessions, and the row keeps `title_source`, who wrote the
-current title:
+client's draft gives "New conversation" (§13.11). The name then follows the
+conversation, the way Claude names its own sessions, and the row keeps
+`title_source`, who wrote the current title:
 
 | `title_source` | written by | replaces |
 |---|---|---|
 | `client` | create; every thread before migration 0010 | — |
+| `plan` | a draft from scratch (§13.6), which creates the thread under its plan's title; migration 0010 marks the earlier ones: a version 1 written with the thread, same timestamp and title | — (nothing automatic replaces it: the plan named it) |
 | `first_message` | the turn that appends the thread's first UserMessage, in its own write: the message's first non-blank line, whitespace collapsed, at most 60 characters ending in "…" | `client` |
 | `harness` | the title the harness sends for the thread's session (§12.3), sanitized the same way; one equal to the current title writes nothing | `client`, `first_message`, `harness` |
 | `person` | a rename by a person. None exists yet | — (nothing automatic replaces it) |
 
 `harness` replaces `harness` because the adapter may first send the raw first
-prompt as a fallback title and generate a real one at a later turn. Each change
+prompt as a fallback title and generate a real one at a later turn. A thread
+that already had messages before migration 0010 is `client` but has had its
+first message, so only a harness title renames it. Each change
 journals `ThreadRetitled` { title, source } in the same write; neither carries a
 `CommandId`, since neither is a person's command. A fork is titled after its
 source with " (fork)" (§12.9) and keeps its source's `title_source`; its

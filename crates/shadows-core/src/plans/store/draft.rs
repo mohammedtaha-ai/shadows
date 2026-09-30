@@ -15,7 +15,7 @@ use crate::grants::{bind_draft_ref, check_writer};
 use crate::plans::model::{DraftStarted, PlanContent, WorkflowId, WorkflowState};
 use crate::plans::rules::Problem;
 use crate::projects::ProjectId;
-use crate::threads::{ThreadId, insert_thread};
+use crate::threads::{CreatedTitle, ThreadId, insert_thread};
 use shadows_agent::policy;
 
 impl Storage {
@@ -140,6 +140,7 @@ impl Storage {
                     conn,
                     &project,
                     &title,
+                    CreatedTitle::Plan,
                     policy::CLAUDE_CODE,
                     writer.actor(),
                     &ts,
