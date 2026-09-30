@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-09-30 (Milestone 3 merged)
+**Updated:** 2026-10-01 (project removal merged)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -8,6 +8,13 @@ decision live in the topic owners indexed by
 restate them.
 
 ## Where we are
+
+**A project can be removed** (PR #10, 2026-10-01; 344 Rust tests): a soft
+removal, refused while the project has threads (spec §4.2), which drops its
+code index, links and grants (§15.4). It ran on the dev daemon on Windows: a
+throwaway project was indexed, linked both ways, removed, and replayed; it
+left the list, its links and its active slot (`code.removed`), and a question
+naming it answered 404. No web control yet.
 
 **Milestone 3 (§15, the code index) is on `main`** (PR #9, 340 Rust tests)
 and ran on Windows on 2026-09-30:
@@ -104,11 +111,14 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **Effort at once, without `default`.** Mohammed's ruling after the
+1. **The web page for links and removal.** Mohammed's next ask: where a
+   person links projects, sets the active limit, and removes a project
+   (§15.9's OPEN block on the search page and settings).
+2. **Effort at once, without `default`.** Mohammed's ruling after the
    Windows run: picking an effort sets it on the session at once, as the
    model is, and Claude's `default` effort is not offered. Amends §12.4 and
    §12.7.
-2. **One lock for every open session.** `Sessions` holds a single lock through
+3. **One lock for every open session.** `Sessions` holds a single lock through
    an adapter's startup (typically 3–6 s on Windows, bounded at 20 s) and
    through each termination wait, so
    opening one conversation can delay Stop on another. This is latency, not a
