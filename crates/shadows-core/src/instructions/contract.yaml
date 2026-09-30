@@ -50,7 +50,8 @@ functions:
       # `PlannerInstructionsSaved` { number } → record_command.
     current_planner_instructions:
       signature: "(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, StorageError>"
-      # Also read by Turns (`record`) and Harness (`Setups`).
+      # Also read by Turns (`record`) and Harness (`Setups`). None for a
+      # removed project, as for an unknown one (§4.2).
     load_version:
       signature: "(conn, id: &str) -> Result<InstructionsVersion, StorageError>"
       private: true

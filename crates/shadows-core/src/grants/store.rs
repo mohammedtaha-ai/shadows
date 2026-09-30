@@ -169,7 +169,8 @@ impl Storage {
 
     /// A project's grants for external agents, revoked ones included, newest
     /// first by the sequence of each one's `McpGrantIssued` event — never by
-    /// `created_at`, which does not sort in time order within a second.
+    /// `created_at`, which does not sort in time order within a second. None
+    /// for a removed project, as for an unknown one (§4.2).
     pub async fn list_project_grants(
         &self,
         project: &ProjectId,
@@ -177,6 +178,7 @@ impl Storage {
         let rows: Vec<GrantRow> = sqlx::query_as(
             "SELECT g.id, g.kind, g.project_id, g.thread_id, g.created_at, g.revoked_at
                FROM mcp_grant g
+               JOIN project p ON p.id = g.project_id AND p.removed_at IS NULL
                JOIN durable_event e
                  ON e.kind = 'McpGrantIssued' AND e.project_id = g.project_id
                 AND json_extract(e.payload_json, '$.grant_id') = g.id

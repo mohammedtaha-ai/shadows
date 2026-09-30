@@ -807,7 +807,7 @@ pub struct IssuedGrant {
 }
 ```
 
-### `crates/shadows-core/src/grants/store.rs` — 439 lines
+### `crates/shadows-core/src/grants/store.rs` — 441 lines
 
 ```rust
 impl Storage {
@@ -1042,7 +1042,7 @@ pub struct InstructionsVersion {
 }
 ```
 
-### `crates/shadows-core/src/instructions/store.rs` — 108 lines
+### `crates/shadows-core/src/instructions/store.rs` — 110 lines
 
 ```rust
 impl Storage {
@@ -1406,7 +1406,7 @@ pub(super) fn canonical_dir(raw: &Path) -> Result<PathBuf, DirectoryError>
 pub(super) fn utf8(path: PathBuf) -> Result<String, DirectoryError>
 ```
 
-### `crates/shadows-core/src/projects/mod.rs` — 147 lines
+### `crates/shadows-core/src/projects/mod.rs` — 150 lines
 
 ```rust
 pub use browse::{DirectoryEntry, DirectoryListing};

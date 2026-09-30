@@ -68,14 +68,16 @@ impl Storage {
         .await
     }
 
-    /// The project's highest-numbered version, or `None` before its first save.
+    /// The project's highest-numbered version, or `None` before its first
+    /// save — and for a removed project, as for an unknown one (§4.2).
     pub async fn current_planner_instructions(
         &self,
         project: &ProjectId,
     ) -> Result<Option<InstructionsVersion>, StorageError> {
         let row: Option<VersionRow> = sqlx::query_as(
-            "SELECT id, number, body, created_at FROM planner_instructions_version
-              WHERE project_id = ? ORDER BY number DESC LIMIT 1",
+            "SELECT v.id, v.number, v.body, v.created_at FROM planner_instructions_version v
+               JOIN project p ON p.id = v.project_id AND p.removed_at IS NULL
+              WHERE v.project_id = ? ORDER BY v.number DESC LIMIT 1",
         )
         .bind(project.as_str())
         .fetch_optional(self.reader())

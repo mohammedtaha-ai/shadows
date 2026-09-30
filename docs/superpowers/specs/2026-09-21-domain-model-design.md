@@ -91,9 +91,10 @@ refused while the project holds any planning thread (`ProjectHasThreads`,
 409), and nothing is written. Otherwise, in one write, its code index and its
 links both ways go (§15.4), its live project grants are revoked (§13.7), and
 `ProjectRemoved` is journaled. Afterwards it is NotFound everywhere: it is not
-listed, and every request naming it — a thread, a grant, a turn, a code
-question, a link — is refused as not found. Its slug stays taken: adding the
-same folder again needs another slug.
+listed, every request that acts on it — a thread, a grant, a turn, a code
+question, a link — is refused as not found, and a read of what it held (its
+threads, grants, instructions, links) answers as for an unknown project.
+Its slug stays taken: adding the same folder again needs another slug.
 
 ### PlanningThread
 

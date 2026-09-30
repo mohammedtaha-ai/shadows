@@ -159,8 +159,23 @@ async fn a_replayed_remove_answers_the_same_project_and_changes_nothing() {
 async fn a_removed_project_is_not_found() {
     let app = test_app().await;
     let (gone, _dir) = indexed_project(&app, "gone").await;
+    let core = &app.core;
+    core.instructions()
+        .save(fresh_command(), &gone, "be brief")
+        .await
+        .unwrap();
+    core.grants().issue(fresh_command(), &gone).await.unwrap();
     let (status, body) = remove(&app, &gone, &fresh_command()).await;
     assert_eq!(status, 200, "{body}");
+
+    // Its reads answer as for an unknown project: nothing it held shows.
+    for (read, empty) in [
+        ("planner-instructions", json!(null)),
+        ("mcp-grants", json!([])),
+    ] {
+        let (status, body) = call(&app, "GET", &format!("/api/projects/{gone}/{read}"), None).await;
+        assert_eq!((status, &body), (200, &empty), "{read}");
+    }
 
     let thread = json!({ "command_id": fresh_command(), "title": "T" });
     let path = format!("/api/projects/{gone}/threads");

@@ -121,7 +121,10 @@ impl Projects {
         let params = serde_json::json!({ "project": project });
         let c = user_command(command_id, "project.remove", params);
         let removed = self.storage.remove_project(&c, project).await?;
-        self.code.forget(project).await;
+        // On its own task: a caller dropped after the commit (a client that
+        // hung up) must not leave the removed project's worker running.
+        let (code, gone) = (self.code.clone(), project.clone());
+        let _ = tokio::spawn(async move { code.forget(&gone).await }).await;
         Ok(removed)
     }
 

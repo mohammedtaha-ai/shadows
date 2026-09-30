@@ -100,8 +100,9 @@ functions:
     remove:
       signature: "(&self, command_id: String, project: &ProjectId) -> Result<Project, CoreError>"
       # "project.remove", principal User/local, schema 1, params { project }
-      # → `remove_project`, then `Code::forget` of the project, which never
-      # fails the remove. Refusals: NotFound (no such project, or removed);
+      # → `remove_project`, then `Code::forget` of the project on its own
+      # task, awaited, so a caller dropped after the commit still stops the
+      # worker; it never fails the remove. Refusals: NotFound (no such project, or removed);
       # ProjectHasThreads; CommandConflict.
     list_dirs:
       signature: "(&self, path: Option<String>) -> Result<DirectoryListing, CoreError>"
@@ -270,10 +271,11 @@ obligations:
 
   - rule: >
       A removed project is NotFound everywhere: creating a thread in it and
-      a code question about it answer 404 INVALID_COMMAND.
+      a code question about it answer 404 INVALID_COMMAND; its instructions
+      and grant list answer as for an unknown project (null, []).
     tested_by: a_removed_project_is_not_found
     note: >
-      Grant issue, instructions, links, turns and choices reach the same
+      Grant issue, instructions save, links, turns and choices reach the same
       NotFound through `get_project` or their own `removed_at IS NULL`
       check; no test asks each.
 
@@ -371,7 +373,9 @@ tests:
       The replay answers the same body and its events do not grow; a modes
       change under the same id is 409 COMMAND_CONFLICT.
   - name: a_removed_project_is_not_found
-    checks: Thread create and `definitions` on the removed project are 404 INVALID_COMMAND.
+    checks: >
+      Its saved instructions read null and its grant list []; thread create
+      and `definitions` on it are 404 INVALID_COMMAND.
   - name: projects_are_listed_in_creation_order_whatever_their_timestamp_text
     checks: Two projects whose created_at text sorts backwards list in creation order.
   - name: a_listing_holds_subdirectories_sorted_without_case_and_flags_hidden_ones

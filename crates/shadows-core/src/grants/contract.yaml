@@ -118,6 +118,7 @@ functions:
       signature: "(&self, raw: &str) -> Result<Option<Grant>, StorageError>"
     list_project_grants:
       signature: "(&self, project: &ProjectId) -> Result<Vec<Grant>, StorageError>"
+      # None for a removed project, as for an unknown one (§4.2).
     prepare_draft:
       signature: "(&self, grant: &GrantId) -> Result<String, StorageError>"
       # A new `dr-<uuid>` for a live project grant, good for an hour; never
