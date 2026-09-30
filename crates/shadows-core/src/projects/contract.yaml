@@ -16,6 +16,13 @@
 # Trap: a `ProjectDirectory` proves the check ran when it was built, not
 # later: a directory deleted after `create` is caught when a turn opens its
 # session (Harness), not here.
+# `remove` is a soft remove (§4.2): the row stays, since the journal
+# references it ON DELETE RESTRICT, and `removed_at` is set. Every read of a
+# project (`get_project`, `list_projects`, `live_project`, and the direct
+# reads in Threads, Grants, Instructions and Code) leaves a removed one out,
+# so it answers NotFound everywhere; its slug stays taken. One write takes
+# the index, the links both ways and the live project grants with it.
+#
 # Trap: `list_dirs` and `create_dir` touch the disk only; they record no
 # command and no event, and a directory made here belongs to no project until
 # a `create` names it.
@@ -29,7 +36,8 @@ source: crates/shadows-core/src/projects
 shapes:
   Projects:
     storage: Arc<Storage>
-    # A clone of the core's `Code`: `create` touches the new project (§15.6).
+    # A clone of the core's `Code`: `create` touches the new project
+    # (§15.6), `remove` forgets the removed one (§15.4).
     code: Code
   Project:
     id: ProjectId
@@ -89,6 +97,12 @@ functions:
       # "project.modes", params { project, allowed_modes: normalized } →
       # `set_project_modes`. Refusals also: NotFound (no such project);
       # CommandConflict.
+    remove:
+      signature: "(&self, command_id: String, project: &ProjectId) -> Result<Project, CoreError>"
+      # "project.remove", principal User/local, schema 1, params { project }
+      # → `remove_project`, then `Code::forget` of the project, which never
+      # fails the remove. Refusals: NotFound (no such project, or removed);
+      # ProjectHasThreads; CommandConflict.
     list_dirs:
       signature: "(&self, path: Option<String>) -> Result<DirectoryListing, CoreError>"
       # An empty `path` is the same as none: the roots. On a blocking thread.
@@ -128,14 +142,32 @@ functions:
       # `ProjectCreated` { slug, name, directory }, record_command.
     list_projects:
       signature: "(&self) -> Result<Vec<Project>, StorageError>"
+      # Removed projects left out.
     get_project:
       signature: "(&self, id: &ProjectId) -> Result<Project, StorageError>"
-      # Also read by Turns (a turn's mode check) and Harness (`choices`).
+      # NotFound for a removed project. Also read by Turns (a turn's mode
+      # check), Harness (`choices`) and Code (`status`, a scan).
     set_project_modes:
       signature: "(&self, ctx, project_id, modes) -> Result<Project, StorageError>"
-      # One write: classify (scope Project) → the project must exist →
-      # replace the named harnesses' rows → `ProjectModesChanged` →
-      # record_command. A replay answers the project as it now stands.
+      # One write: classify (scope Project) → the project must exist, not
+      # removed (`live_project`) → replace the named harnesses' rows →
+      # `ProjectModesChanged` → record_command. A replay answers the project
+      # as it now stands.
+    remove_project:
+      signature: "(&self, ctx: &CommandContext, project_id: &ProjectId) -> Result<Project, StorageError>"
+      # One write: classify (scope Project; a replay answers the row as it
+      # stands, removed) → `live_project` → any `planning_thread` row
+      # refuses ProjectHasThreads → `removed_at` → Code's
+      # `delete_code_index_in` and `delete_code_links_in`, Grants'
+      # `revoke_project_grants_in` → `ProjectRemoved` → record_command.
+    live_project:
+      signature: "(conn, id: &ProjectId) -> Result<(), StorageError>"
+      private: true
+      # NotFound unless the row exists with `removed_at` NULL.
+    load_project:
+      signature: "(conn, id: &ProjectId) -> Result<Project, StorageError>"
+      private: true
+      # The row, removed or not: what a replay answers.
 
 
 enums:
@@ -205,6 +237,45 @@ obligations:
     note: >
       The first checks the mode refusal's code only; no test sends an unknown
       harness to `set_modes` (it sends one to thread create and change).
+
+  - rule: >
+      A project holding a planning thread is not removed: 409
+      PROJECT_HAS_THREADS, nothing written; it stays listed, its index and
+      links unchanged.
+    tested_by: a_project_with_a_thread_is_not_removed
+    note: >
+      With the thread check switched off the body fails at its first
+      assertion: the remove answers 200 (tried while writing it).
+
+  - rule: >
+      A removed project is gone from the list; in the same write its
+      `code_file` and `code_tag` rows, every link it reads or that reads it,
+      and its live project grants go, and the code index forgets it (its
+      worker stops). The row and the journal stay.
+    tested_by: a_project_without_threads_is_removed_with_its_index_links_and_grants
+    note: >
+      The body checks another project's index stays and the token no longer
+      authorizes. It does not race a worker's write against the removal;
+      `write_code_file` checks `removed_at` inside its own write, so the two
+      are serialized.
+
+  - rule: >
+      Replay. A remove with the same command id answers the same project and
+      journals nothing; another request under the id in the project's scope
+      is CommandConflict.
+    tested_by: a_replayed_remove_answers_the_same_project_and_changes_nothing
+    note: >
+      The other request is a modes change on the removed project; it
+      conflicts before the project is looked up.
+
+  - rule: >
+      A removed project is NotFound everywhere: creating a thread in it and
+      a code question about it answer 404 INVALID_COMMAND.
+    tested_by: a_removed_project_is_not_found
+    note: >
+      Grant issue, instructions, links, turns and choices reach the same
+      NotFound through `get_project` or their own `removed_at IS NULL`
+      check; no test asks each.
 
   - rule: >
       Projects are listed in creation order, by the durable sequence of their
@@ -285,6 +356,22 @@ tests:
     checks: >
       The modes become ["acceptEdits"], the replay answers the same project,
       and another list under the id is 409 COMMAND_CONFLICT.
+  - name: a_project_with_a_thread_is_not_removed
+    checks: >
+      The fixture's project (one thread), indexed and linked, is 409
+      PROJECT_HAS_THREADS; still listed; its file and link counts unchanged.
+  - name: a_project_without_threads_is_removed_with_its_index_links_and_grants
+    checks: >
+      A project linking and linked both ways, with a live grant and a worker,
+      is removed (200, its id); the list is demo and other; its files, tags
+      and links are 0; other's file stays; the token no longer authorizes;
+      it is not active.
+  - name: a_replayed_remove_answers_the_same_project_and_changes_nothing
+    checks: >
+      The replay answers the same body and its events do not grow; a modes
+      change under the same id is 409 COMMAND_CONFLICT.
+  - name: a_removed_project_is_not_found
+    checks: Thread create and `definitions` on the removed project are 404 INVALID_COMMAND.
   - name: projects_are_listed_in_creation_order_whatever_their_timestamp_text
     checks: Two projects whose created_at text sorts backwards list in creation order.
   - name: a_listing_holds_subdirectories_sorted_without_case_and_flags_hidden_ones

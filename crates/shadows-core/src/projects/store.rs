@@ -6,9 +6,11 @@ use sqlx::SqliteConnection;
 
 use super::directory::ProjectDirectory;
 use super::model::{Project, ProjectId};
+use crate::code::{delete_code_index_in, delete_code_links_in};
 use crate::command::CommandContext;
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::events::{Actor, DurableEvent};
+use crate::grants::revoke_project_grants_in;
 use shadows_agent::policy;
 
 impl Storage {
@@ -75,6 +77,7 @@ impl Storage {
                FROM project p
                LEFT JOIN durable_event e
                  ON e.project_id = p.id AND e.kind = 'ProjectCreated'
+              WHERE p.removed_at IS NULL
               ORDER BY e.seq, p.id",
         )
         .fetch_all(self.reader())
@@ -89,9 +92,62 @@ impl Storage {
             .collect())
     }
 
+    /// The project, NotFound once removed (§4.2).
     pub async fn get_project(&self, id: &ProjectId) -> Result<Project, StorageError> {
         let mut conn = self.reader().acquire().await?;
+        live_project(&mut conn, id).await?;
         load_project(&mut conn, id).await
+    }
+
+    /// Removes the project (§4.2, §15.4): it stays a row, since the journal
+    /// references it, but is read nowhere again. Refused while it holds a
+    /// planning thread. One write: its index, its links both ways and its
+    /// live project grants go with it. A replay answers the project as the
+    /// command left it.
+    pub async fn remove_project(
+        &self,
+        ctx: &CommandContext,
+        project_id: &ProjectId,
+    ) -> Result<Project, StorageError> {
+        let (ctx, id, ts) = (ctx.clone(), project_id.clone(), now());
+        self.write_txn(move |conn| {
+            Box::pin(async move {
+                if classify(conn, &ctx, "Project", id.as_str())
+                    .await?
+                    .is_some()
+                {
+                    return load_project(conn, &id).await;
+                }
+                live_project(conn, &id).await?;
+                let threads: i64 =
+                    sqlx::query_scalar("SELECT COUNT(*) FROM planning_thread WHERE project_id = ?")
+                        .bind(id.as_str())
+                        .fetch_one(&mut *conn)
+                        .await?;
+                if threads > 0 {
+                    return Err(StorageError::ProjectHasThreads);
+                }
+                sqlx::query("UPDATE project SET removed_at = ? WHERE id = ?")
+                    .bind(&ts)
+                    .bind(id.as_str())
+                    .execute(&mut *conn)
+                    .await?;
+                let actor = Actor::user(&ctx.principal_id);
+                delete_code_index_in(conn, &id).await?;
+                delete_code_links_in(conn, &id).await?;
+                revoke_project_grants_in(conn, &id, actor.clone(), &ts).await?;
+                append_event(
+                    conn,
+                    &DurableEvent::new("ProjectRemoved", actor).with_project(&id),
+                    &ts,
+                )
+                .await?;
+                let key = id.as_str();
+                record_command(conn, &ctx, "Project", key, "Project", key, &ts).await?;
+                load_project(conn, &id).await
+            })
+        })
+        .await
     }
 
     /// Replaces the modes the project allows for each harness named in
@@ -113,7 +169,7 @@ impl Storage {
                 {
                     return load_project(conn, &id).await;
                 }
-                load_project(conn, &id).await?;
+                live_project(conn, &id).await?;
                 replace_modes(conn, &id, &modes).await?;
                 append_event(
                     conn,
@@ -237,6 +293,17 @@ fn project(
     }
 }
 
+/// NotFound unless the project exists and is not removed (§4.2).
+async fn live_project(conn: &mut SqliteConnection, id: &ProjectId) -> Result<(), StorageError> {
+    let live: Option<i64> =
+        sqlx::query_scalar("SELECT 1 FROM project WHERE id = ? AND removed_at IS NULL")
+            .bind(id.as_str())
+            .fetch_optional(&mut *conn)
+            .await?;
+    live.map(|_| ()).ok_or(StorageError::NotFound("project"))
+}
+
+/// The project's row, removed or not: what a replay answers.
 async fn load_project(
     conn: &mut SqliteConnection,
     id: &ProjectId,

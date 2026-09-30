@@ -6,7 +6,7 @@
 //! this crate would be a second, undeclared entry point into the product.
 
 use axum::Json;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 
 use std::collections::BTreeMap;
 
@@ -171,5 +171,39 @@ pub(super) async fn update_project(
             .projects()
             .set_modes(body.command_id, &project_id, body.allowed_modes)
             .await?,
+    ))
+}
+
+/// A `DELETE` has no body, so its idempotency key rides in the query.
+#[derive(serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(super) struct RemoveProjectQuery {
+    /// The idempotency key (spec §3.2), scoped to the project.
+    command_id: String,
+}
+
+/// Removes a project that holds no planning thread (spec §4.2): it is listed
+/// nowhere again, its code index, its links and its MCP grants go, and its
+/// slug stays taken. A replay answers the removed project.
+#[utoipa::path(
+    delete,
+    path = "/api/projects/{id}",
+    tag = "projects",
+    params(("id" = ProjectId, Path, description = "The project"), RemoveProjectQuery),
+    responses(
+        (status = 200, description = "Removed, or the replay of the same command", body = Project),
+        (status = 400, description = "INVALID_COMMAND: no `command_id`", body = ErrorBody),
+        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
+        (status = 409, description = "PROJECT_HAS_THREADS, or COMMAND_CONFLICT", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn remove_project(
+    State(s): State<AppState>,
+    Path(project_id): Path<ProjectId>,
+    Query(q): Query<RemoveProjectQuery>,
+) -> Result<Json<Project>, Failure> {
+    Ok(Json(
+        s.core.projects().remove(q.command_id, &project_id).await?,
     ))
 }

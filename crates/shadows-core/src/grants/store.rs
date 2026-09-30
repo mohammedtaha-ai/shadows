@@ -38,10 +38,11 @@ impl Storage {
                     let grant = load_grant(conn, &GrantId::from_stored(id)).await?;
                     return Ok(IssuedGrant { grant, token: None });
                 }
-                let known: Option<i64> = sqlx::query_scalar("SELECT 1 FROM project WHERE id = ?")
-                    .bind(project.as_str())
-                    .fetch_optional(&mut *conn)
-                    .await?;
+                let known: Option<i64> =
+                    sqlx::query_scalar("SELECT 1 FROM project WHERE id = ? AND removed_at IS NULL")
+                        .bind(project.as_str())
+                        .fetch_optional(&mut *conn)
+                        .await?;
                 known.ok_or(StorageError::NotFound("project"))?;
                 let actor = Actor::user(&ctx.principal_id);
                 let (grant, token) = insert_grant(conn, &project, None, actor, &ts).await?;
@@ -328,6 +329,28 @@ async fn revoke_in(
     append_event(conn, &event.with_payload(payload), ts)
         .await
         .map(|_| ())
+}
+
+/// Inside the caller's write: every live project grant on `project` is
+/// revoked, each with its `McpGrantRevoked` event, in id order. Projects'
+/// `remove_project` calls it, so a removed project's token stops at once.
+pub(crate) async fn revoke_project_grants_in(
+    conn: &mut SqliteConnection,
+    project: &ProjectId,
+    actor: Actor,
+    ts: &str,
+) -> Result<(), StorageError> {
+    let live: Vec<GrantRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT {GRANT_COLUMNS} FROM mcp_grant
+          WHERE kind = 'project' AND project_id = ? AND revoked_at IS NULL ORDER BY id"
+    )))
+    .bind(project.as_str())
+    .fetch_all(&mut *conn)
+    .await?;
+    for row in live {
+        revoke_in(conn, &into_grant(row)?, actor.clone(), ts).await?;
+    }
+    Ok(())
 }
 
 fn rfc3339(at: time::OffsetDateTime) -> String {

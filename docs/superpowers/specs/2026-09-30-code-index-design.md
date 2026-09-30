@@ -197,14 +197,22 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
   again: the old watcher stays dead even when the folder is recreated. A
   watched folder can be renamed, and the watcher then reports changes under
   the old path, so the periodic scan checks that the folder exists.
-- **A project's folder never changes, and a project is never deleted:**
-  `Projects` has neither method, and the rows that reference a `project`
-  forbid deleting it.
+- **A project's folder never changes.** `Projects` has no method that
+  changes it.
+- **A removed project leaves the index** (§4.2: a soft remove, the row
+  stays). The removal's one write deletes its `code_file` and `code_tag`
+  rows, every link it reads and every link that reads it; after the write
+  commits, `Code::forget` stops its worker and watcher and drops it from the
+  active set, whose next project takes its place. Every read here leaves a
+  removed project out, so a question about it, its status and a link to it
+  are refused as not found, and the choice of active projects at startup
+  never picks it. A worker still finishing a file when the removal commits
+  writes nothing: `write_code_file` checks, inside its own write, that the
+  project is not removed.
 
-> **OPEN — a moved or deleted project.** Changing a project's folder must
-> drop its index and scan the new one; deleting a project must delete its
-> index, its links and the links to it. **Trigger:** the change that adds
-> either method to `Projects`. **Why it does not block:** neither exists.
+> **OPEN — a moved project.** Changing a project's folder must drop its
+> index and scan the new one. **Trigger:** the change that adds that method
+> to `Projects`. **Why it does not block:** it does not exist.
 
 **Each active project has one worker.** It does the project's scans, the files
 its watcher reports and the files a question re-checks, one after another, so

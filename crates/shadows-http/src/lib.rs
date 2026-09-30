@@ -123,7 +123,7 @@ pub fn router(state: AppState, mcp: Router) -> Router {
 fn routes() -> OpenApiRouter<AppState> {
     OpenApiRouter::with_openapi(openapi::base())
         .routes(routes!(project::list_projects, project::create_project))
-        .routes(routes!(project::update_project))
+        .routes(routes!(project::update_project, project::remove_project))
         .routes(routes!(project::list_threads, project::create_thread))
         .routes(routes!(conversation::list_entries))
         .routes(routes!(conversation::list_operations))

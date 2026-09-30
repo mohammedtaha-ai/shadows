@@ -29,10 +29,11 @@ impl Storage {
                 if let Some(id) = classify(conn, &ctx, "Project", project.as_str()).await? {
                     return load_version(conn, &id).await;
                 }
-                let known: Option<i64> = sqlx::query_scalar("SELECT 1 FROM project WHERE id = ?")
-                    .bind(project.as_str())
-                    .fetch_optional(&mut *conn)
-                    .await?;
+                let known: Option<i64> =
+                    sqlx::query_scalar("SELECT 1 FROM project WHERE id = ? AND removed_at IS NULL")
+                        .bind(project.as_str())
+                        .fetch_optional(&mut *conn)
+                        .await?;
                 known.ok_or(StorageError::NotFound("project"))?;
                 let number: i64 = sqlx::query_scalar(
                     "SELECT COALESCE(MAX(number), 0) + 1 FROM planner_instructions_version

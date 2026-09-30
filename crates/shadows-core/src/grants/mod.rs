@@ -19,7 +19,7 @@ use std::sync::Arc;
 pub use model::{Grant, GrantId, GrantKind};
 #[cfg(feature = "test-support")]
 pub use model::{IssuedGrant, Token, hash_token};
-pub(crate) use store::{bind_draft_ref, check_writer};
+pub(crate) use store::{bind_draft_ref, check_writer, revoke_project_grants_in};
 
 use crate::app::user_command;
 use crate::db::Storage;
