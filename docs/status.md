@@ -10,8 +10,10 @@ restate them.
 ## Where we are
 
 **Milestone 3 (§15, the code index) is built on the branch
-`milestone-3/code-index`** (340 Rust tests), not yet run by Mohammed on Windows
-and not merged. It adds the crate `shadows-index`, the ninth service `Code`,
+`milestone-3/code-index`** (340 Rust tests) and ran on Windows on 2026-09-30:
+§15.11's five acceptance steps passed
+([`evidence/milestone3/WINDOWS_RUN.md`](./evidence/milestone3/WINDOWS_RUN.md)).
+It is not merged yet. It adds the crate `shadows-index`, the ninth service `Code`,
 and the MCP tools `where_is`, `who_uses` and `outline` for an external agent's
 grant, with their HTTP routes. The probe's measurements are in
 [`evidence/milestone3/PROBE.md`](./evidence/milestone3/PROBE.md). The plan is
@@ -102,9 +104,8 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **Finishing Milestone 3:** the whole-branch review has run; next are
-   Mohammed's Windows run (§15.11's acceptance, recorded in
-   `evidence/milestone3/WINDOWS_RUN.md`) and the PR to `main`.
+1. **Finishing Milestone 3:** the Windows run passed; the PR to `main` is
+   open for Mohammed to merge.
 2. **Effort at once, without `default`.** Mohammed's ruling after the
    Windows run: picking an effort sets it on the session at once, as the
    model is, and Claude's `default` effort is not offered. Amends §12.4 and
