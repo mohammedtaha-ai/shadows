@@ -4,14 +4,18 @@
 //! A thread's harness is one Shadows knows, `claude-code` when none is named;
 //! it changes only before the thread's first operation, never on a fork, and
 //! a change closes the thread's open session through `Harness`. A fork is
-//! taken only from the source's last entry, written by a completed turn.
+//! taken only from the source's last entry, written by a completed turn. A
+//! thread is titled after its first message, then by its harness, never over
+//! a name a person gave it.
 //!
-//! `model` holds the types, `rules` the harness check `Projects` shares, and
-//! `store` the queries.
+//! `model` holds the types, `rules` the harness check `Projects` shares,
+//! `title` what a title taken from the conversation reads, and `store` the
+//! queries.
 
 mod model;
 mod rules;
 mod store;
+mod title;
 
 use std::sync::Arc;
 
@@ -24,8 +28,9 @@ pub use model::{
 pub(crate) use rules::known_harness;
 // What another write calls inside its own transaction (spec §14.6): a plan
 // draft creates its thread, and a turn, an edit or a shown plan appends an
-// entry.
-pub(crate) use store::{append_entry_in, insert_thread};
+// entry, and a turn titles its thread after its first message.
+pub(crate) use model::CreatedTitle;
+pub(crate) use store::{append_entry_in, insert_thread, title_from_first_message_in};
 
 use crate::app::user_command;
 use crate::code::Code;

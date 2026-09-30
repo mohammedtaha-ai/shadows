@@ -43,7 +43,7 @@ export function WorkflowList({ projectId, selected }: { projectId: string; selec
                 }`}
               >
                 <Workflow className="size-3.5 shrink-0" aria-hidden />
-                <span dir="auto" className="min-w-0 flex-1 truncate">
+                <span dir="auto" className="min-w-0 flex-1 truncate text-start">
                   {plan.title}
                 </span>
                 <span className="shrink-0 text-[11px] text-faint-foreground">{stateLabel(plan)}</span>

@@ -7,6 +7,10 @@ import { threadEntriesKey, threadOperationsKey } from '@/api/queries'
 import type { DurableEvent } from './frames'
 import { type Notice, type StreamState, ThreadStream } from './thread-stream'
 
+/** Every project's thread list: a title lives there, and the stream names
+ * the thread, not its project. */
+const isThreadList = (key: readonly unknown[]) => key[0] === 'projects' && key[2] === 'threads'
+
 /** Operation events after which the operation is over. */
 const TERMINAL_KINDS: ReadonlySet<string> = new Set([
   'OperationCompleted',
@@ -27,6 +31,8 @@ export type NoticeListener = (notice: Notice) => void
  * live — a turn's last word is settled only then — and fetched again (ruling
  * 51). The thread's operations query is invalidated at every `caught-up`, and
  * when a turn ends while live, for the observed values of its invocation.
+ * A `ThreadRetitled` (spec §4.2) reads the thread lists again: at once while
+ * live, at the `caught-up` after a replay that held one.
  *
  * `onDurable` sees every durable event once, replayed or live, in `seq` order;
  * `live` says which, and `state` is the stream as it stood when the event
@@ -45,11 +51,17 @@ export function useThreadStream(
     const listeners = new Set<DurableListener>()
     const noticeListeners = new Set<NoticeListener>()
     const refetch = (key: readonly unknown[]) => void queryClient.invalidateQueries({ queryKey: key })
+    const refetchTitles = () =>
+      void queryClient.invalidateQueries({ predicate: (query) => isThreadList(query.queryKey) })
+    // Whether the replay under way held a `ThreadRetitled`.
+    const replay = { retitled: false }
     const created: ThreadStream = new ThreadStream({
       url: (after) => subscribeUrl(threadId, after),
       onCaughtUp: () => {
         refetch(threadEntriesKey(threadId))
         refetch(threadOperationsKey(threadId))
+        if (replay.retitled) refetchTitles()
+        replay.retitled = false
       },
       // Only while live. During any replay — the first, or the one after a
       // reconnect, when `caughtUp` is already true — the `caught-up` that
@@ -61,6 +73,10 @@ export function useThreadStream(
         }
         // A turn's ending settles its invocation's observed values (spec §12.8).
         if (live && TERMINAL_KINDS.has(event.kind)) refetch(threadOperationsKey(threadId))
+        if (event.kind === 'ThreadRetitled') {
+          if (live) refetchTitles()
+          else replay.retitled = true
+        }
         for (const listener of listeners) listener(event, live, created.getState())
       },
       onNotice: (notice) => {

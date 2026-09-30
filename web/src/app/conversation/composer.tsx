@@ -16,11 +16,18 @@ import { type Attempt, attemptFor } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
 import { tabId } from '@/stream/tab-id'
 import { ErrorLine } from '../error-line'
+import type { CarriedSend } from './carried-send'
 import { ComposerBar } from './composer-bar'
 import { FocusChip, type PointedTask } from './focus-chip'
 import { afterOptions, effortsKnown, initialSettings, sendable, withModel } from './turn-settings'
 import type { Turn } from './turn-state'
 import { type SessionView, sessionKey } from './use-session'
+
+/** Where Send goes: the open thread's next turn, or a draft's first message,
+ * whose `draft` makes the thread first and answers the turn's operation. */
+export type SendTo =
+  | { threadId: string }
+  | { draft: (commandId: string, text: string, settings: TurnSettings) => Promise<string> }
 
 interface Send {
   commandId: string
@@ -30,7 +37,8 @@ interface Send {
 }
 
 export function Composer({
-  threadId,
+  to,
+  carried = null,
   harness,
   harnessLabel,
   session,
@@ -42,7 +50,10 @@ export function Composer({
   pointed,
   onPointed,
 }: {
-  threadId: string
+  to: SendTo
+  /** A draft's first message whose turn failed once its thread existed: its
+   * text, command and error, shown here as the draft showed them. */
+  carried?: CarriedSend | null
   /** The thread's harness kind. */
   harness: string
   harnessLabel: string
@@ -59,20 +70,24 @@ export function Composer({
   /** Clears the chip: pressed ×, or the turn that carried it started. */
   onPointed: (done: PointedTask) => void
 }) {
-  const [prompt, setPrompt] = useState('')
+  const threadId = 'threadId' in to ? to.threadId : null
+  const [prompt, setPrompt] = useState(carried?.text ?? '')
+  const [carriedError, setCarriedError] = useState(carried?.error ?? null)
 
   // The command id belongs to a pending send (spec §12.7): made when Send is
   // pressed with no pending send, reused by a retry of that same send, and
   // dropped when it succeeds or when the prompt or a setting changes, so a
   // changed request is a new command rather than a COMMAND_CONFLICT.
-  const pending = useRef<Attempt | null>(null)
+  const pending = useRef<Attempt | null>(carried?.attempt ?? null)
 
   const send = useMutation({
     mutationFn: ({ commandId, text, settings, pointed }: Send) =>
-      startTurn(threadId, commandId, text, settings, {
-        focus: focusOf(pointed),
-        clientTab: tabId(),
-      }),
+      'draft' in to
+        ? to.draft(commandId, text, settings)
+        : startTurn(to.threadId, commandId, text, settings, {
+            focus: focusOf(pointed),
+            clientTab: tabId(),
+          }),
     onSuccess: (operationId, { pointed }) => {
       pending.current = null
       setPrompt('')
@@ -94,8 +109,9 @@ export function Composer({
   // changed while it runs: the change is asked once the turn has ended.
   const queryClient = useQueryClient()
   const switchModel = useMutation({
-    mutationFn: (id: string) => changeModel(threadId, id),
-    onSuccess: (answer, id) => {
+    // A draft has no session to change: its one model is the default.
+    mutationFn: ({ threadId, id }: { threadId: string; id: string }) => changeModel(threadId, id),
+    onSuccess: (answer, { threadId, id }) => {
       queryClient.setQueryData(sessionKey(threadId), answer)
       // Asked again it would be answered the same: say so rather than ask.
       if (answer.current.model !== id) refuse(`The session kept ${answer.current.model}`, answer)
@@ -108,8 +124,8 @@ export function Composer({
   const changing = switchModel.isPending
   useEffect(() => {
     if (busy || changing || wanted === undefined || held === undefined || wanted === held) return
-    requestModel(wanted)
-  }, [busy, changing, wanted, held, requestModel])
+    if (threadId !== null) requestModel({ threadId, id: wanted })
+  }, [busy, changing, wanted, held, requestModel, threadId])
 
   // "Stopping" until the durable ending arrives and `running` clears: the
   // stop call answering is not the turn ending. A stop this client saw fail
@@ -137,11 +153,12 @@ export function Composer({
     const text = prompt.trim()
     if (text === '' || !ready || settings === null || send.isPending || running !== null) return
     // The focus is part of the command (§13.10): pointing elsewhere is a new one.
+    setCarriedError(null)
     pending.current = attemptFor(pending.current, { text, settings, focus: focusOf(pointed) })
     send.mutate({ commandId: pending.current.commandId, text, settings, pointed })
   }
 
-  const error = send.error ?? stop.error
+  const error = send.error ?? stop.error ?? carriedError
 
   return (
     <div className="border-t border-border bg-background px-6 pt-3 pb-4">
@@ -192,6 +209,7 @@ export function Composer({
           settings={settings}
           onSettings={choose}
           changingModel={changing}
+          sessionless={threadId === null}
           harness={harness}
           directory={directory}
           note={note}

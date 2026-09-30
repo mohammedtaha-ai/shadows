@@ -54,7 +54,7 @@ function NewProjectForm({ onCreated }: { onCreated: () => void }) {
       attempt.current = null
       void queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey })
       onCreated()
-      void navigate({ to: '/projects/$projectId', params: { projectId: project.id } })
+      void navigate({ to: '/projects/$projectId/new', params: { projectId: project.id } })
     },
   })
 

@@ -1,7 +1,8 @@
 # Owns the planning threads and what they recorded (spec §4.2, §6.5, §12.6,
 # §12.9, §14.4): creating a thread, the harness it runs on, forking it, and
 # reading its entries and operations. Its store also owns the thread row's
-# session id and a thread's entries, which other services write.
+# session id, its title after creation, and a thread's entries, which other
+# services write.
 #
 # The harness rule: a thread runs on a harness Shadows knows
 # (`known_harness`, the one rule Projects also calls), `claude-code` when
@@ -19,6 +20,18 @@
 # (`turns::has_open_operation`). The fork copies entries up to that point
 # under new ids and ordinals, keeps their `operation_id` and refs, and names
 # the source's session, which its first opening forks.
+#
+# The title rule (§4.2): a thread's `title_source` says who wrote its
+# title — `client` (the name given at create), `plan` (a draft from scratch
+# made the thread for its plan, §13.6), `first_message`, `harness`, or
+# `person` (no rename writes it yet). A source replaces only the ones below
+# it, in the UPDATE's own WHERE: the first message replaces `client` once,
+# inside the turn's write, only when it is the thread's first UserMessage; a
+# harness title replaces `client`, `first_message` or `harness`, only when it
+# differs, in its own write. Neither replaces `plan` or `person`. Each
+# change journals `ThreadRetitled` { title, source } in the same write;
+# neither records a CommandId. A fork keeps its source's `title_source`.
+# The source is not in `PlanningThread`: no client needs it yet.
 #
 # Trap: an entry's ordinal is allocated inside the appending write by
 # `UPDATE … RETURNING`, never MAX+1, so a failed append consumes none.
@@ -47,7 +60,8 @@ shapes:
     status: String
     created_at: String
     harness: String
-    # Set on a fork only; a fork's title is the source's with " (fork)".
+    # Set on a fork only; a fork's title is the source's with " (fork)",
+    # and its `title_source` the source's.
     forked_from_thread: Option<ThreadId>
   TurnContext:
     # What a turn inherits from durable state, never from its caller.
@@ -82,6 +96,12 @@ shapes:
     PermissionRefused: unit
     PlanView: unit
     PlanApproved: unit
+  CreatedTitle:
+    # pub(crate): who named a thread at create, its first `title_source`.
+    # `Client` (create_thread) is replaced by the first message and the
+    # harness; `Plan` (Plans' draft from scratch) by neither.
+    Client: unit
+    Plan: unit
   EntryRef:
     Operation: OperationId
     Decision: String
@@ -168,7 +188,7 @@ functions:
       signature: "(conn, source, fork, upto, ts) -> Result<i64, StorageError>"
       private: true
     insert_thread:
-      signature: "(conn, project_id, title, harness, actor: Actor, ts) -> Result<ThreadId, StorageError>"
+      signature: "(conn, project_id, title, named_by: CreatedTitle, harness, actor: Actor, ts) -> Result<ThreadId, StorageError>"
       # NotFound for a project that does not exist, not the foreign key's
       # constraint failure; journals `PlanningThreadCreated` { title, harness }.
     load_thread:
@@ -178,7 +198,35 @@ functions:
       signature: "(conn, thread_id, entry: NewThreadEntry, ts) -> Result<ThreadEntry, StorageError>"
       # Allocates the ordinal by UPDATE … RETURNING, inserts, journals
       # `ThreadEntryAppended` { ordinal, kind }.
-
+    title_from_first_message_in:
+      signature: "(conn, thread, entry: &ThreadEntryId, message: &str, actor: Actor, ts) -> Result<(), StorageError>"
+      # `title::from_first_message`; nothing for a blank message. One UPDATE
+      # WHERE title_source = 'client' and no other UserMessage than `entry`
+      # → `ThreadRetitled` { title, source: "first_message" } by `actor`.
+    title_from_harness:
+      signature: "(&self, thread: &ThreadId, title: &str) -> Result<bool, StorageError>"
+      # `title::from_harness`; `false` for an empty title or a placeholder ("New session" and the like). Its own write: one
+      # UPDATE WHERE title <> it AND title_source IN (client, first_message,
+      # harness) → `ThreadRetitled` { title, source: "harness" } by System.
+      # Answers whether the title changed.
+    retitled:
+      signature: "(conn, project, thread, title, source, actor, ts) -> Result<(), StorageError>"
+      private: true
+  title:
+    from_first_message:
+      signature: "(message: &str) -> Option<String>"
+      # The first non-blank line, through `one_line`.
+    from_harness:
+      signature: "(title: &str) -> Option<String>"
+      # `one_line`, then a placeholder is dropped (`is_placeholder`).
+    is_placeholder:
+      signature: "(title: &str) -> bool"
+      private: true
+    one_line:
+      signature: "(text: &str) -> Option<String>"
+      private: true
+      # Whitespace collapsed; over `TITLE_MAX_CHARS` (60) cut to 59 and "…";
+      # `None` when empty.
 
 enums:
   CoreError:
@@ -204,12 +252,14 @@ enums:
 shared_in_transaction:
   insert_thread: "Plans' draft from scratch (plans/store/draft.rs start_thread_with_draft): the planning thread is created in the same write that records its v1 and the command, so a refused draft leaves no thread"
   append_entry_in: "Turns' start (turns/store/turn.rs start_turn), Plans' approval (plans/store/edit.rs approve_plan) and plan_show (plans/store/view.rs show_plan): each writes its entry in the write that records its command, so the entry and the command commit together"
+  title_from_first_message_in: "Turns' start (turns/store/turn.rs start_turn): the thread is titled after its first message in the write that appends that message, so a refused or replayed start titles nothing"
 
 
 called_by_other_services:
   turn_context: "Harness (harness/mod.rs open_session, change_model, context, choices, limits_of; harness/sessions.rs open_live; harness/setup.rs context_before_turn) and Turns (turns/mod.rs send): the thread's project and harness, read before any session or turn work; NotFound for an unknown thread"
   append_thread_entry: "Turns (turns/turn.rs persist): a turn's watcher appends the agent's entries as they arrive, each in its own write"
   record_harness_session: "Turns (turns/turn.rs watch_turn): the watcher records the session id the harness answered, once, while it is NULL"
+  title_from_harness: "Harness (harness/titles.rs keep_titles): the title a session's harness sends (§12.3), written in the order it sent them, outside any turn: the adapter sends it after the turn has answered"
 
 
 obligations:
@@ -300,6 +350,45 @@ obligations:
     tested_by: a_threads_operations_are_listed_newest_first_with_their_status
 
 
+  - rule: >
+      The first message titles a thread whose title is still the client's,
+      once: its first non-blank line, whitespace collapsed, cut to 60
+      characters with "…", source `first_message`, one `ThreadRetitled`. A
+      later message changes nothing.
+    tested_by: the_first_message_titles_the_thread_once
+
+  - rule: >
+      A harness title replaces a `client`, `first_message` or `harness` title,
+      sanitized as the first message is; one equal to the current title
+      writes nothing and journals nothing.
+    tested_by: the_harness_title_replaces_the_first_message_sanitized_and_once
+    note: >
+      Driven through fake-acp's `title <text>`, sent after the turn answered
+      as the real adapter does. The repeat is judged before the third title
+      lands, since one task writes an adapter's titles in order.
+
+  - rule: >
+      A `person` title is replaced by neither rule.
+    tested_by: a_title_a_person_gave_is_never_replaced
+    note: >
+      The row is set by a raw UPDATE, since no rename exists. Removing the
+      harness UPDATE's `title_source IN (…)` guard fails it (break-to-prove,
+      2026-10-01).
+
+  - rule: >
+      A thread a draft from scratch created keeps its plan's title: it is
+      inserted as `plan`, which neither rule replaces. Migration 0010 marks
+      the earlier ones `plan` too: a v1 with the thread's timestamp and title.
+    tested_by: a_plan_thread_keeps_its_plan_title
+    note: The backfill in migration 0010 has no test of its own.
+
+  - rule: >
+      A thread whose messages predate its `client` source (every thread
+      migration 0010 found with messages) is never titled by a later
+      message: the first-message UPDATE requires no other UserMessage.
+    tested_by: a_thread_that_had_messages_before_migration_0010_keeps_its_title
+
+
 agreements:
   - between: [create, set_harness]
     must: judge whether a harness is known identically
@@ -372,3 +461,24 @@ tests:
     checks: >
       Over HTTP, the thread's two operations list Running then Completed;
       the other thread's is absent.
+  - name: the_first_message_titles_the_thread_once
+    checks: >
+      A long first line after a blank one gives a 60-character title ending
+      "…", source first_message; a second message leaves it, one event.
+  - name: the_harness_title_replaces_the_first_message_sanitized_and_once
+    checks: >
+      "title   A plan for\n\t the   migration  " gives "A plan for the
+      migration", source harness; the same title again journals nothing; a
+      third title lands; three ThreadRetitled events in all.
+  - name: a_title_a_person_gave_is_never_replaced
+    checks: >
+      A `person` row keeps "Mine" through a first message and a direct
+      harness title, and journals no ThreadRetitled.
+  - name: a_plan_thread_keeps_its_plan_title
+    checks: >
+      A draft from scratch titled "Search" is `plan`; a first message and a
+      direct harness title leave "Search".
+  - name: a_thread_that_had_messages_before_migration_0010_keeps_its_title
+    checks: >
+      After a first message the row is set back to "T", `client`; a second
+      message leaves "T", `client`.

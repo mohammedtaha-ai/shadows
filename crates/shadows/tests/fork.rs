@@ -57,7 +57,8 @@ async fn fork_copies_entries_keeps_their_operation_and_leaves_the_source_alone()
     .await;
     assert_eq!(s, 201, "{fork}");
     assert_eq!(fork["forked_from_thread"], app.thread.as_str());
-    assert_eq!(fork["title"], "T (fork)");
+    // The source was titled after its first message (§4.2) before the fork.
+    assert_eq!(fork["title"], "hello (fork)");
     assert_eq!(fork["harness"], "claude-code");
     let fork_id = fork["id"].as_str().unwrap();
     let copied = entries_json(&app, fork_id).await;

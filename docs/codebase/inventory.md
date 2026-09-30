@@ -17,7 +17,7 @@ module *owns* is a judgement no generator can make — that lives in
 
 ## Crate `fake-acp`
 
-### `crates/fake-acp/src/main.rs` — 347 lines
+### `crates/fake-acp/src/main.rs` — 355 lines
 
 Nothing reachable from outside this file.
 
@@ -85,7 +85,7 @@ pub fn init(verbose: bool, debug_data_dir: Option<&Path>) -> anyhow::Result<Opti
 
 ## Crate `shadows-agent`
 
-### `crates/shadows-agent/src/acp.rs` — 381 lines
+### `crates/shadows-agent/src/acp.rs` — 388 lines
 
 ```rust
 pub enum SessionStart {
@@ -194,7 +194,7 @@ impl ClaudeAdapter {
 }
 ```
 
-### `crates/shadows-agent/src/events.rs` — 142 lines
+### `crates/shadows-agent/src/events.rs` — 148 lines
 
 ```rust
 pub enum HarnessEvent {
@@ -203,6 +203,7 @@ pub enum HarnessEvent {
     PermissionRefused { title: String },
     Usage { used: u64, size: u64, model: Option<String>, rate_limit: Option<Value> },
     Options(Value),
+    SessionTitle { title: String },
     TurnEnd { subtype: &'static str, stop_reason: Option<String> },
 }
 pub struct LimitWindow {
@@ -845,7 +846,7 @@ impl Sessions {
 }
 ```
 
-### `crates/shadows-core/src/harness/mod.rs` — 189 lines
+### `crates/shadows-core/src/harness/mod.rs` — 191 lines
 
 ```rust
 pub use model::{ContextBreakdown, HarnessInfo, RememberedSettings};
@@ -905,7 +906,7 @@ impl Offers {
 pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, to: mpsc::UnboundedSender<HarnessEvent>) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static
 ```
 
-### `crates/shadows-core/src/harness/sessions.rs` — 491 lines
+### `crates/shadows-core/src/harness/sessions.rs` — 493 lines
 
 ```rust
 pub struct SessionsConfig {
@@ -1010,6 +1011,12 @@ impl Storage {
     pub async fn latest_limits(&self, kind: &str) -> Result<Option<AccountLimits>, StorageError>
     pub async fn record_limits(&self, kind: &str, limits: &AccountLimits) -> Result<(), StorageError>
 }
+```
+
+### `crates/shadows-core/src/harness/titles.rs` — 43 lines
+
+```rust
+pub(super) fn keep_titles(storage: Arc<Storage>, thread: ThreadId, next: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static
 ```
 
 ### `crates/shadows-core/src/id.rs` — 101 lines
@@ -1304,7 +1311,7 @@ pub(super) fn writer_of(grant: &Grant) -> Result<Writer, CoreError>
 pub(super) fn command(writer: &Writer, command_id: String, kind: &str, fp: String) -> CommandContext
 ```
 
-### `crates/shadows-core/src/plans/store/draft.rs` — 247 lines
+### `crates/shadows-core/src/plans/store/draft.rs` — 248 lines
 
 ```rust
 impl Storage {
@@ -1549,12 +1556,13 @@ pub fn new_turn<'a>(thread: &'a ThreadId, runtime: &'a Runtime, prompt: &'a str,
 pub async fn start_direct(runtime: &Arc<Runtime>, handles: &Arc<LiveHandles>, sessions: &Arc<Sessions>, bus: &tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>, thread: &ThreadId, prompt: &str) -> Result<OperationId, StartError>
 ```
 
-### `crates/shadows-core/src/threads/mod.rs` — 129 lines
+### `crates/shadows-core/src/threads/mod.rs` — 134 lines
 
 ```rust
 pub use model::{ EntryRef, NewThreadEntry, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, TurnContext, };
 pub(crate) use rules::known_harness;
-pub(crate) use store::{append_entry_in, insert_thread};
+pub(crate) use model::CreatedTitle;
+pub(crate) use store::{append_entry_in, insert_thread, title_from_first_message_in};
 pub struct Threads {}
 // + 3 private fields
 impl Threads {
@@ -1568,7 +1576,7 @@ impl Threads {
 }
 ```
 
-### `crates/shadows-core/src/threads/model.rs` — 151 lines
+### `crates/shadows-core/src/threads/model.rs` — 171 lines
 
 ```rust
 pub struct ThreadId(String);
@@ -1585,6 +1593,14 @@ impl ThreadEntryId {
     pub fn as_str(&self) -> &str
     pub(crate) fn from_stored(id: String) -> Self
     pub fn from_literal(id: impl Into<String>) -> Self
+}
+
+pub(crate) enum CreatedTitle {
+    Client,
+    Plan,
+}
+impl CreatedTitle {
+    pub(crate) fn as_str(self) -> &'static str
 }
 
 pub struct PlanningThread {
@@ -1660,7 +1676,7 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/threads/store/fork.rs` — 201 lines
+### `crates/shadows-core/src/threads/store/fork.rs` — 207 lines
 
 ```rust
 impl Storage {
@@ -1668,14 +1684,15 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/threads/store/mod.rs` — 10 lines
+### `crates/shadows-core/src/threads/store/mod.rs` — 12 lines
 
 ```rust
 pub(crate) use entry::append_entry_in;
 pub(crate) use thread::insert_thread;
+pub(crate) use title::title_from_first_message_in;
 ```
 
-### `crates/shadows-core/src/threads/store/thread.rs` — 295 lines
+### `crates/shadows-core/src/threads/store/thread.rs` — 308 lines
 
 ```rust
 impl Storage {
@@ -1686,11 +1703,28 @@ impl Storage {
     pub async fn list_threads_for_project(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>
 }
 
-pub(crate) async fn insert_thread(conn: &mut SqliteConnection, project_id: &ProjectId, title: &str, harness: &str, actor: Actor, ts: &str) -> Result<ThreadId, StorageError>
+pub(crate) async fn insert_thread(conn: &mut SqliteConnection, project_id: &ProjectId, title: &str, named_by: CreatedTitle, harness: &str, actor: Actor, ts: &str) -> Result<ThreadId, StorageError>
 pub(super) async fn load_thread(conn: &mut SqliteConnection, id: &ThreadId) -> Result<PlanningThread, StorageError>
 ```
 
-### `crates/shadows-core/src/turns/entries.rs` — 151 lines
+### `crates/shadows-core/src/threads/store/title.rs` — 121 lines
+
+```rust
+pub(crate) async fn title_from_first_message_in(conn: &mut SqliteConnection, thread: &ThreadId, entry: &ThreadEntryId, message: &str, actor: Actor, ts: &str) -> Result<(), StorageError>
+impl Storage {
+    pub async fn title_from_harness(&self, thread: &ThreadId, title: &str) -> Result<bool, StorageError>
+}
+```
+
+### `crates/shadows-core/src/threads/title.rs` — 53 lines
+
+```rust
+pub(crate) const TITLE_MAX_CHARS: usize = 60;
+pub(crate) fn from_first_message(message: &str) -> Option<String>
+pub(crate) fn from_harness(title: &str) -> Option<String>
+```
+
+### `crates/shadows-core/src/turns/entries.rs` — 152 lines
 
 ```rust
 pub(crate) enum Durable {
@@ -1902,7 +1936,7 @@ impl Transition {
 pub(crate) async fn record(conn: &mut SqliteConnection, op_id: &OperationId, before: Before, to: &str, event: DurableEvent, ts: &str) -> Result<Transition, StorageError>
 ```
 
-### `crates/shadows-core/src/turns/store/turn.rs` — 283 lines
+### `crates/shadows-core/src/turns/store/turn.rs` — 288 lines
 
 ```rust
 pub struct NewTurn<'a> {

@@ -258,7 +258,8 @@ functions:
     start_turn:
       signature: "(&self, ctx: &CommandContext, turn: NewTurn) -> Result<StartedTurn, StorageError>"
       # One write: classify (replay), has_open_operation (busy), focus,
-      # insert_pending, the UserMessage entry, agent_invocation,
+      # insert_pending, the UserMessage entry, Threads'
+      # `title_from_first_message_in` (§4.2), agent_invocation,
       # remember_settings, record_command.
     replayed_turn:
       signature: "(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<Option<StartedTurn>, StorageError>"

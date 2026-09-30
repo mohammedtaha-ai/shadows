@@ -169,3 +169,35 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+/* The Planner's reply, block by block in its own direction (`bidi.ts` marks
+ * each block `dir="auto"`). Unlayered, so these beat Streamdown's physical
+ * `pl-*` and `border-l-*` utilities, which would put an Arabic block's quote
+ * bar and nested-list indent on the wrong side. */
+.reply-bidi :is(p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, dt, dd) {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+.reply-bidi li > :is(ul, ol) {
+  padding-left: 0;
+  padding-inline-start: 1.5rem;
+}
+.reply-bidi blockquote {
+  border-left-width: 0;
+  padding-left: 0;
+  border-inline-start-width: 4px;
+  padding-inline-start: 1rem;
+}
+/* An inline code span in an Arabic sentence is one left-to-right island: it
+ * keeps its place and does not reorder the words around it. */
+.reply-bidi [data-streamdown="inline-code"],
+.reply-bidi :not(pre) > code {
+  unicode-bidi: isolate;
+  direction: ltr;
+}
+/* A fenced code block reads left to right and starts on the left, always. */
+.reply-bidi :is([data-streamdown="code-block"], pre) {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}

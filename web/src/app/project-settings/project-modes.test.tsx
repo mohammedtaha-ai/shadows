@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// The project page's allowed modes (spec §12.5): a per-harness checklist that
+// Project settings' allowed modes (spec §12.5): a per-harness checklist that
 // changes the project's set as one command, and says when none is left.
 
 import { notifyManager } from '@tanstack/react-query'
@@ -10,7 +10,7 @@ import type { Project } from '@/api/client'
 import { projectsQuery } from '@/api/queries'
 import { projectWithModes } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
-import { type TestApp, startApp, until } from './test-app'
+import { type TestApp, startApp, until } from '../test-app'
 
 let open: TestApp | null = null
 afterEach(() => {
@@ -19,9 +19,9 @@ afterEach(() => {
 })
 
 describe('allowed modes', () => {
-  it('the project page edits allowed modes', async () => {
+  it('project settings edit allowed modes', async () => {
     const app = (open = await startApp(
-      '/projects/p1',
+      '/projects/p1/settings',
       answers({ project: projectWithModes({ 'claude-code': ['acceptEdits', 'auto'] }) }),
     ))
     await until(() => app.checkbox('Auto') !== undefined)
@@ -39,7 +39,7 @@ describe('allowed modes', () => {
 
   it('a click after a save uses that save while the project query has not rendered', async () => {
     const app = (open = await startApp(
-      '/projects/p1',
+      '/projects/p1/settings',
       answers({ project: projectWithModes({ 'claude-code': ['acceptEdits', 'auto'] }) }),
     ))
     await until(() => app.checkbox('Auto') !== undefined)
@@ -66,7 +66,7 @@ describe('allowed modes', () => {
   })
 
   it('a harness whose modes are not decided says so instead of a checklist', async () => {
-    const app = (open = await startApp('/projects/p1', answers()))
+    const app = (open = await startApp('/projects/p1/settings', answers()))
     await until(() => app.checkbox('Auto') !== undefined)
     expect(app.text()).toContain('Codex')
     expect(app.text()).toContain('Modes are decided when Codex is enabled')

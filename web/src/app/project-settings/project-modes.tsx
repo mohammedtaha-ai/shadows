@@ -10,8 +10,8 @@ import { useRef, useState } from 'react'
 import { type Project, setProjectModes } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { harnessesQuery, projectsQuery } from '@/api/queries'
-import { ErrorLine } from './error-line'
-import { policyOf } from './mode-policy'
+import { ErrorLine } from '../error-line'
+import { policyOf } from '../mode-policy'
 
 type Allowed = Record<string, string[]>
 

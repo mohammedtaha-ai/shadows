@@ -66,9 +66,11 @@ describe('project settings', () => {
     await until(() => app.buttons('Revoke').length === 1)
 
     // Leaving the page and coming back does not show the command again.
-    const project = [...document.querySelectorAll('a')].find((a) => a.textContent?.includes('Demo'))
-    act(() => project?.click())
-    await until(() => app.path() === '/projects/p1')
+    const conversation = [...document.querySelectorAll('a')].find(
+      (a) => a.textContent?.trim() === 'Conversation 1',
+    )
+    act(() => conversation?.click())
+    await until(() => app.path() === '/projects/p1/threads/t1')
     const settings = [...document.querySelectorAll('a')].find(
       (a) => a.textContent?.trim() === 'Project settings',
     )

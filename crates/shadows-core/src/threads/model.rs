@@ -19,6 +19,26 @@ newtype_id! {
     ThreadEntryId
 }
 
+/// Who named a thread when it was created: its `title_source` until §4.2's
+/// title rule replaces it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CreatedTitle {
+    /// The name the client gave; the first message and the harness replace it.
+    Client,
+    /// The title of the plan a draft from scratch made the thread for
+    /// (§13.6); nothing automatic replaces it.
+    Plan,
+}
+
+impl CreatedTitle {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Client => "client",
+            Self::Plan => "plan",
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct PlanningThread {
     pub id: ThreadId,
