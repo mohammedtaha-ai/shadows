@@ -55,17 +55,18 @@
 A Cargo workspace with a flat `crates/` directory (spec §14.3 owns the list), plus an independent browser client in `web/`. The one binary, `shadows serve`, serves the product locally but never opens a browser automatically.
 
 ```text
-shadows ─┬─► shadows-http ─┐
-         ├─► shadows-mcp  ─┼─► shadows-core ─► shadows-agent ─► shadows-process
-         └────────────────►┘
+shadows ─┬─► shadows-http ─┐                 ┌─► shadows-agent ─► shadows-process
+         ├─► shadows-mcp  ─┼─► shadows-core ─┤
+         └────────────────►┘                 └─► shadows-index
 ```
 
 Dependencies point one way, and Cargo refuses a cycle. An adapter depends on
 `shadows-core` only; a `shadows-agent` type it serializes, such as
 `SessionChoices`, is re-exported by `shadows-core`. `fake-acp` is the test
-adapter binary; no product crate links it. Inside `shadows-core`, `AppCore`
-holds eight services, one folder each: `projects`, `threads`, `turns`,
-`harness`, `plans`, `grants`, `instructions`, `events` (spec §14.4). Planned,
+adapter binary; no product crate links it. `shadows-index` depends on no
+Shadows crate (spec §15.2). Inside `shadows-core`, `AppCore` holds nine
+services, one folder each: `projects`, `threads`, `turns`, `harness`, `plans`,
+`grants`, `instructions`, `events`, `code` (spec §14.4). Planned,
 and not created until their first user exists: the `scheduler`, `execution`
 and `verification` services, and `secrets`.
 
@@ -78,6 +79,7 @@ and `verification` services, and `secrets`.
 | `shadows-mcp` | Shadows' MCP server at `/mcp`, a separate interface from the HTTP API (spec §13.6) |
 | `shadows-core` | The application: every operation is a method of one service. SQLite lives here only, in `db/` and the stores |
 | `shadows-agent` | The AI subprocess harness (the ACP `Connection`) |
+| `shadows-index` | tree-sitter: a file's text in, its tags out, knowing nothing of SQLite or projects (spec §15.3) |
 | `shadows-process` | `tokio::process` / `process-wrap` (private to this crate) |
 | `secrets` (planned) | Secret value resolution (config holds refs only) |
 

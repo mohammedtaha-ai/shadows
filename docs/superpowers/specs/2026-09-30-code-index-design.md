@@ -1,7 +1,7 @@
 # Section 15 — The Code Index (Milestone 3)
 
 - **Date:** 2026-09-30
-- **Status:** Designed with Mohammed on 2026-09-30. Not built.
+- **Status:** Designed with Mohammed on 2026-09-30.
 - **Idea:** `docs/vision.md` §2.4, "Where is X?".
 
 An agent asks Shadows where something is, and Shadows answers with the name,
@@ -55,7 +55,9 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
   - `watch.rs`: one active project's worker and watcher;
   - `active.rs`: which projects are active, in order of use;
   - `links.rs`: the links and the active limit, as commands;
-  - `store.rs`: its SQLite queries.
+  - `store/mod.rs`: its SQLite queries over the index;
+  - `store/links.rs`: the rows of the links and the active limit, each
+    command one write transaction with its event and command record.
 - **`shadows-mcp`** and **`shadows-http`** each call one `Code` method per tool
   or route (§14.5).
 

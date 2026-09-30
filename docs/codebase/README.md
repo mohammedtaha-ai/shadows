@@ -26,6 +26,8 @@ What the code keeps true, in rust-analyzer's style. Spec §14.6 owns them.
   status code; the types an adapter serializes derive `utoipa::ToSchema`, which
   describes a shape and names no route.
 - `shadows-core` never imports `axum` or `rmcp`.
+- `shadows-index` knows nothing of SQLite or projects. It depends on no
+  Shadows crate, nor on a database library; spec §15.2 owns this one.
 - Another service calls a service's `store` only through a function or method
   that store's contract declares, under `shared_in_transaction` (inside one
   write) or `called_by_other_services`.

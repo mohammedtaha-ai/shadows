@@ -114,6 +114,7 @@ crates/
   shadows-mcp/             the MCP server (rmcp)
   shadows-core/            the application: AppCore, the services, storage, runtime
   shadows-agent/           the ACP client for a harness adapter
+  shadows-index/           a file's text in, its tags out, with tree-sitter (§15.3)
   shadows-process/         OS processes with whole-tree containment
   fake-acp/                the fake ACP adapter tests drive (binary)
 api/  web/  docs/          unchanged
@@ -124,12 +125,13 @@ api/  web/  docs/          unchanged
 - **Dependencies point one way:**
 
   ```text
-  shadows ─┬─► shadows-http ─┐
-           ├─► shadows-mcp  ─┼─► shadows-core ─► shadows-agent ─► shadows-process
-           └────────────────►┘
+  shadows ─┬─► shadows-http ─┐                 ┌─► shadows-agent ─► shadows-process
+           ├─► shadows-mcp  ─┼─► shadows-core ─┤
+           └────────────────►┘                 └─► shadows-index
   ```
 
   Cargo refuses a cycle, so `shadows-core` can never depend on an adapter.
+  `shadows-index` depends on no Shadows crate (§15.2).
 - **Shared dependency versions and lints** are declared once, in the root
   `[workspace.dependencies]` and `[workspace.lints]`.
 - `shadows-process` keeps `tree_probe` as its own test binary. Its containment
@@ -174,13 +176,16 @@ crates/shadows-core/src/
   command.rs        command identity and idempotency
   db/               the SQLite pool, write transactions, migrations, the durable journal, command replay
   runtime/          the runtime instance and recovery
-  projects/  threads/  turns/  harness/  plans/  grants/  instructions/  events/
+  projects/  threads/  turns/  harness/  plans/  grants/  instructions/  events/  code/
     mod.rs          the service: its public methods
     model.rs        its types (no sqlx; the domain stays pure)
     rules.rs        its checks, where it has any
     store.rs        its SQLite queries
     contract.yaml   its contract (§14.7)
 ```
+
+`code/` has more files than the pattern above, each with one job; §15.2 lists
+them.
 
 | Service | Its one job | Takes over |
 |---|---|---|
@@ -192,6 +197,7 @@ crates/shadows-core/src/
 | `Grants` | MCP grants, from issue to revocation | `mcp/grant.rs`, `storage/sqlite/grant.rs`, the logic of `protocol/grants.rs` and `mcp/auth.rs` |
 | `Instructions` | a project's Planner instructions | `storage/sqlite/instructions.rs`, the logic of `protocol/instructions.rs` |
 | `Events` | what clients watch live | `events/`, `storage/sqlite/{events,events_read}.rs`, the loop of `protocol/sse.rs`, `UiSignal` |
+| `Code` | the code index of every project (§15) | nothing: new in Milestone 3 |
 
 - **One capability, one method.** An HTTP route and an MCP tool that do the same
   thing call the same method. `get_plan`, `workflow_get` and `task_get` all
@@ -201,8 +207,9 @@ crates/shadows-core/src/
 - **Who emits, who delivers.** A service emits what it causes: `Turns` sends a
   turn's live events on the bus, and `Plans` sends `plan_show`'s UI signal.
   `Events` owns subscription and delivery, and emits nothing of its own.
-- **Shutdown.** `AppCore::shut_down()` stops every running turn and closes every
-  adapter, which is `planner::shut_down` today. The binary keeps what belongs to
+- **Shutdown.** `AppCore::shut_down()` first stops `Code`'s watchers and
+  workers (§15.8), then stops every running turn and closes every adapter,
+  which is `planner::shut_down` today. The binary keeps what belongs to
   the process and the transport:
   - catching the signal;
   - the second Ctrl+C;

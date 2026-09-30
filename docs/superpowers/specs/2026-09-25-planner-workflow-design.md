@@ -259,6 +259,9 @@ expire. The guarantee against a duplicate plan starts at `draft_start`.
 | `draft_start` | ✓ in its thread, from its latest version | ✓ from a frozen plan in the project, or from scratch with a new thread | yes |
 | `plan_edit` | ✓ | ✓ | yes |
 | `plan_show` | ✓ | — | a conversation entry (§13.9) |
+| `where_is` | — (§15.7) | ✓ the project and its links (§15.5) | no |
+| `who_uses` | — (§15.7) | ✓ the project and its links (§15.5) | no |
+| `outline` | — (§15.7) | ✓ the project and its links (§15.5) | no |
 
 - **`draft_start`** in a thread with no plan creates v1 from a title and a goal.
   After a frozen version it creates the next version as a copy (§13.2); title
