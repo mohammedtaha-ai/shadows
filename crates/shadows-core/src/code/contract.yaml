@@ -424,8 +424,9 @@ functions:
       signature: "(&self) -> bool"
       private: true
       # A pending path `keeps` does not take, with no hidden component, that
-      # is now a folder or gone (`symlink_metadata`). A gone non-code file
-      # (a README.md) passes too: the scan is cheap.
+      # is gone, or is a folder `code_files_under` finds nothing under (a
+      # failed read counts as nothing) (`symlink_metadata`). A gone non-code
+      # file (a README.md) passes too: the scan is cheap.
     recheck:
       signature: "(&mut self, paths: Vec<String>)"
       private: true
@@ -458,6 +459,10 @@ functions:
       signature: "(&self, project: &ProjectId, path_key: &str) -> Result<Option<(String, i64, i64)>, StorageError>"
     code_file_keys:
       signature: "(&self, project: &ProjectId) -> Result<Vec<String>, StorageError>"
+    code_files_under:
+      signature: "(&self, project: &ProjectId, folder_key: &str) -> Result<bool, StorageError>"
+      # A row at the key or in the byte range `key/` to `key0`, as
+      # `code_outline`: exact on every platform.
     write_code_file:
       signature: "(&self, project: &ProjectId, file: FileRow, tags: Vec<Tag>) -> Result<(), StorageError>"
       # One write: delete the file's tags, upsert its row, insert its tags.
@@ -573,18 +578,21 @@ obligations:
       A folder renamed or deleted inside an active project is in the index
       once no path has arrived for `debounce`, not at the next periodic scan:
       the watcher reports only the folder, so a batch holding a path that is
-      now a folder, or is gone and not a code file, is handled as one scan
-      (outside target/, node_modules/ and hidden entries, which never start
-      one). One batch starts at most one scan, and the worker runs it
-      inline, so no second is queued behind it.
+      gone and not a code file, or a folder the index holds no file under
+      (moved in), is handled as one scan (outside target/, node_modules/ and
+      hidden entries, which never start one). A folder with indexed files,
+      which Windows reports on every save inside it, starts none: its files'
+      own paths go as `Files`. One batch starts at most one scan, and the
+      worker runs it inline, so no second is queued behind it.
     tested_by: none
     note: >
       Mohammed's Windows run, check 3, exercises it. Checked once by hand
       with a throwaway test (rescan_every 60 s, debounce 500 ms): a renamed
       folder's function answered at its new path in about 0.7 s, a deleted
-      folder's rows were gone in about 0.7 s; with the rule switched off,
-      neither within 10 s. On Windows a file created or renamed in a folder
-      also reports that folder, so such a save becomes a scan too.
+      folder's rows were gone in about 0.7 s, a folder moved in from outside
+      was answered in about 0.6 s, and saves and a new file inside an indexed
+      subfolder started no scan; with the rule switched off, a rename was not
+      answered within 10 s.
 
   - rule: >
       A question never points at a stale line: before it answers,

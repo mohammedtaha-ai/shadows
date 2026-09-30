@@ -59,6 +59,25 @@ impl Storage {
         .await?)
     }
 
+    /// Whether the index holds a file at `folder_key` or under it; "under" is
+    /// the byte range `key/` up to `key0`, as in `code_outline`.
+    pub(super) async fn code_files_under(
+        &self,
+        project: &ProjectId,
+        folder_key: &str,
+    ) -> Result<bool, StorageError> {
+        Ok(sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM code_file WHERE project_id = ?
+                 AND (path_key = ? OR (path_key >= ? || '/' AND path_key < ? || '0')))",
+        )
+        .bind(project.as_str())
+        .bind(folder_key)
+        .bind(folder_key)
+        .bind(folder_key)
+        .fetch_one(self.reader())
+        .await?)
+    }
+
     /// One write: the file's old tags go, its row is upserted, its new tags
     /// are inserted.
     pub(super) async fn write_code_file(

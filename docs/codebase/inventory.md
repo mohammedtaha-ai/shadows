@@ -439,7 +439,7 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/code/store/mod.rs` — 343 lines
+### `crates/shadows-core/src/code/store/mod.rs` — 362 lines
 
 ```rust
 pub(super) struct FileRow {
@@ -454,6 +454,7 @@ pub(super) type ScopeRow = (ProjectId, String, Option<String>);
 impl Storage {
     pub(super) async fn code_file_stamp(&self, project: &ProjectId, path_key: &str) -> Result<Option<(String, i64, i64)>, StorageError>
     pub(super) async fn code_file_keys(&self, project: &ProjectId) -> Result<Vec<String>, StorageError>
+    pub(super) async fn code_files_under(&self, project: &ProjectId, folder_key: &str) -> Result<bool, StorageError>
     pub(super) async fn write_code_file(&self, project: &ProjectId, file: FileRow, tags: Vec<Tag>) -> Result<(), StorageError>
     pub(super) async fn delete_code_file(&self, project: &ProjectId, path_key: &str) -> Result<(), StorageError>
     pub(super) async fn code_order(&self) -> Result<Vec<(ProjectId, String)>, StorageError>
@@ -465,7 +466,7 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/code/watch.rs` — 413 lines
+### `crates/shadows-core/src/code/watch.rs` — 426 lines
 
 ```rust
 pub(super) enum Job {

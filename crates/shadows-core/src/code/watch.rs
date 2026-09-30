@@ -309,16 +309,29 @@ impl Run {
     }
 
     /// Whether a gathered path may be a folder renamed or deleted: one that
-    /// `keeps` does not take, is not hidden, and is now a folder or gone.
-    /// A gone file the table does not know (a `README.md`) passes too: the
-    /// scan it starts reads only what changed.
+    /// `keeps` does not take, is not hidden, and is gone, or is a folder the
+    /// index holds nothing under (moved in, its files never reported).
+    /// Windows reports a folder on every save inside it; that folder has
+    /// rows, and its files' own paths are handled as `Files`. A gone file
+    /// the table does not know (a `README.md`) passes too: the scan it
+    /// starts reads only what changed.
     async fn folder_changed(&self) -> bool {
         for path in &self.pending {
             if keeps(Path::new(path)) || path.split('/').any(|c| c.starts_with('.')) {
                 continue;
             }
             match tokio::fs::symlink_metadata(self.dir.join(path)).await {
-                Ok(meta) if meta.is_dir() => return true,
+                Ok(meta) if meta.is_dir() => {
+                    let storage = &self.code.inner.storage;
+                    // A failed read counts as new: a scan is the safe answer.
+                    if !storage
+                        .code_files_under(&self.project, &path_key(path))
+                        .await
+                        .unwrap_or(false)
+                    {
+                        return true;
+                    }
+                }
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => return true,
                 _ => {}
             }
