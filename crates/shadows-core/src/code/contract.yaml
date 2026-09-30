@@ -32,8 +32,8 @@
 # commands with a CommandId (kinds ProjectLinkPut, ProjectLinkRemove,
 # CodeActiveLimitSet), each one write with its journal event (ProjectLinked,
 # ProjectUnlinked, CodeActiveLimitSet), as `save_planner_instructions` is.
-# Trap: a link's replay loads the link it made; once that link is removed,
-# the replay answers NotFound "project link".
+# Trap: a link's replay answers the link as it stands; once that link is
+# removed, the link as the command left it, dated by its command record.
 
 name: code
 version: 3
@@ -464,7 +464,7 @@ functions:
       signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, StorageError>"
     put_code_link:
       signature: "(&self, ctx: &CommandContext, project: &ProjectId, linked: &ProjectId) -> Result<Option<ProjectLink>, StorageError>"
-      # One write: classify (a replay loads the link its outcome ref, the
+      # One write: classify (a replay answers `replayed_link` for its outcome ref, the
       # linked id, names) → `project` must exist (NotFound) → `linked` must
       # (else None) → INSERT … ON CONFLICT DO NOTHING → `ProjectLinked`
       # { linked } only when a row was made → record_command → the link.
@@ -479,6 +479,11 @@ functions:
       # no project → record_command.
     load_link:
       signature: "(conn, project: &ProjectId, linked: &ProjectId) -> Result<ProjectLink, StorageError>"
+      private: true
+    replayed_link:
+      signature: "(conn, ctx: &CommandContext, project: &ProjectId, linked: &ProjectId) -> Result<ProjectLink, StorageError>"
+      # The link as it stands, else rebuilt from the command record: never
+      # NotFound for a command that happened (§14.9).
       private: true
     is_project:
       signature: "(conn, id: &ProjectId) -> Result<bool, StorageError>"

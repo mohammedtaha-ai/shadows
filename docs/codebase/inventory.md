@@ -427,7 +427,7 @@ pub(super) async fn projects(storage: &Storage, asker: &Asker<'_>, only: Option<
 pub(super) fn inside(path: &str) -> Result<String, CoreError>
 ```
 
-### `crates/shadows-core/src/code/store/links.rs` — 197 lines
+### `crates/shadows-core/src/code/store/links.rs` — 231 lines
 
 ```rust
 impl Storage {

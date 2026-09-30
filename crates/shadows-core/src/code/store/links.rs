@@ -49,7 +49,8 @@ impl Storage {
 
     /// Links `project` to `linked`, or answers the link already there. `None`
     /// when `linked` is no project; NotFound when `project` is none. A replay
-    /// answers the link it made. Only a new link is a `ProjectLinked` event.
+    /// answers the link it made, even once removed (`replayed_link`). Only a
+    /// new link is a `ProjectLinked` event.
     pub(in crate::code) async fn put_code_link(
         &self,
         ctx: &CommandContext,
@@ -61,7 +62,7 @@ impl Storage {
             Box::pin(async move {
                 if let Some(done) = classify(conn, &ctx, "Project", project.as_str()).await? {
                     let done = ProjectId::from_stored(done);
-                    return load_link(conn, &project, &done).await.map(Some);
+                    return replayed_link(conn, &ctx, &project, &done).await.map(Some);
                 }
                 if !is_project(conn, &project).await? {
                     return Err(StorageError::NotFound("project"));
@@ -185,6 +186,39 @@ async fn load_link(
     .fetch_optional(&mut *conn)
     .await?
     .ok_or(StorageError::NotFound("project link"))?;
+    Ok(into_link(row))
+}
+
+/// What a replayed `ProjectLinkPut` answers (§14.9: what it answered first).
+/// The link as it stands; once removed, the link as the command left it,
+/// dated when the command was recorded — which is the link's own date unless
+/// the command found the link already there. Never NotFound: the command
+/// happened, and a client retrying a lost answer must not read it as failed.
+async fn replayed_link(
+    conn: &mut SqliteConnection,
+    ctx: &CommandContext,
+    project: &ProjectId,
+    linked: &ProjectId,
+) -> Result<ProjectLink, StorageError> {
+    match load_link(conn, project, linked).await {
+        Err(StorageError::NotFound(_)) => {}
+        found => return found,
+    }
+    let row: LinkRow = sqlx::query_as(
+        "SELECT p.slug, q.slug, c.recorded_at FROM command_record c
+           JOIN project p ON p.id = c.command_scope_key
+           JOIN project q ON q.id = ?
+          WHERE c.principal_kind = ? AND c.principal_id = ?
+            AND c.command_scope_kind = 'Project' AND c.command_scope_key = ?
+            AND c.command_id = ?",
+    )
+    .bind(linked.as_str())
+    .bind(&ctx.principal_kind)
+    .bind(&ctx.principal_id)
+    .bind(project.as_str())
+    .bind(&ctx.command_id)
+    .fetch_one(&mut *conn)
+    .await?;
     Ok(into_link(row))
 }
 
