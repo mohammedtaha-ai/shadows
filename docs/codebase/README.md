@@ -113,6 +113,8 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/code/store.rs` | the code index's SQLite queries | `crates/shadows-core/src/code/store.rs` |
 | `crates/shadows-core/src/code/scan.rs` | walking a project's folder into the index | `crates/shadows-core/src/code/scan.rs` |
 | `crates/shadows-core/src/code/scope.rs` | what a code question may read | `crates/shadows-core/src/code/scope.rs` |
+| `crates/shadows-core/src/code/watch.rs` | keeping one active project's index current | `crates/shadows-core/src/code/watch.rs` |
+| `crates/shadows-core/src/code/active.rs` | which projects are active, in order of use | `crates/shadows-core/src/code/active.rs` |
 | `crates/shadows-core/src/events/` | what clients watch live | `crates/shadows-core/src/events/mod.rs` |
 | `crates/shadows-core/src/events/model.rs` | the event shapes the product records or signals | `crates/shadows-core/src/events/model.rs` |
 | `crates/shadows-core/src/events/subscription.rs` | one subscriber's replay-then-live stream | `crates/shadows-core/src/events/subscription.rs` |

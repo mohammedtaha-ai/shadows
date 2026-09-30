@@ -65,3 +65,21 @@ pub struct Answer {
     /// One per project in the scope.
     pub status: Vec<ProjectStatus>,
 }
+
+/// How the workers keep the index current (§15.4).
+#[derive(Debug, Clone, Copy)]
+pub struct CodeConfig {
+    /// How often each active project is scanned: the watcher can lose changes.
+    pub rescan_every: std::time::Duration,
+    /// How long no change has to arrive before the gathered paths are indexed.
+    pub debounce: std::time::Duration,
+}
+
+impl Default for CodeConfig {
+    fn default() -> Self {
+        Self {
+            rescan_every: std::time::Duration::from_secs(60),
+            debounce: std::time::Duration::from_millis(500),
+        }
+    }
+}

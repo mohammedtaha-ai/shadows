@@ -142,6 +142,41 @@ impl Storage {
         .await
     }
 
+    /// The projects with a folder, most recently used first (§15.6): by the
+    /// durable sequence of the newest `OperationCreated` among their threads,
+    /// or of their `ProjectCreated` for one with no operation. The sequence,
+    /// not `created_at`, whose RFC 3339 text with trimmed zeros does not sort
+    /// in time order within a second (CLAUDE.md: ordering is explicit).
+    pub(super) async fn code_order(&self) -> Result<Vec<(ProjectId, String)>, StorageError> {
+        let rows: Vec<(String, String)> = sqlx::query_as(
+            "SELECT p.id, p.directory FROM project p
+              WHERE p.directory IS NOT NULL
+              ORDER BY COALESCE(
+                (SELECT MAX(e.seq) FROM durable_event e
+                   JOIN operation o ON o.id = e.operation_id
+                   JOIN planning_thread t ON t.id = o.thread_id
+                  WHERE t.project_id = p.id AND e.kind = 'OperationCreated'),
+                (SELECT MAX(e.seq) FROM durable_event e
+                  WHERE e.project_id = p.id AND e.kind = 'ProjectCreated'),
+                0) DESC, p.id",
+        )
+        .fetch_all(self.reader())
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(id, dir)| (ProjectId::from_stored(id), dir))
+            .collect())
+    }
+
+    /// How many projects are active at once: `code_setting.active_limit`.
+    pub(super) async fn code_active_limit(&self) -> Result<i64, StorageError> {
+        Ok(
+            sqlx::query_scalar("SELECT active_limit FROM code_setting WHERE id = 1")
+                .fetch_one(self.reader())
+                .await?,
+        )
+    }
+
     /// The asker's project, then the projects it links to directly, by slug.
     pub(super) async fn code_scope(&self, home: &ProjectId) -> Result<Vec<ScopeRow>, StorageError> {
         let first: Option<(String, Option<String>)> =

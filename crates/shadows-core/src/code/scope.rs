@@ -18,6 +18,14 @@ pub enum Asker<'a> {
     Grant(&'a Grant),
 }
 
+/// The project a question starts from, which it also touches (§15.6).
+pub(super) fn home<'a>(asker: &Asker<'a>) -> &'a ProjectId {
+    match asker {
+        Asker::Person(p) => p,
+        Asker::Grant(g) => &g.project_id,
+    }
+}
+
 /// The projects a question may read: the asker's project, then its direct
 /// links, by slug. `only` narrows it to one of them. A project with no
 /// folder is in it; its status says so.
@@ -26,11 +34,11 @@ pub(super) async fn projects(
     asker: &Asker<'_>,
     only: Option<&str>,
 ) -> Result<Vec<ScopeRow>, CoreError> {
-    let (home, code) = match asker {
-        Asker::Person(p) => (*p, ErrorCode::InvalidCommand),
-        Asker::Grant(g) => (&g.project_id, ErrorCode::GrantScope),
+    let code = match asker {
+        Asker::Person(_) => ErrorCode::InvalidCommand,
+        Asker::Grant(_) => ErrorCode::GrantScope,
     };
-    let scope = storage.code_scope(home).await?;
+    let scope = storage.code_scope(home(asker)).await?;
     let Some(slug) = only else {
         return Ok(scope);
     };

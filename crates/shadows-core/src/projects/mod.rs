@@ -26,18 +26,21 @@ pub use directory::{DirectoryError, ProjectDirectory};
 pub use model::{Project, ProjectId};
 
 use crate::app::user_command;
+use crate::code::Code;
 use crate::db::Storage;
 use crate::error::CoreError;
 use crate::threads::known_harness;
 
-/// Projects: what storage holds.
+/// Projects: what storage holds, and the code index a new project is
+/// touched in (§15.6).
 pub struct Projects {
     storage: Arc<Storage>,
+    code: Code,
 }
 
 impl Projects {
-    pub(crate) fn new(storage: Arc<Storage>) -> Self {
-        Self { storage }
+    pub(crate) fn new(storage: Arc<Storage>, code: Code) -> Self {
+        Self { storage, code }
     }
 
     /// Every project, oldest first.
@@ -61,10 +64,13 @@ impl Projects {
             "slug": slug, "name": name, "directory": directory.as_str(),
         });
         let c = user_command(command_id, "project.create", params);
-        Ok(self
+        let project = self
             .storage
             .create_project(&c, slug, name, &directory, &policy::default_modes())
-            .await?)
+            .await?;
+        // A created project is a used one (§15.6); a replay touches it again.
+        self.code.touch(&project.id).await;
+        Ok(project)
     }
 
     /// Sets the modes the project allows, per harness (spec §12.5): every

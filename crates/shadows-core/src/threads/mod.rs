@@ -28,27 +28,36 @@ pub(crate) use rules::known_harness;
 pub(crate) use store::{append_entry_in, insert_thread};
 
 use crate::app::user_command;
+use crate::code::Code;
 use crate::db::Storage;
 use crate::error::CoreError;
 use crate::harness::Harness;
 use crate::projects::ProjectId;
 use crate::turns::Operation;
 
-/// Threads: what storage holds, and the harness whose session a harness
-/// change closes.
+/// Threads: what storage holds, the harness whose session a harness change
+/// closes, and the code index a listed project is touched in (§15.6).
 pub struct Threads {
     storage: Arc<Storage>,
     harness: Arc<Harness>,
+    code: Code,
 }
 
 impl Threads {
-    pub(crate) fn new(storage: Arc<Storage>, harness: Arc<Harness>) -> Self {
-        Self { storage, harness }
+    pub(crate) fn new(storage: Arc<Storage>, harness: Arc<Harness>, code: Code) -> Self {
+        Self {
+            storage,
+            harness,
+            code,
+        }
     }
 
     /// A project's planning threads, oldest first. An unknown project has none.
+    /// The web client opening a project lists them: the project is used (§15.6).
     pub async fn list(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, CoreError> {
-        Ok(self.storage.list_threads_for_project(project).await?)
+        let threads = self.storage.list_threads_for_project(project).await?;
+        self.code.touch(project).await;
+        Ok(threads)
     }
 
     /// Creates a planning thread: "thread.create", params { "project",

@@ -14,6 +14,7 @@ dunce = { workspace = true }
 escargot = { workspace = true, optional = true }
 futures-core = { workspace = true }
 ignore = { workspace = true }
+notify = { workspace = true }
 petgraph = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }
