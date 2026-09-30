@@ -9,6 +9,7 @@ import { harnessesQuery, projectsQuery, threadsQuery } from '@/api/queries'
 import { type PlanShowFrame, toLimits } from '@/stream/frames'
 import { ErrorLine } from '../error-line'
 import { HeldThreadStream } from '../workflows/plan-frames'
+import { useCarriedSend } from './carried-send'
 import { CliPicker } from './cli-picker'
 import { Composer } from './composer'
 import { ContextRing } from './context-ring'
@@ -23,7 +24,7 @@ import { useSession } from './use-session'
 const route = getRouteApi('/projects/$projectId/threads/$threadId')
 
 /** A thread made before threads named their CLI runs on Claude Code (spec §12.6). */
-const DEFAULT_HARNESS = 'claude-code'
+export const DEFAULT_HARNESS = 'claude-code'
 
 /** The route's component. Keyed by thread, so switching conversations starts
  * the next one's state from nothing rather than from the last one's. */
@@ -74,6 +75,7 @@ function Conversation({
   // Opened as soon as the conversation shows, so the menus are ready before
   // the first message (spec §12.2).
   const session = useSession(threadId)
+  const carried = useCarriedSend(threadId)
   const harness = thread?.harness ?? DEFAULT_HARNESS
   const info = useQuery(harnessesQuery).data?.find((h) => h.kind === harness)
   // The kind itself until the list has answered.
@@ -135,7 +137,8 @@ function Conversation({
             onPointAt={onPointAt}
           />
           <Composer
-            threadId={threadId}
+            to={{ threadId }}
+            carried={carried}
             harness={harness}
             harnessLabel={label}
             session={session}

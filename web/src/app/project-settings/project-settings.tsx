@@ -1,11 +1,12 @@
 // One job: the project settings page (§13.11) — the Planner's instructions
-// for this project, and the external agents allowed on it.
+// for this project, the modes it allows, and the external agents allowed on it.
 
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { projectsQuery } from '@/api/queries'
 import { ExternalAgents } from './external-agents'
 import { InstructionsEditor } from './instructions-editor'
+import { ProjectModes } from './project-modes'
 
 const route = getRouteApi('/projects/$projectId/settings')
 
@@ -31,6 +32,9 @@ export function ProjectSettings() {
             each section is keyed by it: one project's unsaved draft, pending
             command id or one-time Connect command never shows under another. */}
         <InstructionsEditor key={`instructions-${projectId}`} projectId={projectId} />
+        {project !== undefined && (
+          <ProjectModes key={`modes-${projectId}`} project={project} />
+        )}
         <ExternalAgents key={`agents-${projectId}`} projectId={projectId} />
       </div>
     </div>

@@ -1,13 +1,11 @@
 // One job: the sidebar's projects as a tree — each folds open to its
-// conversations, plans and settings, and starts a new conversation from its row.
+// conversations, plans and settings, and opens a new conversation from its row.
 
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useParams } from '@tanstack/react-router'
 import { ChevronRight, Folder, FolderOpen, Plus, Settings } from 'lucide-react'
 import type { Project } from '@/api/client'
 import { projectsQuery } from '@/api/queries'
-import { ErrorLine } from '../error-line'
-import { useNewConversation } from '../use-new-conversation'
 import { useOpenProjects } from './open-projects'
 import { ThreadList } from './thread-list'
 import { WorkflowList } from './workflow-list'
@@ -76,11 +74,9 @@ function ProjectRow({
   sectionId: string
   onToggle: () => void
 }) {
-  const newConversation = useNewConversation(project.id)
   const Icon = open ? FolderOpen : Folder
   return (
-    <>
-      <div className="group relative flex items-start rounded-md transition-colors hover:bg-sidebar-accent">
+    <div className="group relative flex items-start rounded-md transition-colors hover:bg-sidebar-accent">
         <button
           type="button"
           onClick={onToggle}
@@ -109,23 +105,18 @@ function ProjectRow({
             )}
           </span>
         </button>
-        <button
-          type="button"
-          onClick={newConversation.start}
-          disabled={newConversation.pending || !newConversation.ready}
+        {/* The only way to add a conversation: it opens a draft, and the
+            conversation exists once its first message is sent. */}
+        <Link
+          to="/projects/$projectId/new"
+          params={{ projectId: project.id }}
           aria-label={`New conversation in ${project.name}`}
           title="New conversation"
-          className="absolute top-1 right-1 rounded-md p-1 text-faint-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-secondary hover:text-sidebar-foreground focus-visible:opacity-100 disabled:opacity-50"
+          className="absolute top-1 right-1 rounded-md p-1 text-faint-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-secondary hover:text-sidebar-foreground focus-visible:opacity-100"
         >
           <Plus aria-hidden className="size-3.5" />
-        </button>
-      </div>
-      {newConversation.error !== null && (
-        <div className="px-2 py-1">
-          <ErrorLine error={newConversation.error} />
-        </div>
-      )}
-    </>
+        </Link>
+    </div>
   )
 }
 

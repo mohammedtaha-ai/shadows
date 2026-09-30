@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 //
 // The sidebar's projects as a tree: each folds on its own, several stay open,
-// the open set outlives a reload, and a row's `+` starts a conversation the
-// way "New conversation" does.
+// the open set outlives a reload, and a row's `+` opens a new conversation's
+// draft, which makes nothing on the daemon.
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -67,18 +67,16 @@ describe('the project tree', () => {
     expect(expanded('Second')).toBe(true)
   })
 
-  it('a row’s + starts a new conversation in that project', async () => {
-    const routes = twoProjects()
-    routes['POST /api/projects/p2/threads'] = () =>
-      Response.json({ ...secondThread, id: 't9', title: 'Conversation 2' }, { status: 201 })
-    const a = (app = await startApp('/projects/p1', routes))
+  it('a row’s + opens a draft in that project and creates nothing', async () => {
+    const a = (app = await startApp('/projects/p1/threads/t1', twoProjects()))
     // The folded project's + works without opening it.
-    const plus = () => a.button('New conversation in Second')
-    await until(() => plus()?.disabled === false)
+    const plus = () =>
+      document.querySelector<HTMLAnchorElement>('a[aria-label="New conversation in Second"]')
+    await until(() => plus() !== null)
     act(() => plus()?.click())
 
-    await until(() => a.path() === '/projects/p2/threads/t9')
-    expect(a.calls).toContain('POST /api/projects/p2/threads')
-    expect(a.bodies.at(-1)).toMatchObject({ title: 'Conversation 2', command_id: expect.any(String) })
+    await until(() => a.path() === '/projects/p2/new')
+    await until(() => a.text().includes('The conversation starts with your first message'))
+    expect(a.calls.filter((c) => c.endsWith('/threads') && c.startsWith('POST'))).toEqual([])
   })
 })

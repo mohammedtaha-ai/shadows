@@ -508,7 +508,7 @@ Matches the mockup agreed on 2026-09-24:
 - **Context ring** (`context-ring.tsx`): §12.8's two levels; hover or click opens it at any time.
 - **Message actions** (`message-actions.tsx`): copy on every message, fork on the last one when the thread is idle; fork opens the new thread.
 - **A refused permission** renders as a quiet line: what was asked, that `acceptEdits` refused it, and that `auto` would allow it.
-- **Allowed modes:** a per-harness checklist on the project page.
+- **Allowed modes:** a per-harness checklist in Project settings (§13.11).
 - New UI pieces are shadcn's `DropdownMenu` and `Tooltip` on the existing Base UI. No new library.
 
 ## 12.12 How the work is split

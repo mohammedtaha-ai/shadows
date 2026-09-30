@@ -507,8 +507,21 @@ is open.
   open or closed from its row, as a tree, and several may be open at once;
   folding never navigates, so the open conversation stays open. The project
   the URL is in opens when the URL comes to it, and the open set is
-  remembered in the browser across reloads. A `+` on the row starts a new
-  conversation in that project.
+  remembered in the browser across reloads. A `+` on the row is the only way
+  to add a conversation.
+- **A new conversation is a draft until its first message.** The `+` opens
+  `/projects/{id}/new`: the empty conversation with its composer, and nothing
+  on the daemon. The draft offers what is known before a session exists: the
+  CLI, and the modes the project allows for it (§12.5); model and effort read
+  as the harness's default, not chosen. Send creates the thread with the
+  chosen CLI, opens its session and starts the turn with the chosen mode and
+  the session's model and effort, then replaces the draft's URL with the
+  thread's, leaving no history entry. A failed create stays in the draft with
+  the text, and a retry reuses its command id. A turn that fails once the
+  thread exists goes to the thread with its text and error, so a retry there
+  never makes a second thread. Leaving the draft leaves nothing behind.
+  `/projects/{id}` has no page of its own and redirects to the draft, which is
+  also where a newly created project lands: a project is opened to talk in.
 - **Text direction:** Arabic and English each read in their own direction.
   Every block of a reply (paragraph, list item, heading, table cell) takes the
   direction of its first strong character, as do the person's messages and
@@ -535,7 +548,7 @@ is open.
   3 changes") with **Open plan**; `PlanView` cards and panels (§13.9); the
   focus chip.
 - **Project settings:** Planner instructions (text and Save, with when they
-  last changed); External agents (**Connect**, the one-time command with Copy
+  last changed); the allowed modes (§12.11); External agents (**Connect**, the one-time command with Copy
   and the `~/.claude.json` notice, the list of grants with **Revoke**).
 - Colours are Shadows' own theme tokens. The reference picture's glow and
   gradients are not used.

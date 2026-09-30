@@ -27,6 +27,7 @@ export function ComposerBar({
   settings,
   onSettings,
   changingModel,
+  sessionless = false,
   directory,
   note,
   ring,
@@ -40,6 +41,9 @@ export function ComposerBar({
   onSettings: (next: TurnSettings) => void
   /** The session is being set to the picked model (spec §12.7). */
   changingModel: boolean
+  /** A draft: no session exists yet, so the model is the harness's default,
+   * shown and not chosen, until the first message opens one. */
+  sessionless?: boolean
   directory: string | null | undefined
   /** Why the settings moved on their own, if they did. */
   note: string | null
@@ -98,7 +102,7 @@ export function ComposerBar({
                 title="Model"
                 options={choices.models}
                 value={settings.model}
-                disabled={changingModel}
+                disabled={changingModel || sessionless}
                 onChange={(model) => onSettings(withModel(choices, settings, model))}
               />
               {/* Efforts belong to the model the session holds: until it
@@ -121,8 +125,8 @@ export function ComposerBar({
       {note !== null && <p className="px-1 text-xs text-muted-foreground">{note}</p>}
       {noMode && (
         <p className="px-1 text-xs text-destructive-foreground">
-          This project allows no mode for {harnessLabel}: turns cannot start. Allow one on the
-          project page.
+          This project allows no mode for {harnessLabel}: turns cannot start. Allow one in
+          Project settings.
         </p>
       )}
     </div>

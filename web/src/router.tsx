@@ -2,14 +2,14 @@
 //
 // Code-based rather than file-based: file-based routing needs the router's
 // Vite plugin and a generated route tree, which earn their place when routes
-// are many. There are five: nothing open, a project open, a conversation open,
-// a plan version open, a project's settings — each a URL, so a reload
-// restores what was open.
+// are many. Each open thing is a URL, so a reload restores it: nothing open, a
+// new conversation's draft, a conversation, a plan version, a project's
+// settings. A project's own URL has no page: it opens the project's draft.
 
-import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
 import { ConversationRoute } from './app/conversation/conversation'
+import { DraftRoute } from './app/conversation/draft'
 import { Home } from './app/home'
-import { ProjectPage } from './app/project-page'
 import { ProjectSettings } from './app/project-settings/project-settings'
 import { Shell } from './app/shell'
 import { PlanPage } from './app/workflows/plan-page'
@@ -22,10 +22,20 @@ const homeRoute = createRoute({
   component: Home,
 })
 
+// Kept because links and older tabs name it; what a person opens a project
+// for is to talk in it, and settings are one row away in the sidebar.
 const projectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$projectId',
-  component: ProjectPage,
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: '/projects/$projectId/new', params, replace: true })
+  },
+})
+
+const draftRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId/new',
+  component: DraftRoute,
 })
 
 const threadRoute = createRoute({
@@ -50,6 +60,7 @@ export const router = createRouter({
   routeTree: rootRoute.addChildren([
     homeRoute,
     projectRoute,
+    draftRoute,
     threadRoute,
     planRoute,
     settingsRoute,
