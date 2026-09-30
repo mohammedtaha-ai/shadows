@@ -255,6 +255,8 @@ impl Storage {
 
     /// The definitions at `path_key` or under it, every one when it is
     /// empty; in the scope's order, then by path, line and name; at most 51.
+    /// "Under" is a byte range, `key/` up to `key0` ('0' follows '/'), so it
+    /// is exact on every platform, where `LIKE` ignores ASCII case.
     pub(super) async fn code_outline(
         &self,
         scope: &[ScopeRow],
@@ -269,13 +271,15 @@ impl Storage {
             let rows: Vec<HitRow> = sqlx::query_as(
                 "SELECT path, line, kind, name, signature FROM code_tag
                   WHERE project_id = ? AND role = 'definition'
-                    AND (? = '' OR path_key = ? OR path_key LIKE ? || '/%' ESCAPE '\\')
+                    AND (? = '' OR path_key = ?
+                         OR (path_key >= ? || '/' AND path_key < ? || '0'))
                   ORDER BY path, line, name LIMIT ?",
             )
             .bind(id.as_str())
             .bind(path_key)
             .bind(path_key)
-            .bind(like_escape(path_key))
+            .bind(path_key)
+            .bind(path_key)
             .bind(left)
             .fetch_all(self.reader())
             .await?;

@@ -291,7 +291,7 @@ impl AppCore {
 pub fn adapter_version(adapter_entry: &Path) -> String
 ```
 
-### `crates/shadows-core/src/code/active.rs` — 160 lines
+### `crates/shadows-core/src/code/active.rs` — 162 lines
 
 ```rust
 pub(super) struct Active {}
@@ -309,7 +309,7 @@ impl Active {
 }
 ```
 
-### `crates/shadows-core/src/code/links.rs` — 104 lines
+### `crates/shadows-core/src/code/links.rs` — 106 lines
 
 ```rust
 impl Code {
@@ -321,7 +321,7 @@ impl Code {
 }
 ```
 
-### `crates/shadows-core/src/code/mod.rs` — 311 lines
+### `crates/shadows-core/src/code/mod.rs` — 313 lines
 
 ```rust
 pub use model::{ Answer, CodeConfig, CodeSettings, Hit, IndexState, ProjectLink, ProjectStatus, Skipped, };
@@ -393,7 +393,7 @@ pub struct CodeSettings {
 }
 ```
 
-### `crates/shadows-core/src/code/scan.rs` — 364 lines
+### `crates/shadows-core/src/code/scan.rs` — 371 lines
 
 ```rust
 pub(super) struct Progress {
@@ -439,7 +439,7 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/code/store/mod.rs` — 339 lines
+### `crates/shadows-core/src/code/store/mod.rs` — 343 lines
 
 ```rust
 pub(super) struct FileRow {

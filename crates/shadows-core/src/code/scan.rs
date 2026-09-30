@@ -14,6 +14,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::{Instant, UNIX_EPOCH};
 
 use shadows_index::{extract, language_for};
+use tokio::io::AsyncReadExt;
 
 use super::Code;
 use super::store::FileRow;
@@ -223,22 +224,28 @@ impl Code {
             tracing::warn!(project = project.as_str(), path = %path, real = %real.display(), "code.outside_folder");
             return Ok(false);
         }
-        let (skipped, tags) = if size as u64 > MAX_BYTES {
-            (Some("too_large"), Vec::new())
+        // At most one byte past the cap is read: a file that grew past it
+        // since its size was taken is too_large, and the next scan sees its
+        // new stamp.
+        let bytes = if size as u64 > MAX_BYTES {
+            None
         } else {
-            let bytes = tokio::fs::read(&real).await?;
-            if bytes[..bytes.len().min(BINARY_PROBE)].contains(&0) {
-                (Some("binary"), Vec::new())
-            } else {
-                match String::from_utf8(bytes) {
-                    Err(_) => (Some("not_utf8"), Vec::new()),
-                    Ok(text) => {
-                        let tags =
-                            tokio::task::spawn_blocking(move || extract(language, &text)).await?;
-                        (None, tags)
-                    }
+            let mut bytes = Vec::new();
+            let file = tokio::fs::File::open(&real).await?;
+            file.take(MAX_BYTES + 1).read_to_end(&mut bytes).await?;
+            Some(bytes).filter(|b| b.len() as u64 <= MAX_BYTES)
+        };
+        let (skipped, tags) = match bytes {
+            None => (Some("too_large"), Vec::new()),
+            Some(b) if b[..b.len().min(BINARY_PROBE)].contains(&0) => (Some("binary"), Vec::new()),
+            Some(b) => match String::from_utf8(b) {
+                Err(_) => (Some("not_utf8"), Vec::new()),
+                Ok(text) => {
+                    let tags =
+                        tokio::task::spawn_blocking(move || extract(language, &text)).await?;
+                    (None, tags)
                 }
-            }
+            },
         };
         let row = FileRow {
             path_key: key,

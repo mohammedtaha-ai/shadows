@@ -48,8 +48,9 @@ shapes:
     inner: Arc<Inner>
   Inner:
     storage: Arc<Storage>
-    # Held across one `code_scope` read in `touch`; never across a write,
-    # and no worker takes it.
+    # Held across reads only: `code_scope` in `touch` and `start`, and
+    # `code_active_limit` in `start` and `set_active_limit`; never across a
+    # write, and no worker takes it.
     active: tokio::sync::Mutex<Active>
   CodeConfig:
     rescan_every: Duration   # default 60 s
@@ -128,7 +129,8 @@ shapes:
     closed: bool
   Running:
     config: CodeConfig
-    # `code_setting.active_limit`, read once by `start`.
+    # `code_setting.active_limit`: read by `start`, then set by
+    # `set_active_limit`, each reading it under the lock.
     limit: usize
     # Exactly the first `limit` of `order`, after every `settle`.
     workers: HashMap<ProjectId, Worker>
@@ -173,7 +175,7 @@ functions:
   lifecycle:
     start:
       signature: "(&self, config: CodeConfig) -> Result<(), CoreError>"
-      # `code_order` and `code_active_limit`, then under the lock: `begin`,
+      # `code_order`, then under the lock: `code_active_limit`, `begin`,
       # the touches recorded before it applied oldest first, `settle`.
       # Awaits no scan. A second call does nothing; so does one after
       # `shut_down`.
@@ -259,7 +261,8 @@ functions:
       # Outside 1..=20: INVALID_COMMAND, before any write.
       # "CodeActiveLimitSet", params { active_limit }, scope Code, key
       # "settings" → `set_code_active_limit`; then, under the lock, `limit`
-      # with the stored value (a replay answers an older one) and `settle`:
+      # with the stored value read there (a replay answers an older one; of
+      # two calls at once, the last to lock reads the newer) and `settle`:
       # lowering it stops the least recently used workers at once.
     invalid:
       signature: "(message: String) -> CoreError"
@@ -299,8 +302,9 @@ functions:
       # path, size and modified time: nothing. Then, before any read, the
       # canonical file must be `path` inside the canonical `dir`
       # (`names_itself`), else `code.outside_folder` and nothing. Over
-      # 1 048 576 bytes: too_large, unread. A NUL in the first 8 KiB:
-      # binary. Not UTF-8: not_utf8. Else `extract` on a blocking thread.
+      # 1 048 576 bytes: too_large, unread; at most one byte past it is
+      # read, so a file grown past it since its stat is too_large. A NUL in
+      # the first 8 KiB: binary. Not UTF-8: not_utf8. Else `extract` on a blocking thread.
       # Then one `write_code_file`. True when it wrote or deleted.
     stale:
       signature: "(&self, project: &ProjectId, dir: &Path, paths: impl IntoIterator<Item = &'a str>) -> Vec<String>"
@@ -345,6 +349,7 @@ functions:
       signature: "(&self) -> bool"
     record:
       signature: "(&mut self, project: &ProjectId)"
+      # Once per project, at its last use: a core never started does not grow it.
     begin:
       signature: "(&mut self, order: Vec<(ProjectId, PathBuf)>, limit: usize, config: CodeConfig) -> Vec<ProjectId>"
       # Once: the database's order and the limit; answers the early touches.
@@ -501,6 +506,8 @@ functions:
       # LIKE with %, _ and \ escaped; each project's first 10, merged by name.
     code_outline:
       signature: "(&self, scope: &[ScopeRow], path_key: &str) -> Result<Vec<Hit>, StorageError>"
+      # Under `path_key` is the byte range `key/` to `key0`, exact on every
+      # platform (`LIKE` would ignore ASCII case).
     code_counts:
       signature: "(&self, project: &ProjectId) -> Result<(u32, Vec<Skipped>), StorageError>"
     hit:

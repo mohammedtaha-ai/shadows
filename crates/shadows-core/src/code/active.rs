@@ -46,9 +46,11 @@ impl Active {
         self.running.is_some()
     }
 
-    /// Before `start`, a touch only records the use.
+    /// Before `start`, a touch only records the use: once per project, at
+    /// its last use, so a core whose `start` never ran does not grow it.
     pub(super) fn record(&mut self, project: &ProjectId) {
         if !self.closed {
+            self.early.retain(|p| p != project);
             self.early.push(project.clone());
         }
     }

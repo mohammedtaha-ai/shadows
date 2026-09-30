@@ -87,9 +87,11 @@ impl Code {
         let c = user_command(command_id, "CodeActiveLimitSet", params);
         let storage = &self.inner.storage;
         let set = storage.set_code_active_limit(&c, active_limit).await?;
-        // The stored one, not `set`: a replay answers an older value.
-        let now = storage.code_active_limit().await?.max(1) as usize;
         let mut active = self.inner.active.lock().await;
+        // The stored one, not `set`: a replay answers an older value. Read
+        // under the lock, so of two calls at once the last to take it reads
+        // the newer limit, and the set never follows the older one.
+        let now = storage.code_active_limit().await?.max(1) as usize;
         active.limit(now);
         active.settle(self);
         Ok(CodeSettings { active_limit: set })

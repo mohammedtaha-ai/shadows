@@ -65,12 +65,14 @@ impl Code {
     pub async fn start(&self, config: CodeConfig) -> Result<(), CoreError> {
         let storage = &self.inner.storage;
         let order = storage.code_order().await?;
-        let limit = storage.code_active_limit().await?.max(1) as usize;
         let order = order
             .into_iter()
             .map(|(id, dir)| (id, PathBuf::from(dir)))
             .collect();
         let mut active = self.inner.active.lock().await;
+        // Under the lock, as `set_active_limit` reads it: a limit set before
+        // `begin` is not lost.
+        let limit = storage.code_active_limit().await?.max(1) as usize;
         for early in active.begin(order, limit, config) {
             if let Some(rows) = self.used_rows(&early).await {
                 active.used(&rows);
