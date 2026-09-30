@@ -119,7 +119,7 @@ conversation, the way Claude names its own sessions, and the row keeps
 | `client` | create; every thread before migration 0010 | — |
 | `plan` | a draft from scratch (§13.6), which creates the thread under its plan's title; migration 0010 marks the earlier ones: a version 1 written with the thread, same timestamp and title | — (nothing automatic replaces it: the plan named it) |
 | `first_message` | the turn that appends the thread's first UserMessage, in its own write: the message's first non-blank line, whitespace collapsed, at most 60 characters ending in "…" | `client` |
-| `harness` | the title the harness sends for the thread's session (§12.3), sanitized the same way; one equal to the current title writes nothing | `client`, `first_message`, `harness` |
+| `harness` | the title the harness sends for the thread's session (§12.3), sanitized the same way; a placeholder ("New session", "New conversation", "Untitled", "New chat"), which Claude Code sends for a conversation too short to name, is no title; one equal to the current title writes nothing | `client`, `first_message`, `harness` |
 | `person` | a rename by a person. None exists yet | — (nothing automatic replaces it) |
 
 `harness` replaces `harness` because the adapter may first send the raw first

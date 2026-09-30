@@ -1716,7 +1716,7 @@ impl Storage {
 }
 ```
 
-### `crates/shadows-core/src/threads/title.rs` — 29 lines
+### `crates/shadows-core/src/threads/title.rs` — 53 lines
 
 ```rust
 pub(crate) const TITLE_MAX_CHARS: usize = 60;

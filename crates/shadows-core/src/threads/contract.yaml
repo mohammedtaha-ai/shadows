@@ -205,7 +205,7 @@ functions:
       # → `ThreadRetitled` { title, source: "first_message" } by `actor`.
     title_from_harness:
       signature: "(&self, thread: &ThreadId, title: &str) -> Result<bool, StorageError>"
-      # `title::from_harness`; `false` for an empty title. Its own write: one
+      # `title::from_harness`; `false` for an empty title or a placeholder ("New session" and the like). Its own write: one
       # UPDATE WHERE title <> it AND title_source IN (client, first_message,
       # harness) → `ThreadRetitled` { title, source: "harness" } by System.
       # Answers whether the title changed.
@@ -218,6 +218,10 @@ functions:
       # The first non-blank line, through `one_line`.
     from_harness:
       signature: "(title: &str) -> Option<String>"
+      # `one_line`, then a placeholder is dropped (`is_placeholder`).
+    is_placeholder:
+      signature: "(title: &str) -> bool"
+      private: true
     one_line:
       signature: "(text: &str) -> Option<String>"
       private: true
