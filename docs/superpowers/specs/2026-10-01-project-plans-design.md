@@ -7,7 +7,9 @@
 
 A plan stops belonging to the conversation that wrote it. Any conversation on
 the project reads it and carries it on, with the same model or another, and
-every version records which conversation, model and CLI wrote it. So a long
+every version records who wrote it: for the Planner, its conversation, model
+and CLI; for an external agent, only its grant, since Shadows does not run
+it and knows no conversation or model of its own. So a long
 planning session can move to a fresh one without losing what was planned.
 Because a plan no longer needs its conversation, a conversation can be
 deleted.
@@ -164,15 +166,25 @@ plan: later messages may move to another plan in words.
 remove: the row stays with `removed_at` set, because the durable log and its
 plans' versions refer to it.
 
-In order:
+In order, so that no new work can start once the delete has begun:
 
-1. **A running turn is stopped**, as Stop stops it (§12.3), and its terminal
-   state is waited for.
-2. **Its adapter is closed**, if one is open, and **its Planner grant is
-   revoked** (§13.7).
-3. **One write** sets `removed_at` and journals `ThreadRemoved`.
+1. **One write** sets `removed_at` and journals `ThreadRemoved`. From that
+   commit on, the conversation is removed: every write that starts a turn
+   (`Turns::send`) or forks it checks `removed_at IS NULL` inside its own
+   write transaction, and the single writer (§6.23) orders it before or after
+   this one, never across it.
+2. **Its session slot is taken** (§16.6). Opening a session takes the same
+   slot and checks `removed_at` again once it holds it. So an opening already
+   under way finishes first and is closed in step 3, and one that comes after
+   step 1 is refused as not found. Nothing can open between the two steps.
+3. **A running turn is stopped**, as Stop stops it (§12.3), and its terminal
+   state is waited for. **Its adapter is closed**, if one is open, and **its
+   Planner grant is revoked** (§13.7). The slot is then released.
 
-A replay answers what the first one answered.
+A replay answers what the first one answered. A daemon that stops between
+steps 1 and 3 needs nothing more: at start, recovery already ends every turn
+left running as `Interrupted` (§8) and revokes every internal grant (§13.7),
+and no adapter outlives the daemon.
 
 **Afterwards:**
 
@@ -393,7 +405,9 @@ Few tests, each on a rule a person would notice broken:
    one Draft. A write to a frozen version's task is refused by the database
    itself.
 5. **Deletion:** a deleted conversation leaves the list, a turn in it is
-   refused, its plan is still listed, and it still reads.
+   refused, its plan is still listed, and it still reads. A turn sent while
+   the delete is stopping a running one is refused, and no adapter is left
+   open.
 6. **A broken link (1b):** removing Backend's T3 in a new version turns Web
    T4's link red and puts it in Web's Draft's approval list.
 7. **A cycle across plans (1b):** Web T4 needs Backend T3 and Backend T3
