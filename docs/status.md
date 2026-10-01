@@ -23,8 +23,14 @@ restate them.
   [`evidence/milestone3/LINUX_WATCHER_READS.md`](./evidence/milestone3/LINUX_WATCHER_READS.md)).
 
 It ran in a Linux cloud container, in a browser against the real adapter
-and Claude Code, on a copy of a scratch database. It has not run on Windows
-yet, nor on Mohammed's dev database.
+and Claude Code, on a copy of a scratch database. On 2026-10-01 it ran on
+Windows against a copy of Mohammed's dev database, and then on the database
+itself. Migration 0011 applied, and a remembered `low` effort came through
+it. The effort menu offered Low to Max without `default`, and High was set
+on the session at once (`PUT …/session/effort`, 200). The Code index section
+read "Ready · 296 files". Remove project was refused with 2 conversations.
+Active projects saved 8, and 8 was still there after a reload. The web test
+"saves the active limit" fails on Windows, but the browser does not.
 
 **The web client after Mohammed used it** (PR #11, 2026-10-01; 350 Rust,
 142 web tests). The changes:
@@ -140,8 +146,9 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **Run PR #12 on Windows** against a copy of the dev database: migration
-   0011 on real remembered settings, the effort menu, the settings pages.
+1. **"saves the active limit" fails on Windows** (`web/src/app/settings/settings-page.test.tsx`):
+   the request carries 8, then the field shows 5. It passes on Linux CI, and
+   the real page saves correctly, so the test is at fault, not the page.
 2. **One lock for every open session.** `Sessions` holds a single lock through
    an adapter's startup (typically 3–6 s on Windows, bounded at 20 s) and
    through each termination wait, so
