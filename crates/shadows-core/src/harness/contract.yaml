@@ -629,7 +629,8 @@ tests:
   - name: one_thread_opening_does_not_hold_another
     checks: >
       While one thread's slow resume opens, `terminate` on a second thread
-      returns in under 800 ms; the opening then succeeds, one session live.
+      returns before that opening has finished; the opening then succeeds,
+      one session live.
   - name: no_breakdown_before_the_first_turn_or_while_one_runs
     checks: >
       GET context answers "open" before a session, "first" before a turn, and

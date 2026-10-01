@@ -271,8 +271,10 @@ async fn one_thread_opening_does_not_hold_another() {
     tokio::time::sleep(Duration::from_millis(200)).await;
     let started = std::time::Instant::now();
     fx.sessions.terminate(&other).await.unwrap();
+    // Ordered, not timed: a terminate that waited for the opening can only
+    // return after it has finished, however fast or slow the machine is.
     assert!(
-        started.elapsed() < Duration::from_millis(800),
+        !opening.is_finished(),
         "terminate waited {:?} for another thread's opening",
         started.elapsed()
     );
