@@ -39,7 +39,7 @@ use scope::{command, own_thread, refused, writer_of};
 use crate::app::user_command;
 use crate::command::derive::{Anchor, derived_id};
 use crate::command::fingerprint;
-use crate::db::Storage;
+use crate::db::{Storage, StorageError};
 use crate::error::{CoreError, ErrorCode};
 use crate::events::UiSignal;
 use crate::grants::{Grant, GrantKind};
@@ -178,9 +178,18 @@ impl Plans {
         grant: &Grant,
         args: DraftStart,
     ) -> Result<DraftStarted, CoreError> {
-        match grant.kind {
+        let started = match grant.kind {
             GrantKind::Thread => self.planner_draft(grant, args).await,
             GrantKind::Project => self.external_draft(grant, args).await,
+        };
+        match started {
+            // §16.3: a request missing its reason, not an invalid plan.
+            Err(CoreError::Storage(StorageError::ReasonMissing)) => Err(refused(
+                ErrorCode::InvalidCommand,
+                "a new version needs its reason: say in a sentence or two what \
+                 changed the plan",
+            )),
+            other => other,
         }
     }
 

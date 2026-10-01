@@ -92,11 +92,7 @@ impl Storage {
                             .as_deref()
                             .map(str::trim)
                             .filter(|r| !r.is_empty())
-                            .ok_or_else(|| {
-                                StorageError::PlanInvalid(vec![Problem {
-                                    message: "a new version needs its reason".into(),
-                                }])
-                            })?;
+                            .ok_or(StorageError::ReasonMissing)?;
                         let copy = Version {
                             plan: &frozen.plan_id,
                             number: frozen.version + 1,

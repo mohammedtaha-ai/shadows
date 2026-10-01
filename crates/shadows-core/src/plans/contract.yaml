@@ -209,7 +209,9 @@ functions:
       # from_workflow_id and reason when present, id anchored to the running
       # turn, in the plan its thread wrote or a new one. Project grant:
       # { title, goal, from_workflow_id }, plus reason when present, id from
-      # the draft_ref; from scratch, a new plan and no thread (§16.3).
+      # the draft_ref; from scratch, a new plan and no thread (§16.3). Storage's
+      # `ReasonMissing` becomes INVALID_COMMAND "a new version needs its
+      # reason: …" (§16.3).
     edit:
       signature: "(&self, grant: &Grant, args: PlanEdit) -> Result<EditOutcome, CoreError>"
       # "PlanEdit", params { workflow, expected_revision, ops }. A Planner's
@@ -265,7 +267,7 @@ functions:
       # No plan: a new Active `plan` row and its v1 from `fresh`, in the same
       # transaction. A plan (of `project`, else GrantScope): its Draft, else
       # its next version from the latest, which needs a non-blank `reason`
-      # (PlanInvalid "a new version needs its reason"). Classified under
+      # (`ReasonMissing`). Classified under
       # ("Plan", plan), else ("Project", project); a start naming a plan also
       # finds one recorded under its project, which a Planner's first start
       # was. A `source` other than the plan's latest version is
@@ -437,7 +439,7 @@ obligations:
 
   - rule: >
       Every version after v1 is started with a non-blank `change_reason`;
-      without one the start is PlanInvalid "a new version needs its reason"
+      without one the start is INVALID_COMMAND "a new version needs its reason"
       and writes nothing. v1 has none, and a Draft answered again keeps the
       reason it was started with (§16.3).
     tested_by: a_new_version_needs_its_reason
@@ -459,9 +461,11 @@ obligations:
     tested_by:
       - a_thread_grant_starts_a_draft_only_inside_a_turn
       - draft_ref_replays_and_distinct_refs_make_distinct_plans
+      - a_retried_first_start_answers_its_v1
     note: >
-      The first replays a Planner's first start, recorded under the project,
-      after its plan exists; neither asserts the scope columns.
+      The third retries a Planner's first start, recorded under the project,
+      after its plan exists and v1 is approved: without the fallback to the
+      project it starts a v2. None asserts the scope columns.
 
   - rule: >
       A plan has at most one Draft, held by the `workflow_one_draft` index as
@@ -639,6 +643,11 @@ tests:
     checks: >
       After v1 is approved, two starts of the thread joined with tokio::join!
       answer the same v2 in v1's plan, and the plan holds one Draft.
+  - name: a_retried_first_start_answers_its_v1
+    checks: >
+      A Planner's first start, naming no plan, makes v1; once v1 is approved
+      the same command naming that plan, with a reason, answers v1 again and
+      the plan holds one version.
   - name: a_new_draft_is_version_one_at_revision_zero
     checks: >
       A Planner's first start is v1 at revision 0, written by its thread, in
@@ -650,9 +659,11 @@ tests:
       actor and no thread.
   - name: a_new_version_needs_its_reason
     checks: >
-      After v1 is approved, a start with no reason or a blank one is
-      PlanInvalid "a new version needs its reason"; with "the API changed",
-      v2 holds it and v1 has none.
+      Through Plans, after v1 is approved, an external start with no reason
+      or a blank one is INVALID_COMMAND "a new version needs its reason";
+      with "the API changed",
+      v2 holds it and v1 has none; a later start with another reason answers
+      v2, which keeps "the API changed".
   - name: approval_freezes_and_writes_a_plan_approved_entry
     checks: >
       Approving a Planner's v1 freezes it, appends "Plan v1 approved" to its
