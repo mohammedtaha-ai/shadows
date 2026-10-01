@@ -265,7 +265,9 @@ without sending records nothing. They are applied:
 A remembered value the harness no longer offers (a model `default` remembered
 before `recommendedValue`, say) or refuses is dropped, and the harness's
 current value stands; so a model never used starts at the effort the adapter
-reports for it. `GET /api/harnesses` answers the remembered model and that
+reports for it: `medium` in a new session, and inside a session the effort it
+last had, which the adapter carries over to a model that offers it (same
+evidence file, §3). `GET /api/harnesses` answers the remembered model and that
 model's remembered effort. The mode is not remembered: every new conversation
 starts at the policy's default.
 

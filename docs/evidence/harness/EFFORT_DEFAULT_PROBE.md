@@ -64,3 +64,22 @@ With it advertised (`clientSupportsRecommendedConfigValue` in `dist/acp-agent.js
 - a chosen effort reaches Claude Code: two turns on `opus`, sent with `high` then `low`,
   were recorded in the transcript as `"effort":"high"` then `"effort":"low"`. Both
   completed (`end_turn`).
+
+## 3. A model change carries the effort over, and streams it first
+
+Measured on branch `harness/effort-at-once` at `1a53deb` (Shadows advertising
+`recommendedValue`), in the browser and on `/api/subscribe`:
+
+- **A model with no remembered effort, picked inside a session, starts at the effort the
+  session last had,** when it offers that level: on a session at `high` (Sonnet 5.5),
+  picking Opus 5.5, which nothing remembered, showed `high`, not `medium`. The adapter keeps
+  an effort the client set as a pin across a model change (`effortPinnedLevel` in
+  `dist/acp-agent.js`). `medium` is only where a new session starts.
+- **A model change streams two `options` frames:** first the carried effort, then the one
+  the daemon sets from what it remembers. From Opus 5.5 at `low` to Sonnet 5.5 (remembered
+  `high`): `{"model":"sonnet","effort":"low"}`, then `{"model":"sonnet","effort":"high"}`;
+  `PUT …/session/model` answered `high`. The web client at `1a53deb` took the first frame as
+  the new model's effort and set `low` back on the session; `d926087` makes the answer
+  settle it.
+- Fable 5 and Fable 5.1 were refused on this account ("Usage credits are required for this
+  model"): the daemon answered 422 and the session kept its model.
