@@ -1,7 +1,7 @@
 // One job: the route table of a daemon holding one project (`p1`) with one
 // conversation (`t1`), a ready code index and no code link, and no plan
-// (`w1`), instructions or grant unless a test gives it one, for `startApp`. Each answer is the contract fixture
-// unless the test overrides it. Test-only.
+// (`w1`), instructions or grant unless a test gives it one, for `startApp`.
+// Each answer is the contract fixture unless the test overrides it. Test-only.
 
 import type {
   Grant,

@@ -373,11 +373,9 @@ It answers from what is stored, with the status `indexing`.
 The routes of §15.7 are what a search page will use. That page is not built in
 Milestone 3.
 
-**Where the settings live.** The links are set in each project's settings,
-in its **Code index** section: the project's own status, the projects it
-reads with theirs, `×` to unlink and **Link a project…** to add one. The
-active limit is the **Active projects** field of the global Settings page.
-§13.11 owns how both read.
+**Where the settings live.** A project's links are set in its own settings,
+in its **Code index** section; the active limit is the **Active projects**
+field of the global Settings page. §13.11 owns how both read.
 
 > **OPEN — the search page.** What the search page looks like and where it
 > sits. **Trigger:** the web-client design session Mohammed holds after
