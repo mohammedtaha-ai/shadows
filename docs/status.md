@@ -29,8 +29,10 @@ itself. Migration 0011 applied, and a remembered `low` effort came through
 it. The effort menu offered Low to Max without `default`, and High was set
 on the session at once (`PUT …/session/effort`, 200). The Code index section
 read "Ready · 296 files". Remove project was refused with 2 conversations.
-Active projects saved 8, and 8 was still there after a reload. The web test
-"saves the active limit" fails on Windows, but the browser does not.
+Active projects saved 8, and 8 was still there after a reload. The web test "saves the active limit" failed on Windows
+only. Its fake daemon answered 5 to every read, so the refetch after a save
+brought 5 back. It now answers what was saved, and 156 web tests pass on
+Windows.
 
 **The web client after Mohammed used it** (PR #11, 2026-10-01; 350 Rust,
 142 web tests). The changes:
@@ -146,15 +148,12 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **"saves the active limit" fails on Windows** (`web/src/app/settings/settings-page.test.tsx`):
-   the request carries 8, then the field shows 5. It passes on Linux CI, and
-   the real page saves correctly, so the test is at fault, not the page.
-2. **One lock for every open session.** `Sessions` holds a single lock through
+1. **One lock for every open session.** `Sessions` holds a single lock through
    an adapter's startup (typically 3–6 s on Windows, bounded at 20 s) and
    through each termination wait, so
    opening one conversation can delay Stop on another. This is latency, not a
    correctness defect. The fix is one slot per thread, as its own task.
-3. **Deleting a conversation.** It does not exist, so a project with
+2. **Deleting a conversation.** It does not exist, so a project with
    conversations can never be removed (§4.2). Mohammed deferred it on
    2026-10-01; it is designed on its own, including what happens to the
    conversation's plans and events.

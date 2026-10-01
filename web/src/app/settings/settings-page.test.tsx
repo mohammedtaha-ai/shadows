@@ -20,9 +20,12 @@ const field = () => document.querySelector<HTMLInputElement>('input[aria-label="
 describe('settings', () => {
   it('saves the active limit', async () => {
     const table = answers()
+    // The daemon keeps what was saved, so a refetch after the save reads it.
+    let limit = 5
+    table['GET /api/code/settings'] = () => Response.json({ active_limit: limit })
     table['PUT /api/code/settings'] = async (r: Request) => {
-      const { active_limit } = (await r.json()) as { active_limit: number }
-      return Response.json({ active_limit })
+      ;({ active_limit: limit } = (await r.json()) as { active_limit: number })
+      return Response.json({ active_limit: limit })
     }
     const app = (open = await startApp('/', table))
     const link = () => document.querySelector<HTMLAnchorElement>('a[href="/settings"]')
