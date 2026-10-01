@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-01 (sidebar, drafts and titles merged)
+**Updated:** 2026-10-01 (code-index settings, effort at once, the Linux watcher fix merged)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -8,6 +8,23 @@ decision live in the topic owners indexed by
 restate them.
 
 ## Where we are
+
+**Code-index settings, effort at once, and a Linux watcher fix** (PR #12,
+2026-10-01; 358 Rust, 156 web tests). The changes:
+- Project settings has a Code index section (status, links, Link a
+  project…) and a Remove project zone; a global Settings page sets the
+  active limit (§15.9, §13.11);
+- a picked effort is set on the session at once, the effort is remembered
+  per model, and Claude's `default` is no longer offered: Shadows advertises
+  the adapter's `recommendedValue` (§12.4, §12.7, migration 0011,
+  [`evidence/harness/EFFORT_DEFAULT_PROBE.md`](./evidence/harness/EFFORT_DEFAULT_PROBE.md));
+- the code watcher ignores file reads, which Linux reports: before, an idle
+  daemon re-scanned forever at 148% CPU (§15.4,
+  [`evidence/milestone3/LINUX_WATCHER_READS.md`](./evidence/milestone3/LINUX_WATCHER_READS.md)).
+
+It ran in a Linux cloud container, in a browser against the real adapter
+and Claude Code, on a copy of a scratch database. It has not run on Windows
+yet, nor on Mohammed's dev database.
 
 **The web client after Mohammed used it** (PR #11, 2026-10-01; 350 Rust,
 142 web tests). The changes:
@@ -26,7 +43,7 @@ removal, refused while the project has threads (spec §4.2), which drops its
 code index, links and grants (§15.4). It ran on the dev daemon on Windows: a
 throwaway project was indexed, linked both ways, removed, and replayed; it
 left the list, its links and its active slot (`code.removed`), and a question
-naming it answered 404. No web control yet.
+naming it answered 404. Its web control came with PR #12.
 
 **Milestone 3 (§15, the code index) is on `main`** (PR #9, 340 Rust tests)
 and ran on Windows on 2026-09-30:
@@ -123,19 +140,14 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **The web page for links and removal.** Mohammed's next ask: where a
-   person links projects, sets the active limit, and removes a project
-   (§15.9's OPEN block on the search page and settings).
-2. **Effort at once, without `default`.** Mohammed's ruling after the
-   Windows run: picking an effort sets it on the session at once, as the
-   model is, and Claude's `default` effort is not offered. Amends §12.4 and
-   §12.7.
-3. **One lock for every open session.** `Sessions` holds a single lock through
+1. **Run PR #12 on Windows** against a copy of the dev database: migration
+   0011 on real remembered settings, the effort menu, the settings pages.
+2. **One lock for every open session.** `Sessions` holds a single lock through
    an adapter's startup (typically 3–6 s on Windows, bounded at 20 s) and
    through each termination wait, so
    opening one conversation can delay Stop on another. This is latency, not a
    correctness defect. The fix is one slot per thread, as its own task.
-4. **Deleting a conversation.** It does not exist, so a project with
+3. **Deleting a conversation.** It does not exist, so a project with
    conversations can never be removed (§4.2). Mohammed deferred it on
    2026-10-01; it is designed on its own, including what happens to the
    conversation's plans and events.
