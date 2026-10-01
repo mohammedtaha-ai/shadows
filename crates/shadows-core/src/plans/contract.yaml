@@ -58,7 +58,8 @@ shapes:
     # Never serialized or recorded: true when the call replayed a recorded one.
     replayed: bool
   Plan:
-    # One plan version as stored: id, thread_id, project_id, version,
+    # One plan version as stored: id, plan_id, plan_state, thread_id (the
+    # version's `written_by_thread`), project_id (its plan's), version,
     # revision, state, title, goal, previous, tasks, links, last_edit,
     # frozen_at, created_at, and the two below.
     # Empty for a Frozen version; `approval_problems` of the content for a Draft.
@@ -67,7 +68,10 @@ shapes:
     # replayed approval answers `Approved`, never the plan.
     next: Option<WorkflowId>
   PlanListing:
-    # A thread's latest version only, ordered by the thread's creation event.
+    # A plan's latest version only, ordered by its writing thread's creation
+    # event.
+    plan_id: PlanId
+    plan_state: PlanState
     id: WorkflowId
     thread_id: ThreadId
     title: String
@@ -110,6 +114,10 @@ shapes:
   WorkflowState:
     Draft: unit
     Frozen: unit
+  PlanState:
+    # §16.2. Nothing archives yet; every plan is Active.
+    Active: unit
+    Archived: unit
   LastEdit:
     revision: i64
     summary: String
@@ -123,6 +131,7 @@ shapes:
     changed_tasks: Vec<u32>
   DraftStarted:
     workflow_id: WorkflowId
+    plan_id: PlanId
     thread_id: ThreadId
     version: i64
   Approved:
@@ -227,13 +236,16 @@ functions:
       signature: "(&self, ctx: &CommandContext, writer: &Writer, thread: &ThreadId, source: Option<&WorkflowId>, fresh: Option<(&str, &str)>, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>"
       # A `source` other than the thread's latest version (by version
       # number) is `NotLatestVersion`, checked after `classify` so a replay
-      # still answers first. External starts pass none.
+      # still answers first. External starts pass none. The thread's plan is
+      # the plan its versions belong to; its first version creates a new
+      # Active `plan` row in the same transaction. A start refused by
+      # `workflow_one_draft` answers the plan's Draft.
     start_thread_with_draft: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, title: &str, goal: &str, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>"
     show_plan: "(&self, ctx: &CommandContext, writer: &Writer, turn: &OperationId, workflow: &WorkflowId, task_number: Option<u32>, place: Place) -> Result<PlanShown, StorageError>"
     thread_plan:
       signature: "(&self, thread: &ThreadId) -> Result<Option<WorkflowId>, StorageError>"
-      # The thread's latest version: what `in_scope` resolves a thread
-      # grant's call to.
+      # The latest version of the plan the thread's versions belong to
+      # (`written_by_thread`): what `in_scope` resolves a thread grant's call to.
     task_of:
       signature: "(conn, workflow: &WorkflowId, id: &TaskId) -> Result<Option<(u32, String)>, StorageError>"
   model:
@@ -367,6 +379,34 @@ obligations:
       scope one.
     tested_by: an_external_draft_source_must_be_frozen
 
+
+  - rule: >
+      A version belongs to a plan of its project (§16.2, §16.9), and names the
+      thread that wrote it (`written_by_thread`), plus the grant when an
+      external agent wrote it. A thread reaches the plan its versions belong
+      to, so a Planner still reaches only its own thread's versions.
+      Migration 0012 moved each thread's chain into one Active plan with the
+      same version ids, written by that thread.
+    tested_by: migration_0012_moves_every_version_into_a_plan
+
+  - rule: >
+      A plan has at most one Draft, held by the `workflow_one_draft` index as
+      well as by the command's transaction: two starts of one plan answer the
+      same Draft, never a database error.
+    tested_by: two_starts_make_one_draft
+    note: >
+      Writes are serialized on one connection under `BEGIN IMMEDIATE`, so
+      the second start finds the first's Draft before inserting; the index
+      and the store's re-read of the Draft on its refusal hold it against a
+      writer that is not this process. The test proves the outcome, not that
+      re-read path.
+
+  - rule: >
+      A Frozen version, its tasks and its links never change: triggers refuse
+      an update of the version and an insert, update or delete of its `task`
+      and `task_parent` rows with "a frozen plan version never changes".
+      Freezing, the update from Draft, is allowed.
+    tested_by: migration_0012_moves_every_version_into_a_plan
 
 agreements:
   - between: [get, get_for]
@@ -513,3 +553,15 @@ tests:
     checks: >
       Arabic text survives plan_edit and workflow_get; task_get's T1 title
       equals the title in the plan.
+  - name: migration_0012_moves_every_version_into_a_plan
+    checks: >
+      On a database migrated to 0011, two threads' chains become plans A and B,
+      Active in their project, a thread without versions none; the three
+      versions keep their ids, with written_by_thread set, no reason and A's
+      v2 still after v1; the tasks and the link survive and
+      `PRAGMA foreign_key_check` is empty; updating the Frozen v1, or adding a
+      task to it, is refused "a frozen plan version never changes".
+  - name: two_starts_make_one_draft
+    checks: >
+      After v1 is approved, two starts of the thread joined with tokio::join!
+      answer the same v2 in v1's plan, and the plan holds one Draft.

@@ -1061,20 +1061,27 @@ export interface components {
             last_edit?: null | components["schemas"]["LastEdit"];
             links: components["schemas"]["Link"][];
             next?: null | components["schemas"]["WorkflowId"];
+            plan_id: components["schemas"]["PlanId"];
+            plan_state: components["schemas"]["PlanState"];
             previous?: null | components["schemas"]["WorkflowId"];
             project_id: components["schemas"]["ProjectId"];
             /** Format: int64 */
             revision: number;
             state: components["schemas"]["WorkflowState"];
             tasks: components["schemas"]["PlanTask"][];
+            /** @description The conversation that wrote this version (`written_by_thread`). */
             thread_id: components["schemas"]["ThreadId"];
             title: string;
             /** Format: int64 */
             version: number;
         };
-        /** @description A plan as a project's list shows it: its thread's latest version. */
+        /** Format: uuid */
+        PlanId: string;
+        /** @description A plan as a project's list shows it: its latest version. */
         PlanListing: {
             id: components["schemas"]["WorkflowId"];
+            plan_id: components["schemas"]["PlanId"];
+            plan_state: components["schemas"]["PlanState"];
             state: components["schemas"]["WorkflowState"];
             thread_id: components["schemas"]["ThreadId"];
             title: string;
@@ -1082,6 +1089,11 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        /**
+         * @description Spec §16.2. An `Archived` plan is read, never written.
+         * @enum {string}
+         */
+        PlanState: "Active" | "Archived";
         /** @description One task of a stored version: its storage id beside its content. */
         PlanTask: components["schemas"]["TaskContent"] & {
             id: components["schemas"]["TaskId"];

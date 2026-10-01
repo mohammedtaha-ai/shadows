@@ -6,13 +6,13 @@
 
 use sqlx::SqliteConnection;
 
-use super::read::{latest_version, load_plan};
+use super::read::{latest_version, load_plan, plan_of_thread};
 use super::task::write_content;
 use crate::command::{CommandContext, Writer};
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::events::DurableEvent;
 use crate::grants::{bind_draft_ref, check_writer};
-use crate::plans::model::{DraftStarted, PlanContent, WorkflowId, WorkflowState};
+use crate::plans::model::{DraftStarted, PlanContent, PlanId, WorkflowId, WorkflowState};
 use crate::plans::rules::Problem;
 use crate::projects::ProjectId;
 use crate::threads::{CreatedTitle, ThreadId, insert_thread};
@@ -50,8 +50,12 @@ impl Storage {
                 if let Some(id) = classify(conn, &ctx, "Thread", thread.as_str()).await? {
                     return started(conn, &WorkflowId::from_stored(id)).await;
                 }
-                let latest = match latest_version(conn, &thread).await? {
-                    Some(id) => Some(load_plan(conn, &id).await?),
+                let plan = plan_of_thread(conn, &thread).await?;
+                let latest = match &plan {
+                    Some(plan) => match latest_version(conn, plan).await? {
+                        Some(id) => Some(load_plan(conn, &id).await?),
+                        None => None,
+                    },
                     None => None,
                 };
                 if let Some(source) = &source
@@ -70,16 +74,24 @@ impl Storage {
                     (Some(draft), _) if draft.state == WorkflowState::Draft => draft.id,
                     (Some(frozen), _) => {
                         let copy = Version {
+                            plan: &frozen.plan_id,
                             thread: &thread,
                             project: &project,
                             number: frozen.version + 1,
                             previous: Some(&frozen.id),
                         };
                         let before = frozen.content();
-                        insert_version(conn, &writer, copy, &before, &ts).await?
+                        match insert_version(conn, &writer, copy, &before, &ts).await {
+                            Err(StorageError::Constraint(m)) if m.contains(ONE_DRAFT) => {
+                                the_draft(conn, &frozen.plan_id).await?
+                            }
+                            inserted => inserted?,
+                        }
                     }
                     (None, Some((title, goal))) => {
+                        let plan = insert_plan(conn, &project, &ts).await?;
                         let first = Version {
+                            plan: &plan,
                             thread: &thread,
                             project: &project,
                             number: 1,
@@ -136,6 +148,7 @@ impl Storage {
                 if let Some(id) = classify(conn, &ctx, "Project", project.as_str()).await? {
                     return started(conn, &WorkflowId::from_stored(id)).await;
                 }
+                let plan = insert_plan(conn, &project, &ts).await?;
                 let thread = insert_thread(
                     conn,
                     &project,
@@ -147,6 +160,7 @@ impl Storage {
                 )
                 .await?;
                 let first = Version {
+                    plan: &plan,
                     thread: &thread,
                     project: &project,
                     number: 1,
@@ -173,13 +187,18 @@ impl Storage {
     }
 }
 
-/// Where a new version goes in its thread's chain.
+/// Where a new version goes: its plan's chain, written by `thread`.
 struct Version<'a> {
+    plan: &'a PlanId,
     thread: &'a ThreadId,
     project: &'a ProjectId,
     number: i64,
     previous: Option<&'a WorkflowId>,
 }
+
+/// What SQLite says when `workflow_one_draft` (or the version number beside
+/// it) refuses a second Draft of one plan (§16.2).
+const ONE_DRAFT: &str = "UNIQUE constraint failed: workflow.plan_id";
 
 fn empty(title: String, goal: String) -> PlanContent {
     PlanContent {
@@ -190,8 +209,41 @@ fn empty(title: String, goal: String) -> PlanContent {
     }
 }
 
+/// A new Active plan of `project` (§16.2), for a thread's first version.
+async fn insert_plan(
+    conn: &mut SqliteConnection,
+    project: &ProjectId,
+    ts: &str,
+) -> Result<PlanId, StorageError> {
+    let id = PlanId::generate();
+    sqlx::query("INSERT INTO plan (id, project_id, state, created_at) VALUES (?, ?, 'Active', ?)")
+        .bind(id.as_str())
+        .bind(project.as_str())
+        .bind(ts)
+        .execute(&mut *conn)
+        .await?;
+    Ok(id)
+}
+
+/// The plan's Draft, which a start that lost the race to `workflow_one_draft`
+/// answers instead of the database's refusal.
+async fn the_draft(conn: &mut SqliteConnection, plan: &PlanId) -> Result<WorkflowId, StorageError> {
+    let id: Option<String> =
+        sqlx::query_scalar("SELECT id FROM workflow WHERE plan_id = ? AND state = 'Draft'")
+            .bind(plan.as_str())
+            .fetch_optional(&mut *conn)
+            .await?;
+    id.map(WorkflowId::from_stored).ok_or_else(|| {
+        StorageError::Constraint(format!(
+            "plan {plan} refused a new version yet has no Draft"
+        ))
+    })
+}
+
 /// A new Draft at revision 0 holding `content`, journalled as
-/// `WorkflowDraftStarted` by the writer.
+/// `WorkflowDraftStarted` by the writer. An external writer is recorded as
+/// its grant beside the thread; the operation and the reason stay empty until
+/// §16.3's attribution.
 async fn insert_version(
     conn: &mut SqliteConnection,
     writer: &Writer,
@@ -200,18 +252,24 @@ async fn insert_version(
     ts: &str,
 ) -> Result<WorkflowId, StorageError> {
     let id = WorkflowId::generate();
+    let grant = match writer {
+        Writer::External { grant } => Some(grant.as_str()),
+        Writer::Person | Writer::Planner { .. } => None,
+    };
     sqlx::query(
         "INSERT INTO workflow
-           (id, thread_id, state, previous_version_id, version, revision, title, goal,
-            created_at, updated_at)
-         VALUES (?,?, 'Draft', ?,?, 0, ?,?,?,?)",
+           (id, plan_id, state, previous_version_id, version, revision, title, goal,
+            written_by_thread, written_by_grant, created_at, updated_at)
+         VALUES (?,?, 'Draft', ?,?, 0, ?,?,?,?,?,?)",
     )
     .bind(id.as_str())
-    .bind(v.thread.as_str())
+    .bind(v.plan.as_str())
     .bind(v.previous.map(WorkflowId::as_str))
     .bind(v.number)
     .bind(&content.title)
     .bind(&content.goal)
+    .bind(v.thread.as_str())
+    .bind(grant)
     .bind(ts)
     .bind(ts)
     .execute(&mut *conn)
@@ -234,14 +292,18 @@ async fn started(
     conn: &mut SqliteConnection,
     id: &WorkflowId,
 ) -> Result<DraftStarted, StorageError> {
-    let (thread, version): (String, i64) =
-        sqlx::query_as("SELECT thread_id, version FROM workflow WHERE id = ?")
+    let (plan, thread, version): (String, Option<String>, i64) =
+        sqlx::query_as("SELECT plan_id, written_by_thread, version FROM workflow WHERE id = ?")
             .bind(id.as_str())
             .fetch_optional(&mut *conn)
             .await?
             .ok_or(StorageError::NotFound("workflow"))?;
+    let thread = thread.ok_or_else(|| {
+        StorageError::Constraint(format!("plan version {id} has no writing thread"))
+    })?;
     Ok(DraftStarted {
         workflow_id: id.clone(),
+        plan_id: PlanId::from_stored(plan),
         thread_id: ThreadId::from_stored(thread),
         version,
     })

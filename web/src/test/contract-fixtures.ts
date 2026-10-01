@@ -177,6 +177,8 @@ export function planTask(number: number, title: string, extra: Partial<PlanTask>
 export function planFixture(extra: Partial<Plan> = {}): Plan {
   return {
     id: 'w1',
+    plan_id: 'plan1',
+    plan_state: 'Active',
     project_id: 'p1',
     thread_id: 't1',
     title: 'Login flow',
@@ -199,6 +201,8 @@ export function planFixture(extra: Partial<Plan> = {}): Plan {
 export function planListing(plan: Plan): PlanListing {
   return {
     id: plan.id,
+    plan_id: plan.plan_id,
+    plan_state: plan.plan_state,
     thread_id: plan.thread_id,
     title: plan.title,
     state: plan.state,

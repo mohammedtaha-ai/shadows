@@ -174,20 +174,23 @@ impl Storage {
     }
 }
 
-/// The thread and project a version belongs to.
+/// The thread that wrote a version, and its plan's project (§16.2).
 async fn owner(
     conn: &mut SqliteConnection,
     workflow: &WorkflowId,
 ) -> Result<(ThreadId, ProjectId), StorageError> {
-    let (thread, project): (String, String) = sqlx::query_as(
-        "SELECT w.thread_id, t.project_id
-           FROM workflow w JOIN planning_thread t ON t.id = w.thread_id
+    let (thread, project): (Option<String>, String) = sqlx::query_as(
+        "SELECT w.written_by_thread, p.project_id
+           FROM workflow w JOIN plan p ON p.id = w.plan_id
           WHERE w.id = ?",
     )
     .bind(workflow.as_str())
     .fetch_optional(&mut *conn)
     .await?
     .ok_or(StorageError::NotFound("workflow"))?;
+    let thread = thread.ok_or_else(|| {
+        StorageError::Constraint(format!("plan version {workflow} has no writing thread"))
+    })?;
     Ok((
         ThreadId::from_stored(thread),
         ProjectId::from_stored(project),

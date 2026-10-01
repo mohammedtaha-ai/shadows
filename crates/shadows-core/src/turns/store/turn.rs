@@ -80,10 +80,12 @@ async fn focused(
     thread: &ThreadId,
     focus: &Focus,
 ) -> Result<(u32, String), StorageError> {
-    let owner: Option<String> = sqlx::query_scalar("SELECT thread_id FROM workflow WHERE id = ?")
-        .bind(focus.workflow_id.as_str())
-        .fetch_optional(&mut *conn)
-        .await?;
+    let owner: Option<String> =
+        sqlx::query_scalar("SELECT written_by_thread FROM workflow WHERE id = ?")
+            .bind(focus.workflow_id.as_str())
+            .fetch_optional(&mut *conn)
+            .await?
+            .flatten();
     if owner.as_deref() != Some(thread.as_str()) {
         return Err(StorageError::TaskNotInPlan(
             "the chosen plan is not this conversation's".into(),

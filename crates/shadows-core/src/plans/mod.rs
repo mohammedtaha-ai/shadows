@@ -27,7 +27,8 @@ use serde_json::json;
 pub use conversation::{Focus, Place, PlanShown};
 pub use model::{
     AcceptanceItem, Approved, DraftStarted, EditOutcome, LastEdit, Link, LinkKind, Plan,
-    PlanContent, PlanListing, PlanTask, TaskContent, TaskId, WorkflowId, WorkflowState,
+    PlanContent, PlanId, PlanListing, PlanState, PlanTask, TaskContent, TaskId, WorkflowId,
+    WorkflowState,
 };
 pub use ops::PlanOp;
 pub use rules::Problem;

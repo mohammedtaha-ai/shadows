@@ -445,3 +445,24 @@ fn derived_ids_carry_their_anchor() {
     );
     assert_eq!(derived_id(Anchor::DraftRef("dr-1"), &fp), "ref:dr-1");
 }
+
+/// §16.2: one Draft per plan, held by the database. The second start answers
+/// the first's Draft.
+#[tokio::test]
+async fn two_starts_make_one_draft() {
+    let app = test_app().await;
+    let v1 = approved_v1(&app).await;
+    let (a, b) = tokio::join!(
+        draft_on(&app, &app.thread, "start-a"),
+        draft_on(&app, &app.thread, "start-b"),
+    );
+    assert_eq!((a.workflow_id.clone(), a.version), (b.workflow_id, 2));
+    assert_eq!(a.plan_id, app.storage.get_plan(&v1).await.unwrap().plan_id);
+    let drafts: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM workflow WHERE plan_id = ? AND state = 'Draft'")
+            .bind(a.plan_id.as_str())
+            .fetch_one(app.storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(drafts, 1);
+}

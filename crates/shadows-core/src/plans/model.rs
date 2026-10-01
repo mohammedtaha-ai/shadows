@@ -25,6 +25,20 @@ newtype_id! {
     TaskId
 }
 
+newtype_id! {
+    /// Spec §16.2. A plan of a project, owning a chain of versions.
+    PlanId
+}
+
+/// Spec §16.2. An `Archived` plan is read, never written.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+pub enum PlanState {
+    Active,
+    Archived,
+}
+
 /// Spec §13.2. A `Draft` is edited; a `Frozen` version is approved and never
 /// changes again. The web client shows `Frozen` as "Approved".
 #[derive(
@@ -160,6 +174,9 @@ pub struct LastEdit {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct Plan {
     pub id: WorkflowId,
+    pub plan_id: PlanId,
+    pub plan_state: PlanState,
+    /// The conversation that wrote this version (`written_by_thread`).
     pub thread_id: ThreadId,
     pub project_id: ProjectId,
     pub version: i64,
@@ -214,6 +231,7 @@ pub struct EditOutcome {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct DraftStarted {
     pub workflow_id: WorkflowId,
+    pub plan_id: PlanId,
     pub thread_id: ThreadId,
     pub version: i64,
 }
@@ -227,9 +245,11 @@ pub struct Approved {
     pub frozen_at: String,
 }
 
-/// A plan as a project's list shows it: its thread's latest version.
+/// A plan as a project's list shows it: its latest version.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct PlanListing {
+    pub plan_id: PlanId,
+    pub plan_state: PlanState,
     pub id: WorkflowId,
     pub thread_id: ThreadId,
     pub title: String,

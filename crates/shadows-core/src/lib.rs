@@ -37,8 +37,8 @@ pub use harness::{ContextBreakdown, Harness, HarnessInfo, OpenError, RememberedS
 pub use instructions::{Instructions, InstructionsVersion};
 pub use plans::{
     AcceptanceItem, Approved, DraftStart, DraftStarted, EditOutcome, Focus, LastEdit, Link,
-    LinkKind, Place, Plan, PlanContent, PlanEdit, PlanListing, PlanOp, PlanShow, PlanShown,
-    PlanTask, Plans, Problem, TaskContent, TaskId, WorkflowId, WorkflowState,
+    LinkKind, Place, Plan, PlanContent, PlanEdit, PlanId, PlanListing, PlanOp, PlanShow, PlanShown,
+    PlanState, PlanTask, Plans, Problem, TaskContent, TaskId, WorkflowId, WorkflowState,
 };
 pub use projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
