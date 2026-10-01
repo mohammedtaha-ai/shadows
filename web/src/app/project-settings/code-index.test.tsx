@@ -34,7 +34,7 @@ describe('code index', () => {
     const urls: string[] = []
     table['GET /api/projects'] = [projectFixture, backend]
     table['GET /api/projects/p2/code/status'] = codeStatusFixture('backend', {
-      state: { state: 'inactive' },
+      state: { state: 'directory_missing' },
     })
     table['GET /api/projects/p1/code/links'] = () => Response.json(links)
     table['PUT /api/projects/p1/code/links/p2'] = () => {
@@ -60,7 +60,8 @@ describe('code index', () => {
     const row = linkRows()[0]!
     expect(row.textContent).toContain('Backend')
     expect(row.textContent).toContain('C:\\work\\backend')
-    await until(() => row.textContent?.includes('Inactive · 277 files') === true)
+    // A missing folder counts no files: the line goes from its state to its date.
+    await until(() => row.textContent?.includes('Folder missing · updated') === true)
     // Nothing is left to link: this project and Backend are both out.
     expect(app.button('Link a project…')?.disabled).toBe(true)
 

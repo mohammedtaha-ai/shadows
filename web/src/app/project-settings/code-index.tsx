@@ -83,7 +83,9 @@ function IndexStatus({ status }: { status: ProjectStatus }) {
   const skipped = status.skipped.reduce((sum, s) => sum + s.count, 0)
   const parts = [
     label,
-    state.state !== 'indexing' && `${status.files} ${status.files === 1 ? 'file' : 'files'}`,
+    // Counted only where the folder is there and its scan has ended.
+    (state.state === 'ready' || state.state === 'inactive') &&
+      `${status.files} ${status.files === 1 ? 'file' : 'files'}`,
     skipped > 0 && `${skipped} skipped`,
     status.updated_at != null && `updated ${ago(status.updated_at)}`,
   ].filter((part) => part !== false)

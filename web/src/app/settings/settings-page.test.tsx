@@ -42,4 +42,18 @@ describe('settings', () => {
     await until(() => app.button('Save')?.disabled === true)
     expect(field()?.value).toBe('8')
   })
+
+  it('follows a value changed elsewhere while the field is untouched', async () => {
+    const table = answers()
+    let limit = 5
+    table['GET /api/code/settings'] = () => Response.json({ active_limit: limit })
+    const app = (open = await startApp('/settings', table))
+    await until(() => field()?.value === '5')
+
+    // Another tab saved 7: a refetch brings it, and the field shows it.
+    limit = 7
+    await act(() => app.queryClient.invalidateQueries({ queryKey: ['code', 'settings'] }))
+    await until(() => field()?.value === '7')
+    expect(app.button('Save')?.disabled).toBe(true)
+  })
 })

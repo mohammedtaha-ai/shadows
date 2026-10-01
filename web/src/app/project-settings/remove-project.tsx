@@ -28,6 +28,14 @@ import { ErrorLine } from '../error-line'
 export function RemoveProject({ project }: { project: Project }) {
   const threads = useQuery(threadsQuery(project.id)).data
   const [open, setOpen] = useState(false)
+  // The removal last sent and not answered. Kept here, not in the dialog,
+  // which unmounts when closed: reopening after a lost answer is a retry of
+  // the same command, and replays it.
+  const pending = useRef<Attempt | null>(null)
+  const attempt = () => (pending.current = attemptFor(pending.current, { remove: project.id }))
+  const settled = () => {
+    pending.current = null
+  }
   const count = threads?.length
 
   return (
@@ -56,23 +64,32 @@ export function RemoveProject({ project }: { project: Project }) {
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          {/* The popup unmounts when closed, so every opening starts afresh. */}
-          <ConfirmRemove project={project} />
+          {/* The popup unmounts when closed: its error line starts afresh. */}
+          <ConfirmRemove project={project} attempt={attempt} settled={settled} />
         </DialogContent>
       </Dialog>
     </section>
   )
 }
 
-function ConfirmRemove({ project }: { project: Project }) {
+function ConfirmRemove({
+  project,
+  attempt,
+  settled,
+}: {
+  project: Project
+  /** The command to send: the unanswered one again, or a new one. */
+  attempt: () => Attempt
+  /** The removal succeeded: the next is a new command. */
+  settled: () => void
+}) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const pending = useRef<Attempt | null>(null)
 
   const remove = useMutation({
     mutationFn: (commandId: string) => removeProject(project.id, commandId),
     onSuccess: async () => {
-      pending.current = null
+      settled()
       // Home first, so nothing on screen asks after the project any more.
       await navigate({ to: '/' })
       queryClient.setQueryData<Project[]>(projectsQuery.queryKey, (list) =>
@@ -86,8 +103,7 @@ function ConfirmRemove({ project }: { project: Project }) {
   })
 
   const confirm = () => {
-    pending.current = attemptFor(pending.current, { remove: project.id })
-    remove.mutate(pending.current.commandId)
+    remove.mutate(attempt().commandId)
   }
 
   return (

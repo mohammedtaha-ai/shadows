@@ -7,7 +7,7 @@
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Project } from '@/api/client'
-import { projectFixture } from '@/test/contract-fixtures'
+import { projectFixture, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, until } from '../test-app'
 
@@ -52,5 +52,61 @@ describe('remove project', () => {
     expect(new URL(urls[0]!).searchParams.get('command_id')).toMatch(/.+/)
     // The project is gone from the sidebar.
     await until(() => app.text().includes('No projects yet.'))
+  })
+
+  it('a retry after a lost answer sends the same command', async () => {
+    const table = answers()
+    table['GET /api/projects/p1/threads'] = []
+    const ids: (string | null)[] = []
+    table['DELETE /api/projects/p1'] = (r: Request) => {
+      ids.push(new URL(r.url).searchParams.get('command_id'))
+      return ids.length === 1
+        ? Response.json(
+            { code: 'STORAGE_UNAVAILABLE', message: 'database is locked' },
+            { status: 500 },
+          )
+        : Response.json(projectFixture)
+    }
+
+    const app = (open = await startApp(PAGE, table))
+    await until(() => app.button('Remove')?.disabled === false)
+    act(() => app.button('Remove')?.click())
+    await until(() => app.button('Remove project') !== undefined)
+    act(() => app.button('Remove project')?.click())
+    await until(() => app.text().includes('database is locked'))
+
+    // Closed and opened again: the same removal, so the same command id.
+    act(() => app.button('Cancel')?.click())
+    await until(() => app.button('Remove project') === undefined)
+    act(() => app.button('Remove')?.click())
+    await until(() => app.button('Remove project') !== undefined)
+    act(() => app.button('Remove project')?.click())
+    await until(() => app.path() === '/')
+    expect(ids).toHaveLength(2)
+    expect(ids[1]).toBe(ids[0])
+  })
+
+  it('a conversation started meanwhile is refused in the dialog, and turns Remove off', async () => {
+    const table = answers()
+    let threads: unknown[] = []
+    table['GET /api/projects/p1/threads'] = () => Response.json(threads)
+    table['DELETE /api/projects/p1'] = () => {
+      threads = [threadFixture]
+      return Response.json(
+        { code: 'PROJECT_HAS_THREADS', message: 'the project has conversations' },
+        { status: 409 },
+      )
+    }
+
+    const app = (open = await startApp(PAGE, table))
+    await until(() => app.button('Remove')?.disabled === false)
+    act(() => app.button('Remove')?.click())
+    await until(() => app.button('Remove project') !== undefined)
+    act(() => app.button('Remove project')?.click())
+    await until(() => app.text().includes('PROJECT_HAS_THREADS'))
+    expect(app.text()).toContain('the project has conversations')
+    expect(app.path()).toBe(PAGE)
+    await until(() => app.text().includes('This project has 1 conversation.'))
+    expect(app.button('Remove')?.disabled).toBe(true)
   })
 })

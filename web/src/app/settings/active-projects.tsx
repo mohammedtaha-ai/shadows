@@ -34,7 +34,11 @@ export function ActiveProjects() {
 
 function LimitForm({ saved }: { saved: CodeSettings }) {
   const queryClient = useQueryClient()
-  const [draft, setDraft] = useState(String(saved.active_limit))
+  // `null` until the person edits the field: it then follows the saved value,
+  // changed elsewhere or refetched. Once edited, their number stands until
+  // it is saved.
+  const [edited, setEdited] = useState<string | null>(null)
+  const draft = edited ?? String(saved.active_limit)
   const pending = useRef<Attempt | null>(null)
 
   const save = useMutation({
@@ -42,6 +46,7 @@ function LimitForm({ saved }: { saved: CodeSettings }) {
       setActiveLimit(commandId, limit),
     onSuccess: (settings) => {
       pending.current = null
+      setEdited(null)
       queryClient.setQueryData(codeSettingsQuery.queryKey, settings)
     },
   })
@@ -70,7 +75,7 @@ function LimitForm({ saved }: { saved: CodeSettings }) {
           aria-label="Active projects"
           aria-invalid={!valid}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => setEdited(e.target.value)}
           className="w-20"
         />
         <Button type="submit" size="sm" disabled={!valid || unchanged || save.isPending}>
