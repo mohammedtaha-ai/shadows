@@ -72,6 +72,18 @@ export function changeModel(threadId: string, model: string): Promise<SessionCho
   )
 }
 
+/** Sets the thread's session to `effort` at once, opening it if needed;
+ * answers what it offers now (spec §12.7). Like a model change, it writes
+ * nothing durable and carries no command id. */
+export function changeEffort(threadId: string, effort: string): Promise<SessionChoices> {
+  return unwrap(
+    client.PUT('/api/threads/{id}/session/effort', {
+      params: { path: { id: threadId } },
+      body: { effort },
+    }),
+  )
+}
+
 /** The session's context breakdown, read on demand, or none with the reason
  * (spec §12.8). */
 export function readContext(threadId: string): Promise<ContextBreakdown> {

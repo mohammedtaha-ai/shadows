@@ -513,8 +513,9 @@ is open.
 - **A new conversation is a draft until its first message.** The `+` opens
   `/projects/{id}/new`: the empty conversation with its composer, and nothing
   on the daemon. The draft offers what is known before a session exists: the
-  CLI, and the modes the project allows for it (§12.5); model and effort read
-  as the harness's default, not chosen. Send creates the thread with the
+  CLI, and the modes the project allows for it (§12.5); the model reads "Set on
+  send" and is not chosen, and no effort shows: both are the session's, known
+  once Send opens it (§12.4). Send creates the thread with the
   chosen CLI, opens its session and starts the turn with the chosen mode and
   the session's model and effort, then replaces the draft's URL with the
   thread's, leaving no history entry. A failed create stays in the draft with

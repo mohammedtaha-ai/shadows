@@ -193,7 +193,7 @@ impl Sessions {
         let default_mode = policy::default_mode(&context.harness).ok_or_else(|| {
             OpenError::Start(format!("no mode policy for harness {}", context.harness))
         })?;
-        let remembered = self.storage.remembered_settings(&context.harness).await?;
+        let remembered = self.storage.remembered(&context.harness).await?;
         let setup = (self.setups.for_opening(thread, &context.project_id).await)
             .map_err(OpenError::Start)?;
         let mut handle = match process::spawn(self.adapter.process_spec(&cwd)) {

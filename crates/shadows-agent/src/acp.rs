@@ -4,11 +4,12 @@ use std::path::Path;
 use agent_client_protocol::schema::{
     MaybeUndefined, ProtocolVersion,
     v1::{
-        CancelNotification, ContentBlock, ForkSessionRequest, HttpHeader, InitializeRequest,
-        McpServer, McpServerHttp, Meta, NewSessionRequest, PermissionOptionKind, PromptRequest,
-        RequestPermissionOutcome, RequestPermissionRequest, RequestPermissionResponse,
-        ResumeSessionRequest, SelectedPermissionOutcome, SessionConfigOptionValue,
-        SessionNotification, SessionUpdate, SetSessionConfigOptionRequest, StopReason, TextContent,
+        CancelNotification, ClientCapabilities, ContentBlock, ForkSessionRequest, HttpHeader,
+        InitializeRequest, McpServer, McpServerHttp, Meta, NewSessionRequest, PermissionOptionKind,
+        PromptRequest, RequestPermissionOutcome, RequestPermissionRequest,
+        RequestPermissionResponse, ResumeSessionRequest, SelectedPermissionOutcome,
+        SessionConfigOptionValue, SessionNotification, SessionUpdate,
+        SetSessionConfigOptionRequest, StopReason, TextContent,
     },
 };
 use agent_client_protocol::{Agent, ByteStreams, Client, ConnectionTo};
@@ -175,10 +176,9 @@ impl Connection {
                 .await;
         });
         let cx = ready_rx.await.map_err(|_| AcpError::Closed)?;
-        cx.send_request(InitializeRequest::new(ProtocolVersion::V1))
-            .block_task()
-            .await
-            .map_err(rpc)?;
+        let request =
+            InitializeRequest::new(ProtocolVersion::V1).client_capabilities(capabilities());
+        cx.send_request(request).block_task().await.map_err(rpc)?;
         Ok(Self { cx })
     }
 
@@ -372,6 +372,19 @@ fn forward_stderr(stderr: ChildErr) {
             tracing::debug!(target: "harness.stderr", %line);
         }
     });
+}
+
+/// The client capabilities `initialize` advertises: the Claude adapter's
+/// `recommendedValue` extension, under which it offers no effort or model
+/// `default` and starts each model's effort at a level it reports (spec §12.4,
+/// `docs/evidence/harness/EFFORT_DEFAULT_PROBE.md` §2).
+fn capabilities() -> ClientCapabilities {
+    let air = serde_json::json!({
+        "jetbrains": { "air": { "version": 1, "capabilities": ["recommendedValue"] } }
+    });
+    let mut caps = ClientCapabilities::default();
+    caps.meta = air.as_object().cloned();
+    caps
 }
 
 #[cfg(test)]

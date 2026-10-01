@@ -45,6 +45,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "draft_intent",
             "durable_event",
             "harness_limit",
+            "harness_model_effort",
             "harness_preference",
             "mcp_grant",
             "operation",
@@ -60,7 +61,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "workflow",
         ],
         "spec §7.1: the migrations carry only the milestones' tables \
-         (0005 adds §12's four, 0007 §13.15's six, 0008 §15.4's four)"
+         (0005 adds §12's four, 0007 §13.15's six, 0008 §15.4's four, 0011 §12.4's per-model effort)"
     );
 }
 

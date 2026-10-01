@@ -17,7 +17,7 @@ module *owns* is a judgement no generator can make — that lives in
 
 ## Crate `fake-acp`
 
-### `crates/fake-acp/src/main.rs` — 355 lines
+### `crates/fake-acp/src/main.rs` — 359 lines
 
 Nothing reachable from outside this file.
 
@@ -85,7 +85,7 @@ pub fn init(verbose: bool, debug_data_dir: Option<&Path>) -> anyhow::Result<Opti
 
 ## Crate `shadows-agent`
 
-### `crates/shadows-agent/src/acp.rs` — 388 lines
+### `crates/shadows-agent/src/acp.rs` — 401 lines
 
 ```rust
 pub enum SessionStart {
@@ -846,7 +846,7 @@ impl Sessions {
 }
 ```
 
-### `crates/shadows-core/src/harness/mod.rs` — 191 lines
+### `crates/shadows-core/src/harness/mod.rs` — 226 lines
 
 ```rust
 pub use model::{ContextBreakdown, HarnessInfo, RememberedSettings};
@@ -860,6 +860,7 @@ impl Harness {
     pub async fn list(&self) -> Result<Vec<HarnessInfo>, CoreError>
     pub async fn open_session(&self, thread: &ThreadId) -> Result<SessionChoices, CoreError>
     pub async fn change_model(&self, thread: &ThreadId, model: &str) -> Result<SessionChoices, CoreError>
+    pub async fn change_effort(&self, thread: &ThreadId, effort: &str) -> Result<SessionChoices, CoreError>
     pub async fn context(&self, thread: &ThreadId) -> Result<ContextBreakdown, CoreError>
     pub(crate) async fn close_session(&self, thread: &ThreadId) -> std::io::Result<()>
     pub(crate) fn watch_options(&self) -> broadcast::Receiver<(ThreadId, Offered)>
@@ -971,18 +972,19 @@ impl Sessions {
 pub(super) fn workspace(context: &TurnContext) -> Result<PathBuf, String>
 ```
 
-### `crates/shadows-core/src/harness/settings.rs` — 204 lines
+### `crates/shadows-core/src/harness/settings.rs` — 267 lines
 
 ```rust
-pub(crate) enum ModelRefused {
+pub(crate) enum SettingRefused {
     NotOffered,
     Harness(String),
     Lease(LeaseError),
 }
 impl Sessions {
     pub async fn set_option(&self, thread: &ThreadId, opened: &OpenSession, config_id: &str, value: &str) -> Result<Offered, AcpError>
-    pub(crate) async fn change_model(&self, thread: &ThreadId, opened: &OpenSession, model: &str) -> Result<Offered, ModelRefused>
-    pub(super) async fn apply_opening_settings(&self, thread: &ThreadId, opened: &OpenSession, mut offered: Offered, default_mode: &str, remembered: Option<(String, Option<String>)>) -> Result<(), AcpError>
+    pub(crate) async fn change_model(&self, thread: &ThreadId, opened: &OpenSession, model: &str, effort: Option<&str>) -> Result<Offered, SettingRefused>
+    pub(crate) async fn change_effort(&self, thread: &ThreadId, opened: &OpenSession, effort: &str) -> Result<Offered, SettingRefused>
+    pub(super) async fn apply_opening_settings(&self, thread: &ThreadId, opened: &OpenSession, mut offered: Offered, default_mode: &str, remembered: Remembered) -> Result<(), AcpError>
     pub(crate) async fn prepare_turn(&self, thread: &ThreadId, opened: &OpenSession, settings: &TurnSettings) -> Result<(), String>
 }
 ```
@@ -1001,12 +1003,17 @@ impl Setups {
 }
 ```
 
-### `crates/shadows-core/src/harness/store.rs` — 128 lines
+### `crates/shadows-core/src/harness/store.rs` — 170 lines
 
 ```rust
 pub(crate) async fn remember_settings(conn: &mut SqliteConnection, kind: &str, settings: &TurnSettings, ts: &str) -> Result<(), StorageError>
+pub(super) struct Remembered {
+    pub(super) model: Option<String>,
+    pub(super) efforts: HashMap<String, String>,
+}
 impl Storage {
     pub async fn remembered_settings(&self, kind: &str) -> Result<Option<(String, Option<String>)>, StorageError>
+    pub(super) async fn remembered(&self, kind: &str) -> Result<Remembered, StorageError>
     pub async fn remember_for_test(&self, kind: &str, model: &str, effort: Option<&str>)
     pub async fn latest_limits(&self, kind: &str) -> Result<Option<AccountLimits>, StorageError>
     pub async fn record_limits(&self, kind: &str, limits: &AccountLimits) -> Result<(), StorageError>
@@ -2096,7 +2103,7 @@ pub(super) async fn revoke_grant(State(s): State<AppState>, Path(grant): Path<Gr
 pub(super) async fn refuse_foreign_pages(State(state): State<AppState>, request: Request, next: Next) -> Response
 ```
 
-### `crates/shadows-http/src/harness.rs` — 125 lines
+### `crates/shadows-http/src/harness.rs` — 168 lines
 
 ```rust
 pub(super) async fn list_harnesses(State(s): State<AppState>) -> Result<Json<Vec<HarnessInfo>>, Failure>
@@ -2104,6 +2111,9 @@ pub(super) async fn open_session(State(s): State<AppState>, Path(thread): Path<T
 pub(super) struct ChangeModel {}
 // + 1 private field
 pub(super) async fn change_model(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<ChangeModel>) -> Result<Json<SessionChoices>, Failure>
+pub(super) struct ChangeEffort {}
+// + 1 private field
+pub(super) async fn change_effort(State(s): State<AppState>, Path(thread): Path<ThreadId>, Json(body): Json<ChangeEffort>) -> Result<Json<SessionChoices>, Failure>
 pub(super) async fn thread_context(State(s): State<AppState>, Path(thread): Path<ThreadId>) -> Result<Json<ContextBreakdown>, Failure>
 ```
 
@@ -2116,7 +2126,7 @@ pub(super) struct SaveInstructions {}
 pub(super) async fn save_instructions(State(s): State<AppState>, Path(project): Path<ProjectId>, Json(body): Json<SaveInstructions>) -> Result<Json<InstructionsVersion>, Failure>
 ```
 
-### `crates/shadows-http/src/lib.rs` — 193 lines
+### `crates/shadows-http/src/lib.rs` — 194 lines
 
 ```rust
 pub use failure::Failure;

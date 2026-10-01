@@ -141,6 +141,7 @@ describe('the composer bar', () => {
 
   it('picking a model sets it on the session at once, so its efforts show before Send', async () => {
     let release!: () => void
+    let held = fakeChoices
     const small = {
       ...fakeChoices,
       efforts: [choice('low'), choice('high')],
@@ -151,17 +152,25 @@ describe('the composer bar', () => {
       answers({
         model: () =>
           new Promise<Response>((r) => {
-            release = () => r(Response.json(small))
+            release = () => {
+              held = small
+              r(Response.json(small))
+            }
           }),
+        // The session's model is kept, as the daemon keeps it.
+        effort: async (r: Request) => {
+          const { effort } = (await r.json()) as { effort: string }
+          return Response.json({ ...held, current: { ...held.current, effort } })
+        },
       }),
     )
     await until(ready(app))
     await choose(app, 'high', 'max')
-    await until(() => app.button('max') !== undefined)
+    await until(() => app.button('max')?.disabled === false)
     await choose(app, 'fake-large', 'fake-small')
-    await until(() => app.bodies.length > 0)
+    await until(() => app.bodies.length === 2)
     expect(app.calls.at(-1)).toBe('PUT /api/threads/t1/session/model')
-    expect(app.bodies.at(-1)).toEqual({ model: 'fake-small' })
+    expect(app.bodies).toEqual([{ effort: 'max' }, { model: 'fake-small' }])
     // While the session changes, the effort menu is off and Send waits.
     typeInto(textarea(app), 'hi')
     expect(app.button('max')?.disabled).toBe(true)
@@ -174,6 +183,37 @@ describe('the composer bar', () => {
     expect(menuItem('max')).toBeUndefined()
     expect(app.button('Send')?.disabled).toBe(false)
     expect(turnStarts(app)).toBe(0)
+  })
+
+  it('picking an effort sets it on the session at once', async () => {
+    const app = await start('/projects/p1/threads/t1', answers())
+    await until(ready(app))
+    await choose(app, 'high', 'max')
+    await until(() => app.bodies.length === 1)
+    expect(app.calls.at(-1)).toBe('PUT /api/threads/t1/session/effort')
+    expect(app.bodies).toEqual([{ effort: 'max' }])
+    await until(() => app.button('max')?.disabled === false)
+    typeInto(textarea(app), 'hi')
+    await until(() => app.button('Send')?.disabled === false)
+    act(() => app.button('Send')?.click())
+    await until(() => app.calls.includes('POST /api/threads/t1/turns'))
+    expect(app.bodies.at(-1)).toMatchObject({ effort: 'max' })
+  })
+
+  it('an effort the harness refuses goes back to the session’s, on the error line', async () => {
+    const message = 'effort max was refused by the harness: effort not offered'
+    const app = await start(
+      '/projects/p1/threads/t1',
+      answers({
+        effort: () => Response.json({ code: 'SETTING_NOT_OFFERED', message }, { status: 422 }),
+      }),
+    )
+    await until(ready(app))
+    await choose(app, 'high', 'max')
+    await until(() => app.text().includes(message))
+    expect(app.button('high')).toBeDefined()
+    expect(app.button('max')).toBeUndefined()
+    expect(app.calls.filter((c) => c === 'PUT /api/threads/t1/session/effort')).toHaveLength(1)
   })
 
   it('a model the harness refuses goes back to the session’s, with its words', async () => {

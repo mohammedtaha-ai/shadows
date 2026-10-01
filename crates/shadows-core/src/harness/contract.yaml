@@ -1,17 +1,31 @@
 # Owns the harnesses and each thread's open session (spec §12.2–§12.4, §12.8,
 # §14.4): the harness list, opening a thread's session and answering its
-# choices, a person's model change, and the context breakdown read on demand.
+# choices, a person's model or effort change, the remembered model and
+# per-model effort applied to them, and the context breakdown read on demand.
 # `Sessions` holds the live adapter per thread; `Turns` drives a turn on it
 # through the `Sessions` methods named under `functions.sessions_for_turns`.
 #
-# `change_model`'s order is the rule (§14.9): the thread's harness is checked
-# with `policy::is_available`, then `thread_is_busy`, before `Sessions::open`
-# touches anything; the model is then set under the session's lease
-# (`Sessions::change_model` takes the events the way a turn does and gives
-# them back whatever the outcome), so a turn that took the session between
-# the early check and the change refuses it as Busy. The change itself writes
-# nothing: no command, no event, and the remembered model does not move. An
-# opening it causes writes what any opening writes (the thread grant, below).
+# `change_model`'s and `change_effort`'s order is the rule (§14.9), held in
+# one place, `open_idle`: the thread's harness is checked with
+# `policy::is_available`, then `thread_is_busy`, before `Sessions::open`
+# touches anything; the value is then set under the session's lease
+# (`Sessions::change_model` / `change_effort` take the events the way a turn
+# does and give them back whatever the outcome), so a turn that took the
+# session between the early check and the change refuses it as Busy. The
+# change itself writes nothing: no command, no event, and nothing remembered
+# moves. An opening it causes writes what any opening writes (the thread
+# grant, below).
+#
+# Remembered settings (§12.4): per harness the model of the last turn started
+# (`harness_preference`), per harness and model the effort of the last turn
+# started on it (`harness_model_effort`, migration 0011). A turn start writes
+# both in its transaction (`remember_settings`). They are applied at opening
+# (the model, then the effort remembered for the model the session then
+# holds) and when `change_model` moves the session to a model (that model's
+# effort). A value not offered or refused is skipped and the adapter's current
+# value stands. Shadows keeps no list of models or efforts: no `default` is on
+# offer because `initialize` advertises the adapter's `recommendedValue`
+# (shadows-agent `acp.rs` `capabilities`), not because anything filters it.
 #
 # Trap: the early busy check is not redundant with the lease. A thread with an
 # operation not yet ended but no live turn holding the events (a Pending
@@ -45,18 +59,26 @@ shapes:
     available: bool
     # "Coming later" exactly when `available` is false.
     reason: Option<String>
-    # The last turn's model and effort on this harness; never the mode.
+    # The last turn's model on this harness and that model's remembered
+    # effort; never the mode.
     remembered: Option<RememberedSettings>
     limits: Option<AccountLimits>
   RememberedSettings:
     model: String
+    # The effort remembered for `model`, None when no turn on it had one.
     effort: Option<String>
+  Remembered:
+    # pub(super), in `store.rs`: everything a harness remembers.
+    model: Option<String>
+    # Per model, its last turn's effort. Unordered: read by key only.
+    efforts: HashMap<String, String>
   ContextBreakdown:
     # Exactly one of the two is Some.
     categories: Option<Vec<Category>>
     # `NoBreakdown::reason`'s words.
     reason: Option<String>
-  ModelRefused:
+  SettingRefused:
+    # A model not listed, or an effort the session's model does not offer.
     NotOffered: unit
     # The harness's own words.
     Harness: String
@@ -118,12 +140,22 @@ functions:
       # opened" → `choices`.
     change_model:
       signature: "(&self, thread: &ThreadId, model: &str) -> Result<SessionChoices, CoreError>"
-      # turn_context → is_available → thread_is_busy (ThreadBusy) →
-      # Sessions::open → Sessions::change_model under the lease → `choices`.
-      # ModelRefused maps as the route did: NotOffered → SettingNotOffered
-      # { "model", model, None }; Harness(m) → SettingNotOffered with
-      # Some(m); Lease(Busy) → ThreadBusy; Lease(Closed) →
-      # HarnessStartFailed("the harness session closed").
+      # open_idle → `remembered` (the model's effort) → Sessions::change_model
+      # under the lease → `choices`. `refusal` maps SettingRefused:
+      # NotOffered → SettingNotOffered { "model", model, None }; Harness(m) →
+      # SettingNotOffered with Some(m); Lease(Busy) → ThreadBusy;
+      # Lease(Closed) → HarnessStartFailed("the harness session closed").
+    change_effort:
+      signature: "(&self, thread: &ThreadId, effort: &str) -> Result<SessionChoices, CoreError>"
+      # open_idle → Sessions::change_effort under the lease → `choices`;
+      # `refusal` maps as for the model, with "effort". An effort the
+      # session's model does not offer (none, for a model without effort) is
+      # NotOffered before the harness is asked.
+    open_idle:
+      signature: "(&self, thread: &ThreadId) -> Result<(String, OpenSession), CoreError>"
+      # Private: turn_context → is_available (HarnessUnavailable) →
+      # thread_is_busy (ThreadBusy) → Sessions::open. The one copy of the
+      # order both changes keep.
     context:
       signature: "(&self, thread: &ThreadId) -> Result<ContextBreakdown, CoreError>"
       # turn_context (NotFound for an unknown thread), then
@@ -175,6 +207,15 @@ functions:
       signature: "(&self, thread: &ThreadId) -> Result<Option<String>, StorageError>"
       # pub(crate), on `Setups`: §13.8's block of what changed since the
       # session last heard.
+    change_model:
+      signature: "(&self, thread, opened, model: &str, effort: Option<&str>) -> Result<Offered, SettingRefused>"
+      # pub(crate), on `Sessions`, called by `Harness::change_model` only:
+      # under the lease, sets the model when it differs, then `effort` (that
+      # model's remembered one) when offered; a refused remembered effort is
+      # skipped.
+    change_effort:
+      signature: "(&self, thread, opened, effort: &str) -> Result<Offered, SettingRefused>"
+      # pub(crate), on `Sessions`, called by `Harness::change_effort` only.
     prepare_turn:
       signature: "(&self, thread, opened, settings: &TurnSettings) -> Result<(), String>"
       # pub(crate): sets the turn's model, effort and mode, one call per value
@@ -229,6 +270,11 @@ functions:
   store:
     remembered_settings:
       signature: "(&self, kind: &str) -> Result<Option<(String, Option<String>)>, StorageError>"
+      # The remembered model and that model's remembered effort; `list`.
+    remembered:
+      signature: "(&self, kind: &str) -> Result<Remembered, StorageError>"
+      # pub(super): the model and every model's effort; read by opening and
+      # `change_model`.
     latest_limits:
       signature: "(&self, kind: &str) -> Result<Option<AccountLimits>, StorageError>"
     record_limits:
@@ -236,7 +282,8 @@ functions:
       # Called by a turn's watcher (`turns/turn.rs`) as the harness reports.
     remember_settings:
       signature: "(conn, kind: &str, settings: &TurnSettings, ts: &str) -> Result<(), StorageError>"
-      # The model and effort only; the mode is never remembered (§12.4).
+      # The model, and its effort for that model when the turn has one; the
+      # mode is never remembered (§12.4).
 
 
 enums:
@@ -265,7 +312,7 @@ called_by_other_services:
 
 
 shared_in_transaction:
-  remember_settings: "Turns' start (turns/store/turn.rs start_turn): the turn's model and effort are remembered for its harness in the same write that records the turn, so a refused or replayed start remembers nothing"
+  remember_settings: "Turns' start (turns/store/turn.rs start_turn): the turn's model is remembered for its harness, and its effort for that model, in the same write that records the turn, so a refused or replayed start remembers nothing"
 
 
 obligations:
@@ -345,6 +392,47 @@ obligations:
       test of its own here.
 
   - rule: >
+      A person's effort change is the model change's mirror: an effort the
+      session's model does not offer (a model with no effort offers none) is
+      422 SETTING_NOT_OFFERED and the session keeps its effort; a running
+      turn's session is 409 THREAD_BUSY and keeps it; a change writes
+      nothing and remembers nothing.
+    tested_by:
+      - picking_an_effort_sets_it_at_once
+      - an_effort_the_model_does_not_offer_is_not_offered
+      - a_running_turns_effort_is_not_changed
+
+  - rule: >
+      The effort is remembered per model. A turn started records its model for
+      the harness and its effort for that model. An opening sets the
+      remembered model, then the remembered effort of the model the session
+      holds; `change_model` moving the session to a model sets that model's
+      remembered effort. A model with none, or whose remembered effort is not
+      offered or is refused, keeps the adapter's current effort.
+      `GET /api/harnesses` answers the remembered model with its effort.
+    tested_by:
+      - the_effort_is_remembered_per_model
+      - a_new_session_starts_at_the_remembered_model_and_effort
+      - remembered_settings_survive_migration_0011
+    note: >
+      The first runs turns on two models at two efforts and checks that
+      choosing each model, and a new session, come back at its effort, and
+      that a model never run on starts at the fake's `high`. The last seeds
+      a database at 0010 with a remembered model and effort and checks that
+      0011 carried the effort to that model's row and an opening applies it.
+
+  - rule: >
+      No `default` is asked of the adapter: `initialize` advertises the
+      `recommendedValue` extension in the client capabilities' `_meta`, so
+      the adapter offers no effort or model `default` (EFFORT_DEFAULT_PROBE
+      §2). The menus are the harness's, unfiltered.
+    tested_by:
+      - initialize_advertises_recommended_value
+    note: >
+      Asserts the `_meta` fake-acp received. With the capability removed from
+      `capabilities()` it fails (`Null` received; tried while writing it).
+
+  - rule: >
       Opening is idempotent: an open session answers the choices it holds,
       on one adapter, and starts in the policy's default mode.
     tested_by:
@@ -417,13 +505,26 @@ agreements:
       - a_codex_thread_cannot_open_a_session
       - change_model_on_an_unavailable_harness_opens_no_session
 
+  - between: [change_model, change_effort]
+    must: >
+      check availability, then busyness, then open the session in the same
+      order, and set the value only under the session's lease
+    holds: true
+    why: >
+      Both begin with `open_idle`, the one copy of that order, and both
+      `Sessions` methods take `lease_events` and give the events back
+      whatever the outcome.
+    tested_by:
+      - a_running_turns_model_is_not_changed
+      - a_running_turns_effort_is_not_changed
+
 
 not_the_caller's:
   - >
       Check availability or busyness, or open the session, before
       `change_model` or `open_session`; they do, in the only safe order.
   - >
-      Map `ModelRefused`, `OpenError` or `NoBreakdown`; the service answers a
+      Map `SettingRefused`, `OpenError` or `NoBreakdown`; the service answers a
       `CoreError`, or a `ContextBreakdown` with its reason.
   - >
       Filter the offer by policy or the project's modes; `choices` does.
@@ -465,6 +566,32 @@ tests:
     checks: >
       Each PUT answers the model's efforts, twice is the same state, the
       session answers the model it holds, and nothing is remembered.
+  - name: picking_an_effort_sets_it_at_once
+    checks: >
+      PUT effort low answers fake-large at low with its efforts; twice is the
+      same state; POST session answers the same; nothing is remembered.
+  - name: an_effort_the_model_does_not_offer_is_not_offered
+    checks: >
+      xhigh is 422 SETTING_NOT_OFFERED; on fake-tiny (no effort) low is too;
+      the session is unchanged.
+  - name: a_running_turns_effort_is_not_changed
+    checks: >
+      With `hang` running, PUT effort is 409 THREAD_BUSY; after Stop the same
+      PUT sets low.
+  - name: the_effort_is_remembered_per_model
+    checks: >
+      A turn on fake-small at low; fake-large, never run, comes back at high.
+      A turn on fake-large at max; choosing fake-small answers low and
+      fake-large max; a new session opens at fake-large max; the harness
+      list remembers fake-large at max.
+  - name: remembered_settings_survive_migration_0011
+    checks: >
+      A database at 0010 remembering fake-small at low lists the same after
+      0011, and a session opens at fake-small low.
+  - name: initialize_advertises_recommended_value
+    checks: >
+      The `_meta` fake-acp's `initialize` received is jetbrains.air version 1
+      with capabilities ["recommendedValue"].
   - name: the_breakdown_is_read_on_demand_and_leaves_no_trace
     checks: >
       After a turn, GET context answers categories, writes no entry and no

@@ -1,10 +1,10 @@
 //! One job: the harnesses and each thread's open session (spec §12.2–§12.4,
 //! §12.8, §14.4) — the `Harness` service.
 //!
-//! `change_model` keeps §12.7's order, and the order is the rule (§14.9): the
-//! harness is checked, then the thread's busyness, before the session is
-//! touched; the session is opened, then leased while its model changes, so a
-//! turn that took it in between is refused.
+//! `change_model` and `change_effort` keep §12.7's order, and the order is the
+//! rule (§14.9): the harness is checked, then the thread's busyness, before
+//! the session is touched; the session is opened, then leased while it
+//! changes, so a turn that took it in between is refused.
 //!
 //! `sessions` holds the live adapter each open thread has, `settings` sets an
 //! open session's options, `setup` is what a session opens with, `offers` the
@@ -37,7 +37,7 @@ pub use setup::prompt_version;
 pub(crate) use store::remember_settings;
 
 use model::label;
-use settings::ModelRefused;
+use settings::SettingRefused;
 
 use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
@@ -94,15 +94,49 @@ impl Harness {
     /// Sets the thread's session to `model` (spec §12.7), opening it first if
     /// it is not open, and answers its choices as `open_session` does. The
     /// harness is checked, then the thread's busyness, before the session is
-    /// touched (§14.9): a running turn's session is not changed. The change
-    /// itself writes nothing durable (an opening it causes issues the thread's
-    /// grant, as any opening does), and the remembered model does not move
-    /// (§12.4).
+    /// touched (§14.9): a running turn's session is not changed. When the
+    /// session moves to the model it is set to that model's remembered effort,
+    /// if still offered (§12.4). The change itself writes nothing durable (an
+    /// opening it causes issues the thread's grant, as any opening does), and
+    /// nothing is remembered: a turn started is.
     pub async fn change_model(
         &self,
         thread: &ThreadId,
         model: &str,
     ) -> Result<SessionChoices, CoreError> {
+        let (harness, opened) = self.open_idle(thread).await?;
+        let effort = self
+            .storage
+            .remembered(&harness)
+            .await?
+            .efforts
+            .remove(model);
+        let changed = self
+            .sessions
+            .change_model(thread, &opened, model, effort.as_deref());
+        let offered = changed.await.map_err(|r| refusal("model", model, r))?;
+        self.choices(thread, &offered).await
+    }
+
+    /// Sets the thread's session to `effort` (spec §12.7), exactly as
+    /// `change_model` sets a model: same checks in the same order, nothing
+    /// durable, nothing remembered. An effort the session's model does not
+    /// offer, or one the harness refuses, is SettingNotOffered.
+    pub async fn change_effort(
+        &self,
+        thread: &ThreadId,
+        effort: &str,
+    ) -> Result<SessionChoices, CoreError> {
+        let (_, opened) = self.open_idle(thread).await?;
+        let changed = self.sessions.change_effort(thread, &opened, effort);
+        let offered = changed.await.map_err(|r| refusal("effort", effort, r))?;
+        self.choices(thread, &offered).await
+    }
+
+    /// §14.9's order before a person's change: the thread's harness is
+    /// available, then no operation is open on it, then its session is opened.
+    /// Answers the harness kind and the open session.
+    async fn open_idle(&self, thread: &ThreadId) -> Result<(String, OpenSession), CoreError> {
         let context = self.storage.turn_context(thread).await?;
         if !policy::is_available(&context.harness) {
             return Err(CoreError::HarnessUnavailable(context.harness));
@@ -111,23 +145,7 @@ impl Harness {
             return Err(StorageError::ThreadBusy.into());
         }
         let opened = self.sessions.open(thread).await?;
-        let not_offered = |detail| CoreError::SettingNotOffered {
-            what: "model".into(),
-            id: model.into(),
-            detail,
-        };
-        let offered =
-            (self.sessions.change_model(thread, &opened, model).await).map_err(|refused| {
-                match refused {
-                    ModelRefused::NotOffered => not_offered(None),
-                    ModelRefused::Harness(message) => not_offered(Some(message)),
-                    ModelRefused::Lease(LeaseError::Busy) => StorageError::ThreadBusy.into(),
-                    ModelRefused::Lease(e @ LeaseError::Closed) => {
-                        CoreError::HarnessStartFailed(e.to_string())
-                    }
-                }
-            })?;
-        self.choices(thread, &offered).await
+        Ok((context.harness, opened))
     }
 
     /// The context breakdown of the thread's session, read on demand (spec
@@ -187,5 +205,22 @@ impl Harness {
             .cloned()
             .unwrap_or_default();
         Ok(for_client(offered, &context.harness, &allowed))
+    }
+}
+
+/// A refused change of `what` to `id`, as a caller meets it (§12.7).
+fn refusal(what: &str, id: &str, refused: SettingRefused) -> CoreError {
+    let not_offered = |detail| CoreError::SettingNotOffered {
+        what: what.into(),
+        id: id.into(),
+        detail,
+    };
+    match refused {
+        SettingRefused::NotOffered => not_offered(None),
+        SettingRefused::Harness(message) => not_offered(Some(message)),
+        SettingRefused::Lease(LeaseError::Busy) => StorageError::ThreadBusy.into(),
+        SettingRefused::Lease(e @ LeaseError::Closed) => {
+            CoreError::HarnessStartFailed(e.to_string())
+        }
     }
 }

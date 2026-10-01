@@ -39,10 +39,10 @@ export function ComposerBar({
   /** `null` until the session has answered. */
   settings: TurnSettings | null
   onSettings: (next: TurnSettings) => void
-  /** The session is being set to the picked model (spec §12.7). */
+  /** The session is being set to a picked model or effort (spec §12.7). */
   changingModel: boolean
-  /** A draft: no session exists yet, so the model is the harness's default,
-   * shown and not chosen, until the first message opens one. */
+  /** A draft: no session exists yet, so the model is not chosen until the
+   * first message opens one. */
   sessionless?: boolean
   directory: string | null | undefined
   /** Why the settings moved on their own, if they did. */

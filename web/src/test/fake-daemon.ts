@@ -33,6 +33,9 @@ export interface Overrides {
   /** `PUT /api/threads/t1/session/model`; by default the session takes the
    * model and answers `fakeChoices` holding it. */
   model?: Answer
+  /** `PUT /api/threads/t1/session/effort`; by default the session takes the
+   * effort and answers `fakeChoices` holding it. */
+  effort?: Answer
   /** `POST /api/threads/t1/turns` */
   start?: Answer
   /** `POST /api/threads/t1/fork` */
@@ -73,6 +76,12 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
       (async (r: Request) => {
         const { model } = (await r.json()) as { model: string }
         return Response.json({ ...fakeChoices, current: { ...fakeChoices.current, model } })
+      }),
+    'PUT /api/threads/t1/session/effort':
+      o.effort ??
+      (async (r: Request) => {
+        const { effort } = (await r.json()) as { effort: string }
+        return Response.json({ ...fakeChoices, current: { ...fakeChoices.current, effort } })
       }),
     'POST /api/threads/t1/turns':
       o.start ?? (() => Response.json({ operation_id: 'op1' }, { status: 202 })),

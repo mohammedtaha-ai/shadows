@@ -3,8 +3,8 @@
 //! `GET /api/harnesses` lists the CLIs a conversation can run on; `POST
 //! /api/threads/{id}/session` opens a thread's harness session and answers
 //! what it offers, after Shadows' policy and the project's allowed modes;
-//! `PUT /api/threads/{id}/session/model` changes that session's model. Each
-//! ends in `core.harness()`.
+//! `PUT /api/threads/{id}/session/model` and `.../session/effort` change that
+//! session's model or effort. Each ends in `core.harness()`.
 
 use axum::Json;
 use axum::extract::{Path, State};
@@ -75,7 +75,8 @@ pub(super) struct ChangeModel {
 /// carried: setting the same model twice is the same state, and a turn
 /// records its model in its own invocation. An opening it causes writes what
 /// `POST .../session` writes (the thread's MCP grant and its events). The
-/// remembered model does not move (§12.4).
+/// remembered settings do not move (§12.4); when the session moves to the
+/// model, it is set to that model's remembered effort if still offered.
 /// A running turn's session is not changed (`THREAD_BUSY`).
 #[utoipa::path(
     put,
@@ -99,6 +100,48 @@ pub(super) async fn change_model(
     let choices =
         detached(async move { Ok(s.core.harness().change_model(&thread, &body.model).await?) })
             .await?;
+    Ok(Json(choices))
+}
+
+/// The effort a person picked (spec §12.7).
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct ChangeEffort {
+    /// One of the session's `efforts`, for the model it holds.
+    effort: String,
+}
+
+/// Sets the thread's session to `effort` as soon as a person picks it (spec
+/// §12.7), as `PUT .../session/model` sets a model: it opens the session
+/// first if it is not open, answers its choices exactly as `POST
+/// .../session` does, writes nothing durable and carries no `command_id`.
+/// The remembered settings do not move (§12.4).
+/// A running turn's session is not changed (`THREAD_BUSY`).
+#[utoipa::path(
+    put,
+    path = "/api/threads/{id}/session/effort",
+    tag = "threads",
+    params(("id" = ThreadId, Path, description = "The thread")),
+    request_body = ChangeEffort,
+    responses(
+        (status = 200, body = SessionChoices),
+        (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
+        (status = 409, description = "THREAD_BUSY: a turn is running; PATH_NOT_FOUND: the project's directory is gone or was never set", body = ErrorBody),
+        (status = 422, description = "SETTING_NOT_OFFERED: an effort the session's model does not offer, or one the harness refused (its words in the message); HARNESS_UNAVAILABLE", body = ErrorBody),
+        (status = 502, description = "HARNESS_START_FAILED: the adapter did not start, or its session closed", body = ErrorBody),
+    )
+)]
+pub(super) async fn change_effort(
+    State(s): State<AppState>,
+    Path(thread): Path<ThreadId>,
+    Json(body): Json<ChangeEffort>,
+) -> Result<Json<SessionChoices>, Failure> {
+    let choices = detached(async move {
+        Ok(s.core
+            .harness()
+            .change_effort(&thread, &body.effort)
+            .await?)
+    })
+    .await?;
     Ok(Json(choices))
 }
 
