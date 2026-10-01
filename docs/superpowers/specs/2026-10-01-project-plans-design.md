@@ -230,8 +230,10 @@ another. It is latency, not a correctness defect.
   add or remove a slot, never across an `await` on a process.
 - Each slot has its own lock. Opening, closing and stopping one thread hold
   only its slot.
-- An action on the same thread still waits for that thread's own opening,
-  within the same 20 s bound.
+- An action on the same thread still waits for that thread's own opening.
+  That wait is what it was before: `setup_wait` (20 s) for the session to
+  open, plus the bounded stop of a dead or failed adapter (5 s each) and the
+  storage reads around it.
 - Behaviour is otherwise unchanged: the idle close, the dead-adapter check and
   the count of live sessions work as before.
 

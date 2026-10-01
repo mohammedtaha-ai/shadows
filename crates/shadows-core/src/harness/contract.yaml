@@ -457,7 +457,9 @@ obligations:
   - rule: >
       A thread's opening, close or stop holds only that thread's slot; the
       map's lock is never held across a process wait (§16.6). An action on
-      the same thread still waits for its own opening, within `setup_wait`.
+      the same thread still waits for its own opening: `setup_wait` plus the
+      bounded stop of a failed adapter and the storage reads around it
+      (§16.6).
       The idle close skips a slot someone holds: it is in use, so not idle.
     tested_by:
       - one_thread_opening_does_not_hold_another
