@@ -65,6 +65,9 @@ export function afterOptions(
     // A picked model the session moved to brings its own effort: the one
     // remembered for it, or the adapter's (§12.4). Keeping the person's
     // previous effort would set it back at once over the remembered one.
+    // The first report of the move may still carry the previous effort
+    // (evidence EFFORT_DEFAULT_PROBE §3): the composer settles it from the
+    // model route's answer.
     const moved = prev.current.model !== next.current.model && !busy
     settings = { ...settings, effort: offeredEffort(next, moved ? next.current.effort : s.effort) }
     if (moved) {

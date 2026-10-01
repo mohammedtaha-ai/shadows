@@ -71,4 +71,13 @@ describe('code index', () => {
     expect(app.text()).toContain('Only this project.')
     expect(app.button('Link a project…')?.disabled).toBe(false)
   })
+
+  it('an inactive index still counts its files', async () => {
+    const table = answers()
+    table['GET /api/projects/p1/code/status'] = codeStatusFixture('demo', {
+      state: { state: 'inactive' },
+    })
+    open = await startApp('/projects/p1/settings', table)
+    await until(() => open?.text().includes('Inactive · 277 files') === true)
+  })
 })

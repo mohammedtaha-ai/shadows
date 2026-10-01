@@ -13,8 +13,8 @@
 //! with a scan. A read is dropped because Linux reports one: `notify`'s
 //! inotify backend watches `OPEN` and `CLOSE_NOWRITE`, so without the filter
 //! every file a scan reads came back as a change, and the scans never ended
-//! (LINUX_WATCHER_READS.md). A `Close(Write)` is kept: some saves arrive only
-//! as one.
+//! (LINUX_WATCHER_READS.md). A `Close(Write)` is kept: it ends a write, and
+//! inotify reports a write through `mmap(2)` by nothing else.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};

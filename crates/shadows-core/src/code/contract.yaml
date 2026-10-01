@@ -608,7 +608,8 @@ obligations:
       `Close(Write)`, so the scan's own reads, which Linux reports (notify's
       inotify backend watches OPEN and CLOSE_NOWRITE), never come back as
       paths, never fill the channel, and never start another scan. A
-      `Close(Write)` is kept: some saves arrive only as one.
+      `Close(Write)` is kept: it ends a write, and inotify reports a write
+      through mmap(2) by nothing else.
     tested_by: a_read_is_not_a_change
     note: >
       Before this rule the daemon idle on the Shadows repo on Linux ran 596

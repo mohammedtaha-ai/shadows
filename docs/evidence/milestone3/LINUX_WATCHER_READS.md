@@ -52,8 +52,11 @@ was not taken apart: once reads are dropped, none of them is a path. Windows'
 ## The fix
 
 `forward` drops every `EventKind::Access(_)` but
-`Access(Close(AccessMode::Write))`, which is kept because some editors' saves
-arrive only as one. The unit test `a_read_is_not_a_change` holds it; with the
+`Access(Close(AccessMode::Write))`, which is kept because it ends a write, and
+inotify reports a write through `mmap(2)` by nothing else (inotify(7): changes
+made through `mmap` raise no `IN_MODIFY`); that case was not measured here.
+notify 8.2.0's other backends (`windows.rs`, `fsevent.rs`, `kqueue.rs`,
+`poll.rs`) create no `Access` event, so the filter drops nothing there. The unit test `a_read_is_not_a_change` holds it; with the
 filter removed it failed at its first assertion.
 
 ## A real edit is still seen
