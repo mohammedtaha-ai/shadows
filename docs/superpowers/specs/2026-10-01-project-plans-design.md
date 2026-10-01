@@ -168,23 +168,34 @@ plans' versions refer to it.
 
 In order, so that no new work can start once the delete has begun:
 
-1. **One write** sets `removed_at` and journals `ThreadRemoved`. From that
-   commit on, the conversation is removed: every write that starts a turn
-   (`Turns::send`) or forks it checks `removed_at IS NULL` inside its own
-   write transaction, and the single writer (§6.23) orders it before or after
-   this one, never across it.
+1. **One write** sets `removed_at`, **revokes the thread's Planner grants**
+   (§13.7), and journals `ThreadRemoved`. From that commit on, the
+   conversation is removed: every write that starts a turn (`Turns::send`) or
+   forks it checks `removed_at IS NULL` inside its own write transaction, and
+   every plan write by its Planner is refused `GRANT_INVALID` by the check
+   every grant write already makes inside its transaction (`check_writer`).
+   The single writer (§6.23) orders each of them before or after this one,
+   never across it.
 2. **Its session slot is taken** (§16.6). Opening a session takes the same
    slot and checks `removed_at` again once it holds it. So an opening already
    under way finishes first and is closed in step 3, and one that comes after
    step 1 is refused as not found. Nothing can open between the two steps.
 3. **A running turn is stopped**, as Stop stops it (§12.3), and its terminal
-   state is waited for. **Its adapter is closed**, if one is open, and **its
-   Planner grant is revoked** (§13.7). The slot is then released.
+   state is waited for. That turn's own last writes, its terminal state and
+   the entries it already produced, are still recorded: they end work that
+   began before the delete. **Its adapter is then closed**, if one is open,
+   and the slot is released.
 
-A replay answers what the first one answered. A daemon that stops between
-steps 1 and 3 needs nothing more: at start, recovery already ends every turn
-left running as `Interrupted` (§8) and revokes every internal grant (§13.7),
-and no adapter outlives the daemon.
+A replay answers what the first one answered.
+
+**If the daemon stops between steps 1 and 3,** the delete has already taken
+effect: the conversation is removed and its grant revoked, so nothing it
+leaves behind can write. At start, recovery ends every turn left running as
+`Interrupted` (§8). Whether the adapter itself is gone depends on how the
+daemon ended: a clean stop closes every session; a crash on Windows kills it
+through the Job Object (§1.5); a crash on Linux may leave it running, which is
+§1.5's open risk and not this section's. Such an adapter can still read the
+project's files, but it cannot write a plan or a turn.
 
 **Afterwards:**
 
@@ -405,9 +416,10 @@ Few tests, each on a rule a person would notice broken:
    one Draft. A write to a frozen version's task is refused by the database
    itself.
 5. **Deletion:** a deleted conversation leaves the list, a turn in it is
-   refused, its plan is still listed, and it still reads. A turn sent while
-   the delete is stopping a running one is refused, and no adapter is left
-   open.
+   refused, its plan is still listed, and it still reads. While the delete
+   is stopping a running turn, a new turn is refused, and a `plan_edit` by
+   that turn's Planner is refused `GRANT_INVALID` and writes nothing. No
+   adapter is left open afterwards.
 6. **A broken link (1b):** removing Backend's T3 in a new version turns Web
    T4's link red and puts it in Web's Draft's approval list.
 7. **A cycle across plans (1b):** Web T4 needs Backend T3 and Backend T3
