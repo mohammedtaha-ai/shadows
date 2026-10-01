@@ -155,7 +155,7 @@ A replay answers what the first one answered.
 **Afterwards:**
 
 - It is not listed, and nothing acts on it: a turn, opening its session, a
-  fork from it, a rename or a focus naming it is refused as not found.
+  fork from it or a focus naming it is refused as not found.
 - **It can still be read.** `GET /api/threads/{id}` and its entries answer,
   with `removed_at`, so a version's "from *X* (deleted)" opens it read only
   (§16.8). There is no restore.
