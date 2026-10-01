@@ -6,26 +6,30 @@
 
 use sqlx::SqliteConnection;
 
+use super::plan_event;
 use super::read::{edits_of, load_plan, recorded_outcome};
 use super::task::write_content;
 use crate::command::{CommandContext, Writer};
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::events::{Actor, DurableEvent};
 use crate::grants::check_writer;
-use crate::plans::model::{Approved, EditOutcome, WorkflowId, WorkflowState};
+use crate::plans::model::{Approved, EditOutcome, PlanId, WorkflowId, WorkflowState, WrittenBy};
 use crate::plans::ops::{PlanOp, apply};
 use crate::plans::rules::approval_problems;
 use crate::projects::ProjectId;
-use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, ThreadId, append_entry_in};
+use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, append_entry_in};
+use crate::turns::OperationId;
 
 impl Storage {
     /// §13.5's order of work: the grant, then a recorded command (answered
     /// from its event, before any revision check), then the revision, then
     /// the change with its event and command record in one transaction.
+    /// `operation` is a Planner's running turn, which its event names.
     pub async fn edit_plan(
         &self,
         ctx: &CommandContext,
         writer: &Writer,
+        operation: Option<&OperationId>,
         workflow: &WorkflowId,
         expected_revision: i64,
         ops: &[PlanOp],
@@ -37,10 +41,11 @@ impl Storage {
             ops.to_vec(),
             now(),
         );
+        let operation = operation.cloned();
         self.write_txn(move |conn| {
             Box::pin(async move {
-                let (thread, project) = owner(conn, &workflow).await?;
-                check_writer(conn, &writer, &project, Some(&thread)).await?;
+                let (_, project) = owner(conn, &workflow).await?;
+                check_writer(conn, &writer, &project).await?;
                 if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await? {
                     return recorded_outcome(conn, &event).await;
                 }
@@ -50,7 +55,7 @@ impl Storage {
                     &plan.state,
                     plan.revision,
                     expected_revision,
-                    &thread,
+                    &project,
                     &workflow,
                 )
                 .await?;
@@ -74,9 +79,7 @@ impl Storage {
                     summary: applied.summary,
                     changed_tasks: applied.changed_tasks,
                 };
-                let event = DurableEvent::new("WorkflowEdited", writer.actor())
-                    .with_project(&project)
-                    .with_thread(&thread)
+                let event = plan_event("WorkflowEdited", &writer, &project, operation.as_ref())
                     .with_payload(serde_json::to_value(&outcome)?);
                 append_event(conn, &event, &ts).await?;
                 record_command(
@@ -96,9 +99,10 @@ impl Storage {
     }
 
     /// §13.2: a person's approval freezes a Draft that has no blockers, and
-    /// says so in the conversation (§13.9). A replay answers the recorded
-    /// `WorkflowFrozen` payload, never the plan, whose `next` changes once the
-    /// next version exists.
+    /// says so in the conversation that wrote it (§13.9, §16.3): none when
+    /// that conversation is deleted or an external agent wrote the version.
+    /// A replay answers the recorded `WorkflowFrozen` payload, never the
+    /// plan, whose `next` changes once the next version exists.
     pub async fn approve_plan(
         &self,
         ctx: &CommandContext,
@@ -108,7 +112,7 @@ impl Storage {
         let (ctx, workflow, ts) = (ctx.clone(), workflow.clone(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
-                let (thread, project) = owner(conn, &workflow).await?;
+                let (_, project) = owner(conn, &workflow).await?;
                 if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await? {
                     return recorded_outcome(conn, &event).await;
                 }
@@ -118,7 +122,7 @@ impl Storage {
                     &plan.state,
                     plan.revision,
                     expected_revision,
-                    &thread,
+                    &project,
                     &workflow,
                 )
                 .await?;
@@ -136,26 +140,37 @@ impl Storage {
                 .execute(&mut *conn)
                 .await?;
                 let actor = Actor::user(&ctx.principal_id);
-                let body = format!("Plan v{} approved", plan.version);
-                let refs = [EntryRef::Workflow(workflow.clone())];
-                let entry = NewThreadEntry {
-                    kind: ThreadEntryKind::PlanApproved,
-                    author: actor.clone(),
-                    body: &body,
-                    refs: &refs,
-                    operation_id: None,
+                let thread = match &plan.written_by {
+                    WrittenBy::Planner {
+                        thread_id,
+                        thread_removed: false,
+                        ..
+                    } => Some(thread_id),
+                    _ => None,
                 };
-                append_entry_in(conn, &thread, entry, &ts).await?;
+                if let Some(thread) = thread {
+                    let body = format!("Plan v{} approved", plan.version);
+                    let refs = [EntryRef::Workflow(workflow.clone())];
+                    let entry = NewThreadEntry {
+                        kind: ThreadEntryKind::PlanApproved,
+                        author: actor.clone(),
+                        body: &body,
+                        refs: &refs,
+                        operation_id: None,
+                    };
+                    append_entry_in(conn, thread, entry, &ts).await?;
+                }
                 let approved = Approved {
                     workflow_id: workflow.clone(),
                     version: plan.version,
                     revision: plan.revision,
                     frozen_at: ts.clone(),
                 };
-                let event = DurableEvent::new("WorkflowFrozen", actor)
-                    .with_project(&project)
-                    .with_thread(&thread)
-                    .with_payload(serde_json::to_value(&approved)?);
+                let mut event = DurableEvent::new("WorkflowFrozen", actor).with_project(&project);
+                if let Some(thread) = thread {
+                    event = event.with_thread(thread);
+                }
+                let event = event.with_payload(serde_json::to_value(&approved)?);
                 append_event(conn, &event, &ts).await?;
                 record_command(
                     conn,
@@ -174,13 +189,13 @@ impl Storage {
     }
 }
 
-/// The thread that wrote a version, and its plan's project (§16.2).
+/// A version's plan, and that plan's project (§16.2).
 async fn owner(
     conn: &mut SqliteConnection,
     workflow: &WorkflowId,
-) -> Result<(ThreadId, ProjectId), StorageError> {
-    let (thread, project): (Option<String>, String) = sqlx::query_as(
-        "SELECT w.written_by_thread, p.project_id
+) -> Result<(PlanId, ProjectId), StorageError> {
+    let (plan, project): (String, String) = sqlx::query_as(
+        "SELECT p.id, p.project_id
            FROM workflow w JOIN plan p ON p.id = w.plan_id
           WHERE w.id = ?",
     )
@@ -188,13 +203,7 @@ async fn owner(
     .fetch_optional(&mut *conn)
     .await?
     .ok_or(StorageError::NotFound("workflow"))?;
-    let thread = thread.ok_or_else(|| {
-        StorageError::Constraint(format!("plan version {workflow} has no writing thread"))
-    })?;
-    Ok((
-        ThreadId::from_stored(thread),
-        ProjectId::from_stored(project),
-    ))
+    Ok((PlanId::from_stored(plan), ProjectId::from_stored(project)))
 }
 
 /// A version may change only while it is a Draft at the revision the writer
@@ -204,7 +213,7 @@ async fn writable(
     state: &WorkflowState,
     current: i64,
     expected: i64,
-    thread: &ThreadId,
+    project: &ProjectId,
     workflow: &WorkflowId,
 ) -> Result<(), StorageError> {
     if *state == WorkflowState::Frozen {
@@ -213,7 +222,7 @@ async fn writable(
     if current == expected {
         return Ok(());
     }
-    let summary = edits_of(conn, thread, workflow)
+    let summary = edits_of(conn, project, workflow)
         .await?
         .into_iter()
         .filter(|e| e.revision > expected)

@@ -18,7 +18,9 @@ use shadows_core::ProjectId;
 use shadows_core::ThreadId;
 use shadows_core::testing::{Anchor, derived_id};
 use shadows_core::testing::{CommandContext, Writer, fingerprint};
-use shadows_core::{AcceptanceItem, DraftStarted, Link, LinkKind, PlanOp, TaskContent, WorkflowId};
+use shadows_core::{
+    AcceptanceItem, DraftStarted, Link, LinkKind, PlanId, PlanOp, TaskContent, WorkflowId,
+};
 
 use super::app::{App, ctx};
 
@@ -195,6 +197,22 @@ pub async fn events(app: &App, thread: &ThreadId) -> Vec<(String, String, String
         .collect()
 }
 
+/// The payloads of every `kind` event of `project`, in order: a plan event
+/// names a thread only when a Planner wrote it (§16.3).
+pub async fn project_events_of(app: &App, project: &ProjectId, kind: &str) -> Vec<Value> {
+    let rows: Vec<String> = sqlx::query_scalar(
+        "SELECT payload_json FROM durable_event WHERE project_id = ? AND kind = ? ORDER BY seq",
+    )
+    .bind(project.as_str())
+    .bind(kind)
+    .fetch_all(app.storage.reader())
+    .await
+    .unwrap();
+    rows.iter()
+        .map(|p| serde_json::from_str(p).unwrap())
+        .collect()
+}
+
 pub async fn events_of(app: &App, thread: &ThreadId, kind: &str) -> Vec<Value> {
     events(app, thread)
         .await
@@ -204,24 +222,53 @@ pub async fn events_of(app: &App, thread: &ThreadId, kind: &str) -> Vec<Value> {
         .collect()
 }
 
-/// v1 of the app's thread, started by the person.
+/// v1 of the app's thread, started by its Planner.
 pub async fn draft(app: &App) -> DraftStarted {
     draft_on(app, &app.thread, "start-1").await
 }
 
+/// `thread`'s Planner, under a new thread grant: since §16.3 a version is
+/// written by a Planner's thread or an external agent's grant, never by a
+/// person.
+pub async fn planner(app: &App, thread: &ThreadId) -> Writer {
+    let grant = insert_grant(app, "thread", &project_of(app, thread).await, Some(thread)).await;
+    Writer::Planner {
+        thread: thread.clone(),
+        grant,
+    }
+}
+
+pub async fn project_of(app: &App, thread: &ThreadId) -> ProjectId {
+    let project: String = sqlx::query_scalar("SELECT project_id FROM planning_thread WHERE id = ?")
+        .bind(thread.as_str())
+        .fetch_one(app.storage.reader())
+        .await
+        .unwrap();
+    ProjectId::from_literal(&project)
+}
+
+/// The plan `thread` wrote, if any.
+pub async fn plan_of(app: &App, thread: &ThreadId) -> Option<PlanId> {
+    let latest = app.storage.thread_plan(thread).await.unwrap()?;
+    Some(app.storage.get_plan(&latest).await.unwrap().plan_id)
+}
+
+/// The thread's Planner starts a draft outside a turn: v1 when the thread has
+/// no plan, else the plan's Draft or its next version, with a reason
+/// (§16.3).
 pub async fn draft_on(app: &App, thread: &ThreadId, command: &str) -> DraftStarted {
+    let writer = planner(app, thread).await;
+    let plan = plan_of(app, thread).await;
     app.storage
         .start_draft(
-            &writer_ctx(
-                &Writer::Person,
-                command,
-                "DraftStart",
-                json!({ "t": thread }),
-            ),
-            &Writer::Person,
-            thread,
+            &writer_ctx(&writer, command, "DraftStart", json!({ "t": thread })),
+            &writer,
+            &project_of(app, thread).await,
+            plan.as_ref(),
             None,
             Some(("Login", "people can log in")),
+            Some("the plan changed"),
+            None,
             None,
         )
         .await
@@ -233,6 +280,7 @@ pub async fn edit(app: &App, workflow: &WorkflowId, expected: i64, ops: &[PlanOp
         .edit_plan(
             &edit_ctx(&Writer::Person, workflow, expected, ops),
             &Writer::Person,
+            None,
             workflow,
             expected,
             ops,

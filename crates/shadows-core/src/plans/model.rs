@@ -10,6 +10,7 @@
 use std::collections::BTreeMap;
 
 use super::rules::Problem;
+use crate::grants::GrantId;
 use crate::id::newtype_id;
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
@@ -37,6 +38,25 @@ newtype_id! {
 pub enum PlanState {
     Active,
     Archived,
+}
+
+/// Spec §16.3: who wrote a version, recorded once when it was created.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum WrittenBy {
+    /// The internal Planner: its conversation, and the turn when one was
+    /// recorded (none before migration 0012).
+    Planner {
+        thread_id: ThreadId,
+        thread_title: String,
+        thread_removed: bool,
+        /// The observed model, else the requested one; `None` without a turn.
+        model: Option<String>,
+        /// `agent_invocation.harness_kind`, e.g. `claude-code`.
+        harness: Option<String>,
+    },
+    /// An external agent's project grant.
+    External { grant_id: GrantId },
 }
 
 /// Spec §13.2. A `Draft` is edited; a `Frozen` version is approved and never
@@ -176,9 +196,12 @@ pub struct Plan {
     pub id: WorkflowId,
     pub plan_id: PlanId,
     pub plan_state: PlanState,
-    /// The conversation that wrote this version (`written_by_thread`).
-    pub thread_id: ThreadId,
     pub project_id: ProjectId,
+    /// Who wrote this version (§16.3).
+    pub written_by: WrittenBy,
+    /// Why this version was started (§16.3): `None` for v1, and for a version
+    /// from before migration 0012, which reads "Reason not recorded".
+    pub change_reason: Option<String>,
     pub version: i64,
     pub revision: i64,
     pub state: WorkflowState,
@@ -232,7 +255,6 @@ pub struct EditOutcome {
 pub struct DraftStarted {
     pub workflow_id: WorkflowId,
     pub plan_id: PlanId,
-    pub thread_id: ThreadId,
     pub version: i64,
 }
 
@@ -245,13 +267,12 @@ pub struct Approved {
     pub frozen_at: String,
 }
 
-/// A plan as a project's list shows it: its latest version.
+/// A plan as a project's list shows it: its latest version (`id`).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct PlanListing {
     pub plan_id: PlanId,
     pub plan_state: PlanState,
     pub id: WorkflowId,
-    pub thread_id: ThreadId,
     pub title: String,
     pub version: i64,
     pub state: WorkflowState,

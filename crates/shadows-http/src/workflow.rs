@@ -12,8 +12,8 @@ use super::{AppState, Failure};
 use shadows_core::ProjectId;
 use shadows_core::{Approved, Plan, PlanListing, WorkflowId};
 
-/// Each planning thread's latest plan version in a project. An unknown
-/// project has none.
+/// The project's Active plans, each by its latest version, in the order
+/// they were created. An unknown project has none.
 #[utoipa::path(
     get,
     path = "/api/projects/{id}/workflows",
@@ -28,7 +28,7 @@ pub(super) async fn list_plans(
     State(s): State<AppState>,
     Path(project_id): Path<ProjectId>,
 ) -> Result<Json<Vec<PlanListing>>, Failure> {
-    Ok(Json(s.core.plans().list(&project_id).await?))
+    Ok(Json(s.core.plans().list(&project_id, false).await?))
 }
 
 /// One plan version: its tasks, links and revision, the versions before and

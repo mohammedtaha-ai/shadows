@@ -363,8 +363,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Each planning thread's latest plan version in a project. An unknown
-         *     project has none.
+         * The project's Active plans, each by its latest version, in the order
+         *     they were created. An unknown project has none.
          */
         get: operations["list_plans"];
         put?: never;
@@ -1054,6 +1054,11 @@ export interface components {
              *     a `Frozen` version.
              */
             blockers: components["schemas"]["Problem"][];
+            /**
+             * @description Why this version was started (§16.3): `None` for v1, and for a version
+             *     from before migration 0012, which reads "Reason not recorded".
+             */
+            change_reason?: string | null;
             created_at: string;
             frozen_at?: string | null;
             goal: string;
@@ -1069,21 +1074,20 @@ export interface components {
             revision: number;
             state: components["schemas"]["WorkflowState"];
             tasks: components["schemas"]["PlanTask"][];
-            /** @description The conversation that wrote this version (`written_by_thread`). */
-            thread_id: components["schemas"]["ThreadId"];
             title: string;
             /** Format: int64 */
             version: number;
+            /** @description Who wrote this version (§16.3). */
+            written_by: components["schemas"]["WrittenBy"];
         };
         /** Format: uuid */
         PlanId: string;
-        /** @description A plan as a project's list shows it: its latest version. */
+        /** @description A plan as a project's list shows it: its latest version (`id`). */
         PlanListing: {
             id: components["schemas"]["WorkflowId"];
             plan_id: components["schemas"]["PlanId"];
             plan_state: components["schemas"]["PlanState"];
             state: components["schemas"]["WorkflowState"];
-            thread_id: components["schemas"]["ThreadId"];
             title: string;
             updated_at: string;
             /** Format: int64 */
@@ -1318,6 +1322,22 @@ export interface components {
          * @enum {string}
          */
         WorkflowState: "Draft" | "Frozen";
+        /** @description Spec §16.3: who wrote a version, recorded once when it was created. */
+        WrittenBy: {
+            /** @description `agent_invocation.harness_kind`, e.g. `claude-code`. */
+            harness?: string | null;
+            /** @enum {string} */
+            kind: "planner";
+            /** @description The observed model, else the requested one; `None` without a turn. */
+            model?: string | null;
+            thread_id: components["schemas"]["ThreadId"];
+            thread_removed: boolean;
+            thread_title: string;
+        } | {
+            grant_id: components["schemas"]["GrantId"];
+            /** @enum {string} */
+            kind: "external";
+        };
     };
     responses: never;
     parameters: never;

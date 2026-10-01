@@ -188,11 +188,13 @@ async fn a_draft_ref_replays_for_a_new_version_of_a_frozen_plan() {
     let v1 = approved_v1(&l.app).await;
     let (_, external) = project_client(&l).await;
     let draft_ref = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
-    let start = json!({ "draft_ref": draft_ref, "from_workflow_id": v1 });
+    let start =
+        json!({ "draft_ref": draft_ref, "from_workflow_id": v1, "reason": "the API changed" });
 
     let v2 = ok(&external, "draft_start", start.clone()).await;
     assert_eq!(v2["version"], 2);
-    assert_eq!(v2["thread_id"], json!(l.app.thread));
+    let plan = l.app.storage.get_plan(&v1).await.unwrap().plan_id;
+    assert_eq!(v2["plan_id"], json!(plan));
     let edit = json!({ "workflow_id": v2["workflow_id"], "expected_revision": 0, "ops": [add(3)] });
     assert_eq!(ok(&external, "plan_edit", edit).await["revision"], 1);
 
@@ -209,11 +211,11 @@ async fn an_external_draft_source_must_be_frozen() {
     let v2 = ok(
         &external,
         "draft_start",
-        json!({ "draft_ref": r1, "from_workflow_id": v1 }),
+        json!({ "draft_ref": r1, "from_workflow_id": v1, "reason": "the API changed" }),
     )
     .await;
 
-    // A frozen source's thread already has a Draft, so a new ref answers it.
+    // A frozen source's plan already has a Draft, so a new ref answers it.
     let second_ref = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
     let again = ok(
         &external,
@@ -260,7 +262,7 @@ async fn a_bound_draft_ref_still_replays_after_its_hour() {
     let l = listening_app().await;
     let (grant, external) = project_client(&l).await;
 
-    // From scratch: a thread and its v1.
+    // From scratch: a plan and its v1, with no thread (§16.3).
     let r1 = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
     let scratch = json!({ "draft_ref": r1, "title": "Search", "goal": "find things" });
     let first = ok(&external, "draft_start", scratch.clone()).await;
@@ -274,7 +276,7 @@ async fn a_bound_draft_ref_still_replays_after_its_hour() {
     // From a frozen plan: its next version.
     let v1 = approved_v1(&l.app).await;
     let r2 = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
-    let next = json!({ "draft_ref": r2, "from_workflow_id": v1 });
+    let next = json!({ "draft_ref": r2, "from_workflow_id": v1, "reason": "the API changed" });
     let v2 = ok(&external, "draft_start", next.clone()).await;
     expire(&l.app, r2.as_str().unwrap()).await;
     let plans_with_v2 = count(&l.app, "workflow").await;
@@ -306,7 +308,7 @@ async fn draft_ref_replays_and_distinct_refs_make_distinct_plans() {
     let again = json!({ "draft_ref": r2, "title": "Payments", "goal": "take payments" });
     let c = ok(&external, "draft_start", again).await;
     assert_ne!(c["workflow_id"], a["workflow_id"]);
-    assert_ne!(c["thread_id"], a["thread_id"]);
+    assert_ne!(c["plan_id"], a["plan_id"]);
 
     let changed = json!({ "draft_ref": r1, "title": "Payments", "goal": "refund payments" });
     let text = refused(&external, "draft_start", changed).await;
@@ -366,7 +368,7 @@ async fn a_thread_grant_starts_a_draft_only_inside_a_turn() {
     turn_running(&l.app).await;
     let started = ok(&planner, "draft_start", start.clone()).await;
     assert_eq!(started["version"], 1);
-    assert_eq!(started["thread_id"], json!(l.app.thread));
+    assert!(started["plan_id"].is_string());
     // The same call in the same turn is a replay.
     assert_eq!(ok(&planner, "draft_start", start).await, started);
     let events = events_of(&l.app, &l.app.thread, "WorkflowDraftStarted").await;
@@ -387,7 +389,7 @@ async fn a_planner_draft_start_naming_another_version_is_another_command() {
     let v1 = approved_v1(&l.app).await;
     let planner = thread_client(&l, &l.app.thread).await;
     turn_running(&l.app).await;
-    let from_v1 = json!({ "from_workflow_id": v1 });
+    let from_v1 = json!({ "from_workflow_id": v1, "reason": "the API changed" });
     let v2 = ok(&planner, "draft_start", from_v1.clone()).await;
     assert_eq!(v2["version"], 2);
     // The identical call is a replay of the first answer.
@@ -408,14 +410,14 @@ async fn a_planner_draft_start_naming_another_version_is_another_command() {
     .await
     .unwrap();
     recorded.sort();
-    let named = |from: &serde_json::Value| {
-        fingerprint(
-            "DraftStart",
-            &json!({ "thread": l.app.thread, "title": null, "goal": null,
-                     "from_workflow_id": from }),
-        )
-    };
-    let mut expected = vec![named(&json!(v1)), named(&v2["workflow_id"])];
+    let named = |from: &serde_json::Value| json!({ "thread": l.app.thread, "title": null, "goal": null, "from_workflow_id": from });
+    // A reason joins the fingerprint only when it is sent (§16.3).
+    let mut with_reason = named(&json!(v1));
+    with_reason["reason"] = json!("the API changed");
+    let mut expected = vec![
+        fingerprint("DraftStart", &with_reason),
+        fingerprint("DraftStart", &named(&v2["workflow_id"])),
+    ];
     expected.sort();
     assert_eq!(recorded, expected, "one command per version named");
     let events = events_of(&l.app, &l.app.thread, "WorkflowDraftStarted").await;
@@ -469,7 +471,8 @@ async fn a_planner_draft_start_names_only_its_latest_version() {
     assert_eq!(started.len(), 2, "v1 and v2 only");
 
     // Naming the latest Frozen version starts its copy, as before.
-    let v3 = ok(&planner, "draft_start", json!({ "from_workflow_id": v2 })).await;
+    let next = json!({ "from_workflow_id": v2, "reason": "the API changed" });
+    let v3 = ok(&planner, "draft_start", next).await;
     assert_eq!(v3["version"], 3);
     let v3_id: WorkflowId = serde_json::from_value(v3["workflow_id"].clone()).unwrap();
 

@@ -97,11 +97,11 @@ shapes:
     PlanView: unit
     PlanApproved: unit
   CreatedTitle:
-    # pub(crate): who named a thread at create, its first `title_source`.
+    # Private: who named a thread at create, its first `title_source`.
     # `Client` (create_thread) is replaced by the first message and the
-    # harness; `Plan` (Plans' draft from scratch) by neither.
+    # harness. A row stored as `plan`, from an external draft from scratch
+    # before §16.3, is replaced by neither; no code creates one now.
     Client: unit
-    Plan: unit
   EntryRef:
     Operation: OperationId
     Decision: String
@@ -189,6 +189,7 @@ functions:
       private: true
     insert_thread:
       signature: "(conn, project_id, title, named_by: CreatedTitle, harness, actor: Actor, ts) -> Result<ThreadId, StorageError>"
+      private: true
       # NotFound for a project that does not exist, not the foreign key's
       # constraint failure; journals `PlanningThreadCreated` { title, harness }.
     load_thread:
@@ -250,7 +251,6 @@ enums:
 
 
 shared_in_transaction:
-  insert_thread: "Plans' draft from scratch (plans/store/draft.rs start_thread_with_draft): the planning thread is created in the same write that records its v1 and the command, so a refused draft leaves no thread"
   append_entry_in: "Turns' start (turns/store/turn.rs start_turn), Plans' approval (plans/store/edit.rs approve_plan) and plan_show (plans/store/view.rs show_plan): each writes its entry in the write that records its command, so the entry and the command commit together"
   title_from_first_message_in: "Turns' start (turns/store/turn.rs start_turn): the thread is titled after its first message in the write that appends that message, so a refused or replayed start titles nothing"
 
@@ -376,9 +376,10 @@ obligations:
       2026-10-01).
 
   - rule: >
-      A thread a draft from scratch created keeps its plan's title: it is
-      inserted as `plan`, which neither rule replaces. Migration 0010 marks
-      the earlier ones `plan` too: a v1 with the thread's timestamp and title.
+      A thread stored as `plan` keeps its title: neither rule replaces it.
+      An external draft from scratch made such threads until §16.3 (it now
+      makes none), and migration 0010 marked the earlier ones `plan` too: a
+      v1 with the thread's timestamp and title.
     tested_by: a_plan_thread_keeps_its_plan_title
     note: The backfill in migration 0010 has no test of its own.
 
@@ -476,8 +477,9 @@ tests:
       harness title, and journals no ThreadRetitled.
   - name: a_plan_thread_keeps_its_plan_title
     checks: >
-      A draft from scratch titled "Search" is `plan`; a first message and a
-      direct harness title leave "Search".
+      A thread set to "Search", `plan`, as an external draft from scratch
+      left one before §16.3; a first message and a direct harness title
+      leave "Search".
   - name: a_thread_that_had_messages_before_migration_0010_keeps_its_title
     checks: >
       After a first message the row is set back to "T", `client`; a second

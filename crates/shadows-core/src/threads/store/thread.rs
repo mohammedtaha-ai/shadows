@@ -212,7 +212,7 @@ impl Storage {
 /// transaction. `NotFound`, not the foreign key's constraint failure: a
 /// thread asked for under a project that does not exist names something
 /// missing, not a conflict with what is stored.
-pub(crate) async fn insert_thread(
+async fn insert_thread(
     conn: &mut SqliteConnection,
     project_id: &ProjectId,
     title: &str,

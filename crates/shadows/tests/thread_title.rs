@@ -6,15 +6,13 @@ use std::time::Duration;
 use serde_json::Value;
 
 use shadows_core::ThreadId;
-use shadows_core::testing::Writer;
 use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
 #[path = "fixtures/plan.rs"]
 mod plan;
 
-use app::{App, default_settings, start_and_finish, start_and_finish_on, test_app};
-use plan::writer_ctx;
+use app::{App, ctx, default_settings, start_and_finish, start_and_finish_on, test_app};
 
 async fn title(app: &App) -> String {
     title_of(app, &app.thread).await
@@ -150,16 +148,27 @@ async fn a_title_a_person_gave_is_never_replaced() {
     assert!(retitled(&app).await.is_empty());
 }
 
+/// A thread an external draft from scratch made before §16.3, which no code
+/// creates now: migration 0012 leaves it as it was.
 #[tokio::test]
 async fn a_plan_thread_keeps_its_plan_title() {
     let app = test_app().await;
-    let ctx = writer_ctx(&Writer::Person, "d1", "DraftStart", serde_json::json!({}));
-    let started = app
+    let thread = app
         .storage
-        .start_thread_with_draft(&ctx, &Writer::Person, &app.project, "Search", "find", None)
+        .create_planning_thread(
+            &ctx("t2", "thread.create"),
+            &app.project,
+            "x",
+            "claude-code",
+        )
+        .await
+        .unwrap()
+        .id;
+    sqlx::query("UPDATE planning_thread SET title = 'Search', title_source = 'plan' WHERE id = ?")
+        .bind(thread.as_str())
+        .execute(app.storage.reader())
         .await
         .unwrap();
-    let thread = started.thread_id;
     assert_eq!(source_of(&app, &thread).await, "plan");
     start_and_finish_on(
         &app,

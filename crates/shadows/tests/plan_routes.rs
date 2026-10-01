@@ -30,7 +30,7 @@ fn add_unchecked(n: u32) -> PlanOp {
 }
 
 #[tokio::test]
-async fn the_project_lists_each_threads_latest_version() {
+async fn the_project_lists_each_plans_latest_version() {
     let app = test_app().await;
     approved_v1(&app).await;
     let v2 = draft_on(&app, &app.thread, "start-v2").await;
@@ -58,7 +58,7 @@ async fn the_project_lists_each_threads_latest_version() {
     ];
     expected.sort();
     assert_eq!(rows, expected, "{listed}");
-    assert!(listed[0]["title"].is_string() && listed[0]["thread_id"].is_string());
+    assert!(listed[0]["title"].is_string() && listed[0]["plan_id"].is_string());
 }
 
 #[tokio::test]

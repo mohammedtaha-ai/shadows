@@ -10,6 +10,11 @@ import { usePlanFrames } from './plan-frames'
  * Workflows page and by the conversation's plan cards and side panel. */
 export function usePlan(workflowId: string): UseQueryResult<Plan> {
   const plan = useQuery(planQuery(workflowId))
-  usePlanFrames(plan.data?.thread_id)
+  usePlanFrames(writerThread(plan.data))
   return plan
+}
+
+/** The conversation that wrote `plan`, when a Planner did (§16.3). */
+export function writerThread(plan: Plan | undefined): string | undefined {
+  return plan?.written_by.kind === 'planner' ? plan.written_by.thread_id : undefined
 }

@@ -26,11 +26,10 @@ pub use model::{
     ThreadId, TurnContext,
 };
 pub(crate) use rules::known_harness;
-// What another write calls inside its own transaction (spec §14.6): a plan
-// draft creates its thread, and a turn, an edit or a shown plan appends an
-// entry, and a turn titles its thread after its first message.
-pub(crate) use model::CreatedTitle;
-pub(crate) use store::{append_entry_in, insert_thread, title_from_first_message_in};
+// What another write calls inside its own transaction (spec §14.6): a turn,
+// an approval or a shown plan appends an entry, and a turn titles its thread
+// after its first message.
+pub(crate) use store::{append_entry_in, title_from_first_message_in};
 
 use crate::app::user_command;
 use crate::code::Code;

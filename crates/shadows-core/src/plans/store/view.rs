@@ -36,8 +36,12 @@ impl Storage {
         self.write_txn(move |conn| {
             Box::pin(async move {
                 let plan = load_plan(conn, &workflow).await?;
-                let thread = plan.thread_id;
-                check_writer(conn, &writer, &plan.project_id, Some(&thread)).await?;
+                // The card goes in the Planner's own conversation (§13.9).
+                let Writer::Planner { thread, .. } = &writer else {
+                    return Err(StorageError::GrantScope);
+                };
+                let thread = thread.clone();
+                check_writer(conn, &writer, &plan.project_id).await?;
                 if let Some(event) = classify(conn, &ctx, "Thread", thread.as_str()).await? {
                     let recorded: PlanShown = recorded_outcome(conn, &event).await?;
                     return Ok(PlanShown {

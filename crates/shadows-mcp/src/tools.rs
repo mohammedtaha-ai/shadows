@@ -52,12 +52,16 @@ struct DraftStartArgs {
     #[serde(default)]
     goal: Option<String>,
     /// External agents: an approved plan in the project, to start its next
-    /// version from. Without it, a new conversation and plan are created.
+    /// version from. Without it, a new plan is created.
     /// The Planner may leave it out; a version it names must be its
     /// conversation's latest, the one draft_start starts from anyway.
     #[serde(default)]
     #[schemars(with = "Option<String>")]
     from_workflow_id: Option<WorkflowId>,
+    /// Why the next version is started, in a sentence or two. Needed for
+    /// every version after the first.
+    #[serde(default)]
+    reason: Option<String>,
     /// External agents: the ref `draft_prepare` answered. The same ref always
     /// answers the same plan; a new plan takes a new ref.
     #[serde(default)]
@@ -229,6 +233,7 @@ impl Shadows {
             title: args.title,
             goal: args.goal,
             from_workflow_id: args.from_workflow_id,
+            reason: args.reason,
             draft_ref: args.draft_ref,
         };
         answer(

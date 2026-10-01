@@ -361,14 +361,14 @@ fn rfc3339(at: time::OffsetDateTime) -> String {
 }
 
 /// Ok for a person. For a grant holder: `GrantInvalid` when the grant is
-/// unknown or revoked; `GrantScope` when the write's thread and project are
-/// outside it — a Planner writes only its own thread, an external agent only
-/// its project. `thread` is `None` for a thread not yet created.
+/// unknown or revoked; `GrantScope` when the write's project is outside it —
+/// a Planner's grant must be a thread grant of its own thread in `project`,
+/// an external agent's a project grant of `project`. Which plan of the
+/// project a Planner reaches is Plans' `in_scope` (§16.4), not this check.
 pub(crate) async fn check_writer(
     conn: &mut SqliteConnection,
     writer: &Writer,
     project: &ProjectId,
-    thread: Option<&ThreadId>,
 ) -> Result<(), StorageError> {
     let Some(grant) = writer.grant() else {
         return Ok(());
@@ -388,7 +388,7 @@ pub(crate) async fn check_writer(
         } => {
             kind == "thread"
                 && grant_thread.as_deref() == Some(own_thread.as_str())
-                && thread == Some(own_thread)
+                && grant_project == project.as_str()
         }
         Writer::External { .. } => kind == "project" && grant_project == project.as_str(),
         Writer::Person => true,

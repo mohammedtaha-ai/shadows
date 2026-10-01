@@ -24,17 +24,15 @@ newtype_id! {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CreatedTitle {
     /// The name the client gave; the first message and the harness replace it.
+    /// A thread stored as `plan`, which an external draft from scratch made
+    /// before §16.3, keeps its title; no code creates one now.
     Client,
-    /// The title of the plan a draft from scratch made the thread for
-    /// (§13.6); nothing automatic replaces it.
-    Plan,
 }
 
 impl CreatedTitle {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::Client => "client",
-            Self::Plan => "plan",
         }
     }
 }

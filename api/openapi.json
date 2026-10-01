@@ -1113,6 +1113,13 @@
             },
             "type": "array"
           },
+          "change_reason": {
+            "description": "Why this version was started (§16.3): `None` for v1, and for a version\nfrom before migration 0012, which reads \"Reason not recorded\".",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "created_at": {
             "type": "string"
           },
@@ -1189,24 +1196,24 @@
             },
             "type": "array"
           },
-          "thread_id": {
-            "$ref": "#/components/schemas/ThreadId",
-            "description": "The conversation that wrote this version (`written_by_thread`)."
-          },
           "title": {
             "type": "string"
           },
           "version": {
             "format": "int64",
             "type": "integer"
+          },
+          "written_by": {
+            "$ref": "#/components/schemas/WrittenBy",
+            "description": "Who wrote this version (§16.3)."
           }
         },
         "required": [
           "id",
           "plan_id",
           "plan_state",
-          "thread_id",
           "project_id",
+          "written_by",
           "version",
           "revision",
           "state",
@@ -1224,7 +1231,7 @@
         "type": "string"
       },
       "PlanListing": {
-        "description": "A plan as a project's list shows it: its latest version.",
+        "description": "A plan as a project's list shows it: its latest version (`id`).",
         "properties": {
           "id": {
             "$ref": "#/components/schemas/WorkflowId"
@@ -1237,9 +1244,6 @@
           },
           "state": {
             "$ref": "#/components/schemas/WorkflowState"
-          },
-          "thread_id": {
-            "$ref": "#/components/schemas/ThreadId"
           },
           "title": {
             "type": "string"
@@ -1256,7 +1260,6 @@
           "plan_id",
           "plan_state",
           "id",
-          "thread_id",
           "title",
           "version",
           "state",
@@ -1834,6 +1837,71 @@
           "Frozen"
         ],
         "type": "string"
+      },
+      "WrittenBy": {
+        "description": "Spec §16.3: who wrote a version, recorded once when it was created.",
+        "oneOf": [
+          {
+            "description": "The internal Planner: its conversation, and the turn when one was\nrecorded (none before migration 0012).",
+            "properties": {
+              "harness": {
+                "description": "`agent_invocation.harness_kind`, e.g. `claude-code`.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "kind": {
+                "enum": [
+                  "planner"
+                ],
+                "type": "string"
+              },
+              "model": {
+                "description": "The observed model, else the requested one; `None` without a turn.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "thread_id": {
+                "$ref": "#/components/schemas/ThreadId"
+              },
+              "thread_removed": {
+                "type": "boolean"
+              },
+              "thread_title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "thread_id",
+              "thread_title",
+              "thread_removed",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "An external agent's project grant.",
+            "properties": {
+              "grant_id": {
+                "$ref": "#/components/schemas/GrantId"
+              },
+              "kind": {
+                "enum": [
+                  "external"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "grant_id",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
       }
     }
   },
@@ -3485,7 +3553,7 @@
             "description": "STORAGE_UNAVAILABLE"
           }
         },
-        "summary": "Each planning thread's latest plan version in a project. An unknown\nproject has none.",
+        "summary": "The project's Active plans, each by its latest version, in the order\nthey were created. An unknown project has none.",
         "tags": [
           "workflows"
         ]

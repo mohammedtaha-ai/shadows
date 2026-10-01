@@ -341,7 +341,17 @@ async fn start(
     let ctx = writer_ctx(&writer, command, "DraftStart", json!({ "r": draft_ref }));
     let (title, goal) = ("Search", "find things");
     app.storage
-        .start_thread_with_draft(&ctx, &writer, &app.project, title, goal, Some(draft_ref))
+        .start_draft(
+            &ctx,
+            &writer,
+            &app.project,
+            None,
+            None,
+            Some((title, goal)),
+            None,
+            None,
+            Some(draft_ref),
+        )
         .await
 }
 

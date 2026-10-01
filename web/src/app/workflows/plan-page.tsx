@@ -10,7 +10,7 @@ import { ApproveBar } from './approve-bar'
 import { InspectPanel } from './inspect-panel'
 import { PlanGraph } from './plan-graph'
 import { stateLabel } from './plan-state'
-import { usePlan } from './use-plan'
+import { usePlan, writerThread } from './use-plan'
 
 const route = getRouteApi('/projects/$projectId/workflows/$workflowId')
 
@@ -70,6 +70,7 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
 }
 
 function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
+  const thread = writerThread(plan)
   return (
     <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-3">
       <div className="min-w-0">
@@ -87,14 +88,16 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
             {stateLabel(plan)}
           </span>
           <span>revision {plan.revision}</span>
-          <Link
-            to="/projects/$projectId/threads/$threadId"
-            params={{ projectId, threadId: plan.thread_id }}
-            className="flex items-center gap-1 hover:text-foreground"
-          >
-            <MessageSquare className="size-3" aria-hidden />
-            Its conversation
-          </Link>
+          {thread !== undefined && (
+            <Link
+              to="/projects/$projectId/threads/$threadId"
+              params={{ projectId, threadId: thread }}
+              className="flex items-center gap-1 hover:text-foreground"
+            >
+              <MessageSquare className="size-3" aria-hidden />
+              Its conversation
+            </Link>
+          )}
         </p>
       </div>
       <nav aria-label="Versions" className="flex items-center gap-1 text-xs">

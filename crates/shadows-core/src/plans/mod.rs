@@ -28,7 +28,7 @@ pub use conversation::{Focus, Place, PlanShown};
 pub use model::{
     AcceptanceItem, Approved, DraftStarted, EditOutcome, LastEdit, Link, LinkKind, Plan,
     PlanContent, PlanId, PlanListing, PlanState, PlanTask, TaskContent, TaskId, WorkflowId,
-    WorkflowState,
+    WorkflowState, WrittenBy,
 };
 pub use ops::PlanOp;
 pub use rules::Problem;
@@ -67,6 +67,8 @@ pub struct DraftStart {
     pub title: Option<String>,
     pub goal: Option<String>,
     pub from_workflow_id: Option<WorkflowId>,
+    /// Why a next version is started (§16.3): needed from v2 on.
+    pub reason: Option<String>,
     pub draft_ref: Option<String>,
 }
 
@@ -98,9 +100,14 @@ impl Plans {
         }
     }
 
-    /// Each planning thread's latest plan version in `project`.
-    pub async fn list(&self, project: &ProjectId) -> Result<Vec<PlanListing>, CoreError> {
-        Ok(self.storage.list_plans(project).await?)
+    /// The plans of `project` by their latest versions: the Active ones, or
+    /// all of them when `archived`.
+    pub async fn list(
+        &self,
+        project: &ProjectId,
+        archived: bool,
+    ) -> Result<Vec<PlanListing>, CoreError> {
+        Ok(self.storage.list_plans(project, archived).await?)
     }
 
     /// One plan version, as a person reads it.
@@ -128,7 +135,7 @@ impl Plans {
 
     /// `workflow_list`: the plans in the grant's project.
     pub async fn list_for(&self, grant: &Grant) -> Result<Vec<PlanListing>, CoreError> {
-        Ok(self.storage.list_plans(&grant.project_id).await?)
+        Ok(self.storage.list_plans(&grant.project_id, false).await?)
     }
 
     /// `workflow_get`: a plan version the grant reaches.
@@ -184,6 +191,11 @@ impl Plans {
             .in_scope(grant, args.workflow_id.as_ref(), true)
             .await?;
         let writer = writer_of(grant)?;
+        // A Planner's edit names the turn it was made in, when one is running.
+        let turn = match grant.kind {
+            GrantKind::Thread => self.handles.running_for(own_thread(grant)?).await,
+            GrantKind::Project => None,
+        };
         let expected = args.expected_revision;
         let params = json!({ "workflow": plan.id, "expected_revision": expected, "ops": args.ops });
         let fp = fingerprint("PlanEdit", &params);
@@ -193,7 +205,7 @@ impl Plans {
         let ctx = command(&writer, id, "PlanEdit", fp);
         Ok(self
             .storage
-            .edit_plan(&ctx, &writer, &plan.id, expected, &args.ops)
+            .edit_plan(&ctx, &writer, turn.as_ref(), &plan.id, expected, &args.ops)
             .await?)
     }
 

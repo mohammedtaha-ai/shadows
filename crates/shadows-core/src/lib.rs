@@ -38,7 +38,7 @@ pub use instructions::{Instructions, InstructionsVersion};
 pub use plans::{
     AcceptanceItem, Approved, DraftStart, DraftStarted, EditOutcome, Focus, LastEdit, Link,
     LinkKind, Place, Plan, PlanContent, PlanEdit, PlanId, PlanListing, PlanOp, PlanShow, PlanShown,
-    PlanState, PlanTask, Plans, Problem, TaskContent, TaskId, WorkflowId, WorkflowState,
+    PlanState, PlanTask, Plans, Problem, TaskContent, TaskId, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
