@@ -3,9 +3,8 @@
 //! **The decision this file owns.** Clients generate their types from
 //! `api/openapi.json`, so that file is the protocol as a client sees it. It is
 //! generated from the route table, never written, and the first test below
-//! regenerates it and fails on any difference — the same contract
-//! `tests/codemap` keeps for the code map. A route change therefore reaches the
-//! checked-in document in the same commit, or the build is red:
+//! regenerates it and fails on any difference. A route change therefore
+//! reaches the checked-in document in the same commit, or the build is red:
 //!
 //! ```text
 //! UPDATE_OPENAPI=1 cargo test --test openapi

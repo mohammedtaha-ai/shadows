@@ -6,7 +6,7 @@
 > |----------|---------|
 > | [CLAUDE.md](./CLAUDE.md) | Architecture, conventions, rules (this file) |
 > | [docs/superpowers/specs/README.md](./docs/superpowers/specs/README.md) | **Index of the authoritative design sections and their owners.** |
-> | [docs/codebase/README.md](./docs/codebase/README.md) | **The code map.** What each crate and module owns, the Architecture Invariants, and every declaration that exists. Read before writing code. |
+> | [docs/codebase/README.md](./docs/codebase/README.md) | **The code map.** What each crate and module owns, and the Architecture Invariants. Read before writing code. |
 > | `crates/shadows-core/src/<service>/contract.yaml` | **One contract per service, next to its code**: its methods, obligations, agreements and tests. Read before changing that service. Written to [docs/codebase/contracts/TEMPLATE.yaml](./docs/codebase/contracts/TEMPLATE.yaml). |
 > | [docs/vision.md](./docs/vision.md) | **What Shadows is for and where it is going.** Read before specifying any new milestone. Decides nothing. |
 > | [docs/status.md](./docs/status.md) | Where the project is right now. Decides nothing. |
@@ -32,15 +32,13 @@
 > - Earlier specs, the runtime draft, and the four consolidated ADRs were absorbed
 >   into the topic specs and deleted. They remain in Git history and are not
 >   active references.
-> - **The code map is generated, never written.** `docs/codebase/inventory.md`
->   comes out of every `crates/*/src` and `cargo test -p shadows --test codemap`
->   fails when it has drifted, so a code change that moves a signature
->   regenerates it in the same commit:
->   `UPDATE_CODEMAP=1 cargo test -p shadows --test codemap`. The one part no
->   generator can derive — what each module owns — is hand-written in
->   `docs/codebase/README.md`, and the same test refuses a module with no owner
->   or a job stated with "and". `crates/shadows/tests/codemap/main.rs` owns that
->   decision and states why line numbers are excluded.
+> - **The ownership table is written by hand and checked.** What each module
+>   owns lives in `docs/codebase/README.md`, and
+>   `cargo test -p shadows --test codemap` refuses a module with no owner row, a
+>   path that does not exist, or a job stated with "and". Signatures are not
+>   written down anywhere: the Rust LSP, or `where_is` when the `shadows` MCP
+>   server is connected, answers them from the code.
+>   `crates/shadows/tests/codemap/main.rs` owns that decision.
 > - CLAUDE.md stays compact: links + rules + architecture. No long backlogs.
 
 ## Project
@@ -135,11 +133,10 @@ constraint on this project, and every rule below exists because a round trip,
 a crawl, or a re-read was paid for and bought nothing.
 
 - **The code map is the entry point, not the source tree.** Read
-  `docs/codebase/README.md` (what each module owns) and
-  `docs/codebase/inventory.md` (every declaration that exists) FIRST, then open
-  only the files the task names. Reading the tree to discover what a signature
-  is means the code map failed or you skipped it — say which, in your report.
-  A generated map that nobody reads is a file we maintain for nothing.
+  `docs/codebase/README.md` (what each module owns) and the service's
+  `contract.yaml` FIRST, then ask the LSP or `where_is` for signatures and
+  callers, and open only the files they name. Reading the tree to discover
+  what a signature is means you skipped them — say so in your report.
 - **Ask the code index before searching the tree.** When the `shadows` MCP
   server is connected, `where_is`, `who_uses` and `outline` answer where a
   name is defined, where it is used, and what a file declares, with file,
@@ -147,7 +144,7 @@ a crawl, or a re-read was paid for and bought nothing.
   signature; open the file only at the line they name. They answer where,
   not how or why: that is the contract, the owner spec, and the code itself.
   If the server is not connected, say so in your report and fall back to the
-  code map.
+  Rust LSP.
 - **The contract is the entry point for a service.** Read
   `crates/shadows-core/src/<service>/contract.yaml` before changing that
   service; open its code for what the contract points to.

@@ -1,21 +1,21 @@
 # Code map
 
-**Read this before writing code in `shadows`.** Three kinds of file, split by
+**Read this before writing code in `shadows`.** Two kinds of file, split by
 what can be checked:
 
 | File | Kind | Answers |
 |---|---|---|
-| [`inventory.md`](./inventory.md) | generated from each `crates/*/src`, grouped by crate | *Does this already exist?* Every reachable declaration with its full signature. |
 | this file | written by hand | *Where does my new code go?* The one job each crate and module holds, and the invariants no change may break. |
 | each service's `contract.yaml` | written by hand, next to its code in `crates/shadows-core/src/<service>/` | *What must stay true of this service?* Its methods, obligations, agreements and tests, in the shape of [`contracts/TEMPLATE.yaml`](./contracts/TEMPLATE.yaml). |
 
-`cargo test -p shadows --test codemap` fails when the first two have drifted
-from the tree, and `cargo test -p shadows-core --test contracts` when a
-contract names what its service does not have (spec §14.7), so none can go
-stale quietly. The map spans the whole workspace: every path below is relative
-to the repository root. Regenerate the inventory with
-`UPDATE_CODEMAP=1 cargo test -p shadows --test codemap` in the same commit as
-the code change that moved it.
+`cargo test -p shadows --test codemap` fails when this file names a path that
+does not exist or misses a module that does, and
+`cargo test -p shadows-core --test contracts` when a contract names what its
+service does not have (spec §14.7), so neither can go stale quietly. The map
+spans the whole workspace: every path below is relative to the repository
+root. *Does this already exist, and with what signature?* is not written down:
+the Rust LSP, or `where_is`, `who_uses` and `outline` when the `shadows` MCP
+server is connected, answer it from the code.
 
 ## Architecture Invariants
 
@@ -160,5 +160,8 @@ file disagrees with either, they are right and this file is the defect.
 - **Built / not-built status.** The tree answers it and
   [`docs/status.md`](../status.md) narrates progress. A third copy would record
   one fact in three places.
+- **A list of declarations or signatures.** The LSP and `where_is` answer it
+  exactly. A generated inventory did this until 2026-10-01, and cost every
+  change a regeneration step.
 - **Explanations of declarations.** Those live as doc comments on the
-  declarations themselves, which is why the inventory strips them.
+  declarations themselves.

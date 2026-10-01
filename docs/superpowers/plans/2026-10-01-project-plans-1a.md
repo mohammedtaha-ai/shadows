@@ -27,7 +27,7 @@
   - The controller verifies the report and does not repeat the review (CLAUDE.md).
   - No PR until Mohammed says.
 - **Read first:**
-  - `docs/codebase/README.md`, `docs/codebase/inventory.md`, and the `contract.yaml` of every service a task changes;
+  - `docs/codebase/README.md`, and the `contract.yaml` of every service a task changes;
   - when the `shadows` MCP server is connected, `where_is`, `who_uses` and `outline` before Grep;
   - the Rust LSP (`goToDefinition`, `findReferences`) for callers of a signature you change.
 
@@ -39,7 +39,7 @@
   - The reviewer runs it once more, at the end.
 - **Existing tests that pin a rule §16 replaced** are changed, not deleted. Examples: "a Planner reaches only its own thread's plan", "`PlanListing.thread_id`", "a project with threads cannot be removed". Name each changed test and the §16 line that replaced its rule in the task's commit message. A test whose rule §16 did not touch must pass unchanged.
 - **A service change updates its `contract.yaml` in the same commit** (`docs/codebase/contracts/TEMPLATE.yaml`): `plans`, `threads`, `harness`, `grants`, `projects`, `turns`.
-- **Code map:** every task that moves a signature regenerates it: `UPDATE_CODEMAP=1 cargo test -p shadows --test codemap`. A new module gets its one-job line in `docs/codebase/README.md`, stated without "and".
+- **Code map:** a new module gets its one-job line in `docs/codebase/README.md`, stated without "and".
 - **Files:** a file over 300 lines states its one job in the commit message, and at 500 lines it splits (CLAUDE.md). `plans/contract.yaml` is already 515 lines and grows here. It stays one file, because a contract is one service's, and the commit says so.
 - **Builds** use the C: target directory:
   `CARGO_TARGET_DIR=C:/Users/Mohammed/AppData/Local/Temp/claude/E--Globalprojects-shadows/e86a610a-4c5b-4114-884d-faf050ce6a96/scratchpad/target CARGO_INCREMENTAL=0`.
