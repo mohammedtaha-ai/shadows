@@ -455,6 +455,17 @@ obligations:
       that a slow resume opens under it.
 
   - rule: >
+      A thread's opening, close or stop holds only that thread's slot; the
+      map's lock is never held across a process wait (§16.6). An action on
+      the same thread still waits for its own opening, within `setup_wait`.
+      The idle close skips a slot someone holds: it is in use, so not idle.
+    tested_by:
+      - one_thread_opening_does_not_hold_another
+    note: >
+      Fails before the slot map: `terminate` on the other thread waited 1.39 s
+      for a slow resume's opening.
+
+  - rule: >
       The breakdown is read only on an open, idle session that has answered a
       turn in this adapter; otherwise it says why, and a turn sent during a
       read waits for it and keeps its own output.
@@ -615,6 +626,10 @@ tests:
     checks: A 300 ms setup_wait against a slow resume is OpenError::Start "timed out", none live.
   - name: the_default_setup_wait_outlasts_a_slow_harness
     checks: The default setup_wait is at least 15 s and a slow harness opens under it.
+  - name: one_thread_opening_does_not_hold_another
+    checks: >
+      While one thread's slow resume opens, `terminate` on a second thread
+      returns in under 800 ms; the opening then succeeds, one session live.
   - name: no_breakdown_before_the_first_turn_or_while_one_runs
     checks: >
       GET context answers "open" before a session, "first" before a turn, and

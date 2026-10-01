@@ -827,7 +827,7 @@ pub(crate) async fn check_writer(conn: &mut SqliteConnection, writer: &Writer, p
 pub(crate) async fn bind_draft_ref(conn: &mut SqliteConnection, writer: &Writer, draft_ref: &str, workflow: &WorkflowId, project: &ProjectId, ts: &str) -> Result<(), StorageError>
 ```
 
-### `crates/shadows-core/src/harness/context.rs` — 101 lines
+### `crates/shadows-core/src/harness/context.rs` — 102 lines
 
 ```rust
 pub(crate) enum NoBreakdown {
@@ -907,7 +907,7 @@ impl Offers {
 pub(super) fn intercept(offers: std::sync::Arc<Offers>, thread: ThreadId, to: mpsc::UnboundedSender<HarnessEvent>) -> impl Fn(HarnessEvent) + Clone + Send + Sync + 'static
 ```
 
-### `crates/shadows-core/src/harness/sessions.rs` — 493 lines
+### `crates/shadows-core/src/harness/sessions.rs` — 498 lines
 
 ```rust
 pub struct SessionsConfig {
@@ -944,13 +944,14 @@ pub(super) struct Live {
 // + 1 private field
 pub struct Sessions {
     pub(super) config: SessionsConfig,
-    pub(super) live: Mutex<HashMap<ThreadId, Live>>,
+    pub(super) live: Mutex<HashMap<ThreadId, Slot>>,
     pub(super) offers: Arc<Offers>,
 }
 // + 4 private fields
 impl Sessions {
     pub fn new(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig) -> Arc<Self>
     pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError>
+    pub(super) async fn slot(&self, thread: &ThreadId) -> Slot
     pub async fn offered(&self, thread: &ThreadId) -> Option<Offered>
     pub fn watch_options(&self) -> broadcast::Receiver<(ThreadId, Offered)>
     pub async fn take_events(&self, thread: &ThreadId) -> Option<mpsc::UnboundedReceiver<HarnessEvent>>

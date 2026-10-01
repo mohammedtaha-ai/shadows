@@ -112,11 +112,17 @@ pub(super) struct Live {
     pub(super) answered: bool,
 }
 
+/// One thread's place in `Sessions`: empty until an adapter opens, and while
+/// one is replaced. Its own lock is held through an opening, a close or a
+/// stop; the map's lock only while a slot is found or added (§16.6). A slot
+/// is never removed, so two callers can never hold two slots for one thread.
+type Slot = Arc<Mutex<Option<Live>>>;
+
 pub struct Sessions {
     adapter: Arc<ClaudeAdapter>,
     storage: Arc<Storage>,
     pub(super) config: SessionsConfig,
-    pub(super) live: Mutex<HashMap<ThreadId, Live>>,
+    pub(super) live: Mutex<HashMap<ThreadId, Slot>>,
     pub(super) offers: Arc<Offers>,
     generations: AtomicU64,
     setups: Setups,
@@ -163,18 +169,17 @@ impl Sessions {
     }
 
     async fn open_live(&self, thread: &ThreadId) -> Result<OpenSession, OpenError> {
-        let mut live = self.live.lock().await;
-        if let Some(current) = live.get_mut(thread) {
+        let slot = self.slot(thread).await;
+        let mut live = slot.lock().await;
+        if let Some(current) = live.as_mut() {
             if !current.handle.has_exited() && !current.opened.connection.is_closed() {
                 current.last_used = Instant::now();
                 return Ok(current.opened.clone());
             }
-            if let Some(dead) = live.get_mut(thread) {
-                stop_handle(&mut dead.handle)
-                    .await
-                    .map_err(|e| OpenError::Start(format!("could not close dead adapter: {e}")))?;
-            }
-            live.remove(thread);
+            stop_handle(&mut current.handle)
+                .await
+                .map_err(|e| OpenError::Start(format!("could not close dead adapter: {e}")))?;
+            *live = None;
             self.offers.forget(thread);
             self.setups.forget(thread).await;
         }
@@ -239,17 +244,26 @@ impl Sessions {
                 return Err(OpenError::Start(error));
             }
         };
-        live.insert(
-            thread.clone(),
-            Live {
-                handle,
-                opened: opened.clone(),
-                events: Some(rx),
-                last_used: Instant::now(),
-                answered: false,
-            },
-        );
+        *live = Some(Live {
+            handle,
+            opened: opened.clone(),
+            events: Some(rx),
+            last_used: Instant::now(),
+            answered: false,
+        });
         Ok(opened)
+    }
+
+    /// The thread's slot, added empty when it has none. The map's lock is
+    /// released before the caller locks the slot.
+    pub(super) async fn slot(&self, thread: &ThreadId) -> Slot {
+        let mut live = self.live.lock().await;
+        live.entry(thread.clone()).or_default().clone()
+    }
+
+    /// A copy of the map, so each slot is locked after the map's lock is gone.
+    async fn slots(&self) -> HashMap<ThreadId, Slot> {
+        self.live.lock().await.clone()
     }
 
     /// What the thread's open session offers now, if it is open.
@@ -267,8 +281,9 @@ impl Sessions {
         &self,
         thread: &ThreadId,
     ) -> Option<mpsc::UnboundedReceiver<HarnessEvent>> {
-        let mut live = self.live.lock().await;
-        let item = live.get_mut(thread)?;
+        let slot = self.slot(thread).await;
+        let mut live = slot.lock().await;
+        let item = live.as_mut()?;
         item.last_used = Instant::now();
         item.events.take()
     }
@@ -286,13 +301,11 @@ impl Sessions {
             + self.config.context_wait
             + self.config.cancel_wait
             + Duration::from_secs(1);
+        let slot = self.slot(thread).await;
         loop {
             {
-                let mut live = self.live.lock().await;
-                let item = live
-                    .get_mut(thread)
-                    .filter(|item| item.opened.generation == opened.generation)
-                    .ok_or(LeaseError::Closed)?;
+                let mut live = slot.lock().await;
+                let item = same_adapter(&mut live, opened).ok_or(LeaseError::Closed)?;
                 if let Some(rx) = item.events.take() {
                     item.last_used = Instant::now();
                     return Ok(rx);
@@ -313,7 +326,7 @@ impl Sessions {
         opened: &OpenSession,
         rx: mpsc::UnboundedReceiver<HarnessEvent>,
     ) {
-        if let Some(item) = same_adapter(&mut *self.live.lock().await, thread, opened) {
+        if let Some(item) = same_adapter(&mut *self.slot(thread).await.lock().await, opened) {
             item.events = Some(rx);
             item.last_used = Instant::now();
         }
@@ -321,23 +334,24 @@ impl Sessions {
 
     /// Records that a Planner turn has answered in `opened`'s adapter.
     pub async fn mark_answered(&self, thread: &ThreadId, opened: &OpenSession) {
-        if let Some(item) = same_adapter(&mut *self.live.lock().await, thread, opened) {
+        if let Some(item) = same_adapter(&mut *self.slot(thread).await.lock().await, opened) {
             item.answered = true;
         }
     }
 
     pub async fn touch(&self, thread: &ThreadId) {
-        if let Some(item) = self.live.lock().await.get_mut(thread) {
+        if let Some(item) = self.slot(thread).await.lock().await.as_mut() {
             item.last_used = Instant::now();
         }
     }
 
     pub async fn terminate(&self, thread: &ThreadId) -> io::Result<()> {
-        let mut live = self.live.lock().await;
-        if let Some(item) = live.get_mut(thread) {
+        let slot = self.slot(thread).await;
+        let mut live = slot.lock().await;
+        if let Some(item) = live.as_mut() {
             stop_handle(&mut item.handle).await?;
         }
-        live.remove(thread);
+        *live = None;
         self.offers.forget(thread);
         self.setups.forget(thread).await;
         Ok(())
@@ -351,10 +365,11 @@ impl Sessions {
         thread: &ThreadId,
         opened: &OpenSession,
     ) -> io::Result<()> {
-        let mut live = self.live.lock().await;
-        if let Some(item) = same_adapter(&mut live, thread, opened) {
+        let slot = self.slot(thread).await;
+        let mut live = slot.lock().await;
+        if let Some(item) = same_adapter(&mut live, opened) {
             stop_handle(&mut item.handle).await?;
-            live.remove(thread);
+            *live = None;
             self.offers.forget(thread);
             self.setups.forget(thread).await;
         }
@@ -362,20 +377,13 @@ impl Sessions {
     }
 
     pub async fn close_all(&self) -> io::Result<()> {
-        let mut live = self.live.lock().await;
         let mut first = None;
-        let threads: Vec<_> = live.keys().cloned().collect();
-        for thread in threads {
-            let result = stop_handle(
-                &mut live
-                    .get_mut(&thread)
-                    .expect("thread collected above")
-                    .handle,
-            )
-            .await;
-            match result {
+        for (thread, slot) in self.slots().await {
+            let mut live = slot.lock().await;
+            let Some(item) = live.as_mut() else { continue };
+            match stop_handle(&mut item.handle).await {
                 Ok(()) => {
-                    live.remove(&thread);
+                    *live = None;
                     self.offers.forget(&thread);
                     self.setups.forget(&thread).await;
                 }
@@ -390,22 +398,21 @@ impl Sessions {
     }
 
     async fn reap_idle(&self) {
-        let mut live = self.live.lock().await;
-        let expired: Vec<_> = live
-            .iter()
-            .filter(|(_, item)| {
+        for (id, slot) in self.slots().await {
+            // A slot someone holds is in use, so it is not idle.
+            let Ok(mut live) = slot.try_lock() else {
+                continue;
+            };
+            let Some(item) = live.as_mut().filter(|item| {
                 item.events.is_some() && item.last_used.elapsed() >= self.config.idle_after
-            })
-            .map(|(id, _)| id.clone())
-            .collect();
-        for id in expired {
-            if let Some(item) = live.get_mut(&id)
-                && let Err(error) = stop_handle(&mut item.handle).await
-            {
+            }) else {
+                continue;
+            };
+            if let Err(error) = stop_handle(&mut item.handle).await {
                 tracing::warn!(thread_id = %id, %error, "sessions.idle_close_failed");
                 continue;
             }
-            live.remove(&id);
+            *live = None;
             self.offers.forget(&id);
             self.setups.forget(&id).await;
         }
@@ -413,17 +420,19 @@ impl Sessions {
 
     #[cfg(feature = "test-support")]
     pub async fn live_count(&self) -> usize {
-        self.live.lock().await.len()
+        let mut count = 0;
+        for (_, slot) in self.slots().await {
+            count += usize::from(slot.lock().await.is_some());
+        }
+        count
     }
 
     /// The process id of the thread's adapter, while one is live.
     #[cfg(feature = "test-support")]
     pub async fn pid(&self, thread: &ThreadId) -> Option<u32> {
-        self.live
-            .lock()
-            .await
-            .get(thread)
-            .and_then(|item| item.handle.id())
+        let slot = self.slot(thread).await;
+        let live = slot.lock().await;
+        live.as_ref().and_then(|item| item.handle.id())
     }
 
     /// Arms the thread's adapter so its next termination fails — see
@@ -431,7 +440,7 @@ impl Sessions {
     /// was there to arm, so a test cannot pass by arming nothing.
     #[cfg(feature = "test-support")]
     pub async fn force_termination_failure(&self, thread: &ThreadId) -> bool {
-        match self.live.lock().await.get_mut(thread) {
+        match self.slot(thread).await.lock().await.as_mut() {
             Some(item) => {
                 item.handle.force_termination_failure();
                 true
@@ -483,11 +492,7 @@ pub(super) fn workspace(context: &TurnContext) -> Result<PathBuf, String> {
 }
 
 /// The thread's live adapter, if it is still the one `opened` was made on.
-fn same_adapter<'a>(
-    live: &'a mut HashMap<ThreadId, Live>,
-    thread: &ThreadId,
-    opened: &OpenSession,
-) -> Option<&'a mut Live> {
-    live.get_mut(thread)
+fn same_adapter<'a>(live: &'a mut Option<Live>, opened: &OpenSession) -> Option<&'a mut Live> {
+    live.as_mut()
         .filter(|item| item.opened.generation == opened.generation)
 }

@@ -230,6 +230,57 @@ async fn the_default_setup_wait_outlasts_a_slow_harness() {
     fx.sessions.close_all().await.unwrap();
 }
 
+async fn second_thread(fx: &Fixture) -> ThreadId {
+    let project = fx
+        .storage
+        .turn_context(&fx.thread)
+        .await
+        .unwrap()
+        .project_id;
+    let params = serde_json::json!({ "slug": "demo" });
+    let ctx = CommandContext {
+        principal_kind: "User".into(),
+        principal_id: "local".into(),
+        command_id: "c3".into(),
+        command_kind: "thread.create".into(),
+        command_schema_ver: 1,
+        request_fingerprint: fingerprint("thread.create", &params),
+    };
+    fx.storage
+        .create_planning_thread(&ctx, &project, "U", "claude-code")
+        .await
+        .unwrap()
+        .id
+}
+
+/// §16.6: an adapter slow to open holds only its own thread. Stop on
+/// another thread does not wait for it.
+#[tokio::test]
+async fn one_thread_opening_does_not_hold_another() {
+    let fx = fixture(SessionsConfig::default()).await;
+    let other = second_thread(&fx).await;
+    fx.sessions.open(&other).await.unwrap();
+    // fake-acp sleeps 1.5 s resuming a session whose id starts with `slow-`.
+    fx.storage
+        .record_harness_session(&fx.thread, "slow-3")
+        .await
+        .unwrap();
+    let sessions = fx.sessions.clone();
+    let slow = fx.thread.clone();
+    let opening = tokio::spawn(async move { sessions.open(&slow).await });
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let started = std::time::Instant::now();
+    fx.sessions.terminate(&other).await.unwrap();
+    assert!(
+        started.elapsed() < Duration::from_millis(800),
+        "terminate waited {:?} for another thread's opening",
+        started.elapsed()
+    );
+    assert!(opening.await.unwrap().is_ok());
+    assert_eq!(fx.sessions.live_count().await, 1);
+    fx.sessions.close_all().await.unwrap();
+}
+
 #[tokio::test]
 async fn terminate_removes_the_connection() {
     let fx = fixture(SessionsConfig::default()).await;
