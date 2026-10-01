@@ -187,6 +187,35 @@ describe('the composer bar', () => {
     expect(turnStarts(app)).toBe(0)
   })
 
+  it('a picked model ends at the effort its answer reports, not an earlier report', async () => {
+    // Measured with the real adapter: a model change reports the effort it
+    // carried over, then the remembered one the daemon sets (§12.4).
+    let release!: () => void
+    const small = (effort: string) => ({
+      ...fakeChoices,
+      efforts: [choice('low'), choice('high')],
+      current: { ...fakeChoices.current, model: 'fake-small', effort },
+    })
+    const app = await start(
+      '/projects/p1/threads/t1',
+      answers({
+        model: () =>
+          new Promise<Response>((r) => {
+            release = () => r(Response.json(small('high')))
+          }),
+      }),
+    )
+    await until(ready(app))
+    await choose(app, 'fake-large', 'fake-small')
+    await until(() => app.bodies.length === 1)
+    act(() => app.pushFrame('options', { thread_id: 't1', choices: small('low') }))
+    await until(() => app.button('low') !== undefined)
+    act(() => release())
+    await until(() => app.button('high')?.disabled === false)
+    // The remembered effort stands: nothing sets the carried one back.
+    expect(app.bodies).toEqual([{ model: 'fake-small' }])
+  })
+
   it('picking an effort sets it on the session at once', async () => {
     const app = await start('/projects/p1/threads/t1', answers())
     await until(ready(app))

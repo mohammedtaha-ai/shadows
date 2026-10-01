@@ -116,6 +116,9 @@ export function Composer({
       queryClient.setQueryData(sessionKey(threadId), answer)
       // Asked again it would be answered the same: say so rather than ask.
       if (answer.current.model !== id) refuse(`The session kept ${answer.current.model}`, answer)
+      // The answer is the effort the move ended at (the remembered one, §12.4);
+      // a report streamed during the move may still carry the previous one.
+      else keepEffort(answer)
     },
     onError: (error) => refuse(error.message),
   })
