@@ -135,6 +135,10 @@ The PR is #4; its execution ledger was removed from the branch before merge.
    through each termination wait, so
    opening one conversation can delay Stop on another. This is latency, not a
    correctness defect. The fix is one slot per thread, as its own task.
+4. **Deleting a conversation.** It does not exist, so a project with
+   conversations can never be removed (§4.2). Mohammed deferred it on
+   2026-10-01; it is designed on its own, including what happens to the
+   conversation's plans and events.
 
 ## Standing risks
 
