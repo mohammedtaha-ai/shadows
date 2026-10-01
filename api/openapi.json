@@ -150,6 +150,19 @@
         ],
         "type": "object"
       },
+      "ChangeEffort": {
+        "description": "The effort a person picked (spec §12.7).",
+        "properties": {
+          "effort": {
+            "description": "One of the session's `efforts`, for the model it holds.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "effort"
+        ],
+        "type": "object"
+      },
       "ChangeModel": {
         "description": "The model a person picked (spec §12.7).",
         "properties": {
@@ -3850,6 +3863,88 @@
         ]
       }
     },
+    "/api/threads/{id}/session/effort": {
+      "put": {
+        "operationId": "change_effort",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeEffort"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionChoices"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such thread"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "THREAD_BUSY: a turn is running; PATH_NOT_FOUND: the project's directory is gone or was never set"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "SETTING_NOT_OFFERED: an effort the session's model does not offer, or one the harness refused (its words in the message); HARNESS_UNAVAILABLE"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_START_FAILED: the adapter did not start, or its session closed"
+          }
+        },
+        "summary": "Sets the thread's session to `effort` as soon as a person picks it (spec\n§12.7), as `PUT .../session/model` sets a model: it opens the session\nfirst if it is not open, answers its choices exactly as `POST\n.../session` does, writes nothing durable and carries no `command_id`.\nThe remembered settings do not move (§12.4).\nA running turn's session is not changed (`THREAD_BUSY`).",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
     "/api/threads/{id}/session/model": {
       "put": {
         "operationId": "change_model",
@@ -3926,7 +4021,7 @@
             "description": "HARNESS_START_FAILED: the adapter did not start, or its session closed"
           }
         },
-        "summary": "Sets the thread's session to `model` as soon as a person picks it (spec\n§12.7), opening the session first if it is not open, and answers its\nchoices exactly as `POST .../session` does — the efforts are now the new\nmodel's. The change itself writes nothing durable and no `command_id` is\ncarried: setting the same model twice is the same state, and a turn\nrecords its model in its own invocation. An opening it causes writes what\n`POST .../session` writes (the thread's MCP grant and its events). The\nremembered model does not move (§12.4).\nA running turn's session is not changed (`THREAD_BUSY`).",
+        "summary": "Sets the thread's session to `model` as soon as a person picks it (spec\n§12.7), opening the session first if it is not open, and answers its\nchoices exactly as `POST .../session` does — the efforts are now the new\nmodel's. The change itself writes nothing durable and no `command_id` is\ncarried: setting the same model twice is the same state, and a turn\nrecords its model in its own invocation. An opening it causes writes what\n`POST .../session` writes (the thread's MCP grant and its events). The\nremembered settings do not move (§12.4); when the session moves to the\nmodel, it is set to that model's remembered effort if still offered.\nA running turn's session is not changed (`THREAD_BUSY`).",
         "tags": [
           "threads"
         ]

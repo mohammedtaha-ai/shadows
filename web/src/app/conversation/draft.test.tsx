@@ -22,6 +22,9 @@ describe('the draft', () => {
     routes['POST /api/projects/p1/threads'] = () => Response.json(threadFixture, { status: 201 })
     const app = (open = await startApp('/projects/p1/new', routes))
     await until(() => app.button('Accept edits') !== undefined)
+    // No model is chosen before the session exists, and none is named default.
+    expect(app.button('Set on send')?.disabled).toBe(true)
+    expect(app.text()).not.toMatch(/default/i)
     await choose(app, 'Accept edits', 'Auto')
 
     typeInto(document.querySelector('textarea')!, 'Plan the release')

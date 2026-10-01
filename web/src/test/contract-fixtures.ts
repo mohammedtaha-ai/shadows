@@ -16,6 +16,7 @@ import type {
   PlanTask,
   PlanningThread,
   Project,
+  ProjectStatus,
   SessionChoices,
   ThreadEntry,
 } from '@/api/client'
@@ -71,6 +72,18 @@ export const threadFixture: PlanningThread = {
   created_at: '2026-09-24T00:00:00Z',
   harness: 'claude-code',
   forked_from_thread: null,
+}
+
+/** A project's code index, ready, by its slug. */
+export function codeStatusFixture(project: string, extra: Partial<ProjectStatus> = {}): ProjectStatus {
+  return {
+    project,
+    state: { state: 'ready' },
+    files: 277,
+    skipped: [],
+    updated_at: '2026-09-24T00:00:00Z',
+    ...extra,
+  }
 }
 
 /** A live grant bound to project `p1`, for an external agent. */

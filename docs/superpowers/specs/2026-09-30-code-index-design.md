@@ -173,6 +173,13 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
   full scan at once for the whole batch, because renaming, deleting or moving
   in a folder reports only the folder; a folder that already has indexed
   files, which Windows reports on every save inside it, does not.
+- **A read is not a change.** On Linux, `notify`'s inotify backend reports
+  every file opened or closed unwritten as an `Access` event, so the scan's
+  own reads would come back as changes and the scans would never end. The
+  watcher drops every `Access` event but `Close(Write)`, which ends a write
+  and is inotify's only report of one made through `mmap(2)`
+  (`docs/evidence/milestone3/LINUX_WATCHER_READS.md`). The other backends
+  report no `Access` event at all.
 - **The watcher can lose changes without saying so.** On Windows, a folder
   full of changes, such as `target/` during a build, can overflow its buffer
   even though the files are ignored. `notify` 8.2.0 passes that overflow on
@@ -373,10 +380,14 @@ It answers from what is stored, with the status `indexing`.
 The routes of §15.7 are what a search page will use. That page is not built in
 Milestone 3.
 
-> **OPEN — the search page and the settings.** What the search page looks
-> like, and where the active limit and the links are set. **Trigger:** the
-> web-client design session Mohammed holds after Milestone 3 runs. **Why it
-> does not block:** every route the page needs exists and is tested.
+**Where the settings live.** A project's links are set in its own settings,
+in its **Code index** section; the active limit is the **Active projects**
+field of the global Settings page. §13.11 owns how both read.
+
+> **OPEN — the search page.** What the search page looks like and where it
+> sits. **Trigger:** the web-client design session Mohammed holds after
+> Milestone 3 runs. **Why it does not block:** every route the page needs
+> exists and is tested.
 
 ## 15.10 Order of work
 

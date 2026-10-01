@@ -47,11 +47,12 @@ export function sendable(c: SessionChoices, s: TurnSettings): boolean {
  * and the note to show, if any.
  *
  * When the session now holds the model the person chose, the effort moves to
- * one that model offers. When that model is new to the session and it reports
- * another mode than the person's, the model moved the mode: the settings take
- * the session's and the note says so. `busy` (a send or a turn in flight)
- * holds the mode back, because a turn start sets the model before the mode,
- * and the report between the two is not a refusal. */
+ * one that model offers. When that model is new to the session, the effort is
+ * the one the session reports for it (§12.4); and if it reports another mode
+ * than the person's, the model moved the mode: the settings take the
+ * session's and the note says so. `busy` (a send or a turn in flight) holds
+ * both back, because a turn start sets the model before the effort and mode,
+ * and the reports between are not refusals. */
 export function afterOptions(
   prev: SessionChoices,
   next: SessionChoices,
@@ -61,9 +62,15 @@ export function afterOptions(
   let settings = s
   let note: string | null = null
   if (next.current.model === s.model) {
-    settings = { ...settings, effort: offeredEffort(next, s.effort) }
-    const modelMoved = prev.current.model !== next.current.model
-    if (modelMoved && !busy) {
+    // A picked model the session moved to brings its own effort: the one
+    // remembered for it, or the adapter's (§12.4). Keeping the person's
+    // previous effort would set it back at once over the remembered one.
+    // The first report of the move may still carry the previous effort
+    // (evidence EFFORT_DEFAULT_PROBE §3): the composer settles it from the
+    // model route's answer.
+    const moved = prev.current.model !== next.current.model && !busy
+    settings = { ...settings, effort: offeredEffort(next, moved ? next.current.effort : s.effort) }
+    if (moved) {
       note = modeNote(s, next)
       if (note !== null) settings = { ...settings, mode: next.current.mode }
     }

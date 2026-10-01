@@ -4,7 +4,8 @@
 //! `usage` (two context updates), `refuse` (max_tokens), `title <text>` (names
 //! the session `<text>` in a `session_info_update` after answering), and
 //! `mcp <tool> <json>` (calls the session's MCP server, §13.8). `report` also
-//! shows what the session opened with and the prompt's blocks. Models:
+//! shows what the session opened with, the client capabilities' `_meta` that
+//! `initialize` carried, and the prompt's blocks. Models:
 //! `fake-large` (efforts, `auto`), `fake-small` (efforts, no `auto`),
 //! `fake-tiny` (no effort), `fake-locked` (refused, as an account without
 //! credits is). A session starts at `fake-large`, `high`, `auto`: as the real
@@ -120,6 +121,8 @@ struct State {
     context_seen: bool,
     /// `session/resume` requests this process received.
     resumes: usize,
+    /// The client capabilities' `_meta` `initialize` carried.
+    client_meta: Value,
 }
 type Shared = Arc<Mutex<State>>;
 
@@ -207,10 +210,11 @@ async fn main() -> agent_client_protocol::Result<()> {
     }
     let state: Shared = Arc::default();
     Agent.builder().name("fake-acp")
-        .on_receive_request(async |r: InitializeRequest, responder, _cx| {
+        .on_receive_request({ let state = state.clone(); async move |r: InitializeRequest, responder, _cx| {
+            state.lock().unwrap().client_meta = r.client_capabilities.meta.clone().map(Value::Object).unwrap_or(Value::Null);
             let caps: AgentCapabilities = serde_json::from_value(json!({"sessionCapabilities":{"fork":{},"resume":{}}})).unwrap();
             responder.respond(InitializeResponse::new(r.protocol_version).agent_capabilities(caps))
-        }, agent_client_protocol::on_receive_request!())
+        }}, agent_client_protocol::on_receive_request!())
         .on_receive_request({ let state = state.clone(); async move |r: NewSessionRequest, responder, _cx| {
             let mut st = state.lock().unwrap();
             st.next += 1;
@@ -280,12 +284,12 @@ async fn main() -> agent_client_protocol::Result<()> {
             let id = r.session_id.to_string();
             let prompt = r.prompt.iter().find_map(|b| match b { ContentBlock::Text(t) => Some(t.text.as_str()), _ => None }).unwrap_or("");
             let blocks: Vec<&str> = r.prompt.iter().filter_map(|b| match b { ContentBlock::Text(t) => Some(t.text.as_str()), _ => None }).collect();
-            let (s, first_context, resumes) = {
+            let (s, first_context, resumes, client_meta) = {
                 let mut st = state.lock().unwrap();
                 let Some(s) = st.sessions.get(&id).cloned() else { return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "Session not found")); };
                 let first = prompt == "/context" && !st.context_seen;
                 if prompt == "/context" { st.context_seen = true; }
-                (s, first, st.resumes)
+                (s, first, st.resumes, st.client_meta.clone())
             };
             match prompt {
                 "two-messages" => {
@@ -301,7 +305,7 @@ async fn main() -> agent_client_protocol::Result<()> {
                 "report" => {
                     let bearer_hash = s.setup.bearer.as_deref().map(shadows_core::testing::hash_token);
                     let text = json!({"cwd":s.cwd,"session":id,"how":s.how,"model":s.model,"effort":s.effort,"mode":s.mode,"claude":std::env::var("CLAUDE_CODE_EXECUTABLE").unwrap_or_default(),
-                        "mcp":s.setup.mcp,"bearer_hash":bearer_hash,"append":s.setup.append,"allowed":s.setup.allowed,"blocks":blocks,"resumes":resumes}).to_string();
+                        "mcp":s.setup.mcp,"bearer_hash":bearer_hash,"append":s.setup.append,"allowed":s.setup.allowed,"blocks":blocks,"resumes":resumes,"client_meta":client_meta}).to_string();
                     chunk(&cx, &id, "m1", &text)?;
                 },
                 "/context" => {

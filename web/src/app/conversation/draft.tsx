@@ -7,6 +7,7 @@ import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { MessageSquarePlus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  type Choice,
   type SessionChoices,
   type TurnSettings,
   createThread,
@@ -25,8 +26,15 @@ import { type SessionView, sessionKey } from './use-session'
 
 const route = getRouteApi('/projects/$projectId/new')
 
-/** The model a draft shows: none is chosen before a session exists. */
-const DEFAULT_MODEL = 'default'
+/** What a draft's model menu reads: no model is chosen before a session
+ * exists, and Send takes the one the session opens at. */
+const UNOPENED: Choice = {
+  id: 'unopened',
+  label: 'Set on send',
+  description: null,
+  enabled: true,
+  reason: null,
+}
 
 /** Required by the API; the first message retitles the thread at once, and
  * the harness after it (spec §4). */
@@ -80,14 +88,14 @@ function Draft({ projectId }: { projectId: string }) {
 }
 
 /** What a draft's composer offers before a session exists: the harness's
- * modes as the project allows them, and its default model with no effort. */
+ * modes as the project allows them, no model chosen and no effort. */
 function draftSession(harness: string, allowed: string[] | undefined): SessionView {
   if (allowed === undefined) return { state: 'connecting' }
   const policy = policyOf(harness)
   const choices: SessionChoices = {
     current: {
       mode: policy.initial ?? policy.modes[0]?.id ?? '',
-      model: DEFAULT_MODEL,
+      model: UNOPENED.id,
       effort: null,
     },
     modes: policy.modes.map((m) => {
@@ -100,9 +108,7 @@ function draftSession(harness: string, allowed: string[] | undefined): SessionVi
         reason: enabled ? null : 'Not allowed in this project',
       }
     }),
-    models: [
-      { id: DEFAULT_MODEL, label: 'Default', description: null, enabled: true, reason: null },
-    ],
+    models: [UNOPENED],
     efforts: [],
   }
   return { state: 'ready', choices }

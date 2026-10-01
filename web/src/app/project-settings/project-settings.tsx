@@ -1,12 +1,15 @@
 // One job: the project settings page (§13.11) — the Planner's instructions
-// for this project, the modes it allows, and the external agents allowed on it.
+// for this project, the modes it allows, the external agents allowed on it,
+// its code index, and removing it.
 
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { projectsQuery } from '@/api/queries'
+import { CodeIndex } from './code-index'
 import { ExternalAgents } from './external-agents'
 import { InstructionsEditor } from './instructions-editor'
 import { ProjectModes } from './project-modes'
+import { RemoveProject } from './remove-project'
 
 const route = getRouteApi('/projects/$projectId/settings')
 
@@ -21,7 +24,7 @@ export function ProjectSettings() {
           <h1 className="text-base font-medium">Project settings</h1>
           {project !== undefined && (
             <p className="text-xs text-faint-foreground">
-              {project.name}
+              <span dir="auto">{project.name}</span>
               {project.directory != null && (
                 <span className="ml-2 font-mono">{project.directory}</span>
               )}
@@ -36,6 +39,12 @@ export function ProjectSettings() {
           <ProjectModes key={`modes-${projectId}`} project={project} />
         )}
         <ExternalAgents key={`agents-${projectId}`} projectId={projectId} />
+        {project !== undefined && (
+          <>
+            <CodeIndex key={`code-${projectId}`} project={project} />
+            <RemoveProject key={`remove-${projectId}`} project={project} />
+          </>
+        )}
       </div>
     </div>
   )

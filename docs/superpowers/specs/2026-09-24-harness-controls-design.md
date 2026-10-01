@@ -199,7 +199,21 @@ The model, mode and effort lists are the harness's, read from the ACP session:
 `configOptions` on `session/new`, `session/resume` and `session/fork`, on every
 `session/set_config_option` answer, and on every `config_option_update`
 notification. Each answer is the complete set, so choosing a model also
-replaces the effort levels on offer. Shadows keeps no list of Claude's models.
+replaces the effort levels on offer. Shadows keeps no list of Claude's models,
+nor of their efforts.
+
+**No `default`.** Unasked, the adapter offers an effort `default` and a model
+`default`. The effort `default` is no level: Claude Code picks one per model
+(medium for some, high or xhigh for others) and the session goes on reporting
+`default`, so a person could not see what a turn ran at
+(`docs/evidence/harness/EFFORT_DEFAULT_PROBE.md` §1). So at `initialize`
+Shadows advertises the adapter's `recommendedValue` extension in the client
+capabilities' `_meta`:
+`{"jetbrains":{"air":{"version":1,"capabilities":["recommendedValue"]}}}`.
+With it the adapter offers neither `default`, and a session's effort starts at
+a real level the adapter chooses and reports (`medium` when the model offers
+it, measured in §2 of the same file). Shadows removes nothing from the menus
+itself: they stay exactly what the harness reports.
 
 | ACP option | Shadows reads it as |
 |---|---|
@@ -233,11 +247,29 @@ session reports: if it is not the mode the person had, the menu shows the
 session's mode and the client says the model moved it. A turn that still asks
 for `auto` on such a model fails at `Prepare` with the harness's message.
 
-**Remembered settings.** The daemon keeps, per harness, the model and effort of
-the last turn it started, and a new session is set to them after it opens. A
-remembered value the harness no longer offers is dropped and the harness's
-current value stands. The mode is not remembered: every new conversation starts
-at the policy's default.
+**Remembered settings.** Efforts belong to a model, so they are remembered per
+model. The daemon keeps, per harness, the model of the last turn it started
+(`harness_preference`), and per harness and model the effort of the last turn
+started on that model (`harness_model_effort`, migration 0011, which carried
+each harness's earlier remembered effort over to its remembered model, except
+an effort `default`, which was no level, and any effort of the model
+`default`). Both
+are written by the turn start's own transaction; choosing a model or an effort
+without sending records nothing. They are applied:
+
+- when a session opens: it is set to the remembered model, then to the
+  remembered effort of the model it then holds;
+- when a person picks a model (§12.7) and the session moves to it: to that
+  model's remembered effort.
+
+A remembered value the harness no longer offers (a model `default` remembered
+before `recommendedValue`, say) or refuses is dropped, and the harness's
+current value stands; so a model never used starts at the effort the adapter
+reports for it: `medium` in a new session, and inside a session the effort it
+last had, which the adapter carries over to a model that offers it (same
+evidence file, §3). `GET /api/harnesses` answers the remembered model and that
+model's remembered effort. The mode is not remembered: every new conversation
+starts at the policy's default.
 
 **The harness list** itself — which CLIs exist, which run — is Shadows': Claude
 Code (available when its three paths are configured), Codex (not yet).
@@ -340,12 +372,24 @@ the same state, and a turn records its model in its own invocation. An opening
 it causes issues the thread's grant, as any opening does (§13.7). It is
 `SettingNotOffered` for a model not on offer or refused by the harness (with
 the harness's message), and `ThreadBusy` while a turn runs, since a running
-turn's session is not changed under it. It does not touch the remembered
-settings, which follow turns started (§12.4). Turn start keeps setting the
-model during validation, for any client that did not.
+turn's session is not changed under it. It does not write the remembered
+settings, which follow turns started (§12.4); when the session moves to the
+model, that model's remembered effort is set, if it is still offered. Turn
+start keeps setting the model during validation, for any client that did not.
+
+**Choosing an effort sets it at once,** for the same reason: the session then
+reports the effort a turn will run at. `PUT /api/threads/{id}/session/effort`
+with `{ effort }` mirrors the model route: it opens the session if needed, sets
+the effort with `session/set_config_option` when it differs, and answers the
+choices as `POST /session` does. It writes nothing durable and carries no
+`CommandId`. It is `SettingNotOffered` for an effort the current model does not
+offer (a model with no effort offers none) or one the harness refuses (with its
+message), and `ThreadBusy` while a turn runs. Measured: a chosen effort reaches
+Claude Code (`docs/evidence/harness/EFFORT_DEFAULT_PROBE.md` §2).
 
 **Then, before the prompt is sent,** the session is set to the turn's effort
-and mode, one call per value that differs from what the session holds. A
+and mode, one call per value that differs from what the session holds — for
+any client that did not set the effort at once. A
 refusal there fails the turn at `Prepare`, naming the setting; nothing was sent
 to the model.
 
@@ -475,6 +519,7 @@ source with "(fork)":
 | `POST /api/threads/{id}/session` | new: open the thread's harness session (§12.2); answers the choices on offer — models, efforts of the current model, modes after §12.4's filter, current values. Idempotent: an open session answers what it holds. No `CommandId`; an opening issues the thread's MCP grant, a durable event (§13.7) |
 | `POST /api/threads/{id}/turns` | body becomes `{ command_id, prompt, model, mode, effort }` (§12.7) |
 | `PUT /api/threads/{id}/session/model` | new: `{ model }`; sets the open session's model when it is chosen and answers the choices as `POST /session` does (§12.7). The change is not durable and has no `CommandId`; an opening it causes issues the grant (§13.7) |
+| `PUT /api/threads/{id}/session/effort` | new: `{ effort }`; sets the open session's effort when it is chosen and answers the choices as `POST /session` does (§12.7). Not durable, no `CommandId`, as the model route |
 | `PATCH /api/threads/{id}` | new: `{ command_id, harness }`; `HarnessLocked` for a new command once an Operation exists, or at once for a fork (§12.6); a replay answers the thread as it stands |
 | create thread | gains optional `harness` (default `claude-code`) |
 | `GET /api/projects/{id}` | carries the allowed modes per harness |
@@ -504,7 +549,7 @@ Matches the mockup agreed on 2026-09-24:
 
 - **Opening a conversation** opens its session. Until the answer arrives the bar reads "Connecting to Claude Code…"; a failure shows the daemon's message and a retry. Never a spinner without words.
 - **Header:** CLI picker (`cli-picker.tsx`). Unavailable harnesses shown disabled as "coming". Changeable until the first turn, then shown with a lock.
-- **Under the message box**, flat, no border (`composer-bar.tsx`): left `+`, mode, folder; right model, effort, context ring. Every menu is built from the session's answer. Modes the project does not allow are shown disabled with the reason. Each mode carries one line saying what it lets the harness do; for Accept edits, that it edits, creates and deletes files in the project folder without asking and other commands are refused (§12.5). Choosing a model sets it at once (§12.7): the effort menu waits for the answer and then shows that model's efforts; a refusal puts the session's model back and shows the harness's message. When the observed model differs from the requested one, the reply shows both.
+- **Under the message box**, flat, no border (`composer-bar.tsx`): left `+`, mode, folder; right model, effort, context ring. Every menu is built from the session's answer. Modes the project does not allow are shown disabled with the reason. Each mode carries one line saying what it lets the harness do; for Accept edits, that it edits, creates and deletes files in the project folder without asking and other commands are refused (§12.5). Choosing a model sets it at once (§12.7): the effort menu waits for the answer and then shows that model's efforts, at the effort the model route's answer reports (its remembered one, else the one the adapter carried over, §12.4) — an `options` frame streamed during the move may still carry the previous effort and does not settle it; a refusal puts the session's model back and shows the harness's message. Choosing an effort sets it at once too; a refusal puts the session's effort back and shows the message on the error line. When the observed model differs from the requested one, the reply shows both.
 - **Context ring** (`context-ring.tsx`): §12.8's two levels; hover or click opens it at any time.
 - **Message actions** (`message-actions.tsx`): copy on every message, fork on the last one when the thread is idle; fork opens the new thread.
 - **A refused permission** renders as a quiet line: what was asked, that `acceptEdits` refused it, and that `auto` would allow it.

@@ -8,6 +8,7 @@ import {
   type Focus,
   type SessionChoices,
   type TurnSettings,
+  changeEffort,
   changeModel,
   startTurn,
   stopTurn,
@@ -98,7 +99,7 @@ export function Composer({
 
   const choices = session.state === 'ready' ? session.choices : null
   const busy = send.isPending || running !== null
-  const { settings, note, choose, refuse } = useTurnSettings(choices, busy, () => {
+  const { settings, note, choose, refuse, keepEffort } = useTurnSettings(choices, busy, () => {
     pending.current = null
   })
   const stop = useMutation({ mutationFn: stopTurn })
@@ -109,12 +110,15 @@ export function Composer({
   // changed while it runs: the change is asked once the turn has ended.
   const queryClient = useQueryClient()
   const switchModel = useMutation({
-    // A draft has no session to change: its one model is the default.
+    // A draft has no session to change: Send opens it.
     mutationFn: ({ threadId, id }: { threadId: string; id: string }) => changeModel(threadId, id),
     onSuccess: (answer, { threadId, id }) => {
       queryClient.setQueryData(sessionKey(threadId), answer)
       // Asked again it would be answered the same: say so rather than ask.
       if (answer.current.model !== id) refuse(`The session kept ${answer.current.model}`, answer)
+      // The answer is the effort the move ended at (the remembered one, §12.4);
+      // a report streamed during the move may still carry the previous one.
+      else keepEffort(answer)
     },
     onError: (error) => refuse(error.message),
   })
@@ -126,6 +130,27 @@ export function Composer({
     if (busy || changing || wanted === undefined || held === undefined || wanted === held) return
     if (threadId !== null) requestModel({ threadId, id: wanted })
   }, [busy, changing, wanted, held, requestModel, threadId])
+
+  // The same for a picked effort, once the session holds the chosen model:
+  // the session then reports the effort the turn will run at. A refusal puts
+  // the session's effort back, and the error line says why.
+  const switchEffort = useMutation({
+    mutationFn: ({ threadId, id }: { threadId: string; id: string }) => changeEffort(threadId, id),
+    onSuccess: (answer, { threadId, id }) => {
+      queryClient.setQueryData(sessionKey(threadId), answer)
+      if (answer.current.effort !== id) keepEffort(answer)
+    },
+    onError: () => keepEffort(),
+  })
+  const wantedEffort = settings?.effort ?? null
+  const heldEffort = choices?.current.effort ?? null
+  const requestEffort = switchEffort.mutate
+  const changingEffort = switchEffort.isPending
+  useEffect(() => {
+    if (busy || changing || changingEffort || threadId === null) return
+    if (wanted !== held || wantedEffort === null || wantedEffort === heldEffort) return
+    requestEffort({ threadId, id: wantedEffort })
+  }, [busy, changing, changingEffort, wanted, held, wantedEffort, heldEffort, requestEffort, threadId])
 
   // "Stopping" until the durable ending arrives and `running` clears: the
   // stop call answering is not the turn ending. A stop this client saw fail
@@ -144,6 +169,7 @@ export function Composer({
   const ready =
     known &&
     !changing &&
+    !changingEffort &&
     choices !== null &&
     settings !== null &&
     effortsKnown(choices, settings.model) &&
@@ -154,11 +180,12 @@ export function Composer({
     if (text === '' || !ready || settings === null || send.isPending || running !== null) return
     // The focus is part of the command (§13.10): pointing elsewhere is a new one.
     setCarriedError(null)
+    switchEffort.reset()
     pending.current = attemptFor(pending.current, { text, settings, focus: focusOf(pointed) })
     send.mutate({ commandId: pending.current.commandId, text, settings, pointed })
   }
 
-  const error = send.error ?? stop.error ?? carriedError
+  const error = send.error ?? stop.error ?? switchEffort.error ?? carriedError
 
   return (
     <div className="border-t border-border bg-background px-6 pt-3 pb-4">
@@ -208,7 +235,7 @@ export function Composer({
           session={session}
           settings={settings}
           onSettings={choose}
-          changingModel={changing}
+          changingModel={changing || changingEffort}
           sessionless={threadId === null}
           harness={harness}
           directory={directory}
@@ -225,7 +252,7 @@ export function Composer({
  * person's, following the session's reports (`afterOptions`) as they arrive.
  * `changed` runs whenever the person changes one; `refuse` puts the model
  * back to the one the session holds (`session`, when it just answered) and
- * shows why. */
+ * shows why; `keepEffort` puts the effort back to the session's. */
 function useTurnSettings(
   choices: SessionChoices | null,
   busy: boolean,
@@ -235,6 +262,7 @@ function useTurnSettings(
   note: string | null
   choose: (next: TurnSettings) => void
   refuse: (why: string, session?: SessionChoices) => void
+  keepEffort: (session?: SessionChoices) => void
 } {
   const [held, setHeld] = useState<{
     choices: SessionChoices
@@ -268,6 +296,14 @@ function useTurnSettings(
         if (h === null) return h
         const back = (session ?? h.choices).current.model
         return { ...h, settings: withModel(h.choices, h.settings, back), note: why }
+      })
+    },
+    keepEffort: (session) => {
+      changed()
+      setHeld((h) => {
+        if (h === null) return h
+        const effort = (session ?? h.choices).current.effort
+        return { ...h, settings: { ...h.settings, effort } }
       })
     },
   }

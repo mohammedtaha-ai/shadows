@@ -544,6 +544,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/threads/{id}/session/effort": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Sets the thread's session to `effort` as soon as a person picks it (spec
+         *     §12.7), as `PUT .../session/model` sets a model: it opens the session
+         *     first if it is not open, answers its choices exactly as `POST
+         *     .../session` does, writes nothing durable and carries no `command_id`.
+         *     The remembered settings do not move (§12.4).
+         *     A running turn's session is not changed (`THREAD_BUSY`).
+         */
+        put: operations["change_effort"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/threads/{id}/session/model": {
         parameters: {
             query?: never;
@@ -560,7 +584,8 @@ export interface paths {
          *     carried: setting the same model twice is the same state, and a turn
          *     records its model in its own invocation. An opening it causes writes what
          *     `POST .../session` writes (the thread's MCP grant and its events). The
-         *     remembered model does not move (§12.4).
+         *     remembered settings do not move (§12.4); when the session moves to the
+         *     model, it is set to that model's remembered effort if still offered.
          *     A running turn's session is not changed (`THREAD_BUSY`).
          */
         put: operations["change_model"];
@@ -695,6 +720,11 @@ export interface components {
             /** Format: int64 */
             version: number;
             workflow_id: components["schemas"]["WorkflowId"];
+        };
+        /** @description The effort a person picked (spec §12.7). */
+        ChangeEffort: {
+            /** @description One of the session's `efforts`, for the model it holds. */
+            effort: string;
         };
         /** @description The model a person picked (spec §12.7). */
         ChangeModel: {
@@ -2849,6 +2879,68 @@ export interface operations {
                 };
             };
             /** @description HARNESS_START_FAILED: the adapter did not start */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    change_effort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeEffort"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionChoices"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such thread */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description THREAD_BUSY: a turn is running; PATH_NOT_FOUND: the project's directory is gone or was never set */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description SETTING_NOT_OFFERED: an effort the session's model does not offer, or one the harness refused (its words in the message); HARNESS_UNAVAILABLE */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_START_FAILED: the adapter did not start, or its session closed */
             502: {
                 headers: {
                     [name: string]: unknown;

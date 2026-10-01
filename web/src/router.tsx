@@ -4,13 +4,15 @@
 // Vite plugin and a generated route tree, which earn their place when routes
 // are many. Each open thing is a URL, so a reload restores it: nothing open, a
 // new conversation's draft, a conversation, a plan version, a project's
-// settings. A project's own URL has no page: it opens the project's draft.
+// settings, the global settings. A project's own URL has no page: it opens
+// the project's draft.
 
 import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
 import { ConversationRoute } from './app/conversation/conversation'
 import { DraftRoute } from './app/conversation/draft'
 import { Home } from './app/home'
 import { ProjectSettings } from './app/project-settings/project-settings'
+import { SettingsPage } from './app/settings/settings-page'
 import { Shell } from './app/shell'
 import { PlanPage } from './app/workflows/plan-page'
 
@@ -56,6 +58,13 @@ const settingsRoute = createRoute({
   component: ProjectSettings,
 })
 
+// The daemon's own settings, for every project at once (§13.11).
+const appSettingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings',
+  component: SettingsPage,
+})
+
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
     homeRoute,
@@ -64,6 +73,7 @@ export const router = createRouter({
     threadRoute,
     planRoute,
     settingsRoute,
+    appSettingsRoute,
   ]),
 })
 
