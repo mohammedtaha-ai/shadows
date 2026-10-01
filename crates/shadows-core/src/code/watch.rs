@@ -8,15 +8,21 @@
 //! beside it, and a question checks its own hits.
 //!
 //! The watcher's handler runs on `notify`'s own thread. It never awaits: it
-//! drops what is under `target/` or `node_modules/` and `try_send`s the rest;
-//! a full channel sets `lost`, which the worker answers with a scan.
+//! drops reads, and what is under `target/` or `node_modules/`, and
+//! `try_send`s the rest; a full channel sets `lost`, which the worker answers
+//! with a scan. A read is dropped because Linux reports one: `notify`'s
+//! inotify backend watches `OPEN` and `CLOSE_NOWRITE`, so without the filter
+//! every file a scan reads came back as a change, and the scans never ended
+//! (LINUX_WATCHER_READS.md). A `Close(Write)` is kept: some saves arrive only
+//! as one.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use notify::event::{AccessKind, AccessMode};
+use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::sync::{Notify, mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio::time::{Instant, MissedTickBehavior};
@@ -384,8 +390,10 @@ impl Run {
     }
 }
 
-/// On `notify`'s thread: little, and never an await. A path under `target/`
-/// or `node_modules/` is dropped first (a build sends hundreds); a changed
+/// On `notify`'s thread: little, and never an await. A read (any `Access`
+/// but `Close(Write)`) is dropped: the scan's own reads would come back as
+/// changes. A path under `target/` or `node_modules/` is dropped next (a
+/// build sends hundreds); a changed
 /// `.gitignore`, an error or `need_rescan()` asks for a scan; the rest go on,
 /// relative to the folder.
 fn forward(
@@ -410,6 +418,11 @@ fn forward(
             return send(Seen::Rescan);
         }
     };
+    if let EventKind::Access(kind) = event.kind
+        && kind != AccessKind::Close(AccessMode::Write)
+    {
+        return;
+    }
     for path in &event.paths {
         let Some(rel) = relative(dir, path) else {
             continue;
@@ -421,6 +434,38 @@ fn forward(
             send(Seen::Rescan);
         } else if !rel.is_empty() {
             send(Seen::Path(rel));
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use notify::event::{DataChange, ModifyKind};
+
+    use super::*;
+
+    /// Linux reports every read: none may reach the worker, or a scan's own
+    /// reads start the next scan, forever. A write still does.
+    #[test]
+    fn a_read_is_not_a_change() {
+        let dir = Path::new("/project");
+        let (seen, mut rx) = mpsc::channel(8);
+        let lost = AtomicBool::new(false);
+        let event = |kind| Ok(notify::Event::new(kind).add_path(dir.join("src/a.rs")));
+        for kind in [
+            EventKind::Access(AccessKind::Open(AccessMode::Any)),
+            EventKind::Access(AccessKind::Close(AccessMode::Read)),
+        ] {
+            forward(dir, &seen, &lost, event(kind));
+        }
+        assert!(rx.try_recv().is_err());
+        assert!(!lost.load(Ordering::Relaxed));
+        for kind in [
+            EventKind::Modify(ModifyKind::Data(DataChange::Any)),
+            EventKind::Access(AccessKind::Close(AccessMode::Write)),
+        ] {
+            forward(dir, &seen, &lost, event(kind));
+            assert!(matches!(rx.try_recv(), Ok(Seen::Path(p)) if p == "src/a.rs"));
         }
     }
 }

@@ -173,6 +173,11 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
   full scan at once for the whole batch, because renaming, deleting or moving
   in a folder reports only the folder; a folder that already has indexed
   files, which Windows reports on every save inside it, does not.
+- **A read is not a change.** On Linux, `notify`'s inotify backend reports
+  every file opened or closed unwritten as an `Access` event, so the scan's
+  own reads would come back as changes and the scans would never end. The
+  watcher drops every `Access` event but `Close(Write)`, which some saves
+  arrive as alone (`docs/evidence/milestone3/LINUX_WATCHER_READS.md`).
 - **The watcher can lose changes without saying so.** On Windows, a folder
   full of changes, such as `target/` during a build, can overflow its buffer
   even though the files are ignored. `notify` 8.2.0 passes that overflow on

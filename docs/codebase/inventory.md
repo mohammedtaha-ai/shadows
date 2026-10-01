@@ -475,7 +475,7 @@ impl Storage {
 pub(crate) async fn delete_code_index_in(conn: &mut SqliteConnection, project: &ProjectId) -> Result<(), StorageError>
 ```
 
-### `crates/shadows-core/src/code/watch.rs` — 426 lines
+### `crates/shadows-core/src/code/watch.rs` — 471 lines
 
 ```rust
 pub(super) enum Job {

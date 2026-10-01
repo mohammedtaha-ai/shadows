@@ -462,7 +462,8 @@ functions:
       signature: "(dir: &Path, seen: &mpsc::Sender<Seen>, lost: &AtomicBool, event: notify::Result<notify::Event>)"
       private: true
       # On notify's thread, with no await: an error or `need_rescan()` sends
-      # Rescan (logged); per path, relative, one under target/ or
+      # Rescan (logged); a read (an `Access` other than `Close(Write)`) is
+      # dropped; per path, relative, one under target/ or
       # node_modules/ is dropped, a `.gitignore` sends Rescan, the rest
       # Path. `try_send`: a full or closed channel sets `lost`.
   store:
@@ -601,6 +602,18 @@ obligations:
       writing b.rs, so only the periodic scan can index it. The watcher's
       own path (create, delete, a `.gitignore` starting a scan) was run once
       by hand and is held by no test.
+
+  - rule: >
+      A read is not a change: `forward` drops every `Access` event but
+      `Close(Write)`, so the scan's own reads, which Linux reports (notify's
+      inotify backend watches OPEN and CLOSE_NOWRITE), never come back as
+      paths, never fill the channel, and never start another scan. A
+      `Close(Write)` is kept: some saves arrive only as one.
+    tested_by: a_read_is_not_a_change
+    note: >
+      Before this rule the daemon idle on the Shadows repo on Linux ran 596
+      scans in 45 s (LINUX_WATCHER_READS.md). The test was broken once, by
+      removing the filter, and failed.
 
   - rule: >
       A folder renamed or deleted inside an active project is in the index
@@ -806,6 +819,12 @@ tests:
       a save through rename is answered at line 2 at once (the re-check);
       with the worker's `Files` jobs dropped, a new b.rs's `two` is found
       (the periodic scan).
+  - name: a_read_is_not_a_change
+    checks: >
+      A unit test in watch.rs calls `forward` directly: `Access(Open)` and
+      `Access(Close(Read))` on src/a.rs send nothing and leave `lost`
+      false; `Modify(Data)` and `Access(Close(Write))` each send
+      Path("src/a.rs").
   - name: only_the_most_recent_projects_are_watched
     checks: >
       Six projects, default config: five are active; the sixth answers
