@@ -6,7 +6,7 @@
 // A function is added here the day a screen first calls its route, not before.
 
 import createClient from 'openapi-fetch'
-import { unwrap } from './error'
+import { unwrap, unwrapEmpty } from './error'
 import type { components, paths } from './schema'
 
 type Schemas = components['schemas']
@@ -35,6 +35,10 @@ export type Focus = Schemas['Focus']
 export type InstructionsVersion = Schemas['InstructionsVersion']
 export type Grant = Schemas['Grant']
 export type IssuedGrant = Schemas['IssuedGrantBody']
+export type ProjectStatus = Schemas['ProjectStatus']
+export type IndexState = Schemas['IndexState']
+export type ProjectLink = Schemas['ProjectLink']
+export type CodeSettings = Schemas['CodeSettings']
 
 /** The daemon's origin, without a trailing slash. */
 export const DAEMON_URL = (import.meta.env.VITE_SHADOWS_URL ?? 'http://127.0.0.1:4318').replace(
@@ -167,6 +171,72 @@ export function setProjectModes(
     client.PATCH('/api/projects/{id}', {
       params: { path: { id: projectId } },
       body: { command_id: commandId, allowed_modes: allowedModes },
+    }),
+  )
+}
+
+/** Removes a project that holds no conversation (spec §4.2): it is listed
+ * nowhere again, its code index, links and grants go, its folder is not
+ * touched and its slug stays taken. Refused `PROJECT_HAS_THREADS` otherwise. */
+export function removeProject(projectId: string, commandId: string): Promise<Project> {
+  return unwrap(
+    client.DELETE('/api/projects/{id}', {
+      params: { path: { id: projectId }, query: { command_id: commandId } },
+    }),
+  )
+}
+
+/** How a project's code index stands (§15.5). Asking does not make it active. */
+export function getCodeStatus(projectId: string): Promise<ProjectStatus> {
+  return unwrap(
+    client.GET('/api/projects/{id}/code/status', { params: { path: { id: projectId } } }),
+  )
+}
+
+/** The projects whose index this one reads, by slug (§15.6). */
+export function listCodeLinks(projectId: string): Promise<ProjectLink[]> {
+  return unwrap(
+    client.GET('/api/projects/{id}/code/links', { params: { path: { id: projectId } } }),
+  )
+}
+
+/** Lets the project read `linkedId`'s index, one way (§15.6). */
+export function putCodeLink(
+  projectId: string,
+  linkedId: string,
+  commandId: string,
+): Promise<ProjectLink> {
+  return unwrap(
+    client.PUT('/api/projects/{id}/code/links/{linked}', {
+      params: { path: { id: projectId, linked: linkedId } },
+      body: { command_id: commandId },
+    }),
+  )
+}
+
+/** Removes the link: the project no longer reads `linkedId`'s index. */
+export function removeCodeLink(
+  projectId: string,
+  linkedId: string,
+  commandId: string,
+): Promise<void> {
+  return unwrapEmpty(
+    client.DELETE('/api/projects/{id}/code/links/{linked}', {
+      params: { path: { id: projectId, linked: linkedId }, query: { command_id: commandId } },
+    }),
+  )
+}
+
+/** The code index's settings: how many projects are active at once (§15.6). */
+export function getCodeSettings(): Promise<CodeSettings> {
+  return unwrap(client.GET('/api/code/settings'))
+}
+
+/** Sets how many projects are active at once, 1 to 20 (§15.6). */
+export function setActiveLimit(commandId: string, activeLimit: number): Promise<CodeSettings> {
+  return unwrap(
+    client.PUT('/api/code/settings', {
+      body: { command_id: commandId, active_limit: activeLimit },
     }),
   )
 }

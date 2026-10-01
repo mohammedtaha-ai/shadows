@@ -62,9 +62,24 @@ export function toApiError(response: Response, body: unknown): ApiError {
 type Answer<T> = { data?: T; error?: unknown; response: Response }
 
 /** The body of a successful call, or the `ApiError` its failure stands for.
- * For a route that answers with a body; none of the daemon's routes answers
- * a success without one. */
+ * For a route that answers with a body; one whose success is an empty `204`
+ * goes through `unwrapEmpty`. */
 export async function unwrap<T>(pending: Promise<Answer<T>>): Promise<T> {
+  const answer = await answered(pending)
+  if (answer.data === undefined) {
+    throw toApiError(answer.response, 'a success with no body')
+  }
+  return answer.data
+}
+
+/** Nothing, or the `ApiError` the failure stands for: for a route whose
+ * success is an empty `204`, such as removing a code link. */
+export async function unwrapEmpty<T>(pending: Promise<Answer<T>>): Promise<void> {
+  await answered(pending)
+}
+
+/** The answer when it is a success; the `ApiError` otherwise. */
+async function answered<T>(pending: Promise<Answer<T>>): Promise<Answer<T>> {
   let answer: Answer<T>
   try {
     answer = await pending
@@ -81,10 +96,7 @@ export async function unwrap<T>(pending: Promise<Answer<T>>): Promise<T> {
   if (!answer.response.ok) {
     throw toApiError(answer.response, answer.error)
   }
-  if (answer.data === undefined) {
-    throw toApiError(answer.response, 'a success with no body')
-  }
-  return answer.data
+  return answer
 }
 
 /** `code` is trusted to be an `ErrorCode`: the type is generated from this

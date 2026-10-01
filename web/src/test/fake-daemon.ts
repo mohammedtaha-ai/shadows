@@ -1,7 +1,7 @@
 // One job: the route table of a daemon holding one project (`p1`) with one
-// conversation (`t1`), and no plan (`w1`), instructions or grant unless a
-// test gives it one, for `startApp`. Each answer is the contract fixture
-// unless the test overrides it. Test-only.
+// conversation (`t1`), a ready code index and no code link, and no plan
+// (`w1`), instructions or grant unless a test gives it one, for `startApp`.
+// Each answer is the contract fixture unless the test overrides it. Test-only.
 
 import type {
   Grant,
@@ -15,6 +15,7 @@ import type { Answer } from '@/app/test-app'
 import {
   agentEntry,
   claudeHarness,
+  codeStatusFixture,
   codexHarness,
   fakeChoices,
   grantFixture,
@@ -128,6 +129,9 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
           command: `${connect} --header "Authorization: Bearer tok-9"`,
         })
       }),
+    'GET /api/projects/p1/code/status': codeStatusFixture(project.slug),
+    'GET /api/projects/p1/code/links': [],
+    'GET /api/code/settings': { active_limit: 5 },
     // Any grant the test gave the project can be revoked.
     ...Object.fromEntries(
       grants.map((g) => [
