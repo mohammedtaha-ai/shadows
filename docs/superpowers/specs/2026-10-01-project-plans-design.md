@@ -243,8 +243,8 @@ is in a project no longer linked, or that project was removed.
 `Backend T3 needs Web T2` make a cycle no plan holds alone. §13.4 finds a
 cycle inside one version. Approval also follows the links into other plans'
 latest versions, and a cycle found there is in the list of what blocks
-approval, naming each task on it. `completes_after` does not count, as within
-one version.
+approval, naming each task on it. The order is §13.4's, across both kinds:
+`needs` and `completes_after` count alike.
 
 ## 16.8 The web client
 
@@ -313,7 +313,9 @@ does.
   - `UNIQUE (plan_id, version)`, and `previous_version_id` references a
     version of the same plan;
   - a version has a thread or a grant as its writer, never neither;
-  - `change_reason`, text, empty for v1 and for every version before 0012;
+  - `change_reason`, `NULL` for v1 and for every version before 0012, and
+    otherwise text that is not blank. The API answers `null` for none, and a
+    reader tells v1 from an unrecorded reason by the version number;
   - a unique index on `plan_id` where the state is `Draft` (§16.2).
 - Triggers refuse an update of a `Frozen` version's content, and an insert,
   update or delete of its tasks and links (§16.2). Freezing itself, the update
@@ -330,7 +332,8 @@ every version is in a plan, and none is lost.
 **Migration 0013 (1b):** one table for a link whose parent is in another plan.
 It holds the version and task the link starts from, the target plan and task
 number, the kind, the label and the waiting items, with §13.3's rules on
-them.
+them. Triggers refuse an insert, update or delete of such a link on a `Frozen`
+version, as 0012's refuse its other links.
 
 ## 16.10 Interfaces
 

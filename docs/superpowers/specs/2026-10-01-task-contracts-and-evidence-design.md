@@ -218,9 +218,8 @@ The migration preserves existing plan, workflow, task, event, and thread IDs.
 Legacy task fields receive explicit empty defaults only where that remains a
 valid non-executable Draft. Existing frozen versions remain readable; they do
 not become execution-ready until the required contract fields are supplied in
-a new version. Existing versions receive a null `change_reason`, read as the
-explicit `legacy_reason_unavailable` state; the migration does not fabricate
-historical reasons.
+a new version. How a version with no recorded reason is stored and read is
+§16.9's.
 
 New persistence is project-scoped for decisions and plan versions, and
 version-scoped for packets, runs, checks, and review outcomes. Foreign project
