@@ -37,7 +37,9 @@ export function RemoveProject({ project }: { project: Project }) {
           <h2 className="text-sm font-medium text-destructive-foreground">Remove project</h2>
           <p className="text-xs text-muted-foreground">
             {count !== undefined && count > 0
-              ? `This project has ${count} ${count === 1 ? 'conversation' : 'conversations'}. Delete them first to remove it.`
+              ? count === 1
+                ? 'This project has 1 conversation. Delete it first to remove the project.'
+                : `This project has ${count} conversations. Delete them first to remove it.`
               : 'Hide this project from Shadows. Its folder on disk is not touched.'}
           </p>
         </div>

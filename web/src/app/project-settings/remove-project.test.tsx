@@ -23,7 +23,7 @@ describe('remove project', () => {
   it('is off while the project has conversations, and says why', async () => {
     const app = (open = await startApp(PAGE, answers()))
     await until(() =>
-      app.text().includes('This project has 1 conversation. Delete them first to remove it.'),
+      app.text().includes('This project has 1 conversation. Delete it first to remove the project.'),
     )
     expect(app.button('Remove')?.disabled).toBe(true)
   })
