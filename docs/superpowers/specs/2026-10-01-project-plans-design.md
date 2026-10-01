@@ -19,7 +19,8 @@ The work is two pull requests, each one runnable on its own. 1b needs 1a.
 **1a: the plan is the project's.**
 
 - A plan is its own entity, owned by a project, Active or Archived (§16.2).
-- Every version and every edit records who wrote it (§16.3).
+- Every version and every edit records who wrote it, and a new version says
+  why it was started (§16.3).
 - The Planner reads and edits every plan in its project (§16.4).
 - A conversation can be deleted (§16.5).
 - Each open session gets its own lock (§16.6).
@@ -34,8 +35,9 @@ The work is two pull requests, each one runnable on its own. 1b needs 1a.
 
 **Not here:**
 
-- The decisions behind a plan and their reasons, which is vision §8's second
-  stage, and the history page that lists every edit with them.
+- The decisions behind a plan, which is vision §8's second stage, and the
+  history page that lists every edit with them. A version's reason (§16.3) is
+  the one part of it here. §17 drafts the rest.
 - A question left on a point of the plan, which is vision §8's third stage.
 - Executors. §16.3 is laid out so that an executor's work is attributed the
   same way, from the same `agent_invocation` row, when executors exist.
@@ -50,9 +52,14 @@ The work is two pull requests, each one runnable on its own. 1b needs 1a.
   `revision`, `title` and `goal`, Draft or Frozen. It belongs to its plan
   instead of a thread: version numbers are consecutive within the plan, and
   `previous_version_id` stays within the plan.
-- **A plan has at most one Draft.** It was one per thread. Two conversations
-  that edit the same Draft are kept apart by the revision check (§13.5), as
-  two writers already are.
+- **A plan has at most one Draft.** It was one per thread, held only by the
+  command's transaction. Now a unique index on the plan's Draft holds it in
+  the database too, so two conversations starting a version at once make one.
+  Two conversations that edit the same Draft are kept apart by the revision
+  check (§13.5), as two writers already are.
+- **A frozen version never changes** (§13.2), and the database now refuses
+  it: a trigger rejects any update of a `Frozen` version's content, its tasks
+  or its links. Until now only the store's code held that rule.
 - **A project has any number of plans**, for example one for the backend and
   one for the web client.
 
@@ -87,11 +94,24 @@ there and are never copied.
 `operation_id` for the Planner, and the grant as the actor for an external
 agent. A plan event's `project_id` is always set.
 
+**A new version says why it was started.** Every version after v1 is
+created with a `change_reason`, one or two sentences on what made the plan
+change, such as "the backend's API changed shape". `draft_start` from an
+existing plan refuses an empty one with `INVALID_COMMAND`. v1 has none: its
+goal is why it exists. It is stored on the version, written once, and copied
+nowhere. A version from before migration 0012 has none, and reads "Reason not
+recorded": none is invented for it. A `Draft` answered again by `draft_start`
+(§16.4) keeps the reason it was started with.
+
+This is the first step of vision §8's decisions. A reason is per version, not
+per edit, and it is not a decision record: §17 drafts those.
+
 **What a person reads** (§16.8): one line per version, "v2 · from *Web fixes*
-· Opus 5.5 · Claude Code". The model is the observed one, or the requested
-one before it is known. A version from a deleted conversation names it with
-"(deleted)", and one from an external agent reads "External agent". A
-version from before the migration names its conversation only.
+· Opus 5.5 · Claude Code", with its reason under it. The model is the
+observed one, or the requested one before it is known. A version from a
+deleted conversation names it with "(deleted)", and one from an external
+agent reads "External agent". A version from before the migration names its
+conversation only.
 
 ## 16.4 The Planner and the project's plans
 
@@ -102,7 +122,7 @@ names its thread (§13.7), and the thread fixes the project.
 |---|---|---|
 | `workflow_list` | external only | also the Planner: the project's Active plans, or with `archived: true` the archived ones too |
 | `workflow_get`, `task_get` | its thread's plan | any version of any plan in the project |
-| `draft_start` | in its thread | `plan_id` absent: a new plan with v1 from a title and a goal. `plan_id` present: that plan's Draft if it has one, which is answered and changed nothing, or a new version copied from its latest |
+| `draft_start` | in its thread | `plan_id` absent: a new plan with v1 from a title and a goal. `plan_id` present: that plan's Draft if it has one, which is answered and changed nothing, or a new version copied from its latest, which needs a `reason` (§16.3) |
 | `plan_edit` | its thread's Draft | the Draft of any Active plan in the project |
 | `plan_show` | its thread's plan | any version in the project; the entry is written in the Planner's own conversation (§13.9) |
 
@@ -123,7 +143,9 @@ names its thread (§13.7), and the thread fixes the project.
 2. when the person names a plan, find it with `workflow_list`, read it with
    `workflow_get`, and carry it on; start a new plan only when the person
    asks for one or none fits;
-3. an archived plan is read only, and unarchiving is the person's.
+3. an archived plan is read only, and unarchiving is the person's;
+4. a new version needs its reason: say in a sentence what changed the plan,
+   as the person and the conversation settled it, not a summary of the edit.
 
 A changed `prompt.txt` reaches every conversation through §13.8's context
 block, so no conversation needs reopening.
@@ -202,7 +224,8 @@ of §13.3: `Web T4 needs Backend T3`.
   links, as §13.2 copies links.
 - **Read** with the plan: `workflow_get` answers each link to another plan
   with the plan's name, the project's name if it is another project, and the
-  task's title and state. The Planner and an external agent may call
+  task's title, state, goal and acceptance items. So a writer sees what it
+  depends on without reading the other plan whole. The Planner and an external agent may call
   `workflow_list` and `workflow_get` with `project` set to a linked project.
   That is read only.
 
@@ -215,6 +238,13 @@ is in a project no longer linked, or that project was removed.
   naming the plan and the task.
 - On a frozen version, a link that breaks later is only shown. A frozen
   version never changes (§13.2).
+
+**A cycle through other plans is refused.** `Web T4 needs Backend T3` and
+`Backend T3 needs Web T2` make a cycle no plan holds alone. §13.4 finds a
+cycle inside one version. Approval also follows the links into other plans'
+latest versions, and a cycle found there is in the list of what blocks
+approval, naming each task on it. `completes_after` does not count, as within
+one version.
 
 ## 16.8 The web client
 
@@ -282,7 +312,12 @@ does.
     `written_by_thread`, `written_by_operation` and `written_by_grant`;
   - `UNIQUE (plan_id, version)`, and `previous_version_id` references a
     version of the same plan;
-  - a version has a thread or a grant as its writer, never neither.
+  - a version has a thread or a grant as its writer, never neither;
+  - `change_reason`, text, empty for v1 and for every version before 0012;
+  - a unique index on `plan_id` where the state is `Draft` (§16.2).
+- Triggers refuse an update of a `Frozen` version's content, and an insert,
+  update or delete of its tasks and links (§16.2). Freezing itself, the update
+  from `Draft` to `Frozen`, is allowed.
 - **The data:** each thread's chain of versions becomes one Active plan of
   the thread's project. Each version keeps its id, so `task`, `task_parent`,
   `draft_intent`, `PlanView` entries and every event that names a version
@@ -348,19 +383,27 @@ Few tests, each on a rule a person would notice broken:
 2. **The migration:** on a database with two threads, one with v1 and v2,
    every version is in a plan, ids are unchanged, and `written_by_thread` is
    the old thread.
-3. **A shared plan:** conversation B edits a plan conversation A wrote. Its
-   version line names B, and A's version still names A.
-4. **Deletion:** a deleted conversation leaves the list, a turn in it is
+3. **A shared plan:** conversation B starts v2 of a plan conversation A
+   wrote. Without a reason it is refused. With one, v2 names B and its
+   reason, and v1 still names A.
+4. **One Draft per plan:** two `draft_start`s on the same plan at once make
+   one Draft. A write to a frozen version's task is refused by the database
+   itself.
+5. **Deletion:** a deleted conversation leaves the list, a turn in it is
    refused, its plan is still listed, and it still reads.
-5. **A broken link (1b):** removing Backend's T3 in a new version turns Web
+6. **A broken link (1b):** removing Backend's T3 in a new version turns Web
    T4's link red and puts it in Web's Draft's approval list.
+7. **A cycle across plans (1b):** Web T4 needs Backend T3 and Backend T3
+   needs Web T2. Web's Draft cannot be approved, and the list names all three
+   tasks.
 
 **Acceptance on Windows,** on a copy of the dev database, then on the
 database itself:
 
 - After 0012, both existing conversations' plans are in Workflows.
-- A new conversation continues a plan with "Continue this plan", edits it,
-  and the version line names the new conversation, its model and CLI.
+- A new conversation continues a plan with "Continue this plan" and starts
+  its next version with a reason. The version line names the new
+  conversation, its model and CLI, with the reason under it.
 - A conversation is deleted. Its plan stays, and its version line opens it
   read only.
 - Stop on one conversation while another opens does not wait.

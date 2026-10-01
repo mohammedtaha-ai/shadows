@@ -34,6 +34,7 @@ design-note, and status narratives.
 | §14 | [`2026-09-26-application-core-design.md`](./2026-09-26-application-core-design.md) |
 | §15 | [`2026-09-30-code-index-design.md`](./2026-09-30-code-index-design.md) |
 | §16 | [`2026-10-01-project-plans-design.md`](./2026-10-01-project-plans-design.md) |
+| §17 | [`2026-10-01-task-contracts-and-evidence-design.md`](./2026-10-01-task-contracts-and-evidence-design.md) |
 
 ## Maintenance rules
 
