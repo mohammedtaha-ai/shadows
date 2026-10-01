@@ -51,6 +51,15 @@ describe('turn settings', () => {
     expect(modeNote({ model: 'fake-small', mode: 'acceptEdits', effort: 'high' }, next)).toBeNull()
   })
 
+  it('a picked model the session moves to takes the effort the session reports for it', () => {
+    // fake-large ran at max; fake-small, also offering max, was remembered at low.
+    const chosen = { model: 'fake-small', mode: 'acceptEdits', effort: 'max' }
+    const next = { ...fakeChoices, current: { model: 'fake-small', mode: 'acceptEdits', effort: 'low' } }
+    expect(afterOptions(fakeChoices, next, chosen, false).settings.effort).toBe('low')
+    // The person's effort on a model the session already holds stays theirs.
+    expect(afterOptions(next, { ...next }, chosen, false).settings.effort).toBe('max')
+  })
+
   it('follows a model change the session reports, but not while a send or a turn is in flight', () => {
     const chosen = { model: 'fake-small', mode: 'auto', effort: 'max' }
     const next = {

@@ -251,7 +251,9 @@ for `auto` on such a model fails at `Prepare` with the harness's message.
 model. The daemon keeps, per harness, the model of the last turn it started
 (`harness_preference`), and per harness and model the effort of the last turn
 started on that model (`harness_model_effort`, migration 0011, which carried
-each harness's earlier remembered effort over to its remembered model). Both
+each harness's earlier remembered effort over to its remembered model, except
+an effort `default`, which was no level, and any effort of the model
+`default`). Both
 are written by the turn start's own transaction; choosing a model or an effort
 without sending records nothing. They are applied:
 
@@ -545,7 +547,7 @@ Matches the mockup agreed on 2026-09-24:
 
 - **Opening a conversation** opens its session. Until the answer arrives the bar reads "Connecting to Claude Code…"; a failure shows the daemon's message and a retry. Never a spinner without words.
 - **Header:** CLI picker (`cli-picker.tsx`). Unavailable harnesses shown disabled as "coming". Changeable until the first turn, then shown with a lock.
-- **Under the message box**, flat, no border (`composer-bar.tsx`): left `+`, mode, folder; right model, effort, context ring. Every menu is built from the session's answer. Modes the project does not allow are shown disabled with the reason. Each mode carries one line saying what it lets the harness do; for Accept edits, that it edits, creates and deletes files in the project folder without asking and other commands are refused (§12.5). Choosing a model sets it at once (§12.7): the effort menu waits for the answer and then shows that model's efforts; a refusal puts the session's model back and shows the harness's message. Choosing an effort sets it at once too; a refusal puts the session's effort back and shows the message on the error line. When the observed model differs from the requested one, the reply shows both.
+- **Under the message box**, flat, no border (`composer-bar.tsx`): left `+`, mode, folder; right model, effort, context ring. Every menu is built from the session's answer. Modes the project does not allow are shown disabled with the reason. Each mode carries one line saying what it lets the harness do; for Accept edits, that it edits, creates and deletes files in the project folder without asking and other commands are refused (§12.5). Choosing a model sets it at once (§12.7): the effort menu waits for the answer and then shows that model's efforts, at the effort the session reports for it (its remembered one, §12.4), never the previous model's; a refusal puts the session's model back and shows the harness's message. Choosing an effort sets it at once too; a refusal puts the session's effort back and shows the message on the error line. When the observed model differs from the requested one, the reply shows both.
 - **Context ring** (`context-ring.tsx`): §12.8's two levels; hover or click opens it at any time.
 - **Message actions** (`message-actions.tsx`): copy on every message, fork on the last one when the thread is idle; fork opens the new thread.
 - **A refused permission** renders as a quiet line: what was asked, that `acceptEdits` refused it, and that `auto` would allow it.

@@ -176,12 +176,14 @@ describe('the composer bar', () => {
     expect(app.button('max')?.disabled).toBe(true)
     expect(app.button('Send')?.disabled).toBe(true)
     act(() => release())
-    // fake-small offers no max: the effort moves to one it offers.
-    await until(() => app.button('low')?.disabled === false)
-    act(() => app.button('low')?.click())
-    await until(() => menuItem('high') !== undefined)
+    // The effort is the one the session reports for fake-small, which offers
+    // no max; it is not set back to the person's previous one (§12.4).
+    await until(() => app.button('high')?.disabled === false)
+    act(() => app.button('high')?.click())
+    await until(() => menuItem('low') !== undefined)
     expect(menuItem('max')).toBeUndefined()
     expect(app.button('Send')?.disabled).toBe(false)
+    expect(app.bodies).toHaveLength(2)
     expect(turnStarts(app)).toBe(0)
   })
 

@@ -137,9 +137,29 @@ async fn remembered_settings_survive_migration_0011() {
     assert_eq!((s, current(&c)), (200, ("fake-small", Some("low"))));
 }
 
-/// Applies the migrations before 0011, from copies of the checked-in files so
-/// their checksums match, and remembers settings as that schema did.
+/// Migration 0011: an effort `default` was no level, so it is not carried; the
+/// model's effort is then the adapter's.
+#[tokio::test]
+async fn a_remembered_default_effort_is_not_carried_by_migration_0011() {
+    let tmp = tempfile::tempdir().unwrap();
+    seed_before_0011_with(tmp.path(), "fake-small", "default").await;
+    let app = test_app_at(tmp.path()).await;
+    let h: Vec<Value> = get_json(&app, "/api/harnesses").await;
+    assert_eq!(
+        h[0]["remembered"],
+        json!({ "model": "fake-small", "effort": null })
+    );
+    let (s, c) = post(&app, &session_path(&app), json!({})).await;
+    assert_eq!((s, current(&c)), (200, ("fake-small", Some("high"))));
+}
+
 async fn seed_before_0011(tmp: &Path) {
+    seed_before_0011_with(tmp, "fake-small", "low").await;
+}
+
+/// Applies the migrations before 0011, from copies of the checked-in files so
+/// their checksums match, and remembers `model` and `effort` as that schema did.
+async fn seed_before_0011_with(tmp: &Path, model: &str, effort: &str) {
     let old = tmp.join("pre-0011");
     std::fs::create_dir(&old).unwrap();
     for entry in std::fs::read_dir(shadows_core::testing::migrations_dir()).unwrap() {
@@ -163,8 +183,10 @@ async fn seed_before_0011(tmp: &Path) {
         .unwrap();
     sqlx::query(
         "INSERT INTO harness_preference (harness_kind, model, effort, updated_at)
-         VALUES ('claude-code', 'fake-small', 'low', '2026-09-30T00:00:00Z')",
+         VALUES ('claude-code', ?, ?, '2026-09-30T00:00:00Z')",
     )
+    .bind(model)
+    .bind(effort)
     .execute(&pool)
     .await
     .unwrap();
