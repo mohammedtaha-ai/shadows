@@ -94,7 +94,11 @@ there and are never copied.
 **Every edit records its writer too.** `WorkflowEdited`, `WorkflowFrozen` and
 `WorkflowDraftStarted` set the durable event's `thread_id` and
 `operation_id` for the Planner, and the grant as the actor for an external
-agent. A plan event's `project_id` is always set.
+agent. A plan event's `project_id` is always set. A person's approval has no
+conversation of its own: its `WorkflowFrozen` names the conversation that
+wrote the version, and the "Plan v2 approved" entry (§13.9) goes there, unless
+that conversation is deleted or the version came from an external agent, when
+there is no entry.
 
 **A new version says why it was started.** Every version after v1 is
 created with a `change_reason`, one or two sentences on what made the plan
@@ -176,15 +180,16 @@ In order, so that no new work can start once the delete has begun:
    every grant write already makes inside its transaction (`check_writer`).
    The single writer (§6.23) orders each of them before or after this one,
    never across it.
-2. **Its session slot is taken** (§16.6). Opening a session takes the same
-   slot and checks `removed_at` again once it holds it. So an opening already
-   under way finishes first and is closed in step 3, and one that comes after
-   step 1 is refused as not found. Nothing can open between the two steps.
-3. **A running turn is stopped**, as Stop stops it (§12.3), and its terminal
+2. **A running turn is stopped**, as Stop stops it (§12.3), and its terminal
    state is waited for. That turn's own last writes, its terminal state and
    the entries it already produced, are still recorded: they end work that
-   began before the delete. **Its adapter is then closed**, if one is open,
-   and the slot is released.
+   began before the delete.
+3. **Its adapter is closed** through its session slot (§16.6). Opening a
+   session holds the same slot and reads the thread, `removed_at` included,
+   once it holds it. So an opening already under way finishes first and is
+   closed here, and one that takes the slot after this is refused as not
+   found. The slot is not held through step 2: a Stop closes the adapter
+   through the slot too, and would wait on it.
 
 A replay answers what the first one answered.
 
@@ -369,7 +374,7 @@ version, as 0012's refuse its other links.
 | `POST /api/plans/{id}/archive`, `/unarchive` | `{ command_id }` |
 | `GET /api/workflows/{id}` | As today, plus `plan_id`, the plan's state and the version's writer; in 1b, the links to and from other plans with their state |
 | `DELETE /api/threads/{id}` | §16.5 |
-| `GET /api/threads/{id}` | As today, plus `removed_at` |
+| `GET /api/threads/{id}` | New: one thread, removed or not, with `removed_at`. The list leaves removed threads out, so a deleted conversation's page reads it here |
 | `GET /api/projects/{id}/plan-map` | 1b: the map of §16.8 |
 
 `POST /api/threads/{id}/turns` gains an optional `plan` (§16.4's "Continue
