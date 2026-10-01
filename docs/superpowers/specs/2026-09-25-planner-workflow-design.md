@@ -553,6 +553,25 @@ is open.
 - **Project settings:** Planner instructions (text and Save, with when they
   last changed); the allowed modes (§12.11); External agents (**Connect**, the one-time command with Copy
   and the `~/.claude.json` notice, the list of grants with **Revoke**).
+  - **Code index** (§15.6): the project's index as one coloured line —
+    `● Ready · 277 files · updated 2 min ago`, or indexing with its count,
+    inactive, no folder, folder missing. **Reads code from** lists the linked
+    projects by name and folder, each with its own index line and `×` to
+    unlink, under one line saying that questions here also search them and
+    that a link goes one way. **Link a project…** offers the other projects
+    not yet linked.
+  - **Remove project**, last, in red. With no conversation, Remove asks
+    first: the project is hidden, its index and links are dropped, its folder
+    on disk is untouched and its slug stays taken; then the page goes home.
+    With any, Remove is off under "This project has N conversations. Delete
+    them first to remove it." A `PROJECT_HAS_THREADS` that races in shows in
+    the dialog.
+- **Settings** `/settings`, linked at the foot of the sidebar beside the
+  connection line: the daemon's settings that belong to no one project, one
+  section each. Its first is **Active projects** (§15.6), 1 to 20, with the
+  line that this many recently used projects are watched and kept fresh and
+  the others keep their index and answer as inactive. A number out of range
+  is refused before it is sent.
 - Colours are Shadows' own theme tokens. The reference picture's glow and
   gradients are not used.
 

@@ -2,8 +2,11 @@
 
 import { queryOptions } from '@tanstack/react-query'
 import {
+  getCodeSettings,
+  getCodeStatus,
   getInstructions,
   getPlan,
+  listCodeLinks,
   listGrants,
   listDirs,
   listEntries,
@@ -113,6 +116,31 @@ export function grantsQuery(projectId: string) {
     refetchInterval: 10_000,
   })
 }
+
+/** How a project's code index stands (§15.5). The index changes on its own
+ * as files do, so it is polled while shown: every 2 s while it indexes, so
+ * the count moves, and every 10 s otherwise. */
+export function codeStatusQuery(projectId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'code', 'status'],
+    queryFn: () => getCodeStatus(projectId),
+    refetchInterval: (query) => (query.state.data?.state.state === 'indexing' ? 2_000 : 10_000),
+  })
+}
+
+/** The projects whose index this one reads, by slug (§15.6). */
+export function codeLinksQuery(projectId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'code', 'links'],
+    queryFn: () => listCodeLinks(projectId),
+  })
+}
+
+/** The code index's settings, global to the daemon (§15.6). */
+export const codeSettingsQuery = queryOptions({
+  queryKey: ['code', 'settings'],
+  queryFn: getCodeSettings,
+})
 
 /** One directory's subdirectories; `null` lists the roots. Not retried: a
  * path that does not exist is an answer, shown as it is. */
