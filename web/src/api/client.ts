@@ -30,6 +30,9 @@ export type Plan = Schemas['Plan']
 export type PlanTask = Schemas['PlanTask']
 export type PlanLink = Schemas['Link']
 export type PlanListing = Schemas['PlanListing']
+export type PlanVersions = Schemas['PlanVersions']
+export type VersionLine = Schemas['VersionLine']
+export type WrittenBy = Schemas['WrittenBy']
 export type Approved = Schemas['Approved']
 export type Focus = Schemas['Focus']
 export type InstructionsVersion = Schemas['InstructionsVersion']
@@ -136,12 +139,23 @@ export async function startTurn(
   commandId: string,
   prompt: string,
   settings: TurnSettings,
-  { focus = null, clientTab }: { focus?: Focus | null; clientTab: string },
+  {
+    focus = null,
+    plan,
+    clientTab,
+  }: { focus?: Focus | null; plan?: string | null; clientTab: string },
 ): Promise<string> {
   const started = await unwrap(
     client.POST('/api/threads/{id}/turns', {
       params: { path: { id: threadId } },
-      body: { command_id: commandId, prompt, ...settings, focus, client_tab: clientTab },
+      body: {
+        command_id: commandId,
+        prompt,
+        ...settings,
+        focus,
+        ...(plan != null ? { plan } : {}),
+        client_tab: clientTab,
+      },
     }),
   )
   return started.operation_id
@@ -262,9 +276,38 @@ export function stopTurn(operationId: string): Promise<Operation> {
   )
 }
 
-/** Each conversation's latest plan version in a project (spec §13.10). */
-export function listPlans(projectId: string): Promise<PlanListing[]> {
-  return unwrap(client.GET('/api/projects/{id}/workflows', { params: { path: { id: projectId } } }))
+/** Each conversation's latest plan version in a project (spec §13.10), or archived ones too (§16.2). */
+export function listPlans(projectId: string, archived = false): Promise<PlanListing[]> {
+  return unwrap(
+    client.GET('/api/projects/{id}/workflows', {
+      params: { path: { id: projectId }, query: { archived } },
+    }),
+  )
+}
+
+/** One plan with every version, oldest first (§16.10). */
+export function getPlanVersions(planId: string): Promise<PlanVersions> {
+  return unwrap(client.GET('/api/plans/{id}', { params: { path: { id: planId } } }))
+}
+
+/** Archives a plan (§16.2). */
+export function archivePlan(planId: string, commandId: string): Promise<PlanVersions> {
+  return unwrap(
+    client.POST('/api/plans/{id}/archive', {
+      params: { path: { id: planId } },
+      body: { command_id: commandId },
+    }),
+  )
+}
+
+/** Unarchives a plan (§16.2). */
+export function unarchivePlan(planId: string, commandId: string): Promise<PlanVersions> {
+  return unwrap(
+    client.POST('/api/plans/{id}/unarchive', {
+      params: { path: { id: planId } },
+      body: { command_id: commandId },
+    }),
+  )
 }
 
 /** One plan version: tasks, links, revision, its neighbours, what blocks its

@@ -1,10 +1,10 @@
-// One job: a new conversation before its first message (spec §13.11) — the
+// One job: a new conversation before its first message (spec §13.11, §16.8) — the
 // empty conversation with its composer, where nothing exists on the daemon
 // until Send makes the thread and starts its first turn.
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
-import { MessageSquarePlus } from 'lucide-react'
+import { MessageSquarePlus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   type Choice,
@@ -15,7 +15,7 @@ import {
   startTurn,
 } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { harnessesQuery, projectsQuery, threadsQuery } from '@/api/queries'
+import { harnessesQuery, planVersionsQuery, plansQuery, projectsQuery, threadsQuery } from '@/api/queries'
 import { tabId } from '@/stream/tab-id'
 import { policyOf } from '../mode-policy'
 import { carrySend } from './carried-send'
@@ -47,12 +47,33 @@ export function DraftRoute() {
 }
 
 function Draft({ projectId }: { projectId: string }) {
+  const navigate = useNavigate()
+  const { plan: planId } = route.useSearch()
   const project = useQuery(projectsQuery).data?.find((p) => p.id === projectId)
   const [harness, setHarness] = useState(DEFAULT_HARNESS)
   const label = useQuery(harnessesQuery).data?.find((h) => h.kind === harness)?.label ?? harness
   const allowed = project?.allowed_modes[harness]
   const session = useMemo(() => draftSession(harness, allowed), [harness, allowed])
-  const draft = useFirstSend(projectId, harness)
+  const draft = useFirstSend(projectId, harness, planId)
+
+  const planVersions = useQuery({
+    ...planVersionsQuery(planId ?? ''),
+    enabled: planId !== undefined,
+  }).data
+  const plansList = useQuery(plansQuery(projectId, true)).data
+  const planTitle =
+    plansList?.find((p) => p.plan_id === planId)?.title ??
+    planVersions?.versions.at(-1)?.title ??
+    planId
+
+  const clearPlan = () => {
+    void navigate({
+      to: '/projects/$projectId/new',
+      params: { projectId },
+      search: {},
+      replace: true,
+    })
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -71,6 +92,26 @@ function Draft({ projectId }: { projectId: string }) {
           The conversation starts with your first message.
         </p>
       </div>
+      {planId && (
+        <div className="px-6 pb-2">
+          <div className="mx-auto max-w-3xl">
+            <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-accent-line/50 bg-accent-softer py-0.5 pr-1 pl-2.5 text-xs text-secondary-foreground">
+              <span dir="auto" className="truncate">
+                Continuing: {planTitle}
+              </span>
+              <button
+                type="button"
+                onClick={clearPlan}
+                aria-label="×"
+                className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-3" aria-hidden />
+                <span className="sr-only">×</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <Composer
         to={{ draft }}
         harness={harness}
@@ -121,7 +162,7 @@ function draftSession(harness: string, allowed: string[] | undefined): SessionVi
  * thread with its text and error, so a retry never makes a second thread.
  * A person who left the draft while it sent stays where they went: the
  * thread shows in the sidebar, and nothing pulls them back to it. */
-function useFirstSend(projectId: string, harness: string) {
+function useFirstSend(projectId: string, harness: string, planId?: string) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useRef<Attempt | null>(null)
@@ -153,6 +194,7 @@ function useFirstSend(projectId: string, harness: string) {
       queryClient.setQueryData(sessionKey(thread.id), choices)
       settings = { mode: chosen.mode, model: choices.current.model, effort: choices.current.effort }
       const operationId = await startTurn(thread.id, commandId, text, settings, {
+        plan: planId ?? null,
         clientTab: tabId(),
       })
       void open()

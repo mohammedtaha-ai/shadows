@@ -14,6 +14,7 @@ import type {
   Plan,
   PlanListing,
   PlanTask,
+  PlanVersions,
   PlanningThread,
   Project,
   ProjectStatus,
@@ -215,6 +216,29 @@ export function planListing(plan: Plan): PlanListing {
     state: plan.state,
     version: plan.version,
     updated_at: plan.created_at,
+  }
+}
+
+export function planVersionsFixture(plan: Plan, versions?: PlanVersions['versions']): PlanVersions {
+  return {
+    plan_id: plan.plan_id,
+    project_id: plan.project_id,
+    state: plan.plan_state,
+    archived_at: plan.plan_state === 'Archived' ? '2026-10-01T00:00:00Z' : null,
+    versions:
+      versions && versions.length > 0
+        ? versions
+        : [
+            {
+              workflow_id: plan.id,
+              version: plan.version,
+              state: plan.state,
+              title: plan.title,
+              written_by: plan.written_by,
+              change_reason: plan.change_reason,
+              created_at: plan.created_at,
+            },
+          ],
   }
 }
 

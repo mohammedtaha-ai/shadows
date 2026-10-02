@@ -6,6 +6,7 @@ import {
   getCodeStatus,
   getInstructions,
   getPlan,
+  getPlanVersions,
   listCodeLinks,
   listGrants,
   listDirs,
@@ -80,14 +81,19 @@ export function operationsQuery(threadId: string) {
  * predecessor's `next`. */
 export const workflowsKey = ['workflows'] as const
 
-/** A project's plans, each conversation's latest version (spec §13.10). No
- * thread's stream carries the list, so it is polled every 10 s while shown;
- * TanStack Query pauses the poll while the window is hidden. */
-export function plansQuery(projectId: string) {
+/** A project's plans, each conversation's latest version (spec §13.10), or archived ones too (§16.2). */
+export function plansQuery(projectId: string, archived = false) {
   return queryOptions({
-    queryKey: [...workflowsKey, 'list', projectId],
-    queryFn: () => listPlans(projectId),
-    refetchInterval: 10_000,
+    queryKey: [...workflowsKey, 'list', projectId, { archived }],
+    queryFn: () => listPlans(projectId, archived),
+  })
+}
+
+/** One plan with every version, oldest first (§16.10). */
+export function planVersionsQuery(planId: string) {
+  return queryOptions({
+    queryKey: [...workflowsKey, 'versions', planId],
+    queryFn: () => getPlanVersions(planId),
   })
 }
 

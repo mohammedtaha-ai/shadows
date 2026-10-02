@@ -7,6 +7,7 @@ import type {
   Grant,
   InstructionsVersion,
   Operation,
+  Plan,
   PlanListing,
   Project,
   ThreadEntry,
@@ -20,6 +21,7 @@ import {
   fakeChoices,
   grantFixture,
   planFixture,
+  planVersionsFixture,
   projectFixture,
   threadFixture,
   userEntry,
@@ -99,8 +101,27 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'POST /api/threads/t1/fork':
       o.fork ?? (() => Response.json({ ...threadFixture, id: 't9' }, { status: 201 })),
     'GET /api/threads/t1/context': o.context ?? { categories: null, reason: 'No turn has run yet' },
-    'GET /api/projects/p1/workflows': o.plans ?? [],
+    'GET /api/projects/p1/workflows': (request: Request) => {
+      const url = new URL(request.url)
+      const all = o.plans ?? []
+      if (url.searchParams.get('archived') === 'true') {
+        return Response.json(all)
+      }
+      return Response.json(all.filter((p) => p.plan_state !== 'Archived'))
+    },
     'GET /api/workflows/w1': o.plan ?? planFixture(),
+    'GET /api/plans/plan1': () => {
+      const basePlan = typeof o.plan === 'function' ? planFixture() : (o.plan ?? planFixture())
+      return Response.json(planVersionsFixture(basePlan as Plan))
+    },
+    'POST /api/plans/plan1/archive': () => {
+      const basePlan = typeof o.plan === 'function' ? planFixture() : (o.plan ?? planFixture())
+      return Response.json(planVersionsFixture({ ...(basePlan as Plan), plan_state: 'Archived' }))
+    },
+    'POST /api/plans/plan1/unarchive': () => {
+      const basePlan = typeof o.plan === 'function' ? planFixture() : (o.plan ?? planFixture())
+      return Response.json(planVersionsFixture({ ...(basePlan as Plan), plan_state: 'Active' }))
+    },
     'POST /api/workflows/w1/approve':
       o.approve ??
       (() =>
