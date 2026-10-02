@@ -95,10 +95,12 @@ there and are never copied.
 `WorkflowDraftStarted` set the durable event's `thread_id` and
 `operation_id` for the Planner, and the grant as the actor for an external
 agent. A plan event's `project_id` is always set. A person's approval has no
-conversation of its own: its `WorkflowFrozen` names the conversation that
-wrote the version, and the "Plan v2 approved" entry (§13.9) goes there, unless
-that conversation is deleted or the version came from an external agent, when
-there is no entry.
+conversation of its own: if the conversation that wrote the version is still
+live, its `WorkflowFrozen` names that conversation and the "Plan v2 approved"
+entry (§13.9) goes there. If that conversation is deleted or the version came
+from an external agent, there is no entry and `WorkflowFrozen.thread_id` is
+unset. The version retains its recorded writer in either case; the event
+always names the project and is delivered on its project stream.
 
 **A new version says why it was started.** Every version after v1 is
 created with a `change_reason`, one or two sentences on what made the plan

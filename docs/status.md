@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-03 (§16 1a reviewed on `plans/project-plans`; full Windows acceptance pending)
+**Updated:** 2026-10-03 (§16 1a reviewed on `plans/project-plans`; reviewed debug build tried on Windows)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -35,9 +35,17 @@ ran once: **371/372 Rust and 162/164 Web tests passed**. The three failures were
 test synchronization issues; the affected files passed **3/3 Rust and 11/11
 Web** after correction. The full suites were not rerun. Formatting, both
 clippy modes, production feature isolation, API consistency, Web typecheck
-and lint passed. Deleted-writer attribution on `WorkflowFrozen` retains a
-prior ambiguous ruling for controller resolution. These checks do not
-complete the full real-harness Windows acceptance.
+and lint passed. The controller clarified §16.3 to match the existing
+contract: approval of a version whose writer conversation is deleted emits
+`WorkflowFrozen` without a thread and writes no conversation entry; the
+version keeps its writer. No runtime behavior changed.
+
+On 2026-10-03 the ordinary debug daemon was rebuilt from review commit
+`fbbdde55`. Mohammed then reported that he tried the application and believed
+everything was ready. This records his successful Windows trial of the
+reviewed build; it does not claim that Codex independently executed every
+§16.12 scenario ([Windows record](./evidence/project-plans/WINDOWS_RUN.md)).
+The branch is ready for PR preparation.
 
 **Code-index settings, effort at once, and a Linux watcher fix** (PR #12,
 2026-10-01; 358 Rust, 156 web tests). The changes:
@@ -178,9 +186,10 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **Finish §16 1a:** resolve the review's event attribution wording and run
-   the full Windows acceptance with Mohammed and the real harness. The session lock and conversation deletion
-   are implemented; they are no longer implementation tasks.
+1. **Open the §16 1a PR:** implementation and whole-branch review are
+   complete, the attribution wording is clarified, and Mohammed has tried
+   the reviewed debug build on Windows. The Windows record distinguishes
+   that reported trial from the individually recorded acceptance scenarios.
 2. **§16 1b:** links between plans, cross-plan graph nodes and the project map
    (§16.7, §16.8, §16.11), after 1a is reviewed and accepted.
    Decision records and clarifying messages remain later work (vision §8;
