@@ -1,7 +1,7 @@
 // One job: drawing one link of the plan graph — `needs` solid,
 // `completes_after` dashed, each with its label (§13.11).
 
-import { BaseEdge, EdgeLabelRenderer, type EdgeProps, getBezierPath } from '@xyflow/react'
+import { BaseEdge, EdgeLabelRenderer, type EdgeProps, getSmoothStepPath } from '@xyflow/react'
 import type { PlanEdge } from './layout'
 
 const STROKE: Record<string, string> = {
@@ -21,13 +21,19 @@ export function LinkEdge({
   markerEnd,
   data,
 }: EdgeProps<PlanEdge>) {
-  const [path, labelX, labelY] = getBezierPath({
+  const actualSourceY = sourceY + (data?.sourceYOffset ?? 0)
+  const actualTargetY = targetY + (data?.targetYOffset ?? 0)
+  const stepPosition = data?.stepPosition ?? 0.5
+
+  const [path, labelX, labelY] = getSmoothStepPath({
     sourceX,
-    sourceY,
+    sourceY: actualSourceY,
     targetX,
-    targetY,
+    targetY: actualTargetY,
     sourcePosition,
     targetPosition,
+    stepPosition,
+    borderRadius: 8,
   })
   const kind = data?.kind ?? 'needs'
   const label = data?.label ?? ''
@@ -50,7 +56,7 @@ export function LinkEdge({
             data-link={id}
             dir="auto"
             title={label}
-            className="nodrag nopan pointer-events-auto absolute max-w-32 truncate rounded-md border border-border bg-background px-1.5 py-0.5 text-[11px] leading-4 text-muted-foreground"
+            className="nodrag nopan pointer-events-auto absolute max-w-32 truncate rounded-md border border-border/80 bg-background/95 px-1.5 py-0.5 text-[11px] leading-4 text-muted-foreground shadow-2xs backdrop-blur-xs"
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
             {label}
