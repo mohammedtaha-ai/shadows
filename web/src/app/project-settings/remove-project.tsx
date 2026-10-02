@@ -1,8 +1,8 @@
 // One job: removing the project (spec §4.2), the danger zone at the foot of
 // its settings.
 //
-// Only a project with no conversation can go, and deleting a conversation is
-// not built yet: so with any, Remove is off and says why. The daemon checks
+// Only a project with no live conversation can go: with any, Remove is off
+// and points to Delete in the sidebar. The daemon checks
 // again, and a conversation started elsewhere in the meantime comes back as
 // `PROJECT_HAS_THREADS`, shown in the dialog.
 
@@ -45,9 +45,7 @@ export function RemoveProject({ project }: { project: Project }) {
           <h2 className="text-sm font-medium text-destructive-foreground">Remove project</h2>
           <p className="text-xs text-muted-foreground">
             {count !== undefined && count > 0
-              ? count === 1
-                ? 'This project has 1 conversation. Delete it first to remove the project.'
-                : `This project has ${count} conversations. Delete them first to remove it.`
+              ? `This project has ${count} ${count === 1 ? 'conversation' : 'conversations'}. Delete them from the sidebar first.`
               : 'Hide this project from Shadows. Its folder on disk is not touched.'}
           </p>
         </div>

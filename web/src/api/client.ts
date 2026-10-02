@@ -113,6 +113,18 @@ export function listThreads(projectId: string): Promise<PlanningThread[]> {
   return unwrap(client.GET('/api/projects/{id}/threads', { params: { path: { id: projectId } } }))
 }
 
+/** One conversation, including a removed one kept for history (§16.5). */
+export function getThread(threadId: string): Promise<PlanningThread> {
+  return unwrap(client.GET('/api/threads/{id}', { params: { path: { id: threadId } } }))
+}
+
+/** Remove a conversation; retry an unanswered request with the same command id. */
+export function removeThread(threadId: string, commandId: string): Promise<PlanningThread> {
+  return unwrap(client.DELETE('/api/threads/{id}', {
+    params: { path: { id: threadId }, query: { command_id: commandId } },
+  }))
+}
+
 export function createThread(projectId: string, body: CreateThread): Promise<PlanningThread> {
   return unwrap(
     client.POST('/api/projects/{id}/threads', { params: { path: { id: projectId } }, body }),

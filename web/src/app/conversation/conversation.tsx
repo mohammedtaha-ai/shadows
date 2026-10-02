@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { Plan, PlanTask, PlanningThread, Project } from '@/api/client'
-import { harnessesQuery, projectsQuery, threadsQuery } from '@/api/queries'
+import { harnessesQuery, projectsQuery, threadQuery, threadsQuery } from '@/api/queries'
 import { type PlanShowFrame, toLimits } from '@/stream/frames'
 import { ErrorLine } from '../error-line'
 import { HeldThreadStream } from '../workflows/plan-frames'
@@ -13,6 +13,7 @@ import { useCarriedSend } from './carried-send'
 import { CliPicker } from './cli-picker'
 import { Composer } from './composer'
 import { ContextRing } from './context-ring'
+import { DeletedConversation } from './deleted-conversation'
 import type { PointedTask } from './focus-chip'
 import { Messages } from './messages'
 import { PlanSidePanel, type SideShown } from './plan-side-panel'
@@ -31,7 +32,22 @@ export const DEFAULT_HARNESS = 'claude-code'
 export function ConversationRoute() {
   const { projectId, threadId } = route.useParams()
   const project = useQuery(projectsQuery).data?.find((p) => p.id === projectId)
-  const thread = useQuery(threadsQuery(projectId)).data?.find((t) => t.id === threadId)
+  const list = useQuery(threadsQuery(projectId))
+  const listed = list.data?.find((t) => t.id === threadId)
+  const historical = useQuery({
+    ...threadQuery(threadId),
+    enabled: list.isSuccess && listed === undefined,
+    retry: false,
+  })
+  const thread = listed ?? historical.data
+  // A deleted thread must never mount the component that opens its session.
+  if (thread === undefined) {
+    const error = list.error ?? historical.error
+    return <div className="p-6">{error !== null ? <ErrorLine error={error} /> : 'Loading conversation…'}</div>
+  }
+  if (thread.removed_at != null) {
+    return <DeletedConversation key={threadId} thread={thread} projectId={projectId} />
+  }
   return (
     <Conversation
       key={threadId}

@@ -7,6 +7,7 @@ import {
   getInstructions,
   getPlan,
   getPlanVersions,
+  getThread,
   listCodeLinks,
   listGrants,
   listDirs,
@@ -48,6 +49,14 @@ export function threadsQuery(projectId: string) {
     queryKey: ['projects', projectId, 'threads'],
     queryFn: () => listThreads(projectId),
     refetchInterval: 10_000,
+  })
+}
+
+/** Historical conversation links still read a thread omitted from the live list. */
+export function threadQuery(threadId: string) {
+  return queryOptions({
+    queryKey: ['threads', threadId, 'detail'],
+    queryFn: () => getThread(threadId),
   })
 }
 
