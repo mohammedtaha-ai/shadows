@@ -42,6 +42,9 @@ export interface LinkData extends Record<string, unknown> {
   /** `start` for the faint edge from the start node to a task nothing precedes. */
   kind: LinkKind | 'start'
   label: string
+  sourceYOffset?: number
+  targetYOffset?: number
+  stepPosition?: number
 }
 
 export type PlanEdge = Edge<LinkData, 'link'>
@@ -140,18 +143,95 @@ function edge(source: string, target: string, id: string, kind: LinkData['kind']
 function place(nodes: PlanNode[], edges: PlanEdge[]): void {
   const graph = new dagre.graphlib.Graph()
   // Wide rank gaps: an edge's label sits halfway between two columns.
-  graph.setGraph({ rankdir: 'LR', nodesep: 28, ranksep: 120, marginx: 0, marginy: 0 })
+  graph.setGraph({ rankdir: 'LR', nodesep: 48, ranksep: 160, marginx: 0, marginy: 0 })
   graph.setDefaultEdgeLabel(() => ({}))
   for (const node of nodes) graph.setNode(node.id, { width: node.width, height: node.height })
   for (const e of edges) graph.setEdge(e.source, e.target)
   dagre.layout(graph)
 
+  const nodeMap = new Map<string, { x: number; y: number; width: number; height: number }>()
   for (const node of nodes) {
     const width = node.width ?? 0
     const height = node.height ?? 0
     const { x, y } = graph.node(node.id)
     node.position = { x: x - width / 2, y: y - height / 2 }
     node.handles = handles(width, height)
+    nodeMap.set(node.id, { x, y, width, height })
+  }
+
+  // 1. Multi-pin outgoing Y offsets (distribute departure points along source node's height)
+  const outgoing = new Map<string, PlanEdge[]>()
+  for (const e of edges) {
+    const list = outgoing.get(e.source) ?? []
+    list.push(e)
+    outgoing.set(e.source, list)
+  }
+  for (const [sourceId, list] of outgoing.entries()) {
+    list.sort((a, b) => {
+      const targetA = nodeMap.get(a.target)?.y ?? 0
+      const targetB = nodeMap.get(b.target)?.y ?? 0
+      return targetA - targetB
+    })
+    const count = list.length
+    const sourceNode = nodeMap.get(sourceId)
+    const maxHeight = (sourceNode?.height ?? 100) * 0.7
+    const step = count > 1 ? Math.min(20, maxHeight / (count - 1)) : 0
+    list.forEach((e, idx) => {
+      if (e.data) {
+        e.data.sourceYOffset = (idx - (count - 1) / 2) * step
+      }
+    })
+  }
+
+  // 2. Multi-pin incoming Y offsets (distribute arrival points along target node's height)
+  const incoming = new Map<string, PlanEdge[]>()
+  for (const e of edges) {
+    const list = incoming.get(e.target) ?? []
+    list.push(e)
+    incoming.set(e.target, list)
+  }
+  for (const [targetId, list] of incoming.entries()) {
+    list.sort((a, b) => {
+      const sourceA = nodeMap.get(a.source)?.y ?? 0
+      const sourceB = nodeMap.get(b.source)?.y ?? 0
+      return sourceA - sourceB
+    })
+    const count = list.length
+    const targetNode = nodeMap.get(targetId)
+    const maxHeight = (targetNode?.height ?? 100) * 0.7
+    const step = count > 1 ? Math.min(20, maxHeight / (count - 1)) : 0
+    list.forEach((e, idx) => {
+      if (e.data) {
+        e.data.targetYOffset = (idx - (count - 1) / 2) * step
+      }
+    })
+  }
+
+  // 3. Channel lanes: distribute vertical turn position across edges in each column gap
+  const channels = new Map<string, PlanEdge[]>()
+  for (const e of edges) {
+    const s = nodeMap.get(e.source)
+    const t = nodeMap.get(e.target)
+    if (!s || !t) continue
+    const key = `${Math.round(s.x)}->${Math.round(t.x)}`
+    const list = channels.get(key) ?? []
+    list.push(e)
+    channels.set(key, list)
+  }
+  for (const list of channels.values()) {
+    list.sort((a, b) => {
+      const sa = nodeMap.get(a.source)?.y ?? 0
+      const ta = nodeMap.get(a.target)?.y ?? 0
+      const sb = nodeMap.get(b.source)?.y ?? 0
+      const tb = nodeMap.get(b.target)?.y ?? 0
+      return (sa + ta) - (sb + tb)
+    })
+    const count = list.length
+    list.forEach((e, idx) => {
+      if (e.data) {
+        e.data.stepPosition = count === 1 ? 0.5 : 0.2 + (0.6 * (idx + 0.5)) / count
+      }
+    })
   }
 }
 
