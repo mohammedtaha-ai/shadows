@@ -345,6 +345,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A project's plan notifications (§16.8), replayed then live on the same
+         *     journal tail as `/api/subscribe`. `durable` carries `{seq, kind,
+         *     operation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.
+         *     Archive notifications name the plan's latest version to refetch.
+         */
+        get: operations["subscribe_project"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/mcp-grants": {
         parameters: {
             query?: never;
@@ -2538,6 +2560,40 @@ export interface operations {
             };
             /** @description STORAGE_UNAVAILABLE */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    subscribe_project: {
+        parameters: {
+            query?: {
+                /** @description Resume after the last durable sequence delivered; 0 replays all plan events. */
+                after?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Unknown or removed project */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

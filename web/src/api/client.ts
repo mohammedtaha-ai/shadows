@@ -402,3 +402,10 @@ export function subscribeUrl(threadId: string, after: number): string {
   url.searchParams.set('after', String(after))
   return url.toString()
 }
+
+/** Plan notifications of one project, resumed by the existing journal cursor. */
+export function projectEventsUrl(projectId: string, after: number): string {
+  const url = new URL(`/api/projects/${encodeURIComponent(projectId)}/events`, DAEMON_URL)
+  url.searchParams.set('after', String(after))
+  return url.toString()
+}

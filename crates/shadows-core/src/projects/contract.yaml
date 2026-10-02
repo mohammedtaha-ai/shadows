@@ -147,7 +147,8 @@ functions:
     get_project:
       signature: "(&self, id: &ProjectId) -> Result<Project, StorageError>"
       # NotFound for a removed project. Also read by Turns (a turn's mode
-      # check), Harness (`choices`) and Code (`status`, a scan).
+      # check), Harness (`choices`), Code (`status`, a scan), and Events
+      # (subscribe_project refuses unknown or removed projects).
     set_project_modes:
       signature: "(&self, ctx, project_id, modes) -> Result<Project, StorageError>"
       # One write: classify (scope Project) → the project must exist, not
@@ -184,7 +185,7 @@ enums:
 
 
 called_by_other_services:
-  get_project: "Turns (turns/mod.rs record, the mode check) and Harness (harness/mod.rs choices): the project's allowed modes, which refuse a turn's mode and filter a session's offer (§12.5)"
+  get_project: "Turns (turns/mod.rs record, the mode check), Harness (harness/mod.rs choices), Code (status, scan), and Events (events/mod.rs subscribe_project): a live project; Events refuses unknown or removed projects before opening its stream (§16.8)"
 
 
 obligations:

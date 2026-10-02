@@ -73,6 +73,7 @@ export const threadFixture: PlanningThread = {
   created_at: '2026-09-24T00:00:00Z',
   harness: 'claude-code',
   forked_from_thread: null,
+  removed_at: null,
 }
 
 /** A project's code index, ready, by its slug. */

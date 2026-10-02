@@ -147,7 +147,7 @@ export async function startApp(url: string, answers: Record<string, Answer>): Pr
     text: () => document.body.textContent ?? '',
     path: () => window.location.pathname,
     pushFrame: (name, data) => {
-      const source = sources.at(-1)
+      const source = sources.findLast((s) => new URL(s.url).pathname === '/api/subscribe')
       if (source === undefined) throw new Error('no stream was opened')
       source.emit(name, JSON.stringify(data))
     },

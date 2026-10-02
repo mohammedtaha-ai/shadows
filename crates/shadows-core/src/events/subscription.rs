@@ -30,6 +30,7 @@ use tokio::sync::{broadcast, watch};
 use super::{EventCursor, StoredEvent, UiSignal};
 use crate::db::Storage;
 use crate::harness::Harness;
+use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 use crate::turns::OperationId;
 
@@ -83,9 +84,14 @@ pub(super) struct Live {
     pub(super) signals: broadcast::Receiver<UiSignal>,
 }
 
-/// One subscriber's stream over one thread.
+pub(super) enum Scope {
+    Thread(ThreadId),
+    Project(ProjectId),
+}
+
+/// One subscriber's replay-then-live stream, filtered by its scope.
 pub struct Subscription {
-    thread: ThreadId,
+    scope: Scope,
     storage: Arc<Storage>,
     harness: Arc<Harness>,
     live: Live,
@@ -103,14 +109,14 @@ pub struct Subscription {
 
 impl Subscription {
     pub(super) fn new(
-        thread: ThreadId,
+        scope: Scope,
         after: i64,
         storage: Arc<Storage>,
         harness: Arc<Harness>,
         live: Live,
     ) -> Self {
         Self {
-            thread,
+            scope,
             storage,
             harness,
             live,
@@ -161,11 +167,16 @@ impl Subscription {
     /// Reads the journal after `last_seq` into `read`. `Some(Fatal)` when it
     /// could not be read, which ends the subscription.
     async fn read_journal(&mut self) -> Option<Delivery> {
-        match self
-            .storage
-            .read_events_after(EventCursor(self.last_seq), &self.thread, BATCH)
-            .await
-        {
+        let cursor = EventCursor(self.last_seq);
+        let batch = match &self.scope {
+            Scope::Thread(thread) => self.storage.read_events_after(cursor, thread, BATCH).await,
+            Scope::Project(project) => {
+                self.storage
+                    .read_project_events_after(cursor, project, BATCH)
+                    .await
+            }
+        };
+        match batch {
             Ok(batch) => {
                 self.read.extend(batch);
                 None
@@ -184,6 +195,16 @@ impl Subscription {
     /// options, signals. `None` when it woke for nothing to deliver: the
     /// journal moved (it is read next), or the item is another thread's.
     async fn live(&mut self) -> Option<Result<Delivery, &'static str>> {
+        // Project notifications are durable only, on the same committed watch.
+        if matches!(self.scope, Scope::Project(_)) {
+            return match self.live.committed.changed().await {
+                Ok(()) => {
+                    self.reading = true;
+                    None
+                }
+                Err(_) => Some(self.end("shutdown: storage closed")),
+            };
+        }
         // The select only decides which source woke; acting on it happens
         // after, so no borrowed `watch::Ref` is held across an await.
         let woke = tokio::select! {
@@ -199,16 +220,18 @@ impl Subscription {
                 None
             }
             Woke::Committed(false) => Some(self.end("shutdown: storage closed")),
-            Woke::Bus(Ok((thread, op, item))) if thread == self.thread => {
+            Woke::Bus(Ok((thread, op, item))) if matches!(&self.scope, Scope::Thread(own) if own == &thread) => {
                 self.transient(thread, op, item).await.map(Ok)
             }
-            Woke::Options(Ok((thread, offered))) if thread == self.thread => {
+            Woke::Options(Ok((thread, offered))) if matches!(&self.scope, Scope::Thread(own) if own == &thread) =>
+            {
                 // `None` when the thread's policy cannot be read; the next
                 // opening answers.
                 let choices = self.harness.choices(&thread, &offered).await.ok()?;
                 Some(Ok(Delivery::Options { thread, choices }))
             }
-            Woke::Signal(Ok(signal)) if signal.thread_id == self.thread => {
+            Woke::Signal(Ok(signal)) if matches!(&self.scope, Scope::Thread(own) if own == &signal.thread_id) =>
+            {
                 // The card's durable event was committed before the signal
                 // was sent, so the journal has already delivered it.
                 Some(Ok(Delivery::PlanShow(signal)))
