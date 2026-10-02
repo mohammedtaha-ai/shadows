@@ -375,6 +375,7 @@ version, as 0012's refuse its other links.
 | Route | Purpose |
 |---|---|
 | `GET /api/projects/{id}/workflows` | The project's plans: id, state, and the latest version's id, number, state and title. Archived ones with `?archived=true` |
+| `GET /api/projects/{id}/events` | The project plan event stream (§16.8), replaying after `?after=…` and then live |
 | `GET /api/plans/{id}` | One plan: state and every version with its writer (§16.3) |
 | `POST /api/plans/{id}/archive`, `/unarchive` | `{ command_id }` |
 | `GET /api/workflows/{id}` | As today, plus `plan_id`, the plan's state and the version's writer; in 1b, the links to and from other plans with their state |

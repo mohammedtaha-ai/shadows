@@ -235,11 +235,13 @@ they are (§1.2), and one long session no longer grows until its context is
 polluted or compacted (§1.3): the work moves to a fresh conversation without
 losing what was decided.
 
-**Today:** each plan belongs to one conversation (spec §13.2), and only that
-conversation's Planner reads or edits it (§13.6); another Planner on the same
-project cannot see it. An external agent over `/mcp` reads every plan in the
-project, and the web client shows them all. Every edit is a recorded command,
-but no reason is kept with it.
+**Today:** [§16 1a](./superpowers/specs/2026-10-01-project-plans-design.md)
+is implemented on `plans/project-plans`: plans belong to projects and any
+conversation on a project can continue them. Versions retain their writers
+and, after v1, their reasons. Archive, Continue this plan and conversation
+deletion are built; deleting a conversation keeps its plans and history.
+The links between plans and project map are 1b, still to come. Decision
+records and clarifying messages do not exist yet; §17 drafts the next part.
 
 ## 9. Open questions
 

@@ -52,11 +52,12 @@ Out:
 
 ## 13.2 The plan and its versions
 
-A plan is a chain of `workflow` rows owned by one planning thread (§6.8's
-lineage rule). Each row is one **version** of the plan.
+A plan is the project-owned entity of [§16.2](./2026-10-01-project-plans-design.md#162-the-plan).
+Its chain of `workflow` rows holds its **versions**; §6.8's lineage stays
+within that plan.
 
 - **`version`** — the plan's position in its chain: 1, 2, 3, unique and
-  consecutive within the thread. "Plan v2" always means this number.
+  consecutive within the plan. "Plan v2" always means this number.
 - **`revision`** — a counter of edits to one version, starting at 0 when the
   version is created and increased by every successful edit. Writers send the
   revision they read as `expected_revision` (§13.5). A revision is never shown
@@ -67,7 +68,7 @@ lineage rule). Each row is one **version** of the plan.
 States used in Milestone 2 are `Draft` and `Frozen` (§2.5's lifecycle, §4
 `WorkflowState`):
 
-- A thread has **at most one `Draft`** at a time.
+- A plan has **at most one `Draft`** at a time (§16.2).
 - **Approval is one step:** a person's approval moves a `Draft` to `Frozen` and
   sets `frozen_at`. `Approved` is not used in this milestone; it stays in the
   state set for the day execution needs a state between the two.
@@ -250,60 +251,47 @@ expire. The guarantee against a duplicate plan starts at `draft_start`.
 
 **The tool list depends on the grant kind.**
 
+The plan tools' reach and `draft_start` arguments are owned by
+[§16.4](./2026-10-01-project-plans-design.md#164-the-planner-and-the-projects-plans).
+
 | Tool | Planner (thread grant) | External agent (project grant) | Writes |
 |---|---|---|---|
-| `workflow_list` | — | ✓ | no |
-| `workflow_get` | ✓ its thread's plan | ✓ any plan in the project | no |
+| `workflow_list` | ✓ (§16.4) | ✓ (§16.4) | no |
+| `workflow_get` | ✓ (§16.4) | ✓ (§16.4) | no |
 | `task_get` | ✓ | ✓ | no |
 | `draft_prepare` | — | ✓ | issues a `draft_ref` |
-| `draft_start` | ✓ in its thread, from its latest version | ✓ from a frozen plan in the project, or from scratch with a new thread | yes |
+| `draft_start` | ✓ (§16.4) | ✓ (§16.4), with a `draft_ref` | yes |
 | `plan_edit` | ✓ | ✓ | yes |
 | `plan_show` | ✓ | — | a conversation entry (§13.9) |
 | `where_is` | — (§15.7) | ✓ the project and its links (§15.5) | no |
 | `who_uses` | — (§15.7) | ✓ the project and its links (§15.5) | no |
 | `outline` | — (§15.7) | ✓ the project and its links (§15.5) | no |
 
-- **`draft_start`** in a thread with no plan creates v1 from a title and a goal.
-  After a frozen version it creates the next version as a copy (§13.2); title
-  and goal may be changed later with `plan_put`. In a thread that already has a
-  `Draft`, it answers that draft and changes nothing. From an external agent,
-  from scratch or from a frozen plan, it requires a `draft_ref` (§13.5).
-- **A Planner's `from_workflow_id`** is optional and never chooses the version:
-  when present it must name the version `draft_start` starts from anyway —
-  the thread's `Draft`, or with none its latest version, which is then
-  `Frozen`. Another version of its thread (an older frozen one, or the frozen
-  one a `Draft` was copied from) is refused `INVALID_COMMAND`, naming the
-  version it must be, and writes nothing; one outside its thread is
-  `GRANT_SCOPE`. The check follows the replay (§13.5): a start already
-  recorded answers what it answered, though its own `Draft` is now the latest.
+- **`draft_start`** uses `plan_id`, with its new-plan and existing-plan rules
+  in §16.4 and its new-version reason in §16.3. `from_workflow_id` is no longer
+  an argument. An external caller still requires a `draft_ref` (§13.5).
 - **`plan_edit`** takes `expected_revision` and a list of operations —
   `plan_put` (title and goal), `task_add`, `task_update`, `task_remove`,
   `link_put`, `link_remove` — and answers the new revision. `task_add`
   refuses a number already in use and `task_update` one not in use, so a
   writer that meant to add a task never overwrites another by reusing its
   number; both carry the whole task.
-- **`draft_start` from scratch** (external only) creates a planning thread and
-  its first plan together, in the grant's project. The thread's title is the
-  plan's title, and it stays: neither a first message nor the harness renames
-  it (`title_source` `plan`, §4.2). The durable event that creates them records the grant as
-  its actor (`planning_thread` has no author column). It lists with the project's
-  conversations with no messages; if a person writes in it, the Shadows
-  Planner continues there and reads the plan with its tools.
-- The internal Planner never names another thread's plan: its grant fixes the
-  thread. It edits that thread's latest version, and may read or show (`workflow_get`,
-  `task_get`, `plan_show`) any version of it, so "show me v1" works after v2 exists.
+- **An external `draft_start` from scratch creates no thread** (§16.4).
+  Its writer is attributed under §16.3.
+- The Planner's grant names its thread, which fixes its project. Plan reads,
+  edits and shows follow §16.4; command identity remains §13.5's.
 
 **Errors come in three layers:**
 
 1. **HTTP 401** — authentication failed before a tool ran.
 2. **A tool result with `isError`** and a symbolic code, once a tool has
-   started: `GRANT_SCOPE` (a plan outside the grant's thread or project),
+   started: `GRANT_SCOPE` (a plan outside the grant's project),
    `GRANT_INVALID` (revoked while the call was in flight), `REVISION_CONFLICT`,
    `WORKFLOW_FROZEN_IMMUTABLE`, `WORKFLOW_VALIDATION_FAILED` (with the
    validator's list), `COMMAND_CONFLICT` (§13.5), and §3.4's
    `INVALID_COMMAND` for a request that cannot be done as asked — a task or
-   plan that does not exist, a draft named as the source of a new version, a
-   Planner's source that is not its thread's latest version, a Planner call
+   plan that does not exist, an archived plan write (§16.2), a new version
+   without a reason (§16.3), a Planner call
    that needs a running turn outside one. The text says what to
    do, e.g. "T9 does not exist in this plan".
 3. **HTTP API status codes** (409, 422) belong to the HTTP API only (§13.10).
@@ -454,7 +442,8 @@ agent can read plans but cannot move a person's screen.
 - **The focus is kept with the message.** The person's `UserMessage` entry
   carries `Workflow` and `Task` references (§4 `EntryRef`), so "change this"
   still says which task when the conversation is read later.
-- Approving a plan writes a `PlanApproved` entry ("Plan v2 approved").
+- Approval's `PlanApproved` entry ("Plan v2 approved") goes to the version's
+  writer conversation when §16.3 permits it.
 
 The client branches on these kinds, as Milestone 1's already does on
 `UserMessage` and `PermissionRefused`; that is the trigger of §4's
@@ -466,7 +455,7 @@ The client branches on these kinds, as Milestone 1's already does on
 
 | Route | Purpose |
 |---|---|
-| `GET /api/projects/{id}/workflows` | Each thread's latest version: title, state, version |
+| `GET /api/projects/{id}/workflows` | The project's plan list (§16.10) |
 | `GET /api/workflows/{id}` | One version: tasks, links, revision, `previous`/`next` version ids, what blocks approval, and the last `plan_edit`'s summary with the task numbers it changed |
 | `POST /api/workflows/{id}/approve` | `{ command_id, expected_revision }` |
 | `GET` / `PUT /api/projects/{id}/planner-instructions` | Read and save project instructions |
@@ -476,8 +465,12 @@ The client branches on these kinds, as Milestone 1's already does on
 The last edit's summary comes from the stored event, so a page opened later
 still marks what changed.
 
+The plan/version, archive, conversation deletion and project-stream interfaces
+are owned by [§16.10](./2026-10-01-project-plans-design.md#1610-interfaces).
+
 **`POST /api/threads/{id}/turns`** (§12.7's `StartTurn`) gains two optional
 fields: `focus` (§13.9) and `client_tab` (the tab id, kept in memory only).
+The optional `plan` for Continue this plan is owned by §16.4 and §16.10.
 `focus` joins the command's fingerprint, so the same `command_id` and text
 with T3 instead of T4 is `CommandConflict`, not a replay; `client_tab` does
 not, being transport state.
@@ -495,15 +488,16 @@ added there:
 **Events.** Draft started, plan edited (with revision and summary), plan
 frozen, plan shown, grant issued, grant revoked — each a durable event
 committed with its change. The plan events reach a client on the thread's
-existing stream (`/api/subscribe?thread_id=`, §2.10). Grant events and the
-project's plan list have no thread; the client refetches them after its own
-actions and every 10 seconds while the Workflows section or project settings
-is open.
+existing stream (`/api/subscribe?thread_id=`, §2.10). Plan views across
+conversations stay current through the project stream of
+[§16.8](./2026-10-01-project-plans-design.md#168-the-web-client), without timer
+polling. Grant lists refetch after the person's own actions and every
+10 seconds while project settings is open.
 
 ## 13.11 Web client
 
-- **Sidebar**, under a project: Conversations, **Workflows** (each thread's
-  latest version with its state) and Project settings. With no plan yet, the
+- **Sidebar**, under a project: Conversations, **Workflows** (the project's
+  plans under §16.8) and Project settings. With no plan yet, the
   section invites the person to ask the Planner for one. Each project folds
   open or closed from its row, as a tree, and several may be open at once;
   folding never navigates, so the open conversation stays open. The project
@@ -533,10 +527,10 @@ is open.
   direction of its first letter. Inline code is a left-to-right island and a
   fenced code block is always left to right.
 - **Workflows page** `/projects/{id}/workflows/{workflowId}`:
-  - Header: title, `Draft v2` or `Approved v1`, a link to its conversation,
-    previous/next version, zoom and fit, and **Approve** on a draft only,
-    with the validator's list above it. Approve stays enabled; pressed with
-    something missing, it shows the `422` list.
+  - Header: the version, writer, version list and plan actions of §16.8,
+    backed by §16.10. Zoom and fit stay here. **Approve** on an Active plan's
+    draft shows the validator's list above it. Approve stays enabled; pressed
+    with something missing, it shows the `422` list.
   - The graph: `@xyflow/react` for the canvas, minimap and controls;
     `@dagrejs/dagre` for automatic left-to-right layout, recomputed on every
     change; nodes are not dragged. A start node shows the title and goal. A
@@ -564,9 +558,8 @@ is open.
   - **Remove project**, last, in red. With no conversation, Remove asks
     first: the project is hidden, its index and links are dropped, its folder
     on disk is untouched and its slug stays taken; then the page goes home.
-    With any, Remove is off under "This project has N conversations. Delete
-    them first to remove it." A `PROJECT_HAS_THREADS` that races in shows in
-    the dialog.
+    The live-conversation count and deletion copy are §16.5 and §16.8's.
+    A `PROJECT_HAS_THREADS` that races in shows in the dialog.
 - **Settings** `/settings`, linked at the foot of the sidebar beside the
   connection line: the daemon's settings that belong to no one project, one
   section each. Its first is **Active projects** (§15.6), 1 to 20, with the
@@ -656,6 +649,10 @@ is open.
 
 Milestone 2's migration, in the tables of §6. Each §6 table this touches points
 here, as §6.15 points to §12.7 for Milestone 1's columns.
+
+The `workflow` block below records Milestone 2's original migration.
+Migration 0012 replaces its thread ownership, version uniqueness and Draft
+constraint under [§16.9](./2026-10-01-project-plans-design.md#169-schema).
 
 **`workflow`** (§6.8) gains:
 

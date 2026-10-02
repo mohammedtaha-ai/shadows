@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-01 (code-index settings, effort at once, the Linux watcher fix merged)
+**Updated:** 2026-10-02 (§16 1a implemented on `plans/project-plans`; final review and full Windows acceptance pending)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -8,6 +8,26 @@ decision live in the topic owners indexed by
 restate them.
 
 ## Where we are
+
+**Project plans, §16 1a, are implemented on `plans/project-plans`**, not yet
+merged. The owner is
+[`§16`](./superpowers/specs/2026-10-01-project-plans-design.md); the plan is
+[`project-plans-1a`](./superpowers/plans/2026-10-01-project-plans-1a.md).
+Plans are shared across a project's conversations, versions show their
+writers and reasons, and the web client supports Archive, Continue and
+Delete with retained read-only conversation history. Project events refresh
+plan views, and each open session has its own lock.
+
+The recorded Task 6b gate on 2026-10-02 passed **368 Rust tests and 161 web
+tests** (commit `51f6a2b`). Its Windows browser check used fake ACP and a
+scratch database: Delete left the list and opened the draft, the plan stayed,
+and its deleted writer opened history without a composer. A fresh ordinary
+debug daemon build from that commit also passed. Mohammed then confirmed
+that **Open plan works with the rebuilt daemon** and attributed the earlier
+error to the old daemon. This is a partial human check; the full §16.12
+acceptance run remains pending
+([Windows record](./evidence/project-plans/WINDOWS_RUN.md)). The final
+whole-branch review is also pending.
 
 **Code-index settings, effort at once, and a Linux watcher fix** (PR #12,
 2026-10-01; 358 Rust, 156 web tests). The changes:
@@ -148,15 +168,13 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **One lock for every open session.** `Sessions` holds a single lock through
-   an adapter's startup (typically 3–6 s on Windows, bounded at 20 s) and
-   through each termination wait, so
-   opening one conversation can delay Stop on another. This is latency, not a
-   correctness defect. The fix is one slot per thread, as its own task.
-2. **Deleting a conversation.** It does not exist, so a project with
-   conversations can never be removed (§4.2). Mohammed deferred it on
-   2026-10-01; it is designed on its own, including what happens to the
-   conversation's plans and events.
+1. **Finish §16 1a:** the whole-branch review and the full Windows run with
+   Mohammed and the real harness. The session lock and conversation deletion
+   are implemented; they are no longer implementation tasks.
+2. **§16 1b:** links between plans, cross-plan graph nodes and the project map
+   (§16.7, §16.8, §16.11), after 1a is reviewed and accepted.
+   Decision records and clarifying messages remain later work (vision §8;
+   §17 is a draft).
 
 ## Standing risks
 

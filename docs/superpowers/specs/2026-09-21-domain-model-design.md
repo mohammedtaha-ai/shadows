@@ -87,9 +87,10 @@ run in the daemon's working directory.
 A project can be **removed** (`DELETE /api/projects/{id}`, command
 `project.remove`). It is a soft remove: the durable log references the row
 and is never erased, so the row stays with `removed_at` set. Removal is
-refused while the project holds any planning thread (`ProjectHasThreads`,
-409), and nothing is written. Otherwise, in one write, its code index and its
-links both ways go (§15.4), its live project grants are revoked (§13.7), and
+refused while the project holds a planning thread that is not removed
+(`ProjectHasThreads`, 409; §16.5), and nothing is written. Otherwise, in one
+write, its code index and its links both ways go (§15.4), its live project
+grants are revoked (§13.7), and
 `ProjectRemoved` is journaled. Afterwards it is NotFound everywhere: it is not
 listed, every request that acts on it — a thread, a grant, a turn, a code
 question, a link — is refused as not found, and a read of what it held (its
@@ -106,6 +107,7 @@ struct PlanningThread {
     status: PlanningThreadStatus, // Open | Closed
     harness_session_id: Option<String>,
     created_at: Timestamp,
+    removed_at: Option<Timestamp>,
 }
 ```
 
@@ -117,7 +119,7 @@ conversation, the way Claude names its own sessions, and the row keeps
 | `title_source` | written by | replaces |
 |---|---|---|
 | `client` | create; every thread before migration 0010 | — |
-| `plan` | a draft from scratch (§13.6), which creates the thread under its plan's title; migration 0010 marks the earlier ones: a version 1 written with the thread, same timestamp and title | — (nothing automatic replaces it: the plan named it) |
+| `plan` | legacy external drafts that created a thread before §16.4; migration 0010 marks the earlier ones: a version 1 written with the thread, same timestamp and title | — (nothing automatic replaces it: the plan named it) |
 | `first_message` | the turn that appends the thread's first UserMessage, in its own write: the message's first non-blank line, whitespace collapsed, at most 60 characters ending in "…" | `client` |
 | `harness` | the title the harness sends for the thread's session (§12.3), sanitized the same way; a placeholder ("New session", "New conversation", "Untitled", "New chat"), which Claude Code sends for a conversation too short to name, is no title; one equal to the current title writes nothing | `client`, `first_message`, `harness` |
 | `person` | a rename by a person. None exists yet | — (nothing automatic replaces it) |
@@ -141,6 +143,11 @@ that `--resume` rejects would fail every later turn. Clients never supply or see
 it. The harness store is the source of truth for what the model remembers; the
 thread's entries are the source of truth for what the user sees (see
 *Continuity* below).
+
+A thread can be removed under
+[§16.5](./2026-10-01-project-plans-design.md#165-deleting-a-conversation).
+That section owns the command's ordering, grant revocation and retained
+history; §16.8 owns the deleted conversation's read-only page.
 
 ### ThreadEntry
 
@@ -247,7 +254,7 @@ struct ResearchArtifact {
 ```rust
 struct Workflow {
     id: WorkflowId,
-    thread_id: ThreadId,
+    plan_id: PlanId,
     state: WorkflowState,
     previous_version_id: Option<WorkflowId>,
     created_at: Timestamp,
@@ -271,6 +278,9 @@ The normalized task/edge/gate/check rows are the scheduler's authoritative DAG r
 
 Milestone 2 adds a plan's `version`, `revision`, `title` and `goal`, a task's
 `number`, and two kinds of link with a label (§13.2, §13.3, §13.15).
+
+Project ownership and version writers are owned by §16.2 and §16.3; the
+migration that replaces `thread_id` with `plan_id` is §16.9's.
 
 If an authored plan snapshot is preserved for provenance, it is named explicitly (for example `source_plan_json`) and is **not** consulted as a second runtime DAG source.
 
