@@ -325,10 +325,13 @@ deleted. Until then it reads "This project has N conversations. Delete them
 from the sidebar first."
 
 **How the pages stay current.** A plan's events go to the stream of the
-conversation that wrote them (§13.10). A plan page, a project map and a
-`PlanView` card shown in any other conversation refetch after the person's own
-actions and every 10 seconds while shown, as the project's plan list already
-does.
+conversation that wrote them (§13.10). Every plan event also carries its project
+(§16.3), so a project stream, `GET /api/projects/{id}/events`, sends each plan
+event of that project as it is journaled. A plan page, a project map, the
+sidebar's plan list and a `PlanView` card in any other conversation refetch when
+that stream names their plan, and after the person's own actions. Nothing polls
+on a timer. The project stream lands with the conversation delete (Task 5);
+until then those views refetch only after the person's own actions.
 
 ## 16.9 Schema
 
