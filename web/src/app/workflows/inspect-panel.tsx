@@ -22,23 +22,23 @@ export function InspectPanel({
   return (
     <aside
       aria-label={`T${task.number}`}
-      className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-sidebar px-4 py-3 text-sm"
+      className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-sidebar/95 px-4 py-3 text-sm shadow-lg backdrop-blur-xs"
     >
-      <header className="mb-3 flex items-start justify-between gap-2">
+      <header className="mb-3 flex items-start justify-between gap-2 border-b border-border/50 pb-2.5">
         <div className="min-w-0">
-          <p dir="auto" className="font-mono text-xs text-faint-foreground">
+          <span dir="auto" className="inline-block rounded border border-border/40 bg-accent-softer px-1.5 py-0.5 font-mono text-[11px] font-semibold text-secondary-foreground">
             T{task.number}
-          </p>
-          <h2 dir="auto" className="font-medium">
+          </span>
+          <h2 dir="auto" className="mt-1 font-medium leading-snug">
             {task.title}
           </h2>
         </div>
-        <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose}>
-          <X />
+        <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose} className="rounded-full hover:bg-sidebar-accent">
+          <X className="size-4" />
         </Button>
       </header>
       <Section name="Goal">
-        <p dir="auto" className="text-muted-foreground">
+        <p dir="auto" className="text-muted-foreground leading-relaxed">
           {task.goal}
         </p>
       </Section>
@@ -53,16 +53,16 @@ export function InspectPanel({
           {task.acceptance.map((item) => {
             const after = waitingFor(item.number)
             return (
-              <li key={item.number} className="flex gap-2">
-                <span dir="auto" className="font-mono text-xs text-faint-foreground">
+              <li key={item.number} className="flex gap-2 rounded-md border border-border/30 bg-card/40 p-2 shadow-2xs">
+                <span dir="auto" className="shrink-0 font-mono text-xs text-faint-foreground mt-0.5">
                   {item.number}.
                 </span>
                 <span className="min-w-0">
-                  <span dir="auto" className="block">
+                  <span dir="auto" className="block text-xs leading-relaxed text-foreground">
                     {item.text}
                   </span>
                   {after.length > 0 && (
-                    <span dir="auto" className="block text-xs text-muted-foreground italic">
+                    <span dir="auto" className="mt-1 block text-[11px] text-accent-line italic">
                       waits for {after.join(', ')}
                     </span>
                   )}
@@ -88,9 +88,14 @@ function Section({ name, children }: { name: string; children: ReactNode }) {
 function Paths({ paths }: { paths: string[] }) {
   if (paths.length === 0) return <p className="text-xs text-faint-foreground">None</p>
   return (
-    <ul className="space-y-0.5">
+    <ul className="space-y-1">
       {paths.map((p) => (
-        <li key={p} dir="auto" className="truncate font-mono text-xs text-muted-foreground" title={p}>
+        <li
+          key={p}
+          dir="auto"
+          className="truncate rounded border border-border/30 bg-background/50 px-1.5 py-0.5 font-mono text-xs text-muted-foreground"
+          title={p}
+        >
           {p}
         </li>
       ))}

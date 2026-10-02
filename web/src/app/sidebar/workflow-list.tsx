@@ -43,12 +43,12 @@ export function WorkflowList({ projectId, selected }: { projectId: string; selec
             type="button"
             onClick={() => setShowArchived((v) => !v)}
             aria-expanded={showArchived}
-            className="flex w-full items-center gap-1.5 rounded px-2 py-1 text-xs text-faint-foreground transition-colors hover:text-sidebar-foreground"
+            className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs text-faint-foreground transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
           >
             {showArchived ? (
-              <ChevronDown className="size-3 shrink-0" aria-hidden />
+              <ChevronDown className="size-3 shrink-0 transition-transform duration-150" aria-hidden />
             ) : (
-              <ChevronRight className="size-3 shrink-0" aria-hidden />
+              <ChevronRight className="size-3 shrink-0 transition-transform duration-150" aria-hidden />
             )}
             <span>Archived ({archivedPlans.length})</span>
           </button>
@@ -81,13 +81,18 @@ function PlanRow({
         to="/projects/$projectId/workflows/$workflowId"
         params={{ projectId, workflowId: plan.id }}
         aria-current={isSelected ? 'page' : undefined}
-        className={`flex items-center gap-2 rounded-r-md border-l-2 px-2 py-1 text-sm transition-colors ${
+        className={`group flex items-center gap-2 rounded-r-md border-l-2 px-2 py-1 text-sm transition-all duration-150 ${
           isSelected
-            ? 'border-accent-line bg-secondary text-secondary-foreground'
-            : 'border-transparent text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground'
+            ? 'border-accent-line bg-secondary/80 font-medium text-secondary-foreground shadow-xs'
+            : 'border-transparent text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
         }`}
       >
-        <Workflow className="size-3.5 shrink-0" aria-hidden />
+        <Workflow
+          className={`size-3.5 shrink-0 transition-colors ${
+            isSelected ? 'text-accent-line' : 'group-hover:text-sidebar-foreground'
+          }`}
+          aria-hidden
+        />
         <span dir="auto" className="min-w-0 flex-1 truncate text-start">
           {plan.title}
         </span>

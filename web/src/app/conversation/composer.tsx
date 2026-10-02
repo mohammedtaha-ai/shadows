@@ -188,10 +188,10 @@ export function Composer({
   const error = send.error ?? stop.error ?? switchEffort.error ?? carriedError
 
   return (
-    <div className="border-t border-border bg-background px-6 pt-3 pb-4">
+    <div className="border-t border-border bg-background/95 px-6 pt-3 pb-4 backdrop-blur-md">
       <div className="mx-auto max-w-3xl space-y-2">
         {pointed !== null && <FocusChip pointed={pointed} onClear={() => onPointed(pointed)} />}
-        <div className="flex items-end gap-2 rounded-xl border border-accent-line/40 bg-input-background p-2 focus-within:border-accent-line focus-within:ring-3 focus-within:ring-ring/30">
+        <div className="flex items-end gap-2 rounded-xl border border-accent-line/40 bg-input-background p-2.5 shadow-xs transition-all duration-150 focus-within:border-accent-line focus-within:ring-2 focus-within:ring-accent-line/30 focus-within:shadow-md">
           <textarea
             value={prompt}
             onChange={(e) => {
@@ -207,7 +207,7 @@ export function Composer({
             rows={2}
             placeholder="Ask the Planner…"
             aria-label="Message"
-            className="max-h-48 min-h-10 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-foreground outline-none placeholder:text-faint-foreground"
+            className="max-h-48 min-h-10 flex-1 resize-none bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-faint-foreground"
           />
           {running === null ? (
             <Button
@@ -215,6 +215,7 @@ export function Composer({
               disabled={prompt.trim() === '' || !ready || send.isPending}
               size="icon"
               aria-label="Send"
+              className="rounded-lg shadow-2xs transition-transform active:scale-95"
             >
               <ArrowUp />
             </Button>
@@ -223,7 +224,7 @@ export function Composer({
               variant="outline"
               onClick={() => stop.mutate(running.id)}
               disabled={stop.isPending}
-              className="border-destructive-border text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground"
+              className="border-destructive-border text-destructive-foreground shadow-2xs transition-all hover:bg-destructive/10 hover:text-destructive-foreground"
             >
               <Square className="size-3 fill-current" />
               {stopLabel}

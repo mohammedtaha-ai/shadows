@@ -14,11 +14,18 @@ export function Sidebar() {
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <header className="flex items-center justify-between px-4 pt-4 pb-3">
-        <span className="text-sm font-semibold tracking-wide">Shadows</span>
+        <span className="bg-gradient-to-r from-foreground via-foreground to-accent-line bg-clip-text text-sm font-semibold tracking-wide text-transparent">
+          Shadows
+        </span>
       </header>
       <div className="px-3 pb-3">
-        <Button variant="secondary" size="sm" className="w-full justify-start" onClick={openNewProject}>
-          <Plus />
+        <Button
+          variant="secondary"
+          size="sm"
+          className="w-full justify-start gap-2 shadow-xs transition-all hover:bg-secondary/90"
+          onClick={openNewProject}
+        >
+          <Plus className="size-4" />
           New project
         </Button>
       </div>

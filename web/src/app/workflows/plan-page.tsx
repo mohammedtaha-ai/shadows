@@ -3,7 +3,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, getRouteApi } from '@tanstack/react-router'
-import { ChevronDown, Lock } from 'lucide-react'
+import { Archive, ChevronDown, Lock } from 'lucide-react'
 import { useState } from 'react'
 import { type Plan, archivePlan, unarchivePlan } from '@/api/client'
 import { planVersionsQuery, workflowsKey } from '@/api/queries'
@@ -51,12 +51,13 @@ function PlanView({ projectId, workflowId }: { projectId: string; workflowId: st
     <div className="flex h-full min-h-0 flex-col">
       <Header plan={p} projectId={projectId} />
       {p.plan_state === 'Archived' ? (
-        <p className="flex items-center gap-2 border-b border-border bg-accent-softer px-6 py-2 text-xs text-secondary-foreground">
+        <p className="flex items-center gap-2 border-b border-border/80 bg-accent-softer/80 px-6 py-2 text-xs text-secondary-foreground">
+          <Archive className="size-3.5 text-muted-foreground" aria-hidden />
           Archived · read only
         </p>
       ) : p.state === 'Frozen' ? (
-        <p className="flex items-center gap-2 border-b border-border bg-accent-softer px-6 py-2 text-xs text-secondary-foreground">
-          <Lock className="size-3.5" aria-hidden />
+        <p className="flex items-center gap-2 border-b border-border/80 bg-accent-softer/80 px-6 py-2 text-xs text-secondary-foreground">
+          <Lock className="size-3.5 text-accent-line" aria-hidden />
           {/* Once the next version exists, editing no longer creates it. */}
           Approved v{p.version} ·{' '}
           {p.next == null
@@ -114,17 +115,17 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
   }
 
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-3">
+    <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md">
       <div className="min-w-0 space-y-1">
         <div className="flex items-center gap-2">
           <h1 dir="auto" className="truncate text-sm font-medium">
             {plan.title}
           </h1>
           <span
-            className={`rounded px-1.5 py-px text-xs ${
+            className={`rounded px-1.5 py-0.5 text-xs font-medium transition-colors ${
               plan.state === 'Frozen'
-                ? 'bg-secondary text-secondary-foreground'
-                : 'border border-border text-muted-foreground'
+                ? 'bg-secondary text-secondary-foreground shadow-2xs'
+                : 'border border-border/80 bg-card/40 text-muted-foreground'
             }`}
           >
             {stateLabel(plan)}
@@ -141,12 +142,12 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
         <nav aria-label="Versions" className="flex items-center gap-1 text-xs">
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button variant="outline" size="sm" className="gap-1 text-xs" />}
+              render={<Button variant="outline" size="sm" className="gap-1 text-xs shadow-2xs transition-all hover:bg-accent/40" />}
             >
               Versions
               <ChevronDown className="size-3" aria-hidden />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-48 shadow-lg">
               <DropdownMenuGroup>
                 <DropdownMenuLabel>Versions</DropdownMenuLabel>
                 {planVersions?.versions.map((v) => (
@@ -171,7 +172,7 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
           to="/projects/$projectId/new"
           params={{ projectId }}
           search={{ plan: plan.plan_id }}
-          className={buttonVariants({ variant: 'outline', size: 'sm', className: 'text-xs' })}
+          className={buttonVariants({ variant: 'outline', size: 'sm', className: 'text-xs shadow-2xs transition-all hover:bg-accent/40' })}
         >
           Continue this plan
         </Link>
@@ -180,7 +181,7 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
           size="sm"
           onClick={toggleArchive}
           disabled={archive.isPending || unarchive.isPending}
-          className="text-xs"
+          className="text-xs shadow-2xs transition-all hover:bg-accent/40"
         >
           {isArchived ? 'Unarchive' : 'Archive'}
         </Button>
