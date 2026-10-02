@@ -26,11 +26,10 @@ pub use model::{
     ThreadId, TurnContext,
 };
 pub(crate) use rules::known_harness;
-// What another write calls inside its own transaction (spec §14.6): a plan
-// draft creates its thread, and a turn, an edit or a shown plan appends an
-// entry, and a turn titles its thread after its first message.
-pub(crate) use model::CreatedTitle;
-pub(crate) use store::{append_entry_in, insert_thread, title_from_first_message_in};
+// What another write calls inside its own transaction (spec §14.6): a turn,
+// an approval or a shown plan appends an entry, and a turn titles its thread
+// after its first message.
+pub(crate) use store::{append_entry_in, title_from_first_message_in};
 
 use crate::app::user_command;
 use crate::code::Code;
@@ -39,6 +38,7 @@ use crate::error::CoreError;
 use crate::harness::Harness;
 use crate::projects::ProjectId;
 use crate::turns::Operation;
+use crate::turns::{StopOutcome, ThreadStopper};
 
 /// Threads: what storage holds, the harness whose session a harness change
 /// closes, and the code index a listed project is touched in (§15.6).
@@ -46,14 +46,21 @@ pub struct Threads {
     storage: Arc<Storage>,
     harness: Arc<Harness>,
     code: Code,
+    stopper: ThreadStopper,
 }
 
 impl Threads {
-    pub(crate) fn new(storage: Arc<Storage>, harness: Arc<Harness>, code: Code) -> Self {
+    pub(crate) fn new(
+        storage: Arc<Storage>,
+        harness: Arc<Harness>,
+        code: Code,
+        stopper: ThreadStopper,
+    ) -> Self {
         Self {
             storage,
             harness,
             code,
+            stopper,
         }
     }
 
@@ -130,5 +137,37 @@ impl Threads {
     /// A thread's operations — its turns — newest first, each as it now stands.
     pub async fn operations(&self, thread: &ThreadId) -> Result<Vec<Operation>, CoreError> {
         Ok(self.storage.list_operations_for_thread(thread).await?)
+    }
+
+    /// Remove first, then stop the turn, then close its adapter (§16.5).
+    pub async fn remove(
+        &self,
+        command_id: String,
+        thread: &ThreadId,
+    ) -> Result<PlanningThread, CoreError> {
+        let c = user_command(
+            command_id,
+            "thread.remove",
+            serde_json::json!({ "thread_id": thread }),
+        );
+        let removed = self.storage.remove_thread(&c, thread).await?;
+        match self.stopper.stop_running(thread).await {
+            Ok(StopOutcome::TerminationFailed) => {
+                tracing::error!(thread_id = %thread, "thread.remove_stop_failed");
+            }
+            Err(error) => {
+                tracing::error!(%error, thread_id = %thread, "thread.remove_stop_failed");
+            }
+            Ok(_) => {}
+        }
+        if let Err(error) = self.harness.close_session(thread).await {
+            tracing::error!(%error, thread_id = %thread, "thread.remove_close_failed");
+        }
+        Ok(removed)
+    }
+
+    /// One thread, including a removed one, for historical plan links.
+    pub async fn get(&self, thread: &ThreadId) -> Result<PlanningThread, CoreError> {
+        Ok(self.storage.get_thread(thread).await?)
     }
 }

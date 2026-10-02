@@ -41,8 +41,10 @@ describe('settings', () => {
     act(() => app.button('Save')?.click())
     await until(() => app.calls.includes('PUT /api/code/settings'))
     expect(app.bodies.at(-1)).toEqual({ active_limit: 8, command_id: expect.stringMatching(/.+/) })
-    // Saved: the number now stands, so there is nothing left to save.
-    await until(() => app.button('Save')?.disabled === true)
+    // Save is also disabled while pending: wait for the response to reach
+    // the cache before checking the completed field and button state.
+    await until(() => app.queryClient.getQueryData<{ active_limit: number }>(['code', 'settings'])?.active_limit === 8)
+    await until(() => app.button('Save')?.disabled === true && field()?.value === '8')
     expect(field()?.value).toBe('8')
   })
 

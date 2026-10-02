@@ -26,7 +26,9 @@ pub use subscription::{Delivery, Subscription};
 
 use crate::app::Bus;
 use crate::db::Storage;
+use crate::error::CoreError;
 use crate::harness::Harness;
+use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 
 /// Events: every subscriber's stream, over the journal and the live sources.
@@ -59,7 +61,7 @@ impl Events {
     /// between the replay and the live phase.
     pub fn subscribe(&self, thread: ThreadId, after: i64) -> Subscription {
         Subscription::new(
-            thread,
+            subscription::Scope::Thread(thread),
             after,
             self.storage.clone(),
             self.harness.clone(),
@@ -70,5 +72,27 @@ impl Events {
                 signals: self.ui.subscribe(),
             },
         )
+    }
+
+    /// Plan notifications for a live project (§16.8), using the same journal
+    /// and committed watch as the thread stream. Unknown or removed is NotFound.
+    pub async fn subscribe_project(
+        &self,
+        project: ProjectId,
+        after: i64,
+    ) -> Result<Subscription, CoreError> {
+        self.storage.get_project(&project).await?;
+        Ok(Subscription::new(
+            subscription::Scope::Project(project),
+            after,
+            self.storage.clone(),
+            self.harness.clone(),
+            subscription::Live {
+                committed: self.storage.watch_committed(),
+                bus: self.bus.subscribe(),
+                options: self.harness.watch_options(),
+                signals: self.ui.subscribe(),
+            },
+        ))
     }
 }

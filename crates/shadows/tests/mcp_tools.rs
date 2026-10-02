@@ -45,7 +45,7 @@ async fn second_thread(app: &App) -> ThreadId {
 }
 
 #[tokio::test]
-async fn a_thread_grant_edits_only_its_own_threads_plan() {
+async fn a_thread_grant_reaches_every_plan_in_its_project() {
     let l = listening_app().await;
     let own = draft(&l.app).await.workflow_id;
     let other_thread = second_thread(&l.app).await;
@@ -54,24 +54,31 @@ async fn a_thread_grant_edits_only_its_own_threads_plan() {
         .workflow_id;
     let planner = thread_client(&l, &l.app.thread).await;
 
+    let read = ok(&planner, "workflow_get", json!({ "workflow_id": other })).await;
+    assert_eq!(read["id"], other.as_str());
     let edit = json!({ "workflow_id": other, "expected_revision": 0, "ops": [add(1)] });
-    let text = refused(&planner, "plan_edit", edit).await;
-    assert!(text.starts_with("GRANT_SCOPE: "), "{text}");
-    let text = refused(&planner, "workflow_get", json!({ "workflow_id": other })).await;
-    assert!(text.starts_with("GRANT_SCOPE: "), "{text}");
-    assert_eq!(plan::revision(&l.app, &other).await, 0);
+    assert_eq!(ok(&planner, "plan_edit", edit).await["revision"], 1);
+    assert_eq!(plan::revision(&l.app, &other).await, 1);
 
-    // Naming nothing, it edits its own thread's plan.
+    // A version is named even when it is the Planner's own plan.
     let outcome = ok(
         &planner,
         "plan_edit",
-        json!({ "expected_revision": 0, "ops": [add(1)] }),
+        json!({
+            "workflow_id": own, "expected_revision": 0, "ops": [add(1)]
+        }),
     )
     .await;
     assert_eq!(outcome["workflow_id"], json!(own));
     assert_eq!(outcome["revision"], 1);
     let events = events_of(&l.app, &l.app.thread, "WorkflowEdited").await;
-    assert_eq!(events.len(), 1);
+    let edited: Vec<_> = events
+        .iter()
+        .filter_map(|event| event["workflow_id"].as_str())
+        .collect();
+    assert_eq!(edited.len(), 2);
+    assert!(edited.contains(&other.as_str()));
+    assert!(edited.contains(&own.as_str()));
 }
 
 #[tokio::test]
@@ -126,8 +133,8 @@ async fn parallel_edits_on_one_revision_conflict_and_the_loser_can_retry() {
     let l = listening_app().await;
     let workflow = draft(&l.app).await.workflow_id;
     let planner = thread_client(&l, &l.app.thread).await;
-    let first = json!({ "expected_revision": 0, "ops": [add(1)] });
-    let second = json!({ "expected_revision": 0, "ops": [add(2)] });
+    let first = json!({ "workflow_id": workflow, "expected_revision": 0, "ops": [add(1)] });
+    let second = json!({ "workflow_id": workflow, "expected_revision": 0, "ops": [add(2)] });
 
     let (a, b) = tokio::join!(
         call(&planner, "plan_edit", first.clone()),
@@ -156,9 +163,9 @@ async fn parallel_edits_on_one_revision_conflict_and_the_loser_can_retry() {
 #[tokio::test]
 async fn a_repeated_edit_returns_the_first_result() {
     let l = listening_app().await;
-    draft(&l.app).await;
+    let workflow = draft(&l.app).await.workflow_id;
     let planner = thread_client(&l, &l.app.thread).await;
-    let edit = json!({ "expected_revision": 0, "ops": [add(1)] });
+    let edit = json!({ "workflow_id": workflow, "expected_revision": 0, "ops": [add(1)] });
     let first = ok(&planner, "plan_edit", edit.clone()).await;
     let again = ok(&planner, "plan_edit", edit).await;
     assert_eq!(first, again);
@@ -172,7 +179,7 @@ async fn editing_a_frozen_plan_is_refused() {
     let l = listening_app().await;
     let v1 = approved_v1(&l.app).await;
     let planner = thread_client(&l, &l.app.thread).await;
-    let edit = json!({ "expected_revision": 1, "ops": [add(3)] });
+    let edit = json!({ "workflow_id": v1, "expected_revision": 1, "ops": [add(3)] });
     let text = refused(&planner, "plan_edit", edit).await;
     assert!(text.starts_with("WORKFLOW_FROZEN_IMMUTABLE: "), "{text}");
     assert!(
@@ -188,11 +195,13 @@ async fn a_draft_ref_replays_for_a_new_version_of_a_frozen_plan() {
     let v1 = approved_v1(&l.app).await;
     let (_, external) = project_client(&l).await;
     let draft_ref = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
-    let start = json!({ "draft_ref": draft_ref, "from_workflow_id": v1 });
+    let plan_id = l.app.storage.get_plan(&v1).await.unwrap().plan_id;
+    let start = json!({ "draft_ref": draft_ref, "plan_id": plan_id, "reason": "the API changed" });
 
     let v2 = ok(&external, "draft_start", start.clone()).await;
     assert_eq!(v2["version"], 2);
-    assert_eq!(v2["thread_id"], json!(l.app.thread));
+    let plan = l.app.storage.get_plan(&v1).await.unwrap().plan_id;
+    assert_eq!(v2["plan_id"], json!(plan));
     let edit = json!({ "workflow_id": v2["workflow_id"], "expected_revision": 0, "ops": [add(3)] });
     assert_eq!(ok(&external, "plan_edit", edit).await["revision"], 1);
 
@@ -201,38 +210,37 @@ async fn a_draft_ref_replays_for_a_new_version_of_a_frozen_plan() {
 }
 
 #[tokio::test]
-async fn an_external_draft_source_must_be_frozen() {
+async fn an_external_start_answers_an_existing_plan_draft() {
     let l = listening_app().await;
     let v1 = approved_v1(&l.app).await;
+    let plan_id = l.app.storage.get_plan(&v1).await.unwrap().plan_id;
     let (_, external) = project_client(&l).await;
     let r1 = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
     let v2 = ok(
         &external,
         "draft_start",
-        json!({ "draft_ref": r1, "from_workflow_id": v1 }),
+        json!({ "draft_ref": r1, "plan_id": plan_id, "reason": "the API changed" }),
     )
     .await;
 
-    // A frozen source's thread already has a Draft, so a new ref answers it.
+    // A frozen source's plan already has a Draft, so a new ref answers it.
     let second_ref = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
     let again = ok(
         &external,
         "draft_start",
-        json!({ "draft_ref": second_ref, "from_workflow_id": v1 }),
+        json!({ "draft_ref": second_ref, "plan_id": plan_id }),
     )
     .await;
     assert_eq!(again, v2);
 
-    let invalid_ref = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
-    let text = refused(
+    let next_ref = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
+    let answered = ok(
         &external,
         "draft_start",
-        json!({ "draft_ref": invalid_ref, "from_workflow_id": v2["workflow_id"] }),
+        json!({ "draft_ref": next_ref, "plan_id": plan_id }),
     )
     .await;
-    // The draft is in the project: a state error, not a scope one.
-    assert!(text.starts_with("INVALID_COMMAND: "), "{text}");
-    assert!(text.contains("edit it with plan_edit"), "{text}");
+    assert_eq!(answered, v2, "an existing Draft is answered unchanged");
     assert_eq!(
         l.app.storage.thread_plan(&l.app.thread).await.unwrap(),
         Some(serde_json::from_value(v2["workflow_id"].clone()).unwrap())
@@ -260,7 +268,7 @@ async fn a_bound_draft_ref_still_replays_after_its_hour() {
     let l = listening_app().await;
     let (grant, external) = project_client(&l).await;
 
-    // From scratch: a thread and its v1.
+    // From scratch: a plan and its v1, with no thread (§16.3).
     let r1 = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
     let scratch = json!({ "draft_ref": r1, "title": "Search", "goal": "find things" });
     let first = ok(&external, "draft_start", scratch.clone()).await;
@@ -274,7 +282,7 @@ async fn a_bound_draft_ref_still_replays_after_its_hour() {
     // From a frozen plan: its next version.
     let v1 = approved_v1(&l.app).await;
     let r2 = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
-    let next = json!({ "draft_ref": r2, "from_workflow_id": v1 });
+    let next = json!({ "draft_ref": r2, "plan_id": l.app.storage.get_plan(&v1).await.unwrap().plan_id, "reason": "the API changed" });
     let v2 = ok(&external, "draft_start", next.clone()).await;
     expire(&l.app, r2.as_str().unwrap()).await;
     let plans_with_v2 = count(&l.app, "workflow").await;
@@ -306,7 +314,7 @@ async fn draft_ref_replays_and_distinct_refs_make_distinct_plans() {
     let again = json!({ "draft_ref": r2, "title": "Payments", "goal": "take payments" });
     let c = ok(&external, "draft_start", again).await;
     assert_ne!(c["workflow_id"], a["workflow_id"]);
-    assert_ne!(c["thread_id"], a["thread_id"]);
+    assert_ne!(c["plan_id"], a["plan_id"]);
 
     let changed = json!({ "draft_ref": r1, "title": "Payments", "goal": "refund payments" });
     let text = refused(&external, "draft_start", changed).await;
@@ -333,11 +341,11 @@ async fn arabic_plan_round_trips_through_mcp() {
     ok(
         &planner,
         "plan_edit",
-        json!({ "expected_revision": 0, "ops": ops }),
+        json!({ "workflow_id": workflow, "expected_revision": 0, "ops": ops }),
     )
     .await;
 
-    let plan = ok(&planner, "workflow_get", json!({})).await;
+    let plan = ok(&planner, "workflow_get", json!({ "workflow_id": workflow })).await;
     assert_eq!(plan["id"], json!(workflow));
     assert_eq!(plan["title"], title);
     assert_eq!(plan["goal"], goal);
@@ -348,7 +356,12 @@ async fn arabic_plan_round_trips_through_mcp() {
         "تظهر رسالة خطأ واضحة"
     );
     assert_eq!(plan["links"][0]["label"], label);
-    let one = ok(&planner, "task_get", json!({ "number": 1 })).await;
+    let one = ok(
+        &planner,
+        "task_get",
+        json!({ "workflow_id": workflow, "number": 1 }),
+    )
+    .await;
     assert_eq!(one["title"], "تسجيل الدخول");
 }
 
@@ -366,7 +379,7 @@ async fn a_thread_grant_starts_a_draft_only_inside_a_turn() {
     turn_running(&l.app).await;
     let started = ok(&planner, "draft_start", start.clone()).await;
     assert_eq!(started["version"], 1);
-    assert_eq!(started["thread_id"], json!(l.app.thread));
+    assert!(started["plan_id"].is_string());
     // The same call in the same turn is a replay.
     assert_eq!(ok(&planner, "draft_start", start).await, started);
     let events = events_of(&l.app, &l.app.thread, "WorkflowDraftStarted").await;
@@ -378,55 +391,41 @@ async fn a_thread_grant_starts_a_draft_only_inside_a_turn() {
     );
 }
 
-/// A Planner's `from_workflow_id` is part of its DraftStart (§13.5): within
-/// one turn, the same call is a replay even after the Draft it started made
-/// v1 no longer the latest, and naming the Draft is its own command (§13.6).
+/// A Planner's plan_id and reason are part of its DraftStart identity (§16.4).
 #[tokio::test]
-async fn a_planner_draft_start_naming_another_version_is_another_command() {
+async fn a_planner_draft_start_names_a_project_plan() {
     let l = listening_app().await;
     let v1 = approved_v1(&l.app).await;
+    let plan_id = l.app.storage.get_plan(&v1).await.unwrap().plan_id;
     let planner = thread_client(&l, &l.app.thread).await;
     turn_running(&l.app).await;
-    let from_v1 = json!({ "from_workflow_id": v1 });
-    let v2 = ok(&planner, "draft_start", from_v1.clone()).await;
+    let start = json!({ "plan_id": plan_id, "reason": "the API changed" });
+    let v2 = ok(&planner, "draft_start", start.clone()).await;
     assert_eq!(v2["version"], 2);
-    // The identical call is a replay of the first answer.
-    assert_eq!(ok(&planner, "draft_start", from_v1).await, v2);
-    // Naming v2 is a different request: the thread's Draft, as a new command.
-    let from_v2 = json!({ "from_workflow_id": v2["workflow_id"] });
-    assert_eq!(ok(&planner, "draft_start", from_v2).await, v2);
-    // A new request naming v1 now names a version that is not the latest.
-    let again = json!({ "from_workflow_id": v1, "title": "Again", "goal": "again" });
-    let text = refused(&planner, "draft_start", again).await;
-    assert!(text.starts_with("INVALID_COMMAND: "), "{text}");
+    assert_eq!(ok(&planner, "draft_start", start).await, v2);
 
-    let mut recorded: Vec<String> = sqlx::query_scalar(
+    let recorded: Vec<String> = sqlx::query_scalar(
         "SELECT request_fingerprint FROM command_record
           WHERE command_kind = 'DraftStart' AND command_id LIKE 'op:%'",
     )
     .fetch_all(l.app.storage.reader())
     .await
     .unwrap();
-    recorded.sort();
-    let named = |from: &serde_json::Value| {
-        fingerprint(
-            "DraftStart",
-            &json!({ "thread": l.app.thread, "title": null, "goal": null,
-                     "from_workflow_id": from }),
-        )
-    };
-    let mut expected = vec![named(&json!(v1)), named(&v2["workflow_id"])];
-    expected.sort();
-    assert_eq!(recorded, expected, "one command per version named");
+    let params = json!({
+        "project": l.app.project,
+        "plan_id": plan_id,
+        "title": null,
+        "goal": null,
+        "reason": "the API changed",
+    });
+    assert_eq!(recorded, [fingerprint("DraftStart", &params)]);
     let events = events_of(&l.app, &l.app.thread, "WorkflowDraftStarted").await;
     assert_eq!(events.len(), 2, "v1 and v2 only");
 }
 
-/// A Planner's `from_workflow_id` names the version `draft_start` starts
-/// from anyway (§13.6): its thread's Draft, or with none its latest Frozen
-/// version. Any other version is refused, naming that one, and writes nothing.
+/// A Planner edits only the latest version of a named Active plan (§16.4).
 #[tokio::test]
-async fn a_planner_draft_start_names_only_its_latest_version() {
+async fn a_planner_edits_only_the_plan_latest_version() {
     let l = listening_app().await;
     let v1 = approved_v1(&l.app).await;
     let v2 = draft_on(&l.app, &l.app.thread, "start-2").await.workflow_id;
@@ -437,58 +436,27 @@ async fn a_planner_draft_start_names_only_its_latest_version() {
         .unwrap();
     let planner = thread_client(&l, &l.app.thread).await;
     turn_running(&l.app).await;
-    let planner_commands = async || -> i64 {
-        sqlx::query_scalar(
-            "SELECT COUNT(*) FROM command_record
-              WHERE command_kind = 'DraftStart' AND command_id LIKE 'op:%'",
-        )
-        .fetch_one(l.app.storage.reader())
-        .await
-        .unwrap()
-    };
-    let must_be = |latest: &WorkflowId| {
-        format!(
-            "INVALID_COMMAND: a Planner starts a draft from its conversation's latest \
-             version, {latest}; name it, or leave from_workflow_id out"
-        )
-    };
-
-    // v2 is the latest Frozen version and there is no Draft: v1 is refused.
-    let text = refused(&planner, "draft_start", json!({ "from_workflow_id": v1 })).await;
-    assert_eq!(text, must_be(&v2));
-    assert_eq!(
-        l.app.storage.thread_plan(&l.app.thread).await.unwrap(),
-        Some(v2.clone())
-    );
-    assert_eq!(
-        planner_commands().await,
-        0,
-        "the refusal records no command"
-    );
-    let started = events_of(&l.app, &l.app.thread, "WorkflowDraftStarted").await;
-    assert_eq!(started.len(), 2, "v1 and v2 only");
-
-    // Naming the latest Frozen version starts its copy, as before.
-    let v3 = ok(&planner, "draft_start", json!({ "from_workflow_id": v2 })).await;
-    assert_eq!(v3["version"], 3);
-    let v3_id: WorkflowId = serde_json::from_value(v3["workflow_id"].clone()).unwrap();
-
-    // With a Draft, naming it answers it; naming a Frozen version is refused.
-    let named = ok(
+    let v1_plan = l.app.storage.get_plan(&v1).await.unwrap();
+    let v2_plan = l.app.storage.get_plan(&v2).await.unwrap();
+    assert_eq!(v1_plan.plan_id, v2_plan.plan_id);
+    let stale = refused(
         &planner,
-        "draft_start",
-        json!({ "from_workflow_id": v3_id }),
+        "plan_edit",
+        json!({ "workflow_id": v1, "expected_revision": 1, "ops": [] }),
     )
     .await;
-    assert_eq!(named, v3);
-    let from_v2 = json!({ "from_workflow_id": v2, "title": "Other", "goal": "other" });
-    assert_eq!(
-        refused(&planner, "draft_start", from_v2).await,
-        must_be(&v3_id)
-    );
-    let text = refused(&planner, "draft_start", json!({ "from_workflow_id": v1 })).await;
-    assert_eq!(text, must_be(&v3_id));
-    assert_eq!(planner_commands().await, 2, "v3 started, then answered");
+    assert!(stale.starts_with("GRANT_SCOPE: "), "{stale}");
+
+    let next = json!({ "plan_id": v1_plan.plan_id, "reason": "the API changed" });
+    let v3 = ok(&planner, "draft_start", next).await;
+    assert_eq!(v3["version"], 3);
+    let stale = refused(
+        &planner,
+        "plan_edit",
+        json!({ "workflow_id": v2, "expected_revision": 0, "ops": [] }),
+    )
+    .await;
+    assert!(stale.starts_with("GRANT_SCOPE: "), "{stale}");
     let started = events_of(&l.app, &l.app.thread, "WorkflowDraftStarted").await;
     assert_eq!(started.len(), 3, "v1, v2 and v3 only");
 }

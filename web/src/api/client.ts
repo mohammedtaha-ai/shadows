@@ -30,6 +30,9 @@ export type Plan = Schemas['Plan']
 export type PlanTask = Schemas['PlanTask']
 export type PlanLink = Schemas['Link']
 export type PlanListing = Schemas['PlanListing']
+export type PlanVersions = Schemas['PlanVersions']
+export type VersionLine = Schemas['VersionLine']
+export type WrittenBy = Schemas['WrittenBy']
 export type Approved = Schemas['Approved']
 export type Focus = Schemas['Focus']
 export type InstructionsVersion = Schemas['InstructionsVersion']
@@ -110,6 +113,18 @@ export function listThreads(projectId: string): Promise<PlanningThread[]> {
   return unwrap(client.GET('/api/projects/{id}/threads', { params: { path: { id: projectId } } }))
 }
 
+/** One conversation, including a removed one kept for history (§16.5). */
+export function getThread(threadId: string): Promise<PlanningThread> {
+  return unwrap(client.GET('/api/threads/{id}', { params: { path: { id: threadId } } }))
+}
+
+/** Remove a conversation; retry an unanswered request with the same command id. */
+export function removeThread(threadId: string, commandId: string): Promise<PlanningThread> {
+  return unwrap(client.DELETE('/api/threads/{id}', {
+    params: { path: { id: threadId }, query: { command_id: commandId } },
+  }))
+}
+
 export function createThread(projectId: string, body: CreateThread): Promise<PlanningThread> {
   return unwrap(
     client.POST('/api/projects/{id}/threads', { params: { path: { id: projectId } }, body }),
@@ -136,12 +151,23 @@ export async function startTurn(
   commandId: string,
   prompt: string,
   settings: TurnSettings,
-  { focus = null, clientTab }: { focus?: Focus | null; clientTab: string },
+  {
+    focus = null,
+    plan,
+    clientTab,
+  }: { focus?: Focus | null; plan?: string | null; clientTab: string },
 ): Promise<string> {
   const started = await unwrap(
     client.POST('/api/threads/{id}/turns', {
       params: { path: { id: threadId } },
-      body: { command_id: commandId, prompt, ...settings, focus, client_tab: clientTab },
+      body: {
+        command_id: commandId,
+        prompt,
+        ...settings,
+        focus,
+        ...(plan != null ? { plan } : {}),
+        client_tab: clientTab,
+      },
     }),
   )
   return started.operation_id
@@ -262,9 +288,38 @@ export function stopTurn(operationId: string): Promise<Operation> {
   )
 }
 
-/** Each conversation's latest plan version in a project (spec §13.10). */
-export function listPlans(projectId: string): Promise<PlanListing[]> {
-  return unwrap(client.GET('/api/projects/{id}/workflows', { params: { path: { id: projectId } } }))
+/** Each project's plan by its latest version, or archived ones too (§16.2). */
+export function listPlans(projectId: string, archived = false): Promise<PlanListing[]> {
+  return unwrap(
+    client.GET('/api/projects/{id}/workflows', {
+      params: { path: { id: projectId }, query: { archived } },
+    }),
+  )
+}
+
+/** One plan with every version, oldest first (§16.10). */
+export function getPlanVersions(planId: string): Promise<PlanVersions> {
+  return unwrap(client.GET('/api/plans/{id}', { params: { path: { id: planId } } }))
+}
+
+/** Archives a plan (§16.2). */
+export function archivePlan(planId: string, commandId: string): Promise<PlanVersions> {
+  return unwrap(
+    client.POST('/api/plans/{id}/archive', {
+      params: { path: { id: planId } },
+      body: { command_id: commandId },
+    }),
+  )
+}
+
+/** Unarchives a plan (§16.2). */
+export function unarchivePlan(planId: string, commandId: string): Promise<PlanVersions> {
+  return unwrap(
+    client.POST('/api/plans/{id}/unarchive', {
+      params: { path: { id: planId } },
+      body: { command_id: commandId },
+    }),
+  )
 }
 
 /** One plan version: tasks, links, revision, its neighbours, what blocks its
@@ -356,6 +411,13 @@ export function createDir(parent: string, name: string): Promise<DirectoryEntry>
 export function subscribeUrl(threadId: string, after: number): string {
   const url = new URL('/api/subscribe', DAEMON_URL)
   url.searchParams.set('thread_id', threadId)
+  url.searchParams.set('after', String(after))
+  return url.toString()
+}
+
+/** Plan notifications of one project, resumed by the existing journal cursor. */
+export function projectEventsUrl(projectId: string, after: number): string {
+  const url = new URL(`/api/projects/${encodeURIComponent(projectId)}/events`, DAEMON_URL)
   url.searchParams.set('after', String(after))
   return url.toString()
 }

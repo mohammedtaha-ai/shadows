@@ -1113,6 +1113,13 @@
             },
             "type": "array"
           },
+          "change_reason": {
+            "description": "Why this version was started (§16.3): `None` for v1, and for a version\nfrom before migration 0012, which reads \"Reason not recorded\".",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "created_at": {
             "type": "string"
           },
@@ -1156,6 +1163,12 @@
               }
             ]
           },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "plan_state": {
+            "$ref": "#/components/schemas/PlanState"
+          },
           "previous": {
             "oneOf": [
               {
@@ -1183,21 +1196,24 @@
             },
             "type": "array"
           },
-          "thread_id": {
-            "$ref": "#/components/schemas/ThreadId"
-          },
           "title": {
             "type": "string"
           },
           "version": {
             "format": "int64",
             "type": "integer"
+          },
+          "written_by": {
+            "$ref": "#/components/schemas/WrittenBy",
+            "description": "Who wrote this version (§16.3)."
           }
         },
         "required": [
           "id",
-          "thread_id",
+          "plan_id",
+          "plan_state",
           "project_id",
+          "written_by",
           "version",
           "revision",
           "state",
@@ -1210,17 +1226,36 @@
         ],
         "type": "object"
       },
+      "PlanCommand": {
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key (spec §16.2), scoped to the plan.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id"
+        ],
+        "type": "object"
+      },
+      "PlanId": {
+        "format": "uuid",
+        "type": "string"
+      },
       "PlanListing": {
-        "description": "A plan as a project's list shows it: its thread's latest version.",
+        "description": "A plan as a project's list shows it: its latest version (`id`).",
         "properties": {
           "id": {
             "$ref": "#/components/schemas/WorkflowId"
           },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "plan_state": {
+            "$ref": "#/components/schemas/PlanState"
+          },
           "state": {
             "$ref": "#/components/schemas/WorkflowState"
-          },
-          "thread_id": {
-            "$ref": "#/components/schemas/ThreadId"
           },
           "title": {
             "type": "string"
@@ -1234,14 +1269,23 @@
           }
         },
         "required": [
+          "plan_id",
+          "plan_state",
           "id",
-          "thread_id",
           "title",
           "version",
           "state",
           "updated_at"
         ],
         "type": "object"
+      },
+      "PlanState": {
+        "description": "Spec §16.2. An `Archived` plan is read, never written.",
+        "enum": [
+          "Active",
+          "Archived"
+        ],
+        "type": "string"
       },
       "PlanTask": {
         "allOf": [
@@ -1261,6 +1305,39 @@
           }
         ],
         "description": "One task of a stored version: its storage id beside its content."
+      },
+      "PlanVersions": {
+        "description": "One plan with every version, oldest first (§16.10's GET /api/plans/{id}).",
+        "properties": {
+          "archived_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PlanState"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/VersionLine"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "plan_id",
+          "project_id",
+          "state",
+          "versions"
+        ],
+        "type": "object"
       },
       "PlanningThread": {
         "properties": {
@@ -1284,6 +1361,13 @@
           "project_id": {
             "$ref": "#/components/schemas/ProjectId"
           },
+          "removed_at": {
+            "description": "Set when this conversation was removed; its history remains readable.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "status": {
             "type": "string"
           },
@@ -1297,6 +1381,7 @@
           "title",
           "status",
           "created_at",
+          "removed_at",
           "harness",
           "forked_from_thread"
         ],
@@ -1582,6 +1667,17 @@
           "model": {
             "type": "string"
           },
+          "plan": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlanId",
+                "description": "The plan the person opened this conversation to continue (§16.4)."
+              }
+            ]
+          },
           "prompt": {
             "type": "string"
           }
@@ -1794,6 +1890,44 @@
         ],
         "type": "object"
       },
+      "VersionLine": {
+        "properties": {
+          "change_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkflowState"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          },
+          "written_by": {
+            "$ref": "#/components/schemas/WrittenBy"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "state",
+          "title",
+          "written_by",
+          "created_at"
+        ],
+        "type": "object"
+      },
       "WorkflowId": {
         "format": "uuid",
         "type": "string"
@@ -1805,6 +1939,71 @@
           "Frozen"
         ],
         "type": "string"
+      },
+      "WrittenBy": {
+        "description": "Spec §16.3: who wrote a version, recorded once when it was created.",
+        "oneOf": [
+          {
+            "description": "The internal Planner: its conversation, and the turn when one was\nrecorded (none before migration 0012).",
+            "properties": {
+              "harness": {
+                "description": "`agent_invocation.harness_kind`, e.g. `claude-code`.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "kind": {
+                "enum": [
+                  "planner"
+                ],
+                "type": "string"
+              },
+              "model": {
+                "description": "The observed model, else the requested one; `None` without a turn.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "thread_id": {
+                "$ref": "#/components/schemas/ThreadId"
+              },
+              "thread_removed": {
+                "type": "boolean"
+              },
+              "thread_title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "thread_id",
+              "thread_title",
+              "thread_removed",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "An external agent's project grant.",
+            "properties": {
+              "grant_id": {
+                "$ref": "#/components/schemas/GrantId"
+              },
+              "kind": {
+                "enum": [
+                  "external"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "grant_id",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
       }
     }
   },
@@ -2252,6 +2451,202 @@
         "summary": "Stops a turn: asks the harness to cancel it, and if the harness does not\nconfirm in time, terminates the adapter's process tree, confirms it is\ngone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the operation as it\nnow stands — which may still be `Running` for a moment when the turn had\nalready ended on its own and its ending is being recorded.",
         "tags": [
           "turns"
+        ]
+      }
+    },
+    "/api/plans/{id}": {
+      "get": {
+        "operationId": "get_plan_versions",
+        "parameters": [
+          {
+            "description": "The plan",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PlanId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanVersions"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such plan"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "One plan with every version, oldest first (§16.10).",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/plans/{id}/archive": {
+      "post": {
+        "operationId": "archive_plan",
+        "parameters": [
+          {
+            "description": "The plan",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PlanId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanVersions"
+                }
+              }
+            },
+            "description": "Archived, or the replay of the same command"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such plan"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Archives a plan (§16.2). An archived plan is read, never written.\nArchiving an already archived plan answers the plan unchanged.",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/plans/{id}/unarchive": {
+      "post": {
+        "operationId": "unarchive_plan",
+        "parameters": [
+          {
+            "description": "The plan",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PlanId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanVersions"
+                }
+              }
+            },
+            "description": "Unarchived, or the replay of the same command"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such plan"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Unarchives a plan (§16.2), returning it to `Active`.\nUnarchiving an active plan answers the plan unchanged.",
+        "tags": [
+          "workflows"
         ]
       }
     },
@@ -3058,6 +3453,58 @@
         ]
       }
     },
+    "/api/projects/{id}/events": {
+      "get": {
+        "operationId": "subscribe_project",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "Resume after the last durable sequence delivered; 0 replays all plan events.",
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unknown or removed project"
+          }
+        },
+        "summary": "A project's plan notifications (§16.8), replayed then live on the same\njournal tail as `/api/subscribe`. `durable` carries `{seq, kind,\noperation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.\nArchive notifications name the plan's latest version to refetch.",
+        "tags": [
+          "stream"
+        ]
+      }
+    },
     "/api/projects/{id}/mcp-grants": {
       "get": {
         "operationId": "list_grants",
@@ -3429,6 +3876,15 @@
             "schema": {
               "$ref": "#/components/schemas/ProjectId"
             }
+          },
+          {
+            "description": "When true, includes archived plans in the listing (§16.2).",
+            "in": "query",
+            "name": "archived",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -3456,7 +3912,7 @@
             "description": "STORAGE_UNAVAILABLE"
           }
         },
-        "summary": "Each planning thread's latest plan version in a project. An unknown\nproject has none.",
+        "summary": "The project's plans, each by its latest version, in the order\nthey were created. Active plans only, or archived ones too when `archived=true`.\nAn unknown project has none.",
         "tags": [
           "workflows"
         ]
@@ -3506,6 +3962,102 @@
       }
     },
     "/api/threads/{id}": {
+      "delete": {
+        "operationId": "remove_thread",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          },
+          {
+            "in": "query",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanningThread"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "threads"
+        ]
+      },
+      "get": {
+        "operationId": "get_thread",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanningThread"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "threads"
+        ]
+      },
       "patch": {
         "operationId": "update_thread",
         "parameters": [

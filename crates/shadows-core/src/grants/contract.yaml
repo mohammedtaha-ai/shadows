@@ -106,7 +106,8 @@ functions:
       signature: "(&self, ctx: &CommandContext, project: &ProjectId) -> Result<IssuedGrant, StorageError>"
     issue_thread_grant:
       signature: "(&self, thread: &ThreadId) -> Result<(Grant, Token), StorageError>"
-      # No command: Harness' `Setups::for_opening` issues it for a session.
+      # No command: Harness' `Setups::for_opening` issues it for a live
+      # thread's session. A removed thread cannot receive a new grant.
     revoke_grant:
       signature: "(&self, ctx: &CommandContext, id: &GrantId) -> Result<Grant, StorageError>"
     revoke_thread_grant:
@@ -136,12 +137,16 @@ functions:
       signature: "(conn, project: &ProjectId, actor: Actor, ts: &str) -> Result<(), StorageError>"
       # Every live project grant on the project, ORDER BY id, through
       # `revoke_in`, inside the caller's write.
+    revoke_thread_grants_in:
+      signature: "(conn, thread: &ThreadId, actor: Actor, ts: &str) -> Result<(), StorageError>"
+      # Every live Planner grant of the thread, inside its removal write.
     check_writer:
-      signature: "(conn, writer: &Writer, project: &ProjectId, thread: Option<&ThreadId>) -> Result<(), StorageError>"
+      signature: "(conn, writer: &Writer, project: &ProjectId) -> Result<(), StorageError>"
       # Ok for a person. GrantInvalid for an unknown or revoked grant;
-      # GrantScope when a Planner's grant is not its own thread's, or its
-      # write's thread is not that thread, or an external grant's project is
-      # not the write's.
+      # GrantScope when a Planner's grant is not a thread grant of its own
+      # thread in `project`, or an external grant is not a project grant of
+      # `project`. Which of the project's plans a Planner reaches is Plans'
+      # `in_scope` (§16.4), not this check.
     bind_draft_ref:
       signature: "(conn, writer: &Writer, draft_ref: &str, workflow: &WorkflowId, project: &ProjectId, ts: &str) -> Result<(), StorageError>"
       # GrantScope for a writer with no grant (a person). Otherwise GrantScope
@@ -169,9 +174,10 @@ enums:
 
 
 shared_in_transaction:
-  check_writer: "Plans' store (plans/store/draft.rs start_draft and start_thread_with_draft, edit.rs edit_plan, view.rs show_plan): the writer's grant is judged live and in scope inside the plan write's own transaction, so a revocation between the tool's bearer check and the write stops the write"
-  bind_draft_ref: "Plans' store (plans/store/draft.rs start_draft and start_thread_with_draft): the draft_ref is bound to the version the same transaction creates, so a refused ref leaves no thread or version behind"
+  check_writer: "Plans' store (plans/store/draft.rs start_draft, edit.rs edit_plan, view.rs show_plan): the writer's grant is judged live and in scope inside the plan write's own transaction, so a revocation between the tool's bearer check and the write stops the write"
+  bind_draft_ref: "Plans' store (plans/store/draft.rs start_draft): the draft_ref is bound to the version the same transaction creates, so a refused ref leaves no plan or version behind"
   revoke_project_grants_in: "Projects' store (projects/store.rs remove_project): a removed project's live grants are revoked in the removal's own write, so its token stops with it (§4.2)"
+  revoke_thread_grants_in: "Threads' store (threads/store/remove.rs remove_thread): every live Planner grant is revoked in the same write that marks the thread removed (§16.5)"
 
 
 called_by_other_services:
@@ -253,12 +259,12 @@ obligations:
 
   - rule: >
       A plan write under a grant checks the grant again in its own
-      transaction: a revoked grant writes nothing (GrantInvalid), a Planner's
-      grant writes only its own thread, an external grant only its project
-      (GrantScope).
+      transaction: a revoked grant writes nothing (GrantInvalid), and a
+      Planner's thread grant or an external project grant writes only in its
+      own project (GrantScope).
     tested_by:
       - an_edit_by_a_revoked_grant_writes_nothing
-      - a_planner_grant_edits_only_its_own_thread
+      - a_planner_grant_writes_only_in_its_own_project
     note: >
       Both drive `edit_plan` in plans' store; the revocation is written to the
       row directly, before the write starts, so neither races a revocation
@@ -267,7 +273,7 @@ obligations:
   - rule: >
       A draft_ref binds once, to the grant that holds it, before it expires;
       an expired ref, another grant's ref, or a plan outside the grant's
-      project is GrantScope and leaves the ref unbound and no thread behind.
+      project is GrantScope and leaves the ref unbound and no plan behind.
     tested_by:
       - a_draft_ref_binds_in_both_paths
       - a_draft_ref_expires_and_belongs_to_its_grant
@@ -389,22 +395,23 @@ tests:
       WWW-Authenticate.
   - name: an_edit_by_a_revoked_grant_writes_nothing
     checks: The store refuses a revoked external grant's edit with GrantInvalid; revision stays 0.
-  - name: a_planner_grant_edits_only_its_own_thread
+  - name: a_planner_grant_writes_only_in_its_own_project
     checks: >
-      A Planner writer on another thread's plan is refused GrantScope; on its
-      own thread the edit is recorded.
+      A Planner writer whose thread is in another project is refused
+      GrantScope; its own thread's edit is recorded under the thread.
   - name: a_draft_ref_expires_and_belongs_to_its_grant
     checks: >
       A prepared ref is unbound, expires an hour after it is created, and a
-      second prepare is another ref. Started through the store's
-      `start_thread_with_draft`, another grant's ref, an unknown ref and an
-      expired ref are GrantScope and create no thread; its own grant's start
+      second prepare is another ref. Started from scratch through the store's
+      `start_draft`, another grant's ref, an unknown ref and an expired ref
+      are GrantScope and create no plan; its own grant's start
       binds it; after expiry that start's replay answers the same plan and a
       start under a new command id is GrantScope, the ref still bound to the
       first plan. A thread grant preparing is GrantScope, a revoked one
       GrantInvalid.
   - name: a_draft_ref_binds_in_both_paths
     checks: >
-      A ref binds to a from-scratch v1 and to a next version; a foreign-project
-      thread, an expired ref and another grant's ref are GrantScope and stay
-      unbound, with no thread created; a replay after expiry answers the first.
+      A ref binds to a from-scratch v1 and to a next version; another
+      project, an expired ref and another grant's ref are GrantScope and stay
+      unbound, with no plan or thread created; a replay after expiry answers
+      the first.

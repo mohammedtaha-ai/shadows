@@ -3,9 +3,8 @@
 //! **The decision this file owns.** Clients generate their types from
 //! `api/openapi.json`, so that file is the protocol as a client sees it. It is
 //! generated from the route table, never written, and the first test below
-//! regenerates it and fails on any difference — the same contract
-//! `tests/codemap` keeps for the code map. A route change therefore reaches the
-//! checked-in document in the same commit, or the build is red:
+//! regenerates it and fails on any difference. A route change therefore
+//! reaches the checked-in document in the same commit, or the build is red:
 //!
 //! ```text
 //! UPDATE_OPENAPI=1 cargo test --test openapi
@@ -99,21 +98,25 @@ fn the_document_names_every_route() {
             "DELETE /api/mcp-grants/{id}",
             "DELETE /api/projects/{id}",
             "DELETE /api/projects/{id}/code/links/{linked}",
+            "DELETE /api/threads/{id}",
             "GET /api/code/settings",
             "GET /api/fs/dirs",
             "GET /api/harnesses",
             "GET /api/openapi.json",
+            "GET /api/plans/{id}",
             "GET /api/projects",
             "GET /api/projects/{id}/code/definitions",
             "GET /api/projects/{id}/code/links",
             "GET /api/projects/{id}/code/outline",
             "GET /api/projects/{id}/code/references",
             "GET /api/projects/{id}/code/status",
+            "GET /api/projects/{id}/events",
             "GET /api/projects/{id}/mcp-grants",
             "GET /api/projects/{id}/planner-instructions",
             "GET /api/projects/{id}/threads",
             "GET /api/projects/{id}/workflows",
             "GET /api/subscribe",
+            "GET /api/threads/{id}",
             "GET /api/threads/{id}/context",
             "GET /api/threads/{id}/entries",
             "GET /api/threads/{id}/operations",
@@ -122,6 +125,8 @@ fn the_document_names_every_route() {
             "PATCH /api/threads/{id}",
             "POST /api/fs/dirs",
             "POST /api/operations/{id}/stop",
+            "POST /api/plans/{id}/archive",
+            "POST /api/plans/{id}/unarchive",
             "POST /api/projects",
             "POST /api/projects/{id}/mcp-grants",
             "POST /api/projects/{id}/threads",

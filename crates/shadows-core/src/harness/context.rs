@@ -44,8 +44,9 @@ impl Sessions {
     /// `TimedOut` the prompt is cancelled.
     pub(crate) async fn context(&self, thread: &ThreadId) -> Result<Vec<Category>, NoBreakdown> {
         let (opened, mut rx) = {
-            let mut live = self.live.lock().await;
-            let item = live.get_mut(thread).ok_or(NoBreakdown::NotOpen)?;
+            let slot = self.slot(thread).await;
+            let mut live = slot.lock().await;
+            let item = live.as_mut().ok_or(NoBreakdown::NotOpen)?;
             if item.handle.has_exited() || item.opened.connection().is_closed() {
                 return Err(NoBreakdown::NotOpen);
             }

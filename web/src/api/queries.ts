@@ -6,6 +6,8 @@ import {
   getCodeStatus,
   getInstructions,
   getPlan,
+  getPlanVersions,
+  getThread,
   listCodeLinks,
   listGrants,
   listDirs,
@@ -39,14 +41,21 @@ export const harnessesQuery = queryOptions({ queryKey: ['harnesses'], queryFn: l
 
 /** A project's planning threads, oldest first. A thread's own stream
  * refreshes the list on its `ThreadRetitled`, but the harness titles a thread
- * after its turn has ended, often once the person has left it, and a plan
- * started from outside makes a thread no open stream names: so the list is
- * also polled every 10 s while shown, as the plans are (spec §12.10). */
+ * after its turn has ended, often once the person has left it, so the list is
+ * also polled every 10 s while shown (spec §12.10). */
 export function threadsQuery(projectId: string) {
   return queryOptions({
     queryKey: ['projects', projectId, 'threads'],
     queryFn: () => listThreads(projectId),
     refetchInterval: 10_000,
+  })
+}
+
+/** Historical conversation links still read a thread omitted from the live list. */
+export function threadQuery(threadId: string) {
+  return queryOptions({
+    queryKey: ['threads', threadId, 'detail'],
+    queryFn: () => getThread(threadId),
   })
 }
 
@@ -80,14 +89,19 @@ export function operationsQuery(threadId: string) {
  * predecessor's `next`. */
 export const workflowsKey = ['workflows'] as const
 
-/** A project's plans, each conversation's latest version (spec §13.10). No
- * thread's stream carries the list, so it is polled every 10 s while shown;
- * TanStack Query pauses the poll while the window is hidden. */
-export function plansQuery(projectId: string) {
+/** A project's plans, each plan's latest version (§16.2), or archived ones too. */
+export function plansQuery(projectId: string, archived = false) {
   return queryOptions({
-    queryKey: [...workflowsKey, 'list', projectId],
-    queryFn: () => listPlans(projectId),
-    refetchInterval: 10_000,
+    queryKey: [...workflowsKey, 'list', projectId, { archived }],
+    queryFn: () => listPlans(projectId, archived),
+  })
+}
+
+/** One plan with every version, oldest first (§16.10). */
+export function planVersionsQuery(planId: string) {
+  return queryOptions({
+    queryKey: [...workflowsKey, 'versions', planId],
+    queryFn: () => getPlanVersions(planId),
   })
 }
 
@@ -108,7 +122,7 @@ export function instructionsQuery(projectId: string) {
 }
 
 /** A project's grants for external agents (spec §13.7). No thread's stream
- * carries them, so the list is polled every 10 s while shown, as plans are. */
+ * carries them, so the list is polled every 10 s while shown. */
 export function grantsQuery(projectId: string) {
   return queryOptions({
     queryKey: ['projects', projectId, 'grants'],

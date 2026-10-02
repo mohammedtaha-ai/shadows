@@ -28,13 +28,14 @@ import { type SessionView, sessionKey } from './use-session'
  * whose `draft` makes the thread first and answers the turn's operation. */
 export type SendTo =
   | { threadId: string }
-  | { draft: (commandId: string, text: string, settings: TurnSettings) => Promise<string> }
+  | { draft: (commandId: string, text: string, settings: TurnSettings) => Promise<string>; planId?: string }
 
 interface Send {
   commandId: string
   text: string
   settings: TurnSettings
   pointed: PointedTask | null
+  planId: string | undefined
 }
 
 export function Composer({
@@ -74,6 +75,8 @@ export function Composer({
   const threadId = 'threadId' in to ? to.threadId : null
   const [prompt, setPrompt] = useState(carried?.text ?? '')
   const [carriedError, setCarriedError] = useState(carried?.error ?? null)
+  const [continuedPlan, setContinuedPlan] = useState(carried?.planId)
+  const planId = 'draft' in to ? to.planId : continuedPlan
 
   // The command id belongs to a pending send (spec §12.7): made when Send is
   // pressed with no pending send, reused by a retry of that same send, and
@@ -82,15 +85,17 @@ export function Composer({
   const pending = useRef<Attempt | null>(carried?.attempt ?? null)
 
   const send = useMutation({
-    mutationFn: ({ commandId, text, settings, pointed }: Send) =>
+    mutationFn: ({ commandId, text, settings, pointed, planId }: Send) =>
       'draft' in to
         ? to.draft(commandId, text, settings)
         : startTurn(to.threadId, commandId, text, settings, {
             focus: focusOf(pointed),
+            plan: planId ?? null,
             clientTab: tabId(),
           }),
     onSuccess: (operationId, { pointed }) => {
       pending.current = null
+      setContinuedPlan(undefined)
       setPrompt('')
       if (pointed !== null) onPointed(pointed)
       onStarted(operationId)
@@ -181,17 +186,17 @@ export function Composer({
     // The focus is part of the command (§13.10): pointing elsewhere is a new one.
     setCarriedError(null)
     switchEffort.reset()
-    pending.current = attemptFor(pending.current, { text, settings, focus: focusOf(pointed) })
-    send.mutate({ commandId: pending.current.commandId, text, settings, pointed })
+    pending.current = attemptFor(pending.current, { text, settings, focus: focusOf(pointed), ...(planId === undefined ? {} : { plan: planId }) })
+    send.mutate({ commandId: pending.current.commandId, text, settings, pointed, planId })
   }
 
   const error = send.error ?? stop.error ?? switchEffort.error ?? carriedError
 
   return (
-    <div className="border-t border-border bg-background px-6 pt-3 pb-4">
+    <div className="border-t border-border bg-background/95 px-6 pt-3 pb-4 backdrop-blur-md">
       <div className="mx-auto max-w-3xl space-y-2">
         {pointed !== null && <FocusChip pointed={pointed} onClear={() => onPointed(pointed)} />}
-        <div className="flex items-end gap-2 rounded-xl border border-accent-line/40 bg-input-background p-2 focus-within:border-accent-line focus-within:ring-3 focus-within:ring-ring/30">
+        <div className="flex items-end gap-2 rounded-xl border border-accent-line/40 bg-input-background p-2.5 shadow-xs transition-all duration-150 focus-within:border-accent-line focus-within:ring-2 focus-within:ring-accent-line/30 focus-within:shadow-md">
           <textarea
             value={prompt}
             onChange={(e) => {
@@ -207,7 +212,7 @@ export function Composer({
             rows={2}
             placeholder="Ask the Planner…"
             aria-label="Message"
-            className="max-h-48 min-h-10 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-foreground outline-none placeholder:text-faint-foreground"
+            className="max-h-48 min-h-10 flex-1 resize-none bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-faint-foreground"
           />
           {running === null ? (
             <Button
@@ -215,6 +220,7 @@ export function Composer({
               disabled={prompt.trim() === '' || !ready || send.isPending}
               size="icon"
               aria-label="Send"
+              className="rounded-lg shadow-2xs transition-transform active:scale-95"
             >
               <ArrowUp />
             </Button>
@@ -223,7 +229,7 @@ export function Composer({
               variant="outline"
               onClick={() => stop.mutate(running.id)}
               disabled={stop.isPending}
-              className="border-destructive-border text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground"
+              className="border-destructive-border text-destructive-foreground shadow-2xs transition-all hover:bg-destructive/10 hover:text-destructive-foreground"
             >
               <Square className="size-3 fill-current" />
               {stopLabel}

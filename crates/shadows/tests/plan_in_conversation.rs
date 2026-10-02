@@ -194,7 +194,11 @@ async fn plan_show_writes_a_card_and_signals_only_the_sending_tab() {
     let extra = json!({ "focus": focus(&v1, &t1, 1), "client_tab": "tab-a" });
     let op = start(
         &l.app,
-        turn("c1", r#"mcp plan_show {"place":"page"}"#, extra),
+        turn(
+            "c1",
+            &format!("mcp plan_show {{\"workflow_id\":\"{v1}\",\"place\":\"page\"}}"),
+            extra,
+        ),
     )
     .await;
     let done = wait_terminal(&l.app, &op).await;
@@ -243,10 +247,10 @@ async fn plan_show_writes_a_card_and_signals_only_the_sending_tab() {
 #[tokio::test]
 async fn a_replayed_subscription_gets_the_card_but_no_plan_show_frame() {
     let l = listening_app().await;
-    plan_with(&l.app, 1).await;
+    let v1 = plan_with(&l.app, 1).await;
     let body = turn(
         "c1",
-        r#"mcp plan_show {"place":"side","task_number":1}"#,
+        &format!("mcp plan_show {{\"workflow_id\":\"{v1}\",\"place\":\"side\",\"task_number\":1}}"),
         json!({ "client_tab": "tab-a" }),
     );
     let op = start(&l.app, body).await;
@@ -275,19 +279,24 @@ async fn plan_show_twice_in_one_turn_for_different_tasks_writes_two_cards() {
     let l = listening_app().await;
     let v1 = plan_with(&l.app, 2).await;
     let planner = thread_client(&l, &l.app.thread).await;
-    let idle = refused(&planner, "plan_show", json!({ "place": "inline" })).await;
+    let idle = refused(
+        &planner,
+        "plan_show",
+        json!({ "workflow_id": v1, "place": "inline" }),
+    )
+    .await;
     assert!(idle.starts_with("INVALID_COMMAND: "), "{idle}");
     let mut signals = l.app.ui.subscribe();
 
     let op = start(&l.app, turn("c1", "wait-for-release", json!({}))).await;
     wait_running(&l.app, &op).await;
-    let first = json!({ "place": "inline", "task_number": 1 });
+    let first = json!({ "workflow_id": v1, "place": "inline", "task_number": 1 });
     let (is_error, one) = call(&planner, "plan_show", first.clone()).await;
     assert!(!is_error, "{one}");
     let (_, two) = call(
         &planner,
         "plan_show",
-        json!({ "place": "inline", "task_number": 2 }),
+        json!({ "workflow_id": v1, "place": "inline", "task_number": 2 }),
     )
     .await;
     let (_, again) = call(&planner, "plan_show", first).await;
@@ -295,7 +304,7 @@ async fn plan_show_twice_in_one_turn_for_different_tasks_writes_two_cards() {
     let missing = refused(
         &planner,
         "plan_show",
-        json!({ "place": "inline", "task_number": 9 }),
+        json!({ "workflow_id": v1, "place": "inline", "task_number": 9 }),
     )
     .await;
     assert!(
@@ -350,7 +359,7 @@ async fn an_external_grant_has_no_plan_show() {
 }
 
 #[tokio::test]
-async fn a_thread_grant_can_read_and_show_its_older_version_but_not_another_thread() {
+async fn a_thread_grant_can_read_and_show_any_plan_in_its_project() {
     let l = listening_app().await;
     let v1 = approved_v1(&l.app).await;
     let v2 = draft_on(&l.app, &l.app.thread, "start-2").await.workflow_id;
@@ -377,7 +386,7 @@ async fn a_thread_grant_can_read_and_show_its_older_version_but_not_another_thre
     )
     .await;
     assert_eq!(old_task["title"], "task 1");
-    let latest = listening::ok(&planner, "workflow_get", json!({})).await;
+    let latest = listening::ok(&planner, "workflow_get", json!({ "workflow_id": v2 })).await;
     assert_eq!(latest["id"], v2.as_str());
     let stale_edit = refused(
         &planner,
@@ -386,13 +395,13 @@ async fn a_thread_grant_can_read_and_show_its_older_version_but_not_another_thre
     )
     .await;
     assert!(stale_edit.starts_with("GRANT_SCOPE: "), "{stale_edit}");
-    let outside = refused(
+    let shared = listening::ok(
         &planner,
         "workflow_get",
         json!({ "workflow_id": other_plan }),
     )
     .await;
-    assert!(outside.starts_with("GRANT_SCOPE: "), "{outside}");
+    assert_eq!(shared["id"], other_plan.as_str());
 
     let op = start(&l.app, turn("show-old", "wait-for-release", json!({}))).await;
     wait_running(&l.app, &op).await;
@@ -404,13 +413,13 @@ async fn a_thread_grant_can_read_and_show_its_older_version_but_not_another_thre
     .await;
     assert_eq!(shown["workflow_id"], v1.as_str());
     assert_eq!(shown["version"], 1);
-    let outside = refused(
+    let shared = listening::ok(
         &planner,
         "plan_show",
         json!({ "workflow_id": other_plan, "place": "inline" }),
     )
     .await;
-    assert!(outside.starts_with("GRANT_SCOPE: "), "{outside}");
+    assert_eq!(shared["workflow_id"], other_plan.as_str());
     release(&l, &op).await;
 
     let cards: Vec<_> = entries(&l.app)
@@ -418,7 +427,8 @@ async fn a_thread_grant_can_read_and_show_its_older_version_but_not_another_thre
         .into_iter()
         .filter(|entry| entry.kind == ThreadEntryKind::PlanView)
         .collect();
-    assert_eq!(cards.len(), 1);
+    assert_eq!(cards.len(), 2);
     assert_eq!(cards[0].body, "Plan v1");
     assert_eq!(cards[0].refs, [EntryRef::Workflow(v1)]);
+    assert_eq!(cards[1].refs, [EntryRef::Workflow(other_plan)]);
 }

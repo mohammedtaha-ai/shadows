@@ -3,8 +3,8 @@
 //! Every way to read, start, edit, show or approve a plan ends in a method
 //! here: the HTTP routes as a person, the MCP tools under a grant (§14.4). A
 //! grant decides the writer and the reach: the internal Planner writes as its
-//! thread and reaches that thread's latest plan version only; an external
-//! agent writes as its grant and reaches any plan in its project. Storage
+//! thread and reaches every plan in its project; an external agent writes as
+//! its grant and reaches any plan in its project. Storage
 //! checks the grant again inside every write's transaction (§13.7). When a
 //! caller names no command, the id is derived as §13.5's table says.
 //!
@@ -27,7 +27,8 @@ use serde_json::json;
 pub use conversation::{Focus, Place, PlanShown};
 pub use model::{
     AcceptanceItem, Approved, DraftStarted, EditOutcome, LastEdit, Link, LinkKind, Plan,
-    PlanContent, PlanListing, PlanTask, TaskContent, TaskId, WorkflowId, WorkflowState,
+    PlanContent, PlanId, PlanListing, PlanState, PlanTask, PlanVersions, TaskContent, TaskId,
+    VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use ops::PlanOp;
 pub use rules::Problem;
@@ -38,7 +39,7 @@ use scope::{command, own_thread, refused, writer_of};
 use crate::app::user_command;
 use crate::command::derive::{Anchor, derived_id};
 use crate::command::fingerprint;
-use crate::db::Storage;
+use crate::db::{Storage, StorageError};
 use crate::error::{CoreError, ErrorCode};
 use crate::events::UiSignal;
 use crate::grants::{Grant, GrantKind};
@@ -65,7 +66,9 @@ pub struct Plans {
 pub struct DraftStart {
     pub title: Option<String>,
     pub goal: Option<String>,
-    pub from_workflow_id: Option<WorkflowId>,
+    pub plan_id: Option<PlanId>,
+    /// Why a next version is started (§16.3): needed from v2 on.
+    pub reason: Option<String>,
     pub draft_ref: Option<String>,
 }
 
@@ -97,9 +100,14 @@ impl Plans {
         }
     }
 
-    /// Each planning thread's latest plan version in `project`.
-    pub async fn list(&self, project: &ProjectId) -> Result<Vec<PlanListing>, CoreError> {
-        Ok(self.storage.list_plans(project).await?)
+    /// The plans of `project` by their latest versions: the Active ones, or
+    /// all of them when `archived`.
+    pub async fn list(
+        &self,
+        project: &ProjectId,
+        archived: bool,
+    ) -> Result<Vec<PlanListing>, CoreError> {
+        Ok(self.storage.list_plans(project, archived).await?)
     }
 
     /// One plan version, as a person reads it.
@@ -125,9 +133,40 @@ impl Plans {
             .await?)
     }
 
+    /// One plan with every version, oldest first (§16.10).
+    pub async fn plan(&self, plan: &PlanId) -> Result<PlanVersions, CoreError> {
+        Ok(self.storage.get_plan_versions(plan).await?)
+    }
+
+    /// A person's archive command (§16.2): "PlanArchive", params { "plan" }.
+    pub async fn archive(
+        &self,
+        command_id: String,
+        plan: &PlanId,
+    ) -> Result<PlanVersions, CoreError> {
+        let params = serde_json::json!({ "plan": plan });
+        let c = user_command(command_id, "PlanArchive", params);
+        Ok(self.storage.archive_plan(&c, plan).await?)
+    }
+
+    /// A person's unarchive command (§16.2): "PlanUnarchive", params { "plan" }.
+    pub async fn unarchive(
+        &self,
+        command_id: String,
+        plan: &PlanId,
+    ) -> Result<PlanVersions, CoreError> {
+        let params = serde_json::json!({ "plan": plan });
+        let c = user_command(command_id, "PlanUnarchive", params);
+        Ok(self.storage.unarchive_plan(&c, plan).await?)
+    }
+
     /// `workflow_list`: the plans in the grant's project.
-    pub async fn list_for(&self, grant: &Grant) -> Result<Vec<PlanListing>, CoreError> {
-        Ok(self.storage.list_plans(&grant.project_id).await?)
+    pub async fn list_for(
+        &self,
+        grant: &Grant,
+        archived: bool,
+    ) -> Result<Vec<PlanListing>, CoreError> {
+        Ok(self.storage.list_plans(&grant.project_id, archived).await?)
     }
 
     /// `workflow_get`: a plan version the grant reaches.
@@ -170,9 +209,18 @@ impl Plans {
         grant: &Grant,
         args: DraftStart,
     ) -> Result<DraftStarted, CoreError> {
-        match grant.kind {
+        let started = match grant.kind {
             GrantKind::Thread => self.planner_draft(grant, args).await,
             GrantKind::Project => self.external_draft(grant, args).await,
+        };
+        match started {
+            // §16.3: a request missing its reason, not an invalid plan.
+            Err(CoreError::Storage(StorageError::ReasonMissing)) => Err(refused(
+                ErrorCode::InvalidCommand,
+                "a new version needs its reason: say in a sentence or two what \
+                 changed the plan",
+            )),
+            other => other,
         }
     }
 
@@ -183,6 +231,11 @@ impl Plans {
             .in_scope(grant, args.workflow_id.as_ref(), true)
             .await?;
         let writer = writer_of(grant)?;
+        // A Planner's edit names the turn it was made in, when one is running.
+        let turn = match grant.kind {
+            GrantKind::Thread => self.handles.running_for(own_thread(grant)?).await,
+            GrantKind::Project => None,
+        };
         let expected = args.expected_revision;
         let params = json!({ "workflow": plan.id, "expected_revision": expected, "ops": args.ops });
         let fp = fingerprint("PlanEdit", &params);
@@ -192,7 +245,7 @@ impl Plans {
         let ctx = command(&writer, id, "PlanEdit", fp);
         Ok(self
             .storage
-            .edit_plan(&ctx, &writer, &plan.id, expected, &args.ops)
+            .edit_plan(&ctx, &writer, turn.as_ref(), &plan.id, expected, &args.ops)
             .await?)
     }
 

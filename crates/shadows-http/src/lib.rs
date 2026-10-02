@@ -134,11 +134,18 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(harness::change_model))
         .routes(routes!(harness::change_effort))
         .routes(routes!(harness::thread_context))
-        .routes(routes!(thread::update_thread))
+        .routes(routes!(
+            thread::get_thread,
+            thread::update_thread,
+            thread::remove_thread
+        ))
         .routes(routes!(thread::fork_thread))
         .routes(routes!(workflow::list_plans))
         .routes(routes!(workflow::get_plan))
         .routes(routes!(workflow::approve_plan))
+        .routes(routes!(workflow::get_plan_versions))
+        .routes(routes!(workflow::archive_plan))
+        .routes(routes!(workflow::unarchive_plan))
         .routes(routes!(grants::list_grants, grants::issue_grant))
         .routes(routes!(grants::revoke_grant))
         .routes(routes!(
@@ -153,6 +160,7 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(code::put_link, code::remove_link))
         .routes(routes!(code::get_settings, code::put_settings))
         .routes(routes!(sse::subscribe))
+        .routes(routes!(sse::subscribe_project))
         .routes(routes!(fs::list_dirs, fs::create_dir))
         .routes(routes!(openapi::serve))
 }

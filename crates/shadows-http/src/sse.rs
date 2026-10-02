@@ -6,14 +6,58 @@
 
 use std::convert::Infallible;
 
-use axum::extract::{Query, State};
+use axum::extract::{Path, Query, State};
 use axum::response::sse::{Event, Sse};
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 
-use super::AppState;
-use shadows_core::{Delivery, StoredEvent, Subscription, ThreadId};
+use super::failure::ErrorBody;
+use super::{AppState, Failure};
+use shadows_core::{Delivery, ProjectId, StoredEvent, Subscription, ThreadId};
+
+#[derive(serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct ProjectSubscribeQuery {
+    /// Resume after the last durable sequence delivered; 0 replays all plan events.
+    #[serde(default)]
+    pub after: i64,
+}
+
+/// A project's plan notifications (§16.8), replayed then live on the same
+/// journal tail as `/api/subscribe`. `durable` carries `{seq, kind,
+/// operation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.
+/// Archive notifications name the plan's latest version to refetch.
+#[utoipa::path(
+    get, path = "/api/projects/{id}/events", tag = "stream",
+    params(("id" = ProjectId, Path, description = "The project"), ProjectSubscribeQuery),
+    responses(
+        (status = 200, content_type = "text/event-stream", body = String),
+        (status = 404, description = "Unknown or removed project", body = ErrorBody),
+    )
+)]
+pub async fn subscribe_project(
+    State(state): State<AppState>,
+    Path(project): Path<ProjectId>,
+    Query(q): Query<ProjectSubscribeQuery>,
+) -> Result<Sse<ReceiverStream<Result<Event, Infallible>>>, Failure> {
+    let sub = state
+        .core
+        .events()
+        .subscribe_project(project.clone(), q.after)
+        .await?;
+    let (tx, rx) = tokio::sync::mpsc::channel(1024);
+    let span = tracing::debug_span!("sse", project_id = %project);
+    tracing::debug!(parent: &span, after = q.after, "sse.subscribe");
+    tokio::spawn(
+        async move {
+            let why = stream(state, sub, tx).await;
+            tracing::debug!(why, "sse.closed");
+        }
+        .instrument(span),
+    );
+    Ok(Sse::new(ReceiverStream::new(rx)))
+}
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]

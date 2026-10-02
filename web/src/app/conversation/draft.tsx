@@ -1,10 +1,10 @@
-// One job: a new conversation before its first message (spec §13.11) — the
+// One job: a new conversation before its first message (spec §13.11, §16.8) — the
 // empty conversation with its composer, where nothing exists on the daemon
 // until Send makes the thread and starts its first turn.
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
-import { MessageSquarePlus } from 'lucide-react'
+import { MessageSquarePlus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   type Choice,
@@ -15,7 +15,7 @@ import {
   startTurn,
 } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { harnessesQuery, projectsQuery, threadsQuery } from '@/api/queries'
+import { harnessesQuery, planVersionsQuery, plansQuery, projectsQuery, threadsQuery } from '@/api/queries'
 import { tabId } from '@/stream/tab-id'
 import { policyOf } from '../mode-policy'
 import { carrySend } from './carried-send'
@@ -47,16 +47,37 @@ export function DraftRoute() {
 }
 
 function Draft({ projectId }: { projectId: string }) {
+  const navigate = useNavigate()
+  const { plan: planId } = route.useSearch()
   const project = useQuery(projectsQuery).data?.find((p) => p.id === projectId)
   const [harness, setHarness] = useState(DEFAULT_HARNESS)
   const label = useQuery(harnessesQuery).data?.find((h) => h.kind === harness)?.label ?? harness
   const allowed = project?.allowed_modes[harness]
   const session = useMemo(() => draftSession(harness, allowed), [harness, allowed])
-  const draft = useFirstSend(projectId, harness)
+  const draft = useFirstSend(projectId, harness, planId)
+
+  const planVersions = useQuery({
+    ...planVersionsQuery(planId ?? ''),
+    enabled: planId !== undefined,
+  }).data
+  const plansList = useQuery(plansQuery(projectId, true)).data
+  const planTitle =
+    plansList?.find((p) => p.plan_id === planId)?.title ??
+    planVersions?.versions.at(-1)?.title ??
+    planId
+
+  const clearPlan = () => {
+    void navigate({
+      to: '/projects/$projectId/new',
+      params: { projectId },
+      search: {},
+      replace: true,
+    })
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-3">
+      <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md">
         <div className="min-w-0">
           <h1 className="truncate text-sm font-medium">New conversation</h1>
           <p className="truncate text-xs text-faint-foreground">
@@ -65,14 +86,39 @@ function Draft({ projectId }: { projectId: string }) {
         </div>
         <CliMenu harness={harness} label={label} onPick={setHarness} />
       </header>
-      <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-        <MessageSquarePlus aria-hidden className="size-8 text-accent-line" />
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+        <div className="relative flex items-center justify-center">
+          <div className="absolute size-14 rounded-full bg-accent-line/10 blur-xl" aria-hidden />
+          <div className="relative flex size-12 items-center justify-center rounded-full border border-border/60 bg-card/60 shadow-xs">
+            <MessageSquarePlus aria-hidden className="size-6 text-accent-line" />
+          </div>
+        </div>
         <p className="text-sm text-muted-foreground">
           The conversation starts with your first message.
         </p>
       </div>
+      {planId && (
+        <div className="px-6 pb-2">
+          <div className="mx-auto max-w-3xl">
+            <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-accent-line/40 bg-accent-softer/90 py-1 pr-1.5 pl-3 text-xs text-secondary-foreground shadow-xs transition-all">
+              <span dir="auto" className="truncate font-medium">
+                Continuing: {planTitle}
+              </span>
+              <button
+                type="button"
+                onClick={clearPlan}
+                aria-label="×"
+                className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-3" aria-hidden />
+                <span className="sr-only">×</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <Composer
-        to={{ draft }}
+        to={{ draft, planId }}
         harness={harness}
         harnessLabel={label}
         session={session}
@@ -121,7 +167,7 @@ function draftSession(harness: string, allowed: string[] | undefined): SessionVi
  * thread with its text and error, so a retry never makes a second thread.
  * A person who left the draft while it sent stays where they went: the
  * thread shows in the sidebar, and nothing pulls them back to it. */
-function useFirstSend(projectId: string, harness: string) {
+function useFirstSend(projectId: string, harness: string, planId?: string) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useRef<Attempt | null>(null)
@@ -153,6 +199,7 @@ function useFirstSend(projectId: string, harness: string) {
       queryClient.setQueryData(sessionKey(thread.id), choices)
       settings = { mode: chosen.mode, model: choices.current.model, effort: choices.current.effort }
       const operationId = await startTurn(thread.id, commandId, text, settings, {
+        plan: planId ?? null,
         clientTab: tabId(),
       })
       void open()
@@ -160,11 +207,12 @@ function useFirstSend(projectId: string, harness: string) {
     } catch (error) {
       // The thread page's composer fingerprints what it sends the same way,
       // so sending the same text and settings there replays this command.
-      const request = { text, settings: settings ?? chosen, focus: null }
+      const request = { text, settings: settings ?? chosen, focus: null, ...(planId === undefined ? {} : { plan: planId }) }
       carrySend(thread.id, {
         text,
         attempt: attemptFor(null, request, () => commandId),
         error: error instanceof Error ? error : new Error(String(error)),
+        planId,
       })
       void open()
       throw error

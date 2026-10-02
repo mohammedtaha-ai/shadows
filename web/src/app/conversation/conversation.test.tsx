@@ -6,6 +6,8 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { threadFixture, userEntry } from '@/test/contract-fixtures'
+import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, until } from '../test-app'
 
 const operation = (status_kind: string) => ({
@@ -47,6 +49,19 @@ afterEach(() => {
   app = null
 })
 
+it('shows a deleted conversation read only', async () => {
+  const table = answers({ entries: [userEntry('u1', 'A message kept in history')] })
+  table['GET /api/projects/p1/threads'] = []
+  table['GET /api/threads/t1'] = { ...threadFixture, removed_at: '2026-10-02T18:00:00Z' }
+  const a = (app = await startApp('/projects/p1/threads/t1', table))
+  await until(() => a.text().includes('This conversation was deleted. You can read it, but not write in it.'))
+  await until(() => a.text().includes('A message kept in history'))
+  expect(a.calls).toContain('GET /api/threads/t1')
+  expect(a.calls).not.toContain('POST /api/threads/t1/session')
+  expect(a.container.querySelector('textarea')).toBeNull()
+  expect(a.button('Send')).toBeUndefined()
+})
+
 describe('the conversation, opened while a turn runs', () => {
   it('shows Running and a Stop that reaches the daemon, until the turn ends', async () => {
     const a = (app = await startApp('/projects/p1/threads/t1', DAEMON))
@@ -61,7 +76,7 @@ describe('the conversation, opened while a turn runs', () => {
     await until(() => a.button('Stopping…') !== undefined)
 
     // The stream replays the turn's history, goes live, then the durable end.
-    const stream = a.sources.at(-1)
+    const stream = a.sources.findLast((s) => s.param('thread_id') === 't1')
     if (stream === undefined) throw new Error('no stream was opened')
     await act(async () => {
       stream.durable(5, 'OperationCreated', 'op1', { kind: 'PlannerTurn' })
@@ -94,7 +109,7 @@ describe('a stop the daemon could not carry out', () => {
 
     // The request was recorded before termination failed, so the stream
     // says a stop was asked for; the turn is still running.
-    const stream = a.sources.at(-1)
+    const stream = a.sources.findLast((s) => s.param('thread_id') === 't1')
     if (stream === undefined) throw new Error('no stream was opened')
     await act(async () => {
       stream.durable(5, 'OperationCreated', 'op1', { kind: 'PlannerTurn' })

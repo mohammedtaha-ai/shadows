@@ -150,8 +150,8 @@ async fn a_replay_found_by_the_transaction_gives_the_session_back() {
 /// A replayed turn start matches a command an earlier daemon recorded only
 /// when its principal, kind, schema version and fingerprint parameters are the
 /// ones that daemon used. This reads the command log and compares it with the
-/// parameters as the route before the move wrote them (§14.9): `thread_id`,
-/// `prompt`, `model`, `mode`, `effort`, and `focus` only when one is given.
+/// parameters as the route writes them: `thread_id`, `prompt`, `model`,
+/// `mode`, `effort`, and optional `focus` and `plan`.
 #[tokio::test]
 async fn turn_command_fingerprints_do_not_move() {
     let app = test_app().await;
@@ -167,6 +167,7 @@ async fn turn_command_fingerprints_do_not_move() {
     let focus = json!({ "workflow_id": v1, "task_id": plan.tasks[0].id, "revision": 1 });
     let mut body = turn("pin-focus", "look");
     body["focus"] = focus.clone();
+    body["plan"] = json!(plan.plan_id);
     let (s, b) = http_start(&app, &thread, body).await;
     assert_eq!(s, 202, "{b}");
     let op = OperationId::from_literal(b["operation_id"].as_str().unwrap());
@@ -193,6 +194,7 @@ async fn turn_command_fingerprints_do_not_move() {
     let mut focused = json!({ "thread_id": thread, "prompt": "look", "model": "fake-large",
         "mode": "acceptEdits", "effort": "high" });
     focused["focus"] = focus;
+    focused["plan"] = json!(plan.plan_id);
     let mut expected = vec![pinned("pin-plain", plain), pinned("pin-focus", focused)];
     expected.sort();
     assert_eq!(recorded, expected);

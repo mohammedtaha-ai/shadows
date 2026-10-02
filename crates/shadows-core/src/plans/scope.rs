@@ -5,7 +5,7 @@
 
 use serde_json::json;
 
-use super::model::{DraftStarted, Plan, WorkflowId, WorkflowState};
+use super::model::{DraftStarted, Plan, PlanId, WorkflowId};
 use super::rules::Problem;
 use super::{DraftStart, Plans};
 use crate::command::derive::{Anchor, derived_id};
@@ -16,41 +16,19 @@ use crate::grants::{Grant, GrantKind};
 use crate::threads::ThreadId;
 
 impl Plans {
-    /// The plan version a call reaches (§13.6): reads and cards can name an
-    /// older version of the Planner's thread, while edits require its latest.
-    /// An external agent names a version in its project.
+    /// The plan version a call reaches (§16.4): every grant names a version
+    /// in its project, while edits require an Active plan's latest version.
     pub(super) async fn in_scope(
         &self,
         grant: &Grant,
         named: Option<&WorkflowId>,
         latest_only: bool,
     ) -> Result<Plan, CoreError> {
-        let storage = &self.storage;
-        let id = match grant.kind {
-            GrantKind::Thread => {
-                let latest = storage
-                    .thread_plan(own_thread(grant)?)
-                    .await?
-                    .ok_or_else(|| {
-                        refused(
-                            ErrorCode::InvalidCommand,
-                            "this conversation has no plan yet; start one with draft_start",
-                        )
-                    })?;
-                if latest_only && named.is_some_and(|id| id != &latest) {
-                    return Err(scope(
-                        "a Planner edits only its own conversation's latest plan version; \
-                         leave workflow_id out",
-                    ));
-                }
-                named.cloned().unwrap_or(latest)
-            }
-            GrantKind::Project => named.cloned().ok_or_else(|| {
-                scope("name the plan version with workflow_id; workflow_list lists them")
-            })?,
-        };
-        let plan = match storage.get_plan(&id).await {
-            Err(StorageError::NotFound(_)) if grant.kind == GrantKind::Project => {
+        let id = named.cloned().ok_or_else(|| {
+            scope("name the plan version with workflow_id; workflow_list lists the project's plans")
+        })?;
+        let plan = match self.storage.get_plan(&id).await {
+            Err(StorageError::NotFound(_)) => {
                 return Err(scope("that plan is not in this grant's project"));
             }
             result => result?,
@@ -58,29 +36,50 @@ impl Plans {
         if plan.project_id != grant.project_id {
             return Err(scope("that plan is not in this grant's project"));
         }
-        if grant.kind == GrantKind::Thread && Some(&plan.thread_id) != grant.thread_id.as_ref() {
-            return Err(scope("that plan is not in this grant's conversation"));
+        if latest_only {
+            if plan.plan_state == super::model::PlanState::Archived {
+                return Err(refused(
+                    ErrorCode::InvalidCommand,
+                    format!(
+                        "plan {} is archived; a person can unarchive it",
+                        plan.plan_id
+                    ),
+                ));
+            }
+            let latest = self
+                .storage
+                .list_plans(&grant.project_id, true)
+                .await?
+                .into_iter()
+                .find(|listing| listing.plan_id == plan.plan_id)
+                .ok_or_else(|| scope("that plan is not in this grant's project"))?;
+            if plan.id != latest.id {
+                return Err(scope("plan_edit needs the plan's latest version"));
+            }
         }
         Ok(plan)
     }
 
-    /// The Planner's `draft_start`: in its own thread, anchored to the turn
-    /// that is running, so the same call within the turn answers the first
-    /// result and a call naming another source is another command (§13.5).
-    /// A source must be in the thread, and be the version the start answers
-    /// anyway (§13.6): its Draft, or with none its latest Frozen version.
-    /// Storage checks the second after the replay, which a start moves on.
+    /// The Planner's `draft_start`: in a named Active plan, or a new one,
+    /// anchored to the turn that is running (§16.4).
     pub(super) async fn planner_draft(
         &self,
         grant: &Grant,
         args: DraftStart,
     ) -> Result<DraftStarted, CoreError> {
         let thread = own_thread(grant)?;
-        if let Some(from) = &args.from_workflow_id
-            && &self.storage.get_plan(from).await?.thread_id != thread
+        let plan = self
+            .plan_in_project(&grant.project_id, args.plan_id.as_ref())
+            .await?;
+        if let Some(plan) = &plan
+            && plan.plan_state == super::model::PlanState::Archived
         {
-            return Err(scope(
-                "a Planner starts versions only in its own conversation",
+            return Err(refused(
+                ErrorCode::InvalidCommand,
+                format!(
+                    "plan {} is archived; a person can unarchive it",
+                    plan.plan_id
+                ),
             ));
         }
         let op = self.handles.running_for(thread).await.ok_or_else(|| {
@@ -90,11 +89,13 @@ impl Plans {
             )
         })?;
         let writer = writer_of(grant)?;
-        let mut params = json!({ "thread": thread, "title": args.title, "goal": args.goal });
-        // Absent without a source, so a start recorded without one replays as it did.
-        if let Some(from) = &args.from_workflow_id {
-            params["from_workflow_id"] = json!(from);
-        }
+        let params = json!({
+            "project": grant.project_id,
+            "plan_id": args.plan_id,
+            "title": args.title,
+            "goal": args.goal,
+            "reason": args.reason,
+        });
         let fp = fingerprint("DraftStart", &params);
         let ctx = command(
             &writer,
@@ -102,28 +103,47 @@ impl Plans {
             "DraftStart",
             fp,
         );
-        let fresh = args.title.as_deref().zip(args.goal.as_deref());
-        let source = args.from_workflow_id.as_ref();
-        match self
+        let plan_id = args.plan_id.as_ref();
+        let fresh = if plan_id.is_none() {
+            args.title.as_deref().zip(args.goal.as_deref())
+        } else {
+            None
+        };
+        Ok(self
             .storage
-            .start_draft(&ctx, &writer, thread, source, fresh, None)
-            .await
-        {
-            // A request naming the wrong version, not one outside the grant.
-            Err(StorageError::NotLatestVersion(latest)) => Err(refused(
-                ErrorCode::InvalidCommand,
-                format!(
-                    "a Planner starts a draft from its conversation's latest version, \
-                     {latest}; name it, or leave from_workflow_id out"
-                ),
-            )),
-            result => Ok(result?),
-        }
+            .start_draft(
+                &ctx,
+                &writer,
+                &grant.project_id,
+                plan_id,
+                None,
+                fresh,
+                args.reason.as_deref(),
+                Some(&op),
+                None,
+            )
+            .await?)
     }
 
-    /// An external agent's `draft_start`: always under a `draft_ref`, which is
-    /// the command's id (§13.5) — from an approved plan in its project, or
-    /// from scratch with a new thread.
+    async fn plan_in_project(
+        &self,
+        project: &crate::projects::ProjectId,
+        plan_id: Option<&PlanId>,
+    ) -> Result<Option<super::model::PlanListing>, CoreError> {
+        let Some(plan_id) = plan_id else {
+            return Ok(None);
+        };
+        self.storage
+            .list_plans(project, true)
+            .await?
+            .into_iter()
+            .find(|plan| &plan.plan_id == plan_id)
+            .map(Some)
+            .ok_or_else(|| scope("that plan is not in this grant's project"))
+    }
+
+    /// An external agent's `draft_start`: always under a `draft_ref`, either
+    /// in a named plan or from scratch (§16.4).
     pub(super) async fn external_draft(
         &self,
         grant: &Grant,
@@ -136,7 +156,9 @@ impl Plans {
         let params = json!({
             "title": args.title,
             "goal": args.goal,
-            "from_workflow_id": args.from_workflow_id,
+            "plan_id": args.plan_id,
+            "project": grant.project_id,
+            "reason": args.reason,
         });
         let fp = fingerprint("DraftStart", &params);
         let ctx = command(
@@ -146,49 +168,47 @@ impl Plans {
             fp,
         );
         let storage = &self.storage;
-        let started = match &args.from_workflow_id {
-            Some(from) => {
-                let plan = match storage.get_plan(from).await {
-                    Err(StorageError::NotFound(_)) => {
-                        return Err(scope("that plan is not in this grant's project"));
-                    }
-                    result => result?,
-                };
-                if plan.project_id != grant.project_id {
-                    return Err(scope("that plan is not in this grant's project"));
-                }
-                // A state error, not a scope one: the plan is in the project.
-                if plan.state != WorkflowState::Frozen {
+        let plan = match self
+            .plan_in_project(&grant.project_id, args.plan_id.as_ref())
+            .await?
+        {
+            Some(plan) => {
+                if plan.plan_state == super::model::PlanState::Archived {
                     return Err(refused(
                         ErrorCode::InvalidCommand,
-                        "that plan version is a draft: edit it with plan_edit, or start a \
-                         new version from an approved one",
+                        format!(
+                            "plan {} is archived; a person can unarchive it",
+                            plan.plan_id
+                        ),
                     ));
                 }
-                storage
-                    .start_draft(&ctx, &writer, &plan.thread_id, None, None, Some(draft_ref))
-                    .await?
+                Some(plan.plan_id)
             }
-            None => {
-                let (Some(title), Some(goal)) = (&args.title, &args.goal) else {
-                    return Err(StorageError::PlanInvalid(vec![Problem {
-                        message: "a plan's first version needs a title and a goal".into(),
-                    }])
-                    .into());
-                };
-                storage
-                    .start_thread_with_draft(
-                        &ctx,
-                        &writer,
-                        &grant.project_id,
-                        title,
-                        goal,
-                        Some(draft_ref),
-                    )
-                    .await?
+            None => None,
+        };
+        let fresh = match (&plan, &args.title, &args.goal) {
+            (Some(_), _, _) => None,
+            (None, Some(title), Some(goal)) => Some((title.as_str(), goal.as_str())),
+            (None, _, _) => {
+                return Err(StorageError::PlanInvalid(vec![Problem {
+                    message: "a plan's first version needs a title and a goal".into(),
+                }])
+                .into());
             }
         };
-        Ok(started)
+        Ok(storage
+            .start_draft(
+                &ctx,
+                &writer,
+                &grant.project_id,
+                args.plan_id.as_ref(),
+                None,
+                fresh,
+                args.reason.as_deref(),
+                None,
+                Some(draft_ref),
+            )
+            .await?)
     }
 }
 

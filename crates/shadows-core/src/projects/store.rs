@@ -120,7 +120,7 @@ impl Storage {
                 }
                 live_project(conn, &id).await?;
                 let threads: i64 =
-                    sqlx::query_scalar("SELECT COUNT(*) FROM planning_thread WHERE project_id = ?")
+                    sqlx::query_scalar("SELECT COUNT(*) FROM planning_thread WHERE project_id = ? AND removed_at IS NULL")
                         .bind(id.as_str())
                         .fetch_one(&mut *conn)
                         .await?;

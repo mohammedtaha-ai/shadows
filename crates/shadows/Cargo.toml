@@ -33,9 +33,6 @@ test-support = ["shadows-core/test-support"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
-syn = { workspace = true }
-prettyplease = { workspace = true }
-proc-macro2 = { workspace = true }
 tower = { workspace = true }
 # Used by the tests only, since the modules that used them moved to
 # `shadows-core`, `shadows-http` and `shadows-mcp`; `shadows-agent` and

@@ -13,6 +13,7 @@
 
 mod model;
 mod store;
+pub(crate) use store::revoke_thread_grants_in;
 
 use std::sync::Arc;
 

@@ -1,21 +1,21 @@
 # Code map
 
-**Read this before writing code in `shadows`.** Three kinds of file, split by
+**Read this before writing code in `shadows`.** Two kinds of file, split by
 what can be checked:
 
 | File | Kind | Answers |
 |---|---|---|
-| [`inventory.md`](./inventory.md) | generated from each `crates/*/src`, grouped by crate | *Does this already exist?* Every reachable declaration with its full signature. |
 | this file | written by hand | *Where does my new code go?* The one job each crate and module holds, and the invariants no change may break. |
 | each service's `contract.yaml` | written by hand, next to its code in `crates/shadows-core/src/<service>/` | *What must stay true of this service?* Its methods, obligations, agreements and tests, in the shape of [`contracts/TEMPLATE.yaml`](./contracts/TEMPLATE.yaml). |
 
-`cargo test -p shadows --test codemap` fails when the first two have drifted
-from the tree, and `cargo test -p shadows-core --test contracts` when a
-contract names what its service does not have (spec §14.7), so none can go
-stale quietly. The map spans the whole workspace: every path below is relative
-to the repository root. Regenerate the inventory with
-`UPDATE_CODEMAP=1 cargo test -p shadows --test codemap` in the same commit as
-the code change that moved it.
+`cargo test -p shadows --test codemap` fails when this file names a path that
+does not exist or misses a module that does, and
+`cargo test -p shadows-core --test contracts` when a contract names what its
+service does not have (spec §14.7), so neither can go stale quietly. The map
+spans the whole workspace: every path below is relative to the repository
+root. *Does this already exist, and with what signature?* is not written down:
+the Rust LSP, or `where_is`, `who_uses` and `outline` when the `shadows` MCP
+server is connected, answer it from the code.
 
 ## Architecture Invariants
 
@@ -83,6 +83,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/threads/rules.rs` | which harness a thread may name | `crates/shadows-core/src/threads/rules.rs` |
 | `crates/shadows-core/src/threads/title.rs` | the text a title taken from a conversation may read | `crates/shadows-core/src/threads/title.rs` |
 | `crates/shadows-core/src/threads/store/` | threads' SQLite queries | `crates/shadows-core/src/threads/store/thread.rs` |
+| `crates/shadows-core/src/threads/store/remove.rs` | atomic removal of a planning thread | `crates/shadows-core/src/threads/store/remove.rs` |
 | `crates/shadows-core/src/turns/` | Planner turns, from start to stop | `crates/shadows-core/src/turns/mod.rs` |
 | `crates/shadows-core/src/turns/model.rs` | the operation types callers meet | `crates/shadows-core/src/turns/model.rs` |
 | `crates/shadows-core/src/turns/store/` | turns' SQLite queries | `crates/shadows-core/src/turns/store/turn.rs` |
@@ -97,11 +98,12 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/harness/offers.rs` | the latest choices each open session offers | `crates/shadows-core/src/harness/offers.rs` |
 | `crates/shadows-core/src/harness/context.rs` | reading a session's context breakdown on demand | `crates/shadows-core/src/harness/context.rs` |
 | `crates/shadows-core/src/harness/titles.rs` | handing the titles a harness sends to its thread | `crates/shadows-core/src/harness/titles.rs` |
-| `crates/shadows-core/src/plans/` | plan versions under the rules of §13 | `crates/shadows-core/src/plans/mod.rs` |
+| `crates/shadows-core/src/plans/` | project plans under the rules of §16 | `crates/shadows-core/src/plans/mod.rs` |
 | `crates/shadows-core/src/plans/model.rs` | the plan types callers meet | `crates/shadows-core/src/plans/model.rs` |
 | `crates/shadows-core/src/plans/store/` | plans' SQLite queries | `crates/shadows-core/src/plans/store/edit.rs` |
 | `crates/shadows-core/src/plans/store/edit.rs` | changing a plan version | `crates/shadows-core/src/plans/store/edit.rs` |
 | `crates/shadows-core/src/plans/store/draft.rs` | starting a plan version | `crates/shadows-core/src/plans/store/draft.rs` |
+| `crates/shadows-core/src/plans/store/plan.rs` | a plan's state lifecycle with its versions | `crates/shadows-core/src/plans/store/plan.rs` |
 | `crates/shadows-core/src/plans/store/read.rs` | reading plan versions | `crates/shadows-core/src/plans/store/read.rs` |
 | `crates/shadows-core/src/plans/store/task.rs` | a plan version's task graph rows | `crates/shadows-core/src/plans/store/task.rs` |
 | `crates/shadows-core/src/plans/store/view.rs` | showing a plan version in its conversation | `crates/shadows-core/src/plans/store/view.rs` |
@@ -160,5 +162,8 @@ file disagrees with either, they are right and this file is the defect.
 - **Built / not-built status.** The tree answers it and
   [`docs/status.md`](../status.md) narrates progress. A third copy would record
   one fact in three places.
+- **A list of declarations or signatures.** The LSP and `where_is` answer it
+  exactly. A generated inventory did this until 2026-10-01, and cost every
+  change a regeneration step.
 - **Explanations of declarations.** Those live as doc comments on the
-  declarations themselves, which is why the inventory strips them.
+  declarations themselves.

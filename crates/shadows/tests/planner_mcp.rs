@@ -8,9 +8,9 @@
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use shadows_core::WorkflowId;
 use shadows_core::testing::Storage;
 use shadows_core::testing::{SessionsConfig, prompt_version};
+use shadows_core::{PlanId, ThreadId, WorkflowId, WrittenBy};
 
 use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
@@ -39,6 +39,12 @@ async fn reply(app: &App, prompt: &str) -> String {
     let done = start_and_finish(app, prompt, default_settings()).await;
     assert_eq!(done.status_kind, "Completed", "{done:?}");
     last_agent_entry(app).await.body
+}
+
+async fn reply_on(app: &App, thread: &ThreadId, prompt: &str) -> String {
+    let done = start_and_finish_on(app, thread.as_str(), prompt, default_settings()).await;
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+    last_agent_entry_on(app, thread.as_str()).await.body
 }
 
 /// The fake's `report`: what its session opened with, and this prompt's blocks.
@@ -116,7 +122,7 @@ async fn a_turn_edits_the_plan_through_mcp() {
     let started: Value = serde_json::from_str(&started).expect(&started);
     let workflow = WorkflowId::from_literal(started["workflow_id"].as_str().unwrap());
 
-    let edit = json!({ "expected_revision": 0, "ops": [add(1)] });
+    let edit = json!({ "workflow_id": workflow, "expected_revision": 0, "ops": [add(1)] });
     let edited = reply(&l.app, &format!("mcp plan_edit {edit}")).await;
     let edited: Value = serde_json::from_str(&edited).expect(&edited);
     assert_eq!(edited["revision"], 1);
@@ -135,6 +141,85 @@ async fn a_turn_edits_the_plan_through_mcp() {
         (edits[0].1.as_str(), edits[0].2.as_str()),
         ("Thread", l.app.thread.as_str())
     );
+}
+
+/// §16.4: conversation B carries on a plan conversation A wrote, with its
+/// reason; the versions name their own conversations.
+#[tokio::test]
+async fn a_second_conversation_carries_the_plan_on() {
+    let l = listening_app().await;
+    let started = reply(&l.app, r#"mcp draft_start {"title":"Login","goal":"g"}"#).await;
+    let started: Value = serde_json::from_str(&started).expect(&started);
+    let v1 = WorkflowId::from_literal(started["workflow_id"].as_str().unwrap());
+
+    let edit = json!({ "workflow_id": v1, "expected_revision": 0, "ops": [add(1)] });
+    let edited = reply(&l.app, &format!("mcp plan_edit {edit}")).await;
+    let edited: Value = serde_json::from_str(&edited).expect(&edited);
+    l.app
+        .core
+        .plans()
+        .approve(
+            "approve-a".into(),
+            &v1,
+            edited["revision"].as_i64().unwrap(),
+        )
+        .await
+        .unwrap();
+
+    let thread_b = l
+        .app
+        .storage
+        .create_planning_thread(
+            &app::ctx("thread-b", "thread.create"),
+            &l.app.project,
+            "B",
+            "claude-code",
+        )
+        .await
+        .unwrap()
+        .id;
+    let listing = reply_on(&l.app, &thread_b, "mcp workflow_list {}").await;
+    let listing: Value = serde_json::from_str(&listing).expect(&listing);
+    assert_eq!(listing.as_array().unwrap().len(), 1, "{listing}");
+    let plan_id = PlanId::from_literal(listing[0]["plan_id"].as_str().unwrap());
+
+    let missing_reason = reply_on(
+        &l.app,
+        &thread_b,
+        &format!("mcp draft_start {{\"plan_id\":\"{plan_id}\"}}"),
+    )
+    .await;
+    assert!(
+        missing_reason.to_lowercase().contains("reason"),
+        "{missing_reason}"
+    );
+
+    let next = reply_on(
+        &l.app,
+        &thread_b,
+        &format!("mcp draft_start {{\"plan_id\":\"{plan_id}\",\"reason\":\"split T1\"}}"),
+    )
+    .await;
+    let next: Value = serde_json::from_str(&next).expect(&next);
+    let v2 = WorkflowId::from_literal(next["workflow_id"].as_str().unwrap());
+    let plan_b = l.app.storage.get_plan(&v2).await.unwrap();
+    assert!(matches!(
+        &plan_b.written_by,
+        WrittenBy::Planner { thread_id, model: Some(_), .. } if thread_id == &thread_b
+    ));
+    let plan_a = l.app.storage.get_plan(&v1).await.unwrap();
+    assert!(matches!(
+        &plan_a.written_by,
+        WrittenBy::Planner { thread_id, .. } if thread_id == &l.app.thread
+    ));
+}
+
+/// An old habit, leaving workflow_id out, is told what to do.
+#[tokio::test]
+async fn a_planner_without_a_workflow_id_is_told_to_list() {
+    let l = listening_app().await;
+    let response = reply(&l.app, "mcp workflow_get {}").await;
+    assert!(response.contains("workflow_list"), "{response}");
 }
 
 #[tokio::test]
@@ -164,7 +249,15 @@ async fn reopening_after_idle_issues_a_new_grant_and_revokes_the_old() {
     assert_eq!(second["how"], "resume");
     assert_ne!(second["bearer_hash"], first["bearer_hash"]);
     assert!(live(&l.app.storage, &second["bearer_hash"]).await);
-    let read = reply(&l.app, "mcp workflow_get {}").await;
+    let started: Value = serde_json::from_str(&started).expect(&started);
+    let read = reply(
+        &l.app,
+        &format!(
+            "mcp workflow_get {{\"workflow_id\":\"{}\"}}",
+            started["workflow_id"].as_str().unwrap()
+        ),
+    )
+    .await;
     let read: Value = serde_json::from_str(&read).expect(&read);
     assert_eq!(read["title"], "Login");
 }
@@ -409,11 +502,15 @@ async fn instructions_saved_after_the_session_opened_reach_its_first_turn() {
 }
 
 #[tokio::test]
-async fn a_forks_first_turn_gets_both_parts() {
+async fn a_forks_first_turn_gets_instruction_and_continue_plan_blocks() {
     let l = listening_app().await;
     let body = "Keep every task under a day.";
     save_instructions(&l.app, "i1", body).await;
     report(&l.app).await;
+    let created = reply(&l.app, r#"mcp draft_start {"title":"Login","goal":"g"}"#).await;
+    let created: Value = serde_json::from_str(&created).expect(&created);
+    let workflow = WorkflowId::from_literal(created["workflow_id"].as_str().unwrap());
+    let plan = l.app.storage.get_plan(&workflow).await.unwrap();
     let last = app::entries(&l.app).await.last().unwrap().id.to_string();
     let path = format!("/api/threads/{}/fork", l.app.thread);
     let (status, fork) = post(
@@ -425,12 +522,15 @@ async fn a_forks_first_turn_gets_both_parts() {
     assert_eq!(status, 201, "{fork}");
     let fork = fork["id"].as_str().unwrap();
 
-    let done = start_and_finish_on(&l.app, fork, "report", default_settings()).await;
+    let mut settings = default_settings();
+    settings["plan"] = json!(plan.plan_id);
+    let op = app::start_on(&l.app, fork, "report", settings).await;
+    let done = wait_terminal(&l.app, &op).await;
     assert_eq!(done.status_kind, "Completed", "{done:?}");
     let first: Value = serde_json::from_str(&last_agent_entry_on(&l.app, fork).await.body).unwrap();
     assert_eq!(first["how"], "fork");
     let sent = blocks(&first);
-    assert_eq!(sent.len(), 2, "{sent:?}");
+    assert_eq!(sent.len(), 3, "{sent:?}");
     assert!(
         sent[1].starts_with(OURS),
         "Shadows' instructions come first"
@@ -439,6 +539,13 @@ async fn a_forks_first_turn_gets_both_parts() {
         sent[1].contains(CHANGED) && sent[1].ends_with(body),
         "{}",
         sent[1]
+    );
+    assert_eq!(
+        sent[2],
+        format!(
+            "[Shadows] The person opened this conversation to continue the plan \"{}\" (plan_id {}, latest version workflow_id {}). Read it with workflow_get before you plan.",
+            plan.title, plan.plan_id, plan.id
+        )
     );
 }
 

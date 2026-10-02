@@ -37,6 +37,9 @@ const projectRoute = createRoute({
 const draftRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$projectId/new',
+  validateSearch: (search: Record<string, unknown>): { plan?: string } => ({
+    plan: typeof search.plan === 'string' ? search.plan : undefined,
+  }),
   component: DraftRoute,
 })
 

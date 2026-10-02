@@ -52,6 +52,8 @@ shapes:
     harness: Arc<Harness>
     # A clone of the core's `Code`: `list` touches the project (§15.6).
     code: Code
+    # Stops the turn only after the removal write, without holding a session slot.
+    stopper: ThreadStopper
   PlanningThread:
     id: ThreadId
     project_id: ProjectId
@@ -59,6 +61,7 @@ shapes:
     # "Open"; nothing else writes another status yet.
     status: String
     created_at: String
+    removed_at: Option<String>
     harness: String
     # Set on a fork only; a fork's title is the source's with " (fork)",
     # and its `title_source` the source's.
@@ -97,11 +100,11 @@ shapes:
     PlanView: unit
     PlanApproved: unit
   CreatedTitle:
-    # pub(crate): who named a thread at create, its first `title_source`.
+    # Private: who named a thread at create, its first `title_source`.
     # `Client` (create_thread) is replaced by the first message and the
-    # harness; `Plan` (Plans' draft from scratch) by neither.
+    # harness. A row stored as `plan`, from an external draft from scratch
+    # before §16.3, is replaced by neither; no code creates one now.
     Client: unit
-    Plan: unit
   EntryRef:
     Operation: OperationId
     Decision: String
@@ -140,6 +143,14 @@ functions:
     operations:
       signature: "(&self, thread: &ThreadId) -> Result<Vec<Operation>, CoreError>"
       # Turns' `list_operations_for_thread`: newest first.
+    remove:
+      signature: "(&self, command_id: String, thread: &ThreadId) -> Result<PlanningThread, CoreError>"
+      # One storage write removes and revokes; then Stop waits for the turn;
+      # includes a committed Pending turn before live registration, then
+      # close_session takes the slot. Stop/close failures are logged.
+    get:
+      signature: "(&self, thread: &ThreadId) -> Result<PlanningThread, CoreError>"
+      # Also reads a removed conversation for its plan history.
   model:
     as_str:
       signature: "(self) -> &'static str"
@@ -163,13 +174,20 @@ functions:
       # record_command.
     turn_context:
       signature: "(&self, thread_id: &ThreadId) -> Result<TurnContext, StorageError>"
-      # NotFound for an unknown thread. Read by Turns, Harness and Sessions.
+      # NotFound for an unknown or removed thread. Read by Turns, Harness and Sessions.
     record_harness_session:
       signature: "(&self, thread_id, session_id) -> Result<bool, StorageError>"
       # Written once: only while NULL. A turn's watcher calls it; no command,
       # no event.
     list_threads_for_project:
       signature: "(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>"
+      # Removed threads are omitted.
+    remove_thread:
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<PlanningThread, StorageError>"
+      # One write: classify, live thread/project, removed_at, revoke grants,
+      # ThreadRemoved, record command. A replay returns the removed row.
+    get_thread:
+      signature: "(&self, thread: &ThreadId) -> Result<PlanningThread, StorageError>"
     append_thread_entry:
       signature: "(&self, thread_id, entry: NewThreadEntry) -> Result<ThreadEntry, StorageError>"
       # Its own write around `append_entry_in`; no command. A turn's watcher
@@ -178,7 +196,7 @@ functions:
       signature: "(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>"
     fork_thread:
       signature: "(&self, ctx, source, at_entry) -> Result<PlanningThread, StorageError>"
-      # One write: classify (scope Thread, the source) → load → busy →
+      # One write: classify (scope Thread, the source) → load and refuse removed → busy →
       # fork_point → the row → `PlanningThreadCreated` with the fork's
       # provenance → copy_entries → next ordinal → record_command.
     fork_point:
@@ -189,6 +207,7 @@ functions:
       private: true
     insert_thread:
       signature: "(conn, project_id, title, named_by: CreatedTitle, harness, actor: Actor, ts) -> Result<ThreadId, StorageError>"
+      private: true
       # NotFound for a project that does not exist, not the foreign key's
       # constraint failure; journals `PlanningThreadCreated` { title, harness }.
     load_thread:
@@ -250,7 +269,6 @@ enums:
 
 
 shared_in_transaction:
-  insert_thread: "Plans' draft from scratch (plans/store/draft.rs start_thread_with_draft): the planning thread is created in the same write that records its v1 and the command, so a refused draft leaves no thread"
   append_entry_in: "Turns' start (turns/store/turn.rs start_turn), Plans' approval (plans/store/edit.rs approve_plan) and plan_show (plans/store/view.rs show_plan): each writes its entry in the write that records its command, so the entry and the command commit together"
   title_from_first_message_in: "Turns' start (turns/store/turn.rs start_turn): the thread is titled after its first message in the write that appends that message, so a refused or replayed start titles nothing"
 
@@ -376,9 +394,10 @@ obligations:
       2026-10-01).
 
   - rule: >
-      A thread a draft from scratch created keeps its plan's title: it is
-      inserted as `plan`, which neither rule replaces. Migration 0010 marks
-      the earlier ones `plan` too: a v1 with the thread's timestamp and title.
+      A thread stored as `plan` keeps its title: neither rule replaces it.
+      An external draft from scratch made such threads until §16.3 (it now
+      makes none), and migration 0010 marked the earlier ones `plan` too: a
+      v1 with the thread's timestamp and title.
     tested_by: a_plan_thread_keeps_its_plan_title
     note: The backfill in migration 0010 has no test of its own.
 
@@ -476,8 +495,9 @@ tests:
       harness title, and journals no ThreadRetitled.
   - name: a_plan_thread_keeps_its_plan_title
     checks: >
-      A draft from scratch titled "Search" is `plan`; a first message and a
-      direct harness title leave "Search".
+      A thread set to "Search", `plan`, as an external draft from scratch
+      left one before §16.3; a first message and a direct harness title
+      leave "Search".
   - name: a_thread_that_had_messages_before_migration_0010_keeps_its_title
     checks: >
       After a first message the row is set back to "T", `client`; a second

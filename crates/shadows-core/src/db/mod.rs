@@ -11,7 +11,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Connection, SqliteConnection, SqlitePool};
 use tokio::sync::{Mutex, watch};
 
-use crate::plans::{Problem, WorkflowId};
+use crate::plans::{PlanId, Problem, WorkflowId};
 
 mod command;
 mod journal;
@@ -78,6 +78,13 @@ pub enum StorageError {
     /// version it starts from, its thread's latest, which this carries.
     #[error("the source is not the thread's latest version, {0}")]
     NotLatestVersion(WorkflowId),
+    /// Spec §16.3: a version after v1 is started without a non-blank
+    /// `change_reason`. A request missing a part, not an invalid plan.
+    #[error("a new version needs its reason")]
+    ReasonMissing,
+    /// §16.2: the plan became read only before this write committed.
+    #[error("plan {0} is archived; a person can unarchive it")]
+    PlanArchived(PlanId),
     /// Spec §4.2: a project that holds a planning thread is not removed.
     #[error("the project has planning threads; it cannot be removed")]
     ProjectHasThreads,

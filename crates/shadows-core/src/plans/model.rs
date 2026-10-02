@@ -10,6 +10,7 @@
 use std::collections::BTreeMap;
 
 use super::rules::Problem;
+use crate::grants::GrantId;
 use crate::id::newtype_id;
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
@@ -23,6 +24,39 @@ newtype_id! {
     /// Spec §13.3. Storage identity only: tools and people name a task by its
     /// `number` within the version, never by this id.
     TaskId
+}
+
+newtype_id! {
+    /// Spec §16.2. A plan of a project, owning a chain of versions.
+    PlanId
+}
+
+/// Spec §16.2. An `Archived` plan is read, never written.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+pub enum PlanState {
+    Active,
+    Archived,
+}
+
+/// Spec §16.3: who wrote a version, recorded once when it was created.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum WrittenBy {
+    /// The internal Planner: its conversation, and the turn when one was
+    /// recorded (none before migration 0012).
+    Planner {
+        thread_id: ThreadId,
+        thread_title: String,
+        thread_removed: bool,
+        /// The observed model, else the requested one; `None` without a turn.
+        model: Option<String>,
+        /// `agent_invocation.harness_kind`, e.g. `claude-code`.
+        harness: Option<String>,
+    },
+    /// An external agent's project grant.
+    External { grant_id: GrantId },
 }
 
 /// Spec §13.2. A `Draft` is edited; a `Frozen` version is approved and never
@@ -160,8 +194,14 @@ pub struct LastEdit {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct Plan {
     pub id: WorkflowId,
-    pub thread_id: ThreadId,
+    pub plan_id: PlanId,
+    pub plan_state: PlanState,
     pub project_id: ProjectId,
+    /// Who wrote this version (§16.3).
+    pub written_by: WrittenBy,
+    /// Why this version was started (§16.3): `None` for v1, and for a version
+    /// from before migration 0012, which reads "Reason not recorded".
+    pub change_reason: Option<String>,
     pub version: i64,
     pub revision: i64,
     pub state: WorkflowState,
@@ -214,7 +254,7 @@ pub struct EditOutcome {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct DraftStarted {
     pub workflow_id: WorkflowId,
-    pub thread_id: ThreadId,
+    pub plan_id: PlanId,
     pub version: i64,
 }
 
@@ -227,13 +267,35 @@ pub struct Approved {
     pub frozen_at: String,
 }
 
-/// A plan as a project's list shows it: its thread's latest version.
+/// A plan as a project's list shows it: its latest version (`id`).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct PlanListing {
+    pub plan_id: PlanId,
+    pub plan_state: PlanState,
     pub id: WorkflowId,
-    pub thread_id: ThreadId,
     pub title: String,
     pub version: i64,
     pub state: WorkflowState,
     pub updated_at: String,
+}
+
+/// One plan with every version, oldest first (§16.10's GET /api/plans/{id}).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct PlanVersions {
+    pub plan_id: PlanId,
+    pub project_id: ProjectId,
+    pub state: PlanState,
+    pub archived_at: Option<String>,
+    pub versions: Vec<VersionLine>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct VersionLine {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub state: WorkflowState,
+    pub title: String,
+    pub written_by: WrittenBy,
+    pub change_reason: Option<String>,
+    pub created_at: String,
 }

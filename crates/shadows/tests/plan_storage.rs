@@ -9,7 +9,7 @@ use shadows_core::StorageError;
 use shadows_core::testing::{Anchor, derived_id};
 use shadows_core::testing::{Writer, fingerprint};
 use shadows_core::{EntryRef, ThreadEntryKind};
-use shadows_core::{LinkKind, Plan, PlanOp, TaskContent, WorkflowState};
+use shadows_core::{LinkKind, Plan, PlanOp, TaskContent, WorkflowState, WrittenBy};
 
 use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
@@ -19,7 +19,8 @@ mod plan;
 
 use app::{ctx, entries_on, test_app};
 use plan::{
-    add, approved_v1, draft, draft_on, edit, edit_ctx, events_of, needs, revision, task, writer_ctx,
+    add, approved_v1, draft, draft_on, edit, edit_ctx, events_of, needs, planner,
+    project_events_of, revision, task, writer_ctx,
 };
 
 #[tokio::test]
@@ -27,9 +28,14 @@ async fn a_new_draft_is_version_one_at_revision_zero() {
     let app = test_app().await;
     let started = draft(&app).await;
     assert_eq!(started.version, 1);
-    assert_eq!(started.thread_id, app.thread);
 
     let plan = app.storage.get_plan(&started.workflow_id).await.unwrap();
+    assert!(
+        matches!(&plan.written_by, WrittenBy::Planner { thread_id, .. } if thread_id == &app.thread),
+        "{:?}",
+        plan.written_by
+    );
+    assert_eq!(plan.plan_id, started.plan_id);
     assert_eq!(
         (plan.version, plan.revision, plan.state),
         (1, 0, WorkflowState::Draft)
@@ -62,14 +68,18 @@ async fn start_draft_answers_the_existing_draft_unchanged() {
     let first = draft(&app).await;
     edit(&app, &first.workflow_id, 0, &[add(1)]).await;
 
+    let writer = planner(&app, &app.thread).await;
     let again = app
         .storage
         .start_draft(
-            &writer_ctx(&Writer::Person, "start-2", "DraftStart", json!({ "n": 2 })),
-            &Writer::Person,
-            &app.thread,
+            &writer_ctx(&writer, "start-2", "DraftStart", json!({ "n": 2 })),
+            &writer,
+            &app.project,
+            Some(&first.plan_id),
             None,
             Some(("Other", "ignored")),
+            None,
+            None,
             None,
         )
         .await
@@ -95,6 +105,7 @@ async fn an_edit_moves_the_revision_once_and_records_one_event() {
         .edit_plan(
             &edit_ctx(&Writer::Person, &v1, 0, &ops),
             &Writer::Person,
+            None,
             &v1,
             0,
             &ops,
@@ -104,7 +115,7 @@ async fn an_edit_moves_the_revision_once_and_records_one_event() {
     assert_eq!((outcome.version, outcome.revision), (1, 1));
     assert_eq!(outcome.changed_tasks, vec![1, 2]);
 
-    let edited = events_of(&app, &app.thread, "WorkflowEdited").await;
+    let edited = project_events_of(&app, &app.project, "WorkflowEdited").await;
     assert_eq!(edited.len(), 1);
     assert_eq!(edited[0]["changed_tasks"], json!([1, 2]));
     assert_eq!(edited[0]["summary"], json!(outcome.summary));
@@ -138,6 +149,7 @@ async fn an_edit_on_a_stale_revision_is_refused_with_the_current_one_and_a_summa
         .edit_plan(
             &edit_ctx(&Writer::Person, &v1, 0, &[add(1)]),
             &Writer::Person,
+            None,
             &v1,
             0,
             &[add(1)],
@@ -151,6 +163,7 @@ async fn an_edit_on_a_stale_revision_is_refused_with_the_current_one_and_a_summa
         .edit_plan(
             &edit_ctx(&Writer::Person, &v1, 0, &stale),
             &Writer::Person,
+            None,
             &v1,
             0,
             &stale,
@@ -174,21 +187,23 @@ async fn a_replayed_edit_returns_its_own_outcome_after_a_later_edit() {
     let a_ctx = edit_ctx(&Writer::Person, &v1, 0, &[add(1)]);
     let a = app
         .storage
-        .edit_plan(&a_ctx, &Writer::Person, &v1, 0, &[add(1)])
+        .edit_plan(&a_ctx, &Writer::Person, None, &v1, 0, &[add(1)])
         .await
         .unwrap();
     assert_eq!(edit(&app, &v1, 1, &[add(2)]).await, 2);
 
     let replayed = app
         .storage
-        .edit_plan(&a_ctx, &Writer::Person, &v1, 0, &[add(1)])
+        .edit_plan(&a_ctx, &Writer::Person, None, &v1, 0, &[add(1)])
         .await
         .unwrap();
     assert_eq!(replayed, a);
     assert_eq!(replayed.revision, 1);
     assert_eq!(revision(&app, &v1).await, 2);
     assert_eq!(
-        events_of(&app, &app.thread, "WorkflowEdited").await.len(),
+        project_events_of(&app, &app.project, "WorkflowEdited")
+            .await
+            .len(),
         2
     );
 }
@@ -215,12 +230,26 @@ async fn the_same_explicit_command_id_with_different_ops_is_a_command_conflict()
         )
     };
     app.storage
-        .edit_plan(&explicit(&[add(1)]), &Writer::Person, &v1, 0, &[add(1)])
+        .edit_plan(
+            &explicit(&[add(1)]),
+            &Writer::Person,
+            None,
+            &v1,
+            0,
+            &[add(1)],
+        )
         .await
         .unwrap();
     let conflict = app
         .storage
-        .edit_plan(&explicit(&[add(2)]), &Writer::Person, &v1, 0, &[add(2)])
+        .edit_plan(
+            &explicit(&[add(2)]),
+            &Writer::Person,
+            None,
+            &v1,
+            0,
+            &[add(2)],
+        )
         .await;
     assert!(
         matches!(conflict, Err(StorageError::CommandConflict)),
@@ -238,6 +267,7 @@ async fn an_invalid_edit_writes_nothing() {
         .edit_plan(
             &edit_ctx(&Writer::Person, &v1, 0, &ops),
             &Writer::Person,
+            None,
             &v1,
             0,
             &ops,
@@ -250,7 +280,7 @@ async fn an_invalid_edit_writes_nothing() {
     assert_eq!(revision(&app, &v1).await, 0);
     assert!(app.storage.get_plan(&v1).await.unwrap().tasks.is_empty());
     assert!(
-        events_of(&app, &app.thread, "WorkflowEdited")
+        project_events_of(&app, &app.project, "WorkflowEdited")
             .await
             .is_empty()
     );
@@ -265,6 +295,7 @@ async fn a_frozen_version_refuses_edits() {
         .edit_plan(
             &edit_ctx(&Writer::Person, &v1, 1, &[add(3)]),
             &Writer::Person,
+            None,
             &v1,
             1,
             &[add(3)],
@@ -367,7 +398,7 @@ async fn after_approval_start_draft_copies_tasks_and_links_with_their_numbers() 
         app.storage.thread_plan(&app.thread).await.unwrap(),
         Some(v2.workflow_id.clone())
     );
-    let listed = app.storage.list_plans(&app.project).await.unwrap();
+    let listed = app.storage.list_plans(&app.project, false).await.unwrap();
     assert_eq!(listed.len(), 1);
     assert_eq!(
         (listed[0].id.clone(), listed[0].version),

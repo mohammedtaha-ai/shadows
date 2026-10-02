@@ -14,6 +14,7 @@ import type {
   Plan,
   PlanListing,
   PlanTask,
+  PlanVersions,
   PlanningThread,
   Project,
   ProjectStatus,
@@ -72,6 +73,7 @@ export const threadFixture: PlanningThread = {
   created_at: '2026-09-24T00:00:00Z',
   harness: 'claude-code',
   forked_from_thread: null,
+  removed_at: null,
 }
 
 /** A project's code index, ready, by its slug. */
@@ -177,8 +179,18 @@ export function planTask(number: number, title: string, extra: Partial<PlanTask>
 export function planFixture(extra: Partial<Plan> = {}): Plan {
   return {
     id: 'w1',
+    plan_id: 'plan1',
+    plan_state: 'Active',
     project_id: 'p1',
-    thread_id: 't1',
+    written_by: {
+      kind: 'planner',
+      thread_id: 't1',
+      thread_title: 'Login',
+      thread_removed: false,
+      model: null,
+      harness: null,
+    },
+    change_reason: null,
     title: 'Login flow',
     goal: 'People can sign in',
     state: 'Draft',
@@ -199,11 +211,35 @@ export function planFixture(extra: Partial<Plan> = {}): Plan {
 export function planListing(plan: Plan): PlanListing {
   return {
     id: plan.id,
-    thread_id: plan.thread_id,
+    plan_id: plan.plan_id,
+    plan_state: plan.plan_state,
     title: plan.title,
     state: plan.state,
     version: plan.version,
     updated_at: plan.created_at,
+  }
+}
+
+export function planVersionsFixture(plan: Plan, versions?: PlanVersions['versions']): PlanVersions {
+  return {
+    plan_id: plan.plan_id,
+    project_id: plan.project_id,
+    state: plan.plan_state,
+    archived_at: plan.plan_state === 'Archived' ? '2026-10-01T00:00:00Z' : null,
+    versions:
+      versions && versions.length > 0
+        ? versions
+        : [
+            {
+              workflow_id: plan.id,
+              version: plan.version,
+              state: plan.state,
+              title: plan.title,
+              written_by: plan.written_by,
+              change_reason: plan.change_reason,
+              created_at: plan.created_at,
+            },
+          ],
   }
 }
 

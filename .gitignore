@@ -21,3 +21,6 @@ harness/*/node_modules/
 
 # Delta-validation measurements
 sandbox/persistence-delta/results/
+
+# Local launcher configuration
+.claude/

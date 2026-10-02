@@ -41,12 +41,12 @@ async fn plan_command_fingerprints_do_not_move() {
     )
     .await;
     let v1 = started["workflow_id"].clone();
-    let edit = json!({ "expected_revision": 0, "ops": [add(1)], "command_id": "pin-edit" });
+    let edit = json!({ "workflow_id": v1, "expected_revision": 0, "ops": [add(1)], "command_id": "pin-edit" });
     ok(&planner, "plan_edit", edit).await;
     ok(
         &planner,
         "plan_show",
-        json!({ "task_number": 1, "place": "side" }),
+        json!({ "workflow_id": v1, "task_number": 1, "place": "side" }),
     )
     .await;
 
@@ -79,11 +79,23 @@ async fn plan_command_fingerprints_do_not_move() {
     let mut expected = vec![
         pinned(
             "DraftStart",
-            json!({ "thread": thread, "title": "T", "goal": "G" }),
+            json!({
+                "project": l.app.project,
+                "plan_id": null,
+                "title": "T",
+                "goal": "G",
+                "reason": null,
+            }),
         ),
         pinned(
             "DraftStart",
-            json!({ "title": "X", "goal": "Y", "from_workflow_id": null }),
+            json!({
+                "project": l.app.project,
+                "plan_id": null,
+                "title": "X",
+                "goal": "Y",
+                "reason": null,
+            }),
         ),
         pinned(
             "PlanEdit",

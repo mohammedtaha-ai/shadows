@@ -22,10 +22,10 @@ use rmcp::{ErrorData, RoleServer, ServerHandler};
 use shadows_core::AppCore;
 use shadows_core::{Grant, GrantKind};
 
-/// The internal Planner's tools. It never lists plans or prepares a draft ref:
-/// its grant fixes the thread, and the thread fixes the plan. Only it shows a
-/// plan: an external agent can read plans but cannot move a person's screen.
-const THREAD_TOOLS: [&str; 5] = [
+/// The internal Planner's tools: plans belong to the project now. Only it
+/// shows a plan; an external agent cannot move a person's screen.
+const THREAD_TOOLS: [&str; 6] = [
+    "workflow_list",
     "workflow_get",
     "task_get",
     "draft_start",

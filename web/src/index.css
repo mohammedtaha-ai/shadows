@@ -161,6 +161,22 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: var(--palette-border) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--palette-border);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--palette-text-muted);
   }
   html {
     @apply font-sans;
@@ -169,6 +185,7 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
 
 /* The Planner's reply, block by block in its own direction (`bidi.ts` marks
  * each block `dir="auto"`). Unlayered, so these beat Streamdown's physical

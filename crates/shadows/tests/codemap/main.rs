@@ -1,32 +1,14 @@
-//! The code map, and the contract that keeps it honest.
+//! The ownership map, and the test that keeps it honest.
 //!
-//! **The decision this file owns.** A code map that is written by hand rots,
-//! and a rotted map is worse than none: it is read with the same trust as a
-//! true one. So the map is split by what can be checked.
+//! **The decision this file owns.** `docs/codebase/README.md` is written by
+//! hand and holds the one thing no tool can derive: what each module *owns*.
+//! The test below checks its factual claims: that the modules and reference
+//! files it names exist, that every module in the tree has a row, and that no
+//! job is stated with "and".
 //!
-//! - `docs/codebase/inventory.md` is **generated** from every `crates/*/src`
-//!   and holds the mechanical facts — every externally reachable declaration, with its full
-//!   signature. The first test below regenerates it and fails on any
-//!   difference, so `cargo test` is what stops it from drifting. Since Windows
-//!   `cargo test` is the CI acceptance gate, a stale map cannot reach `main`.
-//! - `docs/codebase/README.md` is **written by hand** and holds the one thing
-//!   no generator can derive: what each module *owns*. Its factual claims —
-//!   that the modules and reference files it names exist, and that every module
-//!   in the tree is accounted for — are checked by the second test.
-//!
-//! **Excluded on purpose:** line numbers. A line number is wrong as soon as a
-//! line is inserted above it, and nothing fails when it lies. One field that
-//! rots silently costs the reader their trust in every field beside it.
-//!
-//! **Why not built/not-built columns:** the tree already answers that, and
-//! `docs/status.md` already narrates progress. Writing it a third time would
-//! record one fact in three places, which is the failure this project's
-//! documentation rules exist to prevent.
-//!
-//! Regenerate with `UPDATE_CODEMAP=1 cargo test -p shadows --test codemap`.
-
-mod render;
-mod scan;
+//! The generated inventory of every declaration was retired on 2026-10-01: the
+//! Rust LSP, and Shadows' own `where_is`, `who_uses` and `outline`, answer
+//! where a name is, its signature and its callers exactly, with no upkeep.
 
 use std::path::{Path, PathBuf};
 
@@ -36,54 +18,8 @@ fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-#[test]
-fn the_inventory_matches_the_source_tree() {
-    let root = workspace_root();
-    let generated = render::document(&scan::scan(&root));
-    let target = root.join("docs/codebase/inventory.md");
-
-    if std::env::var_os("UPDATE_CODEMAP").is_some() {
-        std::fs::write(&target, &generated).expect("writing the inventory");
-        return;
-    }
-
-    let checked_in = std::fs::read_to_string(&target).unwrap_or_default();
-    if checked_in == generated {
-        return;
-    }
-
-    // Name the first differing line rather than dumping two documents: the
-    // reader needs to know what moved, and the fix is one command either way.
-    let mismatch = checked_in
-        .lines()
-        .zip(generated.lines())
-        .position(|(a, b)| a != b)
-        .map(|i| {
-            format!(
-                "first difference at line {}:\n  checked in: {}\n  generated:  {}",
-                i + 1,
-                checked_in.lines().nth(i).unwrap_or(""),
-                generated.lines().nth(i).unwrap_or("")
-            )
-        })
-        .unwrap_or_else(|| {
-            format!(
-                "the shorter document ends early: {} checked-in lines against {} generated",
-                checked_in.lines().count(),
-                generated.lines().count()
-            )
-        });
-
-    panic!(
-        "docs/codebase/inventory.md no longer describes crates/*/src.\n\n{mismatch}\n\n\
-         Regenerate it and include it in the same commit as the code change:\n\
-         \n    UPDATE_CODEMAP=1 cargo test -p shadows --test codemap\n"
-    );
-}
-
-/// The hand-written half. This test does not judge whether an ownership phrase
-/// is *true* — no test can — but it does refuse the three ways the file can be
-/// mechanically wrong: naming something that does not exist, omitting a module
+/// This test does not judge whether an ownership phrase is *true* — no test
+/// can — but it does refuse the three ways the file can be mechanically wrong: naming something that does not exist, omitting a module
 /// that does, and describing a module with a conjunction, which is how a file
 /// acquires a second responsibility without anyone deciding to give it one.
 #[test]
@@ -170,7 +106,7 @@ fn names_a_crate_source(path: &str) -> bool {
 /// so they are the only exemptions.
 fn top_level_modules(workspace: &Path) -> Vec<String> {
     let mut modules = Vec::new();
-    for (krate, src) in scan::crate_sources(workspace) {
+    for (krate, src) in crate_sources(workspace) {
         for entry in
             std::fs::read_dir(&src).unwrap_or_else(|e| panic!("reading {}: {e}", src.display()))
         {
@@ -192,4 +128,26 @@ fn top_level_modules(workspace: &Path) -> Vec<String> {
     }
     modules.sort();
     modules
+}
+
+/// Every workspace crate's `src/` directory as `(crate folder, path)`, sorted
+/// by folder name. A folder under `crates/` without a `src/` is not a crate
+/// the map describes.
+fn crate_sources(workspace: &Path) -> Vec<(String, PathBuf)> {
+    let crates = workspace.join("crates");
+    let mut out: Vec<(String, PathBuf)> = std::fs::read_dir(&crates)
+        .unwrap_or_else(|e| panic!("reading {}: {e}", crates.display()))
+        .map(|entry| entry.expect("directory entry").path())
+        .filter(|path| path.join("src").is_dir())
+        .map(|path| {
+            let name = path
+                .file_name()
+                .expect("a named entry")
+                .to_string_lossy()
+                .to_string();
+            (name, path.join("src"))
+        })
+        .collect();
+    out.sort();
+    out
 }

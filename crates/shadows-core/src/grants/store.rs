@@ -74,12 +74,13 @@ impl Storage {
         let (thread, ts) = (thread.clone(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
-                let project: String =
-                    sqlx::query_scalar("SELECT project_id FROM planning_thread WHERE id = ?")
-                        .bind(thread.as_str())
-                        .fetch_optional(&mut *conn)
-                        .await?
-                        .ok_or(StorageError::NotFound("thread"))?;
+                let project: String = sqlx::query_scalar(
+                    "SELECT project_id FROM planning_thread WHERE id = ? AND removed_at IS NULL",
+                )
+                .bind(thread.as_str())
+                .fetch_optional(&mut *conn)
+                .await?
+                .ok_or(StorageError::NotFound("thread"))?;
                 let project = ProjectId::from_stored(project);
                 insert_grant(conn, &project, Some(&thread), Actor::system(), &ts).await
             })
@@ -355,20 +356,41 @@ pub(crate) async fn revoke_project_grants_in(
     Ok(())
 }
 
+/// Inside a thread removal's write: revoke all its live Planner grants before
+/// `ThreadRemoved` is journaled. No adapter can write a plan after commit.
+pub(crate) async fn revoke_thread_grants_in(
+    conn: &mut SqliteConnection,
+    thread: &ThreadId,
+    actor: Actor,
+    ts: &str,
+) -> Result<(), StorageError> {
+    let live: Vec<GrantRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT {GRANT_COLUMNS} FROM mcp_grant
+          WHERE kind = 'thread' AND thread_id = ? AND revoked_at IS NULL ORDER BY id"
+    )))
+    .bind(thread.as_str())
+    .fetch_all(&mut *conn)
+    .await?;
+    for row in live {
+        revoke_in(conn, &into_grant(row)?, actor.clone(), ts).await?;
+    }
+    Ok(())
+}
+
 fn rfc3339(at: time::OffsetDateTime) -> String {
     at.format(&time::format_description::well_known::Rfc3339)
         .expect("RFC3339 formatting cannot fail")
 }
 
 /// Ok for a person. For a grant holder: `GrantInvalid` when the grant is
-/// unknown or revoked; `GrantScope` when the write's thread and project are
-/// outside it — a Planner writes only its own thread, an external agent only
-/// its project. `thread` is `None` for a thread not yet created.
+/// unknown or revoked; `GrantScope` when the write's project is outside it —
+/// a Planner's grant must be a thread grant of its own thread in `project`,
+/// an external agent's a project grant of `project`. Which plan of the
+/// project a Planner reaches is Plans' `in_scope` (§16.4), not this check.
 pub(crate) async fn check_writer(
     conn: &mut SqliteConnection,
     writer: &Writer,
     project: &ProjectId,
-    thread: Option<&ThreadId>,
 ) -> Result<(), StorageError> {
     let Some(grant) = writer.grant() else {
         return Ok(());
@@ -388,7 +410,7 @@ pub(crate) async fn check_writer(
         } => {
             kind == "thread"
                 && grant_thread.as_deref() == Some(own_thread.as_str())
-                && thread == Some(own_thread)
+                && grant_project == project.as_str()
         }
         Writer::External { .. } => kind == "project" && grant_project == project.as_str(),
         Writer::Person => true,

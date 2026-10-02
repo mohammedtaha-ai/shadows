@@ -78,7 +78,7 @@ async function send(app: TestApp, text: string): Promise<TurnBody> {
 
 /** The conversation's stream, replayed to its end so frames arrive live. */
 async function liveStream(app: TestApp) {
-  await until(() => app.sources.length > 0)
+  await until(() => app.sources.some((s) => s.param('thread_id') === 't1'))
   const stream = app.sources.find((s) => s.param('thread_id') === 't1')
   if (stream === undefined) throw new Error('no stream was opened for t1')
   await act(async () => stream.caughtUp(0))
@@ -200,7 +200,7 @@ describe('the plan in the conversation', () => {
 
   it('a replayed PlanView entry does not open the side panel', async () => {
     const a = await start(shown())
-    await until(() => a.sources.length > 0)
+    await until(() => a.sources.some((s) => s.param('thread_id') === 't1'))
     const stream = a.sources.find((s) => s.param('thread_id') === 't1')
     if (stream === undefined) throw new Error('no stream was opened for t1')
 

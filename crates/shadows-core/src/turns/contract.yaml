@@ -50,6 +50,11 @@ shapes:
     bus: Bus
     # A clone of the core's `Code`: `send` touches the thread's project (§15.6).
     code: Code
+  ThreadStopper:
+    # Narrow handle built at composition, held by Threads.
+    runtime: Arc<Runtime>
+    handles: Arc<LiveHandles>
+    sessions: Arc<Sessions>
   SendTurn:
     command_id: String
     prompt: String
@@ -58,8 +63,11 @@ shapes:
     # `None` exactly when the chosen model offers no effort (§12.4).
     effort: Option<String>
     # Part of the command's fingerprint; checked to be a task of that plan
-    # version, which must be this thread's (TaskNotInPlan otherwise).
+    # version, which must be in this thread's project (TaskNotInPlan otherwise).
     focus: Option<Focus>
+    # Part of the command fingerprint; the selected plan must be in this
+    # thread's project. It becomes a prompt context block, not a stored entry.
+    plan: Option<PlanId>
     # Transport only: not in the fingerprint, never stored; a replay from
     # another tab is still a replay.
     client_tab: Option<String>
@@ -140,16 +148,26 @@ shapes:
     prompt: String
     settings: TurnSettings
     focus: Option<String>
+    # A context block added after focus when the person selected a plan.
+    continue_plan: Option<String>
     client_tab: Option<String>
     events: UnboundedReceiver<HarnessEvent>
 
 
 functions:
   service:
+    stop_running:
+      signature: "(&self, thread: &ThreadId) -> Result<StopOutcome, StorageError>"
+      # On ThreadStopper: finds the durable Pending or Running turn, including
+      # before live registration, then PlannerTurn::stop; waits for finished_at
+      # through the committed watch without holding a session slot. A failed
+      # termination is returned without claiming the operation is terminal.
     send:
       signature: "(&self, thread_id: ThreadId, turn: SendTurn) -> Result<OperationId, CoreError>"
       # "turn.start", principal User/local, schema 1, params { thread_id,
-      # prompt, model, mode, effort } and "focus" only when given. Refusals:
+      # prompt, model, mode, effort }, plus focus and plan only when given.
+      # plan must be in the thread's project, else INVALID_COMMAND. The plan
+      # context block follows focus when present. Refusals:
       # RuntimeStopping (registry closed, or TransitionConflict from
       # `start_turn` while it is closed); HarnessUnavailable; ThreadBusy (early
       # check, lease Busy, or the transaction); HarnessStartFailed (open, lease
@@ -191,6 +209,8 @@ functions:
       # back is logged as `turn.model_not_set_back`, not returned.
     focus_block:
       signature: "(focus: &Focus, number: u32, title: &str) -> String"
+    continue_plan_block:
+      signature: "(plan: &PlanListing) -> String"
   live:
     start:
       signature: "(runtime, handles, sessions, opened, request: PlannerTurnRequest, bus) -> Result<OperationId, StartError>"
@@ -257,7 +277,7 @@ functions:
   store:
     start_turn:
       signature: "(&self, ctx: &CommandContext, turn: NewTurn) -> Result<StartedTurn, StorageError>"
-      # One write: classify (replay), has_open_operation (busy), focus,
+      # One write: classify (replay), refuse removed thread, has_open_operation (busy), focus,
       # insert_pending, the UserMessage entry, Threads'
       # `title_from_first_message_in` (§4.2), agent_invocation,
       # remember_settings, record_command.
@@ -317,6 +337,17 @@ called_by_other_services:
 
 obligations:
   - rule: >
+      A focused task belongs to the named version in the thread's project;
+      the version's writer thread is attribution, not ownership (§16.4).
+    tested_by:
+      - a_conversation_can_focus_another_conversations_project_plan
+      - a_focus_on_a_task_of_another_plan_is_refused
+  - rule: >
+      Thread removal stops the durable Pending or Running turn even before
+      live registration, then waits for its terminal write without holding
+      a session slot (§16.5). No polling timer is needed: commits wake the wait.
+    tested_by: deletion_waits_for_a_committed_turn_before_live_registration
+  - rule: >
       Replay first. A turn start whose command id and request match a
       recorded one answers the first operation and starts nothing, before the
       registry, the harness, the thread's busyness or the project's modes are
@@ -338,8 +369,8 @@ obligations:
   - rule: >
       Replay identity. "turn.start", schema version 1, principal User/local,
       the caller's command id, params { thread_id, prompt, model, mode,
-      effort }, and "focus" only when one is given; `client_tab` is not a
-      parameter. The same id with another body, or another focus, is
+      effort }, and "focus" and "plan" only when given; `client_tab` is not a
+      parameter. The same id with another body, focus or plan is
       CommandConflict.
     tested_by:
       - turn_command_fingerprints_do_not_move
@@ -379,6 +410,17 @@ obligations:
       only the early check can refuse it before the session opens; it
       asserts no session is live. Removing the check fails it (tried on
       dc0255e).
+
+  - rule: >
+      A selected plan belongs to the thread's project. `send` refuses a plan
+      from another project with INVALID_COMMAND before opening the session.
+    tested_by: a_second_turn_over_http_while_one_runs_is_thread_busy_and_writes_nothing
+
+  - rule: >
+      A selected plan adds one prompt context block after the person's text
+      and any focus block. It includes the plan title, id, and latest version;
+      it is not recorded as an entry.
+    tested_by: a_forks_first_turn_gets_instruction_and_continue_plan_blocks
 
   - rule: >
       Busy, atomically. `start_turn` checks `has_open_operation` again inside
@@ -491,14 +533,23 @@ not_the_caller's:
 
 
 tests:
+  - name: a_conversation_can_focus_another_conversations_project_plan
+    checks: >
+      A second conversation sends a focus on the first conversation's plan;
+      the HTTP start succeeds, the turn completes and its message retains the task.
+  - name: deletion_waits_for_a_committed_turn_before_live_registration
+    checks: >
+      A committed Pending turn is resumed only after removal commits. Delete
+      answers with its cancellation requested, its ending durable, and no adapter.
   - name: turn_start_replays_after_the_move
     checks: >
       One body sent twice over HTTP answers 202 twice with the same operation
       id, and the thread has one operation.
   - name: turn_command_fingerprints_do_not_move
     checks: >
-      A plain and a focused turn over HTTP leave two command records whose
-      principal, id, kind, schema version and fingerprint equal the literals'.
+      A plain and a focused turn with a selected plan over HTTP leave two
+      command records whose principal, id, kind, schema version and
+      fingerprint equal the literals'.
   - name: stop_after_the_move_records_cancelled
     checks: >
       `hang` started, POST stop answers 200 with the operation; it ends
@@ -548,7 +599,12 @@ tests:
   - name: a_second_turn_over_http_while_one_runs_is_thread_busy_and_writes_nothing
     checks: >
       While `hang` runs, a second start is 409 THREAD_BUSY and only the
-      running turn's prompt is an entry.
+      running turn's prompt is an entry; a selected plan from another project
+      is 422 INVALID_COMMAND and writes nothing.
+  - name: a_forks_first_turn_gets_instruction_and_continue_plan_blocks
+    checks: >
+      A forked conversation receives its changed project instructions and the
+      selected plan context block after the person's text.
   - name: a_second_turn_while_one_is_running_is_thread_busy
     checks: A second `start_turn` at the store while the first is Pending is ThreadBusy.
   - name: a_turn_started_during_a_breakdown_read_keeps_its_output
