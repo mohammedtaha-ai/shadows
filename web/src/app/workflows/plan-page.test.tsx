@@ -7,7 +7,7 @@
 import type { FitViewOptions } from '@xyflow/react'
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { Plan } from '@/api/client'
+import type { Plan, PlanVersions } from '@/api/client'
 import { answers } from '@/test/fake-daemon'
 import { planFixture, planListing, planTask } from '@/test/contract-fixtures'
 import { FakeResizeObserver, resize } from '@/test/fake-resize-observer'
@@ -281,5 +281,84 @@ describe('the plan page', () => {
     )
     await until(() => getsOfPlan(a) > reads)
     await until(() => node(3)?.textContent?.includes('Session timeout') === true)
+  })
+
+  it('heads a version with its writer and reason, and archives the plan', async () => {
+    const v1 = planFixture({ id: 'w1', version: 1, state: 'Frozen' })
+    const v2 = planFixture({
+      id: 'w2',
+      version: 2,
+      previous: 'w1',
+      written_by: {
+        kind: 'planner',
+        thread_id: 't1',
+        thread_title: 'Web fixes',
+        thread_removed: false,
+        model: 'opus-5-5',
+        harness: 'claude-code',
+      },
+      change_reason: 'the API changed',
+    })
+    const planVersions: PlanVersions = {
+      plan_id: v2.plan_id,
+      project_id: v2.project_id,
+      state: 'Active',
+      archived_at: null,
+      versions: [
+        {
+          workflow_id: v1.id,
+          version: v1.version,
+          state: v1.state,
+          title: v1.title,
+          written_by: v1.written_by,
+          change_reason: v1.change_reason,
+          created_at: v1.created_at,
+        },
+        {
+          workflow_id: v2.id,
+          version: v2.version,
+          state: v2.state,
+          title: v2.title,
+          written_by: v2.written_by,
+          change_reason: v2.change_reason,
+          created_at: v2.created_at,
+        },
+      ],
+    }
+
+    let planState = 'Active' as 'Active' | 'Archived'
+    const routes = answers({
+      plan: () => Response.json({ ...v2, plan_state: planState }),
+    })
+    routes['GET /api/workflows/w2'] = () => Response.json({ ...v2, plan_state: planState })
+    routes['GET /api/plans/plan1'] = () =>
+      Response.json({
+        ...planVersions,
+        state: planState,
+        archived_at: planState === 'Archived' ? '2026-10-01T00:00:00Z' : null,
+      })
+    routes['POST /api/plans/plan1/archive'] = async (req: Request) => {
+      await req.json()
+      planState = 'Archived'
+      return Response.json({ ...planVersions, state: 'Archived', archived_at: '2026-10-01T00:00:00Z' })
+    }
+
+    const a = (app = await startApp('/projects/p1/workflows/w2', routes))
+    await until(() => a.text().includes('the API changed'))
+
+    expect(a.text()).toContain('v2 · from Web fixes · opus-5-5 · Claude Code')
+    expect(a.text()).toContain('the API changed')
+    expect(a.button('Approve')).toBeDefined()
+
+    const archiveBtn = a.button('Archive')
+    expect(archiveBtn).toBeDefined()
+    await act(async () => archiveBtn?.click())
+
+    await until(() => a.calls.includes('POST /api/plans/plan1/archive'))
+    const lastBody = a.bodies.at(-1) as { command_id: string }
+    expect(lastBody.command_id).toMatch(/^[0-9a-f-]{36}$/)
+
+    await until(() => a.text().includes('Archived · read only'))
+    expect(a.button('Approve')).toBeUndefined()
   })
 })

@@ -4,6 +4,7 @@
 // conversation's latest plan, an invitation when there is none, and why the
 // list could not be read.
 
+import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { planFixture, planListing } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
@@ -42,5 +43,37 @@ describe('the Workflows section', () => {
 
     await until(() => a.text().includes('database is locked'))
     expect(a.container.querySelector('[role="alert"]')?.textContent).toContain('STORAGE_UNAVAILABLE')
+  })
+
+  it('lists active plans and folds the archived ones', async () => {
+    const planA = planListing(
+      planFixture({ id: 'w1', plan_id: 'planA', title: 'Active plan', plan_state: 'Active' }),
+    )
+    const planB = planListing(
+      planFixture({ id: 'w2', plan_id: 'planB', title: 'Archived plan', plan_state: 'Archived' }),
+    )
+
+    const routes = answers()
+    routes['GET /api/projects/p1/workflows'] = (request: Request) => {
+      const url = new URL(request.url)
+      if (url.searchParams.get('archived') === 'true') {
+        return Response.json([planA, planB])
+      }
+      return Response.json([planA])
+    }
+
+    const a = (app = await startApp('/projects/p1', routes))
+    await until(() => a.text().includes('Active plan'))
+
+    expect(a.text()).toContain('Active plan')
+    expect(a.text()).toContain('Archived (1)')
+    expect(a.text()).not.toContain('Archived plan')
+
+    const button = a.button('Archived (1)')
+    expect(button).toBeDefined()
+    await act(async () => button?.click())
+
+    await until(() => a.text().includes('Archived plan'))
+    expect(a.text()).toContain('Archived plan')
   })
 })
