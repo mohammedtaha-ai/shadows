@@ -37,9 +37,13 @@ export function VersionLine({
 
   if (writtenBy.kind === 'external') {
     return (
-      <div className="space-y-0.5">
+      <div className="space-y-1">
         <p className="text-xs text-muted-foreground">v{version} · External agent</p>
-        {reason !== null && <p className="text-xs text-faint-foreground">{reason}</p>}
+        {reason !== null && (
+          <p className="inline-block rounded-md border border-border/40 bg-accent-softer/60 px-2 py-0.5 text-xs text-faint-foreground">
+            {reason}
+          </p>
+        )}
       </div>
     )
   }
@@ -52,7 +56,7 @@ export function VersionLine({
     <Link
       to="/projects/$projectId/threads/$threadId"
       params={{ projectId, threadId: writtenBy.thread_id }}
-      className="underline hover:text-foreground"
+      className="text-foreground/90 underline decoration-muted-foreground/40 underline-offset-2 transition-colors hover:text-foreground hover:decoration-foreground"
     >
       {conversationTitle}
     </Link>
@@ -63,13 +67,17 @@ export function VersionLine({
   const cli = cliLabel(writtenBy.harness, harnesses)
 
   return (
-    <div className="space-y-0.5">
+    <div className="space-y-1">
       <p className="text-xs text-muted-foreground">
         v{version} · from {conversationNode}
         {writtenBy.model ? ` · ${writtenBy.model}` : ''}
         {cli ? ` · ${cli}` : ''}
       </p>
-      {reason !== null && <p className="text-xs text-faint-foreground">{reason}</p>}
+      {reason !== null && (
+        <p className="inline-block rounded-md border border-border/40 bg-accent-softer/60 px-2 py-0.5 text-xs text-faint-foreground">
+          {reason}
+        </p>
+      )}
     </div>
   )
 }

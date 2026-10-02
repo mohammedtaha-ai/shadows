@@ -77,7 +77,7 @@ function Draft({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-3">
+      <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md">
         <div className="min-w-0">
           <h1 className="truncate text-sm font-medium">New conversation</h1>
           <p className="truncate text-xs text-faint-foreground">
@@ -86,8 +86,13 @@ function Draft({ projectId }: { projectId: string }) {
         </div>
         <CliMenu harness={harness} label={label} onPick={setHarness} />
       </header>
-      <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-        <MessageSquarePlus aria-hidden className="size-8 text-accent-line" />
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+        <div className="relative flex items-center justify-center">
+          <div className="absolute size-14 rounded-full bg-accent-line/10 blur-xl" aria-hidden />
+          <div className="relative flex size-12 items-center justify-center rounded-full border border-border/60 bg-card/60 shadow-xs">
+            <MessageSquarePlus aria-hidden className="size-6 text-accent-line" />
+          </div>
+        </div>
         <p className="text-sm text-muted-foreground">
           The conversation starts with your first message.
         </p>
@@ -95,8 +100,8 @@ function Draft({ projectId }: { projectId: string }) {
       {planId && (
         <div className="px-6 pb-2">
           <div className="mx-auto max-w-3xl">
-            <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-accent-line/50 bg-accent-softer py-0.5 pr-1 pl-2.5 text-xs text-secondary-foreground">
-              <span dir="auto" className="truncate">
+            <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-accent-line/40 bg-accent-softer/90 py-1 pr-1.5 pl-3 text-xs text-secondary-foreground shadow-xs transition-all">
+              <span dir="auto" className="truncate font-medium">
                 Continuing: {planTitle}
               </span>
               <button

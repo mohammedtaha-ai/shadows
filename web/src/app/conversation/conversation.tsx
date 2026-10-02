@@ -90,7 +90,7 @@ function Conversation({
     <HeldThreadStream value={threadId}>
       <div className="flex h-full min-h-0">
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-3">
+          <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md">
             <div className="min-w-0">
               <h1 dir="auto" className="truncate text-start text-sm font-medium">
                 {thread?.title ?? 'Conversation'}
