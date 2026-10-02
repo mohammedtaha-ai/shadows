@@ -3453,6 +3453,58 @@
         ]
       }
     },
+    "/api/projects/{id}/events": {
+      "get": {
+        "operationId": "subscribe_project",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "Resume after the last durable sequence delivered; 0 replays all plan events.",
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unknown or removed project"
+          }
+        },
+        "summary": "A project's plan notifications (§16.8), replayed then live on the same\njournal tail as `/api/subscribe`. `durable` carries `{seq, kind,\noperation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.\nArchive notifications name the plan's latest version to refetch.",
+        "tags": [
+          "stream"
+        ]
+      }
+    },
     "/api/projects/{id}/mcp-grants": {
       "get": {
         "operationId": "list_grants",

@@ -61,7 +61,7 @@ describe('the conversation, opened while a turn runs', () => {
     await until(() => a.button('Stopping…') !== undefined)
 
     // The stream replays the turn's history, goes live, then the durable end.
-    const stream = a.sources.at(-1)
+    const stream = a.sources.findLast((s) => s.param('thread_id') === 't1')
     if (stream === undefined) throw new Error('no stream was opened')
     await act(async () => {
       stream.durable(5, 'OperationCreated', 'op1', { kind: 'PlannerTurn' })
@@ -94,7 +94,7 @@ describe('a stop the daemon could not carry out', () => {
 
     // The request was recorded before termination failed, so the stream
     // says a stop was asked for; the turn is still running.
-    const stream = a.sources.at(-1)
+    const stream = a.sources.findLast((s) => s.param('thread_id') === 't1')
     if (stream === undefined) throw new Error('no stream was opened')
     await act(async () => {
       stream.durable(5, 'OperationCreated', 'op1', { kind: 'PlannerTurn' })

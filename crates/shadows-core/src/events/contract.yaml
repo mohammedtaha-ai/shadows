@@ -31,7 +31,7 @@ shapes:
     bus: Bus
     ui: broadcast::Sender<UiSignal>
   Subscription:
-    thread: ThreadId
+    scope: Scope
     # The four receivers `subscribe` took (`Live`).
     live: Live
     # Starts at the client's `after`; raised as each `Durable` is delivered.
@@ -44,6 +44,9 @@ shapes:
     caught_up: bool
     # Set once the stream is over; every later `next` answers it.
     over: Option<&'static str>
+  Scope:
+    Thread: ThreadId
+    Project: ProjectId
   Live:
     committed: watch::Receiver<i64>
     bus: broadcast::Receiver<(ThreadId, OperationId, HarnessEvent)>
@@ -103,6 +106,10 @@ shapes:
 
 functions:
   service:
+    subscribe_project:
+      signature: "(&self, project: ProjectId, after: i64) -> Result<Subscription, CoreError>"
+      # Validates the project is live; same committed watch and subscription
+      # replay loop, filtered to the project's five plan event kinds.
     subscribe:
       signature: "(&self, thread: ThreadId, after: i64) -> Subscription"
       # Takes `storage.watch_committed()`, `bus.subscribe()`,
@@ -160,6 +167,11 @@ functions:
       signature: "(id: impl Into<String>) -> Actor"
       # On `Actor`.
   store:
+    read_project_events_after:
+      signature: "(&self, cursor: EventCursor, project: &ProjectId, limit: i64) -> Result<Vec<StoredEvent>, StorageError>"
+      # ORDER BY seq; WorkflowDraftStarted, WorkflowEdited, WorkflowFrozen,
+      # PlanArchived, PlanUnarchived only. Payload is {plan_id, workflow_id};
+      # archive events name the plan's latest version at the time of reading.
     read_events_after:
       signature: "(&self, cursor: EventCursor, thread_id: &ThreadId, limit: i64) -> Result<Vec<StoredEvent>, StorageError>"
       # WHERE thread_id = ? AND seq > ? ORDER BY seq LIMIT ?: explicit order,
@@ -194,6 +206,15 @@ enums:
 
 
 obligations:
+  - rule: >
+      A project subscription sends only its project's plan events, once in
+      sequence order, with plan_id and workflow_id and no plan content.
+      It resumes after the same cursor as a thread subscription. Unknown
+      or removed projects refuse subscription as NotFound.
+    tested_by: a_project_stream_sends_another_conversations_plan_edit
+    note: >
+      Real HTTP stream: live draft/edit/freeze/archive/unarchive, a foreign
+      project's edit excluded, replay after a cursor, unknown/removed 404.
   - rule: >
       No frame is lost or repeated across journal → live. Every receiver is
       taken before the replay is read: a live item sent before the replay
@@ -285,6 +306,8 @@ not_the_caller's:
 
 
 tests:
+  - name: a_project_stream_sends_another_conversations_plan_edit
+    checks: Project stream filters plan notifications, resumes by seq, refuses missing projects.
   - name: reading_after_a_cursor_returns_the_unseen_tail_in_order
     checks: >
       Three entries after a mid cursor read back as exactly 3, in seq order,

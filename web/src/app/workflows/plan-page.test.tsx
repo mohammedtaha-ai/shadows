@@ -61,6 +61,36 @@ function getsOfPlan(a: TestApp): number {
 }
 
 describe('the plan page', () => {
+  it('refetches the plan when the project stream names it', async () => {
+    let current = planFixture()
+    const a = (app = await startApp(PAGE, answers({
+      plan: () => Response.json(current), plans: [planListing(current)],
+    })))
+    await until(() => node(2) !== null)
+    const sources = a.sources.filter((s) => new URL(s.url).pathname === '/api/projects/p1/events')
+    expect(sources).toHaveLength(1)
+    const source = sources[0]
+    if (source === undefined) throw new Error('the project stream was not opened')
+    const reads = getsOfPlan(a)
+    const versions = a.calls.filter((c) => c === 'GET /api/plans/plan1').length
+    const lists = a.calls.filter((c) => c === 'GET /api/projects/p1/workflows').length
+    current = planFixture({ revision: 1, tasks: [...current.tasks, planTask(3, 'Live project edit')] })
+    await act(async () => {
+      source.caughtUp(0)
+      source.durable(1, 'WorkflowEdited', null, { plan_id: 'plan1', workflow_id: 'w1' })
+    })
+    await until(() => node(3)?.textContent?.includes('Live project edit') === true)
+    expect(getsOfPlan(a)).toBeGreaterThan(reads)
+    expect(a.calls.filter((c) => c === 'GET /api/plans/plan1').length).toBeGreaterThan(versions)
+    expect(a.calls.filter((c) => c === 'GET /api/projects/p1/workflows').length).toBeGreaterThan(lists)
+    // Archive is plan-wide even when the notification names a newer version.
+    current = { ...current, plan_state: 'Archived' }
+    await act(async () => {
+      source.durable(2, 'PlanArchived', null, { plan_id: 'plan1', workflow_id: 'w2' })
+    })
+    await until(() => a.text().includes('Archived · read only'))
+  })
+
   it('shows Draft v2 with its blockers above Approve', async () => {
     const plan = planFixture({
       version: 2,
@@ -264,7 +294,7 @@ describe('the plan page', () => {
     ))
     await until(() => node(2) !== null)
     await until(() => a.sources.length > 0)
-    const stream = a.sources.at(-1)
+    const stream = a.sources.findLast((s) => s.param('thread_id') === 't1')
     if (stream === undefined) throw new Error('no stream was opened')
     expect(stream.param('thread_id')).toBe('t1')
 

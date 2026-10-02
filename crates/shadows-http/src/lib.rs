@@ -160,6 +160,7 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(code::put_link, code::remove_link))
         .routes(routes!(code::get_settings, code::put_settings))
         .routes(routes!(sse::subscribe))
+        .routes(routes!(sse::subscribe_project))
         .routes(routes!(fs::list_dirs, fs::create_dir))
         .routes(routes!(openapi::serve))
 }

@@ -110,6 +110,7 @@ fn the_document_names_every_route() {
             "GET /api/projects/{id}/code/outline",
             "GET /api/projects/{id}/code/references",
             "GET /api/projects/{id}/code/status",
+            "GET /api/projects/{id}/events",
             "GET /api/projects/{id}/mcp-grants",
             "GET /api/projects/{id}/planner-instructions",
             "GET /api/projects/{id}/threads",

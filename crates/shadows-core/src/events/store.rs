@@ -7,6 +7,7 @@
 
 use crate::db::{Storage, StorageError};
 use crate::events::EventCursor;
+use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 use crate::turns::OperationId;
 
@@ -29,6 +30,55 @@ pub struct StoredEvent {
 type EventRow = (i64, String, Option<String>, Option<String>, String, String);
 
 impl Storage {
+    /// A project's plan event tail. Only identifiers are projected for client
+    /// invalidation; plan content and edit details never enter this stream.
+    /// Archive events name a plan, so they name its latest version to refetch.
+    pub async fn read_project_events_after(
+        &self,
+        cursor: EventCursor,
+        project: &ProjectId,
+        limit: i64,
+    ) -> Result<Vec<StoredEvent>, StorageError> {
+        type Row = (
+            i64,
+            String,
+            Option<String>,
+            Option<String>,
+            String,
+            String,
+            String,
+        );
+        let rows: Vec<Row> = sqlx::query_as(
+            "SELECT e.seq, e.kind, e.operation_id, e.thread_id, e.created_at, w.plan_id, w.id
+               FROM durable_event e
+               JOIN workflow w ON w.id = COALESCE(
+                    json_extract(e.payload_json, '$.workflow_id'),
+                    (SELECT id FROM workflow
+                      WHERE plan_id = json_extract(e.payload_json, '$.plan')
+                      ORDER BY version DESC LIMIT 1))
+              WHERE e.project_id = ? AND e.seq > ?
+                AND e.kind IN ('WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen',
+                               'PlanArchived', 'PlanUnarchived')
+              ORDER BY e.seq LIMIT ?",
+        )
+        .bind(project.as_str())
+        .bind(cursor.0)
+        .bind(limit)
+        .fetch_all(self.reader())
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| StoredEvent {
+                seq: r.0,
+                kind: r.1,
+                operation_id: r.2.map(OperationId::from_stored),
+                thread_id: r.3.map(ThreadId::from_stored),
+                created_at: r.4,
+                payload_json: serde_json::json!({ "plan_id": r.5, "workflow_id": r.6 }).to_string(),
+            })
+            .collect())
+    }
+
     /// The highest sequence committed so far. Spec §2.10: the snapshot and the
     /// cursor must come from the same read, so a caller building a snapshot
     /// takes this inside that same read transaction.
