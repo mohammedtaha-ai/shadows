@@ -105,17 +105,44 @@ impl ThreadStopper {
         &self,
         thread: &ThreadId,
     ) -> Result<StopOutcome, StorageError> {
-        let Some(op) = self.handles.running_for(thread).await else {
+        // A turn commits Pending before it registers a live handle. Removal
+        // must also stop that gap, and wait for the durable terminal write
+        // when a live watcher is still finishing after Stop answers.
+        let Some(op) = self
+            .runtime
+            .storage
+            .list_operations_for_thread(thread)
+            .await?
+            .into_iter()
+            .find(|op| matches!(op.status_kind.as_str(), "Pending" | "Running"))
+        else {
             return Ok(StopOutcome::NotLive);
         };
-        PlannerTurn::stop(
+        let mut committed = self.runtime.storage.watch_committed();
+        let outcome = PlannerTurn::stop(
             self.runtime.clone(),
             self.handles.clone(),
             self.sessions.clone(),
-            &op,
+            &op.id,
             Actor::user("local"),
         )
-        .await
+        .await?;
+        if outcome == StopOutcome::TerminationFailed {
+            return Ok(outcome);
+        }
+        while self
+            .runtime
+            .storage
+            .get_operation(&op.id)
+            .await?
+            .finished_at
+            .is_none()
+        {
+            committed.changed().await.map_err(|_| {
+                StorageError::Unavailable("storage closed while stopping a turn".into())
+            })?;
+        }
+        Ok(outcome)
     }
 }
 

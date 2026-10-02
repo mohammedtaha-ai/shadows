@@ -63,7 +63,7 @@ shapes:
     # `None` exactly when the chosen model offers no effort (§12.4).
     effort: Option<String>
     # Part of the command's fingerprint; checked to be a task of that plan
-    # version, which must be this thread's (TaskNotInPlan otherwise).
+    # version, which must be in this thread's project (TaskNotInPlan otherwise).
     focus: Option<Focus>
     # Part of the command fingerprint; the selected plan must be in this
     # thread's project. It becomes a prompt context block, not a stored entry.
@@ -158,8 +158,10 @@ functions:
   service:
     stop_running:
       signature: "(&self, thread: &ThreadId) -> Result<StopOutcome, StorageError>"
-      # On ThreadStopper: finds the live turn, then PlannerTurn::stop; holds no
-      # session slot while waiting for its terminal state.
+      # On ThreadStopper: finds the durable Pending or Running turn, including
+      # before live registration, then PlannerTurn::stop; waits for finished_at
+      # through the committed watch without holding a session slot. A failed
+      # termination is returned without claiming the operation is terminal.
     send:
       signature: "(&self, thread_id: ThreadId, turn: SendTurn) -> Result<OperationId, CoreError>"
       # "turn.start", principal User/local, schema 1, params { thread_id,
@@ -334,6 +336,17 @@ called_by_other_services:
 
 
 obligations:
+  - rule: >
+      A focused task belongs to the named version in the thread's project;
+      the version's writer thread is attribution, not ownership (§16.4).
+    tested_by:
+      - a_conversation_can_focus_another_conversations_project_plan
+      - a_focus_on_a_task_of_another_plan_is_refused
+  - rule: >
+      Thread removal stops the durable Pending or Running turn even before
+      live registration, then waits for its terminal write without holding
+      a session slot (§16.5). No polling timer is needed: commits wake the wait.
+    tested_by: deletion_waits_for_a_committed_turn_before_live_registration
   - rule: >
       Replay first. A turn start whose command id and request match a
       recorded one answers the first operation and starts nothing, before the
@@ -520,6 +533,14 @@ not_the_caller's:
 
 
 tests:
+  - name: a_conversation_can_focus_another_conversations_project_plan
+    checks: >
+      A second conversation sends a focus on the first conversation's plan;
+      the HTTP start succeeds, the turn completes and its message retains the task.
+  - name: deletion_waits_for_a_committed_turn_before_live_registration
+    checks: >
+      A committed Pending turn is resumed only after removal commits. Delete
+      answers with its cancellation requested, its ending durable, and no adapter.
   - name: turn_start_replays_after_the_move
     checks: >
       One body sent twice over HTTP answers 202 twice with the same operation

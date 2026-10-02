@@ -5,7 +5,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useLayoutEffect, useRef } from 'react'
 import { type PlanningThread, removeThread } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { threadQuery, threadsQuery } from '@/api/queries'
+import { threadQuery, threadsQuery, workflowsKey } from '@/api/queries'
 import { Button } from '@/components/ui/button'
 import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -36,6 +36,7 @@ export function DeleteThreadDialog({ thread, open, onOpenChange, isCurrent }: {
       queryClient.setQueryData<PlanningThread[]>(threadsQuery(thread.project_id).queryKey,
         (threads) => threads?.filter((t) => t.id !== thread.id))
       void queryClient.invalidateQueries({ queryKey: threadsQuery(thread.project_id).queryKey })
+      void queryClient.invalidateQueries({ queryKey: workflowsKey })
     },
   })
   const changeOpen = (value: boolean) => {

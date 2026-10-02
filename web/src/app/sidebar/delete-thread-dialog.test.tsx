@@ -4,7 +4,7 @@
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import type { PlanningThread } from '@/api/client'
-import { threadFixture } from '@/test/contract-fixtures'
+import { planFixture, planListing, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, choose, startApp, until } from '../test-app'
 
@@ -43,4 +43,23 @@ it('deletes a conversation after asking, and leaves its page', async () => {
   expect(new URL(urls[0]!).searchParams.get('command_id')).toMatch(/^[0-9a-f-]{36}$/)
   await until(() => a.calls.filter((c) => c === 'GET /api/projects/p1/threads').length > reads)
   expect([...a.container.querySelectorAll('a')].some((link) => link.textContent?.trim() === 'Conversation 1')).toBe(false)
+})
+
+it('refreshes retained plan attribution when its writer is deleted', async () => {
+  let current = planFixture()
+  let threads: PlanningThread[] = [threadFixture]
+  const table = answers({ plan: () => Response.json(current), plans: [planListing(current)] })
+  table['GET /api/projects/p1/threads'] = () => Response.json(threads)
+  table['DELETE /api/threads/t1'] = () => {
+    threads = []
+    current = { ...current, written_by: { ...current.written_by, thread_removed: true } as typeof current.written_by }
+    return Response.json({ ...threadFixture, removed_at: '2026-10-03T00:00:00Z' })
+  }
+  const a = (app = await startApp('/projects/p1/workflows/w1', table))
+  await until(() => a.text().includes('from Login'))
+  await choose(a, 'Conversation options: Conversation 1', 'Delete')
+  await until(() => a.button('Delete') !== undefined)
+  await act(async () => a.button('Delete')?.click())
+  await until(() => a.text().includes('from Login (deleted)'))
+  expect(a.path()).toBe('/projects/p1/workflows/w1')
 })

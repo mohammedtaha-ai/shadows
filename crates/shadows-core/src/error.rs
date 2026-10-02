@@ -65,7 +65,7 @@ pub enum ErrorCode {
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {
     #[error(transparent)]
-    Storage(#[from] StorageError),
+    Storage(StorageError),
     #[error(transparent)]
     Start(#[from] StartError),
     #[error(transparent)]
@@ -93,6 +93,18 @@ pub enum CoreError {
     /// A refusal whose code and exact text a service writes, as the MCP tools do today.
     #[error("{message}")]
     Refused { code: ErrorCode, message: String },
+}
+
+impl From<StorageError> for CoreError {
+    fn from(error: StorageError) -> Self {
+        match error {
+            StorageError::PlanArchived(_) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message: error.to_string(),
+            },
+            other => Self::Storage(other),
+        }
+    }
 }
 
 impl From<OpenError> for CoreError {

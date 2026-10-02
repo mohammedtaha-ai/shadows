@@ -74,21 +74,24 @@ fn recorded(outcome: &str) -> Result<StartedTurn, StorageError> {
 }
 
 /// The focused task's number and title, when it is a task of the focus's
-/// version and that version is this thread's (§13.9).
+/// version and that version belongs to this thread's project (§13.9, §16.4).
 async fn focused(
     conn: &mut SqliteConnection,
     thread: &ThreadId,
     focus: &Focus,
 ) -> Result<(u32, String), StorageError> {
-    let owner: Option<String> =
-        sqlx::query_scalar("SELECT written_by_thread FROM workflow WHERE id = ?")
-            .bind(focus.workflow_id.as_str())
-            .fetch_optional(&mut *conn)
-            .await?
-            .flatten();
-    if owner.as_deref() != Some(thread.as_str()) {
+    let in_project: Option<i64> = sqlx::query_scalar(
+        "SELECT 1 FROM workflow w JOIN plan p ON p.id = w.plan_id
+            JOIN planning_thread t ON t.project_id = p.project_id
+            WHERE w.id = ? AND t.id = ?",
+    )
+    .bind(focus.workflow_id.as_str())
+    .bind(thread.as_str())
+    .fetch_optional(&mut *conn)
+    .await?;
+    if in_project.is_none() {
         return Err(StorageError::TaskNotInPlan(
-            "the chosen plan is not this conversation's".into(),
+            "the chosen plan is not in this conversation's project".into(),
         ));
     }
     task_of(conn, &focus.workflow_id, &focus.task_id)

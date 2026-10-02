@@ -179,3 +179,20 @@ pub(super) async fn load_plan_versions(
         versions,
     })
 }
+
+/// Every new version write rechecks the plan's state in its own transaction.
+/// A service's earlier scope check cannot decide the state after an archive.
+pub(super) async fn require_active(
+    conn: &mut SqliteConnection,
+    plan: &PlanId,
+) -> Result<(), StorageError> {
+    let state: String = sqlx::query_scalar("SELECT state FROM plan WHERE id = ?")
+        .bind(plan.as_str())
+        .fetch_optional(&mut *conn)
+        .await?
+        .ok_or(StorageError::NotFound("plan"))?;
+    if state == "Archived" {
+        return Err(StorageError::PlanArchived(plan.clone()));
+    }
+    Ok(())
+}

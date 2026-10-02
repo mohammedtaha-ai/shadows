@@ -6,6 +6,7 @@
 
 use sqlx::SqliteConnection;
 
+use super::plan::require_active;
 use super::plan_event;
 use super::read::{edits_of, load_plan, recorded_outcome};
 use super::task::write_content;
@@ -50,6 +51,7 @@ impl Storage {
                     return recorded_outcome(conn, &event).await;
                 }
                 let plan = load_plan(conn, &workflow).await?;
+                require_active(conn, &plan.plan_id).await?;
                 writable(
                     conn,
                     &plan.state,
@@ -117,6 +119,7 @@ impl Storage {
                     return recorded_outcome(conn, &event).await;
                 }
                 let plan = load_plan(conn, &workflow).await?;
+                require_active(conn, &plan.plan_id).await?;
                 writable(
                     conn,
                     &plan.state,

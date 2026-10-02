@@ -61,6 +61,18 @@ function getsOfPlan(a: TestApp): number {
 }
 
 describe('the plan page', () => {
+  it('shows an archive failure so the person can retry it', async () => {
+    const routes = answers({ plan: planFixture() })
+    routes['POST /api/plans/plan1/archive'] = () => Response.json(
+      { code: 'STORAGE_UNAVAILABLE', message: 'storage is unavailable' }, { status: 500 },
+    )
+    const a = (app = await startApp(PAGE, routes))
+    await until(() => a.button('Archive') !== undefined)
+    await act(async () => a.button('Archive')?.click())
+    await until(() => a.text().includes('storage is unavailable'))
+    expect(a.button('Archive')?.disabled).toBe(false)
+  })
+
   it('refetches the plan when the project stream names it', async () => {
     let current = planFixture()
     const a = (app = await startApp(PAGE, answers({

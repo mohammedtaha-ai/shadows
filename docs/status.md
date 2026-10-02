@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-02 (§16 1a implemented on `plans/project-plans`; final review and full Windows acceptance pending)
+**Updated:** 2026-10-03 (§16 1a reviewed on `plans/project-plans`; full Windows acceptance pending)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -26,8 +26,18 @@ debug daemon build from that commit also passed. Mohammed then confirmed
 that **Open plan works with the rebuilt daemon** and attributed the earlier
 error to the old daemon. This is a partial human check; the full §16.12
 acceptance run remains pending
-([Windows record](./evidence/project-plans/WINDOWS_RUN.md)). The final
-whole-branch review is also pending.
+([Windows record](./evidence/project-plans/WINDOWS_RUN.md)).
+
+The whole-branch review fixed archive transaction checks, removal of a
+Pending turn before live registration, shared-plan task focus, removed-session
+reuse, Continue retries and Web action feedback/cache refresh. Its full gate
+ran once: **371/372 Rust and 162/164 Web tests passed**. The three failures were
+test synchronization issues; the affected files passed **3/3 Rust and 11/11
+Web** after correction. The full suites were not rerun. Formatting, both
+clippy modes, production feature isolation, API consistency, Web typecheck
+and lint passed. Deleted-writer attribution on `WorkflowFrozen` retains a
+prior ambiguous ruling for controller resolution. These checks do not
+complete the full real-harness Windows acceptance.
 
 **Code-index settings, effort at once, and a Linux watcher fix** (PR #12,
 2026-10-01; 358 Rust, 156 web tests). The changes:
@@ -168,8 +178,8 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **Finish §16 1a:** the whole-branch review and the full Windows run with
-   Mohammed and the real harness. The session lock and conversation deletion
+1. **Finish §16 1a:** resolve the review's event attribution wording and run
+   the full Windows acceptance with Mohammed and the real harness. The session lock and conversation deletion
    are implemented; they are no longer implementation tasks.
 2. **§16 1b:** links between plans, cross-plan graph nodes and the project map
    (§16.7, §16.8, §16.11), after 1a is reviewed and accepted.
