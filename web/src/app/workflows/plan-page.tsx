@@ -106,6 +106,8 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
   })
 
   const toggleArchive = () => {
+    archive.reset()
+    unarchive.reset()
     const commandId = crypto.randomUUID()
     if (isArchived) {
       unarchive.mutate(commandId)
@@ -113,6 +115,7 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
       archive.mutate(commandId)
     }
   }
+  const error = archive.error ?? unarchive.error
 
   return (
     <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md">
@@ -137,6 +140,7 @@ function Header({ plan, projectId }: { plan: Plan; projectId: string }) {
           changeReason={plan.change_reason}
           projectId={projectId}
         />
+        {error !== null && <ErrorLine error={error} />}
       </div>
       <div className="flex items-center gap-2">
         <nav aria-label="Versions" className="flex items-center gap-1 text-xs">

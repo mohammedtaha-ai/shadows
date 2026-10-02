@@ -10,6 +10,8 @@ export interface CarriedSend {
   /** The failed turn's command, as `attemptFor` would have made it. */
   readonly attempt: Attempt
   readonly error: Error
+  /** The selected plan remains part of a retry's command and prompt context. */
+  readonly planId?: string
 }
 
 const carried = new Map<string, CarriedSend>()

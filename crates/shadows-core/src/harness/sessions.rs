@@ -171,6 +171,9 @@ impl Sessions {
     async fn open_live(&self, thread: &ThreadId) -> Result<OpenSession, OpenError> {
         let slot = self.slot(thread).await;
         let mut live = slot.lock().await;
+        // Deletion commits before Stop/close. Even a cached adapter cannot
+        // make a removed thread available to a new opening in that interval.
+        let context = self.storage.turn_context(thread).await?;
         if let Some(current) = live.as_mut() {
             if !current.handle.has_exited() && !current.opened.connection.is_closed() {
                 current.last_used = Instant::now();
@@ -183,7 +186,6 @@ impl Sessions {
             self.offers.forget(thread);
             self.setups.forget(thread).await;
         }
-        let context = self.storage.turn_context(thread).await?;
         let cwd = workspace(&context).map_err(OpenError::Workspace)?;
         // A fork's first opening forks the source's session (§12.9); once
         // the fork's first turn has recorded its own, it resumes that.

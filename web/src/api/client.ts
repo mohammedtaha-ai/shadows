@@ -288,7 +288,7 @@ export function stopTurn(operationId: string): Promise<Operation> {
   )
 }
 
-/** Each conversation's latest plan version in a project (spec §13.10), or archived ones too (§16.2). */
+/** Each project's plan by its latest version, or archived ones too (§16.2). */
 export function listPlans(projectId: string, archived = false): Promise<PlanListing[]> {
   return unwrap(
     client.GET('/api/projects/{id}/workflows', {

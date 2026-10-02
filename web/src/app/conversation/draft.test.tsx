@@ -6,7 +6,7 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { threadFixture } from '@/test/contract-fixtures'
+import { planFixture, planListing, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, choose, startApp, typeInto, until } from '../test-app'
 
@@ -17,6 +17,27 @@ afterEach(() => {
 })
 
 describe('the draft', () => {
+  it('carries the selected plan and command into a failed first-send retry', async () => {
+    const requests: Record<string, unknown>[] = []
+    const plan = planFixture()
+    const routes = answers({ plans: [planListing(plan)], start: async (request: Request) => {
+      requests.push(await request.json() as Record<string, unknown>)
+      if (requests.length === 1) throw new Error('response lost')
+      return Response.json({ operation_id: 'op1' }, { status: 202 })
+    } })
+    routes['POST /api/projects/p1/threads'] = () => Response.json(threadFixture, { status: 201 })
+    const app = (open = await startApp('/projects/p1/new?plan=plan1', routes))
+    typeInto(document.querySelector('textarea')!, 'Carry on with this plan')
+    await until(() => app.button('Send')?.disabled === false)
+    await act(async () => app.button('Send')?.click())
+    await until(() => app.path() === '/projects/p1/threads/t1' && app.text().includes('response lost'))
+    await until(() => app.button('Send')?.disabled === false)
+    await act(async () => app.button('Send')?.click())
+    await until(() => requests.length === 2)
+    expect(requests[0]?.plan).toBe('plan1')
+    expect(requests[1]).toEqual(requests[0])
+  })
+
   it('the first message creates the thread, then sends, then opens the thread', async () => {
     const routes = answers()
     routes['POST /api/projects/p1/threads'] = () => Response.json(threadFixture, { status: 201 })

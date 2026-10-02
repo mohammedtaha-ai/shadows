@@ -118,7 +118,7 @@ function Draft({ projectId }: { projectId: string }) {
         </div>
       )}
       <Composer
-        to={{ draft }}
+        to={{ draft, planId }}
         harness={harness}
         harnessLabel={label}
         session={session}
@@ -207,11 +207,12 @@ function useFirstSend(projectId: string, harness: string, planId?: string) {
     } catch (error) {
       // The thread page's composer fingerprints what it sends the same way,
       // so sending the same text and settings there replays this command.
-      const request = { text, settings: settings ?? chosen, focus: null }
+      const request = { text, settings: settings ?? chosen, focus: null, ...(planId === undefined ? {} : { plan: planId }) }
       carrySend(thread.id, {
         text,
         attempt: attemptFor(null, request, () => commandId),
         error: error instanceof Error ? error : new Error(String(error)),
+        planId,
       })
       void open()
       throw error

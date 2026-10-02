@@ -146,7 +146,8 @@ functions:
     remove:
       signature: "(&self, command_id: String, thread: &ThreadId) -> Result<PlanningThread, CoreError>"
       # One storage write removes and revokes; then Stop waits for the turn;
-      # then close_session takes the slot. Stop/close failures are logged.
+      # includes a committed Pending turn before live registration, then
+      # close_session takes the slot. Stop/close failures are logged.
     get:
       signature: "(&self, thread: &ThreadId) -> Result<PlanningThread, CoreError>"
       # Also reads a removed conversation for its plan history.

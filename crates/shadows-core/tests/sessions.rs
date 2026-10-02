@@ -112,6 +112,33 @@ async fn a_thread_with_a_recorded_session_resumes_it() {
 }
 
 #[tokio::test]
+async fn a_removed_thread_cannot_reuse_its_still_open_adapter() {
+    let fx = fixture(SessionsConfig::default()).await;
+    fx.sessions.open(&fx.thread).await.unwrap();
+    let ctx = CommandContext {
+        principal_kind: "User".into(),
+        principal_id: "local".into(),
+        command_id: "remove".into(),
+        command_kind: "thread.remove".into(),
+        command_schema_ver: 1,
+        request_fingerprint: fingerprint(
+            "thread.remove",
+            &serde_json::json!({ "thread_id": fx.thread }),
+        ),
+    };
+    fx.storage.remove_thread(&ctx, &fx.thread).await.unwrap();
+    // Between the removal commit and Stop/close, the cached adapter still exists.
+    let refused = fx.sessions.open(&fx.thread).await;
+    fx.sessions.close_all().await.unwrap();
+    assert!(matches!(
+        refused,
+        Err(OpenError::Storage(shadows_core::StorageError::NotFound(
+            "planning_thread"
+        )))
+    ));
+}
+
+#[tokio::test]
 async fn an_idle_connection_is_closed_and_the_next_opening_resumes() {
     let fx = fixture(SessionsConfig {
         idle_after: Duration::from_millis(300),

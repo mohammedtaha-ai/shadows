@@ -60,7 +60,7 @@
   - command kinds `PlanArchive`, `PlanUnarchive` and `thread.remove`;
   - events `ThreadRemoved`, `PlanArchived` and `PlanUnarchived`;
   - a missing reason is `NULL` and reads "Reason not recorded";
-  - the polling interval is 10 s;
+  - project plan events refresh plan views; §16.8 forbids plan timer polling;
   - "(deleted)" and "External agent" in the version line.
 
 ## Review Focus

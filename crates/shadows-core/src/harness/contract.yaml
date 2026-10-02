@@ -461,8 +461,11 @@ obligations:
       bounded stop of a failed adapter and the storage reads around it
       (§16.6).
       The idle close skips a slot someone holds: it is in use, so not idle.
+      Opening reads the thread after taking its slot, before returning even
+      a cached live adapter; removal already committed is NotFound.
     tested_by:
       - one_thread_opening_does_not_hold_another
+      - a_removed_thread_cannot_reuse_its_still_open_adapter
     note: >
       Fails before the slot map: `terminate` on the other thread waited 1.39 s
       for a slow resume's opening.
@@ -547,6 +550,10 @@ not_the_caller's:
 
 
 tests:
+  - name: a_removed_thread_cannot_reuse_its_still_open_adapter
+    checks: >
+      A removal commit while an adapter is still open makes another opening
+      NotFound instead of returning the cached session; close then reaps it.
   - name: change_model_is_refused_while_another_holds_the_session
     checks: >
       With the session's events leased by the test and no operation, PUT

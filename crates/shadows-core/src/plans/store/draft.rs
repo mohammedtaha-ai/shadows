@@ -6,6 +6,7 @@
 
 use sqlx::SqliteConnection;
 
+use super::plan::require_active;
 use super::plan_event;
 use super::read::{latest_version, load_plan};
 use super::task::write_content;
@@ -58,6 +59,9 @@ impl Storage {
                 };
                 if let Some(id) = recorded(conn, &ctx, scope, &project).await? {
                     return started(conn, &WorkflowId::from_stored(id)).await;
+                }
+                if let Some(plan) = &plan {
+                    require_active(conn, plan).await?;
                 }
                 let latest = match &plan {
                     Some(plan) => {

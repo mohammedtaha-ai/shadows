@@ -140,7 +140,7 @@ shapes:
     Planner: "{ thread_id: ThreadId, thread_title: String, thread_removed: bool, model: Option<String>, harness: Option<String> }"
     External: "{ grant_id: GrantId }"
   PlanState:
-    # §16.2. Nothing archives yet; every plan is Active.
+    # §16.2. A person archives or unarchives a plan.
     Active: unit
     Archived: unit
   LastEdit:
@@ -201,7 +201,7 @@ functions:
   reads:
     list:
       signature: "(&self, project: &ProjectId, archived: bool) -> Result<Vec<PlanListing>, CoreError>"
-      # The routes pass `false`: Active plans only.
+      # Active plans only, or archived ones too when requested.
     get: "(&self, workflow: &WorkflowId) -> Result<Plan, CoreError>"
     plan: "(&self, plan: &PlanId) -> Result<PlanVersions, CoreError>"
     list_for:
@@ -289,8 +289,11 @@ functions:
     show_plan: "(&self, ctx: &CommandContext, writer: &Writer, turn: &OperationId, workflow: &WorkflowId, task_number: Option<u32>, place: Place) -> Result<PlanShown, StorageError>"
     thread_plan:
       signature: "(&self, thread: &ThreadId) -> Result<Option<WorkflowId>, StorageError>"
-      # The latest version of the plan the thread's versions belong to
-      # (`written_by_thread`): what `in_scope` resolves a thread grant's call to.
+      # Test-support only: the latest version of the first plan the thread
+      # wrote. Product callers name a version; attribution does not pick it.
+    require_active:
+      signature: "(conn, plan: &PlanId) -> Result<(), StorageError>"
+      # Private to the store: recheck Active inside each new version write.
     task_of:
       signature: "(conn, workflow: &WorkflowId, id: &TaskId) -> Result<Option<(u32, String)>, StorageError>"
   model:
@@ -401,12 +404,17 @@ obligations:
       A grant must name a version for workflow_get, task_get, plan_edit and
       plan_show. It reaches any version in its project. A Planner can edit only
       an Active plan's latest version; an archived plan refuses edits and new
-      versions with INVALID_COMMAND so a person can unarchive it.
+      versions with INVALID_COMMAND so a person can unarchive it. Storage
+      rechecks archive state inside the write transaction, including approval,
+      after replay classification; an archive racing an earlier scope check
+      cannot allow a new write. PlanArchived becomes INVALID_COMMAND at the
+      CoreError boundary.
     tested_by:
       - a_planner_without_a_workflow_id_is_told_to_list
       - a_thread_grant_can_read_and_show_any_plan_in_its_project
       - a_planner_edits_only_the_plan_latest_version
       - an_archived_plan_is_read_only_until_unarchived
+      - an_archive_blocks_every_new_version_write_in_storage
 
   - rule: >
       A person archives and unarchives a plan through the web client (§16.2):
@@ -553,6 +561,11 @@ open_questions:
 
 
 tests:
+  - name: an_archive_blocks_every_new_version_write_in_storage
+    checks: >
+      After archiving a Draft, storage edit and draft_start are refused as
+      archived, approval is INVALID_COMMAND, and revision, state and tasks
+      remain unchanged. Calls below the scope check prove the transaction guard.
   - name: plan_command_fingerprints_do_not_move
     checks: >
       A Planner's DraftStart, PlanEdit and PlanShow, an external DraftStart
@@ -688,4 +701,3 @@ tests:
       edit is refused INVALID_COMMAND "archived"; POST unarchive restores
       Active and the edit succeeds; GET /api/plans/{id} lists v1 with its
       written_by.
-

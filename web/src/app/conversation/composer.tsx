@@ -28,13 +28,14 @@ import { type SessionView, sessionKey } from './use-session'
  * whose `draft` makes the thread first and answers the turn's operation. */
 export type SendTo =
   | { threadId: string }
-  | { draft: (commandId: string, text: string, settings: TurnSettings) => Promise<string> }
+  | { draft: (commandId: string, text: string, settings: TurnSettings) => Promise<string>; planId?: string }
 
 interface Send {
   commandId: string
   text: string
   settings: TurnSettings
   pointed: PointedTask | null
+  planId: string | undefined
 }
 
 export function Composer({
@@ -74,6 +75,8 @@ export function Composer({
   const threadId = 'threadId' in to ? to.threadId : null
   const [prompt, setPrompt] = useState(carried?.text ?? '')
   const [carriedError, setCarriedError] = useState(carried?.error ?? null)
+  const [continuedPlan, setContinuedPlan] = useState(carried?.planId)
+  const planId = 'draft' in to ? to.planId : continuedPlan
 
   // The command id belongs to a pending send (spec §12.7): made when Send is
   // pressed with no pending send, reused by a retry of that same send, and
@@ -82,15 +85,17 @@ export function Composer({
   const pending = useRef<Attempt | null>(carried?.attempt ?? null)
 
   const send = useMutation({
-    mutationFn: ({ commandId, text, settings, pointed }: Send) =>
+    mutationFn: ({ commandId, text, settings, pointed, planId }: Send) =>
       'draft' in to
         ? to.draft(commandId, text, settings)
         : startTurn(to.threadId, commandId, text, settings, {
             focus: focusOf(pointed),
+            plan: planId ?? null,
             clientTab: tabId(),
           }),
     onSuccess: (operationId, { pointed }) => {
       pending.current = null
+      setContinuedPlan(undefined)
       setPrompt('')
       if (pointed !== null) onPointed(pointed)
       onStarted(operationId)
@@ -181,8 +186,8 @@ export function Composer({
     // The focus is part of the command (§13.10): pointing elsewhere is a new one.
     setCarriedError(null)
     switchEffort.reset()
-    pending.current = attemptFor(pending.current, { text, settings, focus: focusOf(pointed) })
-    send.mutate({ commandId: pending.current.commandId, text, settings, pointed })
+    pending.current = attemptFor(pending.current, { text, settings, focus: focusOf(pointed), ...(planId === undefined ? {} : { plan: planId }) })
+    send.mutate({ commandId: pending.current.commandId, text, settings, pointed, planId })
   }
 
   const error = send.error ?? stop.error ?? switchEffort.error ?? carriedError
