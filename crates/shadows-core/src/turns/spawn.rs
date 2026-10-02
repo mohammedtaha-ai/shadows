@@ -13,7 +13,7 @@ use crate::{
     db::StorageError,
     events::Actor,
     harness::{OpenSession, Sessions},
-    plans::Focus,
+    plans::{Focus, PlanListing},
     runtime::Runtime,
     threads::ThreadId,
 };
@@ -39,6 +39,14 @@ pub fn focus_block(focus: &Focus, number: u32, title: &str) -> String {
     )
 }
 
+/// The context block for a person continuing a plan in a new conversation.
+pub fn continue_plan_block(plan: &PlanListing) -> String {
+    format!(
+        "[Shadows] The person opened this conversation to continue the plan \"{}\" (plan_id {}, latest version workflow_id {}). Read it with workflow_get before you plan.",
+        plan.title, plan.plan_id, plan.id
+    )
+}
+
 /// A turn whose operation `Storage::start_turn` has committed `Pending`.
 #[derive(Debug)]
 pub struct PlannerTurnRequest {
@@ -52,6 +60,8 @@ pub struct PlannerTurnRequest {
     /// The focus block (§13.9, `focus_block`), sent after the instructions
     /// block so the person's text stays first.
     pub focus: Option<String>,
+    /// The selected plan block, after any focus block.
+    pub continue_plan: Option<String>,
     /// The tab that sent the turn, kept in memory only (§13.9).
     pub client_tab: Option<String>,
     /// The session's events, leased before validation
@@ -76,6 +86,7 @@ impl PlannerTurn {
             prompt,
             settings,
             focus,
+            continue_plan,
             client_tab,
             events,
         } = request;
@@ -84,8 +95,15 @@ impl PlannerTurn {
         // turn is still `Pending` and so not yet its thread's latest.
         let context = sessions.setups().context_before_turn(&thread_id).await;
         let prepared = match context {
-            Ok(context) => (sessions.prepare_turn(&thread_id, &opened, &settings).await)
-                .map(|()| context.into_iter().chain(focus).collect::<Vec<String>>()),
+            Ok(context) => {
+                (sessions.prepare_turn(&thread_id, &opened, &settings).await).map(|()| {
+                    context
+                        .into_iter()
+                        .chain(focus)
+                        .chain(continue_plan)
+                        .collect::<Vec<String>>()
+                })
+            }
             Err(error) => Err(error.to_string()),
         };
         let context = match prepared {

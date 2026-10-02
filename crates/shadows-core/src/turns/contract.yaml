@@ -60,6 +60,9 @@ shapes:
     # Part of the command's fingerprint; checked to be a task of that plan
     # version, which must be this thread's (TaskNotInPlan otherwise).
     focus: Option<Focus>
+    # Part of the command fingerprint; the selected plan must be in this
+    # thread's project. It becomes a prompt context block, not a stored entry.
+    plan: Option<PlanId>
     # Transport only: not in the fingerprint, never stored; a replay from
     # another tab is still a replay.
     client_tab: Option<String>
@@ -140,6 +143,8 @@ shapes:
     prompt: String
     settings: TurnSettings
     focus: Option<String>
+    # A context block added after focus when the person selected a plan.
+    continue_plan: Option<String>
     client_tab: Option<String>
     events: UnboundedReceiver<HarnessEvent>
 
@@ -149,7 +154,9 @@ functions:
     send:
       signature: "(&self, thread_id: ThreadId, turn: SendTurn) -> Result<OperationId, CoreError>"
       # "turn.start", principal User/local, schema 1, params { thread_id,
-      # prompt, model, mode, effort } and "focus" only when given. Refusals:
+      # prompt, model, mode, effort }, plus focus and plan only when given.
+      # plan must be in the thread's project, else INVALID_COMMAND. The plan
+      # context block follows focus when present. Refusals:
       # RuntimeStopping (registry closed, or TransitionConflict from
       # `start_turn` while it is closed); HarnessUnavailable; ThreadBusy (early
       # check, lease Busy, or the transaction); HarnessStartFailed (open, lease
@@ -191,6 +198,8 @@ functions:
       # back is logged as `turn.model_not_set_back`, not returned.
     focus_block:
       signature: "(focus: &Focus, number: u32, title: &str) -> String"
+    continue_plan_block:
+      signature: "(plan: &PlanListing) -> String"
   live:
     start:
       signature: "(runtime, handles, sessions, opened, request: PlannerTurnRequest, bus) -> Result<OperationId, StartError>"
@@ -338,8 +347,8 @@ obligations:
   - rule: >
       Replay identity. "turn.start", schema version 1, principal User/local,
       the caller's command id, params { thread_id, prompt, model, mode,
-      effort }, and "focus" only when one is given; `client_tab` is not a
-      parameter. The same id with another body, or another focus, is
+      effort }, and "focus" and "plan" only when given; `client_tab` is not a
+      parameter. The same id with another body, focus or plan is
       CommandConflict.
     tested_by:
       - turn_command_fingerprints_do_not_move
@@ -379,6 +388,17 @@ obligations:
       only the early check can refuse it before the session opens; it
       asserts no session is live. Removing the check fails it (tried on
       dc0255e).
+
+  - rule: >
+      A selected plan belongs to the thread's project. `send` refuses a plan
+      from another project with INVALID_COMMAND before opening the session.
+    tested_by: a_second_turn_over_http_while_one_runs_is_thread_busy_and_writes_nothing
+
+  - rule: >
+      A selected plan adds one prompt context block after the person's text
+      and any focus block. It includes the plan title, id, and latest version;
+      it is not recorded as an entry.
+    tested_by: a_forks_first_turn_gets_instruction_and_continue_plan_blocks
 
   - rule: >
       Busy, atomically. `start_turn` checks `has_open_operation` again inside
@@ -497,8 +517,9 @@ tests:
       id, and the thread has one operation.
   - name: turn_command_fingerprints_do_not_move
     checks: >
-      A plain and a focused turn over HTTP leave two command records whose
-      principal, id, kind, schema version and fingerprint equal the literals'.
+      A plain and a focused turn with a selected plan over HTTP leave two
+      command records whose principal, id, kind, schema version and
+      fingerprint equal the literals'.
   - name: stop_after_the_move_records_cancelled
     checks: >
       `hang` started, POST stop answers 200 with the operation; it ends
@@ -548,7 +569,12 @@ tests:
   - name: a_second_turn_over_http_while_one_runs_is_thread_busy_and_writes_nothing
     checks: >
       While `hang` runs, a second start is 409 THREAD_BUSY and only the
-      running turn's prompt is an entry.
+      running turn's prompt is an entry; a selected plan from another project
+      is 422 INVALID_COMMAND and writes nothing.
+  - name: a_forks_first_turn_gets_instruction_and_continue_plan_blocks
+    checks: >
+      A forked conversation receives its changed project instructions and the
+      selected plan context block after the person's text.
   - name: a_second_turn_while_one_is_running_is_thread_busy
     checks: A second `start_turn` at the store while the first is Pending is ThreadBusy.
   - name: a_turn_started_during_a_breakdown_read_keeps_its_output

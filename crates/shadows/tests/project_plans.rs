@@ -6,9 +6,7 @@
 use serde_json::json;
 use shadows_core::testing::Writer;
 use shadows_core::testing::{Anchor, derived_id};
-use shadows_core::{
-    CoreError, DraftStart, DraftStarted, ErrorCode, PlanId, WorkflowState, WrittenBy,
-};
+use shadows_core::{CoreError, DraftStart, DraftStarted, ErrorCode, WorkflowState, WrittenBy};
 
 use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
@@ -55,15 +53,16 @@ async fn a_new_version_needs_its_reason() {
         .await
         .unwrap()
         .grant;
+    let plan_id = app.storage.get_plan(&v1).await.unwrap().plan_id;
     let plans = app.core.plans();
     let start = |reason: Option<&'static str>| {
-        let (grant, v1) = (&grant, &v1);
+        let (grant, plan_id) = (&grant, &plan_id);
         async move {
             let draft_ref = plans.prepare_draft(grant).await.unwrap();
             let args = DraftStart {
                 title: None,
                 goal: None,
-                from_workflow_id: Some(v1.clone()),
+                plan_id: Some(plan_id.clone()),
                 reason: reason.map(str::to_string),
                 draft_ref: Some(draft_ref),
             };
@@ -101,17 +100,24 @@ async fn a_new_version_needs_its_reason() {
     assert_eq!(read(&v1).await.unwrap().change_reason, None);
 }
 
-/// A Planner's first start, under one command id, naming the plan or not.
-async fn first_start(app: &App, writer: &Writer, plan: Option<&PlanId>) -> DraftStarted {
+/// A Planner's first start under one command id and its exact fingerprint.
+async fn first_start(app: &App, writer: &Writer) -> DraftStarted {
+    let params = json!({
+        "project": app.project,
+        "plan_id": null,
+        "title": "Login",
+        "goal": "log in",
+        "reason": null,
+    });
     app.storage
         .start_draft(
-            &writer_ctx(writer, "first", "DraftStart", json!({ "t": "Login" })),
+            &writer_ctx(writer, "first", "DraftStart", params),
             writer,
             &app.project,
-            plan,
+            None,
             None,
             Some(("Login", "log in")),
-            Some("the API changed"),
+            None,
             None,
             None,
         )
@@ -119,20 +125,19 @@ async fn first_start(app: &App, writer: &Writer, plan: Option<&PlanId>) -> Draft
         .unwrap()
 }
 
-/// §13.5, §16.3: a Planner's first start names no plan and is recorded under
-/// its project; its retry in the same turn names the plan it created, and
-/// still answers v1 once v1 is approved, starting no v2.
+/// §13.5, §16.3: an identical retry of a Planner's first start still answers
+/// v1 after approval; it does not start v2.
 #[tokio::test]
 async fn a_retried_first_start_answers_its_v1() {
     let app = test_app().await;
     let writer = planner(&app, &app.thread).await;
-    let v1 = first_start(&app, &writer, None).await;
+    let v1 = first_start(&app, &writer).await;
     edit(&app, &v1.workflow_id, 0, &[add(1)]).await;
     app.storage
         .approve_plan(&ctx("approve", "PlanApprove"), &v1.workflow_id, 1)
         .await
         .unwrap();
-    assert_eq!(first_start(&app, &writer, Some(&v1.plan_id)).await, v1);
+    assert_eq!(first_start(&app, &writer).await, v1);
     let versions: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM workflow WHERE plan_id = ?")
         .bind(v1.plan_id.as_str())
         .fetch_one(app.storage.reader())

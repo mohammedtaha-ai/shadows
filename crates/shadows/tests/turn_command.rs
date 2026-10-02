@@ -13,9 +13,14 @@ use shadows_core::testing::StartedTurn;
 use shadows_core::testing::acp;
 #[path = "fixtures/app.rs"]
 mod app;
+#[path = "fixtures/plan.rs"]
+mod plan;
 use shadows_core::testing::turn;
 
-use app::{App, ctx, entries, http_start, last_agent_entry, test_app, wait_terminal};
+use app::{
+    App, ctx, entries, http_start, last_agent_entry, other_project, test_app, wait_terminal,
+};
+use plan::draft_on;
 use turn::{new_turn, turn_command};
 
 fn small_edits() -> TurnSettings {
@@ -166,6 +171,22 @@ async fn a_second_turn_over_http_while_one_runs_is_thread_busy_and_writes_nothin
     )
     .await;
     assert_eq!((s, b["code"].as_str()), (409, Some("THREAD_BUSY")));
+
+    let (_, other_thread) = other_project(&app).await;
+    let foreign = draft_on(&app, &other_thread, "foreign-plan")
+        .await
+        .workflow_id;
+    let plan_id = app.storage.get_plan(&foreign).await.unwrap().plan_id;
+    let (status, body) = http_start(
+        &app,
+        &thread(&app),
+        json!({ "command_id": "t3", "prompt": "continue", "model": "fake-small", "mode": "acceptEdits", "effort": "high", "plan": plan_id }),
+    )
+    .await;
+    assert_eq!(
+        (status, body["code"].as_str()),
+        (422, Some("INVALID_COMMAND"))
+    );
     assert_eq!(
         entries(&app).await.len(),
         1,
@@ -462,6 +483,7 @@ async fn a_stop_while_pending_cancels_the_turn_before_its_prompt() {
             prompt: "hello".into(),
             settings,
             focus: None,
+            continue_plan: None,
             client_tab: None,
             events,
         },

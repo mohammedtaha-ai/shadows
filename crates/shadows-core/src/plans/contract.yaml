@@ -2,10 +2,10 @@
 # showing and approval of a plan ends in a `Plans` method, whether a person
 # asked over HTTP or an agent over MCP (§14.4).
 #
-# A grant decides reach and writer. A thread grant (the internal Planner)
-# reaches its own thread's plan versions, edits only the latest one, and
-# writes as its thread; a project grant (an external agent) must name a
-# version, reaches any version in its project, and writes as its grant. That
+# A grant decides reach and writer. Both grant kinds name a plan version in
+# their project; a thread grant (the internal Planner) edits only an Active
+# plan's latest version and writes as its thread, while a project grant writes
+# as its grant. That
 # check (`in_scope`) runs before storage; storage checks the writer again
 # inside every write's transaction (`check_writer`, owned by Grants' store).
 #
@@ -31,10 +31,8 @@ shapes:
   DraftStart:
     title: Option<String>
     goal: Option<String>
-    # An external agent's source version. A Planner's is optional and never
-    # chooses the version: when present it must be in its own thread and be
-    # the version the start answers anyway, its latest; it is fingerprinted.
-    from_workflow_id: Option<WorkflowId>
+    # The plan to continue; absent when starting a new plan.
+    plan_id: Option<PlanId>
     # Why a next version is started (§16.3); storage requires a non-blank one
     # from v2 on and ignores it for v1 and for an existing Draft. In the
     # fingerprint only when present.
@@ -42,14 +40,14 @@ shapes:
     # External agents only; required for them, and it is the command's id.
     draft_ref: Option<String>
   PlanEdit:
-    # A Planner leaves it out, or names its thread's latest version only.
+    # Required by `in_scope`; it names the version to edit.
     workflow_id: Option<WorkflowId>
     expected_revision: i64
     ops: Vec<PlanOp>
     # When absent, derived from `expected_revision` and the fingerprint.
     command_id: Option<String>
   PlanShow:
-    # May name an older version of the Planner's own thread.
+    # Names a version in the Planner's project.
     workflow_id: Option<WorkflowId>
     task_number: Option<u32>
     place: Place
@@ -192,8 +190,8 @@ functions:
       # The routes pass `false`: Active plans only.
     get: "(&self, workflow: &WorkflowId) -> Result<Plan, CoreError>"
     list_for:
-      signature: "(&self, grant: &Grant) -> Result<Vec<PlanListing>, CoreError>"
-      # The grant's project's Active plans.
+      signature: "(&self, grant: &Grant, archived: bool) -> Result<Vec<PlanListing>, CoreError>"
+    # Active plans, or archived ones too when requested.
     get_for: "(&self, grant: &Grant, named: Option<&WorkflowId>) -> Result<Plan, CoreError>"
     task_for:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, number: u32) -> Result<PlanTask, CoreError>"
@@ -205,13 +203,11 @@ functions:
     prepare_draft: "(&self, grant: &Grant) -> Result<String, CoreError>"
     start_draft:
       signature: "(&self, grant: &Grant, args: DraftStart) -> Result<DraftStarted, CoreError>"
-      # "DraftStart". Thread grant: { thread, title, goal }, plus
-      # from_workflow_id and reason when present, id anchored to the running
-      # turn, in the plan its thread wrote or a new one. Project grant:
-      # { title, goal, from_workflow_id }, plus reason when present, id from
-      # the draft_ref; from scratch, a new plan and no thread (§16.3). Storage's
-      # `ReasonMissing` becomes INVALID_COMMAND "a new version needs its
-      # reason: …" (§16.3).
+      # Both grant kinds fingerprint { project, plan_id, title, goal, reason }.
+      # A Planner's command id is anchored to its running turn; an external
+      # agent's is anchored to draft_ref. An absent plan_id creates a new plan;
+      # otherwise the start answers that plan's Draft or starts its next
+      # version. Storage's `ReasonMissing` becomes INVALID_COMMAND (§16.3).
     edit:
       signature: "(&self, grant: &Grant, args: PlanEdit) -> Result<EditOutcome, CoreError>"
       # "PlanEdit", params { workflow, expected_revision, ops }. A Planner's
@@ -225,11 +221,6 @@ functions:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, latest_only: bool) -> Result<Plan, CoreError>"
       private: true
       # `edit` passes latest_only = true; `get_for`, `task_for` and `show` false.
-    thread_latest:
-      signature: "(&self, thread: &ThreadId) -> Result<Option<Plan>, CoreError>"
-      private: true
-      # The latest version of the plan the thread wrote: `in_scope` holds a
-      # thread grant to that plan, and `planner_draft` starts in it.
     own_thread:
       signature: "(grant: &Grant) -> Result<&ThreadId, CoreError>"
       private: true
@@ -239,12 +230,9 @@ functions:
     planner_draft:
       signature: "(&self, grant: &Grant, args: DraftStart) -> Result<DraftStarted, CoreError>"
       private: true
-      # `start_draft` for a thread grant: from_workflow_id is in the
-      # fingerprint only when present, and so is reason, so a start recorded
-      # without them replays as it did. A source outside the plan its thread
-      # wrote is GRANT_SCOPE before storage; not that plan's latest version,
-      # storage answers `NotLatestVersion` after the replay and this turns it
-      # into INVALID_COMMAND naming the latest.
+      # `start_draft` for a thread grant: plan_id must be Active and in the
+      # grant's project; otherwise it starts a new plan. The common fingerprint
+      # includes project, plan_id, title, goal and reason.
     external_draft:
       signature: "(&self, grant: &Grant, args: DraftStart) -> Result<DraftStarted, CoreError>"
       private: true
@@ -313,22 +301,19 @@ shared_in_transaction:
 
 obligations:
   - rule: >
-      A tool call's grant decides which plan versions it reaches (§13.6): a
-      thread grant only the plan its own thread wrote, and for an edit only
-      that plan's latest version; a
-      project grant only versions it names in its own project. Anything else
+      A tool call's grant decides which plan versions it reaches (§16.4): both
+      grant kinds may name any version in their project; a Planner may edit
+      only an Active plan's latest version. Anything else
       is refused GRANT_SCOPE, with the texts `in_scope` writes, before
-      storage is written. Two refusals are not GRANT_SCOPE: a thread grant
-      whose thread has no plan yet is INVALID_COMMAND ("this conversation has
-      no plan yet"), and one naming a version that does not exist is the
-      storage's INVALID_COMMAND "no such workflow"; a project grant naming
-      one is GRANT_SCOPE.
+      storage is written. A missing or unknown workflow_id is GRANT_SCOPE;
+      missing ids tell a Planner to use workflow_list.
     tested_by:
-      - a_thread_grant_edits_only_its_own_threads_plan
+      - a_thread_grant_reaches_every_plan_in_its_project
       - a_project_grant_cannot_reach_another_project
       - a_project_grant_must_name_a_plan_to_read_or_edit
-      - a_thread_grant_can_read_and_show_its_older_version_but_not_another_thread
+      - a_thread_grant_can_read_and_show_any_plan_in_its_project
       - a_project_grant_is_refused_another_projects_plan_after_the_move
+      - a_planner_without_a_workflow_id_is_told_to_list
     note: >
       Only the last asserts a full refusal text ("that plan is not in this
       grant's project"); the others assert the GRANT_SCOPE prefix.
@@ -349,30 +334,25 @@ obligations:
       Replay: a retried command with the same id and the same request answers
       what it answered first, and writes nothing. The command kinds and
       fingerprint parameters are PlanApprove { workflow, expected_revision },
-      DraftStart { thread, title, goal } for a Planner, with from_workflow_id
-      and reason each added only when given, and { title, goal,
-      from_workflow_id } for an external agent, with reason added only when
-      given, PlanEdit { workflow, expected_revision, ops },
+      DraftStart { project, plan_id, title, goal, reason } for both grant
+      kinds, PlanEdit { workflow, expected_revision, ops },
       PlanShow { workflow, task_number, place }. A Planner's id carries the
-      fingerprint (§13.5), so a call naming another source in the same turn is
-      another command, never a replay of the first answer.
+      fingerprint (§13.5); changing any plan id, title, goal or reason is a
+      different command.
     tested_by:
       - plan_command_fingerprints_do_not_move
       - plan_commands_replay_after_the_move
       - a_repeated_edit_returns_the_first_result
       - a_replayed_approval_answers_the_first_result
       - a_thread_grant_starts_a_draft_only_inside_a_turn
-      - a_planner_draft_start_naming_another_version_is_another_command
+      - a_planner_draft_start_names_a_project_plan
       - draft_ref_replays_and_distinct_refs_make_distinct_plans
     note: >
-      `a_planner_draft_start_naming_another_version_is_another_command` pins
-      the Planner's parameter set with from_workflow_id against the command
-      log. Only `plan_command_fingerprints_do_not_move` pins the kinds, schema
-      version and parameter sets above, against the command log; it passes on
-      the code before the move. The others replay within one database, so they
-      prove a request matches itself and would still pass with a parameter set
-      changed on both calls. None pins the principal or the derived command
-      ids.
+      `a_planner_draft_start_names_a_project_plan` pins the Planner's
+      fingerprint parameters against the command log. `plan_command_fingerprints_do_not_move`
+      pins the wire command shapes. The other tests replay within one database,
+      so they prove a request matches itself and would still pass if both calls
+      changed the same way. None pins the principal or the derived command ids.
 
   - rule: >
       `show` sends its UI signal only when the card was newly recorded, never
@@ -394,32 +374,27 @@ obligations:
       - plan_show_twice_in_one_turn_for_different_tasks_writes_two_cards
 
   - rule: >
-      A Planner's `from_workflow_id`, when present, names the version its
-      `draft_start` answers anyway (§13.6): the thread's Draft, or with none
-      its latest Frozen version. Any other version of its thread is refused
-      INVALID_COMMAND "a Planner starts a draft from its conversation's latest
-      version, <id>; ...", writes nothing and records no command; a replay of
-      a start already recorded still answers its first result.
+      A grant must name a version for workflow_get, task_get, plan_edit and
+      plan_show. It reaches any version in its project. A Planner can edit only
+      an Active plan's latest version; an archived plan refuses edits and new
+      versions with INVALID_COMMAND so a person can unarchive it.
     tested_by:
-      - a_planner_draft_start_names_only_its_latest_version
-      - a_planner_draft_start_naming_another_version_is_another_command
-    note: >
-      The first asserts the full refusal texts, with no Draft and with one;
-      the second that the replay of a start from v1 answers v2 after v2, its
-      Draft, became the latest, and that a new request naming v1 is refused.
+      - a_planner_without_a_workflow_id_is_told_to_list
+      - a_thread_grant_can_read_and_show_any_plan_in_its_project
+      - a_planner_edits_only_the_plan_latest_version
 
   - rule: >
-      An external agent starts a next version only from a Frozen version in
-      its project; a Draft source is a state error (INVALID_COMMAND), not a
-      scope one.
-    tested_by: an_external_draft_source_must_be_frozen
+      An external agent starts a version in a plan of its project. An existing
+      Draft is answered unchanged; without one, the latest version must be
+      Frozen and a new version needs its reason.
+    tested_by: an_external_start_answers_an_existing_plan_draft
 
 
   - rule: >
       A version belongs to a plan of its project (§16.2, §16.9). Migration
       0012 moved each thread's chain into one Active plan with the same
-      version ids, written by that thread. A thread reaches the plan its
-      versions belong to, so a Planner still reaches only that plan.
+      version ids, written by that thread. The original writer remains
+      attribution; it does not limit another Planner's project reach.
     tested_by: migration_0012_moves_every_version_into_a_plan
 
   - rule: >
@@ -560,10 +535,10 @@ tests:
     checks: >
       workflow_get for a plan in another project is refused with the text
       "GRANT_SCOPE: that plan is not in this grant's project".
-  - name: a_thread_grant_edits_only_its_own_threads_plan
+  - name: a_thread_grant_reaches_every_plan_in_its_project
     checks: >
-      A Planner's plan_edit and workflow_get on another thread's plan are
-      GRANT_SCOPE and leave it at revision 0; naming nothing edits its own.
+      A Planner reads and edits another conversation's plan in its project;
+      each version is named explicitly.
   - name: a_project_grant_cannot_reach_another_project
     checks: >
       workflow_get, task_get and plan_edit on another project's plan are
@@ -572,10 +547,10 @@ tests:
     checks: >
       Without workflow_id, or with an unknown one, workflow_get, task_get and
       plan_edit under a project grant are GRANT_SCOPE.
-  - name: a_thread_grant_can_read_and_show_its_older_version_but_not_another_thread
+  - name: a_thread_grant_can_read_and_show_any_plan_in_its_project
     checks: >
-      A Planner reads and shows its older version, reads its latest by naming
-      nothing, is GRANT_SCOPE editing the older one or touching another thread.
+      A Planner reads and shows older and other conversations' versions;
+      editing an older version is refused.
   - name: a_planner_grant_writes_only_in_its_own_project
     checks: >
       The store refuses a Planner writer whose thread is in another project
@@ -598,19 +573,19 @@ tests:
     checks: >
       draft_start with no running turn is refused "no turn is running for this
       conversation"; inside a turn it starts v1, and a repeat is a replay.
-  - name: a_planner_draft_start_naming_another_version_is_another_command
+  - name: a_planner_without_a_workflow_id_is_told_to_list
     checks: >
-      Inside a turn, draft_start from Frozen v1 starts v2 and the same call
-      replays it; the call naming v2 answers v2 as its own command; a new
-      request naming v1 is INVALID_COMMAND. The command log holds the two
-      fingerprints { thread, title, goal, from_workflow_id } for v1 and v2,
-      and two WorkflowDraftStarted events.
-  - name: a_planner_draft_start_names_only_its_latest_version
+      workflow_get without workflow_id is GRANT_SCOPE and tells the Planner
+      to use workflow_list.
+  - name: a_planner_draft_start_names_a_project_plan
     checks: >
-      With v2 the latest Frozen version, naming v1 is refused with the text
-      naming v2, records no command and starts nothing; naming v2 starts v3;
-      naming v3 answers it; naming v2 or v1 is refused naming v3. Two Planner
-      DraftStart commands and three WorkflowDraftStarted events in all.
+      Inside a turn, draft_start by plan_id starts the next version and a
+      repeat answers the same Draft. The fingerprint holds project, plan_id,
+      title, goal and reason.
+  - name: a_planner_edits_only_the_plan_latest_version
+    checks: >
+      Editing v1 after v2 is frozen is refused; draft_start by plan_id starts
+      v3 in the same plan.
   - name: draft_ref_replays_and_distinct_refs_make_distinct_plans
     checks: >
       One draft_ref with the same arguments replays; another ref makes another
@@ -623,10 +598,10 @@ tests:
     checks: >
       One plan-show frame per subscriber, after the PlanShown event, naming
       the sending tab; the card is a PlanView entry of the turn.
-  - name: an_external_draft_source_must_be_frozen
+  - name: an_external_start_answers_an_existing_plan_draft
     checks: >
-      draft_start from a Draft version under a project grant is INVALID_COMMAND
-      mentioning plan_edit; from a Frozen one it answers the thread's Draft.
+      draft_start from a Frozen plan creates its next version; a new draft_ref
+      on that plan answers its existing Draft unchanged.
   - name: arabic_plan_round_trips_through_mcp
     checks: >
       Arabic text survives plan_edit and workflow_get; task_get's T1 title
@@ -646,8 +621,8 @@ tests:
   - name: a_retried_first_start_answers_its_v1
     checks: >
       A Planner's first start, naming no plan, makes v1; once v1 is approved
-      the same command naming that plan, with a reason, answers v1 again and
-      the plan holds one version.
+      the same command with the same request still answers v1 and the plan
+      holds one version.
   - name: a_new_draft_is_version_one_at_revision_zero
     checks: >
       A Planner's first start is v1 at revision 0, written by its thread, in

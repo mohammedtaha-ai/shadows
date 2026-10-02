@@ -254,7 +254,7 @@ pub async fn plan_of(app: &App, thread: &ThreadId) -> Option<PlanId> {
 }
 
 /// The thread's Planner starts a draft outside a turn: v1 when the thread has
-/// no plan, else the plan's Draft or its next version, with a reason
+/// no plan, else that plan's Draft or its next version, with a reason
 /// (§16.3).
 pub async fn draft_on(app: &App, thread: &ThreadId, command: &str) -> DraftStarted {
     let writer = planner(app, thread).await;

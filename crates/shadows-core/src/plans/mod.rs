@@ -3,8 +3,8 @@
 //! Every way to read, start, edit, show or approve a plan ends in a method
 //! here: the HTTP routes as a person, the MCP tools under a grant (§14.4). A
 //! grant decides the writer and the reach: the internal Planner writes as its
-//! thread and reaches that thread's latest plan version only; an external
-//! agent writes as its grant and reaches any plan in its project. Storage
+//! thread and reaches every plan in its project; an external agent writes as
+//! its grant and reaches any plan in its project. Storage
 //! checks the grant again inside every write's transaction (§13.7). When a
 //! caller names no command, the id is derived as §13.5's table says.
 //!
@@ -66,7 +66,7 @@ pub struct Plans {
 pub struct DraftStart {
     pub title: Option<String>,
     pub goal: Option<String>,
-    pub from_workflow_id: Option<WorkflowId>,
+    pub plan_id: Option<PlanId>,
     /// Why a next version is started (§16.3): needed from v2 on.
     pub reason: Option<String>,
     pub draft_ref: Option<String>,
@@ -134,8 +134,12 @@ impl Plans {
     }
 
     /// `workflow_list`: the plans in the grant's project.
-    pub async fn list_for(&self, grant: &Grant) -> Result<Vec<PlanListing>, CoreError> {
-        Ok(self.storage.list_plans(&grant.project_id, false).await?)
+    pub async fn list_for(
+        &self,
+        grant: &Grant,
+        archived: bool,
+    ) -> Result<Vec<PlanListing>, CoreError> {
+        Ok(self.storage.list_plans(&grant.project_id, archived).await?)
     }
 
     /// `workflow_get`: a plan version the grant reaches.

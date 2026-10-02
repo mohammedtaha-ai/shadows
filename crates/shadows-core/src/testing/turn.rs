@@ -103,6 +103,7 @@ pub async fn start_direct(
             prompt: prompt.into(),
             settings,
             focus: None,
+            continue_plan: None,
             client_tab: None,
             events,
         },

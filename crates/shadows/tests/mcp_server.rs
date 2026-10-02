@@ -97,7 +97,8 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "plan_edit",
             "plan_show",
             "task_get",
-            "workflow_get"
+            "workflow_get",
+            "workflow_list"
         ]
     );
     let (_, external) = project_client(&l).await;
@@ -119,7 +120,7 @@ async fn the_tool_list_depends_on_the_grant_kind() {
     );
     // A tool outside the grant's list is unknown to that client: rmcp's own
     // JSON-RPC "tool not found", not a tool result.
-    let params = rmcp::model::CallToolRequestParams::new("workflow_list")
+    let params = rmcp::model::CallToolRequestParams::new("draft_prepare")
         .with_arguments(serde_json::Map::new());
     let error = planner.call_tool(params).await.unwrap_err();
     assert!(error.to_string().contains("tool not found"), "{error}");
@@ -165,7 +166,8 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
             "plan_edit",
             "plan_show",
             "task_get",
-            "workflow_get"
+            "workflow_get",
+            "workflow_list"
         ]
     );
 }
@@ -176,7 +178,7 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
 #[tokio::test]
 async fn the_discover_lifecycle_works_without_a_session() {
     let l = listening_app().await;
-    draft(&l.app).await;
+    let started = draft(&l.app).await;
     let (_, token) = issue_grant(&l.app, "thread", &l.app.project, Some(&l.app.thread)).await;
     let meta = json!({
         "io.modelcontextprotocol/protocolVersion": "2026-07-28",
@@ -214,13 +216,13 @@ async fn the_discover_lifecycle_works_without_a_session() {
     let tools = answer["result"]["tools"]
         .as_array()
         .unwrap_or_else(|| panic!("{answer}"));
-    assert_eq!(tools.len(), 5, "{answer}");
+    assert_eq!(tools.len(), 6, "{answer}");
     assert_eq!(answer["result"]["cacheScope"], "private", "{answer}");
 
     let get = request(
         3,
         "tools/call",
-        json!({ "name": "workflow_get", "arguments": {} }),
+        json!({ "name": "workflow_get", "arguments": { "workflow_id": started.workflow_id } }),
     );
     let mut call_headers = headers("tools/call").to_vec();
     call_headers.push(("mcp-name", "workflow_get"));

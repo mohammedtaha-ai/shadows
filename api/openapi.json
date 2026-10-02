@@ -1614,6 +1614,17 @@
           "model": {
             "type": "string"
           },
+          "plan": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlanId",
+                "description": "The plan the person opened this conversation to continue (§16.4)."
+              }
+            ]
+          },
           "prompt": {
             "type": "string"
           }

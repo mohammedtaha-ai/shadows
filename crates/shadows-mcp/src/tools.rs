@@ -25,9 +25,7 @@ use shadows_core::{DraftStart, Place, PlanEdit, PlanOp, PlanShow, WorkflowId};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct PlanArgs {
-    /// The plan version. The Planner leaves it out for its conversation's
-    /// latest version, or names an older version of the same conversation
-    /// when reading it. An external agent must name one.
+    /// The plan version; workflow_list lists each plan's latest version.
     #[serde(default)]
     #[schemars(with = "Option<String>")]
     workflow_id: Option<WorkflowId>,
@@ -45,27 +43,30 @@ struct TaskArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct DraftStartArgs {
-    /// The first version's title. Needed only when there is no plan yet.
+    /// The first version's title. Needed only when starting a new plan.
     #[serde(default)]
     title: Option<String>,
-    /// The first version's goal. Needed only when there is no plan yet.
+    /// The first version's goal. Needed only when starting a new plan.
     #[serde(default)]
     goal: Option<String>,
-    /// External agents: an approved plan in the project, to start its next
-    /// version from. Without it, a new plan is created.
-    /// The Planner may leave it out; a version it names must be its
-    /// conversation's latest, the one draft_start starts from anyway.
+    /// A plan to start its next version, or none for a new plan.
     #[serde(default)]
     #[schemars(with = "Option<String>")]
-    from_workflow_id: Option<WorkflowId>,
-    /// Why the next version is started, in a sentence or two. Needed for
-    /// every version after the first.
+    plan_id: Option<shadows_core::PlanId>,
+    /// Why the plan changes, required for every version after the first.
     #[serde(default)]
     reason: Option<String>,
     /// External agents: the ref `draft_prepare` answered. The same ref always
     /// answers the same plan; a new plan takes a new ref.
     #[serde(default)]
     draft_ref: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct WorkflowListArgs {
+    /// Include archived plans alongside Active plans.
+    #[serde(default)]
+    archived: bool,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -166,12 +167,18 @@ impl Shadows {
         text(asked.await.map(|a| lines(&a, false)).map_err(Refusal::from))
     }
 
-    #[tool(description = "List the plans in this project: each one's latest version.")]
-    async fn workflow_list(&self, Extension(grant): Extension<Grant>) -> CallToolResult {
+    #[tool(
+        description = "List this project's plans: each one's latest version. Set archived to include archived plans."
+    )]
+    async fn workflow_list(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<WorkflowListArgs>,
+    ) -> CallToolResult {
         answer(
             self.core
                 .plans()
-                .list_for(&grant)
+                .list_for(&grant, args.archived)
                 .await
                 .map_err(Refusal::from),
         )
@@ -222,7 +229,7 @@ impl Shadows {
     }
 
     #[tool(
-        description = "Start a plan version to edit. With no plan yet, creates version 1 from a title and a goal; after an approved version, creates the next version as its copy; with a draft already there, answers it."
+        description = "Start a plan version to edit. Give plan_id to continue that plan, or leave it out to create a new plan from a title and goal. A later version needs a reason; an existing Draft is returned unchanged."
     )]
     async fn draft_start(
         &self,
@@ -232,7 +239,7 @@ impl Shadows {
         let args = DraftStart {
             title: args.title,
             goal: args.goal,
-            from_workflow_id: args.from_workflow_id,
+            plan_id: args.plan_id,
             reason: args.reason,
             draft_ref: args.draft_ref,
         };

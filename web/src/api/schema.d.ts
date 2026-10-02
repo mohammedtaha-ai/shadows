@@ -1229,6 +1229,7 @@ export interface components {
             focus?: null | components["schemas"]["Focus"];
             mode: string;
             model: string;
+            plan?: null | components["schemas"]["PlanId"];
             prompt: string;
         };
         /** @description Spec §13.3. A task as the plan holds it, shown as `T{number}`. */

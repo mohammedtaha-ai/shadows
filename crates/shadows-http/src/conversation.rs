@@ -10,7 +10,7 @@ use tracing::Instrument;
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
-use shadows_core::{Focus, Operation, OperationId, SendTurn, ThreadEntry, ThreadId};
+use shadows_core::{Focus, Operation, OperationId, PlanId, SendTurn, ThreadEntry, ThreadId};
 
 /// A thread's entries in ordinal order.
 #[utoipa::path(
@@ -68,6 +68,9 @@ pub(super) struct StartTurn {
     /// another focus is `COMMAND_CONFLICT`.
     #[serde(default)]
     focus: Option<Focus>,
+    /// The plan the person opened this conversation to continue (§16.4).
+    #[serde(default)]
+    plan: Option<PlanId>,
     /// The sending tab's id, made once per page load (§13.9). Kept in memory
     /// for the turn only, so a `plan-show` frame can name it; not part of the
     /// command, never stored.
@@ -120,6 +123,7 @@ pub(super) async fn start_turn(
         mode,
         effort,
         focus,
+        plan,
         client_tab,
     } = body;
     let turn = SendTurn {
@@ -129,6 +133,7 @@ pub(super) async fn start_turn(
         mode,
         effort,
         focus,
+        plan,
         client_tab,
     };
     let core = s.core.clone();

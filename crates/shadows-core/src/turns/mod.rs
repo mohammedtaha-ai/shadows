@@ -38,7 +38,7 @@ pub use spawn::StartError;
 // forking checks for an open turn, recovery records its transitions.
 pub(crate) use store::{existed, has_open_operation, read_before, record};
 
-use spawn::{PlannerTurnRequest, focus_block};
+use spawn::{PlannerTurnRequest, continue_plan_block, focus_block};
 use store::{NewTurn, StartedTurn};
 use turn::{PlannerTurn, StopOutcome};
 
@@ -49,7 +49,7 @@ use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
 use crate::events::Actor;
 use crate::harness::{LeaseError, OpenSession, Sessions, prompt_version};
-use crate::plans::Focus;
+use crate::plans::{Focus, PlanId};
 use crate::runtime::Runtime;
 use crate::runtime::StopKind;
 use crate::threads::{ThreadId, TurnContext};
@@ -88,6 +88,8 @@ pub struct SendTurn {
     pub effort: Option<String>,
     /// The task the person points at; part of the command.
     pub focus: Option<Focus>,
+    /// The plan the person chose to continue; part of the command.
+    pub plan: Option<PlanId>,
     /// The sending tab, kept in memory for the turn only; not part of the
     /// command, never stored.
     pub client_tab: Option<String>,
@@ -137,6 +139,7 @@ impl Turns {
             mode,
             effort,
             focus,
+            plan,
             client_tab,
         } = turn;
         let mut params = serde_json::json!({
@@ -145,6 +148,9 @@ impl Turns {
         // Absent without a focus, so a turn recorded before §13.9 replays as it did.
         if let Some(focus) = &focus {
             params["focus"] = serde_json::json!(focus);
+        }
+        if let Some(plan) = &plan {
+            params["plan"] = serde_json::json!(plan);
         }
         let command = user_command(command_id, "turn.start", params);
         if let Some(replay) = self.storage.replayed_turn(&command, &thread_id).await? {
@@ -159,6 +165,21 @@ impl Turns {
             effort,
         };
         let context = self.storage.turn_context(&thread_id).await?;
+        let continue_plan = match &plan {
+            Some(plan_id) => Some(
+                self.storage
+                    .list_plans(&context.project_id, true)
+                    .await?
+                    .into_iter()
+                    .find(|plan| &plan.plan_id == plan_id)
+                    .map(|plan| continue_plan_block(&plan))
+                    .ok_or_else(|| crate::error::CoreError::Refused {
+                        code: crate::error::ErrorCode::InvalidCommand,
+                        message: "the plan is not in this conversation's project".into(),
+                    })?,
+            ),
+            None => None,
+        };
         if !policy::is_available(&context.harness) {
             return Err(CoreError::HarnessUnavailable(context.harness));
         }
@@ -206,6 +227,7 @@ impl Turns {
                 focus: focus
                     .zip(started.focus_task)
                     .map(|(focus, (number, title))| focus_block(&focus, number, &title)),
+                continue_plan,
                 client_tab,
                 events,
             },

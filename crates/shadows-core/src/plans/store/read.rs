@@ -62,7 +62,9 @@ impl Storage {
             .collect()
     }
 
-    /// The thread's latest version, if it has a plan.
+    /// The latest version of the first plan the thread wrote, if any. Tests
+    /// use it to find a conversation's plan; the product names plans by id.
+    #[cfg(feature = "test-support")]
     pub async fn thread_plan(&self, thread: &ThreadId) -> Result<Option<WorkflowId>, StorageError> {
         let mut conn = self.reader().acquire().await?;
         match plan_of_thread(&mut conn, thread).await? {
@@ -72,9 +74,9 @@ impl Storage {
     }
 }
 
-/// The plan whose versions `thread` wrote (§16.2): until a Planner reaches
-/// its project's plans (Task 3), a thread writes into one plan only.
-pub(super) async fn plan_of_thread(
+/// The first plan whose versions `thread` wrote. Only `thread_plan` uses it.
+#[cfg(feature = "test-support")]
+async fn plan_of_thread(
     conn: &mut SqliteConnection,
     thread: &ThreadId,
 ) -> Result<Option<PlanId>, StorageError> {
