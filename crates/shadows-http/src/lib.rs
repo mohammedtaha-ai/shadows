@@ -134,7 +134,11 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(harness::change_model))
         .routes(routes!(harness::change_effort))
         .routes(routes!(harness::thread_context))
-        .routes(routes!(thread::update_thread))
+        .routes(routes!(
+            thread::get_thread,
+            thread::update_thread,
+            thread::remove_thread
+        ))
         .routes(routes!(thread::fork_thread))
         .routes(routes!(workflow::list_plans))
         .routes(routes!(workflow::get_plan))

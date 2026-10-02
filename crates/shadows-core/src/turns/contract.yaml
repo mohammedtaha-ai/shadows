@@ -50,6 +50,11 @@ shapes:
     bus: Bus
     # A clone of the core's `Code`: `send` touches the thread's project (§15.6).
     code: Code
+  ThreadStopper:
+    # Narrow handle built at composition, held by Threads.
+    runtime: Arc<Runtime>
+    handles: Arc<LiveHandles>
+    sessions: Arc<Sessions>
   SendTurn:
     command_id: String
     prompt: String
@@ -151,6 +156,10 @@ shapes:
 
 functions:
   service:
+    stop_running:
+      signature: "(&self, thread: &ThreadId) -> Result<StopOutcome, StorageError>"
+      # On ThreadStopper: finds the live turn, then PlannerTurn::stop; holds no
+      # session slot while waiting for its terminal state.
     send:
       signature: "(&self, thread_id: ThreadId, turn: SendTurn) -> Result<OperationId, CoreError>"
       # "turn.start", principal User/local, schema 1, params { thread_id,
@@ -266,7 +275,7 @@ functions:
   store:
     start_turn:
       signature: "(&self, ctx: &CommandContext, turn: NewTurn) -> Result<StartedTurn, StorageError>"
-      # One write: classify (replay), has_open_operation (busy), focus,
+      # One write: classify (replay), refuse removed thread, has_open_operation (busy), focus,
       # insert_pending, the UserMessage entry, Threads'
       # `title_from_first_message_in` (§4.2), agent_invocation,
       # remember_settings, record_command.

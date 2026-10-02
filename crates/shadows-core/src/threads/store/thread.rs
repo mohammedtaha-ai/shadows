@@ -83,6 +83,9 @@ impl Storage {
                     return load_thread(conn, &thread).await;
                 }
                 let current = load_thread(conn, &thread).await?;
+                if current.removed_at.is_some() {
+                    return Err(StorageError::NotFound("planning_thread"));
+                }
                 if current.forked_from_thread.is_some() || has_operation(conn, &thread).await? {
                     return Err(StorageError::HarnessLocked);
                 }
@@ -139,7 +142,7 @@ impl Storage {
             "SELECT p.directory, t.harness_session_id, t.harness_kind, t.project_id,
                     t.fork_session_id
                FROM planning_thread t JOIN project p ON p.id = t.project_id
-              WHERE t.id = ?",
+              WHERE t.id = ? AND t.removed_at IS NULL",
         )
         .bind(thread_id.as_str())
         .fetch_optional(self.reader())
@@ -193,11 +196,11 @@ impl Storage {
         // the reason `list_projects` gives.
         let rows: Vec<ThreadRow> = sqlx::query_as(
             "SELECT t.id, t.project_id, t.title, t.status, t.created_at, t.harness_kind,
-                    t.forked_from_thread
+                    t.forked_from_thread, t.removed_at
                FROM planning_thread t
                LEFT JOIN durable_event e
                  ON e.thread_id = t.id AND e.kind = 'PlanningThreadCreated'
-              WHERE t.project_id = ?
+              WHERE t.project_id = ? AND t.removed_at IS NULL
               ORDER BY e.seq, t.id",
         )
         .bind(project_id.as_str())
@@ -278,6 +281,7 @@ type ThreadRow = (
     String,
     String,
     Option<String>,
+    Option<String>,
 );
 
 fn into_thread(r: ThreadRow) -> PlanningThread {
@@ -289,6 +293,7 @@ fn into_thread(r: ThreadRow) -> PlanningThread {
         created_at: r.4,
         harness: r.5,
         forked_from_thread: r.6.map(ThreadId::from_stored),
+        removed_at: r.7,
     }
 }
 
@@ -297,7 +302,7 @@ pub(super) async fn load_thread(
     id: &ThreadId,
 ) -> Result<PlanningThread, StorageError> {
     let row: ThreadRow = sqlx::query_as(
-        "SELECT id, project_id, title, status, created_at, harness_kind, forked_from_thread
+        "SELECT id, project_id, title, status, created_at, harness_kind, forked_from_thread, removed_at
            FROM planning_thread WHERE id = ?",
     )
     .bind(id.as_str())

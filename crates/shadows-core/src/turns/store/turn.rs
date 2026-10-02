@@ -148,6 +148,13 @@ impl Storage {
                     if let Some(outcome) = classify(conn, &ctx, SCOPE, thread.as_str()).await? {
                         return Ok((recorded(&outcome)?, None));
                     }
+                    let live: Option<i64> = sqlx::query_scalar(
+                        "SELECT 1 FROM planning_thread WHERE id = ? AND removed_at IS NULL",
+                    )
+                    .bind(thread.as_str())
+                    .fetch_optional(&mut *conn)
+                    .await?;
+                    live.ok_or(StorageError::NotFound("planning_thread"))?;
                     if has_open_operation(conn, &thread).await? {
                         return Err(StorageError::ThreadBusy);
                     }

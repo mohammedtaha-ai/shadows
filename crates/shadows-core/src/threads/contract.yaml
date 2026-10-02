@@ -52,6 +52,8 @@ shapes:
     harness: Arc<Harness>
     # A clone of the core's `Code`: `list` touches the project (§15.6).
     code: Code
+    # Stops the turn only after the removal write, without holding a session slot.
+    stopper: ThreadStopper
   PlanningThread:
     id: ThreadId
     project_id: ProjectId
@@ -59,6 +61,7 @@ shapes:
     # "Open"; nothing else writes another status yet.
     status: String
     created_at: String
+    removed_at: Option<String>
     harness: String
     # Set on a fork only; a fork's title is the source's with " (fork)",
     # and its `title_source` the source's.
@@ -140,6 +143,13 @@ functions:
     operations:
       signature: "(&self, thread: &ThreadId) -> Result<Vec<Operation>, CoreError>"
       # Turns' `list_operations_for_thread`: newest first.
+    remove:
+      signature: "(&self, command_id: String, thread: &ThreadId) -> Result<PlanningThread, CoreError>"
+      # One storage write removes and revokes; then Stop waits for the turn;
+      # then close_session takes the slot. Stop/close failures are logged.
+    get:
+      signature: "(&self, thread: &ThreadId) -> Result<PlanningThread, CoreError>"
+      # Also reads a removed conversation for its plan history.
   model:
     as_str:
       signature: "(self) -> &'static str"
@@ -163,13 +173,20 @@ functions:
       # record_command.
     turn_context:
       signature: "(&self, thread_id: &ThreadId) -> Result<TurnContext, StorageError>"
-      # NotFound for an unknown thread. Read by Turns, Harness and Sessions.
+      # NotFound for an unknown or removed thread. Read by Turns, Harness and Sessions.
     record_harness_session:
       signature: "(&self, thread_id, session_id) -> Result<bool, StorageError>"
       # Written once: only while NULL. A turn's watcher calls it; no command,
       # no event.
     list_threads_for_project:
       signature: "(&self, project_id: &ProjectId) -> Result<Vec<PlanningThread>, StorageError>"
+      # Removed threads are omitted.
+    remove_thread:
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<PlanningThread, StorageError>"
+      # One write: classify, live thread/project, removed_at, revoke grants,
+      # ThreadRemoved, record command. A replay returns the removed row.
+    get_thread:
+      signature: "(&self, thread: &ThreadId) -> Result<PlanningThread, StorageError>"
     append_thread_entry:
       signature: "(&self, thread_id, entry: NewThreadEntry) -> Result<ThreadEntry, StorageError>"
       # Its own write around `append_entry_in`; no command. A turn's watcher
@@ -178,7 +195,7 @@ functions:
       signature: "(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>"
     fork_thread:
       signature: "(&self, ctx, source, at_entry) -> Result<PlanningThread, StorageError>"
-      # One write: classify (scope Thread, the source) → load → busy →
+      # One write: classify (scope Thread, the source) → load and refuse removed → busy →
       # fork_point → the row → `PlanningThreadCreated` with the fork's
       # provenance → copy_entries → next ordinal → record_command.
     fork_point:
