@@ -139,6 +139,9 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(workflow::list_plans))
         .routes(routes!(workflow::get_plan))
         .routes(routes!(workflow::approve_plan))
+        .routes(routes!(workflow::get_plan_versions))
+        .routes(routes!(workflow::archive_plan))
+        .routes(routes!(workflow::unarchive_plan))
         .routes(routes!(grants::list_grants, grants::issue_grant))
         .routes(routes!(grants::revoke_grant))
         .routes(routes!(

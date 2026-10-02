@@ -102,7 +102,7 @@ pub(super) async fn latest_version(
     Ok(id.map(WorkflowId::from_stored))
 }
 
-fn parse_state(s: &str) -> Result<WorkflowState, StorageError> {
+pub(super) fn parse_state(s: &str) -> Result<WorkflowState, StorageError> {
     match s {
         "Draft" => Ok(WorkflowState::Draft),
         "Frozen" => Ok(WorkflowState::Frozen),
@@ -112,7 +112,7 @@ fn parse_state(s: &str) -> Result<WorkflowState, StorageError> {
     }
 }
 
-fn parse_plan_state(s: &str) -> Result<PlanState, StorageError> {
+pub(super) fn parse_plan_state(s: &str) -> Result<PlanState, StorageError> {
     match s {
         "Active" => Ok(PlanState::Active),
         "Archived" => Ok(PlanState::Archived),
@@ -123,7 +123,7 @@ fn parse_plan_state(s: &str) -> Result<PlanState, StorageError> {
 }
 
 /// A version's writer columns: its thread, operation and grant.
-type Writers = (Option<String>, Option<String>, Option<String>);
+pub(super) type Writers = (Option<String>, Option<String>, Option<String>);
 
 type VersionRow = (
     String,
@@ -222,7 +222,7 @@ pub(super) async fn load_plan(
 /// thread stands beside it (the versions 2a wrote have both); one with a
 /// thread only is its Planner's, with the model and harness of the turn's
 /// invocation when a turn was recorded.
-async fn written_by(
+pub(super) async fn written_by(
     conn: &mut SqliteConnection,
     id: &WorkflowId,
     (thread, operation, grant): Writers,

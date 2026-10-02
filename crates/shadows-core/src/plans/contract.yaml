@@ -82,6 +82,20 @@ shapes:
     version: i64
     state: WorkflowState
     updated_at: String
+  PlanVersions:
+    plan_id: PlanId
+    project_id: ProjectId
+    state: PlanState
+    archived_at: Option<String>
+    versions: Vec<VersionLine>
+  VersionLine:
+    workflow_id: WorkflowId
+    version: i64
+    state: WorkflowState
+    title: String
+    written_by: WrittenBy
+    change_reason: Option<String>
+    created_at: String
   PlanContent:
     # What an edit batch changes; `Plan::content()` rebuilds it from a Plan.
     title: String
@@ -189,6 +203,7 @@ functions:
       signature: "(&self, project: &ProjectId, archived: bool) -> Result<Vec<PlanListing>, CoreError>"
       # The routes pass `false`: Active plans only.
     get: "(&self, workflow: &WorkflowId) -> Result<Plan, CoreError>"
+    plan: "(&self, plan: &PlanId) -> Result<PlanVersions, CoreError>"
     list_for:
       signature: "(&self, grant: &Grant, archived: bool) -> Result<Vec<PlanListing>, CoreError>"
     # Active plans, or archived ones too when requested.
@@ -200,6 +215,12 @@ functions:
     approve:
       signature: "(&self, command_id: String, workflow: &WorkflowId, expected_revision: i64) -> Result<Approved, CoreError>"
       # "PlanApprove", params { workflow, expected_revision }, principal User/local.
+    archive:
+      signature: "(&self, command_id: String, plan: &PlanId) -> Result<PlanVersions, CoreError>"
+      # "PlanArchive", params { "plan" }, principal User/local.
+    unarchive:
+      signature: "(&self, command_id: String, plan: &PlanId) -> Result<PlanVersions, CoreError>"
+      # "PlanUnarchive", params { "plan" }, principal User/local.
     prepare_draft: "(&self, grant: &Grant) -> Result<String, CoreError>"
     start_draft:
       signature: "(&self, grant: &Grant, args: DraftStart) -> Result<DraftStarted, CoreError>"
@@ -244,6 +265,9 @@ functions:
     # takes none.
     list_plans: "(&self, project: &ProjectId, archived: bool) -> Result<Vec<PlanListing>, StorageError>"
     get_plan: "(&self, workflow: &WorkflowId) -> Result<Plan, StorageError>"
+    get_plan_versions: "(&self, plan: &PlanId) -> Result<PlanVersions, StorageError>"
+    archive_plan: "(&self, ctx: &CommandContext, plan: &PlanId) -> Result<PlanVersions, StorageError>"
+    unarchive_plan: "(&self, ctx: &CommandContext, plan: &PlanId) -> Result<PlanVersions, StorageError>"
     edit_plan: "(&self, ctx: &CommandContext, writer: &Writer, operation: Option<&OperationId>, workflow: &WorkflowId, expected_revision: i64, ops: &[PlanOp]) -> Result<EditOutcome, StorageError>"
     approve_plan:
       signature: "(&self, ctx: &CommandContext, workflow: &WorkflowId, expected_revision: i64) -> Result<Approved, StorageError>"
@@ -382,6 +406,15 @@ obligations:
       - a_planner_without_a_workflow_id_is_told_to_list
       - a_thread_grant_can_read_and_show_any_plan_in_its_project
       - a_planner_edits_only_the_plan_latest_version
+      - an_archived_plan_is_read_only_until_unarchived
+
+  - rule: >
+      A person archives and unarchives a plan through the web client (§16.2):
+      archiving an archived plan, or unarchiving an active one, answers the
+      plan unchanged (idempotent in effect). Each change journals PlanArchived
+      or PlanUnarchived with the project. A replay answers the plan as it stands.
+      A plan of a removed project is not found.
+    tested_by: an_archived_plan_is_read_only_until_unarchived
 
   - rule: >
       An external agent starts a version in a plan of its project. An existing
@@ -648,3 +681,11 @@ tests:
       Approving an external agent's v1 answers it, written_by External; no
       thread was created, no PlanApproved entry exists, and WorkflowFrozen
       names no thread.
+  - name: an_archived_plan_is_read_only_until_unarchived
+    checks: >
+      A plan with a Draft: POST archive sets state Archived; GET workflows
+      leaves it out and GET workflows?archived=true lists it; an external
+      edit is refused INVALID_COMMAND "archived"; POST unarchive restores
+      Active and the edit succeeds; GET /api/plans/{id} lists v1 with its
+      written_by.
+

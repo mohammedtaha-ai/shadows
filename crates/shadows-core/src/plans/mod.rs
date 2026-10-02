@@ -27,8 +27,8 @@ use serde_json::json;
 pub use conversation::{Focus, Place, PlanShown};
 pub use model::{
     AcceptanceItem, Approved, DraftStarted, EditOutcome, LastEdit, Link, LinkKind, Plan,
-    PlanContent, PlanId, PlanListing, PlanState, PlanTask, TaskContent, TaskId, WorkflowId,
-    WorkflowState, WrittenBy,
+    PlanContent, PlanId, PlanListing, PlanState, PlanTask, PlanVersions, TaskContent, TaskId,
+    VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use ops::PlanOp;
 pub use rules::Problem;
@@ -131,6 +131,33 @@ impl Plans {
             .storage
             .approve_plan(&c, workflow, expected_revision)
             .await?)
+    }
+
+    /// One plan with every version, oldest first (§16.10).
+    pub async fn plan(&self, plan: &PlanId) -> Result<PlanVersions, CoreError> {
+        Ok(self.storage.get_plan_versions(plan).await?)
+    }
+
+    /// A person's archive command (§16.2): "PlanArchive", params { "plan" }.
+    pub async fn archive(
+        &self,
+        command_id: String,
+        plan: &PlanId,
+    ) -> Result<PlanVersions, CoreError> {
+        let params = serde_json::json!({ "plan": plan });
+        let c = user_command(command_id, "PlanArchive", params);
+        Ok(self.storage.archive_plan(&c, plan).await?)
+    }
+
+    /// A person's unarchive command (§16.2): "PlanUnarchive", params { "plan" }.
+    pub async fn unarchive(
+        &self,
+        command_id: String,
+        plan: &PlanId,
+    ) -> Result<PlanVersions, CoreError> {
+        let params = serde_json::json!({ "plan": plan });
+        let c = user_command(command_id, "PlanUnarchive", params);
+        Ok(self.storage.unarchive_plan(&c, plan).await?)
     }
 
     /// `workflow_list`: the plans in the grant's project.
