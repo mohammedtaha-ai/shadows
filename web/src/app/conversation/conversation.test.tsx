@@ -6,6 +6,8 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { threadFixture, userEntry } from '@/test/contract-fixtures'
+import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, until } from '../test-app'
 
 const operation = (status_kind: string) => ({
@@ -45,6 +47,19 @@ let app: TestApp | null = null
 afterEach(() => {
   app?.unmount()
   app = null
+})
+
+it('shows a deleted conversation read only', async () => {
+  const table = answers({ entries: [userEntry('u1', 'A message kept in history')] })
+  table['GET /api/projects/p1/threads'] = []
+  table['GET /api/threads/t1'] = { ...threadFixture, removed_at: '2026-10-02T18:00:00Z' }
+  const a = (app = await startApp('/projects/p1/threads/t1', table))
+  await until(() => a.text().includes('This conversation was deleted. You can read it, but not write in it.'))
+  await until(() => a.text().includes('A message kept in history'))
+  expect(a.calls).toContain('GET /api/threads/t1')
+  expect(a.calls).not.toContain('POST /api/threads/t1/session')
+  expect(a.container.querySelector('textarea')).toBeNull()
+  expect(a.button('Send')).toBeUndefined()
 })
 
 describe('the conversation, opened while a turn runs', () => {
