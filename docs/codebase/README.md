@@ -83,6 +83,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/threads/rules.rs` | which harness a thread may name | `crates/shadows-core/src/threads/rules.rs` |
 | `crates/shadows-core/src/threads/title.rs` | the text a title taken from a conversation may read | `crates/shadows-core/src/threads/title.rs` |
 | `crates/shadows-core/src/threads/store/` | threads' SQLite queries | `crates/shadows-core/src/threads/store/thread.rs` |
+| `crates/shadows-core/src/threads/store/remove.rs` | atomic removal of a planning thread | `crates/shadows-core/src/threads/store/remove.rs` |
 | `crates/shadows-core/src/turns/` | Planner turns, from start to stop | `crates/shadows-core/src/turns/mod.rs` |
 | `crates/shadows-core/src/turns/model.rs` | the operation types callers meet | `crates/shadows-core/src/turns/model.rs` |
 | `crates/shadows-core/src/turns/store/` | turns' SQLite queries | `crates/shadows-core/src/turns/store/turn.rs` |

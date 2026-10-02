@@ -3,6 +3,7 @@
 
 mod entry;
 mod fork;
+mod remove;
 mod thread;
 mod title;
 

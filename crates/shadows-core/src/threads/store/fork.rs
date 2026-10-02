@@ -71,6 +71,9 @@ impl Storage {
                     return load_thread(conn, &ThreadId::from_stored(id)).await;
                 }
                 let original = load_thread(conn, &source).await?;
+                if original.removed_at.is_some() {
+                    return Err(StorageError::NotFound("planning_thread"));
+                }
                 if has_open_operation(conn, &source).await? {
                     return Err(StorageError::ThreadBusy);
                 }

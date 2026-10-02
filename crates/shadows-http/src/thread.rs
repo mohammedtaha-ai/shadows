@@ -2,12 +2,54 @@
 //! (spec §12.6), or a fork of it (§12.9).
 
 use axum::Json;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
 use shadows_core::{PlanningThread, ThreadEntryId, ThreadId};
+
+/// The idempotency key for conversation deletion (§16.5).
+#[derive(serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(super) struct RemoveThreadQuery {
+    command_id: String,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/threads/{id}",
+    tag = "threads",
+    params(("id" = ThreadId, Path, description = "The thread")),
+    responses((status = 200, body = PlanningThread), (status = 404, body = ErrorBody))
+)]
+pub(super) async fn get_thread(
+    State(s): State<AppState>,
+    Path(thread): Path<ThreadId>,
+) -> Result<Json<PlanningThread>, Failure> {
+    Ok(Json(s.core.threads().get(&thread).await?))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/threads/{id}",
+    tag = "threads",
+    params(("id" = ThreadId, Path, description = "The thread"), RemoveThreadQuery),
+    responses(
+        (status = 200, body = PlanningThread),
+        (status = 404, body = ErrorBody),
+        (status = 409, body = ErrorBody),
+    )
+)]
+pub(super) async fn remove_thread(
+    State(s): State<AppState>,
+    Path(thread): Path<ThreadId>,
+    Query(query): Query<RemoveThreadQuery>,
+) -> Result<Json<PlanningThread>, Failure> {
+    Ok(Json(
+        s.core.threads().remove(query.command_id, &thread).await?,
+    ))
+}
 
 /// Changes the thread's CLI. Refused once the thread has run a turn, and on
 /// a fork from birth (`HARNESS_LOCKED`).

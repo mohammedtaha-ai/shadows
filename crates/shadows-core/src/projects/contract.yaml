@@ -157,7 +157,7 @@ functions:
     remove_project:
       signature: "(&self, ctx: &CommandContext, project_id: &ProjectId) -> Result<Project, StorageError>"
       # One write: classify (scope Project; a replay answers the row as it
-      # stands, removed) → `live_project` → any `planning_thread` row
+      # stands, removed) → `live_project` → any nonremoved `planning_thread` row
       # refuses ProjectHasThreads → `removed_at` → Code's
       # `delete_code_index_in` and `delete_code_links_in`, Grants'
       # `revoke_project_grants_in` → `ProjectRemoved` → record_command.

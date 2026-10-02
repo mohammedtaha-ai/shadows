@@ -28,7 +28,7 @@ use crate::projects::Projects;
 use crate::runtime::Runtime;
 use crate::runtime::StopKind;
 use crate::threads::{ThreadId, Threads};
-use crate::turns::{LiveHandles, OperationId, Turns};
+use crate::turns::{LiveHandles, OperationId, ThreadStopper, Turns};
 
 /// A running turn's live harness events, for every live subscriber.
 pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
@@ -168,7 +168,8 @@ impl AppCore {
         // Before the three services that hold it to call `touch` (§15.8).
         let code = Code::new(storage.clone());
         let harness = Arc::new(Harness::new(storage.clone(), sessions.clone()));
-        let threads = Threads::new(storage.clone(), harness.clone(), code.clone());
+        let stopper = ThreadStopper::new(runtime.clone(), handles.clone(), sessions.clone());
+        let threads = Threads::new(storage.clone(), harness.clone(), code.clone(), stopper);
         let events = Events::new(storage.clone(), harness.clone(), bus.clone(), ui.clone());
         Arc::new(AppCore {
             plans: Plans::new(storage.clone(), handles.clone(), ui.clone()),

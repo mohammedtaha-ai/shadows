@@ -40,7 +40,8 @@ pub(crate) use store::{existed, has_open_operation, read_before, record};
 
 use spawn::{PlannerTurnRequest, continue_plan_block, focus_block};
 use store::{NewTurn, StartedTurn};
-use turn::{PlannerTurn, StopOutcome};
+use turn::PlannerTurn;
+pub(crate) use turn::StopOutcome;
 
 use crate::app::{Bus, user_command};
 use crate::code::Code;
@@ -76,6 +77,46 @@ pub struct Turns {
     handles: Arc<LiveHandles>,
     bus: Bus,
     code: Code,
+}
+
+/// The narrow turn control that thread removal needs. It owns no session
+/// slot; Stop may take that slot while the turn records its ending.
+#[derive(Clone)]
+pub(crate) struct ThreadStopper {
+    runtime: Arc<Runtime>,
+    handles: Arc<LiveHandles>,
+    sessions: Arc<Sessions>,
+}
+
+impl ThreadStopper {
+    pub(crate) fn new(
+        runtime: Arc<Runtime>,
+        handles: Arc<LiveHandles>,
+        sessions: Arc<Sessions>,
+    ) -> Self {
+        Self {
+            runtime,
+            handles,
+            sessions,
+        }
+    }
+
+    pub(crate) async fn stop_running(
+        &self,
+        thread: &ThreadId,
+    ) -> Result<StopOutcome, StorageError> {
+        let Some(op) = self.handles.running_for(thread).await else {
+            return Ok(StopOutcome::NotLive);
+        };
+        PlannerTurn::stop(
+            self.runtime.clone(),
+            self.handles.clone(),
+            self.sessions.clone(),
+            &op,
+            Actor::user("local"),
+        )
+        .await
+    }
 }
 
 /// A person's turn, as the route received it (§12.7, §13.9).

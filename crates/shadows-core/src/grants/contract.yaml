@@ -106,7 +106,8 @@ functions:
       signature: "(&self, ctx: &CommandContext, project: &ProjectId) -> Result<IssuedGrant, StorageError>"
     issue_thread_grant:
       signature: "(&self, thread: &ThreadId) -> Result<(Grant, Token), StorageError>"
-      # No command: Harness' `Setups::for_opening` issues it for a session.
+      # No command: Harness' `Setups::for_opening` issues it for a live
+      # thread's session. A removed thread cannot receive a new grant.
     revoke_grant:
       signature: "(&self, ctx: &CommandContext, id: &GrantId) -> Result<Grant, StorageError>"
     revoke_thread_grant:
@@ -136,6 +137,9 @@ functions:
       signature: "(conn, project: &ProjectId, actor: Actor, ts: &str) -> Result<(), StorageError>"
       # Every live project grant on the project, ORDER BY id, through
       # `revoke_in`, inside the caller's write.
+    revoke_thread_grants_in:
+      signature: "(conn, thread: &ThreadId, actor: Actor, ts: &str) -> Result<(), StorageError>"
+      # Every live Planner grant of the thread, inside its removal write.
     check_writer:
       signature: "(conn, writer: &Writer, project: &ProjectId) -> Result<(), StorageError>"
       # Ok for a person. GrantInvalid for an unknown or revoked grant;
@@ -173,6 +177,7 @@ shared_in_transaction:
   check_writer: "Plans' store (plans/store/draft.rs start_draft, edit.rs edit_plan, view.rs show_plan): the writer's grant is judged live and in scope inside the plan write's own transaction, so a revocation between the tool's bearer check and the write stops the write"
   bind_draft_ref: "Plans' store (plans/store/draft.rs start_draft): the draft_ref is bound to the version the same transaction creates, so a refused ref leaves no plan or version behind"
   revoke_project_grants_in: "Projects' store (projects/store.rs remove_project): a removed project's live grants are revoked in the removal's own write, so its token stops with it (§4.2)"
+  revoke_thread_grants_in: "Threads' store (threads/store/remove.rs remove_thread): every live Planner grant is revoked in the same write that marks the thread removed (§16.5)"
 
 
 called_by_other_services:

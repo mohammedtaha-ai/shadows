@@ -74,12 +74,13 @@ impl Storage {
         let (thread, ts) = (thread.clone(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
-                let project: String =
-                    sqlx::query_scalar("SELECT project_id FROM planning_thread WHERE id = ?")
-                        .bind(thread.as_str())
-                        .fetch_optional(&mut *conn)
-                        .await?
-                        .ok_or(StorageError::NotFound("thread"))?;
+                let project: String = sqlx::query_scalar(
+                    "SELECT project_id FROM planning_thread WHERE id = ? AND removed_at IS NULL",
+                )
+                .bind(thread.as_str())
+                .fetch_optional(&mut *conn)
+                .await?
+                .ok_or(StorageError::NotFound("thread"))?;
                 let project = ProjectId::from_stored(project);
                 insert_grant(conn, &project, Some(&thread), Actor::system(), &ts).await
             })
@@ -347,6 +348,27 @@ pub(crate) async fn revoke_project_grants_in(
           WHERE kind = 'project' AND project_id = ? AND revoked_at IS NULL ORDER BY id"
     )))
     .bind(project.as_str())
+    .fetch_all(&mut *conn)
+    .await?;
+    for row in live {
+        revoke_in(conn, &into_grant(row)?, actor.clone(), ts).await?;
+    }
+    Ok(())
+}
+
+/// Inside a thread removal's write: revoke all its live Planner grants before
+/// `ThreadRemoved` is journaled. No adapter can write a plan after commit.
+pub(crate) async fn revoke_thread_grants_in(
+    conn: &mut SqliteConnection,
+    thread: &ThreadId,
+    actor: Actor,
+    ts: &str,
+) -> Result<(), StorageError> {
+    let live: Vec<GrantRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT {GRANT_COLUMNS} FROM mcp_grant
+          WHERE kind = 'thread' AND thread_id = ? AND revoked_at IS NULL ORDER BY id"
+    )))
+    .bind(thread.as_str())
     .fetch_all(&mut *conn)
     .await?;
     for row in live {

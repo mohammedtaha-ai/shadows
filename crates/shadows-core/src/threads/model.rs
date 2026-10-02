@@ -44,6 +44,9 @@ pub struct PlanningThread {
     pub title: String,
     pub status: String,
     pub created_at: String,
+    /// Set when this conversation was removed; its history remains readable.
+    #[schema(value_type = Option<String>, required)]
+    pub removed_at: Option<String>,
     /// The CLI this conversation runs on (`agent::policy`): chosen at
     /// creation, changeable until the thread's first operation, then fixed
     /// (spec §12.6).
