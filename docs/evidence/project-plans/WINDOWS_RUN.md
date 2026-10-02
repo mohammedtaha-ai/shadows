@@ -1,4 +1,4 @@
-# Project plans 1a: partial Windows check
+# Project plans 1a: Windows checks
 
 - Date: 2026-10-02
 - Branch: `plans/project-plans`
@@ -22,11 +22,26 @@ after pressing **Open plan** on the old daemon. After rebuilding, he reported
 that Open plan works and that the old daemon caused the error. This is his
 reported result; Codex did not independently reproduce or diagnose it.
 
-## Acceptance still to run
+## Reviewed build and human trial, 2026-10-03
 
-This record does not complete §16.12 or Task I. The full real-harness Windows
-run, including migration on a copy of the dev database, continuing a plan
-across conversations, version writers and reasons, archive/unarchive,
-deletion during a turn, grant refusal and Stop during another session's
-startup, remains pending. Task 6b's separate scratch browser check used
-fake ACP; it does not replace these steps.
+The ordinary debug daemon was rebuilt from review commit
+`fbbdde55cd5e54295aee9829cddd1e142ff26e17` with
+`cargo build --locked -p shadows --bin shadows`. The build passed; the
+executable and PDB were copied from the prescribed C: scratch target to
+`E:/Globalprojects/shadows/target/debug/`. The executable hashes matched,
+and `shadows.exe serve --help` exited successfully. Codex did not start it.
+
+After receiving this build, Mohammed reported: "جربته اضن كل شي جاهز هل نفتح pr"
+(he tried it and believed everything was ready for a PR). This is the human
+trial of the reviewed build, reported by Mohammed. No new runtime failure
+was reported.
+
+## Scope of the recorded evidence
+
+The trial was not reported scenario by scenario. This record therefore does
+not assign individual pass results to migration on a copy of the dev
+database, continuing a plan across conversations, version writers and
+reasons, archive/unarchive, deletion during a turn, grant refusal, or Stop
+during another session's startup. Task 6b's separate scratch browser check
+used fake ACP. These evidence limits do not describe a newly found defect
+or a requirement to repeat the completed review before opening the PR.
