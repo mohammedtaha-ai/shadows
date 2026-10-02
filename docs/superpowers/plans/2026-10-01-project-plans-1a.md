@@ -794,15 +794,15 @@ git commit -m "feat(web): plans per project, version writers and reasons, archiv
 
 **Files:** the specs and docs §16.13 lists.
 
-- [ ] **Step 1:** Amend in place, each pointing to §16 rather than copying it:
+- [x] **Step 1:** Amend in place, each pointing to §16 rather than copying it:
   - §13.2: a plan is §16.2's, with one Draft per plan;
   - §13.6: the tool table and `draft_start` refer to §16.4, and an external draft from scratch creates no thread;
   - §13.10 and §13.11: the plan list, the Workflows section and the page header refer to §16.8 and §16.10;
   - §4.2: a thread can be removed (§16.5), and project removal counts only threads that are not removed;
   - §6.8: lineage within a plan.
-- [ ] **Step 2:** `docs/vision.md` §8: link §16. Its Today line says what exists now, and that decisions and clarifying messages do not exist yet.
-- [ ] **Step 3:** `docs/status.md`: a "Where we are" entry for 1a, with the test counts. Next: 1b, then the rest, as `status.md` orders them. The lock and conversation deletion leave Next.
-- [ ] **Step 4:** Commit (docs only, so no gate):
+- [x] **Step 2:** `docs/vision.md` §8: link §16. Its Today line says what exists now, and that decisions and clarifying messages do not exist yet.
+- [x] **Step 3:** `docs/status.md`: a "Where we are" entry for 1a, with the test counts. Next: 1b, then the rest, as `status.md` orders them. The lock and conversation deletion leave Next.
+- [x] **Step 4:** Commit (docs only, so no gate):
 
 ```bash
 git commit -am "docs: §16 1a is built — §13, §4.2, §6.8, vision §8 and status point to it"

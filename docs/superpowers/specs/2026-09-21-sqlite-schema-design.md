@@ -217,7 +217,7 @@ No domain ordering depends on SQLite `rowid`.
 
 ```text
 id                   TEXT PRIMARY KEY
-thread_id            TEXT NOT NULL FK planning_thread(id) ON DELETE RESTRICT
+plan_id              TEXT NOT NULL FK plan(id) ON DELETE RESTRICT
 state                TEXT NOT NULL
 previous_version_id  TEXT NULL
 source_plan_json     TEXT NULL
@@ -225,7 +225,7 @@ created_at           TEXT NOT NULL
 updated_at           TEXT NOT NULL
 frozen_at            TEXT NULL
 
-UNIQUE(id, thread_id)
+UNIQUE(id, plan_id)
 UNIQUE(previous_version_id)
 ```
 
@@ -247,13 +247,13 @@ state IN ('Frozen','Running','Completed','Failed')
     -> frozen_at IS NOT NULL
 ```
 
-Lineage must remain inside one thread.
+Lineage must remain inside one plan (§16.2).
 
 Use a composite FK:
 
 ```text
-(previous_version_id, thread_id)
-    -> workflow(id, thread_id)
+(previous_version_id, plan_id)
+    -> workflow(id, plan_id)
 ```
 
 when `previous_version_id` is non-null.
@@ -261,6 +261,8 @@ when `previous_version_id` is non-null.
 `source_plan_json`, if present, is an immutable authored/provenance snapshot only.
 
 > Milestone 2 adds `version`, `revision`, `title` and `goal` (§13.15).
+> Migration 0012's plan table, writer fields, reason and per-plan constraints
+> are owned by [§16.9](./2026-10-01-project-plans-design.md#169-schema).
 
 The scheduler reads normalized:
 
