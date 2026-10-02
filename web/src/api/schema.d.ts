@@ -129,6 +129,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plans/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One plan with every version, oldest first (§16.10). */
+        get: operations["get_plan_versions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plans/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archives a plan (§16.2). An archived plan is read, never written.
+         *     Archiving an already archived plan answers the plan unchanged.
+         */
+        post: operations["archive_plan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plans/{id}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unarchives a plan (§16.2), returning it to `Active`.
+         *     Unarchiving an active plan answers the plan unchanged.
+         */
+        post: operations["unarchive_plan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects": {
         parameters: {
             query?: never;
@@ -363,8 +420,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The project's Active plans, each by its latest version, in the order
-         *     they were created. An unknown project has none.
+         * The project's plans, each by its latest version, in the order
+         *     they were created. Active plans only, or archived ones too when `archived=true`.
+         *     An unknown project has none.
          */
         get: operations["list_plans"];
         put?: never;
@@ -1080,6 +1138,10 @@ export interface components {
             /** @description Who wrote this version (§16.3). */
             written_by: components["schemas"]["WrittenBy"];
         };
+        PlanCommand: {
+            /** @description The idempotency key (spec §16.2), scoped to the plan. */
+            command_id: string;
+        };
         /** Format: uuid */
         PlanId: string;
         /** @description A plan as a project's list shows it: its latest version (`id`). */
@@ -1101,6 +1163,14 @@ export interface components {
         /** @description One task of a stored version: its storage id beside its content. */
         PlanTask: components["schemas"]["TaskContent"] & {
             id: components["schemas"]["TaskId"];
+        };
+        /** @description One plan with every version, oldest first (§16.10's GET /api/plans/{id}). */
+        PlanVersions: {
+            archived_at?: string | null;
+            plan_id: components["schemas"]["PlanId"];
+            project_id: components["schemas"]["ProjectId"];
+            state: components["schemas"]["PlanState"];
+            versions: components["schemas"]["VersionLine"][];
         };
         PlanningThread: {
             created_at: string;
@@ -1314,6 +1384,16 @@ export interface components {
             command_id: string;
             /** @description `claude-code` or `codex`. */
             harness: string;
+        };
+        VersionLine: {
+            change_reason?: string | null;
+            created_at: string;
+            state: components["schemas"]["WorkflowState"];
+            title: string;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
+            written_by: components["schemas"]["WrittenBy"];
         };
         /** Format: uuid */
         WorkflowId: string;
@@ -1702,6 +1782,154 @@ export interface operations {
                 };
             };
             /** @description PROCESS_TERMINATION_FAILED: the tree is still running, or STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_plan_versions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The plan */
+                id: components["schemas"]["PlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanVersions"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such plan */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    archive_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The plan */
+                id: components["schemas"]["PlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanCommand"];
+            };
+        };
+        responses: {
+            /** @description Archived, or the replay of the same command */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanVersions"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such plan */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    unarchive_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The plan */
+                id: components["schemas"]["PlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanCommand"];
+            };
+        };
+        responses: {
+            /** @description Unarchived, or the replay of the same command */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanVersions"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such plan */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -2583,7 +2811,10 @@ export interface operations {
     };
     list_plans: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description When true, includes archived plans in the listing (§16.2). */
+                archived?: boolean;
+            };
             header?: never;
             path: {
                 /** @description The project */

@@ -1226,6 +1226,18 @@
         ],
         "type": "object"
       },
+      "PlanCommand": {
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key (spec §16.2), scoped to the plan.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id"
+        ],
+        "type": "object"
+      },
       "PlanId": {
         "format": "uuid",
         "type": "string"
@@ -1293,6 +1305,39 @@
           }
         ],
         "description": "One task of a stored version: its storage id beside its content."
+      },
+      "PlanVersions": {
+        "description": "One plan with every version, oldest first (§16.10's GET /api/plans/{id}).",
+        "properties": {
+          "archived_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PlanState"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/VersionLine"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "plan_id",
+          "project_id",
+          "state",
+          "versions"
+        ],
+        "type": "object"
       },
       "PlanningThread": {
         "properties": {
@@ -1837,6 +1882,44 @@
         ],
         "type": "object"
       },
+      "VersionLine": {
+        "properties": {
+          "change_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkflowState"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          },
+          "written_by": {
+            "$ref": "#/components/schemas/WrittenBy"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "state",
+          "title",
+          "written_by",
+          "created_at"
+        ],
+        "type": "object"
+      },
       "WorkflowId": {
         "format": "uuid",
         "type": "string"
@@ -2360,6 +2443,202 @@
         "summary": "Stops a turn: asks the harness to cancel it, and if the harness does not\nconfirm in time, terminates the adapter's process tree, confirms it is\ngone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the operation as it\nnow stands — which may still be `Running` for a moment when the turn had\nalready ended on its own and its ending is being recorded.",
         "tags": [
           "turns"
+        ]
+      }
+    },
+    "/api/plans/{id}": {
+      "get": {
+        "operationId": "get_plan_versions",
+        "parameters": [
+          {
+            "description": "The plan",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PlanId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanVersions"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such plan"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "One plan with every version, oldest first (§16.10).",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/plans/{id}/archive": {
+      "post": {
+        "operationId": "archive_plan",
+        "parameters": [
+          {
+            "description": "The plan",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PlanId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanVersions"
+                }
+              }
+            },
+            "description": "Archived, or the replay of the same command"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such plan"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Archives a plan (§16.2). An archived plan is read, never written.\nArchiving an already archived plan answers the plan unchanged.",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/api/plans/{id}/unarchive": {
+      "post": {
+        "operationId": "unarchive_plan",
+        "parameters": [
+          {
+            "description": "The plan",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PlanId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanVersions"
+                }
+              }
+            },
+            "description": "Unarchived, or the replay of the same command"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such plan"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Unarchives a plan (§16.2), returning it to `Active`.\nUnarchiving an active plan answers the plan unchanged.",
+        "tags": [
+          "workflows"
         ]
       }
     },
@@ -3537,6 +3816,15 @@
             "schema": {
               "$ref": "#/components/schemas/ProjectId"
             }
+          },
+          {
+            "description": "When true, includes archived plans in the listing (§16.2).",
+            "in": "query",
+            "name": "archived",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -3564,7 +3852,7 @@
             "description": "STORAGE_UNAVAILABLE"
           }
         },
-        "summary": "The project's Active plans, each by its latest version, in the order\nthey were created. An unknown project has none.",
+        "summary": "The project's plans, each by its latest version, in the order\nthey were created. Active plans only, or archived ones too when `archived=true`.\nAn unknown project has none.",
         "tags": [
           "workflows"
         ]

@@ -278,3 +278,24 @@ pub struct PlanListing {
     pub state: WorkflowState,
     pub updated_at: String,
 }
+
+/// One plan with every version, oldest first (§16.10's GET /api/plans/{id}).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct PlanVersions {
+    pub plan_id: PlanId,
+    pub project_id: ProjectId,
+    pub state: PlanState,
+    pub archived_at: Option<String>,
+    pub versions: Vec<VersionLine>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct VersionLine {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub state: WorkflowState,
+    pub title: String,
+    pub written_by: WrittenBy,
+    pub change_reason: Option<String>,
+    pub created_at: String,
+}
