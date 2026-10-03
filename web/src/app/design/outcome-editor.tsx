@@ -40,10 +40,11 @@ export function OutcomeEditor({ projectId, saved, destination, onCreated }: { pr
   const save = useMutation({
     mutationFn: (body: DesignEdit) => editDesign(projectId, body),
     onSuccess: async () => {
-      attempt.current = null; setConflict(false)
       await client.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
-      if (!base) { onCreated?.(); return }
+      if (!base) { attempt.current = null; setConflict(false); onCreated?.(); return }
       const view = await client.fetchQuery({ ...outcomeQuery(projectId, id), staleTime: 0 })
+      // A failed follow-up read must still let Save replay the committed edit.
+      attempt.current = null; setConflict(false)
       setBase(view); setDraft(view.outcome.content); setLinked(view.plans); setParts(view.parts); setMoving(false); setBefore('')
     },
     onError: e => {
