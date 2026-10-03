@@ -255,9 +255,10 @@ version numbers and one Draft per contract are unique. Storage refuses edits
 to Agreed contract versions and Frozen bindings, including direct row writes.
 Hierarchy acyclicity is checked in the same serialized write as a move.
 
-Migration numbers are allocated in the implementation plan together with
-§16.9's unshipped migration. If numbering changes, amend that owner before
-implementation; do not invent a placeholder migration or silently reuse it.
+The Stage 1 implementation plan allocates its migrations. §16.9 owns the
+following delivery order for 1b and Stage 2 agreements; their separate plans
+allocate migrations in that order. If unshipped numbering changes, amend
+that owner before implementation; do not create a placeholder or reuse a number.
 Test the migration first on a copy of the dev database. This design work does
 not open, migrate or modify Mohammed's real database.
 

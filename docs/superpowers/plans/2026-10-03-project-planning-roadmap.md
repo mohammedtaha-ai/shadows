@@ -74,11 +74,12 @@ the other plan's latest version. §18's agreement bindings name an exact
 contract version. The two relations must not be conflated.
 
 Deliver the remaining §16 1b work as a separately scoped plan/PR in Stage 2,
-with §16 owning its checks and graph. It is not a hidden prerequisite for
-creating a project part or agreeing an API contract. Allocate the migrations
-for both scopes together before implementation; amend §16.9 in place if its
-unshipped migration numbering changes. Never create unused schema merely to
-reserve a number.
+with §16 owning its checks and graph. Stage 2 delivery starts with that PR,
+then delivers shared API agreements in their own scope. §16.9 owns the
+migration sequence: Stage 1 uses 0013–0015, 1b ships 0016, and agreements start
+at 0017. This orders schema delivery; the two relation kinds retain their
+independent semantics. Amend §16.9 in place if unshipped numbering changes.
+Never create unused schema merely to reserve a number.
 
 ## Stage exits
 

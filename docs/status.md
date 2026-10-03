@@ -189,9 +189,10 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 1. **Review the project planning draft:** the planning branch is
    `codex/shared-contracts-planning`. The [full delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
    and [§18 draft](./superpowers/specs/2026-10-03-project-planning-workspace-design.md)
-   are written. The next artifact after review is the detailed Stage 1 plan.
-   No product code, implementation plan or new runtime validation is recorded
-   for this expansion.
+   are written, together with the [Stage 1 implementation plan](./superpowers/plans/2026-10-03-planning-workspace-stage-1.md).
+   Review the spec and plan, then select the execution method before product
+   edits. The plan has not been executed; no product implementation or new
+   runtime validation is recorded for this expansion.
 2. **§16 1b** still needs its separately scoped implementation plan. Its place
    in delivery is recorded in the roadmap above. §17 remains a draft for later
    task contracts and execution evidence; the executive manager needs its

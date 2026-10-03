@@ -365,8 +365,10 @@ The migration is run first on a copy of Mohammed's dev database and checked:
 every version is in a plan, and none is lost.
 
 **Migration 0016 (1b, unshipped):** one table for a link whose parent is in another plan.
-The Stage 1 planning-workspace plan allocates 0013–0015 before this feature;
-no placeholder migration is created to reserve 0016.
+The Stage 1 planning-workspace plan allocates 0013–0015. Stage 2 delivers
+1b with 0016 first, then shared API agreements with migrations starting at
+0017. Each migration ships with its feature; no placeholder is created to
+reserve a number.
 It holds the version and task the link starts from, the target plan and task
 number, the kind, the label and the waiting items, with §13.3's rules on
 them. Triggers refuse an insert, update or delete of such a link on a `Frozen`

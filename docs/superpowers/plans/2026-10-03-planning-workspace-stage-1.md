@@ -119,7 +119,7 @@ Association arrays are unique and ordered by stable IDs. No automatic completion
 
 ### Persistence and replay
 
-- Allocate `0013_design_vision.sql`, `0014_design_parts.sql`, `0015_design_outcomes.sql` to Tasks 1–3. §16's unshipped 1b becomes **0016**; Stage 2 agreements take the next available migration in their own plan. No placeholder 0016 is created here.
+- Allocate `0013_design_vision.sql`, `0014_design_parts.sql`, `0015_design_outcomes.sql` to Tasks 1–3. §16.9 owns the following Stage 2 order: deliver 1b with **0016**, then shared API agreements starting at **0017**. Their separate plans allocate their feature migrations in that order. No placeholder 0016 is created here.
 - Task 1 adds `design_workspace` (project, workspace revision, vision content/revision) and `design_command_result` (stable result ID, project, immutable result JSON). Lazy initialize the workspace on its first write; reads before it exists return the empty view only for a live project.
 - Use `user_command`, kind `DesignEdit`, schema version 1, fingerprint over project, expected revision and normalized ordered ops. Scope is Project. Command replay returns its immutable saved `DesignChange`, even after later edits, without another event.
 - Use existing `Storage::write_txn`, `classify`, `record_command`, `append_event`. Replay classification precedes live-state validation; a new command checks live project, expected revision and all references in the same transaction. Any invalid op rolls everything back.
