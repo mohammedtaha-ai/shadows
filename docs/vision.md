@@ -236,14 +236,86 @@ polluted or compacted (§1.3): the work moves to a fresh conversation without
 losing what was decided.
 
 **Today:** [§16 1a](./superpowers/specs/2026-10-01-project-plans-design.md)
-is implemented on `plans/project-plans`: plans belong to projects and any
+is on `main`: plans belong to projects and any
 conversation on a project can continue them. Versions retain their writers
 and, after v1, their reasons. Archive, Continue this plan and conversation
 deletion are built; deleting a conversation keeps its plans and history.
 The links between plans and project map are 1b, still to come. Decision
 records and clarifying messages do not exist yet; §17 drafts the next part.
 
-## 9. Open questions
+## 9. The roadmap, shared contracts, and the effect of a change
+
+Mohammed told this on 2026-10-03, while discussing §16 1b. This extends §2's
+planning idea and §7's contract coordination to personal projects too.
+
+**From the whole project into its parts:**
+
+- The person starts with the project's purpose, intended users and roadmap.
+  Planning agrees the languages, technologies, responsibilities and the
+  reasons for those choices. Details are refined as the parts are designed.
+- Each part has its own plan: for example, Backend and Frontend. Each can
+  deepen its design and choose its internal structure within the agreed
+  boundaries.
+- Between them is a visible collection of shared contracts, grouped by
+  capability: login, products, payments, and so on. The person sees Frontend
+  on the left, the contracts in the middle, and Backend on the right, and can
+  navigate from a contract into either side's work.
+
+**A shared contract says what crosses the boundary:**
+
+- Its purpose, inputs, outputs, errors and externally visible behavior.
+- Which part provides it, which parts consume it, and the tasks on each side.
+- Its agreed version, the reasons for changes, and the implementation and
+  verification evidence when those exist.
+- Whether it is proposed, agreed, implemented or verified. Agreement lets a
+  consumer plan against the contract; implementation and verification establish
+  what actually works. Archiving a plan proves none of these.
+- Each consumer names the contract version it uses, so a proposed or newly
+  agreed version does not silently replace an existing agreement.
+
+**Discoveries travel between plans through the contract:**
+
+Backend may discover that GitHub login is needed while designing its work.
+Frontend may discover that the agreed response does not support the interaction
+it needs. Either side proposes the change with its reason and intended behavior.
+Shadows shows the affected providers, consumers, tasks and checks before the
+change is adopted, and notifies the affected side with the actual difference.
+Delivery of a notification is distinct from that side adopting the new version.
+
+- If the affected work is still a Draft, the proposed revision can amend it
+  after checking its other dependencies.
+- An approved plan keeps its old agreement; adopting a change creates a new
+  plan version.
+- Running work needs an explicit choice about stopping or continuing the
+  unaffected part. Implemented work needs a follow-up task, compatibility
+  checks and, where necessary, a migration path.
+- Registered dependencies explain known effects. Code references and review
+  help discover dependencies that were not recorded; Shadows does not claim
+  that its graph knows every effect.
+
+**Independence inside a part:** Backend planning separates application rules,
+storage queries and schema migrations by responsibility. The aim is to contain
+changes behind explicit boundaries. Changing data meaning can still affect
+several layers, and those effects must be shown rather than assumed away.
+
+**The long-term view:** selecting a capability reveals its purpose, decisions,
+contract versions, plans, tasks, code and verification. A fresh agent receives
+its task's relevant agreements and dependencies, with their provenance, instead
+of reconstructing the whole project. This connects to §3's waiting checks and
+§5's escalation when implementation finds a wrong assumption.
+
+**What it solves:** different plans do not silently work from different
+agreements (§1.1), and a new session retains why an interface exists and what
+depends on it (§1.2). The person can see the consequences of a change before
+adopting it.
+
+**Today:** this is an agreed product direction, not an implemented subsystem or
+an accepted technical specification. §16 1b specifies task links and a project
+map; it does not yet specify shared contracts with their own identity and
+versions. §17 drafts task contracts and execution evidence. The ownership,
+adoption rules and first runnable slice for shared contracts still need design.
+
+## 10. Open questions
 
 Each one closes when the part it belongs to becomes a milestone.
 
