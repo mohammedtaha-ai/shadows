@@ -12,7 +12,16 @@ impl Design {
         parent: Option<&PartId>,
         after: Option<&PartId>,
     ) -> Result<PartPage, CoreError> {
-        Ok(self.storage.design_parts(project, parent, after).await?)
+        self.storage
+            .design_parts(project, parent, after)
+            .await
+            .map_err(|error| match error {
+                crate::db::StorageError::Constraint(message) => CoreError::Refused {
+                    code: ErrorCode::InvalidCommand,
+                    message,
+                },
+                other => other.into(),
+            })
     }
 }
 

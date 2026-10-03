@@ -29,6 +29,17 @@ async fn part_routes_paginate_and_refuse_invalid_references() {
     let children = app::call(&app, "GET", &format!("{parts}?parent={a}"), None).await;
     assert_eq!(children.0, 200);
     assert_eq!(children.1["items"][0]["id"], b);
+    let invalid_cursor =
+        app::call(&app, "GET", &format!("{parts}?parent={a}&after={a}"), None).await;
+    assert_eq!(invalid_cursor.0, 422);
+    assert_eq!(invalid_cursor.1["code"], "INVALID_COMMAND");
+    assert!(invalid_cursor.1["message"].as_str().unwrap().contains(&a));
+    assert!(
+        invalid_cursor.1["message"]
+            .as_str()
+            .unwrap()
+            .contains("cursor")
+    );
     let detail = app::call(&app, "GET", &format!("{parts}/{b}"), None).await;
     assert_eq!(detail.1["ancestors"][0]["id"], a);
     assert_eq!(detail.1["part"]["content"]["title"], "قسم");

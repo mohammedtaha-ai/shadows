@@ -60,6 +60,7 @@ functions:
       signature: "(&self, project: &ProjectId, id: &PartId) -> Result<PartView, CoreError>"
     parts:
       signature: "(&self, project: &ProjectId, parent: Option<&PartId>, after: Option<&PartId>) -> Result<PartPage, CoreError>"
+      # A cursor outside the requested parent is InvalidCommand with cursor details.
     edit:
       signature: "(&self, command_id: String, project: &ProjectId, expected_revision: i64, ops: Vec<DesignOp>) -> Result<DesignChange, CoreError>"
       # DesignEdit, principal User/local, schema 1, Project scope. Fingerprint
@@ -128,7 +129,7 @@ tests:
   - name: part_pages_are_bounded_and_replay_is_immutable
     checks: 51 siblings in two bounded pages, durable replay, removed-project refusal.
   - name: part_routes_paginate_and_refuse_invalid_references
-    checks: HTTP child query translation, detail JSON, invalid-command cycle details, ID-only event.
+    checks: HTTP child query translation, detail JSON, invalid-command cursor/cycle details, ID-only event.
   - name: vision_edit_is_atomic_replayable_and_revision_checked
     checks: Lazy zero, exact text, durable replay, competing revisions, removed project, identifier event.
   - name: vision_routes_round_trip_conflict_and_preserve_conversations

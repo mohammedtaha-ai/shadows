@@ -57,6 +57,7 @@ it('refreshes retained plan attribution when its writer is deleted', async () =>
   }
   const a = (app = await startApp('/projects/p1/workflows/w1', table))
   await until(() => a.text().includes('from Login'))
+  await until(() => a.button('Conversation options: Conversation 1') !== undefined)
   await choose(a, 'Conversation options: Conversation 1', 'Delete')
   await until(() => a.button('Delete') !== undefined)
   await act(async () => a.button('Delete')?.click())
