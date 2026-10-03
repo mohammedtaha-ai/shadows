@@ -253,13 +253,58 @@ planning idea and §7's contract coordination to personal projects too.
 - The person starts with the project's purpose, intended users and roadmap.
   Planning agrees the languages, technologies, responsibilities and the
   reasons for those choices. Details are refined as the parts are designed.
-- Each part has its own plan: for example, Backend and Frontend. Each can
+- Each part can have its own plans: for example, Backend and Frontend. Each can
   deepen its design and choose its internal structure within the agreed
   boundaries.
-- Between them is a visible collection of shared contracts, grouped by
-  capability: login, products, payments, and so on. The person sees Frontend
-  on the left, the contracts in the middle, and Backend on the right, and can
-  navigate from a contract into either side's work.
+- **The user chooses the structure and its depth.** Backend and Frontend are
+  examples, not required top-level sections. A small project may have two
+  parts; another may divide by domains, systems, services, layers, modules
+  and entities, using its own names and as much detail as is useful. Templates
+  offer a starting point without fixing the hierarchy.
+- Between the parts is a visible collection of shared contracts, grouped by
+  capability: login, products, payments, and so on. A frontend/backend view
+  places Frontend on the left, the contracts in the middle and Backend on the
+  right. Other project structures show their providers and consumers. The
+  person can navigate from a contract into the work on either side.
+
+**The roadmap connects outcomes to the structure:**
+
+- The vision states why the project exists, its users, goals and boundaries.
+  The project map describes its parts. Roadmap stages describe the outcomes
+  to deliver, and can be divided into smaller outcomes when useful.
+- Each stage refers to the parts, contracts and plans needed to deliver its
+  outcome. A login stage may span an Auth Service, a Web page and user data;
+  those elements retain their identities in the project map.
+- The user chooses a primary organization for navigating the map. Domains
+  are a useful starting template for a product with many capabilities; a
+  smaller project can start with Backend and Frontend. Neither ordering is
+  mandatory.
+- Architecture, domain, application and operations views can regroup the same
+  elements. A shared element is referenced from those views rather than copied
+  into several independent sections.
+
+**Navigating the design:**
+
+- A part has an identity, purpose and design. Its plans describe work on it;
+  completing or archiving a plan does not erase the part from the project.
+- The person can descend from the overview into a specific part and return
+  through a visible path. Each level shows its immediate contents and the
+  relationships relevant there, rather than drawing every detail at once.
+- The view suits the content: a schema has a table relationship diagram;
+  an interface has flows, pages and components. The diagram and the detail
+  view describe the same design, with proposed and implemented information
+  distinguished.
+
+**Planning at the chosen scope:** the person can plan a whole part or a
+specific element, or a roadmap stage spanning several parts. The person
+explicitly selects the planning scope; browsing a related part or contract
+does not silently change it. The Planner needs a bounded overview of the
+project, the relevant decisions from enclosing scopes, the selected element's
+details and its relevant contracts and dependencies. Other details remain available on
+request. Shared decisions are recorded at their appropriate scope instead of
+being copied into every child. Context sources and their versions must be
+visible; selecting a smaller scope alone does not prove token savings, which
+need measurement against the actual session history and requests.
 
 **A shared contract says what crosses the boundary:**
 
