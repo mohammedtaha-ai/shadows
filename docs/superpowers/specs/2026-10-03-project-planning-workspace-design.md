@@ -30,6 +30,12 @@ screen-flow editors, alternative grouping views, executors, verification and
 the executive manager are later stages. The first release neither runs tasks
 nor labels a participant's implementation as verified.
 
+The workspace preserves the planning knowledge that later feeds focused
+executors. §17.5 owns their bounded packets and additional questions; vision
+§5 describes the agentic manager above them. The roadmap proves execution and
+manager escalation before specialized diagrams. This section adds neither a
+manager service nor new approval authority for agents.
+
 ## 18.2 Identity and organization
 
 - A project part has a stable id, project, title, responsibility, design text
@@ -48,6 +54,9 @@ nor labels a participant's implementation as verified.
 - Vision, parts and outcomes have revisions. Their edits and moves require
   the expected revision and return a conflict instead of overwriting another
   writer. References name identities rather than titles or breadcrumb strings.
+  Stage 1 uses one workspace revision as the atomic edit-batch precondition,
+  plus revisions on affected elements. An unrelated intervening workspace
+  edit can therefore cause a conflict; finer concurrent editing is deferred.
 - A plan can be associated with several relevant parts and outcomes. It
   retains its existing id and project ownership. Associations organize work;
   they do not alter the content of its old versions. Existing plans start

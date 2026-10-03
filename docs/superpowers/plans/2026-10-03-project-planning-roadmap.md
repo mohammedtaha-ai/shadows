@@ -29,12 +29,20 @@ The roadmap does not reproduce their decisions.
 | 1. Planning workspace | Write a vision, create nested parts, attach existing plans, build a stage from outcomes and navigate its related work | §18; existing §16 plans |
 | 2. Shared API agreements | Link two plans' tasks to one API contract; propose a revision, inspect impact, approve it and track adoption | §18; Stage 1 |
 | 3. Planner context | Start planning at an explicit part or stage with bounded, attributable context; inspect what was included | Extend §13's session owner and specify the planning context compiler after Stages 1–2 |
-| 4. Diagrams and views | Explore structured schema or screen design and regroup the same elements by architecture or domain | A later owner spec, using Stage 1 identities; Schema is a diagram milestone, not a new mandatory project hierarchy |
-| 5. Executors and verification | Run one bounded task serially, retain its exact inputs, inspect changes and verify the result | §17 after its review; Stages 2–3; actual adapter scope enforcement and person authority |
-| 6. Executive manager | Route executor problems, assess affected work, arrange stops or replanning and escalate under explicit authority | A later owner spec using Stage 5 evidence; Mohammed still needs to describe the manager fully |
+| 4. Executors and verification | Configure an executor and critic, run one bounded task serially, resolve a needed symbol and review actual results | §17 execution and §19 profiles/critic dispatch after review; Stages 2–3; adapter scope enforcement and person authority |
+| 5. Executive manager and specialists | Investigate problems, direct repairs, dispatch selected specialists; configure extensions and additional tested provider connections | §19 profiles/extensions plus a later manager authority owner; Stage 4 evidence; separate runnable slices for manager, tools and providers |
+| 6. Diagrams and views | Explore structured schema or screen design and regroup the same elements by architecture or domain | A later owner spec using Stage 1 identities; specialized diagrams are not an execution prerequisite |
 
 Each stage ends with a Windows browser trial and a dated evidence record.
 Readiness is measured on the running product, separately from automated tests.
+
+**2026-10-03 refinement:** the core value is reusable understanding followed
+by focused execution. Prove that loop before specialized visual editors.
+Stage 1 retains simple map/navigation views. Preparation and coordination cost
+count toward success. The person configures many roles but runs only tasks
+that are ready and safe together; no large simultaneous swarm is required. The dated
+[research record](../../evidence/2026-10-03-focused-agent-orchestration.md)
+separates external reports and inspected code from unmeasured expectations.
 
 ## First release: the smallest complete contract-change journey
 
@@ -84,30 +92,46 @@ reserve a number.
   sources and revisions; a changed ancestor invalidates a reused summary;
   a too-large packet is refused or explicitly narrowed. Compare actual token
   use for a focused case and a whole-project case.
-- **4:** the diagram and detail editor describe one design; the same element
+- **4:** write boundaries are enforced before a run; a wrong-plan report
+  cannot rewrite a Frozen plan; execution evidence and review remain distinct;
+  stop/retry/crash paths are demonstrated for the selected adapter. Demonstrate
+  a targeted lookup, an unresolved dependency escalation and rejection of a
+  stale location. Compare equivalent accepted work with and without prepared
+  context, including preparation, retries, review, time and human corrections.
+  A Dashboard-selected critic reviews the attempt's actual result, and failed
+  review reaches the person/Planner until the manager exists (§19.3).
+- **5:** a proposed contract revision does not indiscriminately stop work;
+  affected runs have an explicit decision, reason and authority; escalation
+  and recovery are demonstrated with a real executor. Show one local repair
+  resolved by the manager, one plan-level issue resolved through the Planner,
+  and one reserved decision reaching the person. Budget exhaustion stops the
+  repair loop; restart neither loses a decision nor duplicates a dispatch.
+  Demonstrate a selected researcher/library-reviewer profile, one plugin and
+  one MCP connection enabled for a role, and one additional tested provider
+  connection without mixing profile configuration or leaking credentials (§19).
+- **6:** the diagram and detail editor describe one design; the same element
   keeps its identity in different views; intended design and observed code or
   schema are distinguishable. No inferred match is presented as proof.
-- **5:** write boundaries are enforced before a run; a wrong-plan report
-  cannot rewrite a Frozen plan; execution evidence and review remain distinct;
-  stop/retry/crash paths are demonstrated for the selected adapter.
-- **6:** a proposed contract revision does not indiscriminately stop work;
-  affected runs have an explicit decision, reason and authority; escalation
-  and recovery are demonstrated with a real executor.
 
 ## Work deliberately left for later designs
 
-Parallel writes, team accounts, a company server, remote execution and
-multiple executor vendors need their own scope and proof. Supporting arbitrary
-project structure does not mean those capabilities exist in Stage 1.
+Parallel writes, team accounts, a company server and remote execution need
+their own scope and proof. §19 introduces a staged path for profiles, extensions
+and additional provider connections; it promises no universal CLI/model
+compatibility. These capabilities do not exist merely because Stage 1 allows
+arbitrary project structure.
 
-The manager's authority, agreement deprecation, automated compatibility
+The manager's enforceable authority policy, agreement deprecation, automated compatibility
 classification and specialized diagrams are decided in their stage owners,
 not in a detailed task list written prematurely here.
 
 ## Next artifact
 
-Review the written §18 draft first. Then write the detailed implementation
-plan for Stage 1, with exact code ownership, migration allocation, public
+The [Stage 1 implementation plan](./2026-10-03-planning-workspace-stage-1.md)
+is now written for review; it has not been executed.
+
+Review §18 together with the Stage 1 plan before choosing its execution
+method. The plan specifies code ownership, migration allocation, public
 interfaces, focused tests and the browser acceptance path. Stage 2 follows
-the demonstrated Stage 1 baseline. The later rows above remain the complete
-roadmap until their technical designs are ready.
+the demonstrated Stage 1 baseline; later stages keep their separate design
+and implementation reviews.

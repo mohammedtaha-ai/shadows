@@ -364,7 +364,9 @@ until then those views refetch only after the person's own actions.
 The migration is run first on a copy of Mohammed's dev database and checked:
 every version is in a plan, and none is lost.
 
-**Migration 0013 (1b):** one table for a link whose parent is in another plan.
+**Migration 0016 (1b, unshipped):** one table for a link whose parent is in another plan.
+The Stage 1 planning-workspace plan allocates 0013–0015 before this feature;
+no placeholder migration is created to reserve 0016.
 It holds the version and task the link starts from, the target plan and task
 number, the kind, the label and the waiting items, with §13.3's rules on
 them. Triggers refuse an insert, update or delete of such a link on a `Frozen`
@@ -407,7 +409,7 @@ this plan"). It joins the fingerprint, as `focus` does (§13.10).
 
 **1b:**
 
-7. Migration 0013, links between plans in `plan_edit` and `workflow_get`,
+7. Migration 0016, links between plans in `plan_edit` and `workflow_get`,
    and the approval check.
 8. The plan graph's nodes for other plans.
 9. The project map.

@@ -38,26 +38,49 @@ These are from Mohammed's experience across many projects with AI agents
 
 ## 2. The core idea: Shadows knows the project, and agents ask it
 
+**Clarification (Mohammed, 2026-10-03):** pay for project understanding in
+planning, preserve it with its sources, and reuse the relevant part for each
+task. The executor does not need the whole plan or the Planner's conversation.
+It needs enough purpose, contracts, constraints and code locations to do its
+own job correctly. Success means less repeated discovery without hiding
+information necessary for correctness.
+
 1. **Clean planning from the start.** Before any code, the plan settles:
    - the contracts;
    - the languages;
    - the project structure;
-   - the functions, and what each one must do.
+   - the functions needed for the next executable slice and what they must do.
+     Future work can stay coarse; evidence can require replanning.
 2. **The plan becomes a clean workflow.** Every task is bounded, and it is known
    exactly what the task is.
 3. **An executor works on its task without wandering:**
    1. Shadows shows it the project's overall structure.
    2. The task says which functions it must write and what they do.
-   3. The executor writes them without exploring the rest of the code.
+   3. The executor implements within that scope without routinely exploring
+      the rest of the code. Local implementation choices remain its job.
 4. **"Where is X?"** When the executor needs to know how another function
    works, it asks Shadows. Shadows answers with the **name, file and line**,
    never the code. The executor opens that exact place itself if it needs to.
 5. This holds on a project with earlier tasks done and code already written,
    not only on an empty one.
 
-**What it solves:** the agent does not miss or duplicate code (§1.1), because
-it asks before it writes. It does not re-read the project every session
-(§1.2). And its context stays small and clean (§1.3).
+**How a focused executor asks:** start with the task's symbol locations and
+relevant contracts. If information is missing, ask about a named dependency,
+resolve its definition, then read the smallest useful surrounding region,
+including types or tests when needed. A line number is a navigation hint at a
+source revision, not a permanent identity. A moved or ambiguous symbol needs
+resolution; it never licenses a blind edit at an old line. §17.5 owns the
+packet and additional-read rules. No routine repository crawl or complete
+parent transcript belongs in a task's context.
+
+The current tree-sitter index finds names; it does not prove semantic caller
+relationships. A language server such as rust-analyzer may resolve those
+questions when available. Missing semantic support must remain visible.
+A new LSP integration needs its own §15 design.
+
+**What it aims to solve:** fewer missed or duplicated implementations (§1.1),
+less repeated discovery (§1.2), and focused context (§1.3). Asking an index
+reduces these risks; it cannot guarantee their absence.
 
 **Today:** Milestone 2 has the planning half. The Planner writes a durable plan
 of tasks and links, with versions, Approve and freezing. Tasks do not yet carry
@@ -132,7 +155,10 @@ is changing, must enter this escalation path. A report names the task, the
 contract version it was working against, the obstacle and the available
 evidence. The manager's full responsibilities still need their own design.
 
-The report climbs only as far as it has to:
+The person and Planner own direction. The agentic manager understands the
+approved plan, contracts and work states; executors receive only their tasks'
+relevant context. Reports climb only as far as necessary, and the resulting
+instruction comes back through the manager to the affected executor:
 
 ```text
 Executors (one agent per task)
@@ -156,8 +182,29 @@ Mohammed (the user)
 - **Planner:** accepts the manager's proposal, amends it, or chooses a better
   one. It changes the plan as a new version, as Milestone 2's v1 → v2 does. When
   the problem is very large, it stops the work and alerts the user.
-- **The user** hears only about what is truly large. Everything else is settled
-  below.
+- **The user** hears about reserved decisions and material uncertainty.
+  Routine work is settled below under the authority already granted.
+
+**The manager exercises judgment.** It investigates a bounded problem and can
+direct a fix that preserves the approved behavior, scope and constraints.
+It does not merely forward every question, and it does not need every worker's
+raw transcript. It reads durable task state, relevant contracts and concise
+evidence, fetching details only when necessary. Routine lookups need no manager
+round trip when the executor already has permission to make them.
+
+"Heavy" is about impact and authority, not only model confidence. Changing a
+shared contract, crossing ownership, exhausting the repair budget, or lacking
+evidence goes to the Planner. Product direction, destructive changes and
+decisions reserved by the person's policy go to the person. The Planner may
+solve the technical question without asking the person again when authority
+already covers it. Existing person-only plan, decision and agreement approval
+rules still apply; autonomous approval requires an explicit later policy.
+The manager cannot rewrite a frozen task or extend its own permissions.
+
+The later manager design must bound cost, retries and escalation cycles and
+recover durable decisions after interruption. Start with one manager and one
+executor, then allow a small number of non-conflicting tasks together. The
+number of configured specialist roles is independent of concurrent runs.
 
 A good plan also knows where it is unsure. It marks the unknowns and probes
 them before coding, as Milestone 2's Task 0 probed MCP and found the frozen
@@ -169,31 +216,43 @@ do this itself.
 
 ## 6. Executors and their environment
 
-- **The executor is chosen per task.** For example, MiniMax runs task 4 and
-  Codex runs task 7.
-- **Tasks that do not conflict run at the same time, in the same project
-  folder, without worktrees.** The plan knows which files and functions each
-  task owns, so Shadows can judge which tasks conflict.
-- **How each executor runs:**
-  - Claude and Codex through their own CLIs, with the login already on the
-    machine. Shadows never touches their OAuth tokens. This is how Shadows
-    runs Claude today.
-  - Everything else, such as MiniMax, through
-    [jcode](https://github.com/1jehuang/jcode), with an API key chosen per
-    executor.
+**Clarification (Mohammed, 2026-10-03):** a configurable team of roles, not a
+target of 50 simultaneous agents. From the Dashboard the person adds an agent,
+writes its instructions, chooses its model/tools, and decides when it works.
+Examples are executor, critic, library reviewer and web researcher. A profile
+can be reused across tasks; it is not a permanently running conversation.
 
-**jcode, as read on 2026-09-25:**
-- Rust, MIT, about 20k stars, actively developed.
-- Supports MiniMax by name: `jcode login --provider minimax` or
-  `MINIMAX_API_KEY`. Also Gemini, Ollama and OpenAI-compatible endpoints.
-- Runs non-interactively (`jcode run "…"`) and as a server (`jcode serve`).
-- Supports MCP, so a jcode executor could ask Shadows "Where is X?" over the
-  same server.
-- **Does not mention ACP**, the protocol Shadows drives Claude through (send a
-  turn, stream the answer, stop, resume). Its server protocol is internal and
-  undocumented, and the docs describe a Unix socket.
+- **After execution, the critic checks the result against the task.** It sees
+  the contract, actual changes and test evidence, and tells the manager what
+  failed and why. The manager arranges repair or escalates to the Planner;
+  code merely being written does not mean the task achieved its purpose.
+- **Specialists work when needed.** A library reviewer checks relevant library
+  choices and usage; a researcher returns sourced findings for a question.
+  Neither needs the whole project or all tools. They can run on demand or by
+  an explicit workflow rule, rather than every role running after every task.
+- **Extensions are managed in the Dashboard.** Add selected skills, agent
+  templates, plugins and MCP connections, then enable them for the relevant
+  roles. A plugin package and an MCP tool server are different things.
+  Importing a marketplace does not load every component into every context.
+- **Role, harness and model are separate choices.** A critic can use a strong
+  model, a bounded executor a cheaper one, through a compatible CLI or adapter.
+  Provider/API-key configurations belong to the selected connection. A key
+  alone does not make a model compatible with Claude Code or another harness;
+  supported combinations and tested experimental combinations stay distinct.
+  CLI sign-in remains CLI-owned; stored configuration holds secret references.
+- **Small, useful concurrency:** two independent tasks may eventually run
+  together. File ownership, shared builds/tests and read dependencies all
+  matter. Initial execution remains serial until the conflict policy is proven.
 
-**Today:** only the Planner runs, and only on Claude Code.
+[§19](./superpowers/specs/2026-10-03-agent-profiles-and-extensions-design.md)
+owns the draft profile, extension and specialist-dispatch semantics. §17 owns
+execution evidence; the manager's full authority/recovery policy remains open.
+`jcode` remains an adapter candidate, not the mandatory route for every other
+provider. Each candidate needs a real tool-call and stop/recovery trial.
+
+**Today:** the inspected path runs the Planner through Claude Code. Configurable
+specialist profiles, extension installation and provider-key routing in the
+Dashboard are proposed, not implemented or tested by this documentation work.
 
 ## 7. Teams and companies — later
 
@@ -381,15 +440,23 @@ covers all six stages. §16 1b's task links retain their own semantics, and
 
 ## 10. Open questions
 
+- **Economics of focused work (§2).** Before expanding executor concurrency,
+  compare the same representative tasks and acceptance checks with ordinary
+  discovery versus prepared task context. Include planning, packet preparation,
+  lookups, manager/reviewer calls, retries, total tokens, elapsed time, defects
+  and human interventions. Separate one-time preparation from reused work;
+  fewer executor tokens alone is not a pass.
+
 Each one closes when the part it belongs to becomes a milestone.
 
 - **Shared-folder parallelism (§6).** Two executors in one folder share builds
   and tests. One may see the other's half-written code and fail for a reason
   that is not its own. In Rust, the `target` directory is locked by one build at
   a time.
-- **Driving jcode (§6).** It has no ACP. A probe must show whether `jcode run`
-  gives output a program can read, and whether it can be stopped and resumed.
-  Whether Codex has a usable ACP adapter also needs checking.
+- **Harness/provider compatibility (§6).** Before enabling each combination,
+  demonstrate structured tool calls, bounded inputs, permissions and recovery.
+  §19 owns connection configuration; selecting an alternative adapter such as
+  jcode still requires evidence of its protocol and lifecycle behavior.
 - **Pending tests (§3).** How a test is marked as waiting on task N, and who
   owns it when it fails after task N completes.
 - **Framework links (§2.4).** "Where is X?" answers from names only (spec

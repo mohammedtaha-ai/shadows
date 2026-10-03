@@ -36,6 +36,7 @@ design-note, and status narratives.
 | §16 | [`2026-10-01-project-plans-design.md`](./2026-10-01-project-plans-design.md) |
 | §17 | [`2026-10-01-task-contracts-and-evidence-design.md`](./2026-10-01-task-contracts-and-evidence-design.md) |
 | §18 | [`2026-10-03-project-planning-workspace-design.md`](./2026-10-03-project-planning-workspace-design.md) — draft for review |
+| §19 | [`2026-10-03-agent-profiles-and-extensions-design.md`](./2026-10-03-agent-profiles-and-extensions-design.md) — draft profiles, specialist dispatch and extensions |
 
 ## Maintenance rules
 
