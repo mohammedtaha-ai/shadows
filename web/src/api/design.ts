@@ -8,6 +8,17 @@ export type VisionContent = components['schemas']['VisionContent']
 export type VisionView = components['schemas']['VisionView']
 export type DesignChange = components['schemas']['DesignChange']
 export type DesignEdit = components['schemas']['DesignEdit']
+export type Part = components['schemas']['Part']
+export type PartContent = components['schemas']['PartContent']
+export type PartView = components['schemas']['PartView']
+export type PartPage = components['schemas']['PartPage']
+
+export function getPart(projectId: string, partId: string): Promise<PartView> {
+  return unwrap(client.GET('/api/projects/{id}/design/parts/{part}', { params: { path: { id: projectId, part: partId } } }))
+}
+export function getParts(projectId: string, parent?: string, after?: string): Promise<PartPage> {
+  return unwrap(client.GET('/api/projects/{id}/design/parts', { params: { path: { id: projectId }, query: { parent, after } } }))
+}
 const client = createClient<paths>({ baseUrl: DAEMON_URL, fetch: (request) => fetch(request) })
 
 export function getVision(projectId: string): Promise<VisionView> {

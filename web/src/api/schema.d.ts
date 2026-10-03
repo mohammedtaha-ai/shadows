@@ -361,6 +361,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/design/parts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["parts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/design/parts/{part}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["part"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/design/vision": {
         parameters: {
             query?: never;
@@ -907,6 +939,11 @@ export interface components {
             harness?: string | null;
             title: string;
         };
+        DesignAnchor: {
+            id: components["schemas"]["PartId"];
+            /** @enum {string} */
+            kind: "Part";
+        };
         DesignChange: {
             /** Format: int64 */
             revision: number;
@@ -921,6 +958,34 @@ export interface components {
             content: components["schemas"]["VisionContent"];
             /** @enum {string} */
             kind: "VisionPut";
+        } | {
+            before?: null | components["schemas"]["PartId"];
+            content: components["schemas"]["PartContent"];
+            id: components["schemas"]["PartId"];
+            /** @enum {string} */
+            kind: "PartCreate";
+            parent?: null | components["schemas"]["PartId"];
+        } | {
+            content: components["schemas"]["PartContent"];
+            id: components["schemas"]["PartId"];
+            /** @enum {string} */
+            kind: "PartPut";
+        } | {
+            before?: null | components["schemas"]["PartId"];
+            id: components["schemas"]["PartId"];
+            /** @enum {string} */
+            kind: "PartMove";
+            parent?: null | components["schemas"]["PartId"];
+        } | {
+            anchor: components["schemas"]["DesignAnchor"];
+            /** @enum {string} */
+            kind: "PlanLinkPut";
+            plan: components["schemas"]["PlanId"];
+        } | {
+            anchor: components["schemas"]["DesignAnchor"];
+            /** @enum {string} */
+            kind: "PlanLinkRemove";
+            plan: components["schemas"]["PlanId"];
         };
         /** @description One directory a person could open or choose. */
         DirectoryEntry: {
@@ -1176,6 +1241,34 @@ export interface components {
         };
         /** Format: uuid */
         OperationId: string;
+        Part: {
+            content: components["schemas"]["PartContent"];
+            id: components["schemas"]["PartId"];
+            /** Format: int64 */
+            ordinal: number;
+            parent?: null | components["schemas"]["PartId"];
+            /** Format: int64 */
+            revision: number;
+        };
+        PartContent: {
+            design: string;
+            kind?: string | null;
+            responsibility: string;
+            title: string;
+        };
+        /** Format: uuid */
+        PartId: string;
+        PartPage: {
+            items: components["schemas"]["Part"][];
+            next?: null | components["schemas"]["PartId"];
+            revision: components["schemas"]["i64"];
+        };
+        PartView: {
+            ancestors: components["schemas"]["Part"][];
+            part: components["schemas"]["Part"];
+            plans: components["schemas"]["PlanId"][];
+            revision: components["schemas"]["i64"];
+        };
         /** @description One stored version of a plan, as a reader sees it now (§13.2). */
         Plan: {
             /**
@@ -1504,6 +1597,8 @@ export interface components {
             /** @enum {string} */
             kind: "external";
         };
+        /** Format: int64 */
+        i64: number;
     };
     responses: never;
     parameters: never;
@@ -2672,6 +2767,95 @@ export interface operations {
                 };
             };
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    parts: {
+        parameters: {
+            query?: {
+                parent?: components["schemas"]["PartId"];
+                after?: components["schemas"]["PartId"];
+            };
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartPage"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    part: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+                /** @description The part */
+                part: components["schemas"]["PartId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartView"];
+                };
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

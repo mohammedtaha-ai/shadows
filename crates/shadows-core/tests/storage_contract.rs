@@ -43,6 +43,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "code_tag",
             "command_record",
             "design_command_result",
+            "design_part",
+            "design_part_plan",
             "design_workspace",
             "draft_intent",
             "durable_event",

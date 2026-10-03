@@ -9,6 +9,28 @@ use crate::events::{Actor, DurableEvent};
 use crate::plans::model::{PlanId, PlanState, PlanVersions, VersionLine, WorkflowId};
 use crate::projects::ProjectId;
 
+/// Design's association check, inside the caller's serialized transaction.
+/// Archived plans remain valid identities; their versions are not touched.
+pub(crate) async fn check_design_plan(
+    conn: &mut SqliteConnection,
+    project: &ProjectId,
+    plan: &PlanId,
+) -> Result<(), StorageError> {
+    let exists: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM plan WHERE project_id=? AND id=?)")
+            .bind(project.as_str())
+            .bind(plan.as_str())
+            .fetch_one(conn)
+            .await?;
+    if exists {
+        Ok(())
+    } else {
+        Err(StorageError::Constraint(format!(
+            "plan {plan} does not belong to project {project}"
+        )))
+    }
+}
+
 impl Storage {
     /// One plan with every version, oldest first (§16.10's GET /api/plans/{id}).
     pub async fn get_plan_versions(&self, plan: &PlanId) -> Result<PlanVersions, StorageError> {

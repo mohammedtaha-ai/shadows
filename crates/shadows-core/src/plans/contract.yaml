@@ -260,6 +260,9 @@ functions:
       # `start_draft` for a project grant: the draft_ref is required and is
       # the command id.
   store:
+    check_design_plan:
+      signature: "(conn: &mut SqliteConnection, project: &ProjectId, plan: &PlanId) -> Result<(), StorageError>"
+      # Transactional identity lookup for Design; no lifecycle/content write.
     # Each write that takes a `Writer` checks it inside its own transaction,
     # through Grants' `check_writer`; `approve_plan` is the person's and
     # takes none.
@@ -323,6 +326,7 @@ enums:
 
 
 shared_in_transaction:
+  check_design_plan: "Design's store (design/store/part_edit.rs): verifies project-qualified plan identity before associating; archived/Frozen plans remain valid and their content is not edited"
   task_of: "Turns' store (turns/store/turn.rs `focused`): start_turn checks a Focus's task belongs to its version inside the turn's own write"
 
 
@@ -503,6 +507,12 @@ obligations:
     tested_by: migration_0012_moves_every_version_into_a_plan
 
 agreements:
+  - between: [check_design_plan, design::edit_design]
+    rule: >
+      Design validates project-qualified plan identities in its own transaction.
+      Archived/Frozen plans remain eligible; Design owns only association rows.
+    holds: true
+    tested_by: part_order_is_stable_across_restart
   - between: [get, get_for]
     must: >
       answer the same Plan for a version the grant's scope covers

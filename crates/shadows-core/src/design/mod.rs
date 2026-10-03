@@ -1,12 +1,16 @@
 //! The project design workspace service (§18.10).
 
 mod model;
+mod parts;
 mod store;
 
 use std::sync::Arc;
 
 use crate::{app::user_command, db::Storage, error::CoreError, projects::ProjectId};
-pub use model::{DesignChange, DesignOp, DesignRevision, VisionContent, VisionView};
+pub use model::{
+    DesignAnchor, DesignChange, DesignOp, DesignRevision, Part, PartContent, PartId, PartPage,
+    PartView, VisionContent, VisionView,
+};
 
 pub struct Design {
     storage: Arc<Storage>,
@@ -26,14 +30,20 @@ impl Design {
         command_id: String,
         project: &ProjectId,
         expected_revision: i64,
-        ops: Vec<DesignOp>,
+        mut ops: Vec<DesignOp>,
     ) -> Result<DesignChange, CoreError> {
-        // Ordered, typed operations normalize object shape without trimming text.
+        parts::normalize(&mut ops)?;
         let params = serde_json::json!({ "project": project, "expected_revision": expected_revision, "ops": ops });
         let ctx = user_command(command_id, "DesignEdit", params);
-        Ok(self
-            .storage
+        self.storage
             .edit_design(&ctx, project, expected_revision, ops)
-            .await?)
+            .await
+            .map_err(|error| match error {
+                crate::db::StorageError::Constraint(message) => CoreError::Refused {
+                    code: crate::ErrorCode::InvalidCommand,
+                    message,
+                },
+                other => other.into(),
+            })
     }
 }

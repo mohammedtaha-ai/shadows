@@ -117,9 +117,12 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/grants/store.rs` | an MCP grant's rows, from issue to revocation | `crates/shadows-core/src/grants/store.rs` |
 | `crates/shadows-core/src/instructions/` | a project's numbered Planner instructions | `crates/shadows-core/src/instructions/mod.rs` |
 | `crates/shadows-core/src/design/` | a project's design workspace | `crates/shadows-core/src/design/mod.rs` |
-| `crates/shadows-core/src/design/model.rs` | the vision value shapes | `crates/shadows-core/src/design/model.rs` |
+| `crates/shadows-core/src/design/model.rs` | the workspace value shapes | `crates/shadows-core/src/design/model.rs` |
+| `crates/shadows-core/src/design/parts.rs` | part service entry points | `crates/shadows-core/src/design/parts.rs` |
+| `crates/shadows-core/src/design/store/parts.rs` | snapshot reads of parts | `crates/shadows-core/src/design/store/parts.rs` |
+| `crates/shadows-core/src/design/store/part_edit.rs` | transactional part mutations | `crates/shadows-core/src/design/store/part_edit.rs` |
 | `crates/shadows-core/src/design/store/` | persistence of the design workspace | `crates/shadows-core/src/design/store/vision.rs` |
-| `crates/shadows-core/src/design/store/vision.rs` | atomic vision edits with immutable replay results | `crates/shadows-core/src/design/store/vision.rs` |
+| `crates/shadows-core/src/design/store/vision.rs` | atomic workspace edits with immutable replay results | `crates/shadows-core/src/design/store/vision.rs` |
 | `crates/shadows-core/src/code/` | the code index of each project's folder | `crates/shadows-core/src/code/mod.rs` |
 | `crates/shadows-core/src/code/model.rs` | the code index types callers meet | `crates/shadows-core/src/code/model.rs` |
 | `crates/shadows-core/src/code/store/` | the code index's SQLite queries | `crates/shadows-core/src/code/store/mod.rs` |

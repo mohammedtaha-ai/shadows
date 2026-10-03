@@ -210,7 +210,7 @@ enums:
 obligations:
   - rule: >
       ProjectDesignChanged is delivered in the project event tail with its
-      revision and changed identifiers, never vision content. Design constructs
+      revision and changed identifiers, never design content. Design constructs
       it with the DurableEvent builders inside its own transaction.
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
   - rule: >

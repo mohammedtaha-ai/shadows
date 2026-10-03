@@ -20,39 +20,96 @@ shapes:
     content: VisionContent
   DesignChange:
     revision: DesignRevision
+  PartContent:
+    title: String
+    responsibility: String
+    design: String
+    kind: Option<String>
+  Part:
+    id: PartId
+    parent: Option<PartId>
+    ordinal: i64
+    revision: i64
+    content: PartContent
+  PartView:
+    revision: DesignRevision
+    part: Part
+    ancestors: Vec<Part>
+    plans: Vec<PlanId>
+  PartPage:
+    revision: DesignRevision
+    items: Vec<Part>
+    next: Option<PartId>
 
 enums:
   DesignOp:
     VisionPut: "{ content: VisionContent }"
+    PartCreate: "{ id: PartId, parent: Option<PartId>, before: Option<PartId>, content: PartContent }"
+    PartPut: "{ id: PartId, content: PartContent }"
+    PartMove: "{ id: PartId, parent: Option<PartId>, before: Option<PartId> }"
+    PlanLinkPut: "{ anchor: DesignAnchor, plan: PlanId }"
+    PlanLinkRemove: "{ anchor: DesignAnchor, plan: PlanId }"
+  DesignAnchor:
+    Part: PartId
 
 functions:
   service:
     vision:
       signature: "(&self, project: &ProjectId) -> Result<VisionView, CoreError>"
+    part:
+      signature: "(&self, project: &ProjectId, id: &PartId) -> Result<PartView, CoreError>"
+    parts:
+      signature: "(&self, project: &ProjectId, parent: Option<&PartId>, after: Option<&PartId>) -> Result<PartPage, CoreError>"
     edit:
       signature: "(&self, command_id: String, project: &ProjectId, expected_revision: i64, ops: Vec<DesignOp>) -> Result<DesignChange, CoreError>"
       # DesignEdit, principal User/local, schema 1, Project scope. Fingerprint
-      # over project, expected_revision and ordered typed ops; no text trimming.
+      # over project, expected_revision and ordered typed ops; trim only titles,
+      # validate client UUID references. Other text remains exact.
   store:
     design_vision:
       signature: "(&self, project: &ProjectId) -> Result<VisionView, StorageError>"
       # One joined read excludes unknown/removed projects; no row initialization.
     edit_design:
       signature: "(&self, ctx: &CommandContext, project: &ProjectId, expected_revision: i64, ops: Vec<DesignOp>) -> Result<DesignChange, StorageError>"
-      # write_txn → classify/replay → live project/workspace revision → last
-      # VisionPut (empty batch refused) → upsert workspace/vision revisions →
+      # write_txn → classify/replay → live project/workspace revision → ordered
+      # ops (empty batch refused) → affected element revisions once per batch →
       # immutable design_command_result → append_event → record_command.
+    design_part:
+      signature: "(&self, project: &ProjectId, id: &PartId) -> Result<PartView, StorageError>"
+      # A read transaction supplies a consistent workspace revision, root-first
+      # iterative ancestor path and plan IDs ordered uniquely by stable id.
+    design_parts:
+      signature: "(&self, project: &ProjectId, parent: Option<&PartId>, after: Option<&PartId>) -> Result<PartPage, StorageError>"
+      # Snapshot reads, 50 children ordered by (ordinal,id); cursor must be
+      # in the requested parent; next names last returned item only if more exist.
 
 agreements:
   - between: [edit_design, events::with_project]
     rule: >
       ProjectDesignChanged is appended inside the edit's transaction and carries
-      only project_id, workspace revision, empty changed_parts/changed_outcomes
-      and vision_changed true. Events reads it on the existing project journal tail.
+      only project_id, workspace revision, changed part IDs, empty changed_outcomes
+      and vision_changed. Events reads it on the existing project journal tail.
     holds: true
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
+  - between: [edit_design, plans::check_design_plan]
+    rule: >
+      Design verifies same-project plan identity in its transaction through
+      Plans' declared lookup. Archived or Frozen plans are valid associations;
+      Design writes only association rows, never plan versions.
+    holds: true
+    tested_by: part_order_is_stable_across_restart
 
 obligations:
+  - rule: >
+      Parts retain identity through rename/reparent; foreign references or cycles
+      roll back the whole batch with no event. Workspace revisions refuse stale
+      concurrent moves; element revisions increment once per affected batch.
+    tested_by: part_moves_keep_identity_and_reject_cycles
+  - rule: >
+      Explicit sibling order survives reopen. A named before sibling must be in
+      the destination, distinct from the moved item. Plan links are unique;
+      archived/Frozen content remains unchanged. Removed projects refuse reads.
+    tested_by: [part_order_is_stable_across_restart, part_pages_are_bounded_and_replay_is_immutable]
   - rule: >
       A replay returns its original revision after later edits. Changed request
       identity conflicts. Competing writes expecting zero produce one success.
@@ -64,6 +121,14 @@ obligations:
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
 
 tests:
+  - name: part_moves_keep_identity_and_reject_cycles
+    checks: Atomic foreign/cycle refusal, identity, ancestor path, text, competing revisions.
+  - name: part_order_is_stable_across_restart
+    checks: Before/order persistence, plan association lifecycle, Frozen content, same-project references.
+  - name: part_pages_are_bounded_and_replay_is_immutable
+    checks: 51 siblings in two bounded pages, durable replay, removed-project refusal.
+  - name: part_routes_paginate_and_refuse_invalid_references
+    checks: HTTP child query translation, detail JSON, invalid-command cycle details, ID-only event.
   - name: vision_edit_is_atomic_replayable_and_revision_checked
     checks: Lazy zero, exact text, durable replay, competing revisions, removed project, identifier event.
   - name: vision_routes_round_trip_conflict_and_preserve_conversations

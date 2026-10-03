@@ -65,6 +65,10 @@ const settingsRoute = createRoute({
 const workspaceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$projectId/workspace',
+  validateSearch: (search: Record<string, unknown>): { view?: 'vision' | 'map'; part?: string } => ({
+    view: search.view === 'map' ? 'map' : 'vision',
+    part: typeof search.part === 'string' ? search.part : undefined,
+  }),
   component: WorkspacePage,
 })
 

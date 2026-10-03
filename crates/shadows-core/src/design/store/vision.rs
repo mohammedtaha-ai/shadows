@@ -1,10 +1,11 @@
-//! Atomic vision writes with immutable command results.
+//! Atomic workspace edits with immutable command results.
 
 use crate::command::CommandContext;
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::design::{DesignChange, DesignOp, VisionContent, VisionView};
 use crate::events::{Actor, DurableEvent};
 use crate::projects::ProjectId;
+use std::collections::BTreeSet;
 
 impl Storage {
     pub async fn design_vision(&self, project: &ProjectId) -> Result<VisionView, StorageError> {
@@ -63,29 +64,42 @@ impl Storage {
                         summary: "project design changed".into(),
                     });
                 }
-                // An ordered batch keeps the last complete put. Empty batches
-                // are refused before any workspace is initialized.
-                let content: VisionContent = ops
-                    .into_iter()
-                    .map(|op| match op { DesignOp::VisionPut { content } => content })
-                    .next_back()
-                    .ok_or_else(|| StorageError::Constraint("a design edit needs an operation".into()))?;
+                if ops.is_empty() { return Err(StorageError::Constraint("a design edit needs an operation".into())); }
                 let next = current.checked_add(1).ok_or_else(|| {
                     StorageError::Unavailable("design revision exhausted".into())
                 })?;
                 sqlx::query(
                     "INSERT INTO design_workspace
                        (project_id, revision, vision_revision, vision_content) VALUES (?,?,?,?)
-                     ON CONFLICT(project_id) DO UPDATE SET revision = excluded.revision,
-                       vision_revision = design_workspace.vision_revision + 1,
-                       vision_content = excluded.vision_content",
+                     ON CONFLICT(project_id) DO UPDATE SET revision = excluded.revision",
                 )
                 .bind(project.as_str())
                 .bind(next)
-                .bind(1_i64)
-                .bind(serde_json::to_string(&content)?)
+                .bind(0_i64)
+                .bind(serde_json::to_string(&VisionContent::default())?)
                 .execute(&mut *conn)
                 .await?;
+                let mut changed=BTreeSet::new();
+                let mut created=BTreeSet::new();
+                let mut vision=None;
+                for op in ops {
+                    match op {
+                        DesignOp::VisionPut{content} => vision=Some(content),
+                        other => {
+                            if let DesignOp::PartCreate{id,..}=&other { created.insert(id.to_string()); }
+                            super::part_edit::apply(conn,&project,other,&mut changed).await?;
+                        }
+                    }
+                }
+                let vision_changed=vision.is_some();
+                if let Some(content)=vision {
+                    sqlx::query("UPDATE design_workspace SET vision_content=?, vision_revision=vision_revision+1 WHERE project_id=?")
+                        .bind(serde_json::to_string(&content)?).bind(project.as_str()).execute(&mut *conn).await?;
+                }
+                for id in changed.iter().filter(|id|!created.contains(*id)) {
+                    sqlx::query("UPDATE design_part SET revision=revision+1 WHERE project_id=? AND id=?")
+                        .bind(project.as_str()).bind(id).execute(&mut *conn).await?;
+                }
                 let change = DesignChange { revision: next };
                 let id = uuid::Uuid::new_v4().to_string();
                 sqlx::query(
@@ -100,7 +114,7 @@ impl Storage {
                     .with_project(&project)
                     .with_payload(serde_json::json!({
                         "project_id": project, "revision": next,
-                        "changed_parts": [], "changed_outcomes": [], "vision_changed": true
+                        "changed_parts": changed, "changed_outcomes": [], "vision_changed": vision_changed
                     }));
                 append_event(conn, &event, &ts).await?;
                 record_command(conn, &ctx, "Project", project.as_str(), "DesignChange", &id, &ts).await?;

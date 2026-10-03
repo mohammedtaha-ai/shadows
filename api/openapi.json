@@ -338,6 +338,28 @@
         ],
         "type": "object"
       },
+      "DesignAnchor": {
+        "oneOf": [
+          {
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/PartId"
+              },
+              "kind": {
+                "enum": [
+                  "Part"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "DesignChange": {
         "properties": {
           "revision": {
@@ -390,6 +412,152 @@
             },
             "required": [
               "content",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "before": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PartId"
+                  }
+                ]
+              },
+              "content": {
+                "$ref": "#/components/schemas/PartContent"
+              },
+              "id": {
+                "$ref": "#/components/schemas/PartId"
+              },
+              "kind": {
+                "enum": [
+                  "PartCreate"
+                ],
+                "type": "string"
+              },
+              "parent": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PartId"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "content",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "content": {
+                "$ref": "#/components/schemas/PartContent"
+              },
+              "id": {
+                "$ref": "#/components/schemas/PartId"
+              },
+              "kind": {
+                "enum": [
+                  "PartPut"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "content",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "before": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PartId"
+                  }
+                ]
+              },
+              "id": {
+                "$ref": "#/components/schemas/PartId"
+              },
+              "kind": {
+                "enum": [
+                  "PartMove"
+                ],
+                "type": "string"
+              },
+              "parent": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PartId"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "anchor": {
+                "$ref": "#/components/schemas/DesignAnchor"
+              },
+              "kind": {
+                "enum": [
+                  "PlanLinkPut"
+                ],
+                "type": "string"
+              },
+              "plan": {
+                "$ref": "#/components/schemas/PlanId"
+              }
+            },
+            "required": [
+              "anchor",
+              "plan",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "anchor": {
+                "$ref": "#/components/schemas/DesignAnchor"
+              },
+              "kind": {
+                "enum": [
+                  "PlanLinkRemove"
+                ],
+                "type": "string"
+              },
+              "plan": {
+                "$ref": "#/components/schemas/PlanId"
+              }
+            },
+            "required": [
+              "anchor",
+              "plan",
               "kind"
             ],
             "type": "object"
@@ -1160,6 +1328,127 @@
       "OperationId": {
         "format": "uuid",
         "type": "string"
+      },
+      "Part": {
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/PartContent"
+          },
+          "id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "ordinal": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "parent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PartId"
+              }
+            ]
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "ordinal",
+          "content"
+        ],
+        "type": "object"
+      },
+      "PartContent": {
+        "properties": {
+          "design": {
+            "type": "string"
+          },
+          "kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "responsibility": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "responsibility",
+          "design"
+        ],
+        "type": "object"
+      },
+      "PartId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "PartPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Part"
+            },
+            "type": "array"
+          },
+          "next": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PartId"
+              }
+            ]
+          },
+          "revision": {
+            "$ref": "#/components/schemas/i64"
+          }
+        },
+        "required": [
+          "revision",
+          "items"
+        ],
+        "type": "object"
+      },
+      "PartView": {
+        "properties": {
+          "ancestors": {
+            "items": {
+              "$ref": "#/components/schemas/Part"
+            },
+            "type": "array"
+          },
+          "part": {
+            "$ref": "#/components/schemas/Part"
+          },
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/PlanId"
+            },
+            "type": "array"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/i64"
+          }
+        },
+        "required": [
+          "revision",
+          "part",
+          "ancestors",
+          "plans"
+        ],
+        "type": "object"
       },
       "Plan": {
         "description": "One stored version of a plan, as a reader sees it now (§13.2).",
@@ -2106,6 +2395,10 @@
             "type": "object"
           }
         ]
+      },
+      "i64": {
+        "format": "int64",
+        "type": "integer"
       }
     }
   },
@@ -3611,6 +3904,143 @@
             "description": "REVISION_CONFLICT or COMMAND_CONFLICT"
           },
           "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/projects/{id}/design/parts": {
+      "get": {
+        "operationId": "parts",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parent",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PartId"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PartId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartPage"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/projects/{id}/design/parts/{part}": {
+      "get": {
+        "operationId": "part",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "The part",
+            "in": "path",
+            "name": "part",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PartId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartView"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
             "content": {
               "application/json": {
                 "schema": {

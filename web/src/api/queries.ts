@@ -1,7 +1,7 @@
 // One job: the TanStack Query identity of each piece of daemon state.
 
 import { queryOptions } from '@tanstack/react-query'
-import { getVision } from './design'
+import { getPart, getParts, getVision } from './design'
 import {
   getCodeSettings,
   getCodeStatus,
@@ -127,6 +127,13 @@ export function visionQuery(projectId: string) {
     queryKey: ['projects', projectId, 'design', 'vision'],
     queryFn: () => getVision(projectId),
   })
+}
+
+export function partQuery(projectId: string, partId: string) {
+  return queryOptions({ queryKey: ['projects', projectId, 'design', 'part', partId], queryFn: () => getPart(projectId, partId) })
+}
+export function partsQuery(projectId: string, parent?: string, after?: string) {
+  return queryOptions({ queryKey: ['projects', projectId, 'design', 'parts', parent ?? null, after ?? null], queryFn: () => getParts(projectId, parent, after) })
 }
 
 /** A project's grants for external agents (spec §13.7). No thread's stream

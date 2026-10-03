@@ -125,6 +125,8 @@ fn routes() -> OpenApiRouter<AppState> {
     OpenApiRouter::with_openapi(openapi::base())
         .routes(routes!(project::list_projects, project::create_project))
         .routes(routes!(design::vision))
+        .routes(routes!(design::parts))
+        .routes(routes!(design::part))
         .routes(routes!(design::edit))
         .routes(routes!(project::update_project, project::remove_project))
         .routes(routes!(project::list_threads, project::create_thread))
