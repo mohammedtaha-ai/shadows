@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-03 (§16 1a reviewed on `plans/project-plans`; reviewed debug build tried on Windows)
+**Updated:** 2026-10-03 (§16 1a merged; project planning expansion in design)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,8 +9,8 @@ restate them.
 
 ## Where we are
 
-**Project plans, §16 1a, are implemented on `plans/project-plans`**, not yet
-merged. The owner is
+**Project plans, §16 1a, are on `main`**, squash-merged through PR #14 as
+`4d8774e`. The owner is
 [`§16`](./superpowers/specs/2026-10-01-project-plans-design.md); the plan is
 [`project-plans-1a`](./superpowers/plans/2026-10-01-project-plans-1a.md).
 Plans are shared across a project's conversations, versions show their
@@ -186,14 +186,16 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **Open the §16 1a PR:** implementation and whole-branch review are
-   complete, the attribution wording is clarified, and Mohammed has tried
-   the reviewed debug build on Windows. The Windows record distinguishes
-   that reported trial from the individually recorded acceptance scenarios.
-2. **§16 1b:** links between plans, cross-plan graph nodes and the project map
-   (§16.7, §16.8, §16.11), after 1a is reviewed and accepted.
-   Decision records and clarifying messages remain later work (vision §8;
-   §17 is a draft).
+1. **Review the project planning draft:** the planning branch is
+   `codex/shared-contracts-planning`. The [full delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
+   and [§18 draft](./superpowers/specs/2026-10-03-project-planning-workspace-design.md)
+   are written. The next artifact after review is the detailed Stage 1 plan.
+   No product code, implementation plan or new runtime validation is recorded
+   for this expansion.
+2. **§16 1b** still needs its separately scoped implementation plan. Its place
+   in delivery is recorded in the roadmap above. §17 remains a draft for later
+   task contracts and execution evidence; the executive manager needs its
+   later design after Mohammed explains the rest of its responsibilities.
 
 ## Standing risks
 

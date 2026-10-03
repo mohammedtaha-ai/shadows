@@ -125,6 +125,13 @@ What coding uncovers falls into five kinds:
 **Rule: an executor never changes the plan silently.** It stops at the edge of
 its task and reports: what it found, the evidence, and which tasks it affects.
 
+**Clarification (Mohammed, 2026-10-03):** executors remain bounded to their
+assigned tasks and write locations, with an executive agent above them.
+Discovering that the planned approach cannot work, or that a shared contract
+is changing, must enter this escalation path. A report names the task, the
+contract version it was working against, the obstacle and the available
+evidence. The manager's full responsibilities still need their own design.
+
 The report climbs only as far as it has to:
 
 ```text
@@ -142,8 +149,9 @@ Mohammed (the user)
   - decides whether to stop the executor, and any other executor affected, such
     as a task 8 already working on the old contract, or to let them go on. It is
     the only one who sees every running task.
-  - When the fix is easy and clear from its understanding of the plan, it
-    proposes the fix and has the executor apply it.
+  - When the fix is easy and clear within the task's agreed contract and
+    scope, it proposes the fix and has the executor apply it. A shared-contract
+    revision follows §9's agreement approval instead.
   - When it doubts its own decision, it takes its proposal to the Planner.
 - **Planner:** accepts the manager's proposal, amends it, or chooses a better
   one. It changes the plan as a new version, as Milestone 2's v1 → v2 does. When
@@ -300,8 +308,8 @@ specific element, or a roadmap stage spanning several parts. The person
 explicitly selects the planning scope; browsing a related part or contract
 does not silently change it. The Planner needs a bounded overview of the
 project, the relevant decisions from enclosing scopes, the selected element's
-details and its relevant contracts and dependencies. Other details remain available on
-request. Shared decisions are recorded at their appropriate scope instead of
+details and its relevant contracts and dependencies. Other details remain
+available on request. Shared decisions are recorded at their appropriate scope instead of
 being copied into every child. Context sources and their versions must be
 visible; selecting a smaller scope alone does not prove token savings, which
 need measurement against the actual session history and requests.
@@ -312,11 +320,16 @@ need measurement against the actual session history and requests.
 - Which part provides it, which parts consume it, and the tasks on each side.
 - Its agreed version, the reasons for changes, and the implementation and
   verification evidence when those exist.
-- Whether it is proposed, agreed, implemented or verified. Agreement lets a
-  consumer plan against the contract; implementation and verification establish
-  what actually works. Archiving a plan proves none of these.
+- Whether its version is proposed or agreed, separately from implementation
+  and verification on each provider and consumer. Agreement lets a consumer
+  plan against it; implementation and verification establish what actually
+  works. Archiving a plan proves none of these.
 - Each consumer names the contract version it uses, so a proposed or newly
   agreed version does not silently replace an existing agreement.
+- **Initial agreement authority (Mohammed, 2026-10-03):** the Planner proposes
+  contracts and revisions and gathers their effects; the person approves the
+  final agreement. Delegating approval of limited changes is future work,
+  requiring its own explicit policy.
 
 **Discoveries travel between plans through the contract:**
 
@@ -326,6 +339,12 @@ it needs. Either side proposes the change with its reason and intended behavior.
 Shadows shows the affected providers, consumers, tasks and checks before the
 change is adopted, and notifies the affected side with the actual difference.
 Delivery of a notification is distinct from that side adopting the new version.
+
+Before approving a revision, the person sees the difference and reason, the
+affected providers, consumers, plans and tasks, their current work state and
+the proposed action for each. Unknown effects are identified as needing
+review. Approving the agreement and each participant adopting it are tracked
+separately.
 
 - If the affected work is still a Draft, the proposed revision can amend it
   after checking its other dependencies.
@@ -354,11 +373,11 @@ agreements (§1.1), and a new session retains why an interface exists and what
 depends on it (§1.2). The person can see the consequences of a change before
 adopting it.
 
-**Today:** this is an agreed product direction, not an implemented subsystem or
-an accepted technical specification. §16 1b specifies task links and a project
-map; it does not yet specify shared contracts with their own identity and
-versions. §17 drafts task contracts and execution evidence. The ownership,
-adoption rules and first runnable slice for shared contracts still need design.
+**Today:** this is an agreed product direction. [§18's written draft](./superpowers/specs/2026-10-03-project-planning-workspace-design.md)
+specifies the first workspace and shared API agreement journey; it awaits
+Mohammed's review and is not implemented. [The delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
+covers all six stages. §16 1b's task links retain their own semantics, and
+§17 remains the draft owner of executable task contracts and evidence.
 
 ## 10. Open questions
 

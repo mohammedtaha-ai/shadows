@@ -35,10 +35,12 @@ design-note, and status narratives.
 | §15 | [`2026-09-30-code-index-design.md`](./2026-09-30-code-index-design.md) |
 | §16 | [`2026-10-01-project-plans-design.md`](./2026-10-01-project-plans-design.md) |
 | §17 | [`2026-10-01-task-contracts-and-evidence-design.md`](./2026-10-01-task-contracts-and-evidence-design.md) |
+| §18 | [`2026-10-03-project-planning-workspace-design.md`](./2026-10-03-project-planning-workspace-design.md) — draft for review |
 
 ## Maintenance rules
 
-- Ordinary prose is **decided**. Implement it.
+- Within an accepted spec, ordinary prose is **decided**. Implement it.
+  A file marked Draft needs its written-spec review before implementation.
 - An **OPEN** block is a question the project cannot answer yet. It must name
   the trigger that closes it and why it does not block current work.
 - Every decision lives in exactly one owner file. Another file refers to its
