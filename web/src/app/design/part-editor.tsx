@@ -38,10 +38,11 @@ export function PartEditor({ projectId, saved, destination, onCreated }: { proje
   const save = useMutation({
     mutationFn: (body: DesignEdit) => editDesign(projectId, body),
     onSuccess: async () => {
-      attempt.current = null; setConflict(false)
       await client.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
-      if (!base) { onCreated?.(); return }
+      if (!base) { attempt.current = null; setConflict(false); onCreated?.(); return }
       const view = await client.fetchQuery({ ...partQuery(projectId, id), staleTime: 0 })
+      // Keep the committed command replayable until its authoritative read succeeds.
+      attempt.current = null; setConflict(false)
       setBase(view); setDraft(view.part.content); setLinked(view.plans); setMoving(false); setBefore('')
     },
     onError: e => {

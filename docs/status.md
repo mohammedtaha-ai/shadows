@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-03 (§16 1a merged; project planning expansion in design)
+**Updated:** 2026-10-04 (§16 1a merged; planning workspace Stage 1 verified on its branch)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -186,13 +186,19 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **Review the project planning draft:** the planning branch is
+1. **Finish the planning workspace Stage 1 handoff:** the planning branch is
    `codex/shared-contracts-planning`. The [full delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
    and [§18 draft](./superpowers/specs/2026-10-03-project-planning-workspace-design.md)
    are written, together with the [Stage 1 implementation plan](./superpowers/plans/2026-10-03-planning-workspace-stage-1.md).
-   Review the spec and plan, then select the execution method before product
-   edits. The plan has not been executed; no product implementation or new
-   runtime validation is recorded for this expansion.
+   Its Vision, nested parts, Roadmap outcomes and existing-plan associations
+   are implemented. Tasks 1–3 received independent review; Task 4 added
+   migration/stream integration checks, corrected PartEditor retry and ran an
+   agent-operated Windows browser trial on an isolated database. Rust passed
+   385 tests (one manual backup test ignored by default, separately executed);
+   Web passed 179 tests. The [dated record](./evidence/2026-10-04-planning-workspace-stage-1.md)
+   distinguishes the empty actual dev-DB copy from populated synthetic legacy
+   fixtures. Mohammed's acceptance and whole-branch review remain pending;
+   this branch is not merged and the running original daemon was not replaced.
 2. **§16 1b** still needs its separately scoped implementation plan. Its place
    in delivery is recorded in the roadmap above. §17 remains a draft for later
    task contracts and execution evidence; the executive manager needs its

@@ -4,6 +4,61 @@ use shadows_core::testing::{EventCursor, acp};
 mod app;
 
 #[tokio::test]
+async fn mixed_workspace_batch_rolls_back_and_outcome_pages_are_bounded() {
+    let app = app::test_app().await;
+    let edits = format!("/api/projects/{}/design/edits", app.project);
+    let outcomes = format!("/api/projects/{}/design/outcomes", app.project);
+    let content = json!({"title":"نتيجة","intended_result":"آمن","acceptance":["يعمل"]});
+    let ids: Vec<_> = (0..51).map(|_| uuid::Uuid::new_v4().to_string()).collect();
+    let ops: Vec<_> = ids.iter().map(|id| json!({"kind":"OutcomeCreate","id":id,"parent":null,"before":null,"content":content})).collect();
+    assert_eq!(
+        app::call(
+            &app,
+            "POST",
+            &edits,
+            Some(json!({"command_id":"many","expected_revision":0,"ops":ops}))
+        )
+        .await
+        .0,
+        200
+    );
+    let first = app::call(&app, "GET", &outcomes, None).await.1;
+    assert_eq!(first["items"].as_array().unwrap().len(), 50);
+    let cursor = first["next"].as_str().unwrap();
+    let last = app::call(&app, "GET", &format!("{outcomes}?after={cursor}"), None)
+        .await
+        .1;
+    assert_eq!(last["items"].as_array().unwrap().len(), 1);
+    assert_eq!(last["items"][0]["id"], ids[50]);
+    assert!(last["next"].is_null());
+    let failed = json!({"command_id":"rollback","expected_revision":1,"ops":[
+        {"kind":"OutcomePut","id":ids[0],"content":{"title":"should rollback","intended_result":"","acceptance":[]}},
+        {"kind":"OutcomePartPut","outcome":ids[0],"part":uuid::Uuid::new_v4().to_string()}
+    ]});
+    assert_ne!(
+        app::call(&app, "POST", &edits, Some(failed.clone()))
+            .await
+            .0,
+        200
+    );
+    let detail = app::call(&app, "GET", &format!("{outcomes}/{}", ids[0]), None)
+        .await
+        .1;
+    assert_eq!(detail["revision"], 1);
+    assert_eq!(detail["outcome"]["content"], content);
+    assert!(detail["parts"].as_array().unwrap().is_empty());
+    assert_ne!(app::call(&app, "POST", &edits, Some(failed)).await.0, 200);
+    assert_eq!(
+        app.storage
+            .read_project_events_after(EventCursor(0), &app.project, 100)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[tokio::test]
 async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
     let app = app::test_app().await;
     let edits = format!("/api/projects/{}/design/edits", app.project);

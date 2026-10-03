@@ -169,6 +169,12 @@ obligations:
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
 
 tests:
+  - name: workspace_migrations_preserve_old_frozen_bytes_and_reopened_links
+    checks: Populated pre-0013 upgrade, exact legacy rows, foreign keys, persisted order/links/revisions and replay after reopen.
+  - name: mixed_workspace_batch_rolls_back_and_outcome_pages_are_bounded
+    checks: Actual HTTP 51-outcome pages, failed mixed batch leaves content/revision/events intact.
+  - name: design_stream_replays_resumes_and_keeps_projects_separate
+    checks: Actual HTTP project stream crosses Vision/Parts/Outcomes, immutable command replay, reconnect cursor and foreign-project isolation.
   - name: outcome_spans_parts_without_copying_them
     checks: Two parts/plans, identity-based rename, unique associations, whole-batch foreign rollback, unlink.
   - name: outcome_hierarchy_is_independent_of_parts

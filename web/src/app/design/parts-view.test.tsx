@@ -2,12 +2,51 @@
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import { answers } from '@/test/fake-daemon'
+import type { DesignEdit, PartView } from '@/api/design'
 import { type TestApp, startApp, typeInto, until } from '../test-app'
 
 let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null })
 const part = (id: string, title = id, parent: string | null = null) => ({ id, parent, ordinal: 0, revision: 1,
   content: { title, responsibility: 'مسؤولية', design: 'تصميم', kind: null } })
+
+it('part save replays the committed command after its follow-up read fails', async () => {
+  let saved: PartView = { revision: 1, part: part('n1', 'قسم'), ancestors: [], plans: [] }
+  let failReads = false
+  let committed: DesignEdit | undefined
+  const a = app = await startApp('/projects/p1/workspace?view=map&part=n1', {
+    ...answers(),
+    'GET /api/projects/p1/design/parts': { revision: 1, items: [saved.part], next: null },
+    'GET /api/projects/p1/design/parts/n1': () => failReads
+      ? Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'read unavailable' }, { status: 503 })
+      : Response.json(saved),
+    'POST /api/projects/p1/design/edits': async (request: Request) => {
+      const body = await request.json() as DesignEdit
+      if (committed) return JSON.stringify(body) === JSON.stringify(committed)
+        ? Response.json({ revision: 2 })
+        : Response.json({ code: 'REVISION_CONFLICT', message: 'already committed', current_revision: 2 }, { status: 409 })
+      committed = body
+      const put = body.ops.find(op => op.kind === 'PartPut')
+      if (put?.kind !== 'PartPut') throw new Error('expected a part edit')
+      saved = { ...saved, revision: 2, part: { ...saved.part, revision: 2, content: put.content } }
+      failReads = true
+      return Response.json({ revision: 2 })
+    },
+  })
+  const title = () => a.container.querySelector<HTMLInputElement>('input[aria-label="Part title"]')
+  await until(() => title()?.value === 'قسم')
+  typeInto(title()!, 'تعديل محفوظ  ')
+  act(() => a.button('Save part')?.click())
+  await until(() => a.text().includes('read unavailable') && a.button('Save part')?.disabled === false)
+  expect(title()?.value).toBe('تعديل محفوظ  ')
+  failReads = false
+  act(() => a.button('Save part')?.click())
+  await until(() => a.bodies.length === 2)
+  expect(a.bodies[1]).toEqual(a.bodies[0])
+  await until(() => a.button('Save part')?.disabled === true && !a.text().includes('read unavailable'))
+  expect(title()?.value).toBe('تعديل محفوظ  ')
+  expect(a.text()).not.toContain('already committed')
+})
 
 // Eager subtree loading, forgotten page boundaries or title-based links fail here.
 it('parts_view_loads_only_open_branches', async () => {
