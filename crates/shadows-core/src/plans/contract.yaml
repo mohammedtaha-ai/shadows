@@ -326,7 +326,7 @@ enums:
 
 
 shared_in_transaction:
-  check_design_plan: "Design's store (design/store/part_edit.rs): verifies project-qualified plan identity before associating; archived/Frozen plans remain valid and their content is not edited"
+  check_design_plan: "Design's part/outcome association stores: verify project-qualified plan identity before associating; archived/Frozen plans remain valid and their content is not edited"
   task_of: "Turns' store (turns/store/turn.rs `focused`): start_turn checks a Focus's task belongs to its version inside the turn's own write"
 
 

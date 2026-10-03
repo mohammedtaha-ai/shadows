@@ -4,6 +4,66 @@ use shadows_core::testing::{EventCursor, acp};
 mod app;
 
 #[tokio::test]
+async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
+    let app = app::test_app().await;
+    let edits = format!("/api/projects/{}/design/edits", app.project);
+    let outcomes = format!("/api/projects/{}/design/outcomes", app.project);
+    let part = uuid::Uuid::new_v4().to_string();
+    let root = uuid::Uuid::new_v4().to_string();
+    let child = uuid::Uuid::new_v4().to_string();
+    let content = json!({"title":" نتيجة ","intended_result":" نتائج\n ","acceptance":["قبول أول","قبول ثان"]});
+    let body = json!({"command_id":"outcomes","expected_revision":0,"ops":[
+        {"kind":"PartCreate","id":part,"parent":null,"before":null,"content":{"title":"جزء","responsibility":"","design":"","kind":null}},
+        {"kind":"OutcomeCreate","id":root,"parent":null,"before":null,"content":content},
+        {"kind":"OutcomeCreate","id":child,"parent":root,"before":null,"content":content},
+        {"kind":"OutcomePartPut","outcome":child,"part":part}
+    ]});
+    assert_eq!(
+        app::call(&app, "POST", &edits, Some(body)).await,
+        (200, json!({"revision":1}))
+    );
+    let detail = app::call(&app, "GET", &format!("{outcomes}/{child}"), None).await;
+    assert_eq!(detail.0, 200);
+    assert_eq!(detail.1["outcome"]["content"]["title"], "نتيجة");
+    assert_eq!(
+        detail.1["outcome"]["content"]["intended_result"],
+        " نتائج\n "
+    );
+    assert_eq!(
+        detail.1["outcome"]["content"]["acceptance"],
+        content["acceptance"]
+    );
+    assert_eq!(detail.1["parts"], json!([part]));
+    assert_eq!(detail.1["ancestors"][0]["id"], root);
+    assert_eq!(
+        app::call(&app, "GET", &format!("{outcomes}?parent={root}"), None)
+            .await
+            .1["items"][0]["id"],
+        child
+    );
+    let invalid = app::call(
+        &app,
+        "GET",
+        &format!("{outcomes}?parent={root}&after={root}"),
+        None,
+    )
+    .await;
+    assert_eq!(invalid.0, 422);
+    assert_eq!(invalid.1["code"], "INVALID_COMMAND");
+    assert!(invalid.1["message"].as_str().unwrap().contains(&root));
+    let events = app
+        .storage
+        .read_project_events_after(EventCursor(0), &app.project, 100)
+        .await
+        .unwrap();
+    assert_eq!(events.len(), 1);
+    let payload: Value = serde_json::from_str(&events[0].payload_json).unwrap();
+    assert_eq!(payload["changed_outcomes"].as_array().unwrap().len(), 2);
+    assert_eq!(payload["changed_parts"], json!([part]));
+    assert!(!payload.to_string().contains("قبول أول"));
+}
+
+#[tokio::test]
 async fn part_routes_paginate_and_refuse_invalid_references() {
     let app = app::test_app().await;
     let edits = format!("/api/projects/{}/design/edits", app.project);

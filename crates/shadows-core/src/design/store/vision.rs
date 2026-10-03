@@ -2,7 +2,7 @@
 
 use crate::command::CommandContext;
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
-use crate::design::{DesignChange, DesignOp, VisionContent, VisionView};
+use crate::design::{DesignAnchor, DesignChange, DesignOp, VisionContent, VisionView};
 use crate::events::{Actor, DurableEvent};
 use crate::projects::ProjectId;
 use std::collections::BTreeSet;
@@ -81,13 +81,19 @@ impl Storage {
                 .await?;
                 let mut changed=BTreeSet::new();
                 let mut created=BTreeSet::new();
+                let mut changed_outcomes=BTreeSet::new();
+                let mut created_outcomes=BTreeSet::new();
                 let mut vision=None;
                 for op in ops {
                     match op {
                         DesignOp::VisionPut{content} => vision=Some(content),
-                        other => {
+                        other @ (DesignOp::PartCreate{..}|DesignOp::PartPut{..}|DesignOp::PartMove{..}|DesignOp::PlanLinkPut{anchor:DesignAnchor::Part(_),..}|DesignOp::PlanLinkRemove{anchor:DesignAnchor::Part(_),..}) => {
                             if let DesignOp::PartCreate{id,..}=&other { created.insert(id.to_string()); }
                             super::part_edit::apply(conn,&project,other,&mut changed).await?;
+                        }
+                        other=>{
+                            if let DesignOp::OutcomeCreate{id,..}=&other {created_outcomes.insert(id.to_string());}
+                            super::outcome_edit::apply(conn,&project,other,&mut changed_outcomes).await?;
                         }
                     }
                 }
@@ -98,6 +104,10 @@ impl Storage {
                 }
                 for id in changed.iter().filter(|id|!created.contains(*id)) {
                     sqlx::query("UPDATE design_part SET revision=revision+1 WHERE project_id=? AND id=?")
+                        .bind(project.as_str()).bind(id).execute(&mut *conn).await?;
+                }
+                for id in changed_outcomes.iter().filter(|id|!created_outcomes.contains(*id)) {
+                    sqlx::query("UPDATE design_outcome SET revision=revision+1 WHERE project_id=? AND id=?")
                         .bind(project.as_str()).bind(id).execute(&mut *conn).await?;
                 }
                 let change = DesignChange { revision: next };
@@ -114,7 +124,7 @@ impl Storage {
                     .with_project(&project)
                     .with_payload(serde_json::json!({
                         "project_id": project, "revision": next,
-                        "changed_parts": changed, "changed_outcomes": [], "vision_changed": vision_changed
+                        "changed_parts": changed, "changed_outcomes": changed_outcomes, "vision_changed": vision_changed
                     }));
                 append_event(conn, &event, &ts).await?;
                 record_command(conn, &ctx, "Project", project.as_str(), "DesignChange", &id, &ts).await?;

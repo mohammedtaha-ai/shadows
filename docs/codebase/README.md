@@ -119,6 +119,11 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/design/` | a project's design workspace | `crates/shadows-core/src/design/mod.rs` |
 | `crates/shadows-core/src/design/model.rs` | the workspace value shapes | `crates/shadows-core/src/design/model.rs` |
 | `crates/shadows-core/src/design/parts.rs` | part service entry points | `crates/shadows-core/src/design/parts.rs` |
+| `crates/shadows-core/src/design/outcomes.rs` | outcome service entry points | `crates/shadows-core/src/design/outcomes.rs` |
+| `crates/shadows-core/src/design/ops.rs` | normalization of workspace edits | `crates/shadows-core/src/design/ops.rs` |
+| `crates/shadows-core/src/design/store/outcomes.rs` | snapshot reads of outcomes | `crates/shadows-core/src/design/store/outcomes.rs` |
+| `crates/shadows-core/src/design/store/outcome_edit.rs` | transactional outcome mutations | `crates/shadows-core/src/design/store/outcome_edit.rs` |
+| `crates/shadows-core/src/design/store/hierarchy.rs` | transactional containment ordering | `crates/shadows-core/src/design/store/hierarchy.rs` |
 | `crates/shadows-core/src/design/store/parts.rs` | snapshot reads of parts | `crates/shadows-core/src/design/store/parts.rs` |
 | `crates/shadows-core/src/design/store/part_edit.rs` | transactional part mutations | `crates/shadows-core/src/design/store/part_edit.rs` |
 | `crates/shadows-core/src/design/store/` | persistence of the design workspace | `crates/shadows-core/src/design/store/vision.rs` |

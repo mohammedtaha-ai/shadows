@@ -361,6 +361,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/design/outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["outcomes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/design/outcomes/{outcome}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["outcome"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/design/parts": {
         parameters: {
             query?: never;
@@ -943,6 +975,10 @@ export interface components {
             id: components["schemas"]["PartId"];
             /** @enum {string} */
             kind: "Part";
+        } | {
+            id: components["schemas"]["OutcomeId"];
+            /** @enum {string} */
+            kind: "Outcome";
         };
         DesignChange: {
             /** Format: int64 */
@@ -955,6 +991,34 @@ export interface components {
             ops: components["schemas"]["DesignOp"][];
         };
         DesignOp: {
+            before?: null | components["schemas"]["OutcomeId"];
+            content: components["schemas"]["OutcomeContent"];
+            id: components["schemas"]["OutcomeId"];
+            /** @enum {string} */
+            kind: "OutcomeCreate";
+            parent?: null | components["schemas"]["OutcomeId"];
+        } | {
+            content: components["schemas"]["OutcomeContent"];
+            id: components["schemas"]["OutcomeId"];
+            /** @enum {string} */
+            kind: "OutcomePut";
+        } | {
+            before?: null | components["schemas"]["OutcomeId"];
+            id: components["schemas"]["OutcomeId"];
+            /** @enum {string} */
+            kind: "OutcomeMove";
+            parent?: null | components["schemas"]["OutcomeId"];
+        } | {
+            /** @enum {string} */
+            kind: "OutcomePartPut";
+            outcome: components["schemas"]["OutcomeId"];
+            part: components["schemas"]["PartId"];
+        } | {
+            /** @enum {string} */
+            kind: "OutcomePartRemove";
+            outcome: components["schemas"]["OutcomeId"];
+            part: components["schemas"]["PartId"];
+        } | {
             content: components["schemas"]["VisionContent"];
             /** @enum {string} */
             kind: "VisionPut";
@@ -1241,6 +1305,34 @@ export interface components {
         };
         /** Format: uuid */
         OperationId: string;
+        Outcome: {
+            content: components["schemas"]["OutcomeContent"];
+            id: components["schemas"]["OutcomeId"];
+            /** Format: int64 */
+            ordinal: number;
+            parent?: null | components["schemas"]["OutcomeId"];
+            /** Format: int64 */
+            revision: number;
+        };
+        OutcomeContent: {
+            acceptance: string[];
+            intended_result: string;
+            title: string;
+        };
+        /** Format: uuid */
+        OutcomeId: string;
+        OutcomePage: {
+            items: components["schemas"]["Outcome"][];
+            next?: null | components["schemas"]["OutcomeId"];
+            revision: components["schemas"]["i64"];
+        };
+        OutcomeView: {
+            ancestors: components["schemas"]["Outcome"][];
+            outcome: components["schemas"]["Outcome"];
+            parts: components["schemas"]["PartId"][];
+            plans: components["schemas"]["PlanId"][];
+            revision: components["schemas"]["i64"];
+        };
         Part: {
             content: components["schemas"]["PartContent"];
             id: components["schemas"]["PartId"];
@@ -2767,6 +2859,95 @@ export interface operations {
                 };
             };
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    outcomes: {
+        parameters: {
+            query?: {
+                parent?: components["schemas"]["OutcomeId"];
+                after?: components["schemas"]["OutcomeId"];
+            };
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutcomePage"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    outcome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+                /** @description The outcome */
+                outcome: components["schemas"]["OutcomeId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutcomeView"];
+                };
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

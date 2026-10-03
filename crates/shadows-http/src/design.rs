@@ -4,7 +4,41 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use shadows_core::{DesignChange, DesignOp, PartId, PartPage, PartView, ProjectId, VisionView};
+use shadows_core::{
+    DesignChange, DesignOp, OutcomeId, OutcomePage, OutcomeView, PartId, PartPage, PartView,
+    ProjectId, VisionView,
+};
+
+#[derive(serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(super) struct OutcomesQuery {
+    parent: Option<OutcomeId>,
+    after: Option<OutcomeId>,
+}
+#[utoipa::path(get, path = "/api/projects/{id}/design/outcomes", tag = "design",
+    params(("id" = ProjectId, Path, description = "The project"), OutcomesQuery),
+    responses((status = 200, body = OutcomePage), (status = 404, body = ErrorBody), (status = 422, body = ErrorBody), (status = 500, body = ErrorBody)))]
+pub(super) async fn outcomes(
+    State(s): State<AppState>,
+    Path(project): Path<ProjectId>,
+    Query(q): Query<OutcomesQuery>,
+) -> Result<Json<OutcomePage>, Failure> {
+    Ok(Json(
+        s.core
+            .design()
+            .outcomes(&project, q.parent.as_ref(), q.after.as_ref())
+            .await?,
+    ))
+}
+#[utoipa::path(get, path = "/api/projects/{id}/design/outcomes/{outcome}", tag = "design",
+    params(("id" = ProjectId, Path, description = "The project"), ("outcome" = OutcomeId, Path, description = "The outcome")),
+    responses((status = 200, body = OutcomeView), (status = 404, body = ErrorBody), (status = 500, body = ErrorBody)))]
+pub(super) async fn outcome(
+    State(s): State<AppState>,
+    Path((project, id)): Path<(ProjectId, OutcomeId)>,
+) -> Result<Json<OutcomeView>, Failure> {
+    Ok(Json(s.core.design().outcome(&project, &id).await?))
+}
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]

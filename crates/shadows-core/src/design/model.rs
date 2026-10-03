@@ -3,6 +3,36 @@
 pub type DesignRevision = i64;
 
 crate::id::newtype_id!(PartId);
+crate::id::newtype_id!(OutcomeId);
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct OutcomeContent {
+    pub title: String,
+    pub intended_result: String,
+    pub acceptance: Vec<String>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct Outcome {
+    pub id: OutcomeId,
+    pub revision: i64,
+    pub parent: Option<OutcomeId>,
+    pub ordinal: i64,
+    pub content: OutcomeContent,
+}
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct OutcomeView {
+    pub revision: DesignRevision,
+    pub outcome: Outcome,
+    pub ancestors: Vec<Outcome>,
+    pub parts: Vec<PartId>,
+    pub plans: Vec<crate::plans::PlanId>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct OutcomePage {
+    pub revision: DesignRevision,
+    pub items: Vec<Outcome>,
+    pub next: Option<OutcomeId>,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct PartContent {
@@ -40,6 +70,7 @@ pub struct PartPage {
 #[serde(tag = "kind", content = "id")]
 pub enum DesignAnchor {
     Part(PartId),
+    Outcome(OutcomeId),
 }
 
 #[derive(
@@ -69,6 +100,29 @@ pub struct DesignChange {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 #[serde(tag = "kind")]
 pub enum DesignOp {
+    OutcomeCreate {
+        id: OutcomeId,
+        parent: Option<OutcomeId>,
+        before: Option<OutcomeId>,
+        content: OutcomeContent,
+    },
+    OutcomePut {
+        id: OutcomeId,
+        content: OutcomeContent,
+    },
+    OutcomeMove {
+        id: OutcomeId,
+        parent: Option<OutcomeId>,
+        before: Option<OutcomeId>,
+    },
+    OutcomePartPut {
+        outcome: OutcomeId,
+        part: PartId,
+    },
+    OutcomePartRemove {
+        outcome: OutcomeId,
+        part: PartId,
+    },
     VisionPut {
         content: VisionContent,
     },

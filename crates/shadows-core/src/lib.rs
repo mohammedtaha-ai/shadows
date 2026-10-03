@@ -32,8 +32,9 @@ pub use code::{
 // carries, which each adapter maps.
 pub use db::StorageError;
 pub use design::{
-    Design, DesignAnchor, DesignChange, DesignOp, DesignRevision, Part, PartContent, PartId,
-    PartPage, PartView, VisionContent, VisionView,
+    Design, DesignAnchor, DesignChange, DesignOp, DesignRevision, Outcome, OutcomeContent,
+    OutcomeId, OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage, PartView,
+    VisionContent, VisionView,
 };
 pub use error::{CoreError, ErrorCode};
 pub use events::{Actor, Delivery, Events, StoredEvent, Subscription, UiSignal};

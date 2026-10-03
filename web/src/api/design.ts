@@ -12,6 +12,16 @@ export type Part = components['schemas']['Part']
 export type PartContent = components['schemas']['PartContent']
 export type PartView = components['schemas']['PartView']
 export type PartPage = components['schemas']['PartPage']
+export type Outcome = components['schemas']['Outcome']
+export type OutcomeContent = components['schemas']['OutcomeContent']
+export type OutcomeView = components['schemas']['OutcomeView']
+export type OutcomePage = components['schemas']['OutcomePage']
+export function getOutcome(projectId: string, outcomeId: string): Promise<OutcomeView> {
+  return unwrap(client.GET('/api/projects/{id}/design/outcomes/{outcome}', { params: { path: { id: projectId, outcome: outcomeId } } }))
+}
+export function getOutcomes(projectId: string, parent?: string, after?: string): Promise<OutcomePage> {
+  return unwrap(client.GET('/api/projects/{id}/design/outcomes', { params: { path: { id: projectId }, query: { parent, after } } }))
+}
 
 export function getPart(projectId: string, partId: string): Promise<PartView> {
   return unwrap(client.GET('/api/projects/{id}/design/parts/{part}', { params: { path: { id: projectId, part: partId } } }))

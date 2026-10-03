@@ -40,9 +40,34 @@ shapes:
     revision: DesignRevision
     items: Vec<Part>
     next: Option<PartId>
+  OutcomeContent:
+    title: String
+    intended_result: String
+    acceptance: Vec<String>
+  Outcome:
+    id: OutcomeId
+    parent: Option<OutcomeId>
+    ordinal: i64
+    revision: i64
+    content: OutcomeContent
+  OutcomeView:
+    revision: DesignRevision
+    outcome: Outcome
+    ancestors: Vec<Outcome>
+    parts: Vec<PartId>
+    plans: Vec<PlanId>
+  OutcomePage:
+    revision: DesignRevision
+    items: Vec<Outcome>
+    next: Option<OutcomeId>
 
 enums:
   DesignOp:
+    OutcomeCreate: "{ id: OutcomeId, parent: Option<OutcomeId>, before: Option<OutcomeId>, content: OutcomeContent }"
+    OutcomePut: "{ id: OutcomeId, content: OutcomeContent }"
+    OutcomeMove: "{ id: OutcomeId, parent: Option<OutcomeId>, before: Option<OutcomeId> }"
+    OutcomePartPut: "{ outcome: OutcomeId, part: PartId }"
+    OutcomePartRemove: "{ outcome: OutcomeId, part: PartId }"
     VisionPut: "{ content: VisionContent }"
     PartCreate: "{ id: PartId, parent: Option<PartId>, before: Option<PartId>, content: PartContent }"
     PartPut: "{ id: PartId, content: PartContent }"
@@ -51,9 +76,15 @@ enums:
     PlanLinkRemove: "{ anchor: DesignAnchor, plan: PlanId }"
   DesignAnchor:
     Part: PartId
+    Outcome: OutcomeId
 
 functions:
   service:
+    outcome:
+      signature: "(&self, project: &ProjectId, id: &OutcomeId) -> Result<OutcomeView, CoreError>"
+    outcomes:
+      signature: "(&self, project: &ProjectId, parent: Option<&OutcomeId>, after: Option<&OutcomeId>) -> Result<OutcomePage, CoreError>"
+      # Wrong-parent cursors refuse with actionable InvalidCommand.
     vision:
       signature: "(&self, project: &ProjectId) -> Result<VisionView, CoreError>"
     part:
@@ -67,6 +98,12 @@ functions:
       # over project, expected_revision and ordered typed ops; trim only titles,
       # validate client UUID references. Other text remains exact.
   store:
+    design_outcome:
+      signature: "(&self, project: &ProjectId, id: &OutcomeId) -> Result<OutcomeView, StorageError>"
+      # One snapshot, iterative root-first ancestors, unique stable-ID associations.
+    design_outcomes:
+      signature: "(&self, project: &ProjectId, parent: Option<&OutcomeId>, after: Option<&OutcomeId>) -> Result<OutcomePage, StorageError>"
+      # Same 50-child snapshot page/cursor rules as parts; independent containment.
     design_vision:
       signature: "(&self, project: &ProjectId) -> Result<VisionView, StorageError>"
       # One joined read excludes unknown/removed projects; no row initialization.
@@ -88,7 +125,7 @@ agreements:
   - between: [edit_design, events::with_project]
     rule: >
       ProjectDesignChanged is appended inside the edit's transaction and carries
-      only project_id, workspace revision, changed part IDs, empty changed_outcomes
+      only project_id, workspace revision, changed part/outcome IDs
       and vision_changed. Events reads it on the existing project journal tail.
     holds: true
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
@@ -101,6 +138,16 @@ agreements:
     tested_by: part_order_is_stable_across_restart
 
 obligations:
+  - rule: >
+      Outcome containment is independent of parts; cycles/foreign associations
+      refuse the entire batch, titles are trimmed, other design text is exact.
+      Outcome references preserve existing part/plan identities. Affected outcome
+      revisions increment once per batch, including association changes.
+    tested_by: [outcome_spans_parts_without_copying_them, outcome_hierarchy_is_independent_of_parts]
+  - rule: >
+      Plan approval/archive or deletion of a writer conversation never completes
+      an outcome, removes its references or changes old Frozen stored content.
+    tested_by: plan_lifecycle_never_completes_outcomes
   - rule: >
       Parts retain identity through rename/reparent; foreign references or cycles
       roll back the whole batch with no event. Workspace revisions refuse stale
@@ -122,6 +169,14 @@ obligations:
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
 
 tests:
+  - name: outcome_spans_parts_without_copying_them
+    checks: Two parts/plans, identity-based rename, unique associations, whole-batch foreign rollback, unlink.
+  - name: outcome_hierarchy_is_independent_of_parts
+    checks: Separate containment, cycle/stale refusal, persisted root order and ancestors.
+  - name: plan_lifecycle_never_completes_outcomes
+    checks: Actual approval/archive/thread removal, unchanged outcome, retained link, exact Frozen row/JSON preservation.
+  - name: outcome_routes_round_trip_independent_hierarchy_and_references
+    checks: Router query translation, Arabic content, cursor details and ID-only mixed event payload.
   - name: part_moves_keep_identity_and_reject_cycles
     checks: Atomic foreign/cycle refusal, identity, ancestor path, text, competing revisions.
   - name: part_order_is_stable_across_restart
