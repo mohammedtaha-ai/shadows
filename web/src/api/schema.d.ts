@@ -345,6 +345,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/design/edits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["edit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/design/vision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["vision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/events": {
         parameters: {
             query?: never;
@@ -353,10 +385,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * A project's plan notifications (§16.8), replayed then live on the same
+         * A project's plan/design notifications (§16.8, §18.11), replayed then live on the same
          *     journal tail as `/api/subscribe`. `durable` carries `{seq, kind,
          *     operation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.
          *     Archive notifications name the plan's latest version to refetch.
+         *     ProjectDesignChanged carries project_id, revision, changed_parts,
+         *     changed_outcomes and vision_changed, never the vision content.
          */
         get: operations["subscribe_project"];
         put?: never;
@@ -873,6 +907,21 @@ export interface components {
             harness?: string | null;
             title: string;
         };
+        DesignChange: {
+            /** Format: int64 */
+            revision: number;
+        };
+        DesignEdit: {
+            command_id: string;
+            /** Format: int64 */
+            expected_revision: number;
+            ops: components["schemas"]["DesignOp"][];
+        };
+        DesignOp: {
+            content: components["schemas"]["VisionContent"];
+            /** @enum {string} */
+            kind: "VisionPut";
+        };
         /** @description One directory a person could open or choose. */
         DirectoryEntry: {
             /**
@@ -926,7 +975,7 @@ export interface components {
             code: components["schemas"]["ErrorCode"];
             /**
              * Format: int64
-             * @description `REVISION_CONFLICT` only: the plan's revision now, to read again at.
+             * @description `REVISION_CONFLICT` only: the resource's revision now, to read again at.
              */
             current_revision?: number | null;
             message: string;
@@ -1418,6 +1467,18 @@ export interface components {
             version: number;
             workflow_id: components["schemas"]["WorkflowId"];
             written_by: components["schemas"]["WrittenBy"];
+        };
+        VisionContent: {
+            boundaries: string;
+            goals: string;
+            purpose: string;
+            technical_direction: string;
+            users: string;
+        };
+        VisionView: {
+            content: components["schemas"]["VisionContent"];
+            /** Format: int64 */
+            revision: number;
         };
         /** Format: uuid */
         WorkflowId: string;
@@ -2569,10 +2630,107 @@ export interface operations {
             };
         };
     };
+    edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DesignEdit"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignChange"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description REVISION_CONFLICT or COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    vision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisionView"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     subscribe_project: {
         parameters: {
             query?: {
-                /** @description Resume after the last durable sequence delivered; 0 replays all plan events. */
+                /** @description Resume after the last durable sequence delivered; 0 replays all project plan/design events. */
                 after?: number;
             };
             header?: never;

@@ -176,7 +176,7 @@ crates/shadows-core/src/
   command.rs        command identity and idempotency
   db/               the SQLite pool, write transactions, migrations, the durable journal, command replay
   runtime/          the runtime instance and recovery
-  projects/  threads/  turns/  harness/  plans/  grants/  instructions/  events/  code/
+  projects/  threads/  turns/  harness/  plans/  grants/  instructions/  events/  code/  design/
     mod.rs          the service: its public methods
     model.rs        its types (no sqlx; the domain stays pure)
     rules.rs        its checks, where it has any
@@ -198,6 +198,12 @@ them.
 | `Instructions` | a project's Planner instructions | `storage/sqlite/instructions.rs`, the logic of `protocol/instructions.rs` |
 | `Events` | what clients watch live | `events/`, `storage/sqlite/{events,events_read}.rs`, the loop of `protocol/sse.rs`, `UiSignal` |
 | `Code` | the code index of every project (§15) | nothing: new in Milestone 3 |
+| `Design` | the project design workspace (§18) | nothing: introduced by Stage 1's first Vision browser caller |
+
+`AppCore` now composes ten services. `core.design()` exposes `Design::vision`
+and `Design::edit`; Design owns revision-checked project workspace changes,
+while Events delivers their journal notifications. Later workspace capabilities
+are created when their callers exist.
 
 - **One capability, one method.** An HTTP route and an MCP tool that do the same
   thing call the same method. `get_plan`, `workflow_get` and `task_get` all

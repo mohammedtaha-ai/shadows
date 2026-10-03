@@ -23,6 +23,7 @@ use utoipa::OpenApi;
                        plain text."
     ),
     tags(
+        (name = "design", description = "Project design workspace"),
         (name = "projects", description = "Projects and the directory each owns"),
         (name = "threads", description = "Planning threads and their entries"),
         (name = "turns", description = "Starting and stopping a Planner turn"),

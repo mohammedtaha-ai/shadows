@@ -54,9 +54,9 @@ pub enum StorageError {
     /// Spec §12.9: only the last entry of a completed turn is a fork point.
     #[error("only the thread's last entry, written by a completed turn, can be forked from")]
     ForkPointNotSupported,
-    /// Spec §13.5: `expected_revision` is not the version's current one.
-    /// `summary` joins what every edit since the expected revision did.
-    #[error("the plan is at revision {current}; changed since: {summary}")]
+    /// Spec §13.5, §18.2: `expected_revision` is not the resource's current one.
+    /// `summary` describes what changed since the expected revision.
+    #[error("the resource is at revision {current}; changed since: {summary}")]
     RevisionConflict { current: i64, summary: String },
     /// Spec §13.2: a frozen version never changes.
     #[error("the plan version is frozen; start a new version to change it")]

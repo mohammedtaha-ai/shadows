@@ -3,7 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { projectEventsUrl } from '@/api/client'
-import { planQuery, planVersionsQuery, plansQuery } from '@/api/queries'
+import { planQuery, planVersionsQuery, plansQuery, visionQuery } from '@/api/queries'
 import { ThreadStream } from './thread-stream'
 
 const PLAN_EVENTS = new Set([
@@ -33,6 +33,10 @@ export function useProjectEvents(projectId: string | undefined): void {
     const stream = new ThreadStream({
       url: (after) => projectEventsUrl(projectId, after),
       onDurable: (event) => {
+        if (event.kind === 'ProjectDesignChanged') {
+          void queryClient.invalidateQueries({ queryKey: visionQuery(projectId).queryKey })
+          return
+        }
         if (!PLAN_EVENTS.has(event.kind)) return
         const payload = event.payload
         if (typeof payload !== 'object' || payload === null ||
@@ -42,6 +46,8 @@ export function useProjectEvents(projectId: string | undefined): void {
         else pending.set(payload.workflow_id, payload.plan_id)
       },
       onCaughtUp: () => {
+        // Refetch even without a replayed design event: reconnect can follow a stale cache read.
+        void queryClient.invalidateQueries({ queryKey: visionQuery(projectId).queryKey })
         for (const [workflow, plan] of pending) refetch(plan, workflow)
         pending.clear()
       },

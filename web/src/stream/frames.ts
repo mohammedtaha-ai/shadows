@@ -15,6 +15,15 @@ export interface DurableEvent {
   payload: unknown
 }
 
+/** ProjectDesignChanged payload: identifiers only, never vision content. */
+export interface ProjectDesignChanged {
+  project_id: string
+  revision: number
+  changed_parts: string[]
+  changed_outcomes: string[]
+  vision_changed: boolean
+}
+
 /** Streamed text of a running turn. Transient. */
 export interface Delta {
   op: string

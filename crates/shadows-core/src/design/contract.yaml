@@ -1,0 +1,70 @@
+# Owns project design edits (§18.2, §18.10–18.11), first called by person HTTP.
+# Reads lazily return an empty revision-zero vision for a live project.
+# Replay precedes project/revision validation and returns an immutable result.
+name: design
+version: 1
+status: current
+source: crates/shadows-core/src/design
+
+shapes:
+  Design:
+    storage: Arc<Storage>
+  VisionContent:
+    purpose: String
+    users: String
+    goals: String
+    boundaries: String
+    technical_direction: String
+  VisionView:
+    revision: DesignRevision
+    content: VisionContent
+  DesignChange:
+    revision: DesignRevision
+
+enums:
+  DesignOp:
+    VisionPut: "{ content: VisionContent }"
+
+functions:
+  service:
+    vision:
+      signature: "(&self, project: &ProjectId) -> Result<VisionView, CoreError>"
+    edit:
+      signature: "(&self, command_id: String, project: &ProjectId, expected_revision: i64, ops: Vec<DesignOp>) -> Result<DesignChange, CoreError>"
+      # DesignEdit, principal User/local, schema 1, Project scope. Fingerprint
+      # over project, expected_revision and ordered typed ops; no text trimming.
+  store:
+    design_vision:
+      signature: "(&self, project: &ProjectId) -> Result<VisionView, StorageError>"
+      # One joined read excludes unknown/removed projects; no row initialization.
+    edit_design:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, expected_revision: i64, ops: Vec<DesignOp>) -> Result<DesignChange, StorageError>"
+      # write_txn → classify/replay → live project/workspace revision → last
+      # VisionPut (empty batch refused) → upsert workspace/vision revisions →
+      # immutable design_command_result → append_event → record_command.
+
+agreements:
+  - between: [edit_design, events::with_project]
+    rule: >
+      ProjectDesignChanged is appended inside the edit's transaction and carries
+      only project_id, workspace revision, empty changed_parts/changed_outcomes
+      and vision_changed true. Events reads it on the existing project journal tail.
+    holds: true
+    tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
+
+obligations:
+  - rule: >
+      A replay returns its original revision after later edits. Changed request
+      identity conflicts. Competing writes expecting zero produce one success.
+      A removed project accepts no new write or event; reads fail.
+    tested_by: vision_edit_is_atomic_replayable_and_revision_checked
+  - rule: >
+      HTTP round-trips Arabic/whitespace, retains 409 REVISION_CONFLICT with
+      current_revision and COMMAND_CONFLICT, and retains conversation API routes.
+    tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
+
+tests:
+  - name: vision_edit_is_atomic_replayable_and_revision_checked
+    checks: Lazy zero, exact text, durable replay, competing revisions, removed project, identifier event.
+  - name: vision_routes_round_trip_conflict_and_preserve_conversations
+    checks: Person HTTP path and project-event read using the same core service.

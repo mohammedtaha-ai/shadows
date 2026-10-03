@@ -18,6 +18,7 @@ use shadows_process::{ProcessSpec, spawn};
 use crate::code::{Code, CodeConfig};
 use crate::command::{CommandContext, fingerprint};
 use crate::db::Storage;
+use crate::design::Design;
 use crate::error::CoreError;
 use crate::events::{Events, UiSignal};
 use crate::grants::Grants;
@@ -53,6 +54,7 @@ pub struct CoreParts {
 
 /// The application: every service, built once.
 pub struct AppCore {
+    design: Design,
     plans: Plans,
     grants: Grants,
     turns: Turns,
@@ -172,6 +174,7 @@ impl AppCore {
         let threads = Threads::new(storage.clone(), harness.clone(), code.clone(), stopper);
         let events = Events::new(storage.clone(), harness.clone(), bus.clone(), ui.clone());
         Arc::new(AppCore {
+            design: Design::new(storage.clone()),
             plans: Plans::new(storage.clone(), handles.clone(), ui.clone()),
             grants: Grants::new(storage.clone(), mcp_url),
             turns: Turns::new(
@@ -193,6 +196,10 @@ impl AppCore {
 
     pub fn plans(&self) -> &Plans {
         &self.plans
+    }
+
+    pub fn design(&self) -> &Design {
+        &self.design
     }
 
     pub fn grants(&self) -> &Grants {

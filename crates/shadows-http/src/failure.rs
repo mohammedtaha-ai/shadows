@@ -44,7 +44,7 @@ struct Detail {
 pub struct ErrorBody {
     pub code: ErrorCode,
     pub message: String,
-    /// `REVISION_CONFLICT` only: the plan's revision now, to read again at.
+    /// `REVISION_CONFLICT` only: the resource's revision now, to read again at.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub current_revision: Option<i64>,
     /// `WORKFLOW_VALIDATION_FAILED` only: each problem, the same sentences
@@ -85,7 +85,9 @@ impl From<StorageError> for Failure {
                 return Failure {
                     status: StatusCode::CONFLICT,
                     code: ErrorCode::RevisionConflict,
-                    message: format!("the plan changed; current revision is {current}: {summary}"),
+                    message: format!(
+                        "the resource changed; current revision is {current}: {summary}"
+                    ),
                     cause: None,
                     detail: Detail {
                         current_revision: Some(*current),

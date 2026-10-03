@@ -338,6 +338,64 @@
         ],
         "type": "object"
       },
+      "DesignChange": {
+        "properties": {
+          "revision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "type": "object"
+      },
+      "DesignEdit": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "expected_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ops": {
+            "items": {
+              "$ref": "#/components/schemas/DesignOp"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "command_id",
+          "expected_revision",
+          "ops"
+        ],
+        "type": "object"
+      },
+      "DesignOp": {
+        "oneOf": [
+          {
+            "properties": {
+              "content": {
+                "$ref": "#/components/schemas/VisionContent"
+              },
+              "kind": {
+                "enum": [
+                  "VisionPut"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "content",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "DirectoryEntry": {
         "description": "One directory a person could open or choose.",
         "properties": {
@@ -460,7 +518,7 @@
             "$ref": "#/components/schemas/ErrorCode"
           },
           "current_revision": {
-            "description": "`REVISION_CONFLICT` only: the plan's revision now, to read again at.",
+            "description": "`REVISION_CONFLICT` only: the resource's revision now, to read again at.",
             "format": "int64",
             "type": [
               "integer",
@@ -1925,6 +1983,50 @@
           "title",
           "written_by",
           "created_at"
+        ],
+        "type": "object"
+      },
+      "VisionContent": {
+        "properties": {
+          "boundaries": {
+            "type": "string"
+          },
+          "goals": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "technical_direction": {
+            "type": "string"
+          },
+          "users": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "purpose",
+          "users",
+          "goals",
+          "boundaries",
+          "technical_direction"
+        ],
+        "type": "object"
+      },
+      "VisionView": {
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/VisionContent"
+          },
+          "revision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "content"
         ],
         "type": "object"
       },
@@ -3453,6 +3555,138 @@
         ]
       }
     },
+    "/api/projects/{id}/design/edits": {
+      "post": {
+        "operationId": "edit",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DesignEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignChange"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "REVISION_CONFLICT or COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/projects/{id}/design/vision": {
+      "get": {
+        "operationId": "vision",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisionView"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
     "/api/projects/{id}/events": {
       "get": {
         "operationId": "subscribe_project",
@@ -3467,7 +3701,7 @@
             }
           },
           {
-            "description": "Resume after the last durable sequence delivered; 0 replays all plan events.",
+            "description": "Resume after the last durable sequence delivered; 0 replays all project plan/design events.",
             "in": "query",
             "name": "after",
             "required": false,
@@ -3499,7 +3733,7 @@
             "description": "Unknown or removed project"
           }
         },
-        "summary": "A project's plan notifications (§16.8), replayed then live on the same\njournal tail as `/api/subscribe`. `durable` carries `{seq, kind,\noperation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.\nArchive notifications name the plan's latest version to refetch.",
+        "summary": "A project's plan/design notifications (§16.8, §18.11), replayed then live on the same\njournal tail as `/api/subscribe`. `durable` carries `{seq, kind,\noperation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.\nArchive notifications name the plan's latest version to refetch.\nProjectDesignChanged carries project_id, revision, changed_parts,\nchanged_outcomes and vision_changed, never the vision content.",
         "tags": [
           "stream"
         ]
@@ -4828,6 +5062,10 @@
     }
   },
   "tags": [
+    {
+      "description": "Project design workspace",
+      "name": "design"
+    },
     {
       "description": "Projects and the directory each owns",
       "name": "projects"
