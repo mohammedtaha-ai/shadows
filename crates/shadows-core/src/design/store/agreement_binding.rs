@@ -13,13 +13,13 @@ pub(crate) async fn check_agreement_binding_in(
             .await
             .map_err(|e| match e {
                 StorageError::NotFound(_) => StorageError::Constraint(
-                    "binding needs an Agreed version in this project".into(),
+                    "binding needs an Agreed version in this project; a person agrees the agreement on its Contracts page first".into(),
                 ),
                 other => other,
             })?;
     if version.state != AgreementState::Agreed {
         return Err(StorageError::Constraint(
-            "binding needs an Agreed version".into(),
+            "binding needs an Agreed version; a person agrees the agreement on its Contracts page first".into(),
         ));
     }
     if !version

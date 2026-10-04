@@ -71,6 +71,9 @@ impl From<StorageError> for Refusal {
                  for a new plan call draft_prepare again",
             ),
             StorageError::TaskNotInPlan(message) => Self::new(ErrorCode::InvalidCommand, message),
+            // A rule the request broke, not a broken database: say which, so an
+            // agent fixes the request instead of asking for a restart.
+            StorageError::Constraint(message) => Self::new(ErrorCode::InvalidCommand, message),
             StorageError::NotFound(what) => {
                 Self::new(ErrorCode::InvalidCommand, format!("no such {what}"))
             }
