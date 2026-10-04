@@ -56,9 +56,10 @@ impl Storage {
                     }
                     None => {
                         let id = AgreementId::generate();
-                        let content = content.ok_or_else(|| {
+                        let mut content = content.ok_or_else(|| {
                             StorageError::Constraint("a new agreement needs content".into())
                         })?;
+                        super::super::agreement_validation::assign_operation_ids(&mut content);
                         sqlx::query(
                             "INSERT INTO agreement(id,project_id,created_at) VALUES(?,?,?)",
                         )
@@ -145,6 +146,8 @@ impl Storage {
                         summary: "agreement Draft changed".into(),
                     });
                 }
+                let mut content = content.clone();
+                super::super::agreement_validation::assign_operation_ids(&mut content);
                 check_parties(conn, &project, &content).await?;
                 reserve_operations(conn, &id, Some(&current.content), &content).await?;
                 sqlx::query(

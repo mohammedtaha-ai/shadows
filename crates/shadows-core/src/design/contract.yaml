@@ -118,6 +118,8 @@ functions:
       signature: "(&self, command_id: String, project: &ProjectId, id: &AgreementId, version: i64, expected_revision: i64, content: AgreementContent) -> Result<AgreementVersion, CoreError>"
       # Names the Draft version it was built on; any other version refuses with
       # InvalidCommand "vN is no longer the Draft; read vM", even at the same revision.
+      # Start and edit give every operation without x-shadows-operation-id a fresh
+      # UUID inside the write; an existing id is kept, so it survives a rename.
     outcome:
       signature: "(&self, project: &ProjectId, id: &OutcomeId) -> Result<OutcomeView, CoreError>"
     outcomes:

@@ -38,6 +38,20 @@ async fn agreement_mcp_exposes_proposals_without_person_approval() {
     )
     .await;
     assert_eq!(read["version"], 1);
+    // An operation named only by method and path gets its identity from Shadows.
+    let named = ok(
+        &client,
+        "agreement_start",
+        json!({"command_id":"ids","content":{"capability":"Reviews","purpose":"Read","behavior":"",
+            "acceptance":[],"parties":[],"openapi":{"paths":{"/api/reviews":{"get":{}}}}}}),
+    )
+    .await;
+    let id = &named["content"]["openapi"]["paths"]["/api/reviews"]["get"]["x-shadows-operation-id"];
+    assert!(
+        id.as_str()
+            .is_some_and(|s| uuid::Uuid::parse_str(s).is_ok()),
+        "{named}"
+    );
     l.app
         .core
         .grants()

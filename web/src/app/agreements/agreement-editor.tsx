@@ -5,6 +5,7 @@ import { type AgreementVersion, type AgreementContent, type AgreementReview,
   editAgreement, reviewAgreement, agreeAgreement } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
+import { WriterName } from './names'
 import { PartyPicker } from './party-picker'
 import { OperationsEditor } from './operations-editor'
 
@@ -45,7 +46,7 @@ export function AgreementEditor({ version, projectId, onSaved, onReload }: {
       disabled={fieldsLocked} value={content[key]} onChange={e => setContent({ ...content, [key]: e.target.value })} /></label>
   return <section className="space-y-4 rounded-xl border border-border p-5">
     <h2 className="text-lg">{version.content.capability} · v{version.version} · {version.state}</h2>
-    <p className="text-xs text-faint-foreground">Written by {version.writer.kind} · {version.writer.id}
+    <p className="text-xs text-faint-foreground">Written by <WriterName writer={version.writer} />
       {version.reason && ` · ${version.reason}`}</p>
     {version.revision !== revision && <p>Server revision changed. Reload to inspect it; your text is retained.</p>}
     {field('Capability', 'capability')}{field('Purpose', 'purpose')}{field('Shared behavior', 'behavior')}

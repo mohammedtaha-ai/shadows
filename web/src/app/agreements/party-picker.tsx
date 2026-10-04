@@ -4,6 +4,7 @@ import type { AgreementContent } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { usePartPages } from '../design/use-part-pages'
 import { ErrorLine } from '../error-line'
+import { PartName } from './names'
 type Party = AgreementContent['parties'][number]
 export function PartyPicker({ projectId, parties, onChange, disabled }: {
   projectId: string; parties: Party[]; onChange: (parties: Party[]) => void; disabled: boolean
@@ -19,7 +20,7 @@ export function PartyPicker({ projectId, parties, onChange, disabled }: {
     <Branch key={parent ?? 'root'} projectId={projectId} parent={parent} parties={parties}
       disabled={disabled} onChange={onChange} onOpen={part => setPath([...path, part])} />
     <ul className="text-xs text-faint-foreground">{parties.map(p => <li key={`${p.part_id}:${p.role}`}>
-      {p.role} · {p.part_id}{!disabled && <Button size="sm" variant="ghost" onClick={() =>
+      {p.role} · <PartName projectId={projectId} id={p.part_id} />{!disabled && <Button size="sm" variant="ghost" onClick={() =>
         onChange(parties.filter(n => !(n.part_id === p.part_id && n.role === p.role)))}>Remove party</Button>}
     </li>)}</ul>
   </fieldset>

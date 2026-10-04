@@ -167,3 +167,30 @@ fn check_refs(root: &Value, value: &Value, path: &str, issues: &mut Vec<Agreemen
         _ => {}
     }
 }
+
+/// Gives every operation that has no `x-shadows-operation-id` a fresh one, so
+/// a writer names operations by method and path and Shadows owns identity.
+/// An existing id is kept: it is what survives a rename of the address.
+pub(crate) fn assign_operation_ids(content: &mut AgreementContent) {
+    let Some(paths) = content
+        .openapi
+        .get_mut("paths")
+        .and_then(Value::as_object_mut)
+    else {
+        return;
+    };
+    for item in paths.values_mut() {
+        for method in [
+            "get", "put", "post", "delete", "options", "head", "patch", "trace",
+        ] {
+            if let Some(op) = item.get_mut(method).and_then(Value::as_object_mut)
+                && !op.contains_key("x-shadows-operation-id")
+            {
+                op.insert(
+                    "x-shadows-operation-id".into(),
+                    Value::String(uuid::Uuid::new_v4().to_string()),
+                );
+            }
+        }
+    }
+}
