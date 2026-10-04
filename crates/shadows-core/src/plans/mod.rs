@@ -14,6 +14,8 @@
 //! through `Plans` only.
 
 mod conversation;
+mod dependencies;
+mod dependency_graph;
 mod model;
 mod ops;
 mod rules;
@@ -25,6 +27,7 @@ use std::sync::Arc;
 use serde_json::json;
 
 pub use conversation::{Focus, Place, PlanShown};
+pub use dependencies::{LinkedTask, TaskParent, TaskPreview};
 pub use model::{
     AcceptanceItem, Approved, DraftStarted, EditOutcome, LastEdit, Link, LinkKind, Plan,
     PlanContent, PlanId, PlanListing, PlanState, PlanTask, PlanVersions, TaskContent, TaskId,
@@ -161,13 +164,17 @@ impl Plans {
         Ok(self.storage.unarchive_plan(&c, plan).await?)
     }
 
-    /// `workflow_list`: the plans in the grant's project.
+    /// `workflow_list`: own or explicitly selected linked project's plans.
     pub async fn list_for(
         &self,
         grant: &Grant,
         archived: bool,
+        project: Option<&str>,
     ) -> Result<Vec<PlanListing>, CoreError> {
-        Ok(self.storage.list_plans(&grant.project_id, archived).await?)
+        Ok(self
+            .storage
+            .list_plans_scoped(&grant.project_id, archived, project)
+            .await?)
     }
 
     /// `workflow_get`: a plan version the grant reaches.
@@ -175,7 +182,20 @@ impl Plans {
         &self,
         grant: &Grant,
         named: Option<&WorkflowId>,
+        project: Option<&str>,
     ) -> Result<Plan, CoreError> {
+        if let Some(project) = project {
+            let id = named.ok_or_else(|| {
+                refused(
+                    ErrorCode::GrantScope,
+                    "name the plan version with workflow_id",
+                )
+            })?;
+            return Ok(self
+                .storage
+                .get_plan_scoped(id, Some(&grant.project_id), Some(project))
+                .await?);
+        }
         self.in_scope(grant, named, false).await
     }
 

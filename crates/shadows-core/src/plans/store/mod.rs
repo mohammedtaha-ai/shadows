@@ -8,8 +8,11 @@
 //! `pub(crate)` and declared in `plans/contract.yaml` under
 //! `shared_in_transaction`; nothing else here is.
 
+mod dependencies;
 mod draft;
 mod edit;
+mod graph;
+mod linked;
 mod plan;
 mod read;
 mod task;

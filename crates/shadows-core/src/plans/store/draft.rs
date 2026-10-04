@@ -68,7 +68,7 @@ impl Storage {
                         let id = latest_version(conn, plan)
                             .await?
                             .ok_or(StorageError::NotFound("workflow"))?;
-                        Some(load_plan(conn, &id).await?)
+                        Some(load_plan(conn, &id, None).await?)
                     }
                     None => None,
                 };

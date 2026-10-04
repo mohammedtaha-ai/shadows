@@ -18,8 +18,45 @@ use crate::threads::ThreadId;
 
 impl Storage {
     pub async fn get_plan(&self, workflow: &WorkflowId) -> Result<Plan, StorageError> {
-        let mut conn = self.reader().acquire().await?;
-        load_plan(&mut conn, workflow).await
+        self.get_plan_scoped(workflow, None, None).await
+    }
+
+    pub async fn get_plan_scoped(
+        &self,
+        workflow: &WorkflowId,
+        origin: Option<&ProjectId>,
+        project: Option<&str>,
+    ) -> Result<Plan, StorageError> {
+        let mut snapshot = self.reader().begin().await?;
+        if let Some(origin) = origin {
+            let selected = crate::code::selected_project_in(&mut snapshot, origin, project).await?;
+            let owner: Option<String> = sqlx::query_scalar(
+                "SELECT p.project_id FROM workflow w JOIN plan p ON p.id=w.plan_id WHERE w.id=?",
+            )
+            .bind(workflow.as_str())
+            .fetch_optional(&mut *snapshot)
+            .await?;
+            if owner.as_deref() != Some(selected.as_str()) {
+                return Err(StorageError::GrantScope);
+            }
+        }
+        let mut plan = load_plan(&mut snapshot, workflow, origin).await?;
+        plan.linked_tasks = super::linked::read(&mut snapshot, &plan, origin).await?;
+        snapshot.commit().await?;
+        Ok(plan)
+    }
+
+    pub async fn list_plans_scoped(
+        &self,
+        origin: &ProjectId,
+        archived: bool,
+        project: Option<&str>,
+    ) -> Result<Vec<PlanListing>, StorageError> {
+        let mut snapshot = self.reader().begin().await?;
+        let selected = crate::code::selected_project_in(&mut snapshot, origin, project).await?;
+        let plans = listings(&mut snapshot, &selected, archived).await?;
+        snapshot.commit().await?;
+        Ok(plans)
     }
 
     /// Each plan of `project` by its latest version: the Active ones, or all
@@ -31,35 +68,8 @@ impl Storage {
         project: &ProjectId,
         archived: bool,
     ) -> Result<Vec<PlanListing>, StorageError> {
-        type Row = (String, String, String, String, i64, String, String);
-        let rows: Vec<Row> = sqlx::query_as(
-            "SELECT p.id, p.state, w.id, w.title, w.version, w.state, w.updated_at
-               FROM workflow w
-               JOIN plan p ON p.id = w.plan_id
-              WHERE p.project_id = ?
-                AND (? OR p.state = 'Active')
-                AND w.version = (SELECT MAX(version) FROM workflow WHERE plan_id = w.plan_id)
-              ORDER BY julianday(p.created_at), p.id",
-        )
-        .bind(project.as_str())
-        .bind(archived)
-        .fetch_all(self.reader())
-        .await?;
-        rows.into_iter()
-            .map(
-                |(plan, plan_state, id, title, version, state, updated_at)| {
-                    Ok(PlanListing {
-                        plan_id: PlanId::from_stored(plan),
-                        plan_state: parse_plan_state(&plan_state)?,
-                        id: WorkflowId::from_stored(id),
-                        title,
-                        version,
-                        state: parse_state(&state)?,
-                        updated_at,
-                    })
-                },
-            )
-            .collect()
+        let mut conn = self.reader().acquire().await?;
+        listings(&mut conn, project, archived).await
     }
 
     /// The latest version of the first plan the thread wrote, if any. Tests
@@ -72,6 +82,42 @@ impl Storage {
             None => Ok(None),
         }
     }
+}
+
+async fn listings(
+    conn: &mut SqliteConnection,
+    project: &ProjectId,
+    archived: bool,
+) -> Result<Vec<PlanListing>, StorageError> {
+    type Row = (String, String, String, String, i64, String, String);
+    let rows: Vec<Row> = sqlx::query_as(
+        "SELECT p.id, p.state, w.id, w.title, w.version, w.state, w.updated_at
+               FROM workflow w
+               JOIN plan p ON p.id = w.plan_id
+              WHERE p.project_id = ?
+                AND (? OR p.state = 'Active')
+                AND w.version = (SELECT MAX(version) FROM workflow WHERE plan_id = w.plan_id)
+              ORDER BY julianday(p.created_at), p.id",
+    )
+    .bind(project.as_str())
+    .bind(archived)
+    .fetch_all(conn)
+    .await?;
+    rows.into_iter()
+        .map(
+            |(plan, plan_state, id, title, version, state, updated_at)| {
+                Ok(PlanListing {
+                    plan_id: PlanId::from_stored(plan),
+                    plan_state: parse_plan_state(&plan_state)?,
+                    id: WorkflowId::from_stored(id),
+                    title,
+                    version,
+                    state: parse_state(&state)?,
+                    updated_at,
+                })
+            },
+        )
+        .collect()
 }
 
 /// The first plan whose versions `thread` wrote. Only `thread_plan` uses it.
@@ -146,6 +192,7 @@ type VersionRow = (
 pub(super) async fn load_plan(
     conn: &mut SqliteConnection,
     id: &WorkflowId,
+    origin: Option<&ProjectId>,
 ) -> Result<Plan, StorageError> {
     let (
         project,
@@ -208,12 +255,15 @@ pub(super) async fn load_plan(
         tasks: tasks_of(conn, id).await?,
         links: links_of(conn, id).await?,
         blockers: Vec::new(),
+        linked_tasks: Vec::new(),
         last_edit,
         frozen_at,
         created_at,
     };
     if plan.state == WorkflowState::Draft {
         plan.blockers = approval_problems(&plan.content());
+        plan.blockers
+            .extend(super::graph::blockers(conn, &plan, origin).await?);
     }
     Ok(plan)
 }

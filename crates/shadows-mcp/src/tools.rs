@@ -25,6 +25,9 @@ use shadows_core::{DraftStart, Place, PlanEdit, PlanOp, PlanShow, WorkflowId};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct PlanArgs {
+    /// Own project by default; a linked project's slug for a read only.
+    #[serde(default)]
+    project: Option<String>,
     /// The plan version; workflow_list lists each plan's latest version.
     #[serde(default)]
     #[schemars(with = "Option<String>")]
@@ -64,6 +67,9 @@ struct DraftStartArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct WorkflowListArgs {
+    /// Own project by default; a linked project's slug for a read only.
+    #[serde(default)]
+    project: Option<String>,
     /// Include archived plans alongside Active plans.
     #[serde(default)]
     archived: bool,
@@ -168,8 +174,10 @@ impl Shadows {
         text(asked.await.map(|a| lines(&a, false)).map_err(Refusal::from))
     }
 
-    #[tool(description = "List this project's plans: each one's latest version. \
-                       Set archived to include archived plans.")]
+    #[tool(
+        description = "List plans: each one's latest version. Use project for a linked \
+                       project's slug, archived to include archived plans."
+    )]
     async fn workflow_list(
         &self,
         Extension(grant): Extension<Grant>,
@@ -178,7 +186,7 @@ impl Shadows {
         answer(
             self.core
                 .plans()
-                .list_for(&grant, args.archived)
+                .list_for(&grant, args.archived, args.project.as_deref())
                 .await
                 .map_err(Refusal::from),
         )
@@ -186,7 +194,7 @@ impl Shadows {
 
     #[tool(
         description = "Read a plan version: title, goal, tasks, links, revision, state, \
-                       and what blocks approval."
+                       and what blocks approval. Use project for a linked project's slug."
     )]
     async fn workflow_get(
         &self,
@@ -196,7 +204,7 @@ impl Shadows {
         answer(
             self.core
                 .plans()
-                .get_for(&grant, args.workflow_id.as_ref())
+                .get_for(&grant, args.workflow_id.as_ref(), args.project.as_deref())
                 .await
                 .map_err(Refusal::from),
         )

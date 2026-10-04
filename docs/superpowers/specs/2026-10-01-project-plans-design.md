@@ -254,6 +254,10 @@ of §13.3: `Web T4 needs Backend T3`.
 - **Written** by `plan_edit`'s `link_put` and `link_remove`, whose `parent`
   may be `{ plan_id, task }`. It is copied into a new version with the other
   links, as §13.2 copies links.
+  The existing wire field is `after`: a local number remains a JSON number;
+  an external parent is `{ "plan_id": "…", "task": 3 }`. This extends the
+  existing `link_put.link.after` and `link_remove.after` without renaming
+  local fields or rewriting old Frozen content.
 - **Read** with the plan: `workflow_get` answers each link to another plan
   with the plan's name, the project's name if it is another project, and the
   task's title, state, goal and acceptance items. So a writer sees what it

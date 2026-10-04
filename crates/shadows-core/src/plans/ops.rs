@@ -7,6 +7,7 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
+use super::dependencies::TaskParent;
 use super::model::{Link, LinkKind, PlanContent, TaskContent, link_name};
 use super::rules::{Problem, edit_problems_after_removing};
 
@@ -42,7 +43,7 @@ pub enum PlanOp {
     },
     LinkRemove {
         task: u32,
-        after: u32,
+        after: TaskParent,
         kind: LinkKind,
     },
 }
@@ -60,24 +61,24 @@ pub struct Applied {
 
 /// What one operation acts on. Two operations on one object in a batch are
 /// refused rather than resolved by their order (§13.4).
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 enum Object {
     Plan,
     Task(u32),
-    Link(u32, u32, LinkKind),
+    Link(u32, TaskParent, LinkKind),
 }
 
 impl Object {
     /// A link's identity: at most one link of each kind between two tasks (§13.3).
     fn of_link(l: &Link) -> Self {
-        Object::Link(l.task, l.after, l.kind)
+        Object::Link(l.task, l.after.clone(), l.kind)
     }
 
-    fn name(self) -> String {
+    fn name(&self) -> String {
         match self {
             Object::Plan => "the plan".to_string(),
             Object::Task(n) => format!("T{n}"),
-            Object::Link(task, after, kind) => link_name(task, after, kind),
+            Object::Link(task, after, kind) => link_name(*task, after, *kind),
         }
     }
 }
@@ -89,7 +90,7 @@ impl PlanOp {
             PlanOp::TaskAdd { task } | PlanOp::TaskUpdate { task } => Object::Task(task.number),
             PlanOp::TaskRemove { number } => Object::Task(*number),
             PlanOp::LinkPut { link } => Object::of_link(link),
-            PlanOp::LinkRemove { task, after, kind } => Object::Link(*task, *after, *kind),
+            PlanOp::LinkRemove { task, after, kind } => Object::Link(*task, after.clone(), *kind),
         }
     }
 
@@ -99,8 +100,12 @@ impl PlanOp {
             PlanOp::PlanPut { .. } => vec![],
             PlanOp::TaskAdd { task } | PlanOp::TaskUpdate { task } => vec![task.number],
             PlanOp::TaskRemove { number } => vec![*number],
-            PlanOp::LinkPut { link } => vec![link.task, link.after],
-            PlanOp::LinkRemove { task, after, .. } => vec![*task, *after],
+            PlanOp::LinkPut { link } => std::iter::once(link.task)
+                .chain(link.after.local())
+                .collect(),
+            PlanOp::LinkRemove { task, after, .. } => {
+                std::iter::once(*task).chain(after.local()).collect()
+            }
         }
     }
 }
@@ -168,11 +173,11 @@ fn apply_one(content: &mut PlanContent, op: &PlanOp, removed: &mut BTreeSet<u32>
                 Some(existing) => *existing = link.clone(),
                 None => content.links.push(link.clone()),
             }
-            format!("linked T{} → T{}", link.task, link.after)
+            format!("linked T{} → {}", link.task, link.after)
         }
         PlanOp::LinkRemove { task, after, .. } => {
             content.links.retain(|l| Object::of_link(l) != op.object());
-            format!("unlinked T{task} → T{after}")
+            format!("unlinked T{task} → {after}")
         }
     }
 }
@@ -193,7 +198,7 @@ fn refusals(current: &PlanContent, ops: &[PlanOp]) -> Vec<Problem> {
     for op in ops {
         let object = op.object();
         if uses[&object] > 1 {
-            if reported.insert(object) {
+            if reported.insert(object.clone()) {
                 problems.push(Problem::new(format!(
                     "two operations on {} in one edit",
                     object.name()
@@ -230,10 +235,7 @@ fn refusal(current: &PlanContent, op: &PlanOp) -> Option<String> {
                 .iter()
                 .any(|l| Object::of_link(l) == op.object()) =>
         {
-            Some(format!(
-                "{} does not exist",
-                link_name(*task, *after, *kind)
-            ))
+            Some(format!("{} does not exist", link_name(*task, after, *kind)))
         }
         _ => None,
     }

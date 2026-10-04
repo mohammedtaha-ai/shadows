@@ -101,12 +101,17 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/harness/titles.rs` | handing the titles a harness sends to its thread | `crates/shadows-core/src/harness/titles.rs` |
 | `crates/shadows-core/src/plans/` | project plans under the rules of §16 | `crates/shadows-core/src/plans/mod.rs` |
 | `crates/shadows-core/src/plans/model.rs` | the plan types callers meet | `crates/shadows-core/src/plans/model.rs` |
+| `crates/shadows-core/src/plans/dependencies.rs` | task dependency value shapes | `crates/shadows-core/src/plans/dependencies.rs` |
+| `crates/shadows-core/src/plans/dependency_graph.rs` | start/complete dependency ordering | `crates/shadows-core/src/plans/dependency_graph.rs` |
 | `crates/shadows-core/src/plans/store/` | plans' SQLite queries | `crates/shadows-core/src/plans/store/edit.rs` |
 | `crates/shadows-core/src/plans/store/edit.rs` | changing a plan version | `crates/shadows-core/src/plans/store/edit.rs` |
 | `crates/shadows-core/src/plans/store/draft.rs` | starting a plan version | `crates/shadows-core/src/plans/store/draft.rs` |
 | `crates/shadows-core/src/plans/store/plan.rs` | a plan's state lifecycle with its versions | `crates/shadows-core/src/plans/store/plan.rs` |
 | `crates/shadows-core/src/plans/store/read.rs` | reading plan versions | `crates/shadows-core/src/plans/store/read.rs` |
 | `crates/shadows-core/src/plans/store/task.rs` | a plan version's task graph rows | `crates/shadows-core/src/plans/store/task.rs` |
+| `crates/shadows-core/src/plans/store/dependencies.rs` | persisted cross-plan links | `crates/shadows-core/src/plans/store/dependencies.rs` |
+| `crates/shadows-core/src/plans/store/graph.rs` | reachable latest-version dependency checks | `crates/shadows-core/src/plans/store/graph.rs` |
+| `crates/shadows-core/src/plans/store/linked.rs` | captured dependency preview reads | `crates/shadows-core/src/plans/store/linked.rs` |
 | `crates/shadows-core/src/plans/store/view.rs` | showing a plan version in its conversation | `crates/shadows-core/src/plans/store/view.rs` |
 | `crates/shadows-core/src/plans/ops.rs` | applying one batch of plan edits | `crates/shadows-core/src/plans/ops.rs` |
 | `crates/shadows-core/src/plans/rules.rs` | what makes a plan invalid or unready | `crates/shadows-core/src/plans/rules.rs` |
@@ -132,6 +137,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/code/model.rs` | the code index types callers meet | `crates/shadows-core/src/code/model.rs` |
 | `crates/shadows-core/src/code/store/` | the code index's SQLite queries | `crates/shadows-core/src/code/store/mod.rs` |
 | `crates/shadows-core/src/code/store/links.rs` | the rows a person's code choices write | `crates/shadows-core/src/code/store/links.rs` |
+| `crates/shadows-core/src/code/store/reach.rs` | live one-way project reach in a snapshot | `crates/shadows-core/src/code/store/reach.rs` |
 | `crates/shadows-core/src/code/scan.rs` | walking a project's folder into the index | `crates/shadows-core/src/code/scan.rs` |
 | `crates/shadows-core/src/code/scope.rs` | what a code question may read | `crates/shadows-core/src/code/scope.rs` |
 | `crates/shadows-core/src/code/watch.rs` | keeping one active project's index current | `crates/shadows-core/src/code/watch.rs` |

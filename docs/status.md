@@ -181,6 +181,13 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
+**Active objective, 2026-10-04:** complete the full vision on
+`codex/full-project-vision`, created from `e290df6`, with local delivery first.
+The [delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
+now retains the full local, concurrency and company sequence. The next
+product slice is §16 1b; executors, manager and specialized diagrams are still
+unimplemented, not implied by the new branch or documentation.
+
 1. **Structure hygiene, `chore/close-format-blind-spot`, derived through
    `chore/gate-dedup-cleanup` from the planning branch.** Four changes that
    preserve product behaviour, specified in

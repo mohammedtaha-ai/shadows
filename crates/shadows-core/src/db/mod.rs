@@ -64,6 +64,9 @@ pub enum StorageError {
     /// Spec §13.4: the edit's final state, or the approval, breaks a rule.
     #[error("the plan is not valid: {}", problems(.0))]
     PlanInvalid(Vec<Problem>),
+    /// §16.7: a new task link names an unavailable or unreachable parent.
+    #[error("{0}")]
+    PlanLinkInvalid(String),
     /// Spec §13.7: the writer's grant is unknown or revoked.
     #[error("the grant is unknown or revoked")]
     GrantInvalid,

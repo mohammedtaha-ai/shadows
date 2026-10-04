@@ -5,9 +5,9 @@
 //! stable order — tasks ascending, then links in stored order, then a cycle —
 //! so the same plan always yields the same list.
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashSet};
 
-use petgraph::{algo::tarjan_scc, graph::DiGraph};
+use super::dependency_graph::DependencyGraph;
 
 use super::model::{Link, LinkKind, PlanContent, link_name};
 
@@ -86,11 +86,11 @@ pub(super) fn edit_problems_after_removing(
     let mut seen_links = HashSet::new();
     let mut reported_links = HashSet::new();
     for link in &content.links {
-        let identity = (link.task, link.after, link.kind);
-        if !seen_links.insert(identity) && reported_links.insert(identity) {
+        let identity = (link.task, link.after.clone(), link.kind);
+        if !seen_links.insert(identity.clone()) && reported_links.insert(identity) {
             problems.push(Problem::new(format!(
                 "{} occurs more than once",
-                link_name(link.task, link.after, link.kind)
+                link_name(link.task, &link.after, link.kind)
             )));
         }
         problems.extend(
@@ -110,34 +110,34 @@ pub(super) fn edit_problems_after_removing(
 }
 
 fn link_problems(content: &PlanContent, removed: &BTreeSet<u32>, link: &Link) -> Vec<String> {
-    // (the end that may be missing, the other end, how the first is linked to the other)
-    let ends = [
-        (link.after, link.task, "from"),
-        (link.task, link.after, "to"),
-    ];
-    let ends = if link.task == link.after {
-        &ends[..1]
-    } else {
-        &ends[..]
-    };
+    if link.after.number() == 0 {
+        return vec!["T0 is not a task number; numbers start at 1".into()];
+    }
+    let mut ends = vec![(link.task, link.after.to_string(), "to")];
+    if let Some(after) = link.after.local() {
+        ends.insert(0, (after, format!("T{}", link.task), "from"));
+        if link.task == after {
+            ends.truncate(1);
+        }
+    }
     let missing: Vec<String> = ends
         .iter()
         .filter(|(end, _, _)| !content.tasks.contains_key(end))
         .map(|(end, other, direction)| {
             if removed.contains(end) {
-                format!("T{end} is still linked {direction} T{other}")
+                format!("T{end} is still linked {direction} {other}")
             } else {
-                format!("the link {direction} T{other} names T{end}, which does not exist")
+                format!("the link {direction} {other} names T{end}, which does not exist")
             }
         })
         .collect();
     if !missing.is_empty() {
         return missing;
     }
-    if link.task == link.after {
+    if link.after.local() == Some(link.task) {
         return vec![format!("T{} cannot be linked to itself", link.task)];
     }
-    let name = link_name(link.task, link.after, link.kind);
+    let name = link_name(link.task, &link.after, link.kind);
     match link.kind {
         LinkKind::Needs if !link.waiting_items.is_empty() => vec![format!(
             "{name} names acceptance items; a needs link waits for the whole task"
@@ -163,40 +163,14 @@ fn link_problems(content: &PlanContent, removed: &BTreeSet<u32>, link: &Link) ->
 /// named, never a task that merely comes after it. When several exist, the one
 /// whose sorted task list is smallest is reported, so the message is stable.
 fn cycle(content: &PlanContent) -> Option<Vec<u32>> {
-    let mut g = DiGraph::<u32, ()>::new();
-    let events: BTreeMap<u32, _> = content
-        .tasks
-        .keys()
-        .map(|&n| {
-            let s = g.add_node(n);
-            let c = g.add_node(n);
-            g.add_edge(s, c, ());
-            (n, (s, c))
-        })
-        .collect();
-    for l in &content.links {
-        if l.task == l.after {
-            continue; // reported as "cannot be linked to itself"
-        }
-        let (Some(&(b_start, b_complete)), Some(&(_, a_complete))) =
-            (events.get(&l.task), events.get(&l.after))
-        else {
-            continue; // reported as a missing task
-        };
-        let to = match l.kind {
-            LinkKind::Needs => b_start,
-            LinkKind::CompletesAfter => b_complete,
-        };
-        g.add_edge(a_complete, to, ());
+    let mut graph = DependencyGraph::new();
+    for number in content.tasks.keys() {
+        graph.task("", *number);
     }
-    tarjan_scc(&g)
-        .into_iter()
-        .filter(|scc| scc.len() > 1)
-        .map(|scc| {
-            let mut t: Vec<u32> = scc.iter().map(|&i| g[i]).collect();
-            t.sort_unstable();
-            t.dedup();
-            t
-        })
-        .min()
+    for link in &content.links {
+        graph.link("", link);
+    }
+    graph
+        .cycle()
+        .map(|tasks| tasks.into_iter().map(|(_, number)| number).collect())
 }

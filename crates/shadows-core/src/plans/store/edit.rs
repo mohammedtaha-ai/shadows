@@ -16,7 +16,6 @@ use crate::events::{Actor, DurableEvent};
 use crate::grants::check_writer;
 use crate::plans::model::{Approved, EditOutcome, PlanId, WorkflowId, WorkflowState, WrittenBy};
 use crate::plans::ops::{PlanOp, apply};
-use crate::plans::rules::approval_problems;
 use crate::projects::ProjectId;
 use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, append_entry_in};
 use crate::turns::OperationId;
@@ -50,7 +49,7 @@ impl Storage {
                 if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await? {
                     return recorded_outcome(conn, &event).await;
                 }
-                let plan = load_plan(conn, &workflow).await?;
+                let plan = load_plan(conn, &workflow, None).await?;
                 require_active(conn, &plan.plan_id).await?;
                 writable(
                     conn,
@@ -62,6 +61,7 @@ impl Storage {
                 )
                 .await?;
                 let applied = apply(&plan.content(), &ops).map_err(StorageError::PlanInvalid)?;
+                super::graph::check_parents(conn, &plan, &ops).await?;
                 write_content(conn, &workflow, &plan.tasks, &applied.content, &ts).await?;
                 sqlx::query(
                     "UPDATE workflow SET title = ?, goal = ?, revision = revision + 1,
@@ -118,7 +118,7 @@ impl Storage {
                 if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await? {
                     return recorded_outcome(conn, &event).await;
                 }
-                let plan = load_plan(conn, &workflow).await?;
+                let plan = load_plan(conn, &workflow, None).await?;
                 require_active(conn, &plan.plan_id).await?;
                 writable(
                     conn,
@@ -129,7 +129,7 @@ impl Storage {
                     &workflow,
                 )
                 .await?;
-                let blockers = approval_problems(&plan.content());
+                let blockers = plan.blockers;
                 if !blockers.is_empty() {
                     return Err(StorageError::PlanInvalid(blockers));
                 }

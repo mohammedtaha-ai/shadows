@@ -25,7 +25,7 @@ fn empty() -> PlanContent {
 fn needs(task: u32, after: u32) -> Link {
     Link {
         task,
-        after,
+        after: after.into(),
         kind: LinkKind::Needs,
         label: "api".into(),
         waiting_items: vec![],
@@ -117,7 +117,7 @@ fn removing_a_linked_task_is_refused_until_its_links_go() {
         &[
             PlanOp::LinkRemove {
                 task: 2,
-                after: 1,
+                after: 1.into(),
                 kind: LinkKind::Needs,
             },
             PlanOp::TaskRemove { number: 1 },
@@ -146,7 +146,7 @@ fn a_cycle_across_both_kinds_is_refused() {
             PlanOp::LinkPut {
                 link: Link {
                     task: 4,
-                    after: 2,
+                    after: 2.into(),
                     kind: LinkKind::CompletesAfter,
                     label: "mail".into(),
                     waiting_items: vec![1],
@@ -169,9 +169,9 @@ fn completes_after_alone_in_both_directions_is_a_cycle() {
     )
     .unwrap()
     .content;
-    let wait = |t, a| Link {
+    let wait = |t, a: u32| Link {
         task: t,
-        after: a,
+        after: a.into(),
         kind: LinkKind::CompletesAfter,
         label: "x".into(),
         waiting_items: vec![1],
@@ -237,7 +237,7 @@ fn completes_after_one_way_with_needs_the_other_way_is_valid() {
             PlanOp::LinkPut {
                 link: Link {
                     task: 3,
-                    after: 8,
+                    after: 8.into(),
                     kind: LinkKind::CompletesAfter,
                     label: "email sender".into(),
                     waiting_items: vec![1],
@@ -264,7 +264,7 @@ fn waiting_items_must_exist_on_the_waiting_task() {
         &[PlanOp::LinkPut {
             link: Link {
                 task: 2,
-                after: 1,
+                after: 1.into(),
                 kind: LinkKind::CompletesAfter,
                 label: "x".into(),
                 waiting_items: vec![5],

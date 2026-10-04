@@ -134,7 +134,10 @@ async fn an_edit_moves_the_revision_once_and_records_one_event() {
         vec![1, 2]
     );
     assert_eq!(plan.links.len(), 1);
-    assert_eq!((plan.links[0].task, plan.links[0].after), (2, 1));
+    assert_eq!(
+        (plan.links[0].task, plan.links[0].after.clone()),
+        (2, 1.into())
+    );
     let last = plan.last_edit.unwrap();
     assert_eq!(
         (last.revision, last.summary, last.changed_tasks),
@@ -450,7 +453,7 @@ async fn completes_after_links_keep_their_waiting_items() {
     let v1 = draft(&app).await.workflow_id;
     let link = shadows_core::Link {
         task: 2,
-        after: 1,
+        after: 1.into(),
         kind: LinkKind::CompletesAfter,
         label: "schema".into(),
         waiting_items: vec![1],

@@ -89,7 +89,7 @@ pub fn needs(task: u32, after: u32) -> PlanOp {
     PlanOp::LinkPut {
         link: Link {
             task,
-            after,
+            after: after.into(),
             kind: LinkKind::Needs,
             label: "api".into(),
             waiting_items: vec![],

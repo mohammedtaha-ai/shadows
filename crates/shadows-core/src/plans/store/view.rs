@@ -35,7 +35,7 @@ impl Storage {
         );
         self.write_txn(move |conn| {
             Box::pin(async move {
-                let plan = load_plan(conn, &workflow).await?;
+                let plan = load_plan(conn, &workflow, None).await?;
                 // The card goes in the Planner's own conversation (§13.9).
                 let Writer::Planner { thread, .. } = &writer else {
                     return Err(StorageError::GrantScope);

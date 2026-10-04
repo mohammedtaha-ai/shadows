@@ -9,6 +9,7 @@
 
 use std::collections::BTreeMap;
 
+use super::dependencies::{LinkedTask, TaskParent};
 use super::rules::Problem;
 use crate::grants::GrantId;
 use crate::id::newtype_id;
@@ -103,8 +104,8 @@ impl LinkKind {
 
 /// How a refusal names one link: `the needs link T2 → T1`, the arrow pointing
 /// from the task that waits to the task it waits for.
-pub(super) fn link_name(task: u32, after: u32, kind: LinkKind) -> String {
-    format!("the {} link T{task} → T{after}", kind.as_str())
+pub(super) fn link_name(task: u32, after: &TaskParent, kind: LinkKind) -> String {
+    format!("the {} link T{task} → {after}", kind.as_str())
 }
 
 /// Spec §13.3. One sentence someone can check, numbered within its task.
@@ -155,7 +156,7 @@ pub struct TaskContent {
 )]
 pub struct Link {
     pub task: u32,
-    pub after: u32,
+    pub after: TaskParent,
     pub kind: LinkKind,
     /// A few words saying what passes from `after` to `task`.
     pub label: String,
@@ -216,6 +217,10 @@ pub struct Plan {
     /// What blocks approval ([`approval_problems`]) for a `Draft`; empty for
     /// a `Frozen` version.
     pub blockers: Vec<Problem>,
+    /// Live dependency metadata; never part of the frozen content digest.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schema(required = false)]
+    pub linked_tasks: Vec<LinkedTask>,
     /// `None` until the version is first edited.
     pub last_edit: Option<LastEdit>,
     pub frozen_at: Option<String>,

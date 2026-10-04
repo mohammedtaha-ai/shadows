@@ -65,6 +65,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "runtime_instance",
             "task",
             "task_parent",
+            "task_plan_parent",
             "thread_entry",
             "workflow",
         ],

@@ -8,6 +8,32 @@ use std::collections::HashMap;
 use sqlx::SqliteConnection;
 
 use crate::db::StorageError;
+use crate::plans::TaskParent;
+use crate::plans::TaskPreview;
+
+pub(super) async fn preview(
+    conn: &mut SqliteConnection,
+    workflow: &WorkflowId,
+    number: u32,
+) -> Result<Option<TaskPreview>, StorageError> {
+    let row: Option<(String, String)> =
+        sqlx::query_as("SELECT contract_json, state FROM task WHERE workflow_id=? AND number=?")
+            .bind(workflow.as_str())
+            .bind(number)
+            .fetch_optional(&mut *conn)
+            .await?;
+    row.map(|(json, state)| {
+        let content: Contract = serde_json::from_str(&json)?;
+        Ok(TaskPreview {
+            number,
+            title: content.title,
+            goal: content.goal,
+            acceptance: content.acceptance,
+            state,
+        })
+    })
+    .transpose()
+}
 use crate::plans::model::{
     AcceptanceItem, Link, LinkKind, PlanContent, PlanTask, TaskContent, TaskId, WorkflowId,
 };
@@ -110,20 +136,13 @@ pub(super) async fn links_of(
     .bind(workflow.as_str())
     .fetch_all(&mut *conn)
     .await?;
-    rows.into_iter()
+    let mut links: Vec<Link> = rows
+        .into_iter()
         .map(|(task, after, kind, label, waiting)| {
-            let kind = match kind.as_str() {
-                "needs" => LinkKind::Needs,
-                "completes_after" => LinkKind::CompletesAfter,
-                other => {
-                    return Err(StorageError::Constraint(format!(
-                        "unknown link kind: {other}"
-                    )));
-                }
-            };
+            let kind = stored_kind(&kind)?;
             Ok(Link {
                 task,
-                after,
+                after: after.into(),
                 kind,
                 label,
                 waiting_items: match waiting {
@@ -132,7 +151,29 @@ pub(super) async fn links_of(
                 },
             })
         })
-        .collect()
+        .collect::<Result<_, StorageError>>()?;
+    links.extend(super::dependencies::links_of(conn, workflow).await?);
+    links.sort_by(|a, b| link_order(a).cmp(&link_order(b)));
+    Ok(links)
+}
+
+fn link_order(link: &Link) -> (u32, u8, u32, &str, u32, &str) {
+    match &link.after {
+        TaskParent::Local(number) => (link.task, 0, *number, "", 0, link.kind.as_str()),
+        TaskParent::Plan { plan_id, task } => {
+            (link.task, 1, 0, plan_id.as_str(), *task, link.kind.as_str())
+        }
+    }
+}
+
+pub(super) fn stored_kind(kind: &str) -> Result<LinkKind, StorageError> {
+    match kind {
+        "needs" => Ok(LinkKind::Needs),
+        "completes_after" => Ok(LinkKind::CompletesAfter),
+        other => Err(StorageError::Constraint(format!(
+            "unknown link kind: {other}"
+        ))),
+    }
 }
 
 /// Makes the version's task and link rows say `after`, given the rows it
@@ -150,6 +191,7 @@ pub(super) async fn write_content(
         .bind(workflow.as_str())
         .execute(&mut *conn)
         .await?;
+    super::dependencies::clear(conn, workflow).await?;
     let mut ids: HashMap<u32, TaskId> = HashMap::new();
     for old in before {
         let number = old.content.number;
@@ -206,6 +248,10 @@ pub(super) async fn write_content(
                 StorageError::Constraint(format!("a link names T{n}, which is not stored"))
             })
         };
+        if let TaskParent::Plan { plan_id, task } = &link.after {
+            super::dependencies::put(conn, workflow, end(link.task)?, link, plan_id, *task).await?;
+            continue;
+        }
         let waiting = match link.kind {
             LinkKind::Needs => None,
             LinkKind::CompletesAfter => Some(serde_json::to_string(&link.waiting_items)?),
@@ -217,7 +263,7 @@ pub(super) async fn write_content(
         )
         .bind(workflow.as_str())
         .bind(end(link.task)?.as_str())
-        .bind(end(link.after)?.as_str())
+        .bind(end(link.after.number())?.as_str())
         .bind(link.kind.as_str())
         .bind(&link.label)
         .bind(waiting)

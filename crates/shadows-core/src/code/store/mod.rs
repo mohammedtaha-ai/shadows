@@ -9,8 +9,10 @@
 //! own queries; the rows a person's choices write already live in `links.rs`.
 
 mod links;
+mod reach;
 
 pub(crate) use links::delete_code_links_in;
+pub(crate) use reach::{project_reachable_in, selected_project_in};
 
 use shadows_index::{Role, Tag};
 use sqlx::SqliteConnection;
