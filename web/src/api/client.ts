@@ -22,7 +22,6 @@ export type HarnessInfo = Schemas['HarnessInfo']
 export type Choice = Schemas['Choice']
 export type SessionChoices = Schemas['SessionChoices']
 export type AccountLimits = Schemas['AccountLimits']
-export type LimitWindow = Schemas['LimitWindow']
 export type InvocationView = Schemas['InvocationView']
 export type TurnSettings = Schemas['TurnSettings']
 export type ContextBreakdown = Schemas['ContextBreakdown']
@@ -52,7 +51,7 @@ export const DAEMON_URL = (import.meta.env.VITE_SHADOWS_URL ?? 'http://127.0.0.1
 // `fetch` is looked up on each call rather than captured once here (what
 // openapi-fetch does by default), so a test that stubs it is heard however
 // early this module was imported.
-const client = createClient<paths>({ baseUrl: DAEMON_URL, fetch: (request) => fetch(request) })
+export const client = createClient<paths>({ baseUrl: DAEMON_URL, fetch: (request) => fetch(request) })
 
 /** The CLIs a conversation can run on, with what each remembers and its
  * latest reported limits (spec §12.10). */

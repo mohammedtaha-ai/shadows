@@ -1,8 +1,7 @@
 // The HTTP calls for the project design workspace.
-import createClient from 'openapi-fetch'
-import { DAEMON_URL } from './client'
+import { client } from './client'
 import { unwrap } from './error'
-import type { components, paths } from './schema'
+import type { components } from './schema'
 
 export type VisionContent = components['schemas']['VisionContent']
 export type VisionView = components['schemas']['VisionView']
@@ -29,7 +28,6 @@ export function getPart(projectId: string, partId: string): Promise<PartView> {
 export function getParts(projectId: string, parent?: string, after?: string): Promise<PartPage> {
   return unwrap(client.GET('/api/projects/{id}/design/parts', { params: { path: { id: projectId }, query: { parent, after } } }))
 }
-const client = createClient<paths>({ baseUrl: DAEMON_URL, fetch: (request) => fetch(request) })
 
 export function getVision(projectId: string): Promise<VisionView> {
   return unwrap(client.GET('/api/projects/{id}/design/vision', { params: { path: { id: projectId } } }))
