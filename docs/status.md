@@ -181,12 +181,22 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **Structure hygiene, `chore/gate-dedup-cleanup`, branched from the planning
-   branch.** Four changes that alter no behaviour, specified in
+1. **Structure hygiene, `chore/close-format-blind-spot`, derived through
+   `chore/gate-dedup-cleanup` from the planning branch.** Four changes that
+   preserve product behaviour, specified in
    [`2026-10-04-structure-hygiene-design.md`](./superpowers/specs/2026-10-04-structure-hygiene-design.md):
    a line-length check for the format gate's blind spot, one hook shared by
    the part and outcome editors, one dead export removed, and six merged plans
-   deleted. Nothing is implemented; the spec awaits review.
+   deleted. All four are implemented on the branch. The shared editor retains
+   the existing retry and revision-conflict behavior. OpenAPI documentation
+   and generated client declarations were refreshed together after rewrapping
+   a route's comment. Final Windows verification passed: **385 Rust tests
+   and 180 Web tests**, formatting, both clippy modes, production build,
+   production feature isolation, Web typecheck, lint and build. The manual
+   database-copy migration test remains explicitly ignored in the default
+   suite. The line-length step accepted 100 Unicode characters with CRLF,
+   rejected 101 with file/line/width, and accepted the repaired file. No
+   independent branch review or new human browser acceptance is claimed.
 2. **Finish the planning workspace Stage 1 handoff:** the planning branch is
    `codex/shared-contracts-planning`. The [full delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
    and [§18 draft](./superpowers/specs/2026-10-03-project-planning-workspace-design.md)

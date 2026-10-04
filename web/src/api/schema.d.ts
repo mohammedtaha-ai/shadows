@@ -116,9 +116,10 @@ export interface paths {
         /**
          * Stops a turn: asks the harness to cancel it, and if the harness does not
          *     confirm in time, terminates the adapter's process tree, confirms it is
-         *     gone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the operation as it
-         *     now stands — which may still be `Running` for a moment when the turn had
-         *     already ended on its own and its ending is being recorded.
+         *     gone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers
+         *     with the operation as it now stands — which may still be `Running` for a
+         *     moment when the turn had already ended on its own and its ending is being
+         *     recorded.
          * @description If the tree cannot be terminated the answer is 500
          *     `PROCESS_TERMINATION_FAILED`, and the operation is not `Cancelled`.
          */

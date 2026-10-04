@@ -49,6 +49,26 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Format
         run: cargo fmt --all --check
+      - name: Line length — what makes rustfmt skip a block
+        # Spec structure-hygiene §1. `cargo fmt --check` exits 0 even when
+        # rustfmt emits a whole block verbatim because one of its lines
+        # cannot fit `max_width` (100): every statement in that block is then
+        # unformatted and unchecked. This step fails on the cause — any
+        # `crates/**/*.rs` line over 100 characters — and names it. Width is
+        # counted in characters, as rustfmt counts it: UTF-8 continuation
+        # bytes and a CRLF checkout's `\r` are dropped first, so mawk (Linux)
+        # and gawk (Windows) agree.
+        shell: bash
+        run: |
+          find crates -name '*.rs' -not -path '*/target/*' -print0 \
+            | LC_ALL=C xargs -0 awk '
+                { s = $0; sub(/\r$/, "", s); gsub(/[\200-\277]/, "", s) }
+                length(s) > 100 {
+                  printf "::error file=%s,line=%d::%d characters; the limit is 100\n",
+                    FILENAME, FNR, length(s)
+                  bad = 1
+                }
+                END { exit bad }'
       - name: Lint
         run: cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings
       - name: Boundary — the adapters see only the core's public surface
@@ -102,6 +122,26 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Format
         run: cargo fmt --all --check
+      - name: Line length — what makes rustfmt skip a block
+        # Spec structure-hygiene §1. `cargo fmt --check` exits 0 even when
+        # rustfmt emits a whole block verbatim because one of its lines
+        # cannot fit `max_width` (100): every statement in that block is then
+        # unformatted and unchecked. This step fails on the cause — any
+        # `crates/**/*.rs` line over 100 characters — and names it. Width is
+        # counted in characters, as rustfmt counts it: UTF-8 continuation
+        # bytes and a CRLF checkout's `\r` are dropped first, so mawk (Linux)
+        # and gawk (Windows) agree.
+        shell: bash
+        run: |
+          find crates -name '*.rs' -not -path '*/target/*' -print0 \
+            | LC_ALL=C xargs -0 awk '
+                { s = $0; sub(/\r$/, "", s); gsub(/[\200-\277]/, "", s) }
+                length(s) > 100 {
+                  printf "::error file=%s,line=%d::%d characters; the limit is 100\n",
+                    FILENAME, FNR, length(s)
+                  bad = 1
+                }
+                END { exit bad }'
       - name: Lint
         run: cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings
       - name: Boundary — the adapters see only the core's public surface

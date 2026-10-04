@@ -1,8 +1,9 @@
 # Structure hygiene — what the gate misses, and what duplication cost
 
 **Date:** 2026-10-04
-**Status:** Draft for Mohammed's review. Nothing here is implemented.
-**Branch:** `chore/gate-dedup-cleanup`, derived from
+**Status:** All four changes implemented and verified on Windows on
+`chore/close-format-blind-spot`; independent branch review remains pending.
+**Branch:** `chore/close-format-blind-spot`, derived through `chore/gate-dedup-cleanup` from
 `codex/shared-contracts-planning`.
 
 This document owns four changes to the Shadows repository that change no
@@ -61,7 +62,9 @@ The 14 files and their unformattable line counts:
 | `crates/shadows-core/src/turns/shutdown.rs` | 163 | 1 |
 
 Widening the measurement to every line over 100 characters, not only those
-`rustfmt` gives up on, finds **266**: 130 in product code and 136 in tests.
+`rustfmt` gives up on, finds **259 in 64 files** at `5c9692d`: 128 in product
+code and 131 in tests. This counts Unicode characters, as the check below
+does; the earlier byte-length measurement counted 266.
 Most are macro invocations — `json!`, `sqlx::query`, `tracing::warn!` — which
 `rustfmt` will not reflow, so each needs a manual line break.
 
@@ -78,7 +81,7 @@ The check is a shell step rather than a `rustfmt.toml` setting because
 `Warning: can't set error_on_line_overflow = true` and continues. Verified on
 the toolchain this repository develops against. `rustfmt.toml` is not added.
 
-**The 266 lines are broken before the check is added.** Adding the check first
+**The 259 lines are broken before the check is added.** Adding the check first
 would fail CI on the first commit for a reason unrelated to any change under
 review. The order is: break the lines, commit, add the check, commit.
 
@@ -92,7 +95,7 @@ fake-acp/test-support -- -D warnings` and `cargo test --workspace` passing.
 
 Whether the check should carry an exception list for lines that cannot be
 broken, such as a generated file or a `#[utoipa::path(...)]` attribute. At the
-time of writing, all 266 are in hand-written code, so the question has not
+time of writing, all 259 are in hand-written code, so the question has not
 arisen. **OPEN — trigger:** the first commit that must add an exception to
 `ci.yml`'s new step.
 
@@ -137,6 +140,7 @@ rather than making a second one.
 | `idOf`, `contentOf`, `empty` | `.part` against `.outcome` |
 | `detailQuery`, `listQuery` | `partQuery` against `outcomeQuery` |
 | `relations` | `Outcome` carries an extra `OutcomePartPut`/`OutcomePartRemove` pair |
+| `contentOp` | a typed constructor for create/put operations, preserving each content shape without casts |
 
 The hook owns the three behaviours above in this order, unchanged: the
 `attemptFor` fingerprint over `{expected_revision, ops}`, clearing
@@ -275,7 +279,7 @@ Each item is independently reviewable and none depends on another's result.
 
 1. **§4** — delete six plans, amend `status.md`. Nothing else reads them.
 2. **§3** — two edits in `web/src/api/`. Then `npm run typecheck`.
-3. **§1, line-breaking** — 266 lines across the workspace. Then the full Rust
+3. **§1, line-breaking** — 259 lines across the workspace. Then the full Rust
    gate.
 4. **§1, the check** — one step in `ci.yml`. Run locally against the tree
    §1's line-breaking left, then commit.
@@ -294,9 +298,10 @@ isolation check, and `git diff --exit-code api/`. Web commits additionally run
 ## 6. What this document does not do
 
 It does not change a service's contract, a route, a type in
-`api/openapi.json`, or the schema. It does not add a dependency. It does not
-touch `crates/shadows-core/src/db/`, the stores, the runtime, the harness, the
-agent or the index.
+`api/openapi.json`, or the schema. It does not add a dependency. Rust edits
+in stores, the runtime, the harness, the agent and the index only reformat
+existing code. Rewrapping a route's documentation can alter the generated
+OpenAPI summary; regenerate the document and client declarations together.
 
 The 62% of `web/src` files without a sibling test is a real gap — including
 `api/queries.ts` and `workflows/plan-frames.ts`, which hold logic — and it is

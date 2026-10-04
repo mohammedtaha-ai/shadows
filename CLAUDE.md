@@ -101,6 +101,7 @@ and `verification` services, and `secrets`.
      without `test-support`, where the core's boundary is checked
   5. `cargo tree -e features,no-dev --workspace | grep test-support` prints nothing
   6. `git diff --exit-code api/`: `api/openapi.json` changes only with a route
+- CI's format-overflow check is owned by [structure hygiene §1.2](./docs/superpowers/specs/2026-10-04-structure-hygiene-design.md#12-what-is-decided).
 - **Library-first:** no custom ORM, no custom migration engine. Use Rust ecosystem crates.
 - **A file earns its size.** At **300 lines** a file stops being free: the change that
   pushes it over states, in its commit message or report, what that file's single

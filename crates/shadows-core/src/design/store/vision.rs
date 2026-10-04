@@ -107,7 +107,19 @@ impl Storage {
                             }
                             super::part_edit::apply(conn, &project, other, &mut changed).await?;
                         }
-                        other => {
+                        other @ (DesignOp::OutcomeCreate { .. }
+                        | DesignOp::OutcomePut { .. }
+                        | DesignOp::OutcomeMove { .. }
+                        | DesignOp::OutcomePartPut { .. }
+                        | DesignOp::OutcomePartRemove { .. }
+                        | DesignOp::PlanLinkPut {
+                            anchor: DesignAnchor::Outcome(_),
+                            ..
+                        }
+                        | DesignOp::PlanLinkRemove {
+                            anchor: DesignAnchor::Outcome(_),
+                            ..
+                        }) => {
                             if let DesignOp::OutcomeCreate { id, .. } = &other {
                                 created_outcomes.insert(id.to_string());
                             }
