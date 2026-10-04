@@ -41,11 +41,18 @@ pub async fn shut_down(
     escalate: impl Future<Output = ()>,
 ) -> Result<StopKind, StorageError> {
     let confirmed = tokio::select! {
-        confirmed = tokio::time::timeout(confirm_within, terminate_all(&runtime, &handles, &sessions)) => {
+        confirmed = tokio::time::timeout(
+            confirm_within,
+            terminate_all(&runtime, &handles, &sessions),
+        ) => {
             match confirmed {
                 Ok(confirmed) => confirmed,
                 Err(_elapsed) => {
-                    log_unconfirmed(&runtime, "shutdown.unconfirmed: the confirmation bound ran out").await;
+                    log_unconfirmed(
+                        &runtime,
+                        "shutdown.unconfirmed: the confirmation bound ran out",
+                    )
+                    .await;
                     false
                 }
             }

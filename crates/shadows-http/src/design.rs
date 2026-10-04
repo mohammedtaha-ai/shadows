@@ -15,9 +15,18 @@ pub(super) struct OutcomesQuery {
     parent: Option<OutcomeId>,
     after: Option<OutcomeId>,
 }
-#[utoipa::path(get, path = "/api/projects/{id}/design/outcomes", tag = "design",
+#[utoipa::path(
+    get,
+    path = "/api/projects/{id}/design/outcomes",
+    tag = "design",
     params(("id" = ProjectId, Path, description = "The project"), OutcomesQuery),
-    responses((status = 200, body = OutcomePage), (status = 404, body = ErrorBody), (status = 422, body = ErrorBody), (status = 500, body = ErrorBody)))]
+    responses(
+        (status = 200, body = OutcomePage),
+        (status = 404, body = ErrorBody),
+        (status = 422, body = ErrorBody),
+        (status = 500, body = ErrorBody),
+    )
+)]
 pub(super) async fn outcomes(
     State(s): State<AppState>,
     Path(project): Path<ProjectId>,
@@ -30,9 +39,20 @@ pub(super) async fn outcomes(
             .await?,
     ))
 }
-#[utoipa::path(get, path = "/api/projects/{id}/design/outcomes/{outcome}", tag = "design",
-    params(("id" = ProjectId, Path, description = "The project"), ("outcome" = OutcomeId, Path, description = "The outcome")),
-    responses((status = 200, body = OutcomeView), (status = 404, body = ErrorBody), (status = 500, body = ErrorBody)))]
+#[utoipa::path(
+    get,
+    path = "/api/projects/{id}/design/outcomes/{outcome}",
+    tag = "design",
+    params(
+        ("id" = ProjectId, Path, description = "The project"),
+        ("outcome" = OutcomeId, Path, description = "The outcome"),
+    ),
+    responses(
+        (status = 200, body = OutcomeView),
+        (status = 404, body = ErrorBody),
+        (status = 500, body = ErrorBody),
+    )
+)]
 pub(super) async fn outcome(
     State(s): State<AppState>,
     Path((project, id)): Path<(ProjectId, OutcomeId)>,
@@ -47,9 +67,18 @@ pub(super) struct PartsQuery {
     after: Option<PartId>,
 }
 
-#[utoipa::path(get, path = "/api/projects/{id}/design/parts", tag = "design",
+#[utoipa::path(
+    get,
+    path = "/api/projects/{id}/design/parts",
+    tag = "design",
     params(("id" = ProjectId, Path, description = "The project"), PartsQuery),
-    responses((status = 200, body = PartPage), (status = 404, body = ErrorBody), (status = 422, body = ErrorBody), (status = 500, body = ErrorBody)))]
+    responses(
+        (status = 200, body = PartPage),
+        (status = 404, body = ErrorBody),
+        (status = 422, body = ErrorBody),
+        (status = 500, body = ErrorBody),
+    )
+)]
 pub(super) async fn parts(
     State(s): State<AppState>,
     Path(project): Path<ProjectId>,
@@ -63,9 +92,20 @@ pub(super) async fn parts(
     ))
 }
 
-#[utoipa::path(get, path = "/api/projects/{id}/design/parts/{part}", tag = "design",
-    params(("id" = ProjectId, Path, description = "The project"), ("part" = PartId, Path, description = "The part")),
-    responses((status = 200, body = PartView), (status = 404, body = ErrorBody), (status = 500, body = ErrorBody)))]
+#[utoipa::path(
+    get,
+    path = "/api/projects/{id}/design/parts/{part}",
+    tag = "design",
+    params(
+        ("id" = ProjectId, Path, description = "The project"),
+        ("part" = PartId, Path, description = "The part"),
+    ),
+    responses(
+        (status = 200, body = PartView),
+        (status = 404, body = ErrorBody),
+        (status = 500, body = ErrorBody),
+    )
+)]
 pub(super) async fn part(
     State(s): State<AppState>,
     Path((project, id)): Path<(ProjectId, PartId)>,
@@ -73,9 +113,17 @@ pub(super) async fn part(
     Ok(Json(s.core.design().part(&project, &id).await?))
 }
 
-#[utoipa::path(get, path = "/api/projects/{id}/design/vision", tag = "design",
+#[utoipa::path(
+    get,
+    path = "/api/projects/{id}/design/vision",
+    tag = "design",
     params(("id" = ProjectId, Path, description = "The project")),
-    responses((status = 200, body = VisionView), (status = 404, body = ErrorBody), (status = 500, body = ErrorBody)))]
+    responses(
+        (status = 200, body = VisionView),
+        (status = 404, body = ErrorBody),
+        (status = 500, body = ErrorBody),
+    )
+)]
 pub(super) async fn vision(
     State(s): State<AppState>,
     Path(project): Path<ProjectId>,

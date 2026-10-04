@@ -220,17 +220,30 @@ impl Subscription {
                 None
             }
             Woke::Committed(false) => Some(self.end("shutdown: storage closed")),
-            Woke::Bus(Ok((thread, op, item))) if matches!(&self.scope, Scope::Thread(own) if own == &thread) => {
+            Woke::Bus(Ok((thread, op, item)))
+                if matches!(
+                    &self.scope,
+                    Scope::Thread(own) if own == &thread
+                ) =>
+            {
                 self.transient(thread, op, item).await.map(Ok)
             }
-            Woke::Options(Ok((thread, offered))) if matches!(&self.scope, Scope::Thread(own) if own == &thread) =>
+            Woke::Options(Ok((thread, offered)))
+                if matches!(
+                    &self.scope,
+                    Scope::Thread(own) if own == &thread
+                ) =>
             {
                 // `None` when the thread's policy cannot be read; the next
                 // opening answers.
                 let choices = self.harness.choices(&thread, &offered).await.ok()?;
                 Some(Ok(Delivery::Options { thread, choices }))
             }
-            Woke::Signal(Ok(signal)) if matches!(&self.scope, Scope::Thread(own) if own == &signal.thread_id) =>
+            Woke::Signal(Ok(signal))
+                if matches!(
+                    &self.scope,
+                    Scope::Thread(own) if own == &signal.thread_id
+                ) =>
             {
                 // The card's durable event was committed before the signal
                 // was sent, so the journal has already delivered it.

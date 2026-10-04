@@ -158,7 +158,10 @@ fn is_alive(pid: u32) -> bool {
         .args([
             "-NoProfile",
             "-Command",
-            &format!("if (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ 'yes' }} else {{ 'no' }}"),
+            &format!(
+                "if (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ 'yes' }} \
+                 else {{ 'no' }}"
+            ),
         ])
         .output()
         .expect("powershell should run");
@@ -367,7 +370,10 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
         .oneshot(
             Request::post(format!("/api/threads/{}/turns", f.thread.as_str()))
                 .header("content-type", "application/json")
-                .body(Body::from(r#"{"command_id":"after-stop","prompt":"hi","model":"fake-large","mode":"acceptEdits","effort":"high"}"#))
+                .body(Body::from(concat!(
+                    r#"{"command_id":"after-stop","prompt":"hi","#,
+                    r#""model":"fake-large","mode":"acceptEdits","effort":"high"}"#
+                )))
                 .unwrap(),
         )
         .await

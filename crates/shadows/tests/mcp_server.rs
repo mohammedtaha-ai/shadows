@@ -17,7 +17,11 @@ mod plan;
 use listening::{Listening, listening_app, project_client, thread_client};
 use plan::{draft, issue_grant, revoke_grant};
 
-const INITIALIZE: &str = r#"{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"raw","version":"1"}}}"#;
+const INITIALIZE: &str = concat!(
+    r#"{"jsonrpc":"2.0","id":0,"method":"initialize","#,
+    r#""params":{"protocolVersion":"2025-11-25","capabilities":{},"#,
+    r#""clientInfo":{"name":"raw","version":"1"}}}"#,
+);
 
 /// A raw `POST /mcp` of `body`, with `bearer` when given and `extra` headers.
 async fn raw_post(

@@ -19,9 +19,10 @@ fn workspace_root() -> PathBuf {
 }
 
 /// This test does not judge whether an ownership phrase is *true* — no test
-/// can — but it does refuse the three ways the file can be mechanically wrong: naming something that does not exist, omitting a module
-/// that does, and describing a module with a conjunction, which is how a file
-/// acquires a second responsibility without anyone deciding to give it one.
+/// can — but it does refuse the three ways the file can be mechanically wrong:
+/// naming something that does not exist, omitting a module that does, and
+/// describing a module with a conjunction, which is how a file acquires a
+/// second responsibility without anyone deciding to give it one.
 #[test]
 fn the_ownership_map_accounts_for_every_module() {
     let root = workspace_root();
@@ -71,7 +72,8 @@ struct Row {
     reference: String,
 }
 
-/// `| `crates/shadows/src/storage/` | persistence | `crates/shadows/src/storage/sqlite/project.rs` |`
+/// `| `crates/shadows/src/storage/` | persistence |
+///  `crates/shadows/src/storage/sqlite/project.rs` |`
 fn parse_row(line: &str) -> Option<Row> {
     let line = line.trim();
     if !line.starts_with('|') {

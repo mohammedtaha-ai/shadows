@@ -50,7 +50,16 @@ pub(super) async fn apply(
                 parent.as_ref().map(OutcomeId::as_str),
             )
             .await?;
-            sqlx::query("INSERT INTO design_outcome(id,project_id,parent_id,revision,ordinal,content_json) VALUES (?,?,?,1,0,?)").bind(id.as_str()).bind(project.as_str()).bind(parent.as_ref().map(OutcomeId::as_str)).bind(serde_json::to_string(&content)?).execute(&mut *conn).await?;
+            sqlx::query(
+                "INSERT INTO design_outcome(id,project_id,parent_id,revision,ordinal,content_json) \
+                 VALUES (?,?,?,1,0,?)",
+            )
+            .bind(id.as_str())
+            .bind(project.as_str())
+            .bind(parent.as_ref().map(OutcomeId::as_str))
+            .bind(serde_json::to_string(&content)?)
+            .execute(&mut *conn)
+            .await?;
             hierarchy::place(
                 conn,
                 Tree::Outcomes,
@@ -114,7 +123,8 @@ pub(super) async fn apply(
             let sql = if remove {
                 "DELETE FROM design_outcome_plan WHERE project_id=? AND outcome_id=? AND plan_id=?"
             } else {
-                "INSERT OR IGNORE INTO design_outcome_plan(project_id,outcome_id,plan_id) VALUES (?,?,?)"
+                "INSERT OR IGNORE INTO design_outcome_plan(project_id,outcome_id,plan_id) \
+                 VALUES (?,?,?)"
             };
             sqlx::query(sql)
                 .bind(project.as_str())
@@ -138,7 +148,8 @@ pub(super) async fn apply(
             let sql = if remove {
                 "DELETE FROM design_outcome_part WHERE project_id=? AND outcome_id=? AND part_id=?"
             } else {
-                "INSERT OR IGNORE INTO design_outcome_part(project_id,outcome_id,part_id) VALUES (?,?,?)"
+                "INSERT OR IGNORE INTO design_outcome_part(project_id,outcome_id,part_id) \
+                 VALUES (?,?,?)"
             };
             sqlx::query(sql)
                 .bind(project.as_str())

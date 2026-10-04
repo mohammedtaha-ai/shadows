@@ -28,7 +28,8 @@ impl NoBreakdown {
         match self {
             NoBreakdown::NotOpen => "the conversation's session is not open",
             NoBreakdown::NoTurnYet => {
-                "no breakdown until the session's first answer: before it, reading one can take tens of seconds"
+                "no breakdown until the session's first answer: \
+                 before it, reading one can take tens of seconds"
             }
             NoBreakdown::Busy => "a turn is running",
             NoBreakdown::TimedOut => "the harness did not answer in time",

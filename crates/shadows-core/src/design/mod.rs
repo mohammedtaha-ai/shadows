@@ -36,7 +36,11 @@ impl Design {
         mut ops: Vec<DesignOp>,
     ) -> Result<DesignChange, CoreError> {
         ops::normalize(&mut ops)?;
-        let params = serde_json::json!({ "project": project, "expected_revision": expected_revision, "ops": ops });
+        let params = serde_json::json!({
+            "project": project,
+            "expected_revision": expected_revision,
+            "ops": ops
+        });
         let ctx = user_command(command_id, "DesignEdit", params);
         self.storage
             .edit_design(&ctx, project, expected_revision, ops)

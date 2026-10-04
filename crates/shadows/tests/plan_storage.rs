@@ -31,7 +31,10 @@ async fn a_new_draft_is_version_one_at_revision_zero() {
 
     let plan = app.storage.get_plan(&started.workflow_id).await.unwrap();
     assert!(
-        matches!(&plan.written_by, WrittenBy::Planner { thread_id, .. } if thread_id == &app.thread),
+        matches!(
+            &plan.written_by,
+            WrittenBy::Planner { thread_id, .. } if thread_id == &app.thread
+        ),
         "{:?}",
         plan.written_by
     );

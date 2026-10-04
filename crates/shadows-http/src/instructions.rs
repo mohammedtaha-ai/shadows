@@ -47,7 +47,11 @@ pub(super) struct SaveInstructions {
     params(("id" = ProjectId, Path, description = "The project")),
     request_body = SaveInstructions,
     responses(
-        (status = 200, description = "Saved, or the replay of the same command", body = InstructionsVersion),
+        (
+            status = 200,
+            description = "Saved, or the replay of the same command",
+            body = InstructionsVersion,
+        ),
         (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
         (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),

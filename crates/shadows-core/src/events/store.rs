@@ -50,7 +50,8 @@ impl Storage {
             String,
         );
         let rows: Vec<Row> = sqlx::query_as(
-            "SELECT e.seq, e.kind, e.operation_id, e.thread_id, e.created_at, w.plan_id, w.id, e.payload_json
+            "SELECT e.seq, e.kind, e.operation_id, e.thread_id, e.created_at, \
+w.plan_id, w.id, e.payload_json
                FROM durable_event e
                LEFT JOIN workflow w ON w.id = COALESCE(
                     json_extract(e.payload_json, '$.workflow_id'),

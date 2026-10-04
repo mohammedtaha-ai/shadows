@@ -37,7 +37,8 @@ impl Storage {
                 }
                 let id = ProjectId::generate();
                 sqlx::query(
-                    "INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,?,?)",
+                    "INSERT INTO project (id, slug, name, directory, created_at) \
+                     VALUES (?,?,?,?,?)",
                 )
                 .bind(id.as_str())
                 .bind(&slug)
@@ -119,11 +120,13 @@ impl Storage {
                     return load_project(conn, &id).await;
                 }
                 live_project(conn, &id).await?;
-                let threads: i64 =
-                    sqlx::query_scalar("SELECT COUNT(*) FROM planning_thread WHERE project_id = ? AND removed_at IS NULL")
-                        .bind(id.as_str())
-                        .fetch_one(&mut *conn)
-                        .await?;
+                let threads: i64 = sqlx::query_scalar(
+                    "SELECT COUNT(*) FROM planning_thread \
+                         WHERE project_id = ? AND removed_at IS NULL",
+                )
+                .bind(id.as_str())
+                .fetch_one(&mut *conn)
+                .await?;
                 if threads > 0 {
                     return Err(StorageError::ProjectHasThreads);
                 }

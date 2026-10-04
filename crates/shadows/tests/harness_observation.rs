@@ -149,7 +149,14 @@ async fn no_breakdown_before_the_first_turn_or_while_one_runs() {
 
 #[test]
 fn parse_reads_the_category_table_only() {
-    let md = "## Context Usage\n\n| Category | Tokens | Percentage |\n|---|---|---|\n| Messages | 3.8k | 0.4% |\n| Free space | 923.9k | 92.4% |\n\n### MCP Tools\n| Tool | Server | Tokens |\n| x | y | 400 |\n";
+    let md = "## Context Usage\n\n| Category | Tokens | Percentage |\n\
+              |---|---|---|\n\
+              | Messages | 3.8k | 0.4% |\n\
+              | Free space | 923.9k | 92.4% |\n\
+              \n\
+              ### MCP Tools\n\
+              | Tool | Server | Tokens |\n\
+              | x | y | 400 |\n";
     let c = shadows_agent::breakdown::parse(md).unwrap();
     assert_eq!(c.len(), 2);
     assert_eq!((c[1].name.as_str(), c[1].tokens), ("Free space", 923_900));

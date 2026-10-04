@@ -42,7 +42,9 @@ pub fn focus_block(focus: &Focus, number: u32, title: &str) -> String {
 /// The context block for a person continuing a plan in a new conversation.
 pub fn continue_plan_block(plan: &PlanListing) -> String {
     format!(
-        "[Shadows] The person opened this conversation to continue the plan \"{}\" (plan_id {}, latest version workflow_id {}). Read it with workflow_get before you plan.",
+        "[Shadows] The person opened this conversation to continue the plan \"{}\" \
+         (plan_id {}, latest version workflow_id {}). \
+         Read it with workflow_get before you plan.",
         plan.title, plan.plan_id, plan.id
     )
 }
@@ -90,7 +92,12 @@ impl PlannerTurn {
             client_tab,
             events,
         } = request;
-        let span = tracing::info_span!(parent: None, "planner.turn", operation_id = %op_id, thread_id = %thread_id);
+        let span = tracing::info_span!(
+            parent: None,
+            "planner.turn",
+            operation_id = %op_id,
+            thread_id = %thread_id
+        );
         // §13.8: what changed since the session last heard, read while this
         // turn is still `Pending` and so not yet its thread's latest.
         let context = sessions.setups().context_before_turn(&thread_id).await;

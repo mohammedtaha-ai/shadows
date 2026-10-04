@@ -102,13 +102,38 @@ pub(super) struct TurnStarted {
     request_body = StartTurn,
     responses(
         (status = 202, body = TurnStarted),
-        (status = 403, description = "MODE_NOT_ALLOWED: the project does not allow this mode", body = ErrorBody),
+        (
+            status = 403,
+            description = "MODE_NOT_ALLOWED: the project does not allow this mode",
+            body = ErrorBody,
+        ),
         (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
-        (status = 409, description = "THREAD_BUSY: a turn is running; COMMAND_CONFLICT: this command_id was used with another request; PATH_NOT_FOUND: the project's directory is gone or was never set; nothing was written", body = ErrorBody),
-        (status = 422, description = "SETTING_NOT_OFFERED: a model, mode or effort the session does not offer; HARNESS_UNAVAILABLE; INVALID_COMMAND: the focus names a task not in that plan, or a plan not this thread's", body = ErrorBody),
+        (
+            status = 409,
+            description = "THREAD_BUSY: a turn is running; COMMAND_CONFLICT: this command_id was \
+                           used with another request; PATH_NOT_FOUND: the project's directory is \
+                           gone or was never set; nothing was written",
+            body = ErrorBody,
+        ),
+        (
+            status = 422,
+            description = "SETTING_NOT_OFFERED: a model, mode or effort the session does not \
+                           offer; HARNESS_UNAVAILABLE; INVALID_COMMAND: the focus names a task \
+                           not in that plan, or a plan not this thread's",
+            body = ErrorBody,
+        ),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
-        (status = 502, description = "HARNESS_START_FAILED: the thread's session could not be opened; nothing was written", body = ErrorBody),
-        (status = 503, description = "RUNTIME_STOPPING: the daemon is shutting down", body = ErrorBody),
+        (
+            status = 502,
+            description = "HARNESS_START_FAILED: the thread's session could not be opened; \
+                           nothing was written",
+            body = ErrorBody,
+        ),
+        (
+            status = 503,
+            description = "RUNTIME_STOPPING: the daemon is shutting down",
+            body = ErrorBody,
+        ),
     )
 )]
 pub(super) async fn start_turn(
@@ -166,7 +191,8 @@ pub(super) async fn detached<T: Send + 'static>(
 
 /// Stops a turn: asks the harness to cancel it, and if the harness does not
 /// confirm in time, terminates the adapter's process tree, confirms it is
-/// gone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the operation as it
+/// gone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the
+/// operation as it
 /// now stands — which may still be `Running` for a moment when the turn had
 /// already ended on its own and its ending is being recorded.
 ///
@@ -180,8 +206,17 @@ pub(super) async fn detached<T: Send + 'static>(
     responses(
         (status = 200, body = Operation),
         (status = 404, description = "INVALID_COMMAND: no such operation", body = ErrorBody),
-        (status = 409, description = "STORAGE_CONSTRAINT_VIOLATION: it had already ended another way", body = ErrorBody),
-        (status = 500, description = "PROCESS_TERMINATION_FAILED: the tree is still running, or STORAGE_UNAVAILABLE", body = ErrorBody),
+        (
+            status = 409,
+            description = "STORAGE_CONSTRAINT_VIOLATION: it had already ended another way",
+            body = ErrorBody,
+        ),
+        (
+            status = 500,
+            description = "PROCESS_TERMINATION_FAILED: the tree is still running, or \
+                           STORAGE_UNAVAILABLE",
+            body = ErrorBody,
+        ),
     )
 )]
 pub(super) async fn stop_turn(

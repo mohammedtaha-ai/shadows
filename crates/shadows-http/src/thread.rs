@@ -75,8 +75,17 @@ pub(super) struct UpdateThread {
     responses(
         (status = 200, body = PlanningThread),
         (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
-        (status = 409, description = "HARNESS_LOCKED: the thread already ran a turn on its harness, or is a fork; or COMMAND_CONFLICT", body = ErrorBody),
-        (status = 422, description = "SETTING_NOT_OFFERED: a harness Shadows does not know", body = ErrorBody),
+        (
+            status = 409,
+            description = "HARNESS_LOCKED: the thread already ran a turn on its harness, or is a \
+                           fork; or COMMAND_CONFLICT",
+            body = ErrorBody,
+        ),
+        (
+            status = 422,
+            description = "SETTING_NOT_OFFERED: a harness Shadows does not know",
+            body = ErrorBody,
+        ),
     )
 )]
 pub(super) async fn update_thread(
@@ -114,8 +123,17 @@ pub(super) struct ForkThread {
     responses(
         (status = 201, body = PlanningThread),
         (status = 404, description = "INVALID_COMMAND: no such thread or entry", body = ErrorBody),
-        (status = 409, description = "THREAD_BUSY: a turn is running, or COMMAND_CONFLICT", body = ErrorBody),
-        (status = 422, description = "FORK_POINT_NOT_SUPPORTED: fork from anything but the last completed entry", body = ErrorBody),
+        (
+            status = 409,
+            description = "THREAD_BUSY: a turn is running, or COMMAND_CONFLICT",
+            body = ErrorBody,
+        ),
+        (
+            status = 422,
+            description = "FORK_POINT_NOT_SUPPORTED: fork from anything but the last completed \
+                           entry",
+            body = ErrorBody,
+        ),
     )
 )]
 pub(super) async fn fork_thread(

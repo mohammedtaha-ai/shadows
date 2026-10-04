@@ -41,7 +41,12 @@ async fn plan_command_fingerprints_do_not_move() {
     )
     .await;
     let v1 = started["workflow_id"].clone();
-    let edit = json!({ "workflow_id": v1, "expected_revision": 0, "ops": [add(1)], "command_id": "pin-edit" });
+    let edit = json!({
+        "workflow_id": v1,
+        "expected_revision": 0,
+        "ops": [add(1)],
+        "command_id": "pin-edit",
+    });
     ok(&planner, "plan_edit", edit).await;
     ok(
         &planner,

@@ -66,10 +66,12 @@ pub(super) async fn place(
     }
     let sql: &'static str = match tree {
         Tree::Parts => {
-            "SELECT id,ordinal FROM design_part WHERE project_id=? AND parent_id IS ? AND id<>? ORDER BY ordinal,id"
+            "SELECT id,ordinal FROM design_part WHERE project_id=? \
+             AND parent_id IS ? AND id<>? ORDER BY ordinal,id"
         }
         Tree::Outcomes => {
-            "SELECT id,ordinal FROM design_outcome WHERE project_id=? AND parent_id IS ? AND id<>? ORDER BY ordinal,id"
+            "SELECT id,ordinal FROM design_outcome WHERE project_id=? \
+             AND parent_id IS ? AND id<>? ORDER BY ordinal,id"
         }
     };
     let mut ordered: Vec<(String, i64)> = sqlx::query_as(sql)

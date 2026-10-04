@@ -128,7 +128,8 @@ fn removing_a_linked_task_is_refused_until_its_links_go() {
 
 #[test]
 fn a_cycle_across_both_kinds_is_refused() {
-    // T2 needs T4, and part of T4 waits for T2: complete(T4) → start(T2) → complete(T2) → complete(T4).
+    // T2 needs T4, and part of T4 waits for T2:
+    // complete(T4) → start(T2) → complete(T2) → complete(T4).
     let base = apply(
         &empty(),
         &[
@@ -305,9 +306,13 @@ fn a_draft_may_lack_goals_but_approval_lists_what_is_missing() {
 #[test]
 fn arabic_text_survives_an_edit() {
     let op: PlanOp = serde_json::from_str(
-        r#"{"op":"task_add","task":{"number":1,"title":"جدول المستخدمين","goal":"تسجيل الدخول",
-            "reads":[],"writes":["db/migrations"],"acceptance":[{"number":1,"text":"يظهر خطأ عند كلمة سر خاطئة"}]}}"#
-    ).unwrap();
+        r#"{"op":"task_add","task":{"number":1,
+            "title":"جدول المستخدمين","goal":"تسجيل الدخول",
+            "reads":[],"writes":["db/migrations"],
+            "acceptance":[{"number":1,
+                "text":"يظهر خطأ عند كلمة سر خاطئة"}]}}"#,
+    )
+    .unwrap();
     let a = apply(&empty(), &[op]).unwrap();
     assert_eq!(a.content.tasks[&1].title, "جدول المستخدمين");
     assert_eq!(

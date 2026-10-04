@@ -43,7 +43,11 @@ pub(super) struct PathQuery {
         (status = 200, body = Answer),
         (status = 400, description = "INVALID_COMMAND: no `name`", body = ErrorBody),
         (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
-        (status = 422, description = "INVALID_COMMAND: the project named is not linked", body = ErrorBody),
+        (
+            status = 422,
+            description = "INVALID_COMMAND: the project named is not linked",
+            body = ErrorBody,
+        ),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
     )
 )]
@@ -68,7 +72,11 @@ pub(super) async fn definitions(
         (status = 200, body = Answer),
         (status = 400, description = "INVALID_COMMAND: no `name`", body = ErrorBody),
         (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
-        (status = 422, description = "INVALID_COMMAND: the project named is not linked", body = ErrorBody),
+        (
+            status = 422,
+            description = "INVALID_COMMAND: the project named is not linked",
+            body = ErrorBody,
+        ),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
     )
 )]
@@ -93,7 +101,12 @@ pub(super) async fn references(
         (status = 200, body = Answer),
         (status = 400, description = "INVALID_COMMAND: no `path`", body = ErrorBody),
         (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
-        (status = 422, description = "INVALID_COMMAND: the path must be inside the project, or the project named is not linked", body = ErrorBody),
+        (
+            status = 422,
+            description = "INVALID_COMMAND: the path must be inside the project, or the project \
+                           named is not linked",
+            body = ErrorBody,
+        ),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
     )
 )]
@@ -162,10 +175,18 @@ pub(super) struct PutLink {
     ),
     request_body = PutLink,
     responses(
-        (status = 200, description = "Linked, or the link already there, or the replay of the same command", body = ProjectLink),
+        (
+            status = 200,
+            description = "Linked, or the link already there, or the replay of the same command",
+            body = ProjectLink,
+        ),
         (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
         (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
-        (status = 422, description = "INVALID_COMMAND: a link to itself, or to no project", body = ErrorBody),
+        (
+            status = 422,
+            description = "INVALID_COMMAND: a link to itself, or to no project",
+            body = ErrorBody,
+        ),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
     )
 )]

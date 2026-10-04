@@ -42,9 +42,22 @@ async fn old_rows(pool: &sqlx::SqlitePool) -> Vec<Vec<String>> {
     // Text JSON fields are strings here: even their original whitespace must survive.
     let queries = [
         "SELECT json_array(id,project_id,state,created_at,archived_at) FROM plan ORDER BY id",
-        "SELECT json_array(id,plan_id,state,previous_version_id,source_plan_json,version,revision,title,goal,change_reason,written_by_thread,written_by_operation,written_by_grant,created_at,updated_at,frozen_at) FROM workflow ORDER BY id",
-        "SELECT json_array(id,workflow_id,number,contract_json,scope_json,created_at,updated_at) FROM task ORDER BY id",
-        "SELECT json_array(seq,event_id,kind,project_id,thread_id,operation_id,actor_kind,actor_id,causation_kind,causation_ref,correlation_id,payload_json,created_at) FROM durable_event WHERE event_id='old-event' ORDER BY seq",
+        concat!(
+            "SELECT json_array(id,plan_id,state,previous_version_id,source_plan_json,",
+            "version,revision,title,goal,change_reason,written_by_thread,",
+            "written_by_operation,written_by_grant,created_at,updated_at,frozen_at) ",
+            "FROM workflow ORDER BY id",
+        ),
+        concat!(
+            "SELECT json_array(id,workflow_id,number,contract_json,scope_json,",
+            "created_at,updated_at) FROM task ORDER BY id",
+        ),
+        concat!(
+            "SELECT json_array(seq,event_id,kind,project_id,thread_id,operation_id,",
+            "actor_kind,actor_id,causation_kind,causation_ref,correlation_id,",
+            "payload_json,created_at) FROM durable_event ",
+            "WHERE event_id='old-event' ORDER BY seq",
+        ),
     ];
     let mut rows = Vec::new();
     for query in queries {
@@ -84,15 +97,25 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
          INSERT INTO planning_thread(id,project_id,title,status,created_at,title_source) VALUES
          ('T','00000000-0000-4000-8000-000000000001','كاتب','Open','2026-09-01','client');
          INSERT INTO plan(id,project_id,state,created_at,archived_at) VALUES
-         ('00000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000001','Archived','2026-09-01','2026-09-02');
-         INSERT INTO workflow(id,plan_id,state,version,revision,title,goal,written_by_thread,created_at,updated_at,source_plan_json) VALUES
-         ('W','00000000-0000-4000-8000-000000000002','Draft',1,2,'دخول',' آمن ','T','2026-09-01','2026-09-01','{ "text": "أصل" }');
-         INSERT INTO task(id,workflow_id,number,contract_json,scope_json,created_at,updated_at) VALUES
-         ('K','W',1,'{ "exact": "نص  " }','{ "write": ["src/auth.rs"] }','2026-09-01','2026-09-01');
+         ('00000000-0000-4000-8000-000000000002',
+          '00000000-0000-4000-8000-000000000001','Archived','2026-09-01','2026-09-02');
+         INSERT INTO workflow(id,plan_id,state,version,revision,title,goal,
+          written_by_thread,created_at,updated_at,source_plan_json) VALUES
+         ('W','00000000-0000-4000-8000-000000000002','Draft',1,2,'دخول',' آمن ',
+          'T','2026-09-01','2026-09-01','{ "text": "أصل" }');
+         INSERT INTO task(id,workflow_id,number,contract_json,scope_json,
+          created_at,updated_at) VALUES
+         ('K','W',1,'{ "exact": "نص  " }','{ "write": ["src/auth.rs"] }',
+          '2026-09-01','2026-09-01');
          UPDATE workflow SET state='Frozen', frozen_at='2026-09-01' WHERE id='W';
-         INSERT INTO durable_event(event_id,kind,project_id,thread_id,actor_kind,actor_id,payload_json,created_at) VALUES
-         ('old-event','WorkflowFrozen','00000000-0000-4000-8000-000000000001','T','User','local','{ "workflow_id": "W" }','2026-09-01');"#
-    ).execute(&pool).await.unwrap();
+         INSERT INTO durable_event(event_id,kind,project_id,thread_id,actor_kind,actor_id,
+          payload_json,created_at) VALUES
+         ('old-event','WorkflowFrozen','00000000-0000-4000-8000-000000000001','T','User',
+          'local','{ "workflow_id": "W" }','2026-09-01');"#,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
     let before = old_rows(&pool).await;
     assert!(before.iter().all(|rows| rows.len() == 1));
     pool.close().await;

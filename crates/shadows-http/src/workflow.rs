@@ -78,11 +78,23 @@ pub(super) struct ApprovePlan {
     params(("id" = WorkflowId, Path, description = "The plan version")),
     request_body = ApprovePlan,
     responses(
-        (status = 200, description = "Approved, or the replay of the same command", body = Approved),
+        (
+            status = 200,
+            description = "Approved, or the replay of the same command",
+            body = Approved,
+        ),
         (status = 404, description = "INVALID_COMMAND: no such plan version", body = ErrorBody),
-        (status = 409, description = "REVISION_CONFLICT, carrying `current_revision`; \
-                                      WORKFLOW_FROZEN_IMMUTABLE; COMMAND_CONFLICT", body = ErrorBody),
-        (status = 422, description = "WORKFLOW_VALIDATION_FAILED, carrying `problems`", body = ErrorBody),
+        (
+            status = 409,
+            description = "REVISION_CONFLICT, carrying `current_revision`; \
+                           WORKFLOW_FROZEN_IMMUTABLE; COMMAND_CONFLICT",
+            body = ErrorBody,
+        ),
+        (
+            status = 422,
+            description = "WORKFLOW_VALIDATION_FAILED, carrying `problems`",
+            body = ErrorBody,
+        ),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
     )
 )]
@@ -133,7 +145,11 @@ pub(super) struct PlanCommand {
     params(("id" = PlanId, Path, description = "The plan")),
     request_body = PlanCommand,
     responses(
-        (status = 200, description = "Archived, or the replay of the same command", body = PlanVersions),
+        (
+            status = 200,
+            description = "Archived, or the replay of the same command",
+            body = PlanVersions,
+        ),
         (status = 404, description = "INVALID_COMMAND: no such plan", body = ErrorBody),
         (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
@@ -158,7 +174,11 @@ pub(super) async fn archive_plan(
     params(("id" = PlanId, Path, description = "The plan")),
     request_body = PlanCommand,
     responses(
-        (status = 200, description = "Unarchived, or the replay of the same command", body = PlanVersions),
+        (
+            status = 200,
+            description = "Unarchived, or the replay of the same command",
+            body = PlanVersions,
+        ),
         (status = 404, description = "INVALID_COMMAND: no such plan", body = ErrorBody),
         (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),

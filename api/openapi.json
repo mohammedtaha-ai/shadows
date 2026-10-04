@@ -3132,7 +3132,7 @@
             "description": "PROCESS_TERMINATION_FAILED: the tree is still running, or STORAGE_UNAVAILABLE"
           }
         },
-        "summary": "Stops a turn: asks the harness to cancel it, and if the harness does not\nconfirm in time, terminates the adapter's process tree, confirms it is\ngone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the operation as it\nnow stands — which may still be `Running` for a moment when the turn had\nalready ended on its own and its ending is being recorded.",
+        "summary": "Stops a turn: asks the harness to cancel it, and if the harness does not\nconfirm in time, terminates the adapter's process tree, confirms it is\ngone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the\noperation as it\nnow stands — which may still be `Running` for a moment when the turn had\nalready ended on its own and its ending is being recorded.",
         "tags": [
           "turns"
         ]

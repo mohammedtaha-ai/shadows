@@ -8,9 +8,18 @@ async fn mixed_workspace_batch_rolls_back_and_outcome_pages_are_bounded() {
     let app = app::test_app().await;
     let edits = format!("/api/projects/{}/design/edits", app.project);
     let outcomes = format!("/api/projects/{}/design/outcomes", app.project);
-    let content = json!({"title":"نتيجة","intended_result":"آمن","acceptance":["يعمل"]});
+    let content = json!({
+        "title":"نتيجة",
+        "intended_result":"آمن",
+        "acceptance":["يعمل"]
+    });
     let ids: Vec<_> = (0..51).map(|_| uuid::Uuid::new_v4().to_string()).collect();
-    let ops: Vec<_> = ids.iter().map(|id| json!({"kind":"OutcomeCreate","id":id,"parent":null,"before":null,"content":content})).collect();
+    let ops: Vec<_> = ids
+        .iter()
+        .map(|id| {
+            json!({"kind":"OutcomeCreate","id":id,"parent":null,"before":null,"content":content})
+        })
+        .collect();
     assert_eq!(
         app::call(
             &app,
@@ -32,7 +41,8 @@ async fn mixed_workspace_batch_rolls_back_and_outcome_pages_are_bounded() {
     assert_eq!(last["items"][0]["id"], ids[50]);
     assert!(last["next"].is_null());
     let failed = json!({"command_id":"rollback","expected_revision":1,"ops":[
-        {"kind":"OutcomePut","id":ids[0],"content":{"title":"should rollback","intended_result":"","acceptance":[]}},
+        {"kind":"OutcomePut","id":ids[0],
+         "content":{"title":"should rollback","intended_result":"","acceptance":[]}},
         {"kind":"OutcomePartPut","outcome":ids[0],"part":uuid::Uuid::new_v4().to_string()}
     ]});
     assert_ne!(
@@ -66,9 +76,14 @@ async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
     let part = uuid::Uuid::new_v4().to_string();
     let root = uuid::Uuid::new_v4().to_string();
     let child = uuid::Uuid::new_v4().to_string();
-    let content = json!({"title":" نتيجة ","intended_result":" نتائج\n ","acceptance":["قبول أول","قبول ثان"]});
+    let content = json!({
+        "title":" نتيجة ",
+        "intended_result":" نتائج\n ",
+        "acceptance":["قبول أول","قبول ثان"]
+    });
     let body = json!({"command_id":"outcomes","expected_revision":0,"ops":[
-        {"kind":"PartCreate","id":part,"parent":null,"before":null,"content":{"title":"جزء","responsibility":"","design":"","kind":null}},
+        {"kind":"PartCreate","id":part,"parent":null,"before":null,
+         "content":{"title":"جزء","responsibility":"","design":"","kind":null}},
         {"kind":"OutcomeCreate","id":root,"parent":null,"before":null,"content":content},
         {"kind":"OutcomeCreate","id":child,"parent":root,"before":null,"content":content},
         {"kind":"OutcomePartPut","outcome":child,"part":part}
@@ -125,8 +140,12 @@ async fn part_routes_paginate_and_refuse_invalid_references() {
     let parts = format!("/api/projects/{}/design/parts", app.project);
     let a = uuid::Uuid::new_v4().to_string();
     let b = uuid::Uuid::new_v4().to_string();
-    let content =
-        json!({"title":" قسم ","responsibility":" مسؤولية ","design":"تصميم\n","kind":null});
+    let content = json!({
+        "title":" قسم ",
+        "responsibility":" مسؤولية ",
+        "design":"تصميم\n",
+        "kind":null
+    });
     let result = app::call(
         &app,
         "POST",
@@ -158,7 +177,15 @@ async fn part_routes_paginate_and_refuse_invalid_references() {
     let detail = app::call(&app, "GET", &format!("{parts}/{b}"), None).await;
     assert_eq!(detail.1["ancestors"][0]["id"], a);
     assert_eq!(detail.1["part"]["content"]["title"], "قسم");
-    let invalid=app::call(&app,"POST",&edits,Some(json!({"command_id":"cycle","expected_revision":1,"ops":[{"kind":"PartMove","id":a,"parent":b,"before":null}]}))).await;
+    let invalid = app::call(
+        &app,
+        "POST",
+        &edits,
+        Some(json!({"command_id":"cycle","expected_revision":1,"ops":[
+            {"kind":"PartMove","id":a,"parent":b,"before":null}
+        ]})),
+    )
+    .await;
     assert_eq!(invalid.0, 422);
     assert_eq!(invalid.1["code"], "INVALID_COMMAND");
     assert!(invalid.1["message"].as_str().unwrap().contains(&a));
@@ -179,8 +206,18 @@ async fn vision_routes_round_trip_conflict_and_preserve_conversations() {
     let vision = format!("/api/projects/{}/design/vision", app.project);
     let edits = format!("/api/projects/{}/design/edits", app.project);
     assert_eq!(app::call(&app, "GET", &vision, None).await.1["revision"], 0);
-    let content = json!({ "purpose": " رؤية \n", "users": "مطورون", "goals": "اهداف", "boundaries": "", "technical_direction": "Rust" });
-    let request = json!({ "command_id": "vision", "expected_revision": 0, "ops": [{ "kind": "VisionPut", "content": content }] });
+    let content = json!({
+        "purpose": " رؤية \n",
+        "users": "مطورون",
+        "goals": "اهداف",
+        "boundaries": "",
+        "technical_direction": "Rust"
+    });
+    let request = json!({
+        "command_id": "vision",
+        "expected_revision": 0,
+        "ops": [{ "kind": "VisionPut", "content": content }]
+    });
     assert_eq!(
         app::call(&app, "POST", &edits, Some(request.clone())).await,
         (200, json!({"revision": 1}))

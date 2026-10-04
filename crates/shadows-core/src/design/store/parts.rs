@@ -31,8 +31,15 @@ pub(super) async fn revision(
     conn: &mut SqliteConnection,
     project: &ProjectId,
 ) -> Result<i64, StorageError> {
-    sqlx::query_scalar("SELECT COALESCE(w.revision,0) FROM project p LEFT JOIN design_workspace w ON w.project_id=p.id WHERE p.id=? AND p.removed_at IS NULL")
-        .bind(project.as_str()).fetch_optional(conn).await?.ok_or(StorageError::NotFound("project"))
+    sqlx::query_scalar(
+        "SELECT COALESCE(w.revision,0) FROM project p \
+         LEFT JOIN design_workspace w ON w.project_id=p.id \
+         WHERE p.id=? AND p.removed_at IS NULL",
+    )
+    .bind(project.as_str())
+    .fetch_optional(conn)
+    .await?
+    .ok_or(StorageError::NotFound("project"))
 }
 
 pub(super) async fn load(
@@ -40,9 +47,16 @@ pub(super) async fn load(
     project: &ProjectId,
     id: &PartId,
 ) -> Result<Part, StorageError> {
-    sqlx::query_as::<_,PartRow>("SELECT id,parent_id,revision,ordinal,content_json FROM design_part WHERE project_id=? AND id=?")
-        .bind(project.as_str()).bind(id.as_str()).fetch_optional(conn).await?
-        .ok_or(StorageError::NotFound("part"))?.domain()
+    sqlx::query_as::<_, PartRow>(
+        "SELECT id,parent_id,revision,ordinal,content_json FROM design_part \
+         WHERE project_id=? AND id=?",
+    )
+    .bind(project.as_str())
+    .bind(id.as_str())
+    .fetch_optional(conn)
+    .await?
+    .ok_or(StorageError::NotFound("part"))?
+    .domain()
 }
 
 impl Storage {
@@ -62,8 +76,14 @@ impl Storage {
             ancestors.push(node);
         }
         ancestors.reverse();
-        let plans:Vec<String>=sqlx::query_scalar("SELECT plan_id FROM design_part_plan WHERE project_id=? AND part_id=? ORDER BY plan_id")
-            .bind(project.as_str()).bind(id.as_str()).fetch_all(&mut *tx).await?;
+        let plans: Vec<String> = sqlx::query_scalar(
+            "SELECT plan_id FROM design_part_plan \
+             WHERE project_id=? AND part_id=? ORDER BY plan_id",
+        )
+        .bind(project.as_str())
+        .bind(id.as_str())
+        .fetch_all(&mut *tx)
+        .await?;
         Ok(PartView {
             revision,
             part,
@@ -94,9 +114,19 @@ impl Storage {
         } else {
             None
         };
-        let rows=sqlx::query_as::<_,PartRow>("SELECT id,parent_id,revision,ordinal,content_json FROM design_part WHERE project_id=? AND parent_id IS ? AND (? IS NULL OR (ordinal,id) > (?,?)) ORDER BY ordinal,id LIMIT 51")
-            .bind(project.as_str()).bind(parent.map(PartId::as_str)).bind(after.map(PartId::as_str))
-            .bind(cursor.as_ref().map(|p|p.ordinal)).bind(after.map(PartId::as_str)).fetch_all(&mut *tx).await?;
+        let rows = sqlx::query_as::<_, PartRow>(
+            "SELECT id,parent_id,revision,ordinal,content_json FROM design_part \
+             WHERE project_id=? AND parent_id IS ? \
+             AND (? IS NULL OR (ordinal,id) > (?,?)) \
+             ORDER BY ordinal,id LIMIT 51",
+        )
+        .bind(project.as_str())
+        .bind(parent.map(PartId::as_str))
+        .bind(after.map(PartId::as_str))
+        .bind(cursor.as_ref().map(|p| p.ordinal))
+        .bind(after.map(PartId::as_str))
+        .fetch_all(&mut *tx)
+        .await?;
         let has_more = rows.len() > 50;
         let items = rows
             .into_iter()

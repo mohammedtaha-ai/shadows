@@ -184,8 +184,9 @@ fn content_length(headers: &axum::http::HeaderMap) -> Option<u64> {
 /// Cross-origin access for the configured origins only; any other origin's
 /// request gets no `Access-Control-Allow-Origin` and the browser withholds the
 /// response. The methods and headers are exactly what the routes use: `GET`,
-/// `POST`, `PUT`, `PATCH` and `DELETE` (revoking a grant), JSON bodies, and `Last-Event-ID`, which a browser's
-/// `EventSource` sends when it reconnects a stream. No credentials: the API
+/// `POST`, `PUT`, `PATCH` and `DELETE` (revoking a grant), JSON bodies, and
+/// `Last-Event-ID`, which a browser's `EventSource` sends when it reconnects a
+/// stream. No credentials: the API
 /// has none to send (spec §1's OPEN block on remote access).
 fn cors(origins: &[String]) -> CorsLayer {
     let origins: Vec<HeaderValue> = origins

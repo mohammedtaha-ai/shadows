@@ -27,7 +27,8 @@ pub enum Writer {
         not(feature = "test-support"),
         expect(
             dead_code,
-            reason = "only tests write a plan as a person through `Writer`; the routes use `user_command`"
+            reason = "only tests write a plan as a person through `Writer`; \
+                      the routes use `user_command`"
         )
     )]
     Person,
