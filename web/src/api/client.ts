@@ -448,9 +448,9 @@ export function startAgreement(projectId: string, command_id: string, content?: 
   }))
 }
 export function editAgreement(projectId: string, agreement: string, command_id: string,
-  expected_revision: number, content: AgreementContent): Promise<AgreementVersion> {
+  version: number, expected_revision: number, content: AgreementContent): Promise<AgreementVersion> {
   return unwrap(client.PUT('/api/projects/{id}/agreements/{agreement}', {
-    params: { path: { id: projectId, agreement } }, body: { command_id, expected_revision, content },
+    params: { path: { id: projectId, agreement } }, body: { command_id, version, expected_revision, content },
   }))
 }
 export function reviewAgreement(projectId: string, agreement: string): Promise<AgreementReview> {

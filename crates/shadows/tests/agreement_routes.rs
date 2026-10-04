@@ -22,7 +22,7 @@ async fn agreement_routes_edit_incomplete_draft_and_preserve_revision_conflicts(
     let id = started.1["agreement_id"].as_str().unwrap();
     assert!(!started.1["issues"].as_array().unwrap().is_empty());
     let path = format!("{root}/{id}");
-    let edit = json!({"command_id":"edit","expected_revision":0,"content":content});
+    let edit = json!({"command_id":"edit","version":1,"expected_revision":0,"content":content});
     assert_eq!(
         app::call(&app, "PUT", &path, Some(edit.clone())).await.0,
         200
@@ -33,7 +33,7 @@ async fn agreement_routes_edit_incomplete_draft_and_preserve_revision_conflicts(
         "PUT",
         &path,
         Some(json!({"command_id":"stale",
-        "expected_revision":0,"content":content})),
+        "version":1,"expected_revision":0,"content":content})),
     )
     .await;
     assert_eq!(stale.0, 409);

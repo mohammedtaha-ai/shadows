@@ -1283,6 +1283,11 @@ export interface components {
             content: components["schemas"]["AgreementContent"];
             /** Format: int64 */
             expected_revision: number;
+            /**
+             * Format: int64
+             * @description The Draft version the edit was built on; another version is refused.
+             */
+            version: number;
         };
         /**
          * @description What an edit did, fixed when it committed, so a replay answers exactly

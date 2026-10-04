@@ -51,6 +51,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
             "edit".into(),
             &project,
             &first.agreement_id,
+            1,
             0,
             changed.clone(),
         )
@@ -83,6 +84,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
                 "stale".into(),
                 &project,
                 &first.agreement_id,
+                1,
                 0,
                 changed.clone()
             )
@@ -95,6 +97,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
                 "edit".into(),
                 &project,
                 &first.agreement_id,
+                1,
                 0,
                 first.content
             )
@@ -173,6 +176,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
             "operation".into(),
             &project,
             &first.agreement_id,
+            2,
             0,
             with_operation.clone(),
         )
@@ -183,6 +187,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
             "remove-operation".into(),
             &project,
             &first.agreement_id,
+            2,
             1,
             v2.content,
         )
@@ -194,6 +199,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
                 "reuse-operation".into(),
                 &project,
                 &first.agreement_id,
+                2,
                 2,
                 with_operation
             )
@@ -246,6 +252,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
                 &grant,
                 "revoked-edit".into(),
                 &proposed.agreement_id,
+                1,
                 0,
                 agent_content
             )

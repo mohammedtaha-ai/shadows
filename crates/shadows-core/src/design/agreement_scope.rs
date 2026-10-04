@@ -112,6 +112,7 @@ impl Design {
         grant: &Grant,
         command_id: String,
         id: &AgreementId,
+        version: i64,
         expected_revision: i64,
         content: AgreementContent,
     ) -> Result<AgreementVersion, CoreError> {
@@ -121,8 +122,8 @@ impl Design {
             command_id,
             "AgreementEdit",
             serde_json::json!({
-                "project":grant.project_id,"agreement_id":id,"expected_revision":expected_revision,
-                "content":content
+                "project": grant.project_id, "agreement_id": id, "version": version,
+                "expected_revision": expected_revision, "content": content
             }),
         )?;
         self.storage
@@ -131,6 +132,7 @@ impl Design {
                 Some(&self.agreement_origin(grant).await?),
                 &grant.project_id,
                 id,
+                version,
                 expected_revision,
                 content,
             )

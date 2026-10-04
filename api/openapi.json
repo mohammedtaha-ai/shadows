@@ -1192,10 +1192,16 @@
           "expected_revision": {
             "format": "int64",
             "type": "integer"
+          },
+          "version": {
+            "description": "The Draft version the edit was built on; another version is refused.",
+            "format": "int64",
+            "type": "integer"
           }
         },
         "required": [
           "command_id",
+          "version",
           "expected_revision",
           "content"
         ],

@@ -163,6 +163,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             "edit-v2".into(),
             &a.project,
             &first.agreement_id,
+            2,
             0,
             content,
         )
@@ -307,6 +308,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             "rename-v3".into(),
             &a.project,
             &first.agreement_id,
+            3,
             0,
             renamed,
         )

@@ -29,6 +29,8 @@ struct Edit {
     command_id: String,
     #[schemars(with = "String")]
     agreement_id: AgreementId,
+    /// The Draft version the edit was built on; another version is refused.
+    version: i64,
     expected_revision: i64,
     content: AgreementContent,
 }
@@ -83,7 +85,7 @@ impl Shadows {
         )
     }
     #[tool(
-        description = "Edit canonical Draft content under expected_revision; no automatic adoption."
+        description = "Edit the named Draft version under expected_revision; no automatic adoption."
     )]
     async fn agreement_edit(
         &self,
@@ -97,6 +99,7 @@ impl Shadows {
                     &grant,
                     args.command_id,
                     &args.agreement_id,
+                    args.version,
                     args.expected_revision,
                     args.content,
                 )

@@ -23,7 +23,8 @@ export function AgreementEditor({ version, projectId, onSaved, onReload }: {
   const save = useMutation({ mutationFn: () => {
     pending.current ??= { command: crypto.randomUUID(), revision, content: structuredClone(content) }
     const request = pending.current
-    return editAgreement(projectId, version.agreement_id, request.command, request.revision, request.content)
+    return editAgreement(projectId, version.agreement_id, request.command, version.version,
+      request.revision, request.content)
   }, onSuccess: v => {
     pending.current = null; setRevision(v.revision); setContent(v.content); setReview(null)
     if (json !== null) setJson(JSON.stringify(v.content, null, 2))

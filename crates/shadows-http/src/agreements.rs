@@ -72,6 +72,8 @@ pub(super) async fn start(
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct Edit {
     command_id: String,
+    /// The Draft version the edit was built on; another version is refused.
+    version: i64,
     expected_revision: i64,
     content: AgreementContent,
 }
@@ -92,6 +94,7 @@ pub(super) async fn edit(
                 body.command_id,
                 &project,
                 &id,
+                body.version,
                 body.expected_revision,
                 body.content,
             )

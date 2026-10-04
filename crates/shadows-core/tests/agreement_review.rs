@@ -124,8 +124,32 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         .unwrap();
     let mut content = v2.content;
     content.behavior = "Changed behavior".into();
+    // A request built on v1 at revision 0 must not land on v2, which is
+    // also at revision 0: it names its version, and v1 is no longer the Draft.
+    let stale = core
+        .design()
+        .edit_agreement(
+            "built-on-v1".into(),
+            &project,
+            &first.agreement_id,
+            1,
+            0,
+            content.clone(),
+        )
+        .await;
+    assert!(
+        matches!(&stale, Err(CoreError::Refused { message, .. }) if message.contains("read v2")),
+        "{stale:?}"
+    );
     core.design()
-        .edit_agreement("change".into(), &project, &first.agreement_id, 0, content)
+        .edit_agreement(
+            "change".into(),
+            &project,
+            &first.agreement_id,
+            2,
+            0,
+            content,
+        )
         .await
         .unwrap();
     let replay = core

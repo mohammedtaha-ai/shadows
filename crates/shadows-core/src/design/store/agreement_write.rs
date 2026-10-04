@@ -102,12 +102,17 @@ impl Storage {
         })
         .await
     }
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the edit names its Draft version and revision"
+    )]
     pub(in crate::design) async fn edit_design_agreement(
         &self,
         ctx: &CommandContext,
         origin: Option<&AgreementOrigin>,
         project: &ProjectId,
         id: &AgreementId,
+        version: i64,
         expected_revision: i64,
         content: AgreementContent,
     ) -> Result<AgreementVersion, StorageError> {
@@ -123,6 +128,12 @@ impl Storage {
                 }
                 parts::revision(conn, &project).await?;
                 let current = load(conn, &project, &id, None).await?;
+                if current.version != version {
+                    return Err(StorageError::Constraint(format!(
+                        "v{version} is no longer the Draft; read v{}",
+                        current.version
+                    )));
+                }
                 if current.state != AgreementState::Draft {
                     return Err(StorageError::Constraint(
                         "Agreed version is read only; start a Draft".into(),

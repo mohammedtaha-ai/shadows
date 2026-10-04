@@ -72,6 +72,7 @@ impl Design {
         command_id: String,
         project: &ProjectId,
         id: &AgreementId,
+        version: i64,
         expected_revision: i64,
         content: AgreementContent,
     ) -> Result<AgreementVersion, CoreError> {
@@ -80,12 +81,13 @@ impl Design {
             command_id,
             "AgreementEdit",
             serde_json::json!({
-                "project": project, "agreement_id": id, "expected_revision": expected_revision,
+                "project": project, "agreement_id": id, "version": version,
+                "expected_revision": expected_revision,
                 "content": content
             }),
         );
         self.storage
-            .edit_design_agreement(&ctx, None, project, id, expected_revision, content)
+            .edit_design_agreement(&ctx, None, project, id, version, expected_revision, content)
             .await
             .map_err(map_error)
     }
