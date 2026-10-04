@@ -70,7 +70,8 @@ describe('project settings', () => {
       (a) => a.textContent?.trim() === 'Conversation 1',
     )
     act(() => conversation?.click())
-    await until(() => app.path() === '/projects/p1/threads/t1')
+    // The conversation page loads lazily; the settings page leaves once it arrives.
+    await until(() => app.path() === '/projects/p1/threads/t1' && codeBlocks().length === 0)
     const settings = [...document.querySelectorAll('a')].find(
       (a) => a.textContent?.trim() === 'Project settings',
     )

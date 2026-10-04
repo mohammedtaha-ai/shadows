@@ -125,6 +125,10 @@ export async function startApp(url: string, answers: Record<string, Answer>): Pr
         </QueryClientProvider>,
       )
     })
+    // Pages load lazily (router.tsx): let the first one arrive before a test reads it.
+    await act(async () => {
+      await router.load()
+    })
   } catch (error) {
     // The caller never receives an app to unmount, so a failed start cleans
     // up here: otherwise its stubs and mounted tree leak into the next test.

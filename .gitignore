@@ -24,3 +24,6 @@ sandbox/persistence-delta/results/
 
 # Local launcher configuration
 .claude/
+
+# Browser-check screenshots and traces; evidence that matters is copied into docs/evidence/.
+/output/
