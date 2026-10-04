@@ -170,9 +170,11 @@ functions:
     read_project_events_after:
       signature: "(&self, cursor: EventCursor, project: &ProjectId, limit: i64) -> Result<Vec<StoredEvent>, StorageError>"
       # ORDER BY seq; WorkflowDraftStarted, WorkflowEdited, WorkflowFrozen,
-      # PlanArchived, PlanUnarchived and ProjectDesignChanged only.
+      # PlanArchived, PlanUnarchived, ProjectDesignChanged, PlanDependenciesChanged,
+      # ProjectLinked, ProjectUnlinked and ProjectRemoved only.
       # Design payload is project_id/revision/changed_parts/changed_outcomes/vision_changed;
-      # no content. Plan payload is {plan_id, workflow_id};
+      # no content. Dependency/reach payloads retain the journal notification;
+      # version payload is {plan_id, workflow_id};
       # archive events name the plan's latest version at the time of reading.
     read_events_after:
       signature: "(&self, cursor: EventCursor, thread_id: &ThreadId, limit: i64) -> Result<Vec<StoredEvent>, StorageError>"
@@ -214,14 +216,17 @@ obligations:
       it with the DurableEvent builders inside its own transaction.
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
   - rule: >
-      A project subscription sends only its project's plan/design events, once in
-      sequence order. Plan notifications carry plan_id and workflow_id with no plan content.
+      A project subscription sends its own journaled plan/design/reach notifications,
+      once in sequence order. Version notifications carry plan_id and workflow_id;
+      derived dependency notifications carry only changed identifiers, never plan content.
       It resumes after the same cursor as a thread subscription. Unknown
       or removed projects refuse subscription as NotFound.
     tested_by: a_project_stream_sends_another_conversations_plan_edit
     note: >
       Real HTTP stream: live draft/edit/freeze/archive/unarchive, a foreign
       project's edit excluded, replay after a cursor, unknown/removed 404.
+      Plans explicitly journals cross-project dependency invalidations under
+      each affected project's identity; those are that project's notifications.
   - rule: >
       No frame is lost or repeated across journal → live. Every receiver is
       taken before the replay is read: a live item sent before the replay

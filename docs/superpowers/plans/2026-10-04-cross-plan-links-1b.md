@@ -38,48 +38,60 @@
 | `plans/dependencies.rs` | cross-plan dependency value shapes |
 | `plans/model.rs`, `ops.rs`, `rules.rs` | existing plan content and pure edit validation |
 | `plans/store/dependencies.rs` | persisted cross-plan rows and resolution |
-| `plans/store/graph.rs` | snapshot dependency graph for approval/map |
-| `code/store/links.rs` | existing project-link reach shared with Plans under its contract |
+| `plans/store/graph.rs` | snapshot dependency graph for approval |
+| `plans/map.rs`, `plans/store/map.rs` | project plan map snapshot |
+| `plans/store/notifications.rs` | durable dependency invalidation |
+| `code/store/reach.rs` | project-link reach shared with Plans under its contract |
 | `shadows-http/workflow.rs` | plan-map route translation |
 | `shadows-mcp/tools.rs` | optional linked-project read argument translation |
 | Web workflow graph/map modules | navigate task dependencies and project plans |
 
 ## Task 1: Target identity and persistence
 
-- [ ] Add `cross_plan_links.rs`: deserialize a local `after: 3` and an external `{plan_id, task}`; round-trip both without changing the local JSON. Watch external deserialization fail before changing the type.
-- [ ] Add pure `TaskParent` (untagged local number/external plan-task), reused by `Link` and `LinkRemove`; keep changed task numbers source-local.
-- [ ] Add migration 0016 cross-link rows tied to the source version/task, with explicit ordering/uniqueness and Frozen write guards.
-- [ ] Extend existing content load/write/draft-copy paths. Local rows stay in their existing table; cross-plan links stay separate and target missing tasks can remain broken.
-- [ ] Test real storage round-trip, whole-batch refusal, idempotent replay, copied Draft and database-level Frozen guards. Old Frozen rows remain byte-identical.
-- [ ] Update Plans contract and code map, run the full gate, commit this independently testable slice.
+- [x] Add `cross_plan_links.rs`: deserialize a local `after: 3` and an external `{plan_id, task}`; round-trip both without changing the local JSON. Watch external deserialization fail before changing the type.
+- [x] Add pure `TaskParent` (untagged local number/external plan-task), reused by `Link` and `LinkRemove`; keep changed task numbers source-local.
+- [x] Add migration 0016 cross-link rows tied to the source version/task, with explicit ordering/uniqueness and Frozen write guards.
+- [x] Extend existing content load/write/draft-copy paths. Local rows stay in their existing table; cross-plan links stay separate and target missing tasks can remain broken.
+- [x] Test real storage round-trip, whole-batch refusal, idempotent replay, copied Draft and database-level Frozen guards. Old Frozen rows remain byte-identical.
+- [x] Update Plans contract and code map; verify the slice, preserving the user checkpoint and final combined gate described below.
 
 ## Task 2: Resolution, reach and approval
 
-- [ ] Test target latest-version changes, absent tasks, project unlink/removal and source-local approval blockers using actual services.
-- [ ] Resolve dependency metadata in a read snapshot; expose outgoing/incoming views without mutating plan content.
-- [ ] Reuse the Code store's declared project-link reach, with a contract entry for the shared transaction reader. Grant reads may target a directly linked project; all mutations stay in the grant's own project.
-- [ ] Test a three-task cross-plan cycle spanning both link kinds and a valid acyclic graph. Use petgraph SCCs with stable problem ordering.
-- [ ] Approval recomputes blockers inside its write transaction. Replays keep their first durable outcome.
-- [ ] Test foreign-project metadata isolation and immediate denial after unlink. Run the full gate and commit.
+- [x] Test target latest-version changes, absent tasks, project unlink/removal and source-local approval blockers using actual services.
+- [x] Resolve dependency metadata in a read snapshot; expose outgoing/incoming views without mutating plan content.
+- [x] Reuse the Code store's declared project-link reach, with a contract entry for the shared transaction reader. Grant reads may target a directly linked project; all mutations stay in the grant's own project.
+- [x] Test a three-task cross-plan cycle spanning both link kinds and a valid acyclic graph. Use petgraph SCCs with stable problem ordering.
+- [x] Approval recomputes blockers inside its write transaction. Replays keep their first durable outcome.
+- [x] Test foreign-project metadata isolation and immediate denial after unlink. Run the gate on the combined implementation before the finishing commit.
 
 ## Task 3: HTTP/MCP and project map
 
-- [ ] Add `Plans::map(project)` returning current Active plan nodes plus referenced external plan nodes and counted dependency edges. Graph values remain transport-neutral.
-- [ ] Add `GET /api/projects/{id}/plan-map`, generated OpenAPI/type updates and exact route-list assertions.
-- [ ] Extend MCP workflow list/get with optional project slug using the same service reach policy, preserving current calls without it.
-- [ ] Integration tests prove returned nodes/edges, inbound/outbound navigation, linked reads and refusal of linked writes.
-- [ ] Update service contracts and code map; run the full gate and commit.
+- [x] Add `Plans::map(project)` returning current Active plan nodes plus referenced external plan nodes and counted dependency edges. Graph values remain transport-neutral.
+- [x] Add `GET /api/projects/{id}/plan-map`, generated OpenAPI/type updates and exact route-list assertions.
+- [x] Extend MCP workflow list/get with optional project slug using the same service reach policy, preserving current calls without it.
+- [x] Integration tests prove returned nodes/edges, inbound/outbound navigation, linked reads and refusal of linked writes.
+- [x] Update service contracts and code map; run the final combined gate before the finishing commit.
 
 ## Task 4: Browser graph, map and Windows acceptance
 
-- [ ] Add sidebar Map navigation and `/projects/$projectId/map` using existing React Flow/Dagre.
-- [ ] Draw resolved remote task nodes and broken-link explanations in each plan graph; navigation opens the target/source plan.
-- [ ] Reuse project events and query invalidation. Include referenced project events when a displayed graph depends on them; close subscriptions on navigation/unmount.
-- [ ] UI tests exercise external task navigation, broken-link rendering, map navigation and updates after target changes.
-- [ ] Start disposable daemon/Web instances, create two plans, link their tasks, continue the target, observe a broken link and refused approval, restart and inspect retained data/logs.
-- [ ] Run the complete gate, record exact Windows evidence and remaining untested cases, commit.
+- [x] Add sidebar Map navigation and `/projects/$projectId/map` using existing React Flow/Dagre.
+- [x] Draw resolved remote task nodes and broken-link explanations in each plan graph; navigation opens the target/source plan.
+- [x] Reuse project events and query invalidation. Include referenced project events when a displayed graph depends on them; close subscriptions on navigation/unmount.
+- [x] UI tests exercise external task navigation, broken-link rendering, map navigation and updates after target changes.
+- [x] Start disposable daemon/Web instances, create two plans, link their tasks, continue the target, observe a broken link and refused approval, restart and inspect retained data/logs.
+- [x] Run the complete gate; record exact Windows evidence and remaining untested cases for the finishing commit.
 
 ## Completion boundary
+
+Executed on Windows on 2026-10-04. The user committed the intermediate
+implementation as `dfe6070`; remaining tasks are delivered in one finishing
+commit above that checkpoint, rather than reconstructing separate task
+commits. The final gate covers the combined result: 402 Rust tests, one
+existing ignored manual test, and 187 Web tests. See the
+[dated evidence](../../evidence/2026-10-04-cross-plan-links-1b.md) for the
+native trial, regression fixes and acceptance boundaries. No automatic
+reviewer dispatch, independent branch review, human acceptance or merge is
+claimed here.
 
 Finishing 1b advances the full objective; it does not complete agreements,
 context compilation, execution, manager, diagrams or local release operations.

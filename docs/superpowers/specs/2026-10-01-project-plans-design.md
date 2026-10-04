@@ -339,6 +339,20 @@ that stream names their plan, and after the person's own actions. Nothing polls
 on a timer. The project stream lands with the conversation delete (Task 5);
 until then those views refetch only after the person's own actions.
 
+**1b dependency invalidation:** a new plan edit, version, approval or archive
+change journals `PlanDependenciesChanged {plan_id}` in each other live project
+whose latest plans reference it or are referenced by it. Removing an edge also
+invalidates its former target. This notification is in the same transaction;
+command replay emits none. A target project therefore learns about a new
+incoming foreign edge without subscribing to every project on the machine.
+Its views refetch their captured dependencies. Project streams also carry
+`ProjectLinked`, `ProjectUnlinked` and `ProjectRemoved`, so changes to reach
+invalidate displayed dependencies. These are notifications, never edits to
+Frozen plan content.
+Link changes and project removal also journal `PlanDependenciesChanged
+{related_project_id}` for other live projects connected through latest task
+links, in the same write. The notification contains no plan content.
+
 ## 16.9 Schema
 
 **Migration 0012 (1a):**

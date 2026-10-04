@@ -16,8 +16,9 @@ import { type PlanNode, layoutPlan } from './layout'
 import { type CanvasSize, MIN_ZOOM, WHOLE_PLAN, firstFit, useCamera, useCanvasSize } from './plan-camera'
 import { LinkEdge } from './plan-edge'
 import { StartNodeView, TaskNodeView } from './task-node'
+import { LinkedNodeView, MissingTaskNodeView } from './linked-node'
 
-const nodeTypes = { start: StartNodeView, task: TaskNodeView }
+const nodeTypes = { start: StartNodeView, task: TaskNodeView, linked: LinkedNodeView, missing: MissingTaskNodeView }
 const edgeTypes = { link: LinkEdge }
 
 /** React Flow's own colours, taken from Shadows' theme tokens. */

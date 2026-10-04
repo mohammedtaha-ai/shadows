@@ -184,8 +184,9 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 **Active objective, 2026-10-04:** complete the full vision on
 `codex/full-project-vision`, created from `e290df6`, with local delivery first.
 The [delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
-now retains the full local, concurrency and company sequence. The next
-product slice is §16 1b; executors, manager and specialized diagrams are still
+now retains the full local, concurrency and company sequence. §16 1b is
+implemented and Windows-verified on this branch. The next product slice is
+§18 shared API agreements; executors, manager and specialized diagrams are still
 unimplemented, not implied by the new branch or documentation.
 
 1. **Structure hygiene, `chore/close-format-blind-spot`, derived through
@@ -217,8 +218,19 @@ unimplemented, not implied by the new branch or documentation.
    distinguishes the empty actual dev-DB copy from populated synthetic legacy
    fixtures. Mohammed's acceptance and whole-branch review remain pending;
    this branch is not merged and the running original daemon was not replaced.
-3. **§16 1b** still needs its separately scoped implementation plan. Its place
-   in delivery is recorded in the roadmap above. §17 remains a draft for later
+3. **§16 1b:** the [scoped plan](./superpowers/plans/2026-10-04-cross-plan-links-1b.md)
+   is executed. Latest-task dependencies, grant-scoped related reads,
+   project map, broken-link graph navigation and dependency notifications
+   are implemented above the user checkpoint `dfe6070`. The final gate passed:
+   **402 Rust tests (one ignored) and 187 Web tests**, both clippy modes,
+   production build/feature isolation, Rust format/Unicode width, Web
+   typecheck/lint/build and generated API consistency. The
+   [dated evidence](./evidence/2026-10-04-cross-plan-links-1b.md) records an
+   isolated Windows production-preview trial with real HTTP/MCP requests,
+   reciprocal graph navigation, refused broken-link approval and retained
+   state after restart. It does not establish human acceptance, Linux
+   containment or an independent branch review. Next: the separate detailed
+   §18 shared-agreement plan, using migration 0017 onward. §17 remains a draft for later
    task contracts and execution evidence; the executive manager needs its
    later design after Mohammed explains the rest of its responsibilities.
 

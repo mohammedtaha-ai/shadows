@@ -490,6 +490,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/plan-map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["plan_map"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/planner-instructions": {
         parameters: {
             query?: never;
@@ -1268,8 +1284,7 @@ export interface components {
         };
         /** @description Spec §13.3. `task` waits for `after`. */
         Link: {
-            /** Format: int32 */
-            after: number;
+            after: components["schemas"]["TaskParent"];
             kind: components["schemas"]["LinkKind"];
             /** @description A few words saying what passes from `after` to `task`. */
             label: string;
@@ -1283,6 +1298,44 @@ export interface components {
          * @enum {string}
          */
         LinkKind: "needs" | "completes_after";
+        /** @description The other end of an outgoing or incoming cross-plan dependency. */
+        LinkedTask: {
+            broken?: string | null;
+            incoming: boolean;
+            link: components["schemas"]["Link"];
+            plan_id: components["schemas"]["PlanId"];
+            plan_state?: null | components["schemas"]["PlanState"];
+            plan_title?: string | null;
+            project_id?: null | components["schemas"]["ProjectId"];
+            project_name?: string | null;
+            state?: null | components["schemas"]["WorkflowState"];
+            task?: null | components["schemas"]["TaskPreview"];
+            /** Format: int64 */
+            version?: number | null;
+            workflow_id?: null | components["schemas"]["WorkflowId"];
+        };
+        MapLink: {
+            after: components["schemas"]["PlanId"];
+            broken: boolean;
+            /** Format: int32 */
+            count: number;
+            plan_id: components["schemas"]["PlanId"];
+        };
+        MapPlan: {
+            goal: string;
+            plan_id: components["schemas"]["PlanId"];
+            plan_state: components["schemas"]["PlanState"];
+            project_id: components["schemas"]["ProjectId"];
+            project_name: string;
+            removed: boolean;
+            state?: null | components["schemas"]["WorkflowState"];
+            /** Format: int32 */
+            task_count: number;
+            title: string;
+            /** Format: int64 */
+            version?: number | null;
+            workflow_id?: null | components["schemas"]["WorkflowId"];
+        };
         /**
          * @description Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
          *     `ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged
@@ -1379,6 +1432,8 @@ export interface components {
             goal: string;
             id: components["schemas"]["WorkflowId"];
             last_edit?: null | components["schemas"]["LastEdit"];
+            /** @description Live dependency metadata; never part of the frozen content digest. */
+            linked_tasks?: components["schemas"]["LinkedTask"][];
             links: components["schemas"]["Link"][];
             next?: null | components["schemas"]["WorkflowId"];
             plan_id: components["schemas"]["PlanId"];
@@ -1411,6 +1466,11 @@ export interface components {
             updated_at: string;
             /** Format: int64 */
             version: number;
+        };
+        PlanMap: {
+            links: components["schemas"]["MapLink"][];
+            plans: components["schemas"]["MapPlan"][];
+            project_id: components["schemas"]["ProjectId"];
         };
         /**
          * @description Spec §16.2. An `Archived` plan is read, never written.
@@ -1575,6 +1635,20 @@ export interface components {
         };
         /** Format: uuid */
         TaskId: string;
+        /** @description A local task number, or a task in another plan's latest version. */
+        TaskParent: number | {
+            plan_id: components["schemas"]["PlanId"];
+            /** Format: int32 */
+            task: number;
+        };
+        TaskPreview: {
+            acceptance: components["schemas"]["AcceptanceItem"][];
+            goal: string;
+            /** Format: int32 */
+            number: number;
+            state: string;
+            title: string;
+        };
         ThreadEntry: {
             /**
              * @description Spec §4.2 calls this field's type `Principal`. Milestone 0 uses
@@ -3194,6 +3268,46 @@ export interface operations {
             };
             /** @description COMMAND_CONFLICT */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    plan_map: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanMap"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

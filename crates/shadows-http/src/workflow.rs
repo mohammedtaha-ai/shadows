@@ -9,7 +9,27 @@ use axum::extract::{Path, Query, State};
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
-use shadows_core::{Approved, Plan, PlanId, PlanListing, PlanVersions, ProjectId, WorkflowId};
+use shadows_core::{
+    Approved, Plan, PlanId, PlanListing, PlanMap, PlanVersions, ProjectId, WorkflowId,
+};
+
+#[utoipa::path(
+    get,
+    path = "/api/projects/{id}/plan-map",
+    tag = "workflows",
+    params(("id" = ProjectId, Path, description = "The project")),
+    responses(
+        (status = 200, body = PlanMap),
+        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn plan_map(
+    State(s): State<AppState>,
+    Path(project): Path<ProjectId>,
+) -> Result<Json<PlanMap>, Failure> {
+    Ok(Json(s.core.plans().map(&project).await?))
+}
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]

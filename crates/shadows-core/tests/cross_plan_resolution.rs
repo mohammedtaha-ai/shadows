@@ -101,6 +101,18 @@ async fn a_cross_plan_cycle_names_its_tasks_and_blocks_approval_until_removed() 
             waiting_items: vec![],
         },
     };
+    let completion = PlanOp::LinkPut {
+        link: Link {
+            task: 4,
+            after: TaskParent::Plan {
+                plan_id: PlanId::from_literal(TARGET_PLAN),
+                task: 3,
+            },
+            kind: LinkKind::CompletesAfter,
+            label: "API acceptance".into(),
+            waiting_items: vec![1],
+        },
+    };
     storage
         .edit_plan(
             &command("source"),
@@ -108,7 +120,7 @@ async fn a_cross_plan_cycle_names_its_tasks_and_blocks_approval_until_removed() 
             None,
             &source,
             0,
-            &[task(2), task(4), local, dependency(4, TARGET_PLAN, 3)],
+            &[task(2), task(4), local, completion],
         )
         .await
         .unwrap();

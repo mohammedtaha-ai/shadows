@@ -136,6 +136,7 @@ impl Storage {
                     .execute(&mut *conn)
                     .await?;
                 let actor = Actor::user(&ctx.principal_id);
+                crate::plans::notify_project_dependencies_in(conn, &id, &actor, &ts).await?;
                 delete_code_index_in(conn, &id).await?;
                 delete_code_links_in(conn, &id).await?;
                 revoke_project_grants_in(conn, &id, actor.clone(), &ts).await?;

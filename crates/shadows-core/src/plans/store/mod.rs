@@ -13,11 +13,14 @@ mod draft;
 mod edit;
 mod graph;
 mod linked;
+mod map;
+mod notifications;
 mod plan;
 mod read;
 mod task;
 mod view;
 
+pub(crate) use notifications::notify_project_dependencies_in;
 pub(crate) use plan::check_design_plan;
 pub(crate) use task::task_of;
 

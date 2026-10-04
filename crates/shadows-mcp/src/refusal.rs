@@ -61,8 +61,8 @@ impl From<StorageError> for Refusal {
                 "this grant was revoked while the call ran; nothing was changed",
             ),
             StorageError::GrantScope => Self::scope(
-                "outside what this grant allows: a Planner reaches only its own \
-                 conversation's plan, an external agent only its own project, and a \
+                "outside what this grant allows: plan writes stay in its own project; \
+                 workflow_list and workflow_get can read an explicitly linked project; \
                  draft_ref starts a plan only within the hour after draft_prepare",
             ),
             StorageError::CommandConflict => Self::new(

@@ -7,6 +7,7 @@ import {
   getCodeStatus,
   getInstructions,
   getPlan,
+  getPlanMap,
   getPlanVersions,
   getThread,
   listCodeLinks,
@@ -89,6 +90,10 @@ export function operationsQuery(threadId: string) {
  * or an approval invalidates this prefix, since a new draft also changes its
  * predecessor's `next`. */
 export const workflowsKey = ['workflows'] as const
+
+export function planMapQuery(projectId: string) {
+  return queryOptions({ queryKey: [...workflowsKey, 'map', projectId], queryFn: () => getPlanMap(projectId) })
+}
 
 /** A project's plans, each plan's latest version (§16.2), or archived ones too. */
 export function plansQuery(projectId: string, archived = false) {

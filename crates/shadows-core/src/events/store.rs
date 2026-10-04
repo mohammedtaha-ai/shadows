@@ -60,7 +60,9 @@ impl Storage {
                       ORDER BY version DESC LIMIT 1))
               WHERE e.project_id = ? AND e.seq > ?
                 AND e.kind IN ('WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen',
-                               'PlanArchived', 'PlanUnarchived', 'ProjectDesignChanged')
+                               'PlanArchived', 'PlanUnarchived', 'ProjectDesignChanged',
+                               'PlanDependenciesChanged', 'ProjectLinked', 'ProjectUnlinked',
+                               'ProjectRemoved')
               ORDER BY e.seq LIMIT ?",
         )
         .bind(project.as_str())
@@ -76,10 +78,17 @@ impl Storage {
                 operation_id: r.2.map(OperationId::from_stored),
                 thread_id: r.3.map(ThreadId::from_stored),
                 created_at: r.4,
-                payload_json: if r.1 == "ProjectDesignChanged" {
-                    r.7
-                } else {
+                payload_json: if matches!(
+                    r.1.as_str(),
+                    "WorkflowDraftStarted"
+                        | "WorkflowEdited"
+                        | "WorkflowFrozen"
+                        | "PlanArchived"
+                        | "PlanUnarchived"
+                ) {
                     serde_json::json!({ "plan_id": r.5, "workflow_id": r.6 }).to_string()
+                } else {
+                    r.7
                 },
             })
             .collect())

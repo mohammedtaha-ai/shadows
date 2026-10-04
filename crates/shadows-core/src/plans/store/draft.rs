@@ -274,6 +274,8 @@ async fn insert_version(
     let event = plan_event("WorkflowDraftStarted", by.writer, by.project, by.operation)
         .with_payload(serde_json::json!({ "workflow_id": id, "version": v.number }));
     append_event(conn, &event, ts).await?;
+    super::notifications::notify_plan(conn, by.project, v.plan, &[], &by.writer.actor(), ts)
+        .await?;
     Ok(id)
 }
 

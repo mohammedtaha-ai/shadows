@@ -102,6 +102,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/plans/` | project plans under the rules of §16 | `crates/shadows-core/src/plans/mod.rs` |
 | `crates/shadows-core/src/plans/model.rs` | the plan types callers meet | `crates/shadows-core/src/plans/model.rs` |
 | `crates/shadows-core/src/plans/dependencies.rs` | task dependency value shapes | `crates/shadows-core/src/plans/dependencies.rs` |
+| `crates/shadows-core/src/plans/map.rs` | project plan map value shapes | `crates/shadows-core/src/plans/map.rs` |
 | `crates/shadows-core/src/plans/dependency_graph.rs` | start/complete dependency ordering | `crates/shadows-core/src/plans/dependency_graph.rs` |
 | `crates/shadows-core/src/plans/store/` | plans' SQLite queries | `crates/shadows-core/src/plans/store/edit.rs` |
 | `crates/shadows-core/src/plans/store/edit.rs` | changing a plan version | `crates/shadows-core/src/plans/store/edit.rs` |
@@ -112,6 +113,8 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/plans/store/dependencies.rs` | persisted cross-plan links | `crates/shadows-core/src/plans/store/dependencies.rs` |
 | `crates/shadows-core/src/plans/store/graph.rs` | reachable latest-version dependency checks | `crates/shadows-core/src/plans/store/graph.rs` |
 | `crates/shadows-core/src/plans/store/linked.rs` | captured dependency preview reads | `crates/shadows-core/src/plans/store/linked.rs` |
+| `crates/shadows-core/src/plans/store/map.rs` | captured latest-plan map reads | `crates/shadows-core/src/plans/store/map.rs` |
+| `crates/shadows-core/src/plans/store/notifications.rs` | transactional dependency invalidations | `crates/shadows-core/src/plans/store/notifications.rs` |
 | `crates/shadows-core/src/plans/store/view.rs` | showing a plan version in its conversation | `crates/shadows-core/src/plans/store/view.rs` |
 | `crates/shadows-core/src/plans/ops.rs` | applying one batch of plan edits | `crates/shadows-core/src/plans/ops.rs` |
 | `crates/shadows-core/src/plans/rules.rs` | what makes a plan invalid or unready | `crates/shadows-core/src/plans/rules.rs` |

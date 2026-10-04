@@ -1359,9 +1359,7 @@
         "description": "Spec §13.3. `task` waits for `after`.",
         "properties": {
           "after": {
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
+            "$ref": "#/components/schemas/TaskParent"
           },
           "kind": {
             "$ref": "#/components/schemas/LinkKind"
@@ -1400,6 +1398,194 @@
           "completes_after"
         ],
         "type": "string"
+      },
+      "LinkedTask": {
+        "description": "The other end of an outgoing or incoming cross-plan dependency.",
+        "properties": {
+          "broken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "incoming": {
+            "type": "boolean"
+          },
+          "link": {
+            "$ref": "#/components/schemas/Link"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "plan_state": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlanState"
+              }
+            ]
+          },
+          "plan_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProjectId"
+              }
+            ]
+          },
+          "project_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowState"
+              }
+            ]
+          },
+          "task": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaskPreview"
+              }
+            ]
+          },
+          "version": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "workflow_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowId"
+              }
+            ]
+          }
+        },
+        "required": [
+          "link",
+          "incoming",
+          "plan_id"
+        ],
+        "type": "object"
+      },
+      "MapLink": {
+        "properties": {
+          "after": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "broken": {
+            "type": "boolean"
+          },
+          "count": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          }
+        },
+        "required": [
+          "plan_id",
+          "after",
+          "count",
+          "broken"
+        ],
+        "type": "object"
+      },
+      "MapPlan": {
+        "properties": {
+          "goal": {
+            "type": "string"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "plan_state": {
+            "$ref": "#/components/schemas/PlanState"
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "project_name": {
+            "type": "string"
+          },
+          "removed": {
+            "type": "boolean"
+          },
+          "state": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowState"
+              }
+            ]
+          },
+          "task_count": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "workflow_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowId"
+              }
+            ]
+          }
+        },
+        "required": [
+          "plan_id",
+          "project_id",
+          "project_name",
+          "plan_state",
+          "title",
+          "goal",
+          "task_count",
+          "removed"
+        ],
+        "type": "object"
       },
       "Operation": {
         "description": "Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the\n`ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged\nfor reviewability, that follows this task (spec §4.1 OPEN block).",
@@ -1782,6 +1968,13 @@
               }
             ]
           },
+          "linked_tasks": {
+            "description": "Live dependency metadata; never part of the frozen content digest.",
+            "items": {
+              "$ref": "#/components/schemas/LinkedTask"
+            },
+            "type": "array"
+          },
           "links": {
             "items": {
               "$ref": "#/components/schemas/Link"
@@ -1912,6 +2105,31 @@
           "version",
           "state",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "PlanMap": {
+        "properties": {
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/MapLink"
+            },
+            "type": "array"
+          },
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/MapPlan"
+            },
+            "type": "array"
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          }
+        },
+        "required": [
+          "project_id",
+          "plans",
+          "links"
         ],
         "type": "object"
       },
@@ -2375,6 +2593,65 @@
       "TaskId": {
         "format": "uuid",
         "type": "string"
+      },
+      "TaskParent": {
+        "description": "A local task number, or a task in another plan's latest version.",
+        "oneOf": [
+          {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "properties": {
+              "plan_id": {
+                "$ref": "#/components/schemas/PlanId"
+              },
+              "task": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "plan_id",
+              "task"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "TaskPreview": {
+        "properties": {
+          "acceptance": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptanceItem"
+            },
+            "type": "array"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "title",
+          "goal",
+          "acceptance",
+          "state"
+        ],
+        "type": "object"
       },
       "ThreadEntry": {
         "properties": {
@@ -4707,6 +4984,57 @@
         "summary": "Connect (§13.7): issues a grant bound to this project for an external\nagent. The token is shown once — here — and stored only as its hash.",
         "tags": [
           "grants"
+        ]
+      }
+    },
+    "/api/projects/{id}/plan-map": {
+      "get": {
+        "operationId": "plan_map",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanMap"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "tags": [
+          "workflows"
         ]
       }
     },

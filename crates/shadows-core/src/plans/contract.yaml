@@ -85,6 +85,28 @@ shapes:
     version: i64
     state: WorkflowState
     updated_at: String
+  PlanMap:
+    project_id: ProjectId
+    plans: Vec<MapPlan>
+    links: Vec<MapLink>
+  MapPlan:
+    # Latest captured metadata; a missing version is unavailable, never invented.
+    plan_id: PlanId
+    project_id: ProjectId
+    project_name: String
+    plan_state: PlanState
+    workflow_id: Option<WorkflowId>
+    title: String
+    goal: String
+    version: Option<i64>
+    state: Option<WorkflowState>
+    task_count: u32
+    removed: bool
+  MapLink:
+    plan_id: PlanId
+    after: PlanId
+    count: u32
+    broken: bool
   PlanVersions:
     plan_id: PlanId
     project_id: ProjectId
@@ -205,6 +227,7 @@ shapes:
 
 functions:
   reads:
+    map: "(&self, project: &ProjectId) -> Result<PlanMap, CoreError>"
     list:
       signature: "(&self, project: &ProjectId, archived: bool) -> Result<Vec<PlanListing>, CoreError>"
       # Active plans only, or archived ones too when requested.
@@ -274,6 +297,7 @@ functions:
     # takes none.
     list_plans: "(&self, project: &ProjectId, archived: bool) -> Result<Vec<PlanListing>, StorageError>"
     get_plan: "(&self, workflow: &WorkflowId) -> Result<Plan, StorageError>"
+    plan_map: "(&self, project: &ProjectId) -> Result<PlanMap, StorageError>"
     get_plan_scoped: "(&self, workflow: &WorkflowId, origin: Option<&ProjectId>, project: Option<&str>) -> Result<Plan, StorageError>"
     list_plans_scoped: "(&self, origin: &ProjectId, archived: bool, project: Option<&str>) -> Result<Vec<PlanListing>, StorageError>"
     get_plan_versions: "(&self, plan: &PlanId) -> Result<PlanVersions, StorageError>"
@@ -334,6 +358,7 @@ enums:
 
 
 shared_in_transaction:
+  notify_project_dependencies_in: "Code link writes and Projects removal: append dependency invalidations for other live connected projects inside the caller's write"
   check_design_plan: "Design's part/outcome association stores: verify project-qualified plan identity before associating; archived/Frozen plans remain valid and their content is not edited"
   task_of: "Turns' store (turns/store/turn.rs `focused`): start_turn checks a Focus's task belongs to its version inside the turn's own write"
 
@@ -523,20 +548,19 @@ agreements:
     tested_by: part_order_is_stable_across_restart
   - between: [get, get_for]
     must: >
-      answer the same Plan for a version the grant's scope covers
+      answer the same stored plan content for a version the grant's scope covers;
+      related previews and blocker labels obey the grant's independent reach
     holds: true
     why: >
-      `get_for` runs `in_scope`, which reads the version with the same
-      `Storage::get_plan` as `get` and returns it unchanged once its checks pass.
-    tested_by: none
-    note: >
-      A test would read one version through GET /api/workflows/{id} and through
-      `workflow_get` under a project grant, and assert the two JSON bodies equal.
+      Both use a read snapshot. A selected linked project is checked before
+      content is loaded. An unreachable incoming preview is omitted; an outgoing
+      stored link stays readable with its metadata redacted.
+    tested_by: incoming_previews_obey_the_grants_one_way_project_reach
 
   - between: [get_for, task_for]
     must: >
       a task read through `task_for` is the task with that number inside the
-      plan `get_for` answers for the same grant and version
+      plan `get_for` answers for the same grant and own-project version
     holds: true
     why: >
       `task_for` calls `in_scope` with the same arguments as `get_for` and
@@ -550,7 +574,7 @@ agreements:
     must: >
       list the same plans for the grant's project as a person's list of that project
     holds: true
-    why: Both are `Storage::list_plans` of one project.
+    why: Both use the same listing query; list_for validates its project selector in the snapshot.
     tested_by: none
     note: >
       `the_project_lists_each_plans_latest_version` covers `list` and
@@ -579,6 +603,20 @@ open_questions:
 
 
 tests:
+  - name: the_map_keeps_incoming_foreign_links_to_archived_plans
+    checks: Incoming foreign edges reach the map; an archived referenced plan stays visible from an active consumer.
+  - name: incoming_previews_obey_the_grants_one_way_project_reach
+    checks: User previews may include reverse project links; grants require their own live outgoing reach.
+  - name: a_frozen_sources_preview_follows_the_targets_new_version
+    checks: Latest target removal breaks a derived preview without changing Frozen source content or old target tasks.
+  - name: a_new_foreign_dependency_invalidates_the_targets_project_once
+    checks: A new incoming foreign edge reaches the target project stream in the same commit; replay emits none.
+  - name: the_project_map_aggregates_task_links_with_foreign_plan_metadata
+    checks: Latest foreign plan metadata, counted edges and retained broken references reach HTTP.
+  - name: a_linked_project_can_be_read_but_never_written_by_the_source_grant
+    checks: Selected linked-project MCP reads succeed; writes and reads after unlink are refused.
+  - name: a_foreign_task_link_names_the_missing_project_link_as_invalid_command
+    checks: Missing reach is INVALID_COMMAND with the required link identified; the batch writes nothing.
   - name: outgoing_and_incoming_views_name_the_related_plan_and_task
     checks: Both directions resolve task preview metadata; removal retains a broken edge with its explanation.
   - name: an_unrelated_cycle_in_a_target_plan_does_not_block_this_dependency

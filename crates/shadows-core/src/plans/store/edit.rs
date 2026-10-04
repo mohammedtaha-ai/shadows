@@ -84,6 +84,15 @@ impl Storage {
                 let event = plan_event("WorkflowEdited", &writer, &project, operation.as_ref())
                     .with_payload(serde_json::to_value(&outcome)?);
                 append_event(conn, &event, &ts).await?;
+                super::notifications::notify_plan(
+                    conn,
+                    &project,
+                    &plan.plan_id,
+                    &plan.links,
+                    &writer.actor(),
+                    &ts,
+                )
+                .await?;
                 record_command(
                     conn,
                     &ctx,
@@ -175,6 +184,15 @@ impl Storage {
                 }
                 let event = event.with_payload(serde_json::to_value(&approved)?);
                 append_event(conn, &event, &ts).await?;
+                super::notifications::notify_plan(
+                    conn,
+                    &project,
+                    &plan.plan_id,
+                    &[],
+                    &event.actor,
+                    &ts,
+                )
+                .await?;
                 record_command(
                     conn,
                     &ctx,

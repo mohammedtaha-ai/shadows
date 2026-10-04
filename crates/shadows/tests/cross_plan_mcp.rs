@@ -22,13 +22,18 @@ async fn a_foreign_task_link_names_the_missing_project_link_as_invalid_command()
     plan::edit(&l.app, &target.workflow_id, 0, &[add(3)]).await;
     let source = plan::draft(&l.app).await;
     let (_, client) = project_client(&l).await;
-    let text = refused(&client, "plan_edit", json!({
-        "workflow_id": source.workflow_id, "expected_revision": 0,
-        "ops": [add(4), {"op": "link_put", "link": {
-            "task": 4, "after": {"plan_id": target.plan_id, "task": 3},
-            "kind": "needs", "label": "Login API", "waiting_items": []
-        }}]
-    })).await;
+    let text = refused(
+        &client,
+        "plan_edit",
+        json!({
+            "workflow_id": source.workflow_id, "expected_revision": 0,
+            "ops": [add(4), {"op": "link_put", "link": {
+                "task": 4, "after": {"plan_id": target.plan_id, "task": 3},
+                "kind": "needs", "label": "Login API", "waiting_items": []
+            }}]
+        }),
+    )
+    .await;
     assert!(text.starts_with("INVALID_COMMAND:"), "{text}");
     assert!(text.contains("project link"), "{text}");
     assert_eq!(plan::revision(&l.app, &source.workflow_id).await, 0);

@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Plan, PlanTask } from '@/api/client'
 import { Button } from '@/components/ui/button'
+import { parentName } from './linked-layout'
 
 export function InspectPanel({
   plan,
@@ -17,7 +18,7 @@ export function InspectPanel({
 }) {
   const waits = plan.links.filter((l) => l.task === task.number && l.kind === 'completes_after')
   const waitingFor = (item: number) =>
-    waits.filter((l) => l.waiting_items?.includes(item)).map((l) => `T${l.after}`)
+    waits.filter((l) => l.waiting_items?.includes(item)).map((l) => parentName(l.after, plan.linked_tasks))
 
   return (
     <aside

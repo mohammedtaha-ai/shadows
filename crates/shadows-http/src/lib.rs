@@ -148,6 +148,7 @@ fn routes() -> OpenApiRouter<AppState> {
         ))
         .routes(routes!(thread::fork_thread))
         .routes(routes!(workflow::list_plans))
+        .routes(routes!(workflow::plan_map))
         .routes(routes!(workflow::get_plan))
         .routes(routes!(workflow::approve_plan))
         .routes(routes!(workflow::get_plan_versions))

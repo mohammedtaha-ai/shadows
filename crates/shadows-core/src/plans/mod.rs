@@ -16,6 +16,7 @@
 mod conversation;
 mod dependencies;
 mod dependency_graph;
+mod map;
 mod model;
 mod ops;
 mod rules;
@@ -28,6 +29,7 @@ use serde_json::json;
 
 pub use conversation::{Focus, Place, PlanShown};
 pub use dependencies::{LinkedTask, TaskParent, TaskPreview};
+pub use map::{MapLink, MapPlan, PlanMap};
 pub use model::{
     AcceptanceItem, Approved, DraftStarted, EditOutcome, LastEdit, Link, LinkKind, Plan,
     PlanContent, PlanId, PlanListing, PlanState, PlanTask, PlanVersions, TaskContent, TaskId,
@@ -36,6 +38,7 @@ pub use model::{
 pub use ops::PlanOp;
 pub use rules::Problem;
 pub(crate) use store::check_design_plan;
+pub(crate) use store::notify_project_dependencies_in;
 pub(crate) use store::task_of;
 
 use scope::{command, own_thread, refused, writer_of};
@@ -92,6 +95,11 @@ pub struct PlanShow {
 }
 
 impl Plans {
+    /// Active plans with latest metadata and counted links in either direction.
+    pub async fn map(&self, project: &ProjectId) -> Result<PlanMap, CoreError> {
+        Ok(self.storage.plan_map(project).await?)
+    }
+
     pub(crate) fn new(
         storage: Arc<Storage>,
         handles: Arc<LiveHandles>,

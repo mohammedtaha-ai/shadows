@@ -28,6 +28,9 @@ export type ContextBreakdown = Schemas['ContextBreakdown']
 export type Plan = Schemas['Plan']
 export type PlanTask = Schemas['PlanTask']
 export type PlanLink = Schemas['Link']
+export type LinkedTask = Schemas['LinkedTask']
+export type PlanMap = Schemas['PlanMap']
+export type MapPlan = Schemas['MapPlan']
 export type PlanListing = Schemas['PlanListing']
 export type PlanVersions = Schemas['PlanVersions']
 export type VersionLine = Schemas['VersionLine']
@@ -325,6 +328,10 @@ export function unarchivePlan(planId: string, commandId: string): Promise<PlanVe
  * approval and what the last edit changed (spec §13.10). */
 export function getPlan(workflowId: string): Promise<Plan> {
   return unwrap(client.GET('/api/workflows/{id}', { params: { path: { id: workflowId } } }))
+}
+
+export function getPlanMap(projectId: string): Promise<PlanMap> {
+  return unwrap(client.GET('/api/projects/{id}/plan-map', { params: { path: { id: projectId } } }))
 }
 
 /** Approves a Draft at the revision the person saw (spec §13.2). Answers what

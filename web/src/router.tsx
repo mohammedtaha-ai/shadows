@@ -16,6 +16,7 @@ import { ProjectSettings } from './app/project-settings/project-settings'
 import { SettingsPage } from './app/settings/settings-page'
 import { Shell } from './app/shell'
 import { PlanPage } from './app/workflows/plan-page'
+import { PlanMapPage } from './app/workflows/plan-map'
 
 const rootRoute = createRootRoute({ component: Shell })
 
@@ -56,6 +57,12 @@ const planRoute = createRoute({
   component: PlanPage,
 })
 
+const planMapRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId/map',
+  component: PlanMapPage,
+})
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$projectId/settings',
@@ -87,6 +94,7 @@ export const router = createRouter({
     draftRoute,
     threadRoute,
     planRoute,
+    planMapRoute,
     settingsRoute,
     workspaceRoute,
     appSettingsRoute,

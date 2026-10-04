@@ -3,14 +3,16 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronDown, ChevronRight, Workflow } from 'lucide-react'
+import { ChevronDown, ChevronRight, Map, Workflow } from 'lucide-react'
 import { useState } from 'react'
 import type { PlanListing } from '@/api/client'
 import { plansQuery } from '@/api/queries'
+import { useProjectEvents } from '@/stream/use-project-events'
 import { ErrorLine } from '../error-line'
 import { stateLabel } from '../workflows/plan-state'
 
 export function WorkflowList({ projectId, selected }: { projectId: string; selected?: string }) {
+  useProjectEvents(projectId)
   const { data: plans, error } = useQuery(plansQuery(projectId, true))
   const [showArchived, setShowArchived] = useState(false)
 
@@ -22,6 +24,10 @@ export function WorkflowList({ projectId, selected }: { projectId: string; selec
       <p className="px-2 pt-1 pb-0.5 text-[11px] tracking-wide text-faint-foreground uppercase">
         Workflows
       </p>
+      <Link to="/projects/$projectId/map" params={{ projectId }} activeProps={{ 'aria-current': 'page' }}
+        className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent/50">
+        <Map className="size-3.5" aria-hidden />Plan map
+      </Link>
       {error !== null && (
         <div className="px-2 py-1">
           <ErrorLine error={error} />

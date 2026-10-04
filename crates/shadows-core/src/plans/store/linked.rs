@@ -79,10 +79,6 @@ pub(super) async fn read(
     Ok(result)
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "one dependency end captured in the same snapshot"
-)]
 async fn related(
     conn: &mut SqliteConnection,
     plan: &PlanId,

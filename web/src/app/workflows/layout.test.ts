@@ -65,7 +65,7 @@ describe('layoutPlan', () => {
         links.push({ task: n, after: n - 7, kind: 'completes_after', label: 'check', waiting_items: [1] })
       }
     }
-    const { nodes } = layoutPlan(planFixture({ tasks, links: links.filter((l) => l.after >= 1) }))
+    const { nodes } = layoutPlan(planFixture({ tasks, links: links.filter((l) => typeof l.after === 'number' && l.after >= 1) }))
 
     const all = [...boxes(nodes).values()]
     expect(all).toHaveLength(61)
@@ -79,4 +79,48 @@ describe('layoutPlan', () => {
       }
     }
   })
+})
+
+it('places outgoing and incoming tasks using plan-qualified node identities', () => {
+  const outgoing = {
+    link: { task: 4, after: { plan_id: 'backend', task: 3 }, kind: 'needs' as const, label: 'API', waiting_items: [] },
+    incoming: false, plan_id: 'backend', project_id: 'other', project_name: 'Other project',
+    workflow_id: 'backend-v2', version: 2, plan_title: 'Backend', plan_state: 'Active' as const,
+    state: 'Draft' as const, task: { number: 3, title: 'Login API', goal: 'Authenticate', acceptance: [], state: 'Pending' },
+    broken: null,
+  }
+  const incoming = { ...outgoing, incoming: true, plan_id: 'consumer', plan_title: 'Mobile',
+    link: { ...outgoing.link, task: 3, after: { plan_id: 'plan1', task: 4 } } }
+  const plan = planFixture({ tasks: [planTask(4, 'Login screen')], links: [outgoing.link], linked_tasks: [outgoing, incoming] })
+  const { nodes, edges } = layoutPlan(plan)
+  expect(nodes.filter(node => node.type === 'linked').map(node => node.id)).toEqual(['pbackend-t3', 'pconsumer-t3'])
+  expect(edges.some(edge => edge.source === 'pbackend-t3' && edge.target === 't4')).toBe(true)
+  expect(edges.some(edge => edge.source === 't4' && edge.target === 'pconsumer-t3')).toBe(true)
+  expect(edges.some(edge => edge.id === 'start-4')).toBe(false)
+})
+
+it('keeps a broken dependency node with its explanation', () => {
+  const link = { task: 4, after: { plan_id: 'backend', task: 3 }, kind: 'needs' as const, label: 'API', waiting_items: [] }
+  const plan = planFixture({ tasks: [planTask(4, 'Screen')], links: [link], linked_tasks: [{
+    link, incoming: false, plan_id: 'backend', project_id: 'other', project_name: 'Other',
+    workflow_id: 'backend-v2', version: 2, plan_title: 'Backend', plan_state: 'Active', state: 'Draft',
+    task: null, broken: 'T3 is missing from the latest version',
+  }] })
+  const { nodes, edges } = layoutPlan(plan)
+  expect(nodes.find(node => node.id === 'pbackend-t3')?.data.view).toMatchObject({ broken: 'T3 is missing from the latest version' })
+  expect(edges.find(edge => edge.source === 'pbackend-t3')?.data?.broken).toBe(true)
+})
+
+it('retains an incoming edge when its local target task is missing', () => {
+  const plan = planFixture({ tasks: [planTask(5, 'Replacement API')], linked_tasks: [{
+    link: { task: 4, after: { plan_id: 'plan1', task: 3 }, kind: 'needs', label: 'API', waiting_items: [] },
+    incoming: true, plan_id: 'web', project_id: 'p2', project_name: 'Web project', workflow_id: 'web-v1',
+    version: 1, plan_title: 'Web', plan_state: 'Active', state: 'Draft',
+    task: { number: 4, title: 'Login screen', goal: 'Sign in', acceptance: [], state: 'Pending' },
+    broken: 'T3 is missing from the latest version',
+  }] })
+  const { nodes, edges } = layoutPlan(plan)
+  expect(nodes.find(node => node.id === 't3')).toMatchObject({ type: 'missing' })
+  expect(nodes.some(node => node.id === 'pweb-t4')).toBe(true)
+  expect(edges.find(edge => edge.source === 't3' && edge.target === 'pweb-t4')?.data?.broken).toBe(true)
 })

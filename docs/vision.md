@@ -472,6 +472,11 @@ The local release includes all of these experiences:
   observed implementation kept distinguishable from intended design.
 - A usable Dashboard for runs, decisions, gates, profiles, connections,
   extensions, costs and recovery, rather than a log of raw agent transcripts.
+- A working, tested Codex environment selectable from that Dashboard, with
+  project/profile-scoped MCP connections, supported plugins and skills. The
+  person can configure, test, inspect, enable, disable and update them, with
+  actionable setup errors and captured run configuration. §19 owns the design;
+  configuration alone does not establish working compatibility.
 - Local installation, explicit data location, recoverable backups and
   migration checks; credentials never become project content.
 

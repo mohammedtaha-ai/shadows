@@ -161,8 +161,12 @@ not in a detailed task list written prematurely here.
 The [Stage 1 implementation plan](./2026-10-03-planning-workspace-stage-1.md)
 has been executed; its tests and isolated Windows browser trial are recorded
 in [the dated evidence](../../evidence/2026-10-04-planning-workspace-stage-1.md).
-The next implementation plan is §16 1b, followed by §18 agreements. Later
-subsystems retain their own design, implementation and acceptance work.
+The [§16 1b implementation plan](./2026-10-04-cross-plan-links-1b.md)
+has also been executed on `codex/full-project-vision`; its automated gate and
+isolated Windows trial are recorded in
+[dated evidence](../../evidence/2026-10-04-cross-plan-links-1b.md).
+The next implementation plan is §18 shared API agreements. Later subsystems
+retain their own design, implementation and acceptance work.
 
 ## Completion audit
 
