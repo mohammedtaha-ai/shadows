@@ -32,6 +32,10 @@ The work is delivered in two runnable stages. Stage 2 depends on Stage 1.
 - Record a task run, deterministic verification, and review outcomes (§17.6).
 - Show runs, evidence, failures and gate actions in the Web client (§17.7).
 
+These are this section's two delivery slices, not the numbering of the
+project-planning roadmap. That roadmap schedules this owner at its execution
+stage; specialized diagrams are not a prerequisite.
+
 **Not here:** selecting multiple executor vendors, running overlapping tasks
 in one working directory, worktree management, automatic waiting-test
 scheduling, project teams, remote execution, and general-purpose semantic
@@ -130,6 +134,11 @@ policy.
 
 ## 17.5 Bounded execution packet
 
+The packet replaces repeated project discovery. It gives the executor the
+local purpose and approved obligations needed to implement one task, not the
+whole plan, sibling tasks, or the Planner's conversation history. A compact
+ownership overview explains where this task fits without copying other scopes.
+
 `TaskContextCompiler` produces an immutable `ExecutionPacket` for one ready
 task. It contains:
 
@@ -143,6 +152,12 @@ task. It contains:
   instructions;
 - a canonical digest over every packet field.
 
+Locations pair a repository-relative path and symbol with the captured source
+revision and file digest; line numbers are hints at that revision. For a new
+symbol, the packet names the owning module and insertion responsibility.
+The executor validates the surrounding declaration before editing. Stale or
+ambiguous locations require resolution, never a guessed edit at the old line.
+
 The compiler refuses a mutable or unapproved plan, an unready task, unresolved
 dependencies, a missing or ambiguous project binding, paths outside the
 project, invalid scope patterns, unavailable required inputs, and context over
@@ -153,6 +168,52 @@ The packet is persisted or referenced immutably by its digest. A retry uses the
 same packet only when it is the same logical run; a new attempt compiles and
 records a new packet. Provider-native conversation history is not canonical
 task context.
+
+### Focused questions during a run
+
+Within its declared reads, capabilities and budget, an executor may ask for a
+named definition, relevant references or a bounded outline without escalating
+each lookup. It opens the relevant source region, widening to necessary types,
+invariants and tests when the question requires them. It must understand its
+change; a narrow packet is not permission to guess. Repository-wide discovery
+is not the default response to a missing answer.
+
+§15's index answers locations, not code. Name-matched references remain
+labelled as such; they are not a proven call graph. Semantic LSP results may
+be used when an adapter supplies them with provenance, but no LSP integration
+is claimed by this draft. No match, incomplete indexing or ambiguity means
+uncertainty, not proof that an implementation is absent.
+
+Additional reads must resolve against the packet's captured source, or the
+attempt's recorded edits to it. A live index hit is only a candidate until
+checked against that source. Each supplied result records the question,
+path/symbol, source digest and bounded response in the run's evidence; it does
+not mutate the packet. If the source cannot be reconciled, stop for refresh.
+Expanding declared reads, write scope or capability requires a newly approved
+task version and packet; a manager reply cannot silently expand them.
+
+The context budget includes tool results, repeated turns and inherited harness
+instructions/history, not just the initial packet. An adapter must expose how
+these inputs are supplied and measured; unavailable usage is labelled unknown.
+On budget exhaustion or a missing out-of-scope dependency, return a bounded
+problem report instead of crawling the repository. Read minimization is a
+context policy, not a claim of OS-level read isolation.
+
+### Problems returned to the controller
+
+A report names task/attempt, packet and agreement versions, the precise
+obstacle, evidence, attempted remedies, known affected dependencies and a
+proposed action if available. The first serial release returns it to the
+person/Planner. A later agentic manager can investigate and direct repairs
+within delegated authority; it cannot alter frozen obligations or certify its
+own proposed plan change. §17.4 and §18 retain approval ownership.
+
+> **OPEN — manager authority and recovery.** Before an autonomous manager
+> dispatches repairs, accepts escalations or controls runs, its owner spec must
+> define allowed actions, cost/retry limits, durable problem identities,
+> stop/resume behavior and escalation to Planner/person. The role direction is
+> in `docs/vision.md` §5. This does not block serial execution with a person
+> controlling it; no manager service is introduced by this section.
 
 ## 17.6 Execution evidence and verification
 
@@ -181,6 +242,11 @@ correct. A separate Reviewer evaluates implementation evidence against the
 task contract and can return the four review outcomes in §17.4. Review output
 is attributable and immutable. Until a semantic Reviewer exists, the UI says
 “verification passed” and does not imply “review passed.”
+
+§19 owns the Dashboard-selected critic profile and durable post-implementation
+dispatch rule. Its review binds to this attempt's exact result; a later repair
+does not inherit the earlier verdict. Profile configuration does not change
+the verification or person-authority rules in this section.
 
 Verification or review failure does not mutate a frozen version. A plan
 failure creates a proposed change for the Planner and, if accepted, a new plan
@@ -277,6 +343,13 @@ stage begins.
 10. The Web client distinguishes plan approval, execution readiness,
     verification, and review; it shows reasons, evidence, and gate choices
     without relying on color alone.
+11. A task starts from bounded context without the parent transcript; a needed
+    in-scope lookup reads targeted source and records its provenance.
+    Ambiguous/name-only results are not presented as semantic proof; a moved
+    symbol cannot direct an edit to a stale line.
+12. An out-of-scope question, unreconciled source or exhausted context budget
+    returns a problem report without silently widening access or changing the
+    packet. A fresh attempt retains the previous evidence.
 
 Acceptance covers Windows and Linux with disposable repositories and
 databases. Credentialed CLI acceptance is recorded separately from automated

@@ -35,6 +35,79 @@ async fn next_frame(body: &mut BodyDataStream, pending: &mut String) -> (String,
 }
 
 #[tokio::test]
+async fn design_stream_replays_resumes_and_keeps_projects_separate() {
+    let app = app::test_app().await;
+    let (foreign, _) = app::other_project(&app).await;
+    let edits = format!("/api/projects/{}/design/edits", app.project);
+    let path = format!("/api/projects/{}/events", app.project);
+    let vision = json!({"kind":"VisionPut","content":{"purpose":"رؤية","users":"","goals":"","boundaries":"","technical_direction":""}});
+    let first = json!({"command_id":"vision","expected_revision":0,"ops":[vision]});
+    assert_eq!(
+        app::call(&app, "POST", &edits, Some(first.clone())).await.0,
+        200
+    );
+    // Immutable command replay creates no second notification.
+    assert_eq!(app::call(&app, "POST", &edits, Some(first)).await.0, 200);
+    let response = app
+        .router
+        .clone()
+        .oneshot(Request::get(&path).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let mut body = response.into_body().into_data_stream();
+    let mut pending = String::new();
+    let (frame, replay) = next_frame(&mut body, &mut pending).await;
+    assert_eq!(frame, "durable");
+    assert_eq!(replay["kind"], "ProjectDesignChanged");
+    assert_eq!(replay["payload"]["vision_changed"], true);
+    assert_eq!(next_frame(&mut body, &mut pending).await.0, "caught-up");
+    let part = uuid::Uuid::new_v4().to_string();
+    let outcome = uuid::Uuid::new_v4().to_string();
+    let mixed = json!({"command_id":"mixed","expected_revision":1,"ops":[
+        {"kind":"PartCreate","id":part,"parent":null,"before":null,"content":{"title":"قسم","responsibility":"","design":"","kind":null}},
+        {"kind":"OutcomeCreate","id":outcome,"parent":null,"before":null,"content":{"title":"نتيجة","intended_result":"","acceptance":[]}},
+        {"kind":"OutcomePartPut","outcome":outcome,"part":part}
+    ]});
+    let foreign_edit = json!({"command_id":"foreign","expected_revision":0,"ops":[vision]});
+    assert_eq!(
+        app::call(
+            &app,
+            "POST",
+            &format!("/api/projects/{foreign}/design/edits"),
+            Some(foreign_edit)
+        )
+        .await
+        .0,
+        200
+    );
+    assert_eq!(app::call(&app, "POST", &edits, Some(mixed)).await.0, 200);
+    let (_, live) = next_frame(&mut body, &mut pending).await;
+    assert_eq!(live["payload"]["project_id"], json!(app.project));
+    assert_eq!(live["payload"]["changed_parts"], json!([part]));
+    assert_eq!(live["payload"]["changed_outcomes"], json!([outcome]));
+    drop(body);
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::get(format!("{path}?after={}", replay["seq"]))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let mut resumed = response.into_body().into_data_stream();
+    let mut pending = String::new();
+    assert_eq!(next_frame(&mut resumed, &mut pending).await.1, live);
+    assert_eq!(next_frame(&mut resumed, &mut pending).await.0, "caught-up");
+    assert!(
+        tokio::time::timeout(Duration::from_millis(150), resumed.next())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
 async fn a_project_stream_sends_another_conversations_plan_edit() {
     let app = app::test_app().await;
     let (other_project, other_thread) = app::other_project(&app).await;

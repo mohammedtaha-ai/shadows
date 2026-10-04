@@ -19,15 +19,17 @@ use shadows_core::{Delivery, ProjectId, StoredEvent, Subscription, ThreadId};
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 pub struct ProjectSubscribeQuery {
-    /// Resume after the last durable sequence delivered; 0 replays all plan events.
+    /// Resume after the last durable sequence delivered; 0 replays all project plan/design events.
     #[serde(default)]
     pub after: i64,
 }
 
-/// A project's plan notifications (§16.8), replayed then live on the same
+/// A project's plan/design notifications (§16.8, §18.11), replayed then live on the same
 /// journal tail as `/api/subscribe`. `durable` carries `{seq, kind,
 /// operation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.
 /// Archive notifications name the plan's latest version to refetch.
+/// ProjectDesignChanged carries project_id, revision, changed_parts,
+/// changed_outcomes and vision_changed, never the vision content.
 #[utoipa::path(
     get, path = "/api/projects/{id}/events", tag = "stream",
     params(("id" = ProjectId, Path, description = "The project"), ProjectSubscribeQuery),

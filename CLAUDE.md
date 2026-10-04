@@ -62,9 +62,9 @@ Dependencies point one way, and Cargo refuses a cycle. An adapter depends on
 `shadows-core` only; a `shadows-agent` type it serializes, such as
 `SessionChoices`, is re-exported by `shadows-core`. `fake-acp` is the test
 adapter binary; no product crate links it. `shadows-index` depends on no
-Shadows crate (spec §15.2). Inside `shadows-core`, `AppCore` holds nine
+Shadows crate (spec §15.2). Inside `shadows-core`, `AppCore` holds ten
 services, one folder each: `projects`, `threads`, `turns`, `harness`, `plans`,
-`grants`, `instructions`, `events`, `code` (spec §14.4). Planned,
+`grants`, `instructions`, `events`, `code`, `design` (spec §14.4). Planned,
 and not created until their first user exists: the `scheduler`, `execution`
 and `verification` services, and `secrets`.
 

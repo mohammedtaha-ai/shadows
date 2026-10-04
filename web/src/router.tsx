@@ -11,6 +11,7 @@ import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/
 import { ConversationRoute } from './app/conversation/conversation'
 import { DraftRoute } from './app/conversation/draft'
 import { Home } from './app/home'
+import { WorkspacePage } from './app/design/workspace-page'
 import { ProjectSettings } from './app/project-settings/project-settings'
 import { SettingsPage } from './app/settings/settings-page'
 import { Shell } from './app/shell'
@@ -61,6 +62,17 @@ const settingsRoute = createRoute({
   component: ProjectSettings,
 })
 
+const workspaceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId/workspace',
+  validateSearch: (search: Record<string, unknown>): { view?: 'vision' | 'map' | 'roadmap' | 'plans'; part?: string; outcome?: string } => ({
+    view: search.view === 'map' || search.view === 'roadmap' || search.view === 'plans' ? search.view : 'vision',
+    part: typeof search.part === 'string' ? search.part : undefined,
+    outcome: typeof search.outcome === 'string' ? search.outcome : undefined,
+  }),
+  component: WorkspacePage,
+})
+
 // The daemon's own settings, for every project at once (§13.11).
 const appSettingsRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -76,6 +88,7 @@ export const router = createRouter({
     threadRoute,
     planRoute,
     settingsRoute,
+    workspaceRoute,
     appSettingsRoute,
   ]),
 })

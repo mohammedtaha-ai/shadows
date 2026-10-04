@@ -338,6 +338,396 @@
         ],
         "type": "object"
       },
+      "DesignAnchor": {
+        "oneOf": [
+          {
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/PartId"
+              },
+              "kind": {
+                "enum": [
+                  "Part"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/OutcomeId"
+              },
+              "kind": {
+                "enum": [
+                  "Outcome"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "DesignChange": {
+        "properties": {
+          "revision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "type": "object"
+      },
+      "DesignEdit": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "expected_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ops": {
+            "items": {
+              "$ref": "#/components/schemas/DesignOp"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "command_id",
+          "expected_revision",
+          "ops"
+        ],
+        "type": "object"
+      },
+      "DesignOp": {
+        "oneOf": [
+          {
+            "properties": {
+              "before": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OutcomeId"
+                  }
+                ]
+              },
+              "content": {
+                "$ref": "#/components/schemas/OutcomeContent"
+              },
+              "id": {
+                "$ref": "#/components/schemas/OutcomeId"
+              },
+              "kind": {
+                "enum": [
+                  "OutcomeCreate"
+                ],
+                "type": "string"
+              },
+              "parent": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OutcomeId"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "content",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "content": {
+                "$ref": "#/components/schemas/OutcomeContent"
+              },
+              "id": {
+                "$ref": "#/components/schemas/OutcomeId"
+              },
+              "kind": {
+                "enum": [
+                  "OutcomePut"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "content",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "before": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OutcomeId"
+                  }
+                ]
+              },
+              "id": {
+                "$ref": "#/components/schemas/OutcomeId"
+              },
+              "kind": {
+                "enum": [
+                  "OutcomeMove"
+                ],
+                "type": "string"
+              },
+              "parent": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OutcomeId"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "OutcomePartPut"
+                ],
+                "type": "string"
+              },
+              "outcome": {
+                "$ref": "#/components/schemas/OutcomeId"
+              },
+              "part": {
+                "$ref": "#/components/schemas/PartId"
+              }
+            },
+            "required": [
+              "outcome",
+              "part",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "OutcomePartRemove"
+                ],
+                "type": "string"
+              },
+              "outcome": {
+                "$ref": "#/components/schemas/OutcomeId"
+              },
+              "part": {
+                "$ref": "#/components/schemas/PartId"
+              }
+            },
+            "required": [
+              "outcome",
+              "part",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "content": {
+                "$ref": "#/components/schemas/VisionContent"
+              },
+              "kind": {
+                "enum": [
+                  "VisionPut"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "content",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "before": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PartId"
+                  }
+                ]
+              },
+              "content": {
+                "$ref": "#/components/schemas/PartContent"
+              },
+              "id": {
+                "$ref": "#/components/schemas/PartId"
+              },
+              "kind": {
+                "enum": [
+                  "PartCreate"
+                ],
+                "type": "string"
+              },
+              "parent": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PartId"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "content",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "content": {
+                "$ref": "#/components/schemas/PartContent"
+              },
+              "id": {
+                "$ref": "#/components/schemas/PartId"
+              },
+              "kind": {
+                "enum": [
+                  "PartPut"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "content",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "before": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PartId"
+                  }
+                ]
+              },
+              "id": {
+                "$ref": "#/components/schemas/PartId"
+              },
+              "kind": {
+                "enum": [
+                  "PartMove"
+                ],
+                "type": "string"
+              },
+              "parent": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PartId"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "anchor": {
+                "$ref": "#/components/schemas/DesignAnchor"
+              },
+              "kind": {
+                "enum": [
+                  "PlanLinkPut"
+                ],
+                "type": "string"
+              },
+              "plan": {
+                "$ref": "#/components/schemas/PlanId"
+              }
+            },
+            "required": [
+              "anchor",
+              "plan",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "anchor": {
+                "$ref": "#/components/schemas/DesignAnchor"
+              },
+              "kind": {
+                "enum": [
+                  "PlanLinkRemove"
+                ],
+                "type": "string"
+              },
+              "plan": {
+                "$ref": "#/components/schemas/PlanId"
+              }
+            },
+            "required": [
+              "anchor",
+              "plan",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "DirectoryEntry": {
         "description": "One directory a person could open or choose.",
         "properties": {
@@ -460,7 +850,7 @@
             "$ref": "#/components/schemas/ErrorCode"
           },
           "current_revision": {
-            "description": "`REVISION_CONFLICT` only: the plan's revision now, to read again at.",
+            "description": "`REVISION_CONFLICT` only: the resource's revision now, to read again at.",
             "format": "int64",
             "type": [
               "integer",
@@ -1102,6 +1492,252 @@
       "OperationId": {
         "format": "uuid",
         "type": "string"
+      },
+      "Outcome": {
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/OutcomeContent"
+          },
+          "id": {
+            "$ref": "#/components/schemas/OutcomeId"
+          },
+          "ordinal": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "parent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OutcomeId"
+              }
+            ]
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "ordinal",
+          "content"
+        ],
+        "type": "object"
+      },
+      "OutcomeContent": {
+        "properties": {
+          "acceptance": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "intended_result": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "intended_result",
+          "acceptance"
+        ],
+        "type": "object"
+      },
+      "OutcomeId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "OutcomePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Outcome"
+            },
+            "type": "array"
+          },
+          "next": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OutcomeId"
+              }
+            ]
+          },
+          "revision": {
+            "$ref": "#/components/schemas/i64"
+          }
+        },
+        "required": [
+          "revision",
+          "items"
+        ],
+        "type": "object"
+      },
+      "OutcomeView": {
+        "properties": {
+          "ancestors": {
+            "items": {
+              "$ref": "#/components/schemas/Outcome"
+            },
+            "type": "array"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/Outcome"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/PartId"
+            },
+            "type": "array"
+          },
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/PlanId"
+            },
+            "type": "array"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/i64"
+          }
+        },
+        "required": [
+          "revision",
+          "outcome",
+          "ancestors",
+          "parts",
+          "plans"
+        ],
+        "type": "object"
+      },
+      "Part": {
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/PartContent"
+          },
+          "id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "ordinal": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "parent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PartId"
+              }
+            ]
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "ordinal",
+          "content"
+        ],
+        "type": "object"
+      },
+      "PartContent": {
+        "properties": {
+          "design": {
+            "type": "string"
+          },
+          "kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "responsibility": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "responsibility",
+          "design"
+        ],
+        "type": "object"
+      },
+      "PartId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "PartPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Part"
+            },
+            "type": "array"
+          },
+          "next": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PartId"
+              }
+            ]
+          },
+          "revision": {
+            "$ref": "#/components/schemas/i64"
+          }
+        },
+        "required": [
+          "revision",
+          "items"
+        ],
+        "type": "object"
+      },
+      "PartView": {
+        "properties": {
+          "ancestors": {
+            "items": {
+              "$ref": "#/components/schemas/Part"
+            },
+            "type": "array"
+          },
+          "part": {
+            "$ref": "#/components/schemas/Part"
+          },
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/PlanId"
+            },
+            "type": "array"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/i64"
+          }
+        },
+        "required": [
+          "revision",
+          "part",
+          "ancestors",
+          "plans"
+        ],
+        "type": "object"
       },
       "Plan": {
         "description": "One stored version of a plan, as a reader sees it now (§13.2).",
@@ -1928,6 +2564,50 @@
         ],
         "type": "object"
       },
+      "VisionContent": {
+        "properties": {
+          "boundaries": {
+            "type": "string"
+          },
+          "goals": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "technical_direction": {
+            "type": "string"
+          },
+          "users": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "purpose",
+          "users",
+          "goals",
+          "boundaries",
+          "technical_direction"
+        ],
+        "type": "object"
+      },
+      "VisionView": {
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/VisionContent"
+          },
+          "revision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "content"
+        ],
+        "type": "object"
+      },
       "WorkflowId": {
         "format": "uuid",
         "type": "string"
@@ -2004,6 +2684,10 @@
             "type": "object"
           }
         ]
+      },
+      "i64": {
+        "format": "int64",
+        "type": "integer"
       }
     }
   },
@@ -3453,6 +4137,412 @@
         ]
       }
     },
+    "/api/projects/{id}/design/edits": {
+      "post": {
+        "operationId": "edit",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DesignEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignChange"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "REVISION_CONFLICT or COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/projects/{id}/design/outcomes": {
+      "get": {
+        "operationId": "outcomes",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parent",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/OutcomeId"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/OutcomeId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutcomePage"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/projects/{id}/design/outcomes/{outcome}": {
+      "get": {
+        "operationId": "outcome",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "The outcome",
+            "in": "path",
+            "name": "outcome",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/OutcomeId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutcomeView"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/projects/{id}/design/parts": {
+      "get": {
+        "operationId": "parts",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parent",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PartId"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PartId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartPage"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/projects/{id}/design/parts/{part}": {
+      "get": {
+        "operationId": "part",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "The part",
+            "in": "path",
+            "name": "part",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PartId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartView"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/projects/{id}/design/vision": {
+      "get": {
+        "operationId": "vision",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisionView"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
     "/api/projects/{id}/events": {
       "get": {
         "operationId": "subscribe_project",
@@ -3467,7 +4557,7 @@
             }
           },
           {
-            "description": "Resume after the last durable sequence delivered; 0 replays all plan events.",
+            "description": "Resume after the last durable sequence delivered; 0 replays all project plan/design events.",
             "in": "query",
             "name": "after",
             "required": false,
@@ -3499,7 +4589,7 @@
             "description": "Unknown or removed project"
           }
         },
-        "summary": "A project's plan notifications (§16.8), replayed then live on the same\njournal tail as `/api/subscribe`. `durable` carries `{seq, kind,\noperation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.\nArchive notifications name the plan's latest version to refetch.",
+        "summary": "A project's plan/design notifications (§16.8, §18.11), replayed then live on the same\njournal tail as `/api/subscribe`. `durable` carries `{seq, kind,\noperation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.\nArchive notifications name the plan's latest version to refetch.\nProjectDesignChanged carries project_id, revision, changed_parts,\nchanged_outcomes and vision_changed, never the vision content.",
         "tags": [
           "stream"
         ]
@@ -4828,6 +5918,10 @@
     }
   },
   "tags": [
+    {
+      "description": "Project design workspace",
+      "name": "design"
+    },
     {
       "description": "Projects and the directory each owns",
       "name": "projects"

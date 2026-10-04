@@ -30,7 +30,7 @@ pub struct StoredEvent {
 type EventRow = (i64, String, Option<String>, Option<String>, String, String);
 
 impl Storage {
-    /// A project's plan event tail. Only identifiers are projected for client
+    /// A project's plan/design event tail. Only identifiers are projected for client
     /// invalidation; plan content and edit details never enter this stream.
     /// Archive events name a plan, so they name its latest version to refetch.
     pub async fn read_project_events_after(
@@ -45,20 +45,21 @@ impl Storage {
             Option<String>,
             Option<String>,
             String,
-            String,
+            Option<String>,
+            Option<String>,
             String,
         );
         let rows: Vec<Row> = sqlx::query_as(
-            "SELECT e.seq, e.kind, e.operation_id, e.thread_id, e.created_at, w.plan_id, w.id
+            "SELECT e.seq, e.kind, e.operation_id, e.thread_id, e.created_at, w.plan_id, w.id, e.payload_json
                FROM durable_event e
-               JOIN workflow w ON w.id = COALESCE(
+               LEFT JOIN workflow w ON w.id = COALESCE(
                     json_extract(e.payload_json, '$.workflow_id'),
                     (SELECT id FROM workflow
                       WHERE plan_id = json_extract(e.payload_json, '$.plan')
                       ORDER BY version DESC LIMIT 1))
               WHERE e.project_id = ? AND e.seq > ?
                 AND e.kind IN ('WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen',
-                               'PlanArchived', 'PlanUnarchived')
+                               'PlanArchived', 'PlanUnarchived', 'ProjectDesignChanged')
               ORDER BY e.seq LIMIT ?",
         )
         .bind(project.as_str())
@@ -70,11 +71,15 @@ impl Storage {
             .into_iter()
             .map(|r| StoredEvent {
                 seq: r.0,
-                kind: r.1,
+                kind: r.1.clone(),
                 operation_id: r.2.map(OperationId::from_stored),
                 thread_id: r.3.map(ThreadId::from_stored),
                 created_at: r.4,
-                payload_json: serde_json::json!({ "plan_id": r.5, "workflow_id": r.6 }).to_string(),
+                payload_json: if r.1 == "ProjectDesignChanged" {
+                    r.7
+                } else {
+                    serde_json::json!({ "plan_id": r.5, "workflow_id": r.6 }).to_string()
+                },
             })
             .collect())
     }

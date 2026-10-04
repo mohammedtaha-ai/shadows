@@ -345,6 +345,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/design/edits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["edit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/design/outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["outcomes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/design/outcomes/{outcome}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["outcome"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/design/parts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["parts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/design/parts/{part}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["part"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/design/vision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["vision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/events": {
         parameters: {
             query?: never;
@@ -353,10 +449,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * A project's plan notifications (§16.8), replayed then live on the same
+         * A project's plan/design notifications (§16.8, §18.11), replayed then live on the same
          *     journal tail as `/api/subscribe`. `durable` carries `{seq, kind,
          *     operation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.
          *     Archive notifications name the plan's latest version to refetch.
+         *     ProjectDesignChanged carries project_id, revision, changed_parts,
+         *     changed_outcomes and vision_changed, never the vision content.
          */
         get: operations["subscribe_project"];
         put?: never;
@@ -873,6 +971,86 @@ export interface components {
             harness?: string | null;
             title: string;
         };
+        DesignAnchor: {
+            id: components["schemas"]["PartId"];
+            /** @enum {string} */
+            kind: "Part";
+        } | {
+            id: components["schemas"]["OutcomeId"];
+            /** @enum {string} */
+            kind: "Outcome";
+        };
+        DesignChange: {
+            /** Format: int64 */
+            revision: number;
+        };
+        DesignEdit: {
+            command_id: string;
+            /** Format: int64 */
+            expected_revision: number;
+            ops: components["schemas"]["DesignOp"][];
+        };
+        DesignOp: {
+            before?: null | components["schemas"]["OutcomeId"];
+            content: components["schemas"]["OutcomeContent"];
+            id: components["schemas"]["OutcomeId"];
+            /** @enum {string} */
+            kind: "OutcomeCreate";
+            parent?: null | components["schemas"]["OutcomeId"];
+        } | {
+            content: components["schemas"]["OutcomeContent"];
+            id: components["schemas"]["OutcomeId"];
+            /** @enum {string} */
+            kind: "OutcomePut";
+        } | {
+            before?: null | components["schemas"]["OutcomeId"];
+            id: components["schemas"]["OutcomeId"];
+            /** @enum {string} */
+            kind: "OutcomeMove";
+            parent?: null | components["schemas"]["OutcomeId"];
+        } | {
+            /** @enum {string} */
+            kind: "OutcomePartPut";
+            outcome: components["schemas"]["OutcomeId"];
+            part: components["schemas"]["PartId"];
+        } | {
+            /** @enum {string} */
+            kind: "OutcomePartRemove";
+            outcome: components["schemas"]["OutcomeId"];
+            part: components["schemas"]["PartId"];
+        } | {
+            content: components["schemas"]["VisionContent"];
+            /** @enum {string} */
+            kind: "VisionPut";
+        } | {
+            before?: null | components["schemas"]["PartId"];
+            content: components["schemas"]["PartContent"];
+            id: components["schemas"]["PartId"];
+            /** @enum {string} */
+            kind: "PartCreate";
+            parent?: null | components["schemas"]["PartId"];
+        } | {
+            content: components["schemas"]["PartContent"];
+            id: components["schemas"]["PartId"];
+            /** @enum {string} */
+            kind: "PartPut";
+        } | {
+            before?: null | components["schemas"]["PartId"];
+            id: components["schemas"]["PartId"];
+            /** @enum {string} */
+            kind: "PartMove";
+            parent?: null | components["schemas"]["PartId"];
+        } | {
+            anchor: components["schemas"]["DesignAnchor"];
+            /** @enum {string} */
+            kind: "PlanLinkPut";
+            plan: components["schemas"]["PlanId"];
+        } | {
+            anchor: components["schemas"]["DesignAnchor"];
+            /** @enum {string} */
+            kind: "PlanLinkRemove";
+            plan: components["schemas"]["PlanId"];
+        };
         /** @description One directory a person could open or choose. */
         DirectoryEntry: {
             /**
@@ -926,7 +1104,7 @@ export interface components {
             code: components["schemas"]["ErrorCode"];
             /**
              * Format: int64
-             * @description `REVISION_CONFLICT` only: the plan's revision now, to read again at.
+             * @description `REVISION_CONFLICT` only: the resource's revision now, to read again at.
              */
             current_revision?: number | null;
             message: string;
@@ -1127,6 +1305,62 @@ export interface components {
         };
         /** Format: uuid */
         OperationId: string;
+        Outcome: {
+            content: components["schemas"]["OutcomeContent"];
+            id: components["schemas"]["OutcomeId"];
+            /** Format: int64 */
+            ordinal: number;
+            parent?: null | components["schemas"]["OutcomeId"];
+            /** Format: int64 */
+            revision: number;
+        };
+        OutcomeContent: {
+            acceptance: string[];
+            intended_result: string;
+            title: string;
+        };
+        /** Format: uuid */
+        OutcomeId: string;
+        OutcomePage: {
+            items: components["schemas"]["Outcome"][];
+            next?: null | components["schemas"]["OutcomeId"];
+            revision: components["schemas"]["i64"];
+        };
+        OutcomeView: {
+            ancestors: components["schemas"]["Outcome"][];
+            outcome: components["schemas"]["Outcome"];
+            parts: components["schemas"]["PartId"][];
+            plans: components["schemas"]["PlanId"][];
+            revision: components["schemas"]["i64"];
+        };
+        Part: {
+            content: components["schemas"]["PartContent"];
+            id: components["schemas"]["PartId"];
+            /** Format: int64 */
+            ordinal: number;
+            parent?: null | components["schemas"]["PartId"];
+            /** Format: int64 */
+            revision: number;
+        };
+        PartContent: {
+            design: string;
+            kind?: string | null;
+            responsibility: string;
+            title: string;
+        };
+        /** Format: uuid */
+        PartId: string;
+        PartPage: {
+            items: components["schemas"]["Part"][];
+            next?: null | components["schemas"]["PartId"];
+            revision: components["schemas"]["i64"];
+        };
+        PartView: {
+            ancestors: components["schemas"]["Part"][];
+            part: components["schemas"]["Part"];
+            plans: components["schemas"]["PlanId"][];
+            revision: components["schemas"]["i64"];
+        };
         /** @description One stored version of a plan, as a reader sees it now (§13.2). */
         Plan: {
             /**
@@ -1419,6 +1653,18 @@ export interface components {
             workflow_id: components["schemas"]["WorkflowId"];
             written_by: components["schemas"]["WrittenBy"];
         };
+        VisionContent: {
+            boundaries: string;
+            goals: string;
+            purpose: string;
+            technical_direction: string;
+            users: string;
+        };
+        VisionView: {
+            content: components["schemas"]["VisionContent"];
+            /** Format: int64 */
+            revision: number;
+        };
         /** Format: uuid */
         WorkflowId: string;
         /**
@@ -1443,6 +1689,8 @@ export interface components {
             /** @enum {string} */
             kind: "external";
         };
+        /** Format: int64 */
+        i64: number;
     };
     responses: never;
     parameters: never;
@@ -2569,10 +2817,285 @@ export interface operations {
             };
         };
     };
+    edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DesignEdit"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignChange"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description REVISION_CONFLICT or COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    outcomes: {
+        parameters: {
+            query?: {
+                parent?: components["schemas"]["OutcomeId"];
+                after?: components["schemas"]["OutcomeId"];
+            };
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutcomePage"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    outcome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+                /** @description The outcome */
+                outcome: components["schemas"]["OutcomeId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutcomeView"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    parts: {
+        parameters: {
+            query?: {
+                parent?: components["schemas"]["PartId"];
+                after?: components["schemas"]["PartId"];
+            };
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartPage"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    part: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+                /** @description The part */
+                part: components["schemas"]["PartId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartView"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    vision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisionView"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     subscribe_project: {
         parameters: {
             query?: {
-                /** @description Resume after the last durable sequence delivered; 0 replays all plan events. */
+                /** @description Resume after the last durable sequence delivered; 0 replays all project plan/design events. */
                 after?: number;
             };
             header?: never;

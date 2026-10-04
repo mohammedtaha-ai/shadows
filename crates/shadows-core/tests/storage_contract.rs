@@ -42,6 +42,13 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "code_setting",
             "code_tag",
             "command_record",
+            "design_command_result",
+            "design_outcome",
+            "design_outcome_part",
+            "design_outcome_plan",
+            "design_part",
+            "design_part_plan",
+            "design_workspace",
             "draft_intent",
             "durable_event",
             "harness_limit",
@@ -62,7 +69,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "workflow",
         ],
         "spec §7.1: the migrations carry only the milestones' tables \
-         (0005 adds §12's four, 0007 §13.15's six, 0008 §15.4's four, 0011 §12.4's per-model effort, 0012 §16.9's plan)"
+         (0005 adds §12's four, 0007 §13.15's six, 0008 §15.4's four, 0011 §12.4's per-model effort, 0012 §16.9's plan, 0013 §18's vision)"
     );
 }
 

@@ -109,7 +109,7 @@ functions:
     subscribe_project:
       signature: "(&self, project: ProjectId, after: i64) -> Result<Subscription, CoreError>"
       # Validates the project is live; same committed watch and subscription
-      # replay loop, filtered to the project's five plan event kinds.
+      # replay loop, filtered to five plan event kinds plus ProjectDesignChanged.
     subscribe:
       signature: "(&self, thread: ThreadId, after: i64) -> Subscription"
       # Takes `storage.watch_committed()`, `bus.subscribe()`,
@@ -170,7 +170,9 @@ functions:
     read_project_events_after:
       signature: "(&self, cursor: EventCursor, project: &ProjectId, limit: i64) -> Result<Vec<StoredEvent>, StorageError>"
       # ORDER BY seq; WorkflowDraftStarted, WorkflowEdited, WorkflowFrozen,
-      # PlanArchived, PlanUnarchived only. Payload is {plan_id, workflow_id};
+      # PlanArchived, PlanUnarchived and ProjectDesignChanged only.
+      # Design payload is project_id/revision/changed_parts/changed_outcomes/vision_changed;
+      # no content. Plan payload is {plan_id, workflow_id};
       # archive events name the plan's latest version at the time of reading.
     read_events_after:
       signature: "(&self, cursor: EventCursor, thread_id: &ThreadId, limit: i64) -> Result<Vec<StoredEvent>, StorageError>"
@@ -207,8 +209,13 @@ enums:
 
 obligations:
   - rule: >
-      A project subscription sends only its project's plan events, once in
-      sequence order, with plan_id and workflow_id and no plan content.
+      ProjectDesignChanged is delivered in the project event tail with its
+      revision and changed identifiers, never design content. Design constructs
+      it with the DurableEvent builders inside its own transaction.
+    tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
+  - rule: >
+      A project subscription sends only its project's plan/design events, once in
+      sequence order. Plan notifications carry plan_id and workflow_id with no plan content.
       It resumes after the same cursor as a thread subscription. Unknown
       or removed projects refuse subscription as NotFound.
     tested_by: a_project_stream_sends_another_conversations_plan_edit

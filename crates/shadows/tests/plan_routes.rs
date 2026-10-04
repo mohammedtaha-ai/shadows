@@ -101,7 +101,7 @@ async fn approving_a_stale_revision_is_refused_with_the_current_one() {
     assert_eq!(body["current_revision"], 1);
     let message = body["message"].as_str().unwrap();
     assert!(
-        message.starts_with("the plan changed; current revision is 1: "),
+        message.starts_with("the resource changed; current revision is 1: "),
         "{message}"
     );
     assert!(body.get("problems").is_none(), "{body}");

@@ -32,6 +32,7 @@ pub use model::{
 };
 pub use ops::PlanOp;
 pub use rules::Problem;
+pub(crate) use store::check_design_plan;
 pub(crate) use store::task_of;
 
 use scope::{command, own_thread, refused, writer_of};

@@ -33,6 +33,10 @@ export function useProjectEvents(projectId: string | undefined): void {
     const stream = new ThreadStream({
       url: (after) => projectEventsUrl(projectId, after),
       onDurable: (event) => {
+        if (event.kind === 'ProjectDesignChanged') {
+          void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
+          return
+        }
         if (!PLAN_EVENTS.has(event.kind)) return
         const payload = event.payload
         if (typeof payload !== 'object' || payload === null ||
@@ -42,6 +46,8 @@ export function useProjectEvents(projectId: string | undefined): void {
         else pending.set(payload.workflow_id, payload.plan_id)
       },
       onCaughtUp: () => {
+        // Refetch even without a replayed design event: reconnect can follow a stale cache read.
+        void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
         for (const [workflow, plan] of pending) refetch(plan, workflow)
         pending.clear()
       },

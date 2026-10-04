@@ -2,6 +2,7 @@ mod app;
 mod code;
 mod command;
 mod db;
+mod design;
 mod error;
 mod events;
 mod grants;
@@ -30,6 +31,11 @@ pub use code::{
 // `StorageError`, `StartError` and `DirectoryError` are what `CoreError`
 // carries, which each adapter maps.
 pub use db::StorageError;
+pub use design::{
+    Design, DesignAnchor, DesignChange, DesignOp, DesignRevision, Outcome, OutcomeContent,
+    OutcomeId, OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage, PartView,
+    VisionContent, VisionView,
+};
 pub use error::{CoreError, ErrorCode};
 pub use events::{Actor, Delivery, Events, StoredEvent, Subscription, UiSignal};
 pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};

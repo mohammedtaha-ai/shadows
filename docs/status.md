@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-03 (§16 1a reviewed on `plans/project-plans`; reviewed debug build tried on Windows)
+**Updated:** 2026-10-04 (§16 1a merged; planning workspace Stage 1 verified on its branch)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,8 +9,8 @@ restate them.
 
 ## Where we are
 
-**Project plans, §16 1a, are implemented on `plans/project-plans`**, not yet
-merged. The owner is
+**Project plans, §16 1a, are on `main`**, squash-merged through PR #14 as
+`4d8774e`. The owner is
 [`§16`](./superpowers/specs/2026-10-01-project-plans-design.md); the plan is
 [`project-plans-1a`](./superpowers/plans/2026-10-01-project-plans-1a.md).
 Plans are shared across a project's conversations, versions show their
@@ -186,14 +186,23 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **Open the §16 1a PR:** implementation and whole-branch review are
-   complete, the attribution wording is clarified, and Mohammed has tried
-   the reviewed debug build on Windows. The Windows record distinguishes
-   that reported trial from the individually recorded acceptance scenarios.
-2. **§16 1b:** links between plans, cross-plan graph nodes and the project map
-   (§16.7, §16.8, §16.11), after 1a is reviewed and accepted.
-   Decision records and clarifying messages remain later work (vision §8;
-   §17 is a draft).
+1. **Finish the planning workspace Stage 1 handoff:** the planning branch is
+   `codex/shared-contracts-planning`. The [full delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
+   and [§18 draft](./superpowers/specs/2026-10-03-project-planning-workspace-design.md)
+   are written, together with the [Stage 1 implementation plan](./superpowers/plans/2026-10-03-planning-workspace-stage-1.md).
+   Its Vision, nested parts, Roadmap outcomes and existing-plan associations
+   are implemented. Tasks 1–3 received independent review; Task 4 added
+   migration/stream integration checks, corrected PartEditor retry and ran an
+   agent-operated Windows browser trial on an isolated database. Rust passed
+   385 tests (one manual backup test ignored by default, separately executed);
+   Web passed 179 tests. The [dated record](./evidence/2026-10-04-planning-workspace-stage-1.md)
+   distinguishes the empty actual dev-DB copy from populated synthetic legacy
+   fixtures. Mohammed's acceptance and whole-branch review remain pending;
+   this branch is not merged and the running original daemon was not replaced.
+2. **§16 1b** still needs its separately scoped implementation plan. Its place
+   in delivery is recorded in the roadmap above. §17 remains a draft for later
+   task contracts and execution evidence; the executive manager needs its
+   later design after Mohammed explains the rest of its responsibilities.
 
 ## Standing risks
 

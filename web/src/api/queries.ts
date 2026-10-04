@@ -1,6 +1,7 @@
 // One job: the TanStack Query identity of each piece of daemon state.
 
 import { queryOptions } from '@tanstack/react-query'
+import { getOutcome, getOutcomes, getPart, getParts, getVision } from './design'
 import {
   getCodeSettings,
   getCodeStatus,
@@ -119,6 +120,26 @@ export function instructionsQuery(projectId: string) {
     queryKey: ['projects', projectId, 'instructions'],
     queryFn: () => getInstructions(projectId),
   })
+}
+
+export function visionQuery(projectId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'design', 'vision'],
+    queryFn: () => getVision(projectId),
+  })
+}
+
+export function partQuery(projectId: string, partId: string) {
+  return queryOptions({ queryKey: ['projects', projectId, 'design', 'part', partId], queryFn: () => getPart(projectId, partId) })
+}
+export function outcomeQuery(projectId: string, outcomeId: string) {
+  return queryOptions({ queryKey: ['projects', projectId, 'design', 'outcome', outcomeId], queryFn: () => getOutcome(projectId, outcomeId) })
+}
+export function outcomesQuery(projectId: string, parent?: string, after?: string) {
+  return queryOptions({ queryKey: ['projects', projectId, 'design', 'outcomes', parent ?? null, after ?? null], queryFn: () => getOutcomes(projectId, parent, after) })
+}
+export function partsQuery(projectId: string, parent?: string, after?: string) {
+  return queryOptions({ queryKey: ['projects', projectId, 'design', 'parts', parent ?? null, after ?? null], queryFn: () => getParts(projectId, parent, after) })
 }
 
 /** A project's grants for external agents (spec §13.7). No thread's stream

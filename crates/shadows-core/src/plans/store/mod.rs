@@ -15,6 +15,7 @@ mod read;
 mod task;
 mod view;
 
+pub(crate) use plan::check_design_plan;
 pub(crate) use task::task_of;
 
 use crate::command::Writer;

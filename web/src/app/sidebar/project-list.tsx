@@ -48,6 +48,11 @@ export function ProjectList() {
                     selected={project.id === projectId ? workflowId : undefined}
                   />
                   <SettingsLink projectId={project.id} />
+                  <Link to="/projects/$projectId/workspace" params={{ projectId: project.id }}
+                    className="ml-7 block rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent"
+                    activeProps={{ 'aria-current': 'page', className: 'text-sidebar-foreground bg-sidebar-accent' }}>
+                    Workspace
+                  </Link>
                 </>
               )}
             </div>
