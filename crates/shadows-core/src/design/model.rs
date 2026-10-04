@@ -153,3 +153,12 @@ pub enum DesignOp {
         plan: crate::plans::PlanId,
     },
 }
+
+/// What a Planner reads before it plans: the vision, and the top-level parts
+/// and outcomes, each a first page with its cursor.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct WorkspaceView {
+    pub vision: VisionView,
+    pub parts: PartPage,
+    pub outcomes: OutcomePage,
+}

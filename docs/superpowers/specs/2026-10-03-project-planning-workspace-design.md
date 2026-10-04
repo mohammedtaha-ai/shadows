@@ -26,7 +26,9 @@ The success case is one login agreement between two plans: agree v1, bind
 tasks, propose v2, inspect impact, agree v2 and continue one plan on v2 while
 the other remains on v1. Names such as Backend and Frontend are examples.
 
-Automatic Planner context compilation is Stage 3 of the roadmap. ER diagrams,
+A Planner or external agent reads the workspace on request through the read-only
+`workspace_get` tool: the vision with the first page of top-level parts and
+outcomes. No agent tool writes it; the person does. Automatic Planner context compilation is Stage 3 of the roadmap. ER diagrams,
 screen-flow editors, alternative grouping views, executors, verification and
 the executive manager are later stages. The first release neither runs tasks
 nor labels a participant's implementation as verified.

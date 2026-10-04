@@ -67,6 +67,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-mcp/src/server.rs` | the tools a grant's kind may see | `crates/shadows-mcp/src/server.rs` |
 | `crates/shadows-mcp/src/tools.rs` | each MCP tool's one service call | `crates/shadows-mcp/src/tools.rs` |
 | `crates/shadows-mcp/src/agreement_tools.rs` | agreement tool translation | `crates/shadows-mcp/src/agreement_tools.rs` |
+| `crates/shadows-mcp/src/workspace_tools.rs` | workspace read tool translation | `crates/shadows-mcp/src/workspace_tools.rs` |
 | `crates/shadows-mcp/src/refusal.rs` | what an MCP tool call answers | `crates/shadows-mcp/src/refusal.rs` |
 | `crates/shadows-core/src/lib.rs` | the application behind `AppCore` | `crates/shadows-core/src/app.rs` |
 | `crates/shadows-core/src/app.rs` | the application's composition root | `crates/shadows-core/src/app.rs` |
@@ -142,6 +143,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/design/store/agreements.rs` | captured agreement version reads | `crates/shadows-core/src/design/store/agreements.rs` |
 | `crates/shadows-core/src/design/store/agreement_write.rs` | transactional agreement Draft mutations | `crates/shadows-core/src/design/store/agreement_write.rs` |
 | `crates/shadows-core/src/design/parts.rs` | part service entry points | `crates/shadows-core/src/design/parts.rs` |
+| `crates/shadows-core/src/design/workspace.rs` | a grant's read-only view of its project workspace | `crates/shadows-core/src/design/workspace.rs` |
 | `crates/shadows-core/src/design/outcomes.rs` | outcome service entry points | `crates/shadows-core/src/design/outcomes.rs` |
 | `crates/shadows-core/src/design/ops.rs` | normalization of workspace edits | `crates/shadows-core/src/design/ops.rs` |
 | `crates/shadows-core/src/design/store/outcomes.rs` | snapshot reads of outcomes | `crates/shadows-core/src/design/store/outcomes.rs` |

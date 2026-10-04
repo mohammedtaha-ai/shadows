@@ -11,7 +11,7 @@ pub(crate) struct AgreementOrigin {
     pub operation: Option<crate::OperationId>,
 }
 
-fn writer(grant: &Grant) -> Result<Writer, CoreError> {
+pub(super) fn writer(grant: &Grant) -> Result<Writer, CoreError> {
     match grant.kind {
         GrantKind::Project => Ok(Writer::External {
             grant: grant.id.clone(),

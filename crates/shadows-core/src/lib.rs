@@ -36,7 +36,7 @@ pub use design::{
     AgreementPartyReview, AgreementReview, AgreementRole, AgreementState, AgreementVersion,
     AgreementWriter, Design, DesignAnchor, DesignChange, DesignOp, DesignRevision, Outcome,
     OutcomeContent, OutcomeId, OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage,
-    PartView, VisionContent, VisionView,
+    PartView, VisionContent, VisionView, WorkspaceView,
 };
 pub use error::{CoreError, ErrorCode};
 pub use events::{Actor, Delivery, Events, StoredEvent, Subscription, UiSignal};

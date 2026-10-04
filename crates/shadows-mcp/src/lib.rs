@@ -16,6 +16,7 @@ mod auth;
 mod refusal;
 mod server;
 mod tools;
+mod workspace_tools;
 
 use std::sync::Arc;
 

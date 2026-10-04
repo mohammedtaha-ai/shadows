@@ -11,6 +11,7 @@ mod ops;
 mod outcomes;
 mod parts;
 mod store;
+mod workspace;
 pub(crate) use store::check_agreement_binding_in;
 
 use std::sync::Arc;
@@ -19,7 +20,7 @@ use crate::{app::user_command, db::Storage, error::CoreError, projects::ProjectI
 pub use model::{
     DesignAnchor, DesignChange, DesignOp, DesignRevision, Outcome, OutcomeContent, OutcomeId,
     OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage, PartView, VisionContent,
-    VisionView,
+    VisionView, WorkspaceView,
 };
 
 pub struct Design {
