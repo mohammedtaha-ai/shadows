@@ -46,6 +46,8 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
       } })
     }
     const refetch = (planId: string, workflowId: string) => {
+      void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
+      void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'agreement'] })
       invalidateProject()
       void queryClient.invalidateQueries({ queryKey: planVersionsQuery(planId).queryKey })
       void queryClient.invalidateQueries({
@@ -60,6 +62,11 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
     const stream = new ThreadStream({
       url: (after) => projectEventsUrl(projectId, after),
       onDurable: (event) => {
+        if (event.kind === 'AgreementChanged') {
+          void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'agreements'] })
+          void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'agreement'] })
+          return
+        }
         if (event.kind === 'ProjectDesignChanged') {
           void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
           return
@@ -80,6 +87,8 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
         else pending.set(payload.workflow_id, payload.plan_id)
       },
       onCaughtUp: () => {
+        void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'agreements'] })
+        void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'agreement'] })
         invalidateProject()
         // Refetch even without a replayed design event: reconnect can follow a stale cache read.
         void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })

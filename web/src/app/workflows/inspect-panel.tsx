@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import type { Plan, PlanTask } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { parentName } from './linked-layout'
+import { BindingEditor } from '../agreements/binding-editor'
 
 export function InspectPanel({
   plan,
@@ -43,6 +44,7 @@ export function InspectPanel({
           {task.goal}
         </p>
       </Section>
+      <BindingEditor key={`${plan.id}:${task.number}`} plan={plan} task={task.number} />
       <Section name="Reads">
         <Paths paths={task.reads} />
       </Section>

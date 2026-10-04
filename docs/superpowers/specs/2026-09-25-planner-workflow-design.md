@@ -266,6 +266,12 @@ The plan tools' reach and `draft_start` arguments are owned by
 | `where_is` | — (§15.7) | ✓ the project and its links (§15.5) | no |
 | `who_uses` | — (§15.7) | ✓ the project and its links (§15.5) | no |
 | `outline` | — (§15.7) | ✓ the project and its links (§15.5) | no |
+| `agreement_list`, `agreement_get`, `agreement_review` | ✓ (§18) | ✓ (§18) | no |
+| `agreement_start`, `agreement_edit` | ✓ (§18) | ✓ (§18) | Draft proposals only |
+
+§18 owns agreement semantics. There is no MCP approval tool; agreement is
+person HTTP only. `plan_edit` also accepts exact-version task bindings under
+§18.6 without changing its grant/archival/revision policy.
 
 - **`draft_start`** uses `plan_id`, with its new-plan and existing-plan rules
   in §16.4 and its new-version reason in §16.3. `from_workflow_id` is no longer

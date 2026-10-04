@@ -163,6 +163,7 @@ fn empty(title: String, goal: String) -> PlanContent {
         goal,
         tasks: Default::default(),
         links: Vec::new(),
+        bindings: Vec::new(),
     }
 }
 

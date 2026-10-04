@@ -173,6 +173,9 @@ pub struct PlanContent {
     pub goal: String,
     pub tasks: BTreeMap<u32, TaskContent>,
     pub links: Vec<Link>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schema(required = false)]
+    pub bindings: Vec<super::AgreementBinding>,
 }
 
 /// One task of a stored version: its storage id beside its content.
@@ -214,6 +217,9 @@ pub struct Plan {
     pub next: Option<WorkflowId>,
     pub tasks: Vec<PlanTask>,
     pub links: Vec<Link>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schema(required = false)]
+    pub bindings: Vec<super::AgreementBinding>,
     /// What blocks approval ([`approval_problems`]) for a `Draft`; empty for
     /// a `Frozen` version.
     pub blockers: Vec<Problem>,
@@ -239,6 +245,7 @@ impl Plan {
                 .map(|t| (t.content.number, t.content.clone()))
                 .collect(),
             links: self.links.clone(),
+            bindings: self.bindings.clone(),
         }
     }
 }

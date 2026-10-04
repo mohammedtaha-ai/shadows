@@ -11,6 +11,11 @@ import type { components, paths } from './schema'
 
 type Schemas = components['schemas']
 export type Project = Schemas['Project']
+export type AgreementVersion = Schemas['AgreementVersion']
+export type AgreementContent = Schemas['AgreementContent']
+export type AgreementReview = Schemas['AgreementReview']
+export type AgreementBinding = Schemas['AgreementBinding']
+export type PlanOp = Schemas['PlanOp']
 export type PlanningThread = Schemas['PlanningThread']
 export type ThreadEntry = Schemas['ThreadEntry']
 export type Operation = Schemas['Operation']
@@ -426,4 +431,42 @@ export function projectEventsUrl(projectId: string, after: number): string {
   const url = new URL(`/api/projects/${encodeURIComponent(projectId)}/events`, DAEMON_URL)
   url.searchParams.set('after', String(after))
   return url.toString()
+}
+
+export function listAgreements(projectId: string): Promise<AgreementVersion[]> {
+  return unwrap(client.GET('/api/projects/{id}/agreements', { params: { path: { id: projectId } } }))
+}
+export function getAgreement(projectId: string, agreement: string, version?: number): Promise<AgreementVersion> {
+  return unwrap(client.GET('/api/projects/{id}/agreements/{agreement}', {
+    params: { path: { id: projectId, agreement }, query: { version } },
+  }))
+}
+export function startAgreement(projectId: string, command_id: string, content?: AgreementContent,
+  agreement_id?: string, reason?: string): Promise<AgreementVersion> {
+  return unwrap(client.POST('/api/projects/{id}/agreements', {
+    params: { path: { id: projectId } }, body: { command_id, content, agreement_id, reason },
+  }))
+}
+export function editAgreement(projectId: string, agreement: string, command_id: string,
+  expected_revision: number, content: AgreementContent): Promise<AgreementVersion> {
+  return unwrap(client.PUT('/api/projects/{id}/agreements/{agreement}', {
+    params: { path: { id: projectId, agreement } }, body: { command_id, expected_revision, content },
+  }))
+}
+export function reviewAgreement(projectId: string, agreement: string): Promise<AgreementReview> {
+  return unwrap(client.GET('/api/projects/{id}/agreements/{agreement}/review', {
+    params: { path: { id: projectId, agreement } },
+  }))
+}
+export function agreeAgreement(projectId: string, agreement: string, command_id: string,
+  expected_revision: number, review_id: string): Promise<AgreementVersion> {
+  return unwrap(client.POST('/api/projects/{id}/agreements/{agreement}/agree', {
+    params: { path: { id: projectId, agreement } }, body: { command_id, expected_revision, review_id },
+  }))
+}
+export function editBindings(id: string, command_id: string, expected_revision: number,
+  ops: PlanOp[]): Promise<Schemas['EditOutcome']> {
+  return unwrap(client.POST('/api/workflows/{id}/bindings', {
+    params: { path: { id } }, body: { command_id, expected_revision, ops },
+  }))
 }

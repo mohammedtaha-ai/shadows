@@ -9,6 +9,14 @@ source: crates/shadows-core/src/design
 shapes:
   Design:
     storage: Arc<Storage>
+    handles: Arc<LiveHandles>
+  AgreementContent:
+    capability: String
+    purpose: String
+    behavior: String
+    acceptance: Vec<String>
+    parties: Vec<AgreementParty>
+    openapi: Value
   VisionContent:
     purpose: String
     users: String
@@ -36,6 +44,7 @@ shapes:
     part: Part
     ancestors: Vec<Part>
     plans: Vec<PlanId>
+    binding_plans: Vec<BindingParticipant>
   PartPage:
     revision: DesignRevision
     items: Vec<Part>
@@ -80,6 +89,33 @@ enums:
 
 functions:
   service:
+    review_agreement:
+      signature: "(&self, project: &ProjectId, id: &AgreementId) -> Result<AgreementReview, CoreError>"
+    agree_agreement:
+      signature: "(&self, command_id: String, project: &ProjectId, id: &AgreementId, expected_revision: i64, review_id: String) -> Result<AgreementVersion, CoreError>"
+      # Person only; no grant variant. Recomputes the complete review basis.
+    agreements_for:
+      signature: "(&self, grant: &Grant) -> Result<Vec<AgreementVersion>, CoreError>"
+    agreement_for:
+      signature: "(&self, grant: &Grant, id: &AgreementId, version: Option<i64>) -> Result<AgreementVersion, CoreError>"
+    review_agreement_for:
+      signature: "(&self, grant: &Grant, id: &AgreementId) -> Result<AgreementReview, CoreError>"
+    start_agreement_for:
+      signature: "(&self, grant: &Grant, command_id: String, id: Option<&AgreementId>, content: Option<AgreementContent>, reason: Option<String>) -> Result<AgreementVersion, CoreError>"
+    edit_agreement_for:
+      signature: "(&self, grant: &Grant, command_id: String, id: &AgreementId, expected_revision: i64, content: AgreementContent) -> Result<AgreementVersion, CoreError>"
+    validate_agreement:
+      signature: "(content: &AgreementContent) -> Vec<AgreementIssue>"
+      # Offline library validation against bundled OAS 3.1 schema-base,
+      # stable UUID operation IDs, intent/party requirements and local refs.
+    agreements:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<AgreementVersion>, CoreError>"
+    agreement:
+      signature: "(&self, project: &ProjectId, id: &AgreementId, version: Option<i64>) -> Result<AgreementVersion, CoreError>"
+    start_agreement:
+      signature: "(&self, command_id: String, project: &ProjectId, id: Option<&AgreementId>, content: Option<AgreementContent>, reason: Option<String>) -> Result<AgreementVersion, CoreError>"
+    edit_agreement:
+      signature: "(&self, command_id: String, project: &ProjectId, id: &AgreementId, expected_revision: i64, content: AgreementContent) -> Result<AgreementVersion, CoreError>"
     outcome:
       signature: "(&self, project: &ProjectId, id: &OutcomeId) -> Result<OutcomeView, CoreError>"
     outcomes:
@@ -98,6 +134,20 @@ functions:
       # over project, expected_revision and ordered typed ops; trim only titles,
       # validate client UUID references. Other text remains exact.
   store:
+    check_agreement_grant:
+      signature: "(&self, writer: &Writer, project: &ProjectId) -> Result<(), StorageError>"
+    review_design_agreement:
+      signature: "(&self, project: &ProjectId, id: &AgreementId) -> Result<AgreementReview, StorageError>"
+    agree_design_agreement:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, id: &AgreementId, expected_revision: i64, review_id: String) -> Result<AgreementVersion, StorageError>"
+    design_agreements:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<AgreementVersion>, StorageError>"
+    design_agreement:
+      signature: "(&self, project: &ProjectId, id: &AgreementId, version: Option<i64>) -> Result<AgreementVersion, StorageError>"
+    start_design_agreement:
+      signature: "(&self, ctx: &CommandContext, origin: Option<&AgreementOrigin>, project: &ProjectId, id: Option<&AgreementId>, content: Option<AgreementContent>, reason: Option<String>) -> Result<AgreementVersion, StorageError>"
+    edit_design_agreement:
+      signature: "(&self, ctx: &CommandContext, origin: Option<&AgreementOrigin>, project: &ProjectId, id: &AgreementId, expected_revision: i64, content: AgreementContent) -> Result<AgreementVersion, StorageError>"
     design_outcome:
       signature: "(&self, project: &ProjectId, id: &OutcomeId) -> Result<OutcomeView, StorageError>"
       # One snapshot, iterative root-first ancestors, unique stable-ID associations.
@@ -137,6 +187,9 @@ agreements:
     holds: true
     tested_by: part_order_is_stable_across_restart
 
+shared_in_transaction:
+  check_agreement_binding_in: "Plans validates exact Agreed versions, declared roles and operation identities inside edit/approval's transaction. Design owns agreement content."
+
 obligations:
   - rule: >
       Outcome containment is independent of parts; cycles/foreign associations
@@ -169,6 +222,18 @@ obligations:
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
 
 tests:
+  - name: agreement_review_detects_stale_part_and_agrees_without_implicit_adoption
+    checks: Stale part review atomic refusal; person agreement and immutable replay.
+  - name: agreement_mcp_exposes_proposals_without_person_approval
+    checks: Real MCP proposals record grant provenance; no approval tool; revocation denies access.
+  - name: two_plans_adopt_independently_and_retain_frozen_pins_after_restart
+    checks: Two roles, exact per-pin impact, copy/adoption, historical pins and reopened state.
+  - name: agreement_content_validates_real_openapi_and_operation_identity
+    checks: Library-backed OAS validity with stable UUID operation identities.
+  - name: agreement_content_refuses_unresolved_references_and_incomplete_intent
+    checks: OAS schema-base validates Schema Objects; local refs resolve offline.
+  - name: agreement_draft_replays_exact_result_and_refuses_stale_edit
+    checks: Immutable command results, current Draft reuse, reason and Agreed guards.
   - name: workspace_migrations_preserve_old_frozen_bytes_and_reopened_links
     checks: Populated pre-0013 upgrade, exact legacy rows, foreign keys, persisted order/links/revisions and replay after reopen.
   - name: mixed_workspace_batch_rolls_back_and_outcome_pages_are_bounded

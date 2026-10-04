@@ -192,6 +192,7 @@ pub(super) async fn write_content(
         .execute(&mut *conn)
         .await?;
     super::dependencies::clear(conn, workflow).await?;
+    super::bindings::clear(conn, workflow).await?;
     let mut ids: HashMap<u32, TaskId> = HashMap::new();
     for old in before {
         let number = old.content.number;
@@ -270,6 +271,7 @@ pub(super) async fn write_content(
         .execute(&mut *conn)
         .await?;
     }
+    super::bindings::write(conn, workflow, &after.bindings).await?;
     Ok(())
 }
 

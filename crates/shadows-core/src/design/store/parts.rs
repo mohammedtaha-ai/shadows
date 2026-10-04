@@ -89,6 +89,7 @@ impl Storage {
             part,
             ancestors,
             plans: plans.into_iter().map(PlanId::from_stored).collect(),
+            binding_plans: crate::plans::part_bindings_in(&mut tx, project, id).await?,
         })
     }
 

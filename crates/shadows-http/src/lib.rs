@@ -18,6 +18,7 @@
 //! of them appear in a domain or application signature; a handler is where
 //! `axum` stops.
 
+mod agreements;
 mod code;
 mod conversation;
 mod design;
@@ -130,6 +131,11 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(design::outcome))
         .routes(routes!(design::part))
         .routes(routes!(design::edit))
+        .routes(routes!(agreements::list, agreements::start))
+        .routes(routes!(agreements::get, agreements::edit))
+        .routes(routes!(agreements::review))
+        .routes(routes!(agreements::agree))
+        .routes(routes!(agreements::bindings))
         .routes(routes!(project::update_project, project::remove_project))
         .routes(routes!(project::list_threads, project::create_thread))
         .routes(routes!(conversation::list_entries))

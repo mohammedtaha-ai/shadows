@@ -16,6 +16,7 @@ fn task(n: u32, title: &str) -> TaskContent {
 }
 fn empty() -> PlanContent {
     PlanContent {
+        bindings: Vec::new(),
         title: "Login".into(),
         goal: "people can log in".into(),
         tasks: Default::default(),

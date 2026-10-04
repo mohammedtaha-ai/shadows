@@ -109,7 +109,9 @@ functions:
     subscribe_project:
       signature: "(&self, project: ProjectId, after: i64) -> Result<Subscription, CoreError>"
       # Validates the project is live; same committed watch and subscription
-      # replay loop, filtered to five plan event kinds plus ProjectDesignChanged.
+      # replay loop, filtered to plan events, ProjectDesignChanged and
+      # AgreementChanged. Agreement payloads identify version/revision/state
+      # so project clients can refresh agreement reads after committed writes.
     subscribe:
       signature: "(&self, thread: ThreadId, after: i64) -> Subscription"
       # Takes `storage.watch_committed()`, `bus.subscribe()`,

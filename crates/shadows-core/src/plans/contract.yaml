@@ -23,6 +23,13 @@ source: crates/shadows-core/src/plans
 
 
 shapes:
+  AgreementBinding:
+    task: u32
+    agreement_id: AgreementId
+    version: i64
+    part_id: PartId
+    role: AgreementRole
+    operations: Vec<String>
   Plans:
     storage: Arc<Storage>
     handles: Arc<LiveHandles>
@@ -60,6 +67,7 @@ shapes:
     # Never serialized or recorded: true when the call replayed a recorded one.
     replayed: bool
   Plan:
+    bindings: Vec<AgreementBinding>
     # Derived latest dependency previews, excluded from canonical PlanContent.
     # MCP omits unreachable incoming previews and redacts outgoing metadata.
     linked_tasks: Vec<LinkedTask>
@@ -194,6 +202,8 @@ shapes:
     revision: i64
     frozen_at: String
   PlanOp:
+    BindingPut: "{ binding: AgreementBinding }"
+    BindingRemove: "{ task: u32, agreement_id: AgreementId, role: AgreementRole }"
     # Tagged `op`, snake_case. `link_put` replaces the link with the same
     # task, after and kind.
     PlanPut: "{ title: String, goal: String }"
@@ -226,6 +236,10 @@ shapes:
 
 
 functions:
+  # Person binding edits use the same write/replay/approval validation as MCP.
+  service:
+    edit_bindings:
+      signature: "(&self, command_id: String, workflow: &WorkflowId, expected_revision: i64, ops: Vec<PlanOp>) -> Result<EditOutcome, CoreError>"
   reads:
     map: "(&self, project: &ProjectId) -> Result<PlanMap, CoreError>"
     list:
@@ -358,6 +372,8 @@ enums:
 
 
 shared_in_transaction:
+  part_bindings_in: "Design reads derived part-plan adoption in its captured part snapshot, preserving historical pins."
+  agreement_participants_in: "Design reads current/historical task adoption in its captured impact review and agreement transaction; Plans owns binding rows."
   notify_project_dependencies_in: "Code link writes and Projects removal: append dependency invalidations for other live connected projects inside the caller's write"
   check_design_plan: "Design's part/outcome association stores: verify project-qualified plan identity before associating; archived/Frozen plans remain valid and their content is not edited"
   task_of: "Turns' store (turns/store/turn.rs `focused`): start_turn checks a Focus's task belongs to its version inside the turn's own write"
@@ -603,6 +619,10 @@ open_questions:
 
 
 tests:
+  - name: bindings_are_exact_version_plan_content_and_task_removal_cleans_them
+    checks: Old content omits empty pins; task removal cleans bindings atomically.
+  - name: binding_storage_checks_agreed_party_and_exact_operations_atomically
+    checks: Draft target and invalid operation rollback; SQL Frozen insert/update/delete guards.
   - name: the_map_keeps_incoming_foreign_links_to_archived_plans
     checks: Incoming foreign edges reach the map; an archived referenced plan stays visible from an active consumer.
   - name: incoming_previews_obey_the_grants_one_way_project_reach

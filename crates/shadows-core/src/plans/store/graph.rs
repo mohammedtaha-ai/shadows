@@ -156,6 +156,7 @@ pub(super) async fn blockers(
                     .map(|task| (task.content.number, task.content))
                     .collect();
                 let content = PlanContent {
+                    bindings: Vec::new(),
                     title: title.clone().unwrap_or_default(),
                     goal: String::new(),
                     tasks,

@@ -38,6 +38,9 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
         tables,
         vec![
             "agent_invocation",
+            "agreement",
+            "agreement_operation_identity",
+            "agreement_version",
             "code_file",
             "code_setting",
             "code_tag",
@@ -64,6 +67,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "project_mode",
             "runtime_instance",
             "task",
+            "task_agreement_binding",
             "task_parent",
             "task_plan_parent",
             "thread_entry",
@@ -71,7 +75,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
         ],
         "spec §7.1: the migrations carry only the milestones' tables \
          (0005 adds §12's four, 0007 §13.15's six, 0008 §15.4's four, \
-         0011 §12.4's per-model effort, 0012 §16.9's plan, 0013 §18's vision)"
+         0011 §12.4's per-model effort, 0012 §16.9's plan, 0013 §18's vision, \
+         0017–0018 §18's agreements and exact task pins)"
     );
 }
 

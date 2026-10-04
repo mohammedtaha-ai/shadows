@@ -52,6 +52,14 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
           <Link to="/projects/$projectId/workflows/$workflowId" params={{ projectId, workflowId: p.id }}>{p.title}</Link>{p.plan_state === 'Archived' && <span>Archived</span>}</label>)}
       </div>
     </fieldset>
+    {(saved?.binding_plans?.length ?? 0) > 0 && <section className="space-y-2">
+      <h4>Plans adopting this part's contracts</h4>
+      {saved?.binding_plans?.map(p => <div key={`${p.workflow_id}:${p.binding.agreement_id}:${p.binding.task}:${p.binding.role}`}
+        className="text-sm"><Link to="/projects/$projectId/workflows/$workflowId"
+          params={{ projectId, workflowId: p.workflow_id }}>{p.title} · T{p.binding.task}</Link>
+        <p>{p.current ? 'Current' : 'Historical'} · {p.plan_state} · {p.binding.role} · contract v{p.binding.version}</p>
+      </div>)}
+    </section>}
     <Button size="sm" onClick={submit} disabled={!draft.title.trim() || !dirty || save.isPending || reloading || (!base && createRevision === undefined)}>{base ? 'Save part' : 'Create'}</Button>
     {save.error && <ErrorLine error={save.error} />}{reloadError && <ErrorLine error={reloadError} />}
     {plans.error && <ErrorLine error={plans.error} />}

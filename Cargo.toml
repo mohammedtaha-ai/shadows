@@ -33,6 +33,8 @@ schemars = "1"
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+jsonschema = { version = "=0.58.5", default-features = false }
+json-patch = "=4.2.0"
 sha2 = "0.10"
 sqlx = { version = "0.9", features = ["runtime-tokio", "sqlite", "migrate"] }
 thiserror = "2"

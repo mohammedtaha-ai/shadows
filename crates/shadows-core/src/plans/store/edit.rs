@@ -62,6 +62,7 @@ impl Storage {
                 .await?;
                 let applied = apply(&plan.content(), &ops).map_err(StorageError::PlanInvalid)?;
                 super::graph::check_parents(conn, &plan, &ops).await?;
+                super::bindings::validate(conn, &project, &applied.content.bindings).await?;
                 write_content(conn, &workflow, &plan.tasks, &applied.content, &ts).await?;
                 sqlx::query(
                     "UPDATE workflow SET title = ?, goal = ?, revision = revision + 1,
@@ -139,6 +140,7 @@ impl Storage {
                 )
                 .await?;
                 let blockers = plan.blockers;
+                super::bindings::validate(conn, &project, &plan.bindings).await?;
                 if !blockers.is_empty() {
                     return Err(StorageError::PlanInvalid(blockers));
                 }

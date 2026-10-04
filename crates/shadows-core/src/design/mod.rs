@@ -1,10 +1,17 @@
 //! The project design workspace service (§18.10).
 
+mod agreement;
+mod agreement_review;
+mod agreement_scope;
+pub(crate) use agreement_scope::AgreementOrigin;
+mod agreement_validation;
+mod agreements;
 mod model;
 mod ops;
 mod outcomes;
 mod parts;
 mod store;
+pub(crate) use store::check_agreement_binding_in;
 
 use std::sync::Arc;
 
@@ -17,11 +24,17 @@ pub use model::{
 
 pub struct Design {
     storage: Arc<Storage>,
+    handles: Arc<crate::turns::LiveHandles>,
 }
+pub use agreement::{
+    AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
+    AgreementVersion, AgreementWriter,
+};
+pub use agreement_review::{AgreementParticipantImpact, AgreementPartyReview, AgreementReview};
 
 impl Design {
-    pub(crate) fn new(storage: Arc<Storage>) -> Self {
-        Self { storage }
+    pub(crate) fn new(storage: Arc<Storage>, handles: Arc<crate::turns::LiveHandles>) -> Self {
+        Self { storage, handles }
     }
 
     pub async fn vision(&self, project: &ProjectId) -> Result<VisionView, CoreError> {

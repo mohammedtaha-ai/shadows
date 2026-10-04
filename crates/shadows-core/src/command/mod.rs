@@ -22,15 +22,7 @@ pub struct CommandContext {
 /// recorded under.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Writer {
-    /// A person, through the HTTP API.
-    #[cfg_attr(
-        not(feature = "test-support"),
-        expect(
-            dead_code,
-            reason = "only tests write a plan as a person through `Writer`; \
-                      the routes use `user_command`"
-        )
-    )]
+    /// A person adopting an agreement through Plans' HTTP entry point (§18.8).
     Person,
     /// The internal Planner of `thread`, holding `grant`. Its principal is the
     /// thread, not the grant: the grant is replaced whenever an adapter opens,

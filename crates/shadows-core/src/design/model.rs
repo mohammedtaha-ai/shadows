@@ -57,6 +57,9 @@ pub struct PartView {
     pub part: Part,
     pub ancestors: Vec<Part>,
     pub plans: Vec<crate::plans::PlanId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schema(required = false)]
+    pub binding_plans: Vec<crate::plans::BindingParticipant>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]

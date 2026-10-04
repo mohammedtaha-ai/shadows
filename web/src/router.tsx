@@ -17,6 +17,7 @@ import { SettingsPage } from './app/settings/settings-page'
 import { Shell } from './app/shell'
 import { PlanPage } from './app/workflows/plan-page'
 import { PlanMapPage } from './app/workflows/plan-map'
+import { AgreementsPage } from './app/agreements/agreements-page'
 
 const rootRoute = createRootRoute({ component: Shell })
 
@@ -79,6 +80,15 @@ const workspaceRoute = createRoute({
   }),
   component: WorkspacePage,
 })
+const agreementsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId/agreements',
+  validateSearch: (search: Record<string, unknown>): { agreement?: string; version?: number } => ({
+    agreement: typeof search.agreement === 'string' ? search.agreement : undefined,
+    version: typeof search.version === 'number' && Number.isInteger(search.version) && search.version > 0 ? search.version : undefined,
+  }),
+  component: AgreementsPage,
+})
 
 // The daemon's own settings, for every project at once (§13.11).
 const appSettingsRoute = createRoute({
@@ -97,6 +107,7 @@ export const router = createRouter({
     planMapRoute,
     settingsRoute,
     workspaceRoute,
+    agreementsRoute,
     appSettingsRoute,
   ]),
 })

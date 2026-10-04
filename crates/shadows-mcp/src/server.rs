@@ -24,7 +24,12 @@ use shadows_core::{Grant, GrantKind};
 
 /// The internal Planner's tools: plans belong to the project now. Only it
 /// shows a plan; an external agent cannot move a person's screen.
-const THREAD_TOOLS: [&str; 6] = [
+const THREAD_TOOLS: [&str; 11] = [
+    "agreement_list",
+    "agreement_get",
+    "agreement_start",
+    "agreement_edit",
+    "agreement_review",
     "workflow_list",
     "workflow_get",
     "task_get",
@@ -35,7 +40,12 @@ const THREAD_TOOLS: [&str; 6] = [
 
 /// An external agent's tools, within its project: the plan tools, and the
 /// code tools over the project and the projects it links to (§15.7).
-const PROJECT_TOOLS: [&str; 9] = [
+const PROJECT_TOOLS: [&str; 14] = [
+    "agreement_list",
+    "agreement_get",
+    "agreement_start",
+    "agreement_edit",
+    "agreement_review",
     "workflow_list",
     "workflow_get",
     "task_get",
@@ -60,7 +70,7 @@ struct Routers {
 
 impl Tools {
     pub(super) fn new() -> Self {
-        let every = Shadows::tool_router();
+        let every = Shadows::tool_router() + Shadows::agreement_tool_router();
         let only = |names: &[&str]| {
             let mut router = every.clone();
             for tool in every.list_all() {

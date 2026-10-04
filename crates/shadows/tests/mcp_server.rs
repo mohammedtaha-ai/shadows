@@ -97,6 +97,11 @@ async fn the_tool_list_depends_on_the_grant_kind() {
     assert_eq!(
         thread_tools,
         [
+            "agreement_edit",
+            "agreement_get",
+            "agreement_list",
+            "agreement_review",
+            "agreement_start",
             "draft_start",
             "plan_edit",
             "plan_show",
@@ -111,6 +116,11 @@ async fn the_tool_list_depends_on_the_grant_kind() {
     assert_eq!(
         project_tools,
         [
+            "agreement_edit",
+            "agreement_get",
+            "agreement_list",
+            "agreement_review",
+            "agreement_start",
             "draft_prepare",
             "draft_start",
             "outline",
@@ -166,6 +176,11 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
     assert_eq!(
         names,
         [
+            "agreement_edit",
+            "agreement_get",
+            "agreement_list",
+            "agreement_review",
+            "agreement_start",
             "draft_start",
             "plan_edit",
             "plan_show",
@@ -220,7 +235,7 @@ async fn the_discover_lifecycle_works_without_a_session() {
     let tools = answer["result"]["tools"]
         .as_array()
         .unwrap_or_else(|| panic!("{answer}"));
-    assert_eq!(tools.len(), 6, "{answer}");
+    assert_eq!(tools.len(), 11, "{answer}");
     assert_eq!(answer["result"]["cacheScope"], "private", "{answer}");
 
     let get = request(

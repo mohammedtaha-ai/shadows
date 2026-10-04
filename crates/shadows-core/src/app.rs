@@ -174,7 +174,7 @@ impl AppCore {
         let threads = Threads::new(storage.clone(), harness.clone(), code.clone(), stopper);
         let events = Events::new(storage.clone(), harness.clone(), bus.clone(), ui.clone());
         Arc::new(AppCore {
-            design: Design::new(storage.clone()),
+            design: Design::new(storage.clone(), handles.clone()),
             plans: Plans::new(storage.clone(), handles.clone(), ui.clone()),
             grants: Grants::new(storage.clone(), mcp_url),
             turns: Turns::new(

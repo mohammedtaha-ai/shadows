@@ -71,6 +71,7 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'GET /api/harnesses': [claudeHarness, codexHarness],
     'GET /api/projects': () => Response.json([project]),
     'GET /api/projects/p1/threads': [threadFixture],
+    'GET /api/projects/p1/agreements': [],
     'GET /api/threads/t1': threadFixture,
     'GET /api/threads/t1/entries': o.entries ?? [userEntry('u1', 'hi'), agentEntry('a1', 'hello')],
     'GET /api/threads/t1/operations': o.operations ?? [],

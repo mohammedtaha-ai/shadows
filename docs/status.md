@@ -186,7 +186,8 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 The [delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
 now retains the full local, concurrency and company sequence. §16 1b is
 implemented and Windows-verified on this branch. The next product slice is
-§18 shared API agreements; executors, manager and specialized diagrams are still
+§18 shared API agreements, now saved as an incomplete implementation checkpoint;
+executors, manager and specialized diagrams are still
 unimplemented, not implied by the new branch or documentation.
 
 1. **Structure hygiene, `chore/close-format-blind-spot`, derived through
@@ -229,10 +230,22 @@ unimplemented, not implied by the new branch or documentation.
    isolated Windows production-preview trial with real HTTP/MCP requests,
    reciprocal graph navigation, refused broken-link approval and retained
    state after restart. It does not establish human acceptance, Linux
-   containment or an independent branch review. Next: the separate detailed
-   §18 shared-agreement plan, using migration 0017 onward. §17 remains a draft for later
+   containment or an independent branch review. §17 remains a draft for later
    task contracts and execution evidence; the executive manager needs its
    later design after Mohammed explains the rest of its responsibilities.
+
+4. **§18 Stage 2 checkpoint, 2026-10-05:** shared agreement lifecycle,
+   validation, impact review, exact task pins, HTTP/MCP and browser adoption
+   are implemented with migrations 0017/0018. The
+   [implementation plan](./superpowers/plans/2026-10-04-shared-api-agreements.md)
+   remains open. The [dated evidence](./evidence/2026-10-05-shared-api-agreements.md)
+   records 411 Rust tests (one ignored), 188 Web tests, later focused checks,
+   the native two-plan journey/restart and migration of an actual dev-DB copy.
+   Complete suites were not rerun after the final focused changes: Mohammed
+   requested stopping tests and saving a checkpoint. **Stage 2 is incomplete:**
+   agreement edits must include the exact Draft version with the expected
+   revision to reject delayed requests across version rollover. Fix and
+   completion review remain; Stage 3 has not started.
 
 ## Standing risks
 

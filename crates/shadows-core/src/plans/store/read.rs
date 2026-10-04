@@ -256,6 +256,7 @@ pub(super) async fn load_plan(
         links: links_of(conn, id).await?,
         blockers: Vec::new(),
         linked_tasks: Vec::new(),
+        bindings: super::bindings::load(conn, id).await?,
         last_edit,
         frozen_at,
         created_at,

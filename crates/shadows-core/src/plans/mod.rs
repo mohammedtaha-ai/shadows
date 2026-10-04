@@ -13,6 +13,8 @@
 //! and `store` the queries. All six are private: a caller reaches a plan
 //! through `Plans` only.
 
+mod binding_edit;
+mod bindings;
 mod conversation;
 mod dependencies;
 mod dependency_graph;
@@ -27,6 +29,7 @@ use std::sync::Arc;
 
 use serde_json::json;
 
+pub use bindings::{AgreementBinding, BindingParticipant};
 pub use conversation::{Focus, Place, PlanShown};
 pub use dependencies::{LinkedTask, TaskParent, TaskPreview};
 pub use map::{MapLink, MapPlan, PlanMap};
@@ -37,8 +40,10 @@ pub use model::{
 };
 pub use ops::PlanOp;
 pub use rules::Problem;
+pub(crate) use store::agreement_participants_in;
 pub(crate) use store::check_design_plan;
 pub(crate) use store::notify_project_dependencies_in;
+pub(crate) use store::part_bindings_in;
 pub(crate) use store::task_of;
 
 use scope::{command, own_thread, refused, writer_of};
