@@ -42,7 +42,7 @@ A waiting message is a row of a new table `queued_message`, owned by the
 | `id` | the waiting message's id |
 | `thread_id` | its conversation |
 | `position` | an explicit, stable order within the thread; a new message goes last |
-| `command_id`, `fingerprint` | the `turn.queue` command that created it, for replay |
+| `command_id`, `fingerprint` | the `turn.queue` command that created it, for replay (§3.2) |
 | `prompt`, `model`, `mode`, `effort`, `focus_json`, `plan_id` | `SendTurn`'s fields, as the composer held them when the message was written |
 | `last_error` | why its last send failed, or `NULL` |
 | `created_at` | when it was queued |
@@ -51,13 +51,17 @@ A waiting message is **not** a thread entry. It becomes one only when it is
 sent: as the first entry of a new turn (20.3), or inside the running turn
 (20.4). Several waiting messages stay separate, each its own turn, in
 `position` order. A waiting message cannot be edited; the person removes it
-and writes another.
+and writes another. A fork does not copy waiting messages. Those of a removed
+thread are never sent and never listed: `send` refuses a removed thread.
 
 **Adding** (`turn.queue`) checks the thread's busyness inside the same
 `BEGIN IMMEDIATE` transaction that would insert the row. A busy thread gets
 the row. An idle thread gets no row: the message is started as a turn through
 `send`'s own path, with `send`'s refusals, and the answer says it started.
-Without this a message queued in the instant a turn ended would wait for a
+That turn is recorded as `turn.start` under the caller's `command_id`, with
+`turn.start`'s fingerprint, and a replay of the `turn.queue` call asks
+`send`'s replay step first, so it answers that turn and does not queue a
+second message behind it. Without this a message queued in the instant a turn ended would wait for a
 `Completed` that never comes.
 
 ## 20.3 Sending the next one when a turn ends
@@ -67,12 +71,23 @@ Only a turn that ends **`Completed`** sends the next waiting message. After
 restart) nothing is sent: the messages wait until the person sends or removes
 them. A daemon start sends nothing either.
 
-When the watcher records `Completed`, it takes the thread's first waiting
-message and starts it through `send`'s existing path. **Removing the row and
-committing the new turn happen in one transaction**, so a message is sent once
-or not at all. If the start is refused (the harness is unavailable, the
-thread was removed …), the row stays, its `last_error` names the refusal, and
-nothing more is sent from that thread until the person acts.
+When the watcher has recorded `Completed` (after it gave the session's events
+back, `turns/turn.rs` `watch_turn`), it takes the thread's first waiting
+message and starts it through `send`'s existing path: the same order, the same
+refusals, run to its end as `turns/contract.yaml`'s first trap demands, so the
+watcher does not call a half of it. The turn's `turn.start` command id is
+derived from the row's id (as §13.5 derives one for `draft_start`), never the
+`turn.queue`'s own. **Removing the row and committing the new turn happen in
+one `start_turn` transaction**, so a message is sent once or not at all. The
+row is removed only if it is still there: the `Send now` of 20.4 and this start
+race for the same row, and the one that finds it gone does nothing.
+
+If the start is refused (the harness is unavailable, `RuntimeStopping`, a
+setting no longer offered …), the row stays, its `last_error` names the
+refusal, and nothing more is sent from that thread until the person acts.
+`THREAD_BUSY` is not a failure: the person's own turn took the thread between
+the `Completed` and this start, so the row stays without `last_error` and that
+turn's `Completed` sends it.
 
 ## 20.4 Send now
 
@@ -85,17 +100,27 @@ nothing more is sent from that thread until the person acts.
    as a user entry of the running turn, at the thread's next ordinal. The
    steering request is sent **before** the entry is written: a failed steer
    then leaves no entry the Planner never saw. (The probe's answer came in
-   4 ms, before any reply chunk.)
+   4 ms, before any reply chunk.) Entries take their ordinal from the thread's
+   counter (`threads/store/entry.rs` `append_entry_in`), so this write cannot
+   collide with the running turn's own entries.
 3. On `promptRequired`, or when no turn runs, the message is started as a
    turn exactly as in 20.3, and the answer says so.
 4. A steer that fails (the session ended, a JSON-RPC error) leaves the row,
    sets `last_error`, and writes nothing to the thread.
 
+> **OPEN — where the steered entry sits among the reply's entries.** §12.3
+> writes an agent message only when it is complete, so text the Planner had
+> streamed before the steer lands in the thread *after* the steered user
+> entry, which is written at once. Options: accept it, or complete the open
+> message first. Closed when the person runs the Send-now journey (20.6) on
+> the real adapter and reads the order in the thread.
+
 The running turn keeps its own operation and ends as §12.3 says; the steered
 reply is part of it. The message's own `model`, `mode` and `effort` do not
 apply to a steer: the running turn's settings stand.
 
-`shadows-agent`'s `Connection` gains one call, the steering request; nothing
+`shadows-agent`'s `Connection` (`acp.rs`) gains one call, the steering request,
+sent as an extension method beside the typed `prompt` and `cancel`; nothing
 else in the harness changes.
 
 ## 20.5 Interface
@@ -109,16 +134,23 @@ Each route calls one `Turns` method (§14.5). No MCP tool: nothing uses one yet.
 | `DELETE /api/threads/{id}/queue/{qid}` | `unqueue` | nothing |
 | `POST /api/threads/{id}/queue/{qid}/send-now` | `send_now` | `Steered`, or the turn it started |
 
-`queue`, `unqueue` and `send_now` are commands with a `CommandId`, a kind and
-a fingerprint; a replay answers what the first call answered. `unqueue` or
-`send_now` on a message already sent or removed is `404 QUEUED_MESSAGE_GONE`.
+`queue`, `unqueue` and `send_now` are commands with a `CommandId`, a kind
+(`turn.queue`, `turn.unqueue`, `turn.send_now`) and a fingerprint over the
+thread and the message (`queue`: `turn.start`'s parameters). The id travels as
+`command_id` in the body, and as a query parameter on `DELETE`. A replay is
+judged first and answers what the first call answered; only a new command on a
+message already sent or removed is `404 QUEUED_MESSAGE_GONE`, a new
+`ErrorCode`. Each new command has its line in the `turns` contract, and the
+routes change `api/openapi.json`.
 
 Durable events, so every open tab follows: `MessageQueued`,
 `QueuedMessageRemoved`, `QueuedMessageSent` (carrying whether it was steered
 or started a turn) and `QueuedMessageFailed` (carrying `last_error`).
 
-**Web client.** While a turn runs the composer stays enabled next to Stop;
-Enter queues. Waiting messages show below the running turn, dimmed, marked
+**Web client.** Today Enter does nothing while a turn runs and Stop replaces
+Send (`composer.tsx` `submit`); the model and effort menus are frozen. Now the
+composer stays enabled next to Stop and Enter queues, with the settings the
+menus hold. Waiting messages show below the running turn, dimmed, marked
 waiting, each with **Send now** and a remove button. With no turn running the
 button reads **Send**. A message with `last_error` shows the reason.
 
