@@ -248,56 +248,56 @@ export function Composer({
         {pointed !== null && <FocusChip pointed={pointed} onClear={() => onPointed(pointed)} />}
         <div className="flex items-end gap-2 rounded-xl border border-accent-line/40 bg-input-background p-2.5 shadow-xs transition-all duration-150 focus-within:border-accent-line focus-within:ring-2 focus-within:ring-accent-line/30 focus-within:shadow-md">
           <div className="relative flex-1">
-          <textarea
-            value={prompt}
-            onChange={(e) => {
-              pending.current = null
-              setPrompt(e.target.value)
-              // Any change reopens a dismissed menu if the text still qualifies.
-              setHighlighted(0)
-              setDismissed(null)
-              if (hint?.text !== e.target.value) setHint(null)
-            }}
-            onKeyDown={(e) => {
-              if (e.nativeEvent.isComposing) return
-              // Shift+Enter inserts a newline, which closes the menu.
-              if (menu !== null && !(e.key === 'Enter' && e.shiftKey)) {
-                const keys: Record<string, () => void> = {
-                  ArrowDown: () => setHighlighted((at + 1) % menu.length),
-                  ArrowUp: () => setHighlighted((at - 1 + menu.length) % menu.length),
-                  Tab: () => pick(menu[at]),
-                  Enter: () => pick(menu[at]),
-                  Escape: () => setDismissed(prompt),
+            <textarea
+              value={prompt}
+              onChange={(e) => {
+                pending.current = null
+                setPrompt(e.target.value)
+                // Any change reopens a dismissed menu if the text still qualifies.
+                setHighlighted(0)
+                setDismissed(null)
+                if (hint?.text !== e.target.value) setHint(null)
+              }}
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return
+                // Shift+Enter inserts a newline, which closes the menu.
+                if (menu !== null && !(e.key === 'Enter' && e.shiftKey)) {
+                  const keys: Record<string, () => void> = {
+                    ArrowDown: () => setHighlighted((at + 1) % menu.length),
+                    ArrowUp: () => setHighlighted((at - 1 + menu.length) % menu.length),
+                    Tab: () => pick(menu[at]),
+                    Enter: () => pick(menu[at]),
+                    Escape: () => setDismissed(prompt),
+                  }
+                  const key = keys[e.key]
+                  if (key !== undefined) {
+                    e.preventDefault()
+                    key()
+                    return
+                  }
                 }
-                const key = keys[e.key]
-                if (key !== undefined) {
+                if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
-                  key()
-                  return
+                  submit()
                 }
-              }
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                submit()
-              }
-            }}
-            rows={2}
-            placeholder="Ask the Planner…"
-            aria-label="Message"
-            className="max-h-48 min-h-10 w-full resize-none bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-faint-foreground"
-          />
-          {menu !== null && (
-            <SlashMenu items={menu} highlighted={at} onPick={pick} onHighlight={setHighlighted} />
-          )}
-          {hint !== null && hint.text === prompt && (
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 overflow-hidden px-2 py-1 text-sm whitespace-pre-wrap"
-            >
-              <span className="invisible">{prompt}</span>
-              <span className="text-faint-foreground">{hint.hint}</span>
-            </div>
-          )}
+              }}
+              rows={2}
+              placeholder="Ask the Planner…"
+              aria-label="Message"
+              className="max-h-48 min-h-10 w-full resize-none bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-faint-foreground"
+            />
+            {menu !== null && (
+              <SlashMenu items={menu} highlighted={at} onPick={pick} onHighlight={setHighlighted} />
+            )}
+            {hint !== null && hint.text === prompt && (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 overflow-hidden px-2 py-1 text-sm break-words whitespace-pre-wrap"
+              >
+                <span className="invisible">{prompt}</span>
+                <span className="text-faint-foreground">{hint.hint}</span>
+              </div>
+            )}
           </div>
           {running === null ? (
             <Button
