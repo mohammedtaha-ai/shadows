@@ -23,6 +23,7 @@ import { ErrorLine } from '../error-line'
 import type { CarriedSend } from './carried-send'
 import { ComposerBar } from './composer-bar'
 import { FocusChip, type PointedTask } from './focus-chip'
+import { type SessionCommand, sessionCommand } from './session-commands'
 import { slashMatches } from './slash-filter'
 import { SlashMenu } from './slash-menu'
 import { afterOptions, effortsKnown, initialSettings, sendable, withModel } from './turn-settings'
@@ -138,15 +139,32 @@ export function Composer({
   const [highlighted, setHighlighted] = useState(0)
   const [dismissed, setDismissed] = useState<string | null>(null)
   const [hint, setHint] = useState<{ text: string; hint: string } | null>(null)
+  // `model` and `effort` act through the pickers, never as text (§21.4).
+  const [opened, setOpened] = useState<'model' | 'effort' | null>(null)
   const matches = slashMatches(commands, prompt)
   const menu = matches !== null && matches.length > 0 && dismissed !== prompt ? matches : null
   const at = Math.min(highlighted, (menu?.length ?? 1) - 1)
   const pick = (command: SlashCommand) => {
+    setHighlighted(0)
+    if (command.name === 'model' || command.name === 'effort') {
+      setPrompt('')
+      setHint(null)
+      setOpened(command.name)
+      return
+    }
     const text = `/${command.name} `
     pending.current = null
     setPrompt(text)
     setHint(command.hint === null ? null : { text, hint: command.hint })
-    setHighlighted(0)
+  }
+  const act = (command: SessionCommand) => {
+    if (command.kind === 'unknown') return setCarriedError(new Error(command.message))
+    setCarriedError(null)
+    setPrompt('')
+    if (command.kind === 'open') return setOpened(command.setting)
+    if (choices === null || settings === null) return
+    if (command.setting === 'model') choose(withModel(choices, settings, command.id))
+    else choose({ ...settings, effort: command.id })
   }
 
   const choices = session.state === 'ready' ? session.choices : null
@@ -227,6 +245,8 @@ export function Composer({
     sendable(choices, settings)
 
   const submit = () => {
+    const command = sessionCommand(prompt, choices)
+    if (command !== null) return act(command)
     const text = prompt.trim()
     if (text === '' || !ready || settings === null || send.isPending || queue.isPending) return
     // The focus is part of the command (§13.10): pointing elsewhere is a new one.
@@ -332,6 +352,8 @@ export function Composer({
           directory={directory}
           note={note}
           ring={ring}
+          opened={opened}
+          onOpened={setOpened}
         />
         {error !== null && <ErrorLine error={error} />}
       </div>

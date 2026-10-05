@@ -154,3 +154,32 @@ it('the highlighted entry is scrolled into view', async () => {
   press(box, 'ArrowDown')
   expect(scroll).toHaveBeenCalled()
 })
+
+it('/model with a name sets the model picker and sends nothing', async () => {
+  const { a, box } = await open()
+  typeInto(box, '/model small')
+  press(box, 'Enter')
+  await until(() => a.calls.includes('PUT /api/threads/t1/session/model'))
+  expect(a.bodies.at(-1)).toEqual({ model: 'fake-small' })
+  expect(box.value).toBe('')
+  expect(sentOrQueued(a)).toEqual([])
+})
+
+it('/model with a name the session does not offer says so', async () => {
+  const { a, box } = await open()
+  typeInto(box, '/model opus')
+  press(box, 'Enter')
+  expect(a.text()).toContain('This session offers no model named “opus”.')
+  expect(box.value).toBe('/model opus')
+  expect(sentOrQueued(a)).toEqual([])
+})
+
+it('picking model from the menu opens the model picker', async () => {
+  const { a, box } = await open()
+  await deliver(a, [{ name: 'model', description: 'Set the AI model', hint: '<model>' }])
+  typeInto(box, '/mod')
+  press(box, 'Enter')
+  await until(() => document.querySelector('[role="menu"]') !== null)
+  expect(document.querySelector('[role="menu"]')?.textContent).toContain('fake-small')
+  expect(box.value).toBe('')
+})
