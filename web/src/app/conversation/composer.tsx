@@ -114,11 +114,14 @@ export function Composer({
         plan: planId ?? null,
         clientTab: tabId(),
       }),
+    // The composer stays open while a turn runs, so it is cleared when Enter
+    // queues, not when the answer comes: the next message may be typed by
+    // then. A refused queue puts the text back if nothing new was typed.
     onSuccess: () => {
       pending.current = null
-      setPrompt('')
       void queryClient.invalidateQueries({ queryKey: queuedQuery(threadId as string).queryKey })
     },
+    onError: (_error, { text }) => setPrompt((now) => (now === '' ? text : now)),
   })
 
   const choices = session.state === 'ready' ? session.choices : null
@@ -206,8 +209,10 @@ export function Composer({
     switchEffort.reset()
     pending.current = attemptFor(pending.current, { text, settings, focus: focusOf(pointed), ...(planId === undefined ? {} : { plan: planId }) })
     const args = { commandId: pending.current.commandId, text, settings, pointed, planId }
-    if (running !== null && threadId !== null) queue.mutate(args)
-    else send.mutate(args)
+    if (running !== null && threadId !== null) {
+      queue.mutate(args)
+      setPrompt('')
+    } else send.mutate(args)
   }
 
   const error = send.error ?? queue.error ?? stop.error ?? switchEffort.error ?? carriedError
