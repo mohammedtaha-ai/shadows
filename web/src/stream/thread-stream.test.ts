@@ -214,6 +214,15 @@ describe('ThreadStream', () => {
     expect(notices[1]).toEqual({ type: 'options', choices: fakeChoices })
   })
 
+  it('hands on a commands frame as a notice', () => {
+    const notices: Notice[] = []
+    const { stream, current } = harness({ onNotice: (n) => notices.push(n) })
+    stream.start()
+    const commands = [{ name: 'compact', description: 'Clear history', hint: null }]
+    current().emit('commands', JSON.stringify({ thread_id: 't', commands }))
+    expect(notices).toEqual([{ type: 'commands', commands }])
+  })
+
   it('lets go of its connection while the page is hidden and resumes after its seq', () => {
     const page = fakePage()
     const { stream, sources, current } = harness({ page })

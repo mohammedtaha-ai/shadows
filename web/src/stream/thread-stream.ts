@@ -17,9 +17,11 @@ import {
   type DurableEvent,
   FrameError,
   type PlanShowFrame,
+  type SlashCommand,
   type TurnEnd,
   type UsageFrame,
   parseCaughtUp,
+  parseCommands,
   parseDelta,
   parseDurable,
   parseMeta,
@@ -31,10 +33,12 @@ import {
 
 /** A transient frame, handed on as it arrives and not kept here: the
  * harness session's latest context and limits (`usage`), the choices it now
- * offers (`options`), or a plan the Planner showed (`plan-show`, §13.9). */
+ * offers (`options`), the harness's `/` list (`commands`, §21), or a plan the
+ * Planner showed (`plan-show`, §13.9). */
 export type Notice =
   | { type: 'usage'; usage: UsageFrame }
   | { type: 'options'; choices: SessionChoices }
+  | { type: 'commands'; commands: readonly SlashCommand[] }
   | { type: 'plan-show'; show: PlanShowFrame }
 
 /** `connecting` until the first `caught-up`; `live` after it; `reconnecting`
@@ -234,6 +238,9 @@ export class ThreadStream {
     on('usage', (data) => this.#options.onNotice?.({ type: 'usage', usage: parseUsage(data) }))
     on('options', (data) => {
       this.#options.onNotice?.({ type: 'options', choices: parseOptions(data).choices })
+    })
+    on('commands', (data) => {
+      this.#options.onNotice?.({ type: 'commands', commands: parseCommands(data).commands })
     })
     // Sent live only, never in a replay: receiving it is being live.
     on('plan-show', (data) => {
