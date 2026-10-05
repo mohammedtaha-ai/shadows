@@ -65,6 +65,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "project",
             "project_link",
             "project_mode",
+            "queued_message",
             "runtime_instance",
             "task",
             "task_agreement_binding",
@@ -76,7 +77,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
         "spec §7.1: the migrations carry only the milestones' tables \
          (0005 adds §12's four, 0007 §13.15's six, 0008 §15.4's four, \
          0011 §12.4's per-model effort, 0012 §16.9's plan, 0013 §18's vision, \
-         0017–0018 §18's agreements and exact task pins)"
+         0017–0018 §18's agreements and exact task pins, \
+         0019 §20's queue)"
     );
 }
 
@@ -256,7 +258,7 @@ async fn write_txn_recovers_after_a_panicking_transaction() {
 
 /// Finding 4, fix round 2: `BEGIN IMMEDIATE` must be told apart from a
 /// deferred `BEGIN`, not just from failing outright. Per
-/// `docs/evidence/persistence/WAL_VALIDATION.md` lines 37-39, a write-only
+/// `docs/evidence/persistence/WAL_VALIDATION.md` at `92e6dae` lines 37-39, a write-only
 /// transaction cannot produce the lock-upgrade failure (`SQLITE_BUSY_SNAPSHOT`,
 /// code 517) that only a deferred `BEGIN` exhibits — a lone `INSERT` under a
 /// deferred `BEGIN` hits ordinary `SQLITE_BUSY` instead, which `busy_timeout`

@@ -7,7 +7,8 @@
 //! before any setting changes; the one transaction checks busyness again,
 //! atomically; only then does the turn run. `stop` is Stop as the local user.
 //!
-//! `spawn` registers a committed turn and commits `Running`, `turn` records
+//! `record` is the checks and the one transaction, `queue` the waiting
+//! messages. `spawn` registers a committed turn and commits `Running`, `turn` records
 //! its ending and arbitrates it with Stop, `handles` is the registry of live
 //! turns, `entries` turns harness events into entries, `shutdown` stops every
 //! turn when the runtime stops (§8.5), `model` holds the operation types and
@@ -17,8 +18,11 @@
 mod entries;
 mod handles;
 mod model;
+mod queue;
+mod record;
 mod shutdown;
 mod spawn;
+mod steer;
 mod store;
 mod turn;
 
@@ -27,19 +31,22 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use shadows_agent::TurnSettings;
-use shadows_agent::acp::AcpError;
-use shadows_agent::choices::{Offered, refusal};
 use shadows_agent::policy;
 
 pub use handles::LiveHandles;
-pub use model::{InvocationView, Operation, OperationId};
+pub use model::{
+    InvocationView, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SentNow,
+};
 pub use spawn::StartError;
 // What another write calls inside its own transaction (spec §14.6):
 // forking checks for an open turn, recovery records its transitions.
+pub use store::{NewQueued, QueueAnswer};
 pub(crate) use store::{existed, has_open_operation, read_before, record};
 
+use record::Turn;
 use spawn::{PlannerTurnRequest, continue_plan_block, focus_block};
-use store::{NewTurn, StartedTurn};
+use store::Dequeue;
+
 use turn::PlannerTurn;
 pub(crate) use turn::StopOutcome;
 
@@ -49,11 +56,11 @@ use crate::command::CommandContext;
 use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
 use crate::events::Actor;
-use crate::harness::{LeaseError, OpenSession, Sessions, prompt_version};
+use crate::harness::{LeaseError, Sessions};
 use crate::plans::{Focus, PlanId};
 use crate::runtime::Runtime;
 use crate::runtime::StopKind;
-use crate::threads::{ThreadId, TurnContext};
+use crate::threads::ThreadId;
 
 /// What the turn machinery needs for tests that drive it below `Turns`:
 /// `shadows_core::testing` re-exports these, and nothing outside the crate
@@ -63,13 +70,14 @@ pub(crate) mod for_tests {
     pub use super::model::FailureStage;
     pub use super::shutdown::shut_down;
     pub use super::spawn::PlannerTurnRequest;
-    pub use super::store::{NewTurn, StartedTurn};
+    pub use super::store::{Dequeue, NewTurn, StartedTurn};
     pub use super::turn::{PlannerTurn, StopOutcome};
 }
 
 /// Turns: what storage holds, the runtime that owns their operations, the
 /// sessions they prompt on, the registry of live turns, the bus their live
 /// events go out on, and the code index a turn's project is touched in.
+#[derive(Clone)]
 pub struct Turns {
     storage: Arc<Storage>,
     runtime: Arc<Runtime>,
@@ -147,6 +155,7 @@ impl ThreadStopper {
 }
 
 /// A person's turn, as the route received it (§12.7, §13.9).
+#[derive(Clone)]
 pub struct SendTurn {
     /// The idempotency key (spec §3.2).
     pub command_id: String,
@@ -163,12 +172,24 @@ pub struct SendTurn {
     pub client_tab: Option<String>,
 }
 
-/// What the person asked for: the command and what it records.
-struct Turn<'a> {
-    command: &'a CommandContext,
-    prompt: &'a str,
-    settings: &'a TurnSettings,
-    focus: Option<&'a Focus>,
+/// `turn.start`'s command for `turn` on `thread` (§12.7): `send` asks its
+/// replay first, and `queue` asks the replay of the start it derived.
+fn start_command(command_id: String, thread: &ThreadId, turn: &SendTurn) -> CommandContext {
+    let mut params = serde_json::json!({
+        "thread_id": thread,
+        "prompt": turn.prompt,
+        "model": turn.model,
+        "mode": turn.mode,
+        "effort": turn.effort,
+    });
+    // Absent without a focus, so a turn recorded before §13.9 replays as it did.
+    if let Some(focus) = &turn.focus {
+        params["focus"] = serde_json::json!(focus);
+    }
+    if let Some(plan) = &turn.plan {
+        params["plan"] = serde_json::json!(plan);
+    }
+    user_command(command_id, "turn.start", params)
 }
 
 impl Turns {
@@ -200,8 +221,20 @@ impl Turns {
         thread_id: ThreadId,
         turn: SendTurn,
     ) -> Result<OperationId, CoreError> {
+        self.send_with(thread_id, turn, None).await
+    }
+
+    /// `send`, and when `dequeue` names a waiting message, the turn that takes
+    /// it from the queue in its own transaction (§20.3).
+    pub(crate) async fn send_with(
+        &self,
+        thread_id: ThreadId,
+        turn: SendTurn,
+        dequeue: Option<(QueuedMessageId, Option<CommandContext>)>,
+    ) -> Result<OperationId, CoreError> {
+        let command = start_command(turn.command_id.clone(), &thread_id, &turn);
         let SendTurn {
-            command_id,
+            command_id: _,
             prompt,
             model,
             mode,
@@ -210,21 +243,6 @@ impl Turns {
             plan,
             client_tab,
         } = turn;
-        let mut params = serde_json::json!({
-            "thread_id": thread_id,
-            "prompt": prompt,
-            "model": model,
-            "mode": mode,
-            "effort": effort,
-        });
-        // Absent without a focus, so a turn recorded before §13.9 replays as it did.
-        if let Some(focus) = &focus {
-            params["focus"] = serde_json::json!(focus);
-        }
-        if let Some(plan) = &plan {
-            params["plan"] = serde_json::json!(plan);
-        }
-        let command = user_command(command_id, "turn.start", params);
         if let Some(replay) = self.storage.replayed_turn(&command, &thread_id).await? {
             return Ok(replay.operation_id);
         }
@@ -275,6 +293,10 @@ impl Turns {
             prompt: &prompt,
             settings: &settings,
             focus: focus.as_ref(),
+            dequeue: dequeue.as_ref().map(|(id, also)| Dequeue {
+                id,
+                also: also.as_ref(),
+            }),
         };
         let started = match self.record(&thread_id, &opened, &context, turn).await {
             Ok(started) if !started.replayed => started,
@@ -302,6 +324,7 @@ impl Turns {
                 continue_plan,
                 client_tab,
                 events,
+                on_completed: Some(self.on_completed()),
             },
             self.bus.clone(),
         )
@@ -341,143 +364,5 @@ impl Turns {
             second_signal,
         )
         .await
-    }
-
-    /// The rest of §12.7's checks on the leased session, then the one
-    /// transaction. A model set for the turn is set back when the turn is not
-    /// started, so a refused turn leaves the session as it found it.
-    async fn record(
-        &self,
-        thread_id: &ThreadId,
-        opened: &OpenSession,
-        context: &TurnContext,
-        turn: Turn<'_>,
-    ) -> Result<StartedTurn, CoreError> {
-        let (offered, previous) = self
-            .offer_for_model(thread_id, opened, &turn.settings.model)
-            .await?;
-        let started = self.start(thread_id, context, turn, &offered).await;
-        if let Some(previous) = previous
-            && !matches!(&started, Ok(s) if !s.replayed)
-        {
-            self.set_model_back(thread_id, opened, &offered, &previous)
-                .await;
-        }
-        started
-    }
-
-    /// The offer's checks on the turn's settings, then `start_turn`.
-    async fn start(
-        &self,
-        thread_id: &ThreadId,
-        context: &TurnContext,
-        turn: Turn<'_>,
-        offered: &Offered,
-    ) -> Result<StartedTurn, CoreError> {
-        let Turn {
-            command,
-            prompt,
-            settings,
-            focus,
-        } = turn;
-        if let Some((what, id)) = refusal(offered, &context.harness, settings) {
-            return Err(CoreError::SettingNotOffered {
-                what: what.to_string(),
-                id,
-                detail: None,
-            });
-        }
-        let project = self.storage.get_project(&context.project_id).await?;
-        let allowed = project.allowed_modes.get(&context.harness);
-        if !allowed.is_some_and(|modes| modes.contains(&settings.mode)) {
-            return Err(CoreError::ModeNotAllowed(settings.mode.clone()));
-        }
-
-        let adapter = self.sessions.adapter();
-        let (harness_path, agent_path) = (
-            adapter.adapter.to_string_lossy().into_owned(),
-            adapter.agent.to_string_lossy().into_owned(),
-        );
-        // §13.8: recorded so a later turn tells the session only what changed.
-        let instructions = (self.storage)
-            .current_planner_instructions(&context.project_id)
-            .await?;
-        let started = self
-            .storage
-            .start_turn(
-                command,
-                NewTurn {
-                    thread_id,
-                    runtime: &self.runtime.instance_id,
-                    prompt,
-                    role: "Planner",
-                    harness_kind: &context.harness,
-                    harness_path: &harness_path,
-                    harness_version: &adapter.adapter_version,
-                    agent_path: &agent_path,
-                    agent_version: &adapter.agent_version,
-                    settings,
-                    prompt_version: Some(prompt_version()),
-                    instructions_version: instructions.as_ref().map(|v| v.id.as_str()),
-                    focus,
-                },
-            )
-            .await;
-        match started {
-            Ok(started) => Ok(started),
-            Err(StorageError::TransitionConflict { .. }) if self.handles.is_closed().await => {
-                Err(CoreError::RuntimeStopping)
-            }
-            Err(e) => Err(e.into()),
-        }
-    }
-
-    /// The session's offer for `model`, with the model it held when this set
-    /// another. Efforts belong to a model, so a turn naming another model than
-    /// the session holds sets it first (§12.7): the only session change made
-    /// before the transaction, since it records nothing. The harness refusing
-    /// it is `SettingNotOffered` in its words.
-    async fn offer_for_model(
-        &self,
-        thread: &ThreadId,
-        opened: &OpenSession,
-        model: &str,
-    ) -> Result<(Offered, Option<String>), CoreError> {
-        let closed = || CoreError::HarnessStartFailed("the harness session closed".into());
-        let offered = self.sessions.offered(thread).await.ok_or_else(closed)?;
-        if offered.current.model == model || !offered.offers_model(model) {
-            return Ok((offered, None));
-        }
-        let id = offered.ids.model.clone();
-        match self.sessions.set_option(thread, opened, &id, model).await {
-            Ok(next) => Ok((next, Some(offered.current.model))),
-            Err(AcpError::Rpc(message)) => Err(CoreError::SettingNotOffered {
-                what: "model".into(),
-                id: model.into(),
-                detail: Some(message),
-            }),
-            Err(AcpError::Closed) => Err(closed()),
-        }
-    }
-
-    /// Sets back the model `offer_for_model` replaced. The turn's refusal is
-    /// the answer either way, so a harness that will not take the model back
-    /// is logged, not returned.
-    async fn set_model_back(
-        &self,
-        thread: &ThreadId,
-        opened: &OpenSession,
-        offered: &Offered,
-        previous: &str,
-    ) {
-        let id = &offered.ids.model;
-        if let Err(e) = self.sessions.set_option(thread, opened, id, previous).await {
-            tracing::warn!(
-                thread_id = %thread,
-                model = previous,
-                error = %e,
-                "turn.model_not_set_back"
-            );
-        }
     }
 }

@@ -2,7 +2,8 @@
 //! over the shared pool, which stays in `db`: `turn.rs` starts a turn as
 //! one command, `operation.rs` writes an operation's transitions,
 //! `operation_read.rs` reads operations back, `transition.rs` records a
-//! transition's event and log line.
+//! transition's event and log line, `queue.rs` keeps the waiting messages,
+//! `steer.rs` records a steered one.
 //!
 //! What another write may call inside its own transaction is `pub(crate)` and
 //! declared in `turns/contract.yaml` under `shared_in_transaction`; nothing
@@ -10,9 +11,12 @@
 
 mod operation;
 mod operation_read;
+mod queue;
+mod steer;
 mod transition;
 mod turn;
 
+pub use queue::{NewQueued, QueueAnswer};
 pub(crate) use transition::{existed, read_before, record};
 pub(crate) use turn::has_open_operation;
-pub use turn::{NewTurn, StartedTurn};
+pub use turn::{Dequeue, NewTurn, StartedTurn};

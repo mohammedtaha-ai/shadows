@@ -80,7 +80,7 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
   followed by JavaScript's, as the grammar's own `tree-sitter.json` does. Where
   a query misses something we need, we add our own patterns next to the entry,
   **after** the grammar's query, since the earlier pattern wins (below). The
-  patterns and what each catches are in `docs/evidence/milestone3/PROBE.md`:
+  patterns and what each catches are in `docs/evidence/milestone3/PROBE.md` at `92e6dae`:
   for Rust, `const`, `static`, trait methods without a body, calls through a
   path, turbofish and path-macro calls, and uses of a type; for TypeScript,
   type aliases, `enum` and type uses inside generics; for both TypeScript and
@@ -162,7 +162,7 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
   save by writing a temporary file and renaming it. Not
   `notify-debouncer-full`: on Windows it lost 98.7 % of 20 000 deletions
   without a word, and its default cache opens every file in the folder,
-  `target/` included, when a watch starts (`docs/evidence/milestone3/PROBE.md`).
+  `target/` included, when a watch starts (`docs/evidence/milestone3/PROBE.md` at `92e6dae`).
 - Every changed path is filtered through the same rules as the walk and the
   language table. What happens to it is decided by what is on disk once the
   batch is handled, never by the event's kind: a save through rename arrives
@@ -178,7 +178,7 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
   own reads would come back as changes and the scans would never end. The
   watcher drops every `Access` event but `Close(Write)`, which ends a write
   and is inotify's only report of one made through `mmap(2)`
-  (`docs/evidence/milestone3/LINUX_WATCHER_READS.md`). The other backends
+  (`docs/evidence/milestone3/LINUX_WATCHER_READS.md` at `92e6dae`). The other backends
   report no `Access` event at all.
 - **The watcher can lose changes without saying so.** On Windows, a folder
   full of changes, such as `target/` during a build, can overflow its buffer
@@ -404,7 +404,7 @@ field of the global Settings page. §13.11 owns how both read.
      Mohammed's machine, with Windows Defender on. If it is heavy, the 60 s
      becomes longer or a setting.
 
-   Its output goes to `docs/evidence/milestone3/`, and its code is deleted
+   Its output goes to `docs/evidence/milestone3/` at `92e6dae`, and its code is deleted
    (CLAUDE.md). If it proves a part of this section wrong, this section is
    amended before Task 1.
 1. `shadows-index`, with its language table and `extract`.
@@ -443,7 +443,7 @@ fails, only for the scope rule of §15.5–§15.7.
 4. A second project is linked, and a question about it answers.
 5. After a restart, the index is not rebuilt from nothing.
 
-The run is recorded in `docs/evidence/milestone3/WINDOWS_RUN.md`.
+The run is recorded in `docs/evidence/milestone3/WINDOWS_RUN.md` at `92e6dae`.
 
 ## 15.12 Changes to other documents
 

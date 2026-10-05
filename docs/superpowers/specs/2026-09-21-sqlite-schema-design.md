@@ -727,7 +727,7 @@ transaction holds the write lock, and the commit happens before that lock is
 released, so a lower `seq` always commits before a higher one. A reader cannot
 observe N+1 while N is invisible. Measured: zero visibility inversions across
 21,798 reader polls under up to 32 concurrent writers
-(`docs/evidence/persistence/WAL_VALIDATION.md`).
+(`docs/evidence/persistence/WAL_VALIDATION.md` at `92e6dae`).
 
 A rolled-back transaction's `seq` is **reused**, because `AUTOINCREMENT` keeps
 its high-water mark in the ordinary `sqlite_sequence` table, whose update is part
@@ -1110,7 +1110,7 @@ Stay conservative by default.
 
 ### Writer strategy
 
-Measured, not assumed: `docs/evidence/persistence/WAL_VALIDATION.md`.
+Measured, not assumed: `docs/evidence/persistence/WAL_VALIDATION.md` at `92e6dae`.
 
 ```text
 all write transactions are serialized through one write connection

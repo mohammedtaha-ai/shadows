@@ -21,6 +21,7 @@ import { StatusBadge } from './status-badge'
 import { StreamBanner } from './stream-banner'
 import { useConversation } from './use-conversation'
 import { useSession } from './use-session'
+import { WaitingMessages } from './waiting-messages'
 
 const route = getRouteApi('/projects/$projectId/threads/$threadId')
 
@@ -152,6 +153,7 @@ function Conversation({
             projectId={projectId}
             onPointAt={onPointAt}
           />
+          <WaitingMessages threadId={threadId} running={c.running !== null} />
           <Composer
             to={{ threadId }}
             carried={carried}

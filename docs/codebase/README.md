@@ -49,6 +49,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/lib.rs` | the HTTP/SSE surface every client talks to | `crates/shadows-http/src/project.rs` |
 | `crates/shadows-http/src/project.rs` | the routes over projects, their threads included | `crates/shadows-http/src/project.rs` |
 | `crates/shadows-http/src/conversation.rs` | the routes over a thread's conversation | `crates/shadows-http/src/conversation.rs` |
+| `crates/shadows-http/src/queue.rs` | the routes of a conversation's waiting messages | `crates/shadows-http/src/queue.rs` |
 | `crates/shadows-http/src/harness.rs` | the routes over harnesses, their sessions included | `crates/shadows-http/src/harness.rs` |
 | `crates/shadows-http/src/thread.rs` | the routes that change a planning thread itself | `crates/shadows-http/src/thread.rs` |
 | `crates/shadows-http/src/workflow.rs` | the routes over plan versions | `crates/shadows-http/src/workflow.rs` |
@@ -91,6 +92,11 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/turns/` | Planner turns, from start to stop | `crates/shadows-core/src/turns/mod.rs` |
 | `crates/shadows-core/src/turns/model.rs` | the operation types callers meet | `crates/shadows-core/src/turns/model.rs` |
 | `crates/shadows-core/src/turns/store/` | turns' SQLite queries | `crates/shadows-core/src/turns/store/turn.rs` |
+| `crates/shadows-core/src/turns/store/queue.rs` | the queue's SQLite queries | `crates/shadows-core/src/turns/store/queue.rs` |
+| `crates/shadows-core/src/turns/store/steer.rs` | recording a steered message | `crates/shadows-core/src/turns/store/steer.rs` |
+| `crates/shadows-core/src/turns/queue.rs` | the waiting messages of a conversation | `crates/shadows-core/src/turns/queue.rs` |
+| `crates/shadows-core/src/turns/record.rs` | the checks that commit a turn's start | `crates/shadows-core/src/turns/record.rs` |
+| `crates/shadows-core/src/turns/steer.rs` | a Send now inside the turn's watcher | `crates/shadows-core/src/turns/steer.rs` |
 | `crates/shadows-core/src/turns/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows-core/src/turns/turn.rs` |
 | `crates/shadows-core/src/turns/entries.rs` | turning harness events into durable entries | `crates/shadows-core/src/turns/entries.rs` |
 | `crates/shadows-core/src/harness/` | the harnesses, each thread's open session included | `crates/shadows-core/src/harness/mod.rs` |
@@ -179,6 +185,10 @@ pattern to follow, not merely an example.
 | `crates/shadows-process/src/lib.rs` | OS process ownership with whole-tree containment | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-process/src/bin/` | test apparatus that no product code links | `crates/shadows-process/src/bin/tree_probe.rs` |
 | `crates/fake-acp/src/main.rs` | test apparatus that no product code links | `crates/fake-acp/src/main.rs` |
+| `crates/fake-acp/src/session.rs` | a fake session's state, offered to the client | `crates/fake-acp/src/session.rs` |
+| `crates/fake-acp/src/mcp.rs` | calling the session's MCP server | `crates/fake-acp/src/mcp.rs` |
+| `crates/fake-acp/src/steer.rs` | steering a prompt that waits for it | `crates/fake-acp/src/steer.rs` |
+| `crates/fake-acp/src/prompts.rs` | the scripted answers to a prompt | `crates/fake-acp/src/prompts.rs` |
 
 The Web client in `web/` is a separate program outside this workspace and this
 map; [`web/README.md`](../../web/README.md) describes it.

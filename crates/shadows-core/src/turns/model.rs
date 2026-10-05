@@ -1,11 +1,60 @@
 use crate::id::newtype_id;
+use crate::plans::{Focus, PlanId};
 use crate::runtime::RuntimeInstanceId;
+use crate::threads::{ThreadEntryId, ThreadId};
 
 newtype_id! {
     /// Spec §4.1. This and `RuntimeInstanceId` are the pair that first sat
     /// adjacent in one call — `mark_operation_started(op_id, expected_runtime)` —
     /// where two `String`s compiled cleanly when swapped.
     OperationId
+}
+
+newtype_id! {
+    /// Spec §20.2: a message written while a turn ran, waiting to be sent.
+    QueuedMessageId
+}
+
+/// Spec §20.2: a waiting message with the settings it will be sent under.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct QueuedMessage {
+    pub id: QueuedMessageId,
+    pub thread_id: ThreadId,
+    /// Send order within the thread; never reused while the row lives.
+    pub position: i64,
+    pub prompt: String,
+    pub model: String,
+    pub mode: String,
+    pub effort: Option<String>,
+    pub focus: Option<Focus>,
+    pub plan: Option<PlanId>,
+    /// Why the last attempt to send it failed (§20.3), if one did.
+    pub last_error: Option<String>,
+    pub created_at: String,
+}
+
+/// Spec §20.2: what queueing answers.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[serde(tag = "status", rename_all = "snake_case")]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "one answer per request; boxing buys nothing"
+)]
+pub enum Queued {
+    /// The thread was busy: the message waits.
+    Waiting { message: QueuedMessage },
+    /// The thread was idle: a turn started.
+    Started { operation_id: OperationId },
+}
+
+/// Spec §20.3: what Send now answers.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum SentNow {
+    /// The running turn took it as steering.
+    Steered { entry_id: ThreadEntryId },
+    /// The thread had gone idle: a turn started.
+    Started { operation_id: OperationId },
 }
 
 /// Spec §8.3: Prepare failure ("we could not get ready") and Spawn failure

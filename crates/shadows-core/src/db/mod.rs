@@ -51,6 +51,9 @@ pub enum StorageError {
     /// Spec §12.7, §12.9: the thread has a turn that has not ended.
     #[error("the thread has a turn running")]
     ThreadBusy,
+    /// Spec §20.5: the waiting message was already sent or removed.
+    #[error("the waiting message was already sent or removed")]
+    QueuedMessageGone,
     /// Spec §12.9: only the last entry of a completed turn is a fork point.
     #[error("only the thread's last entry, written by a completed turn, can be forked from")]
     ForkPointNotSupported,
@@ -141,7 +144,7 @@ struct WriteConn {
 }
 
 /// Task 3 adds a serialized write connection alongside `read` (spec §6.23,
-/// evidence `docs/evidence/persistence/WAL_VALIDATION.md`). `write` is one
+/// evidence `docs/evidence/persistence/WAL_VALIDATION.md` at `92e6dae`). `write` is one
 /// connection, not a pool, guarded by an async mutex: the evidence found that
 /// a deferred `BEGIN` fails a read-then-write transaction with
 /// `SQLITE_BUSY_SNAPSHOT` on a lock upgrade, that `busy_timeout` cannot
@@ -244,7 +247,7 @@ impl Storage {
     ///   against a *deferred* `BEGIN`, an external writer's commit landing in
     ///   between would produce `SQLITE_BUSY_SNAPSHOT` — the lock-upgrade
     ///   failure `busy_timeout` cannot rescue (spec §6.23,
-    ///   `docs/evidence/persistence/WAL_VALIDATION.md`). `BEGIN IMMEDIATE`
+    ///   `docs/evidence/persistence/WAL_VALIDATION.md` at `92e6dae`). `BEGIN IMMEDIATE`
     ///   avoids that failure entirely by taking the write lock, and waiting
     ///   out `busy_timeout` for it, before the closure's read ever runs.
     ///

@@ -8,7 +8,8 @@
     <title>Shadows</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Shown until the app mounts and replaces it, so a first load is never a blank page. -->
+    <div id="root"><p style="font: 14px system-ui, sans-serif; color: #8b8b99; padding: 2rem">Loading…</p></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

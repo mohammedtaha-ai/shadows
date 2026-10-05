@@ -59,6 +59,7 @@ pub fn new_turn<'a>(
         prompt_version: Some(crate::harness::prompt_version()),
         instructions_version: None,
         focus: None,
+        dequeue: None,
     }
 }
 
@@ -106,6 +107,7 @@ pub async fn start_direct(
             continue_plan: None,
             client_tab: None,
             events,
+            on_completed: None,
         },
         bus.clone(),
     )

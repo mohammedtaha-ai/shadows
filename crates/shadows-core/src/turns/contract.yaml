@@ -135,6 +135,58 @@ shapes:
     # role, the harness and agent paths and versions, the settings, the
     # prompt and instructions versions, and the focus. Borrowed, never kept.
     thread_id: "&ThreadId"
+    # The waiting message this turn sends (§20.3, §20.4), taken in the same
+    # transaction; `Dequeue.also` is Send now's own command, recorded with the
+    # turn so its replay answers the turn.
+    dequeue: "Option<Dequeue>"
+  QueuedMessage:
+    # §20.2: a message written while a turn ran, waiting to be sent.
+    id: QueuedMessageId
+    thread_id: ThreadId
+    # Send order within the thread.
+    position: i64
+    prompt: String
+    model: String
+    mode: String
+    effort: Option<String>
+    focus: Option<Focus>
+    plan: Option<PlanId>
+    # Why the last send failed (§20.3).
+    last_error: Option<String>
+    created_at: String
+  Queued:
+    # What queueing answers, tagged "status": Waiting { message } or
+    # Started { operation_id } when the thread was idle.
+    Waiting: QueuedMessage
+    Started: OperationId
+  SentNow:
+    # What Send now answers, tagged "status": Steered { entry_id } or
+    # Started { operation_id } when the thread had gone idle.
+    Steered: ThreadEntryId
+    Started: OperationId
+  NewQueued:
+    # What `queue_message` records, borrowed.
+    prompt: "&str"
+    model: "&str"
+    mode: "&str"
+    effort: "Option<&str>"
+    focus: "Option<&Focus>"
+    plan: "Option<&PlanId>"
+  QueueAnswer:
+    Waiting: QueuedMessage
+    # The thread runs no turn: nothing was written; the caller starts one.
+    Idle: unit
+  SteerRequest:
+    # A Send now for the running turn (§20.4, `steer.rs`), sent over
+    # `LiveTurn.steer` to the watcher, which steers, records and answers on
+    # `reply`: `Some(entry)` steered in, `None` the adapter ran no prompt.
+    command: CommandContext
+    row: QueuedMessageId
+    reply: oneshot::Sender<Result<Option<ThreadEntryId>, CoreError>>
+  SteerTarget:
+    # What `LiveHandles::steer_target` answers (pub(crate)).
+    cancel_requested: Arc<AtomicBool>
+    steer: UnboundedSender<SteerRequest>
   PlannerTurn:
     # A unit struct: `start` and `stop` are associated functions.
     unit: unit
@@ -152,6 +204,9 @@ shapes:
     continue_plan: Option<String>
     client_tab: Option<String>
     events: UnboundedReceiver<HarnessEvent>
+    # Called after the watcher recorded `Completed`, and after nothing else;
+    # `None` where no queue follows the turn.
+    on_completed: Option<OnCompleted>
 
 
 functions:
@@ -176,6 +231,52 @@ functions:
       # Once the checks up to the busy check pass, before the session is
       # opened: `Code::touch` of the thread's project (§15.6), which never
       # fails or delays the turn.
+    queue:
+      signature: "(&self, thread: ThreadId, turn: SendTurn) -> Result<Queued, CoreError>"
+      # §20.2, "turn.queue": a waiting message on a busy thread; on an idle
+      # one, the turn it starts through `send` under the derived command id
+      # `queue:<id>`, whose `turn.start` fingerprint is `send`'s own
+      # (`start_command`). A replay of the derived start answers its turn
+      # first, so no copy waits behind it. Refusals: `send`'s, and ThreadBusy
+      # after two tries (a turn took the thread between Idle and the start).
+    queued:
+      signature: "(&self, thread: &ThreadId) -> Result<Vec<QueuedMessage>, CoreError>"
+      # §20.5: the thread's waiting messages in `position` order.
+    unqueue:
+      signature: "(&self, thread: &ThreadId, id: &QueuedMessageId, command_id: String) -> Result<(), CoreError>"
+      # §20.5, "turn.unqueue": removes a waiting message. Refusals:
+      # QueuedMessageGone, CommandConflict.
+    send_with:
+      signature: "(&self, thread_id: ThreadId, turn: SendTurn, dequeue: Option<(QueuedMessageId, Option<CommandContext>)>) -> Result<OperationId, CoreError>"
+      # pub(crate): `send` is `send_with(.., None)`. With a `dequeue`, the
+      # turn takes that waiting message in its own transaction (§20.3).
+    send_now:
+      signature: "(&self, thread: &ThreadId, id: &QueuedMessageId, command_id: String) -> Result<SentNow, CoreError>"
+      # §20.4, "turn.send_now". In order: a replay answers first; the row must
+      # exist (QueuedMessageGone); a Stop pending on the running turn
+      # (`cancel_requested`) is ThreadBusy, sends nothing and leaves the row
+      # without `last_error`; otherwise the watcher is asked (`SteerRequest`) to
+      # send the steer BEFORE anything is written; on `injected` it writes the
+      # streamed text, then the message in one transaction with taking the row.
+      # `promptRequired`, a watcher already gone, or no running turn, is
+      # `send_queued` with this command as `also`. A steer that fails sets
+      # `last_error`, writes nothing to the thread and is HarnessStartFailed.
+    send_queued:
+      signature: "(&self, thread: &ThreadId, row: &QueuedMessage, also: Option<CommandContext>) -> Result<OperationId, CoreError>"
+      # pub(crate), §20.3: starts `row` as a turn under the derived command id
+      # `queued:<row id>`, taking the row inside the turn's transaction. A row
+      # already taken is QueuedMessageGone; the rest are `send`'s refusals.
+    send_next:
+      signature: "(&self, thread: &ThreadId)"
+      # pub(crate), §20.3: the thread's first waiting message, unless it
+      # carries a `last_error`. ThreadBusy and QueuedMessageGone are not
+      # failures and write nothing; any other refusal is `fail_queued`, which
+      # sets `last_error` and leaves the row waiting for the person.
+    on_completed:
+      signature: "(&self) -> OnCompleted"
+      private: true
+      # The callback each turn's watcher is given: runs `send_next` in a task
+      # of its own, to its end.
     stop:
       signature: "(&self, op: &OperationId) -> Result<Operation, CoreError>"
       # `PlannerTurn::stop` as `Actor::user("local")`; TerminationFailed is
@@ -188,6 +289,7 @@ functions:
   steps:
     record:
       signature: "(&self, thread_id, opened, context, turn: Turn) -> Result<StartedTurn, CoreError>"
+      # In `record.rs`, with `start`, `offer_for_model` and `set_model_back`.
       private: true
       # `offer_for_model`, then `start`; when `start` answers anything but a
       # new turn (a refusal, an error, a replay found by the transaction) and
@@ -217,8 +319,29 @@ functions:
       # Prepare (context, settings) → register → re-read the cancel request →
       # mark Running → watch. A refused prepare is Failed { Prepare }.
     watch_turn:
-      signature: "(w: TurnWatch, rx, bus)"
+      signature: "(w: TurnWatch, rx, steers, bus)"
       private: true
+      # `steers` carries the Send nows (`LiveTurn.steer`); the select is biased:
+      # the prompt's answer, then events, then steers. A steer drains the
+      # events already queued, then holds the watcher until it is answered;
+      # steers still queued when the prompt answers are dropped, which
+      # `send_now` reads as "no prompt runs".
+    steer:
+      signature: "(w: &TurnWatch, collector: &mut Collector, r: SteerRequest)"
+      private: true
+      # In `steer.rs`: the row must still be queued (QueuedMessageGone), the
+      # steer is sent, and only on `injected` `Collector::cut` writes the
+      # message being streamed and `steered_entry` writes the steered one and
+      # takes its row. No event is read in between, so the steered reply's
+      # first chunk cannot be written before the steered entry.
+    cut:
+      signature: "(&mut self) -> Vec<Durable>"
+      # On `Collector` (`entries.rs`): the message being streamed, written now;
+      # the reply then continues as a new message (§20.4).
+    steer_target:
+      signature: "(&self) -> Option<SteerTarget>"
+      # pub(crate) on `LiveHandles`: the running turn of a thread as Send now
+      # reaches it (§20.4): its `cancel_requested` and steer channel.
     stop:
       signature: "(runtime, handles, sessions, op: &OperationId, actor: Actor) -> Result<StopOutcome, StorageError>"
       # On `PlannerTurn`. Records the cancel request, claims the live turn,
@@ -280,7 +403,9 @@ functions:
       # One write: classify (replay), refuse removed thread, has_open_operation (busy), focus,
       # insert_pending, the UserMessage entry, Threads'
       # `title_from_first_message_in` (§4.2), agent_invocation,
-      # remember_settings, record_command.
+      # remember_settings, record_command. With `NewTurn.dequeue`: the row is
+      # taken right after the busy check and `QueuedMessageSent` is journaled
+      # after the turn's command is recorded, both in this one write.
     replayed_turn:
       signature: "(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<Option<StartedTurn>, StorageError>"
     thread_is_busy:
@@ -289,6 +414,37 @@ functions:
       signature: "(conn, thread: &ThreadId) -> Result<bool, StorageError>"
       # Any operation of the thread not Completed, Failed, Cancelled or
       # Interrupted.
+    queue_message:
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId, new: NewQueued<'_>) -> Result<QueueAnswer, StorageError>"
+      # A replay answers the message as first answered; a removed thread is
+      # NotFound; an idle thread writes nothing and is Idle; a busy one gets
+      # the row, last in `position` order.
+    queued_messages:
+      signature: "(&self, thread: &ThreadId) -> Result<Vec<QueuedMessage>, StorageError>"
+      # In `position` order; none for a removed thread.
+    queued_message:
+      signature: "(&self, thread: &ThreadId, id: &QueuedMessageId) -> Result<Option<QueuedMessage>, StorageError>"
+    unqueue_message:
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId, id: &QueuedMessageId) -> Result<(), StorageError>"
+      # A replay is judged first; a new command on a gone row is
+      # QueuedMessageGone.
+    fail_queued:
+      signature: "(&self, thread: &ThreadId, id: &QueuedMessageId, reason: &str) -> Result<(), StorageError>"
+      # Why the last send of a waiting message failed (§20.3, §20.4).
+    take_queued_in:
+      signature: "(conn, thread: &ThreadId, id: &QueuedMessageId) -> Result<(), StorageError>"
+      # Removes a waiting message inside the caller's transaction, or
+      # QueuedMessageGone: of two writers racing for one row, one wins.
+    steered_entry:
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId, op: &OperationId, row: &QueuedMessageId, prompt: &str) -> Result<ThreadEntryId, StorageError>"
+      # In `store/steer.rs`, §20.4: one write takes the row (QueuedMessageGone
+      # if it is not there), appends the steered message as a user entry of
+      # the running turn, journals `QueuedMessageSent` and records the
+      # command; a replay answers the first entry.
+    replayed_send_now:
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<Option<SentNow>, StorageError>"
+      # Read-only: a recorded `turn.send_now` answers Started when its outcome
+      # names an operation, Steered when it names an entry.
     get_operation:
       signature: "(&self, op_id: &OperationId) -> Result<Operation, StorageError>"
     read_before:
@@ -321,6 +477,7 @@ enums:
 
 
 shared_in_transaction:
+  take_queued_in: "The start of a waiting message (§20.3) and Send now (§20.4): the row is removed inside the same write that commits the turn or the steered entry, so a message is sent once or not at all"
   has_open_operation: "Threads' fork (threads/store/fork.rs fork_thread): a thread with a turn not yet ended cannot be forked, judged inside the fork's own write"
   read_before: "Runtime recovery (runtime/store.rs reconcile_orphans): reads each orphan's status and thread inside the write that marks it Interrupted"
   existed: "Runtime recovery (runtime/store.rs reconcile_orphans): the orphan read by read_before existed when its compare-and-swap matched"
@@ -507,6 +664,43 @@ agreements:
       Each test proves one side. The same rule's agreement with
       `harness::change_model` is in Harness's contract.
 
+  - between: [send_next, start_turn]
+    must: >
+      send a waiting message once or not at all: the row is taken inside the
+      turn's own transaction, so a turn that does not commit leaves the row
+      waiting and a row already taken starts no turn
+    holds: true
+    why: >
+      `send_queued` passes the row as `NewTurn.dequeue`, and `start_turn`
+      calls `take_queued_in` after its busy check, in the same write that
+      inserts the turn; `QueuedMessageGone` aborts that write.
+    tested_by: a_completed_turn_starts_the_next_waiting_message_exactly_once
+
+  - between: [watch_turn, send_now]
+    must: >
+      keep the entries in the order the person saw: the watcher writes the
+      steered entry after the reply text it holds, and the reply that follows
+      is a new message
+    holds: true
+    why: >
+      `send_now` asks the watcher over `LiveTurn.steer`; the watcher's `steer`
+      sends the request and reads no event until it is answered, then cuts the
+      open message before `steered_entry` appends the user entry, so a reply
+      chunk that beats the answer is written after it. A watcher already gone
+      steers nothing: `send_now` starts the message as a turn.
+    tested_by: send_now_steers_the_running_turn_after_its_streamed_text
+
+  - between: [send_now, send_next]
+    must: >
+      send one waiting message once: whichever of Send now and the watcher's
+      next send finds the row gone does nothing
+    holds: true
+    why: >
+      Both take the row inside a write (`start_turn` with `Dequeue`, or
+      `steered_entry`), and both start under the derived command id
+      `queued:<row id>`, so the second is a replay or QueuedMessageGone.
+    tested_by: the_watcher_and_send_now_never_send_one_message_twice
+
   - between: [replayed_turn, start_turn]
     must: >
       answer the same recorded command the same way: the early replay and
@@ -533,6 +727,49 @@ not_the_caller's:
 
 
 tests:
+  - name: waiting_messages_keep_their_order_and_a_removed_one_is_gone
+    checks: >
+      While a turn is open at the store, two queued messages list in
+      `position` order; removing one is fine and removing it again is
+      QueuedMessageGone.
+  - name: queueing_on_an_idle_thread_starts_a_turn_and_leaves_no_row
+    checks: >
+      POST queue on an idle thread answers 202 `started` with an operation id
+      and the thread's queue stays empty.
+  - name: a_replayed_queue_on_an_idle_thread_answers_its_turn
+    checks: >
+      The same queue body sent twice while its turn runs answers `started`
+      with one operation id both times and queues no copy.
+  - name: a_busy_thread_queues_and_remove_answers_gone_the_second_time
+    checks: >
+      A queue on a busy thread answers 202 `waiting` with the message;
+      DELETE is 204 and a second DELETE is 404 QUEUED_MESSAGE_GONE.
+  - name: a_completed_turn_starts_the_next_waiting_message_exactly_once
+    checks: >
+      A turn held open with a message waiting behind it: once released, the
+      turn completes, the waiting message runs as the thread's second turn
+      and appears as one entry, and the queue is empty.
+  - name: send_now_steers_the_running_turn_after_its_streamed_text
+    checks: >
+      With `steerable` running and a message waiting, Send now answers 202
+      `steered`, starts no turn, and the entries read: the prompt, the text
+      streamed so far, the steered message, the reply to it; the queue is empty.
+  - name: send_now_after_stop_is_thread_busy_and_keeps_the_row
+    checks: >
+      While a Stop is pending on `ignore-cancel`, Send now is 409 THREAD_BUSY
+      and the row stays listed without `last_error`.
+  - name: the_watcher_and_send_now_never_send_one_message_twice
+    checks: >
+      Send now as a turn completes answers 202, 404 or 409, and the message
+      is one entry in a thread of two turns.
+  - name: a_cut_writes_the_streamed_text_and_the_reply_continues_as_a_new_message
+    checks: >
+      `Collector::cut` returns the text so far; later chunks of the same
+      message id become a new message.
+  - name: stop_leaves_the_queue_and_starts_nothing
+    checks: >
+      Stopping the running turn leaves the waiting message listed, with no
+      `last_error`, and starts no second turn.
   - name: a_conversation_can_focus_another_conversations_project_plan
     checks: >
       A second conversation sends a focus on the first conversation's plan;

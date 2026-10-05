@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-04 (§16 1a merged; planning workspace Stage 1 verified on its branch)
+**Updated:** 2026-10-05 (§20, the queue and Send now, built and run in the browser on `next/polish`)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -8,6 +8,29 @@ decision live in the topic owners indexed by
 restate them.
 
 ## Where we are
+
+**§20, writing while a turn runs, is built on `next/polish`** (2026-10-05,
+`3c18461`..`7079652`, not yet merged). The owner is
+[`§20`](./superpowers/specs/2026-10-05-message-queue-design.md). The full gate
+ran once on `fb2246f`: **422 Rust tests** and the web suite passed, with both
+clippy modes, the feature check and the 100-column check clean. The browser
+run used a copy of the dev database and the real adapter (Opus 5.5 low, then
+Sonnet 5.5 medium):
+
+1. Two messages queued during a running turn showed as Waiting; when the turn
+   completed each was sent in order as its own turn.
+2. Send now during a streamed story: the story stopped mid-word, the message
+   sat below the text streamed before it, and the reply ("BANANA") ended the
+   same turn (thread entries 8, 9, 10 on one operation).
+3. Stop with a message waiting: the turn ended Stopped, the message stayed
+   with **Send**, and Send ran it.
+4. Two conversations in two projects ran at the same time; both completed.
+5. The daemon log held no error besides the Stop's own `cancelled` end.
+
+The run found one bug, fixed in `7079652`: a second message typed while the
+first was being queued was wiped. With two tabs and the daemon's own page open,
+a send stalled with "The daemon is not reachable" while the daemon logged no
+request; closing the extra tabs cleared it. Not yet diagnosed.
 
 **Project plans, §16 1a, are on `main`**, squash-merged through PR #14 as
 `4d8774e`. The owner is
@@ -25,7 +48,7 @@ debug daemon build from that commit also passed. Mohammed then confirmed
 that **Open plan works with the rebuilt daemon** and attributed the earlier
 error to the old daemon. This is a partial human check; the full §16.12
 acceptance run remains pending
-([Windows record](./evidence/project-plans/WINDOWS_RUN.md)).
+(Windows record: `docs/evidence/project-plans/WINDOWS_RUN.md` at `92e6dae`).
 
 The whole-branch review fixed archive transaction checks, removal of a
 Pending turn before live registration, shared-plan task focus, removed-session
@@ -43,7 +66,7 @@ On 2026-10-03 the ordinary debug daemon was rebuilt from review commit
 `fbbdde55`. Mohammed then reported that he tried the application and believed
 everything was ready. This records his successful Windows trial of the
 reviewed build; it does not claim that Codex independently executed every
-§16.12 scenario ([Windows record](./evidence/project-plans/WINDOWS_RUN.md)).
+§16.12 scenario (Windows record: `docs/evidence/project-plans/WINDOWS_RUN.md` at `92e6dae`).
 The branch is ready for PR preparation.
 
 **Code-index settings, effort at once, and a Linux watcher fix** (PR #12,
@@ -54,10 +77,10 @@ The branch is ready for PR preparation.
 - a picked effort is set on the session at once, the effort is remembered
   per model, and Claude's `default` is no longer offered: Shadows advertises
   the adapter's `recommendedValue` (§12.4, §12.7, migration 0011,
-  [`evidence/harness/EFFORT_DEFAULT_PROBE.md`](./evidence/harness/EFFORT_DEFAULT_PROBE.md));
+  `docs/evidence/harness/EFFORT_DEFAULT_PROBE.md` at `92e6dae`);
 - the code watcher ignores file reads, which Linux reports: before, an idle
   daemon re-scanned forever at 148% CPU (§15.4,
-  [`evidence/milestone3/LINUX_WATCHER_READS.md`](./evidence/milestone3/LINUX_WATCHER_READS.md)).
+  `docs/evidence/milestone3/LINUX_WATCHER_READS.md` at `92e6dae`).
 
 It ran in a Linux cloud container, in a browser against the real adapter
 and Claude Code, on a copy of a scratch database. On 2026-10-01 it ran on
@@ -93,11 +116,11 @@ naming it answered 404. Its web control came with PR #12.
 **Milestone 3 (§15, the code index) is on `main`** (PR #9, 340 Rust tests)
 and ran on Windows on 2026-09-30:
 §15.11's five acceptance steps passed
-([`evidence/milestone3/WINDOWS_RUN.md`](./evidence/milestone3/WINDOWS_RUN.md)).
+(`docs/evidence/milestone3/WINDOWS_RUN.md` at `92e6dae`).
 It adds the crate `shadows-index`, the ninth service `Code`,
 and the MCP tools `where_is`, `who_uses` and `outline` for an external agent's
 grant, with their HTTP routes. The probe's measurements are in
-[`evidence/milestone3/PROBE.md`](./evidence/milestone3/PROBE.md).
+`docs/evidence/milestone3/PROBE.md` at `92e6dae`.
 
 **Milestone 2.5 (§14, one application core) is on `main`** (PR #7,
 2026-09-29; 328 Rust tests). Shadows is now a Cargo workspace under `crates/`:
@@ -108,7 +131,7 @@ operations and carry a `contract.yaml` that
 change, and `api/openapi.json` is byte-identical. Mohammed ran it on Windows:
 six Planner turns completed and the Planner used Shadows' MCP server; Stop, a
 restart, Approve and Revoke were not exercised in that run
-([`evidence/milestone2_5/WINDOWS_RUN.md`](./evidence/milestone2_5/WINDOWS_RUN.md)).
+(`docs/evidence/milestone2_5/WINDOWS_RUN.md` at `92e6dae`).
 Its execution ledger was deleted after the merge.
 
 **Milestone 2 (§13, the Planner writes a plan) is on `main`** (PR #6,
@@ -117,7 +140,7 @@ Its execution ledger was deleted after the merge.
 reaching both a new and an existing conversation, and Connect and Revoke from
 an external Claude Code all worked. The run found that a harness opening took
 up to 5.7 s against a 5 s bound, which is now fixed:
-[`evidence/milestone2/WINDOWS_RUN.md`](./evidence/milestone2/WINDOWS_RUN.md).
+`docs/evidence/milestone2/WINDOWS_RUN.md` at `92e6dae`.
 Its execution ledger was removed from the branch before merge.
 
 **Milestone 1 is implemented, Phase A and Phase B, and both have run on
@@ -126,16 +149,16 @@ an adapter each open thread keeps (spec §12). The person chooses the CLI per
 conversation and the model, mode and effort per message, all read from the
 harness. The composer shows context and limits. Any message can be copied, and
 the last one forked. The Phase B run found four defects, all fixed and run
-again: [`evidence/milestone1/PHASE_B_RUN.md`](./evidence/milestone1/PHASE_B_RUN.md).
-The Phase A run is [`PHASE_A_RUN.md`](./evidence/milestone1/PHASE_A_RUN.md).
+again: `docs/evidence/milestone1/PHASE_B_RUN.md` at `92e6dae`.
+The Phase A run is `docs/evidence/milestone1/PHASE_A_RUN.md` at `92e6dae`.
 **Mohammed ran it on Windows:** send, Stop (56 ms to `Cancelled`) and a
 daemon restart with the conversation remembered all worked:
-[`evidence/milestone1/WINDOWS_RUN.md`](./evidence/milestone1/WINDOWS_RUN.md).
+`docs/evidence/milestone1/WINDOWS_RUN.md` at `92e6dae`.
 Fork, the permission-refused line and the breakdown were not checked item by
 item.
 
 - Milestone 0 is complete on Windows and on `main` (PRs #1-#3).
-  [`evidence/milestone0/ACCEPTANCE.md`](./evidence/milestone0/ACCEPTANCE.md).
+  `docs/evidence/milestone0/ACCEPTANCE.md` at `92e6dae`.
 - Milestone 1 is on `main` (PRs #4 and #5). The
   whole-branch review ran before the merge.
 - Mohammed's three rulings after the run are built and ran on the real
@@ -154,30 +177,30 @@ The PR is #4; its execution ledger was removed from the branch before merge.
   turn's own tree while 19 unrelated `claude.exe` processes survive; a daemon
   killed mid-turn takes the harness and its grandchild with it through the Job
   Object, and restart records the turn `Interrupted` with every entry intact.
-  `evidence/milestone0/`.
+  `docs/evidence/milestone0/` at `92e6dae`.
 - **Phase A over ACP, on Linux.** Adapter 0.81.1 over Claude Code 2.1.281:
   the harness itself confirmed a Stop (`cancelled`) and the adapter lived on,
   and a restarted daemon resumed the recorded session. Read-only shell commands
-  are allowed by Claude Code without asking. `evidence/milestone1/`.
+  are allowed by Claude Code without asking. `docs/evidence/milestone1/` at `92e6dae`.
 - **Phase B on Linux.** The model list, each model's efforts and the modes all
   come from the session. The adapter needs `PATH` and `HOME` from the daemon, or
   no shell command runs. Accept edits runs file commands in the project folder,
-  `rm` included, without a permission request. `evidence/milestone1/`.
+  `rm` included, without a permission request. `docs/evidence/milestone1/` at `92e6dae`.
 - **The harness does spawn a tree.** `claude --print` starts an MCP proxy as a
   child. This settles the question the serve/stream spike left open; whether a
   `Bash` call adds more descendants was not measured separately.
 - **Persistence.** SQLx 0.9 + SQLite chosen; the delta validated SQLx and
-  SeaORM 2.0.3 against PostgreSQL 16. `evidence/persistence/`.
+  SeaORM 2.0.3 against PostgreSQL 16. `docs/evidence/persistence/` at `92e6dae`.
 - **Harness stream contract.** Measured against Claude Code 2.1.278: four stream
   classes, of which only `assistant`, `user`, and `result` are durable; turn end
   is an explicit `result` line; `--session-id`/`--resume` give continuity across
-  processes. `evidence/harness/`.
+  processes. `docs/evidence/harness/` at `92e6dae`.
 - **Harness binary identity.** The machine carries more than one `claude-code`
   installation at different versions; spec §1.4 requires an explicit path and a
   recorded version.
 - **SQLite writer strategy and `durable_seq` ordering.** One write connection
   plus `BEGIN IMMEDIATE`; no visibility inversion. Spec §6.23 and §6.18.
-  `evidence/persistence/`.
+  `docs/evidence/persistence/` at `92e6dae`.
 
 ## Next
 

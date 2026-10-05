@@ -37,6 +37,7 @@ design-note, and status narratives.
 | §17 | [`2026-10-01-task-contracts-and-evidence-design.md`](./2026-10-01-task-contracts-and-evidence-design.md) |
 | §18 | [`2026-10-03-project-planning-workspace-design.md`](./2026-10-03-project-planning-workspace-design.md) — draft for review |
 | §19 | [`2026-10-03-agent-profiles-and-extensions-design.md`](./2026-10-03-agent-profiles-and-extensions-design.md) — draft profiles, specialist dispatch and extensions |
+| §20 | [`2026-10-05-message-queue-design.md`](./2026-10-05-message-queue-design.md) — the queue and Send now; built on `next/polish` (2026-10-05) |
 | — | [`2026-10-04-structure-hygiene-design.md`](./2026-10-04-structure-hygiene-design.md) — implemented and Windows-verified; independent review pending |
 
 ## Maintenance rules

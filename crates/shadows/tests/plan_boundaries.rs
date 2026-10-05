@@ -183,6 +183,7 @@ async fn deletion_waits_for_a_committed_turn_before_live_registration() {
                             continue_plan: None,
                             client_tab: None,
                             events,
+                            on_completed: None,
                         },
                         app.bus.clone(),
                     )

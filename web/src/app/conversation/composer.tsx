@@ -10,10 +10,12 @@ import {
   type TurnSettings,
   changeEffort,
   changeModel,
+  queueMessage,
   startTurn,
   stopTurn,
 } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
+import { queuedQuery } from '@/api/queries'
 import { Button } from '@/components/ui/button'
 import { tabId } from '@/stream/tab-id'
 import { ErrorLine } from '../error-line'
@@ -102,6 +104,26 @@ export function Composer({
     },
   })
 
+  // While a turn runs Enter queues the message with the settings the menus
+  // hold (§20.5); it is sent when the turn ends or by Send now.
+  const queryClient = useQueryClient()
+  const queue = useMutation({
+    mutationFn: ({ commandId, text, settings, pointed, planId }: Send) =>
+      queueMessage(threadId as string, commandId, text, settings, {
+        focus: focusOf(pointed),
+        plan: planId ?? null,
+        clientTab: tabId(),
+      }),
+    // The composer stays open while a turn runs, so it is cleared when Enter
+    // queues, not when the answer comes: the next message may be typed by
+    // then. A refused queue puts the text back if nothing new was typed.
+    onSuccess: () => {
+      pending.current = null
+      void queryClient.invalidateQueries({ queryKey: queuedQuery(threadId as string).queryKey })
+    },
+    onError: (_error, { text }) => setPrompt((now) => (now === '' ? text : now)),
+  })
+
   const choices = session.state === 'ready' ? session.choices : null
   const busy = send.isPending || running !== null
   const { settings, note, choose, refuse, keepEffort } = useTurnSettings(choices, busy, () => {
@@ -113,7 +135,6 @@ export function Composer({
   // are known before Send. The answer is the session's new choices; a refusal
   // puts the session's model back and says why. A turn's session is not
   // changed while it runs: the change is asked once the turn has ended.
-  const queryClient = useQueryClient()
   const switchModel = useMutation({
     // A draft has no session to change: Send opens it.
     mutationFn: ({ threadId, id }: { threadId: string; id: string }) => changeModel(threadId, id),
@@ -182,15 +203,19 @@ export function Composer({
 
   const submit = () => {
     const text = prompt.trim()
-    if (text === '' || !ready || settings === null || send.isPending || running !== null) return
+    if (text === '' || !ready || settings === null || send.isPending || queue.isPending) return
     // The focus is part of the command (§13.10): pointing elsewhere is a new one.
     setCarriedError(null)
     switchEffort.reset()
     pending.current = attemptFor(pending.current, { text, settings, focus: focusOf(pointed), ...(planId === undefined ? {} : { plan: planId }) })
-    send.mutate({ commandId: pending.current.commandId, text, settings, pointed, planId })
+    const args = { commandId: pending.current.commandId, text, settings, pointed, planId }
+    if (running !== null && threadId !== null) {
+      queue.mutate(args)
+      setPrompt('')
+    } else send.mutate(args)
   }
 
-  const error = send.error ?? stop.error ?? switchEffort.error ?? carriedError
+  const error = send.error ?? queue.error ?? stop.error ?? switchEffort.error ?? carriedError
 
   return (
     <div className="border-t border-border bg-background/95 px-6 pt-3 pb-4 backdrop-blur-md">
