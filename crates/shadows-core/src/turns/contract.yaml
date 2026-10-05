@@ -161,8 +161,13 @@ shapes:
     Steered: ThreadEntryId
     Started: OperationId
   NewQueued:
-    # What `queue_message` records, borrowed: prompt, settings, focus, plan.
+    # What `queue_message` records, borrowed.
     prompt: "&str"
+    model: "&str"
+    mode: "&str"
+    effort: "Option<&str>"
+    focus: "Option<&Focus>"
+    plan: "Option<&PlanId>"
   QueueAnswer:
     Waiting: QueuedMessage
     # The thread runs no turn: nothing was written; the caller starts one.
