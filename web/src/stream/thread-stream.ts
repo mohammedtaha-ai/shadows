@@ -2,6 +2,11 @@
 // then live, each durable event applied at most once by `seq`, reconnecting
 // from the last applied `seq` whenever the stream breaks.
 //
+// A hidden page holds no connection: the browser allows six connections to
+// one host across all its tabs, and each open stream keeps one, so a few
+// tabs left open would starve every other request (spec §2.10). Hidden, the
+// stream lets go; shown again, it resumes from the last applied `seq`.
+//
 // Plain TypeScript with the EventSource injected, so it is tested without a
 // browser; `use-thread-stream.ts` is its React binding. Closing it closes the
 // connection and nothing else: a client leaving never cancels work (spec §8.4
@@ -61,6 +66,13 @@ export interface EventSourceLike {
   close(): void
 }
 
+/** The part of the browser's `document` this module uses. */
+export interface PageLike {
+  readonly visibilityState: string
+  addEventListener(type: 'visibilitychange', listener: () => void): void
+  removeEventListener(type: 'visibilitychange', listener: () => void): void
+}
+
 export interface Options {
   /** The stream's URL for a connection resuming after `after`. */
   url: (after: number) => string
@@ -79,6 +91,9 @@ export interface Options {
   maxDelayMs?: number
   /** Consecutive failures, without a `caught-up` between them, before giving up. */
   maxFailures?: number
+  /** The page whose visibility holds the connection. Defaults to `document`;
+   * `null` keeps the connection whatever the page shows. */
+  page?: PageLike | null
 }
 
 export class ThreadStream {
@@ -89,6 +104,7 @@ export class ThreadStream {
   #source: EventSourceLike | null = null
   #timer: ReturnType<typeof setTimeout> | null = null
   #failures = 0
+  #wanted = false
 
   constructor(options: Options) {
     this.#options = {
@@ -97,6 +113,7 @@ export class ThreadStream {
       baseDelayMs: 500,
       maxDelayMs: 10_000,
       maxFailures: 10,
+      page: typeof document === 'undefined' ? null : document,
       ...options,
     }
     this.#state = {
@@ -110,14 +127,41 @@ export class ThreadStream {
     }
   }
 
-  /** Opens the stream. Calling it again after `close()` resumes from `lastSeq`. */
+  /** Opens the stream, or waits until the page is shown. Calling it again
+   * after `close()` resumes from `lastSeq`. */
   start(): void {
-    this.close()
-    this.#open(this.#state.caughtUp ? 'reconnecting' : 'connecting')
+    this.#disconnect()
+    if (!this.#wanted) this.#options.page?.addEventListener('visibilitychange', this.#onPage)
+    this.#wanted = true
+    if (this.#hidden()) this.#set({ connection: this.#state.caughtUp ? 'reconnecting' : 'connecting' })
+    else this.#open(this.#state.caughtUp ? 'reconnecting' : 'connecting')
   }
 
   /** Closes the connection and cancels any pending reconnect. Never cancels work. */
   close(): void {
+    if (this.#wanted) this.#options.page?.removeEventListener('visibilitychange', this.#onPage)
+    this.#wanted = false
+    this.#disconnect()
+  }
+
+  #hidden(): boolean {
+    return this.#options.page?.visibilityState === 'hidden'
+  }
+
+  /** Hidden, the connection is let go; shown, it resumes with a fresh failure
+   * budget. A `failed` stream stays failed: only `retry()` leaves it. */
+  readonly #onPage = (): void => {
+    if (!this.#wanted || this.#state.connection === 'failed') return
+    if (this.#hidden()) {
+      this.#disconnect()
+      this.#set({ streaming: {}, labels: {} })
+    } else if (this.#source === null && this.#timer === null) {
+      this.#failures = 0
+      this.#open(this.#state.caughtUp ? 'reconnecting' : 'connecting')
+    }
+  }
+
+  #disconnect(): void {
     if (this.#timer !== null) {
       clearTimeout(this.#timer)
       this.#timer = null
@@ -128,7 +172,7 @@ export class ThreadStream {
 
   /** Leaves `failed` by reconnecting now, with a fresh failure budget. */
   readonly retry = (): void => {
-    this.close()
+    this.#disconnect()
     this.#failures = 0
     this.#open(this.#state.caughtUp ? 'reconnecting' : 'connecting')
   }
@@ -198,7 +242,7 @@ export class ThreadStream {
     // Transient frames were dropped, durable ones were not: resubscribe from
     // `lastSeq` at once. Not a failure, so no backoff.
     on('lagged', () => {
-      this.close()
+      this.#disconnect()
       this.#set({ streaming: {}, labels: {} })
       this.#open('reconnecting')
     })
@@ -219,7 +263,7 @@ export class ThreadStream {
   /** The connection broke: reconnect from `lastSeq` after a capped backoff,
    * or give up once `maxFailures` breaks came without a `caught-up`. */
   #lost(problem: string): void {
-    this.close()
+    this.#disconnect()
     this.#failures += 1
     if (this.#failures > this.#options.maxFailures) {
       this.#set({ connection: 'failed', problem, streaming: {}, labels: {} })
@@ -238,7 +282,7 @@ export class ThreadStream {
 
   /** A frame this client cannot read. Reconnecting would read it again, so stop. */
   #fail(problem: string): void {
-    this.close()
+    this.#disconnect()
     this.#set({ connection: 'failed', problem, streaming: {}, labels: {} })
   }
 

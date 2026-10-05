@@ -366,6 +366,22 @@ durable replay
 
 Transient token deltas from before disconnect are not reconstructed.
 
+**A hidden page holds no stream.** The daemon speaks HTTP/1.1, and a browser
+allows six connections to one host across all its tabs. Each open stream keeps
+one: a web tab holds one per expanded project and one for its conversation, so
+two tabs filled the pool and every other request from any tab waited until it
+timed out (measured 2026-10-05: a plain `GET /api/projects` stalled 8 s with
+two tabs open; with the hidden one released it answered in 4 ms). So a client
+closes its streams while its page is hidden and, shown again, resumes each from
+its last applied cursor as after any disconnect. Nothing the daemon does
+depends on a client watching: a turn, its watcher and the queue's next send
+(§20.3) run without one.
+
+> **OPEN — streams of pages shown side by side.** Two windows shown at once
+> still hold their streams together, and with two projects expanded in each
+> they fill the pool. Closed when that is hit in use: then one multiplexed
+> stream per page (or HTTP/2, which needs TLS) replaces the per-scope streams.
+
 ## 2.11 Claude → Codex continuity
 
 Continuity comes from:

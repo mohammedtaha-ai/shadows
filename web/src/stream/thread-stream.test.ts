@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FakeSource } from './fake-event-source'
 import { fakeChoices } from '@/test/contract-fixtures'
-import { type Notice, type Options, ThreadStream } from './thread-stream'
+import { type Notice, type Options, type PageLike, ThreadStream } from './thread-stream'
 
 function harness(options: Partial<Options> = {}) {
   const sources: FakeSource[] = []
@@ -213,4 +213,48 @@ describe('ThreadStream', () => {
     expect(notices.map((n) => n.type)).toEqual(['usage', 'options'])
     expect(notices[1]).toEqual({ type: 'options', choices: fakeChoices })
   })
+
+  it('lets go of its connection while the page is hidden and resumes after its seq', () => {
+    const page = fakePage()
+    const { stream, sources, current } = harness({ page })
+    stream.start()
+    current().durable(1)
+    current().caughtUp(1)
+
+    page.show('hidden')
+    expect(sources[0]?.closed).toBe(true)
+    expect(sources).toHaveLength(1)
+
+    page.show('visible')
+    expect(sources).toHaveLength(2)
+    expect(afterOf(current())).toBe('1')
+
+    stream.close()
+    page.show('hidden')
+    page.show('visible')
+    expect(sources).toHaveLength(2)
+  })
+
+  it('opens nothing while started on a hidden page', () => {
+    const page = fakePage('hidden')
+    const { stream, sources } = harness({ page })
+    stream.start()
+    expect(sources).toHaveLength(0)
+    page.show('visible')
+    expect(sources).toHaveLength(1)
+  })
 })
+
+function fakePage(initial = 'visible'): PageLike & { show: (state: string) => void } {
+  const listeners = new Set<() => void>()
+  const page = {
+    visibilityState: initial,
+    addEventListener: (_: 'visibilitychange', listener: () => void) => listeners.add(listener),
+    removeEventListener: (_: 'visibilitychange', listener: () => void) => listeners.delete(listener),
+    show: (state: string) => {
+      page.visibilityState = state
+      for (const listener of listeners) listener()
+    },
+  }
+  return page
+}
