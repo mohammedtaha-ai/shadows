@@ -7221,7 +7221,7 @@
           },
           {
             "description": "The idempotency key (spec §3.2).",
-            "in": "path",
+            "in": "query",
             "name": "command_id",
             "required": true,
             "schema": {

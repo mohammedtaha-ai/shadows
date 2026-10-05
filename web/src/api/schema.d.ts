@@ -4619,15 +4619,16 @@ export interface operations {
     };
     unqueue: {
         parameters: {
-            query?: never;
+            query: {
+                /** @description The idempotency key (spec §3.2). */
+                command_id: string;
+            };
             header?: never;
             path: {
                 /** @description The thread */
                 id: components["schemas"]["ThreadId"];
                 /** @description The waiting message */
                 qid: components["schemas"]["QueuedMessageId"];
-                /** @description The idempotency key (spec §3.2). */
-                command_id: string;
             };
             cookie?: never;
         };

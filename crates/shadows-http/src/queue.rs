@@ -10,6 +10,7 @@ use super::failure::ErrorBody;
 use super::{AppState, Failure};
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 pub(super) struct CommandParam {
     /// The idempotency key (spec §3.2).
     command_id: String,
