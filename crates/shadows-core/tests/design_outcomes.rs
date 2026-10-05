@@ -400,8 +400,15 @@ async fn plan_lifecycle_never_completes_outcomes() {
         .await
         .unwrap();
     let frozen = core.plans().get(&v.workflow_id).await.unwrap().content();
-    let frozen_record: String = sqlx::query_scalar("SELECT json_object('source',source_plan_json,'title',title,'goal',goal,'state',state,'revision',revision,'frozen_at',frozen_at,'updated_at',updated_at) FROM workflow WHERE id=?")
-        .bind(v.workflow_id.as_str()).fetch_one(storage.reader()).await.unwrap();
+    let frozen_record: String = sqlx::query_scalar(
+        r#"SELECT json_object('source',source_plan_json,'title',title,'goal',goal,
+             'state',state,'revision',revision,'frozen_at',frozen_at,'updated_at',updated_at)
+           FROM workflow WHERE id=?"#,
+    )
+    .bind(v.workflow_id.as_str())
+    .fetch_one(storage.reader())
+    .await
+    .unwrap();
     let frozen_tasks: Vec<(String, String, String)> = sqlx::query_as(
         "SELECT id,contract_json,scope_json FROM task WHERE workflow_id=? ORDER BY id",
     )
@@ -426,8 +433,15 @@ async fn plan_lifecycle_never_completes_outcomes() {
     );
     assert!(original.get("state").is_none());
     assert!(original.get("completed").is_none());
-    let after_record: String = sqlx::query_scalar("SELECT json_object('source',source_plan_json,'title',title,'goal',goal,'state',state,'revision',revision,'frozen_at',frozen_at,'updated_at',updated_at) FROM workflow WHERE id=?")
-        .bind(v.workflow_id.as_str()).fetch_one(storage.reader()).await.unwrap();
+    let after_record: String = sqlx::query_scalar(
+        r#"SELECT json_object('source',source_plan_json,'title',title,'goal',goal,
+             'state',state,'revision',revision,'frozen_at',frozen_at,'updated_at',updated_at)
+           FROM workflow WHERE id=?"#,
+    )
+    .bind(v.workflow_id.as_str())
+    .fetch_one(storage.reader())
+    .await
+    .unwrap();
     let after_tasks: Vec<(String, String, String)> = sqlx::query_as(
         "SELECT id,contract_json,scope_json FROM task WHERE workflow_id=? ORDER BY id",
     )

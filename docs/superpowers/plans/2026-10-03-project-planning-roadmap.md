@@ -1,11 +1,13 @@
 # Project planning — delivery roadmap
 
 - **Date:** 2026-10-03
-- **Status:** Draft for Mohammed's review.
+- **Status:** Active delivery roadmap, expanded by Mohammed's local-first
+  completion objective on 2026-10-04.
 - **Purpose:** The whole delivery sequence requested during brainstorming.
-  This is a roadmap, not a task-by-task implementation plan or an execution
-  authorization. Each stage gets its detailed plan after its written spec is
-  reviewed.
+  This is the whole-project delivery sequence. Mohammed authorized continued
+  work on `codex/full-project-vision`, derived from cleanup commit `e290df6`,
+  with local use first. Each subsystem keeps its own owner spec and detailed
+  implementation plan; this roadmap does not invent its technical rules.
 - **Product intent:** [vision §9](../../vision.md#9-the-roadmap-shared-contracts-and-the-effect-of-a-change).
 - **First release owner:** [§18](../specs/2026-10-03-project-planning-workspace-design.md).
 
@@ -15,7 +17,10 @@
 version provenance, archive, continuation, conversation deletion and project
 events. The planning branch starts there. §16 1b remains specified but has no
 implementation plan; §17 remains a draft for task contracts and evidence.
-No executors or executive manager are claimed to exist.
+The Stage 1 workspace and subsequent structure hygiene are inherited from
+`e290df6`: 385 Rust and 180 Web tests passed on Windows. No executors or
+executive manager are claimed to exist. Current delivery is on
+`codex/full-project-vision`; the starting tree was clean.
 
 ## Shared foundations
 
@@ -32,9 +37,19 @@ The roadmap does not reproduce their decisions.
 | 4. Executors and verification | Configure an executor and critic, run one bounded task serially, resolve a needed symbol and review actual results | §17 execution and §19 profiles/critic dispatch after review; Stages 2–3; adapter scope enforcement and person authority |
 | 5. Executive manager and specialists | Investigate problems, direct repairs, dispatch selected specialists; configure extensions and additional tested provider connections | §19 profiles/extensions plus a later manager authority owner; Stage 4 evidence; separate runnable slices for manager, tools and providers |
 | 6. Diagrams and views | Explore structured schema or screen design and regroup the same elements by architecture or domain | A later owner spec using Stage 1 identities; specialized diagrams are not an execution prerequisite |
+| 7. Local operations and release | Start a configured local installation, inspect health, back up and recover data, upgrade safely and understand compatibility limits | Extend configuration/process owners and specify local lifecycle after execution evidence exists |
+| 8. Safe concurrency | Run independent ready tasks in separate workspaces, reconcile their results and preserve verification provenance | Later execution/workspace owner; serial execution and recovery from Stages 4–5 first |
+| 9. Teams and company server | Share Roadmaps and approved contracts across people while personal execution stays local | Later tenancy/authority/sync/storage owners; complete local release first |
 
 Each stage ends with a Windows browser trial and a dated evidence record.
 Readiness is measured on the running product, separately from automated tests.
+
+**Local-first completion (2026-10-04):** deliver the complete local journey
+through Stage 7, then proven local concurrency and the company direction.
+The goal is not reduced to the first shared-contract release. Local planning,
+contracts, execution, verification, manager decisions, diagrams and operational
+recovery all belong to its acceptance inventory. Remote accounts or deployment
+are not prerequisites for beginning these local stages.
 
 **2026-10-03 refinement:** the core value is reusable understanding followed
 by focused execution. Prove that loop before specialized visual editors.
@@ -113,11 +128,26 @@ Never create unused schema merely to reserve a number.
 - **6:** the diagram and detail editor describe one design; the same element
   keeps its identity in different views; intended design and observed code or
   schema are distinguishable. No inferred match is presented as proof.
+- **7:** explicit data/config locations survive restart; an online backup is
+  recoverable; migrations preserve existing user records; interrupted upgrades
+  fail visibly; the local installation can be started and stopped by the person.
+  Observed model/tool usage and unmeasured values remain distinguishable. The
+  Web formatter gate and Rust overflow gate reject actual formatting drift.
+- **8:** independent work runs in isolated workspaces. Overlapping writes,
+  read/write dependencies and shared build state cannot silently corrupt an
+  attempt. Integration has a new source/result digest and fresh checks; old
+  verification never approves the combined result. Stop/crash/restart do not
+  duplicate dispatch or lose a worktree's recoverable changes.
+- **9:** tenant boundaries, actor authority and contract distribution are
+  enforced end to end. A local client can continue approved work with explicit
+  offline limits and reconcile after reconnect. PostgreSQL stays behind its
+  persistence owner; SQLite remains a functional personal deployment. No
+  company deployment is claimed from a local test.
 
 ## Work deliberately left for later designs
 
-Parallel writes, team accounts, a company server and remote execution need
-their own scope and proof. §19 introduces a staged path for profiles, extensions
+Parallel writes, team accounts, a company server and remote execution remain
+in the full vision and need their own scope and proof at Stages 8–9. §19 introduces a staged path for profiles, extensions
 and additional provider connections; it promises no universal CLI/model
 compatibility. These capabilities do not exist merely because Stage 1 allows
 arbitrary project structure.
@@ -129,10 +159,19 @@ not in a detailed task list written prematurely here.
 ## Next artifact
 
 The [Stage 1 implementation plan](./2026-10-03-planning-workspace-stage-1.md)
-is now written for review; it has not been executed.
+has been executed; its tests and isolated Windows browser trial are recorded
+in [the dated evidence](../../evidence/2026-10-04-planning-workspace-stage-1.md).
+The [§16 1b implementation plan](./2026-10-04-cross-plan-links-1b.md)
+has also been executed on `codex/full-project-vision`; its automated gate and
+isolated Windows trial are recorded in
+[dated evidence](../../evidence/2026-10-04-cross-plan-links-1b.md).
+The next implementation plan is §18 shared API agreements. Later subsystems
+retain their own design, implementation and acceptance work.
 
-Review §18 together with the Stage 1 plan before choosing its execution
-method. The plan specifies code ownership, migration allocation, public
-interfaces, focused tests and the browser acceptance path. Stage 2 follows
-the demonstrated Stage 1 baseline; later stages keep their separate design
-and implementation reviews.
+## Completion audit
+
+For each stage, retain the owner spec, implementation commits, contract/API
+checks, full automated gate, rendered UI trial and restart/recovery evidence.
+Draft specifications, generated interfaces, passing unit tests and an agent's
+claim do not establish an entire stage. An incomplete, unsupported or
+unmeasured capability stays visible until its acceptance path is proven.

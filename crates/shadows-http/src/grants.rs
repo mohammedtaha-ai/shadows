@@ -58,7 +58,11 @@ pub(super) struct IssuedGrantBody {
     params(("id" = ProjectId, Path, description = "The project")),
     request_body = IssueGrant,
     responses(
-        (status = 200, description = "Issued, or the replay of the same command without its token", body = IssuedGrantBody),
+        (
+            status = 200,
+            description = "Issued, or the replay of the same command without its token",
+            body = IssuedGrantBody,
+        ),
         (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
         (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),

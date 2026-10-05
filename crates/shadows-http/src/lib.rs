@@ -18,6 +18,7 @@
 //! of them appear in a domain or application signature; a handler is where
 //! `axum` stops.
 
+mod agreements;
 mod code;
 mod conversation;
 mod design;
@@ -130,6 +131,11 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(design::outcome))
         .routes(routes!(design::part))
         .routes(routes!(design::edit))
+        .routes(routes!(agreements::list, agreements::start))
+        .routes(routes!(agreements::get, agreements::edit))
+        .routes(routes!(agreements::review))
+        .routes(routes!(agreements::agree))
+        .routes(routes!(agreements::bindings))
         .routes(routes!(project::update_project, project::remove_project))
         .routes(routes!(project::list_threads, project::create_thread))
         .routes(routes!(conversation::list_entries))
@@ -148,6 +154,7 @@ fn routes() -> OpenApiRouter<AppState> {
         ))
         .routes(routes!(thread::fork_thread))
         .routes(routes!(workflow::list_plans))
+        .routes(routes!(workflow::plan_map))
         .routes(routes!(workflow::get_plan))
         .routes(routes!(workflow::approve_plan))
         .routes(routes!(workflow::get_plan_versions))
@@ -184,8 +191,9 @@ fn content_length(headers: &axum::http::HeaderMap) -> Option<u64> {
 /// Cross-origin access for the configured origins only; any other origin's
 /// request gets no `Access-Control-Allow-Origin` and the browser withholds the
 /// response. The methods and headers are exactly what the routes use: `GET`,
-/// `POST`, `PUT`, `PATCH` and `DELETE` (revoking a grant), JSON bodies, and `Last-Event-ID`, which a browser's
-/// `EventSource` sends when it reconnects a stream. No credentials: the API
+/// `POST`, `PUT`, `PATCH` and `DELETE` (revoking a grant), JSON bodies, and
+/// `Last-Event-ID`, which a browser's `EventSource` sends when it reconnects a
+/// stream. No credentials: the API
 /// has none to send (spec §1's OPEN block on remote access).
 fn cors(origins: &[String]) -> CorsLayer {
     let origins: Vec<HeaderValue> = origins

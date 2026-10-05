@@ -64,10 +64,14 @@ impl Storage {
                         summary: "project design changed".into(),
                     });
                 }
-                if ops.is_empty() { return Err(StorageError::Constraint("a design edit needs an operation".into())); }
-                let next = current.checked_add(1).ok_or_else(|| {
-                    StorageError::Unavailable("design revision exhausted".into())
-                })?;
+                if ops.is_empty() {
+                    return Err(StorageError::Constraint(
+                        "a design edit needs an operation".into(),
+                    ));
+                }
+                let next = current
+                    .checked_add(1)
+                    .ok_or_else(|| StorageError::Unavailable("design revision exhausted".into()))?;
                 sqlx::query(
                     "INSERT INTO design_workspace
                        (project_id, revision, vision_revision, vision_content) VALUES (?,?,?,?)
@@ -79,55 +83,120 @@ impl Storage {
                 .bind(serde_json::to_string(&VisionContent::default())?)
                 .execute(&mut *conn)
                 .await?;
-                let mut changed=BTreeSet::new();
-                let mut created=BTreeSet::new();
-                let mut changed_outcomes=BTreeSet::new();
-                let mut created_outcomes=BTreeSet::new();
-                let mut vision=None;
+                let mut changed = BTreeSet::new();
+                let mut created = BTreeSet::new();
+                let mut changed_outcomes = BTreeSet::new();
+                let mut created_outcomes = BTreeSet::new();
+                let mut vision = None;
                 for op in ops {
                     match op {
-                        DesignOp::VisionPut{content} => vision=Some(content),
-                        other @ (DesignOp::PartCreate{..}|DesignOp::PartPut{..}|DesignOp::PartMove{..}|DesignOp::PlanLinkPut{anchor:DesignAnchor::Part(_),..}|DesignOp::PlanLinkRemove{anchor:DesignAnchor::Part(_),..}) => {
-                            if let DesignOp::PartCreate{id,..}=&other { created.insert(id.to_string()); }
-                            super::part_edit::apply(conn,&project,other,&mut changed).await?;
+                        DesignOp::VisionPut { content } => vision = Some(content),
+                        other @ (DesignOp::PartCreate { .. }
+                        | DesignOp::PartPut { .. }
+                        | DesignOp::PartMove { .. }
+                        | DesignOp::PlanLinkPut {
+                            anchor: DesignAnchor::Part(_),
+                            ..
                         }
-                        other=>{
-                            if let DesignOp::OutcomeCreate{id,..}=&other {created_outcomes.insert(id.to_string());}
-                            super::outcome_edit::apply(conn,&project,other,&mut changed_outcomes).await?;
+                        | DesignOp::PlanLinkRemove {
+                            anchor: DesignAnchor::Part(_),
+                            ..
+                        }) => {
+                            if let DesignOp::PartCreate { id, .. } = &other {
+                                created.insert(id.to_string());
+                            }
+                            super::part_edit::apply(conn, &project, other, &mut changed).await?;
+                        }
+                        other @ (DesignOp::OutcomeCreate { .. }
+                        | DesignOp::OutcomePut { .. }
+                        | DesignOp::OutcomeMove { .. }
+                        | DesignOp::OutcomePartPut { .. }
+                        | DesignOp::OutcomePartRemove { .. }
+                        | DesignOp::PlanLinkPut {
+                            anchor: DesignAnchor::Outcome(_),
+                            ..
+                        }
+                        | DesignOp::PlanLinkRemove {
+                            anchor: DesignAnchor::Outcome(_),
+                            ..
+                        }) => {
+                            if let DesignOp::OutcomeCreate { id, .. } = &other {
+                                created_outcomes.insert(id.to_string());
+                            }
+                            super::outcome_edit::apply(
+                                conn,
+                                &project,
+                                other,
+                                &mut changed_outcomes,
+                            )
+                            .await?;
                         }
                     }
                 }
-                let vision_changed=vision.is_some();
-                if let Some(content)=vision {
-                    sqlx::query("UPDATE design_workspace SET vision_content=?, vision_revision=vision_revision+1 WHERE project_id=?")
-                        .bind(serde_json::to_string(&content)?).bind(project.as_str()).execute(&mut *conn).await?;
+                let vision_changed = vision.is_some();
+                if let Some(content) = vision {
+                    sqlx::query(
+                        "UPDATE design_workspace SET vision_content=?, \
+                         vision_revision=vision_revision+1 WHERE project_id=?",
+                    )
+                    .bind(serde_json::to_string(&content)?)
+                    .bind(project.as_str())
+                    .execute(&mut *conn)
+                    .await?;
                 }
-                for id in changed.iter().filter(|id|!created.contains(*id)) {
-                    sqlx::query("UPDATE design_part SET revision=revision+1 WHERE project_id=? AND id=?")
-                        .bind(project.as_str()).bind(id).execute(&mut *conn).await?;
+                for id in changed.iter().filter(|id| !created.contains(*id)) {
+                    sqlx::query(
+                        "UPDATE design_part SET revision=revision+1 WHERE project_id=? AND id=?",
+                    )
+                    .bind(project.as_str())
+                    .bind(id)
+                    .execute(&mut *conn)
+                    .await?;
                 }
-                for id in changed_outcomes.iter().filter(|id|!created_outcomes.contains(*id)) {
-                    sqlx::query("UPDATE design_outcome SET revision=revision+1 WHERE project_id=? AND id=?")
-                        .bind(project.as_str()).bind(id).execute(&mut *conn).await?;
+                for id in changed_outcomes
+                    .iter()
+                    .filter(|id| !created_outcomes.contains(*id))
+                {
+                    sqlx::query(
+                        "UPDATE design_outcome SET revision=revision+1 \
+                         WHERE project_id=? AND id=?",
+                    )
+                    .bind(project.as_str())
+                    .bind(id)
+                    .execute(&mut *conn)
+                    .await?;
                 }
                 let change = DesignChange { revision: next };
                 let id = uuid::Uuid::new_v4().to_string();
                 sqlx::query(
-                    "INSERT INTO design_command_result (id, project_id, result_json) VALUES (?,?,?)",
+                    "INSERT INTO design_command_result (id, project_id, result_json) \
+                     VALUES (?,?,?)",
                 )
                 .bind(&id)
                 .bind(project.as_str())
                 .bind(serde_json::to_string(&change)?)
                 .execute(&mut *conn)
                 .await?;
-                let event = DurableEvent::new("ProjectDesignChanged", Actor::user(&ctx.principal_id))
-                    .with_project(&project)
-                    .with_payload(serde_json::json!({
-                        "project_id": project, "revision": next,
-                        "changed_parts": changed, "changed_outcomes": changed_outcomes, "vision_changed": vision_changed
-                    }));
+                let event =
+                    DurableEvent::new("ProjectDesignChanged", Actor::user(&ctx.principal_id))
+                        .with_project(&project)
+                        .with_payload(serde_json::json!({
+                            "project_id": project, "revision": next,
+                            "changed_parts": changed,
+                            "changed_outcomes": changed_outcomes,
+                            "vision_changed": vision_changed
+                        }));
                 append_event(conn, &event, &ts).await?;
-                record_command(conn, &ctx, "Project", project.as_str(), "DesignChange", &id, &ts).await?;
+                record_command(
+                    conn,
+                    &ctx,
+                    "Project",
+                    project.as_str(),
+                    "DesignChange",
+                    &id,
+                    &ts,
+                )
+                .await?;
                 Ok(change)
             })
         })

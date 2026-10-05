@@ -7,15 +7,22 @@
 // settings, the global settings. A project's own URL has no page: it opens
 // the project's draft.
 
-import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
-import { ConversationRoute } from './app/conversation/conversation'
-import { DraftRoute } from './app/conversation/draft'
+import {
+  createRootRoute, createRoute, createRouter, lazyRouteComponent, redirect,
+} from '@tanstack/react-router'
 import { Home } from './app/home'
-import { WorkspacePage } from './app/design/workspace-page'
-import { ProjectSettings } from './app/project-settings/project-settings'
-import { SettingsPage } from './app/settings/settings-page'
 import { Shell } from './app/shell'
-import { PlanPage } from './app/workflows/plan-page'
+
+// Each page loads when it is first opened, so the first load carries only the
+// shell (vite's 500 kB chunk warning; every new page used to grow one bundle).
+const ConversationRoute = lazyRouteComponent(() => import('./app/conversation/conversation'), 'ConversationRoute')
+const DraftRoute = lazyRouteComponent(() => import('./app/conversation/draft'), 'DraftRoute')
+const WorkspacePage = lazyRouteComponent(() => import('./app/design/workspace-page'), 'WorkspacePage')
+const ProjectSettings = lazyRouteComponent(() => import('./app/project-settings/project-settings'), 'ProjectSettings')
+const SettingsPage = lazyRouteComponent(() => import('./app/settings/settings-page'), 'SettingsPage')
+const PlanPage = lazyRouteComponent(() => import('./app/workflows/plan-page'), 'PlanPage')
+const PlanMapPage = lazyRouteComponent(() => import('./app/workflows/plan-map'), 'PlanMapPage')
+const AgreementsPage = lazyRouteComponent(() => import('./app/agreements/agreements-page'), 'AgreementsPage')
 
 const rootRoute = createRootRoute({ component: Shell })
 
@@ -56,6 +63,12 @@ const planRoute = createRoute({
   component: PlanPage,
 })
 
+const planMapRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId/map',
+  component: PlanMapPage,
+})
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$projectId/settings',
@@ -72,6 +85,15 @@ const workspaceRoute = createRoute({
   }),
   component: WorkspacePage,
 })
+const agreementsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId/agreements',
+  validateSearch: (search: Record<string, unknown>): { agreement?: string; version?: number } => ({
+    agreement: typeof search.agreement === 'string' ? search.agreement : undefined,
+    version: typeof search.version === 'number' && Number.isInteger(search.version) && search.version > 0 ? search.version : undefined,
+  }),
+  component: AgreementsPage,
+})
 
 // The daemon's own settings, for every project at once (§13.11).
 const appSettingsRoute = createRoute({
@@ -87,8 +109,10 @@ export const router = createRouter({
     draftRoute,
     threadRoute,
     planRoute,
+    planMapRoute,
     settingsRoute,
     workspaceRoute,
+    agreementsRoute,
     appSettingsRoute,
   ]),
 })

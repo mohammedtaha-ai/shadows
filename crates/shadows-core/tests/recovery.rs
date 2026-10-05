@@ -16,15 +16,23 @@ async fn seed_operation(
     };
     storage
         .write_txn(|conn| {
-            let (op_id, runtime_id, status) =
-                (op_id.to_string(), runtime_id.as_str().to_string(), status.to_string());
+            let (op_id, runtime_id, status) = (
+                op_id.to_string(),
+                runtime_id.as_str().to_string(),
+                status.to_string(),
+            );
             Box::pin(async move {
                 sqlx::query(
-                    "INSERT INTO operation (id, kind, status_kind, runtime_instance_id, created_at, started_at)
-                     VALUES (?, 'PlannerTurn', ?, ?, '2026-09-21T00:00:00Z', ?)",
+                    r#"INSERT INTO operation (id, kind, status_kind, runtime_instance_id,
+                             created_at, started_at)
+                     VALUES (?, 'PlannerTurn', ?, ?, '2026-09-21T00:00:00Z', ?)"#,
                 )
-                .bind(&op_id).bind(&status).bind(&runtime_id).bind(started)
-                .execute(&mut *conn).await?;
+                .bind(&op_id)
+                .bind(&status)
+                .bind(&runtime_id)
+                .bind(started)
+                .execute(&mut *conn)
+                .await?;
                 Ok(())
             })
         })

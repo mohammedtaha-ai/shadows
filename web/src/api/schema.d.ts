@@ -116,9 +116,10 @@ export interface paths {
         /**
          * Stops a turn: asks the harness to cancel it, and if the harness does not
          *     confirm in time, terminates the adapter's process tree, confirms it is
-         *     gone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the operation as it
-         *     now stands — which may still be `Running` for a moment when the turn had
-         *     already ended on its own and its ending is being recorded.
+         *     gone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers
+         *     with the operation as it now stands — which may still be `Running` for a
+         *     moment when the turn had already ended on its own and its ending is being
+         *     recorded.
          * @description If the tree cannot be terminated the answer is 500
          *     `PROCESS_TERMINATION_FAILED`, and the operation is not `Cancelled`.
          */
@@ -228,6 +229,70 @@ export interface paths {
          *     as it now stands.
          */
         patch: operations["update_project"];
+        trace?: never;
+    };
+    "/api/projects/{id}/agreements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["agreement_list"];
+        put?: never;
+        post: operations["agreement_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/agreements/{agreement}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["agreement_get"];
+        put: operations["agreement_edit"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/agreements/{agreement}/agree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["agreement_agree"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/agreements/{agreement}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["agreement_review"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/projects/{id}/code/definitions": {
@@ -483,6 +548,22 @@ export interface paths {
          *     agent. The token is shown once — here — and stored only as its hash.
          */
         post: operations["issue_grant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/plan-map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["plan_map"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -843,6 +924,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workflows/{id}/bindings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["plan_binding_edit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -866,6 +963,93 @@ export interface components {
         Actor: {
             id: string;
             kind: string;
+        };
+        Agree: {
+            command_id: string;
+            /** Format: int64 */
+            expected_revision: number;
+            review_id: string;
+        };
+        AgreementBinding: {
+            agreement_id: components["schemas"]["AgreementId"];
+            operations: string[];
+            part_id: components["schemas"]["PartId"];
+            role: components["schemas"]["AgreementRole"];
+            /** Format: int32 */
+            task: number;
+            /** Format: int64 */
+            version: number;
+        };
+        AgreementContent: {
+            acceptance: string[];
+            behavior: string;
+            capability: string;
+            openapi: unknown;
+            parties: components["schemas"]["AgreementParty"][];
+            purpose: string;
+        };
+        /** Format: uuid */
+        AgreementId: string;
+        AgreementIssue: {
+            message: string;
+            path: string;
+        };
+        AgreementParticipantImpact: {
+            affected: boolean;
+            changes: unknown;
+            execution: string;
+            next_action: string;
+            participant: components["schemas"]["BindingParticipant"];
+        };
+        AgreementParty: {
+            part_id: components["schemas"]["PartId"];
+            role: components["schemas"]["AgreementRole"];
+        };
+        AgreementPartyReview: {
+            change: string;
+            party: components["schemas"]["AgreementParty"];
+            /** Format: int64 */
+            revision: number;
+            title: string;
+        };
+        AgreementReview: {
+            agreement_id: components["schemas"]["AgreementId"];
+            /** Format: int64 */
+            base_version?: number | null;
+            changes: unknown;
+            compatibility: string;
+            limits: string[];
+            participants: components["schemas"]["AgreementParticipantImpact"][];
+            parties: components["schemas"]["AgreementPartyReview"][];
+            review_id: string;
+            /** Format: int64 */
+            revision: number;
+            /** Format: int64 */
+            version: number;
+        };
+        /** @enum {string} */
+        AgreementRole: "provides" | "uses";
+        /** @enum {string} */
+        AgreementState: "Draft" | "Agreed";
+        AgreementVersion: {
+            agreed_at?: string | null;
+            agreement_id: components["schemas"]["AgreementId"];
+            content: components["schemas"]["AgreementContent"];
+            created_at: string;
+            issues: components["schemas"]["AgreementIssue"][];
+            project_id: components["schemas"]["ProjectId"];
+            reason?: string | null;
+            /** Format: int64 */
+            revision: number;
+            state: components["schemas"]["AgreementState"];
+            /** Format: int64 */
+            version: number;
+            writer: components["schemas"]["AgreementWriter"];
+        };
+        AgreementWriter: {
+            id: string;
+            kind: string;
+            operation_id?: null | components["schemas"]["OperationId"];
         };
         /** @description What a question answers. */
         Answer: {
@@ -898,6 +1082,25 @@ export interface components {
             /** Format: int64 */
             version: number;
             workflow_id: components["schemas"]["WorkflowId"];
+        };
+        BindingEdit: {
+            command_id: string;
+            /** Format: int64 */
+            expected_revision: number;
+            ops: components["schemas"]["PlanOp"][];
+        };
+        BindingParticipant: {
+            binding: components["schemas"]["AgreementBinding"];
+            current: boolean;
+            plan_id: components["schemas"]["PlanId"];
+            plan_state: components["schemas"]["PlanState"];
+            /** Format: int64 */
+            plan_version: number;
+            /** Format: int64 */
+            revision: number;
+            title: string;
+            workflow_id: components["schemas"]["WorkflowId"];
+            workflow_state: components["schemas"]["WorkflowState"];
         };
         /** @description The effort a person picked (spec §12.7). */
         ChangeEffort: {
@@ -1074,6 +1277,30 @@ export interface components {
             parent?: string | null;
             /** @description The directory listed, canonical. `None` for the roots. */
             path?: string | null;
+        };
+        Edit: {
+            command_id: string;
+            content: components["schemas"]["AgreementContent"];
+            /** Format: int64 */
+            expected_revision: number;
+            /**
+             * Format: int64
+             * @description The Draft version the edit was built on; another version is refused.
+             */
+            version: number;
+        };
+        /**
+         * @description What an edit did, fixed when it committed, so a replay answers exactly
+         *     that and not the plan as it is later (§13.5).
+         */
+        EditOutcome: {
+            changed_tasks: number[];
+            /** Format: int64 */
+            revision: number;
+            summary: string;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
         };
         EntryRef: {
             /**
@@ -1267,8 +1494,7 @@ export interface components {
         };
         /** @description Spec §13.3. `task` waits for `after`. */
         Link: {
-            /** Format: int32 */
-            after: number;
+            after: components["schemas"]["TaskParent"];
             kind: components["schemas"]["LinkKind"];
             /** @description A few words saying what passes from `after` to `task`. */
             label: string;
@@ -1282,6 +1508,44 @@ export interface components {
          * @enum {string}
          */
         LinkKind: "needs" | "completes_after";
+        /** @description The other end of an outgoing or incoming cross-plan dependency. */
+        LinkedTask: {
+            broken?: string | null;
+            incoming: boolean;
+            link: components["schemas"]["Link"];
+            plan_id: components["schemas"]["PlanId"];
+            plan_state?: null | components["schemas"]["PlanState"];
+            plan_title?: string | null;
+            project_id?: null | components["schemas"]["ProjectId"];
+            project_name?: string | null;
+            state?: null | components["schemas"]["WorkflowState"];
+            task?: null | components["schemas"]["TaskPreview"];
+            /** Format: int64 */
+            version?: number | null;
+            workflow_id?: null | components["schemas"]["WorkflowId"];
+        };
+        MapLink: {
+            after: components["schemas"]["PlanId"];
+            broken: boolean;
+            /** Format: int32 */
+            count: number;
+            plan_id: components["schemas"]["PlanId"];
+        };
+        MapPlan: {
+            goal: string;
+            plan_id: components["schemas"]["PlanId"];
+            plan_state: components["schemas"]["PlanState"];
+            project_id: components["schemas"]["ProjectId"];
+            project_name: string;
+            removed: boolean;
+            state?: null | components["schemas"]["WorkflowState"];
+            /** Format: int32 */
+            task_count: number;
+            title: string;
+            /** Format: int64 */
+            version?: number | null;
+            workflow_id?: null | components["schemas"]["WorkflowId"];
+        };
         /**
          * @description Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
          *     `ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged
@@ -1357,12 +1621,14 @@ export interface components {
         };
         PartView: {
             ancestors: components["schemas"]["Part"][];
+            binding_plans?: components["schemas"]["BindingParticipant"][];
             part: components["schemas"]["Part"];
             plans: components["schemas"]["PlanId"][];
             revision: components["schemas"]["i64"];
         };
         /** @description One stored version of a plan, as a reader sees it now (§13.2). */
         Plan: {
+            bindings?: components["schemas"]["AgreementBinding"][];
             /**
              * @description What blocks approval ([`approval_problems`]) for a `Draft`; empty for
              *     a `Frozen` version.
@@ -1378,6 +1644,8 @@ export interface components {
             goal: string;
             id: components["schemas"]["WorkflowId"];
             last_edit?: null | components["schemas"]["LastEdit"];
+            /** @description Live dependency metadata; never part of the frozen content digest. */
+            linked_tasks?: components["schemas"]["LinkedTask"][];
             links: components["schemas"]["Link"][];
             next?: null | components["schemas"]["WorkflowId"];
             plan_id: components["schemas"]["PlanId"];
@@ -1410,6 +1678,53 @@ export interface components {
             updated_at: string;
             /** Format: int64 */
             version: number;
+        };
+        PlanMap: {
+            links: components["schemas"]["MapLink"][];
+            plans: components["schemas"]["MapPlan"][];
+            project_id: components["schemas"]["ProjectId"];
+        };
+        /** @description One edit operation. The names are the `plan_edit` tool's, exactly. */
+        PlanOp: {
+            binding: components["schemas"]["AgreementBinding"];
+            /** @enum {string} */
+            op: "binding_put";
+        } | {
+            agreement_id: components["schemas"]["AgreementId"];
+            /** @enum {string} */
+            op: "binding_remove";
+            role: components["schemas"]["AgreementRole"];
+            /** Format: int32 */
+            task: number;
+        } | {
+            goal: string;
+            /** @enum {string} */
+            op: "plan_put";
+            title: string;
+        } | {
+            /** @enum {string} */
+            op: "task_add";
+            task: components["schemas"]["TaskContent"];
+        } | {
+            /** @enum {string} */
+            op: "task_update";
+            task: components["schemas"]["TaskContent"];
+        } | {
+            /** Format: int32 */
+            number: number;
+            /** @enum {string} */
+            op: "task_remove";
+        } | {
+            link: components["schemas"]["Link"];
+            /** @enum {string} */
+            op: "link_put";
+        } | {
+            after: components["schemas"]["TaskParent"];
+            kind: components["schemas"]["LinkKind"];
+            /** @enum {string} */
+            op: "link_remove";
+            /** Format: int32 */
+            task: number;
         };
         /**
          * @description Spec §16.2. An `Archived` plan is read, never written.
@@ -1542,6 +1857,12 @@ export interface components {
             count: number;
             reason: string;
         };
+        Start: {
+            agreement_id?: null | components["schemas"]["AgreementId"];
+            command_id: string;
+            content?: null | components["schemas"]["AgreementContent"];
+            reason?: string | null;
+        };
         /** @description Starts a turn as one command (spec §12.7). */
         StartTurn: {
             /**
@@ -1574,6 +1895,20 @@ export interface components {
         };
         /** Format: uuid */
         TaskId: string;
+        /** @description A local task number, or a task in another plan's latest version. */
+        TaskParent: number | {
+            plan_id: components["schemas"]["PlanId"];
+            /** Format: int32 */
+            task: number;
+        };
+        TaskPreview: {
+            acceptance: components["schemas"]["AcceptanceItem"][];
+            goal: string;
+            /** Format: int32 */
+            number: number;
+            state: string;
+            title: string;
+        };
         ThreadEntry: {
             /**
              * @description Spec §4.2 calls this field's type `Principal`. Milestone 0 uses
@@ -2424,6 +2759,294 @@ export interface operations {
             };
         };
     };
+    agreement_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementVersion"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    agreement_start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Start"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementVersion"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    agreement_get: {
+        parameters: {
+            query?: {
+                version?: number;
+            };
+            header?: never;
+            path: {
+                id: components["schemas"]["ProjectId"];
+                agreement: components["schemas"]["AgreementId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementVersion"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    agreement_edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ProjectId"];
+                agreement: components["schemas"]["AgreementId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Edit"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementVersion"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    agreement_agree: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ProjectId"];
+                agreement: components["schemas"]["AgreementId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Agree"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementVersion"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    agreement_review: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ProjectId"];
+                agreement: components["schemas"]["AgreementId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementReview"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     definitions: {
         parameters: {
             query: {
@@ -3193,6 +3816,46 @@ export interface operations {
             };
             /** @description COMMAND_CONFLICT */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    plan_map: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanMap"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4110,6 +4773,63 @@ export interface operations {
                 };
             };
             /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    plan_binding_edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BindingEdit"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditOutcome"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             500: {
                 headers: {
                     [name: string]: unknown;

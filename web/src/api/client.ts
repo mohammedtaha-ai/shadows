@@ -11,6 +11,11 @@ import type { components, paths } from './schema'
 
 type Schemas = components['schemas']
 export type Project = Schemas['Project']
+export type AgreementVersion = Schemas['AgreementVersion']
+export type AgreementContent = Schemas['AgreementContent']
+export type AgreementReview = Schemas['AgreementReview']
+export type AgreementBinding = Schemas['AgreementBinding']
+export type PlanOp = Schemas['PlanOp']
 export type PlanningThread = Schemas['PlanningThread']
 export type ThreadEntry = Schemas['ThreadEntry']
 export type Operation = Schemas['Operation']
@@ -22,13 +27,15 @@ export type HarnessInfo = Schemas['HarnessInfo']
 export type Choice = Schemas['Choice']
 export type SessionChoices = Schemas['SessionChoices']
 export type AccountLimits = Schemas['AccountLimits']
-export type LimitWindow = Schemas['LimitWindow']
 export type InvocationView = Schemas['InvocationView']
 export type TurnSettings = Schemas['TurnSettings']
 export type ContextBreakdown = Schemas['ContextBreakdown']
 export type Plan = Schemas['Plan']
 export type PlanTask = Schemas['PlanTask']
 export type PlanLink = Schemas['Link']
+export type LinkedTask = Schemas['LinkedTask']
+export type PlanMap = Schemas['PlanMap']
+export type MapPlan = Schemas['MapPlan']
 export type PlanListing = Schemas['PlanListing']
 export type PlanVersions = Schemas['PlanVersions']
 export type VersionLine = Schemas['VersionLine']
@@ -52,7 +59,7 @@ export const DAEMON_URL = (import.meta.env.VITE_SHADOWS_URL ?? 'http://127.0.0.1
 // `fetch` is looked up on each call rather than captured once here (what
 // openapi-fetch does by default), so a test that stubs it is heard however
 // early this module was imported.
-const client = createClient<paths>({ baseUrl: DAEMON_URL, fetch: (request) => fetch(request) })
+export const client = createClient<paths>({ baseUrl: DAEMON_URL, fetch: (request) => fetch(request) })
 
 /** The CLIs a conversation can run on, with what each remembers and its
  * latest reported limits (spec §12.10). */
@@ -328,6 +335,10 @@ export function getPlan(workflowId: string): Promise<Plan> {
   return unwrap(client.GET('/api/workflows/{id}', { params: { path: { id: workflowId } } }))
 }
 
+export function getPlanMap(projectId: string): Promise<PlanMap> {
+  return unwrap(client.GET('/api/projects/{id}/plan-map', { params: { path: { id: projectId } } }))
+}
+
 /** Approves a Draft at the revision the person saw (spec §13.2). Answers what
  * the approval did, not the plan: the caller reads the plan again. */
 export function approvePlan(
@@ -420,4 +431,42 @@ export function projectEventsUrl(projectId: string, after: number): string {
   const url = new URL(`/api/projects/${encodeURIComponent(projectId)}/events`, DAEMON_URL)
   url.searchParams.set('after', String(after))
   return url.toString()
+}
+
+export function listAgreements(projectId: string): Promise<AgreementVersion[]> {
+  return unwrap(client.GET('/api/projects/{id}/agreements', { params: { path: { id: projectId } } }))
+}
+export function getAgreement(projectId: string, agreement: string, version?: number): Promise<AgreementVersion> {
+  return unwrap(client.GET('/api/projects/{id}/agreements/{agreement}', {
+    params: { path: { id: projectId, agreement }, query: { version } },
+  }))
+}
+export function startAgreement(projectId: string, command_id: string, content?: AgreementContent,
+  agreement_id?: string, reason?: string): Promise<AgreementVersion> {
+  return unwrap(client.POST('/api/projects/{id}/agreements', {
+    params: { path: { id: projectId } }, body: { command_id, content, agreement_id, reason },
+  }))
+}
+export function editAgreement(projectId: string, agreement: string, command_id: string,
+  version: number, expected_revision: number, content: AgreementContent): Promise<AgreementVersion> {
+  return unwrap(client.PUT('/api/projects/{id}/agreements/{agreement}', {
+    params: { path: { id: projectId, agreement } }, body: { command_id, version, expected_revision, content },
+  }))
+}
+export function reviewAgreement(projectId: string, agreement: string): Promise<AgreementReview> {
+  return unwrap(client.GET('/api/projects/{id}/agreements/{agreement}/review', {
+    params: { path: { id: projectId, agreement } },
+  }))
+}
+export function agreeAgreement(projectId: string, agreement: string, command_id: string,
+  expected_revision: number, review_id: string): Promise<AgreementVersion> {
+  return unwrap(client.POST('/api/projects/{id}/agreements/{agreement}/agree', {
+    params: { path: { id: projectId, agreement } }, body: { command_id, expected_revision, review_id },
+  }))
+}
+export function editBindings(id: string, command_id: string, expected_revision: number,
+  ops: PlanOp[]): Promise<Schemas['EditOutcome']> {
+  return unwrap(client.POST('/api/workflows/{id}/bindings', {
+    params: { path: { id } }, body: { command_id, expected_revision, ops },
+  }))
 }

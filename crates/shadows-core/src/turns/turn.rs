@@ -26,13 +26,21 @@
 //!
 //! | Milestone 0 (a process per turn) | Milestone 1 (a prompt on a live connection) |
 //! |---|---|
-//! | spawn `claude --print` | the thread's adapter is open (§12.2), then `session/prompt` is sent |
-//! | handle registered, then `Running` | the prompt is registered in `LiveHandles`, then `Running` |
-//! | `stream_event` text deltas | `session/update` chunks: transient, rendered, never stored |
-//! | `assistant` / `user` lines → entries | one entry per agent message, and one per tool call under its last title (`entries.rs`) |
-//! | `result` line + exit status | the `session/prompt` response: `end_turn` is success; any other stop reason, or a JSON-RPC error, fails the turn naming it |
-//! | session recorded at turn-end | unchanged: recorded when the first turn ends, never earlier |
-//! | the adapter exits mid-turn | `Failed { stage: Run }`, "the harness exited during the turn" |
+//! | spawn `claude --print` | the thread's adapter is open (§12.2), then
+//!   `session/prompt` is sent |
+//! | handle registered, then `Running` | the prompt is registered in
+//!   `LiveHandles`, then `Running` |
+//! | `stream_event` text deltas | `session/update` chunks: transient,
+//!   rendered, never stored |
+//! | `assistant` / `user` lines → entries | one entry per agent message, and
+//!   one per tool call under its last title (`entries.rs`) |
+//! | `result` line + exit status | the `session/prompt` response: `end_turn`
+//!   is success; any other stop reason, or a JSON-RPC error, fails the turn
+//!   naming it |
+//! | session recorded at turn-end | unchanged: recorded when the first turn
+//!   ends, never earlier |
+//! | the adapter exits mid-turn | `Failed { stage: Run }`, "the harness
+//!   exited during the turn" |
 
 use super::{
     entries::{Collector, Durable},
@@ -165,75 +173,153 @@ pub(crate) fn watch_turn(
     bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
 ) {
     let span = w.span.clone();
-    tokio::spawn(async move {
-        let mut collector = Collector::new();
-        let mut first = true;
-        let mut last_usage = None;
-        tracing::info!(session_id = %w.opened.session_id, how = w.opened.how, "agent.invocation.start");
-        // Notifications between turns belong to neither prompt.
-        while let Ok(stale) = rx.try_recv() { tracing::trace!(?stale, "planner.stale_event"); }
-        let answer = {
-            let prompt_future = w.opened.connection().prompt(&w.opened.session_id, &w.prompt, &w.context);
-            tokio::pin!(prompt_future);
-            loop {
-                tokio::select! {
-                    result = &mut prompt_future => break result,
-                    event = rx.recv() => match event {
-                        Some(event) => accept(&w, &mut collector, &bus, &mut first, &mut last_usage, event).await,
-                        // The adapter dropped its side: nothing more will
-                        // arrive, and polling a closed channel would spin.
-                        None => break prompt_future.await,
-                    },
+    tokio::spawn(
+        async move {
+            let mut collector = Collector::new();
+            let mut first = true;
+            let mut last_usage = None;
+            tracing::info!(session_id = %w.opened.session_id, how = w.opened.how,
+                      "agent.invocation.start");
+            // Notifications between turns belong to neither prompt.
+            while let Ok(stale) = rx.try_recv() {
+                tracing::trace!(?stale, "planner.stale_event");
+            }
+            let answer = {
+                let prompt_future =
+                    w.opened
+                        .connection()
+                        .prompt(&w.opened.session_id, &w.prompt, &w.context);
+                tokio::pin!(prompt_future);
+                loop {
+                    tokio::select! {
+                        result = &mut prompt_future => break result,
+                        event = rx.recv() => match event {
+                            Some(event) => accept(
+                                &w,
+                                &mut collector,
+                                &bus,
+                                &mut first,
+                                &mut last_usage,
+                                event,
+                            )
+                            .await,
+                            // The adapter dropped its side: nothing more will
+                            // arrive, and polling a closed channel would spin.
+                            None => break prompt_future.await,
+                        },
+                    }
                 }
+            };
+            while let Ok(event) = rx.try_recv() {
+                accept(&w, &mut collector, &bus, &mut first, &mut last_usage, event).await;
             }
-        };
-        while let Ok(event) = rx.try_recv() { accept(&w, &mut collector, &bus, &mut first, &mut last_usage, event).await; }
-        persist(&w, collector.finish()).await;
-        w.sessions.give_back_events(&w.thread_id, &w.opened, rx).await;
-        w.turn_end_seen.store(true, Ordering::SeqCst);
-        let (subtype, stop_reason) = match &answer {
-            Ok(TurnEnd::Ended) => ("success", Some("end_turn".to_string())),
-            Ok(TurnEnd::Cancelled) => ("error", Some("cancelled".to_string())),
-            Ok(TurnEnd::Refused(reason)) => ("error", Some(reason.clone())),
-            Err(_) => ("error", None),
-        };
-        tracing::info!(subtype, stop_reason = stop_reason.as_deref().unwrap_or(""), "planner.turn_end");
-        let _ = bus.send((w.thread_id.clone(), w.op_id.clone(), HarnessEvent::TurnEnd { subtype, stop_reason }));
-        // A new session, or a fork's, is recorded when its first turn ends
-        // (§12.3, §12.9); a resumed one is already the thread's.
-        if answer.is_ok()
-            && w.opened.how != "resume"
-            && let Err(error) = w.runtime.storage.record_harness_session(&w.thread_id, &w.opened.session_id).await
-        {
-            tracing::error!(%error, "planner.record_session_failed");
+            persist(&w, collector.finish()).await;
+            w.sessions
+                .give_back_events(&w.thread_id, &w.opened, rx)
+                .await;
+            w.turn_end_seen.store(true, Ordering::SeqCst);
+            let (subtype, stop_reason) = match &answer {
+                Ok(TurnEnd::Ended) => ("success", Some("end_turn".to_string())),
+                Ok(TurnEnd::Cancelled) => ("error", Some("cancelled".to_string())),
+                Ok(TurnEnd::Refused(reason)) => ("error", Some(reason.clone())),
+                Err(_) => ("error", None),
+            };
+            tracing::info!(
+                subtype,
+                stop_reason = stop_reason.as_deref().unwrap_or(""),
+                "planner.turn_end"
+            );
+            let _ = bus.send((
+                w.thread_id.clone(),
+                w.op_id.clone(),
+                HarnessEvent::TurnEnd {
+                    subtype,
+                    stop_reason,
+                },
+            ));
+            // A new session, or a fork's, is recorded when its first turn ends
+            // (§12.3, §12.9); a resumed one is already the thread's.
+            if answer.is_ok()
+                && w.opened.how != "resume"
+                && let Err(error) = w
+                    .runtime
+                    .storage
+                    .record_harness_session(&w.thread_id, &w.opened.session_id)
+                    .await
+            {
+                tracing::error!(%error, "planner.record_session_failed");
+            }
+            if matches!(answer, Ok(TurnEnd::Ended)) {
+                w.sessions.mark_answered(&w.thread_id, &w.opened).await;
+            }
+            w.sessions.touch(&w.thread_id).await;
+            if w.handles.claim(&w.op_id).await.is_none() {
+                return;
+            }
+            let result = match answer {
+                // Only a completed turn records an observation: a failed or
+                // cancelled one leaves it NULL, which a client shows as
+                // unavailable (§12.7 — nothing unreported is estimated).
+                Ok(TurnEnd::Ended) => {
+                    let seen = TurnObservation {
+                        native_session_id: Some(w.opened.session_id.clone()),
+                        ..TurnObservation::from_usage(last_usage.as_ref())
+                    };
+                    w.runtime
+                        .storage
+                        .mark_operation_completed(
+                            &w.op_id,
+                            serde_json::json!({ "stop_reason": "end_turn" }),
+                            &seen,
+                        )
+                        .await
+                }
+                Ok(TurnEnd::Cancelled) if w.cancel_requested.load(Ordering::SeqCst) => {
+                    w.runtime.storage.mark_operation_cancelled(&w.op_id).await
+                }
+                Ok(TurnEnd::Cancelled) => {
+                    w.runtime
+                        .storage
+                        .mark_operation_failed(
+                            &w.op_id,
+                            FailureStage::Run,
+                            "the harness cancelled the turn on its own",
+                        )
+                        .await
+                }
+                Ok(TurnEnd::Refused(reason)) => {
+                    w.runtime
+                        .storage
+                        .mark_operation_failed(&w.op_id, FailureStage::Run, &reason)
+                        .await
+                }
+                Err(AcpError::Closed) => {
+                    if let Err(error) = w.sessions.terminate_adapter(&w.thread_id, &w.opened).await
+                    {
+                        tracing::error!(%error, "planner.dead_adapter_cleanup_failed");
+                    }
+                    w.runtime
+                        .storage
+                        .mark_operation_failed(
+                            &w.op_id,
+                            FailureStage::Run,
+                            "the harness exited during the turn",
+                        )
+                        .await
+                }
+                Err(AcpError::Rpc(reason)) => {
+                    w.runtime
+                        .storage
+                        .mark_operation_failed(&w.op_id, FailureStage::Run, &reason)
+                        .await
+                }
+            };
+            if let Err(error) = result {
+                tracing::error!(%error, "planner.terminal_transition_failed");
+            }
         }
-        if matches!(answer, Ok(TurnEnd::Ended)) {
-            w.sessions.mark_answered(&w.thread_id, &w.opened).await;
-        }
-        w.sessions.touch(&w.thread_id).await;
-        if w.handles.claim(&w.op_id).await.is_none() { return; }
-        let result = match answer {
-            // Only a completed turn records an observation: a failed or
-            // cancelled one leaves it NULL, which a client shows as
-            // unavailable (§12.7 — nothing unreported is estimated).
-            Ok(TurnEnd::Ended) => {
-                let seen = TurnObservation {
-                    native_session_id: Some(w.opened.session_id.clone()),
-                    ..TurnObservation::from_usage(last_usage.as_ref())
-                };
-                w.runtime.storage.mark_operation_completed(&w.op_id, serde_json::json!({"stop_reason":"end_turn"}), &seen).await
-            }
-            Ok(TurnEnd::Cancelled) if w.cancel_requested.load(Ordering::SeqCst) => w.runtime.storage.mark_operation_cancelled(&w.op_id).await,
-            Ok(TurnEnd::Cancelled) => w.runtime.storage.mark_operation_failed(&w.op_id, FailureStage::Run, "the harness cancelled the turn on its own").await,
-            Ok(TurnEnd::Refused(reason)) => w.runtime.storage.mark_operation_failed(&w.op_id, FailureStage::Run, &reason).await,
-            Err(AcpError::Closed) => {
-                if let Err(error) = w.sessions.terminate_adapter(&w.thread_id, &w.opened).await { tracing::error!(%error, "planner.dead_adapter_cleanup_failed"); }
-                w.runtime.storage.mark_operation_failed(&w.op_id, FailureStage::Run, "the harness exited during the turn").await
-            }
-            Err(AcpError::Rpc(reason)) => w.runtime.storage.mark_operation_failed(&w.op_id, FailureStage::Run, &reason).await,
-        };
-        if let Err(error) = result { tracing::error!(%error, "planner.terminal_transition_failed"); }
-    }.instrument(span));
+        .instrument(span),
+    );
 }
 
 impl PlannerTurn {

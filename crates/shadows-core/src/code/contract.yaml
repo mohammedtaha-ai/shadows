@@ -554,6 +554,9 @@ functions:
 
 
 shared_in_transaction:
+  # Link mutations call Plans' notify_project_dependencies_in in their write.
+  selected_project_in: "Plans' store: resolves an optional project slug within the origin's live one-way reach in its read snapshot"
+  project_reachable_in: "Plans' store: checks live same-project or existing one-way project-link reach in the dependency read/approval snapshot"
   delete_code_index_in: "Projects' store (projects/store.rs remove_project): a removed project's index goes in the removal's own write (§15.4)"
   delete_code_links_in: "Projects' store (projects/store.rs remove_project): the links a removed project reads, and those reading it, go in the removal's own write (§15.4)"
 

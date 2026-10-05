@@ -29,8 +29,10 @@ use utoipa::OpenApi;
         (name = "turns", description = "Starting and stopping a Planner turn"),
         (name = "workflows", description = "Plan versions and a person's approval of one"),
         (name = "grants", description = "External agents' access to the MCP server"),
-        (name = "code", description = "The code index: where a name is defined or used, what a path holds, and the projects a project reads"),
-        (name = "harnesses", description = "The CLIs a conversation runs on, and the choices a session offers"),
+        (name = "code", description = "The code index: where a name is defined or used, what a \
+                                       path holds, and the projects a project reads"),
+        (name = "harnesses", description = "The CLIs a conversation runs on, and the choices a \
+                                       session offers"),
         (name = "stream", description = "The replay-then-live event stream"),
         (name = "filesystem", description = "Choosing a project directory on this machine"),
         (name = "meta", description = "This document"),
@@ -78,7 +80,9 @@ fn sorted(value: serde_json::Value) -> serde_json::Value {
     get,
     path = "/api/openapi.json",
     tag = "meta",
-    responses((status = 200, description = "This OpenAPI document", content_type = "application/json"))
+    responses(
+        (status = 200, description = "This OpenAPI document", content_type = "application/json")
+    )
 )]
 pub(super) async fn serve() -> ([(header::HeaderName, &'static str); 1], String) {
     ([(header::CONTENT_TYPE, "application/json")], document())

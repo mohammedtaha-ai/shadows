@@ -14,7 +14,8 @@ fn rust_tags() {
     let long = format!("    const GREETING: &str = \"{}\";", "سلام ".repeat(60));
     let src = format!(
         "pub struct Storage;\n\
-         impl Storage {{\n    pub fn open(path: &str) -> Self {{\n{long}\n        Storage\n    }}\n}}\n\
+         impl Storage {{\n    pub fn open(path: &str) -> Self {{\n\
+         {long}\n        Storage\n    }}\n}}\n\
          pub const LIMIT: u32 = 5;\n\
          fn main() {{ let _ = Storage::open(\"x\"); helper(); }}\n\
          fn helper() {{}}\n"
@@ -24,7 +25,8 @@ fn rust_tags() {
     let d = defs(&tags);
     assert!(d.contains(&("Storage".into(), "class".into(), 1)), "{d:?}");
     assert!(d.contains(&("open".into(), "method".into(), 3)), "{d:?}");
-    // Lines: 1 struct, 2 impl, 3 fn open, 4 the long const, 5–7 the body's end, 8 const, 9 main, 10 helper.
+    // Lines: 1 struct, 2 impl, 3 fn open, 4 the long const, 5–7 the body's end,
+    // 8 const, 9 main, 10 helper.
     assert!(
         d.iter().any(|(n, _, l)| n == "LIMIT" && *l == 8),
         "const is a definition: {d:?}"

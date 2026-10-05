@@ -282,7 +282,11 @@ async fn a_bound_draft_ref_still_replays_after_its_hour() {
     // From a frozen plan: its next version.
     let v1 = approved_v1(&l.app).await;
     let r2 = ok(&external, "draft_prepare", json!({})).await["draft_ref"].clone();
-    let next = json!({ "draft_ref": r2, "plan_id": l.app.storage.get_plan(&v1).await.unwrap().plan_id, "reason": "the API changed" });
+    let next = json!({
+        "draft_ref": r2,
+        "plan_id": l.app.storage.get_plan(&v1).await.unwrap().plan_id,
+        "reason": "the API changed",
+    });
     let v2 = ok(&external, "draft_start", next.clone()).await;
     expire(&l.app, r2.as_str().unwrap()).await;
     let plans_with_v2 = count(&l.app, "workflow").await;
@@ -326,7 +330,8 @@ async fn arabic_plan_round_trips_through_mcp() {
     let l = listening_app().await;
     let workflow = draft(&l.app).await.workflow_id;
     let planner = thread_client(&l, &l.app.thread).await;
-    let (title, goal) = ("خطة الدفع", "يستطيع الناس الدفع بالبطاقة");
+    let title = "خطة الدفع";
+    let goal = "يستطيع الناس الدفع بالبطاقة";
     let mut first = task(1, "تسجيل الدخول");
     first.goal = "يدخل المستخدم بكلمة المرور".into();
     first.acceptance[0].text = "تظهر رسالة خطأ واضحة".into();

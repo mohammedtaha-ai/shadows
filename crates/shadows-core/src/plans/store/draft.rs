@@ -68,7 +68,7 @@ impl Storage {
                         let id = latest_version(conn, plan)
                             .await?
                             .ok_or(StorageError::NotFound("workflow"))?;
-                        Some(load_plan(conn, &id).await?)
+                        Some(load_plan(conn, &id, None).await?)
                     }
                     None => None,
                 };
@@ -163,6 +163,7 @@ fn empty(title: String, goal: String) -> PlanContent {
         goal,
         tasks: Default::default(),
         links: Vec::new(),
+        bindings: Vec::new(),
     }
 }
 
@@ -274,6 +275,8 @@ async fn insert_version(
     let event = plan_event("WorkflowDraftStarted", by.writer, by.project, by.operation)
         .with_payload(serde_json::json!({ "workflow_id": id, "version": v.number }));
     append_event(conn, &event, ts).await?;
+    super::notifications::notify_plan(conn, by.project, v.plan, &[], &by.writer.actor(), ts)
+        .await?;
     Ok(id)
 }
 

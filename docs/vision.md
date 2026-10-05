@@ -432,13 +432,115 @@ agreements (§1.1), and a new session retains why an interface exists and what
 depends on it (§1.2). The person can see the consequences of a change before
 adopting it.
 
-**Today:** this is an agreed product direction. [§18's written draft](./superpowers/specs/2026-10-03-project-planning-workspace-design.md)
+**Today:** Vision, nested parts, Roadmap outcomes and existing-plan references
+are implemented and tested on the planning branch, inherited by
+`codex/full-project-vision`. Shared agreements, their impact reviews and
+automatic planning context are not implemented.
+[§18's written draft](./superpowers/specs/2026-10-03-project-planning-workspace-design.md)
 specifies the first workspace and shared API agreement journey; it awaits
-Mohammed's review and is not implemented. [The delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
-covers all six stages. §16 1b's task links retain their own semantics, and
+the remaining agreement implementation. [The delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
+covers the full delivery sequence. §16 1b's task links retain their own semantics, and
 §17 remains the draft owner of executable task contracts and evidence.
 
-## 10. Open questions
+## 10. A complete local product
+
+**Direction (Mohammed, 2026-10-04):** finish the vision as a coherent,
+extensible product, with local use first. A company server follows the local
+delivery; it must not turn the local application into a dependent thin client.
+
+The person can follow one continuous journey: describe the purpose, organize
+the project freely, agree interfaces, plan the selected part, execute a
+bounded task, inspect actual evidence, repair or replan with the manager,
+then continue after a restart without rediscovering the project. No screen
+may call a Draft approved, a proposal adopted, or a process exit verified.
+
+The local release includes all of these experiences:
+
+- Project structure and Roadmap, with stable identities through moves.
+- Task links between plans, visible dependencies, broken-link explanations
+  and a project map.
+- Shared API agreements with immutable versions, explicit participant
+  adoption and reviewable change impact.
+- Planning from an explicit scope, with a bounded context manifest that the
+  person can inspect; navigation alone does not switch planning scope.
+- Executable task contracts, preserved rationale, source-bound packets,
+  configured profiles, enforced task write boundaries and actual verification.
+- A critic and specialists that receive their own bounded questions and
+  evidence, plus an executive manager with finite repair budgets and a
+  durable escalation path.
+- Schema and screen diagrams as views of the same structured design, with
+  observed implementation kept distinguishable from intended design.
+- A usable Dashboard for runs, decisions, gates, profiles, connections,
+  extensions, costs and recovery, rather than a log of raw agent transcripts.
+- A working, tested Codex environment selectable from that Dashboard, with
+  project/profile-scoped MCP connections, supported plugins and skills. The
+  person can configure, test, inspect, enable, disable and update them, with
+  actionable setup errors and captured run configuration. §19 owns the design;
+  configuration alone does not establish working compatibility.
+- Local installation, explicit data location, recoverable backups and
+  migration checks; credentials never become project content.
+
+"Finished" means these paths work together on Windows, not merely that their
+tables, endpoints or isolated unit tests exist. The delivery roadmap owns the
+sequence and acceptance inventory; each technical decision stays in its owner.
+
+**Today:** this full local journey is the active delivery objective. The
+planning-workspace foundation and formatting cleanup exist; the later paths
+above remain implementation work.
+
+## 11. Structure that stays understandable as the product grows
+
+**Direction (Mohammed, 2026-10-04):** organized responsibilities matter more
+than a small physical file. AppCore and the binary may grow to compose a large
+product, while business rules remain in the services that own them.
+
+- Grow a service for its first real caller. An adapter translates; it does
+  not become a second application or reach through a service into SQLite.
+- Split by responsibility. Reusable behavior with actual consumers belongs
+  in one module or library; a file renamed `helpers` is not decomposition.
+- Research maintained libraries before implementing a graph algorithm,
+  parser, protocol, formatter, secret store or sandbox. Record which problem
+  a library solves, what was tested and what it does not guarantee.
+- Keep the existing SQLite path functional while preparing future seams.
+  A future PostgreSQL backend must not spread backend-specific SQL through
+  domain models, HTTP handlers or the browser.
+- Configured agent roles, extensions and tested connections expand behavior
+  through explicit contracts, rather than duplicated executor implementations.
+- Formatting is continuously checked. Rust's formatter and overflow check
+  are complementary; generated protocol artifacts are checked against their
+  owner, and the Web client also needs an explicit formatter gate.
+
+**Today:** §14 owns AppCore and adapter boundaries; SQLx, petgraph,
+tree-sitter, React Flow and Dagre already have real consumers. Rust overflow
+checking and shared editor behavior were verified in `e290df6`. Further
+library choices and a Web formatter require their implementation evidence.
+
+## 12. Clear navigation and focused work
+
+The person starts with the project's purpose and current Roadmap, then
+descends through freely named parts. A breadcrumb always identifies the
+location. Contracts remain project-owned and are reachable from every
+participant; they are not copied into each part's folder.
+
+The main workspace separates the current design, related plans, dependencies
+and observed implementation. A schema part can show an ER diagram; a frontend
+part can show screen relationships. Editing a diagram and editing its details
+must change the same record. Alternate views regroup existing identities.
+
+The Planner has a visible, explicitly selected scope independent of the page
+being browsed. Its context inspector explains the sources, revisions and
+budget. The execution Dashboard explains what can run, what is waiting,
+which evidence is missing and the decision needed to continue.
+
+Arabic and English content must remain readable together. Deep links,
+keyboard navigation, labelled controls, loading/error/empty states and
+recovery are part of the product's quality, not a later decorative pass.
+
+**Today:** basic workspace views and editor conflict recovery exist.
+Specialized diagrams, planning scope selection and the execution Dashboard
+are not yet implemented.
+
+## 13. Open questions
 
 - **Economics of focused work (§2).** Before expanding executor concurrency,
   compare the same representative tasks and acceptance checks with ordinary

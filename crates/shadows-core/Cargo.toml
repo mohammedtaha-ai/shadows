@@ -19,6 +19,8 @@ petgraph = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+jsonschema = { workspace = true }
+json-patch = { workspace = true }
 sha2 = { workspace = true }
 shadows-agent = { path = "../shadows-agent" }
 shadows-index = { path = "../shadows-index" }

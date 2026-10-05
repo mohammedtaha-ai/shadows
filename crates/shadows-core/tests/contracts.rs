@@ -97,7 +97,8 @@ fn symbols(dir: &Path) -> (BTreeSet<String>, BTreeSet<String>) {
                         if let syn::ImplItem::Fn(m) = it {
                             all.insert(m.sig.ident.to_string());
                             // The service's own `mod.rs` only: `Path::ends_with` would also
-                            // take `store/mod.rs`, whose `impl Storage` methods are not the service's.
+                            // take `store/mod.rs`, whose `impl Storage` methods are not
+                            // the service's.
                             if matches!(m.vis, syn::Visibility::Public(_))
                                 && i.trait_.is_none()
                                 && f == dir.join("mod.rs")
@@ -116,7 +117,10 @@ fn symbols(dir: &Path) -> (BTreeSet<String>, BTreeSet<String>) {
 
 /// `pub(crate)`, exactly: neither `pub(super)` nor `pub(in …)` nor `pub`.
 fn crate_visible(vis: &syn::Visibility) -> bool {
-    matches!(vis, syn::Visibility::Restricted(r) if r.in_token.is_none() && r.path.is_ident("crate"))
+    matches!(
+        vis,
+        syn::Visibility::Restricted(r) if r.in_token.is_none() && r.path.is_ident("crate")
+    )
 }
 
 /// Rule 9: the `pub(crate)` functions of a service's `store` (`store.rs` or `store/`), free
@@ -160,7 +164,10 @@ fn listed(y: &Yaml, out: &mut BTreeSet<String>) {
     if let Yaml::Hash(h) = y {
         for (k, v) in h {
             let named = matches!(v, Yaml::String(_))
-                || matches!(v, Yaml::Hash(inner) if inner.contains_key(&Yaml::String("signature".into())));
+                || matches!(
+                    v,
+                    Yaml::Hash(inner) if inner.contains_key(&Yaml::String("signature".into()))
+                );
             if named {
                 if let Yaml::String(k) = k {
                     out.insert(k.clone());
@@ -187,7 +194,10 @@ fn accessors(app: &Path) -> BTreeSet<String> {
             if let syn::ImplItem::Fn(m) = it
                 && matches!(m.vis, syn::Visibility::Public(_))
                 && m.sig.inputs.len() == 1
-                && matches!(&m.sig.output, syn::ReturnType::Type(_, t) if matches!(**t, syn::Type::Reference(_)))
+                && matches!(
+                    &m.sig.output,
+                    syn::ReturnType::Type(_, t) if matches!(**t, syn::Type::Reference(_))
+                )
             {
                 out.insert(m.sig.ident.to_string());
             }
@@ -280,7 +290,8 @@ fn every_contract_matches_its_service() {
                 if between.len() < 2 {
                     problems.push(format!("{name}: an agreement names fewer than two paths"))
                 }
-                // A path in another service is written `harness::change_model` and looked up in that folder.
+                // A path in another service is written `harness::change_model` and looked up
+                // in that folder.
                 for s in &between {
                     let found = match s.split_once("::") {
                         Some((svc, sym)) => symbols(&src.join(svc)).0.contains(sym),
@@ -351,7 +362,8 @@ fn every_contract_matches_its_service() {
         }
         for s in declared_shared.difference(&actual) {
             problems.push(format!(
-                "{name}: shared_in_transaction names `{s}`, which is not a pub(crate) store function"
+                "{name}: shared_in_transaction names `{s}`, which is not a pub(crate) \
+                 store function"
             ))
         }
     }

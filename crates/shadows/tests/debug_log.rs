@@ -55,7 +55,14 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
             Request::post(format!("/api/threads/{thread}/turns"))
                 .header("content-type", "application/json")
                 .body(Body::from(
-                    serde_json::json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": PROMPT, "model": "fake-large", "mode": "acceptEdits", "effort": "high" }).to_string(),
+                    serde_json::json!({
+                        "command_id": uuid::Uuid::new_v4().to_string(),
+                        "prompt": PROMPT,
+                        "model": "fake-large",
+                        "mode": "acceptEdits",
+                        "effort": "high",
+                    })
+                    .to_string(),
                 ))
                 .unwrap(),
         )

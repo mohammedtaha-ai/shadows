@@ -25,6 +25,9 @@ use shadows_core::{DraftStart, Place, PlanEdit, PlanOp, PlanShow, WorkflowId};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct PlanArgs {
+    /// Own project by default; a linked project's slug for a read only.
+    #[serde(default)]
+    project: Option<String>,
     /// The plan version; workflow_list lists each plan's latest version.
     #[serde(default)]
     #[schemars(with = "Option<String>")]
@@ -64,6 +67,9 @@ struct DraftStartArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct WorkflowListArgs {
+    /// Own project by default; a linked project's slug for a read only.
+    #[serde(default)]
+    project: Option<String>,
     /// Include archived plans alongside Active plans.
     #[serde(default)]
     archived: bool,
@@ -103,7 +109,8 @@ struct PlanShowArgs {
 struct NameArgs {
     /// The exact name: a function, method, type, trait, class, interface or constant.
     name: String,
-    /// A linked project's slug, to ask only it. Leave it out to ask this project and every linked one.
+    /// A linked project's slug, to ask only it.
+    /// Leave it out to ask this project and every linked one.
     #[serde(default)]
     project: Option<String>,
 }
@@ -120,7 +127,8 @@ struct OutlineArgs {
 #[tool_router(vis = "pub(super)")]
 impl Shadows {
     #[tool(
-        description = "Where a name is defined: project, file, line, kind and signature. Never the code; open the file if you need it."
+        description = "Where a name is defined: project, file, line, kind and signature. \
+                       Never the code; open the file if you need it."
     )]
     async fn where_is(
         &self,
@@ -135,9 +143,8 @@ impl Shadows {
         text(asked.await.map(|a| lines(&a, false)).map_err(Refusal::from))
     }
 
-    #[tool(
-        description = "Where a name is used, matched by name only: two things with the same name are not told apart."
-    )]
+    #[tool(description = "Where a name is used, matched by name only: \
+                       two things with the same name are not told apart.")]
     async fn who_uses(
         &self,
         Extension(grant): Extension<Grant>,
@@ -168,7 +175,8 @@ impl Shadows {
     }
 
     #[tool(
-        description = "List this project's plans: each one's latest version. Set archived to include archived plans."
+        description = "List plans: each one's latest version. Use project for a linked \
+                       project's slug, archived to include archived plans."
     )]
     async fn workflow_list(
         &self,
@@ -178,14 +186,15 @@ impl Shadows {
         answer(
             self.core
                 .plans()
-                .list_for(&grant, args.archived)
+                .list_for(&grant, args.archived, args.project.as_deref())
                 .await
                 .map_err(Refusal::from),
         )
     }
 
     #[tool(
-        description = "Read a plan version: title, goal, tasks, links, revision, state, and what blocks approval."
+        description = "Read a plan version: title, goal, tasks, links, revision, state, \
+                       and what blocks approval. Use project for a linked project's slug."
     )]
     async fn workflow_get(
         &self,
@@ -195,7 +204,7 @@ impl Shadows {
         answer(
             self.core
                 .plans()
-                .get_for(&grant, args.workflow_id.as_ref())
+                .get_for(&grant, args.workflow_id.as_ref(), args.project.as_deref())
                 .await
                 .map_err(Refusal::from),
         )
@@ -217,7 +226,8 @@ impl Shadows {
     }
 
     #[tool(
-        description = "Get a draft_ref for draft_start. Call it once for each new plan you intend; a ref not used within an hour expires."
+        description = "Get a draft_ref for draft_start. Call it once for each new plan you \
+                       intend; a ref not used within an hour expires."
     )]
     async fn draft_prepare(&self, Extension(grant): Extension<Grant>) -> CallToolResult {
         let issued = self.core.plans().prepare_draft(&grant).await;
@@ -229,7 +239,9 @@ impl Shadows {
     }
 
     #[tool(
-        description = "Start a plan version to edit. Give plan_id to continue that plan, or leave it out to create a new plan from a title and goal. A later version needs a reason; an existing Draft is returned unchanged."
+        description = "Start a plan version to edit. Give plan_id to continue that plan, \
+                       or leave it out to create a new plan from a title and goal. \
+                       A later version needs a reason; an existing Draft is returned unchanged."
     )]
     async fn draft_start(
         &self,
@@ -254,7 +266,9 @@ impl Shadows {
     }
 
     #[tool(
-        description = "Edit a draft plan version at expected_revision with a list of operations: plan_put, task_add, task_update, task_remove, link_put, link_remove. Put changes made together in one call."
+        description = "Edit a draft plan version at expected_revision with a list of \
+                       operations: plan_put, task_add, task_update, task_remove, link_put, \
+                       link_remove. Put changes made together in one call."
     )]
     async fn plan_edit(
         &self,
@@ -278,7 +292,9 @@ impl Shadows {
     }
 
     #[tool(
-        description = "Show the person the plan, or one task of it, while they talk with you: inline in the conversation, side in a panel beside it, or page on its own page. Changes no plan."
+        description = "Show the person the plan, or one task of it, while they talk with you: \
+                       inline in the conversation, side in a panel beside it, or page on its own \
+                       page. Changes no plan."
     )]
     async fn plan_show(
         &self,

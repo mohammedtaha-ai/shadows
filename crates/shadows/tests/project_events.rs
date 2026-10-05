@@ -35,12 +35,107 @@ async fn next_frame(body: &mut BodyDataStream, pending: &mut String) -> (String,
 }
 
 #[tokio::test]
+async fn a_new_foreign_dependency_invalidates_the_targets_project_once() {
+    use shadows_core::{Link, LinkKind, PlanOp, TaskParent};
+    let app = app::test_app().await;
+    let target = plan::draft(&app).await;
+    plan::edit(&app, &target.workflow_id, 0, &[plan::add(3)]).await;
+    let (foreign, thread) = app::other_project(&app).await;
+    let source = plan::draft_on(&app, &thread, "foreign-draft").await;
+    app.core
+        .code()
+        .link("foreign-link".into(), &foreign, &app.project)
+        .await
+        .unwrap();
+    let cursor: i64 = sqlx::query_scalar("SELECT MAX(seq) FROM durable_event")
+        .fetch_one(app.storage.reader())
+        .await
+        .unwrap();
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::get(format!(
+                "/api/projects/{}/events?after={cursor}",
+                app.project,
+            ))
+            .body(Body::empty())
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let mut body = response.into_body().into_data_stream();
+    let mut pending = String::new();
+    assert_eq!(next_frame(&mut body, &mut pending).await.0, "caught-up");
+    let ops = [
+        plan::add(4),
+        PlanOp::LinkPut {
+            link: Link {
+                task: 4,
+                after: TaskParent::Plan {
+                    plan_id: target.plan_id.clone(),
+                    task: 3,
+                },
+                kind: LinkKind::Needs,
+                label: "API".into(),
+                waiting_items: vec![],
+            },
+        },
+    ];
+    plan::edit(&app, &source.workflow_id, 0, &ops).await;
+    let (_, event) = next_frame(&mut body, &mut pending).await;
+    assert_eq!(event["kind"], "PlanDependenciesChanged");
+    assert_eq!(event["payload"]["plan_id"], json!(source.plan_id));
+    plan::edit(&app, &source.workflow_id, 0, &ops).await;
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM durable_event WHERE project_id=? AND kind='PlanDependenciesChanged'",
+    )
+    .bind(app.project.as_str())
+    .fetch_one(app.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(
+        count, 1,
+        "replay must not publish a duplicate dependency notification"
+    );
+    app.core
+        .code()
+        .unlink("unlink".into(), &foreign, &app.project)
+        .await
+        .unwrap();
+    let (_, unlinked) = next_frame(&mut body, &mut pending).await;
+    assert_eq!(unlinked["kind"], "PlanDependenciesChanged");
+    app.core
+        .code()
+        .link("restore-link".into(), &foreign, &app.project)
+        .await
+        .unwrap();
+    assert_eq!(
+        next_frame(&mut body, &mut pending).await.1["kind"],
+        "PlanDependenciesChanged"
+    );
+    app.core
+        .threads()
+        .remove("remove-foreign-thread".into(), &thread)
+        .await
+        .unwrap();
+    app.core
+        .projects()
+        .remove("remove-foreign-project".into(), &foreign)
+        .await
+        .unwrap();
+    let (_, removed) = next_frame(&mut body, &mut pending).await;
+    assert_eq!(removed["kind"], "PlanDependenciesChanged");
+}
+
+#[tokio::test]
 async fn design_stream_replays_resumes_and_keeps_projects_separate() {
     let app = app::test_app().await;
     let (foreign, _) = app::other_project(&app).await;
     let edits = format!("/api/projects/{}/design/edits", app.project);
     let path = format!("/api/projects/{}/events", app.project);
-    let vision = json!({"kind":"VisionPut","content":{"purpose":"رؤية","users":"","goals":"","boundaries":"","technical_direction":""}});
+    let vision = json!({"kind":"VisionPut","content":{"purpose":"رؤية","users":"","goals":"",
+        "boundaries":"","technical_direction":""}});
     let first = json!({"command_id":"vision","expected_revision":0,"ops":[vision]});
     assert_eq!(
         app::call(&app, "POST", &edits, Some(first.clone())).await.0,
@@ -64,8 +159,10 @@ async fn design_stream_replays_resumes_and_keeps_projects_separate() {
     let part = uuid::Uuid::new_v4().to_string();
     let outcome = uuid::Uuid::new_v4().to_string();
     let mixed = json!({"command_id":"mixed","expected_revision":1,"ops":[
-        {"kind":"PartCreate","id":part,"parent":null,"before":null,"content":{"title":"قسم","responsibility":"","design":"","kind":null}},
-        {"kind":"OutcomeCreate","id":outcome,"parent":null,"before":null,"content":{"title":"نتيجة","intended_result":"","acceptance":[]}},
+        {"kind":"PartCreate","id":part,"parent":null,"before":null,"content":
+            {"title":"قسم","responsibility":"","design":"","kind":null}},
+        {"kind":"OutcomeCreate","id":outcome,"parent":null,"before":null,"content":
+            {"title":"نتيجة","intended_result":"","acceptance":[]}},
         {"kind":"OutcomePartPut","outcome":outcome,"part":part}
     ]});
     let foreign_edit = json!({"command_id":"foreign","expected_revision":0,"ops":[vision]});

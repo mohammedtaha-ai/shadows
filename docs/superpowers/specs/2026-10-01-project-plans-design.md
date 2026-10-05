@@ -254,6 +254,10 @@ of §13.3: `Web T4 needs Backend T3`.
 - **Written** by `plan_edit`'s `link_put` and `link_remove`, whose `parent`
   may be `{ plan_id, task }`. It is copied into a new version with the other
   links, as §13.2 copies links.
+  The existing wire field is `after`: a local number remains a JSON number;
+  an external parent is `{ "plan_id": "…", "task": 3 }`. This extends the
+  existing `link_put.link.after` and `link_remove.after` without renaming
+  local fields or rewriting old Frozen content.
 - **Read** with the plan: `workflow_get` answers each link to another plan
   with the plan's name, the project's name if it is another project, and the
   task's title, state, goal and acceptance items. So a writer sees what it
@@ -334,6 +338,20 @@ sidebar's plan list and a `PlanView` card in any other conversation refetch when
 that stream names their plan, and after the person's own actions. Nothing polls
 on a timer. The project stream lands with the conversation delete (Task 5);
 until then those views refetch only after the person's own actions.
+
+**1b dependency invalidation:** a new plan edit, version, approval or archive
+change journals `PlanDependenciesChanged {plan_id}` in each other live project
+whose latest plans reference it or are referenced by it. Removing an edge also
+invalidates its former target. This notification is in the same transaction;
+command replay emits none. A target project therefore learns about a new
+incoming foreign edge without subscribing to every project on the machine.
+Its views refetch their captured dependencies. Project streams also carry
+`ProjectLinked`, `ProjectUnlinked` and `ProjectRemoved`, so changes to reach
+invalidate displayed dependencies. These are notifications, never edits to
+Frozen plan content.
+Link changes and project removal also journal `PlanDependenciesChanged
+{related_project_id}` for other live projects connected through latest task
+links, in the same write. The notification contains no plan content.
 
 ## 16.9 Schema
 

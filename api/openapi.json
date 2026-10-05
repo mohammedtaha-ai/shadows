@@ -69,6 +69,339 @@
         ],
         "type": "object"
       },
+      "Agree": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "expected_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "review_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "expected_revision",
+          "review_id"
+        ],
+        "type": "object"
+      },
+      "AgreementBinding": {
+        "properties": {
+          "agreement_id": {
+            "$ref": "#/components/schemas/AgreementId"
+          },
+          "operations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "part_id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "role": {
+            "$ref": "#/components/schemas/AgreementRole"
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task",
+          "agreement_id",
+          "version",
+          "part_id",
+          "role",
+          "operations"
+        ],
+        "type": "object"
+      },
+      "AgreementContent": {
+        "properties": {
+          "acceptance": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "behavior": {
+            "type": "string"
+          },
+          "capability": {
+            "type": "string"
+          },
+          "openapi": {},
+          "parties": {
+            "items": {
+              "$ref": "#/components/schemas/AgreementParty"
+            },
+            "type": "array"
+          },
+          "purpose": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "capability",
+          "purpose",
+          "behavior",
+          "acceptance",
+          "parties",
+          "openapi"
+        ],
+        "type": "object"
+      },
+      "AgreementId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "AgreementIssue": {
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "message"
+        ],
+        "type": "object"
+      },
+      "AgreementParticipantImpact": {
+        "properties": {
+          "affected": {
+            "type": "boolean"
+          },
+          "changes": {},
+          "execution": {
+            "type": "string"
+          },
+          "next_action": {
+            "type": "string"
+          },
+          "participant": {
+            "$ref": "#/components/schemas/BindingParticipant"
+          }
+        },
+        "required": [
+          "participant",
+          "affected",
+          "changes",
+          "next_action",
+          "execution"
+        ],
+        "type": "object"
+      },
+      "AgreementParty": {
+        "properties": {
+          "part_id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "role": {
+            "$ref": "#/components/schemas/AgreementRole"
+          }
+        },
+        "required": [
+          "part_id",
+          "role"
+        ],
+        "type": "object"
+      },
+      "AgreementPartyReview": {
+        "properties": {
+          "change": {
+            "type": "string"
+          },
+          "party": {
+            "$ref": "#/components/schemas/AgreementParty"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "party",
+          "revision",
+          "title",
+          "change"
+        ],
+        "type": "object"
+      },
+      "AgreementReview": {
+        "properties": {
+          "agreement_id": {
+            "$ref": "#/components/schemas/AgreementId"
+          },
+          "base_version": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "changes": {},
+          "compatibility": {
+            "type": "string"
+          },
+          "limits": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/AgreementParticipantImpact"
+            },
+            "type": "array"
+          },
+          "parties": {
+            "items": {
+              "$ref": "#/components/schemas/AgreementPartyReview"
+            },
+            "type": "array"
+          },
+          "review_id": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agreement_id",
+          "version",
+          "revision",
+          "review_id",
+          "compatibility",
+          "changes",
+          "parties",
+          "participants",
+          "limits"
+        ],
+        "type": "object"
+      },
+      "AgreementRole": {
+        "enum": [
+          "provides",
+          "uses"
+        ],
+        "type": "string"
+      },
+      "AgreementState": {
+        "enum": [
+          "Draft",
+          "Agreed"
+        ],
+        "type": "string"
+      },
+      "AgreementVersion": {
+        "properties": {
+          "agreed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "agreement_id": {
+            "$ref": "#/components/schemas/AgreementId"
+          },
+          "content": {
+            "$ref": "#/components/schemas/AgreementContent"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/AgreementIssue"
+            },
+            "type": "array"
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/AgreementState"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "writer": {
+            "$ref": "#/components/schemas/AgreementWriter"
+          }
+        },
+        "required": [
+          "agreement_id",
+          "project_id",
+          "version",
+          "revision",
+          "state",
+          "writer",
+          "created_at",
+          "content",
+          "issues"
+        ],
+        "type": "object"
+      },
+      "AgreementWriter": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "operation_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OperationId"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "type": "object"
+      },
       "Answer": {
         "description": "What a question answers.",
         "properties": {
@@ -147,6 +480,74 @@
           "version",
           "revision",
           "frozen_at"
+        ],
+        "type": "object"
+      },
+      "BindingEdit": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "expected_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ops": {
+            "items": {
+              "$ref": "#/components/schemas/PlanOp"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "command_id",
+          "expected_revision",
+          "ops"
+        ],
+        "type": "object"
+      },
+      "BindingParticipant": {
+        "properties": {
+          "binding": {
+            "$ref": "#/components/schemas/AgreementBinding"
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "plan_state": {
+            "$ref": "#/components/schemas/PlanState"
+          },
+          "plan_version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          },
+          "workflow_state": {
+            "$ref": "#/components/schemas/WorkflowState"
+          }
+        },
+        "required": [
+          "plan_id",
+          "workflow_id",
+          "title",
+          "plan_version",
+          "revision",
+          "plan_state",
+          "workflow_state",
+          "current",
+          "binding"
         ],
         "type": "object"
       },
@@ -780,6 +1181,67 @@
         ],
         "type": "object"
       },
+      "Edit": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "content": {
+            "$ref": "#/components/schemas/AgreementContent"
+          },
+          "expected_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "version": {
+            "description": "The Draft version the edit was built on; another version is refused.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "command_id",
+          "version",
+          "expected_revision",
+          "content"
+        ],
+        "type": "object"
+      },
+      "EditOutcome": {
+        "description": "What an edit did, fixed when it committed, so a replay answers exactly\nthat and not the plan as it is later (§13.5).",
+        "properties": {
+          "changed_tasks": {
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "revision",
+          "summary",
+          "changed_tasks"
+        ],
+        "type": "object"
+      },
       "EntryRef": {
         "oneOf": [
           {
@@ -1359,9 +1821,7 @@
         "description": "Spec §13.3. `task` waits for `after`.",
         "properties": {
           "after": {
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
+            "$ref": "#/components/schemas/TaskParent"
           },
           "kind": {
             "$ref": "#/components/schemas/LinkKind"
@@ -1400,6 +1860,194 @@
           "completes_after"
         ],
         "type": "string"
+      },
+      "LinkedTask": {
+        "description": "The other end of an outgoing or incoming cross-plan dependency.",
+        "properties": {
+          "broken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "incoming": {
+            "type": "boolean"
+          },
+          "link": {
+            "$ref": "#/components/schemas/Link"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "plan_state": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlanState"
+              }
+            ]
+          },
+          "plan_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProjectId"
+              }
+            ]
+          },
+          "project_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowState"
+              }
+            ]
+          },
+          "task": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaskPreview"
+              }
+            ]
+          },
+          "version": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "workflow_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowId"
+              }
+            ]
+          }
+        },
+        "required": [
+          "link",
+          "incoming",
+          "plan_id"
+        ],
+        "type": "object"
+      },
+      "MapLink": {
+        "properties": {
+          "after": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "broken": {
+            "type": "boolean"
+          },
+          "count": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          }
+        },
+        "required": [
+          "plan_id",
+          "after",
+          "count",
+          "broken"
+        ],
+        "type": "object"
+      },
+      "MapPlan": {
+        "properties": {
+          "goal": {
+            "type": "string"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "plan_state": {
+            "$ref": "#/components/schemas/PlanState"
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "project_name": {
+            "type": "string"
+          },
+          "removed": {
+            "type": "boolean"
+          },
+          "state": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowState"
+              }
+            ]
+          },
+          "task_count": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "workflow_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowId"
+              }
+            ]
+          }
+        },
+        "required": [
+          "plan_id",
+          "project_id",
+          "project_name",
+          "plan_state",
+          "title",
+          "goal",
+          "task_count",
+          "removed"
+        ],
+        "type": "object"
       },
       "Operation": {
         "description": "Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the\n`ProjectId`/`ThreadId`/`ThreadEntryId` sweep is a separate change, staged\nfor reviewability, that follows this task (spec §4.1 OPEN block).",
@@ -1718,6 +2366,12 @@
             },
             "type": "array"
           },
+          "binding_plans": {
+            "items": {
+              "$ref": "#/components/schemas/BindingParticipant"
+            },
+            "type": "array"
+          },
           "part": {
             "$ref": "#/components/schemas/Part"
           },
@@ -1742,6 +2396,12 @@
       "Plan": {
         "description": "One stored version of a plan, as a reader sees it now (§13.2).",
         "properties": {
+          "bindings": {
+            "items": {
+              "$ref": "#/components/schemas/AgreementBinding"
+            },
+            "type": "array"
+          },
           "blockers": {
             "description": "What blocks approval ([`approval_problems`]) for a `Draft`; empty for\na `Frozen` version.",
             "items": {
@@ -1781,6 +2441,13 @@
                 "description": "`None` until the version is first edited."
               }
             ]
+          },
+          "linked_tasks": {
+            "description": "Live dependency metadata; never part of the frozen content digest.",
+            "items": {
+              "$ref": "#/components/schemas/LinkedTask"
+            },
+            "type": "array"
           },
           "links": {
             "items": {
@@ -1914,6 +2581,207 @@
           "updated_at"
         ],
         "type": "object"
+      },
+      "PlanMap": {
+        "properties": {
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/MapLink"
+            },
+            "type": "array"
+          },
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/MapPlan"
+            },
+            "type": "array"
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          }
+        },
+        "required": [
+          "project_id",
+          "plans",
+          "links"
+        ],
+        "type": "object"
+      },
+      "PlanOp": {
+        "description": "One edit operation. The names are the `plan_edit` tool's, exactly.",
+        "oneOf": [
+          {
+            "properties": {
+              "binding": {
+                "$ref": "#/components/schemas/AgreementBinding"
+              },
+              "op": {
+                "enum": [
+                  "binding_put"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "binding",
+              "op"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "agreement_id": {
+                "$ref": "#/components/schemas/AgreementId"
+              },
+              "op": {
+                "enum": [
+                  "binding_remove"
+                ],
+                "type": "string"
+              },
+              "role": {
+                "$ref": "#/components/schemas/AgreementRole"
+              },
+              "task": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task",
+              "agreement_id",
+              "role",
+              "op"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "goal": {
+                "type": "string"
+              },
+              "op": {
+                "enum": [
+                  "plan_put"
+                ],
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "goal",
+              "op"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "op": {
+                "enum": [
+                  "task_add"
+                ],
+                "type": "string"
+              },
+              "task": {
+                "$ref": "#/components/schemas/TaskContent"
+              }
+            },
+            "required": [
+              "task",
+              "op"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "op": {
+                "enum": [
+                  "task_update"
+                ],
+                "type": "string"
+              },
+              "task": {
+                "$ref": "#/components/schemas/TaskContent"
+              }
+            },
+            "required": [
+              "task",
+              "op"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "number": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "op": {
+                "enum": [
+                  "task_remove"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "number",
+              "op"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Adds the link, or replaces the one with the same `task`, `after` and\n`kind` (§13.3: at most one link of each kind between two tasks).",
+            "properties": {
+              "link": {
+                "$ref": "#/components/schemas/Link"
+              },
+              "op": {
+                "enum": [
+                  "link_put"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "link",
+              "op"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "after": {
+                "$ref": "#/components/schemas/TaskParent"
+              },
+              "kind": {
+                "$ref": "#/components/schemas/LinkKind"
+              },
+              "op": {
+                "enum": [
+                  "link_remove"
+                ],
+                "type": "string"
+              },
+              "task": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task",
+              "after",
+              "kind",
+              "op"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "PlanState": {
         "description": "Spec §16.2. An `Archived` plan is read, never written.",
@@ -2265,6 +3133,43 @@
         ],
         "type": "object"
       },
+      "Start": {
+        "properties": {
+          "agreement_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AgreementId"
+              }
+            ]
+          },
+          "command_id": {
+            "type": "string"
+          },
+          "content": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AgreementContent"
+              }
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "command_id"
+        ],
+        "type": "object"
+      },
       "StartTurn": {
         "description": "Starts a turn as one command (spec §12.7).",
         "properties": {
@@ -2375,6 +3280,65 @@
       "TaskId": {
         "format": "uuid",
         "type": "string"
+      },
+      "TaskParent": {
+        "description": "A local task number, or a task in another plan's latest version.",
+        "oneOf": [
+          {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "properties": {
+              "plan_id": {
+                "$ref": "#/components/schemas/PlanId"
+              },
+              "task": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "plan_id",
+              "task"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "TaskPreview": {
+        "properties": {
+          "acceptance": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptanceItem"
+            },
+            "type": "array"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "title",
+          "goal",
+          "acceptance",
+          "state"
+        ],
+        "type": "object"
       },
       "ThreadEntry": {
         "properties": {
@@ -3132,7 +4096,7 @@
             "description": "PROCESS_TERMINATION_FAILED: the tree is still running, or STORAGE_UNAVAILABLE"
           }
         },
-        "summary": "Stops a turn: asks the harness to cancel it, and if the harness does not\nconfirm in time, terminates the adapter's process tree, confirms it is\ngone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers with the operation as it\nnow stands — which may still be `Running` for a moment when the turn had\nalready ended on its own and its ending is being recorded.",
+        "summary": "Stops a turn: asks the harness to cancel it, and if the harness does not\nconfirm in time, terminates the adapter's process tree, confirms it is\ngone, and only then records it `Cancelled` (spec §2.3, §12.3). Answers\nwith the operation as it now stands — which may still be `Running` for a\nmoment when the turn had already ended on its own and its ending is being\nrecorded.",
         "tags": [
           "turns"
         ]
@@ -3595,6 +4559,436 @@
         "summary": "Sets the modes this project allows, per harness (spec §12.5). A turn's\nmode is checked against them when it starts. A replay answers the project\nas it now stands.",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/projects/{id}/agreements": {
+      "get": {
+        "operationId": "agreement_list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgreementVersion"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "agreements"
+        ]
+      },
+      "post": {
+        "operationId": "agreement_start",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Start"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgreementVersion"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "agreements"
+        ]
+      }
+    },
+    "/api/projects/{id}/agreements/{agreement}": {
+      "get": {
+        "operationId": "agreement_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "in": "path",
+            "name": "agreement",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AgreementId"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgreementVersion"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "agreements"
+        ]
+      },
+      "put": {
+        "operationId": "agreement_edit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "in": "path",
+            "name": "agreement",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AgreementId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Edit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgreementVersion"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "agreements"
+        ]
+      }
+    },
+    "/api/projects/{id}/agreements/{agreement}/agree": {
+      "post": {
+        "operationId": "agreement_agree",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "in": "path",
+            "name": "agreement",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AgreementId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Agree"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgreementVersion"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "agreements"
+        ]
+      }
+    },
+    "/api/projects/{id}/agreements/{agreement}/review": {
+      "get": {
+        "operationId": "agreement_review",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "in": "path",
+            "name": "agreement",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AgreementId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgreementReview"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "agreements"
         ]
       }
     },
@@ -4707,6 +6101,57 @@
         "summary": "Connect (§13.7): issues a grant bound to this project for an external\nagent. The token is shown once — here — and stored only as its hash.",
         "tags": [
           "grants"
+        ]
+      }
+    },
+    "/api/projects/{id}/plan-map": {
+      "get": {
+        "operationId": "plan_map",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanMap"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "tags": [
+          "workflows"
         ]
       }
     },
@@ -5913,6 +7358,86 @@
         "summary": "Approves a `Draft` version as the person saw it: it becomes `Frozen` and\nnever changes again (§13.2). The client reads the plan again afterwards. A\nreplay of the same command answers what it answered first.",
         "tags": [
           "workflows"
+        ]
+      }
+    },
+    "/api/workflows/{id}/bindings": {
+      "post": {
+        "operationId": "plan_binding_edit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindingEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditOutcome"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "agreements"
         ]
       }
     }

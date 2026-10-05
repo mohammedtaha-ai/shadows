@@ -302,7 +302,8 @@ pub(super) async fn load_thread(
     id: &ThreadId,
 ) -> Result<PlanningThread, StorageError> {
     let row: ThreadRow = sqlx::query_as(
-        "SELECT id, project_id, title, status, created_at, harness_kind, forked_from_thread, removed_at
+        "SELECT id, project_id, title, status, created_at, harness_kind, \
+         forked_from_thread, removed_at
            FROM planning_thread WHERE id = ?",
     )
     .bind(id.as_str())

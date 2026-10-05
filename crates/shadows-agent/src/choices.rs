@@ -209,15 +209,32 @@ mod tests {
             _ => &[],
         };
         let mut v = vec![
-            json!({"id":"mode","name":"Mode","category":"mode","type":"select","currentValue":"auto",
-                "options":(["default","acceptEdits","plan","auto","bypassPermissions"].iter()
-                    .map(|v| json!({"value":v,"name":v})).collect::<Vec<_>>())}),
-            json!({"id":"model","name":"Model","category":"model","type":"select","currentValue":model,
-                "options":[
+            json!({
+                "id": "mode",
+                "name": "Mode",
+                "category": "mode",
+                "type": "select",
+                "currentValue": "auto",
+                "options": (
+                    ["default", "acceptEdits", "plan", "auto", "bypassPermissions"]
+                        .iter()
+                        .map(|v| json!({"value": v, "name": v}))
+                        .collect::<Vec<_>>()
+                ),
+            }),
+            json!({
+                "id": "model",
+                "name": "Model",
+                "category": "model",
+                "type": "select",
+                "currentValue": model,
+                "options": [
                     {"value":"fake-large","name":"Fake Large","description":"The biggest fake"},
                     {"value":"fake-small","name":"Fake Small"},
                     {"value":"fake-tiny","name":"Fake Tiny"},
-                    {"value":"fake-locked","name":"Fake Locked"}]}),
+                    {"value":"fake-locked","name":"Fake Locked"},
+                ],
+            }),
         ];
         if !efforts.is_empty() {
             v.push(
@@ -226,8 +243,17 @@ mod tests {
                 "options":efforts.iter().map(|v| json!({"value":v,"name":v})).collect::<Vec<_>>()}),
             );
         }
-        v.push(json!({"id":"fast","name":"Fast","category":"model_config","type":"select",
-            "currentValue":"off","options":[{"value":"on","name":"On"},{"value":"off","name":"Off"}]}));
+        v.push(json!({
+            "id": "fast",
+            "name": "Fast",
+            "category": "model_config",
+            "type": "select",
+            "currentValue": "off",
+            "options": [
+                {"value":"on","name":"On"},
+                {"value":"off","name":"Off"},
+            ],
+        }));
         Value::Array(v)
     }
 

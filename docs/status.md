@@ -11,8 +11,7 @@ restate them.
 
 **Project plans, §16 1a, are on `main`**, squash-merged through PR #14 as
 `4d8774e`. The owner is
-[`§16`](./superpowers/specs/2026-10-01-project-plans-design.md); the plan is
-[`project-plans-1a`](./superpowers/plans/2026-10-01-project-plans-1a.md).
+[`§16`](./superpowers/specs/2026-10-01-project-plans-design.md).
 Plans are shared across a project's conversations, versions show their
 writers and reasons, and the web client supports Archive, Continue and
 Delete with retained read-only conversation history. Project events refresh
@@ -98,8 +97,7 @@ and ran on Windows on 2026-09-30:
 It adds the crate `shadows-index`, the ninth service `Code`,
 and the MCP tools `where_is`, `who_uses` and `outline` for an external agent's
 grant, with their HTTP routes. The probe's measurements are in
-[`evidence/milestone3/PROBE.md`](./evidence/milestone3/PROBE.md). The plan is
-`superpowers/plans/2026-09-30-milestone-3-code-index.md`.
+[`evidence/milestone3/PROBE.md`](./evidence/milestone3/PROBE.md).
 
 **Milestone 2.5 (§14, one application core) is on `main`** (PR #7,
 2026-09-29; 328 Rust tests). Shadows is now a Cargo workspace under `crates/`:
@@ -111,8 +109,7 @@ change, and `api/openapi.json` is byte-identical. Mohammed ran it on Windows:
 six Planner turns completed and the Planner used Shadows' MCP server; Stop, a
 restart, Approve and Revoke were not exercised in that run
 ([`evidence/milestone2_5/WINDOWS_RUN.md`](./evidence/milestone2_5/WINDOWS_RUN.md)).
-The plan is `superpowers/plans/2026-09-26-milestone-2-5-app-core.md`; its
-execution ledger was deleted after the merge.
+Its execution ledger was deleted after the merge.
 
 **Milestone 2 (§13, the Planner writes a plan) is on `main`** (PR #6,
 2026-09-25; 304 Rust, 135 web tests), and Mohammed ran it on Windows. A
@@ -121,8 +118,7 @@ reaching both a new and an existing conversation, and Connect and Revoke from
 an external Claude Code all worked. The run found that a harness opening took
 up to 5.7 s against a 5 s bound, which is now fixed:
 [`evidence/milestone2/WINDOWS_RUN.md`](./evidence/milestone2/WINDOWS_RUN.md).
-The plan is `superpowers/plans/2026-09-25-milestone-2-plan-workflow.md`; its
-execution ledger was removed from the branch before merge.
+Its execution ledger was removed from the branch before merge.
 
 **Milestone 1 is implemented, Phase A and Phase B, and both have run on
 Linux against the real harness.** A Planner turn is an ACP `session/prompt` on
@@ -150,7 +146,6 @@ item.
   application (spec §1). Its types are generated from `api/openapi.json`.
 - 202 Rust tests and 95 web tests.
 
-The plan is `superpowers/plans/2026-09-24-milestone-1-harness-controls.md`.
 The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## What has been measured
@@ -186,7 +181,32 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-1. **Finish the planning workspace Stage 1 handoff:** the planning branch is
+**Active objective, 2026-10-04:** complete the full vision on
+`codex/full-project-vision`, created from `e290df6`, with local delivery first.
+The [delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
+now retains the full local, concurrency and company sequence. §16 1b is
+implemented and Windows-verified on this branch. The next product slice is
+§18 shared API agreements, now saved as an incomplete implementation checkpoint;
+executors, manager and specialized diagrams are still
+unimplemented, not implied by the new branch or documentation.
+
+1. **Structure hygiene, `chore/close-format-blind-spot`, derived through
+   `chore/gate-dedup-cleanup` from the planning branch.** Four changes that
+   preserve product behaviour, specified in
+   [`2026-10-04-structure-hygiene-design.md`](./superpowers/specs/2026-10-04-structure-hygiene-design.md):
+   a line-length check for the format gate's blind spot, one hook shared by
+   the part and outcome editors, one dead export removed, and six merged plans
+   deleted. All four are implemented on the branch. The shared editor retains
+   the existing retry and revision-conflict behavior. OpenAPI documentation
+   and generated client declarations were refreshed together after rewrapping
+   a route's comment. Final Windows verification passed: **385 Rust tests
+   and 180 Web tests**, formatting, both clippy modes, production build,
+   production feature isolation, Web typecheck, lint and build. The manual
+   database-copy migration test remains explicitly ignored in the default
+   suite. The line-length step accepted 100 Unicode characters with CRLF,
+   rejected 101 with file/line/width, and accepted the repaired file. No
+   independent branch review or new human browser acceptance is claimed.
+2. **Finish the planning workspace Stage 1 handoff:** the planning branch is
    `codex/shared-contracts-planning`. The [full delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
    and [§18 draft](./superpowers/specs/2026-10-03-project-planning-workspace-design.md)
    are written, together with the [Stage 1 implementation plan](./superpowers/plans/2026-10-03-planning-workspace-stage-1.md).
@@ -199,10 +219,33 @@ The PR is #4; its execution ledger was removed from the branch before merge.
    distinguishes the empty actual dev-DB copy from populated synthetic legacy
    fixtures. Mohammed's acceptance and whole-branch review remain pending;
    this branch is not merged and the running original daemon was not replaced.
-2. **§16 1b** still needs its separately scoped implementation plan. Its place
-   in delivery is recorded in the roadmap above. §17 remains a draft for later
+3. **§16 1b:** the [scoped plan](./superpowers/plans/2026-10-04-cross-plan-links-1b.md)
+   is executed. Latest-task dependencies, grant-scoped related reads,
+   project map, broken-link graph navigation and dependency notifications
+   are implemented above the user checkpoint `dfe6070`. The final gate passed:
+   **402 Rust tests (one ignored) and 187 Web tests**, both clippy modes,
+   production build/feature isolation, Rust format/Unicode width, Web
+   typecheck/lint/build and generated API consistency. The
+   [dated evidence](./evidence/2026-10-04-cross-plan-links-1b.md) records an
+   isolated Windows production-preview trial with real HTTP/MCP requests,
+   reciprocal graph navigation, refused broken-link approval and retained
+   state after restart. It does not establish human acceptance, Linux
+   containment or an independent branch review. §17 remains a draft for later
    task contracts and execution evidence; the executive manager needs its
    later design after Mohammed explains the rest of its responsibilities.
+
+4. **§18 Stage 2 checkpoint, 2026-10-05:** shared agreement lifecycle,
+   validation, impact review, exact task pins, HTTP/MCP and browser adoption
+   are implemented with migrations 0017/0018. The
+   [implementation plan](./superpowers/plans/2026-10-04-shared-api-agreements.md)
+   remains open. The [dated evidence](./evidence/2026-10-05-shared-api-agreements.md)
+   records 411 Rust tests (one ignored), 188 Web tests, later focused checks,
+   the native two-plan journey/restart and migration of an actual dev-DB copy.
+   Complete suites were not rerun after the final focused changes: Mohammed
+   requested stopping tests and saving a checkpoint. **Stage 2 is incomplete:**
+   agreement edits must include the exact Draft version with the expected
+   revision to reject delayed requests across version rollover. Fix and
+   completion review remain; Stage 3 has not started.
 
 ## Standing risks
 

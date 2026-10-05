@@ -45,7 +45,7 @@ export function LinkEdge({
         markerEnd={kind === 'start' ? undefined : markerEnd}
         data-link={id}
         style={{
-          stroke: STROKE[kind],
+          stroke: data?.broken ? 'var(--destructive)' : STROKE[kind],
           strokeWidth: kind === 'start' ? 1 : 1.5,
           ...(kind === 'completes_after' && { strokeDasharray: '6 5' }),
         }}

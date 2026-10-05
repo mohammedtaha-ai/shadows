@@ -33,8 +33,16 @@ pub(super) async fn apply(
                 parent.as_ref().map(PartId::as_str),
             )
             .await?;
-            sqlx::query("INSERT INTO design_part(id,project_id,parent_id,revision,ordinal,content_json) VALUES (?,?,?,1,0,?)")
-                .bind(id.as_str()).bind(project.as_str()).bind(parent.as_ref().map(PartId::as_str)).bind(serde_json::to_string(&content)?).execute(&mut *conn).await?;
+            sqlx::query(
+                "INSERT INTO design_part(id,project_id,parent_id,revision,ordinal,content_json) \
+                 VALUES (?,?,?,1,0,?)",
+            )
+            .bind(id.as_str())
+            .bind(project.as_str())
+            .bind(parent.as_ref().map(PartId::as_str))
+            .bind(serde_json::to_string(&content)?)
+            .execute(&mut *conn)
+            .await?;
             hierarchy::place(
                 conn,
                 Tree::Parts,

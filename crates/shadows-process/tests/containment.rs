@@ -6,8 +6,14 @@ use shadows_process::{ProcessSpec, spawn};
 fn is_alive(pid: u32) -> bool {
     use std::process::Command;
     let out = Command::new("powershell")
-        .args(["-NoProfile", "-Command",
-               &format!("if (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ 'yes' }} else {{ 'no' }}")])
+        .args([
+            "-NoProfile",
+            "-Command",
+            &format!(
+                "if (Get-Process -Id {pid} -ErrorAction SilentlyContinue) \
+                 {{ 'yes' }} else {{ 'no' }}"
+            ),
+        ])
         .output()
         .expect("powershell should run");
     String::from_utf8_lossy(&out.stdout).trim() == "yes"

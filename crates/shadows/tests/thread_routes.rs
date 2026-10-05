@@ -249,7 +249,13 @@ async fn a_turn_on_a_codex_thread_is_harness_unavailable() {
     let (s, b) = http_start(
         &app,
         t["id"].as_str().unwrap(),
-        json!({ "command_id": "t1", "prompt": "hi", "model": "fake-small", "mode": "acceptEdits", "effort": "high" }),
+        json!({
+            "command_id": "t1",
+            "prompt": "hi",
+            "model": "fake-small",
+            "mode": "acceptEdits",
+            "effort": "high"
+        }),
     )
     .await;
     assert_eq!((s, b["code"].as_str()), (422, Some("HARNESS_UNAVAILABLE")));

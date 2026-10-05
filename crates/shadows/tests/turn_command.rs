@@ -167,7 +167,13 @@ async fn a_second_turn_over_http_while_one_runs_is_thread_busy_and_writes_nothin
     let (s, b) = http_start(
         &app,
         &thread(&app),
-        json!({ "command_id": "t2", "prompt": "hi", "model": "fake-small", "mode": "acceptEdits", "effort": "high" }),
+        json!({
+            "command_id": "t2",
+            "prompt": "hi",
+            "model": "fake-small",
+            "mode": "acceptEdits",
+            "effort": "high"
+        }),
     )
     .await;
     assert_eq!((s, b["code"].as_str()), (409, Some("THREAD_BUSY")));
@@ -180,7 +186,14 @@ async fn a_second_turn_over_http_while_one_runs_is_thread_busy_and_writes_nothin
     let (status, body) = http_start(
         &app,
         &thread(&app),
-        json!({ "command_id": "t3", "prompt": "continue", "model": "fake-small", "mode": "acceptEdits", "effort": "high", "plan": plan_id }),
+        json!({
+            "command_id": "t3",
+            "prompt": "continue",
+            "model": "fake-small",
+            "mode": "acceptEdits",
+            "effort": "high",
+            "plan": plan_id
+        }),
     )
     .await;
     assert_eq!(
@@ -201,7 +214,13 @@ async fn a_mode_the_project_no_longer_allows_is_refused() {
     let (status, body) = http_start(
         &app,
         &thread(&app),
-        json!({ "command_id": "t1", "prompt": "hi", "model": "fake-large", "mode": "auto", "effort": "high" }),
+        json!({
+            "command_id": "t1",
+            "prompt": "hi",
+            "model": "fake-large",
+            "mode": "auto",
+            "effort": "high"
+        }),
     )
     .await;
     assert_eq!(
@@ -217,7 +236,13 @@ async fn a_mode_outside_the_policy_is_not_offered() {
     let (status, body) = http_start(
         &app,
         &thread(&app),
-        json!({ "command_id": "t1", "prompt": "hi", "model": "fake-large", "mode": "bypassPermissions", "effort": "high" }),
+        json!({
+            "command_id": "t1",
+            "prompt": "hi",
+            "model": "fake-large",
+            "mode": "bypassPermissions",
+            "effort": "high"
+        }),
     )
     .await;
     assert_eq!(
@@ -233,7 +258,13 @@ async fn an_effort_the_model_does_not_offer_is_refused() {
     let (status, body) = http_start(
         &app,
         &thread(&app),
-        json!({ "command_id": "t1", "prompt": "hi", "model": "fake-small", "mode": "acceptEdits", "effort": "max" }),
+        json!({
+            "command_id": "t1",
+            "prompt": "hi",
+            "model": "fake-small",
+            "mode": "acceptEdits",
+            "effort": "max"
+        }),
     )
     .await;
     assert_eq!(
@@ -257,7 +288,13 @@ async fn a_refused_effort_leaves_the_session_on_its_model() {
     let (status, body) = http_start(
         &app,
         &thread(&app),
-        json!({ "command_id": "t1", "prompt": "hi", "model": "fake-small", "mode": "acceptEdits", "effort": "max" }),
+        json!({
+            "command_id": "t1",
+            "prompt": "hi",
+            "model": "fake-small",
+            "mode": "acceptEdits",
+            "effort": "max"
+        }),
     )
     .await;
     assert_eq!(
@@ -275,7 +312,13 @@ async fn a_refused_mode_leaves_the_session_on_its_model() {
     let (status, body) = http_start(
         &app,
         &thread(&app),
-        json!({ "command_id": "t1", "prompt": "hi", "model": "fake-small", "mode": "auto", "effort": "high" }),
+        json!({
+            "command_id": "t1",
+            "prompt": "hi",
+            "model": "fake-small",
+            "mode": "auto",
+            "effort": "high"
+        }),
     )
     .await;
     assert_eq!(
@@ -291,7 +334,13 @@ async fn a_model_the_account_cannot_use_is_refused_with_the_harness_message() {
     let (status, body) = http_start(
         &app,
         &thread(&app),
-        json!({ "command_id": "t1", "prompt": "hi", "model": "fake-locked", "mode": "acceptEdits", "effort": null }),
+        json!({
+            "command_id": "t1",
+            "prompt": "hi",
+            "model": "fake-locked",
+            "mode": "acceptEdits",
+            "effort": null
+        }),
     )
     .await;
     assert_eq!(
@@ -314,7 +363,13 @@ async fn a_model_without_efforts_runs_with_none() {
     let (s, b) = http_start(
         &app,
         &thread(&app),
-        json!({ "command_id": "t1", "prompt": "report", "model": "fake-tiny", "mode": "acceptEdits", "effort": null }),
+        json!({
+            "command_id": "t1",
+            "prompt": "report",
+            "model": "fake-tiny",
+            "mode": "acceptEdits",
+            "effort": null
+        }),
     )
     .await;
     assert_eq!(s, 202, "{b}");
@@ -346,7 +401,13 @@ async fn auto_on_a_model_without_it_fails_at_prepare_with_the_harness_message() 
     let (s, b) = http_start(
         &app,
         &thread(&app),
-        json!({ "command_id": "t1", "prompt": "hi", "model": "fake-small", "mode": "auto", "effort": "high" }),
+        json!({
+            "command_id": "t1",
+            "prompt": "hi",
+            "model": "fake-small",
+            "mode": "auto",
+            "effort": "high"
+        }),
     )
     .await;
     assert_eq!(s, 202, "{b}");
@@ -364,7 +425,13 @@ async fn auto_on_a_model_without_it_fails_at_prepare_with_the_harness_message() 
 #[tokio::test]
 async fn a_replay_is_answered_even_after_the_mode_was_disallowed() {
     let app = test_app().await;
-    let body = json!({ "command_id": "t1", "prompt": "hi", "model": "fake-large", "mode": "auto", "effort": "high" });
+    let body = json!({
+        "command_id": "t1",
+        "prompt": "hi",
+        "model": "fake-large",
+        "mode": "auto",
+        "effort": "high"
+    });
     let (s1, b1) = http_start(&app, &thread(&app), body.clone()).await;
     assert_eq!(s1, 202, "{b1}");
     let op = shadows_core::OperationId::from_literal(b1["operation_id"].as_str().unwrap());
@@ -385,14 +452,26 @@ async fn a_replay_is_answered_even_after_the_mode_was_disallowed() {
 #[tokio::test]
 async fn a_replay_with_another_body_over_http_is_a_command_conflict() {
     let app = test_app().await;
-    let body = json!({ "command_id": "t1", "prompt": "hi", "model": "fake-large", "mode": "acceptEdits", "effort": "high" });
+    let body = json!({
+        "command_id": "t1",
+        "prompt": "hi",
+        "model": "fake-large",
+        "mode": "acceptEdits",
+        "effort": "high"
+    });
     let (_, b1) = http_start(&app, &thread(&app), body).await;
     let op = shadows_core::OperationId::from_literal(b1["operation_id"].as_str().unwrap());
     wait_terminal(&app, &op).await;
     let (s, b) = http_start(
         &app,
         &thread(&app),
-        json!({ "command_id": "t1", "prompt": "other", "model": "fake-large", "mode": "acceptEdits", "effort": "high" }),
+        json!({
+            "command_id": "t1",
+            "prompt": "other",
+            "model": "fake-large",
+            "mode": "acceptEdits",
+            "effort": "high"
+        }),
     )
     .await;
     assert_eq!((s, b["code"].as_str()), (409, Some("COMMAND_CONFLICT")));
@@ -401,7 +480,13 @@ async fn a_replay_with_another_body_over_http_is_a_command_conflict() {
 #[tokio::test]
 async fn a_replay_is_answered_while_the_daemon_is_stopping() {
     let app = test_app().await;
-    let body = json!({ "command_id": "t1", "prompt": "hi", "model": "fake-small", "mode": "acceptEdits", "effort": "high" });
+    let body = json!({
+        "command_id": "t1",
+        "prompt": "hi",
+        "model": "fake-small",
+        "mode": "acceptEdits",
+        "effort": "high"
+    });
     let (_, first) = http_start(&app, &thread(&app), body.clone()).await;
     let op = shadows_core::OperationId::from_literal(first["operation_id"].as_str().unwrap());
     wait_terminal(&app, &op).await;
@@ -411,7 +496,13 @@ async fn a_replay_is_answered_while_the_daemon_is_stopping() {
     let (s2, b2) = http_start(
         &app,
         &thread(&app),
-        json!({ "command_id": "t2", "prompt": "new", "model": "fake-small", "mode": "acceptEdits", "effort": "high" }),
+        json!({
+            "command_id": "t2",
+            "prompt": "new",
+            "model": "fake-small",
+            "mode": "acceptEdits",
+            "effort": "high"
+        }),
     )
     .await;
     assert_eq!((s2, b2["code"].as_str()), (503, Some("RUNTIME_STOPPING")));
@@ -423,7 +514,13 @@ async fn the_harness_runs_with_the_chosen_model_mode_and_effort() {
     let (_, b) = http_start(
         &app,
         &thread(&app),
-        json!({ "command_id": "t1", "prompt": "report", "model": "fake-large", "mode": "auto", "effort": "max" }),
+        json!({
+            "command_id": "t1",
+            "prompt": "report",
+            "model": "fake-large",
+            "mode": "auto",
+            "effort": "max"
+        }),
     )
     .await;
     let op = shadows_core::OperationId::from_literal(b["operation_id"].as_str().unwrap());

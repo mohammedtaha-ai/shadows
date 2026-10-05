@@ -30,7 +30,16 @@ pub(super) async fn load(
     project: &ProjectId,
     id: &OutcomeId,
 ) -> Result<Outcome, StorageError> {
-    sqlx::query_as::<_,OutcomeRow>("SELECT id,parent_id,revision,ordinal,content_json FROM design_outcome WHERE project_id=? AND id=?").bind(project.as_str()).bind(id.as_str()).fetch_optional(conn).await?.ok_or(StorageError::NotFound("outcome"))?.domain()
+    sqlx::query_as::<_, OutcomeRow>(
+        "SELECT id,parent_id,revision,ordinal,content_json FROM design_outcome \
+         WHERE project_id=? AND id=?",
+    )
+    .bind(project.as_str())
+    .bind(id.as_str())
+    .fetch_optional(conn)
+    .await?
+    .ok_or(StorageError::NotFound("outcome"))?
+    .domain()
 }
 impl Storage {
     pub async fn design_outcome(
@@ -49,8 +58,22 @@ impl Storage {
             ancestors.push(node);
         }
         ancestors.reverse();
-        let plans:Vec<String>=sqlx::query_scalar("SELECT plan_id FROM design_outcome_plan WHERE project_id=? AND outcome_id=? ORDER BY plan_id").bind(project.as_str()).bind(id.as_str()).fetch_all(&mut *tx).await?;
-        let parts:Vec<String>=sqlx::query_scalar("SELECT part_id FROM design_outcome_part WHERE project_id=? AND outcome_id=? ORDER BY part_id").bind(project.as_str()).bind(id.as_str()).fetch_all(&mut *tx).await?;
+        let plans: Vec<String> = sqlx::query_scalar(
+            "SELECT plan_id FROM design_outcome_plan \
+             WHERE project_id=? AND outcome_id=? ORDER BY plan_id",
+        )
+        .bind(project.as_str())
+        .bind(id.as_str())
+        .fetch_all(&mut *tx)
+        .await?;
+        let parts: Vec<String> = sqlx::query_scalar(
+            "SELECT part_id FROM design_outcome_part \
+             WHERE project_id=? AND outcome_id=? ORDER BY part_id",
+        )
+        .bind(project.as_str())
+        .bind(id.as_str())
+        .fetch_all(&mut *tx)
+        .await?;
         Ok(OutcomeView {
             revision,
             outcome,
@@ -81,7 +104,19 @@ impl Storage {
         } else {
             None
         };
-        let rows=sqlx::query_as::<_,OutcomeRow>("SELECT id,parent_id,revision,ordinal,content_json FROM design_outcome WHERE project_id=? AND parent_id IS ? AND (? IS NULL OR (ordinal,id) > (?,?)) ORDER BY ordinal,id LIMIT 51").bind(project.as_str()).bind(parent.map(OutcomeId::as_str)).bind(after.map(OutcomeId::as_str)).bind(cursor.as_ref().map(|p|p.ordinal)).bind(after.map(OutcomeId::as_str)).fetch_all(&mut *tx).await?;
+        let rows = sqlx::query_as::<_, OutcomeRow>(
+            "SELECT id,parent_id,revision,ordinal,content_json FROM design_outcome \
+             WHERE project_id=? AND parent_id IS ? \
+             AND (? IS NULL OR (ordinal,id) > (?,?)) \
+             ORDER BY ordinal,id LIMIT 51",
+        )
+        .bind(project.as_str())
+        .bind(parent.map(OutcomeId::as_str))
+        .bind(after.map(OutcomeId::as_str))
+        .bind(cursor.as_ref().map(|p| p.ordinal))
+        .bind(after.map(OutcomeId::as_str))
+        .fetch_all(&mut *tx)
+        .await?;
         let has_more = rows.len() > 50;
         let items = rows
             .into_iter()

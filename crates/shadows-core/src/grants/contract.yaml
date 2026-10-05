@@ -174,6 +174,8 @@ enums:
 
 
 shared_in_transaction:
+  # Design calls check_writer for grant-scoped agreement reads and each new
+  # proposal write, before replay, using the existing live/project policy.
   check_writer: "Plans' store (plans/store/draft.rs start_draft, edit.rs edit_plan, view.rs show_plan): the writer's grant is judged live and in scope inside the plan write's own transaction, so a revocation between the tool's bearer check and the write stops the write"
   bind_draft_ref: "Plans' store (plans/store/draft.rs start_draft): the draft_ref is bound to the version the same transaction creates, so a refused ref leaves no plan or version behind"
   revoke_project_grants_in: "Projects' store (projects/store.rs remove_project): a removed project's live grants are revoked in the removal's own write, so its token stops with it (§4.2)"

@@ -85,6 +85,13 @@ impl Storage {
                         .with_project(&project)
                         .with_payload(serde_json::json!({ "linked": linked }));
                     append_event(conn, &event, &ts).await?;
+                    crate::plans::notify_project_dependencies_in(
+                        conn,
+                        &project,
+                        &Actor::user(&ctx.principal_id),
+                        &ts,
+                    )
+                    .await?;
                 }
                 let (scope, key) = ("Project", project.as_str());
                 record_command(conn, &ctx, scope, key, "ProjectLink", linked.as_str(), &ts).await?;
@@ -125,6 +132,13 @@ impl Storage {
                     .with_project(&project)
                     .with_payload(serde_json::json!({ "linked": linked }));
                 append_event(conn, &event, &ts).await?;
+                crate::plans::notify_project_dependencies_in(
+                    conn,
+                    &project,
+                    &Actor::user(&ctx.principal_id),
+                    &ts,
+                )
+                .await?;
                 let (scope, key) = ("Project", project.as_str());
                 record_command(conn, &ctx, scope, key, "ProjectLink", linked.as_str(), &ts).await?;
                 Ok(true)

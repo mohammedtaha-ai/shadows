@@ -58,9 +58,10 @@ async fn a_new_session_answers_its_options_and_a_prompt_streams_then_ends() {
         TurnEnd::Ended
     );
     let chunks = drain(&mut ev);
-    assert!(
-        matches!(&chunks[0], HarnessEvent::Chunk { message_id: Some(m), text } if m == "m1" && text == "hello ")
-    );
+    assert!(matches!(
+        &chunks[0],
+        HarnessEvent::Chunk { message_id: Some(m), text } if m == "m1" && text == "hello "
+    ));
 }
 
 #[tokio::test]

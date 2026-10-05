@@ -13,7 +13,12 @@
 //! and `store` the queries. All six are private: a caller reaches a plan
 //! through `Plans` only.
 
+mod binding_edit;
+mod bindings;
 mod conversation;
+mod dependencies;
+mod dependency_graph;
+mod map;
 mod model;
 mod ops;
 mod rules;
@@ -24,7 +29,10 @@ use std::sync::Arc;
 
 use serde_json::json;
 
+pub use bindings::{AgreementBinding, BindingParticipant};
 pub use conversation::{Focus, Place, PlanShown};
+pub use dependencies::{LinkedTask, TaskParent, TaskPreview};
+pub use map::{MapLink, MapPlan, PlanMap};
 pub use model::{
     AcceptanceItem, Approved, DraftStarted, EditOutcome, LastEdit, Link, LinkKind, Plan,
     PlanContent, PlanId, PlanListing, PlanState, PlanTask, PlanVersions, TaskContent, TaskId,
@@ -32,7 +40,10 @@ pub use model::{
 };
 pub use ops::PlanOp;
 pub use rules::Problem;
+pub(crate) use store::agreement_participants_in;
 pub(crate) use store::check_design_plan;
+pub(crate) use store::notify_project_dependencies_in;
+pub(crate) use store::part_bindings_in;
 pub(crate) use store::task_of;
 
 use scope::{command, own_thread, refused, writer_of};
@@ -89,6 +100,11 @@ pub struct PlanShow {
 }
 
 impl Plans {
+    /// Active plans with latest metadata and counted links in either direction.
+    pub async fn map(&self, project: &ProjectId) -> Result<PlanMap, CoreError> {
+        Ok(self.storage.plan_map(project).await?)
+    }
+
     pub(crate) fn new(
         storage: Arc<Storage>,
         handles: Arc<LiveHandles>,
@@ -161,13 +177,17 @@ impl Plans {
         Ok(self.storage.unarchive_plan(&c, plan).await?)
     }
 
-    /// `workflow_list`: the plans in the grant's project.
+    /// `workflow_list`: own or explicitly selected linked project's plans.
     pub async fn list_for(
         &self,
         grant: &Grant,
         archived: bool,
+        project: Option<&str>,
     ) -> Result<Vec<PlanListing>, CoreError> {
-        Ok(self.storage.list_plans(&grant.project_id, archived).await?)
+        Ok(self
+            .storage
+            .list_plans_scoped(&grant.project_id, archived, project)
+            .await?)
     }
 
     /// `workflow_get`: a plan version the grant reaches.
@@ -175,7 +195,20 @@ impl Plans {
         &self,
         grant: &Grant,
         named: Option<&WorkflowId>,
+        project: Option<&str>,
     ) -> Result<Plan, CoreError> {
+        if let Some(project) = project {
+            let id = named.ok_or_else(|| {
+                refused(
+                    ErrorCode::GrantScope,
+                    "name the plan version with workflow_id",
+                )
+            })?;
+            return Ok(self
+                .storage
+                .get_plan_scoped(id, Some(&grant.project_id), Some(project))
+                .await?);
+        }
         self.in_scope(grant, named, false).await
     }
 

@@ -70,6 +70,15 @@ impl Storage {
                         &ts,
                     )
                     .await?;
+                    super::notifications::notify_plan(
+                        conn,
+                        &current.project_id,
+                        &plan_id,
+                        &[],
+                        &Actor::user(&ctx.principal_id),
+                        &ts,
+                    )
+                    .await?;
                 }
                 record_command(
                     conn,
@@ -117,6 +126,15 @@ impl Storage {
                         &DurableEvent::new("PlanUnarchived", actor)
                             .with_project(&current.project_id)
                             .with_payload(serde_json::json!({ "plan": plan_id })),
+                        &ts,
+                    )
+                    .await?;
+                    super::notifications::notify_plan(
+                        conn,
+                        &current.project_id,
+                        &plan_id,
+                        &[],
+                        &Actor::user(&ctx.principal_id),
                         &ts,
                     )
                     .await?;

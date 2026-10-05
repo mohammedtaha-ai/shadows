@@ -142,24 +142,54 @@ fn efforts(model: &str) -> &'static [&'static str] {
 fn options(s: &Session) -> Vec<SessionConfigOption> {
     let efforts = efforts(&s.model);
     let mut values = vec![
-        json!({"id":"mode","name":"Mode","category":"mode","type":"select","currentValue":s.mode,
-            "options":(["default","acceptEdits","plan","auto","bypassPermissions"].iter()
-              .map(|v| json!({"value":v,"name":v})).collect::<Vec<_>>()) }),
-        json!({"id":"model","name":"Model","category":"model","type":"select","currentValue":s.model,
-            "options":[
-                {"value":"fake-large","name":"Fake Large","description":"The biggest fake"},
-                {"value":"fake-small","name":"Fake Small"},
-                {"value":"fake-tiny","name":"Fake Tiny"},
-                {"value":"fake-locked","name":"Fake Locked"}]}),
+        json!({
+            "id": "mode",
+            "name": "Mode",
+            "category": "mode",
+            "type": "select",
+            "currentValue": s.mode,
+            "options": (
+                ["default", "acceptEdits", "plan", "auto", "bypassPermissions"]
+                    .iter()
+                    .map(|v| json!({"value": v, "name": v}))
+                    .collect::<Vec<_>>()
+            ),
+        }),
+        json!({
+            "id": "model",
+            "name": "Model",
+            "category": "model",
+            "type": "select",
+            "currentValue": s.model,
+            "options": [
+                {"value": "fake-large", "name": "Fake Large", "description": "The biggest fake"},
+                {"value": "fake-small", "name": "Fake Small"},
+                {"value": "fake-tiny", "name": "Fake Tiny"},
+                {"value": "fake-locked", "name": "Fake Locked"},
+            ],
+        }),
     ];
     if let Some(effort) = &s.effort {
-        values.push(
-            json!({"id":"effort","name":"Effort","category":"thought_level","type":"select","currentValue":effort,
-            "options":efforts.iter().map(|v| json!({"value":v,"name":v})).collect::<Vec<_>>() }),
-        );
+        values.push(json!({
+            "id": "effort",
+            "name": "Effort",
+            "category": "thought_level",
+            "type": "select",
+            "currentValue": effort,
+            "options": efforts
+                .iter()
+                .map(|v| json!({"value": v, "name": v}))
+                .collect::<Vec<_>>(),
+        }));
     }
-    values.push(json!({"id":"fast","name":"Fast","category":"model_config","type":"select","currentValue":"off",
-        "options":[{"value":"on","name":"On"},{"value":"off","name":"Off"}]}));
+    values.push(json!({
+        "id": "fast",
+        "name": "Fast",
+        "category": "model_config",
+        "type": "select",
+        "currentValue": "off",
+        "options": [{"value": "on", "name": "On"}, {"value": "off", "name": "Off"}],
+    }));
     values
         .into_iter()
         .map(|v| serde_json::from_value(v).expect("fake option schema"))
@@ -209,151 +239,398 @@ async fn main() -> agent_client_protocol::Result<()> {
         return Ok(());
     }
     let state: Shared = Arc::default();
-    Agent.builder().name("fake-acp")
-        .on_receive_request({ let state = state.clone(); async move |r: InitializeRequest, responder, _cx| {
-            state.lock().unwrap().client_meta = r.client_capabilities.meta.clone().map(Value::Object).unwrap_or(Value::Null);
-            let caps: AgentCapabilities = serde_json::from_value(json!({"sessionCapabilities":{"fork":{},"resume":{}}})).unwrap();
-            responder.respond(InitializeResponse::new(r.protocol_version).agent_capabilities(caps))
-        }}, agent_client_protocol::on_receive_request!())
-        .on_receive_request({ let state = state.clone(); async move |r: NewSessionRequest, responder, _cx| {
-            let mut st = state.lock().unwrap();
-            st.next += 1;
-            // Unique across adapter processes, as the real harness's ids are.
-            let id = format!("fake-{}-{}", std::process::id(), st.next);
-            let s = make_session(r.cwd, "new", setup_of(&r.mcp_servers, r.meta.as_ref()));
-            let opts = options(&s);
-            st.sessions.insert(id.clone(), s);
-            responder.respond(NewSessionResponse::new(id).config_options(opts))
-        }}, agent_client_protocol::on_receive_request!())
-        .on_receive_request({ let state = state.clone(); async move |r: ResumeSessionRequest, responder, _cx| {
-            let id = r.session_id.to_string();
-            // A harness slow to open its session, as Claude Code's own
-            // startup is on Windows (seconds).
-            if id.starts_with("slow-") {
-                tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
-            }
-            let mut st = state.lock().unwrap();
-            let how = if id.starts_with("fork-of-") { "fork" } else { "resume" };
-            st.resumes += 1;
-            let s = make_session(r.cwd, how, setup_of(&r.mcp_servers, r.meta.as_ref()));
-            let opts = options(&s);
-            st.sessions.insert(id, s);
-            responder.respond(ResumeSessionResponse::new().config_options(opts))
-        }}, agent_client_protocol::on_receive_request!())
-        .on_receive_request({ let state = state.clone(); async move |r: ForkSessionRequest, responder, _cx| {
-            let st = state.lock().unwrap();
-            // The real adapter forks any session in Claude's own store; the
-            // fake's store is its process, so a fake id from another adapter
-            // process stands for one that exists.
-            let id = r.session_id.to_string();
-            if !st.sessions.contains_key(&id) && !id.starts_with("fake-") && !id.starts_with("fork-of-") {
-                return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "Session not found"));
-            }
-            responder.respond(ForkSessionResponse::new(format!("fork-of-{}", r.session_id)))
-        }}, agent_client_protocol::on_receive_request!())
-        .on_receive_request({ let state = state.clone(); async move |r: SetSessionConfigOptionRequest, responder, _cx| {
-            let mut st = state.lock().unwrap();
-            let Some(s) = st.sessions.get_mut(&r.session_id.to_string()) else {
-                return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "Session not found"));
-            };
-            let value = r.value.as_value_id().map(ToString::to_string).unwrap_or_default();
-            match r.config_id.to_string().as_str() {
-                "model" if value == "fake-locked" => return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "Usage credits are required for this model · model not changed")),
-                "model" => {
-                    s.effort = (!efforts(&value).is_empty()).then(|| "high".to_string());
-                    s.model = value;
-                    if s.mode == "auto" && s.model != "fake-large" { s.mode = "acceptEdits".into(); }
-                },
-                "effort" if !efforts(&s.model).contains(&value.as_str()) => return responder.respond_with_error(agent_client_protocol::Error::new(-32602, "effort not offered")),
-                "effort" => s.effort = Some(value),
-                "mode" if value == "auto" && s.model != "fake-large" => return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "auto mode is not available for this model")),
-                "mode" => s.mode = value,
-                _ => {},
-            }
-            responder.respond(SetSessionConfigOptionResponse::new(options(s)))
-        }}, agent_client_protocol::on_receive_request!())
-        .on_receive_notification({ let state = state.clone(); async move |r: CancelNotification, _cx| {
-            if let Some(s) = state.lock().unwrap().sessions.get(&r.session_id.to_string()) { let _ = s.cancel.send(true); }
-            Ok(())
-        }}, agent_client_protocol::on_receive_notification!())
-        .on_receive_request({ let state = state.clone(); async move |r: PromptRequest, responder: Responder<PromptResponse>, cx: ConnectionTo<Client>| {
-            let worker = cx.clone();
-            let state = state.clone();
-            cx.spawn(async move {
-            let cx = worker;
-            let id = r.session_id.to_string();
-            let prompt = r.prompt.iter().find_map(|b| match b { ContentBlock::Text(t) => Some(t.text.as_str()), _ => None }).unwrap_or("");
-            let blocks: Vec<&str> = r.prompt.iter().filter_map(|b| match b { ContentBlock::Text(t) => Some(t.text.as_str()), _ => None }).collect();
-            let (s, first_context, resumes, client_meta) = {
-                let mut st = state.lock().unwrap();
-                let Some(s) = st.sessions.get(&id).cloned() else { return responder.respond_with_error(agent_client_protocol::Error::new(-32603, "Session not found")); };
-                let first = prompt == "/context" && !st.context_seen;
-                if prompt == "/context" { st.context_seen = true; }
-                (s, first, st.resumes, st.client_meta.clone())
-            };
-            match prompt {
-                "two-messages" => {
-                    chunk(&cx, &id, "m1", "first")?;
-                    let tool: ToolCall = serde_json::from_value(json!({"toolCallId":"t1","title":"Terminal","status":"pending"})).unwrap();
-                    update(&cx, &id, SessionUpdate::ToolCall(tool))?;
-                    let rename: ToolCallUpdate = serde_json::from_value(json!({"toolCallId":"t1","title":"Read notes.md"})).unwrap();
-                    update(&cx, &id, SessionUpdate::ToolCallUpdate(rename))?;
-                    let done: ToolCallUpdate = serde_json::from_value(json!({"toolCallId":"t1","status":"completed"})).unwrap();
-                    update(&cx, &id, SessionUpdate::ToolCallUpdate(done))?;
-                    chunk(&cx, &id, "m2", "second")?;
-                },
-                "report" => {
-                    let bearer_hash = s.setup.bearer.as_deref().map(shadows_core::testing::hash_token);
-                    let text = json!({"cwd":s.cwd,"session":id,"how":s.how,"model":s.model,"effort":s.effort,"mode":s.mode,"claude":std::env::var("CLAUDE_CODE_EXECUTABLE").unwrap_or_default(),
-                        "mcp":s.setup.mcp,"bearer_hash":bearer_hash,"append":s.setup.append,"allowed":s.setup.allowed,"blocks":blocks,"resumes":resumes,"client_meta":client_meta}).to_string();
-                    chunk(&cx, &id, "m1", &text)?;
-                },
-                "/context" => {
-                    if first_context { tokio::time::sleep(Duration::from_secs(1)).await; }
-                    chunk(&cx, &id, "m1", "| Category | Tokens | Percentage |\n| Messages | 3.8k | 0.4% |\n| System tools | 19.1k | 1.9% |\n| Free space | 923.9k | 92.4% |")?;
-                },
-                "hang" => {
-                    chunk(&cx, &id, "m1", "waiting")?;
-                    let mut cancelled = s.cancel.subscribe();
-                    while !*cancelled.borrow() { if cancelled.changed().await.is_err() { break; } }
-                    return responder.respond(PromptResponse::new(StopReason::Cancelled));
-                },
-                "wait-for-release" => {
-                    chunk(&cx, &id, "m1", "waiting")?;
-                    while !s.cwd.join("release").exists() { tokio::time::sleep(Duration::from_millis(20)).await; }
-                },
-                "ignore-cancel" => { chunk(&cx, &id, "m1", "waiting")?; std::future::pending::<()>().await; },
-                "exit" => { chunk(&cx, &id, "m1", "exiting")?; std::process::exit(3); },
-                "ask-permission" => {
-                    let call: ToolCallUpdate = serde_json::from_value(json!({"toolCallId":"p1","title":"Run echo probe"})).unwrap();
-                    let req = RequestPermissionRequest::new(id.clone(), call, vec![
-                        PermissionOption::new("allow_once", "Allow", PermissionOptionKind::AllowOnce),
-                        PermissionOption::new("reject_once", "Reject", PermissionOptionKind::RejectOnce),
-                    ]);
-                    let answer = cx.send_request(req).block_task().await?;
-                    let chosen = match answer.outcome { agent_client_protocol::schema::v1::RequestPermissionOutcome::Selected(x) => x.option_id.to_string(), _ => "cancelled".into() };
-                    chunk(&cx, &id, "m1", &format!("permission: {chosen}"))?;
-                },
-                "usage" => {
-                    let u = UsageUpdate::new(1234, 200000).meta(json!({"_claude/model":"fake-large-answering"}).as_object().unwrap().clone());
-                    update(&cx, &id, SessionUpdate::UsageUpdate(u))?;
-                    chunk(&cx, &id, "m1", "usage")?;
-                    let u = UsageUpdate::new(1234, 1000000).meta(json!({"_claude/model":"fake-large-answering","_claude/rateLimit":{"unifiedWindows":{"five_hour":{"utilization":0.25,"resetsAt":1790212200},"seven_day":{"utilization":0.5,"resetsAt":1790542800}}}}).as_object().unwrap().clone());
-                    update(&cx, &id, SessionUpdate::UsageUpdate(u))?;
-                },
-                "refuse" => return responder.respond(PromptResponse::new(StopReason::MaxTokens)),
-                line if line.starts_with("mcp ") => { let text = call_mcp(&s.setup, line).await; chunk(&cx, &id, "m1", &text)?; },
-                // As the real adapter does: the title is sent after the turn has answered.
-                line if line.starts_with("title ") => {
-                    chunk(&cx, &id, "m1", "titled")?;
-                    responder.respond(PromptResponse::new(StopReason::EndTurn))?;
-                    let title = line.strip_prefix("title ").unwrap_or_default();
-                    return update(&cx, &id, SessionUpdate::SessionInfoUpdate(SessionInfoUpdate::new().title(title.to_owned())));
-                },
-                _ => { chunk(&cx, &id, "m1", "hello ")?; chunk(&cx, &id, "m1", "from fake_acp")?; },
-            }
-            responder.respond(PromptResponse::new(StopReason::EndTurn))
-            })
-        }}, agent_client_protocol::on_receive_request!())
-        .connect_to(Stdio::new()).await
+    Agent
+        .builder()
+        .name("fake-acp")
+        .on_receive_request(
+            {
+                let state = state.clone();
+                async move |r: InitializeRequest, responder, _cx| {
+                    state.lock().unwrap().client_meta = r
+                        .client_capabilities
+                        .meta
+                        .clone()
+                        .map(Value::Object)
+                        .unwrap_or(Value::Null);
+                    let caps: AgentCapabilities = serde_json::from_value(json!({
+                        "sessionCapabilities": {"fork": {}, "resume": {}},
+                    }))
+                    .unwrap();
+                    responder.respond(
+                        InitializeResponse::new(r.protocol_version).agent_capabilities(caps),
+                    )
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let state = state.clone();
+                async move |r: NewSessionRequest, responder, _cx| {
+                    let mut st = state.lock().unwrap();
+                    st.next += 1;
+                    // Unique across adapter processes, as the real harness's ids are.
+                    let id = format!("fake-{}-{}", std::process::id(), st.next);
+                    let s = make_session(r.cwd, "new", setup_of(&r.mcp_servers, r.meta.as_ref()));
+                    let opts = options(&s);
+                    st.sessions.insert(id.clone(), s);
+                    responder.respond(NewSessionResponse::new(id).config_options(opts))
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let state = state.clone();
+                async move |r: ResumeSessionRequest, responder, _cx| {
+                    let id = r.session_id.to_string();
+                    // A harness slow to open its session, as Claude Code's own
+                    // startup is on Windows (seconds).
+                    if id.starts_with("slow-") {
+                        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                    }
+                    let mut st = state.lock().unwrap();
+                    let how = if id.starts_with("fork-of-") {
+                        "fork"
+                    } else {
+                        "resume"
+                    };
+                    st.resumes += 1;
+                    let s = make_session(r.cwd, how, setup_of(&r.mcp_servers, r.meta.as_ref()));
+                    let opts = options(&s);
+                    st.sessions.insert(id, s);
+                    responder.respond(ResumeSessionResponse::new().config_options(opts))
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let state = state.clone();
+                async move |r: ForkSessionRequest, responder, _cx| {
+                    let st = state.lock().unwrap();
+                    // The real adapter forks any session in Claude's own store; the
+                    // fake's store is its process, so a fake id from another adapter
+                    // process stands for one that exists.
+                    let id = r.session_id.to_string();
+                    if !st.sessions.contains_key(&id)
+                        && !id.starts_with("fake-")
+                        && !id.starts_with("fork-of-")
+                    {
+                        return responder.respond_with_error(agent_client_protocol::Error::new(
+                            -32603,
+                            "Session not found",
+                        ));
+                    }
+                    responder.respond(ForkSessionResponse::new(format!(
+                        "fork-of-{}",
+                        r.session_id
+                    )))
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let state = state.clone();
+                async move |r: SetSessionConfigOptionRequest, responder, _cx| {
+                    let mut st = state.lock().unwrap();
+                    let Some(s) = st.sessions.get_mut(&r.session_id.to_string()) else {
+                        return responder.respond_with_error(agent_client_protocol::Error::new(
+                            -32603,
+                            "Session not found",
+                        ));
+                    };
+                    let value = r
+                        .value
+                        .as_value_id()
+                        .map(ToString::to_string)
+                        .unwrap_or_default();
+                    match r.config_id.to_string().as_str() {
+                        "model" if value == "fake-locked" => {
+                            return responder.respond_with_error(
+                                agent_client_protocol::Error::new(
+                                    -32603,
+                                    concat!(
+                                        "Usage credits are required for this model ",
+                                        "· model not changed",
+                                    ),
+                                ),
+                            );
+                        }
+                        "model" => {
+                            s.effort = (!efforts(&value).is_empty()).then(|| "high".to_string());
+                            s.model = value;
+                            if s.mode == "auto" && s.model != "fake-large" {
+                                s.mode = "acceptEdits".into();
+                            }
+                        }
+                        "effort" if !efforts(&s.model).contains(&value.as_str()) => {
+                            return responder.respond_with_error(
+                                agent_client_protocol::Error::new(-32602, "effort not offered"),
+                            );
+                        }
+                        "effort" => s.effort = Some(value),
+                        "mode" if value == "auto" && s.model != "fake-large" => {
+                            return responder.respond_with_error(
+                                agent_client_protocol::Error::new(
+                                    -32603,
+                                    "auto mode is not available for this model",
+                                ),
+                            );
+                        }
+                        "mode" => s.mode = value,
+                        _ => {}
+                    }
+                    responder.respond(SetSessionConfigOptionResponse::new(options(s)))
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_notification(
+            {
+                let state = state.clone();
+                async move |r: CancelNotification, _cx| {
+                    if let Some(s) = state
+                        .lock()
+                        .unwrap()
+                        .sessions
+                        .get(&r.session_id.to_string())
+                    {
+                        let _ = s.cancel.send(true);
+                    }
+                    Ok(())
+                }
+            },
+            agent_client_protocol::on_receive_notification!(),
+        )
+        .on_receive_request(
+            {
+                let state = state.clone();
+                async move |r: PromptRequest,
+                            responder: Responder<PromptResponse>,
+                            cx: ConnectionTo<Client>| {
+                    let worker = cx.clone();
+                    let state = state.clone();
+                    cx.spawn(async move {
+                        let cx = worker;
+                        let id = r.session_id.to_string();
+                        let prompt = r
+                            .prompt
+                            .iter()
+                            .find_map(|b| match b {
+                                ContentBlock::Text(t) => Some(t.text.as_str()),
+                                _ => None,
+                            })
+                            .unwrap_or("");
+                        let blocks: Vec<&str> = r
+                            .prompt
+                            .iter()
+                            .filter_map(|b| match b {
+                                ContentBlock::Text(t) => Some(t.text.as_str()),
+                                _ => None,
+                            })
+                            .collect();
+                        let (s, first_context, resumes, client_meta) = {
+                            let mut st = state.lock().unwrap();
+                            let Some(s) = st.sessions.get(&id).cloned() else {
+                                return responder.respond_with_error(
+                                    agent_client_protocol::Error::new(-32603, "Session not found"),
+                                );
+                            };
+                            let first = prompt == "/context" && !st.context_seen;
+                            if prompt == "/context" {
+                                st.context_seen = true;
+                            }
+                            (s, first, st.resumes, st.client_meta.clone())
+                        };
+                        match prompt {
+                            "two-messages" => {
+                                chunk(&cx, &id, "m1", "first")?;
+                                let tool: ToolCall = serde_json::from_value(json!({
+                                    "toolCallId": "t1",
+                                    "title": "Terminal",
+                                    "status": "pending",
+                                }))
+                                .unwrap();
+                                update(&cx, &id, SessionUpdate::ToolCall(tool))?;
+                                let rename: ToolCallUpdate = serde_json::from_value(json!({
+                                    "toolCallId": "t1",
+                                    "title": "Read notes.md",
+                                }))
+                                .unwrap();
+                                update(&cx, &id, SessionUpdate::ToolCallUpdate(rename))?;
+                                let done: ToolCallUpdate = serde_json::from_value(json!({
+                                    "toolCallId": "t1",
+                                    "status": "completed",
+                                }))
+                                .unwrap();
+                                update(&cx, &id, SessionUpdate::ToolCallUpdate(done))?;
+                                chunk(&cx, &id, "m2", "second")?;
+                            }
+                            "report" => {
+                                let bearer_hash = s
+                                    .setup
+                                    .bearer
+                                    .as_deref()
+                                    .map(shadows_core::testing::hash_token);
+                                let text = json!({
+                                    "cwd": s.cwd,
+                                    "session": id,
+                                    "how": s.how,
+                                    "model": s.model,
+                                    "effort": s.effort,
+                                    "mode": s.mode,
+                                    "claude": std::env::var("CLAUDE_CODE_EXECUTABLE")
+                                        .unwrap_or_default(),
+                                    "mcp": s.setup.mcp,
+                                    "bearer_hash": bearer_hash,
+                                    "append": s.setup.append,
+                                    "allowed": s.setup.allowed,
+                                    "blocks": blocks,
+                                    "resumes": resumes,
+                                    "client_meta": client_meta,
+                                })
+                                .to_string();
+                                chunk(&cx, &id, "m1", &text)?;
+                            }
+                            "/context" => {
+                                if first_context {
+                                    tokio::time::sleep(Duration::from_secs(1)).await;
+                                }
+                                chunk(
+                                    &cx,
+                                    &id,
+                                    "m1",
+                                    concat!(
+                                        "| Category | Tokens | Percentage |\n",
+                                        "| Messages | 3.8k | 0.4% |\n",
+                                        "| System tools | 19.1k | 1.9% |\n",
+                                        "| Free space | 923.9k | 92.4% |",
+                                    ),
+                                )?;
+                            }
+                            "hang" => {
+                                chunk(&cx, &id, "m1", "waiting")?;
+                                let mut cancelled = s.cancel.subscribe();
+                                while !*cancelled.borrow() {
+                                    if cancelled.changed().await.is_err() {
+                                        break;
+                                    }
+                                }
+                                return responder
+                                    .respond(PromptResponse::new(StopReason::Cancelled));
+                            }
+                            "wait-for-release" => {
+                                chunk(&cx, &id, "m1", "waiting")?;
+                                while !s.cwd.join("release").exists() {
+                                    tokio::time::sleep(Duration::from_millis(20)).await;
+                                }
+                            }
+                            "ignore-cancel" => {
+                                chunk(&cx, &id, "m1", "waiting")?;
+                                std::future::pending::<()>().await;
+                            }
+                            "exit" => {
+                                chunk(&cx, &id, "m1", "exiting")?;
+                                std::process::exit(3);
+                            }
+                            "ask-permission" => {
+                                let call: ToolCallUpdate = serde_json::from_value(json!({
+                                    "toolCallId": "p1",
+                                    "title": "Run echo probe",
+                                }))
+                                .unwrap();
+                                let req = RequestPermissionRequest::new(
+                                    id.clone(),
+                                    call,
+                                    vec![
+                                        PermissionOption::new(
+                                            "allow_once",
+                                            "Allow",
+                                            PermissionOptionKind::AllowOnce,
+                                        ),
+                                        PermissionOption::new(
+                                            "reject_once",
+                                            "Reject",
+                                            PermissionOptionKind::RejectOnce,
+                                        ),
+                                    ],
+                                );
+                                let answer = cx.send_request(req).block_task().await?;
+                                let chosen = match answer.outcome {
+                                    agent_client_protocol::schema::v1::RequestPermissionOutcome::
+                                    Selected(x) => {
+                                        x.option_id.to_string()
+                                    }
+                                    _ => "cancelled".into(),
+                                };
+                                chunk(&cx, &id, "m1", &format!("permission: {chosen}"))?;
+                            }
+                            "usage" => {
+                                let u = UsageUpdate::new(1234, 200000).meta(
+                                    json!({"_claude/model": "fake-large-answering"})
+                                        .as_object()
+                                        .unwrap()
+                                        .clone(),
+                                );
+                                update(&cx, &id, SessionUpdate::UsageUpdate(u))?;
+                                chunk(&cx, &id, "m1", "usage")?;
+                                let u = UsageUpdate::new(1234, 1000000).meta(
+                                    json!({
+                                        "_claude/model": "fake-large-answering",
+                                        "_claude/rateLimit": {
+                                            "unifiedWindows": {
+                                                "five_hour": {
+                                                    "utilization": 0.25,
+                                                    "resetsAt": 1790212200,
+                                                },
+                                                "seven_day": {
+                                                    "utilization": 0.5,
+                                                    "resetsAt": 1790542800,
+                                                },
+                                            },
+                                        },
+                                    })
+                                    .as_object()
+                                    .unwrap()
+                                    .clone(),
+                                );
+                                update(&cx, &id, SessionUpdate::UsageUpdate(u))?;
+                            }
+                            "refuse" => {
+                                return responder
+                                    .respond(PromptResponse::new(StopReason::MaxTokens));
+                            }
+                            line if line.starts_with("mcp ") => {
+                                let text = call_mcp(&s.setup, line).await;
+                                chunk(&cx, &id, "m1", &text)?;
+                            }
+                            // As the real adapter does: the title is sent after the turn
+                            // has answered.
+                            line if line.starts_with("title ") => {
+                                chunk(&cx, &id, "m1", "titled")?;
+                                responder.respond(PromptResponse::new(StopReason::EndTurn))?;
+                                let title = line.strip_prefix("title ").unwrap_or_default();
+                                return update(
+                                    &cx,
+                                    &id,
+                                    SessionUpdate::SessionInfoUpdate(
+                                        SessionInfoUpdate::new().title(title.to_owned()),
+                                    ),
+                                );
+                            }
+                            _ => {
+                                chunk(&cx, &id, "m1", "hello ")?;
+                                chunk(&cx, &id, "m1", "from fake_acp")?;
+                            }
+                        }
+                        responder.respond(PromptResponse::new(StopReason::EndTurn))
+                    })
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .connect_to(Stdio::new())
+        .await
 }

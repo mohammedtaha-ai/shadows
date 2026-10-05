@@ -24,6 +24,7 @@ pub use model::{
     Answer, CodeConfig, CodeSettings, Hit, IndexState, ProjectLink, ProjectStatus, Skipped,
 };
 pub use scope::Asker;
+pub(crate) use store::{project_reachable_in, selected_project_in};
 
 use crate::db::Storage;
 use crate::error::CoreError;

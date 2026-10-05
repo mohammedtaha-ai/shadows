@@ -27,8 +27,12 @@ impl Plans {
         let id = named.cloned().ok_or_else(|| {
             scope("name the plan version with workflow_id; workflow_list lists the project's plans")
         })?;
-        let plan = match self.storage.get_plan(&id).await {
-            Err(StorageError::NotFound(_)) => {
+        let plan = match self
+            .storage
+            .get_plan_scoped(&id, Some(&grant.project_id), None)
+            .await
+        {
+            Err(StorageError::NotFound(_) | StorageError::GrantScope) => {
                 return Err(scope("that plan is not in this grant's project"));
             }
             result => result?,

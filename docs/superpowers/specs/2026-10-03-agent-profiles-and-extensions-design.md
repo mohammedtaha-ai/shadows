@@ -1,7 +1,9 @@
 # Section 19 — Agent Profiles and Extensions
 
 - **Date:** 2026-10-03.
-- **Status:** Draft for Mohammed's review; no product implementation authorized.
+- **Status:** Technical design draft; delivery is included in Mohammed's
+  2026-10-04 full-project goal. Resolve the relevant OPEN prerequisites before
+  dependent implementation; this file does not establish a working integration.
 - **Intent:** [vision §6](../../vision.md#6-executors-and-their-environment).
 - **Related owners:** §12 harness controls, §13 Planner sessions, §17 task
   execution/evidence, §18 shared agreements.
@@ -86,6 +88,14 @@ interrupted specialists remain visible; no silent success or unbounded repair
 loop. The controller's configured retry/cost limit bounds further dispatch.
 
 ## 19.4 Plugins and MCP in the Dashboard
+
+**Direction (Mohammed, 2026-10-04):** Codex must become a working, tested agent
+option in Shadows. Project settings expose MCP connection setup/testing and
+tool selection, supported plugin/skill import/install and explicit lifecycle
+controls. Use supported native mechanisms after checking current official
+documentation. The runtime/adapter and configuration isolation are still to be
+selected and demonstrated; neither a saved profile nor an installed package
+is a successful tool-call trial.
 
 The Dashboard separates browsing/importing, installing, enabling and updating.
 It shows source, selected version or commit, included components, requested

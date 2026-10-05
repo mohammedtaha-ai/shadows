@@ -49,9 +49,21 @@ pub(super) async fn list_harnesses(
     responses(
         (status = 200, body = SessionChoices),
         (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
-        (status = 409, description = "PATH_NOT_FOUND: the project's directory is gone or was never set", body = ErrorBody),
-        (status = 422, description = "HARNESS_UNAVAILABLE: the thread's harness is listed but not runnable", body = ErrorBody),
-        (status = 502, description = "HARNESS_START_FAILED: the adapter did not start", body = ErrorBody),
+        (
+            status = 409,
+            description = "PATH_NOT_FOUND: the project's directory is gone or was never set",
+            body = ErrorBody,
+        ),
+        (
+            status = 422,
+            description = "HARNESS_UNAVAILABLE: the thread's harness is listed but not runnable",
+            body = ErrorBody,
+        ),
+        (
+            status = 502,
+            description = "HARNESS_START_FAILED: the adapter did not start",
+            body = ErrorBody,
+        ),
     )
 )]
 pub(super) async fn open_session(
@@ -87,9 +99,24 @@ pub(super) struct ChangeModel {
     responses(
         (status = 200, body = SessionChoices),
         (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
-        (status = 409, description = "THREAD_BUSY: a turn is running; PATH_NOT_FOUND: the project's directory is gone or was never set", body = ErrorBody),
-        (status = 422, description = "SETTING_NOT_OFFERED: a model the session does not offer, or one the harness refused (its words in the message); HARNESS_UNAVAILABLE", body = ErrorBody),
-        (status = 502, description = "HARNESS_START_FAILED: the adapter did not start, or its session closed", body = ErrorBody),
+        (
+            status = 409,
+            description = "THREAD_BUSY: a turn is running; PATH_NOT_FOUND: the project's \
+                           directory is gone or was never set",
+            body = ErrorBody,
+        ),
+        (
+            status = 422,
+            description = "SETTING_NOT_OFFERED: a model the session does not offer, or \
+                           one the harness refused (its words in the message); \
+                           HARNESS_UNAVAILABLE",
+            body = ErrorBody,
+        ),
+        (
+            status = 502,
+            description = "HARNESS_START_FAILED: the adapter did not start, or its session closed",
+            body = ErrorBody,
+        ),
     )
 )]
 pub(super) async fn change_model(
@@ -125,9 +152,24 @@ pub(super) struct ChangeEffort {
     responses(
         (status = 200, body = SessionChoices),
         (status = 404, description = "INVALID_COMMAND: no such thread", body = ErrorBody),
-        (status = 409, description = "THREAD_BUSY: a turn is running; PATH_NOT_FOUND: the project's directory is gone or was never set", body = ErrorBody),
-        (status = 422, description = "SETTING_NOT_OFFERED: an effort the session's model does not offer, or one the harness refused (its words in the message); HARNESS_UNAVAILABLE", body = ErrorBody),
-        (status = 502, description = "HARNESS_START_FAILED: the adapter did not start, or its session closed", body = ErrorBody),
+        (
+            status = 409,
+            description = "THREAD_BUSY: a turn is running; PATH_NOT_FOUND: the project's \
+                           directory is gone or was never set",
+            body = ErrorBody,
+        ),
+        (
+            status = 422,
+            description = "SETTING_NOT_OFFERED: an effort the session's model does not offer, or \
+                           one the harness refused (its words in the message); \
+                           HARNESS_UNAVAILABLE",
+            body = ErrorBody,
+        ),
+        (
+            status = 502,
+            description = "HARNESS_START_FAILED: the adapter did not start, or its session closed",
+            body = ErrorBody,
+        ),
     )
 )]
 pub(super) async fn change_effort(

@@ -61,8 +61,8 @@ impl From<StorageError> for Refusal {
                 "this grant was revoked while the call ran; nothing was changed",
             ),
             StorageError::GrantScope => Self::scope(
-                "outside what this grant allows: a Planner reaches only its own \
-                 conversation's plan, an external agent only its own project, and a \
+                "outside what this grant allows: plan writes stay in its own project; \
+                 workflow_list and workflow_get can read an explicitly linked project; \
                  draft_ref starts a plan only within the hour after draft_prepare",
             ),
             StorageError::CommandConflict => Self::new(
@@ -71,6 +71,9 @@ impl From<StorageError> for Refusal {
                  for a new plan call draft_prepare again",
             ),
             StorageError::TaskNotInPlan(message) => Self::new(ErrorCode::InvalidCommand, message),
+            // A rule the request broke, not a broken database: say which, so an
+            // agent fixes the request instead of asking for a restart.
+            StorageError::Constraint(message) => Self::new(ErrorCode::InvalidCommand, message),
             StorageError::NotFound(what) => {
                 Self::new(ErrorCode::InvalidCommand, format!("no such {what}"))
             }

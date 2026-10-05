@@ -137,15 +137,34 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
             .is_err()
     );
     assert_eq!(storage.current_cursor().await.unwrap().0, before.0);
-    let events: Vec<String> = sqlx::query_scalar("SELECT payload_json FROM durable_event WHERE kind = 'ProjectDesignChanged' AND project_id = ? ORDER BY seq").bind(project.as_str()).fetch_all(storage.reader()).await.unwrap();
+    let events: Vec<String> = sqlx::query_scalar(
+        r#"SELECT payload_json FROM durable_event
+               WHERE kind = 'ProjectDesignChanged' AND project_id = ? ORDER BY seq"#,
+    )
+    .bind(project.as_str())
+    .fetch_all(storage.reader())
+    .await
+    .unwrap();
     assert_eq!(events.len(), 2);
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&events[0]).unwrap(),
-        serde_json::json!({"project_id": project, "revision": 1, "changed_parts": [], "changed_outcomes": [], "vision_changed": true})
+        serde_json::json!({
+            "project_id": project,
+            "revision": 1,
+            "changed_parts": [],
+            "changed_outcomes": [],
+            "vision_changed": true
+        })
     );
     // A late journal failure must roll back content, result and command together.
-    sqlx::query("CREATE TRIGGER refuse_design_event BEFORE INSERT ON durable_event WHEN NEW.kind = 'ProjectDesignChanged' BEGIN SELECT RAISE(ABORT, 'test refusal'); END")
-        .execute(storage.reader()).await.unwrap();
+    sqlx::query(
+        r#"CREATE TRIGGER refuse_design_event BEFORE INSERT ON durable_event
+           WHEN NEW.kind = 'ProjectDesignChanged'
+           BEGIN SELECT RAISE(ABORT, 'test refusal'); END"#,
+    )
+    .execute(storage.reader())
+    .await
+    .unwrap();
     let before_view = core.design().vision(&other).await.unwrap();
     let before_cursor = storage.current_cursor().await.unwrap().0;
     assert!(

@@ -76,7 +76,10 @@ fn is_alive(pid: u32) -> bool {
         .args([
             "-NoProfile",
             "-Command",
-            &format!("if (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ 'yes' }} else {{ 'no' }}"),
+            &format!(
+                "if (Get-Process -Id {pid} -ErrorAction SilentlyContinue) \
+                   {{ 'yes' }} else {{ 'no' }}"
+            ),
         ])
         .output()
         .expect("powershell should run");

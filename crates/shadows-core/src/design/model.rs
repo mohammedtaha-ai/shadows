@@ -57,6 +57,9 @@ pub struct PartView {
     pub part: Part,
     pub ancestors: Vec<Part>,
     pub plans: Vec<crate::plans::PlanId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schema(required = false)]
+    pub binding_plans: Vec<crate::plans::BindingParticipant>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
@@ -149,4 +152,13 @@ pub enum DesignOp {
         anchor: DesignAnchor,
         plan: crate::plans::PlanId,
     },
+}
+
+/// What a Planner reads before it plans: the vision, and the top-level parts
+/// and outcomes, each a first page with its cursor.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct WorkspaceView {
+    pub vision: VisionView,
+    pub parts: PartPage,
+    pub outcomes: OutcomePage,
 }

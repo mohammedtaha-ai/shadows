@@ -32,9 +32,11 @@ pub use code::{
 // carries, which each adapter maps.
 pub use db::StorageError;
 pub use design::{
-    Design, DesignAnchor, DesignChange, DesignOp, DesignRevision, Outcome, OutcomeContent,
-    OutcomeId, OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage, PartView,
-    VisionContent, VisionView,
+    AgreementContent, AgreementId, AgreementIssue, AgreementParticipantImpact, AgreementParty,
+    AgreementPartyReview, AgreementReview, AgreementRole, AgreementState, AgreementVersion,
+    AgreementWriter, Design, DesignAnchor, DesignChange, DesignOp, DesignRevision, Outcome,
+    OutcomeContent, OutcomeId, OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage,
+    PartView, VisionContent, VisionView, WorkspaceView,
 };
 pub use error::{CoreError, ErrorCode};
 pub use events::{Actor, Delivery, Events, StoredEvent, Subscription, UiSignal};
@@ -42,10 +44,11 @@ pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};
 pub use harness::{ContextBreakdown, Harness, HarnessInfo, OpenError, RememberedSettings};
 pub use instructions::{Instructions, InstructionsVersion};
 pub use plans::{
-    AcceptanceItem, Approved, DraftStart, DraftStarted, EditOutcome, Focus, LastEdit, Link,
-    LinkKind, Place, Plan, PlanContent, PlanEdit, PlanId, PlanListing, PlanOp, PlanShow, PlanShown,
-    PlanState, PlanTask, PlanVersions, Plans, Problem, TaskContent, TaskId, VersionLine,
-    WorkflowId, WorkflowState, WrittenBy,
+    AcceptanceItem, AgreementBinding, Approved, BindingParticipant, DraftStart, DraftStarted,
+    EditOutcome, Focus, LastEdit, Link, LinkKind, LinkedTask, MapLink, MapPlan, Place, Plan,
+    PlanContent, PlanEdit, PlanId, PlanListing, PlanMap, PlanOp, PlanShow, PlanShown, PlanState,
+    PlanTask, PlanVersions, Plans, Problem, TaskContent, TaskId, TaskParent, TaskPreview,
+    VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,

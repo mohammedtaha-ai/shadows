@@ -58,7 +58,11 @@ async fn revoked_grant_is_refused_after_the_move() {
     assert_eq!(status, 200, "{revoked}");
 
     // `mcp_client` panics on a refused connection: a raw request instead.
-    const INITIALIZE: &str = r#"{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"raw","version":"1"}}}"#;
+    const INITIALIZE: &str = concat!(
+        r#"{"jsonrpc":"2.0","id":0,"method":"initialize","#,
+        r#""params":{"protocolVersion":"2025-11-25","capabilities":{},"#,
+        r#""clientInfo":{"name":"raw","version":"1"}}}"#,
+    );
     let response = reqwest::Client::new()
         .post(format!("{}/mcp", l.base))
         .header("content-type", "application/json")

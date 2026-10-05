@@ -66,7 +66,16 @@ async fn a_client_that_disconnects_mid_request_strands_nothing() {
 
     let start = Request::post(format!("/api/threads/{}/turns", thread.as_str()))
         .header("content-type", "application/json")
-        .body(Body::from(json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": "hang", "model": "fake-large", "mode": "acceptEdits", "effort": "high" }).to_string()))
+        .body(Body::from(
+            json!({
+                "command_id": uuid::Uuid::new_v4().to_string(),
+                "prompt": "hang",
+                "model": "fake-large",
+                "mode": "acceptEdits",
+                "effort": "high",
+            })
+            .to_string(),
+        ))
         .unwrap();
     let dropped = tokio::time::timeout(Duration::ZERO, app.clone().oneshot(start)).await;
     assert!(

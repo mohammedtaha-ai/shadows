@@ -1,10 +1,18 @@
 //! The project design workspace service (§18.10).
 
+mod agreement;
+mod agreement_review;
+mod agreement_scope;
+pub(crate) use agreement_scope::AgreementOrigin;
+mod agreement_validation;
+mod agreements;
 mod model;
 mod ops;
 mod outcomes;
 mod parts;
 mod store;
+mod workspace;
+pub(crate) use store::check_agreement_binding_in;
 
 use std::sync::Arc;
 
@@ -12,16 +20,22 @@ use crate::{app::user_command, db::Storage, error::CoreError, projects::ProjectI
 pub use model::{
     DesignAnchor, DesignChange, DesignOp, DesignRevision, Outcome, OutcomeContent, OutcomeId,
     OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage, PartView, VisionContent,
-    VisionView,
+    VisionView, WorkspaceView,
 };
 
 pub struct Design {
     storage: Arc<Storage>,
+    handles: Arc<crate::turns::LiveHandles>,
 }
+pub use agreement::{
+    AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
+    AgreementVersion, AgreementWriter,
+};
+pub use agreement_review::{AgreementParticipantImpact, AgreementPartyReview, AgreementReview};
 
 impl Design {
-    pub(crate) fn new(storage: Arc<Storage>) -> Self {
-        Self { storage }
+    pub(crate) fn new(storage: Arc<Storage>, handles: Arc<crate::turns::LiveHandles>) -> Self {
+        Self { storage, handles }
     }
 
     pub async fn vision(&self, project: &ProjectId) -> Result<VisionView, CoreError> {
@@ -36,7 +50,11 @@ impl Design {
         mut ops: Vec<DesignOp>,
     ) -> Result<DesignChange, CoreError> {
         ops::normalize(&mut ops)?;
-        let params = serde_json::json!({ "project": project, "expected_revision": expected_revision, "ops": ops });
+        let params = serde_json::json!({
+            "project": project,
+            "expected_revision": expected_revision,
+            "ops": ops
+        });
         let ctx = user_command(command_id, "DesignEdit", params);
         self.storage
             .edit_design(&ctx, project, expected_revision, ops)

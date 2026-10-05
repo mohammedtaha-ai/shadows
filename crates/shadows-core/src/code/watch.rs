@@ -363,13 +363,22 @@ impl Run {
 
     async fn index(&self, path: &str) {
         if let Err(error) = self.code.index_file(&self.project, &self.dir, path).await {
-            tracing::warn!(project = self.project.as_str(), path = %path, error = %error, "code.index_failed");
+            tracing::warn!(
+                project = self.project.as_str(),
+                path = %path,
+                error = %error,
+                "code.index_failed"
+            );
         }
     }
 
     fn folder_missing(&mut self) {
         if !self.shared.missing.swap(true, Ordering::Relaxed) {
-            tracing::warn!(project = self.project.as_str(), dir = %self.dir.display(), "code.directory_missing");
+            tracing::warn!(
+                project = self.project.as_str(),
+                dir = %self.dir.display(),
+                "code.directory_missing"
+            );
         }
         self.watcher = None;
     }
@@ -383,7 +392,11 @@ impl Run {
         match made {
             Ok(w) => Some(w),
             Err(error) => {
-                tracing::warn!(project = self.project.as_str(), error = %error, "code.watcher_failed");
+                tracing::warn!(
+                    project = self.project.as_str(),
+                    error = %error,
+                    "code.watcher_failed"
+                );
                 None
             }
         }

@@ -17,12 +17,19 @@
 # parameters reach this service.
 
 name: plans
-version: 1
+version: 2
 status: current
 source: crates/shadows-core/src/plans
 
 
 shapes:
+  AgreementBinding:
+    task: u32
+    agreement_id: AgreementId
+    version: i64
+    part_id: PartId
+    role: AgreementRole
+    operations: Vec<String>
   Plans:
     storage: Arc<Storage>
     handles: Arc<LiveHandles>
@@ -60,6 +67,10 @@ shapes:
     # Never serialized or recorded: true when the call replayed a recorded one.
     replayed: bool
   Plan:
+    bindings: Vec<AgreementBinding>
+    # Derived latest dependency previews, excluded from canonical PlanContent.
+    # MCP omits unreachable incoming previews and redacts outgoing metadata.
+    linked_tasks: Vec<LinkedTask>
     # One plan version as stored: id, plan_id, plan_state, project_id (its
     # plan's), version, revision, state, title, goal, previous, tasks, links,
     # last_edit, frozen_at, created_at, and the four below.
@@ -82,6 +93,28 @@ shapes:
     version: i64
     state: WorkflowState
     updated_at: String
+  PlanMap:
+    project_id: ProjectId
+    plans: Vec<MapPlan>
+    links: Vec<MapLink>
+  MapPlan:
+    # Latest captured metadata; a missing version is unavailable, never invented.
+    plan_id: PlanId
+    project_id: ProjectId
+    project_name: String
+    plan_state: PlanState
+    workflow_id: Option<WorkflowId>
+    title: String
+    goal: String
+    version: Option<i64>
+    state: Option<WorkflowState>
+    task_count: u32
+    removed: bool
+  MapLink:
+    plan_id: PlanId
+    after: PlanId
+    count: u32
+    broken: bool
   PlanVersions:
     plan_id: PlanId
     project_id: ProjectId
@@ -121,11 +154,14 @@ shapes:
   Link:
     # `task` waits on `after`; at most one link of each kind between two tasks.
     task: u32
-    after: u32
+    after: TaskParent
     kind: LinkKind
     label: String
     # Defaults to empty when absent.
     waiting_items: Vec<u32>
+  TaskParent:
+    Local: u32
+    Plan: "{ plan_id: PlanId, task: u32 }"
   LinkKind:
     Needs: unit
     CompletesAfter: unit
@@ -166,6 +202,8 @@ shapes:
     revision: i64
     frozen_at: String
   PlanOp:
+    BindingPut: "{ binding: AgreementBinding }"
+    BindingRemove: "{ task: u32, agreement_id: AgreementId, role: AgreementRole }"
     # Tagged `op`, snake_case. `link_put` replaces the link with the same
     # task, after and kind.
     PlanPut: "{ title: String, goal: String }"
@@ -173,7 +211,7 @@ shapes:
     TaskUpdate: "{ task: TaskContent }"
     TaskRemove: "{ number: u32 }"
     LinkPut: "{ link: Link }"
-    LinkRemove: "{ task: u32, after: u32, kind: LinkKind }"
+    LinkRemove: "{ task: u32, after: TaskParent, kind: LinkKind }"
   Applied:
     # Test-only outside the crate (`testing`): a batch that held.
     content: PlanContent
@@ -198,16 +236,21 @@ shapes:
 
 
 functions:
+  # Person binding edits use the same write/replay/approval validation as MCP.
+  service:
+    edit_bindings:
+      signature: "(&self, command_id: String, workflow: &WorkflowId, expected_revision: i64, ops: Vec<PlanOp>) -> Result<EditOutcome, CoreError>"
   reads:
+    map: "(&self, project: &ProjectId) -> Result<PlanMap, CoreError>"
     list:
       signature: "(&self, project: &ProjectId, archived: bool) -> Result<Vec<PlanListing>, CoreError>"
       # Active plans only, or archived ones too when requested.
     get: "(&self, workflow: &WorkflowId) -> Result<Plan, CoreError>"
     plan: "(&self, plan: &PlanId) -> Result<PlanVersions, CoreError>"
     list_for:
-      signature: "(&self, grant: &Grant, archived: bool) -> Result<Vec<PlanListing>, CoreError>"
+      signature: "(&self, grant: &Grant, archived: bool, project: Option<&str>) -> Result<Vec<PlanListing>, CoreError>"
     # Active plans, or archived ones too when requested.
-    get_for: "(&self, grant: &Grant, named: Option<&WorkflowId>) -> Result<Plan, CoreError>"
+    get_for: "(&self, grant: &Grant, named: Option<&WorkflowId>, project: Option<&str>) -> Result<Plan, CoreError>"
     task_for:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, number: u32) -> Result<PlanTask, CoreError>"
       # INVALID_COMMAND "T{n} does not exist in this plan" when the number is absent.
@@ -268,6 +311,9 @@ functions:
     # takes none.
     list_plans: "(&self, project: &ProjectId, archived: bool) -> Result<Vec<PlanListing>, StorageError>"
     get_plan: "(&self, workflow: &WorkflowId) -> Result<Plan, StorageError>"
+    plan_map: "(&self, project: &ProjectId) -> Result<PlanMap, StorageError>"
+    get_plan_scoped: "(&self, workflow: &WorkflowId, origin: Option<&ProjectId>, project: Option<&str>) -> Result<Plan, StorageError>"
+    list_plans_scoped: "(&self, origin: &ProjectId, archived: bool, project: Option<&str>) -> Result<Vec<PlanListing>, StorageError>"
     get_plan_versions: "(&self, plan: &PlanId) -> Result<PlanVersions, StorageError>"
     archive_plan: "(&self, ctx: &CommandContext, plan: &PlanId) -> Result<PlanVersions, StorageError>"
     unarchive_plan: "(&self, ctx: &CommandContext, plan: &PlanId) -> Result<PlanVersions, StorageError>"
@@ -326,6 +372,9 @@ enums:
 
 
 shared_in_transaction:
+  part_bindings_in: "Design reads derived part-plan adoption in its captured part snapshot, preserving historical pins."
+  agreement_participants_in: "Design reads current/historical task adoption in its captured impact review and agreement transaction; Plans owns binding rows."
+  notify_project_dependencies_in: "Code link writes and Projects removal: append dependency invalidations for other live connected projects inside the caller's write"
   check_design_plan: "Design's part/outcome association stores: verify project-qualified plan identity before associating; archived/Frozen plans remain valid and their content is not edited"
   task_of: "Turns' store (turns/store/turn.rs `focused`): start_turn checks a Focus's task belongs to its version inside the turn's own write"
 
@@ -515,20 +564,19 @@ agreements:
     tested_by: part_order_is_stable_across_restart
   - between: [get, get_for]
     must: >
-      answer the same Plan for a version the grant's scope covers
+      answer the same stored plan content for a version the grant's scope covers;
+      related previews and blocker labels obey the grant's independent reach
     holds: true
     why: >
-      `get_for` runs `in_scope`, which reads the version with the same
-      `Storage::get_plan` as `get` and returns it unchanged once its checks pass.
-    tested_by: none
-    note: >
-      A test would read one version through GET /api/workflows/{id} and through
-      `workflow_get` under a project grant, and assert the two JSON bodies equal.
+      Both use a read snapshot. A selected linked project is checked before
+      content is loaded. An unreachable incoming preview is omitted; an outgoing
+      stored link stays readable with its metadata redacted.
+    tested_by: incoming_previews_obey_the_grants_one_way_project_reach
 
   - between: [get_for, task_for]
     must: >
       a task read through `task_for` is the task with that number inside the
-      plan `get_for` answers for the same grant and version
+      plan `get_for` answers for the same grant and own-project version
     holds: true
     why: >
       `task_for` calls `in_scope` with the same arguments as `get_for` and
@@ -542,7 +590,7 @@ agreements:
     must: >
       list the same plans for the grant's project as a person's list of that project
     holds: true
-    why: Both are `Storage::list_plans` of one project.
+    why: Both use the same listing query; list_for validates its project selector in the snapshot.
     tested_by: none
     note: >
       `the_project_lists_each_plans_latest_version` covers `list` and
@@ -571,6 +619,44 @@ open_questions:
 
 
 tests:
+  - name: bindings_are_exact_version_plan_content_and_task_removal_cleans_them
+    checks: Old content omits empty pins; task removal cleans bindings atomically.
+  - name: binding_storage_checks_agreed_party_and_exact_operations_atomically
+    checks: Draft target and invalid operation rollback; SQL Frozen insert/update/delete guards.
+  - name: the_map_keeps_incoming_foreign_links_to_archived_plans
+    checks: Incoming foreign edges reach the map; an archived referenced plan stays visible from an active consumer.
+  - name: incoming_previews_obey_the_grants_one_way_project_reach
+    checks: User previews may include reverse project links; grants require their own live outgoing reach.
+  - name: a_frozen_sources_preview_follows_the_targets_new_version
+    checks: Latest target removal breaks a derived preview without changing Frozen source content or old target tasks.
+  - name: a_new_foreign_dependency_invalidates_the_targets_project_once
+    checks: A new incoming foreign edge reaches the target project stream in the same commit; replay emits none.
+  - name: the_project_map_aggregates_task_links_with_foreign_plan_metadata
+    checks: Latest foreign plan metadata, counted edges and retained broken references reach HTTP.
+  - name: a_linked_project_can_be_read_but_never_written_by_the_source_grant
+    checks: Selected linked-project MCP reads succeed; writes and reads after unlink are refused.
+  - name: a_foreign_task_link_names_the_missing_project_link_as_invalid_command
+    checks: Missing reach is INVALID_COMMAND with the required link identified; the batch writes nothing.
+  - name: outgoing_and_incoming_views_name_the_related_plan_and_task
+    checks: Both directions resolve task preview metadata; removal retains a broken edge with its explanation.
+  - name: an_unrelated_cycle_in_a_target_plan_does_not_block_this_dependency
+    checks: Approval follows reachable task prerequisites, not unrelated tasks in a referenced plan.
+  - name: a_removed_target_task_keeps_the_link_and_blocks_source_approval
+    checks: A missing latest target task retains the stored edge and blocks approval.
+  - name: a_cross_plan_cycle_names_its_tasks_and_blocks_approval_until_removed
+    checks: A cross-plan cycle reports its tasks and freezes nothing until an edge is removed.
+  - name: a_foreign_target_requires_an_outgoing_project_link_and_breaks_after_unlink
+    checks: Missing one-way reach refuses new foreign links; unlink breaks existing links without deleting them.
+  - name: local_link_parent_keeps_its_existing_wire_shape
+    checks: A local task parent remains a JSON number.
+  - name: cross_plan_link_parent_roundtrips_as_plan_identity
+    checks: An external task parent carries the stable plan identity and task number.
+  - name: cross_plan_links_persist_replay_and_reopen_without_duplicate_events
+    checks: Persisted external links survive reopen and identical command replay journals once.
+  - name: a_frozen_versions_cross_links_refuse_every_database_write
+    checks: A Frozen version refuses cross-link insert, update and delete at the database boundary.
+  - name: a_failed_cross_link_batch_leaves_no_tasks_revision_or_event
+    checks: A failed batch rolls back task rows, links, revision and journal writes together.
   - name: an_archive_blocks_every_new_version_write_in_storage
     checks: >
       After archiving a Draft, storage edit and draft_start are refused as

@@ -38,6 +38,9 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
         tables,
         vec![
             "agent_invocation",
+            "agreement",
+            "agreement_operation_identity",
+            "agreement_version",
             "code_file",
             "code_setting",
             "code_tag",
@@ -64,12 +67,16 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "project_mode",
             "runtime_instance",
             "task",
+            "task_agreement_binding",
             "task_parent",
+            "task_plan_parent",
             "thread_entry",
             "workflow",
         ],
         "spec §7.1: the migrations carry only the milestones' tables \
-         (0005 adds §12's four, 0007 §13.15's six, 0008 §15.4's four, 0011 §12.4's per-model effort, 0012 §16.9's plan, 0013 §18's vision)"
+         (0005 adds §12's four, 0007 §13.15's six, 0008 §15.4's four, \
+         0011 §12.4's per-model effort, 0012 §16.9's plan, 0013 §18's vision, \
+         0017–0018 §18's agreements and exact task pins)"
     );
 }
 
@@ -85,13 +92,16 @@ async fn state_and_event_commit_atomically_or_not_at_all() {
     let outcome = storage
         .write_txn(|conn| {
             Box::pin(async move {
-                sqlx::query("INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,'/d',?)")
-                    .bind("p-1")
-                    .bind("demo")
-                    .bind("Demo")
-                    .bind("2026-09-21T00:00:00Z")
-                    .execute(&mut *conn)
-                    .await?;
+                sqlx::query(
+                    "INSERT INTO project (id, slug, name, directory, created_at) \
+                     VALUES (?,?,?,'/d',?)",
+                )
+                .bind("p-1")
+                .bind("demo")
+                .bind("Demo")
+                .bind("2026-09-21T00:00:00Z")
+                .execute(&mut *conn)
+                .await?;
                 shadows_core::testing::append_event_for_test(
                     conn,
                     &DurableEvent::new("ProjectCreated", Actor::system())
@@ -145,7 +155,8 @@ async fn concurrent_read_then_write_transactions_all_succeed() {
                                 .fetch_one(&mut *conn)
                                 .await?;
                             sqlx::query(
-                                "INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,'/d',?)",
+                                "INSERT INTO project (id, slug, name, directory, created_at) \
+                                 VALUES (?,?,?,'/d',?)",
                             )
                             .bind(&id)
                             .bind(&id)
@@ -189,7 +200,8 @@ async fn write_txn_recovers_after_a_panicking_transaction() {
             .write_txn(|conn| {
                 Box::pin(async move {
                     sqlx::query(
-                        "INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,'/d',?)",
+                        "INSERT INTO project (id, slug, name, directory, created_at) \
+                         VALUES (?,?,?,'/d',?)",
                     )
                     .bind("p-panic")
                     .bind("panic")
@@ -210,13 +222,16 @@ async fn write_txn_recovers_after_a_panicking_transaction() {
     storage
         .write_txn(|conn| {
             Box::pin(async move {
-                sqlx::query("INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,'/d',?)")
-                    .bind("p-after")
-                    .bind("after")
-                    .bind("x")
-                    .bind("2026-09-21T00:00:00Z")
-                    .execute(&mut *conn)
-                    .await?;
+                sqlx::query(
+                    "INSERT INTO project (id, slug, name, directory, created_at) \
+                     VALUES (?,?,?,'/d',?)",
+                )
+                .bind("p-after")
+                .bind("after")
+                .bind("x")
+                .bind("2026-09-21T00:00:00Z")
+                .execute(&mut *conn)
+                .await?;
                 Ok(())
             })
         })
@@ -306,13 +321,16 @@ async fn write_txn_waits_out_an_external_writer_holding_begin_immediate() {
                 // what guarantees the snapshot goes stale before the write
                 // is attempted.
                 tokio::time::sleep(Duration::from_millis(300)).await;
-                sqlx::query("INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,'/d',?)")
-                    .bind("p-after-external")
-                    .bind("after")
-                    .bind("x")
-                    .bind("2026-09-21T00:00:00Z")
-                    .execute(&mut *conn)
-                    .await?;
+                sqlx::query(
+                    "INSERT INTO project (id, slug, name, directory, created_at) \
+                     VALUES (?,?,?,'/d',?)",
+                )
+                .bind("p-after-external")
+                .bind("after")
+                .bind("x")
+                .bind("2026-09-21T00:00:00Z")
+                .execute(&mut *conn)
+                .await?;
                 Ok(())
             })
         })
@@ -342,13 +360,16 @@ async fn event_provenance_round_trips_through_append_event() {
     storage
         .write_txn(|conn| {
             Box::pin(async move {
-                sqlx::query("INSERT INTO project (id, slug, name, directory, created_at) VALUES (?,?,?,'/d',?)")
-                    .bind("p-1")
-                    .bind("demo")
-                    .bind("Demo")
-                    .bind("2026-09-21T00:00:00Z")
-                    .execute(&mut *conn)
-                    .await?;
+                sqlx::query(
+                    "INSERT INTO project (id, slug, name, directory, created_at) \
+                     VALUES (?,?,?,'/d',?)",
+                )
+                .bind("p-1")
+                .bind("demo")
+                .bind("Demo")
+                .bind("2026-09-21T00:00:00Z")
+                .execute(&mut *conn)
+                .await?;
                 shadows_core::testing::append_event_for_test(
                     conn,
                     &DurableEvent::new("ProjectCreated", Actor::system())

@@ -120,7 +120,13 @@ async fn a_turn_runs_in_its_projects_directory() {
         &app,
         "POST",
         &format!("/api/threads/{thread_id}/turns"),
-        Some(json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": "report", "model": "fake-large", "mode": "acceptEdits", "effort": "high" })),
+        Some(json!({
+            "command_id": uuid::Uuid::new_v4().to_string(),
+            "prompt": "report",
+            "model": "fake-large",
+            "mode": "acceptEdits",
+            "effort": "high",
+        })),
     )
     .await;
     assert_eq!(status, StatusCode::ACCEPTED, "{started}");
@@ -209,7 +215,13 @@ async fn a_turn_on_a_deleted_directory_is_refused_with_its_reason() {
         &app,
         "POST",
         &format!("/api/threads/{thread_id}/turns"),
-        Some(json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": "hi", "model": "fake-large", "mode": "acceptEdits", "effort": "high" })),
+        Some(json!({
+            "command_id": uuid::Uuid::new_v4().to_string(),
+            "prompt": "hi",
+            "model": "fake-large",
+            "mode": "acceptEdits",
+            "effort": "high",
+        })),
     )
     .await;
 
@@ -250,7 +262,13 @@ async fn a_project_from_before_directories_has_its_turns_refused() {
         &app,
         "POST",
         &format!("/api/threads/{LEGACY_THREAD}/turns"),
-        Some(json!({ "command_id": uuid::Uuid::new_v4().to_string(), "prompt": "report", "model": "fake-large", "mode": "acceptEdits", "effort": "high" })),
+        Some(json!({
+            "command_id": uuid::Uuid::new_v4().to_string(),
+            "prompt": "report",
+            "model": "fake-large",
+            "mode": "acceptEdits",
+            "effort": "high",
+        })),
     )
     .await;
     // Spec §12.7: the session is opened before any write, and a directory
@@ -317,7 +335,8 @@ async fn seed_pre_directory_database(tmp: &Path, db: &Path) {
         .unwrap();
     sqlx::query(
         "INSERT INTO project (id, slug, name, created_at)
-         VALUES ('00000000-0000-4000-8000-0000000000a1', 'legacy', 'Legacy', '2026-09-01T00:00:00Z')",
+         VALUES ('00000000-0000-4000-8000-0000000000a1', 'legacy', 'Legacy',
+                 '2026-09-01T00:00:00Z')",
     )
     .execute(&pool)
     .await

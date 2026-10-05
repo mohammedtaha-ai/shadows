@@ -1,8 +1,9 @@
 # Section 18 — Project Planning Workspace and Shared API Agreements
 
 - **Date:** 2026-10-03
-- **Status:** Draft for Mohammed's written-spec review. No implementation
-  plan or product implementation has been authorized by this file.
+- **Status:** Stage 1 implemented. Stage 2 semantics accepted for delivery
+  under Mohammed's full-vision objective and explicit instruction on
+  2026-10-04 to complete shared agreements. Later stages retain their owners.
 - **Intent:** [vision §9](../../vision.md#9-the-roadmap-shared-contracts-and-the-effect-of-a-change).
 - **Delivery:** [the full roadmap](../plans/2026-10-03-project-planning-roadmap.md).
 - **Related owners:** §13 Planner sessions, §14 application boundaries,
@@ -25,7 +26,9 @@ The success case is one login agreement between two plans: agree v1, bind
 tasks, propose v2, inspect impact, agree v2 and continue one plan on v2 while
 the other remains on v1. Names such as Backend and Frontend are examples.
 
-Automatic Planner context compilation is Stage 3 of the roadmap. ER diagrams,
+A Planner or external agent reads the workspace on request through the read-only
+`workspace_get` tool: the vision with the first page of top-level parts and
+outcomes. No agent tool writes it; the person does. Automatic Planner context compilation is Stage 3 of the roadmap. ER diagrams,
 screen-flow editors, alternative grouping views, executors, verification and
 the executive manager are later stages. The first release neither runs tasks
 nor labels a participant's implementation as verified.
@@ -154,6 +157,14 @@ still express `needs` and `completes_after`, with their own target rules. A
 contract binding follows its exact agreed version, never the latest version.
 
 ## 18.7 Review and agreement
+
+> **OPEN — implementation gate, 2026-10-05:** Agreement edits currently resolve
+> the latest version from identity plus expected revision. A delayed edit can
+> match a later Draft whose revision has restarted at zero. The edit target
+> must identify the exact Draft version as well as its revision. Close this
+> gate when core, HTTP, MCP, Web and command fingerprints carry that target
+> and a regression proves that a request for vN/rev0 cannot edit vN+1/rev0.
+> This checkpoint does not establish Stage 2 completion.
 
 1. A writer proposes a Draft with a reason. Its base Agreed version is named.
 2. The service computes a structural difference and registered participants

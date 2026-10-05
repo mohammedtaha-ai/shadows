@@ -99,7 +99,8 @@ async fn core_over(storage: Arc<Storage>) -> Arc<AppCore> {
 
 #[tokio::test]
 async fn indexing_follows_the_files() {
-    let (core, project, dir, _db) = core_with_project().await; // fixture: temp db + project on `dir`
+    // fixture: temp db + project on `dir`
+    let (core, project, dir, _db) = core_with_project().await;
     let w = |p: &str, s: &str| {
         let p = dir.path().join(p);
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();

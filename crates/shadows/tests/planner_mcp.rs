@@ -543,7 +543,9 @@ async fn a_forks_first_turn_gets_instruction_and_continue_plan_blocks() {
     assert_eq!(
         sent[2],
         format!(
-            "[Shadows] The person opened this conversation to continue the plan \"{}\" (plan_id {}, latest version workflow_id {}). Read it with workflow_get before you plan.",
+            "[Shadows] The person opened this conversation to continue the plan \
+             \"{}\" (plan_id {}, latest version workflow_id {}). Read it with \
+             workflow_get before you plan.",
             plan.title, plan.plan_id, plan.id
         )
     );

@@ -11,10 +11,12 @@
 //! statelessly because `legacy_session_mode` is off (`MCP_PROBE.md` §4). Every
 //! request stands alone, with its own bearer.
 
+mod agreement_tools;
 mod auth;
 mod refusal;
 mod server;
 mod tools;
+mod workspace_tools;
 
 use std::sync::Arc;
 

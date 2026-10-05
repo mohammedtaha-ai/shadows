@@ -13,6 +13,7 @@ export function WorkspacePage() {
       <div className="mx-auto max-w-6xl space-y-5">
         <h1 className="text-lg font-semibold">Workspace</h1>
         <nav className="flex gap-4 text-sm" aria-label="Workspace sections">
+          <Link to="/projects/$projectId/agreements" params={{ projectId }}>Contracts</Link>
           <Link to="/projects/$projectId/workspace" params={{ projectId }} search={{ view: 'vision' }}>Vision</Link>
           <Link to="/projects/$projectId/workspace" params={{ projectId }} search={{ view: 'map' }}>Project map</Link>
           <Link to="/projects/$projectId/workspace" params={{ projectId }} search={{ view: 'roadmap' }}>Roadmap</Link>

@@ -98,7 +98,7 @@ pub enum CoreError {
 impl From<StorageError> for CoreError {
     fn from(error: StorageError) -> Self {
         match error {
-            StorageError::PlanArchived(_) => Self::Refused {
+            StorageError::PlanArchived(_) | StorageError::PlanLinkInvalid(_) => Self::Refused {
                 code: ErrorCode::InvalidCommand,
                 message: error.to_string(),
             },

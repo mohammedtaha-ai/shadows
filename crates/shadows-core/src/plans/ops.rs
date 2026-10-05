@@ -7,6 +7,7 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
+use super::dependencies::TaskParent;
 use super::model::{Link, LinkKind, PlanContent, TaskContent, link_name};
 use super::rules::{Problem, edit_problems_after_removing};
 
@@ -22,6 +23,15 @@ use super::rules::{Problem, edit_problems_after_removing};
 )]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum PlanOp {
+    BindingPut {
+        binding: super::AgreementBinding,
+    },
+    BindingRemove {
+        task: u32,
+        #[schemars(with = "String")]
+        agreement_id: crate::design::AgreementId,
+        role: crate::design::AgreementRole,
+    },
     PlanPut {
         title: String,
         goal: String,
@@ -42,7 +52,7 @@ pub enum PlanOp {
     },
     LinkRemove {
         task: u32,
-        after: u32,
+        after: TaskParent,
         kind: LinkKind,
     },
 }
@@ -60,24 +70,30 @@ pub struct Applied {
 
 /// What one operation acts on. Two operations on one object in a batch are
 /// refused rather than resolved by their order (§13.4).
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 enum Object {
     Plan,
     Task(u32),
-    Link(u32, u32, LinkKind),
+    Link(u32, TaskParent, LinkKind),
+    Binding(
+        u32,
+        crate::design::AgreementId,
+        crate::design::AgreementRole,
+    ),
 }
 
 impl Object {
     /// A link's identity: at most one link of each kind between two tasks (§13.3).
     fn of_link(l: &Link) -> Self {
-        Object::Link(l.task, l.after, l.kind)
+        Object::Link(l.task, l.after.clone(), l.kind)
     }
 
-    fn name(self) -> String {
+    fn name(&self) -> String {
         match self {
             Object::Plan => "the plan".to_string(),
             Object::Task(n) => format!("T{n}"),
-            Object::Link(task, after, kind) => link_name(task, after, kind),
+            Object::Link(task, after, kind) => link_name(*task, after, *kind),
+            Object::Binding(task, id, role) => format!("T{task} {role:?} agreement {id}"),
         }
     }
 }
@@ -86,10 +102,18 @@ impl PlanOp {
     fn object(&self) -> Object {
         match self {
             PlanOp::PlanPut { .. } => Object::Plan,
+            PlanOp::BindingPut { binding } => {
+                Object::Binding(binding.task, binding.agreement_id.clone(), binding.role)
+            }
+            PlanOp::BindingRemove {
+                task,
+                agreement_id,
+                role,
+            } => Object::Binding(*task, agreement_id.clone(), *role),
             PlanOp::TaskAdd { task } | PlanOp::TaskUpdate { task } => Object::Task(task.number),
             PlanOp::TaskRemove { number } => Object::Task(*number),
             PlanOp::LinkPut { link } => Object::of_link(link),
-            PlanOp::LinkRemove { task, after, kind } => Object::Link(*task, *after, *kind),
+            PlanOp::LinkRemove { task, after, kind } => Object::Link(*task, after.clone(), *kind),
         }
     }
 
@@ -97,10 +121,16 @@ impl PlanOp {
     fn numbers(&self) -> Vec<u32> {
         match self {
             PlanOp::PlanPut { .. } => vec![],
+            PlanOp::BindingPut { binding } => vec![binding.task],
+            PlanOp::BindingRemove { task, .. } => vec![*task],
             PlanOp::TaskAdd { task } | PlanOp::TaskUpdate { task } => vec![task.number],
             PlanOp::TaskRemove { number } => vec![*number],
-            PlanOp::LinkPut { link } => vec![link.task, link.after],
-            PlanOp::LinkRemove { task, after, .. } => vec![*task, *after],
+            PlanOp::LinkPut { link } => std::iter::once(link.task)
+                .chain(link.after.local())
+                .collect(),
+            PlanOp::LinkRemove { task, after, .. } => {
+                std::iter::once(*task).chain(after.local()).collect()
+            }
         }
     }
 }
@@ -123,7 +153,20 @@ pub fn apply(current: &PlanContent, ops: &[PlanOp]) -> Result<Applied, Vec<Probl
         parts.push(apply_one(&mut content, op, &mut removed));
     }
 
-    let problems = edit_problems_after_removing(&content, &removed);
+    let mut problems = edit_problems_after_removing(&content, &removed);
+    for binding in &content.bindings {
+        if !content.tasks.contains_key(&binding.task) {
+            problems.push(Problem::new(format!(
+                "binding names missing T{}",
+                binding.task
+            )));
+        }
+        if binding.version < 1 || binding.operations.is_empty() {
+            problems.push(Problem::new(
+                "a binding needs a positive version and operations",
+            ));
+        }
+    }
     if !problems.is_empty() {
         return Err(problems);
     }
@@ -141,6 +184,28 @@ pub fn apply(current: &PlanContent, ops: &[PlanOp]) -> Result<Applied, Vec<Probl
 /// Applies one operation already known to apply, and says what it did.
 fn apply_one(content: &mut PlanContent, op: &PlanOp, removed: &mut BTreeSet<u32>) -> String {
     match op {
+        PlanOp::BindingPut { binding } => {
+            content.bindings.retain(|b| {
+                !(b.task == binding.task
+                    && b.agreement_id == binding.agreement_id
+                    && b.role == binding.role)
+            });
+            content.bindings.push(binding.clone());
+            content
+                .bindings
+                .sort_by_key(|b| (b.task, b.agreement_id.to_string(), format!("{:?}", b.role)));
+            format!("bound T{} to agreement v{}", binding.task, binding.version)
+        }
+        PlanOp::BindingRemove {
+            task,
+            agreement_id,
+            role,
+        } => {
+            content.bindings.retain(|b| {
+                !(b.task == *task && b.agreement_id == *agreement_id && b.role == *role)
+            });
+            format!("removed T{task} agreement binding")
+        }
         PlanOp::PlanPut { title, goal } => {
             content.title = title.clone();
             content.goal = goal.clone();
@@ -156,6 +221,7 @@ fn apply_one(content: &mut PlanContent, op: &PlanOp, removed: &mut BTreeSet<u32>
         }
         PlanOp::TaskRemove { number } => {
             content.tasks.remove(number);
+            content.bindings.retain(|b| b.task != *number);
             removed.insert(*number);
             format!("removed T{number}")
         }
@@ -168,11 +234,11 @@ fn apply_one(content: &mut PlanContent, op: &PlanOp, removed: &mut BTreeSet<u32>
                 Some(existing) => *existing = link.clone(),
                 None => content.links.push(link.clone()),
             }
-            format!("linked T{} → T{}", link.task, link.after)
+            format!("linked T{} → {}", link.task, link.after)
         }
         PlanOp::LinkRemove { task, after, .. } => {
             content.links.retain(|l| Object::of_link(l) != op.object());
-            format!("unlinked T{task} → T{after}")
+            format!("unlinked T{task} → {after}")
         }
     }
 }
@@ -193,7 +259,7 @@ fn refusals(current: &PlanContent, ops: &[PlanOp]) -> Vec<Problem> {
     for op in ops {
         let object = op.object();
         if uses[&object] > 1 {
-            if reported.insert(object) {
+            if reported.insert(object.clone()) {
                 problems.push(Problem::new(format!(
                     "two operations on {} in one edit",
                     object.name()
@@ -230,10 +296,7 @@ fn refusal(current: &PlanContent, op: &PlanOp) -> Option<String> {
                 .iter()
                 .any(|l| Object::of_link(l) == op.object()) =>
         {
-            Some(format!(
-                "{} does not exist",
-                link_name(*task, *after, *kind)
-            ))
+            Some(format!("{} does not exist", link_name(*task, after, *kind)))
         }
         _ => None,
     }

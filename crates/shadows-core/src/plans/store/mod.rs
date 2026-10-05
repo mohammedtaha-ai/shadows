@@ -8,13 +8,22 @@
 //! `pub(crate)` and declared in `plans/contract.yaml` under
 //! `shared_in_transaction`; nothing else here is.
 
+mod binding_participants;
+mod bindings;
+mod dependencies;
+pub(crate) use binding_participants::{agreement_participants_in, part_bindings_in};
 mod draft;
 mod edit;
+mod graph;
+mod linked;
+mod map;
+mod notifications;
 mod plan;
 mod read;
 mod task;
 mod view;
 
+pub(crate) use notifications::notify_project_dependencies_in;
 pub(crate) use plan::check_design_plan;
 pub(crate) use task::task_of;
 

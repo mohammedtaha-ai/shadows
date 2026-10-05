@@ -211,7 +211,11 @@ impl Turns {
             client_tab,
         } = turn;
         let mut params = serde_json::json!({
-            "thread_id": thread_id, "prompt": prompt, "model": model, "mode": mode, "effort": effort,
+            "thread_id": thread_id,
+            "prompt": prompt,
+            "model": model,
+            "mode": mode,
+            "effort": effort,
         });
         // Absent without a focus, so a turn recorded before §13.9 replays as it did.
         if let Some(focus) = &focus {
@@ -468,7 +472,12 @@ impl Turns {
     ) {
         let id = &offered.ids.model;
         if let Err(e) = self.sessions.set_option(thread, opened, id, previous).await {
-            tracing::warn!(thread_id = %thread, model = previous, error = %e, "turn.model_not_set_back");
+            tracing::warn!(
+                thread_id = %thread,
+                model = previous,
+                error = %e,
+                "turn.model_not_set_back"
+            );
         }
     }
 }

@@ -48,9 +48,12 @@ async fn migration_0012_moves_every_version_into_a_plan() {
     let tmp = tempfile::tempdir().unwrap();
     let db = tmp.path().join("shadows.sqlite3");
     let pool = migrated_to_0011(&db).await;
-    exec(&pool,
-        "INSERT INTO project (id, slug, name, directory, created_at) VALUES ('P', 'p', 'P', 'C:/p', '2026-09-01T00:00:00Z')"
-    ).await;
+    exec(
+        &pool,
+        r#"INSERT INTO project (id, slug, name, directory, created_at)
+           VALUES ('P', 'p', 'P', 'C:/p', '2026-09-01T00:00:00Z')"#,
+    )
+    .await;
     // B is an external from-scratch thread: its title is its plan's.
     exec(
         &pool,
@@ -60,17 +63,26 @@ async fn migration_0012_moves_every_version_into_a_plan() {
                 ('C', 'P', 'Thread C', 'Open', '2026-09-01T00:00:00Z', 'client')",
     )
     .await;
-    exec(&pool,
-        "INSERT INTO workflow (id, thread_id, state, previous_version_id, version, revision, title, goal, created_at, updated_at, frozen_at)
-         VALUES ('A1', 'A', 'Frozen', NULL, 1, 2, 'Login', 'log in', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z'),
-                ('A2', 'A', 'Draft', 'A1', 2, 0, 'Login', 'log in', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z', NULL),
-                ('B1', 'B', 'Draft', NULL, 1, 0, 'Search', 'find', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z', NULL)"
-    ).await;
-    exec(&pool,
-        "INSERT INTO task (id, workflow_id, number, contract_json, scope_json, created_at, updated_at)
+    exec(
+        &pool,
+        r#"INSERT INTO workflow (id, thread_id, state, previous_version_id, version,
+             revision, title, goal, created_at, updated_at, frozen_at)
+         VALUES ('A1', 'A', 'Frozen', NULL, 1, 2, 'Login', 'log in',
+                 '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z'),
+                ('A2', 'A', 'Draft', 'A1', 2, 0, 'Login', 'log in',
+                 '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z', NULL),
+                ('B1', 'B', 'Draft', NULL, 1, 0, 'Search', 'find',
+                 '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z', NULL)"#,
+    )
+    .await;
+    exec(
+        &pool,
+        r#"INSERT INTO task (id, workflow_id, number, contract_json, scope_json,
+             created_at, updated_at)
          VALUES ('T1', 'A1', 1, '{}', '{}', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z'),
-                ('T2', 'A1', 2, '{}', '{}', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z')"
-    ).await;
+                ('T2', 'A1', 2, '{}', '{}', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z')"#,
+    )
+    .await;
     exec(
         &pool,
         "INSERT INTO task_parent (workflow_id, task_id, parent_id, kind, label, waiting_items)
@@ -148,8 +160,9 @@ async fn migration_0012_moves_every_version_into_a_plan() {
         .expect_err("a frozen version is refused");
     assert!(update.to_string().contains(FROZEN), "{update}");
     let insert = sqlx::query(
-        "INSERT INTO task (id, workflow_id, number, contract_json, scope_json, created_at, updated_at)
-         VALUES ('T3', 'A1', 3, '{}', '{}', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z')"
+        r#"INSERT INTO task (id, workflow_id, number, contract_json, scope_json,
+             created_at, updated_at)
+         VALUES ('T3', 'A1', 3, '{}', '{}', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z')"#,
     )
     .execute(read)
     .await

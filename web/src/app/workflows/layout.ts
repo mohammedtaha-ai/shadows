@@ -9,6 +9,7 @@
 import dagre from '@dagrejs/dagre'
 import { type Edge, type Node, type NodeHandle, Position } from '@xyflow/react'
 import type { Plan, PlanLink, PlanTask } from '@/api/client'
+import { type LinkedNode, type MissingNode, linkedLayout, parentName } from './linked-layout'
 
 export type LinkKind = PlanLink['kind']
 
@@ -36,12 +37,13 @@ export interface TaskData extends Record<string, unknown> {
 
 export type StartNode = Node<StartData, 'start'>
 export type TaskNode = Node<TaskData, 'task'>
-export type PlanNode = StartNode | TaskNode
+export type PlanNode = StartNode | TaskNode | LinkedNode | MissingNode
 
 export interface LinkData extends Record<string, unknown> {
   /** `start` for the faint edge from the start node to a task nothing precedes. */
   kind: LinkKind | 'start'
   label: string
+  broken?: boolean
   sourceYOffset?: number
   targetYOffset?: number
   stepPosition?: number
@@ -66,12 +68,14 @@ export function taskNodeId(number: number): string {
 }
 
 export function linkId(link: Pick<PlanLink, 'kind' | 'after' | 'task'>): string {
-  return `${link.kind}-${link.after}-${link.task}`
+  const after = typeof link.after === 'number' ? link.after : `${link.after.plan_id}-t${link.after.task}`
+  return `${link.kind}-${after}-${link.task}`
 }
 
 /** "1 part waits for T8", "2 parts wait for T8". */
-export function waitsFor(count: number, after: number): string {
-  return count === 1 ? `1 part waits for T${after}` : `${count} parts wait for T${after}`
+export function waitsFor(count: number, after: number | string): string {
+  const name = typeof after === 'number' ? `T${after}` : after
+  return count === 1 ? `1 part waits for ${name}` : `${count} parts wait for ${name}`
 }
 
 /** The plan's nodes and edges, placed left to right: a task is always right
@@ -87,12 +91,15 @@ export function layoutPlan(plan: Plan): { nodes: PlanNode[]; edges: PlanEdge[] }
     height: START_HEIGHT,
   }
   const tasks = [...plan.tasks].sort((a, b) => a.number - b.number).map((task) =>
-    taskNode(task, plan.links, changed.has(task.number)),
+    taskNode(task, plan, changed.has(task.number)),
   )
 
   const known = new Set(plan.tasks.map((t) => t.number))
-  const links = plan.links.filter((l) => known.has(l.task) && known.has(l.after))
-  const preceded = new Set(links.map((l) => l.task))
+  const links = plan.links.filter((l): l is PlanLink & { after: number } =>
+    typeof l.after === 'number' && known.has(l.task) && known.has(l.after))
+  const related = linkedLayout(plan)
+  const preceded = new Set([...links.map((l) => l.task), ...related.edges.map(edge =>
+    edge.target.startsWith('t') ? Number(edge.target.slice(1)) : -1)])
   const edges: PlanEdge[] = [
     ...plan.tasks
       .filter((t) => !preceded.has(t.number))
@@ -100,19 +107,20 @@ export function layoutPlan(plan: Plan): { nodes: PlanNode[]; edges: PlanEdge[] }
     ...links.map((l) =>
       edge(taskNodeId(l.after), taskNodeId(l.task), linkId(l), l.kind, l.label),
     ),
+    ...related.edges,
   ]
 
-  const nodes: PlanNode[] = [start, ...tasks]
-  place(nodes, edges)
+  const nodes: PlanNode[] = [start, ...tasks, ...related.nodes]
+  placeGraph(nodes, edges)
   return { nodes, edges }
 }
 
-function taskNode(task: PlanTask, links: PlanLink[], changed: boolean): TaskNode {
-  const own = links.filter((l) => l.task === task.number)
-  const needs = own.filter((l) => l.kind === 'needs').map((l) => `T${l.after}`)
+function taskNode(task: PlanTask, plan: Plan, changed: boolean): TaskNode {
+  const own = plan.links.filter((l) => l.task === task.number)
+  const needs = own.filter((l) => l.kind === 'needs').map((l) => parentName(l.after, plan.linked_tasks))
   const waits = own
     .filter((l) => l.kind === 'completes_after')
-    .map((l) => waitsFor(Math.max(l.waiting_items?.length ?? 0, 1), l.after))
+    .map((l) => waitsFor(Math.max(l.waiting_items?.length ?? 0, 1), parentName(l.after, plan.linked_tasks)))
   const writes = task.writes.slice(0, MAX_WRITES)
   const moreWrites = task.writes.length - writes.length
   const data: TaskData = {
@@ -140,7 +148,7 @@ function edge(source: string, target: string, id: string, kind: LinkData['kind']
 
 /** Runs dagre over the fixed sizes and writes each node's top-left corner and
  * its handles (in the middle of its left and right sides). */
-function place(nodes: PlanNode[], edges: PlanEdge[]): void {
+export function placeGraph(nodes: Node[], edges: PlanEdge[]): void {
   const graph = new dagre.graphlib.Graph()
   // Wide rank gaps: an edge's label sits halfway between two columns.
   graph.setGraph({ rankdir: 'LR', nodesep: 48, ranksep: 160, marginx: 0, marginy: 0 })

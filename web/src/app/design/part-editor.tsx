@@ -1,84 +1,37 @@
 // A part edit retains local input until explicitly replaced or saved.
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { useRef, useState } from 'react'
-import { type Attempt, attemptFor } from '@/api/command-id'
-import { editDesign, type DesignEdit, type Part, type PartContent, type PartView } from '@/api/design'
-import { ApiError } from '@/api/error'
+import type { Part, PartContent, PartView } from '@/api/design'
 import { partQuery, partsQuery, plansQuery } from '@/api/queries'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { usePartPages } from './use-part-pages'
+import { type DesignEditorConfig, useDesignEditor } from './use-design-editor'
 
-const EMPTY: PartContent = { title: '', responsibility: '', design: '', kind: null }
-export function PartEditor({ projectId, saved, destination, onCreated }: { projectId: string; saved?: PartView; destination: Part | null; onCreated?: () => void }) {
-  const client = useQueryClient()
-  const root = useQuery({ ...partsQuery(projectId), enabled: saved === undefined })
+const EDITOR: DesignEditorConfig<PartView, PartContent> = {
+  entityKind: 'Part',
+  empty: { title: '', responsibility: '', design: '', kind: null },
+  idOf: view => view.part.id,
+  contentOf: view => view.part.content,
+  detailQuery: partQuery,
+  listQuery: partsQuery,
+  contentOp: (id, content, position) => position
+    ? { kind: 'PartCreate', id, content, ...position }
+    : { kind: 'PartPut', id, content },
+}
+
+export function PartEditor({ projectId, saved, destination, onCreated }: {
+  projectId: string
+  saved?: PartView
+  destination: Part | null
+  onCreated?: () => void
+}) {
   const plans = useQuery(plansQuery(projectId, true))
-  const [base, setBase] = useState(saved)
-  const [draft, setDraft] = useState(saved?.part.content ?? EMPTY)
-  const [linked, setLinked] = useState(saved?.plans ?? [])
-  const [moving, setMoving] = useState(false)
-  const [order, setOrder] = useState({ destination: destination?.id, before: '' })
-  const before = order.destination === destination?.id ? order.before : ''
-  const setBefore = (value: string) => setOrder({ destination: destination?.id, before: value })
-  const [conflict, setConflict] = useState(false)
-  const [reloading, setReloading] = useState(false)
-  const [reloadError, setReloadError] = useState<Error | null>(null)
-  const [createRevision, setCreateRevision] = useState<number | undefined>(root.data?.revision)
-  if (createRevision === undefined && root.data) setCreateRevision(root.data.revision)
-  const [id] = useState(() => saved?.part.id ?? crypto.randomUUID())
-  const attempt = useRef<Attempt | null>(null)
-  const dirty = JSON.stringify(draft) !== JSON.stringify(base?.part.content ?? EMPTY) || JSON.stringify(linked) !== JSON.stringify(base?.plans ?? []) || moving
-  if (saved && base && saved.revision > base.revision && !dirty) {
-    setBase(saved); setDraft(saved.part.content); setLinked(saved.plans)
-  }
-  const newer = conflict || (saved !== undefined && base !== undefined && saved.revision > base.revision) ||
-    (base === undefined && createRevision !== undefined && root.data !== undefined && root.data.revision > createRevision)
-  const save = useMutation({
-    mutationFn: (body: DesignEdit) => editDesign(projectId, body),
-    onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
-      if (!base) { attempt.current = null; setConflict(false); onCreated?.(); return }
-      const view = await client.fetchQuery({ ...partQuery(projectId, id), staleTime: 0 })
-      // Keep the committed command replayable until its authoritative read succeeds.
-      attempt.current = null; setConflict(false)
-      setBase(view); setDraft(view.part.content); setLinked(view.plans); setMoving(false); setBefore('')
-    },
-    onError: e => {
-      if (e instanceof ApiError && e.problem.kind === 'daemon' && e.problem.code === 'REVISION_CONFLICT') {
-        setConflict(true); void client.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
-      }
-    },
-  })
-  const submit = () => {
-    const ops: DesignEdit['ops'] = base
-      ? [{ kind: 'PartPut', id, content: draft }]
-      : [{ kind: 'PartCreate', id, parent: destination?.id ?? null, before: before || null, content: draft }]
-    if (base && moving) ops.push({ kind: 'PartMove', id, parent: destination?.id ?? null, before: before || null })
-    for (const plan of linked.filter(p => !base?.plans.includes(p))) ops.push({ kind: 'PlanLinkPut', anchor: { kind: 'Part', id }, plan })
-    for (const plan of (base?.plans ?? []).filter(p => !linked.includes(p))) ops.push({ kind: 'PlanLinkRemove', anchor: { kind: 'Part', id }, plan })
-    const expected_revision = base?.revision ?? createRevision
-    if (expected_revision === undefined) return
-    const request = { expected_revision, ops }
-    attempt.current = attemptFor(attempt.current, request)
-    save.mutate({ ...request, command_id: attempt.current.commandId })
-  }
-  const reload = async () => {
-    setReloading(true); setReloadError(null)
-    try {
-      if (!base) {
-        const page = await client.fetchQuery({ ...partsQuery(projectId), staleTime: 0 })
-        setCreateRevision(page.revision); setDraft(EMPTY); setLinked([]); setBefore(''); setConflict(false)
-        attempt.current = null; save.reset()
-        return
-      }
-      const view = await client.fetchQuery({ ...partQuery(projectId, id), staleTime: 0 })
-      setBase(view); setDraft(view.part.content); setLinked(view.plans); setMoving(false); setBefore(''); setConflict(false)
-      attempt.current = null; save.reset()
-    } catch (e) { setReloadError(e instanceof Error ? e : new Error(String(e))) }
-    finally { setReloading(false) }
-  }
+  const {
+    base, draft, setDraft, linked, setLinked,
+    moving, setMoving, before, setBefore, id, dirty, newer,
+    createRevision, reloading, reloadError, save, submit, reload,
+  } = useDesignEditor(EDITOR, { projectId, saved, destination: destination?.id, onCreated })
   return <div className="space-y-3 rounded border p-4">
     <h3>{base ? 'Part design' : 'New part'}</h3>
     {saved && <nav aria-label="Part breadcrumb" className="flex flex-wrap gap-2 text-sm">
@@ -99,6 +52,14 @@ export function PartEditor({ projectId, saved, destination, onCreated }: { proje
           <Link to="/projects/$projectId/workflows/$workflowId" params={{ projectId, workflowId: p.id }}>{p.title}</Link>{p.plan_state === 'Archived' && <span>Archived</span>}</label>)}
       </div>
     </fieldset>
+    {(saved?.binding_plans?.length ?? 0) > 0 && <section className="space-y-2">
+      <h4>Plans adopting this part's contracts</h4>
+      {saved?.binding_plans?.map(p => <div key={`${p.workflow_id}:${p.binding.agreement_id}:${p.binding.task}:${p.binding.role}`}
+        className="text-sm"><Link to="/projects/$projectId/workflows/$workflowId"
+          params={{ projectId, workflowId: p.workflow_id }}>{p.title} · T{p.binding.task}</Link>
+        <p>{p.current ? 'Current' : 'Historical'} · {p.plan_state} · {p.binding.role} · contract v{p.binding.version}</p>
+      </div>)}
+    </section>}
     <Button size="sm" onClick={submit} disabled={!draft.title.trim() || !dirty || save.isPending || reloading || (!base && createRevision === undefined)}>{base ? 'Save part' : 'Create'}</Button>
     {save.error && <ErrorLine error={save.error} />}{reloadError && <ErrorLine error={reloadError} />}
     {plans.error && <ErrorLine error={plans.error} />}

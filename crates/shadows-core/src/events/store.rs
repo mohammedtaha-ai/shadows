@@ -50,7 +50,8 @@ impl Storage {
             String,
         );
         let rows: Vec<Row> = sqlx::query_as(
-            "SELECT e.seq, e.kind, e.operation_id, e.thread_id, e.created_at, w.plan_id, w.id, e.payload_json
+            "SELECT e.seq, e.kind, e.operation_id, e.thread_id, e.created_at, \
+                    w.plan_id, w.id, e.payload_json
                FROM durable_event e
                LEFT JOIN workflow w ON w.id = COALESCE(
                     json_extract(e.payload_json, '$.workflow_id'),
@@ -59,7 +60,9 @@ impl Storage {
                       ORDER BY version DESC LIMIT 1))
               WHERE e.project_id = ? AND e.seq > ?
                 AND e.kind IN ('WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen',
-                               'PlanArchived', 'PlanUnarchived', 'ProjectDesignChanged')
+                               'PlanArchived', 'PlanUnarchived', 'ProjectDesignChanged',
+                               'PlanDependenciesChanged', 'ProjectLinked', 'ProjectUnlinked',
+                               'ProjectRemoved', 'AgreementChanged')
               ORDER BY e.seq LIMIT ?",
         )
         .bind(project.as_str())
@@ -75,10 +78,17 @@ impl Storage {
                 operation_id: r.2.map(OperationId::from_stored),
                 thread_id: r.3.map(ThreadId::from_stored),
                 created_at: r.4,
-                payload_json: if r.1 == "ProjectDesignChanged" {
-                    r.7
-                } else {
+                payload_json: if matches!(
+                    r.1.as_str(),
+                    "WorkflowDraftStarted"
+                        | "WorkflowEdited"
+                        | "WorkflowFrozen"
+                        | "PlanArchived"
+                        | "PlanUnarchived"
+                ) {
                     serde_json::json!({ "plan_id": r.5, "workflow_id": r.6 }).to_string()
+                } else {
+                    r.7
                 },
             })
             .collect())

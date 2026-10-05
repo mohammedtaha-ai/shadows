@@ -221,7 +221,12 @@ impl Code {
         let canonical_dir = tokio::fs::canonicalize(dir).await?;
         let real = tokio::fs::canonicalize(&full).await?;
         if !names_itself(&real, &canonical_dir, path) {
-            tracing::warn!(project = project.as_str(), path = %path, real = %real.display(), "code.outside_folder");
+            tracing::warn!(
+                project = project.as_str(),
+                path = %path,
+                real = %real.display(),
+                "code.outside_folder"
+            );
             return Ok(false);
         }
         // At most one byte past the cap is read: a file that grew past it
@@ -301,7 +306,12 @@ impl Code {
             match self.index_file(project, &dir, path).await {
                 Ok(wrote) => indexed += u32::from(wrote),
                 Err(error) => {
-                    tracing::warn!(project = project.as_str(), path = %path, error = %error, "code.index_failed")
+                    tracing::warn!(
+                        project = project.as_str(),
+                        path = %path,
+                        error = %error,
+                        "code.index_failed"
+                    )
                 }
             }
             progress.done.fetch_add(1, Ordering::Relaxed);
@@ -320,7 +330,12 @@ impl Code {
             match storage.delete_code_file(project, &key).await {
                 Ok(()) => indexed += 1,
                 Err(error) => {
-                    tracing::warn!(project = project.as_str(), path = %key, error = %error, "code.index_failed")
+                    tracing::warn!(
+                        project = project.as_str(),
+                        path = %key,
+                        error = %error,
+                        "code.index_failed"
+                    )
                 }
             }
         }

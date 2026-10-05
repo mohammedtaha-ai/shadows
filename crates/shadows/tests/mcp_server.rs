@@ -17,7 +17,11 @@ mod plan;
 use listening::{Listening, listening_app, project_client, thread_client};
 use plan::{draft, issue_grant, revoke_grant};
 
-const INITIALIZE: &str = r#"{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"raw","version":"1"}}}"#;
+const INITIALIZE: &str = concat!(
+    r#"{"jsonrpc":"2.0","id":0,"method":"initialize","#,
+    r#""params":{"protocolVersion":"2025-11-25","capabilities":{},"#,
+    r#""clientInfo":{"name":"raw","version":"1"}}}"#,
+);
 
 /// A raw `POST /mcp` of `body`, with `bearer` when given and `extra` headers.
 async fn raw_post(
@@ -93,12 +97,18 @@ async fn the_tool_list_depends_on_the_grant_kind() {
     assert_eq!(
         thread_tools,
         [
+            "agreement_edit",
+            "agreement_get",
+            "agreement_list",
+            "agreement_review",
+            "agreement_start",
             "draft_start",
             "plan_edit",
             "plan_show",
             "task_get",
             "workflow_get",
-            "workflow_list"
+            "workflow_list",
+            "workspace_get"
         ]
     );
     let (_, external) = project_client(&l).await;
@@ -107,6 +117,11 @@ async fn the_tool_list_depends_on_the_grant_kind() {
     assert_eq!(
         project_tools,
         [
+            "agreement_edit",
+            "agreement_get",
+            "agreement_list",
+            "agreement_review",
+            "agreement_start",
             "draft_prepare",
             "draft_start",
             "outline",
@@ -115,7 +130,8 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "where_is",
             "who_uses",
             "workflow_get",
-            "workflow_list"
+            "workflow_list",
+            "workspace_get"
         ]
     );
     // A tool outside the grant's list is unknown to that client: rmcp's own
@@ -162,12 +178,18 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
     assert_eq!(
         names,
         [
+            "agreement_edit",
+            "agreement_get",
+            "agreement_list",
+            "agreement_review",
+            "agreement_start",
             "draft_start",
             "plan_edit",
             "plan_show",
             "task_get",
             "workflow_get",
-            "workflow_list"
+            "workflow_list",
+            "workspace_get"
         ]
     );
 }
@@ -216,7 +238,7 @@ async fn the_discover_lifecycle_works_without_a_session() {
     let tools = answer["result"]["tools"]
         .as_array()
         .unwrap_or_else(|| panic!("{answer}"));
-    assert_eq!(tools.len(), 6, "{answer}");
+    assert_eq!(tools.len(), 12, "{answer}");
     assert_eq!(answer["result"]["cacheScope"], "private", "{answer}");
 
     let get = request(
