@@ -1,8 +1,10 @@
 # Section 21 — The `/` Menu
 
 - **Date:** 2026-10-05.
-- **Status:** Accepted in conversation by Mohammed on 2026-10-05; awaiting his
-  review of this written text.
+- **Status:** Accepted by Mohammed on 2026-10-05, after an independent review
+  (`a499a6c`), and amended by his ruling on `/model` after the browser run
+  (21.4). Built on `next/slash-menu` and run in the browser against the real
+  adapter (2026-10-05).
 - **Evidence:** [`2026-10-05-steering-and-commands-probe.md`](../../evidence/2026-10-05-steering-and-commands-probe.md)
   finding 4 (adapter 0.81.1).
 - **Related owners:** §12.4 (choices come from the harness; this section
@@ -104,19 +106,24 @@ next opening sends the list again; switching harness (§12.6) clears it.
   types. It is not the textarea's `placeholder`, which shows only while the
   text is empty.
 - The person sends it as any message, and it follows §20: while a turn runs it
-  waits in the queue.
+  waits in the queue, and Send now steers it in. A steered command runs (the
+  browser run: a queued `/context` sent with Send now answered its table and
+  ended the turn, cutting the reply it pre-empted, as any steer does, §20.1).
+- **`model` and `effort` act through the pickers, never as text.** The
+  adapter changes its session for `/model` and sends no
+  `config_option_update` (browser run: `/model sonnet` answered "Set model
+  to Sonnet 5.5" while the picker kept Opus 5.5, after a reload too), so sent
+  as text they would leave the picker showing a model the session no longer
+  runs. So, decided by Mohammed on 2026-10-05:
+  - picking `model` or `effort` from the menu, or sending `/model` or
+    `/effort` with nothing after it, opens that picker and clears the box;
+  - sending one with a name sets the picker to the enabled choice whose id or
+    label is the name, or else the first whose id or label contains it,
+    ignoring case; the picker then sets the session as a pick does (§12.7);
+  - a name the session does not offer, or no session yet, is an error under
+    the box; the text stays and nothing is sent.
 - With an empty list (no session yet, or the adapter sent none), `/` opens
   nothing and is typed as text.
-
-> **OPEN — commands that act on the session.** `model` and `effort` are in
-> the list, and §12.4 shows the pickers' state from `config_option_update`;
-> whether the adapter sends one when `/model` runs is not measured. Nor is
-> what Send now (§20.4) does to a queued `/compact`: steering injects text
-> into a running turn, and the adapter may not run it as a command. Closed
-> by the browser run below. If the picker does not follow, those entries are
-> reported upstream (§12.2) and stay; if a steered command is not run, §20.4
-> is amended so Send now waits for the turn's end for text that starts with
-> a listed `/<name>`.
 
 ## 21.5 Tests
 
@@ -127,7 +134,7 @@ next opening sends the list again; switching harness (§12.6) clears it.
 - Web tests: when the menu opens and closes, the filter order, the keys,
   picking with and without a hint.
 - The browser run: on a database copy, against the real adapter, the menu
-  opens, `/br` finds brainstorming, a picked `/compact` sent as a message
-  runs, the menu still opens after the page is hidden and shown, and the
-  OPEN above is answered: `/model` picked and sent, and `/context` queued
-  during a turn and sent with Send now.
+  opens, `/br` finds brainstorming, a picked `/context` sent as a message
+  runs, the menu opens again after a reload, `/model <name>` moves the
+  picker and sends nothing, picking `model` opens the picker, and
+  `/context` queued during a turn and sent with Send now runs.

@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-05 (§20, the queue and Send now, built and run in the browser on `next/polish`)
+**Updated:** 2026-10-05 (§21, the `/` menu, built and run in the browser on `next/slash-menu`)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,8 +9,21 @@ restate them.
 
 ## Where we are
 
-**§20, writing while a turn runs, is built on `next/polish`** (2026-10-05,
-`3c18461`..`7079652`, not yet merged). The owner is
+**§21, the `/` menu, is built on `next/slash-menu`** (2026-10-05, not yet
+merged). The owner is
+[`§21`](./superpowers/specs/2026-10-05-slash-menu-design.md). The full gate
+ran: **425 Rust tests** and **210 web tests** passed, with both clippy modes,
+the feature check and the 100-column check clean. The browser run used a copy
+of the dev database and the real adapter: `/` listed Claude's skills and
+commands, `/br` found brainstorming, a picked `/model` showed its `<model>`
+hint, `/context` ran both sent and queued with Send now, and the daemon log
+held no error. It found three things, fixed on the branch: Chrome's
+`scrollIntoView` returning a Promise crashed the conversation when the menu
+opened; the description ran off a narrow window; and `/model` sent as text
+left the picker on the old model, so `/model` and `/effort` now act through
+the pickers (Mohammed's ruling, §21.4).
+
+**§20, writing while a turn runs, is merged** (2026-10-05, `e02a6ad`, PR #19). The owner is
 [`§20`](./superpowers/specs/2026-10-05-message-queue-design.md). The full gate
 ran once on `fb2246f`: **422 Rust tests** and the web suite passed, with both
 clippy modes, the feature check and the 100-column check clean. The browser
