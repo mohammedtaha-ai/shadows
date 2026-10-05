@@ -16,15 +16,19 @@ export function SlashMenu({
   onHighlight: (index: number) => void
 }) {
   const active = useRef<HTMLLIElement | null>(null)
-  useEffect(() => active.current?.scrollIntoView({ block: 'nearest' }), [highlighted])
+  // Braced: Chrome's `scrollIntoView` now returns a Promise, which React
+  // would take for the effect's clean-up.
+  useEffect(() => {
+    active.current?.scrollIntoView({ block: 'nearest' })
+  }, [highlighted])
   const current = items[highlighted]
   return (
-    <div className="absolute bottom-full left-0 mb-2 flex items-start gap-2">
+    <div className="absolute right-0 bottom-full left-0 pointer-events-none mb-2 flex items-start gap-2 *:pointer-events-auto">
       <ul
         role="listbox"
         aria-label="Commands"
         dir="ltr"
-        className="max-h-80 w-72 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-sm shadow-md"
+        className="max-h-80 w-72 max-w-[60%] shrink-0 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-sm shadow-md"
       >
         {items.map((command, i) => (
           <li
@@ -47,7 +51,7 @@ export function SlashMenu({
       {current !== undefined && current.description !== '' && (
         <p
           dir="auto"
-          className="max-w-xs rounded-lg border border-border bg-popover p-2 text-xs text-muted-foreground shadow-md"
+          className="max-h-80 max-w-xs min-w-0 overflow-y-auto rounded-lg border border-border bg-popover p-2 text-xs text-muted-foreground shadow-md"
         >
           {current.description}
         </p>
