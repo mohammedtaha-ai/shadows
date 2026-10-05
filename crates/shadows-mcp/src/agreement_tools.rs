@@ -63,7 +63,9 @@ impl Shadows {
         )
     }
     #[tool(
-        description = "Start/open a Draft agreement. Continuing an Agreed version needs a reason. Shadows gives each operation its x-shadows-operation-id; do not invent one."
+        description = "Start/open a Draft agreement. Continuing an Agreed version needs a \
+            reason. Shadows gives each operation its x-shadows-operation-id; do not \
+            invent one."
     )]
     async fn agreement_start(
         &self,
@@ -85,7 +87,9 @@ impl Shadows {
         )
     }
     #[tool(
-        description = "Edit the named Draft version under expected_revision; no automatic adoption. A new operation gets its x-shadows-operation-id from Shadows; keep existing ones."
+        description = "Edit the named Draft version under expected_revision; no automatic \
+            adoption. A new operation gets its x-shadows-operation-id from Shadows; keep \
+            existing ones."
     )]
     async fn agreement_edit(
         &self,

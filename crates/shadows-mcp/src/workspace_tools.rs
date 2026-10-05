@@ -9,7 +9,9 @@ use shadows_core::Grant;
 #[tool_router(router = workspace_tool_router, vis = "pub(super)")]
 impl Shadows {
     #[tool(
-        description = "Read this project's workspace: the vision a person wrote, and its top-level parts and roadmap outcomes. Read it before planning new work. It is read only."
+        description = "Read this project's workspace: the vision a person wrote, and its \
+            top-level parts and roadmap outcomes. Read it before planning new work. It is \
+            read only."
     )]
     async fn workspace_get(&self, Extension(grant): Extension<Grant>) -> CallToolResult {
         answer(
