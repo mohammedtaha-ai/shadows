@@ -58,6 +58,40 @@
 
 ---
 
+### Task 0: Split `fake-acp/src/main.rs` by responsibility
+
+`crates/fake-acp/src/main.rs` is 636 lines, over the 500-line split rule, before Task 4 adds to it. This task moves code only: no behaviour changes, no test changes.
+
+**Files:**
+- Create: `crates/fake-acp/src/session.rs` — one job: "a fake session's state and offer". Moves `Session`, `Setup`, `setup_of`, `State`, `efforts`, `options`, `make_session` (today lines 36-211, less `call_mcp`).
+- Create: `crates/fake-acp/src/mcp.rs` — one job: "calling the session's MCP server". Moves `call_mcp` (today lines 89-116).
+- Create: `crates/fake-acp/src/prompts.rs` — one job: "the scripted answers to a prompt". Moves the body of the `PromptRequest` handler's `match prompt { .. }` (today about lines 470-630) into `pub(crate) async fn answer(cx: &ConnectionTo<Client>, id: &str, prompt: &str, blocks: &[&str], s: &Session, first_context: bool, resumes: u32, client_meta: Option<Value>) -> agent_client_protocol::Result<StopReason>` (use the real types of the values the handler holds today), plus `update` and `chunk`.
+- Modify: `crates/fake-acp/src/main.rs` — keeps `main` and the handler chain; the `PromptRequest` handler reads the session and calls `prompts::answer`, then responds with the stop reason it returns. The module doc comment that lists the prompts moves to the top of `prompts.rs`; `main.rs` keeps a one-line doc naming the binary's job.
+- Modify: `docs/codebase/README.md` — one row per new file, with the job phrases above.
+
+- [ ] **Step 1: Move the code**
+
+Move the items as listed, make what crosses files `pub(crate)`, add `mod session; mod mcp; mod prompts;` to `main.rs`. Prompts that respond early today (`hang` returns `Cancelled`, `refuse` returns `MaxTokens`, the error for an unknown session) become `return Ok(StopReason::..)` or an `Err` from `answer`; the handler maps them exactly as it does now.
+
+- [ ] **Step 2: Prove nothing changed**
+
+Run: `cargo build -p fake-acp --features test-support`, then `cargo test -p shadows --test planner_turn --test turn_command --test acp_log_safety` and `cargo test -p shadows --test codemap`.
+Expected: all pass, with the same test counts as before the move. `wc -l crates/fake-acp/src/*.rs`: every file under 300 lines.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add crates/fake-acp docs/codebase/README.md
+git commit -m "refactor(fake-acp): split main.rs into session, mcp and prompts
+
+Move only; no behaviour change. main.rs was 636 lines, over the split rule,
+before §20 adds steering to it."
+```
+
+In Task 4, the `steerable` arm goes in `prompts.rs`'s `match`, `Session`'s new fields in `session.rs`, and the `UntypedMessage` handler in `main.rs`'s chain.
+
+---
+
 ### Task 1: The table, the model and the store
 
 **Files:**

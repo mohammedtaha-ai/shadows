@@ -118,6 +118,15 @@ entry is written, the running turn's message still being streamed is written
 first with the text it has so far; the reply continues as a new message after
 the steered entry. Decided by Mohammed on 2026-10-05.
 
+> **OPEN — ACP v2 prompt.** The ACP "prompt" RFD for v2 (draft, read through
+> Context7 on 2026-10-05) has `session/prompt` answer when a message is
+> *accepted*, the agent emit `userMessage/accepted` with an agent-owned id,
+> and clients submit, edit or cancel queued messages before acceptance. Then
+> the steered entry would be written on that event instead of on `injected`,
+> and the adapter's own queue might replace `_session/steering`. Closed when
+> the pinned adapter advertises ACP v2 prompts: re-run the probe of 20.1 and
+> amend this section.
+
 The running turn keeps its own operation and ends as §12.3 says; the steered
 reply is part of it. The message's own `model`, `mode` and `effort` do not
 apply to a steer: the running turn's settings stand.
