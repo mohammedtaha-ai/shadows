@@ -135,6 +135,38 @@ shapes:
     # role, the harness and agent paths and versions, the settings, the
     # prompt and instructions versions, and the focus. Borrowed, never kept.
     thread_id: "&ThreadId"
+  QueuedMessage:
+    # §20.2: a message written while a turn ran, waiting to be sent.
+    id: QueuedMessageId
+    thread_id: ThreadId
+    # Send order within the thread.
+    position: i64
+    prompt: String
+    model: String
+    mode: String
+    effort: Option<String>
+    focus: Option<Focus>
+    plan: Option<PlanId>
+    # Why the last send failed (§20.3).
+    last_error: Option<String>
+    created_at: String
+  Queued:
+    # What queueing answers, tagged "status": Waiting { message } or
+    # Started { operation_id } when the thread was idle.
+    Waiting: QueuedMessage
+    Started: OperationId
+  SentNow:
+    # What Send now answers, tagged "status": Steered { entry_id } or
+    # Started { operation_id } when the thread had gone idle.
+    Steered: ThreadEntryId
+    Started: OperationId
+  NewQueued:
+    # What `queue_message` records, borrowed: prompt, settings, focus, plan.
+    prompt: "&str"
+  QueueAnswer:
+    Waiting: QueuedMessage
+    # The thread runs no turn: nothing was written; the caller starts one.
+    Idle: unit
   PlannerTurn:
     # A unit struct: `start` and `stop` are associated functions.
     unit: unit
@@ -289,6 +321,27 @@ functions:
       signature: "(conn, thread: &ThreadId) -> Result<bool, StorageError>"
       # Any operation of the thread not Completed, Failed, Cancelled or
       # Interrupted.
+    queue_message:
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId, new: NewQueued<'_>) -> Result<QueueAnswer, StorageError>"
+      # A replay answers the message as first answered; a removed thread is
+      # NotFound; an idle thread writes nothing and is Idle; a busy one gets
+      # the row, last in `position` order.
+    queued_messages:
+      signature: "(&self, thread: &ThreadId) -> Result<Vec<QueuedMessage>, StorageError>"
+      # In `position` order; none for a removed thread.
+    queued_message:
+      signature: "(&self, thread: &ThreadId, id: &QueuedMessageId) -> Result<Option<QueuedMessage>, StorageError>"
+    unqueue_message:
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId, id: &QueuedMessageId) -> Result<(), StorageError>"
+      # A replay is judged first; a new command on a gone row is
+      # QueuedMessageGone.
+    fail_queued:
+      signature: "(&self, thread: &ThreadId, id: &QueuedMessageId, reason: &str) -> Result<(), StorageError>"
+      # Why the last send of a waiting message failed (§20.3, §20.4).
+    take_queued_in:
+      signature: "(conn, thread: &ThreadId, id: &QueuedMessageId) -> Result<(), StorageError>"
+      # Removes a waiting message inside the caller's transaction, or
+      # QueuedMessageGone: of two writers racing for one row, one wins.
     get_operation:
       signature: "(&self, op_id: &OperationId) -> Result<Operation, StorageError>"
     read_before:
@@ -321,6 +374,7 @@ enums:
 
 
 shared_in_transaction:
+  take_queued_in: "The start of a waiting message (§20.3) and Send now (§20.4): the row is removed inside the same write that commits the turn, so a message is sent once or not at all"
   has_open_operation: "Threads' fork (threads/store/fork.rs fork_thread): a thread with a turn not yet ended cannot be forked, judged inside the fork's own write"
   read_before: "Runtime recovery (runtime/store.rs reconcile_orphans): reads each orphan's status and thread inside the write that marks it Interrupted"
   existed: "Runtime recovery (runtime/store.rs reconcile_orphans): the orphan read by read_before existed when its compare-and-swap matched"
@@ -533,6 +587,11 @@ not_the_caller's:
 
 
 tests:
+  - name: waiting_messages_keep_their_order_and_a_removed_one_is_gone
+    checks: >
+      While a turn is open at the store, two queued messages list in
+      `position` order; removing one is fine and removing it again is
+      QueuedMessageGone.
   - name: a_conversation_can_focus_another_conversations_project_plan
     checks: >
       A second conversation sends a focus on the first conversation's plan;

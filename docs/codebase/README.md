@@ -91,6 +91,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/turns/` | Planner turns, from start to stop | `crates/shadows-core/src/turns/mod.rs` |
 | `crates/shadows-core/src/turns/model.rs` | the operation types callers meet | `crates/shadows-core/src/turns/model.rs` |
 | `crates/shadows-core/src/turns/store/` | turns' SQLite queries | `crates/shadows-core/src/turns/store/turn.rs` |
+| `crates/shadows-core/src/turns/store/queue.rs` | the queue's SQLite queries | `crates/shadows-core/src/turns/store/queue.rs` |
 | `crates/shadows-core/src/turns/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows-core/src/turns/turn.rs` |
 | `crates/shadows-core/src/turns/entries.rs` | turning harness events into durable entries | `crates/shadows-core/src/turns/entries.rs` |
 | `crates/shadows-core/src/harness/` | the harnesses, each thread's open session included | `crates/shadows-core/src/harness/mod.rs` |

@@ -40,6 +40,8 @@ pub enum ErrorCode {
     HarnessLocked,
     /// The thread has a turn running.
     ThreadBusy,
+    /// The waiting message was already sent or removed (§20.5); 404.
+    QueuedMessageGone,
     /// Fork from anything but the last completed entry (§12.9).
     ForkPointNotSupported,
     /// A change to a frozen plan version (§13.2); 409.

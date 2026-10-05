@@ -404,3 +404,12 @@ pub async fn next_frame_named(sub: &mut Subscription, name: &str) -> Value {
         }
     }
 }
+
+/// The turn settings the queue tests send and queue under.
+pub fn settings() -> shadows_agent::TurnSettings {
+    shadows_agent::TurnSettings {
+        model: "fake-small".into(),
+        mode: "acceptEdits".into(),
+        effort: Some("high".into()),
+    }
+}

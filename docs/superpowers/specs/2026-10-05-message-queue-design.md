@@ -42,7 +42,7 @@ A waiting message is a row of a new table `queued_message`, owned by the
 | `id` | the waiting message's id |
 | `thread_id` | its conversation |
 | `position` | an explicit, stable order within the thread; a new message goes last |
-| `command_id`, `fingerprint` | the `turn.queue` command that created it, for replay (§3.2) |
+| (no column) | the creating `turn.queue` command is in `command_record` (§3.2), its outcome the message as first answered |
 | `prompt`, `model`, `mode`, `effort`, `focus_json`, `plan_id` | `SendTurn`'s fields, as the composer held them when the message was written |
 | `last_error` | why its last send failed, or `NULL` |
 | `created_at` | when it was queued |
@@ -58,7 +58,7 @@ thread are never sent and never listed: `send` refuses a removed thread.
 `BEGIN IMMEDIATE` transaction that would insert the row. A busy thread gets
 the row. An idle thread gets no row: the message is started as a turn through
 `send`'s own path, with `send`'s refusals, and the answer says it started.
-That turn is recorded as `turn.start` under the caller's `command_id`, with
+That turn is a `turn.start` under the derived id `queue:<command_id>`, with
 `turn.start`'s fingerprint, and a replay of the `turn.queue` call asks
 `send`'s replay step first, so it answers that turn and does not queue a
 second message behind it. Without this a message queued in the instant a turn ended would wait for a
@@ -76,8 +76,9 @@ back, `turns/turn.rs` `watch_turn`), it takes the thread's first waiting
 message and starts it through `send`'s existing path: the same order, the same
 refusals, run to its end as `turns/contract.yaml`'s first trap demands, so the
 watcher does not call a half of it. The turn's `turn.start` command id is
-derived from the row's id (as §13.5 derives one for `draft_start`), never the
-`turn.queue`'s own. **Removing the row and committing the new turn happen in
+`queued:<row id>` (as §13.5 derives one for `draft_start`); Send now's start uses
+the same id, so whichever comes second is a replay; it is never
+the `turn.queue`'s own id. **Removing the row and committing the new turn happen in
 one `start_turn` transaction**, so a message is sent once or not at all. The
 row is removed only if it is still there: the `Send now` of 20.4 and this start
 race for the same row, and the one that finds it gone does nothing.

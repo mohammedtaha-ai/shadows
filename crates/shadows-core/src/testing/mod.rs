@@ -12,6 +12,7 @@ use std::sync::Arc;
 use crate::app::{AppCore, CoreParts};
 
 pub mod acp;
+pub mod queue;
 pub mod turn;
 
 /// The `fake-acp` binary, built once per test process. `CARGO_BIN_EXE_*`

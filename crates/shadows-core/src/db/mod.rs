@@ -51,6 +51,9 @@ pub enum StorageError {
     /// Spec §12.7, §12.9: the thread has a turn that has not ended.
     #[error("the thread has a turn running")]
     ThreadBusy,
+    /// Spec §20.5: the waiting message was already sent or removed.
+    #[error("the waiting message was already sent or removed")]
+    QueuedMessageGone,
     /// Spec §12.9: only the last entry of a completed turn is a fork point.
     #[error("only the thread's last entry, written by a completed turn, can be forked from")]
     ForkPointNotSupported,

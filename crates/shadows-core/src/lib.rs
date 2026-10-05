@@ -57,7 +57,10 @@ pub use runtime::{RuntimeInstanceId, StopKind};
 pub use threads::{
     EntryRef, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,
 };
-pub use turns::{InvocationView, Operation, OperationId, SendTurn, StartError, Turns};
+pub use turns::{
+    InvocationView, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SendTurn,
+    SentNow, StartError, Turns,
+};
 // `Harness`'s session methods answer `shadows-agent`'s `SessionChoices`, which
 // `shadows-http` serializes. Re-exported so no adapter depends on
 // `shadows-agent` (spec §14.3, §14.6 #1); the schema name is unchanged.

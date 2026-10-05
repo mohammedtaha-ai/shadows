@@ -32,10 +32,20 @@ use shadows_agent::choices::{Offered, refusal};
 use shadows_agent::policy;
 
 pub use handles::LiveHandles;
-pub use model::{InvocationView, Operation, OperationId};
+pub use model::{
+    InvocationView, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SentNow,
+};
 pub use spawn::StartError;
 // What another write calls inside its own transaction (spec §14.6):
 // forking checks for an open turn, recovery records its transitions.
+#[cfg_attr(
+    not(feature = "test-support"),
+    expect(
+        unused_imports,
+        reason = "no product caller until the queue route; only tests use it"
+    )
+)]
+pub use store::{NewQueued, QueueAnswer};
 pub(crate) use store::{existed, has_open_operation, read_before, record};
 
 use spawn::{PlannerTurnRequest, continue_plan_block, focus_block};

@@ -75,6 +75,9 @@ impl From<StorageError> for Failure {
                 return own(StatusCode::CONFLICT, ErrorCode::HarnessLocked);
             }
             StorageError::ThreadBusy => return own(StatusCode::CONFLICT, ErrorCode::ThreadBusy),
+            StorageError::QueuedMessageGone => {
+                return own(StatusCode::NOT_FOUND, ErrorCode::QueuedMessageGone);
+            }
             StorageError::ProjectHasThreads => {
                 return own(StatusCode::CONFLICT, ErrorCode::ProjectHasThreads);
             }
