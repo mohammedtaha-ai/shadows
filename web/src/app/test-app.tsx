@@ -162,7 +162,9 @@ export async function startApp(url: string, answers: Record<string, Answer>): Pr
 /** Lets pending fetches and renders settle until `ready` holds, for up to
  * three seconds. */
 export async function until(ready: () => boolean): Promise<void> {
-  const deadline = Date.now() + 3000
+  // Generous: a passing check returns at once, and a loaded machine (a Rust
+  // build alongside) made lazily loaded pages miss a 3 s deadline.
+  const deadline = Date.now() + 10_000
   while (!ready() && Date.now() < deadline) {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 5))

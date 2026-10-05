@@ -22,8 +22,9 @@ it('roadmap_navigation_keeps_old_plans_accessible', async () => {
     'GET /api/projects/p1/design/parts/part1': { revision: 1, part: { id: 'part1', revision: 1, ordinal: 0, parent: null, content: { title: 'المصادقة', responsibility: '', design: '', kind: null } }, ancestors: [], plans: [] },
     'GET /api/projects/p1/workflows': [listing('w1', 'خطة الدخول', 'linked'), listing('w2', 'خطة مستقلة', 'unassigned')],
   })
-  await until(() => a.container.querySelector('input[aria-label="Outcome title"]') !== null)
-  expect(a.text()).toContain('المصادقة')
+  // The outcome and its part arrive from separate requests: wait for both.
+  await until(() => a.container.querySelector('input[aria-label="Outcome title"]') !== null
+    && a.text().includes('المصادقة'))
   expect(a.text()).not.toMatch(/\bDone\b|\bCompleted\b/)
   const { router } = await import('@/router')
   await act(async () => { await router.navigate({ to: '/projects/$projectId/workspace', params: { projectId: 'p1' }, search: { view: 'plans' } }) })

@@ -11,6 +11,7 @@ import {
   createRootRoute, createRoute, createRouter, lazyRouteComponent, redirect,
 } from '@tanstack/react-router'
 import { Home } from './app/home'
+import { PagePending } from './app/page-pending'
 import { Shell } from './app/shell'
 
 // Each page loads when it is first opened, so the first load carries only the
@@ -103,6 +104,8 @@ const appSettingsRoute = createRoute({
 })
 
 export const router = createRouter({
+  defaultPendingComponent: PagePending,
+  defaultPendingMs: 150,
   routeTree: rootRoute.addChildren([
     homeRoute,
     projectRoute,
