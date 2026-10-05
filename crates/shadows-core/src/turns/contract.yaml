@@ -176,19 +176,17 @@ shapes:
     Waiting: QueuedMessage
     # The thread runs no turn: nothing was written; the caller starts one.
     Idle: unit
-  Steered:
-    # A Send now the adapter took (§20.4), sent over `LiveTurn.steer` to the
-    # watcher, which records it and answers on `reply`.
+  SteerRequest:
+    # A Send now for the running turn (§20.4, `steer.rs`), sent over
+    # `LiveTurn.steer` to the watcher, which steers, records and answers on
+    # `reply`: `Some(entry)` steered in, `None` the adapter ran no prompt.
     command: CommandContext
     row: QueuedMessageId
-    prompt: String
-    reply: oneshot::Sender<Result<ThreadEntryId, StorageError>>
+    reply: oneshot::Sender<Result<Option<ThreadEntryId>, CoreError>>
   SteerTarget:
     # What `LiveHandles::steer_target` answers (pub(crate)).
-    op: OperationId
-    session: OpenSession
     cancel_requested: Arc<AtomicBool>
-    steer: UnboundedSender<Steered>
+    steer: UnboundedSender<SteerRequest>
   PlannerTurn:
     # A unit struct: `start` and `stop` are associated functions.
     unit: unit
@@ -257,13 +255,12 @@ functions:
       # §20.4, "turn.send_now". In order: a replay answers first; the row must
       # exist (QueuedMessageGone); a Stop pending on the running turn
       # (`cancel_requested`) is ThreadBusy, sends nothing and leaves the row
-      # without `last_error`; otherwise the steer is sent BEFORE anything is
-      # written; `injected` hands the message to the turn's watcher
-      # (`record_steer`, which writes it after the streamed text, in one
-      # transaction with taking the row); `promptRequired`, or no running
-      # turn, is `send_queued` with this command as `also`. A steer that fails
-      # sets `last_error`, writes nothing to the thread and is
-      # HarnessStartFailed.
+      # without `last_error`; otherwise the watcher is asked (`SteerRequest`) to
+      # send the steer BEFORE anything is written; on `injected` it writes the
+      # streamed text, then the message in one transaction with taking the row.
+      # `promptRequired`, a watcher already gone, or no running turn, is
+      # `send_queued` with this command as `also`. A steer that fails sets
+      # `last_error`, writes nothing to the thread and is HarnessStartFailed.
     send_queued:
       signature: "(&self, thread: &ThreadId, row: &QueuedMessage, also: Option<CommandContext>) -> Result<OperationId, CoreError>"
       # pub(crate), §20.3: starts `row` as a turn under the derived command id
@@ -324,15 +321,19 @@ functions:
     watch_turn:
       signature: "(w: TurnWatch, rx, steers, bus)"
       private: true
-      # `steers` carries the Send nows the adapter took (`LiveTurn.steer`); the
-      # select is biased: the prompt's answer, then events, then steers; steers
-      # still queued when the prompt answers are recorded before the ending.
-    record_steer:
-      signature: "(w: &TurnWatch, collector: &mut Collector, s: Steered)"
+      # `steers` carries the Send nows (`LiveTurn.steer`); the select is biased:
+      # the prompt's answer, then events, then steers. A steer drains the
+      # events already queued, then holds the watcher until it is answered;
+      # steers still queued when the prompt answers are dropped, which
+      # `send_now` reads as "no prompt runs".
+    steer:
+      signature: "(w: &TurnWatch, collector: &mut Collector, r: SteerRequest)"
       private: true
-      # `Collector::cut` writes the message being streamed, then
-      # `steered_entry` writes the steered message and takes its row; the
-      # answer goes back to `send_now` on `Steered.reply`.
+      # In `steer.rs`: the row must still be queued (QueuedMessageGone), the
+      # steer is sent, and only on `injected` `Collector::cut` writes the
+      # message being streamed and `steered_entry` writes the steered one and
+      # takes its row. No event is read in between, so the steered reply's
+      # first chunk cannot be written before the steered entry.
     cut:
       signature: "(&mut self) -> Vec<Durable>"
       # On `Collector` (`entries.rs`): the message being streamed, written now;
@@ -340,8 +341,7 @@ functions:
     steer_target:
       signature: "(&self) -> Option<SteerTarget>"
       # pub(crate) on `LiveHandles`: the running turn of a thread as Send now
-      # reaches it (§20.4): its operation, session, `cancel_requested` and
-      # steer channel.
+      # reaches it (§20.4): its `cancel_requested` and steer channel.
     stop:
       signature: "(runtime, handles, sessions, op: &OperationId, actor: Actor) -> Result<StopOutcome, StorageError>"
       # On `PlannerTurn`. Records the cancel request, claims the live turn,
@@ -683,11 +683,11 @@ agreements:
       is a new message
     holds: true
     why: >
-      `send_now` steers first and then hands the message to the watcher over
-      `LiveTurn.steer`; the watcher's `record_steer` cuts the open message
-      before `steered_entry` appends the user entry, and a steer still queued
-      when the prompt answers is recorded before the ending. A watcher already
-      gone has written all its entries, so `send_now` writes the entry itself.
+      `send_now` asks the watcher over `LiveTurn.steer`; the watcher's `steer`
+      sends the request and reads no event until it is answered, then cuts the
+      open message before `steered_entry` appends the user entry, so a reply
+      chunk that beats the answer is written after it. A watcher already gone
+      steers nothing: `send_now` starts the message as a turn.
     tested_by: send_now_steers_the_running_turn_after_its_streamed_text
 
   - between: [send_now, send_next]

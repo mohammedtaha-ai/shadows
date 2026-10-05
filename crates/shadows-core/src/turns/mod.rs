@@ -22,6 +22,7 @@ mod queue;
 mod record;
 mod shutdown;
 mod spawn;
+mod steer;
 mod store;
 mod turn;
 

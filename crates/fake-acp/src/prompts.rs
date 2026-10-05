@@ -155,10 +155,8 @@ pub(crate) async fn answer(
         "steerable" => {
             chunk(cx, id, "m1", "waiting")?;
             let text = crate::steer::wait(s).await;
-            // The real adapter answers the steer before it streams the reply
-            // (the probe's answer came before any chunk): leave Shadows time
-            // to record the steered entry first.
-            tokio::time::sleep(Duration::from_millis(150)).await;
+            // No pause: the reply may stream before Shadows has the answer,
+            // as the real adapter's can (§20.4).
             chunk(cx, id, "m2", &format!("steered: {text}"))?;
         }
         "wait-for-release" => {

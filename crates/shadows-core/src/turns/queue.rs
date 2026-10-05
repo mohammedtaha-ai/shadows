@@ -4,11 +4,9 @@
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use shadows_agent::acp::Steer;
-
 use super::handles::SteerTarget;
 use super::spawn::OnCompleted;
-use super::turn::Steered;
+use super::steer::SteerRequest;
 use super::{NewQueued, OperationId, QueueAnswer, SendTurn, Turns, start_command};
 use crate::app::user_command;
 use crate::command::CommandContext;
@@ -128,59 +126,31 @@ impl Turns {
             if target.cancel_requested.load(Ordering::SeqCst) {
                 return Err(StorageError::ThreadBusy.into());
             }
-            let connection = target.session.connection();
-            match connection
-                .steer(&target.session.session_id, &row.prompt)
-                .await
-            {
-                Ok(Steer::Injected) => return self.record_steer(target, command, row).await,
-                Ok(Steer::PromptRequired) => {}
-                Err(error) => {
-                    let reason = format!("the message did not reach the turn: {error}");
-                    self.storage.fail_queued(thread, id, &reason).await?;
-                    return Err(CoreError::HarnessStartFailed(reason));
-                }
+            if let Some(entry_id) = Self::steer_in(&target, &command, &row.id).await? {
+                return Ok(SentNow::Steered { entry_id });
             }
         }
         let operation_id = self.send_queued(thread, &row, Some(command)).await?;
         Ok(SentNow::Started { operation_id })
     }
 
-    /// Hands the steered message to the turn's watcher, which writes it after
-    /// the text already streamed; a watcher already gone has written all its
-    /// entries, so the message is written directly.
-    async fn record_steer(
-        &self,
-        target: SteerTarget,
-        command: CommandContext,
-        row: QueuedMessage,
-    ) -> Result<SentNow, CoreError> {
+    /// Asks the turn's watcher to steer `row` in (§20.4). `None` is "no prompt
+    /// runs": the adapter said so, or the watcher is already gone.
+    async fn steer_in(
+        target: &SteerTarget,
+        command: &CommandContext,
+        row: &QueuedMessageId,
+    ) -> Result<Option<ThreadEntryId>, CoreError> {
         let (reply, answer) = tokio::sync::oneshot::channel();
-        let steered = Steered {
+        let request = SteerRequest {
             command: command.clone(),
-            row: row.id.clone(),
-            prompt: row.prompt.clone(),
+            row: row.clone(),
             reply,
         };
-        let entry_id = match target.steer.send(steered) {
-            Ok(()) => match answer.await {
-                Ok(recorded) => recorded?,
-                Err(_) => self.write_steered(&command, &target.op, &row).await?,
-            },
-            Err(_) => self.write_steered(&command, &target.op, &row).await?,
-        };
-        Ok(SentNow::Steered { entry_id })
-    }
-
-    async fn write_steered(
-        &self,
-        command: &CommandContext,
-        op: &OperationId,
-        row: &QueuedMessage,
-    ) -> Result<ThreadEntryId, StorageError> {
-        self.storage
-            .steered_entry(command, &row.thread_id, op, &row.id, &row.prompt)
-            .await
+        if target.steer.send(request).is_err() {
+            return Ok(None);
+        }
+        answer.await.unwrap_or(Ok(None))
     }
 
     /// Starts `row` as a turn, taking it from the queue in the turn's own

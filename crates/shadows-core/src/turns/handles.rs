@@ -1,5 +1,5 @@
 //! One job: register live turns for watcher/stop arbitration.
-use super::{model::OperationId, turn::Steered};
+use super::{model::OperationId, steer::SteerRequest};
 use crate::harness::OpenSession;
 use crate::threads::ThreadId;
 use std::{
@@ -19,16 +19,14 @@ pub(crate) struct LiveTurn {
     pub(crate) turn_end_seen: Arc<AtomicBool>,
     pub(crate) cancel_requested: Arc<AtomicBool>,
     /// Where Send now hands the watcher a message the adapter took (§20.4).
-    pub(crate) steer: mpsc::UnboundedSender<Steered>,
+    pub(crate) steer: mpsc::UnboundedSender<SteerRequest>,
     pub(crate) span: tracing::Span,
 }
 
 /// What Send now needs of the running turn of a thread (§20.4).
 pub(crate) struct SteerTarget {
-    pub(crate) op: OperationId,
-    pub(crate) session: OpenSession,
     pub(crate) cancel_requested: Arc<AtomicBool>,
-    pub(crate) steer: mpsc::UnboundedSender<Steered>,
+    pub(crate) steer: mpsc::UnboundedSender<SteerRequest>,
 }
 #[derive(Default)]
 pub(crate) struct Registry {
@@ -84,9 +82,7 @@ impl LiveHandles {
         r.turns
             .iter()
             .find(|(_, t)| &t.thread_id == thread)
-            .map(|(op, t)| SteerTarget {
-                op: op.clone(),
-                session: t.session.clone(),
+            .map(|(_, t)| SteerTarget {
                 cancel_requested: t.cancel_requested.clone(),
                 steer: t.steer.clone(),
             })

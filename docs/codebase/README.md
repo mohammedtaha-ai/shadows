@@ -96,6 +96,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/turns/store/steer.rs` | recording a steered message | `crates/shadows-core/src/turns/store/steer.rs` |
 | `crates/shadows-core/src/turns/queue.rs` | the waiting messages of a conversation | `crates/shadows-core/src/turns/queue.rs` |
 | `crates/shadows-core/src/turns/record.rs` | the checks that commit a turn's start | `crates/shadows-core/src/turns/record.rs` |
+| `crates/shadows-core/src/turns/steer.rs` | a Send now inside the turn's watcher | `crates/shadows-core/src/turns/steer.rs` |
 | `crates/shadows-core/src/turns/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows-core/src/turns/turn.rs` |
 | `crates/shadows-core/src/turns/entries.rs` | turning harness events into durable entries | `crates/shadows-core/src/turns/entries.rs` |
 | `crates/shadows-core/src/harness/` | the harnesses, each thread's open session included | `crates/shadows-core/src/harness/mod.rs` |
