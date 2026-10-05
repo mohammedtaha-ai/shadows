@@ -141,7 +141,7 @@ struct WriteConn {
 }
 
 /// Task 3 adds a serialized write connection alongside `read` (spec §6.23,
-/// evidence `docs/evidence/persistence/WAL_VALIDATION.md`). `write` is one
+/// evidence `docs/evidence/persistence/WAL_VALIDATION.md` at `92e6dae`). `write` is one
 /// connection, not a pool, guarded by an async mutex: the evidence found that
 /// a deferred `BEGIN` fails a read-then-write transaction with
 /// `SQLITE_BUSY_SNAPSHOT` on a lock upgrade, that `busy_timeout` cannot
@@ -244,7 +244,7 @@ impl Storage {
     ///   against a *deferred* `BEGIN`, an external writer's commit landing in
     ///   between would produce `SQLITE_BUSY_SNAPSHOT` — the lock-upgrade
     ///   failure `busy_timeout` cannot rescue (spec §6.23,
-    ///   `docs/evidence/persistence/WAL_VALIDATION.md`). `BEGIN IMMEDIATE`
+    ///   `docs/evidence/persistence/WAL_VALIDATION.md` at `92e6dae`). `BEGIN IMMEDIATE`
     ///   avoids that failure entirely by taking the write lock, and waiting
     ///   out `busy_timeout` for it, before the closure's read ever runs.
     ///

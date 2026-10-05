@@ -15,7 +15,7 @@ shadows ...      # CLI client
 
 `shadows serve` exposes the local API only. It prints the address and never opens a browser automatically; the user chooses which browser to use.
 
-**The daemon does not serve or embed the client** (decided 2026-09-23, superseding the single-page `include_str!` recommendation in `docs/evidence/harness/SERVE_STREAM_SPIKE.md` Finding 1). The backend stays on the machine that owns the projects, the processes, and the harness; clients reach it over the protocol, the way a hosted web app reaches a locally running agent. The Web client is the first client, a desktop client is a later one, and a hosted Web client reaching a remote daemon is a later deployment of the same one. Consequences:
+**The daemon does not serve or embed the client** (decided 2026-09-23, superseding the single-page `include_str!` recommendation in `docs/evidence/harness/SERVE_STREAM_SPIKE.md` at `92e6dae` Finding 1). The backend stays on the machine that owns the projects, the processes, and the harness; clients reach it over the protocol, the way a hosted web app reaches a locally running agent. The Web client is the first client, a desktop client is a later one, and a hosted Web client reaching a remote daemon is a later deployment of the same one. Consequences:
 
 - The Web client lives in `web/` in this repository, built and deployed on its own. It is React + TypeScript on Vite, with TanStack Router and TanStack Query, shadcn/ui on Tailwind v4 (theme as CSS variables in one place), Motion for animation, and Streamdown for rendering streamed markdown. Anything else earns its place the day a screen needs it.
 - **The protocol is described, not copied.** The daemon generates an OpenAPI document from its routes (`utoipa` + `utoipa-axum`), and every client's types and HTTP client are generated from it (`openapi-typescript` + `openapi-fetch`). A route change that the client has not followed fails the client's build. The daemon serves the document at `GET /api/openapi.json` and it is checked in at `api/openapi.json`, kept current by `crates/shadows/tests/openapi.rs` the way the code map is (`UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` regenerates it); its keys are sorted so it changes only when the protocol does. Id newtypes appear as named `uuid`-format strings. The SSE stream (§2.10) is documented there too, but it is consumed by a hand-written hook, because its replay, then live, then dedupe-by-seq contract is ours.
@@ -153,7 +153,7 @@ The resolved path and the harness's self-reported version are read when an
 Operation starts and recorded with it.
 
 This is not defensive habit. The measured harness stream contract
-(`docs/evidence/harness/SERVE_STREAM_SPIKE.md`) is the contract of one
+(`docs/evidence/harness/SERVE_STREAM_SPIKE.md` at `92e6dae`) is the contract of one
 installation at one version, and a machine can carry several: on the validation
 machine the Claude desktop application bundles its own copy, at more than one
 version, entirely separate from whatever `PATH` resolves. An auto-update can

@@ -256,7 +256,7 @@ async fn write_txn_recovers_after_a_panicking_transaction() {
 
 /// Finding 4, fix round 2: `BEGIN IMMEDIATE` must be told apart from a
 /// deferred `BEGIN`, not just from failing outright. Per
-/// `docs/evidence/persistence/WAL_VALIDATION.md` lines 37-39, a write-only
+/// `docs/evidence/persistence/WAL_VALIDATION.md` at `92e6dae` lines 37-39, a write-only
 /// transaction cannot produce the lock-upgrade failure (`SQLITE_BUSY_SNAPSHOT`,
 /// code 517) that only a deferred `BEGIN` exhibits — a lone `INSERT` under a
 /// deferred `BEGIN` hits ordinary `SQLITE_BUSY` instead, which `busy_timeout`

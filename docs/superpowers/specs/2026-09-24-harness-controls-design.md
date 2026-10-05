@@ -112,7 +112,7 @@ default setting sources and tool set, and so does this one.
 
 **Every opening sets the mode.** A session starts in the mode of the person's
 own Claude settings, and a resumed one comes back at those defaults rather than
-at the settings it last ran with (`docs/evidence/harness/ACP_PROBE.md` §1, §4).
+at the settings it last ran with (`docs/evidence/harness/ACP_PROBE.md` at `92e6dae` §1, §4).
 So after `session/new`, `session/resume` or a fork's opening, Shadows sets the
 mode to the policy's default before anything else, and a turn sets model,
 effort and mode again whenever they differ from what the session reports
@@ -176,7 +176,7 @@ produced, and `src/bin/fake_claude.rs`. Tests run against a fake ACP agent
 (the `fake-acp` crate since Milestone 2.5, built on `agent-client-protocol`'s agent side) instead.
 
 **Measured on 2026-09-24** against adapter 0.81.1 and Claude Code 2.1.281
-(`docs/evidence/harness/ACP_PROBE.md`): chunks carry `messageId`; a cancel
+(`docs/evidence/harness/ACP_PROBE.md` at `92e6dae`): chunks carry `messageId`; a cancel
 answers `cancelled` in about 60 ms; `session/resume` after the adapter was
 killed continues the conversation; a rejected permission ends the tool call
 `failed` and the turn `end_turn`. This section rests on those findings.
@@ -206,7 +206,7 @@ nor of their efforts.
 `default`. The effort `default` is no level: Claude Code picks one per model
 (medium for some, high or xhigh for others) and the session goes on reporting
 `default`, so a person could not see what a turn ran at
-(`docs/evidence/harness/EFFORT_DEFAULT_PROBE.md` §1). So at `initialize`
+(`docs/evidence/harness/EFFORT_DEFAULT_PROBE.md` at `92e6dae` §1). So at `initialize`
 Shadows advertises the adapter's `recommendedValue` extension in the client
 capabilities' `_meta`:
 `{"jetbrains":{"air":{"version":1,"capabilities":["recommendedValue"]}}}`.
@@ -385,7 +385,7 @@ choices as `POST /session` does. It writes nothing durable and carries no
 `CommandId`. It is `SettingNotOffered` for an effort the current model does not
 offer (a model with no effort offers none) or one the harness refuses (with its
 message), and `ThreadBusy` while a turn runs. Measured: a chosen effort reaches
-Claude Code (`docs/evidence/harness/EFFORT_DEFAULT_PROBE.md` §2).
+Claude Code (`docs/evidence/harness/EFFORT_DEFAULT_PROBE.md` at `92e6dae` §2).
 
 **Then, before the prompt is sent,** the session is set to the turn's effort
 and mode, one call per value that differs from what the session holds — for
@@ -576,7 +576,7 @@ contract between them is `api/openapi.json`.
 
 ```text
 Phase A
-[ ] §12.3's measurements are recorded in docs/evidence/harness/ACP_PROBE.md
+[ ] §12.3's measurements are recorded in docs/evidence/harness/ACP_PROBE.md at 92e6dae
 [ ] a Planner turn runs over ACP on the pinned adapter; its reply streams live and its
     messages are durable, one entry per message
 [ ] Stop ends a running turn: Cancelled after the harness confirms, or after the tree is

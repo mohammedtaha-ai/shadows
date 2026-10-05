@@ -377,7 +377,7 @@ fn forward_stderr(stderr: ChildErr) {
 /// The client capabilities `initialize` advertises: the Claude adapter's
 /// `recommendedValue` extension, under which it offers no effort or model
 /// `default` and starts each model's effort at a level it reports (spec §12.4,
-/// `docs/evidence/harness/EFFORT_DEFAULT_PROBE.md` §2).
+/// `docs/evidence/harness/EFFORT_DEFAULT_PROBE.md` at `92e6dae` §2).
 fn capabilities() -> ClientCapabilities {
     let air = serde_json::json!({
         "jetbrains": { "air": { "version": 1, "capabilities": ["recommendedValue"] } }

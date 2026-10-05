@@ -25,7 +25,7 @@ debug daemon build from that commit also passed. Mohammed then confirmed
 that **Open plan works with the rebuilt daemon** and attributed the earlier
 error to the old daemon. This is a partial human check; the full §16.12
 acceptance run remains pending
-([Windows record](./evidence/project-plans/WINDOWS_RUN.md)).
+(Windows record: `docs/evidence/project-plans/WINDOWS_RUN.md` at `92e6dae`).
 
 The whole-branch review fixed archive transaction checks, removal of a
 Pending turn before live registration, shared-plan task focus, removed-session
@@ -43,7 +43,7 @@ On 2026-10-03 the ordinary debug daemon was rebuilt from review commit
 `fbbdde55`. Mohammed then reported that he tried the application and believed
 everything was ready. This records his successful Windows trial of the
 reviewed build; it does not claim that Codex independently executed every
-§16.12 scenario ([Windows record](./evidence/project-plans/WINDOWS_RUN.md)).
+§16.12 scenario (Windows record: `docs/evidence/project-plans/WINDOWS_RUN.md` at `92e6dae`).
 The branch is ready for PR preparation.
 
 **Code-index settings, effort at once, and a Linux watcher fix** (PR #12,
@@ -54,7 +54,7 @@ The branch is ready for PR preparation.
 - a picked effort is set on the session at once, the effort is remembered
   per model, and Claude's `default` is no longer offered: Shadows advertises
   the adapter's `recommendedValue` (§12.4, §12.7, migration 0011,
-  [`evidence/harness/EFFORT_DEFAULT_PROBE.md`](./evidence/harness/EFFORT_DEFAULT_PROBE.md));
+  `docs/evidence/harness/EFFORT_DEFAULT_PROBE.md` at `92e6dae`);
 - the code watcher ignores file reads, which Linux reports: before, an idle
   daemon re-scanned forever at 148% CPU (§15.4,
   `docs/evidence/milestone3/LINUX_WATCHER_READS.md` at `92e6dae`).
@@ -167,17 +167,17 @@ The PR is #4; its execution ledger was removed from the branch before merge.
   child. This settles the question the serve/stream spike left open; whether a
   `Bash` call adds more descendants was not measured separately.
 - **Persistence.** SQLx 0.9 + SQLite chosen; the delta validated SQLx and
-  SeaORM 2.0.3 against PostgreSQL 16. `evidence/persistence/`.
+  SeaORM 2.0.3 against PostgreSQL 16. `docs/evidence/persistence/` at `92e6dae`.
 - **Harness stream contract.** Measured against Claude Code 2.1.278: four stream
   classes, of which only `assistant`, `user`, and `result` are durable; turn end
   is an explicit `result` line; `--session-id`/`--resume` give continuity across
-  processes. `evidence/harness/`.
+  processes. `docs/evidence/harness/` at `92e6dae`.
 - **Harness binary identity.** The machine carries more than one `claude-code`
   installation at different versions; spec §1.4 requires an explicit path and a
   recorded version.
 - **SQLite writer strategy and `durable_seq` ordering.** One write connection
   plus `BEGIN IMMEDIATE`; no visibility inversion. Spec §6.23 and §6.18.
-  `evidence/persistence/`.
+  `docs/evidence/persistence/` at `92e6dae`.
 
 ## Next
 
