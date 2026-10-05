@@ -49,8 +49,11 @@ pub fn continue_plan_block(plan: &PlanListing) -> String {
     )
 }
 
+/// Called once a turn's `Completed` is recorded (§20.3): sends the thread's
+/// next waiting message.
+pub type OnCompleted = Arc<dyn Fn(ThreadId) + Send + Sync>;
+
 /// A turn whose operation `Storage::start_turn` has committed `Pending`.
-#[derive(Debug)]
 pub struct PlannerTurnRequest {
     pub thread_id: ThreadId,
     /// The thread's harness as the turn command validated it, so nothing is
@@ -70,6 +73,8 @@ pub struct PlannerTurnRequest {
     /// (`Sessions::lease_events`): the turn holds the session from its
     /// checks to its ending, and gives them back.
     pub events: mpsc::UnboundedReceiver<HarnessEvent>,
+    /// Sends the thread's next waiting message once this turn completes.
+    pub on_completed: Option<OnCompleted>,
 }
 
 impl PlannerTurn {
@@ -91,6 +96,7 @@ impl PlannerTurn {
             continue_plan,
             client_tab,
             events,
+            on_completed,
         } = request;
         let span = tracing::info_span!(
             parent: None,
@@ -205,6 +211,7 @@ impl PlannerTurn {
                 context,
                 turn_end_seen,
                 cancel_requested,
+                on_completed,
                 span,
             },
             events,

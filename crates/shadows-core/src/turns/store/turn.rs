@@ -9,8 +9,8 @@ use sqlx::SqliteConnection;
 
 use super::operation::insert_pending;
 use crate::command::CommandContext;
-use crate::db::{Storage, StorageError, classify, now, record_command};
-use crate::events::Actor;
+use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
+use crate::events::{Actor, DurableEvent};
 use crate::harness::remember_settings;
 use crate::plans::Focus;
 use crate::plans::task_of;
@@ -19,8 +19,17 @@ use crate::threads::{
     EntryRef, NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, append_entry_in,
     title_from_first_message_in,
 };
-use crate::turns::model::OperationId;
+use crate::turns::model::{OperationId, QueuedMessageId};
 use shadows_agent::TurnSettings;
+
+/// A waiting message the turn sends (§20.3, §20.4): taken in the turn's own
+/// transaction, so it is sent once or not at all. `also` is Send now's own
+/// command, recorded with the turn so its replay answers the turn.
+#[derive(Debug, Clone, Copy)]
+pub struct Dequeue<'a> {
+    pub id: &'a QueuedMessageId,
+    pub also: Option<&'a CommandContext>,
+}
 
 /// Everything the turn command records. The paths and versions are the
 /// adapter's and the CLI's it runs (§12.2), frozen on the invocation.
@@ -42,6 +51,8 @@ pub struct NewTurn<'a> {
     pub instructions_version: Option<&'a str>,
     /// The task the person points at (§13.9), kept with their message.
     pub focus: Option<&'a Focus>,
+    /// The waiting message this turn sends, taken in the same transaction.
+    pub dequeue: Option<Dequeue<'a>>,
 }
 
 /// What the command recorded; `replayed` when it had already happened.
@@ -132,6 +143,7 @@ impl Storage {
         let prompt = turn.prompt.to_string();
         let settings = turn.settings.clone();
         let focus = turn.focus.cloned();
+        let dequeue = turn.dequeue.map(|d| (d.id.clone(), d.also.cloned()));
         let versions = (
             turn.prompt_version.map(str::to_owned),
             turn.instructions_version.map(str::to_owned),
@@ -160,6 +172,9 @@ impl Storage {
                     live.ok_or(StorageError::NotFound("planning_thread"))?;
                     if has_open_operation(conn, &thread).await? {
                         return Err(StorageError::ThreadBusy);
+                    }
+                    if let Some((id, _)) = &dequeue {
+                        super::queue::take_queued_in(conn, &thread, id).await?;
                     }
                     let focus_task = match &focus {
                         Some(focus) => Some(focused(conn, &thread, focus).await?),
@@ -237,6 +252,22 @@ impl Storage {
                         &ts,
                     )
                     .await?;
+                    if let Some((id, also)) = &dequeue {
+                        let payload = serde_json::json!({
+                            "queued_id": id.as_str(), "how": "turn", "operation_id": op.as_str(),
+                        });
+                        let sent =
+                            DurableEvent::new("QueuedMessageSent", Actor::user(&ctx.principal_id))
+                                .with_thread(&thread)
+                                .with_payload(payload);
+                        append_event(conn, &sent, &ts).await?;
+                        if let Some(also) = also {
+                            let answer = outcome.to_string();
+                            let (scope, id) = (SCOPE, thread.as_str());
+                            record_command(conn, also, scope, id, "Operation", &answer, &ts)
+                                .await?;
+                        }
+                    }
                     let started = StartedTurn {
                         operation_id: op,
                         entry_id: entry.id,

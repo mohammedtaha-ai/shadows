@@ -268,13 +268,6 @@ impl Storage {
     }
 
     /// §20.3, §20.4: why the last send of a waiting message failed.
-    #[cfg_attr(
-        not(feature = "test-support"),
-        expect(
-            dead_code,
-            reason = "no product caller until the send path; only tests use it"
-        )
-    )]
     pub async fn fail_queued(
         &self,
         thread: &ThreadId,

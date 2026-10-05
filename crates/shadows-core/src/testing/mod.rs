@@ -63,7 +63,8 @@ pub use crate::plans::for_tests::{Applied, apply, approval_problems, edit_proble
 /// or stops a turn through `Turns` only.
 pub use crate::turns::LiveHandles;
 pub use crate::turns::for_tests::{
-    FailureStage, NewTurn, PlannerTurn, PlannerTurnRequest, StartedTurn, StopOutcome, shut_down,
+    Dequeue, FailureStage, NewTurn, PlannerTurn, PlannerTurnRequest, StartedTurn, StopOutcome,
+    shut_down,
 };
 
 /// Storage, the runtime and the sessions, which the storage, recovery and

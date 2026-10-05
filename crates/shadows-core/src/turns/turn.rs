@@ -46,6 +46,7 @@ use super::{
     entries::{Collector, Durable},
     handles::LiveHandles,
     model::{FailureStage, OperationId},
+    spawn::OnCompleted,
 };
 use crate::{
     db::StorageError,
@@ -91,6 +92,8 @@ pub(crate) struct TurnWatch {
     pub context: Vec<String>,
     pub turn_end_seen: Arc<AtomicBool>,
     pub cancel_requested: Arc<AtomicBool>,
+    /// §20.3: called after a `Completed` is recorded, and after nothing else.
+    pub on_completed: Option<OnCompleted>,
     pub span: tracing::Span,
 }
 
@@ -256,6 +259,7 @@ pub(crate) fn watch_turn(
             if w.handles.claim(&w.op_id).await.is_none() {
                 return;
             }
+            let ended = matches!(answer, Ok(TurnEnd::Ended));
             let result = match answer {
                 // Only a completed turn records an observation: a failed or
                 // cancelled one leaves it NULL, which a client shows as
@@ -314,8 +318,12 @@ pub(crate) fn watch_turn(
                         .await
                 }
             };
+            let completed = ended && result.is_ok();
             if let Err(error) = result {
                 tracing::error!(%error, "planner.terminal_transition_failed");
+            }
+            if completed && let Some(next) = &w.on_completed {
+                next(w.thread_id.clone());
             }
         }
         .instrument(span),

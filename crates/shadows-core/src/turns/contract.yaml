@@ -135,6 +135,10 @@ shapes:
     # role, the harness and agent paths and versions, the settings, the
     # prompt and instructions versions, and the focus. Borrowed, never kept.
     thread_id: "&ThreadId"
+    # The waiting message this turn sends (§20.3, §20.4), taken in the same
+    # transaction; `Dequeue.also` is Send now's own command, recorded with the
+    # turn so its replay answers the turn.
+    dequeue: "Option<Dequeue>"
   QueuedMessage:
     # §20.2: a message written while a turn ran, waiting to be sent.
     id: QueuedMessageId
@@ -189,6 +193,9 @@ shapes:
     continue_plan: Option<String>
     client_tab: Option<String>
     events: UnboundedReceiver<HarnessEvent>
+    # Called after the watcher recorded `Completed`, and after nothing else;
+    # `None` where no queue follows the turn.
+    on_completed: Option<OnCompleted>
 
 
 functions:
@@ -228,6 +235,26 @@ functions:
       signature: "(&self, thread: &ThreadId, id: &QueuedMessageId, command_id: String) -> Result<(), CoreError>"
       # §20.5, "turn.unqueue": removes a waiting message. Refusals:
       # QueuedMessageGone, CommandConflict.
+    send_with:
+      signature: "(&self, thread_id: ThreadId, turn: SendTurn, dequeue: Option<(QueuedMessageId, Option<CommandContext>)>) -> Result<OperationId, CoreError>"
+      # pub(crate): `send` is `send_with(.., None)`. With a `dequeue`, the
+      # turn takes that waiting message in its own transaction (§20.3).
+    send_queued:
+      signature: "(&self, thread: &ThreadId, row: &QueuedMessage, also: Option<CommandContext>) -> Result<OperationId, CoreError>"
+      # pub(crate), §20.3: starts `row` as a turn under the derived command id
+      # `queued:<row id>`, taking the row inside the turn's transaction. A row
+      # already taken is QueuedMessageGone; the rest are `send`'s refusals.
+    send_next:
+      signature: "(&self, thread: &ThreadId)"
+      # pub(crate), §20.3: the thread's first waiting message, unless it
+      # carries a `last_error`. ThreadBusy and QueuedMessageGone are not
+      # failures and write nothing; any other refusal is `fail_queued`, which
+      # sets `last_error` and leaves the row waiting for the person.
+    on_completed:
+      signature: "(&self) -> OnCompleted"
+      private: true
+      # The callback each turn's watcher is given: runs `send_next` in a task
+      # of its own, to its end.
     stop:
       signature: "(&self, op: &OperationId) -> Result<Operation, CoreError>"
       # `PlannerTurn::stop` as `Actor::user("local")`; TerminationFailed is
@@ -240,6 +267,7 @@ functions:
   steps:
     record:
       signature: "(&self, thread_id, opened, context, turn: Turn) -> Result<StartedTurn, CoreError>"
+      # In `record.rs`, with `start`, `offer_for_model` and `set_model_back`.
       private: true
       # `offer_for_model`, then `start`; when `start` answers anything but a
       # new turn (a refusal, an error, a replay found by the transaction) and
@@ -332,7 +360,9 @@ functions:
       # One write: classify (replay), refuse removed thread, has_open_operation (busy), focus,
       # insert_pending, the UserMessage entry, Threads'
       # `title_from_first_message_in` (§4.2), agent_invocation,
-      # remember_settings, record_command.
+      # remember_settings, record_command. With `NewTurn.dequeue`: the row is
+      # taken right after the busy check and `QueuedMessageSent` is journaled
+      # after the turn's command is recorded, both in this one write.
     replayed_turn:
       signature: "(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<Option<StartedTurn>, StorageError>"
     thread_is_busy:
@@ -581,6 +611,18 @@ agreements:
       Each test proves one side. The same rule's agreement with
       `harness::change_model` is in Harness's contract.
 
+  - between: [send_next, start_turn]
+    must: >
+      send a waiting message once or not at all: the row is taken inside the
+      turn's own transaction, so a turn that does not commit leaves the row
+      waiting and a row already taken starts no turn
+    holds: true
+    why: >
+      `send_queued` passes the row as `NewTurn.dequeue`, and `start_turn`
+      calls `take_queued_in` after its busy check, in the same write that
+      inserts the turn; `QueuedMessageGone` aborts that write.
+    tested_by: a_completed_turn_starts_the_next_waiting_message_exactly_once
+
   - between: [replayed_turn, start_turn]
     must: >
       answer the same recorded command the same way: the early replay and
@@ -624,6 +666,15 @@ tests:
     checks: >
       A queue on a busy thread answers 202 `waiting` with the message;
       DELETE is 204 and a second DELETE is 404 QUEUED_MESSAGE_GONE.
+  - name: a_completed_turn_starts_the_next_waiting_message_exactly_once
+    checks: >
+      A turn held open with a message waiting behind it: once released, the
+      turn completes, the waiting message runs as the thread's second turn
+      and appears as one entry, and the queue is empty.
+  - name: stop_leaves_the_queue_and_starts_nothing
+    checks: >
+      Stopping the running turn leaves the waiting message listed, with no
+      `last_error`, and starts no second turn.
   - name: a_conversation_can_focus_another_conversations_project_plan
     checks: >
       A second conversation sends a focus on the first conversation's plan;

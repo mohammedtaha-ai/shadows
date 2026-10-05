@@ -583,6 +583,7 @@ async fn a_stop_while_pending_cancels_the_turn_before_its_prompt() {
             continue_plan: None,
             client_tab: None,
             events,
+            on_completed: None,
         },
         app.bus.clone(),
     )

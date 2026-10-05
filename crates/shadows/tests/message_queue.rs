@@ -115,3 +115,63 @@ async fn a_busy_thread_queues_and_remove_answers_gone_the_second_time() {
     assert_eq!(gone["code"], "QUEUED_MESSAGE_GONE");
     release(&app).await;
 }
+
+async fn until_ops(app: &app::App, n: usize) -> Vec<shadows_core::Operation> {
+    for _ in 0..500 {
+        let ops = app
+            .storage
+            .list_operations_for_thread(&app.thread)
+            .await
+            .unwrap();
+        if ops.len() >= n && ops.iter().all(|o| o.finished_at.is_some()) {
+            return ops;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    panic!("the thread never reached {n} finished turns");
+}
+
+#[tokio::test]
+async fn a_completed_turn_starts_the_next_waiting_message_exactly_once() {
+    let app = test_app().await;
+    let path = format!("/api/threads/{}/queue", app.thread.as_str());
+    post(&app, &path, queue_body("wait-for-release")).await;
+    let (_, queued) = post(&app, &path, queue_body("after it")).await;
+    assert_eq!(queued["status"], "waiting");
+    release(&app).await;
+
+    let ops = until_ops(&app, 2).await;
+    assert_eq!(ops.len(), 2);
+    assert!(ops.iter().all(|o| o.status_kind == "Completed"), "{ops:?}");
+    let sent = app::entries(&app)
+        .await
+        .into_iter()
+        .filter(|e| e.body == "after it")
+        .count();
+    assert_eq!(sent, 1);
+    let (_, listed) = call(&app, "GET", &path, None).await;
+    assert_eq!(listed, json!([]));
+}
+
+#[tokio::test]
+async fn stop_leaves_the_queue_and_starts_nothing() {
+    let app = test_app().await;
+    let path = format!("/api/threads/{}/queue", app.thread.as_str());
+    let (_, first) = post(&app, &path, queue_body("hang")).await;
+    post(&app, &path, queue_body("waits")).await;
+    let op = first["operation_id"].as_str().unwrap();
+    post(&app, &format!("/api/operations/{op}/stop"), json!({})).await;
+
+    let ops = until_ops(&app, 1).await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    let after = app
+        .storage
+        .list_operations_for_thread(&app.thread)
+        .await
+        .unwrap();
+    assert_eq!(after.len(), 1, "{ops:?}");
+    assert_eq!(ops[0].status_kind, "Cancelled");
+    let (_, listed) = call(&app, "GET", &path, None).await;
+    assert_eq!(listed[0]["prompt"], "waits");
+    assert!(listed[0]["last_error"].is_null());
+}
