@@ -15,8 +15,8 @@ merged). The owner is
 ran: **425 Rust tests** and **217 web tests** passed, with both clippy modes,
 the feature check and the 100-column check clean. The browser run used a copy
 of the dev database and the real adapter: `/` listed Claude's skills and
-commands, `/br` found brainstorming, a picked `/model` showed its `<model>`
-hint, `/context` ran both sent and queued with Send now, and the daemon log
+commands, `/br` found brainstorming, a picked entry showed its hint greyed
+after it, `/context` ran both sent and queued with Send now, and the daemon log
 held no error. It found three things, fixed on the branch: Chrome's
 `scrollIntoView` returning a Promise crashed the conversation when the menu
 opened; the description ran off a narrow window; and `/model` sent as text
