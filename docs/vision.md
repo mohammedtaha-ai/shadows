@@ -540,7 +540,20 @@ recovery are part of the product's quality, not a later decorative pass.
 Specialized diagrams, planning scope selection and the execution Dashboard
 are not yet implemented.
 
-## 13. Open questions
+## 13. Shadows' own skills, and managing them
+
+Added 2026-10-05, when the `/` menu was designed. Typing `/` in a
+conversation lists what the harness offers: Claude's skills and commands.
+Mohammed wants Shadows to have skills of its own as well, and a place to
+manage them: see which exist, add, edit and switch them off, per project,
+whichever harness runs the conversation. It answers §1.4: a skill that lives
+in Shadows works the same under Claude and Codex, instead of each tool
+keeping its own.
+
+**Today:** none of it exists. The `/` menu (spec §21) shows only the
+harness's list.
+
+## 14. Open questions
 
 - **Economics of focused work (§2).** Before expanding executor concurrency,
   compare the same representative tasks and acceptance checks with ordinary
