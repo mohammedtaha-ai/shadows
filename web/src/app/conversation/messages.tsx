@@ -9,8 +9,10 @@ import { policyOf } from '../mode-policy'
 import { Entry, ReplyText } from './entry'
 import { MessageActions } from './message-actions'
 import { describeLabel } from './operational-label'
+import type { SubagentCard } from '@/stream/frames'
 import type { ShownReply } from './reply'
-import { copyText, isTool, silent } from './tool-text'
+import { SubagentCardView } from './subagent-card'
+import { copyText, isTool, silent, subagentOf } from './tool-text'
 import { labelOf } from './turn-settings'
 
 const appear = {
@@ -32,11 +34,17 @@ export function Messages({
   forkFrom,
   projectId,
   onPointAt,
+  subagents,
+  onOpenSubagent,
 }: {
   entries: readonly ThreadEntry[] | undefined
   projectId: string
   /** A task was clicked in a plan card. */
   onPointAt: (plan: Plan, task: PlanTask) => void
+  /** The running turns' subagent cards as the stream last sent them. */
+  subagents: readonly SubagentCard[]
+  /** A subagent's card was clicked (§22.4). */
+  onOpenSubagent: (id: string) => void
   /** The thread's turns, for what each asked for and was answered by. */
   operations: readonly Operation[] | undefined
   /** The session's models, for their labels. */
@@ -78,6 +86,7 @@ export function Messages({
   const answered = answeredNotes(shown, operations ?? [], models)
   const forkAt = forkAnchor(entries ?? [], shown)
   const policy = policyOf(harness)
+  const turnCards = runningCards(entries ?? [], reply, subagents)
   const modeOf = (entry: ThreadEntry) =>
     operations?.find((op) => op.id === entry.operation_id)?.invocation?.requested_mode ?? null
 
@@ -117,6 +126,7 @@ export function Messages({
                 requestedMode={modeOf(entry)}
                 projectId={projectId}
                 onPointAt={onPointAt}
+                onOpenSubagent={onOpenSubagent}
               />
               {answered.has(entry.id) && (
                 <p className="text-xs text-faint-foreground">{answered.get(entry.id)}</p>
@@ -138,6 +148,11 @@ export function Messages({
               <ReplyText text={reply.text} live={reply.live} />
             </motion.li>
           )}
+          {turnCards.map((card) => (
+            <motion.li key={`subagent-${card.id}`} {...appear} data-entry-kind="subagent">
+              <SubagentCardView card={card} onOpen={onOpenSubagent} />
+            </motion.li>
+          ))}
           {thinking && (
             <motion.li key="waiting" {...appear} className="flex items-center gap-2">
               <span className="size-2 animate-pulse rounded-full bg-accent-line motion-reduce:animate-none" />
@@ -158,6 +173,25 @@ export function Messages({
       </ol>
     </div>
   )
+}
+
+/** The cards drawn after the running turn's reply (§22.4): a subagent's
+ * entry the reply hides (it hides each entry of its turn until the turn's
+ * text is in the list), then each live card no entry holds yet. */
+function runningCards(
+  entries: readonly ThreadEntry[],
+  reply: ShownReply | null,
+  live: readonly SubagentCard[],
+): SubagentCard[] {
+  const written = new Set<string>()
+  const hidden: SubagentCard[] = []
+  for (const entry of entries) {
+    const card = subagentOf(entry.body)
+    if (card === null) continue
+    written.add(card.id)
+    if (reply?.hidden.has(entry.ordinal) === true) hidden.push(card)
+  }
+  return [...hidden, ...live.filter((card) => !written.has(card.id))]
 }
 
 /** Where Fork shows, and the entry it forks from. The daemon forks only from

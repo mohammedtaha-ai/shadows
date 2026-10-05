@@ -117,6 +117,18 @@ pub(super) async fn persist(w: &TurnWatch, entries: Vec<Durable>) {
                 },
                 format!("[tool: {title}]"),
             ),
+            // §22.2: drawn as a card, the way a tool is drawn as a line.
+            Durable::Subagent(card) => (
+                ThreadEntryKind::AgentMessage,
+                Actor {
+                    kind: "Agent".into(),
+                    id: "Planner".into(),
+                },
+                format!(
+                    "[subagent: {}]",
+                    serde_json::to_string(&card).unwrap_or_default()
+                ),
+            ),
             Durable::PermissionRefused(body) => {
                 (ThreadEntryKind::PermissionRefused, Actor::system(), body)
             }
@@ -169,6 +181,13 @@ async fn accept(
     let durable = collector.push(&e);
     persist(w, durable).await;
     let _ = bus.send((w.thread_id.clone(), w.op_id.clone(), e));
+    for card in collector.changed_cards() {
+        let _ = bus.send((
+            w.thread_id.clone(),
+            w.op_id.clone(),
+            HarnessEvent::Subagent(card),
+        ));
+    }
 }
 
 pub(crate) fn watch_turn(

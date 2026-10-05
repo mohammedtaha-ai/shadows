@@ -88,6 +88,70 @@ export interface PlanShowFrame {
   place: PlanPlace
 }
 
+/** One subagent as the conversation shows it (§22.2): the body of its entry,
+ * `[subagent: <this>]`, and the whole of each `subagent` frame. */
+export interface SubagentCard {
+  id: string
+  title: string
+  agentType: string | null
+  /** The model it ran on, or else the one it asked for. */
+  model: string | null
+  status: 'running' | 'completed' | 'failed' | 'stopped'
+  prompt: string | null
+  /** The titles of its own tool calls, in the order they ended. */
+  steps: readonly string[]
+  report: string | null
+  durationMs: number | null
+  tokens: number | null
+  toolCount: number | null
+}
+
+/** A running turn's subagent card after a change. Transient. */
+export interface SubagentFrame {
+  op: string
+  card: SubagentCard
+}
+
+const STATUSES: readonly string[] = ['running', 'completed', 'failed', 'stopped']
+
+/** The card `value` holds, or `null` when it is not one. */
+export function readSubagentCard(value: unknown): SubagentCard | null {
+  if (!isRecord(value)) return null
+  const { id, title, status, steps } = value
+  const text = (v: unknown) => (typeof v === 'string' ? v : null)
+  const count = (v: unknown) => (isSeq(v) ? v : null)
+  if (
+    typeof id !== 'string' ||
+    typeof title !== 'string' ||
+    typeof status !== 'string' ||
+    !STATUSES.includes(status) ||
+    !Array.isArray(steps) ||
+    !steps.every((s) => typeof s === 'string')
+  ) {
+    return null
+  }
+  return {
+    id,
+    title,
+    agentType: text(value.agent_type),
+    model: text(value.model),
+    status: status as SubagentCard['status'],
+    prompt: text(value.prompt),
+    steps,
+    report: text(value.report),
+    durationMs: count(value.duration_ms),
+    tokens: count(value.tokens),
+    toolCount: count(value.tool_count),
+  }
+}
+
+export function parseSubagent(data: string): SubagentFrame {
+  const frame = object('subagent', data)
+  const card = readSubagentCard(frame.card)
+  if (typeof frame.op !== 'string' || card === null) throw new FrameError('subagent', data)
+  return { op: frame.op, card }
+}
+
 export class FrameError extends Error {
   constructor(event: string, data: string) {
     super(`malformed \`${event}\` frame: ${data.slice(0, 200)}`)

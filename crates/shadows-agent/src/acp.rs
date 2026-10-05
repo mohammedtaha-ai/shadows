@@ -18,7 +18,7 @@ use shadows_process::{ChildErr, ProcessHandle};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
-use super::events::{HarnessEvent, SlashCommand};
+use super::events::{HarnessEvent, SlashCommand, tool_meta};
 
 #[derive(Debug, Clone)]
 pub enum SessionStart {
@@ -357,16 +357,28 @@ fn forward(events: &impl Fn(HarnessEvent), update: SessionUpdate) {
             }),
             _ => None,
         },
-        SessionUpdate::ToolCall(t) => Some(HarnessEvent::ToolCall {
-            id: t.tool_call_id.to_string(),
-            title: Some(t.title),
-            status: Some(format!("{:?}", t.status).to_lowercase()),
-        }),
-        SessionUpdate::ToolCallUpdate(t) => Some(HarnessEvent::ToolCall {
-            id: t.tool_call_id.to_string(),
-            title: t.fields.title,
-            status: t.fields.status.map(|s| format!("{s:?}").to_lowercase()),
-        }),
+        SessionUpdate::ToolCall(t) => {
+            let m = tool_meta(t.meta.as_ref(), t.raw_input.as_ref());
+            Some(HarnessEvent::ToolCall {
+                id: t.tool_call_id.to_string(),
+                title: Some(t.title),
+                status: Some(format!("{:?}", t.status).to_lowercase()),
+                tool: m.tool.or(t.name),
+                parent: m.parent,
+                agent: m.agent,
+            })
+        }
+        SessionUpdate::ToolCallUpdate(t) => {
+            let m = tool_meta(t.meta.as_ref(), t.fields.raw_input.as_ref());
+            Some(HarnessEvent::ToolCall {
+                id: t.tool_call_id.to_string(),
+                title: t.fields.title,
+                status: t.fields.status.map(|s| format!("{s:?}").to_lowercase()),
+                tool: m.tool.or(t.fields.name),
+                parent: m.parent,
+                agent: m.agent,
+            })
+        }
         SessionUpdate::UsageUpdate(u) => {
             let meta = serde_json::to_value(u.meta).unwrap_or(Value::Null);
             Some(HarnessEvent::Usage {

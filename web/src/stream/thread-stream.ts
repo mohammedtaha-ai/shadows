@@ -18,6 +18,7 @@ import {
   FrameError,
   type PlanShowFrame,
   type SlashCommand,
+  type SubagentCard,
   type TurnEnd,
   type UsageFrame,
   parseCaughtUp,
@@ -27,6 +28,7 @@ import {
   parseMeta,
   parseOptions,
   parsePlanShow,
+  parseSubagent,
   parseTurnEnd,
   parseUsage,
 } from './frames'
@@ -59,6 +61,10 @@ export interface StreamState {
   readonly streaming: Readonly<Record<string, string>>
   /** The latest operational label of each running turn, by operation id. */
   readonly labels: Readonly<Record<string, string>>
+  /** Each running turn's subagent cards as last sent, by card id (§22.3).
+   * Transient, cleared by a break; kept past `turn-end`, since the card's
+   * entry is drawn in its place once the entries list holds it. */
+  readonly subagents: Readonly<Record<string, SubagentCard>>
   readonly lastTurnEnd: TurnEnd | null
   /** Why the last connection ended, for a person to read. */
   readonly problem: string | null
@@ -126,6 +132,7 @@ export class ThreadStream {
       lastSeq: this.#options.after,
       streaming: {},
       labels: {},
+      subagents: {},
       lastTurnEnd: null,
       problem: null,
     }
@@ -158,7 +165,7 @@ export class ThreadStream {
     if (!this.#wanted || this.#state.connection === 'failed') return
     if (this.#hidden()) {
       this.#disconnect()
-      this.#set({ streaming: {}, labels: {} })
+      this.#set({ streaming: {}, labels: {}, subagents: {} })
     } else if (this.#source === null && this.#timer === null) {
       this.#failures = 0
       this.#open(this.#state.caughtUp ? 'reconnecting' : 'connecting')
@@ -231,6 +238,10 @@ export class ThreadStream {
         lastTurnEnd: turnEnd,
       })
     })
+    on('subagent', (data) => {
+      const { card } = parseSubagent(data)
+      this.#set({ subagents: { ...this.#state.subagents, [card.id]: card } })
+    })
     on('meta', (data) => {
       const { op, label } = parseMeta(data)
       this.#set({ labels: { ...this.#state.labels, [op]: label } })
@@ -250,7 +261,7 @@ export class ThreadStream {
     // `lastSeq` at once. Not a failure, so no backoff.
     on('lagged', () => {
       this.#disconnect()
-      this.#set({ streaming: {}, labels: {} })
+      this.#set({ streaming: {}, labels: {}, subagents: {} })
       this.#open('reconnecting')
     })
     // The daemon could not read its journal and is ending the stream.
@@ -273,10 +284,10 @@ export class ThreadStream {
     this.#disconnect()
     this.#failures += 1
     if (this.#failures > this.#options.maxFailures) {
-      this.#set({ connection: 'failed', problem, streaming: {}, labels: {} })
+      this.#set({ connection: 'failed', problem, streaming: {}, labels: {}, subagents: {} })
       return
     }
-    this.#set({ connection: 'reconnecting', problem, streaming: {}, labels: {} })
+    this.#set({ connection: 'reconnecting', problem, streaming: {}, labels: {}, subagents: {} })
     const delay = Math.min(
       this.#options.baseDelayMs * 2 ** (this.#failures - 1),
       this.#options.maxDelayMs,
@@ -290,7 +301,7 @@ export class ThreadStream {
   /** A frame this client cannot read. Reconnecting would read it again, so stop. */
   #fail(problem: string): void {
     this.#disconnect()
-    this.#set({ connection: 'failed', problem, streaming: {}, labels: {} })
+    this.#set({ connection: 'failed', problem, streaming: {}, labels: {}, subagents: {} })
   }
 
   #set(patch: Partial<StreamState>): void {

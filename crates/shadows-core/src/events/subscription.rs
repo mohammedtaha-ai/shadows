@@ -24,7 +24,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 use shadows_agent::choices::{Offered, SessionChoices};
-use shadows_agent::events::{AccountLimits, HarnessEvent, SlashCommand};
+use shadows_agent::events::{AccountLimits, HarnessEvent, SlashCommand, SubagentCard};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{broadcast, watch};
 
@@ -47,6 +47,9 @@ pub enum Delivery {
     CaughtUp { seq: i64 },
     /// Streamed text of a running turn. Transient.
     Delta { op: OperationId, text: String },
+    /// A running turn's subagent card, whole, after a change (§22.3).
+    /// Transient: its entry is written when it ends.
+    Subagent { op: OperationId, card: SubagentCard },
     /// The harness finished a turn. Transient.
     TurnEnd {
         op: OperationId,
@@ -313,6 +316,7 @@ impl Subscription {
                 size,
             },
             HarnessEvent::Chunk { text, .. } => Delivery::Delta { op, text },
+            HarnessEvent::Subagent(card) => Delivery::Subagent { op, card },
             HarnessEvent::TurnEnd {
                 subtype,
                 stop_reason,

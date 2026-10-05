@@ -338,6 +338,11 @@ functions:
       signature: "(&mut self) -> Vec<Durable>"
       # On `Collector` (`entries.rs`): the message being streamed, written now;
       # the reply then continues as a new message (§20.4).
+    changed_cards:
+      signature: "(&mut self) -> Vec<SubagentCard>"
+      # On `Collector`: each subagent card changed since the last call, as it
+      # is now; `accept` publishes each as `HarnessEvent::Subagent` (§22.2).
+      # The cards are gathered by `Subagents` (`subagents.rs`).
     steer_target:
       signature: "(&self) -> Option<SteerTarget>"
       # pub(crate) on `LiveHandles`: the running turn of a thread as Send now
@@ -493,6 +498,15 @@ called_by_other_services:
 
 
 obligations:
+  - rule: >
+      A subagent is one entry (§22.2): its own tool calls are steps of its
+      card, never entries; the card is written once its call has ended and
+      its numbers came, or, ended without them, before the parent's next
+      text, or at the turn's end, `stopped` if still running. Every change
+      to a card while the turn runs is published whole on the turn's bus.
+    tested_by:
+      - a_subagent_becomes_one_entry_with_its_steps_and_numbers
+      - a_card_without_numbers_goes_before_the_next_text_and_a_running_one_stops
   - rule: >
       A focused task belongs to the named version in the thread's project;
       the version's writer thread is attribution, not ownership (§16.4).
@@ -762,6 +776,15 @@ tests:
     checks: >
       Send now as a turn completes answers 202, 404 or 409, and the message
       is one entry in a thread of two turns.
+  - name: a_subagent_becomes_one_entry_with_its_steps_and_numbers
+    checks: >
+      An Agent call with two steps and a handback, ended and then given its
+      numbers, is one card between the parent's two messages, with both steps,
+      its resolved model, tokens and report; no step is an entry.
+  - name: a_card_without_numbers_goes_before_the_next_text_and_a_running_one_stops
+    checks: >
+      A failed call with no numbers is written at the parent's next chunk; a
+      call still open at the turn's end is written `stopped`.
   - name: a_cut_writes_the_streamed_text_and_the_reply_continues_as_a_new_message
     checks: >
       `Collector::cut` returns the text so far; later chunks of the same

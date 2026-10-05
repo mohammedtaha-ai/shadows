@@ -1,12 +1,12 @@
 // One job: the open conversation's pane — header, messages, composer, and
-// the plan the Planner put beside them.
+// the plan or subagent shown beside them.
 
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
-import type { Plan, PlanTask, PlanningThread, Project } from '@/api/client'
+import type { Plan, PlanTask, PlanningThread, Project, ThreadEntry } from '@/api/client'
 import { harnessesQuery, projectsQuery, threadQuery, threadsQuery } from '@/api/queries'
-import { type PlanShowFrame, toLimits } from '@/stream/frames'
+import { type PlanShowFrame, type SubagentCard, toLimits } from '@/stream/frames'
 import { ErrorLine } from '../error-line'
 import { HeldThreadStream } from '../workflows/plan-frames'
 import { useCarriedSend } from './carried-send'
@@ -19,6 +19,8 @@ import { Messages } from './messages'
 import { PlanSidePanel, type SideShown } from './plan-side-panel'
 import { StatusBadge } from './status-badge'
 import { StreamBanner } from './stream-banner'
+import { SubagentPanel } from './subagent-panel'
+import { subagentOf } from './tool-text'
 import { useConversation } from './use-conversation'
 import { useSession } from './use-session'
 import { WaitingMessages } from './waiting-messages'
@@ -75,8 +77,11 @@ function Conversation({
   const [side, setSide] = useState<SideShown | null>(null)
   const [pointed, setPointed] = useState<PointedTask | null>(null)
   // Only a live `plan-show` for this tab arrives here (see `useConversation`).
+  // The subagent whose panel is open (§22.4), by card id: one panel at a time.
+  const [agent, setAgent] = useState<string | null>(null)
   const showHere = (show: PlanShowFrame) => {
     if (show.place === 'side') {
+      setAgent(null)
       setSide({ workflowId: show.workflowId, taskNumber: show.taskNumber })
     } else if (show.place === 'page') {
       void navigate({
@@ -100,6 +105,12 @@ function Conversation({
   // Limits are account-wide: reported live on this stream, else as the
   // daemon last kept them for the harness.
   const limits = c.limits ?? (info?.limits == null ? null : toLimits(info.limits))
+  const live = Object.values(c.stream.subagents)
+  const agentCard = agent === null ? null : cardOf(agent, c.entries.data ?? [], live)
+  const openAgent = (id: string) => {
+    setSide(null)
+    setAgent(id)
+  }
 
   return (
     // This conversation's stream carries its plans' changes: its cards and
@@ -152,6 +163,8 @@ function Conversation({
             forkFrom={c.known && c.running === null ? { projectId, threadId } : null}
             projectId={projectId}
             onPointAt={onPointAt}
+            subagents={live}
+            onOpenSubagent={openAgent}
           />
           <WaitingMessages threadId={threadId} running={c.running !== null} />
           <Composer
@@ -181,7 +194,24 @@ function Conversation({
             onPointAt={onPointAt}
           />
         )}
+        {agentCard !== null && (
+          <SubagentPanel key={agentCard.id} card={agentCard} onClose={() => setAgent(null)} />
+        )}
       </div>
     </HeldThreadStream>
   )
+}
+
+/** Subagent `id`'s card: its entry once written, else as the stream last
+ * sent it. */
+function cardOf(
+  id: string,
+  entries: readonly ThreadEntry[],
+  live: readonly SubagentCard[],
+): SubagentCard | null {
+  for (const entry of entries) {
+    const card = subagentOf(entry.body)
+    if (card?.id === id) return card
+  }
+  return live.find((card) => card.id === id) ?? null
 }
