@@ -18,6 +18,7 @@ use tokio::{
 };
 use tracing::Instrument;
 
+use super::commands::{Commands, keep_commands};
 use super::offers::{Offers, intercept};
 use super::setup::Setups;
 use super::titles::keep_titles;
@@ -124,6 +125,7 @@ pub struct Sessions {
     pub(super) config: SessionsConfig,
     pub(super) live: Mutex<HashMap<ThreadId, Slot>>,
     pub(super) offers: Arc<Offers>,
+    pub(super) commands: Arc<Commands>,
     generations: AtomicU64,
     setups: Setups,
 }
@@ -146,6 +148,7 @@ impl Sessions {
             config,
             live: Mutex::new(HashMap::new()),
             offers: Arc::new(Offers::new()),
+            commands: Arc::new(Commands::new()),
             generations: AtomicU64::new(0),
         });
         let reaper = Arc::downgrade(&sessions);
@@ -160,6 +163,14 @@ impl Sessions {
             }
         });
         sessions
+    }
+
+    /// Drops what a closed or failed session left: its offer, its `/` list
+    /// and its grant.
+    async fn forget(&self, thread: &ThreadId) {
+        self.offers.forget(thread);
+        self.commands.forget(thread);
+        self.setups.forget(thread).await;
     }
 
     pub async fn open(&self, thread: &ThreadId) -> Result<OpenSession, OpenError> {
@@ -183,8 +194,7 @@ impl Sessions {
                 .await
                 .map_err(|e| OpenError::Start(format!("could not close dead adapter: {e}")))?;
             *live = None;
-            self.offers.forget(thread);
-            self.setups.forget(thread).await;
+            self.forget(thread).await;
         }
         let cwd = workspace(&context).map_err(OpenError::Workspace)?;
         // A fork's first opening forks the source's session (§12.9); once
@@ -213,6 +223,7 @@ impl Sessions {
         let (tx, rx) = mpsc::unbounded_channel();
         let events = intercept(self.offers.clone(), thread.clone(), tx);
         let events = keep_titles(self.storage.clone(), thread.clone(), events);
+        let events = keep_commands(self.commands.clone(), thread.clone(), events);
         let setup = tokio::time::timeout(self.config.setup_wait, async {
             let connection = Connection::open(&mut handle, events)
                 .await
@@ -238,8 +249,7 @@ impl Sessions {
         let opened = match setup {
             Ok(opened) => opened,
             Err(error) => {
-                self.offers.forget(thread);
-                self.setups.forget(thread).await;
+                self.forget(thread).await;
                 if let Err(cleanup) = stop_handle(&mut handle).await {
                     tracing::error!(%cleanup, "sessions.failed_open_cleanup");
                 }
@@ -354,8 +364,7 @@ impl Sessions {
             stop_handle(&mut item.handle).await?;
         }
         *live = None;
-        self.offers.forget(thread);
-        self.setups.forget(thread).await;
+        self.forget(thread).await;
         Ok(())
     }
 
@@ -372,8 +381,7 @@ impl Sessions {
         if let Some(item) = same_adapter(&mut live, opened) {
             stop_handle(&mut item.handle).await?;
             *live = None;
-            self.offers.forget(thread);
-            self.setups.forget(thread).await;
+            self.forget(thread).await;
         }
         Ok(())
     }
@@ -386,8 +394,7 @@ impl Sessions {
             match stop_handle(&mut item.handle).await {
                 Ok(()) => {
                     *live = None;
-                    self.offers.forget(&thread);
-                    self.setups.forget(&thread).await;
+                    self.forget(&thread).await;
                 }
                 Err(error) if first.is_none() => first = Some(error),
                 Err(_) => {}
@@ -415,8 +422,7 @@ impl Sessions {
                 continue;
             }
             *live = None;
-            self.offers.forget(&id);
-            self.setups.forget(&id).await;
+            self.forget(&id).await;
         }
     }
 

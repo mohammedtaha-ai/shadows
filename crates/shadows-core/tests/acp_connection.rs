@@ -57,9 +57,11 @@ async fn a_new_session_answers_its_options_and_a_prompt_streams_then_ends() {
         c.prompt(&opened.session_id, "hi", &[]).await.unwrap(),
         TurnEnd::Ended
     );
-    let chunks = drain(&mut ev);
+    // The fake's `/` list arrives first (§21.1); the first chunk follows it.
+    let events = drain(&mut ev);
+    assert!(matches!(&events[0], HarnessEvent::Commands(list) if list.len() == 2));
     assert!(matches!(
-        &chunks[0],
+        &events[1],
         HarnessEvent::Chunk { message_id: Some(m), text } if m == "m1" && text == "hello "
     ));
 }

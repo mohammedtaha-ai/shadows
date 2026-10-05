@@ -115,8 +115,8 @@ functions:
     subscribe:
       signature: "(&self, thread: ThreadId, after: i64) -> Subscription"
       # Takes `storage.watch_committed()`, `bus.subscribe()`,
-      # `harness.watch_options()` and `ui.subscribe()`, in that order, and
-      # reads nothing.
+      # `harness.watch_options()`, `harness.watch_commands()` and
+      # `ui.subscribe()`, in that order, and reads nothing.
   subscription:
     next:
       signature: "(&mut self) -> Result<Delivery, &'static str>"
@@ -125,7 +125,9 @@ functions:
       # last_seq (a failure logs `sse.replay_failed`, sets over "error:
       # journal read failed" and answers Fatal("the journal could not be
       # read")); an empty read ends `reading`, and the first one answers
-      # CaughtUp { seq: last_seq }; else `live`.
+      # CaughtUp { seq: last_seq }, after which a thread stream sends the
+      # harness's `/` list (`harness.commands_of`) once, if it has one; else
+      # `live`, whose `commands` source sends each change of the thread's list.
     live:
       signature: "(&mut self) -> Option<Result<Delivery, &'static str>>"
       private: true

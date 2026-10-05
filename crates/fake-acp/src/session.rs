@@ -6,9 +6,27 @@ use std::{
     sync::{Arc, Mutex, atomic::AtomicBool},
 };
 
-use agent_client_protocol::schema::v1::{McpServer, Meta, SessionConfigOption};
+use agent_client_protocol::schema::v1::{
+    AvailableCommand, AvailableCommandInput, McpServer, Meta, SessionConfigOption,
+    UnstructuredCommandInput,
+};
 use serde_json::{Value, json};
 use tokio::sync::watch;
+
+/// The `/` list the fake offers after `session/new` and `session/resume`
+/// (§21.1): a built-in command without a hint and a skill with one.
+pub(crate) fn commands() -> Vec<AvailableCommand> {
+    vec![
+        AvailableCommand::new("compact", "Clear history but keep a summary"),
+        AvailableCommand::new(
+            "superpowers:brainstorming",
+            "Explore intent before building",
+        )
+        .input(AvailableCommandInput::Unstructured(
+            UnstructuredCommandInput::new("[topic]"),
+        )),
+    ]
+}
 
 #[derive(Clone)]
 pub(crate) struct Session {

@@ -4,11 +4,11 @@ use std::path::Path;
 use agent_client_protocol::schema::{
     MaybeUndefined, ProtocolVersion,
     v1::{
-        CancelNotification, ClientCapabilities, ContentBlock, ForkSessionRequest, HttpHeader,
-        InitializeRequest, McpServer, McpServerHttp, Meta, NewSessionRequest, PermissionOptionKind,
-        PromptRequest, RequestPermissionOutcome, RequestPermissionRequest,
-        RequestPermissionResponse, ResumeSessionRequest, SelectedPermissionOutcome,
-        SessionConfigOptionValue, SessionNotification, SessionUpdate,
+        AvailableCommandInput, CancelNotification, ClientCapabilities, ContentBlock,
+        ForkSessionRequest, HttpHeader, InitializeRequest, McpServer, McpServerHttp, Meta,
+        NewSessionRequest, PermissionOptionKind, PromptRequest, RequestPermissionOutcome,
+        RequestPermissionRequest, RequestPermissionResponse, ResumeSessionRequest,
+        SelectedPermissionOutcome, SessionConfigOptionValue, SessionNotification, SessionUpdate,
         SetSessionConfigOptionRequest, StopReason, TextContent,
     },
 };
@@ -18,7 +18,7 @@ use shadows_process::{ChildErr, ProcessHandle};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
-use super::events::HarnessEvent;
+use super::events::{HarnessEvent, SlashCommand};
 
 #[derive(Debug, Clone)]
 pub enum SessionStart {
@@ -389,6 +389,19 @@ fn forward(events: &impl Fn(HarnessEvent), update: SessionUpdate) {
             MaybeUndefined::Value(title) => Some(HarnessEvent::SessionTitle { title }),
             _ => None,
         },
+        SessionUpdate::AvailableCommandsUpdate(u) => Some(HarnessEvent::Commands(
+            u.available_commands
+                .into_iter()
+                .map(|c| SlashCommand {
+                    hint: match c.input {
+                        Some(AvailableCommandInput::Unstructured(i)) => Some(i.hint),
+                        _ => None,
+                    },
+                    name: c.name,
+                    description: c.description,
+                })
+                .collect(),
+        )),
         other => {
             tracing::trace!(?other, "ignored ACP update");
             None

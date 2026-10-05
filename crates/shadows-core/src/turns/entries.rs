@@ -65,6 +65,7 @@ impl Collector {
             }
             HarnessEvent::Usage { .. }
             | HarnessEvent::Options(_)
+            | HarnessEvent::Commands(_)
             | HarnessEvent::SessionTitle { .. }
             | HarnessEvent::TurnEnd { .. } => {}
         }

@@ -9,9 +9,10 @@ mod steer;
 use std::sync::Arc;
 
 use agent_client_protocol::schema::v1::{
-    AgentCapabilities, CancelNotification, ContentBlock, ForkSessionRequest, ForkSessionResponse,
-    InitializeRequest, InitializeResponse, NewSessionRequest, NewSessionResponse, PromptRequest,
-    PromptResponse, ResumeSessionRequest, ResumeSessionResponse, SetSessionConfigOptionRequest,
+    AgentCapabilities, AvailableCommandsUpdate, CancelNotification, ContentBlock,
+    ForkSessionRequest, ForkSessionResponse, InitializeRequest, InitializeResponse,
+    NewSessionRequest, NewSessionResponse, PromptRequest, PromptResponse, ResumeSessionRequest,
+    ResumeSessionResponse, SessionUpdate, SetSessionConfigOptionRequest,
     SetSessionConfigOptionResponse,
 };
 use agent_client_protocol::{Agent, Client, ConnectionTo, Responder, Stdio};
@@ -54,7 +55,7 @@ async fn main() -> agent_client_protocol::Result<()> {
         .on_receive_request(
             {
                 let state = state.clone();
-                async move |r: NewSessionRequest, responder, _cx| {
+                async move |r: NewSessionRequest, responder, cx| {
                     let mut st = state.lock().unwrap();
                     st.next += 1;
                     // Unique across adapter processes, as the real harness's ids are.
@@ -62,7 +63,10 @@ async fn main() -> agent_client_protocol::Result<()> {
                     let s = make_session(r.cwd, "new", setup_of(&r.mcp_servers, r.meta.as_ref()));
                     let opts = options(&s);
                     st.sessions.insert(id.clone(), s);
-                    responder.respond(NewSessionResponse::new(id).config_options(opts))
+                    drop(st);
+                    responder.respond(NewSessionResponse::new(id.clone()).config_options(opts))?;
+                    let list = AvailableCommandsUpdate::new(session::commands());
+                    update(&cx, &id, SessionUpdate::AvailableCommandsUpdate(list))
                 }
             },
             agent_client_protocol::on_receive_request!(),
@@ -70,7 +74,7 @@ async fn main() -> agent_client_protocol::Result<()> {
         .on_receive_request(
             {
                 let state = state.clone();
-                async move |r: ResumeSessionRequest, responder, _cx| {
+                async move |r: ResumeSessionRequest, responder, cx| {
                     let id = r.session_id.to_string();
                     // A harness slow to open its session, as Claude Code's own
                     // startup is on Windows (seconds).
@@ -86,8 +90,11 @@ async fn main() -> agent_client_protocol::Result<()> {
                     st.resumes += 1;
                     let s = make_session(r.cwd, how, setup_of(&r.mcp_servers, r.meta.as_ref()));
                     let opts = options(&s);
-                    st.sessions.insert(id, s);
-                    responder.respond(ResumeSessionResponse::new().config_options(opts))
+                    st.sessions.insert(id.clone(), s);
+                    drop(st);
+                    responder.respond(ResumeSessionResponse::new().config_options(opts))?;
+                    let list = AvailableCommandsUpdate::new(session::commands());
+                    update(&cx, &id, SessionUpdate::AvailableCommandsUpdate(list))
                 }
             },
             agent_client_protocol::on_receive_request!(),
