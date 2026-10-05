@@ -95,7 +95,11 @@ turn's `Completed` sends it.
 
 1. If a turn runs on the thread, Shadows sends `_session/steering` with the
    message's prompt and `idleBehavior: "promptRequired"` on that turn's
-   session.
+   session. If a Stop was already asked for that turn (its cancellation is
+   recorded, §12.3), nothing is sent: the row stays without `last_error` and
+   the answer is `409 THREAD_BUSY`. Once the turn is `Cancelled` the person
+   sends it with **Send**, as after any Stop (20.3). Decided by Mohammed on
+   2026-10-05.
 2. On `injected`, **one transaction** removes the row and writes the message
    as a user entry of the running turn, at the thread's next ordinal. The
    steering request is sent **before** the entry is written: a failed steer
@@ -108,12 +112,11 @@ turn's `Completed` sends it.
 4. A steer that fails (the session ended, a JSON-RPC error) leaves the row,
    sets `last_error`, and writes nothing to the thread.
 
-> **OPEN — where the steered entry sits among the reply's entries.** §12.3
-> writes an agent message only when it is complete, so text the Planner had
-> streamed before the steer lands in the thread *after* the steered user
-> entry, which is written at once. Options: accept it, or complete the open
-> message first. Closed when the person runs the Send-now journey (20.6) on
-> the real adapter and reads the order in the thread.
+**Order in the thread.** The entries keep the order the person saw. §12.3
+writes an agent message only once it is complete, so before the steered user
+entry is written, the running turn's message still being streamed is written
+first with the text it has so far; the reply continues as a new message after
+the steered entry. Decided by Mohammed on 2026-10-05.
 
 The running turn keeps its own operation and ends as §12.3 says; the steered
 reply is part of it. The message's own `model`, `mode` and `effort` do not
