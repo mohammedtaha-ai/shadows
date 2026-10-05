@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-04 (§16 1a merged; planning workspace Stage 1 verified on its branch)
+**Updated:** 2026-10-05 (§20, the queue and Send now, built and run in the browser on `next/polish`)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -8,6 +8,29 @@ decision live in the topic owners indexed by
 restate them.
 
 ## Where we are
+
+**§20, writing while a turn runs, is built on `next/polish`** (2026-10-05,
+`3c18461`..`7079652`, not yet merged). The owner is
+[`§20`](./superpowers/specs/2026-10-05-message-queue-design.md). The full gate
+ran once on `fb2246f`: **422 Rust tests** and the web suite passed, with both
+clippy modes, the feature check and the 100-column check clean. The browser
+run used a copy of the dev database and the real adapter (Opus 5.5 low, then
+Sonnet 5.5 medium):
+
+1. Two messages queued during a running turn showed as Waiting; when the turn
+   completed each was sent in order as its own turn.
+2. Send now during a streamed story: the story stopped mid-word, the message
+   sat below the text streamed before it, and the reply ("BANANA") ended the
+   same turn (thread entries 8, 9, 10 on one operation).
+3. Stop with a message waiting: the turn ended Stopped, the message stayed
+   with **Send**, and Send ran it.
+4. Two conversations in two projects ran at the same time; both completed.
+5. The daemon log held no error besides the Stop's own `cancelled` end.
+
+The run found one bug, fixed in `7079652`: a second message typed while the
+first was being queued was wiped. With two tabs and the daemon's own page open,
+a send stalled with "The daemon is not reachable" while the daemon logged no
+request; closing the extra tabs cleared it. Not yet diagnosed.
 
 **Project plans, §16 1a, are on `main`**, squash-merged through PR #14 as
 `4d8774e`. The owner is
