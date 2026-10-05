@@ -1,8 +1,8 @@
 # Section 20 — Writing While a Turn Runs: the Queue and Send Now
 
 - **Date:** 2026-10-05.
-- **Status:** Design agreed with Mohammed section by section on 2026-10-05;
-  awaiting his review of this file before the implementation plan.
+- **Status:** Accepted by Mohammed on 2026-10-05, after an independent review
+  (`e94bf08`) and his two rulings in 20.4. Next: the implementation plan.
 - **Evidence:** [`2026-10-05-steering-and-commands-probe.md`](../../evidence/2026-10-05-steering-and-commands-probe.md)
   (adapter 0.81.1, Claude Code 2.1.289).
 - **Related owners:** §12.3 and §12.7 (a turn and its one start command),
