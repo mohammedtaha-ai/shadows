@@ -30,7 +30,10 @@ Sonnet 5.5 medium):
 The run found one bug, fixed in `7079652`: a second message typed while the
 first was being queued was wiped. With two tabs and the daemon's own page open,
 a send stalled with "The daemon is not reachable" while the daemon logged no
-request; closing the extra tabs cleared it. Not yet diagnosed.
+request; closing the extra tabs cleared it. Cause: the tabs' event streams
+filled the browser's six-connection pool for the daemon's host. Fixed in
+`838ddf7`: a hidden page holds no stream (§2.10); measured, the same request
+went from an 8 s stall to 4 ms.
 
 **Project plans, §16 1a, are on `main`**, squash-merged through PR #14 as
 `4d8774e`. The owner is
