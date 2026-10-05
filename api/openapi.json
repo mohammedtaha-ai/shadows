@@ -3043,6 +3043,124 @@
         ],
         "type": "object"
       },
+      "Queued": {
+        "description": "Spec §20.2: what queueing answers.",
+        "oneOf": [
+          {
+            "description": "The thread was busy: the message waits.",
+            "properties": {
+              "message": {
+                "$ref": "#/components/schemas/QueuedMessage"
+              },
+              "status": {
+                "enum": [
+                  "waiting"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "message",
+              "status"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The thread was idle: a turn started.",
+            "properties": {
+              "operation_id": {
+                "$ref": "#/components/schemas/OperationId"
+              },
+              "status": {
+                "enum": [
+                  "started"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation_id",
+              "status"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "QueuedMessage": {
+        "description": "Spec §20.2: a waiting message with the settings it will be sent under.",
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "effort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "focus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Focus"
+              }
+            ]
+          },
+          "id": {
+            "$ref": "#/components/schemas/QueuedMessageId"
+          },
+          "last_error": {
+            "description": "Why the last attempt to send it failed (§20.3), if one did.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mode": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "plan": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlanId"
+              }
+            ]
+          },
+          "position": {
+            "description": "Send order within the thread; never reused while the row lives.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          }
+        },
+        "required": [
+          "id",
+          "thread_id",
+          "position",
+          "prompt",
+          "model",
+          "mode",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "QueuedMessageId": {
+        "format": "uuid",
+        "type": "string"
+      },
       "RememberedSettings": {
         "description": "The model and effort last chosen for this harness (spec §12.4).",
         "properties": {
@@ -6874,6 +6992,224 @@
           }
         },
         "summary": "A thread's operations — its turns — newest first, each as it now stands.\nA client opening a thread reads this to learn whether a turn is running and\nwhich one (so it can offer Stop), then follows it on `/api/subscribe`,\nwhose durable frames name their `operation_id`.",
+        "tags": [
+          "turns"
+        ]
+      }
+    },
+    "/api/threads/{id}/queue": {
+      "get": {
+        "operationId": "queued",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QueuedMessage"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The thread's waiting messages, oldest first.",
+        "tags": [
+          "turns"
+        ]
+      },
+      "post": {
+        "operationId": "queue",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartTurn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Queued"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such thread"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "THREAD_BUSY; COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "as POST /api/threads/{id}/turns"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_START_FAILED"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "RUNTIME_STOPPING"
+          }
+        },
+        "summary": "Queues a message while a turn runs; on an idle thread starts it as a turn.",
+        "tags": [
+          "turns"
+        ]
+      }
+    },
+    "/api/threads/{id}/queue/{qid}": {
+      "delete": {
+        "operationId": "unqueue",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          },
+          {
+            "description": "The waiting message",
+            "in": "path",
+            "name": "qid",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/QueuedMessageId"
+            }
+          },
+          {
+            "description": "The idempotency key (spec §3.2).",
+            "in": "path",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "QUEUED_MESSAGE_GONE"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Removes a waiting message.",
         "tags": [
           "turns"
         ]

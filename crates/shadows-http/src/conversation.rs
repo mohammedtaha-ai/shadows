@@ -78,6 +78,31 @@ pub(super) struct StartTurn {
     client_tab: Option<String>,
 }
 
+impl From<StartTurn> for SendTurn {
+    fn from(body: StartTurn) -> Self {
+        let StartTurn {
+            command_id,
+            prompt,
+            model,
+            mode,
+            effort,
+            focus,
+            plan,
+            client_tab,
+        } = body;
+        Self {
+            command_id,
+            prompt,
+            model,
+            mode,
+            effort,
+            focus,
+            plan,
+            client_tab,
+        }
+    }
+}
+
 #[derive(serde::Serialize, utoipa::ToSchema)]
 pub(super) struct TurnStarted {
     operation_id: OperationId,
@@ -141,26 +166,7 @@ pub(super) async fn start_turn(
     Path(thread_id): Path<ThreadId>,
     Json(body): Json<StartTurn>,
 ) -> Result<(StatusCode, Json<TurnStarted>), Failure> {
-    let StartTurn {
-        command_id,
-        prompt,
-        model,
-        mode,
-        effort,
-        focus,
-        plan,
-        client_tab,
-    } = body;
-    let turn = SendTurn {
-        command_id,
-        prompt,
-        model,
-        mode,
-        effort,
-        focus,
-        plan,
-        client_tab,
-    };
+    let turn: SendTurn = body.into();
     let core = s.core.clone();
     let operation_id = detached(async move {
         core.turns()

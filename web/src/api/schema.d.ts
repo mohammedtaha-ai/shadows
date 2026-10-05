@@ -776,6 +776,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/threads/{id}/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The thread's waiting messages, oldest first. */
+        get: operations["queued"];
+        put?: never;
+        /** Queues a message while a turn runs; on an idle thread starts it as a turn. */
+        post: operations["queue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/threads/{id}/queue/{qid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Removes a waiting message. */
+        delete: operations["unqueue"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/threads/{id}/session": {
         parameters: {
             query?: never;
@@ -1826,6 +1861,37 @@ export interface components {
             /** @description The idempotency key (spec §13.5). */
             command_id: string;
         };
+        /** @description Spec §20.2: what queueing answers. */
+        Queued: {
+            message: components["schemas"]["QueuedMessage"];
+            /** @enum {string} */
+            status: "waiting";
+        } | {
+            operation_id: components["schemas"]["OperationId"];
+            /** @enum {string} */
+            status: "started";
+        };
+        /** @description Spec §20.2: a waiting message with the settings it will be sent under. */
+        QueuedMessage: {
+            created_at: string;
+            effort?: string | null;
+            focus?: null | components["schemas"]["Focus"];
+            id: components["schemas"]["QueuedMessageId"];
+            /** @description Why the last attempt to send it failed (§20.3), if one did. */
+            last_error?: string | null;
+            mode: string;
+            model: string;
+            plan?: null | components["schemas"]["PlanId"];
+            /**
+             * Format: int64
+             * @description Send order within the thread; never reused while the row lives.
+             */
+            position: number;
+            prompt: string;
+            thread_id: components["schemas"]["ThreadId"];
+        };
+        /** Format: uuid */
+        QueuedMessageId: string;
         /** @description The model and effort last chosen for this harness (spec §12.4). */
         RememberedSettings: {
             effort: string | null;
@@ -4396,6 +4462,168 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Operation"][];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    queued: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueuedMessage"][];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartTurn"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Queued"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such thread */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description THREAD_BUSY; COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description as POST /api/threads/{id}/turns */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_START_FAILED */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description RUNTIME_STOPPING */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    unqueue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+                /** @description The waiting message */
+                qid: components["schemas"]["QueuedMessageId"];
+                /** @description The idempotency key (spec §3.2). */
+                command_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description QUEUED_MESSAGE_GONE */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description STORAGE_UNAVAILABLE */

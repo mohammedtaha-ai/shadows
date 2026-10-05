@@ -213,6 +213,21 @@ functions:
       # Once the checks up to the busy check pass, before the session is
       # opened: `Code::touch` of the thread's project (§15.6), which never
       # fails or delays the turn.
+    queue:
+      signature: "(&self, thread: ThreadId, turn: SendTurn) -> Result<Queued, CoreError>"
+      # §20.2, "turn.queue": a waiting message on a busy thread; on an idle
+      # one, the turn it starts through `send` under the derived command id
+      # `queue:<id>`, whose `turn.start` fingerprint is `send`'s own
+      # (`start_command`). A replay of the derived start answers its turn
+      # first, so no copy waits behind it. Refusals: `send`'s, and ThreadBusy
+      # after two tries (a turn took the thread between Idle and the start).
+    queued:
+      signature: "(&self, thread: &ThreadId) -> Result<Vec<QueuedMessage>, CoreError>"
+      # §20.5: the thread's waiting messages in `position` order.
+    unqueue:
+      signature: "(&self, thread: &ThreadId, id: &QueuedMessageId, command_id: String) -> Result<(), CoreError>"
+      # §20.5, "turn.unqueue": removes a waiting message. Refusals:
+      # QueuedMessageGone, CommandConflict.
     stop:
       signature: "(&self, op: &OperationId) -> Result<Operation, CoreError>"
       # `PlannerTurn::stop` as `Actor::user("local")`; TerminationFailed is
@@ -597,6 +612,18 @@ tests:
       While a turn is open at the store, two queued messages list in
       `position` order; removing one is fine and removing it again is
       QueuedMessageGone.
+  - name: queueing_on_an_idle_thread_starts_a_turn_and_leaves_no_row
+    checks: >
+      POST queue on an idle thread answers 202 `started` with an operation id
+      and the thread's queue stays empty.
+  - name: a_replayed_queue_on_an_idle_thread_answers_its_turn
+    checks: >
+      The same queue body sent twice while its turn runs answers `started`
+      with one operation id both times and queues no copy.
+  - name: a_busy_thread_queues_and_remove_answers_gone_the_second_time
+    checks: >
+      A queue on a busy thread answers 202 `waiting` with the message;
+      DELETE is 204 and a second DELETE is 404 QUEUED_MESSAGE_GONE.
   - name: a_conversation_can_focus_another_conversations_project_plan
     checks: >
       A second conversation sends a focus on the first conversation's plan;

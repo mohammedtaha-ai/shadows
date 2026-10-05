@@ -17,6 +17,7 @@
 mod entries;
 mod handles;
 mod model;
+mod queue;
 mod shutdown;
 mod spawn;
 mod store;
@@ -38,13 +39,6 @@ pub use model::{
 pub use spawn::StartError;
 // What another write calls inside its own transaction (spec §14.6):
 // forking checks for an open turn, recovery records its transitions.
-#[cfg_attr(
-    not(feature = "test-support"),
-    expect(
-        unused_imports,
-        reason = "no product caller until the queue route; only tests use it"
-    )
-)]
 pub use store::{NewQueued, QueueAnswer};
 pub(crate) use store::{existed, has_open_operation, read_before, record};
 
@@ -80,6 +74,7 @@ pub(crate) mod for_tests {
 /// Turns: what storage holds, the runtime that owns their operations, the
 /// sessions they prompt on, the registry of live turns, the bus their live
 /// events go out on, and the code index a turn's project is touched in.
+#[derive(Clone)]
 pub struct Turns {
     storage: Arc<Storage>,
     runtime: Arc<Runtime>,
@@ -157,6 +152,7 @@ impl ThreadStopper {
 }
 
 /// A person's turn, as the route received it (§12.7, §13.9).
+#[derive(Clone)]
 pub struct SendTurn {
     /// The idempotency key (spec §3.2).
     pub command_id: String,
@@ -171,6 +167,26 @@ pub struct SendTurn {
     /// The sending tab, kept in memory for the turn only; not part of the
     /// command, never stored.
     pub client_tab: Option<String>,
+}
+
+/// `turn.start`'s command for `turn` on `thread` (§12.7): `send` asks its
+/// replay first, and `queue` asks the replay of the start it derived.
+fn start_command(command_id: String, thread: &ThreadId, turn: &SendTurn) -> CommandContext {
+    let mut params = serde_json::json!({
+        "thread_id": thread,
+        "prompt": turn.prompt,
+        "model": turn.model,
+        "mode": turn.mode,
+        "effort": turn.effort,
+    });
+    // Absent without a focus, so a turn recorded before §13.9 replays as it did.
+    if let Some(focus) = &turn.focus {
+        params["focus"] = serde_json::json!(focus);
+    }
+    if let Some(plan) = &turn.plan {
+        params["plan"] = serde_json::json!(plan);
+    }
+    user_command(command_id, "turn.start", params)
 }
 
 /// What the person asked for: the command and what it records.
@@ -210,8 +226,9 @@ impl Turns {
         thread_id: ThreadId,
         turn: SendTurn,
     ) -> Result<OperationId, CoreError> {
+        let command = start_command(turn.command_id.clone(), &thread_id, &turn);
         let SendTurn {
-            command_id,
+            command_id: _,
             prompt,
             model,
             mode,
@@ -220,21 +237,6 @@ impl Turns {
             plan,
             client_tab,
         } = turn;
-        let mut params = serde_json::json!({
-            "thread_id": thread_id,
-            "prompt": prompt,
-            "model": model,
-            "mode": mode,
-            "effort": effort,
-        });
-        // Absent without a focus, so a turn recorded before §13.9 replays as it did.
-        if let Some(focus) = &focus {
-            params["focus"] = serde_json::json!(focus);
-        }
-        if let Some(plan) = &plan {
-            params["plan"] = serde_json::json!(plan);
-        }
-        let command = user_command(command_id, "turn.start", params);
         if let Some(replay) = self.storage.replayed_turn(&command, &thread_id).await? {
             return Ok(replay.operation_id);
         }

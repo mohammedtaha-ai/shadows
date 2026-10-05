@@ -30,6 +30,7 @@ mod harness;
 mod instructions;
 mod openapi;
 mod project;
+mod queue;
 pub mod sse;
 mod thread;
 mod workflow;
@@ -142,6 +143,8 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(conversation::list_operations))
         .routes(routes!(conversation::start_turn))
         .routes(routes!(conversation::stop_turn))
+        .routes(routes!(queue::queue, queue::queued))
+        .routes(routes!(queue::unqueue))
         .routes(routes!(harness::list_harnesses))
         .routes(routes!(harness::open_session))
         .routes(routes!(harness::change_model))

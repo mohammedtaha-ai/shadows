@@ -10,13 +10,6 @@
 
 mod operation;
 mod operation_read;
-#[cfg_attr(
-    not(feature = "test-support"),
-    expect(
-        dead_code,
-        reason = "no product caller until the queue route; only tests use it"
-    )
-)]
 mod queue;
 mod transition;
 mod turn;
