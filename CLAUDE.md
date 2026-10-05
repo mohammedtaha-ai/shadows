@@ -22,6 +22,9 @@
 >   no trigger is rot, not a question.
 > - Evidence files are dated facts. They never expire and are never design
 >   authority. When a measurement changes a decision, amend its owner spec.
+>   A closed milestone's evidence folder may be deleted from the tree; every
+>   reference then names the path and the commit that still holds it
+>   (`docs/evidence/milestone3/PROBE.md` at `92e6dae`).
 > - **Spike code is deleted once its evidence file is written.** A probe's job is
 >   to produce an answer, not a codebase. Its raw output moves into
 >   `docs/evidence/`; its source stays in Git history and the evidence file names

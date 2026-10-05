@@ -8,7 +8,7 @@
 - **Status:** Designed with Mohammed on 2026-09-24/25, section by section, with
   an independent review of every section. Not yet built.
 - **Builds on:** Milestone 1 (§12), on `main` at `24a2ea5`, run on Windows
-  (`evidence/milestone1/WINDOWS_RUN.md`).
+  (`docs/evidence/milestone1/WINDOWS_RUN.md` at `92e6dae`).
 
 Milestone 2 is the first slice of §11.6: **a plan the Planner writes, a person
 sees as a graph, and a person approves.** The Planner writes the plan through
@@ -600,7 +600,7 @@ polling. Grant lists refetch after the person's own actions and every
    4. the MCP protocol version Claude Code 2.1.281 and `rmcp` agree on.
 
    A probe that fails amends this section before anything is built. **Ran
-   2026-09-25 (`docs/evidence/milestone2/MCP_PROBE.md`):** 1, 2 and 4 pass.
+   2026-09-25 (`docs/evidence/milestone2/MCP_PROBE.md` at `92e6dae`):** 1, 2 and 4 pass.
    3 failed: the conversation is kept but the new `append` is not, which
    amended §13.8 ("What a Claude session keeps").
 2. The plan: domain, validator, storage, commands, HTTP routes.

@@ -57,7 +57,7 @@ The branch is ready for PR preparation.
   [`evidence/harness/EFFORT_DEFAULT_PROBE.md`](./evidence/harness/EFFORT_DEFAULT_PROBE.md));
 - the code watcher ignores file reads, which Linux reports: before, an idle
   daemon re-scanned forever at 148% CPU (§15.4,
-  [`evidence/milestone3/LINUX_WATCHER_READS.md`](./evidence/milestone3/LINUX_WATCHER_READS.md)).
+  `docs/evidence/milestone3/LINUX_WATCHER_READS.md` at `92e6dae`).
 
 It ran in a Linux cloud container, in a browser against the real adapter
 and Claude Code, on a copy of a scratch database. On 2026-10-01 it ran on
@@ -93,11 +93,11 @@ naming it answered 404. Its web control came with PR #12.
 **Milestone 3 (§15, the code index) is on `main`** (PR #9, 340 Rust tests)
 and ran on Windows on 2026-09-30:
 §15.11's five acceptance steps passed
-([`evidence/milestone3/WINDOWS_RUN.md`](./evidence/milestone3/WINDOWS_RUN.md)).
+(`docs/evidence/milestone3/WINDOWS_RUN.md` at `92e6dae`).
 It adds the crate `shadows-index`, the ninth service `Code`,
 and the MCP tools `where_is`, `who_uses` and `outline` for an external agent's
 grant, with their HTTP routes. The probe's measurements are in
-[`evidence/milestone3/PROBE.md`](./evidence/milestone3/PROBE.md).
+`docs/evidence/milestone3/PROBE.md` at `92e6dae`.
 
 **Milestone 2.5 (§14, one application core) is on `main`** (PR #7,
 2026-09-29; 328 Rust tests). Shadows is now a Cargo workspace under `crates/`:
@@ -108,7 +108,7 @@ operations and carry a `contract.yaml` that
 change, and `api/openapi.json` is byte-identical. Mohammed ran it on Windows:
 six Planner turns completed and the Planner used Shadows' MCP server; Stop, a
 restart, Approve and Revoke were not exercised in that run
-([`evidence/milestone2_5/WINDOWS_RUN.md`](./evidence/milestone2_5/WINDOWS_RUN.md)).
+(`docs/evidence/milestone2_5/WINDOWS_RUN.md` at `92e6dae`).
 Its execution ledger was deleted after the merge.
 
 **Milestone 2 (§13, the Planner writes a plan) is on `main`** (PR #6,
@@ -117,7 +117,7 @@ Its execution ledger was deleted after the merge.
 reaching both a new and an existing conversation, and Connect and Revoke from
 an external Claude Code all worked. The run found that a harness opening took
 up to 5.7 s against a 5 s bound, which is now fixed:
-[`evidence/milestone2/WINDOWS_RUN.md`](./evidence/milestone2/WINDOWS_RUN.md).
+`docs/evidence/milestone2/WINDOWS_RUN.md` at `92e6dae`.
 Its execution ledger was removed from the branch before merge.
 
 **Milestone 1 is implemented, Phase A and Phase B, and both have run on
@@ -126,16 +126,16 @@ an adapter each open thread keeps (spec §12). The person chooses the CLI per
 conversation and the model, mode and effort per message, all read from the
 harness. The composer shows context and limits. Any message can be copied, and
 the last one forked. The Phase B run found four defects, all fixed and run
-again: [`evidence/milestone1/PHASE_B_RUN.md`](./evidence/milestone1/PHASE_B_RUN.md).
-The Phase A run is [`PHASE_A_RUN.md`](./evidence/milestone1/PHASE_A_RUN.md).
+again: `docs/evidence/milestone1/PHASE_B_RUN.md` at `92e6dae`.
+The Phase A run is `docs/evidence/milestone1/PHASE_A_RUN.md` at `92e6dae`.
 **Mohammed ran it on Windows:** send, Stop (56 ms to `Cancelled`) and a
 daemon restart with the conversation remembered all worked:
-[`evidence/milestone1/WINDOWS_RUN.md`](./evidence/milestone1/WINDOWS_RUN.md).
+`docs/evidence/milestone1/WINDOWS_RUN.md` at `92e6dae`.
 Fork, the permission-refused line and the breakdown were not checked item by
 item.
 
 - Milestone 0 is complete on Windows and on `main` (PRs #1-#3).
-  [`evidence/milestone0/ACCEPTANCE.md`](./evidence/milestone0/ACCEPTANCE.md).
+  `docs/evidence/milestone0/ACCEPTANCE.md` at `92e6dae`.
 - Milestone 1 is on `main` (PRs #4 and #5). The
   whole-branch review ran before the merge.
 - Mohammed's three rulings after the run are built and ran on the real
@@ -154,15 +154,15 @@ The PR is #4; its execution ledger was removed from the branch before merge.
   turn's own tree while 19 unrelated `claude.exe` processes survive; a daemon
   killed mid-turn takes the harness and its grandchild with it through the Job
   Object, and restart records the turn `Interrupted` with every entry intact.
-  `evidence/milestone0/`.
+  `docs/evidence/milestone0/` at `92e6dae`.
 - **Phase A over ACP, on Linux.** Adapter 0.81.1 over Claude Code 2.1.281:
   the harness itself confirmed a Stop (`cancelled`) and the adapter lived on,
   and a restarted daemon resumed the recorded session. Read-only shell commands
-  are allowed by Claude Code without asking. `evidence/milestone1/`.
+  are allowed by Claude Code without asking. `docs/evidence/milestone1/` at `92e6dae`.
 - **Phase B on Linux.** The model list, each model's efforts and the modes all
   come from the session. The adapter needs `PATH` and `HOME` from the daemon, or
   no shell command runs. Accept edits runs file commands in the project folder,
-  `rm` included, without a permission request. `evidence/milestone1/`.
+  `rm` included, without a permission request. `docs/evidence/milestone1/` at `92e6dae`.
 - **The harness does spawn a tree.** `claude --print` starts an MCP proxy as a
   child. This settles the question the serve/stream spike left open; whether a
   `Bash` call adds more descendants was not measured separately.

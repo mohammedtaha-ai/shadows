@@ -6,7 +6,8 @@ use std::sync::LazyLock;
 
 use tree_sitter_tags::TagsConfiguration;
 
-/// Patterns the grammars' own queries miss (docs/evidence/milestone3/PROBE.md).
+/// Patterns the grammars' own queries miss
+/// (docs/evidence/milestone3/PROBE.md at 92e6dae).
 /// Always after the grammar's query: the earlier pattern wins a name.
 const RUST_EXTRA: &str = include_str!("../queries/rust.scm");
 const TS_EXTRA: &str = include_str!("../queries/typescript.scm");

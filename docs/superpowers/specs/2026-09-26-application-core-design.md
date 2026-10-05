@@ -503,7 +503,7 @@ Milestone 2.5 is done when:
       **Revoke**s it.
 
    Each works as it did on `ddcaed5`. The evidence goes in
-   `docs/evidence/milestone2_5/WINDOWS_RUN.md`.
+   `docs/evidence/milestone2_5/WINDOWS_RUN.md` at `92e6dae`.
 
 ## 14.11 Changes to other documents
 
