@@ -4210,6 +4210,7 @@ export interface operations {
              *     - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.
              *     - `usage` — `{thread_id, context_used, context_window, limits}`: the session's context use and the account's limits as the harness last reported them; each is `null` when not reported. Transient.
              *     - `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.
+             *     - `commands` — `{thread_id, commands}`: the harness's `/` list, each `{name, description, hint}`; sent after `caught-up` when there is one, and on every change. Transient.
              *     - `plan-show` — `{thread_id, target_tab, workflow_id, version, task_number, place}`: the Planner showed a plan (§13.9). Its card arrives first, as the `durable` `PlanShown` event. Only the tab whose id is `target_tab` opens the panel or the page for `side` or `page`. Transient: never replayed.
              *     - `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.
              *     - `fatal` — data is a message as plain text: the journal could not be read and the stream ends.
