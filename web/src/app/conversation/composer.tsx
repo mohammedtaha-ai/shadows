@@ -159,10 +159,17 @@ export function Composer({
   }
   const act = (command: SessionCommand) => {
     if (command.kind === 'unknown') return setCarriedError(new Error(command.message))
+    // No pickers without a session, and the effort picker waits, as it does
+    // for the menu, until the session holds the chosen model.
+    if (choices === null || settings === null) {
+      return setCarriedError(new Error('The session is not ready yet.'))
+    }
+    if (command.setting === 'effort' && !effortsKnown(choices, settings.model)) {
+      return setCarriedError(new Error('Efforts are known once the session holds the chosen model.'))
+    }
     setCarriedError(null)
     setPrompt('')
     if (command.kind === 'open') return setOpened(command.setting)
-    if (choices === null || settings === null) return
     if (command.setting === 'model') choose(withModel(choices, settings, command.id))
     else choose({ ...settings, effort: command.id })
   }

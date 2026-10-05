@@ -12,7 +12,7 @@ restate them.
 **§21, the `/` menu, is built on `next/slash-menu`** (2026-10-05, not yet
 merged). The owner is
 [`§21`](./superpowers/specs/2026-10-05-slash-menu-design.md). The full gate
-ran: **425 Rust tests** and **210 web tests** passed, with both clippy modes,
+ran: **425 Rust tests** and **217 web tests** passed, with both clippy modes,
 the feature check and the 100-column check clean. The browser run used a copy
 of the dev database and the real adapter: `/` listed Claude's skills and
 commands, `/br` found brainstorming, a picked `/model` showed its `<model>`
