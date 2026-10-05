@@ -73,11 +73,14 @@ export function useConversation(threadId: string, onShowHere?: (show: PlanShowFr
     },
   )
 
-  // Each replay's end reads the plans again, for any change it carried.
+  // Each replay's end reads the plans and the waiting messages again, for any
+  // change it carried.
   const live = stream.connection === 'live'
   useEffect(() => {
-    if (live) refetchPlans(queryClient)
-  }, [live, queryClient])
+    if (!live) return
+    refetchPlans(queryClient)
+    void queryClient.invalidateQueries({ queryKey: queuedQuery(threadId).queryKey })
+  }, [live, queryClient, threadId])
 
   const entries = useQuery(entriesQuery(threadId))
   const operations = useQuery(operationsQuery(threadId))

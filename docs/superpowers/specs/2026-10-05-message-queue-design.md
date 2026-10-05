@@ -2,7 +2,8 @@
 
 - **Date:** 2026-10-05.
 - **Status:** Accepted by Mohammed on 2026-10-05, after an independent review
-  (`e94bf08`) and his two rulings in 20.4. Next: the implementation plan.
+  (`e94bf08`) and his two rulings in 20.4. Built on `next/polish` and run in
+  the browser against the real adapter (2026-10-05).
 - **Evidence:** [`2026-10-05-steering-and-commands-probe.md`](../../evidence/2026-10-05-steering-and-commands-probe.md)
   (adapter 0.81.1, Claude Code 2.1.289).
 - **Related owners:** §12.3 and §12.7 (a turn and its one start command),
@@ -107,7 +108,10 @@ turn's `Completed` sends it.
    then leaves no entry the Planner never saw. (The probe's answer came in
    4 ms, before any reply chunk.) Entries take their ordinal from the thread's
    counter (`threads/store/entry.rs` `append_entry_in`), so this write cannot
-   collide with the running turn's own entries.
+   collide with the running turn's own entries. The turn's watcher sends the
+   steering request itself and reads no event until it has the answer: a chunk
+   of the steered reply can reach Shadows before the answer does, and it must
+   not be written before the steered message.
 3. On `promptRequired`, or when no turn runs, the message is started as a
    turn exactly as in 20.3, and the answer says so.
 4. A steer that fails (the session ended, a JSON-RPC error) leaves the row,
