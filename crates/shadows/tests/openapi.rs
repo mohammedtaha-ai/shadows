@@ -146,6 +146,7 @@ fn the_document_names_every_route() {
             "POST /api/projects/{id}/threads",
             "POST /api/threads/{id}/fork",
             "POST /api/threads/{id}/queue",
+            "POST /api/threads/{id}/queue/{qid}/send-now",
             "POST /api/threads/{id}/session",
             "POST /api/threads/{id}/turns",
             "POST /api/workflows/{id}/approve",

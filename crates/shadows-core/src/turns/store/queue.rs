@@ -10,7 +10,7 @@ use crate::plans::{Focus, PlanId};
 use crate::threads::ThreadId;
 use crate::turns::model::{QueuedMessage, QueuedMessageId};
 
-const SCOPE: &str = "Thread";
+pub(super) const SCOPE: &str = "Thread";
 
 pub struct NewQueued<'a> {
     pub prompt: &'a str,
@@ -74,7 +74,7 @@ fn message(r: Row) -> Result<QueuedMessage, StorageError> {
     })
 }
 
-async fn event(
+pub(super) async fn event(
     conn: &mut SqliteConnection,
     kind: &str,
     thread: &ThreadId,
@@ -208,13 +208,6 @@ impl Storage {
         rows.into_iter().map(message).collect()
     }
 
-    #[cfg_attr(
-        not(feature = "test-support"),
-        expect(
-            dead_code,
-            reason = "no product caller until the send path; only tests use it"
-        )
-    )]
     pub async fn queued_message(
         &self,
         thread: &ThreadId,

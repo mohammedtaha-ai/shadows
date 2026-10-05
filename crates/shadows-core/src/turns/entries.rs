@@ -71,6 +71,16 @@ impl Collector {
         out
     }
 
+    /// The message being streamed, written now (§20.4): a steered message
+    /// goes after the text the person already saw, and the reply continues
+    /// as a new message.
+    pub(crate) fn cut(&mut self) -> Vec<Durable> {
+        let mut out = Vec::new();
+        self.flush_message(&mut out);
+        self.message_id = None;
+        out
+    }
+
     pub(crate) fn finish(&mut self) -> Vec<Durable> {
         let mut out = Vec::new();
         self.flush_message(&mut out);
@@ -140,6 +150,14 @@ mod tests {
             assert!(c.push(&tool(id, Some(id), Some("pending"))).is_empty());
         }
         assert_eq!(c.finish(), ["a", "b", "c"].map(|t| Durable::Tool(t.into())));
+    }
+    #[test]
+    fn a_cut_writes_the_streamed_text_and_the_reply_continues_as_a_new_message() {
+        let mut c = Collector::new();
+        assert!(c.push(&chunk("m1", "so far")).is_empty());
+        assert_eq!(c.cut(), [Durable::Message("so far".into())]);
+        assert!(c.push(&chunk("m1", " and on")).is_empty());
+        assert_eq!(c.finish(), [Durable::Message(" and on".into())]);
     }
     #[test]
     fn a_changed_message_id_closes_the_previous_message() {

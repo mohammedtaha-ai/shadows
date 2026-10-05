@@ -99,6 +99,15 @@ pub enum TurnEnd {
     Refused(String),
 }
 
+/// What `_session/steering` answered (spec §20.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Steer {
+    /// The message went into the running prompt; that prompt answers for it.
+    Injected,
+    /// No prompt was running; nothing was started.
+    PromptRequired,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum AcpError {
     #[error("ACP connection closed")]
@@ -287,6 +296,31 @@ impl Connection {
             StopReason::Refusal => TurnEnd::Refused("refusal".into()),
             other => TurnEnd::Refused(format!("{other:?}")),
         })
+    }
+
+    /// Sends `text` into the session's running prompt (§20.4), asking the
+    /// adapter to start nothing when none runs.
+    pub async fn steer(&self, session: &str, text: &str) -> Result<Steer, AcpError> {
+        let params = serde_json::json!({
+            "sessionId": session,
+            "prompt": [{ "type": "text", "text": text }],
+            "_meta": { "steering": { "idleBehavior": "promptRequired" } },
+        });
+        let request =
+            agent_client_protocol::UntypedMessage::new("_session/steering", params).map_err(rpc)?;
+        let answer = self
+            .cx
+            .send_request(request)
+            .block_task()
+            .await
+            .map_err(rpc)?;
+        match answer.get("outcome").and_then(Value::as_str) {
+            Some("injected") => Ok(Steer::Injected),
+            Some("promptRequired") => Ok(Steer::PromptRequired),
+            other => Err(AcpError::Rpc(format!(
+                "unexpected steering answer {other:?}"
+            ))),
+        }
     }
 
     pub fn cancel(&self, session: &str) {

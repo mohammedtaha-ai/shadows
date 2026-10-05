@@ -93,6 +93,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/turns/model.rs` | the operation types callers meet | `crates/shadows-core/src/turns/model.rs` |
 | `crates/shadows-core/src/turns/store/` | turns' SQLite queries | `crates/shadows-core/src/turns/store/turn.rs` |
 | `crates/shadows-core/src/turns/store/queue.rs` | the queue's SQLite queries | `crates/shadows-core/src/turns/store/queue.rs` |
+| `crates/shadows-core/src/turns/store/steer.rs` | recording a steered message | `crates/shadows-core/src/turns/store/steer.rs` |
 | `crates/shadows-core/src/turns/queue.rs` | the waiting messages of a conversation | `crates/shadows-core/src/turns/queue.rs` |
 | `crates/shadows-core/src/turns/record.rs` | the checks that commit a turn's start | `crates/shadows-core/src/turns/record.rs` |
 | `crates/shadows-core/src/turns/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows-core/src/turns/turn.rs` |
@@ -185,6 +186,7 @@ pattern to follow, not merely an example.
 | `crates/fake-acp/src/main.rs` | test apparatus that no product code links | `crates/fake-acp/src/main.rs` |
 | `crates/fake-acp/src/session.rs` | a fake session's state, offered to the client | `crates/fake-acp/src/session.rs` |
 | `crates/fake-acp/src/mcp.rs` | calling the session's MCP server | `crates/fake-acp/src/mcp.rs` |
+| `crates/fake-acp/src/steer.rs` | steering a prompt that waits for it | `crates/fake-acp/src/steer.rs` |
 | `crates/fake-acp/src/prompts.rs` | the scripted answers to a prompt | `crates/fake-acp/src/prompts.rs` |
 
 The Web client in `web/` is a separate program outside this workspace and this

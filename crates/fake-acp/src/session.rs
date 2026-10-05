@@ -3,7 +3,7 @@
 use std::{
     collections::HashMap,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, atomic::AtomicBool},
 };
 
 use agent_client_protocol::schema::v1::{McpServer, Meta, SessionConfigOption};
@@ -18,6 +18,10 @@ pub(crate) struct Session {
     pub(crate) effort: Option<String>,
     pub(crate) mode: String,
     pub(crate) cancel: watch::Sender<bool>,
+    /// The text of a `_session/steering` while `steerable` waits (`steer.rs`).
+    pub(crate) steer: Arc<watch::Sender<Option<String>>>,
+    /// Whether a `steerable` prompt is waiting to be steered.
+    pub(crate) steerable: Arc<AtomicBool>,
     pub(crate) setup: Setup,
 }
 
@@ -152,6 +156,8 @@ pub(crate) fn make_session(cwd: PathBuf, how: &'static str, setup: Setup) -> Ses
         effort: Some("high".into()),
         mode: "auto".into(),
         cancel,
+        steer: Arc::new(watch::channel(None).0),
+        steerable: Arc::new(AtomicBool::new(false)),
         setup,
     }
 }

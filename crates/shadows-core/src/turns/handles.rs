@@ -1,12 +1,12 @@
 //! One job: register live turns for watcher/stop arbitration.
-use super::model::OperationId;
+use super::{model::OperationId, turn::Steered};
 use crate::harness::OpenSession;
 use crate::threads::ThreadId;
 use std::{
     collections::HashMap,
     sync::{Arc, atomic::AtomicBool},
 };
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, mpsc};
 
 pub(crate) struct LiveTurn {
     pub(crate) thread_id: ThreadId,
@@ -18,7 +18,17 @@ pub(crate) struct LiveTurn {
     pub(crate) client_tab: Option<String>,
     pub(crate) turn_end_seen: Arc<AtomicBool>,
     pub(crate) cancel_requested: Arc<AtomicBool>,
+    /// Where Send now hands the watcher a message the adapter took (§20.4).
+    pub(crate) steer: mpsc::UnboundedSender<Steered>,
     pub(crate) span: tracing::Span,
+}
+
+/// What Send now needs of the running turn of a thread (§20.4).
+pub(crate) struct SteerTarget {
+    pub(crate) op: OperationId,
+    pub(crate) session: OpenSession,
+    pub(crate) cancel_requested: Arc<AtomicBool>,
+    pub(crate) steer: mpsc::UnboundedSender<Steered>,
 }
 #[derive(Default)]
 pub(crate) struct Registry {
@@ -67,6 +77,19 @@ impl LiveHandles {
             .iter()
             .find(|(_, turn)| &turn.thread_id == thread)
             .map(|(op, turn)| (op.clone(), turn.client_tab.clone()))
+    }
+    /// The running turn of `thread`, as Send now reaches it (§20.4).
+    pub(crate) async fn steer_target(&self, thread: &ThreadId) -> Option<SteerTarget> {
+        let r = self.0.lock().await;
+        r.turns
+            .iter()
+            .find(|(_, t)| &t.thread_id == thread)
+            .map(|(op, t)| SteerTarget {
+                op: op.clone(),
+                session: t.session.clone(),
+                cancel_requested: t.cancel_requested.clone(),
+                steer: t.steer.clone(),
+            })
     }
     pub async fn is_closed(&self) -> bool {
         self.0.lock().await.closed

@@ -1,8 +1,10 @@
 //! The ACP test agent binary: scripted answers over stdio, for the tests.
+//! Besides the standard requests it answers `_session/steering` (`steer.rs`).
 
 mod mcp;
 mod prompts;
 mod session;
+mod steer;
 
 use std::sync::Arc;
 
@@ -246,6 +248,37 @@ async fn main() -> agent_client_protocol::Result<()> {
                             None => Ok(()),
                         }
                     })
+                }
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        // Last: an `UntypedMessage` matches every method, so a handler after
+        // it would never be reached.
+        .on_receive_request(
+            {
+                let state = state.clone();
+                async move |r: agent_client_protocol::UntypedMessage,
+                            responder: Responder<Value>,
+                            _cx: ConnectionTo<Client>| {
+                    if r.method() != "_session/steering" {
+                        return responder.respond_with_error(agent_client_protocol::Error::new(
+                            -32601,
+                            "Method not found",
+                        ));
+                    }
+                    let id = r
+                        .params()
+                        .get("sessionId")
+                        .and_then(Value::as_str)
+                        .unwrap_or("");
+                    let s = state.lock().unwrap().sessions.get(id).cloned();
+                    match s {
+                        Some(s) => responder.respond(steer::answer(&s, r.params())),
+                        None => responder.respond_with_error(agent_client_protocol::Error::new(
+                            -32603,
+                            "Session not found",
+                        )),
+                    }
                 }
             },
             agent_client_protocol::on_receive_request!(),

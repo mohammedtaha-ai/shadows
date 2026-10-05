@@ -2,6 +2,7 @@
 //!
 //! Prompts: ordinary (two chunks), `two-messages` (tool updates),
 //! `report` (session state), `/context` (delayed first report), `hang` (cancel),
+//! `steerable` (waits for a `_session/steering`, then answers with its text),
 //! `ignore-cancel` (never), `exit` (code 3), `ask-permission` (reject),
 //! `usage` (two context updates), `refuse` (max_tokens), `title <text>` (names
 //! the session `<text>` in a `session_info_update` after answering), and
@@ -150,6 +151,15 @@ pub(crate) async fn answer(
                 }
             }
             return Ok((StopReason::Cancelled, None));
+        }
+        "steerable" => {
+            chunk(cx, id, "m1", "waiting")?;
+            let text = crate::steer::wait(s).await;
+            // The real adapter answers the steer before it streams the reply
+            // (the probe's answer came before any chunk): leave Shadows time
+            // to record the steered entry first.
+            tokio::time::sleep(Duration::from_millis(150)).await;
+            chunk(cx, id, "m2", &format!("steered: {text}"))?;
         }
         "wait-for-release" => {
             chunk(cx, id, "m1", "waiting")?;

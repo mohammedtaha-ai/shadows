@@ -45,15 +45,16 @@
 use super::{
     entries::{Collector, Durable},
     handles::LiveHandles,
-    model::{FailureStage, OperationId},
+    model::{FailureStage, OperationId, QueuedMessageId},
     spawn::OnCompleted,
 };
 use crate::{
+    command::CommandContext,
     db::StorageError,
     events::Actor,
     harness::{OpenSession, Sessions},
     runtime::Runtime,
-    threads::{NewThreadEntry, ThreadEntryKind, ThreadId},
+    threads::{NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId},
 };
 use shadows_agent::{
     acp::{AcpError, TurnEnd},
@@ -64,7 +65,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 use tokio::{
-    sync::{broadcast, mpsc},
+    sync::{broadcast, mpsc, oneshot},
     time::{Instant, sleep},
 };
 use tracing::Instrument;
@@ -95,6 +96,25 @@ pub(crate) struct TurnWatch {
     /// §20.3: called after a `Completed` is recorded, and after nothing else.
     pub on_completed: Option<OnCompleted>,
     pub span: tracing::Span,
+}
+
+/// A Send now the adapter took (§20.4): the watcher records it in its place
+/// among the turn's entries and answers the sender.
+pub(crate) struct Steered {
+    pub command: CommandContext,
+    pub row: QueuedMessageId,
+    pub prompt: String,
+    pub reply: oneshot::Sender<Result<ThreadEntryId, StorageError>>,
+}
+
+async fn record_steer(w: &TurnWatch, collector: &mut Collector, s: Steered) {
+    persist(w, collector.cut()).await;
+    let recorded = w
+        .runtime
+        .storage
+        .steered_entry(&s.command, &w.thread_id, &w.op_id, &s.row, &s.prompt)
+        .await;
+    let _ = s.reply.send(recorded);
 }
 
 async fn persist(w: &TurnWatch, entries: Vec<Durable>) {
@@ -173,6 +193,7 @@ async fn accept(
 pub(crate) fn watch_turn(
     w: TurnWatch,
     mut rx: mpsc::UnboundedReceiver<HarnessEvent>,
+    mut steers: mpsc::UnboundedReceiver<Steered>,
     bus: broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>,
 ) {
     let span = w.span.clone();
@@ -195,6 +216,7 @@ pub(crate) fn watch_turn(
                 tokio::pin!(prompt_future);
                 loop {
                     tokio::select! {
+                        biased;
                         result = &mut prompt_future => break result,
                         event = rx.recv() => match event {
                             Some(event) => accept(
@@ -210,11 +232,15 @@ pub(crate) fn watch_turn(
                             // arrive, and polling a closed channel would spin.
                             None => break prompt_future.await,
                         },
+                        Some(s) = steers.recv() => record_steer(&w, &mut collector, s).await,
                     }
                 }
             };
             while let Ok(event) = rx.try_recv() {
                 accept(&w, &mut collector, &bus, &mut first, &mut last_usage, event).await;
+            }
+            while let Ok(s) = steers.try_recv() {
+                record_steer(&w, &mut collector, s).await;
             }
             persist(&w, collector.finish()).await;
             w.sessions

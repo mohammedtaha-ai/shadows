@@ -811,6 +811,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/threads/{id}/queue/{qid}/send-now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send now: into the running turn, or as a turn when none runs. */
+        post: operations["send_now"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/threads/{id}/session": {
         parameters: {
             query?: never;
@@ -1904,6 +1921,20 @@ export interface components {
             body: string;
             /** @description The idempotency key (spec §13.5), scoped to the project. */
             command_id: string;
+        };
+        SendNowBody: {
+            /** @description The idempotency key (spec §3.2). */
+            command_id: string;
+        };
+        /** @description Spec §20.3: what Send now answers. */
+        SentNow: {
+            entry_id: components["schemas"]["ThreadEntryId"];
+            /** @enum {string} */
+            status: "steered";
+        } | {
+            operation_id: components["schemas"]["OperationId"];
+            /** @enum {string} */
+            status: "started";
         };
         /**
          * @description What the thread's session offers now (spec §12.4). `efforts` are the
@@ -4628,6 +4659,88 @@ export interface operations {
             };
             /** @description STORAGE_UNAVAILABLE */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    send_now: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+                /** @description The waiting message */
+                qid: components["schemas"]["QueuedMessageId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendNowBody"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SentNow"];
+                };
+            };
+            /** @description QUEUED_MESSAGE_GONE */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description THREAD_BUSY: a Stop is pending; COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description as POST /api/threads/{id}/turns */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_START_FAILED: the steer failed; the message keeps the reason */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description RUNTIME_STOPPING */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

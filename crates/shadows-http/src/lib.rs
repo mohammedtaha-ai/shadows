@@ -145,6 +145,7 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(conversation::stop_turn))
         .routes(routes!(queue::queue, queue::queued))
         .routes(routes!(queue::unqueue))
+        .routes(routes!(queue::send_now))
         .routes(routes!(harness::list_harnesses))
         .routes(routes!(harness::open_session))
         .routes(routes!(harness::change_model))

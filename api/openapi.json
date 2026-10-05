@@ -3201,6 +3201,61 @@
         ],
         "type": "object"
       },
+      "SendNowBody": {
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key (spec §3.2).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id"
+        ],
+        "type": "object"
+      },
+      "SentNow": {
+        "description": "Spec §20.3: what Send now answers.",
+        "oneOf": [
+          {
+            "description": "The running turn took it as steering.",
+            "properties": {
+              "entry_id": {
+                "$ref": "#/components/schemas/ThreadEntryId"
+              },
+              "status": {
+                "enum": [
+                  "steered"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "entry_id",
+              "status"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The thread had gone idle: a turn started.",
+            "properties": {
+              "operation_id": {
+                "$ref": "#/components/schemas/OperationId"
+              },
+              "status": {
+                "enum": [
+                  "started"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation_id",
+              "status"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "SessionChoices": {
         "description": "What the thread's session offers now (spec §12.4). `efforts` are the\ncurrent model's. `modes` are after Shadows' policy; a mode the project does\nnot allow is present with `enabled: false` and `reason: \"Not allowed in\nthis project\"`.",
         "properties": {
@@ -7210,6 +7265,117 @@
           }
         },
         "summary": "Removes a waiting message.",
+        "tags": [
+          "turns"
+        ]
+      }
+    },
+    "/api/threads/{id}/queue/{qid}/send-now": {
+      "post": {
+        "operationId": "send_now",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          },
+          {
+            "description": "The waiting message",
+            "in": "path",
+            "name": "qid",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/QueuedMessageId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendNowBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentNow"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "QUEUED_MESSAGE_GONE"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "THREAD_BUSY: a Stop is pending; COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "as POST /api/threads/{id}/turns"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_START_FAILED: the steer failed; the message keeps the reason"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "RUNTIME_STOPPING"
+          }
+        },
+        "summary": "Send now: into the running turn, or as a turn when none runs.",
         "tags": [
           "turns"
         ]

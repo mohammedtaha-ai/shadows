@@ -154,6 +154,86 @@ async fn a_completed_turn_starts_the_next_waiting_message_exactly_once() {
 }
 
 #[tokio::test]
+async fn send_now_steers_the_running_turn_after_its_streamed_text() {
+    let app = test_app().await;
+    let path = format!("/api/threads/{}/queue", app.thread.as_str());
+    let (_, first) = post(&app, &path, queue_body("steerable")).await;
+    let (_, queued) = post(&app, &path, queue_body("turn left")).await;
+    let qid = queued["message"]["id"].as_str().unwrap();
+    // Let the turn stream its first message before the steer.
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+    let now = format!("{path}/{qid}/send-now");
+    let (status, answer) = post(&app, &now, json!({ "command_id": fresh_command() })).await;
+    assert_eq!(status, 202, "{answer}");
+    assert_eq!(answer["status"], "steered");
+
+    let ops = until_ops(&app, 1).await;
+    assert_eq!(ops.len(), 1, "a steer starts no turn of its own");
+    assert_eq!(ops[0].id.as_str(), first["operation_id"].as_str().unwrap());
+    let bodies: Vec<String> = app::entries(&app)
+        .await
+        .into_iter()
+        .map(|e| e.body)
+        .collect();
+    assert_eq!(
+        bodies,
+        ["steerable", "waiting", "turn left", "steered: turn left"]
+    );
+    let (_, listed) = call(&app, "GET", &path, None).await;
+    assert_eq!(listed, json!([]));
+}
+
+#[tokio::test]
+async fn send_now_after_stop_is_thread_busy_and_keeps_the_row() {
+    let app = test_app().await;
+    let path = format!("/api/threads/{}/queue", app.thread.as_str());
+    let (_, first) = post(&app, &path, queue_body("ignore-cancel")).await;
+    let (_, queued) = post(&app, &path, queue_body("later")).await;
+    let qid = queued["message"]["id"].as_str().unwrap();
+    let op = first["operation_id"].as_str().unwrap();
+    // `ignore-cancel` never confirms, so the Stop stays pending a while.
+    let stop_path = format!("/api/operations/{op}/stop");
+    let stop = post(&app, &stop_path, json!({}));
+    let now = format!("{path}/{qid}/send-now");
+    let send = async {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        post(&app, &now, json!({ "command_id": fresh_command() })).await
+    };
+    let (_, (status, answer)) = tokio::join!(stop, send);
+    assert_eq!(status, 409, "{answer}");
+    assert_eq!(answer["code"], "THREAD_BUSY");
+    let (_, listed) = call(&app, "GET", &path, None).await;
+    assert_eq!(listed[0]["prompt"], "later");
+    assert!(listed[0]["last_error"].is_null());
+}
+
+#[tokio::test]
+async fn the_watcher_and_send_now_never_send_one_message_twice() {
+    let app = test_app().await;
+    let path = format!("/api/threads/{}/queue", app.thread.as_str());
+    post(&app, &path, queue_body("wait-for-release")).await;
+    let (_, queued) = post(&app, &path, queue_body("once")).await;
+    let qid = queued["message"]["id"].as_str().unwrap().to_string();
+    release(&app).await;
+    // Send now as the turn completes. `wait-for-release` is not steerable, so
+    // the adapter answers promptRequired: Send now starts it (202), finds the
+    // turn still holding the thread (409), or finds it already sent (404, or
+    // 202 replaying the watcher's start under the shared `queued:<id>`).
+    let now = format!("{path}/{qid}/send-now");
+    let (status, _) = post(&app, &now, json!({ "command_id": fresh_command() })).await;
+    assert!([202, 404, 409].contains(&status), "{status}");
+    let ops = until_ops(&app, 2).await;
+    assert_eq!(ops.len(), 2);
+    let sent = app::entries(&app)
+        .await
+        .into_iter()
+        .filter(|e| e.body == "once")
+        .count();
+    assert_eq!(sent, 1);
+}
+
+#[tokio::test]
 async fn stop_leaves_the_queue_and_starts_nothing() {
     let app = test_app().await;
     let path = format!("/api/threads/{}/queue", app.thread.as_str());
