@@ -166,8 +166,8 @@ Tests, one per behaviour (`fake-acp` learns `_session/steering`, answering
    the rule the section exists for: break it and watch the test fail.
 2. Stop leaves the queue as it was and starts nothing.
 3. Queueing on an idle thread starts a turn and leaves no row.
-4. Send now during a running turn writes the entry into that turn, removes the
-   row, and the turn ends once.
+4. Send now during a running turn writes the entry into that turn after the
+   reply text streamed before it, removes the row, and the turn ends once.
 5. Web: the composer is enabled while a turn runs; a waiting message shows
    Send now and remove.
 
