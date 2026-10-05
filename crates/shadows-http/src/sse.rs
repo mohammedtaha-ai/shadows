@@ -191,6 +191,9 @@ replay and live alike; remember the highest `seq` and resubscribe with it as `af
 context use and the account's limits as the harness last reported them; each is \
 `null` when not reported. Transient.\n\
 - `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.\n\
+- `commands` — `{thread_id, commands}`: the harness's `/` list, each \
+`{name, description, hint}`; sent after `caught-up` when there is one, and on every \
+change. Transient.\n\
 - `plan-show` — `{thread_id, target_tab, workflow_id, version, task_number, place}`: \
 the Planner showed a plan (§13.9). Its card arrives first, as the `durable` \
 `PlanShown` event. Only the tab whose id is `target_tab` opens the panel or the \
@@ -228,7 +231,7 @@ fn durable_frame(ev: &StoredEvent) -> Result<Event, Event> {
 }
 
 /// The frame of a transient delivery: `delta`, `turn-end`, `usage`,
-/// `options`, `plan-show` or `lagged`.
+/// `options`, `commands`, `plan-show` or `lagged`.
 fn frame(delivery: Delivery) -> Event {
     match delivery {
         Delivery::Delta { op, text } => Event::default()
@@ -263,6 +266,10 @@ fn frame(delivery: Delivery) -> Event {
         Delivery::Options { thread, choices } => Event::default()
             .event("options")
             .data(serde_json::json!({ "thread_id": thread, "choices": choices }).to_string()),
+        // The harness's `/` list (§21.3).
+        Delivery::Commands { thread, commands } => Event::default()
+            .event("commands")
+            .data(serde_json::json!({ "thread_id": thread, "commands": commands }).to_string()),
         Delivery::PlanShow(signal) => Event::default()
             .event("plan-show")
             .data(serde_json::json!(signal).to_string()),

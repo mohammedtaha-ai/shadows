@@ -3,6 +3,7 @@ import { fakeChoices } from '@/test/contract-fixtures'
 import {
   FrameError,
   parseCaughtUp,
+  parseCommands,
   parseDurable,
   parseOptions,
   parsePlanShow,
@@ -69,6 +70,22 @@ describe('frames', () => {
     const { models, efforts, modes } = fakeChoices
     const choices = { models, efforts, modes }
     expect(() => parseOptions(JSON.stringify({ thread_id: 't1', choices }))).toThrow(FrameError)
+  })
+
+  it('reads a commands frame with and without a hint', () => {
+    const commands = [
+      { name: 'compact', description: 'Clear history', hint: null },
+      { name: 'superpowers:brainstorming', description: 'Explore', hint: '[topic]' },
+    ]
+    expect(parseCommands(JSON.stringify({ thread_id: 't1', commands }))).toEqual({
+      threadId: 't1',
+      commands,
+    })
+  })
+
+  it('refuses a commands entry without a name', () => {
+    const data = JSON.stringify({ thread_id: 't1', commands: [{ description: 'x', hint: null }] })
+    expect(() => parseCommands(data)).toThrow(FrameError)
   })
 
   it('reads a plan-show frame, and refuses a place it does not know', () => {

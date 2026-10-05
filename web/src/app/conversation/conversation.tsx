@@ -163,6 +163,7 @@ function Conversation({
             running={c.running}
             directory={project?.directory}
             known={c.known}
+            commands={c.commands}
             ring={<ContextRing threadId={threadId} usage={c.context} limits={limits} />}
             onStarted={c.started}
             pointed={pointed}

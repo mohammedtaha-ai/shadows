@@ -31,6 +31,8 @@ export function ComposerBar({
   directory,
   note,
   ring,
+  opened = null,
+  onOpened,
 }: {
   /** The thread's harness kind, whose mode policy describes each mode. */
   harness: string
@@ -48,7 +50,15 @@ export function ComposerBar({
   /** Why the settings moved on their own, if they did. */
   note: string | null
   ring?: ReactNode
+  /** The picker `/model` or `/effort` opened (§21.4), until it closes. */
+  opened?: 'model' | 'effort' | null
+  onOpened?: (opened: 'model' | 'effort' | null) => void
 }) {
+  // Without `onOpened` the menus open on their own.
+  const openAs = (setting: 'model' | 'effort') =>
+    onOpened === undefined
+      ? {}
+      : { open: opened === setting, onOpenChange: (open: boolean) => onOpened(open ? setting : null) }
   const choices = session.state === 'ready' ? session.choices : null
   const noMode = choices !== null && !choices.modes.some((m) => m.enabled)
   const policy = policyOf(harness)
@@ -104,6 +114,7 @@ export function ComposerBar({
                 value={settings.model}
                 disabled={changingModel || sessionless}
                 onChange={(model) => onSettings(withModel(choices, settings, model))}
+                {...openAs('model')}
               />
               {/* Efforts belong to the model the session holds: until it
                   answers the chosen one they are unknown, and the menu keeps
@@ -115,6 +126,7 @@ export function ComposerBar({
                   value={settings.effort}
                   disabled={changingModel || !effortsKnown(choices, settings.model)}
                   onChange={(effort) => onSettings({ ...settings, effort })}
+                  {...openAs('effort')}
                 />
               )}
             </>
@@ -142,6 +154,8 @@ function Setting({
   onChange,
   disabled = false,
   describe,
+  open,
+  onOpenChange,
 }: {
   title: string
   options: readonly Choice[]
@@ -149,9 +163,12 @@ function Setting({
   onChange: (id: string) => void
   disabled?: boolean
   describe?: (id: string) => string | null
+  /** Held by the composer when `/model` or `/effort` may open it. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }) {
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger
         render={<Button variant="ghost" size="xs" title={title} disabled={disabled} />}
       >

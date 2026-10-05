@@ -57,9 +57,19 @@ async fn a_new_session_answers_its_options_and_a_prompt_streams_then_ends() {
         c.prompt(&opened.session_id, "hi", &[]).await.unwrap(),
         TurnEnd::Ended
     );
-    let chunks = drain(&mut ev);
+    let events = drain(&mut ev);
+    // The fake's `/` list (§21.1) is one of the events, wherever it falls.
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, HarnessEvent::Commands(list) if list.len() == 2))
+    );
+    let chunks: Vec<_> = events
+        .iter()
+        .filter(|e| matches!(e, HarnessEvent::Chunk { .. }))
+        .collect();
     assert!(matches!(
-        &chunks[0],
+        chunks[0],
         HarnessEvent::Chunk { message_id: Some(m), text } if m == "m1" && text == "hello "
     ));
 }

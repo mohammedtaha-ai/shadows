@@ -9,7 +9,8 @@
 //!   replay is being read shows up as a pending change, so it cannot fall into
 //!   the gap between the replay's last read and the live phase.
 //! - the transient bus, for what is never stored: deltas and turn ends;
-//!   and beside it the session's options and `plan_show`'s signals.
+//!   and beside it the session's options and `/` list and `plan_show`'s
+//!   signals.
 //!
 //! Durable events reach the subscriber only by reading the journal after
 //! `last_seq` — in the replay, and again on every signal change in the live
@@ -23,7 +24,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 use shadows_agent::choices::{Offered, SessionChoices};
-use shadows_agent::events::{AccountLimits, HarnessEvent};
+use shadows_agent::events::{AccountLimits, HarnessEvent, SlashCommand};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{broadcast, watch};
 
@@ -68,6 +69,12 @@ pub enum Delivery {
     /// The Planner showed a plan (§13.9). Its card was delivered first, as a
     /// `Durable` `PlanShown` event. Transient.
     PlanShow(UiSignal),
+    /// The harness's `/` list (§21.3): after `caught-up` when the thread has
+    /// one, and on every change. Transient.
+    Commands {
+        thread: ThreadId,
+        commands: Vec<SlashCommand>,
+    },
     /// This subscriber fell behind a live source; transient items were
     /// dropped, durable ones were not.
     Lagged,
@@ -81,6 +88,7 @@ pub(super) struct Live {
     pub(super) committed: watch::Receiver<i64>,
     pub(super) bus: broadcast::Receiver<(ThreadId, OperationId, HarnessEvent)>,
     pub(super) options: broadcast::Receiver<(ThreadId, Offered)>,
+    pub(super) commands: broadcast::Receiver<(ThreadId, Vec<SlashCommand>)>,
     pub(super) signals: broadcast::Receiver<UiSignal>,
 }
 
@@ -103,6 +111,8 @@ pub struct Subscription {
     /// again each time the committed-sequence signal moves.
     reading: bool,
     caught_up: bool,
+    /// `caught-up` was just sent on a thread stream: the `/` list follows.
+    commands_due: bool,
     /// Why the stream is over, once it is.
     over: Option<&'static str>,
 }
@@ -124,6 +134,7 @@ impl Subscription {
             read: VecDeque::new(),
             reading: true,
             caught_up: false,
+            commands_due: false,
             over: None,
         }
     }
@@ -154,9 +165,19 @@ impl Subscription {
                 self.reading = false;
                 if !self.caught_up {
                     self.caught_up = true;
+                    self.commands_due = matches!(self.scope, Scope::Thread(_));
                     return Ok(Delivery::CaughtUp { seq: self.last_seq });
                 }
                 continue;
+            }
+            if self.commands_due {
+                self.commands_due = false;
+                if let Scope::Thread(thread) = &self.scope
+                    && let Some(commands) = self.harness.commands_of(thread)
+                {
+                    let thread = thread.clone();
+                    return Ok(Delivery::Commands { thread, commands });
+                }
             }
             if let Some(delivery) = self.live().await {
                 return delivery;
@@ -212,6 +233,7 @@ impl Subscription {
             changed = self.live.committed.changed() => Woke::Committed(changed.is_ok()),
             received = self.live.bus.recv() => Woke::Bus(received),
             offered = self.live.options.recv() => Woke::Options(offered),
+            listed = self.live.commands.recv() => Woke::Commands(listed),
             signal = self.live.signals.recv() => Woke::Signal(signal),
         };
         match woke {
@@ -249,14 +271,27 @@ impl Subscription {
                 // was sent, so the journal has already delivered it.
                 Some(Ok(Delivery::PlanShow(signal)))
             }
-            Woke::Bus(Ok(_)) | Woke::Options(Ok(_)) | Woke::Signal(Ok(_)) => None,
+            Woke::Commands(Ok((thread, commands)))
+                if matches!(
+                    &self.scope,
+                    Scope::Thread(own) if own == &thread
+                ) =>
+            {
+                Some(Ok(Delivery::Commands { thread, commands }))
+            }
+            Woke::Bus(Ok(_))
+            | Woke::Options(Ok(_))
+            | Woke::Commands(Ok(_))
+            | Woke::Signal(Ok(_)) => None,
             // Spec §8.4 case 7: a subscriber falling behind or disconnecting
             // never cancels work. It resubscribes with its last seq.
             Woke::Bus(Err(RecvError::Lagged(_)))
             | Woke::Options(Err(RecvError::Lagged(_)))
+            | Woke::Commands(Err(RecvError::Lagged(_)))
             | Woke::Signal(Err(RecvError::Lagged(_))) => Some(Ok(Delivery::Lagged)),
             Woke::Bus(Err(RecvError::Closed)) => Some(self.end("shutdown: bus closed")),
             Woke::Options(Err(RecvError::Closed)) => Some(self.end("shutdown: options closed")),
+            Woke::Commands(Err(RecvError::Closed)) => Some(self.end("shutdown: commands closed")),
             Woke::Signal(Err(RecvError::Closed)) => Some(self.end("shutdown: signals closed")),
         }
     }
@@ -301,5 +336,6 @@ enum Woke {
     Committed(bool),
     Bus(Result<(ThreadId, OperationId, HarnessEvent), RecvError>),
     Options(Result<(ThreadId, Offered), RecvError>),
+    Commands(Result<(ThreadId, Vec<SlashCommand>), RecvError>),
     Signal(Result<UiSignal, RecvError>),
 }

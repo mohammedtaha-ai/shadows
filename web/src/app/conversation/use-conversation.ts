@@ -11,6 +11,7 @@ import { isPlanEvent, refetchPlans } from '../workflows/plan-frames'
 import { initialReply, replyReducer, shownReply } from './reply'
 import { initialTurnState, latestTurn, runningTurn, turnReducer } from './turn-state'
 import { type ContextFigures, latestContext } from './usage'
+import { replaceCommands, useCommands } from './use-commands'
 import { replaceChoices } from './use-session'
 
 /** The durable events that change a thread's waiting messages (§20). */
@@ -62,6 +63,7 @@ export function useConversation(threadId: string, onShowHere?: (show: PlanShowFr
     },
     (notice) => {
       if (notice.type === 'options') replaceChoices(queryClient, threadId, notice.choices)
+      if (notice.type === 'commands') replaceCommands(queryClient, threadId, notice.commands)
       if (notice.type === 'usage') dispatchUsage(notice.usage)
       if (
         notice.type === 'plan-show' &&
@@ -82,6 +84,7 @@ export function useConversation(threadId: string, onShowHere?: (show: PlanShowFr
     void queryClient.invalidateQueries({ queryKey: queuedQuery(threadId).queryKey })
   }, [live, queryClient, threadId])
 
+  const commands = useCommands(threadId)
   const entries = useQuery(entriesQuery(threadId))
   const operations = useQuery(operationsQuery(threadId))
   useEffect(() => {
@@ -123,6 +126,8 @@ export function useConversation(threadId: string, onShowHere?: (show: PlanShowFr
     context: reported.context ?? latestContext(operations.data ?? []),
     /** Account limits reported live on this conversation's stream, if any. */
     limits: reported.limits,
+    /** The harness's `/` list for this conversation (§21), empty until sent. */
+    commands,
   }
 }
 

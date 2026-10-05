@@ -69,6 +69,7 @@ impl Events {
                 committed: self.storage.watch_committed(),
                 bus: self.bus.subscribe(),
                 options: self.harness.watch_options(),
+                commands: self.harness.watch_commands(),
                 signals: self.ui.subscribe(),
             },
         )
@@ -91,6 +92,7 @@ impl Events {
                 committed: self.storage.watch_committed(),
                 bus: self.bus.subscribe(),
                 options: self.harness.watch_options(),
+                commands: self.harness.watch_commands(),
                 signals: self.ui.subscribe(),
             },
         ))

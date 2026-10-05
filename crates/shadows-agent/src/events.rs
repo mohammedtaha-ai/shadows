@@ -22,6 +22,9 @@ pub enum HarnessEvent {
         rate_limit: Option<Value>,
     },
     Options(Value),
+    /// The harness's complete `/` list (§21), sent after the session opens
+    /// and whenever it changes, between turns too.
+    Commands(Vec<SlashCommand>),
     /// The harness named its session: a `session_info_update` carrying a
     /// `title` (§12.3). Sent between turns too, when nobody reads the
     /// thread's events: the adapter generates it after the turn has answered.
@@ -35,6 +38,16 @@ pub enum HarnessEvent {
         subtype: &'static str,
         stop_reason: Option<String>,
     },
+}
+
+/// One entry of the harness's `/` list (spec §21.1): a skill, a plugin
+/// command or a built-in command, with no field saying which.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct SlashCommand {
+    pub name: String,
+    pub description: String,
+    /// What the command takes after its name, e.g. `[topic]`.
+    pub hint: Option<String>,
 }
 
 /// One account limit window as the harness reported it: `utilization` from 0

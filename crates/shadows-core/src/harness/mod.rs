@@ -8,11 +8,13 @@
 //!
 //! `sessions` holds the live adapter each open thread has, `settings` sets an
 //! open session's options, `setup` is what a session opens with, `offers` the
-//! latest choices each session offers, `context` the breakdown read on demand,
+//! latest choices each session offers, `commands` the latest `/` list each
+//! session sent, `context` the breakdown read on demand,
 //! `titles` the titles a harness sends, `model` the shapes a caller meets and
 //! `store` the queries. `Turns` drives a turn through `Sessions`, the methods
 //! `contract.yaml` names.
 
+mod commands;
 mod context;
 mod model;
 mod offers;
@@ -25,7 +27,7 @@ mod titles;
 use std::sync::Arc;
 
 use shadows_agent::choices::{Offered, SessionChoices, for_client};
-use shadows_agent::events::AccountLimits;
+use shadows_agent::events::{AccountLimits, SlashCommand};
 use shadows_agent::policy;
 use tokio::sync::broadcast;
 
@@ -175,6 +177,17 @@ impl Harness {
     /// for each subscriber, before the journal is read.
     pub(crate) fn watch_options(&self) -> broadcast::Receiver<(ThreadId, Offered)> {
         self.sessions.watch_options()
+    }
+
+    /// The thread's latest `/` list, if its open session sent one (§21.2).
+    pub(crate) fn commands_of(&self, thread: &ThreadId) -> Option<Vec<SlashCommand>> {
+        self.sessions.commands.get(thread)
+    }
+
+    /// Every change to any thread's `/` list, as it happens. `Events` takes
+    /// it for each subscriber, before the journal is read.
+    pub(crate) fn watch_commands(&self) -> broadcast::Receiver<(ThreadId, Vec<SlashCommand>)> {
+        self.sessions.commands.subscribe()
     }
 
     /// The account limits the thread's harness last reported (§12.8), which a

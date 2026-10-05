@@ -17,11 +17,15 @@ import {
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { queuedQuery } from '@/api/queries'
 import { Button } from '@/components/ui/button'
+import type { SlashCommand } from '@/stream/frames'
 import { tabId } from '@/stream/tab-id'
 import { ErrorLine } from '../error-line'
 import type { CarriedSend } from './carried-send'
 import { ComposerBar } from './composer-bar'
 import { FocusChip, type PointedTask } from './focus-chip'
+import { type SessionCommand, sessionCommand } from './session-commands'
+import { slashMatches } from './slash-filter'
+import { SlashMenu } from './slash-menu'
 import { afterOptions, effortsKnown, initialSettings, sendable, withModel } from './turn-settings'
 import type { Turn } from './turn-state'
 import { type SessionView, sessionKey } from './use-session'
@@ -31,6 +35,8 @@ import { type SessionView, sessionKey } from './use-session'
 export type SendTo =
   | { threadId: string }
   | { draft: (commandId: string, text: string, settings: TurnSettings) => Promise<string>; planId?: string }
+
+const NONE: readonly SlashCommand[] = []
 
 interface Send {
   commandId: string
@@ -49,6 +55,7 @@ export function Composer({
   running,
   directory,
   known,
+  commands = NONE,
   ring,
   onStarted,
   pointed,
@@ -66,6 +73,8 @@ export function Composer({
   directory: string | null | undefined
   /** Whether a turn is running is known yet; Send waits for it. */
   known: boolean
+  /** The harness's `/` list (§21); none opens no menu. */
+  commands?: readonly SlashCommand[]
   ring?: ReactNode
   /** The start route answered: the turn exists before its events arrive. */
   onStarted: (operationId: string) => void
@@ -123,6 +132,47 @@ export function Composer({
     },
     onError: (_error, { text }) => setPrompt((now) => (now === '' ? text : now)),
   })
+
+  // The `/` menu (§21.4): open while the whole text is `/name`; Escape closes
+  // it on one text, and any change reopens it. A picked entry's hint shows
+  // after the caret until the text changes.
+  const [highlighted, setHighlighted] = useState(0)
+  const [dismissed, setDismissed] = useState<string | null>(null)
+  const [hint, setHint] = useState<{ text: string; hint: string } | null>(null)
+  // `model` and `effort` act through the pickers, never as text (§21.4).
+  const [opened, setOpened] = useState<'model' | 'effort' | null>(null)
+  const matches = slashMatches(commands, prompt)
+  const menu = matches !== null && matches.length > 0 && dismissed !== prompt ? matches : null
+  const at = Math.min(highlighted, (menu?.length ?? 1) - 1)
+  const pick = (command: SlashCommand) => {
+    setHighlighted(0)
+    if (command.name === 'model' || command.name === 'effort') {
+      setPrompt('')
+      setHint(null)
+      setOpened(command.name)
+      return
+    }
+    const text = `/${command.name} `
+    pending.current = null
+    setPrompt(text)
+    setHint(command.hint === null ? null : { text, hint: command.hint })
+  }
+  const act = (command: SessionCommand) => {
+    if (command.kind === 'unknown') return setCarriedError(new Error(command.message))
+    // No pickers without a session, and the effort picker waits, as it does
+    // for the menu, until the session holds the chosen model.
+    if (choices === null || settings === null) {
+      return setCarriedError(new Error('The session is not ready yet.'))
+    }
+    if (command.setting === 'effort' && !effortsKnown(choices, settings.model)) {
+      return setCarriedError(new Error('Efforts are known once the session holds the chosen model.'))
+    }
+    setCarriedError(null)
+    setPrompt('')
+    if (command.kind === 'open') return setOpened(command.setting)
+    if (command.setting === 'model') choose(withModel(choices, settings, command.id))
+    else choose({ ...settings, effort: command.id })
+  }
 
   const choices = session.state === 'ready' ? session.choices : null
   const busy = send.isPending || running !== null
@@ -202,6 +252,8 @@ export function Composer({
     sendable(choices, settings)
 
   const submit = () => {
+    const command = sessionCommand(prompt, choices)
+    if (command !== null) return act(command)
     const text = prompt.trim()
     if (text === '' || !ready || settings === null || send.isPending || queue.isPending) return
     // The focus is part of the command (§13.10): pointing elsewhere is a new one.
@@ -222,23 +274,58 @@ export function Composer({
       <div className="mx-auto max-w-3xl space-y-2">
         {pointed !== null && <FocusChip pointed={pointed} onClear={() => onPointed(pointed)} />}
         <div className="flex items-end gap-2 rounded-xl border border-accent-line/40 bg-input-background p-2.5 shadow-xs transition-all duration-150 focus-within:border-accent-line focus-within:ring-2 focus-within:ring-accent-line/30 focus-within:shadow-md">
-          <textarea
-            value={prompt}
-            onChange={(e) => {
-              pending.current = null
-              setPrompt(e.target.value)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault()
-                submit()
-              }
-            }}
-            rows={2}
-            placeholder="Ask the Planner…"
-            aria-label="Message"
-            className="max-h-48 min-h-10 flex-1 resize-none bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-faint-foreground"
-          />
+          <div className="relative flex-1">
+            <textarea
+              value={prompt}
+              onChange={(e) => {
+                pending.current = null
+                setPrompt(e.target.value)
+                // Any change reopens a dismissed menu if the text still qualifies.
+                setHighlighted(0)
+                setDismissed(null)
+                if (hint?.text !== e.target.value) setHint(null)
+              }}
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return
+                // Shift+Enter inserts a newline, which closes the menu.
+                if (menu !== null && !(e.key === 'Enter' && e.shiftKey)) {
+                  const keys: Record<string, () => void> = {
+                    ArrowDown: () => setHighlighted((at + 1) % menu.length),
+                    ArrowUp: () => setHighlighted((at - 1 + menu.length) % menu.length),
+                    Tab: () => pick(menu[at]),
+                    Enter: () => pick(menu[at]),
+                    Escape: () => setDismissed(prompt),
+                  }
+                  const key = keys[e.key]
+                  if (key !== undefined) {
+                    e.preventDefault()
+                    key()
+                    return
+                  }
+                }
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  submit()
+                }
+              }}
+              rows={2}
+              placeholder="Ask the Planner…"
+              aria-label="Message"
+              className="max-h-48 min-h-10 w-full resize-none bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-faint-foreground"
+            />
+            {menu !== null && (
+              <SlashMenu items={menu} highlighted={at} onPick={pick} onHighlight={setHighlighted} />
+            )}
+            {hint !== null && hint.text === prompt && (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 overflow-hidden px-2 py-1 text-sm break-words whitespace-pre-wrap"
+              >
+                <span className="invisible">{prompt}</span>
+                <span className="text-faint-foreground">{hint.hint}</span>
+              </div>
+            )}
+          </div>
           {running === null ? (
             <Button
               onClick={submit}
@@ -272,6 +359,8 @@ export function Composer({
           directory={directory}
           note={note}
           ring={ring}
+          opened={opened}
+          onOpened={setOpened}
         />
         {error !== null && <ErrorLine error={error} />}
       </div>

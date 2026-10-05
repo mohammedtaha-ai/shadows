@@ -8,6 +8,7 @@
 
 import { type QueryClient, useQuery } from '@tanstack/react-query'
 import { type SessionChoices, openSession } from '@/api/client'
+import { clearCommands } from './use-commands'
 
 export type SessionView =
   | { state: 'connecting' }
@@ -49,5 +50,6 @@ export function replaceChoices(queryClient: QueryClient, threadId: string, choic
 /** The thread's harness changed: forget the old session's choices and open
  * the new one's. */
 export function reopenSession(queryClient: QueryClient, threadId: string) {
+  clearCommands(queryClient, threadId)
   void queryClient.resetQueries({ queryKey: sessionKey(threadId) })
 }

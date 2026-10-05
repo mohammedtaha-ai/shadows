@@ -180,6 +180,33 @@ export function parseOptions(data: string): OptionsFrame {
   return { threadId, choices }
 }
 
+export type SlashCommand = { name: string; description: string; hint: string | null }
+export type CommandsFrame = { threadId: string; commands: readonly SlashCommand[] }
+
+function isSlashCommand(value: unknown): value is SlashCommand {
+  if (typeof value !== 'object' || value === null) return false
+  const c = value as Record<string, unknown>
+  return (
+    typeof c.name === 'string' &&
+    typeof c.description === 'string' &&
+    (c.hint === null || typeof c.hint === 'string')
+  )
+}
+
+export function parseCommands(data: string): CommandsFrame {
+  const frame = object('commands', data)
+  const threadId = frame.thread_id
+  const commands = frame.commands
+  if (
+    typeof threadId !== 'string' ||
+    !Array.isArray(commands) ||
+    !commands.every(isSlashCommand)
+  ) {
+    throw new FrameError('commands', data)
+  }
+  return { threadId, commands }
+}
+
 export function parsePlanShow(data: string): PlanShowFrame {
   const frame = object('plan-show', data)
   const threadId = frame.thread_id
