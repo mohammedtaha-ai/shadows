@@ -18,6 +18,7 @@ import {
   listOperations,
   listPlans,
   listProjects,
+  listQueued,
   listThreads,
 } from './client'
 
@@ -70,6 +71,14 @@ export function threadEntriesKey(threadId: string) {
 
 export function entriesQuery(threadId: string) {
   return queryOptions({ queryKey: threadEntriesKey(threadId), queryFn: () => listEntries(threadId) })
+}
+
+/** A thread's waiting messages (spec §20); the stream's queue events invalidate it. */
+export function queuedQuery(threadId: string) {
+  return queryOptions({
+    queryKey: ['threads', threadId, 'queue'] as const,
+    queryFn: () => listQueued(threadId),
+  })
 }
 
 /** A thread's operations, newest first: on opening a thread, whether a turn is

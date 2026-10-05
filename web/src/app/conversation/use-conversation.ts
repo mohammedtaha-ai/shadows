@@ -3,7 +3,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useReducer } from 'react'
-import { entriesQuery, operationsQuery } from '@/api/queries'
+import { entriesQuery, operationsQuery, queuedQuery } from '@/api/queries'
 import type { Limits, PlanShowFrame, UsageFrame } from '@/stream/frames'
 import { tabId } from '@/stream/tab-id'
 import { useThreadStream } from '@/stream/use-thread-stream'
@@ -12,6 +12,14 @@ import { initialReply, replyReducer, shownReply } from './reply'
 import { initialTurnState, latestTurn, runningTurn, turnReducer } from './turn-state'
 import { type ContextFigures, latestContext } from './usage'
 import { replaceChoices } from './use-session'
+
+/** The durable events that change a thread's waiting messages (§20). */
+const QUEUE_EVENTS = new Set([
+  'MessageQueued',
+  'QueuedMessageRemoved',
+  'QueuedMessageSent',
+  'QueuedMessageFailed',
+])
 
 /** Mount once per thread (key the caller by thread id): the reducers here
  * hold that one thread's turns and reply.
@@ -42,6 +50,9 @@ export function useConversation(threadId: string, onShowHere?: (show: PlanShowFr
     (event, live, current) => {
       dispatchTurn({ type: 'event', event, now: Date.now() })
       if (live && isPlanEvent(event.kind)) refetchPlans(queryClient)
+      if (live && QUEUE_EVENTS.has(event.kind)) {
+        void queryClient.invalidateQueries({ queryKey: queuedQuery(threadId).queryKey })
+      }
       if (live && event.kind === 'ThreadEntryAppended') {
         const ordinal = agentOrdinal(event.payload)
         if (ordinal !== null) {

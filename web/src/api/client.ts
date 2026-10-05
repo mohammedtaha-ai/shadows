@@ -180,6 +180,61 @@ export async function startTurn(
   return started.operation_id
 }
 
+export type Queued = Schemas['Queued']
+export type QueuedMessage = Schemas['QueuedMessage']
+export type SentNow = Schemas['SentNow']
+
+/** Writes while a turn runs: the message waits (spec §20.2). */
+export function queueMessage(
+  threadId: string,
+  commandId: string,
+  prompt: string,
+  settings: TurnSettings,
+  {
+    focus = null,
+    plan,
+    clientTab,
+  }: { focus?: Focus | null; plan?: string | null; clientTab: string },
+): Promise<Queued> {
+  return unwrap(
+    client.POST('/api/threads/{id}/queue', {
+      params: { path: { id: threadId } },
+      body: {
+        command_id: commandId,
+        prompt,
+        ...settings,
+        focus,
+        ...(plan != null ? { plan } : {}),
+        client_tab: clientTab,
+      },
+    }),
+  )
+}
+
+/** A thread's waiting messages, in send order. */
+export function listQueued(threadId: string): Promise<QueuedMessage[]> {
+  return unwrap(client.GET('/api/threads/{id}/queue', { params: { path: { id: threadId } } }))
+}
+
+/** Removes a waiting message. */
+export function unqueueMessage(threadId: string, id: string, commandId: string): Promise<void> {
+  return unwrapEmpty(
+    client.DELETE('/api/threads/{id}/queue/{qid}', {
+      params: { path: { id: threadId, qid: id }, query: { command_id: commandId } },
+    }),
+  )
+}
+
+/** Sends a waiting message now: steers the running turn, or starts one (§20.3). */
+export function sendQueuedNow(threadId: string, id: string, commandId: string): Promise<SentNow> {
+  return unwrap(
+    client.POST('/api/threads/{id}/queue/{qid}/send-now', {
+      params: { path: { id: threadId, qid: id } },
+      body: { command_id: commandId },
+    }),
+  )
+}
+
 /** Changes the thread's CLI; refused once it has run a turn (spec §12.6). */
 export function setThreadHarness(
   threadId: string,
