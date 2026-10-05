@@ -4,7 +4,7 @@
 import { Wrench, X } from 'lucide-react'
 import type { SubagentCard } from '@/stream/frames'
 import { ReplyText } from './entry'
-import { modelName, numbers } from './subagent-card'
+import { modelName, numbers } from './subagent-text'
 
 export function SubagentPanel({ card, onClose }: { card: SubagentCard; onClose: () => void }) {
   const said = numbers(card)

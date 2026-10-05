@@ -8,7 +8,7 @@ import { afterEach, expect, it } from 'vitest'
 import { agentEntry, userEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, until } from '../test-app'
-import { modelName, numbers } from './subagent-card'
+import { modelName, numbers } from './subagent-text'
 
 const CARD = {
   id: 'a1',

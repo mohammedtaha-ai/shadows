@@ -86,6 +86,15 @@ yaml-rust2 = "0.13"
 # in the graph through axum; listed here only to name its `util` trait.
 tower = { version = "0.5", features = ["util"] }
 
+# Debug info is most of what the linker writes for each of the ~75 test
+# binaries. Line tables keep file:line in backtraces and panics; the
+# dependencies, built once and cached, carry none.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
 [workspace.lints.rust]
 unsafe_code = "deny"
 # Spec §14.6: a public method that answers a type from a private module is

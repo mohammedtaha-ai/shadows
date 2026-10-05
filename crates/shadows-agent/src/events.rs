@@ -101,7 +101,10 @@ pub fn tool_meta(
     };
     let tool = text(claude, "toolName");
     let is_agent = matches!(tool.as_deref(), Some("Agent" | "Task"))
-        || claude.and_then(|c| c.get("subagent")).and_then(Value::as_bool) == Some(true);
+        || claude
+            .and_then(|c| c.get("subagent"))
+            .and_then(Value::as_bool)
+            == Some(true);
     let agent = is_agent.then(|| {
         let response = claude.and_then(|c| c.get("toolResponse"));
         let number = |key: &str| response.and_then(|r| r.get(key)).and_then(Value::as_u64);

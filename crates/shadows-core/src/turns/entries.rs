@@ -9,8 +9,12 @@ pub(crate) enum Durable {
     Message(String),
     Tool(String),
     /// A subagent's card (§22.2); its steps are no entries of their own.
-    Subagent(SubagentCard),
+    Subagent(Box<SubagentCard>),
     PermissionRefused(String),
+}
+
+fn card(card: SubagentCard) -> Durable {
+    Durable::Subagent(Box::new(card))
 }
 
 #[derive(Default)]
@@ -39,12 +43,11 @@ impl Collector {
             HarnessEvent::Chunk { message_id, text } => {
                 // A card whose numbers did not come goes before this text.
                 let ended = self.subagents.ended();
-                if (self.message_id != *message_id || !ended.is_empty())
-                    && !self.message.is_empty()
+                if (self.message_id != *message_id || !ended.is_empty()) && !self.message.is_empty()
                 {
                     self.flush_message(&mut out);
                 }
-                out.extend(ended.into_iter().map(Durable::Subagent));
+                out.extend(ended.into_iter().map(card));
                 self.message_id = message_id.clone();
                 self.message.push_str(text);
             }
@@ -66,7 +69,7 @@ impl Collector {
                     agent: agent.as_deref(),
                 };
                 if self.subagents.take(call) {
-                    out.extend(self.subagents.ready().into_iter().map(Durable::Subagent));
+                    out.extend(self.subagents.ready().into_iter().map(card));
                     return out;
                 }
                 let at = match self.tools.iter().position(|(open, _)| open == id) {
@@ -120,7 +123,7 @@ impl Collector {
     pub(crate) fn finish(&mut self) -> Vec<Durable> {
         let mut out = Vec::new();
         self.flush_message(&mut out);
-        out.extend(self.subagents.all().into_iter().map(Durable::Subagent));
+        out.extend(self.subagents.all().into_iter().map(card));
         for (_, title) in self.tools.drain(..) {
             if !title.is_empty() {
                 out.push(Durable::Tool(title));
@@ -173,7 +176,7 @@ mod tests {
     fn cards(out: &[Durable]) -> Vec<&SubagentCard> {
         out.iter()
             .filter_map(|d| match d {
-                Durable::Subagent(c) => Some(c),
+                Durable::Subagent(c) => Some(&**c),
                 _ => None,
             })
             .collect()
@@ -216,7 +219,10 @@ mod tests {
         assert_eq!(card.title, "List files");
         assert_eq!(card.steps, ["Read alpha.txt", "Find *"]);
         assert_eq!(card.model.as_deref(), Some("claude-sonnet-5-5"));
-        assert_eq!((card.status.as_str(), card.tokens), ("completed", Some(43119)));
+        assert_eq!(
+            (card.status.as_str(), card.tokens),
+            ("completed", Some(43119))
+        );
         assert_eq!(card.report.as_deref(), Some("two files"));
         assert!(!c.changed_cards().is_empty());
     }
