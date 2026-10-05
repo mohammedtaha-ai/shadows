@@ -107,6 +107,8 @@ async fn a_busy_thread_queues_and_remove_answers_gone_the_second_time() {
     let qid = queued["message"]["id"].as_str().unwrap();
     let remove = format!("{path}/{qid}?command_id={}", fresh_command());
     assert_eq!(call(&app, "DELETE", &remove, None).await.0, 204);
+    // The same command again answers as the first did, not as a gone row.
+    assert_eq!(call(&app, "DELETE", &remove, None).await.0, 204);
     let again = format!("{path}/{qid}?command_id={}", fresh_command());
     let (status, gone) = call(&app, "DELETE", &again, None).await;
     assert_eq!(status, 404);
