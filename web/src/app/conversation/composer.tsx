@@ -17,11 +17,14 @@ import {
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { queuedQuery } from '@/api/queries'
 import { Button } from '@/components/ui/button'
+import type { SlashCommand } from '@/stream/frames'
 import { tabId } from '@/stream/tab-id'
 import { ErrorLine } from '../error-line'
 import type { CarriedSend } from './carried-send'
 import { ComposerBar } from './composer-bar'
 import { FocusChip, type PointedTask } from './focus-chip'
+import { slashMatches } from './slash-filter'
+import { SlashMenu } from './slash-menu'
 import { afterOptions, effortsKnown, initialSettings, sendable, withModel } from './turn-settings'
 import type { Turn } from './turn-state'
 import { type SessionView, sessionKey } from './use-session'
@@ -31,6 +34,8 @@ import { type SessionView, sessionKey } from './use-session'
 export type SendTo =
   | { threadId: string }
   | { draft: (commandId: string, text: string, settings: TurnSettings) => Promise<string>; planId?: string }
+
+const NONE: readonly SlashCommand[] = []
 
 interface Send {
   commandId: string
@@ -49,6 +54,7 @@ export function Composer({
   running,
   directory,
   known,
+  commands = NONE,
   ring,
   onStarted,
   pointed,
@@ -66,6 +72,8 @@ export function Composer({
   directory: string | null | undefined
   /** Whether a turn is running is known yet; Send waits for it. */
   known: boolean
+  /** The harness's `/` list (§21); none opens no menu. */
+  commands?: readonly SlashCommand[]
   ring?: ReactNode
   /** The start route answered: the turn exists before its events arrive. */
   onStarted: (operationId: string) => void
@@ -123,6 +131,23 @@ export function Composer({
     },
     onError: (_error, { text }) => setPrompt((now) => (now === '' ? text : now)),
   })
+
+  // The `/` menu (§21.4): open while the whole text is `/name`; Escape closes
+  // it on one text, and any change reopens it. A picked entry's hint shows
+  // after the caret until the text changes.
+  const [highlighted, setHighlighted] = useState(0)
+  const [dismissed, setDismissed] = useState<string | null>(null)
+  const [hint, setHint] = useState<{ text: string; hint: string } | null>(null)
+  const matches = slashMatches(commands, prompt)
+  const menu = matches !== null && matches.length > 0 && dismissed !== prompt ? matches : null
+  const at = Math.min(highlighted, (menu?.length ?? 1) - 1)
+  const pick = (command: SlashCommand) => {
+    const text = `/${command.name} `
+    pending.current = null
+    setPrompt(text)
+    setHint(command.hint === null ? null : { text, hint: command.hint })
+    setHighlighted(0)
+  }
 
   const choices = session.state === 'ready' ? session.choices : null
   const busy = send.isPending || running !== null
@@ -222,14 +247,36 @@ export function Composer({
       <div className="mx-auto max-w-3xl space-y-2">
         {pointed !== null && <FocusChip pointed={pointed} onClear={() => onPointed(pointed)} />}
         <div className="flex items-end gap-2 rounded-xl border border-accent-line/40 bg-input-background p-2.5 shadow-xs transition-all duration-150 focus-within:border-accent-line focus-within:ring-2 focus-within:ring-accent-line/30 focus-within:shadow-md">
+          <div className="relative flex-1">
           <textarea
             value={prompt}
             onChange={(e) => {
               pending.current = null
               setPrompt(e.target.value)
+              // Any change reopens a dismissed menu if the text still qualifies.
+              setHighlighted(0)
+              setDismissed(null)
+              if (hint?.text !== e.target.value) setHint(null)
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+              if (e.nativeEvent.isComposing) return
+              // Shift+Enter inserts a newline, which closes the menu.
+              if (menu !== null && !(e.key === 'Enter' && e.shiftKey)) {
+                const keys: Record<string, () => void> = {
+                  ArrowDown: () => setHighlighted((at + 1) % menu.length),
+                  ArrowUp: () => setHighlighted((at - 1 + menu.length) % menu.length),
+                  Tab: () => pick(menu[at]),
+                  Enter: () => pick(menu[at]),
+                  Escape: () => setDismissed(prompt),
+                }
+                const key = keys[e.key]
+                if (key !== undefined) {
+                  e.preventDefault()
+                  key()
+                  return
+                }
+              }
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
                 submit()
               }
@@ -237,8 +284,21 @@ export function Composer({
             rows={2}
             placeholder="Ask the Planner…"
             aria-label="Message"
-            className="max-h-48 min-h-10 flex-1 resize-none bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-faint-foreground"
+            className="max-h-48 min-h-10 w-full resize-none bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-faint-foreground"
           />
+          {menu !== null && (
+            <SlashMenu items={menu} highlighted={at} onPick={pick} onHighlight={setHighlighted} />
+          )}
+          {hint !== null && hint.text === prompt && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 overflow-hidden px-2 py-1 text-sm whitespace-pre-wrap"
+            >
+              <span className="invisible">{prompt}</span>
+              <span className="text-faint-foreground">{hint.hint}</span>
+            </div>
+          )}
+          </div>
           {running === null ? (
             <Button
               onClick={submit}
