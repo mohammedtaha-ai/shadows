@@ -3,11 +3,12 @@
 ALTER TABLE thread_entry ADD COLUMN card_json TEXT NULL;
 
 -- `[tool: <title>]` becomes ToolCall, its body the title. '[tool: ' is 7
--- characters.
+-- characters. GLOB, not LIKE: the old reader matched the text exactly, in
+-- lower case, and LIKE ignores case.
 UPDATE thread_entry
    SET kind = 'ToolCall',
        body = substr(body, 8, length(body) - 8)
- WHERE kind = 'AgentMessage' AND body LIKE '[tool: %]';
+ WHERE kind = 'AgentMessage' AND body GLOB '[[]tool: *]';
 
 -- `[subagent: <json>]` becomes Subagent, its body the card's title.
 -- '[subagent: ' is 11 characters. A body whose JSON is not valid is left as
@@ -16,5 +17,5 @@ UPDATE thread_entry
    SET kind = 'Subagent',
        card_json = substr(body, 12, length(body) - 12),
        body = coalesce(json_extract(substr(body, 12, length(body) - 12), '$.title'), '')
- WHERE kind = 'AgentMessage' AND body LIKE '[subagent: %]'
+ WHERE kind = 'AgentMessage' AND body GLOB '[[]subagent: *]'
    AND json_valid(substr(body, 12, length(body) - 12));

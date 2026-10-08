@@ -195,6 +195,13 @@ async fn migration_0020_moves_tool_and_subagent_bodies_into_their_kinds() {
         (2, format!("[subagent: {card}]")),
         (3, "[subagent: {broken]".to_string()),
         (4, "plain text".to_string()),
+        // The old web parser matched `[tool: ` and `[subagent: ` exactly, in
+        // lower case; SQLite's LIKE does not, so these must stay text.
+        (5, "[Tool: kept as text]".to_string()),
+        (6, format!("[SUBAGENT: {card}]")),
+        // The title is everything between the first `[tool: ` and the last `]`.
+        (7, "[tool: a]b]".to_string()),
+        (8, "[tool: ]]".to_string()),
     ] {
         sqlx::query(
             "INSERT INTO thread_entry (id, thread_id, ordinal, kind, author_kind, author_id,
@@ -224,4 +231,14 @@ async fn migration_0020_moves_tool_and_subagent_bodies_into_their_kinds() {
     assert_eq!(rows[2].0, "AgentMessage", "broken JSON stays as it was");
     assert_eq!(rows[2].1, "[subagent: {broken]");
     assert_eq!(rows[3], ("AgentMessage".into(), "plain text".into(), None));
+    assert_eq!(
+        rows[4],
+        ("AgentMessage".into(), "[Tool: kept as text]".into(), None)
+    );
+    assert_eq!(
+        rows[5].0, "AgentMessage",
+        "upper case is not the card either"
+    );
+    assert_eq!(rows[6], ("ToolCall".into(), "a]b".into(), None));
+    assert_eq!(rows[7], ("ToolCall".into(), "]".into(), None));
 }
