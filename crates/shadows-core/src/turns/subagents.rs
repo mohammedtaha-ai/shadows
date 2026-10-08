@@ -19,6 +19,9 @@ struct Open {
 #[derive(Default)]
 pub(crate) struct Subagents {
     open: Vec<Open>,
+    /// The cards already given out: a late update to one, or to one of its
+    /// steps, is swallowed rather than opening a second card or a tool line.
+    given: Vec<String>,
     /// Each card as it was after a change, oldest first, until taken.
     changed: Vec<SubagentCard>,
 }
@@ -43,6 +46,10 @@ impl Subagents {
     pub(crate) fn take(&mut self, call: Call<'_>) -> bool {
         if let Some(at) = self.open.iter().position(|o| o.card.id == call.id) {
             self.update(at, &call);
+            return true;
+        }
+        let given = |id: &str| self.given.iter().any(|g| g == id);
+        if given(call.id) || call.parent.is_some_and(given) {
             return true;
         }
         if call.agent.is_some() {
@@ -154,6 +161,7 @@ impl Subagents {
         let (gone, kept): (Vec<Open>, Vec<Open>) =
             std::mem::take(&mut self.open).into_iter().partition(done);
         self.open = kept;
+        self.given.extend(gone.iter().map(|o| o.card.id.clone()));
         gone.into_iter().map(|o| o.card).collect()
     }
 

@@ -233,9 +233,16 @@ mod tests {
         c.push(&agent("a", Some("failed"), AgentFacts::default()));
         let out = c.push(&chunk("m1", "it failed"));
         assert_eq!(cards(&out)[0].status, "failed");
-        let out = c.push(&agent("b", Some("pending"), AgentFacts::default()));
+        // A late update to a written card opens no second one.
+        let out = c.push(&agent("a", None, AgentFacts::default()));
         assert_eq!(out, [Durable::Message("it failed".into())]);
-        assert_eq!(cards(&c.finish())[0].status, "stopped");
+        assert!(
+            c.push(&agent("b", Some("pending"), AgentFacts::default()))
+                .is_empty()
+        );
+        let last = c.finish();
+        assert_eq!(cards(&last).len(), 1, "only b: {last:?}");
+        assert_eq!(cards(&last)[0].status, "stopped");
     }
     #[test]
     fn chunks_of_one_message_become_one_entry_and_a_tool_call_splits_messages() {
