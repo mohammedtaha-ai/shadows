@@ -1,6 +1,6 @@
 // One job: how a tool call reads in the conversation — its title, or for
 // Shadows' own tools a sentence (§13.11), a subagent's card (§22), or no line
-// at all.
+// at all. Entries are told apart by their kind (§23.8), never by their text.
 
 import type { ThreadEntry } from '@/api/client'
 import { type SubagentCard, readSubagentCard } from '@/stream/frames'
@@ -17,10 +17,10 @@ const SENTENCES: Readonly<Record<string, string | null>> = {
   plan_show: null,
 }
 
-/** A tool call arrives as an agent message whose body is `[tool: <title>]`
- * (spec §12.3); its title, or `null` for any other body. */
-export function toolTitle(body: string): string | null {
-  return /^\[tool: ([\s\S]*)\]$/.exec(body)?.[1] ?? null
+/** A tool call is a `ToolCall` entry whose body is its title (§23.8); its
+ * title, or `null` for any other entry. */
+export function toolTitle(entry: ThreadEntry): string | null {
+  return entry.kind === 'ToolCall' ? entry.body : null
 }
 
 /** How a tool titled `title` reads: a sentence for Shadows' tools, its title
@@ -31,30 +31,29 @@ export function toolText(title: string): string | null {
   return SENTENCES[name] ?? null
 }
 
-/** A subagent arrives as an agent message whose body is
- * `[subagent: <card JSON>]` (spec §22.2); its card, or `null` for any other. */
-export function subagentOf(body: string): SubagentCard | null {
-  const json = /^\[subagent: ([\s\S]*)\]$/.exec(body)?.[1]
-  if (json === undefined) return null
+/** A subagent is a `Subagent` entry carrying its card (§22.2, §23.8); its
+ * card, or `null` for any other entry or a card this client cannot read. */
+export function subagentOf(entry: ThreadEntry): SubagentCard | null {
+  if (entry.kind !== 'Subagent' || entry.card === null) return null
   try {
-    return readSubagentCard(JSON.parse(json))
+    return readSubagentCard(entry.card)
   } catch {
     return null
   }
 }
 
-export const isTool = (entry: ThreadEntry) =>
-  entry.kind === 'AgentMessage' && toolTitle(entry.body) !== null
+export const isTool = (entry: ThreadEntry) => entry.kind === 'ToolCall'
 
 /** An entry that adds no line: a tool call whose result is another entry. */
 export function silent(entry: ThreadEntry): boolean {
-  return isTool(entry) && toolText(toolTitle(entry.body) ?? '') === null
+  const tool = toolTitle(entry)
+  return tool !== null && toolText(tool) === null
 }
 
 /** What Copy puts on the clipboard: the text as it reads, not its wrapping. */
 export function copyText(entry: ThreadEntry): string {
-  const card = subagentOf(entry.body)
+  const card = subagentOf(entry)
   if (card !== null) return card.report ?? card.title
-  const tool = toolTitle(entry.body)
+  const tool = toolTitle(entry)
   return tool === null ? entry.body : (toolText(tool) ?? tool)
 }

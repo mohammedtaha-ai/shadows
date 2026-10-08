@@ -48,9 +48,11 @@ report, duration_ms, tokens, tool_count }`:
 - a call whose `parent` is an open card's id is that subagent's step: never
   an entry of its own (decided by Mohammed). When it ends, its title is
   appended to `steps`. `SubagentHandback` is not a step: it is the report;
-- the card is written once, as an `AgentMessage` entry whose body is
-  `[subagent: <card JSON>]`, the way a tool is `[tool: <title>]` (decided by
-  Mohammed: no new entry kind, no migration). It is written when its call has
+- the card is written once, as a `Subagent` entry whose body is the card's
+  title and whose `card` is the card, the way a tool is a `ToolCall` entry
+  whose body is its title. §23.8 made both their own kinds (Mohammed,
+  2026-10-08); before migration 0020 they were `AgentMessage` bodies
+  `[subagent: <card JSON>]` and `[tool: <title>]`. It is written when its call has
   ended and its numbers have arrived; or, ended without numbers, when the
   parent's next text arrives, so the card stays before that text; or when the
   turn ends. A card still `running` when the turn ends is written `stopped`.
@@ -67,7 +69,7 @@ when written, arrives as any entry does.
 
 ## 22.4 The browser
 
-- A `[subagent: …]` entry, or a live card whose id no entry has yet, is drawn
+- A `Subagent` entry, or a live card whose id no entry has yet, is drawn
   as a card: the task, `agent_type · model`, the state (running, done,
   failed, stopped), and `duration · tokens · steps`. A live card is dropped
   when its turn ends; the entry has replaced it.

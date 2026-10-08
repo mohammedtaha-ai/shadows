@@ -136,10 +136,14 @@ interface Reported {
   limits: Limits | null
 }
 
-/** The ordinal of an announced AgentMessage entry, else `null`. The payload
- * of `ThreadEntryAppended` is `{ordinal, kind}`. */
-function agentOrdinal(payload: unknown): number | null {
+/** The kinds a turn's agent writes: its text, its tool lines and its
+ * subagent cards (§23.8). Each one moves the streamed reply on. */
+const AGENT_KINDS: ReadonlySet<unknown> = new Set(['AgentMessage', 'ToolCall', 'Subagent'])
+
+/** The ordinal of an announced entry the turn's agent wrote, else `null`. The
+ * payload of `ThreadEntryAppended` is `{ordinal, kind}`. */
+export function agentOrdinal(payload: unknown): number | null {
   if (typeof payload !== 'object' || payload === null) return null
   const { ordinal, kind } = payload as { ordinal?: unknown; kind?: unknown }
-  return kind === 'AgentMessage' && typeof ordinal === 'number' ? ordinal : null
+  return AGENT_KINDS.has(kind) && typeof ordinal === 'number' ? ordinal : null
 }

@@ -86,6 +86,10 @@ States used in Milestone 2 are `Draft` and `Frozen` (§2.5's lifecycle, §4
   approves, for the internal Planner or for an external agent, and the
   Planner's instructions say approval is the person's (§13.8).
 
+> **Closed for the Planner by §24 (2026-10-08):** the Planner has no shell, so
+> its writes come only through its tools and are recorded in its name. What
+> follows stays true of other local processes (§24.4).
+>
 > **OPEN — the server cannot tell a person from a local process.** The
 > approval route, and the routes that issue grants and save instructions, are
 > HTTP API routes, and §1's request guard admits any request without browser

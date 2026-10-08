@@ -166,6 +166,7 @@ async fn an_entry_can_name_its_operation_and_old_entries_name_none() {
                 author: Actor::system(),
                 body: "x",
                 refs: &[],
+                card: None,
                 operation_id: Some(&op),
             },
         )
@@ -181,6 +182,7 @@ async fn an_entry_can_name_its_operation_and_old_entries_name_none() {
                 author: Actor::user("local"),
                 body: "y",
                 refs: &[],
+                card: None,
                 operation_id: None,
             },
         )

@@ -1,6 +1,6 @@
 //! The plan's storage contract (spec §13.2–§13.5, §13.15): versions, edits
 //! under a revision check, approval, and commands that answer on replay what
-//! they answered when they committed. Separate from `storage_contract.rs`, an
+//! they answered when they committed. Separate from `storage_contract/`, an
 //! accretion point.
 
 use serde_json::{Value, json};

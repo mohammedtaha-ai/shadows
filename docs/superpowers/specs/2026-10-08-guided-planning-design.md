@@ -119,11 +119,17 @@ idea → vision (missing: users, goals…) → map (missing: database…)
 It also reports drift: vision items no part serves, and a map approved
 against an older vision.
 
-The Planner receives the stage in two ways:
+The Planner receives the stage in three ways:
 
 1. **At session open,** the effective standards with their versions, inside
    the session's instructions (§13.8).
-2. **With each of the person's messages,** one short line from Shadows naming
+2. **When the standards change,** before the next message. A resumed session
+   ignores a new `append`, so the session's instructions cannot carry a
+   change. The base and additions versions join the versions §13.8's
+   before-turn context block compares (`context_before_turn` in
+   `harness/setup.rs`); when either differs from the thread's last recorded
+   one, the new effective standards go before the person's message.
+3. **With each of the person's messages,** one short line from Shadows naming
    the stage and what is missing or drifted (about 50 tokens).
 
 The conversation's header shows the same stage to the person.
@@ -152,15 +158,20 @@ Rules:
 2. A newer proposal for the same item, or a newer map proposal, supersedes the
    pending one; its card shows **Superseded**.
 3. There is no reject button: the person says what is wrong in the
-   conversation and the Planner proposes again.
-4. Approval carries the workspace revision the proposal was made against. If
-   the workspace changed since, approval is refused and the Planner is asked
-   for a fresh proposal.
+   conversation and the Planner proposes again. The person approves with the
+   card's button, or asks the Planner to approve; §24 records which.
+4. A proposal records the workspace revision and the standards versions it
+   was made against. Approval is refused if either changed since, and the
+   Planner is asked for a fresh proposal.
 
 ## 23.6 Gates
 
-The gates are in the `design` service's methods, so HTTP and MCP, the person
-and the Planner, meet the same ones:
+The gates are in the methods of the service that owns each write, so HTTP
+and MCP, the person and the Planner, meet the same ones. `design` owns the
+stage and the vision, map and structure gates. Plans are `Plans`' writes:
+every method that creates, edits or approves a plan calls `design`'s stage
+check inside its own write transaction, a cross-service call declared in both
+contracts (§14). No plan write path skips it — today's tools included.
 
 | Operation | Refused when |
 |---|---|
@@ -183,7 +194,14 @@ recorded; writing it to disk belongs to the executors (§17).
 ## 23.7 Writing the structure
 
 **Create structure** on the map page writes exactly what the approved map
-holds. Only the person triggers it; no MCP tool writes to disk.
+holds. It is a person's action in the web client; no MCP tool writes to
+disk.
+
+§24 owns who approved and makes the Planner unable to act as the person: it
+has no shell to send the web client's request, so Create structure is
+reached only from the web client. §24 is built before this write. What also
+bounds the write is what it accepts: an approved map only, an empty directory
+only, paths inside it only, the approved files only.
 
 1. **What is written:** each part's folders; each part's `contract.yaml`,
    from its approved contract head and the template; the approved initial
@@ -193,10 +211,18 @@ holds. Only the person triggers it; no MCP tool writes to disk.
    otherwise `STAGE_BLOCKED: directory not empty`.
 3. **Paths:** every path must resolve inside the project directory. An
    absolute path or `..` refuses the whole write before anything is written.
-4. **Record:** what was written is recorded with the map version, the
-   standards versions and each file's hash.
-5. **Failure midway:** the person sees what was and was not written; the
-   stage stays at structure.
+4. **Intent first:** before the first byte, the write is recorded as started
+   with every path and content hash, the map version and the standards
+   versions. Each file is written to a temporary name beside it and renamed
+   into place. Success is recorded last.
+5. **Failure and retry:** if the write fails, or the daemon stops before
+   success is recorded, the stage stays at structure and the person sees what
+   is on disk. Create structure then resumes the recorded write: the
+   directory may hold only `.git`, the recorded paths whose content matches
+   their hash, and leftover temporary names of recorded paths, which are
+   removed. It writes the missing files and records success. Any other file,
+   or a recorded path whose content differs, refuses with the list of them;
+   Shadows never deletes or overwrites such a file.
 
 After the write, the contracts in Shadows remain the source; the files are
 their output. Hand edits to those files are the executors' concern (§17).
@@ -206,11 +232,14 @@ their output. Hand edits to those files are the executors' concern (§17).
 The first PR changes no behaviour a person sees. It removes debt that §23
 would otherwise grow:
 
-1. **Structured cards in `thread_entry`.** This amends §12.2. Tools, plan
-   cards and subagent cards are stored today as text bodies
+1. **Structured cards in `thread_entry`.** This amends §12.2. Tool lines and
+   subagent cards are stored today as agent messages with text bodies
    (`[tool: …]`, `[subagent: {json}]`). A new migration gives an entry a card
-   kind and a JSON payload column and moves the recognised bodies into them;
-   readers read the columns. §23's proposal cards are built on it.
+   kind and a JSON payload column and moves those bodies into them; readers
+   read the columns. Plan cards are already structured — a `PlanView` entry
+   with its workflow and task refs — and the migration keeps them as they
+   are, parsing no plan text. §23's proposal cards are built on the new
+   columns.
 2. **The accretion points** named in CLAUDE.md are split by domain:
    `shadows-core/src/db/mod.rs`, `shadows-http`'s routes, and
    `shadows-core/tests/storage_contract.rs` — each service's share moves next
@@ -226,6 +255,7 @@ Each PR is one slice a person can try in the browser.
 | 1 | Standards and the stage (§23.2, §23.4) | A Standards tab; the Planner proposes a separate backend from the first chat |
 | 2 | Vision proposals (§23.3, §23.5) | Vision items are written from the conversation after approval |
 | 3 | Map and contracts, with their gates (§23.5, §23.6) | A proposed map approved; a clear refusal when something is missing |
+| 3b | §24: principal and agent, the Planner's fixed tools, its approval tools | "Approved by the Planner at your request" beside "Approved by you" |
 | 4 | Writing the structure (§23.7) | The structure appears in the project directory |
 | 5 | Roadmap and plans behind the map gate | No plan before the structure exists |
 
@@ -240,8 +270,12 @@ Service tests, few and exact:
 3. Approving after the workspace changed is refused; a newer proposal
    supersedes the pending one.
 4. The structure write refuses a path outside the directory and writes only
-   the approved files.
-5. A vision item added after the map's approval appears in the stage as
+   the approved files. A write stopped after some files resumes and
+   completes; a foreign file or a changed recorded file refuses the resume.
+5. A plan write through any existing path is refused before the structure
+   exists. A standards change reaches a running session before its next
+   message, and a proposal made under older standards cannot be approved.
+6. A vision item added after the map's approval appears in the stage as
    unserved.
 
 Acceptance is the browser journey on a copy of the development database with

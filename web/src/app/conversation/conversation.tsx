@@ -210,7 +210,7 @@ function cardOf(
   live: readonly SubagentCard[],
 ): SubagentCard | null {
   for (const entry of entries) {
-    const card = subagentOf(entry.body)
+    const card = subagentOf(entry)
     if (card?.id === id) return card
   }
   return live.find((card) => card.id === id) ?? null

@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 //
-// Subagent cards (§22.4) over a faked daemon: drawn from a `[subagent: …]`
-// entry and from a live `subagent` frame; a click opens the side panel.
+// Subagent cards (§22.4) over a faked daemon: drawn from a `Subagent` entry
+// (§23.8) and from a live `subagent` frame; a click opens the side panel.
 
 import { act } from 'react'
-import { afterEach, expect, it } from 'vitest'
-import { agentEntry, userEntry } from '@/test/contract-fixtures'
+import { afterEach, expect, it, vi } from 'vitest'
+import { subagentEntry, userEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, until } from '../test-app'
 import { modelName, numbers } from './subagent-text'
@@ -30,7 +30,7 @@ afterEach(() => {
   app = null
 })
 
-async function open(entries = [userEntry('u1', 'go'), agentEntry('e1', `[subagent: ${JSON.stringify(CARD)}]`)]) {
+async function open(entries = [userEntry('u1', 'go'), subagentEntry('e1', CARD)]) {
   const a = (app = await startApp('/projects/p1/threads/t1', answers({ entries })))
   await until(() => a.sources.length > 0)
   act(() => a.pushFrame('caught-up', { seq: 0 }))
@@ -60,6 +60,21 @@ it('a click opens what it did beside the conversation', async () => {
   await until(() => (panel?.textContent ?? '').includes('Two files'))
   act(() => a.button('Close subagent')?.click())
   expect(document.querySelector('[aria-label="Subagent beside the conversation"]')).toBeNull()
+})
+
+it('Copy on a card copies its report, not its JSON (§23.8)', async () => {
+  const writes: string[] = []
+  vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue({
+    writeText: async (t: string) => {
+      writes.push(t)
+    },
+  } as Clipboard)
+  const a = await open()
+  await until(() => a.buttons('Copy').length === 2)
+  await act(async () => a.buttons('Copy')[1]?.click())
+  await until(() => writes.length === 1)
+  expect(writes).toEqual(['Two files: alpha and beta.'])
+  vi.restoreAllMocks()
 })
 
 it('a live frame draws a running card until its entry is in the list', async () => {

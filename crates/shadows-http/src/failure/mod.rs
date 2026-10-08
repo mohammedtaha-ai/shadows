@@ -11,11 +11,11 @@
 use axum::Json;
 use axum::http::StatusCode;
 
-use shadows_core::CoreError;
-use shadows_core::DirectoryError;
 use shadows_core::ErrorCode;
 use shadows_core::StartError;
-use shadows_core::StorageError;
+
+mod other;
+mod storage;
 
 /// A failed request: its status and the body it answers with.
 pub struct Failure {
@@ -51,119 +51,6 @@ pub struct ErrorBody {
     /// `message` joins.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub problems: Option<Vec<String>>,
-}
-
-impl From<StorageError> for Failure {
-    fn from(e: StorageError) -> Self {
-        // These two texts are written in `StorageError` itself and name
-        // nothing but the command, or the kind of thing that is missing.
-        let own = |status, code| Failure {
-            status,
-            code,
-            message: e.to_string(),
-            cause: None,
-            detail: Detail::default(),
-        };
-        let (status, code, message) = match &e {
-            StorageError::CommandConflict => {
-                return own(StatusCode::CONFLICT, ErrorCode::CommandConflict);
-            }
-            StorageError::NotFound(_) => {
-                return own(StatusCode::NOT_FOUND, ErrorCode::InvalidCommand);
-            }
-            StorageError::HarnessLocked => {
-                return own(StatusCode::CONFLICT, ErrorCode::HarnessLocked);
-            }
-            StorageError::ThreadBusy => return own(StatusCode::CONFLICT, ErrorCode::ThreadBusy),
-            StorageError::QueuedMessageGone => {
-                return own(StatusCode::NOT_FOUND, ErrorCode::QueuedMessageGone);
-            }
-            StorageError::ProjectHasThreads => {
-                return own(StatusCode::CONFLICT, ErrorCode::ProjectHasThreads);
-            }
-            StorageError::WorkflowFrozen => {
-                return own(StatusCode::CONFLICT, ErrorCode::WorkflowFrozenImmutable);
-            }
-            StorageError::RevisionConflict { current, summary } => {
-                return Failure {
-                    status: StatusCode::CONFLICT,
-                    code: ErrorCode::RevisionConflict,
-                    message: format!(
-                        "the resource changed; current revision is {current}: {summary}"
-                    ),
-                    cause: None,
-                    detail: Detail {
-                        current_revision: Some(*current),
-                        problems: None,
-                    },
-                };
-            }
-            StorageError::PlanInvalid(problems) => {
-                let problems: Vec<String> = problems.iter().map(|p| p.message.clone()).collect();
-                return Failure {
-                    status: StatusCode::UNPROCESSABLE_ENTITY,
-                    code: ErrorCode::WorkflowValidationFailed,
-                    message: problems.join("; "),
-                    cause: None,
-                    detail: Detail {
-                        current_revision: None,
-                        problems: Some(problems),
-                    },
-                };
-            }
-            // A grant refusal answers an MCP tool call (§13.10); a route has
-            // no grant, so one reaching here is the daemon's own defect.
-            StorageError::GrantInvalid | StorageError::GrantScope => {
-                tracing::error!(error = %e, "http.grant_refusal_on_route");
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    ErrorCode::StorageUnavailable,
-                    "the daemon refused its own request",
-                )
-            }
-            StorageError::TaskNotInPlan(_) => {
-                return own(StatusCode::UNPROCESSABLE_ENTITY, ErrorCode::InvalidCommand);
-            }
-            StorageError::ForkPointNotSupported => {
-                return own(
-                    StatusCode::UNPROCESSABLE_ENTITY,
-                    ErrorCode::ForkPointNotSupported,
-                );
-            }
-            StorageError::TransitionConflict { .. } => (
-                StatusCode::CONFLICT,
-                ErrorCode::StorageConstraintViolation,
-                "the operation had already moved on; read it again",
-            ),
-            StorageError::Constraint(_) => (
-                StatusCode::CONFLICT,
-                ErrorCode::StorageConstraintViolation,
-                "the request conflicts with what is already stored, such as a slug \
-                 already in use",
-            ),
-            _ => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorCode::StorageUnavailable,
-                "storage is unavailable",
-            ),
-        };
-        Failure {
-            status,
-            code,
-            message: message.into(),
-            cause: Some(e.to_string()),
-            detail: Detail::default(),
-        }
-    }
-}
-
-impl From<StartError> for Failure {
-    fn from(e: StartError) -> Self {
-        match e {
-            StartError::Storage(e) => e.into(),
-            StartError::RuntimeStopping => Failure::runtime_stopping(),
-        }
-    }
 }
 
 impl Failure {
@@ -275,61 +162,6 @@ impl Failure {
             message: "the turn's process tree could not be terminated; it was not \
                       recorded as cancelled"
                 .into(),
-            cause: None,
-            detail: Detail::default(),
-        }
-    }
-}
-
-impl From<CoreError> for Failure {
-    /// Each variant through the mapping it had before services returned
-    /// `CoreError`, so no status, code or text moves.
-    fn from(e: CoreError) -> Self {
-        match e {
-            CoreError::Storage(e) => e.into(),
-            CoreError::Start(e) => e.into(),
-            CoreError::Directory(e) => e.into(),
-            CoreError::ProjectDirectoryUnusable(reason) => {
-                Failure::project_directory_unusable(reason)
-            }
-            CoreError::HarnessStartFailed(reason) => Failure::harness_start_failed(reason),
-            CoreError::HarnessUnavailable(harness) => Failure::harness_unavailable(&harness),
-            CoreError::SettingNotOffered { what, id, detail } => {
-                Failure::setting_not_offered(&what, &id, detail.as_deref())
-            }
-            CoreError::ModeNotAllowed(mode) => Failure::mode_not_allowed(&mode),
-            CoreError::RuntimeStopping => Failure::runtime_stopping(),
-            CoreError::TerminationFailed => Failure::termination_failed(),
-            CoreError::Refused { code, message } => Failure::refused(code, message),
-        }
-    }
-}
-
-impl From<DirectoryError> for Failure {
-    fn from(e: DirectoryError) -> Self {
-        let (status, code) = match &e {
-            DirectoryError::NotAbsolute(_)
-            | DirectoryError::NotUtf8
-            | DirectoryError::InvalidName { .. } => {
-                (StatusCode::BAD_REQUEST, ErrorCode::PathInvalid)
-            }
-            DirectoryError::AlreadyExists(_) => {
-                (StatusCode::CONFLICT, ErrorCode::PathAlreadyExists)
-            }
-            DirectoryError::NotFound(_) => (StatusCode::NOT_FOUND, ErrorCode::PathNotFound),
-            DirectoryError::NotADirectory(_) => {
-                (StatusCode::BAD_REQUEST, ErrorCode::PathNotADirectory)
-            }
-            DirectoryError::AccessDenied(_) => (StatusCode::FORBIDDEN, ErrorCode::PathAccessDenied),
-            DirectoryError::Unavailable { .. } => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorCode::PathUnavailable,
-            ),
-        };
-        Failure {
-            status,
-            code,
-            message: e.to_string(),
             cause: None,
             detail: Detail::default(),
         }

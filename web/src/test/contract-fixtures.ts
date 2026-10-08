@@ -153,6 +153,7 @@ export function entryOfKind(
     author: { kind: kind === 'UserMessage' ? 'User' : 'Agent', id: 'local' },
     body,
     refs: [],
+    card: null,
     created_at: '2026-09-24T00:00:00Z',
     operation_id: operationId,
   }
@@ -160,6 +161,13 @@ export function entryOfKind(
 
 export const userEntry = (id: string, body: string) => entryOfKind(id, 'UserMessage', body)
 export const agentEntry = (id: string, body: string) => entryOfKind(id, 'AgentMessage', body)
+/** A tool line (§23.8): its body is the tool's title. */
+export const toolEntry = (id: string, title: string) => entryOfKind(id, 'ToolCall', title)
+/** A subagent (§22.2, §23.8): its body is the card's title, its card in `card`. */
+export const subagentEntry = (id: string, card: { title: string } & Record<string, unknown>) => ({
+  ...entryOfKind(id, 'Subagent', card.title),
+  card,
+})
 
 /** Task `T{number}` of a plan, with one acceptance item. */
 export function planTask(number: number, title: string, extra: Partial<PlanTask> = {}): PlanTask {

@@ -499,7 +499,9 @@ called_by_other_services:
 
 obligations:
   - rule: >
-      A subagent is one entry (§22.2): its own tool calls are steps of its
+      A tool is one `ToolCall` entry whose body is its title (§23.8). A
+      subagent is one `Subagent` entry carrying its card (§22.2, §23.8): the
+      subagent's own tool calls are steps of its
       card, never entries; the card is written once its call has ended and
       its numbers came, or, ended without them, before the parent's next
       text, or at the turn's end, `stopped` if still running. Every change

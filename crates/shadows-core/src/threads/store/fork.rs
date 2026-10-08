@@ -149,6 +149,7 @@ type CopiedRow = (
     String,
     Option<String>,
     String,
+    Option<String>,
 );
 
 /// Copies the source's entries with ordinal up to `upto` into `fork`, in
@@ -162,7 +163,8 @@ async fn copy_entries(
     ts: &str,
 ) -> Result<i64, StorageError> {
     let rows: Vec<CopiedRow> = sqlx::query_as(
-        "SELECT ordinal, kind, author_kind, author_id, body, refs_json, operation_id, created_at
+        "SELECT ordinal, kind, author_kind, author_id, body, refs_json, operation_id, created_at,
+                card_json
            FROM thread_entry WHERE thread_id = ? AND ordinal <= ? ORDER BY ordinal",
     )
     .bind(source.as_str())
@@ -172,12 +174,13 @@ async fn copy_entries(
     let mut ordinal = 0;
     for row in rows {
         ordinal += 1;
-        let (_, kind, author_kind, author_id, body, refs_json, operation_id, created_at) = row;
+        let (_, kind, author_kind, author_id, body, refs_json, operation_id, created_at, card) =
+            row;
         sqlx::query(
             "INSERT INTO thread_entry
                (id, thread_id, ordinal, kind, author_kind, author_id, body, refs_json,
-                operation_id, created_at)
-             VALUES (?,?,?,?,?,?,?,?,?,?)",
+                operation_id, created_at, card_json)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         )
         .bind(ThreadEntryId::generate().as_str())
         .bind(fork.as_str())
@@ -189,6 +192,7 @@ async fn copy_entries(
         .bind(&refs_json)
         .bind(&operation_id)
         .bind(&created_at)
+        .bind(&card)
         .execute(&mut *conn)
         .await?;
         append_event(

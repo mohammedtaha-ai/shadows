@@ -3523,6 +3523,17 @@
           "body": {
             "type": "string"
           },
+          "card": {
+            "additionalProperties": {},
+            "description": "A card's structured payload (§23.8): a `Subagent`'s card. `None` for\nevery other kind.",
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
           "created_at": {
             "type": "string"
           },
@@ -3561,6 +3572,7 @@
           "author",
           "body",
           "refs",
+          "card",
           "created_at",
           "operation_id"
         ],
@@ -3575,6 +3587,8 @@
         "enum": [
           "UserMessage",
           "AgentMessage",
+          "ToolCall",
+          "Subagent",
           "PermissionRefused",
           "PlanView",
           "PlanApproved"
@@ -6661,7 +6675,7 @@
                 }
               }
             },
-            "description": "Server-sent events for one thread (spec §2.10): the durable journal after `after`, then `caught-up`, then live. Each frame's `event:` names its kind and its `data:` is JSON unless stated.\n\n- `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. `operation_id` and `thread_id` are the ids it names, `null` where it names none; `payload` is the event's JSON object. Sent once each, in `seq` order, in the replay and live alike; remember the highest `seq` and resubscribe with it as `after`.\n- `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n- `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n- `subagent` — `{op, card}`: a running turn's subagent card, whole, after each change (§22.3): `{id, title, agent_type, model, status, prompt, steps, report, duration_ms, tokens, tool_count}`. Its entry, `[subagent: <card>]`, is written when it ends. Transient.\n- `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n- `usage` — `{thread_id, context_used, context_window, limits}`: the session's context use and the account's limits as the harness last reported them; each is `null` when not reported. Transient.\n- `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.\n- `commands` — `{thread_id, commands}`: the harness's `/` list, each `{name, description, hint}`; sent after `caught-up` when there is one, and on every change. Transient.\n- `plan-show` — `{thread_id, target_tab, workflow_id, version, task_number, place}`: the Planner showed a plan (§13.9). Its card arrives first, as the `durable` `PlanShown` event. Only the tab whose id is `target_tab` opens the panel or the page for `side` or `page`. Transient: never replayed.\n- `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.\n- `fatal` — data is a message as plain text: the journal could not be read and the stream ends.\n\nThe stream also ends when the daemon stops. Reconnect with the last `seq`.\n\nA `durable` frame of kind `OperationCompleted` carries `payload.invocation`: the turn's `InvocationView`."
+            "description": "Server-sent events for one thread (spec §2.10): the durable journal after `after`, then `caught-up`, then live. Each frame's `event:` names its kind and its `data:` is JSON unless stated.\n\n- `durable` — `{seq, kind, operation_id, thread_id, payload}`: one journal event. `operation_id` and `thread_id` are the ids it names, `null` where it names none; `payload` is the event's JSON object. Sent once each, in `seq` order, in the replay and live alike; remember the highest `seq` and resubscribe with it as `after`.\n- `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n- `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n- `subagent` — `{op, card}`: a running turn's subagent card, whole, after each change (§22.3): `{id, title, agent_type, model, status, prompt, steps, report, duration_ms, tokens, tool_count}`. Its entry, kind `Subagent` with this `card`, is written when it ends. Transient.\n- `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n- `usage` — `{thread_id, context_used, context_window, limits}`: the session's context use and the account's limits as the harness last reported them; each is `null` when not reported. Transient.\n- `options` — `{thread_id, choices}`: the session's `SessionChoices` changed. Transient.\n- `commands` — `{thread_id, commands}`: the harness's `/` list, each `{name, description, hint}`; sent after `caught-up` when there is one, and on every change. Transient.\n- `plan-show` — `{thread_id, target_tab, workflow_id, version, task_number, place}`: the Planner showed a plan (§13.9). Its card arrives first, as the `durable` `PlanShown` event. Only the tab whose id is `target_tab` opens the panel or the page for `side` or `page`. Transient: never replayed.\n- `lagged` — empty: this client fell behind and transient frames were dropped; durable ones were not.\n- `fatal` — data is a message as plain text: the journal could not be read and the stream ends.\n\nThe stream also ends when the daemon stops. Reconnect with the last `seq`.\n\nA `durable` frame of kind `OperationCompleted` carries `payload.invocation`: the turn's `InvocationView`."
           }
         },
         "summary": "Spec §2.10: durable replay, then a no-gap handoff to live, then\nde-duplication by durable sequence.",
