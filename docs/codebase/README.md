@@ -61,7 +61,9 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/sse.rs` | the replay-then-live stream's SSE framing | `crates/shadows-http/src/sse.rs` |
 | `crates/shadows-http/src/fs.rs` | choosing a project directory on this machine | `crates/shadows-http/src/fs.rs` |
 | `crates/shadows-http/src/openapi.rs` | the OpenAPI document describing this API | `crates/shadows-http/src/openapi.rs` |
-| `crates/shadows-http/src/failure.rs` | the transport mapping of a failure | `crates/shadows-http/src/failure.rs` |
+| `crates/shadows-http/src/failure/` | the transport mapping of a failure | `crates/shadows-http/src/failure/mod.rs` |
+| `crates/shadows-http/src/failure/storage.rs` | how a storage failure becomes a status | `crates/shadows-http/src/failure/storage.rs` |
+| `crates/shadows-http/src/failure/other.rs` | how a start, core or directory failure becomes a status | `crates/shadows-http/src/failure/other.rs` |
 | `crates/shadows-http/src/guard.rs` | refusing requests pages were made to send | `crates/shadows-http/src/guard.rs` |
 | `crates/shadows-mcp/src/lib.rs` | Shadows' MCP server | `crates/shadows-mcp/src/lib.rs` |
 | `crates/shadows-mcp/src/auth.rs` | refusing a `/mcp` request that holds no live grant | `crates/shadows-mcp/src/auth.rs` |
