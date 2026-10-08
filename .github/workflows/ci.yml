@@ -6,11 +6,9 @@ name: CI
 # (plan Task 13), so Windows runs the full suite and its failure is a real
 # failure.
 #
-# The Windows job is switched off here (`if: false`) since Milestone 2: GitHub
-# Actions minutes are limited, and a Windows runner costs double. The same
-# steps run on Mohammed's Windows machine before a PR merges, and the PR says
-# so with the test count. It is not dropped: the gate moved, it did not go
-# away. Turn the job back on by deleting the `if` line.
+# The Windows job was switched off from Milestone 2 to §22 to save Actions
+# minutes (a Windows runner costs double); Mohammed turned it back on with §22,
+# so a PR's Windows result is CI's, not only a local run's.
 #
 # Linux is the COMPILE gate only. It proves the crate still builds, lints, and
 # passes its platform-neutral tests on a Unix target. It does NOT certify
@@ -38,8 +36,6 @@ env:
 jobs:
   windows:
     name: Windows — acceptance gate
-    # Runs locally before merge instead; see the note at the top.
-    if: false
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

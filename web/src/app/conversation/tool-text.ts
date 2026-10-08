@@ -1,7 +1,9 @@
 // One job: how a tool call reads in the conversation — its title, or for
-// Shadows' own tools a sentence (§13.11), or no line at all.
+// Shadows' own tools a sentence (§13.11), a subagent's card (§22), or no line
+// at all.
 
 import type { ThreadEntry } from '@/api/client'
+import { type SubagentCard, readSubagentCard } from '@/stream/frames'
 
 /** What each of Shadows' tools (`mcp__shadows__<name>`, §13.6) did, said as a
  * person would. `plan_show` says nothing: the card it wrote is the entry. */
@@ -29,6 +31,18 @@ export function toolText(title: string): string | null {
   return SENTENCES[name] ?? null
 }
 
+/** A subagent arrives as an agent message whose body is
+ * `[subagent: <card JSON>]` (spec §22.2); its card, or `null` for any other. */
+export function subagentOf(body: string): SubagentCard | null {
+  const json = /^\[subagent: ([\s\S]*)\]$/.exec(body)?.[1]
+  if (json === undefined) return null
+  try {
+    return readSubagentCard(JSON.parse(json))
+  } catch {
+    return null
+  }
+}
+
 export const isTool = (entry: ThreadEntry) =>
   entry.kind === 'AgentMessage' && toolTitle(entry.body) !== null
 
@@ -39,6 +53,8 @@ export function silent(entry: ThreadEntry): boolean {
 
 /** What Copy puts on the clipboard: the text as it reads, not its wrapping. */
 export function copyText(entry: ThreadEntry): string {
+  const card = subagentOf(entry.body)
+  if (card !== null) return card.report ?? card.title
   const tool = toolTitle(entry.body)
   return tool === null ? entry.body : (toolText(tool) ?? tool)
 }

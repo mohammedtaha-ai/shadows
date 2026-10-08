@@ -10,7 +10,8 @@
 //! `record` is the checks and the one transaction, `queue` the waiting
 //! messages. `spawn` registers a committed turn and commits `Running`, `turn` records
 //! its ending and arbitrates it with Stop, `handles` is the registry of live
-//! turns, `entries` turns harness events into entries, `shutdown` stops every
+//! turns, `entries` turns harness events into entries, `subagents` gathers a
+//! subagent's calls into its card (§22), `shutdown` stops every
 //! turn when the runtime stops (§8.5), `model` holds the operation types and
 //! `store` the queries. All are private: a caller starts or stops a turn
 //! through `Turns` only.
@@ -24,6 +25,7 @@ mod shutdown;
 mod spawn;
 mod steer;
 mod store;
+mod subagents;
 mod turn;
 
 use std::future::Future;

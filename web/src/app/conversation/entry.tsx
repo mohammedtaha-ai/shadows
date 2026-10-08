@@ -1,12 +1,13 @@
 // One job: how one durable thread entry reads in the conversation — a
-// message, a tool call, a plan card, or a system line.
+// message, a tool call, a subagent's card, a plan card, or a system line.
 
 import { CircleCheck, ShieldX, Wrench } from 'lucide-react'
 import { Suspense, lazy } from 'react'
 import type { Plan, PlanTask, ThreadEntry } from '@/api/client'
 import { type HarnessPolicy, modeLabel } from '../mode-policy'
 import { PlanCard } from './plan-card'
-import { toolText, toolTitle } from './tool-text'
+import { SubagentCardView } from './subagent-card'
+import { subagentOf, toolText, toolTitle } from './tool-text'
 
 // Streamdown and its code highlighting are most of this app's weight, so they
 // are a chunk of their own, and not in the one every screen waits for. The
@@ -40,6 +41,7 @@ export function Entry({
   requestedMode,
   projectId,
   onPointAt,
+  onOpenSubagent,
 }: {
   entry: ThreadEntry
   policy: HarnessPolicy
@@ -47,6 +49,8 @@ export function Entry({
   requestedMode: string | null
   projectId: string
   onPointAt: (plan: Plan, task: PlanTask) => void
+  /** A subagent's card was clicked (§22.4). */
+  onOpenSubagent: (id: string) => void
 }) {
   if (entry.kind === 'UserMessage') {
     return (
@@ -61,6 +65,8 @@ export function Entry({
     )
   }
   if (entry.kind === 'AgentMessage') {
+    const card = subagentOf(entry.body)
+    if (card !== null) return <SubagentCardView card={card} onOpen={onOpenSubagent} />
     const tool = toolTitle(entry.body)
     if (tool === null) return <ReplyText text={entry.body} />
     // Shadows' own tools read as sentences; any other shows its title.

@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-05 (§21, the `/` menu, built and run in the browser on `next/slash-menu`)
+**Updated:** 2026-10-08 (§22, subagent cards, built and run in the browser on `next/subagent-cards`)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,8 +9,21 @@ restate them.
 
 ## Where we are
 
-**§21, the `/` menu, is built on `next/slash-menu`** (2026-10-05, not yet
-merged). The owner is
+**§22, subagent cards, is built on `next/subagent-cards`** (2026-10-08, not
+yet merged). The owner is
+[`§22`](./superpowers/specs/2026-10-05-subagent-cards-design.md). The full
+gate ran: **428 Rust tests** passed, and the web suite with typecheck and lint
+clean. The browser run used a copy of the dev database and the real adapter:
+a subagent showed as one card, Running with its count of finished tools, then
+"Done · general-purpose · Sonnet 5.5 · 12s · 32k tokens · 4 tools"; its panel
+showed the prompt, three steps and the report; the card survived a reload, and
+no inner tool wrote a line of its own. The branch also sets the build: `rust-lld`
+on Windows, line tables only, no doctests — a clean build takes 222 s, the
+full test run 304 s, a one-file rebuild 116 s, and the target directory stays
+at 9.2 GB. The branch review found one bug, fixed: a late update to a card
+already written opened a second, empty card.
+
+**§21, the `/` menu, is merged** (2026-10-05, `8efcea1`, PR #21). The owner is
 [`§21`](./superpowers/specs/2026-10-05-slash-menu-design.md). The full gate
 ran: **425 Rust tests** and **217 web tests** passed, with both clippy modes,
 the feature check and the 100-column check clean. The browser run used a copy

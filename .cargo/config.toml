@@ -1,0 +1,5 @@
+# On Windows, link with the LLVM linker rustup ships beside rustc: link.exe
+# was the slowest step of every test build, and failed under parallel links
+# (LNK1180, LNK1318). Linux CI keeps its default linker.
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld.exe"

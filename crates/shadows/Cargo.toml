@@ -7,6 +7,9 @@ publish.workspace = true
 # `cargo run` from the workspace root: `fake-acp` and `tree_probe` are binaries too.
 default-run = "shadows"
 
+[lib]
+doctest = false
+
 [lints]
 workspace = true
 

@@ -186,6 +186,10 @@ the durable journal after `after`, then `caught-up`, then live. Each frame's \
 replay and live alike; remember the highest `seq` and resubscribe with it as `after`.\n\
 - `caught-up` — `{seq}`: the last replayed `seq`. The replay is over.\n\
 - `delta` — `{op, text}`: streamed text of a running turn. Transient: never replayed.\n\
+- `subagent` — `{op, card}`: a running turn's subagent card, whole, after each \
+change (§22.3): `{id, title, agent_type, model, status, prompt, steps, report, \
+duration_ms, tokens, tool_count}`. Its entry, `[subagent: <card>]`, is written when \
+it ends. Transient.\n\
 - `turn-end` — `{op, subtype, stop_reason}`: the harness finished a turn. Transient.\n\
 - `usage` — `{thread_id, context_used, context_window, limits}`: the session's \
 context use and the account's limits as the harness last reported them; each is \
@@ -237,6 +241,9 @@ fn frame(delivery: Delivery) -> Event {
         Delivery::Delta { op, text } => Event::default()
             .event("delta")
             .data(serde_json::json!({ "op": op, "text": text }).to_string()),
+        Delivery::Subagent { op, card } => Event::default()
+            .event("subagent")
+            .data(serde_json::json!({ "op": op, "card": card }).to_string()),
         Delivery::TurnEnd {
             op,
             subtype,

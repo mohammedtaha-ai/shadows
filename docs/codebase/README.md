@@ -99,6 +99,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/turns/steer.rs` | a Send now inside the turn's watcher | `crates/shadows-core/src/turns/steer.rs` |
 | `crates/shadows-core/src/turns/turn.rs` | the recorded ending of a live Planner turn | `crates/shadows-core/src/turns/turn.rs` |
 | `crates/shadows-core/src/turns/entries.rs` | turning harness events into durable entries | `crates/shadows-core/src/turns/entries.rs` |
+| `crates/shadows-core/src/turns/subagents.rs` | gathering a subagent's tool calls into its card (§22) | `crates/shadows-core/src/turns/subagents.rs` |
 | `crates/shadows-core/src/harness/` | the harnesses, each thread's open session included | `crates/shadows-core/src/harness/mod.rs` |
 | `crates/shadows-core/src/harness/model.rs` | the harness shapes callers meet | `crates/shadows-core/src/harness/model.rs` |
 | `crates/shadows-core/src/harness/store.rs` | the rows kept per harness | `crates/shadows-core/src/harness/store.rs` |

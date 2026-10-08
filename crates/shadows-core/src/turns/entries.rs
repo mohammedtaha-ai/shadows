@@ -1,12 +1,20 @@
 //! One job: turn ACP updates into complete durable conversation entries.
 
-use shadows_agent::events::HarnessEvent;
+use shadows_agent::events::{HarnessEvent, SubagentCard};
 
-#[derive(Debug, PartialEq, Eq)]
+use super::subagents::{Call, Subagents};
+
+#[derive(Debug, PartialEq)]
 pub(crate) enum Durable {
     Message(String),
     Tool(String),
+    /// A subagent's card (§22.2); its steps are no entries of their own.
+    Subagent(Box<SubagentCard>),
     PermissionRefused(String),
+}
+
+fn card(card: SubagentCard) -> Durable {
+    Durable::Subagent(Box::new(card))
 }
 
 #[derive(Default)]
@@ -15,6 +23,7 @@ pub(crate) struct Collector {
     message: String,
     /// Open tool calls, id and latest title, in the order they were first seen.
     tools: Vec<(String, String)>,
+    subagents: Subagents,
 }
 
 impl Collector {
@@ -32,14 +41,37 @@ impl Collector {
         let mut out = Vec::new();
         match event {
             HarnessEvent::Chunk { message_id, text } => {
-                if self.message_id != *message_id && !self.message.is_empty() {
+                // A card whose numbers did not come goes before this text.
+                let ended = self.subagents.ended();
+                if (self.message_id != *message_id || !ended.is_empty()) && !self.message.is_empty()
+                {
                     self.flush_message(&mut out);
                 }
+                out.extend(ended.into_iter().map(card));
                 self.message_id = message_id.clone();
                 self.message.push_str(text);
             }
-            HarnessEvent::ToolCall { id, title, status } => {
+            HarnessEvent::ToolCall {
+                id,
+                title,
+                status,
+                tool,
+                parent,
+                agent,
+            } => {
                 self.flush_message(&mut out);
+                let call = Call {
+                    id,
+                    title: title.as_deref(),
+                    status: status.as_deref(),
+                    tool: tool.as_deref(),
+                    parent: parent.as_deref(),
+                    agent: agent.as_deref(),
+                };
+                if self.subagents.take(call) {
+                    out.extend(self.subagents.ready().into_iter().map(card));
+                    return out;
+                }
                 let at = match self.tools.iter().position(|(open, _)| open == id) {
                     Some(at) => at,
                     None => {
@@ -67,9 +99,15 @@ impl Collector {
             | HarnessEvent::Options(_)
             | HarnessEvent::Commands(_)
             | HarnessEvent::SessionTitle { .. }
+            | HarnessEvent::Subagent(_)
             | HarnessEvent::TurnEnd { .. } => {}
         }
         out
+    }
+
+    /// Each subagent card changed since the last call (§22.2), to publish.
+    pub(crate) fn changed_cards(&mut self) -> Vec<SubagentCard> {
+        self.subagents.take_changed()
     }
 
     /// The message being streamed, written now (§20.4): a steered message
@@ -85,6 +123,7 @@ impl Collector {
     pub(crate) fn finish(&mut self) -> Vec<Durable> {
         let mut out = Vec::new();
         self.flush_message(&mut out);
+        out.extend(self.subagents.all().into_iter().map(card));
         for (_, title) in self.tools.drain(..) {
             if !title.is_empty() {
                 out.push(Durable::Tool(title));
@@ -97,6 +136,7 @@ impl Collector {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use shadows_agent::events::AgentFacts;
     fn chunk(id: &str, text: &str) -> HarnessEvent {
         HarnessEvent::Chunk {
             message_id: Some(id.into()),
@@ -108,7 +148,101 @@ mod tests {
             id: id.into(),
             title: title.map(str::to_owned),
             status: status.map(str::to_owned),
+            tool: None,
+            parent: None,
+            agent: None,
         }
+    }
+    fn agent(id: &str, status: Option<&str>, facts: AgentFacts) -> HarnessEvent {
+        HarnessEvent::ToolCall {
+            id: id.into(),
+            title: Some("Task".into()),
+            status: status.map(str::to_owned),
+            tool: Some("Agent".into()),
+            parent: None,
+            agent: Some(Box::new(facts)),
+        }
+    }
+    fn step(id: &str, tool: &str, title: &str, parent: Option<&str>, status: &str) -> HarnessEvent {
+        HarnessEvent::ToolCall {
+            id: id.into(),
+            title: Some(title.into()),
+            status: Some(status.into()),
+            tool: Some(tool.into()),
+            parent: parent.map(str::to_owned),
+            agent: None,
+        }
+    }
+    fn cards(out: &[Durable]) -> Vec<&SubagentCard> {
+        out.iter()
+            .filter_map(|d| match d {
+                Durable::Subagent(c) => Some(&**c),
+                _ => None,
+            })
+            .collect()
+    }
+    #[test]
+    fn a_subagent_becomes_one_entry_with_its_steps_and_numbers() {
+        let mut c = Collector::new();
+        let mut out = Vec::new();
+        let asked = AgentFacts {
+            description: Some("List files".into()),
+            model: Some("sonnet".into()),
+            prompt: Some("List them".into()),
+            ..AgentFacts::default()
+        };
+        let numbers = AgentFacts {
+            resolved_model: Some("claude-sonnet-5-5".into()),
+            tokens: Some(43119),
+            report: Some("two files".into()),
+            ..AgentFacts::default()
+        };
+        for e in [
+            chunk("m1", "launching"),
+            agent("a", Some("pending"), asked),
+            step("r1", "Read", "Read alpha.txt", Some("a"), "pending"),
+            step("r1", "Read", "Read alpha.txt", None, "completed"),
+            step("r2", "Glob", "Find *", Some("a"), "completed"),
+            step("h", "SubagentHandback", "Hand back", Some("a"), "completed"),
+            agent("a", Some("completed"), AgentFacts::default()),
+        ] {
+            out.extend(c.push(&e));
+        }
+        assert!(cards(&out).is_empty(), "no numbers yet: {out:?}");
+        out.extend(c.push(&agent("a", None, numbers)));
+        out.extend(c.push(&chunk("m2", "done")));
+        out.extend(c.finish());
+        let card = cards(&out)[0].clone();
+        assert_eq!(out.len(), 3, "an inner tool writes no entry: {out:?}");
+        assert_eq!(out[0], Durable::Message("launching".into()));
+        assert_eq!(out[2], Durable::Message("done".into()));
+        assert_eq!(card.title, "List files");
+        assert_eq!(card.steps, ["Read alpha.txt", "Find *"]);
+        assert_eq!(card.model.as_deref(), Some("claude-sonnet-5-5"));
+        assert_eq!(
+            (card.status.as_str(), card.tokens),
+            ("completed", Some(43119))
+        );
+        assert_eq!(card.report.as_deref(), Some("two files"));
+        assert!(!c.changed_cards().is_empty());
+    }
+    #[test]
+    fn a_card_without_numbers_goes_before_the_next_text_and_a_running_one_stops() {
+        let mut c = Collector::new();
+        c.push(&agent("a", Some("pending"), AgentFacts::default()));
+        c.push(&agent("a", Some("failed"), AgentFacts::default()));
+        let out = c.push(&chunk("m1", "it failed"));
+        assert_eq!(cards(&out)[0].status, "failed");
+        // A late update to a written card opens no second one.
+        let out = c.push(&agent("a", None, AgentFacts::default()));
+        assert_eq!(out, [Durable::Message("it failed".into())]);
+        assert!(
+            c.push(&agent("b", Some("pending"), AgentFacts::default()))
+                .is_empty()
+        );
+        let last = c.finish();
+        assert_eq!(cards(&last).len(), 1, "only b: {last:?}");
+        assert_eq!(cards(&last)[0].status, "stopped");
     }
     #[test]
     fn chunks_of_one_message_become_one_entry_and_a_tool_call_splits_messages() {
