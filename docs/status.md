@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-08 (§22, subagent cards, built and run in the browser on `next/subagent-cards`)
+**Updated:** 2026-10-08 (§22, subagent cards, merged as `ce52f1f`; §18 Stage 2 confirmed complete)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,8 +9,8 @@ restate them.
 
 ## Where we are
 
-**§22, subagent cards, is built on `next/subagent-cards`** (2026-10-08, not
-yet merged). The owner is
+**§22, subagent cards, is merged** (2026-10-08, `ce52f1f`, PR #22); CI's
+Windows job runs again. The owner is
 [`§22`](./superpowers/specs/2026-10-05-subagent-cards-design.md). The full
 gate ran: **428 Rust tests** passed, and the web suite with typecheck and lint
 clean. The browser run used a copy of the dev database and the real adapter:
@@ -96,7 +96,7 @@ On 2026-10-03 the ordinary debug daemon was rebuilt from review commit
 everything was ready. This records his successful Windows trial of the
 reviewed build; it does not claim that Codex independently executed every
 §16.12 scenario (Windows record: `docs/evidence/project-plans/WINDOWS_RUN.md` at `92e6dae`).
-The branch is ready for PR preparation.
+It merged as PR #14.
 
 **Code-index settings, effort at once, and a Linux watcher fix** (PR #12,
 2026-10-01; 358 Rust, 156 web tests). The changes:
@@ -233,22 +233,19 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-**Active objective, 2026-10-04:** complete the full vision on
-`codex/full-project-vision`, created from `e290df6`, with local delivery first.
-The [delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
-now retains the full local, concurrency and company sequence. §16 1b is
-implemented and Windows-verified on this branch. The next product slice is
-§18 shared API agreements, now saved as an incomplete implementation checkpoint;
-executors, manager and specialized diagrams are still
-unimplemented, not implied by the new branch or documentation.
+**The next product slice is §18 Stage 3,** which has not started. The four
+items below are on `main`, merged through PRs #15 and #18 (`c080fba`,
+`92e6dae`); no branch is open. The
+[delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
+retains the full local, concurrency and company sequence. Executors, the
+manager and specialized diagrams are still unimplemented.
 
-1. **Structure hygiene, `chore/close-format-blind-spot`, derived through
-   `chore/gate-dedup-cleanup` from the planning branch.** Four changes that
+1. **Structure hygiene, merged.** Four changes that
    preserve product behaviour, specified in
    [`2026-10-04-structure-hygiene-design.md`](./superpowers/specs/2026-10-04-structure-hygiene-design.md):
    a line-length check for the format gate's blind spot, one hook shared by
    the part and outcome editors, one dead export removed, and six merged plans
-   deleted. All four are implemented on the branch. The shared editor retains
+   deleted. All four are on `main`, and CI runs the line-length check. The shared editor retains
    the existing retry and revision-conflict behavior. OpenAPI documentation
    and generated client declarations were refreshed together after rewrapping
    a route's comment. Final Windows verification passed: **385 Rust tests
@@ -258,8 +255,7 @@ unimplemented, not implied by the new branch or documentation.
    suite. The line-length step accepted 100 Unicode characters with CRLF,
    rejected 101 with file/line/width, and accepted the repaired file. No
    independent branch review or new human browser acceptance is claimed.
-2. **Finish the planning workspace Stage 1 handoff:** the planning branch is
-   `codex/shared-contracts-planning`. The [full delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
+2. **Planning workspace Stage 1, merged.** The [full delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
    and [§18 draft](./superpowers/specs/2026-10-03-project-planning-workspace-design.md)
    are written, together with the [Stage 1 implementation plan](./superpowers/plans/2026-10-03-planning-workspace-stage-1.md).
    Its Vision, nested parts, Roadmap outcomes and existing-plan associations
@@ -269,9 +265,9 @@ unimplemented, not implied by the new branch or documentation.
    385 tests (one manual backup test ignored by default, separately executed);
    Web passed 179 tests. The [dated record](./evidence/2026-10-04-planning-workspace-stage-1.md)
    distinguishes the empty actual dev-DB copy from populated synthetic legacy
-   fixtures. Mohammed's acceptance and whole-branch review remain pending;
-   this branch is not merged and the running original daemon was not replaced.
-3. **§16 1b:** the [scoped plan](./superpowers/plans/2026-10-04-cross-plan-links-1b.md)
+   fixtures. No separate record of Mohammed's acceptance or a whole-branch
+   review was written before the merge.
+3. **§16 1b, merged:** the [scoped plan](./superpowers/plans/2026-10-04-cross-plan-links-1b.md)
    is executed. Latest-task dependencies, grant-scoped related reads,
    project map, broken-link graph navigation and dependency notifications
    are implemented above the user checkpoint `dfe6070`. The final gate passed:
@@ -286,7 +282,7 @@ unimplemented, not implied by the new branch or documentation.
    task contracts and execution evidence; the executive manager needs its
    later design after Mohammed explains the rest of its responsibilities.
 
-4. **§18 Stage 2 checkpoint, 2026-10-05:** shared agreement lifecycle,
+4. **§18 Stage 2, merged, 2026-10-05:** shared agreement lifecycle,
    validation, impact review, exact task pins, HTTP/MCP and browser adoption
    are implemented with migrations 0017/0018. The
    [implementation plan](./superpowers/plans/2026-10-04-shared-api-agreements.md)
@@ -294,10 +290,11 @@ unimplemented, not implied by the new branch or documentation.
    records 411 Rust tests (one ignored), 188 Web tests, later focused checks,
    the native two-plan journey/restart and migration of an actual dev-DB copy.
    Complete suites were not rerun after the final focused changes: Mohammed
-   requested stopping tests and saving a checkpoint. **Stage 2 is incomplete:**
-   agreement edits must include the exact Draft version with the expected
-   revision to reject delayed requests across version rollover. Fix and
-   completion review remain; Stage 3 has not started.
+   requested stopping tests and saving a checkpoint. An agreement edit now
+   checks the exact Draft version and the expected revision together, so a
+   delayed request across a version rollover is refused
+   (`crates/shadows-core/src/design/store/agreement_write.rs`). Stage 3 has
+   not started.
 
 ## Standing risks
 
