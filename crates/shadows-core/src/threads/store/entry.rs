@@ -22,6 +22,7 @@ pub(crate) async fn append_entry_in(
 ) -> Result<ThreadEntry, StorageError> {
     let refs = entry.refs.to_vec();
     let refs_json = serde_json::to_string(&refs)?;
+    let card_json = entry.card.map(serde_json::to_string).transpose()?;
     // Spec section 6.5: allocate inside this transaction. Never MAX+1.
     let ordinal: i64 = sqlx::query_scalar(
         "UPDATE planning_thread
@@ -38,8 +39,8 @@ pub(crate) async fn append_entry_in(
     sqlx::query(
         "INSERT INTO thread_entry
            (id, thread_id, ordinal, kind, author_kind, author_id, body, refs_json,
-            operation_id, created_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?)",
+            card_json, operation_id, created_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?)",
     )
     .bind(id.as_str())
     .bind(thread_id.as_str())
@@ -49,6 +50,7 @@ pub(crate) async fn append_entry_in(
     .bind(&entry.author.id)
     .bind(entry.body)
     .bind(&refs_json)
+    .bind(&card_json)
     .bind(entry.operation_id.map(OperationId::as_str))
     .bind(ts)
     .execute(&mut *conn)
@@ -71,14 +73,15 @@ pub(crate) async fn append_entry_in(
         author: entry.author,
         body: entry.body.to_string(),
         refs,
+        card: entry.card.cloned(),
         created_at: ts.to_string(),
         operation_id: entry.operation_id.cloned(),
     })
 }
 
 /// A row of `thread_entry` as `SELECT id, thread_id, ordinal, kind,
-/// author_kind, author_id, body, refs_json, created_at, operation_id` reads
-/// it; [`into_entry`] maps it.
+/// author_kind, author_id, body, refs_json, created_at, operation_id,
+/// card_json` reads it; [`into_entry`] maps it.
 pub(super) type EntryRow = (
     String,
     String,
@@ -89,6 +92,7 @@ pub(super) type EntryRow = (
     String,
     String,
     String,
+    Option<String>,
     Option<String>,
 );
 
@@ -103,6 +107,7 @@ pub(super) fn into_entry(r: EntryRow) -> Result<ThreadEntry, StorageError> {
         author: Actor { kind: r.4, id: r.5 },
         body: r.6,
         refs: serde_json::from_str::<Vec<EntryRef>>(&r.7)?,
+        card: r.10.as_deref().map(serde_json::from_str).transpose()?,
         created_at: r.8,
         operation_id: r.9.map(OperationId::from_stored),
     })
@@ -119,12 +124,13 @@ impl Storage {
         thread_id: &ThreadId,
         entry: NewThreadEntry<'_>,
     ) -> Result<ThreadEntry, StorageError> {
-        let (thread_id, kind, author, body, refs, operation_id, ts) = (
+        let (thread_id, kind, author, body, refs, card, operation_id, ts) = (
             thread_id.clone(),
             entry.kind,
             entry.author.clone(),
             entry.body.to_string(),
             entry.refs.to_vec(),
+            entry.card.cloned(),
             entry.operation_id.cloned(),
             now(),
         );
@@ -135,6 +141,7 @@ impl Storage {
                     author,
                     body: &body,
                     refs: &refs,
+                    card: card.as_ref(),
                     operation_id: operation_id.as_ref(),
                 };
                 append_entry_in(conn, &thread_id, entry, &ts).await
@@ -149,7 +156,7 @@ impl Storage {
     ) -> Result<Vec<ThreadEntry>, StorageError> {
         let rows: Vec<EntryRow> = sqlx::query_as(
             "SELECT id, thread_id, ordinal, kind, author_kind, author_id, body, refs_json,
-                    created_at, operation_id
+                    created_at, operation_id, card_json
                FROM thread_entry WHERE thread_id = ? ORDER BY ordinal",
         )
         .bind(thread_id.as_str())

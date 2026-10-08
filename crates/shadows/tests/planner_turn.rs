@@ -221,11 +221,20 @@ async fn a_turn_streams_and_stores_one_entry_per_message() {
     let app = test_app().await;
     let op = start_prompt(&app, "two-messages").await;
     assert_eq!(wait_terminal(&app, &op).await.status_kind, "Completed");
-    let bodies: Vec<_> = entries(&app).await.into_iter().map(|e| e.body).collect();
+    let entries: Vec<_> = entries(&app)
+        .await
+        .into_iter()
+        .map(|e| (e.kind.as_str(), e.body))
+        .collect();
     assert_eq!(
-        bodies,
-        ["two-messages", "first", "[tool: Read notes.md]", "second"],
-        "the tool entry carries its real title, not \"Terminal\""
+        entries,
+        [
+            ("UserMessage", "two-messages".to_string()),
+            ("AgentMessage", "first".into()),
+            ("ToolCall", "Read notes.md".into()),
+            ("AgentMessage", "second".into()),
+        ],
+        "the tool entry is a ToolCall with its real title, not \"Terminal\" (§23.8)"
     );
     assert!(
         !app.handles.contains(&op).await,

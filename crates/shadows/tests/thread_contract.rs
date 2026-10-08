@@ -83,6 +83,7 @@ async fn concurrent_entry_appends_allocate_contiguous_unique_ordinals() {
                             author: Actor::user("local"),
                             body: &format!("w{w}-i{i}"),
                             refs: &[],
+                            card: None,
                             operation_id: None,
                         },
                     )
@@ -154,6 +155,7 @@ async fn entries_are_read_in_ordinal_order() {
                     author: Actor::user("local"),
                     body,
                     refs: &[],
+                    card: None,
                     operation_id: None,
                 },
             )
@@ -210,6 +212,7 @@ async fn entry_refs_round_trip_through_storage() {
                 author: Actor::user("local"),
                 body: "hello",
                 refs: &refs,
+                card: None,
                 operation_id: None,
             },
         )
@@ -265,6 +268,7 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
                 author: Actor::user("local"),
                 body: "lost",
                 refs: &[],
+                card: None,
                 operation_id: None,
             },
         )
@@ -283,6 +287,7 @@ async fn a_failed_entry_insert_rolls_back_its_allocated_ordinal() {
                 author: Actor::user("local"),
                 body: "kept",
                 refs: &[],
+                card: None,
                 operation_id: None,
             },
         )
@@ -373,6 +378,7 @@ async fn every_entry_kind_round_trips_as_its_stored_name() {
                     author: Actor::system(),
                     body: "b",
                     refs: &[],
+                    card: None,
                     operation_id: None,
                 },
             )
@@ -425,6 +431,7 @@ async fn a_task_reference_round_trips() {
                 author: Actor::user("local"),
                 body: "change this",
                 refs: &refs,
+                card: None,
                 operation_id: None,
             },
         )
@@ -463,6 +470,7 @@ async fn an_unknown_stored_kind_is_a_constraint_failure() {
                 author: Actor::user("local"),
                 body: "b",
                 refs: &[],
+                card: None,
                 operation_id: None,
             },
         )

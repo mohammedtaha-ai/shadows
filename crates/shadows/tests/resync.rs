@@ -74,6 +74,7 @@ fn user_message(body: &str) -> NewThreadEntry<'_> {
         author: Actor::user("local"),
         body,
         refs: &[],
+        card: None,
         operation_id: None,
     }
 }

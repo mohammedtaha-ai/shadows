@@ -170,6 +170,7 @@ impl Storage {
                         author: actor.clone(),
                         body: &body,
                         refs: &refs,
+                        card: None,
                         operation_id: None,
                     };
                     append_entry_in(conn, thread, entry, &ts).await?;

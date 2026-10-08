@@ -90,6 +90,10 @@ pub struct ThreadEntry {
     pub author: Actor,
     pub body: String,
     pub refs: Vec<EntryRef>,
+    /// A card's structured payload (§23.8): a `Subagent`'s card. `None` for
+    /// every other kind.
+    #[schema(value_type = Option<Object>, required)]
+    pub card: Option<serde_json::Value>,
     pub created_at: String,
     /// The turn this entry belongs to (spec §12.7). `None` for entries written
     /// before entries named their turn. A fork's copied entries keep the
@@ -110,6 +114,8 @@ pub struct NewThreadEntry<'a> {
     pub author: Actor,
     pub body: &'a str,
     pub refs: &'a [EntryRef],
+    /// A card's payload (§23.8); `None` for every kind but `Subagent`.
+    pub card: Option<&'a serde_json::Value>,
     /// The turn that wrote it; `None` only for an entry no turn wrote.
     pub operation_id: Option<&'a OperationId>,
 }
@@ -123,6 +129,11 @@ pub struct NewThreadEntry<'a> {
 pub enum ThreadEntryKind {
     UserMessage,
     AgentMessage,
+    /// A tool the harness ran; its body is the tool's title (§23.8).
+    ToolCall,
+    /// A subagent's card (§22.2); its body is the card's title and `card` the
+    /// card itself (§23.8).
+    Subagent,
     /// A permission the harness asked for and Shadows refused (spec §12.2).
     PermissionRefused,
     /// A plan shown in the conversation at the person's request (§13.9).
@@ -137,6 +148,8 @@ impl ThreadEntryKind {
         match self {
             Self::UserMessage => "UserMessage",
             Self::AgentMessage => "AgentMessage",
+            Self::ToolCall => "ToolCall",
+            Self::Subagent => "Subagent",
             Self::PermissionRefused => "PermissionRefused",
             Self::PlanView => "PlanView",
             Self::PlanApproved => "PlanApproved",
@@ -148,6 +161,8 @@ impl ThreadEntryKind {
         [
             Self::UserMessage,
             Self::AgentMessage,
+            Self::ToolCall,
+            Self::Subagent,
             Self::PermissionRefused,
             Self::PlanView,
             Self::PlanApproved,

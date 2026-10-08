@@ -44,6 +44,7 @@ impl Storage {
                         author: Actor::user(&ctx.principal_id),
                         body: &prompt,
                         refs: &[],
+                        card: None,
                         operation_id: Some(&op),
                     },
                     &ts,

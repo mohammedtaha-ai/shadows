@@ -98,40 +98,31 @@ pub(crate) struct TurnWatch {
     pub span: tracing::Span,
 }
 
+fn planner() -> Actor {
+    Actor {
+        kind: "Agent".into(),
+        id: "Planner".into(),
+    }
+}
+
 pub(super) async fn persist(w: &TurnWatch, entries: Vec<Durable>) {
     for entry in entries {
-        let (kind, author, body) = match entry {
-            Durable::Message(body) => (
-                ThreadEntryKind::AgentMessage,
-                Actor {
-                    kind: "Agent".into(),
-                    id: "Planner".into(),
-                },
-                body,
-            ),
-            Durable::Tool(title) => (
-                ThreadEntryKind::AgentMessage,
-                Actor {
-                    kind: "Agent".into(),
-                    id: "Planner".into(),
-                },
-                format!("[tool: {title}]"),
-            ),
-            // §22.2: drawn as a card, the way a tool is drawn as a line.
+        let (kind, author, body, card) = match entry {
+            Durable::Message(body) => (ThreadEntryKind::AgentMessage, planner(), body, None),
+            Durable::Tool(title) => (ThreadEntryKind::ToolCall, planner(), title, None),
+            // §22.2: drawn as a card; §23.8: its payload is a column.
             Durable::Subagent(card) => (
-                ThreadEntryKind::AgentMessage,
-                Actor {
-                    kind: "Agent".into(),
-                    id: "Planner".into(),
-                },
-                format!(
-                    "[subagent: {}]",
-                    serde_json::to_string(&card).unwrap_or_default()
-                ),
+                ThreadEntryKind::Subagent,
+                planner(),
+                card.title.clone(),
+                serde_json::to_value(&*card).ok(),
             ),
-            Durable::PermissionRefused(body) => {
-                (ThreadEntryKind::PermissionRefused, Actor::system(), body)
-            }
+            Durable::PermissionRefused(body) => (
+                ThreadEntryKind::PermissionRefused,
+                Actor::system(),
+                body,
+                None,
+            ),
         };
         if let Err(error) = w
             .runtime
@@ -143,6 +134,7 @@ pub(super) async fn persist(w: &TurnWatch, entries: Vec<Durable>) {
                     author,
                     body: &body,
                     refs: &[],
+                    card: card.as_ref(),
                     operation_id: Some(&w.op_id),
                 },
             )

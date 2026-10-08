@@ -407,6 +407,16 @@ obligations:
       message: the first-message UPDATE requires no other UserMessage.
     tested_by: a_thread_that_had_messages_before_migration_0010_keeps_its_title
 
+  - rule: >
+      A tool line is a `ToolCall` entry whose body is the tool's title and
+      which has no card; a subagent is a `Subagent` entry whose body is its
+      card's title and whose `card` is the card (§23.8). Migration 0020 moved
+      the earlier `[tool: …]` and `[subagent: …]` bodies into these kinds and
+      left a subagent body with invalid JSON as it was. A fork copies `card`.
+    tested_by:
+      - migration_0020_moves_tool_and_subagent_bodies_into_their_kinds
+      - a_fork_keeps_a_subagent_entry_and_its_card
+
 
 agreements:
   - between: [create, set_harness]
@@ -431,6 +441,13 @@ not_the_caller's:
 
 
 tests:
+  - name: migration_0020_moves_tool_and_subagent_bodies_into_their_kinds
+    checks: >
+      On a database at 0019, a `[tool: X]` row reads back `ToolCall` / `X`, a
+      `[subagent: {…}]` row `Subagent` with its title as body and its JSON as
+      `card_json`, a broken subagent body and plain text unchanged.
+  - name: a_fork_keeps_a_subagent_entry_and_its_card
+    checks: A `Subagent` entry before the fork point is in the fork with its card.
   - name: a_thread_created_without_a_harness_runs_on_claude_code
     checks: A create with no harness answers harness "claude-code".
   - name: an_unknown_harness_or_a_mode_outside_the_policy_is_refused_when_set

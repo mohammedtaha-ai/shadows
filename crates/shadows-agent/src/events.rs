@@ -128,7 +128,7 @@ pub fn tool_meta(
 }
 
 /// One subagent as the conversation shows it (spec §22.2): written once as
-/// the body of an entry, `[subagent: <this as JSON>]`, and sent whole on
+/// a `Subagent` entry carrying this as its `card` (§23.8), and sent whole on
 /// every change while it runs.
 #[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SubagentCard {

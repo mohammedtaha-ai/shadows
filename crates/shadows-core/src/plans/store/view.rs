@@ -68,6 +68,7 @@ impl Storage {
                     author: writer.actor(),
                     body: &body,
                     refs: &refs,
+                    card: None,
                     operation_id: Some(&turn),
                 };
                 let entry = append_entry_in(conn, &thread, entry, &ts).await?;

@@ -6,7 +6,9 @@ use serde_json::{Value, json};
 use shadows_core::Actor;
 use shadows_core::OperationId;
 use shadows_core::StorageError;
+use shadows_core::ThreadEntryKind;
 use shadows_core::ThreadId;
+use shadows_core::testing::NewThreadEntry;
 use shadows_core::testing::PlannerTurn;
 
 use shadows_core::testing::acp;
@@ -85,6 +87,35 @@ async fn fork_copies_entries_keeps_their_operation_and_leaves_the_source_alone()
     let listed: Vec<Value> =
         get_json(&app, &format!("/api/projects/{}/threads", app.project)).await;
     assert_eq!(listed.len(), 2);
+}
+
+/// §23.8: a subagent card is its own kind with its card in a column; a fork
+/// copies both.
+#[tokio::test]
+async fn a_fork_keeps_a_subagent_entry_and_its_card() {
+    let app = test_app().await;
+    start_and_finish(&app, "hello", default_settings()).await;
+    let src = entries_json(&app, app.thread.as_str()).await;
+    let op = OperationId::from_literal(src.last().unwrap()["operation_id"].as_str().unwrap());
+    let card = json!({ "id": "a", "title": "List files" });
+    app.storage
+        .append_thread_entry(
+            &app.thread,
+            NewThreadEntry {
+                kind: ThreadEntryKind::Subagent,
+                author: Actor::system(),
+                body: "List files",
+                refs: &[],
+                card: Some(&card),
+                operation_id: Some(&op),
+            },
+        )
+        .await
+        .unwrap();
+    let fork = fork_last(&app).await;
+    let copied = entries_json(&app, fork["id"].as_str().unwrap()).await;
+    let last = copied.last().unwrap();
+    assert_eq!((&last["kind"], &last["card"]), (&json!("Subagent"), &card));
 }
 
 #[tokio::test]

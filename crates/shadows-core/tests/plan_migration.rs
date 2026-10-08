@@ -1,5 +1,5 @@
-//! Migration 0012 (spec §16.9) on a database written before it. Its own file:
-//! `storage_contract.rs` is a named accretion point.
+//! Migrations on a database written before them: 0012 (spec §16.9) and 0020
+//! (§23.8). Their own file: `storage_contract` is a named accretion point.
 
 use std::borrow::Cow;
 use std::str::FromStr;
@@ -9,8 +9,8 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
 const FROZEN: &str = "a frozen plan version never changes";
 
-/// The database as migration 0011 left it.
-async fn migrated_to_0011(db: &std::path::Path) -> sqlx::SqlitePool {
+/// The database as migration `last` left it.
+async fn migrated_to(db: &std::path::Path, last: i64) -> sqlx::SqlitePool {
     let opts = SqliteConnectOptions::from_str(&format!(
         "sqlite://{}",
         db.to_string_lossy().replace('\\', "/")
@@ -28,7 +28,7 @@ async fn migrated_to_0011(db: &std::path::Path) -> sqlx::SqlitePool {
         before
             .migrations
             .iter()
-            .filter(|m| m.version <= 11)
+            .filter(|m| m.version <= last)
             .cloned()
             .collect(),
     );
@@ -47,7 +47,7 @@ async fn exec(pool: &sqlx::SqlitePool, sql: &'static str) {
 async fn migration_0012_moves_every_version_into_a_plan() {
     let tmp = tempfile::tempdir().unwrap();
     let db = tmp.path().join("shadows.sqlite3");
-    let pool = migrated_to_0011(&db).await;
+    let pool = migrated_to(&db, 11).await;
     exec(
         &pool,
         r#"INSERT INTO project (id, slug, name, directory, created_at)
@@ -168,4 +168,60 @@ async fn migration_0012_moves_every_version_into_a_plan() {
     .await
     .expect_err("a frozen version's tasks are refused");
     assert!(insert.to_string().contains(FROZEN), "{insert}");
+}
+
+/// §23.8: tool and subagent bodies become their own kinds; anything else,
+/// including a subagent body whose JSON is broken, is left as it was.
+#[tokio::test]
+async fn migration_0020_moves_tool_and_subagent_bodies_into_their_kinds() {
+    let tmp = tempfile::tempdir().unwrap();
+    let db = tmp.path().join("shadows.sqlite3");
+    let pool = migrated_to(&db, 19).await;
+    exec(
+        &pool,
+        r#"INSERT INTO project (id, slug, name, directory, created_at)
+           VALUES ('P', 'p', 'P', 'C:/p', '2026-09-01T00:00:00Z')"#,
+    )
+    .await;
+    exec(
+        &pool,
+        "INSERT INTO planning_thread (id, project_id, title, status, created_at, title_source)
+         VALUES ('T', 'P', 'Thread', 'Open', '2026-09-01T00:00:00Z', 'client')",
+    )
+    .await;
+    let card = r#"{"id":"a","title":"List files","status":"completed","steps":[]}"#;
+    for (ordinal, body) in [
+        (1, "[tool: Read notes.md]".to_string()),
+        (2, format!("[subagent: {card}]")),
+        (3, "[subagent: {broken]".to_string()),
+        (4, "plain text".to_string()),
+    ] {
+        sqlx::query(
+            "INSERT INTO thread_entry (id, thread_id, ordinal, kind, author_kind, author_id,
+                body, created_at)
+             VALUES (?, 'T', ?, 'AgentMessage', 'Agent', 'Planner', ?, '2026-09-01T00:00:00Z')",
+        )
+        .bind(format!("E{ordinal}"))
+        .bind(ordinal)
+        .bind(body)
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+    pool.close().await;
+
+    let storage = Storage::open(&db).await.unwrap();
+    let rows: Vec<(String, String, Option<String>)> =
+        sqlx::query_as("SELECT kind, body, card_json FROM thread_entry ORDER BY ordinal")
+            .fetch_all(storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(rows[0], ("ToolCall".into(), "Read notes.md".into(), None));
+    assert_eq!(
+        (rows[1].0.as_str(), rows[1].1.as_str(), rows[1].2.as_deref()),
+        ("Subagent", "List files", Some(card))
+    );
+    assert_eq!(rows[2].0, "AgentMessage", "broken JSON stays as it was");
+    assert_eq!(rows[2].1, "[subagent: {broken]");
+    assert_eq!(rows[3], ("AgentMessage".into(), "plain text".into(), None));
 }
