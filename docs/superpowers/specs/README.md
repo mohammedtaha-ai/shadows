@@ -41,6 +41,7 @@ design-note, and status narratives.
 | §21 | [`2026-10-05-slash-menu-design.md`](./2026-10-05-slash-menu-design.md) — the `/` menu; built on `next/slash-menu` (2026-10-05) |
 | §22 | [`2026-10-05-subagent-cards-design.md`](./2026-10-05-subagent-cards-design.md) — subagent cards and their side panel; built on `next/subagent-cards` (2026-10-05) |
 | §23 | [`2026-10-08-guided-planning-design.md`](./2026-10-08-guided-planning-design.md) — guided planning from scratch: standards, vision items, map, structure on disk, gates; awaiting review (2026-10-08) |
+| §24 | [`2026-10-08-approval-authority-design.md`](./2026-10-08-approval-authority-design.md) — who approved: principal and agent; the Planner cannot act as the person; awaiting review (2026-10-08) |
 | — | [`2026-10-04-structure-hygiene-design.md`](./2026-10-04-structure-hygiene-design.md) — implemented and Windows-verified; independent review pending |
 
 ## Maintenance rules

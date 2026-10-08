@@ -158,7 +158,8 @@ Rules:
 2. A newer proposal for the same item, or a newer map proposal, supersedes the
    pending one; its card shows **Superseded**.
 3. There is no reject button: the person says what is wrong in the
-   conversation and the Planner proposes again.
+   conversation and the Planner proposes again. The person approves with the
+   card's button, or asks the Planner to approve; §24 records which.
 4. A proposal records the workspace revision and the standards versions it
    was made against. Approval is refused if either changed since, and the
    Planner is asked for a fresh proposal.
@@ -196,15 +197,11 @@ recorded; writing it to disk belongs to the executors (§17).
 holds. It is a person's action in the web client; no MCP tool writes to
 disk.
 
-> **OPEN — the daemon cannot tell a person from a local process.** §13.2's
-> OPEN applies here with more at stake: the Planner keeps Claude's shell, and
-> the HTTP routes admit any local request, so a Planner could approve its own
-> proposal or call Create structure. "Only the person writes the structure"
-> is a rule of the tools and the client, not a guarantee. What bounds the
-> damage is what the write accepts: an approved map only, an empty directory
-> only, paths inside it only, the approved files only. **Closes when** §1's
-> request guard can tell the web client from another local process; the
-> approval and structure routes then require it.
+§24 owns who approved and makes the Planner unable to act as the person: it
+has no shell to send the web client's request, so Create structure is
+reached only from the web client. §24 is built before this write. What also
+bounds the write is what it accepts: an approved map only, an empty directory
+only, paths inside it only, the approved files only.
 
 1. **What is written:** each part's folders; each part's `contract.yaml`,
    from its approved contract head and the template; the approved initial
@@ -258,6 +255,7 @@ Each PR is one slice a person can try in the browser.
 | 1 | Standards and the stage (§23.2, §23.4) | A Standards tab; the Planner proposes a separate backend from the first chat |
 | 2 | Vision proposals (§23.3, §23.5) | Vision items are written from the conversation after approval |
 | 3 | Map and contracts, with their gates (§23.5, §23.6) | A proposed map approved; a clear refusal when something is missing |
+| 3b | §24: principal and agent, the Planner's fixed tools, its approval tools | "Approved by the Planner at your request" beside "Approved by you" |
 | 4 | Writing the structure (§23.7) | The structure appears in the project directory |
 | 5 | Roadmap and plans behind the map gate | No plan before the structure exists |
 
