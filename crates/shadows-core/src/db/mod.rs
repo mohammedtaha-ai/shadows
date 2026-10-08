@@ -136,7 +136,7 @@ impl Storage {
     }
 
     /// Every write goes through here. Two invariants, each pinned down by its
-    /// own test in `tests/storage_contract.rs`, and by nothing else:
+    /// own test in `tests/storage_contract/txn.rs`, and by nothing else:
     ///
     /// - The write connection is single, not pooled: this is required so the
     ///   mutex below can serialize every writer this process owns.
