@@ -88,8 +88,8 @@ export interface PlanShowFrame {
   place: PlanPlace
 }
 
-/** One subagent as the conversation shows it (§22.2): the body of its entry,
- * `[subagent: <this>]`, and the whole of each `subagent` frame. */
+/** One subagent as the conversation shows it (§22.2): the `card` of its
+ * `Subagent` entry (§23.8), and the whole of each `subagent` frame. */
 export interface SubagentCard {
   id: string
   title: string

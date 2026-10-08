@@ -113,7 +113,7 @@ and `verification` services, and `secrets`.
 - **Known accretion points.** Three places take a change from nearly every task, so they
   rot first and must be watched by name: `shadows-core/src/db/mod.rs` (the pool and
   write transaction every store shares), `shadows-http` (one route per feature,
-  forever), and `shadows-core/tests/storage_contract.rs`. When one of them grows, the
+  forever), and `shadows-core/tests/storage_contract/`. When one of them grows, the
   split goes by domain — each service's `store` already does this — not into a second
   facade.
 - **A new operation is a new method on one service,** with its line in that service's

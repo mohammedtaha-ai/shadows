@@ -1,6 +1,6 @@
 //! The project capability's durable contract: identity creation and the
 //! external-command idempotency machinery it introduces, reused by every
-//! later mutating command. Separate from `tests/storage_contract.rs`, whose
+//! later mutating command. Separate from `tests/storage_contract/`, whose
 //! one job is the connection and transaction contracts.
 
 use shadows_core::testing::ProjectDirectory;

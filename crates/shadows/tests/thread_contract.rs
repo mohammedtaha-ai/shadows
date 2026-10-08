@@ -1,6 +1,6 @@
 //! The thread capability's durable contract: planning threads parented to a
 //! project and thread entries whose ordinals are allocated transactionally.
-//! Separate from `tests/storage_contract.rs`, whose one job is the connection
+//! Separate from `tests/storage_contract/`, whose one job is the connection
 //! and transaction contracts.
 
 use serde_json::json;
