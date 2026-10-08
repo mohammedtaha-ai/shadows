@@ -40,6 +40,7 @@ design-note, and status narratives.
 | §20 | [`2026-10-05-message-queue-design.md`](./2026-10-05-message-queue-design.md) — the queue and Send now; built on `next/polish` (2026-10-05) |
 | §21 | [`2026-10-05-slash-menu-design.md`](./2026-10-05-slash-menu-design.md) — the `/` menu; built on `next/slash-menu` (2026-10-05) |
 | §22 | [`2026-10-05-subagent-cards-design.md`](./2026-10-05-subagent-cards-design.md) — subagent cards and their side panel; built on `next/subagent-cards` (2026-10-05) |
+| §23 | [`2026-10-08-guided-planning-design.md`](./2026-10-08-guided-planning-design.md) — guided planning from scratch: standards, vision items, map, structure on disk, gates; awaiting review (2026-10-08) |
 | — | [`2026-10-04-structure-hygiene-design.md`](./2026-10-04-structure-hygiene-design.md) — implemented and Windows-verified; independent review pending |
 
 ## Maintenance rules

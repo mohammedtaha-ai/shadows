@@ -43,7 +43,8 @@ manager service nor new approval authority for agents.
 
 - A project part has a stable id, project, title, responsibility, design text
   and optional parent. Its kind is an optional descriptive label, not a fixed
-  hierarchy level. There is no required depth or Backend/Frontend structure.
+  hierarchy level. There is no required depth; the mandatory parts every
+  project's map must hold are §23.2's.
 - Parents belong to the same project. A part cannot be its own ancestor.
   Rename and reparent preserve identity, plan associations and relationships.
   Children have explicit stable ordering. Whole-subtree deletion is outside
@@ -52,7 +53,8 @@ manager service nor new approval authority for agents.
   domain/application/ownership views reference these same identities. They
   do not create parallel copies of a part.
 - The project vision is purpose, users, goals, boundaries and agreed technical
-  direction. Part design text describes the intended design; it is not a
+  direction; §23.3 makes each field a list of items with stable ids. Part
+  design text describes the intended design; it is not a
   claim about running software.
 - Vision, parts and outcomes have revisions. Their edits and moves require
   the expected revision and return a conflict instead of overwriting another
