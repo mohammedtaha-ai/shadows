@@ -7,7 +7,7 @@ import type { Plan, PlanTask, ThreadEntry } from '@/api/client'
 import { type HarnessPolicy, modeLabel } from '../mode-policy'
 import { PlanCard } from './plan-card'
 import { SubagentCardView } from './subagent-card'
-import { subagentOf, toolText, toolTitle } from './tool-text'
+import { subagentOf, toolText } from './tool-text'
 
 // Streamdown and its code highlighting are most of this app's weight, so they
 // are a chunk of their own, and not in the one every screen waits for. The
@@ -64,11 +64,13 @@ export function Entry({
       </div>
     )
   }
-  if (entry.kind === 'AgentMessage') {
-    const card = subagentOf(entry.body)
-    if (card !== null) return <SubagentCardView card={card} onOpen={onOpenSubagent} />
-    const tool = toolTitle(entry.body)
-    if (tool === null) return <ReplyText text={entry.body} />
+  if (entry.kind === 'AgentMessage') return <ReplyText text={entry.body} />
+  if (entry.kind === 'Subagent') {
+    const card = subagentOf(entry)
+    return card === null ? null : <SubagentCardView card={card} onOpen={onOpenSubagent} />
+  }
+  if (entry.kind === 'ToolCall') {
+    const tool = entry.body
     // Shadows' own tools read as sentences; any other shows its title.
     const text = toolText(tool) ?? tool
     return (

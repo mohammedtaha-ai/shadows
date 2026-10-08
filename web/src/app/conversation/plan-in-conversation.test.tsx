@@ -9,11 +9,11 @@ import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ThreadEntry } from '@/api/client'
 import {
-  agentEntry,
   completedOperation,
   entryOfKind,
   planFixture,
   planViewEntry,
+  toolEntry,
   userEntry,
 } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
@@ -225,12 +225,12 @@ describe('the plan in the conversation', () => {
   it('plan tool lines read as sentences', async () => {
     const a = await start([
       userEntry('u1', 'plan the login'),
-      agentEntry('a1', '[tool: mcp__shadows__draft_start]'),
-      agentEntry('a2', '[tool: mcp__shadows__plan_edit]'),
-      agentEntry('a3', '[tool: mcp__shadows__workflow_get]'),
-      agentEntry('a4', '[tool: mcp__shadows__plan_show]'),
+      toolEntry('a1', 'mcp__shadows__draft_start'),
+      toolEntry('a2', 'mcp__shadows__plan_edit'),
+      toolEntry('a3', 'mcp__shadows__workflow_get'),
+      toolEntry('a4', 'mcp__shadows__plan_show'),
       planViewEntry('v1', 'Plan v1', 'w1'),
-      agentEntry('a5', '[tool: Read notes.md]'),
+      toolEntry('a5', 'Read notes.md'),
       entryOfKind('ap', 'PlanApproved', 'Plan v1 approved', null),
     ])
     await until(() => a.text().includes('Plan v1 approved'))
@@ -264,7 +264,7 @@ describe('the plan in the conversation', () => {
       [
         userEntry('u1', 'show me the plan'),
         planViewEntry('v1', 'Plan v1', 'w1'),
-        agentEntry('a1', '[tool: mcp__shadows__plan_show]'),
+        toolEntry('a1', 'mcp__shadows__plan_show'),
       ],
       { operations: [completedOperation(null)] },
     )

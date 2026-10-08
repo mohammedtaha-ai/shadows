@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { type ReplyAction, type ReplyState, initialReply, replyReducer, shownReply } from './reply'
+import { agentOrdinal } from './use-conversation'
+
+describe('agentOrdinal', () => {
+  it('moves the reply on for each kind a turn writes (§23.8)', () => {
+    for (const kind of ['AgentMessage', 'ToolCall', 'Subagent']) {
+      expect(agentOrdinal({ ordinal: 3, kind })).toBe(3)
+    }
+  })
+
+  it('ignores the person, plans and refusals', () => {
+    for (const kind of ['UserMessage', 'PlanView', 'PermissionRefused']) {
+      expect(agentOrdinal({ ordinal: 3, kind })).toBeNull()
+    }
+  })
+})
 
 const run = (...actions: ReplyAction[]): ReplyState => actions.reduce(replyReducer, initialReply)
 const stream = (text: string | undefined, op: string | null = 'op'): ReplyAction => ({

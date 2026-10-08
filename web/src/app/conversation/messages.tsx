@@ -186,7 +186,7 @@ function runningCards(
   const written = new Set<string>()
   const hidden: SubagentCard[] = []
   for (const entry of entries) {
-    const card = subagentOf(entry.body)
+    const card = subagentOf(entry)
     if (card === null) continue
     written.add(card.id)
     if (reply?.hidden.has(entry.ordinal) === true) hidden.push(card)

@@ -92,7 +92,10 @@ pub struct ThreadEntry {
     pub refs: Vec<EntryRef>,
     /// A card's structured payload (§23.8): a `Subagent`'s card. `None` for
     /// every other kind.
-    #[schema(value_type = Option<Object>, required)]
+    #[schema(
+        value_type = Option<std::collections::HashMap<String, serde_json::Value>>,
+        required
+    )]
     pub card: Option<serde_json::Value>,
     pub created_at: String,
     /// The turn this entry belongs to (spec §12.7). `None` for entries written

@@ -16,7 +16,7 @@ export function DeletedConversation({ thread, projectId }: { thread: PlanningThr
   // A subagent's card still opens what it did (§22.4).
   const [agent, setAgent] = useState<string | null>(null)
   const card =
-    entries.data?.map((e) => subagentOf(e.body)).find((c) => c !== null && c.id === agent) ?? null
+    entries.data?.map((e) => subagentOf(e)).find((c) => c !== null && c.id === agent) ?? null
   return (
     <div className="flex h-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">

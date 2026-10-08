@@ -12,6 +12,7 @@ import {
   entryOfKind,
   runningOperation,
   threadFixture,
+  toolEntry,
   userEntry,
 } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
@@ -98,8 +99,23 @@ describe('entries that are not messages', () => {
   })
 
   it('a tool call reads as a tool line, not as bracketed text', async () => {
-    const app = await start(answers({ entries: [agentEntry('a1', '[tool: npm test]')] }))
+    const app = await start(answers({ entries: [toolEntry('a1', 'npm test')] }))
     await until(() => app.text().includes('npm test'))
     expect(app.text()).not.toContain('[tool:')
+    expect(app.container.querySelector('[data-entry-kind="tool"]')).not.toBeNull()
+  })
+
+  it('Copy on a tool line copies its title (§23.8)', async () => {
+    const writes: string[] = []
+    vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue({
+      writeText: async (t: string) => {
+        writes.push(t)
+      },
+    } as Clipboard)
+    const app = await start(answers({ entries: [toolEntry('t1', 'npm test')] }))
+    await until(() => app.buttons('Copy').length === 1)
+    await act(async () => app.buttons('Copy')[0]?.click())
+    await until(() => writes.length === 1)
+    expect(writes).toEqual(['npm test'])
   })
 })
