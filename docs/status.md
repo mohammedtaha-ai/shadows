@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-08 (§22, subagent cards, merged as `ce52f1f`; §18 Stage 2 confirmed complete)
+**Updated:** 2026-10-08 (§23 PR 0, the groundwork, built and run on `next/guided-planning`)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -8,6 +8,22 @@ decision live in the topic owners indexed by
 restate them.
 
 ## Where we are
+
+**§23 and §24 are specified, and §23's PR 0 is built on
+`next/guided-planning`** (2026-10-08, not yet merged). The owners are
+[`§23`](./superpowers/specs/2026-10-08-guided-planning-design.md), guided
+planning from scratch, and
+[`§24`](./superpowers/specs/2026-10-08-approval-authority-design.md), who
+approved. PR 0 is §23.8's groundwork: tool lines and subagent cards are their
+own entry kinds, `ToolCall` and `Subagent`, with the card in a column
+(migration 0020); `StorageError`, the HTTP failure mapping and
+`storage_contract` are split by job. The full gate ran once: **430 Rust
+tests** and **225 web tests** passed, with both clippy modes, the feature
+check and the 100-column check clean. The browser run used a copy of §22's
+test database: its old card and 29 tool lines came through the migration
+unchanged on screen; a live turn wrote a `ToolCall` and a `Subagent`, both
+survived a reload, and a fork kept both cards; the daemon log held no error.
+The whole-branch review has not run; Mohammed will say when.
 
 **§22, subagent cards, is merged** (2026-10-08, `ce52f1f`, PR #22); CI's
 Windows job runs again. The owner is
