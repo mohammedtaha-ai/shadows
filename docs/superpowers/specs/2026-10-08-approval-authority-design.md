@@ -2,8 +2,8 @@
 
 - **Date:** 2026-10-08.
 - **Status:** Accepted by Mohammed in conversation on 2026-10-08; awaits his
-  review of this file. Built on `next/guided-planning` before §23's structure
-  write (§23.9, PR 4).
+  review of this file. Enforcement is planned for §23.9 PR 3b, before §23's
+  structure write (PR 4), after the real-adapter probe in §24.3.
 - **Evidence:** the earlier `shadow`'s
   `crates/domain/shadow-actor/src/lib.rs` (two fields per write) and
   `crates/runtime/shadow-core/src/authority.rs` (the core as the boundary),

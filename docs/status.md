@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-10 (§23 PR 1 implemented on `next/guided-planning-pr1`)
+**Updated:** 2026-10-10 (§23 PR 1 merged into `main`)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,7 +9,7 @@ restate them.
 
 ## Where we are
 
-**§23 PR 1 is implemented on `next/guided-planning-pr1`, not merged.**
+**§23 PR 1 is on `main`**, merged through PR #24 as `ced2095` on 2026-10-10.
 Compiled-in base standards, versioned project additions, the Standards tab,
 snapshot-derived stages, conversation/draft stage headers and per-turn
 Planner standards updates are built. Windows verification passed 445 Rust
@@ -21,8 +21,13 @@ addition; its observed model was `MiniMax-M3`. Credential-bearing trial
 scripts were removed; normal daemon configuration was restored.
 The browser trial remains partial: Standards save/reload and Vision save
 were observed, while in-app browser-control policy prevented further UI
-automation. A full independent review verdict remains pending after the
-reviewer's usage limit; its concrete cache-race finding was fixed.
+automation. The delayed cache-response race found during independent review
+was fixed. The completed whole-branch review reported no new confirmed
+defects and freshly passed 66 distinct Rust tests and 15 targeted Web tests;
+it did not rerun the full gate because it made no code changes.
+Post-merge CI on `ced2095` passed the Windows acceptance gate, the Web client
+build gate and the Linux compile gate. Linux runtime acceptance is not claimed.
+The merged branch was deleted locally and from the remote.
 See [the dated record](./evidence/2026-10-10-guided-planning-pr1.md).
 PRs 2 onward and §24 enforcement are not implemented by this slice.
 
@@ -266,7 +271,10 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-**The next product slice is §18 Stage 3,** which has not started. The four
+**The next guided-planning slice is §23 PR 2, vision proposals** (§23.9).
+PR 1's browser acceptance remains partial as recorded above. §18 Stage 3,
+focused Planner context, has not started and remains later work in the full
+delivery roadmap. The four
 items below are on `main`, merged through PRs #15 and #18 (`c080fba`,
 `92e6dae`); no branch is open. The
 [delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)

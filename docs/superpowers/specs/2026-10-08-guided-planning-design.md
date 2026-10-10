@@ -2,7 +2,8 @@
 
 - **Date:** 2026-10-08.
 - **Status:** Accepted by Mohammed in conversation on 2026-10-08, section by
-  section; this file awaits his review. Delivered as six PRs (§23.9).
+  section; this file awaits his review. Delivery follows the PR slices in §23.9;
+  current progress and acceptance are recorded in `docs/status.md`.
 - **Related owners:** §18 (the workspace: vision, parts, outcomes, agreements),
   §13.8 (Planner instructions and the session), §13.6 (Shadows' MCP server),
   §13.9 (showing a card in the conversation), §12.2 (what a turn's entries

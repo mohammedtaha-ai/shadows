@@ -11,7 +11,7 @@
 - **Product intent:** [vision §9](../../vision.md#9-the-roadmap-shared-contracts-and-the-effect-of-a-change).
 - **First release owner:** [§18](../specs/2026-10-03-project-planning-workspace-design.md).
 
-## Starting point
+## Historical starting point
 
 §16 1a was squash-merged into `main` as `4d8774e`: project-owned plans,
 version provenance, archive, continuation, conversation deletion and project
@@ -19,8 +19,17 @@ events. The planning branch starts there. §16 1b remains specified but has no
 implementation plan; §17 remains a draft for task contracts and evidence.
 The Stage 1 workspace and subsequent structure hygiene are inherited from
 `e290df6`: 385 Rust and 180 Web tests passed on Windows. No executors or
-executive manager are claimed to exist. Current delivery is on
+executive manager were claimed to exist. Initial delivery used
 `codex/full-project-vision`; the starting tree was clean.
+
+## Current checkpoint (2026-10-10)
+
+Stages 1–2 and §16 1b are merged into `main`; their acceptance limits remain
+recorded in [project status](../../status.md). Guided planning (§23) now
+precedes the focused context work of Stage 3: PRs 0–1 are merged, and vision
+proposals (PR 2) are next. §23.9 owns that delivery sequence; §24's
+real-adapter probe and authority enforcement precede the structure write.
+The later stages below remain part of the full local-first objective.
 
 ## Shared foundations
 
@@ -165,8 +174,13 @@ The [§16 1b implementation plan](./2026-10-04-cross-plan-links-1b.md)
 has also been executed on `codex/full-project-vision`; its automated gate and
 isolated Windows trial are recorded in
 [dated evidence](../../evidence/2026-10-04-cross-plan-links-1b.md).
-The next implementation plan is §18 shared API agreements. Later subsystems
-retain their own design, implementation and acceptance work.
+The [shared API agreement plan](./2026-10-04-shared-api-agreements.md) has
+shipped; its remaining completion gate and acceptance limits are recorded
+in §18.7 and [project status](../../status.md).
+The [§23 PR 1 plan](./2026-10-09-guided-planning-pr1-standards-stage.md) is
+merged with partial browser acceptance recorded in its evidence. The next
+implementation plan is §23 PR 2, vision proposals. Later subsystems retain
+their own design, implementation and acceptance work.
 
 ## Completion audit
 

@@ -37,14 +37,18 @@ design-note, and status narratives.
 | §17 | [`2026-10-01-task-contracts-and-evidence-design.md`](./2026-10-01-task-contracts-and-evidence-design.md) |
 | §18 | [`2026-10-03-project-planning-workspace-design.md`](./2026-10-03-project-planning-workspace-design.md) — draft for review |
 | §19 | [`2026-10-03-agent-profiles-and-extensions-design.md`](./2026-10-03-agent-profiles-and-extensions-design.md) — draft profiles, specialist dispatch and extensions |
-| §20 | [`2026-10-05-message-queue-design.md`](./2026-10-05-message-queue-design.md) — the queue and Send now; built on `next/polish` (2026-10-05) |
-| §21 | [`2026-10-05-slash-menu-design.md`](./2026-10-05-slash-menu-design.md) — the `/` menu; built on `next/slash-menu` (2026-10-05) |
-| §22 | [`2026-10-05-subagent-cards-design.md`](./2026-10-05-subagent-cards-design.md) — subagent cards and their side panel; built on `next/subagent-cards` (2026-10-05) |
-| §23 | [`2026-10-08-guided-planning-design.md`](./2026-10-08-guided-planning-design.md) — guided planning from scratch: standards, vision items, map, structure on disk, gates; awaiting review (2026-10-08) |
-| §24 | [`2026-10-08-approval-authority-design.md`](./2026-10-08-approval-authority-design.md) — who approved: principal and agent; the Planner cannot act as the person; awaiting review (2026-10-08) |
+| §20 | [`2026-10-05-message-queue-design.md`](./2026-10-05-message-queue-design.md) — the queue and Send now; merged through PR #19 (2026-10-05) |
+| §21 | [`2026-10-05-slash-menu-design.md`](./2026-10-05-slash-menu-design.md) — the `/` menu; merged through PR #21 (2026-10-05) |
+| §22 | [`2026-10-05-subagent-cards-design.md`](./2026-10-05-subagent-cards-design.md) — subagent cards and their side panel; merged through PR #22 (2026-10-08) |
+| §23 | [`2026-10-08-guided-planning-design.md`](./2026-10-08-guided-planning-design.md) — accepted in conversation; owner-file review remains noted there. PRs 0–1 merged through PRs #23–#24; PR 2 is next (§23.9) |
+| §24 | [`2026-10-08-approval-authority-design.md`](./2026-10-08-approval-authority-design.md) — principal and agent; accepted in conversation, owner-file review and real-adapter probe remain open. Enforcement is planned for §23.9 PR 3b |
 | — | [`2026-10-04-structure-hygiene-design.md`](./2026-10-04-structure-hygiene-design.md) — implemented and Windows-verified; independent review pending |
 
 ## Maintenance rules
+
+Delivery and acceptance details live in [`docs/status.md`](../../status.md).
+The [full delivery roadmap](../plans/2026-10-03-project-planning-roadmap.md)
+retains the later local product, concurrency and company sequence.
 
 - Within an accepted spec, ordinary prose is **decided**. Implement it.
   A file marked Draft needs its written-spec review before implementation.

@@ -22,6 +22,9 @@
 >   no trigger is rot, not a question.
 > - Evidence files are dated facts. They never expire and are never design
 >   authority. When a measurement changes a decision, amend its owner spec.
+>   A closed milestone's evidence folder may be deleted from the tree; every
+>   reference then names the path and the commit that still holds it
+>   (`docs/evidence/milestone3/PROBE.md` at `92e6dae`).
 > - **Spike code is deleted once its evidence file is written.** A probe's job is
 >   to produce an answer, not a codebase. Its raw output moves into
 >   `docs/evidence/`; its source stays in Git history and the evidence file names
@@ -45,7 +48,7 @@
 
 - **Slug:** shadows
 - **Stack:** Rust 1.94+ candidate floor from SQLx 0.9, a Cargo workspace of the crates below, plus a React client in `web/`
-- **Status:** Milestones 0–3 are on `main` and ran on Windows; Milestone 3 added the code index (§15). See [docs/status.md](./docs/status.md) for where the project is, and [docs/vision.md](./docs/vision.md) for where it is going.
+- **Status:** Guided-planning groundwork and standards/stage (§23 PRs 0–1) are on `main`. See [docs/status.md](./docs/status.md) for delivered features and acceptance limits, [the delivery roadmap](./docs/superpowers/plans/2026-10-03-project-planning-roadmap.md) for the full sequence, and [docs/vision.md](./docs/vision.md) for the product direction.
 - **Purpose:** Local-first AI orchestration layer (planning + workflow + context + execution + verification + continuity). Clean rewrite of `shadow` avoiding patching pattern.
 
 ## Architecture
@@ -62,9 +65,9 @@ Dependencies point one way, and Cargo refuses a cycle. An adapter depends on
 `shadows-core` only; a `shadows-agent` type it serializes, such as
 `SessionChoices`, is re-exported by `shadows-core`. `fake-acp` is the test
 adapter binary; no product crate links it. `shadows-index` depends on no
-Shadows crate (spec §15.2). Inside `shadows-core`, `AppCore` holds nine
+Shadows crate (spec §15.2). Inside `shadows-core`, `AppCore` holds ten
 services, one folder each: `projects`, `threads`, `turns`, `harness`, `plans`,
-`grants`, `instructions`, `events`, `code` (spec §14.4). Planned,
+`grants`, `instructions`, `events`, `code`, `design` (spec §14.4). Planned,
 and not created until their first user exists: the `scheduler`, `execution`
 and `verification` services, and `secrets`.
 
@@ -101,6 +104,7 @@ and `verification` services, and `secrets`.
      without `test-support`, where the core's boundary is checked
   5. `cargo tree -e features,no-dev --workspace | grep test-support` prints nothing
   6. `git diff --exit-code api/`: `api/openapi.json` changes only with a route
+- CI's format-overflow check is owned by [structure hygiene §1.2](./docs/superpowers/specs/2026-10-04-structure-hygiene-design.md#12-what-is-decided).
 - **Library-first:** no custom ORM, no custom migration engine. Use Rust ecosystem crates.
 - **A file earns its size.** At **300 lines** a file stops being free: the change that
   pushes it over states, in its commit message or report, what that file's single

@@ -55,8 +55,11 @@ trial binary locked; the trial was moved to a separate executable. A later
 full run found the schema inventory missing the new table; it was corrected.
 
 The independent reviewer fixed a delayed save response downgrading newer
-cached additions, with a deterministic regression. Its complete review
-verdict remains pending because the reviewer hit the account usage limit.
+cached additions, with a deterministic regression. The initial complete
+verdict was delayed by the account usage limit. The completed whole-branch
+review, recorded in PR #24, reported no new confirmed defects and freshly
+passed 66 distinct Rust tests and 15 targeted Web tests. That review did not
+rerun the full gate because it made no code changes.
 
 Browser acceptance began in Playwright. Mohammed subsequently requested
 the Codex in-app browser exclusively. Its control tool rejected tab access
@@ -64,3 +67,13 @@ under URL policy, explicitly forbidding alternate browser workarounds; no
 further external-browser automation was attempted. The UI-control part of
 acceptance therefore remains partial. Linux and human full acceptance were
 not run.
+
+## Merge and CI follow-up (2026-10-10)
+
+PR [#24](https://github.com/mohammedtaha-ai/shadows/pull/24) was squash-merged
+into `main` as `ced2095a99e0d7b84006eaf558c843adf6f5746a`. Its PR checks passed.
+The post-merge [CI run](https://github.com/mohammedtaha-ai/shadows/actions/runs/38018230623)
+also completed successfully: Windows acceptance gate, Web client build gate
+and Linux compile gate only. This establishes Linux compilation, not Linux
+runtime acceptance. The branch was deleted locally and from the remote.
+Browser and full human acceptance remain partial as recorded above.
