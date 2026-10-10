@@ -45,7 +45,9 @@ async fn attempt(
         return Err(StorageError::QueuedMessageGone.into());
     };
     let connection = w.opened.connection();
-    match connection.steer(&w.opened.session_id, &queued.prompt).await {
+    let stage = w.sessions.setups().stage_line(&w.thread_id).await?;
+    let prompt = format!("{}\n\n{stage}", queued.prompt);
+    match connection.steer(&w.opened.session_id, &prompt).await {
         Ok(Steer::Injected) => {
             persist(w, collector.cut()).await;
             let entry = storage

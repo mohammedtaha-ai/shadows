@@ -135,10 +135,17 @@ shapes:
     # role, the harness and agent paths and versions, the settings, the
     # prompt and instructions versions, and the focus. Borrowed, never kept.
     thread_id: "&ThreadId"
+    standards_version: Option<i64>
+    standards_additions_version: "Option<&str>"
     # The waiting message this turn sends (§20.3, §20.4), taken in the same
     # transaction; `Dequeue.also` is Send now's own command, recorded with the
     # turn so its replay answers the turn.
     dequeue: "Option<Dequeue>"
+  InvocationVersions:
+    prompt: Option<String>
+    instructions: Option<String>
+    standards: Option<i64>
+    additions: Option<String>
   QueuedMessage:
     # §20.2: a message written while a turn ran, waiting to be sent.
     id: QueuedMessageId
@@ -401,7 +408,7 @@ functions:
     list_operations_for_thread:
       signature: "(&self, thread_id: &ThreadId) -> Result<Vec<Operation>, StorageError>"
     latest_invocation_versions:
-      signature: "(&self, thread: &ThreadId) -> Result<Option<(Option<String>, Option<String>)>, StorageError>"
+      signature: "(&self, thread: &ThreadId) -> Result<Option<InvocationVersions>, StorageError>"
   store:
     start_turn:
       signature: "(&self, ctx: &CommandContext, turn: NewTurn) -> Result<StartedTurn, StorageError>"
@@ -493,11 +500,21 @@ shared_in_transaction:
 
 called_by_other_services:
   thread_is_busy: "Harness (harness/mod.rs change_model): the early busy check, after availability and before the session is touched (§14.9); `send` makes the same check in Turns"
-  latest_invocation_versions: "Harness (harness/setup.rs context_before_turn): the prompt and instructions versions the thread's last turn ran under, so the session is told only what changed (§13.8)"
+  latest_invocation_versions: "Harness (harness/setup.rs context_before_turn): the prompt, instructions and standards versions the last started turn ran under, so the session hears only changes (§13.8, §23.4)"
   list_operations_for_thread: "Threads (threads/mod.rs operations): a thread's operation list, which §14.4 gives to Threads"
 
 
 obligations:
+  - rule: >
+      Each invocation records the base standards version and the additions
+      id selected for the turn. Only started turns count when deciding what
+      the session already received. The stage line is last after focus and
+      continuation context, and accompanies Send now without changing the
+      recorded person's text.
+    tested_by:
+      - an_invocation_records_the_prompt_and_instructions_versions
+      - every_turn_ends_with_the_stage_line
+      - send_now_steers_the_running_turn_after_its_streamed_text
   - rule: >
       A tool is one `ToolCall` entry whose body is its title (§23.8). A
       subagent is one `Subagent` entry carrying its card (§22.2, §23.8): the

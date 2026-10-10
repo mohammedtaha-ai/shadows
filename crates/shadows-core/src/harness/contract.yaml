@@ -213,9 +213,12 @@ functions:
       signature: "(&self) -> &Setups"
       # pub(crate): `spawn.rs` reads `context_before_turn` through it.
     context_before_turn:
-      signature: "(&self, thread: &ThreadId) -> Result<Option<String>, StorageError>"
+      signature: "(&self, thread: &ThreadId, operation: &OperationId) -> Result<Option<String>, StorageError>"
       # pub(crate), on `Setups`: §13.8's block of what changed since the
       # session last heard.
+    stage_line:
+      signature: "(&self, thread: &ThreadId) -> Result<String, StorageError>"
+      # Setups: the current stage, sent last in new prompts and Send now.
     change_model:
       signature: "(&self, thread, opened, model: &str, effort: Option<&str>) -> Result<Offered, SettingRefused>"
       # pub(crate), on `Sessions`, called by `Harness::change_model` only:
@@ -325,6 +328,19 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: >
+      Effective standards reach the session at opening, then once after each
+      base or additions version change, between turns. A fork receives them
+      even before it has an invocation of its own. Every person's prompt ends
+      with the stage line, including Send now.
+    tested_by:
+      - a_session_opens_with_the_effective_standards
+      - changed_standards_reach_the_next_turn_once
+      - additions_saved_after_session_open_reach_its_first_turn
+      - a_thread_from_before_the_standards_gets_them_once
+      - every_turn_ends_with_the_stage_line
+      - a_pending_turn_delivers_the_standards_version_it_recorded
+      - send_now_steers_the_running_turn_after_its_streamed_text
   - rule: >
       Harness availability. `open_session` and `change_model` check
       `policy::is_available` on the thread's harness before any session work:
@@ -559,6 +575,18 @@ not_the_caller's:
 
 
 tests:
+  - name: a_pending_turn_delivers_the_standards_version_it_recorded
+    checks: An additions save between recording and sending waits for the following turn.
+  - name: a_session_opens_with_the_effective_standards
+    checks: Session append contains base rules, mandatory parts and saved additions.
+  - name: changed_standards_reach_the_next_turn_once
+    checks: Changed additions arrive once before the following turn's stage.
+  - name: additions_saved_after_session_open_reach_its_first_turn
+    checks: A first turn receives additions saved after its session opened, once.
+  - name: a_thread_from_before_the_standards_gets_them_once
+    checks: A legacy invocation with no standards version receives standards once.
+  - name: every_turn_ends_with_the_stage_line
+    checks: A new turn ends with the database-derived stage.
   - name: a_removed_thread_cannot_reuse_its_still_open_adapter
     checks: >
       A removal commit while an adapter is still open makes another opening

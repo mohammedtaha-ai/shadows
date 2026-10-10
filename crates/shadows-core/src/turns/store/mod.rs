@@ -18,5 +18,7 @@ mod turn;
 
 pub use queue::{NewQueued, QueueAnswer};
 pub(crate) use transition::{existed, read_before, record};
+#[cfg(feature = "test-support")]
+pub use turn::InvocationVersions;
 pub(crate) use turn::has_open_operation;
 pub use turn::{Dequeue, NewTurn, StartedTurn};

@@ -49,6 +49,9 @@ pub struct NewTurn<'a> {
     pub prompt_version: Option<&'a str>,
     /// The project's current `planner_instructions_version` id, if it has one.
     pub instructions_version: Option<&'a str>,
+    /// The base version and additions id selected for this turn (§23.4).
+    pub standards_version: Option<i64>,
+    pub standards_additions_version: Option<&'a str>,
     /// The task the person points at (§13.9), kept with their message.
     pub focus: Option<&'a Focus>,
     /// The waiting message this turn sends, taken in the same transaction.
@@ -64,6 +67,15 @@ pub struct StartedTurn {
     /// The focused task's number and title, read in the transaction that
     /// checked it (§13.9); `None` without a focus, and on a replay.
     pub focus_task: Option<(u32, String)>,
+}
+
+/// Versions delivered by the thread's most recent started turn (§13.8, §23.4).
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
+pub struct InvocationVersions {
+    pub prompt: Option<String>,
+    pub instructions: Option<String>,
+    pub standards: Option<i64>,
+    pub additions: Option<String>,
 }
 
 const SCOPE: &str = "Thread";
@@ -147,6 +159,8 @@ impl Storage {
         let versions = (
             turn.prompt_version.map(str::to_owned),
             turn.instructions_version.map(str::to_owned),
+            turn.standards_version,
+            turn.standards_additions_version.map(str::to_owned),
         );
         let invocation = [
             turn.role,
@@ -219,8 +233,9 @@ impl Storage {
                            (id, operation_id, role, harness_kind, harness_path, harness_version,
                             agent_path, agent_version, requested_model, requested_mode,
                             requested_effort, prompt_version,
-                            planner_instructions_version_id, created_at)
-                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                            planner_instructions_version_id, standards_version,
+                            standards_additions_version_id, created_at)
+                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     )
                     .bind(uuid::Uuid::new_v4().to_string())
                     .bind(op.as_str())
@@ -235,6 +250,8 @@ impl Storage {
                     .bind(&settings.effort)
                     .bind(&versions.0)
                     .bind(&versions.1)
+                    .bind(versions.2)
+                    .bind(&versions.3)
                     .bind(&ts)
                     .execute(&mut *conn)
                     .await?;
@@ -300,7 +317,7 @@ impl Storage {
         }
     }
 
-    /// `(prompt_version, planner_instructions_version_id)` of the thread's
+    /// The prompt, instructions and standards versions of the thread's
     /// latest invocation, by its turn's order (the ordinal of the turn's own
     /// entry); `None` when it has none. Only a turn that started counts: one
     /// refused or stopped before its prompt went out delivered nothing to the
@@ -308,9 +325,10 @@ impl Storage {
     pub async fn latest_invocation_versions(
         &self,
         thread: &ThreadId,
-    ) -> Result<Option<(Option<String>, Option<String>)>, StorageError> {
+    ) -> Result<Option<InvocationVersions>, StorageError> {
         Ok(sqlx::query_as(
-            "SELECT i.prompt_version, i.planner_instructions_version_id
+            "SELECT i.prompt_version AS prompt, i.planner_instructions_version_id AS instructions,
+                    i.standards_version AS standards, i.standards_additions_version_id AS additions
                FROM agent_invocation i
                JOIN operation o ON o.id = i.operation_id
                JOIN thread_entry e ON e.operation_id = o.id AND e.thread_id = o.thread_id

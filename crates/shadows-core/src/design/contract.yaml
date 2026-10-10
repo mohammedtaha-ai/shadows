@@ -7,6 +7,39 @@ status: current
 source: crates/shadows-core/src/design
 
 shapes:
+  MandatoryPart:
+    name: String
+    owns: String
+    waivable: bool
+  StandardRule:
+    id: String
+    text: String
+    parts: Vec<String>
+  ContractTemplate:
+    rules: Vec<String>
+    shape: Vec<String>
+  BaseStandards:
+    version: i64
+    parts: Vec<MandatoryPart>
+    rules: Vec<StandardRule>
+    contract_template: ContractTemplate
+  AdditionalPart:
+    name: String
+    owns: String
+  StandardsAdditions:
+    rules: Vec<StandardRule>
+    parts: Vec<AdditionalPart>
+  StandardsAdditionsVersion:
+    id: String # Internal provenance only; serde skips it in public JSON.
+    number: i64
+    content: StandardsAdditions
+    created_at: String
+  EffectiveStandards:
+    base: BaseStandards
+    additions: Option<StandardsAdditionsVersion>
+  StageView:
+    stage: Stage
+    missing: Vec<String>
   Design:
     storage: Arc<Storage>
     handles: Arc<LiveHandles>
@@ -71,6 +104,7 @@ shapes:
     next: Option<OutcomeId>
 
 enums:
+  Stage: [Idea, Vision, Map, Structure]
   DesignOp:
     OutcomeCreate: "{ id: OutcomeId, parent: Option<OutcomeId>, before: Option<OutcomeId>, content: OutcomeContent }"
     OutcomePut: "{ id: OutcomeId, content: OutcomeContent }"
@@ -89,6 +123,15 @@ enums:
 
 functions:
   service:
+    standards:
+      signature: "(&self, project: &ProjectId) -> Result<EffectiveStandards, CoreError>"
+      # Unknown/removed projects refuse; a live project without saves has null additions.
+    save_standards_additions:
+      signature: "(&self, command_id: String, project: &ProjectId, content: StandardsAdditions) -> Result<StandardsAdditionsVersion, CoreError>"
+      # StandardsAdditionsSave, User/local, schema 1, Project scope; exact typed fingerprint.
+      # InvalidCommand for invalid additions; command conflicts preserve their taxonomy.
+    stage:
+      signature: "(&self, project: &ProjectId) -> Result<StageView, CoreError>"
     review_agreement:
       signature: "(&self, project: &ProjectId, id: &AgreementId) -> Result<AgreementReview, CoreError>"
     agree_agreement:
@@ -142,6 +185,19 @@ functions:
       # over project, expected_revision and ordered typed ops; trim only titles,
       # validate client UUID references. Other text remains exact.
   store:
+    standards_additions_for_invocation:
+      signature: "(&self, operation: &OperationId) -> Result<Option<StandardsAdditionsVersion>, StorageError>"
+      # Joins invocation pin to its thread's live project and same-project immutable version.
+      # A NULL pin means base only, never latest additions. Unknown invocation refuses.
+    current_standards_additions:
+      signature: "(&self, project: &ProjectId) -> Result<Option<StandardsAdditionsVersion>, StorageError>"
+      # Snapshot excludes missing/removed projects; highest explicit number wins.
+    save_standards_additions:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, content: &StandardsAdditions) -> Result<StandardsAdditionsVersion, StorageError>"
+      # Replay before validation/current state; immutable version row includes internal id.
+    project_stage:
+      signature: "(&self, project: &ProjectId) -> Result<StageView, StorageError>"
+      # Vision, top-level parts and additions all share one read transaction.
     check_agreement_grant:
       signature: "(&self, writer: &Writer, project: &ProjectId) -> Result<(), StorageError>"
     review_design_agreement:
@@ -198,7 +254,31 @@ agreements:
 shared_in_transaction:
   check_agreement_binding_in: "Plans validates exact Agreed versions, declared roles and operation identities inside edit/approval's transaction. Design owns agreement content."
 
+called_by_other_services:
+  standards_additions_for_invocation: "Harness sends precisely the additions selected by Turns."
+  current_standards_additions: "Harness session setup and Turns record read the latest additions."
+  project_stage: "Harness reads the persisted workspace stage before each turn."
+
 obligations:
+  - rule: >
+      Compiled-in base rules cannot be edited through any route or tool. Additions
+      cannot repeat a mandatory part or refer to an unknown one. Invalid saves
+      produce no version/event; valid saves have consecutive explicit numbers.
+    tested_by: [the_base_standards_parse_with_the_four_mandatory_parts, additions_cannot_repeat_a_base_part_or_name_an_unknown_one]
+  - rule: >
+      Save replay returns the original version including its internal id, even
+      after a newer save or project removal. Reused command identity conflicts.
+      A journal failure rolls back version, command and event together.
+    tested_by: [each_additions_save_is_a_new_version_and_a_replay_saves_nothing, standards_saves_are_atomic_and_survive_restart]
+  - rule: >
+      Stage is computed from one persisted snapshot: idea, vision, map, structure.
+      Only top-level parts whose trimmed kind exactly equals a required name count.
+      Added parts are mandatory; unknown/removed projects refuse both reads.
+    tested_by: [the_stage_walks_idea_vision_map_structure, stage_counts_a_trimmed_kind_and_no_other_case, an_added_part_is_mandatory_for_the_stage, standards_without_additions_are_the_base]
+  - rule: >
+      HTTP omits additions row id, translates InvalidCommand to 422, and publishes
+      ProjectStandardsSaved with the number only. A replay emits no second event.
+    tested_by: standards_routes_read_the_base_and_save_additions
   - rule: >
       Outcome containment is independent of parts; cycles/foreign associations
       refuse the entire batch, titles are trimmed, other design text is exact.
@@ -230,6 +310,24 @@ obligations:
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
 
 tests:
+  - name: the_base_standards_parse_with_the_four_mandatory_parts
+    checks: Four parts with explicit waiver flags, S rules, contract shape.
+  - name: standards_without_additions_are_the_base
+    checks: Base-only live project and missing-project read refusals.
+  - name: each_additions_save_is_a_new_version_and_a_replay_saves_nothing
+    checks: Version order, exact replay, identity conflict, removed-project behavior.
+  - name: additions_cannot_repeat_a_base_part_or_name_an_unknown_one
+    checks: Base collision, invalid names and IDs, unknown rule parts, blank text.
+  - name: standards_saves_are_atomic_and_survive_restart
+    checks: Competing saves, late journal rollback, retry, reopened version and events.
+  - name: the_stage_walks_idea_vision_map_structure
+    checks: Empty/incomplete vision, missing map parts, complete map.
+  - name: stage_counts_a_trimmed_kind_and_no_other_case
+    checks: Trimming, case sensitivity, exclusion of child parts.
+  - name: an_added_part_is_mandatory_for_the_stage
+    checks: Effective additions extend stage requirements.
+  - name: standards_routes_read_the_base_and_save_additions
+    checks: Actual routes, private id, invalid save, replay event, missing-project status.
   - name: a_planner_reads_the_workspace_a_person_wrote
     checks: A Planner grant reads the vision and a part over MCP; workspace_get is read only.
   - name: agreement_review_detects_stale_part_and_agrees_without_implicit_adoption

@@ -1,7 +1,13 @@
 use std::sync::Arc;
 
 use shadows_core::testing::{LiveHandles, Runtime, Storage, acp};
-use shadows_core::{AppCore, CoreError, CoreParts, DesignOp, StorageError, VisionContent};
+use shadows_core::{
+    AdditionalPart, AppCore, CoreError, CoreParts, DesignOp, ProjectId, StandardRule,
+    StandardsAdditions, StorageError, VisionContent,
+};
+
+#[path = "design_vision/standards.rs"]
+mod standards;
 
 fn content(text: &str) -> VisionContent {
     VisionContent {

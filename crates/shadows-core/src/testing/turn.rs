@@ -58,6 +58,8 @@ pub fn new_turn<'a>(
         settings,
         prompt_version: Some(crate::harness::prompt_version()),
         instructions_version: None,
+        standards_version: Some(crate::design::base_standards().version),
+        standards_additions_version: None,
         focus: None,
         dequeue: None,
     }

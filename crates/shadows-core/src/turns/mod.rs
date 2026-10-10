@@ -72,7 +72,7 @@ pub(crate) mod for_tests {
     pub use super::model::FailureStage;
     pub use super::shutdown::shut_down;
     pub use super::spawn::PlannerTurnRequest;
-    pub use super::store::{Dequeue, NewTurn, StartedTurn};
+    pub use super::store::{Dequeue, InvocationVersions, NewTurn, StartedTurn};
     pub use super::turn::{PlannerTurn, StopOutcome};
 }
 

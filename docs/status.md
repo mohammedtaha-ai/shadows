@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-08 (§23 PR 0, the groundwork, built and run on `next/guided-planning`)
+**Updated:** 2026-10-10 (§23 PR 1 implemented on `next/guided-planning-pr1`)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,8 +9,25 @@ restate them.
 
 ## Where we are
 
-**§23 and §24 are specified, and §23's PR 0 is built on
-`next/guided-planning`** (2026-10-08, not yet merged). The owners are
+**§23 PR 1 is implemented on `next/guided-planning-pr1`, not merged.**
+Compiled-in base standards, versioned project additions, the Standards tab,
+snapshot-derived stages, conversation/draft stage headers and per-turn
+Planner standards updates are built. Windows verification passed 445 Rust
+tests (one manual test ignored) and 231 Web tests, both clippy modes,
+production feature isolation, formatting/width, generated API consistency,
+typecheck, lint and build. A temporary MiniMax setup through the real ACP
+adapter completed a turn and named the base parts plus the saved `billing`
+addition; its observed model was `MiniMax-M3`. Credential-bearing trial
+scripts were removed; normal daemon configuration was restored.
+The browser trial remains partial: Standards save/reload and Vision save
+were observed, while in-app browser-control policy prevented further UI
+automation. A full independent review verdict remains pending after the
+reviewer's usage limit; its concrete cache-race finding was fixed.
+See [the dated record](./evidence/2026-10-10-guided-planning-pr1.md).
+PRs 2 onward and §24 enforcement are not implemented by this slice.
+
+**§23 and §24 are specified, and §23's PR 0 is merged**
+(2026-10-08, `d963fc4`, PR #23). The owners are
 [`§23`](./superpowers/specs/2026-10-08-guided-planning-design.md), guided
 planning from scratch, and
 [`§24`](./superpowers/specs/2026-10-08-approval-authority-design.md), who

@@ -21,6 +21,7 @@ mod offers;
 mod sessions;
 mod settings;
 mod setup;
+mod standards;
 mod store;
 mod titles;
 

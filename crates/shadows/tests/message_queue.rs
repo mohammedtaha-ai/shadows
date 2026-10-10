@@ -176,10 +176,8 @@ async fn send_now_steers_the_running_turn_after_its_streamed_text() {
         .into_iter()
         .map(|e| e.body)
         .collect();
-    assert_eq!(
-        bodies,
-        ["steerable", "waiting", "turn left", "steered: turn left"]
-    );
+    assert_eq!(&bodies[..3], ["steerable", "waiting", "turn left"]);
+    assert!(bodies[3].starts_with("steered: turn left\n\n[Shadows] Stage: idea."));
     let (_, listed) = call(&app, "GET", &path, None).await;
     assert_eq!(listed, json!([]));
 }

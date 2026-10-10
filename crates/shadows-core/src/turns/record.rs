@@ -84,6 +84,10 @@ impl Turns {
         let instructions = (self.storage)
             .current_planner_instructions(&context.project_id)
             .await?;
+        let additions = self
+            .storage
+            .current_standards_additions(&context.project_id)
+            .await?;
         let started = self
             .storage
             .start_turn(
@@ -101,6 +105,8 @@ impl Turns {
                     settings,
                     prompt_version: Some(prompt_version()),
                     instructions_version: instructions.as_ref().map(|v| v.id.as_str()),
+                    standards_version: Some(crate::design::base_standards().version),
+                    standards_additions_version: additions.as_ref().map(|v| v.id.as_str()),
                     focus,
                     dequeue,
                 },

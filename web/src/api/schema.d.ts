@@ -595,6 +595,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_stage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/standards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_standards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/standards/additions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["save_standards_additions"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/threads": {
         parameters: {
             query?: never;
@@ -1016,6 +1064,10 @@ export interface components {
             id: string;
             kind: string;
         };
+        AdditionalPart: {
+            name: string;
+            owns: string;
+        };
         Agree: {
             command_id: string;
             /** Format: int64 */
@@ -1135,6 +1187,13 @@ export interface components {
             version: number;
             workflow_id: components["schemas"]["WorkflowId"];
         };
+        BaseStandards: {
+            contract_template: components["schemas"]["ContractTemplate"];
+            parts: components["schemas"]["MandatoryPart"][];
+            rules: components["schemas"]["StandardRule"][];
+            /** Format: int64 */
+            version: number;
+        };
         BindingEdit: {
             command_id: string;
             /** Format: int64 */
@@ -1198,6 +1257,10 @@ export interface components {
             percent: number;
             /** Format: int64 */
             tokens: number;
+        };
+        ContractTemplate: {
+            rules: string[];
+            shape: string[];
         };
         CreateDir: {
             /** @description One new path component that Windows would accept. */
@@ -1353,6 +1416,10 @@ export interface components {
             /** Format: int64 */
             version: number;
             workflow_id: components["schemas"]["WorkflowId"];
+        };
+        EffectiveStandards: {
+            additions?: null | components["schemas"]["StandardsAdditionsVersion"];
+            base: components["schemas"]["BaseStandards"];
         };
         EntryRef: {
             /**
@@ -1575,6 +1642,11 @@ export interface components {
             /** Format: int64 */
             version?: number | null;
             workflow_id?: null | components["schemas"]["WorkflowId"];
+        };
+        MandatoryPart: {
+            name: string;
+            owns: string;
+            waivable: boolean;
         };
         MapLink: {
             after: components["schemas"]["PlanId"];
@@ -1953,6 +2025,32 @@ export interface components {
             /** Format: int32 */
             count: number;
             reason: string;
+        };
+        /** @enum {string} */
+        Stage: "idea" | "vision" | "map" | "structure";
+        StageView: {
+            /** @description Missing vision field names at vision; mandatory part names at map. */
+            missing: string[];
+            stage: components["schemas"]["Stage"];
+        };
+        StandardRule: {
+            id: string;
+            parts: string[];
+            text: string;
+        };
+        StandardsAdditions: {
+            parts: components["schemas"]["AdditionalPart"][];
+            rules: components["schemas"]["StandardRule"][];
+        };
+        StandardsAdditionsSave: {
+            command_id: string;
+            content: components["schemas"]["StandardsAdditions"];
+        };
+        StandardsAdditionsVersion: {
+            content: components["schemas"]["StandardsAdditions"];
+            created_at: string;
+            /** Format: int64 */
+            number: number;
         };
         Start: {
             agreement_id?: null | components["schemas"]["AgreementId"];
@@ -4053,6 +4151,140 @@ export interface operations {
                 };
             };
             /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_stage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StageView"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_standards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EffectiveStandards"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    save_standards_additions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StandardsAdditionsSave"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardsAdditionsVersion"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             500: {
                 headers: {
                     [name: string]: unknown;

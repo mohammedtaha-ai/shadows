@@ -18,6 +18,7 @@ import type { PointedTask } from './focus-chip'
 import { Messages } from './messages'
 import { PlanSidePanel, type SideShown } from './plan-side-panel'
 import { StatusBadge } from './status-badge'
+import { StageChip } from './stage-chip'
 import { StreamBanner } from './stream-banner'
 import { SubagentPanel } from './subagent-panel'
 import { subagentOf } from './tool-text'
@@ -123,6 +124,7 @@ function Conversation({
               <h1 dir="auto" className="truncate text-start text-sm font-medium">
                 {thread?.title ?? 'Conversation'}
               </h1>
+              <StageChip projectId={projectId} />
               <p className="truncate text-xs text-faint-foreground">
                 <bdi>{project?.name ?? '…'}</bdi> · Planner
               </p>

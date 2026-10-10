@@ -32,11 +32,13 @@ pub use code::{
 // carries, which each adapter maps.
 pub use db::StorageError;
 pub use design::{
-    AgreementContent, AgreementId, AgreementIssue, AgreementParticipantImpact, AgreementParty,
-    AgreementPartyReview, AgreementReview, AgreementRole, AgreementState, AgreementVersion,
-    AgreementWriter, Design, DesignAnchor, DesignChange, DesignOp, DesignRevision, Outcome,
+    AdditionalPart, AgreementContent, AgreementId, AgreementIssue, AgreementParticipantImpact,
+    AgreementParty, AgreementPartyReview, AgreementReview, AgreementRole, AgreementState,
+    AgreementVersion, AgreementWriter, BaseStandards, ContractTemplate, Design, DesignAnchor,
+    DesignChange, DesignOp, DesignRevision, EffectiveStandards, MandatoryPart, Outcome,
     OutcomeContent, OutcomeId, OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage,
-    PartView, VisionContent, VisionView, WorkspaceView,
+    PartView, Stage, StageView, StandardRule, StandardsAdditions, StandardsAdditionsVersion,
+    VisionContent, VisionView, WorkspaceView, base_standards,
 };
 pub use error::{CoreError, ErrorCode};
 pub use events::{Actor, Delivery, Events, StoredEvent, Subscription, UiSignal};

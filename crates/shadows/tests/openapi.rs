@@ -123,6 +123,8 @@ fn the_document_names_every_route() {
             "GET /api/projects/{id}/mcp-grants",
             "GET /api/projects/{id}/plan-map",
             "GET /api/projects/{id}/planner-instructions",
+            "GET /api/projects/{id}/stage",
+            "GET /api/projects/{id}/standards",
             "GET /api/projects/{id}/threads",
             "GET /api/projects/{id}/workflows",
             "GET /api/subscribe",
@@ -155,6 +157,7 @@ fn the_document_names_every_route() {
             "PUT /api/projects/{id}/agreements/{agreement}",
             "PUT /api/projects/{id}/code/links/{linked}",
             "PUT /api/projects/{id}/planner-instructions",
+            "PUT /api/projects/{id}/standards/additions",
             "PUT /api/threads/{id}/session/effort",
             "PUT /api/threads/{id}/session/model",
         ]

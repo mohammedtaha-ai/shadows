@@ -4,6 +4,7 @@ import { VisionEditor } from './vision-editor'
 import { PartsView } from './parts-view'
 import { RoadmapView } from './roadmap-view'
 import { WorkspacePlans } from './workspace-plans'
+import { StandardsView } from './standards-view'
 
 export function WorkspacePage() {
   const { projectId } = useParams({ from: '/projects/$projectId/workspace' })
@@ -16,10 +17,11 @@ export function WorkspacePage() {
           <Link to="/projects/$projectId/agreements" params={{ projectId }}>Contracts</Link>
           <Link to="/projects/$projectId/workspace" params={{ projectId }} search={{ view: 'vision' }}>Vision</Link>
           <Link to="/projects/$projectId/workspace" params={{ projectId }} search={{ view: 'map' }}>Project map</Link>
+          <Link to="/projects/$projectId/workspace" params={{ projectId }} search={{ view: 'standards' }}>Standards</Link>
           <Link to="/projects/$projectId/workspace" params={{ projectId }} search={{ view: 'roadmap' }}>Roadmap</Link>
           <Link to="/projects/$projectId/workspace" params={{ projectId }} search={{ view: 'plans' }}>Plans</Link>
         </nav>
-        {view === 'map' ? <PartsView key={projectId} projectId={projectId} selected={part} /> : view === 'roadmap' ? <RoadmapView key={projectId} projectId={projectId} selected={outcome} /> : view === 'plans' ? <WorkspacePlans key={projectId} projectId={projectId} /> : <VisionEditor key={projectId} projectId={projectId} />}
+        {view === 'standards' ? <StandardsView key={projectId} projectId={projectId} /> : view === 'map' ? <PartsView key={projectId} projectId={projectId} selected={part} /> : view === 'roadmap' ? <RoadmapView key={projectId} projectId={projectId} selected={outcome} /> : view === 'plans' ? <WorkspacePlans key={projectId} projectId={projectId} /> : <VisionEditor key={projectId} projectId={projectId} />}
       </div>
     </main>
   )

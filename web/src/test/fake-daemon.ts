@@ -5,6 +5,8 @@
 
 import type {
   Grant,
+  EffectiveStandards,
+  StandardsAdditions,
   InstructionsVersion,
   Operation,
   Plan,
@@ -66,12 +68,32 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
   let project = o.project ?? projectFixture
   let instructions = o.instructions ?? null
   let grants = o.grants ?? []
+  let standards: EffectiveStandards = {
+    base: { version: 1,
+      parts: [
+        { name: 'backend', owns: 'All logic.', waivable: false },
+        { name: 'database', owns: 'Schema and storage.', waivable: false },
+        { name: 'api', owns: 'The path between frontend and backend.', waivable: true },
+        { name: 'frontend', owns: 'The interface only.', waivable: true },
+      ],
+      rules: [{ id: 'S1', text: 'Each service owns its tables.', parts: ['backend', 'database'] }],
+      contract_template: { rules: ['Trace every claim.'], shape: ['header', 'obligations'] },
+    }, additions: null,
+  }
   const connect = 'claude mcp add --transport http shadows http://127.0.0.1:4318/mcp'
   return {
     'GET /api/harnesses': [claudeHarness, codexHarness],
     'GET /api/projects': () => Response.json([project]),
     'GET /api/projects/p1/threads': [threadFixture],
     'GET /api/projects/p1/agreements': [],
+    'GET /api/projects/p1/standards': () => Response.json(standards),
+    'GET /api/projects/p1/stage': { stage: 'idea', missing: [] },
+    'PUT /api/projects/p1/standards/additions': async (request: Request) => {
+      const { content } = await request.json() as { content: StandardsAdditions }
+      const additions = { number: (standards.additions?.number ?? 0) + 1, content, created_at: '2026-10-10T00:00:00Z' }
+      standards = { ...standards, additions }
+      return Response.json(additions)
+    },
     'GET /api/threads/t1': threadFixture,
     'GET /api/threads/t1/entries': o.entries ?? [userEntry('u1', 'hi'), agentEntry('a1', 'hello')],
     'GET /api/threads/t1/operations': o.operations ?? [],

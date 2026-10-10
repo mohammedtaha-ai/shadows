@@ -35,6 +35,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 utoipa = { workspace = true }
+yaml-rust2 = { workspace = true }
 
 [features]
 # Compiles in `testing` (spec §14.6): storage, the runtime and the sessions
@@ -51,7 +52,6 @@ test-support = ["dep:escargot", "shadows-process/test-support"]
 tempfile = { workspace = true }
 # `tests/contracts.rs` (spec §14.7): the contracts are YAML, the sources Rust.
 syn = { workspace = true }
-yaml-rust2 = { workspace = true }
 # Enables `test-support` for integration tests (tests/*.rs) without turning
 # it on for `cargo build` or `cargo run`.
 shadows-core = { path = ".", features = ["test-support"] }

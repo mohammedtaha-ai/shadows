@@ -23,6 +23,7 @@ import { CliMenu } from './cli-picker'
 import { Composer } from './composer'
 import { DEFAULT_HARNESS } from './conversation'
 import { type SessionView, sessionKey } from './use-session'
+import { StageChip } from './stage-chip'
 
 const route = getRouteApi('/projects/$projectId/new')
 
@@ -80,6 +81,7 @@ function Draft({ projectId }: { projectId: string }) {
       <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md">
         <div className="min-w-0">
           <h1 className="truncate text-sm font-medium">New conversation</h1>
+          <StageChip projectId={projectId} />
           <p className="truncate text-xs text-faint-foreground">
             <bdi>{project?.name ?? '…'}</bdi> · Planner
           </p>

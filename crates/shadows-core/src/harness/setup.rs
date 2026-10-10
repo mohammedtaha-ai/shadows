@@ -14,10 +14,12 @@ use std::sync::{Arc, Mutex, OnceLock};
 use sha2::{Digest, Sha256};
 
 use crate::db::{Storage, StorageError};
+use crate::design::{EffectiveStandards, base_standards};
 use crate::grants::GrantId;
 use crate::instructions::InstructionsVersion;
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
+use crate::turns::OperationId;
 use shadows_agent::acp::{McpServerSpec, SessionSetup};
 
 /// Shadows' instructions to the Planner, compiled in.
@@ -28,6 +30,8 @@ const CHANGED: &str = "[Shadows] The project's Planner instructions changed. \
                        They replace the project instructions you were given before:";
 const REMOVED: &str = "[Shadows] The project's Planner instructions were removed.";
 const OURS: &str = "[Shadows] Shadows' instructions for you:";
+const STANDARDS: &str = "[Shadows] The project's standards changed. \
+    They replace the standards you were given before:";
 
 /// The version `agent_invocation.prompt_version` records: the first 16 hex
 /// digits of the SHA-256 of `prompt.txt`, computed once from the compiled text.
@@ -41,6 +45,7 @@ struct Held {
     grant: Option<GrantId>,
     /// The instructions version its `append` carried.
     instructions: Option<String>,
+    standards: Option<String>,
 }
 
 pub(crate) struct Setups {
@@ -72,6 +77,16 @@ impl Setups {
             .current_planner_instructions(project)
             .await
             .map_err(|e| e.to_string())?;
+        let additions = self
+            .storage
+            .current_standards_additions(project)
+            .await
+            .map_err(|e| e.to_string())?;
+        let standards = additions.as_ref().map(|v| v.id.clone());
+        let effective = EffectiveStandards {
+            base: base_standards().clone(),
+            additions,
+        };
         let (grant, mcp) = match &self.mcp_url {
             Some(url) => {
                 let (grant, token) = self
@@ -94,12 +109,13 @@ impl Setups {
             Held {
                 grant,
                 instructions,
+                standards,
             },
         );
-        let append = match body(current.as_ref()) {
-            Some(body) => format!("{}\n\n## Project instructions\n\n{body}", ours()),
-            None => ours().to_string(),
-        };
+        let mut append = format!("{}\n\n{}", ours(), super::standards::render(&effective));
+        if let Some(body) = body(current.as_ref()) {
+            append.push_str(&format!("\n\n## Project instructions\n\n{body}"));
+        }
         Ok(SessionSetup {
             mcp,
             append: Some(append),
@@ -115,6 +131,7 @@ impl Setups {
     pub(crate) async fn context_before_turn(
         &self,
         thread: &ThreadId,
+        operation: &OperationId,
     ) -> Result<Option<String>, StorageError> {
         let context = self.storage.turn_context(thread).await?;
         let latest = self.storage.latest_invocation_versions(thread).await?;
@@ -123,17 +140,33 @@ impl Setups {
             .current_planner_instructions(&context.project_id)
             .await?;
         let current_id = current.as_ref().map(|v| v.id.clone());
+        let additions = self
+            .storage
+            .standards_additions_for_invocation(operation)
+            .await?;
+        let additions_id = additions.as_ref().map(|v| v.id.clone());
+        let effective = EffectiveStandards {
+            base: base_standards().clone(),
+            additions,
+        };
         // `None` for the instructions sent: unknown, so sent again.
-        let (ours_sent, instructions_sent) = match latest {
-            Some((prompt, instructions)) => (
-                prompt.as_deref() == Some(prompt_version()),
-                Some(instructions),
+        let (ours_sent, instructions_sent, standards_sent) = match latest {
+            Some(latest) => (
+                latest.prompt.as_deref() == Some(prompt_version()),
+                Some(latest.instructions),
+                latest.standards == Some(effective.base.version)
+                    && latest.additions == additions_id,
             ),
-            None if context.fork_session_id.is_some() => (false, None),
+            None if context.fork_session_id.is_some() => (false, None, false),
             None => {
-                let opened = self.lock().get(thread).map(|h| h.instructions.clone());
+                let opened = self
+                    .lock()
+                    .get(thread)
+                    .map(|h| (h.instructions.clone(), h.standards.clone()));
                 match opened {
-                    Some(instructions) => (true, Some(instructions)),
+                    Some((instructions, standards)) => {
+                        (true, Some(instructions), standards == additions_id)
+                    }
                     None => return Ok(None),
                 }
             }
@@ -148,7 +181,20 @@ impl Setups {
                 None => REMOVED.to_string(),
             });
         }
+        if !standards_sent {
+            parts.push(format!(
+                "{STANDARDS}\n\n{}",
+                super::standards::render(&effective)
+            ));
+        }
         Ok((!parts.is_empty()).then(|| parts.join("\n\n")))
+    }
+
+    /// The stage line every person's message carries (§23.4).
+    pub(crate) async fn stage_line(&self, thread: &ThreadId) -> Result<String, StorageError> {
+        let context = self.storage.turn_context(thread).await?;
+        let view = self.storage.project_stage(&context.project_id).await?;
+        Ok(crate::design::stage::line(&view))
     }
 
     /// The adapter closed: revoke its grant. A failed revocation is logged;

@@ -1,0 +1,76 @@
+# Compiled-in base standards (§23.2). A reviewed change increments version.
+version: 1
+parts:
+  - name: backend
+    owns: "All logic: one core; every operation is a method of one service."
+    waivable: false
+  - name: database
+    owns: >-
+      The schema and storage: the only part that touches the database;
+      migrations are append-only.
+    waivable: false
+  - name: api
+    owns: >-
+      The only path between the frontend and the backend, with a versioned contract.
+    waivable: true
+  - name: frontend
+    owns: "The interface only, with no business rules."
+    waivable: true
+rules:
+  - id: S1
+    text: >-
+      Each service owns its tables and reads no other service's; it asks the owning service.
+    parts: [backend, database]
+  - id: S2
+    text: "The frontend reaches data only through the api."
+    parts: [frontend, api]
+  - id: S3
+    text: "Every part has a contract, written to the contract template below."
+    parts: []
+  - id: S4
+    text: "Migrations are never edited; a change is a new migration."
+    parts: [database]
+  - id: S5
+    text: >-
+      Ordering is explicit: a sequence, an ordinal or another stable key,
+      never insertion order.
+    parts: [backend, database]
+  - id: S6
+    text: "The backend and the database are separate parts, never one file."
+    parts: [backend, database]
+contract_template:
+  rules:
+    - >-
+      Trace, never skim: every claim comes from code that was read; when a
+      comment disagrees with the code, describe the code and record a gap.
+    - >-
+      A gap names a symbol in this source (function, type, constant), never a
+      line number; a suspicion about another source is an open question.
+    - >-
+      An obligation names the test that holds it, or says none or unknown;
+      read test bodies, not only their names.
+    - >-
+      Reference a type owned elsewhere by its source; do not copy its
+      members. Describe only what this source owns.
+    - >-
+      The header says what only this source can do: its responsibility,
+      invariants, boundaries and traps, not a list of functions.
+    - >-
+      Group functions as the source reads best (reads, writes, checks);
+      mark a function private when its privacy holds an invariant.
+    - >-
+      Two paths that must give the same answer are an agreement, with its
+      test; one that does not hold is also a gap.
+    - "Keep the file valid YAML; quote signatures that contain ': '."
+    - "Contradict yourself nowhere: every section agrees with the others."
+  shape:
+    - header
+    - shapes
+    - functions
+    - enums
+    - obligations
+    - agreements
+    - not_the_caller's
+    - gaps
+    - open_questions
+    - tests
