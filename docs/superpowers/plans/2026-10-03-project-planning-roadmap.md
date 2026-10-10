@@ -48,7 +48,7 @@ The roadmap does not reproduce their decisions.
 | 6. Diagrams and views | Explore structured schema or screen design and regroup the same elements by architecture or domain | A later owner spec using Stage 1 identities; specialized diagrams are not an execution prerequisite |
 | 7. Local operations and release | Start a configured local installation, inspect health, back up and recover data, upgrade safely and understand compatibility limits | Extend configuration/process owners and specify local lifecycle after execution evidence exists |
 | 8. Safe concurrency | Run independent ready tasks in separate workspaces, reconcile their results and preserve verification provenance | Later execution/workspace owner; serial execution and recovery from Stages 4–5 first |
-| 9. Teams and company server | Share Roadmaps and approved contracts across people while personal execution stays local | Later tenancy/authority/sync/storage owners; complete local release first |
+| 9. Teams and company server | Share Roadmaps and approved contracts through a server owner, with bounded local workers | §1.7 deployment/sync and §24.6 external authority; detailed tenant/store/worker design and complete local release first |
 
 Each stage ends with a Windows browser trial and a dated evidence record.
 Readiness is measured on the running product, separately from automated tests.
@@ -154,6 +154,12 @@ Never create unused schema merely to reserve a number.
   company deployment is claimed from a local test.
 
 ## Work deliberately left for later designs
+
+The optional NYLRA integration has a separate delivery path in the
+[shared cloud architecture](../../../../shadows-backend/docs/architecture.md#14-delivery-order).
+It does not block or replace Stages 3–8. §1.7 now owns the personal/team and
+synchronization decision; Stage 9 still requires its detailed implementation
+design and evidence. No cloud capability is delivered by that decision.
 
 Parallel writes, team accounts, a company server and remote execution remain
 in the full vision and need their own scope and proof at Stages 8–9. §19 introduces a staged path for profiles, extensions

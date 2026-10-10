@@ -101,3 +101,50 @@ agents Shadows launches, which it controls.
    every mode, bypass included.
 3. No `GET` route changes state (one test walks the router).
 4. Create structure has no MCP tool.
+
+## 24.6 External human confirmation and assessment
+
+Decided 2026-10-10 for NYLRA integration; not implemented by the local §23 slices.
+§24.1's `user:local` is the current local identity, not a remote authentication
+scheme. Before external commands, bind an authenticated account/device to an
+authorized principal of the specific workspace. §1.7 owns workspace placement;
+the [cloud architecture](../../../../shadows-backend/docs/architecture.md#8-decision-and-approval-integrity)
+owns the confirmation delivery path. The runtime derives the actor from that
+trusted path, never from a JSON field or forwarded model text.
+
+There are two distinct effects:
+
+- **Planner approval:** §24.2 continues to permit it and records the Planner as
+  agent. It never satisfies an operation reserved for explicit human confirmation.
+- **Human confirmation:** binds authenticated person/device, workspace, operation,
+  exact proposal digest, source revisions, expiry and stable command identity.
+  The owner validates both authority and current basis before accepting it, and
+  records the intermediary/device separately without crediting the model as human.
+
+Create structure remains human-only. NYLRA cannot turn a generic conversation,
+preference, Planner approval or inferred "yes" into this authorization. The
+trusted client shows the exact operation and proposal independently of model
+output and requires a deliberate confirmation action. Voice may prepare a
+proposal; voice-only approval remains unavailable until a separately reviewed
+confirmation mechanism proves equivalent binding and origin. Optional future
+delegated policies are explicit owner-enforced grants, never learned preferences.
+
+An assessment request through NYLRA runs with a capability set that cannot edit
+or approve plans/agreements/proposals, create structure, or dispatch execution.
+Durable assessment/conversation records are allowed; project adoption is not.
+The core enforces these restrictions for each operation. A normal write-capable
+Planner session with an "evaluate only" prompt does not satisfy this contract;
+reject an assessment request when an enforced assessment context is unavailable.
+Link the assessment to the intended work and source versions. Subsequent adoption
+is a separate command and may require a fresh assessment if its basis changed.
+
+An identical authenticated retry returns the original recorded outcome without
+another effect; the same identity with different normalized content conflicts.
+A stale first submission is refused. Replay does not bypass current authorization
+to disclose a stored result, nor start new work after revocation.
+
+> **OPEN — external authority proof.** Close before accepting remote mutations
+> with a reviewed account/device binding protocol and executable checks for
+> forged origins, stale proposals, revoked membership/devices, exact retries,
+> cross-workspace misuse and assessment attempts to write. Existing loopback
+> Origin checks and the §24.3 adapter probe are not proof of remote authority.

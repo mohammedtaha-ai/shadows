@@ -21,7 +21,7 @@ design-note, and status narratives.
 | Sections | Owner |
 |---|---|
 | §0 | [`2026-09-21-principles-design.md`](./2026-09-21-principles-design.md) |
-| §1 | [`2026-09-21-architecture-design.md`](./2026-09-21-architecture-design.md) |
+| §1 | [`2026-09-21-architecture-design.md`](./2026-09-21-architecture-design.md); §1.7 owns personal/team authority, runtime placement and synchronization |
 | §2 | [`2026-09-21-data-flow-design.md`](./2026-09-21-data-flow-design.md) |
 | §3 | [`2026-09-21-errors-and-testing-design.md`](./2026-09-21-errors-and-testing-design.md) |
 | §4 | [`2026-09-21-domain-model-design.md`](./2026-09-21-domain-model-design.md) |

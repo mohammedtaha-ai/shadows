@@ -298,4 +298,103 @@ Both passed the required PostgreSQL semantic contract. SQLx remained preferred b
 
 This decision does **not** imply separate storage/domain crates, generic repository traits, or a custom transaction DSL.
 
+## 1.7 Workspace authority and deployment
+
+Decided 2026-10-10 for the personal/team boundary. This section owns workspace
+authority, runtime placement, synchronization semantics and execution ownership.
+It specifies future integration; it does not claim a server runtime, connector,
+PostgreSQL product store or remote worker is implemented.
+The [shared cloud architecture](../../../../shadows-backend/docs/architecture.md)
+owns accounts, cloud delivery, NYLRA data and sharing lifecycle. §24 owns approval.
+
+### One authority per workspace
+
+| Workspace | Authoritative runtime | Authoritative data | Disconnected use |
+| --- | --- | --- | --- |
+| Personal | Shadows on the owning computer | Local SQLite plus local project files | Full delivered local functionality |
+| Team | Server deployment of the same Rust application rules | Server PostgreSQL plus managed artifacts | Cached reads, draft proposals and explicitly authorized bounded work |
+
+An account is not a workspace. Signing in, installing NYLRA, or linking a project
+does not move workspace ownership. A person can use a personal workspace while
+participating in several team workspaces. Team work on their laptop remains team
+work; its checkout is not a new personal authority. Private personal projects,
+conversations and preferences are not made visible to a team by membership.
+
+The owning runtime alone accepts changes to its plans, agreements, approvals and
+execution state. Clients submit commands against expected revisions. Another
+device's cache is never a second writable master. Conflicting proposals require
+review and resubmission; last-write-wins cannot decide domain conflicts.
+
+### One implementation of project rules
+
+`shadows-core` remains the owner of project rules in both deployments. Local
+SQLite and future server PostgreSQL stores live behind its service boundaries.
+Add storage variations when implementing the server; do not add unused generic
+repositories now. The same semantic contract suite must exercise both stores.
+
+The TypeScript application in `shadows-backend` owns cloud accounts, membership,
+devices, delivery and NYLRA. It calls the Rust runtime through an authenticated
+service protocol. It neither reimplements plan validation nor writes Rust-owned
+tables. Rust and TypeScript stores have separate ownership and database access
+roles even if hosted by the same PostgreSQL installation. There is no distributed
+transaction spanning them: durable requests, deduplication and recorded outcomes
+bridge that boundary.
+
+Cloud identity/membership establishes who may access a workspace. The Rust owner
+enforces the authenticated scope and domain authorization on every operation;
+an arbitrary header or model-supplied actor is not authentication. The detailed
+identity protocol closes the remote-access OPEN before any external mutation.
+
+### What synchronization means
+
+1. **NYLRA continuity:** its cloud-owned topics and conversations are available on
+   desktop and phone. This does not synchronize Shadows databases.
+2. **Workspace views:** selected versioned snapshots plus ordered changes build
+   read caches. Initial snapshot and event position must share a consistent
+   boundary. A lost/expired cursor forces resnapshot; reconnect must not skip a
+   change between snapshot and stream. Commands carry stable identity and expected
+   versions; the owner answers replay or conflict using §2's command rules.
+3. **Code and artifacts:** Git commits/branches carry source changes; explicit
+   manifests and digests identify required non-Git inputs and result artifacts.
+   Dirty files, ignored files and large artifacts require explicit inclusion.
+   A plan sync neither uploads a repository nor proves files are available.
+4. **Backup:** an explicit recoverable snapshot, with its own retention and restore
+   policy. A cloud context cache is not a backup. Restoring a copy does not authorize
+   two runtimes to write the same workspace identity.
+5. **Move ownership:** an explicit later migration/export-import operation with
+   quiescence, verified data, cutover and fencing of the former owner. Linking a
+   second computer never performs migration or automatic failover.
+
+Personal workspace access from a second device routes to its owning computer.
+When that computer is offline, the device can read permitted cached evidence or
+queue proposals, but cannot start its Planner or claim acceptance. A separate
+personal workspace on another computer has a separate identity.
+
+### Execution is assigned, not synchronized
+
+A team runtime may assign a bounded attempt to an enrolled local worker or, later,
+a cloud worker. The runtime retains plan and acceptance authority; the worker owns
+only its assigned process tree and isolated checkout. An assignment binds the
+workspace, task version, input digests, capabilities, expiry and attempt identity.
+One writable attempt has one active assignment generation. Reassignment fences
+older results; evidence cannot be accepted under a different generation.
+
+Offline workers start no new assignments or privileged external effects. They may
+finish only work explicitly permitted by an unexpired offline grant, then retain
+results for revalidation. Without such a grant they stop safely on loss of lease.
+Revocation cannot instantly stop an unreachable machine: the UI shows stop pending
+until acknowledged or expiry, and the owner rejects stale results. Reassignment
+must not duplicate non-idempotent external effects; those wait for reconciliation.
+
+Moving execution stops/checkpoints the old attempt and starts a new attempt from
+verified inputs. It does not move a live process, CLI login or opaque harness
+session. A resumed conversation is not proof that execution moved.
+
+> **OPEN — server and worker implementation.** Close before Stage 9/server or
+> remote-worker implementation by specifying and testing tenant isolation, the
+> authenticated identity/revocation protocol, PostgreSQL semantic parity,
+> snapshot/replay recovery, lease expiry/fencing and artifact transfer. Linux
+> server acceptance also closes §1.5's containment OPEN. This does not block the
+> full local release, which remains the first delivery objective.
+
 ---
