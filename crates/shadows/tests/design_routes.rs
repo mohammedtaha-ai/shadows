@@ -4,6 +4,53 @@ use shadows_core::testing::{EventCursor, acp};
 mod app;
 
 #[tokio::test]
+async fn standards_routes_read_the_base_and_save_additions() {
+    let app = app::test_app().await;
+    let standards = format!("/api/projects/{}/standards", app.project);
+    let (status, body) = app::call(&app, "GET", &standards, None).await;
+    assert_eq!(status, 200);
+    assert_eq!(body["base"]["parts"][0]["name"], "backend");
+    assert_eq!(body["additions"], Value::Null);
+    let save = format!("{standards}/additions");
+    let content = json!({"rules": [], "parts": [{"name": "billing", "owns": "Payments."}]});
+    let request = json!({"command_id": "s1", "content": content});
+    let (status, saved) = app::call(&app, "PUT", &save, Some(request.clone())).await;
+    assert_eq!(status, 200, "{saved}");
+    assert_eq!(saved["number"], 1);
+    assert!(saved.get("id").is_none());
+    assert_eq!(
+        app::call(&app, "PUT", &save, Some(request)).await,
+        (200, saved)
+    );
+    let bad = json!({"command_id":"s2", "content":{"rules":[],"parts":[
+        {"name":"api","owns":"x"}]}});
+    let (status, failure) = app::call(&app, "PUT", &save, Some(bad)).await;
+    assert_eq!(
+        (status, failure["code"].as_str()),
+        (422, Some("INVALID_COMMAND"))
+    );
+    let events = app
+        .storage
+        .read_project_events_after(EventCursor(0), &app.project, 100);
+    let events = events.await.unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].kind, "ProjectStandardsSaved");
+    assert_eq!(
+        serde_json::from_str::<Value>(&events[0].payload_json).unwrap(),
+        json!({"number":1})
+    );
+    let stage = format!("/api/projects/{}/stage", app.project);
+    assert_eq!(
+        app::call(&app, "GET", &stage, None).await,
+        (200, json!({"stage":"idea","missing":[]}))
+    );
+    for suffix in ["standards", "stage"] {
+        let unknown = format!("/api/projects/{}/{suffix}", uuid::Uuid::new_v4());
+        assert_eq!(app::call(&app, "GET", &unknown, None).await.0, 404);
+    }
+}
+
+#[tokio::test]
 async fn mixed_workspace_batch_rolls_back_and_outcome_pages_are_bounded() {
     let app = app::test_app().await;
     let edits = format!("/api/projects/{}/design/edits", app.project);

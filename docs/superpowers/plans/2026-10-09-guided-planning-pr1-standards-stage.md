@@ -24,6 +24,7 @@
 - **API:** when `api/openapi.json` changes, run `npm run gen:api` in `web/` and commit both files.
 - **Edit tools:** no prettier, and no Python or sed edits to source files.
 - **Tests:** run targeted tests per task; the full gate (CLAUDE.md steps 1–6 plus `npm test`, `npm run lint`, `npm run build` in `web/`) runs once, in Task 6.
+- **Commits:** task commit steps are checkpoints only. Commit the complete slice once after Task 6's full gate. This reconciles the one-gate constraint with CLAUDE.md's gate before every commit.
 - **Contracts:** every service change updates its `contract.yaml` in the same commit, following `docs/codebase/contracts/TEMPLATE.yaml`.
 - **Base standards, from §23.2:**
   - **Edits:** no route or tool edits them, and an addition never removes or weakens a base rule.
@@ -66,6 +67,34 @@ Record each as a ledger `Ruling:` line at Task 1.
 3. **A thread whose invocations predate this migration** (`standards_version` NULL). Expected: it is sent the standards once, not on every turn. Test: `a_thread_from_before_the_standards_gets_them_once` (Task 4).
 4. **A part whose `kind` has whitespace or different case.** Expected: `" backend "` counts and `"Backend"` does not; kinds are names, not prose. Test: `stage_counts_a_trimmed_kind_and_no_other_case` (Task 3).
 5. **An addition naming a base part, or a rule naming an unknown part.** Expected: refused with `INVALID_COMMAND`, nothing saved. Test: `additions_cannot_repeat_a_base_part_or_name_an_unknown_one` (Task 2).
+
+## Execution corrections (2026-10-10)
+
+- Ruling: work on `next/guided-planning-pr1` in the current checkout, as explicitly selected by Mohammed.
+- Ruling: the per-task commit steps are checkpoints; one scoped commit follows the complete gate. Otherwise the plan conflicts with the project's gate-before-every-commit rule.
+- Ruling: the stage store reads the vision, kinds and standards additions in one read transaction. Separate reads can combine revisions that never existed together.
+- Ruling: an unknown or removed project refuses a standards read. Copying the instructions store's `None` behavior would expose a successful project response for a nonexistent project.
+- Ruling: the existing instructions editor is `web/src/app/project-settings/instructions-editor.tsx`; Task 5 follows that file's save semantics.
+- Source navigation: Shadows MCP and Rust LSP are unavailable in this session; the code map, contracts and plan-named sources are the fallback.
+- Ruling: the stage line accompanies Send now as well as a new turn. Task 4's original `spawn.rs`-only change missed steered person messages. Standards updates remain between turns.
+- Ruling: `INVALID_COMMAND` uses the existing HTTP 422 mapping, not the plan's guessed 400.
+- Ruling: Planner standards rendering lives in `harness/standards.rs`, separate from standards parsing and validation; it owns the prompt representation without growing the domain file.
+- Ruling: before-turn rendering reads the additions pinned on the pending invocation, not a fresh latest-version lookup. A regression test proved that a concurrent save otherwise delivered v2 while recording v1. The next turn receives v2 once.
+- Ruling: `ProjectStandardsSaved` joins the project-event store's kind allowlist; adding the durable event alone did not make it reach SSE readers.
+- Ruling: added standards and stage tests are child modules of existing integration-test binaries. This keeps responsibilities separate without paying for another test executable.
+- Ruling: a delayed save response cannot replace a newer standards version already read from project events. The editor keeps the higher version number in cache; a regression covers v1 arriving after v2.
+- Ruling: Task 5 also adds the stage to `draft.tsx`, before the first message. The browser journey expected that header, but the original file list covered only persisted conversations; a failing draft test reproduced the omission.
+- Ruling: Task 2 updates `tests/storage_contract/schema.rs`'s explicit table inventory for migration 0021. The full gate reproduced the omission as a schema-test failure.
+- Browser tooling: `preview_start` is unavailable. Run an isolated daemon and Vite on ports 4324/5174 with a SQLite online-backup copy under `output/guided-planning-pr1/`; leave `.claude/launch.json` unchanged. Run the trial executable from that directory so Windows does not lock Cargo's output binary.
+- Gate repair: the first workspace build encountered stale rmeta/rlib artifacts, repaired by cleaning only the `shadows-core` package cache. A subsequent attempt encountered the trial's locked Windows binary; moving its executable allowed a fresh run. Neither error was a test assertion failure.
+
+## Execution progress
+
+- Tasks 1–3: implemented. Targeted unit, design, route, contracts, code-map and OpenAPI tests passed; generated Web API types updated.
+- Task 4: implemented. Targeted Planner MCP (19), conversation (8), message queue (9) and turn (10) tests passed. The pending-turn version race was reproduced before fixing it.
+- Task 5: implemented. Full Web suite passed 230 tests; typecheck, lint and build passed.
+- Task 6: final Windows gate passed: 445 Rust tests (one ignored), 231 Web tests, both clippy modes, production feature isolation, formatting/width, generated API consistency, typecheck, lint and build. Evidence and status updated. Independent review found and fixed the delayed cache response, but its complete verdict remains pending due to an account usage limit.
+- Acceptance: Standards save/reload and Vision save observed in a real browser. Stage API returns map with all five required parts. In-app browser control was rejected under URL policy, so further UI automation remains unverified. A temporary MiniMax ACP turn completed and named all base parts plus saved billing; observed model MiniMax-M3. Trial credential scripts removed, original adapter restored. See `docs/evidence/2026-10-10-guided-planning-pr1.md`.
 
 ---
 
@@ -415,7 +444,7 @@ async fn each_additions_save_is_a_new_version_and_a_replay_saves_nothing() {
     let mut changed = content;
     changed.parts[0].owns = "Other.".into();
     let conflict = design.save_standards_additions("a1".into(), &project, changed).await;
-    assert!(matches!(conflict, Err(CoreError::CommandConflict)), "{conflict:?}");
+    assert!(matches!(conflict, Err(CoreError::Storage(StorageError::CommandConflict))), "{conflict:?}");
 }
 
 #[tokio::test]
@@ -596,7 +625,7 @@ async fn standards_routes_read_the_base_and_save_additions() {
     let bad = json!({ "command_id": "s2", "content": { "rules": [], "parts": [
         { "name": "api", "owns": "x" } ] } });
     let (status, failure) = app::call(&app, "PUT", &save, Some(bad)).await;
-    assert_eq!((status, failure["code"].as_str()), (400, Some("INVALID_COMMAND")));
+    assert_eq!((status, failure["code"].as_str()), (422, Some("INVALID_COMMAND")));
     let events = app.storage.read_project_events_after(EventCursor(0), &app.project, 100);
     let kinds: Vec<String> = events.await.unwrap().into_iter().map(|e| e.kind).collect();
     assert_eq!(kinds, ["ProjectStandardsSaved"]);
@@ -609,7 +638,7 @@ async fn standards_routes_read_the_base_and_save_additions() {
   - `get_standards` → `s.core.design().standards(&project)`.
   - `save_standards_additions` takes `{ command_id: String, content: StandardsAdditions }` and calls `s.core.design().save_standards_additions(…)`.
   - utoipa paths: `/api/projects/{id}/standards` (get) and `/api/projects/{id}/standards/additions` (put), tag `projects`.
-  - Responses: 200; 400 `INVALID_COMMAND`; 404 for an unknown project; 409 `COMMAND_CONFLICT`; 500.
+  - Responses: 200; 422 `INVALID_COMMAND`; 404 for an unknown project; 409 `COMMAND_CONFLICT`; 500.
   - Register both with `.routes(routes!(design::get_standards))` and `.routes(routes!(design::save_standards_additions))` in `lib.rs`, next to the other `design::` routes.
 
 - [ ] **Step 10: Run the route test, then regenerate the API**
@@ -1249,14 +1278,14 @@ Run, from the root, with the cargo prefix:
 3. `cargo test --workspace`
 4. `cargo clippy --workspace -- -D warnings`
 5. `cargo tree -e features,no-dev --workspace | grep test-support`
-6. `git diff --exit-code api/`
+6. Verify generated API consistency with the `openapi` tests and `npm run gen:api`; route changes legitimately update `api/openapi.json` before commit. After commit, `git diff --exit-code api/` must pass.
 7. In `web/`: `npm test`, `npm run lint`, `npm run build`
 8. Check: no Rust line over 100 columns in the diff.
 
 Expected:
 - every step passes;
 - step 5 prints nothing, so its exit 1 is the expected result;
-- step 6 shows no diff once committed.
+- step 6 verifies generated bytes before committing; the API diff is empty after commit.
 
 - [ ] **Step 4: Commit**
 

@@ -17,6 +17,11 @@ afterEach(() => {
 })
 
 describe('the draft', () => {
+  it('shows the project stage before the first message', async () => {
+    const app = open = await startApp('/projects/p1/new', answers())
+    await until(() => app.text().includes('Stage: idea'))
+    expect(app.container.querySelector('main header')?.textContent).toContain('Stage: idea')
+  })
   it('carries the selected plan and command into a failed first-send retry', async () => {
     const requests: Record<string, unknown>[] = []
     const plan = planFixture()

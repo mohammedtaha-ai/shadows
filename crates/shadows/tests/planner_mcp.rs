@@ -33,6 +33,9 @@ use serve::serve;
 const PROMPT: &str = shadows_core::testing::PROMPT;
 const CHANGED: &str = "[Shadows] The project's Planner instructions changed.";
 const OURS: &str = "[Shadows] Shadows' instructions for you:";
+const STAGE_IDEA: &str = "[Shadows] Stage: idea.";
+#[path = "planner_mcp/standards.rs"]
+mod standards;
 
 /// The text of the fake's reply to `prompt`, a turn that completed.
 async fn reply(app: &App, prompt: &str) -> String {
@@ -420,13 +423,14 @@ async fn changed_instructions_reach_the_next_turn_once_as_a_context_block() {
 
     let next = report(&l.app).await;
     let sent = blocks(&next);
-    assert_eq!(sent.len(), 2, "{sent:?}");
+    assert_eq!(sent.len(), 3, "{sent:?}");
     assert_eq!(sent[0], "report", "the person's text is first");
     assert!(sent[1].starts_with(CHANGED), "{}", sent[1]);
     assert!(sent[1].ends_with(&format!("\n\n{body}")), "{}", sent[1]);
 
     let after = report(&l.app).await;
-    assert_eq!(blocks(&after), ["report"], "sent once");
+    assert_eq!(blocks(&after).len(), 2, "sent once");
+    assert!(blocks(&after)[1].starts_with(STAGE_IDEA));
     assert_eq!(after["bearer_hash"], next["bearer_hash"], "the grant stays");
     assert_eq!(
         (&next["resumes"], &after["resumes"]),
@@ -443,7 +447,8 @@ async fn a_thread_from_before_this_milestone_gets_shadows_instructions_once() {
     // What a Milestone 1 turn recorded: no versions, and a session created
     // without Shadows' instructions.
     sqlx::query(
-        "UPDATE agent_invocation SET prompt_version = NULL, planner_instructions_version_id = NULL",
+        "UPDATE agent_invocation SET prompt_version = NULL,
+            planner_instructions_version_id = NULL, standards_version = NULL",
     )
     .execute(l.app.storage.reader())
     .await
@@ -453,7 +458,7 @@ async fn a_thread_from_before_this_milestone_gets_shadows_instructions_once() {
     let next = report(&l.app).await;
     assert_eq!(next["how"], "resume");
     let sent = blocks(&next);
-    assert_eq!(sent.len(), 2, "{sent:?}");
+    assert_eq!(sent.len(), 3, "{sent:?}");
     assert_eq!(sent[0], "report");
     assert!(sent[1].starts_with(OURS), "{}", sent[1]);
     assert!(sent[1].contains(PROMPT.trim_end()));
@@ -462,17 +467,18 @@ async fn a_thread_from_before_this_milestone_gets_shadows_instructions_once() {
         "the project has no instructions"
     );
 
-    assert_eq!(blocks(&report(&l.app).await), ["report"]);
+    assert_eq!(blocks(&report(&l.app).await).len(), 2);
 }
 
 #[tokio::test]
-async fn a_new_threads_first_turn_has_no_context_block() {
+async fn a_new_threads_first_turn_has_only_the_stage_line() {
     let l = listening_app().await;
     let body = "  Keep every task under a day.  ";
     save_instructions(&l.app, "i1", body).await;
 
     let first = report(&l.app).await;
-    assert_eq!(blocks(&first), ["report"]);
+    assert_eq!(blocks(&first).len(), 2);
+    assert!(blocks(&first)[1].starts_with(STAGE_IDEA));
     let append = first["append"].as_str().unwrap();
     assert!(append.starts_with(PROMPT.trim_end()), "{append}");
     assert!(
@@ -493,12 +499,12 @@ async fn instructions_saved_after_the_session_opened_reach_its_first_turn() {
     let first = report(&l.app).await;
     assert!(!first["append"].as_str().unwrap().contains(body));
     let sent = blocks(&first);
-    assert_eq!(sent.len(), 2, "{sent:?}");
+    assert_eq!(sent.len(), 3, "{sent:?}");
     assert!(
         sent[1].starts_with(CHANGED) && sent[1].ends_with(body),
         "{sent:?}"
     );
-    assert_eq!(blocks(&report(&l.app).await), ["report"]);
+    assert_eq!(blocks(&report(&l.app).await).len(), 2);
 }
 
 #[tokio::test]
@@ -530,13 +536,13 @@ async fn a_forks_first_turn_gets_instruction_and_continue_plan_blocks() {
     let first: Value = serde_json::from_str(&last_agent_entry_on(&l.app, fork).await.body).unwrap();
     assert_eq!(first["how"], "fork");
     let sent = blocks(&first);
-    assert_eq!(sent.len(), 3, "{sent:?}");
+    assert_eq!(sent.len(), 4, "{sent:?}");
     assert!(
         sent[1].starts_with(OURS),
         "Shadows' instructions come first"
     );
     assert!(
-        sent[1].contains(CHANGED) && sent[1].ends_with(body),
+        sent[1].contains(CHANGED) && sent[1].contains(body),
         "{}",
         sent[1]
     );
@@ -549,6 +555,7 @@ async fn a_forks_first_turn_gets_instruction_and_continue_plan_blocks() {
             plan.title, plan.plan_id, plan.id
         )
     );
+    assert!(sent[3].starts_with(STAGE_IDEA));
 }
 
 #[tokio::test]
@@ -575,12 +582,14 @@ async fn an_invocation_records_the_prompt_and_instructions_versions() {
         (Some(prompt_version().to_string()), Some(current.id))
     );
     assert_eq!(prompt_version().len(), 16);
-    assert_eq!(
-        l.app
-            .storage
-            .latest_invocation_versions(&l.app.thread)
-            .await
-            .unwrap(),
-        Some(recorded)
-    );
+    let versions = l
+        .app
+        .storage
+        .latest_invocation_versions(&l.app.thread)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!((versions.prompt, versions.instructions), recorded);
+    assert_eq!(versions.standards, Some(1));
+    assert_eq!(versions.additions, None);
 }

@@ -49,6 +49,21 @@ afterEach(() => {
   app = null
 })
 
+it('shows the project stage in the conversation header', async () => {
+  let stage = { stage: 'map', missing: ['database'] }
+  const a = app = await startApp('/projects/p1/threads/t1', {
+    ...answers(), 'GET /api/projects/p1/stage': () => Response.json(stage),
+  })
+  const header = () => [...a.container.querySelectorAll('header')].find(h => h.textContent?.includes('Stage:'))
+  await until(() => header()?.textContent?.includes('Stage: map') === true)
+  expect(header()?.textContent).toContain('missing database')
+  stage = { stage: 'structure', missing: [] }
+  const stream = a.sources.find(source => source.url.includes('/projects/p1/events'))!
+  act(() => stream.durable(1, 'ProjectDesignChanged'))
+  await until(() => header()?.textContent?.includes('Stage: structure') === true)
+  expect(header()?.textContent).not.toContain('missing')
+})
+
 it('shows a deleted conversation read only', async () => {
   const table = answers({ entries: [userEntry('u1', 'A message kept in history')] })
   table['GET /api/projects/p1/threads'] = []

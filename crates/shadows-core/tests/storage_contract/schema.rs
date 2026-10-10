@@ -62,6 +62,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "project_mode",
             "queued_message",
             "runtime_instance",
+            "standards_additions_version",
             "task",
             "task_agreement_binding",
             "task_parent",
@@ -73,6 +74,6 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          (0005 adds §12's four, 0007 §13.15's six, 0008 §15.4's four, \
          0011 §12.4's per-model effort, 0012 §16.9's plan, 0013 §18's vision, \
          0017–0018 §18's agreements and exact task pins, \
-         0019 §20's queue)"
+         0019 §20's queue, 0021 §23's standards additions)"
     );
 }

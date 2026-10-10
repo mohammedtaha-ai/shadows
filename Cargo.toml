@@ -79,8 +79,8 @@ escargot = "0.5"
 # `shadows-core`'s `tests/contracts.rs` reads each service's test and method names
 # from its Rust sources. Never a product dependency.
 syn = { version = "2", features = ["full", "parsing", "printing", "clone-impls"] }
-# `shadows-core`'s `tests/contracts.rs` parses each service's `contract.yaml` (spec §14.7):
-# the maintained successor of the archived `serde_yaml` line. Never a product dependency.
+# Parses compiled-in base standards (§23.2) and service contracts in tests (§14.7):
+# the maintained successor of the archived `serde_yaml` line.
 yaml-rust2 = "0.13"
 # `crates/shadows/tests/protocol.rs` drives the real router in-process with `oneshot`. Already
 # in the graph through axum; listed here only to name its `util` trait.

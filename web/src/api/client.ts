@@ -43,6 +43,10 @@ export type WrittenBy = Schemas['WrittenBy']
 export type Approved = Schemas['Approved']
 export type Focus = Schemas['Focus']
 export type InstructionsVersion = Schemas['InstructionsVersion']
+export type EffectiveStandards = Schemas['EffectiveStandards']
+export type StandardsAdditions = Schemas['StandardsAdditions']
+export type StandardsAdditionsVersion = Schemas['StandardsAdditionsVersion']
+export type StageView = Schemas['StageView']
 export type Grant = Schemas['Grant']
 export type IssuedGrant = Schemas['IssuedGrantBody']
 export type ProjectStatus = Schemas['ProjectStatus']
@@ -415,6 +419,24 @@ export function getInstructions(projectId: string): Promise<InstructionsVersion 
   return unwrap(
     client.GET('/api/projects/{id}/planner-instructions', { params: { path: { id: projectId } } }),
   )
+}
+
+/** Compiled-in standards with this project's latest additions (§23.2). */
+export function getStandards(projectId: string): Promise<EffectiveStandards> {
+  return unwrap(client.GET('/api/projects/{id}/standards', { params: { path: { id: projectId } } }))
+}
+
+/** Saves project additions as a new version; retries carry the caller's command id. */
+export function saveStandardsAdditions(projectId: string, commandId: string,
+  content: StandardsAdditions): Promise<StandardsAdditionsVersion> {
+  return unwrap(client.PUT('/api/projects/{id}/standards/additions', {
+    params: { path: { id: projectId } }, body: { command_id: commandId, content },
+  }))
+}
+
+/** The stage computed by the design service (§23.4). */
+export function getStage(projectId: string): Promise<StageView> {
+  return unwrap(client.GET('/api/projects/{id}/stage', { params: { path: { id: projectId } } }))
 }
 
 /** Saves the project's instructions as its next version (spec §13.8). */

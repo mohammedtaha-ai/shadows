@@ -5,6 +5,9 @@ use shadows_core::{
 };
 use std::sync::Arc;
 
+#[path = "design_parts/stage.rs"]
+mod stage;
+
 async fn core_at(path: &std::path::Path) -> Arc<AppCore> {
     let storage = Arc::new(Storage::open(path).await.unwrap());
     let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);

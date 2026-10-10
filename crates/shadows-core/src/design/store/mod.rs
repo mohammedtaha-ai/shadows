@@ -9,4 +9,6 @@ mod outcome_edit;
 mod outcomes;
 mod part_edit;
 mod parts;
+mod stage;
+mod standards;
 mod vision;

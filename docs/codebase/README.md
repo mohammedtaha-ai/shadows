@@ -108,6 +108,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/harness/sessions.rs` | the live adapter connection each open thread holds | `crates/shadows-core/src/harness/sessions.rs` |
 | `crates/shadows-core/src/harness/settings.rs` | setting an open session's options | `crates/shadows-core/src/harness/settings.rs` |
 | `crates/shadows-core/src/harness/setup.rs` | what a Planner session opens with | `crates/shadows-core/src/harness/setup.rs` |
+| `crates/shadows-core/src/harness/standards.rs` | Planner standards rendering | `crates/shadows-core/src/harness/standards.rs` |
 | `crates/shadows-core/src/harness/offers.rs` | the latest choices each open session offers | `crates/shadows-core/src/harness/offers.rs` |
 | `crates/shadows-core/src/harness/commands.rs` | the latest `/` list each open session sent | `crates/shadows-core/src/harness/commands.rs` |
 | `crates/shadows-core/src/harness/context.rs` | reading a session's context breakdown on demand | `crates/shadows-core/src/harness/context.rs` |
@@ -156,6 +157,10 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/design/workspace.rs` | a grant's read-only view of its project workspace | `crates/shadows-core/src/design/workspace.rs` |
 | `crates/shadows-core/src/design/outcomes.rs` | outcome service entry points | `crates/shadows-core/src/design/outcomes.rs` |
 | `crates/shadows-core/src/design/ops.rs` | normalization of workspace edits | `crates/shadows-core/src/design/ops.rs` |
+| `crates/shadows-core/src/design/standards.rs` | compiled-in standards with project additions | `crates/shadows-core/src/design/standards.rs` |
+| `crates/shadows-core/src/design/stage.rs` | a project's stage from its workspace | `crates/shadows-core/src/design/stage.rs` |
+| `crates/shadows-core/src/design/store/standards.rs` | versioned standards additions | `crates/shadows-core/src/design/store/standards.rs` |
+| `crates/shadows-core/src/design/store/stage.rs` | reading a project's stage inputs | `crates/shadows-core/src/design/store/stage.rs` |
 | `crates/shadows-core/src/design/store/outcomes.rs` | snapshot reads of outcomes | `crates/shadows-core/src/design/store/outcomes.rs` |
 | `crates/shadows-core/src/design/store/outcome_edit.rs` | transactional outcome mutations | `crates/shadows-core/src/design/store/outcome_edit.rs` |
 | `crates/shadows-core/src/design/store/hierarchy.rs` | transactional containment ordering | `crates/shadows-core/src/design/store/hierarchy.rs` |

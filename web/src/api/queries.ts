@@ -6,6 +6,8 @@ import {
   getCodeSettings,
   getCodeStatus,
   getInstructions,
+  getStandards,
+  getStage,
   getPlan,
   getPlanMap,
   getPlanVersions,
@@ -134,6 +136,14 @@ export function instructionsQuery(projectId: string) {
     queryKey: ['projects', projectId, 'instructions'],
     queryFn: () => getInstructions(projectId),
   })
+}
+
+export function standardsQuery(projectId: string) {
+  return queryOptions({ queryKey: ['projects', projectId, 'design', 'standards'], queryFn: () => getStandards(projectId) })
+}
+
+export function stageQuery(projectId: string) {
+  return queryOptions({ queryKey: ['projects', projectId, 'design', 'stage'], queryFn: () => getStage(projectId) })
 }
 
 export function visionQuery(projectId: string) {

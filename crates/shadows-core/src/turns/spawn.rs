@@ -106,18 +106,23 @@ impl PlannerTurn {
         );
         // §13.8: what changed since the session last heard, read while this
         // turn is still `Pending` and so not yet its thread's latest.
-        let context = sessions.setups().context_before_turn(&thread_id).await;
-        let prepared = match context {
-            Ok(context) => {
+        let context = sessions
+            .setups()
+            .context_before_turn(&thread_id, &op_id)
+            .await;
+        let stage = sessions.setups().stage_line(&thread_id).await;
+        let prepared = match (context, stage) {
+            (Ok(context), Ok(stage)) => {
                 (sessions.prepare_turn(&thread_id, &opened, &settings).await).map(|()| {
                     context
                         .into_iter()
                         .chain(focus)
                         .chain(continue_plan)
+                        .chain(std::iter::once(stage))
                         .collect::<Vec<String>>()
                 })
             }
-            Err(error) => Err(error.to_string()),
+            (Err(error), _) | (_, Err(error)) => Err(error.to_string()),
         };
         let context = match prepared {
             Ok(context) => context,

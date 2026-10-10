@@ -86,7 +86,7 @@ It holds:
    gaps, open_questions, tests).
 
 **Project additions** live in the database, versioned like Planner
-instructions (§13.8), edited from the project's settings: extra rules and
+instructions (§13.8), edited from the workspace's Standards tab: extra rules and
 extra mandatory parts. A new migration adds their table.
 
 When a vision item, a map or a map change is approved, the base standards
@@ -128,11 +128,17 @@ The Planner receives the stage in three ways:
    change. The base and additions versions join the versions §13.8's
    before-turn context block compares (`context_before_turn` in
    `harness/setup.rs`); when either differs from the thread's last recorded
-   one, the new effective standards go before the person's message.
+   one, the selected effective standards accompany the next turn in its
+   before-turn context block (§13.8). The invocation records that selected
+   version; a save after recording is delivered on the following turn.
 3. **With each of the person's messages,** one short line from Shadows naming
    the stage and what is missing or drifted (about 50 tokens).
 
 The conversation's header shows the same stage to the person.
+
+Drift arrives with vision items (PR 2) and map approval (PR 3); until then
+the stage reports what is missing only. PR 1 ends at `structure`; later
+stages require the recorded structure write.
 
 ## 23.5 Proposals and approval
 
