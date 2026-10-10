@@ -491,6 +491,19 @@ sequence and acceptance inventory; each technical decision stays in its owner.
 planning-workspace foundation and formatting cleanup exist; the later paths
 above remain implementation work.
 
+### Future production operations
+
+Beyond building and deploying, Shadows should help operate the application:
+observe its AWS environment, investigate sustained pressure or errors, propose
+an evidence-based remedy, execute within explicit authority, and verify impact.
+NYLRA explains the situation and brings decisions to the person. Scaling is one
+possible remedy, not the automatic answer to every alarm. Personal and team
+projects can both have production environments without moving their workspace.
+The lifecycle is owned by
+[§17.12](./superpowers/specs/2026-10-01-task-contracts-and-evidence-design.md#1712-production-operations-extension).
+This is future product direction, independent of any hackathon, not implemented
+monitoring, deployment or cloud authority.
+
 ## 11. Structure that stays understandable as the product grows
 
 **Direction (Mohammed, 2026-10-04):** organized responsibilities matter more

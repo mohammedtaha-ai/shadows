@@ -376,3 +376,92 @@ its decisions.
 > become `Accepted` or `Superseded`, or a gate action is enabled. Until then,
 > agents may propose decisions, but the person-only transitions and gate actions
 > stay unavailable. This does not block task-contract or packet work.
+
+## 17.12 Production operations extension
+
+Product direction confirmed 2026-10-10; detailed implementation remains draft.
+This section owns the future production action lifecycle. It extends execution
+and verification rather than creating another executor. §1.7 owns workspace and
+worker placement; §24.6 owns external confirmation. Competition participation
+does not define or narrow this capability.
+
+### Environments and resources
+
+A project can have Development, Staging and Production environments independently
+of personal/team workspace ownership. Each environment binds explicit provider,
+account, region, resource identities, deployed revision and operating policy.
+Deploying an application does not migrate its Shadows workspace to the cloud.
+Application resources are separate from resources hosting Shadows or NYLRA.
+
+AWS is the first intended integration. Resource selection follows inspected
+application needs and measured workload: RDS for a required managed relational
+database, S3 for object storage when needed, plus suitable compute and observability.
+No mode switch automatically provisions a fixed AWS bundle. Existing resources
+are discovered and associated explicitly; tags/names alone do not grant ownership.
+Infrastructure code belongs to the target application's repository, with reviewed
+changes and resource replacement effects visible before execution.
+
+### Observe, diagnose, propose, act, verify
+
+1. Collect scoped metrics, logs, traces, deployment changes and available usage
+   evidence. Preserve timestamps, windows, units, source references and missing
+   data. Application latency/errors and dependencies matter alongside CPU/load.
+2. Correlate a sustained symptom with the project's topology and recent changes.
+   A high CPU alarm is a symptom, not proof that scaling is the correct remedy.
+   Distinguish observed facts, suspected causes and confidence; gather more evidence
+   when a bottleneck could be application code, queries, traffic or a dependency.
+3. Propose a bounded action: resource targets, expected benefit, alternatives,
+   cost assumptions, prerequisites, risks, observation window and recovery path.
+   Options include scale out/in, a configuration change, a code fix, rollback,
+   investigation or no action. Resource-specific constraints remain explicit.
+4. Obtain exact human confirmation or match a previously explicit, bounded policy.
+   An inferred preference or generated recommendation is not an execution grant.
+5. Revalidate current resource state and authority, execute through an assigned
+   worker, and record the provider's operation identity. A timeout means unknown
+   outcome until reconciliation, not permission to repeat a non-idempotent action.
+6. Verify both provider state and application behavior over the declared window.
+   Report success, failure, no demonstrated improvement or insufficient evidence.
+   Recovery itself follows its approved boundary. Database/data changes are not
+   assumed reversible merely because an application release can be rolled back.
+
+The action records its evidence basis, proposal, approver/policy, attempt and
+observed result. Implementation chooses exact states under this lifecycle; no
+new service/module exists until its first runnable operation needs it.
+
+### Authority and continuous operation
+
+Observation and mutation use separate capabilities. Scope each to account,
+environment and resources. Mutations require explicit allowed actions, capacity
+and spending bounds, expiry and cooldown. Automatic policies must include a stop
+condition and escalation after ineffective attempts; avoid scale-up/scale-down
+oscillation. Native autoscaling remains authoritative for its configured loop;
+Shadows must inspect and coordinate with it, not compete with another controller.
+Destructive actions and policy-boundary changes need separate explicit approval.
+
+Continuous monitoring runs on an explicitly assigned always-on collector. For a
+personal local owner, an optional cloud collector may observe and send scoped
+alerts while the computer is off, but cannot adopt new plans or execute owner
+commands. Owner-dependent diagnosis may wait; cached advice shows its age.
+Unattended remediation requires an always-on authoritative runtime or a separately
+specified durable grant under §1.7; a cloud NYLRA conversation is not such a grant.
+
+NYLRA explains the incident and action, asks the person when required, and reports
+observed outcomes. It never directly acquires unrestricted AWS execution power.
+Its message should answer what changed, which service is affected, why the proposed
+action helps, what it costs under stated assumptions, and whether it actually helped.
+
+### Delivery and proof
+
+Start with read-only observation for one explicit environment and a sourced NYLRA
+incident explanation. Then prove one reversible operation in a disposable test
+environment with confirmation and post-action checks. Expand to reviewed automated
+policies and resource types only after that path works. Production is a future
+product extension, not a prerequisite for completing the local roadmap.
+
+> **OPEN — operational implementation.** Close before live mutation by specifying
+> provider adapters, resource inventory, least-privilege boundaries, durable incident
+> ownership, always-on collector lifecycle, action deduplication/reconciliation,
+> cost estimation freshness, policy limits and recovery. Acceptance must cover stale
+> evidence, revoked authority, duplicate alerts, ambiguous provider timeouts,
+> competing autoscaling, lack of improvement and loss of the owning runtime.
+> A successful demo deployment does not establish production readiness.

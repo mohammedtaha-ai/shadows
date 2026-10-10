@@ -34,7 +34,7 @@ design-note, and status narratives.
 | §14 | [`2026-09-26-application-core-design.md`](./2026-09-26-application-core-design.md) |
 | §15 | [`2026-09-30-code-index-design.md`](./2026-09-30-code-index-design.md) |
 | §16 | [`2026-10-01-project-plans-design.md`](./2026-10-01-project-plans-design.md) |
-| §17 | [`2026-10-01-task-contracts-and-evidence-design.md`](./2026-10-01-task-contracts-and-evidence-design.md) |
+| §17 | [`2026-10-01-task-contracts-and-evidence-design.md`](./2026-10-01-task-contracts-and-evidence-design.md); §17.12 records future production operations |
 | §18 | [`2026-10-03-project-planning-workspace-design.md`](./2026-10-03-project-planning-workspace-design.md) — draft for review |
 | §19 | [`2026-10-03-agent-profiles-and-extensions-design.md`](./2026-10-03-agent-profiles-and-extensions-design.md) — draft profiles, specialist dispatch and extensions |
 | §20 | [`2026-10-05-message-queue-design.md`](./2026-10-05-message-queue-design.md) — the queue and Send now; merged through PR #19 (2026-10-05) |

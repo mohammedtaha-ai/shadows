@@ -155,6 +155,12 @@ Never create unused schema merely to reserve a number.
 
 ## Work deliberately left for later designs
 
+[§17.12](../specs/2026-10-01-task-contracts-and-evidence-design.md#1712-production-operations-extension)
+records the future AWS production-operations journey: observe, diagnose, propose,
+authorize, act and verify. It builds on execution/verification and explicit remote
+authority. Start with read-only observation, then a disposable-environment action;
+it does not replace or block the complete local release and is not a hackathon gate.
+
 The optional NYLRA integration has a separate delivery path in the
 [shared cloud architecture](../../../../shadows-backend/docs/architecture.md#14-delivery-order).
 It does not block or replace Stages 3–8. §1.7 now owns the personal/team and
