@@ -143,6 +143,8 @@ pub enum ThreadEntryKind {
     PlanView,
     /// A plan version approved (§13.9).
     PlanApproved,
+    /// A vision proposal's immutable card (§23.5).
+    VisionProposal,
 }
 
 impl ThreadEntryKind {
@@ -156,6 +158,7 @@ impl ThreadEntryKind {
             Self::PermissionRefused => "PermissionRefused",
             Self::PlanView => "PlanView",
             Self::PlanApproved => "PlanApproved",
+            Self::VisionProposal => "VisionProposal",
         }
     }
 
@@ -169,6 +172,7 @@ impl ThreadEntryKind {
             Self::PermissionRefused,
             Self::PlanView,
             Self::PlanApproved,
+            Self::VisionProposal,
         ]
         .into_iter()
         .find(|kind| kind.as_str() == s)

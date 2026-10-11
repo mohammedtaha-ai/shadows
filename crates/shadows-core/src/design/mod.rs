@@ -10,6 +10,8 @@ mod model;
 mod ops;
 mod outcomes;
 mod parts;
+mod proposals;
+pub use proposals::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub(crate) mod stage;
 pub(crate) mod standards;
 mod store;

@@ -145,6 +145,10 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/design/` | a project's design workspace | `crates/shadows-core/src/design/mod.rs` |
 | `crates/shadows-core/src/design/vision_items.rs` | applying vision item changes | `crates/shadows-core/src/design/vision_items.rs` |
 | `crates/shadows-core/src/design/store/vision_versions.rs` | stored vision versions | `crates/shadows-core/src/design/store/vision_versions.rs` |
+| `crates/shadows-core/src/design/proposals.rs` | vision proposal entry points | `crates/shadows-core/src/design/proposals.rs` |
+| `crates/shadows-core/src/design/store/proposals.rs` | recording vision proposals | `crates/shadows-core/src/design/store/proposals.rs` |
+| `crates/shadows-core/src/design/store/proposal_read.rs` | reading proposal state | `crates/shadows-core/src/design/store/proposal_read.rs` |
+| `crates/shadows-core/src/design/store/proposal_approval.rs` | approving vision proposals | `crates/shadows-core/src/design/store/proposal_approval.rs` |
 | `crates/shadows-core/src/design/model.rs` | the workspace value shapes | `crates/shadows-core/src/design/model.rs` |
 | `crates/shadows-core/src/design/agreement.rs` | shared agreement value shapes | `crates/shadows-core/src/design/agreement.rs` |
 | `crates/shadows-core/src/design/agreement_validation.rs` | offline agreement content validation | `crates/shadows-core/src/design/agreement_validation.rs` |

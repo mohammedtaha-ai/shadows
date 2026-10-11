@@ -99,6 +99,7 @@ shapes:
     PermissionRefused: unit
     PlanView: unit
     PlanApproved: unit
+    VisionProposal: unit # Immutable proposed content; live status belongs to Design.
   CreatedTitle:
     # Private: who named a thread at create, its first `title_source`.
     # `Client` (create_thread) is replaced by the first message and the
@@ -269,7 +270,7 @@ enums:
 
 
 shared_in_transaction:
-  append_entry_in: "Turns' start (turns/store/turn.rs start_turn), Plans' approval (plans/store/edit.rs approve_plan) and plan_show (plans/store/view.rs show_plan): each writes its entry in the write that records its command, so the entry and the command commit together"
+  append_entry_in: "Design's vision proposal write (design/store/proposals.rs propose_vision_in), Turns' start (turns/store/turn.rs start_turn), Plans' approval (plans/store/edit.rs approve_plan) and plan_show (plans/store/view.rs show_plan): each writes its entry in the write that records its command, so the entry and the command commit together"
   title_from_first_message_in: "Turns' start (turns/store/turn.rs start_turn): the thread is titled after its first message in the write that appends that message, so a refused or replayed start titles nothing"
 
 

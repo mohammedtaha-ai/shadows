@@ -51,3 +51,24 @@ UPDATE design_workspace SET vision_counters = json_object(
 INSERT INTO design_vision_version (project_id, number, content_json, proposal_id, created_at)
 SELECT project_id, vision_revision, vision_content, NULL, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
   FROM design_workspace WHERE vision_revision >= 1;
+
+CREATE TABLE design_vision_proposal (
+    id            TEXT PRIMARY KEY,
+    project_id    TEXT NOT NULL REFERENCES design_workspace(project_id) ON DELETE RESTRICT,
+    thread_id     TEXT NOT NULL REFERENCES planning_thread(id) ON DELETE RESTRICT,
+    operation_id  TEXT NOT NULL REFERENCES operation(id) ON DELETE RESTRICT,
+    entry_id      TEXT NOT NULL REFERENCES thread_entry(id) ON DELETE RESTRICT,
+    action        TEXT NOT NULL CHECK (action IN ('add','edit','remove')),
+    field         TEXT NOT NULL,
+    item_id       TEXT NULL,
+    text          TEXT NULL,
+    old_text      TEXT NULL,
+    expected_item_revision INTEGER NULL,
+    status        TEXT NOT NULL CHECK (status IN ('Pending','Approved','Superseded')),
+    standards_version INTEGER NOT NULL,
+    standards_additions_version_id TEXT NULL REFERENCES standards_additions_version(id),
+    created_at    TEXT NOT NULL,
+    seq           INTEGER NOT NULL,
+    UNIQUE (project_id, seq)
+);
+CREATE INDEX vision_proposal_item ON design_vision_proposal(project_id,item_id,status);

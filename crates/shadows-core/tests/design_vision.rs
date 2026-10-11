@@ -12,6 +12,9 @@ mod standards;
 #[path = "design_vision/items.rs"]
 mod items;
 
+#[path = "design_vision/proposals.rs"]
+mod proposals;
+
 fn content(text: &str) -> VisionContent {
     VisionContent {
         purpose: vec![shadows_core::VisionItem {

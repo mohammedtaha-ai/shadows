@@ -40,6 +40,7 @@ pub use design::{
     PartView, Stage, StageView, StandardRule, StandardsAdditions, StandardsAdditionsVersion,
     VisionContent, VisionField, VisionItem, VisionView, WorkspaceView, base_standards,
 };
+pub use design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub use error::{CoreError, ErrorCode};
 pub use events::{Actor, Delivery, Events, StoredEvent, Subscription, UiSignal};
 pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};

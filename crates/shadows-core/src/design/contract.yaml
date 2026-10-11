@@ -50,6 +50,26 @@ shapes:
     acceptance: Vec<String>
     parties: Vec<AgreementParty>
     openapi: Value
+  VisionAction: add | edit | remove
+  ProposalStatus: Pending | Approved | Superseded
+  VisionPropose:
+    action: VisionAction
+    field: Option<VisionField>
+    item_id: Option<String>
+    text: Option<String>
+    replaces: Option<String>
+  VisionProposal:
+    id: String
+    thread_id: ThreadId
+    action: VisionAction
+    field: VisionField
+    item_id: Option<String>
+    text: Option<String>
+    old_text: Option<String>
+    expected_item_revision: Option<i64>
+    status: ProposalStatus
+    outdated: bool
+    created_at: String
   VisionItem:
     id: String
     text: String
@@ -131,6 +151,15 @@ enums:
 
 functions:
   service:
+    propose_vision:
+      signature: "(&self, grant: &Grant, args: VisionPropose) -> Result<VisionProposal, CoreError>"
+      # Planner/thread grant plus running turn only; writer rechecked in write transaction.
+    vision_proposals:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<VisionProposal>, CoreError>"
+      # One read snapshot; seq order; derived per-item staleness.
+    approve_vision_proposal:
+      signature: "(&self, command_id: String, project: &ProjectId, proposal: &str) -> Result<DesignChange, CoreError>"
+      # Person only; replay before live project, project-scoped proposal, state and staleness.
     standards:
       signature: "(&self, project: &ProjectId) -> Result<EffectiveStandards, CoreError>"
       # Unknown/removed projects refuse; a live project without saves has null additions.
@@ -193,6 +222,12 @@ functions:
       # over project, expected_revision and ordered typed ops; trim only titles,
       # validate client UUID references. Other text remains exact.
   store:
+    propose_vision_in:
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: VisionPropose) -> Result<VisionProposal, StorageError>"
+    list_vision_proposals:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<VisionProposal>, StorageError>"
+    approve_vision_proposal_in:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str) -> Result<DesignChange, StorageError>"
     standards_additions_for_invocation:
       signature: "(&self, operation: &OperationId) -> Result<Option<StandardsAdditionsVersion>, StorageError>"
       # Joins invocation pin to its thread's live project and same-project immutable version.
@@ -268,6 +303,12 @@ called_by_other_services:
   project_stage: "Harness reads the persisted workspace stage before each turn."
 
 obligations:
+  - rule: A proposal is an immutable pending card without a vision write; replay returns its original snapshot.
+    tested_by: a_proposal_is_a_pending_card_in_its_conversation
+  - rule: Person approval is project scoped, replayable and serialized; item revisions alone govern staleness.
+    tested_by: [approval_is_scoped_to_its_live_project, two_concurrent_approvals_write_once, approving_twice_with_one_command_writes_once, an_item_edited_back_to_its_old_text_still_outdates_the_proposal]
+  - rule: A pending item change or explicitly replaced addition is superseded atomically with the new card.
+    tested_by: a_newer_proposal_supersedes_by_item_or_by_replaces
   - rule: Server-assigned ids count per field and are never reused, including transient batch additions.
     tested_by: a_removed_id_is_never_reused
   - rule: Each committed vision edit stores one version and advances edited item revisions.
@@ -389,3 +430,33 @@ tests:
     checks: Ordered persisted versions and item revisions.
   - name: item_ops_refuse_an_unknown_id_and_empty_text
     checks: Refusal leaves the lazy revision-zero vision unchanged.
+
+  - name: a_proposal_is_a_pending_card_in_its_conversation
+    checks: Pending immutable card; no vision write; identical turn call replays.
+
+  - name: two_adds_approve_in_any_order_with_consecutive_ids
+    checks: Ids allocated in approval order with conversation provenance.
+
+  - name: an_edit_proposal_is_outdated_after_a_hand_edit_of_its_item
+    checks: Refused outdated approval leaves the hand edit intact.
+
+  - name: an_item_edited_back_to_its_old_text_still_outdates_the_proposal
+    checks: Item revision catches A to B to A.
+
+  - name: approval_is_scoped_to_its_live_project
+    checks: Foreign and removed project approvals refuse.
+
+  - name: two_concurrent_approvals_write_once
+    checks: Different commands competing on one proposal write once.
+
+  - name: approving_one_card_does_not_outdate_its_neighbours
+    checks: Unrelated addition preserves pending edit validity.
+
+  - name: a_newer_proposal_supersedes_by_item_or_by_replaces
+    checks: Item or explicit replacement supersedes pending proposals.
+
+  - name: approving_twice_with_one_command_writes_once
+    checks: Immutable approval result replays without another version or event.
+
+  - name: a_proposal_names_a_known_item_and_carries_text
+    checks: Required fields, external grants and absent turn refused.
