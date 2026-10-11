@@ -62,7 +62,8 @@ impl Storage {
                 AND e.kind IN ('WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen',
                                'PlanArchived', 'PlanUnarchived', 'ProjectDesignChanged',
                                'PlanDependenciesChanged', 'ProjectLinked', 'ProjectUnlinked',
-                               'ProjectRemoved', 'AgreementChanged', 'ProjectStandardsSaved')
+                               'ProjectRemoved', 'AgreementChanged', 'ProjectStandardsSaved',
+                               'VisionProposed')
               ORDER BY e.seq LIMIT ?",
         )
         .bind(project.as_str())
