@@ -41,6 +41,8 @@
 # owns whether it replaces the title.
 
 name: harness
+# §23.5 prompt names stable vision item ids, proposal cards and person-only approval.
+# The actual appended prompt is checked by a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval.
 version: 1
 status: current
 source: crates/shadows-core/src/harness

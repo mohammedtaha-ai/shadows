@@ -11,6 +11,40 @@ mod plan;
 use listening::{listening_app, ok, thread_client};
 
 #[tokio::test]
+async fn the_planner_proposes_vision_cards_but_an_external_agent_cannot() {
+    let l = listening_app().await;
+    let op = app::start_settled(&l.app, "hang").await;
+    for _ in 0..200 {
+        if l.app.handles.running_for(&l.app.thread).await.as_ref() == Some(&op) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    let planner = thread_client(&l, &l.app.thread).await;
+    let result = ok(
+        &planner,
+        "vision_propose",
+        json!({"action":"add","field":"goals","text":"Ship"}),
+    )
+    .await;
+    assert_eq!(result["status"], "Pending");
+    assert_eq!(
+        l.app
+            .core
+            .design()
+            .vision(&l.app.project)
+            .await
+            .unwrap()
+            .revision,
+        0
+    );
+    let (_, external) = listening::project_client(&l).await;
+    let tools = external.list_all_tools().await.unwrap();
+    assert!(!tools.iter().any(|t| t.name == "vision_propose"));
+    app::shut_down_app(l.app).await;
+}
+
+#[tokio::test]
 async fn a_planner_reads_the_workspace_a_person_wrote() {
     let l = listening_app().await;
     let vision: Vec<_> = [
