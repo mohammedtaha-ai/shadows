@@ -7,6 +7,7 @@ import type { Plan, PlanTask, ThreadEntry } from '@/api/client'
 import { type HarnessPolicy, modeLabel } from '../mode-policy'
 import { PlanCard } from './plan-card'
 import { SubagentCardView } from './subagent-card'
+import { VisionProposalCard } from './vision-proposal-card'
 import { subagentOf, toolText } from './tool-text'
 
 // Streamdown and its code highlighting are most of this app's weight, so they
@@ -65,6 +66,7 @@ export function Entry({
     )
   }
   if (entry.kind === 'AgentMessage') return <ReplyText text={entry.body} />
+  if (entry.kind === 'VisionProposal') return <VisionProposalCard entry={entry} projectId={projectId} />
   if (entry.kind === 'Subagent') {
     const card = subagentOf(entry)
     return card === null ? null : <SubagentCardView card={card} onOpen={onOpenSubagent} />
