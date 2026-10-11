@@ -661,6 +661,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/vision-proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["vision_proposals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/vision-proposals/{proposal_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approve_vision_proposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/workflows": {
         parameters: {
             query?: never;
@@ -1947,6 +1979,8 @@ export interface components {
             state: components["schemas"]["IndexState"];
             updated_at?: string | null;
         };
+        /** @enum {string} */
+        ProposalStatus: "Pending" | "Approved" | "Superseded";
         PutLink: {
             /** @description The idempotency key (spec §13.5), scoped to the project. */
             command_id: string;
@@ -2153,7 +2187,7 @@ export interface components {
          *     an enum, so no stored row is rewritten.
          * @enum {string}
          */
-        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "Subagent" | "PermissionRefused" | "PlanView" | "PlanApproved";
+        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "Subagent" | "PermissionRefused" | "PlanView" | "PlanApproved" | "VisionProposal";
         /** Format: uuid */
         ThreadId: string;
         /**
@@ -2200,6 +2234,11 @@ export interface components {
             workflow_id: components["schemas"]["WorkflowId"];
             written_by: components["schemas"]["WrittenBy"];
         };
+        /** @enum {string} */
+        VisionAction: "add" | "edit" | "remove";
+        VisionApprove: {
+            command_id: string;
+        };
         VisionContent: {
             boundaries: components["schemas"]["VisionItem"][];
             goals: components["schemas"]["VisionItem"][];
@@ -2215,6 +2254,20 @@ export interface components {
             /** Format: int64 */
             revision: number;
             text: string;
+        };
+        VisionProposal: {
+            action: components["schemas"]["VisionAction"];
+            created_at: string;
+            /** Format: int64 */
+            expected_item_revision?: number | null;
+            field: components["schemas"]["VisionField"];
+            id: string;
+            item_id?: string | null;
+            old_text?: string | null;
+            outdated: boolean;
+            status: components["schemas"]["ProposalStatus"];
+            text?: string | null;
+            thread_id: components["schemas"]["ThreadId"];
         };
         VisionView: {
             content: components["schemas"]["VisionContent"];
@@ -4398,6 +4451,104 @@ export interface operations {
                 };
             };
             /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    vision_proposals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisionProposal"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    approve_vision_proposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+                /** @description The exact immutable proposal */
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisionApprove"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignChange"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             500: {
                 headers: {
                     [name: string]: unknown;

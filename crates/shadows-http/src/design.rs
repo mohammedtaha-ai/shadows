@@ -132,6 +132,42 @@ pub(super) async fn vision(
     Ok(Json(s.core.design().vision(&project).await?))
 }
 
+#[utoipa::path(get, path = "/api/projects/{id}/vision-proposals", tag = "design",
+    params(("id" = ProjectId, Path, description = "The project")),
+    responses((status = 200, body = Vec<shadows_core::VisionProposal>),
+        (status = 404, body = ErrorBody), (status = 500, body = ErrorBody)))]
+pub(super) async fn vision_proposals(
+    State(s): State<AppState>,
+    Path(project): Path<ProjectId>,
+) -> Result<Json<Vec<shadows_core::VisionProposal>>, Failure> {
+    Ok(Json(s.core.design().vision_proposals(&project).await?))
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct VisionApprove {
+    command_id: String,
+}
+
+#[utoipa::path(post, path = "/api/projects/{id}/vision-proposals/{proposal_id}/approve",
+    tag = "design", request_body = VisionApprove,
+    params(("id" = ProjectId, Path, description = "The project"),
+        ("proposal_id" = String, Path, description = "The exact immutable proposal")),
+    responses((status = 200, body = DesignChange), (status = 404, body = ErrorBody),
+        (status = 409, body = ErrorBody), (status = 422, body = ErrorBody),
+        (status = 500, body = ErrorBody)))]
+pub(super) async fn approve_vision_proposal(
+    State(s): State<AppState>,
+    Path((project, proposal)): Path<(ProjectId, String)>,
+    Json(body): Json<VisionApprove>,
+) -> Result<Json<DesignChange>, Failure> {
+    Ok(Json(
+        s.core
+            .design()
+            .approve_vision_proposal(body.command_id, &project, &proposal)
+            .await?,
+    ))
+}
+
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct DesignEdit {
     command_id: String,

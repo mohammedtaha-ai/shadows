@@ -3162,6 +3162,14 @@
         ],
         "type": "object"
       },
+      "ProposalStatus": {
+        "enum": [
+          "Pending",
+          "Approved",
+          "Superseded"
+        ],
+        "type": "string"
+      },
       "PutLink": {
         "properties": {
           "command_id": {
@@ -3847,7 +3855,8 @@
           "Subagent",
           "PermissionRefused",
           "PlanView",
-          "PlanApproved"
+          "PlanApproved",
+          "VisionProposal"
         ],
         "type": "string"
       },
@@ -3972,6 +3981,25 @@
         ],
         "type": "object"
       },
+      "VisionAction": {
+        "enum": [
+          "add",
+          "edit",
+          "remove"
+        ],
+        "type": "string"
+      },
+      "VisionApprove": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id"
+        ],
+        "type": "object"
+      },
       "VisionContent": {
         "properties": {
           "boundaries": {
@@ -4051,6 +4079,66 @@
           "id",
           "text",
           "revision"
+        ],
+        "type": "object"
+      },
+      "VisionProposal": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/VisionAction"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "expected_item_revision": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "field": {
+            "$ref": "#/components/schemas/VisionField"
+          },
+          "id": {
+            "type": "string"
+          },
+          "item_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "old_text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outdated": {
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProposalStatus"
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          }
+        },
+        "required": [
+          "id",
+          "thread_id",
+          "action",
+          "field",
+          "status",
+          "outdated",
+          "created_at"
         ],
         "type": "object"
       },
@@ -7078,6 +7166,150 @@
         "summary": "Creates a planning thread in a project.",
         "tags": [
           "threads"
+        ]
+      }
+    },
+    "/api/projects/{id}/vision-proposals": {
+      "get": {
+        "operationId": "vision_proposals",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VisionProposal"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/projects/{id}/vision-proposals/{proposal_id}/approve": {
+      "post": {
+        "operationId": "approve_vision_proposal",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "The exact immutable proposal",
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisionApprove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignChange"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
         ]
       }
     },
