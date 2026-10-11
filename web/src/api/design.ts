@@ -5,6 +5,9 @@ import type { components } from './schema'
 
 export type VisionContent = components['schemas']['VisionContent']
 export type VisionView = components['schemas']['VisionView']
+export type VisionItem = components['schemas']['VisionItem']
+export type VisionField = components['schemas']['VisionField']
+export type VisionProposal = components['schemas']['VisionProposal']
 export type DesignChange = components['schemas']['DesignChange']
 export type DesignEdit = components['schemas']['DesignEdit']
 export type Part = components['schemas']['Part']
@@ -35,4 +38,14 @@ export function getVision(projectId: string): Promise<VisionView> {
 
 export function editDesign(projectId: string, body: DesignEdit): Promise<DesignChange> {
   return unwrap(client.POST('/api/projects/{id}/design/edits', { params: { path: { id: projectId } }, body }))
+}
+
+export function listVisionProposals(projectId: string): Promise<VisionProposal[]> {
+  return unwrap(client.GET('/api/projects/{id}/vision-proposals', { params: { path: { id: projectId } } }))
+}
+
+export function approveVisionProposal(projectId: string, proposalId: string, commandId: string): Promise<DesignChange> {
+  return unwrap(client.POST('/api/projects/{id}/vision-proposals/{proposal_id}/approve', {
+    params: { path: { id: projectId, proposal_id: proposalId } }, body: { command_id: commandId },
+  }))
 }
