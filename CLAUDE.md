@@ -94,8 +94,9 @@ and `verification` services, and `secrets`.
 
 ## Rules (project-specific)
 
-- **The gate before every commit**, from the root; CI (`.github/workflows/ci.yml`)
-  runs steps 1–5:
+- **The full gate runs once per branch, before its PR opens,** from the root. While
+  working, each commit runs the tests its change touches, never the whole suite.
+  CI (`.github/workflows/ci.yml`) runs steps 1–5:
   1. `cargo fmt --all --check`
   2. `cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings`
      (`fake-acp` builds only with its `test-support`)

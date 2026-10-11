@@ -31,7 +31,7 @@
 - **Edit tools:** no prettier, and no Python or sed edits to source files.
 - **Tests:** targeted tests per task; the full gate once, in Task 7.
 - **Contracts:** every service change updates its `contract.yaml` in the same commit.
-- **Navigation:** use the Rust LSP (`documentSymbol`, `findReferences`) for signatures and callers. The `shadows` MCP server is not running; say so in the report.
+- **Navigation:** ask `where_is` / `who_uses` / `outline` when the `shadows` MCP server is connected; otherwise use the Rust LSP (`documentSymbol`, `findReferences`), and say which in the report.
 - **Approval scope:** in this PR, only the person approves, through HTTP. No MCP tool approves.
 
 ## Rulings made while planning
@@ -52,7 +52,16 @@ Record each as a ledger `Ruling:` line at Task 1.
    - **Outdated:** this is computed when read (`outdated: bool`), never stored, because a hand edit can make a proposal outdated without touching the proposal row.
    - **Approval:** approving an outdated proposal is refused with `INVALID_COMMAND` "G2 changed after this proposal; ask the Planner to propose again".
 5. **Card status is live.** The card's entry holds the proposal as it was proposed; the card reads status and `outdated` from `GET /api/projects/{id}/vision-proposals`. Events invalidate that query because it sits under the `'design'` key.
-6. **No history route.** Vision versions are stored, but no route reads them (§23.3, decided 2026-10-12). A store reader exists for tests and for the next-id rule.
+6. **No history route.** Vision versions are stored, but no route reads them (§23.3, decided 2026-10-12). Ids come from `vision_counters`, not from the history.
+7a. **Codex review (2026-10-12), accepted:**
+   - item revision, not text, for staleness;
+   - approval order: replay, live project, the proposal's own project, then state;
+   - per-field counters;
+   - an ASCII-whitespace `trim` in the migration;
+   - 422.
+7b. **Codex review, declined:** a test that the event write fails and the approval rolls back.
+   - Why: `write_txn`'s rollback on any error is the shared contract `storage_contract/txn.rs` already holds for every store, and a per-method copy costs a fault-injection seam for no new evidence.
+   - Cost if wrong: one test.
 7. **No drift in the stage.** It moves to PR 3 (§23.4 as amended). The stage only changes "field filled" from "trimmed text non-empty" to "list non-empty".
 
 ## Review Focus
@@ -98,7 +107,14 @@ Record each as a ledger `Ruling:` line at Task 1.
       pub text: String,
       /// The conversation the item was last approved from; `None` for a hand edit.
       pub approved_from: Option<ThreadId>,
+      /// 1 when added, +1 on every edit; what a proposal's staleness compares
+      /// (Codex review: text alone misses A → B → A).
+      pub revision: i64,
   }
+  /// The next number per field, never lowered: issued ids are never reused.
+  #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+  pub struct VisionCounters { pub purpose: u32, pub users: u32, pub goals: u32,
+      pub boundaries: u32, pub technical_direction: u32 }
   #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
   pub struct VisionContent {
       pub purpose: Vec<VisionItem>, pub users: Vec<VisionItem>, pub goals: Vec<VisionItem>,
@@ -118,18 +134,18 @@ Record each as a ledger `Ruling:` line at Task 1.
       pub fn items(&self, field: VisionField) -> &Vec<VisionItem>
       pub fn item(&self, id: &str) -> Option<&VisionItem>
   }
-  pub(crate) fn next_id(field: VisionField, history: &[VisionContent]) -> String
-  /// Applies one item op; `from` becomes the item's `approved_from`.
+  /// Issues the field's next id and advances its counter.
+  pub(crate) fn next_id(field: VisionField, counters: &mut VisionCounters) -> String
+  /// Applies one item op; `from` becomes the item's `approved_from`. An add
+  /// starts at revision 1; a put raises the item's revision by one.
   pub(crate) fn apply(content: &mut VisionContent, op: &DesignOp, id_for_add: Option<String>,
       from: Option<&ThreadId>) -> Result<(), String>
   // design/store/vision_versions.rs
   pub(crate) async fn insert_version(conn: &mut SqliteConnection, project: &ProjectId,
       number: i64, content: &VisionContent, proposal: Option<&str>, ts: &str)
       -> Result<(), StorageError>
-  pub(crate) async fn all_versions(conn: &mut SqliteConnection, project: &ProjectId)
-      -> Result<Vec<VisionContent>, StorageError>
   ```
-  `next_id(field, history)` is one past the highest number with that field's prefix in any version, the current one included. `PU` is matched before `U`, and the id after the prefix must be all digits.
+  The counters live in `design_workspace.vision_counters`, a JSON column. They are read and written in the same write as the vision, so issuing an id never reads the history (Codex review: the cost would grow with the history). `PU` is matched before `U` in `of_id`, and the id after the prefix must be all digits.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -209,11 +225,13 @@ In `plan_migration.rs`, add, next to `migration_0020_…` and using the same `mi
 async fn migration_0022_turns_vision_text_into_items() {
     // migrate to 0021, insert a project + design_workspace row with
     // vision_content = {"purpose":"Sell books","users":"  ","goals":"G",
-    //   "boundaries":"","technical_direction":"Rust"}, vision_revision 3,
+    //   "boundaries":"\t\n\r","technical_direction":"Rust"}, vision_revision 3,
     // then migrate to the end.
     // Assert vision_content parses as VisionContent with
     //   purpose = [PU1 "Sell books"], users = [], goals = [G1 "G"],
-    //   boundaries = [], technical_direction = [T1 "Rust"], approved_from None;
+    //   boundaries = [] (tab/newline/CR only), technical_direction = [T1 "Rust"],
+    //   each item approved_from None and revision 1;
+    // vision_counters == {purpose 1, users 0, goals 1, boundaries 0, technical_direction 1};
     // and design_vision_version has one row, number 3, with that content.
 }
 ```
@@ -244,24 +262,46 @@ CREATE TABLE design_vision_version (
     PRIMARY KEY (project_id, number)
 );
 
+-- SQLite's one-argument trim() removes spaces only; a field holding a tab or a
+-- newline would become an item (Codex review). Strip the ASCII whitespace Rust's
+-- trim() strips: space, \t, \n, \r, \v, \f. A field of non-ASCII whitespace
+-- (U+00A0 and the like) is not expected in development data; the migration test
+-- pins the ASCII cases.
 UPDATE design_workspace SET vision_content = json_object(
-    'purpose', CASE WHEN trim(coalesce(json_extract(vision_content, '$.purpose'), '')) = ''
-        THEN json_array() ELSE json_array(json_object('id', 'PU1',
+    'purpose', CASE WHEN trim(coalesce(json_extract(vision_content, '$.purpose'), ''),
+        char(32, 9, 10, 13, 11, 12)) = ''
+        THEN json_array() ELSE json_array(json_object('id', 'PU1', 'revision', 1,
         'text', json_extract(vision_content, '$.purpose'), 'approved_from', NULL)) END,
-    'users', CASE WHEN trim(coalesce(json_extract(vision_content, '$.users'), '')) = ''
-        THEN json_array() ELSE json_array(json_object('id', 'U1',
+    'users', CASE WHEN trim(coalesce(json_extract(vision_content, '$.users'), ''),
+        char(32, 9, 10, 13, 11, 12)) = ''
+        THEN json_array() ELSE json_array(json_object('id', 'U1', 'revision', 1,
         'text', json_extract(vision_content, '$.users'), 'approved_from', NULL)) END,
-    'goals', CASE WHEN trim(coalesce(json_extract(vision_content, '$.goals'), '')) = ''
-        THEN json_array() ELSE json_array(json_object('id', 'G1',
+    'goals', CASE WHEN trim(coalesce(json_extract(vision_content, '$.goals'), ''),
+        char(32, 9, 10, 13, 11, 12)) = ''
+        THEN json_array() ELSE json_array(json_object('id', 'G1', 'revision', 1,
         'text', json_extract(vision_content, '$.goals'), 'approved_from', NULL)) END,
-    'boundaries', CASE WHEN trim(coalesce(json_extract(vision_content, '$.boundaries'), '')) = ''
-        THEN json_array() ELSE json_array(json_object('id', 'B1',
+    'boundaries', CASE WHEN trim(coalesce(json_extract(vision_content, '$.boundaries'), ''),
+        char(32, 9, 10, 13, 11, 12)) = ''
+        THEN json_array() ELSE json_array(json_object('id', 'B1', 'revision', 1,
         'text', json_extract(vision_content, '$.boundaries'), 'approved_from', NULL)) END,
     'technical_direction', CASE
-        WHEN trim(coalesce(json_extract(vision_content, '$.technical_direction'), '')) = ''
-        THEN json_array() ELSE json_array(json_object('id', 'T1',
+        WHEN trim(coalesce(json_extract(vision_content, '$.technical_direction'), ''),
+            char(32, 9, 10, 13, 11, 12)) = ''
+        THEN json_array() ELSE json_array(json_object('id', 'T1', 'revision', 1,
         'text', json_extract(vision_content, '$.technical_direction'),
         'approved_from', NULL)) END
+);
+
+-- One past the highest id each field holds after the conversion: 1 or 0.
+ALTER TABLE design_workspace ADD COLUMN vision_counters TEXT NOT NULL DEFAULT
+    '{"purpose":0,"users":0,"goals":0,"boundaries":0,"technical_direction":0}'
+    CHECK (json_valid(vision_counters));
+UPDATE design_workspace SET vision_counters = json_object(
+    'purpose', json_array_length(vision_content, '$.purpose'),
+    'users', json_array_length(vision_content, '$.users'),
+    'goals', json_array_length(vision_content, '$.goals'),
+    'boundaries', json_array_length(vision_content, '$.boundaries'),
+    'technical_direction', json_array_length(vision_content, '$.technical_direction')
 );
 
 INSERT INTO design_vision_version (project_id, number, content_json, proposal_id, created_at)
@@ -273,36 +313,27 @@ Check that `json_object(…, 'approved_from', NULL)` stores JSON `null`; the mig
 
 - [ ] **Step 4: Write the model and `vision_items.rs`.** `apply`:
   - **`VisionItemAdd`:** needs `id_for_add` and refuses a blank `text`. It pushes `VisionItem { id, text, approved_from: from.cloned() }` onto the field's list.
-  - **`VisionItemPut`:** finds the item by id in the field `VisionField::of_id` names; when the id is unknown it returns `Err("G9 is not in the vision")`. It replaces `text` and sets `approved_from = from.cloned()`.
+  - **`VisionItemPut`:** finds the item by id in the field `VisionField::of_id` names; when the id is unknown it returns `Err("G9 is not in the vision")`. It replaces `text`, sets `approved_from = from.cloned()`, and raises `revision` by one. An add starts at `revision: 1`.
   - **`VisionItemRemove`:** removes the item; an unknown id is an error.
   - **Other ops:** `unreachable!`, because the caller only passes vision ops.
 
   `next_id`:
   ```rust
-  pub(crate) fn next_id(field: VisionField, history: &[VisionContent]) -> String {
-      let highest = history
-          .iter()
-          .flat_map(|c| c.items(field))
-          .filter_map(|i| number_of(field, &i.id))
-          .max()
-          .unwrap_or(0);
-      format!("{}{}", field.prefix(), highest + 1)
-  }
-
-  fn number_of(field: VisionField, id: &str) -> Option<u32> {
-      let rest = id.strip_prefix(field.prefix())?;
-      (!rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit())).then(|| rest.parse().ok())?
+  pub(crate) fn next_id(field: VisionField, counters: &mut VisionCounters) -> String {
+      let slot = counters.slot_mut(field);
+      *slot += 1;
+      format!("{}{}", field.prefix(), slot)
   }
   ```
+  `VisionCounters::slot_mut(field) -> &mut u32` picks the field's counter.
   `of_id` tries `PU` first, then `U`, `G`, `B`, `T`, and needs a digits-only rest.
 
 - [ ] **Step 5: Wire the store**
 
 In `edit_design`, replace the `VisionPut` arm by collecting the vision ops in order. If there are any, after the part and outcome ops:
-1. Load the current content.
-2. Load `all_versions`.
-3. For each op, call `apply`, with `id_for_add = Some(next_id(field, &[history…, current]))` recomputed after each add, so two adds in one edit get G1 and G2.
-4. Write `vision_content` and `vision_revision + 1`.
+1. Load the current content and `vision_counters`.
+2. For each op, call `apply`, with `id_for_add = Some(next_id(field, &mut counters))` for an add, so two adds in one edit get G1 and G2.
+3. Write `vision_content`, `vision_counters` and `vision_revision + 1`.
 5. Call `insert_version(conn, project, new_vision_revision, &content, None, &ts)`.
 
 An `apply` error becomes `StorageError::Constraint(message)`; `Design::edit` already maps that to `INVALID_COMMAND`.
@@ -356,7 +387,7 @@ git commit -m "§23.3: the vision as items with stable ids, every change a store
 Ruling 8: the proposal table goes in `0022` with the items, since neither is on `main` yet. One migration per PR keeps the upgrade a single step. Ledger it.
 
 **Interfaces:**
-- Consumes: `apply`, `next_id`, `all_versions`, `insert_version` (Task 1); `writer(grant)` from `agreement_scope.rs` (make it `pub(super)`, already); `self.handles.running_for(thread)`.
+- Consumes: `apply`, `next_id`, `VisionCounters`, `insert_version` (Task 1); `writer(grant)` from `agreement_scope.rs` (make it `pub(super)`, already); `self.handles.running_for(thread)`.
 - Produces:
   ```rust
   #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -374,8 +405,11 @@ Ruling 8: the proposal table goes in `0022` with the items, since neither is on 
       pub item_id: Option<String>,
       /// The new text; `None` for a removal.
       pub text: Option<String>,
-      /// The item's text when proposed; `None` for an add.
+      /// The item's text when proposed; `None` for an add. Shown, not compared.
       pub old_text: Option<String>,
+      /// The item's revision when proposed; `None` for an add. Staleness
+      /// compares this, never the text (Codex review: A → B → A).
+      pub expected_item_revision: Option<i64>,
       pub status: ProposalStatus,
       /// Computed: an edit/remove whose item changed or went since (§23.5).
       pub outdated: bool,
@@ -429,6 +463,26 @@ async fn an_edit_proposal_is_outdated_after_a_hand_edit_of_its_item() {
 }
 
 #[tokio::test]
+async fn an_item_edited_back_to_its_old_text_still_outdates_the_proposal() {
+    // hand-add G1 "A". propose edit G1 -> "C" (expected_item_revision 1).
+    // hand-edit G1 -> "B", then back to "A" (revision 3).
+    // vision_proposals: outdated true; approve -> Refused INVALID_COMMAND.
+}
+
+#[tokio::test]
+async fn approval_is_scoped_to_its_live_project() {
+    // a proposal of project P approved under project Q -> NotFound (404 at HTTP);
+    // P removed after the proposal -> NotFound; nothing written in either.
+}
+
+#[tokio::test]
+async fn two_concurrent_approvals_write_once() {
+    // propose add; run two approvals with different command ids under
+    // tokio::join!. Exactly one is Ok; the other is Refused INVALID_COMMAND
+    // "already approved"; one version row and one ProjectDesignChanged.
+}
+
+#[tokio::test]
 async fn approving_one_card_does_not_outdate_its_neighbours() {
     // hand-add G1 "x". propose add Goals "y" and edit G1 -> "z".
     // approve the add; the edit is not outdated and approves.
@@ -477,6 +531,7 @@ CREATE TABLE design_vision_proposal (
     item_id       TEXT NULL,
     text          TEXT NULL,
     old_text      TEXT NULL,
+    expected_item_revision INTEGER NULL,
     status        TEXT NOT NULL CHECK (status IN ('Pending','Approved','Superseded')),
     standards_version INTEGER NOT NULL,
     standards_additions_version_id TEXT NULL REFERENCES standards_additions_version(id),
@@ -493,7 +548,7 @@ CREATE TABLE design_vision_proposal (
 - [ ] **Step 5: Write the store.** It holds `propose_vision_in` and `approve_vision_proposal_in`, each one `write_txn`, plus `list_vision_proposals`.
   - **Propose** (the command is classified on Thread scope, like `show_plan`):
     1. `check_writer`.
-    2. Validate the action's required fields, and for edit/remove that the item exists; read `old_text` from it.
+    2. Validate the action's required fields, and for edit/remove that the item exists; read `old_text` and `expected_item_revision` from it.
     3. For edit/remove, set every Pending proposal of the same `item_id` to Superseded. With `replaces`, set that proposal (same project, Pending) to Superseded.
     4. Append the `VisionProposal` entry under `turn`:
        - author `writer.actor()`;
@@ -501,19 +556,22 @@ CREATE TABLE design_vision_proposal (
        - `card: Some(&json)`.
     5. Insert the row with `seq`, the current base standards version and the current additions id.
     6. Emit the event `VisionProposed { project_id, proposal_id }`, with project and thread, then `record_command`.
-  - **Approve** (the command is classified on Project scope; a replay returns the recorded `DesignChange` through `design_command_result`, as `edit_design` does):
-    1. Load the proposal; it must be Pending, or the refusal is `"this proposal was superseded"` or `"this proposal was already approved"`.
-    2. Run the outdated check, which is the same function `list` uses.
-    3. Build the op, with `id_for_add = next_id(…)`, and `apply` it with `from = Some(thread)`.
-    4. Bump `revision` and `vision_revision`, then call `insert_version(…, Some(proposal_id))`.
-    5. Set the proposal to Approved with the given `item_id`.
-    6. Write the `design_command_result`, then emit `ProjectDesignChanged` with `vision_changed: true` and `record_command`.
+  - **Approve**, in this order, all inside one `write_txn` (Codex review):
+    1. `classify` on Project scope: a replay returns the recorded `DesignChange` through `design_command_result`, as `edit_design` does, before any current-state check.
+    2. The project exists and is not removed, or `NotFound("project")`.
+    3. Load the proposal `WHERE id = ? AND project_id = ?`; another project's proposal is `NotFound("vision proposal")`.
+    4. It must be Pending, or the refusal is `"this proposal was superseded"` or `"this proposal was already approved"`. `BEGIN IMMEDIATE` serializes concurrent approvals, so the second one reads Approved here.
+    5. Run the outdated check, which is the same function `list` uses.
+    6. Build the op, with `id_for_add = next_id(field, &mut counters)`, and `apply` it with `from = Some(thread)`. Write the counters back.
+    7. Bump `revision` and `vision_revision`, then call `insert_version(…, Some(proposal_id))`.
+    8. Set the proposal to Approved with the given `item_id`.
+    9. Write the `design_command_result`, then emit `ProjectDesignChanged` with `vision_changed: true` and `record_command`.
   - **Outdated:**
     ```rust
     fn outdated(p: &Row, current: &VisionContent) -> bool {
         p.status == "Pending" && p.action != "add"
             && current.item(p.item_id.as_deref().unwrap_or_default())
-                .map(|i| Some(&i.text) != p.old_text.as_ref())
+                .map(|i| Some(i.revision) != p.expected_item_revision)
                 .unwrap_or(true)
     }
     ```
@@ -638,7 +696,7 @@ git commit -m "§23.5: the Planner proposes vision items through vision_propose"
   - `GET /api/projects/{id}/vision-proposals` → `Vec<VisionProposal>`;
   - `POST /api/projects/{id}/vision-proposals/{proposal_id}/approve`, with body `{ command_id }` → `DesignChange`.
   - Refusals:
-    - 400 `INVALID_COMMAND` for outdated, superseded or already approved;
+    - 422 `INVALID_COMMAND` for outdated, superseded or already approved (`failure/storage.rs` maps it so);
     - 404 for an unknown project or proposal;
     - 409 `COMMAND_CONFLICT`.
 
@@ -647,7 +705,7 @@ git commit -m "§23.5: the Planner proposes vision items through vision_propose"
   2. GET the list: one entry, Pending.
   3. POST approve: 200 with `{ revision }`.
   4. GET the list: Approved, with `item_id` "G1".
-  5. POST again under a new command id: 400 `INVALID_COMMAND`.
+  5. POST again under a new command id: 422 `INVALID_COMMAND`.
   6. Check the journal: the events include `VisionProposed` and `ProjectDesignChanged`.
 
 - [ ] **Step 2: Run, see it fail**
