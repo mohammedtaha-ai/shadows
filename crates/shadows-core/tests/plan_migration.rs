@@ -9,6 +9,57 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
 const FROZEN: &str = "a frozen plan version never changes";
 
+#[tokio::test]
+async fn migration_0022_turns_vision_text_into_items() {
+    let tmp = tempfile::tempdir().unwrap();
+    let db = tmp.path().join("vision.sqlite3");
+    let pool = migrated_to(&db, 21).await;
+    exec(
+        &pool,
+        "INSERT INTO project (id,slug,name,directory,created_at)
+        VALUES ('P','p','P','C:/p','2026-10-12T00:00:00Z')",
+    )
+    .await;
+    let old = serde_json::json!({"purpose":"Sell books", "users":"  ", "goals":"G",
+        "boundaries":"\t\n\r\u{a0}", "technical_direction":"Rust"});
+    sqlx::query(
+        "INSERT INTO design_workspace
+        (project_id,revision,vision_revision,vision_content) VALUES ('P',3,3,?)",
+    )
+    .bind(old.to_string())
+    .execute(&pool)
+    .await
+    .unwrap();
+    pool.close().await;
+    let storage = Storage::open(&db).await.unwrap();
+    let (content, counters): (String, String) = sqlx::query_as(
+        "SELECT vision_content,vision_counters FROM design_workspace WHERE project_id='P'",
+    )
+    .fetch_one(storage.reader())
+    .await
+    .unwrap();
+    let vision: shadows_core::VisionContent = serde_json::from_str(&content).unwrap();
+    assert_eq!(vision.purpose[0].id, "PU1");
+    assert_eq!(vision.purpose[0].text, "Sell books");
+    assert_eq!(vision.purpose[0].revision, 1);
+    assert_eq!(vision.purpose[0].approved_from, None);
+    assert!(vision.users.is_empty() && vision.boundaries.is_empty());
+    assert_eq!(vision.goals[0].id, "G1");
+    assert_eq!(vision.technical_direction[0].id, "T1");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&counters).unwrap(),
+        serde_json::json!({"purpose":1,"users":0,"goals":1,"boundaries":0,
+            "technical_direction":1})
+    );
+    let row: (i64, String) = sqlx::query_as(
+        "SELECT number,content_json FROM design_vision_version WHERE project_id='P'",
+    )
+    .fetch_one(storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(row, (3, content));
+}
+
 /// The database as migration `last` left it.
 async fn migrated_to(db: &std::path::Path, last: i64) -> sqlx::SqlitePool {
     let opts = SqliteConnectOptions::from_str(&format!(

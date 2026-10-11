@@ -31,7 +31,7 @@ pub(crate) fn compute(vision: &VisionContent, kinds: &[String], required: &[&str
     ];
     let empty: Vec<_> = fields
         .iter()
-        .filter(|(_, text)| text.trim().is_empty())
+        .filter(|(_, items)| items.is_empty())
         .map(|(name, _)| name.to_string())
         .collect();
     if empty.len() == fields.len() {

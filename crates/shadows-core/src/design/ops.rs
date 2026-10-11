@@ -14,7 +14,12 @@ pub(super) fn normalize(ops: &mut [DesignOp]) -> Result<(), CoreError> {
     };
     for op in ops {
         match op {
-            DesignOp::VisionPut { .. } => {}
+            DesignOp::VisionItemAdd { text, .. } | DesignOp::VisionItemPut { text, .. } => {
+                if text.trim().is_empty() {
+                    return Err(invalid("a vision item needs text".into()));
+                }
+            }
+            DesignOp::VisionItemRemove { .. } => {}
             DesignOp::PartCreate {
                 id,
                 parent,

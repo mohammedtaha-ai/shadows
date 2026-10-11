@@ -1031,18 +1031,62 @@
           },
           {
             "properties": {
-              "content": {
-                "$ref": "#/components/schemas/VisionContent"
+              "field": {
+                "$ref": "#/components/schemas/VisionField"
               },
               "kind": {
                 "enum": [
-                  "VisionPut"
+                  "VisionItemAdd"
+                ],
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "field",
+              "text",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "VisionItemPut"
+                ],
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "text",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "VisionItemRemove"
                 ],
                 "type": "string"
               }
             },
             "required": [
-              "content",
+              "id",
               "kind"
             ],
             "type": "object"
@@ -3931,19 +3975,34 @@
       "VisionContent": {
         "properties": {
           "boundaries": {
-            "type": "string"
+            "items": {
+              "$ref": "#/components/schemas/VisionItem"
+            },
+            "type": "array"
           },
           "goals": {
-            "type": "string"
+            "items": {
+              "$ref": "#/components/schemas/VisionItem"
+            },
+            "type": "array"
           },
           "purpose": {
-            "type": "string"
+            "items": {
+              "$ref": "#/components/schemas/VisionItem"
+            },
+            "type": "array"
           },
           "technical_direction": {
-            "type": "string"
+            "items": {
+              "$ref": "#/components/schemas/VisionItem"
+            },
+            "type": "array"
           },
           "users": {
-            "type": "string"
+            "items": {
+              "$ref": "#/components/schemas/VisionItem"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -3952,6 +4011,46 @@
           "goals",
           "boundaries",
           "technical_direction"
+        ],
+        "type": "object"
+      },
+      "VisionField": {
+        "enum": [
+          "purpose",
+          "users",
+          "goals",
+          "boundaries",
+          "technical_direction"
+        ],
+        "type": "string"
+      },
+      "VisionItem": {
+        "properties": {
+          "approved_from": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ThreadId"
+              }
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "revision"
         ],
         "type": "object"
       },

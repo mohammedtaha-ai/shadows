@@ -50,12 +50,18 @@ shapes:
     acceptance: Vec<String>
     parties: Vec<AgreementParty>
     openapi: Value
+  VisionItem:
+    id: String
+    text: String
+    revision: i64
+    approved_from: Option<ThreadId>
+  VisionField: purpose | users | goals | boundaries | technical_direction
   VisionContent:
-    purpose: String
-    users: String
-    goals: String
-    boundaries: String
-    technical_direction: String
+    purpose: Vec<VisionItem>
+    users: Vec<VisionItem>
+    goals: Vec<VisionItem>
+    boundaries: Vec<VisionItem>
+    technical_direction: Vec<VisionItem>
   VisionView:
     revision: DesignRevision
     content: VisionContent
@@ -111,7 +117,9 @@ enums:
     OutcomeMove: "{ id: OutcomeId, parent: Option<OutcomeId>, before: Option<OutcomeId> }"
     OutcomePartPut: "{ outcome: OutcomeId, part: PartId }"
     OutcomePartRemove: "{ outcome: OutcomeId, part: PartId }"
-    VisionPut: "{ content: VisionContent }"
+    VisionItemAdd: "{ field: VisionField, text: String }"
+    VisionItemPut: "{ id: String, text: String }"
+    VisionItemRemove: "{ id: String }"
     PartCreate: "{ id: PartId, parent: Option<PartId>, before: Option<PartId>, content: PartContent }"
     PartPut: "{ id: PartId, content: PartContent }"
     PartMove: "{ id: PartId, parent: Option<PartId>, before: Option<PartId> }"
@@ -260,6 +268,12 @@ called_by_other_services:
   project_stage: "Harness reads the persisted workspace stage before each turn."
 
 obligations:
+  - rule: Server-assigned ids count per field and are never reused, including transient batch additions.
+    tested_by: a_removed_id_is_never_reused
+  - rule: Each committed vision edit stores one version and advances edited item revisions.
+    tested_by: every_vision_change_is_a_stored_version
+  - rule: Unknown item ids and whitespace-only text refuse without a write.
+    tested_by: item_ops_refuse_an_unknown_id_and_empty_text
   - rule: >
       Compiled-in base rules cannot be edited through any route or tool. Additions
       cannot repeat a mandatory part or refer to an unknown one. Invalid saves
@@ -368,3 +382,10 @@ tests:
     checks: Lazy zero, exact text, durable replay, competing revisions, removed project, identifier event.
   - name: vision_routes_round_trip_conflict_and_preserve_conversations
     checks: Person HTTP path and project-event read using the same core service.
+
+  - name: a_removed_id_is_never_reused
+    checks: Counters survive removal and transient add-remove batches.
+  - name: every_vision_change_is_a_stored_version
+    checks: Ordered persisted versions and item revisions.
+  - name: item_ops_refuse_an_unknown_id_and_empty_text
+    checks: Refusal leaves the lazy revision-zero vision unchanged.

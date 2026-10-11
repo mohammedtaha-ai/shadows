@@ -253,17 +253,19 @@ async fn vision_routes_round_trip_conflict_and_preserve_conversations() {
     let vision = format!("/api/projects/{}/design/vision", app.project);
     let edits = format!("/api/projects/{}/design/edits", app.project);
     assert_eq!(app::call(&app, "GET", &vision, None).await.1["revision"], 0);
-    let content = json!({
-        "purpose": " رؤية \n",
-        "users": "مطورون",
-        "goals": "اهداف",
-        "boundaries": "",
-        "technical_direction": "Rust"
-    });
+    let item =
+        |id: &str, text: &str| json!({"id":id,"text":text,"revision":1,"approved_from":null});
+    let content = json!({"purpose":[item("PU1", " رؤية \n")], "users":[item("U1","مطورون")],
+        "goals":[item("G1","اهداف")],"boundaries":[],"technical_direction":[item("T1","Rust")]});
     let request = json!({
         "command_id": "vision",
         "expected_revision": 0,
-        "ops": [{ "kind": "VisionPut", "content": content }]
+        "ops": [
+            {"kind":"VisionItemAdd","field":"purpose","text":" رؤية \n"},
+            {"kind":"VisionItemAdd","field":"users","text":"مطورون"},
+            {"kind":"VisionItemAdd","field":"goals","text":"اهداف"},
+            {"kind":"VisionItemAdd","field":"technical_direction","text":"Rust"}
+        ]
     });
     assert_eq!(
         app::call(&app, "POST", &edits, Some(request.clone())).await,
@@ -280,7 +282,7 @@ async fn vision_routes_round_trip_conflict_and_preserve_conversations() {
     assert_eq!(failure["code"], "REVISION_CONFLICT");
     assert_eq!(failure["current_revision"], 1);
     let mut changed = request;
-    changed["ops"][0]["content"]["purpose"] = json!("changed");
+    changed["ops"][0]["text"] = json!("changed");
     let (status, failure) = app::call(&app, "POST", &edits, Some(changed)).await;
     assert_eq!(status, 409);
     assert_eq!(failure["code"], "COMMAND_CONFLICT");

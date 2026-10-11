@@ -134,8 +134,7 @@ async fn design_stream_replays_resumes_and_keeps_projects_separate() {
     let (foreign, _) = app::other_project(&app).await;
     let edits = format!("/api/projects/{}/design/edits", app.project);
     let path = format!("/api/projects/{}/events", app.project);
-    let vision = json!({"kind":"VisionPut","content":{"purpose":"رؤية","users":"","goals":"",
-        "boundaries":"","technical_direction":""}});
+    let vision = json!({"kind":"VisionItemAdd","field":"purpose","text":"رؤية"});
     let first = json!({"command_id":"vision","expected_revision":0,"ops":[vision]});
     assert_eq!(
         app::call(&app, "POST", &edits, Some(first.clone())).await.0,

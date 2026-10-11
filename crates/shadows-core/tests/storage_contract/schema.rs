@@ -46,6 +46,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "design_outcome_plan",
             "design_part",
             "design_part_plan",
+            "design_vision_version",
             "design_workspace",
             "draft_intent",
             "durable_event",

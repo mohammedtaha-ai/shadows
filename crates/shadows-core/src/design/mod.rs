@@ -13,6 +13,7 @@ mod parts;
 pub(crate) mod stage;
 pub(crate) mod standards;
 mod store;
+mod vision_items;
 mod workspace;
 pub(crate) use store::check_agreement_binding_in;
 
@@ -22,7 +23,7 @@ use crate::{app::user_command, db::Storage, error::CoreError, projects::ProjectI
 pub use model::{
     DesignAnchor, DesignChange, DesignOp, DesignRevision, Outcome, OutcomeContent, OutcomeId,
     OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage, PartView, VisionContent,
-    VisionView, WorkspaceView,
+    VisionField, VisionItem, VisionView, WorkspaceView,
 };
 
 pub struct Design {

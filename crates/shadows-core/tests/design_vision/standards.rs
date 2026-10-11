@@ -1,6 +1,6 @@
 use super::*;
 
-async fn core_and_project(tmp: &tempfile::TempDir) -> (Arc<AppCore>, ProjectId) {
+pub(super) async fn core_and_project(tmp: &tempfile::TempDir) -> (Arc<AppCore>, ProjectId) {
     let storage = Arc::new(
         Storage::open(&tmp.path().join("standards.sqlite3"))
             .await

@@ -1337,9 +1337,19 @@ export interface components {
             outcome: components["schemas"]["OutcomeId"];
             part: components["schemas"]["PartId"];
         } | {
-            content: components["schemas"]["VisionContent"];
+            field: components["schemas"]["VisionField"];
             /** @enum {string} */
-            kind: "VisionPut";
+            kind: "VisionItemAdd";
+            text: string;
+        } | {
+            id: string;
+            /** @enum {string} */
+            kind: "VisionItemPut";
+            text: string;
+        } | {
+            id: string;
+            /** @enum {string} */
+            kind: "VisionItemRemove";
         } | {
             before?: null | components["schemas"]["PartId"];
             content: components["schemas"]["PartContent"];
@@ -2191,11 +2201,20 @@ export interface components {
             written_by: components["schemas"]["WrittenBy"];
         };
         VisionContent: {
-            boundaries: string;
-            goals: string;
-            purpose: string;
-            technical_direction: string;
-            users: string;
+            boundaries: components["schemas"]["VisionItem"][];
+            goals: components["schemas"]["VisionItem"][];
+            purpose: components["schemas"]["VisionItem"][];
+            technical_direction: components["schemas"]["VisionItem"][];
+            users: components["schemas"]["VisionItem"][];
+        };
+        /** @enum {string} */
+        VisionField: "purpose" | "users" | "goals" | "boundaries" | "technical_direction";
+        VisionItem: {
+            approved_from?: null | components["schemas"]["ThreadId"];
+            id: string;
+            /** Format: int64 */
+            revision: number;
+            text: string;
         };
         VisionView: {
             content: components["schemas"]["VisionContent"];
