@@ -2141,6 +2141,14 @@
         ],
         "type": "object"
       },
+      "MapAction": {
+        "enum": [
+          "first",
+          "add",
+          "change"
+        ],
+        "type": "string"
+      },
       "MapLink": {
         "properties": {
           "after": {
@@ -2231,6 +2239,71 @@
           "goal",
           "task_count",
           "removed"
+        ],
+        "type": "object"
+      },
+      "MapProposal": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/MapAction"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "old": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PartContent"
+              }
+            ]
+          },
+          "outdated": {
+            "type": "boolean"
+          },
+          "part_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PartId"
+              }
+            ]
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedPart"
+            },
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProposalStatus"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "waivers": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedWaiver"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "thread_id",
+          "action",
+          "parts",
+          "waivers",
+          "status",
+          "outdated",
+          "created_at"
         ],
         "type": "object"
       },
@@ -3225,6 +3298,52 @@
         ],
         "type": "string"
       },
+      "ProposedPart": {
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/PartContent"
+          },
+          "key": {
+            "type": "string"
+          },
+          "parent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PartId"
+              }
+            ]
+          },
+          "parent_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "content"
+        ],
+        "type": "object"
+      },
+      "ProposedWaiver": {
+        "properties": {
+          "part": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "part",
+          "reason"
+        ],
+        "type": "object"
+      },
       "PutLink": {
         "properties": {
           "command_id": {
@@ -3917,7 +4036,8 @@
           "PermissionRefused",
           "PlanView",
           "PlanApproved",
-          "VisionProposal"
+          "VisionProposal",
+          "MapProposal"
         ],
         "type": "string"
       },
@@ -6634,6 +6754,147 @@
         "summary": "A project's plan/design notifications (§16.8, §18.11), replayed then live on the same\njournal tail as `/api/subscribe`. `durable` carries `{seq, kind,\noperation_id, thread_id, payload: {plan_id, workflow_id}}`, no plan content.\nArchive notifications name the plan's latest version to refetch.\nProjectDesignChanged carries project_id, revision, changed_parts,\nchanged_outcomes and vision_changed, never the vision content.",
         "tags": [
           "stream"
+        ]
+      }
+    },
+    "/api/projects/{id}/map-proposals": {
+      "get": {
+        "operationId": "map_proposals",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MapProposal"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/projects/{id}/map-proposals/{proposal_id}/approve": {
+      "post": {
+        "operationId": "approve_map_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisionApprove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignChange"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
         ]
       }
     },

@@ -128,6 +128,8 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(project::list_projects, project::create_project))
         .routes(routes!(design::vision))
         .routes(routes!(design::vision_proposals))
+        .routes(routes!(design::map_proposals))
+        .routes(routes!(design::approve_map_proposal))
         .routes(routes!(design::approve_vision_proposal))
         .routes(routes!(design::get_standards))
         .routes(routes!(design::save_standards_additions))

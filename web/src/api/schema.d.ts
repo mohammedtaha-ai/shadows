@@ -530,6 +530,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/map-proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["map_proposals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/map-proposals/{proposal_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approve_map_proposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/mcp-grants": {
         parameters: {
             query?: never;
@@ -1698,6 +1730,8 @@ export interface components {
             owns: string;
             waivable: boolean;
         };
+        /** @enum {string} */
+        MapAction: "first" | "add" | "change";
         MapLink: {
             after: components["schemas"]["PlanId"];
             broken: boolean;
@@ -1719,6 +1753,18 @@ export interface components {
             /** Format: int64 */
             version?: number | null;
             workflow_id?: null | components["schemas"]["WorkflowId"];
+        };
+        MapProposal: {
+            action: components["schemas"]["MapAction"];
+            created_at: string;
+            id: string;
+            old?: null | components["schemas"]["PartContent"];
+            outdated: boolean;
+            part_id?: null | components["schemas"]["PartId"];
+            parts: components["schemas"]["ProposedPart"][];
+            status: components["schemas"]["ProposalStatus"];
+            thread_id: components["schemas"]["ThreadId"];
+            waivers: components["schemas"]["ProposedWaiver"][];
         };
         /**
          * @description Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
@@ -1993,6 +2039,16 @@ export interface components {
         };
         /** @enum {string} */
         ProposalStatus: "Pending" | "Approved" | "Superseded";
+        ProposedPart: {
+            content: components["schemas"]["PartContent"];
+            key: string;
+            parent?: null | components["schemas"]["PartId"];
+            parent_key?: string | null;
+        };
+        ProposedWaiver: {
+            part: string;
+            reason: string;
+        };
         PutLink: {
             /** @description The idempotency key (spec §13.5), scoped to the project. */
             command_id: string;
@@ -2200,7 +2256,7 @@ export interface components {
          *     an enum, so no stored row is rewritten.
          * @enum {string}
          */
-        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "Subagent" | "PermissionRefused" | "PlanView" | "PlanApproved" | "VisionProposal";
+        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "Subagent" | "PermissionRefused" | "PlanView" | "PlanApproved" | "VisionProposal" | "MapProposal";
         /** Format: uuid */
         ThreadId: string;
         /**
@@ -4027,6 +4083,101 @@ export interface operations {
             };
             /** @description Unknown or removed project */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    map_proposals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapProposal"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    approve_map_proposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ProjectId"];
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisionApprove"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignChange"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
