@@ -79,14 +79,7 @@ impl SessionSetup {
             );
         }
         if !self.allowed_tools.is_empty() {
-            // SPIKE §24.3 probe: fixed tools, no person's settings or MCP.
-            let options = serde_json::json!({ "options": {
-                "allowedTools": self.allowed_tools,
-                "tools": ["Read", "Grep", "Glob", "WebSearch", "WebFetch",
-                          "ToolSearch", "Agent", "TodoWrite"],
-                "strictMcpConfig": true,
-                "settingSources": [],
-            } });
+            let options = serde_json::json!({ "options": { "allowedTools": self.allowed_tools } });
             meta.insert("claudeCode".into(), options);
         }
         (!meta.is_empty()).then_some(meta)
