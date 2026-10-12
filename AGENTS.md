@@ -48,7 +48,7 @@
 
 - **Slug:** shadows
 - **Stack:** Rust 1.94+ candidate floor from SQLx 0.9, a Cargo workspace of the crates below, plus a React client in `web/`
-- **Status:** Guided planning through §23 PR 4 (groundwork, standards, vision proposals, project map, §24 authority, structure write) is on `main`; PR 5 (roadmap and plans behind the map gate) is next. See [docs/status.md](./docs/status.md) for delivered features and acceptance limits, [the delivery roadmap](./docs/superpowers/plans/2026-10-03-project-planning-roadmap.md) for the full sequence, and [docs/vision.md](./docs/vision.md) for the product direction.
+- **Status:** Guided planning through §23 PR 5 (groundwork, standards, vision proposals, project map, §24 authority, structure write, roadmap proposals and plan gates) is on `main`; PR 3c (project switches) waits on §24.3's OPEN probe. See [docs/status.md](./docs/status.md) for delivered features and acceptance limits, [the delivery roadmap](./docs/superpowers/plans/2026-10-03-project-planning-roadmap.md) for the full sequence, and [docs/vision.md](./docs/vision.md) for the product direction.
 - **Purpose:** Local-first AI orchestration layer (planning + workflow + context + execution + verification + continuity). Clean rewrite of `shadow` avoiding patching pattern.
 
 ## Architecture

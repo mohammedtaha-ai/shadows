@@ -40,8 +40,8 @@ design-note, and status narratives.
 | §20 | [`2026-10-05-message-queue-design.md`](./2026-10-05-message-queue-design.md) — the queue and Send now; merged through PR #19 (2026-10-05) |
 | §21 | [`2026-10-05-slash-menu-design.md`](./2026-10-05-slash-menu-design.md) — the `/` menu; merged through PR #21 (2026-10-05) |
 | §22 | [`2026-10-05-subagent-cards-design.md`](./2026-10-05-subagent-cards-design.md) — subagent cards and their side panel; merged through PR #22 (2026-10-08) |
-| §23 | [`2026-10-08-guided-planning-design.md`](./2026-10-08-guided-planning-design.md) — accepted in conversation; owner-file review remains noted there. PRs 0–3 merged through PRs #23–#26; PR 3b is next (§23.9) |
-| §24 | [`2026-10-08-approval-authority-design.md`](./2026-10-08-approval-authority-design.md) — principal and agent; the real-adapter probe ran 2026-10-12 and §24.3 is amended with it. Enforcement is §23.9 PR 3b |
+| §23 | [`2026-10-08-guided-planning-design.md`](./2026-10-08-guided-planning-design.md) — accepted in conversation; owner-file review remains noted there. PRs 0–5 merged through PRs #23–#30 (PR 3b #27, PR 4 #28, PR 5 #30); PR 3c waits on §24.3's OPEN probe (§23.9) |
+| §24 | [`2026-10-08-approval-authority-design.md`](./2026-10-08-approval-authority-design.md) — principal and agent; the real-adapter probe ran 2026-10-12 and §24.3 is amended with it. Enforced by §23.9 PR 3b, merged through PR #27 |
 | — | [`2026-10-04-structure-hygiene-design.md`](./2026-10-04-structure-hygiene-design.md) — implemented and Windows-verified; independent review pending |
 
 ## Maintenance rules

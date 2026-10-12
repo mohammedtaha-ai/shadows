@@ -27,8 +27,8 @@ executive manager were claimed to exist. Initial delivery used
 Stages 1–2 and §16 1b are merged into `main`; their acceptance limits remain
 recorded in [project status](../../status.md). Guided planning (§23) now
 precedes the focused context work of Stage 3: PRs 0–4, with §24 authority
-(PR 3b), are merged, and PR 5 (roadmap and plans behind the map gate) is
-next. §23.9 owns that delivery sequence; PR 3c waits on §24.3's OPEN probe.
+(PR 3b), and PR 5 (roadmap and plans behind their gates) are merged. §23.9
+owns that delivery sequence; PR 3c waits on §24.3's OPEN probe.
 The later stages below remain part of the full local-first objective.
 
 ## Shared foundations
@@ -199,8 +199,11 @@ at `b4a1338` and `docs/superpowers/plans/2026-10-12-guided-planning-pr4-create-s
 at `9d2a611`, are merged; their records are
 [PR 3b's](../../evidence/2026-10-12-guided-planning-pr3b.md) and
 [PR 4's](../../evidence/2026-10-12-guided-planning-pr4.md) dated evidence.
-The next slice is §23 PR 5, roadmap and plans behind the map gate. Later subsystems retain
-their own design, implementation and acceptance work.
+The §23 PR 5 plan, `docs/superpowers/plans/2026-10-12-guided-planning-pr5-roadmap-and-plan-gates.md`
+at `8efc34e`, is merged; the plan file was deleted after the merge and its
+record is in `git show 8efc34e`. PR 3c, the project switches, waits on §24.3's
+OPEN probe and has no plan yet. Later subsystems retain their own design,
+implementation and acceptance work.
 
 ## Completion audit
 

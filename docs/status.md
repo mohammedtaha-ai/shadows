@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-12 (§23 PR 4 is merged as `9d2a611`)
+**Updated:** 2026-10-12 (§23 PR 5 is merged as `8efc34e`)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -8,6 +8,16 @@ decision live in the topic owners indexed by
 restate them.
 
 ## Where we are
+
+**§23 PR 5 is on `main`**, merged through PR #30 as `8efc34e` on 2026-10-12.
+The Planner proposes the first roadmap whole, then one outcome added, changed
+or removed, each with at least one part. The person's button or the Planner at
+the person's request approves it, with §24's provenance. Plans wait for the
+structure and the roadmap, a plan's approval refuses one tied to no part, and
+outcomes cannot be edited by hand before the first roadmap. A card goes outdated
+only when an item it names changes. The migration is 0026. The commit message
+records no gate totals, and no browser trial or dated record exists for PR 5
+yet. Limits: no Linux runtime acceptance, and no evidence file.
 
 **§23 PR 4 is on `main`**, merged through PR #28 as `9d2a611` on 2026-10-12.
 Create structure, the person's button on the Project map page, writes the
@@ -18,7 +28,7 @@ gate passed 510 Rust tests (one ignored) and 264 Web tests. On the person's
 daemon the structure was written for a real project and the stage moved to
 `roadmap`; the trial found and fixed one defect in the reserved-path check.
 See [the dated record](./evidence/2026-10-12-guided-planning-pr4.md).
-Limits: no plan gate yet (PR 5), no Linux runtime acceptance.
+Its limits were no plan gate (PR 5 added it since) and no Linux runtime acceptance.
 
 **§24 authority, §23 PR 3b, is on `main`**, merged through PR #27 as
 `b4a1338`. The Planner's tools are fixed by Shadows; it can approve only at
@@ -28,8 +38,8 @@ by the person's button only. The gate passed 490 Rust tests (one ignored)
 and 259 Web tests. See
 [the dated record](./evidence/2026-10-12-guided-planning-pr3b.md).
 
-**Next: §23 PR 5**, the roadmap and plans behind the map gate. PR 3c, the
-project switches, waits on §24.3's OPEN probe.
+**Next: §23 PR 3c**, the project switches (connectors, skills, `CLAUDE.md`),
+waits on §24.3's OPEN probe. With it, every §23.9 slice is delivered.
 
 **§23 PR 3 is on `main`**, merged through PR #26 as `8f6b8e7` on 2026-10-12.
 The Planner proposes the whole first project map; later part changes come
@@ -312,11 +322,10 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-**§23 PR 3b is next**: §24, principal and agent, the Planner's fixed tools
-and its approval tools. §24's real-adapter probe comes first, and its
-[owner](./superpowers/specs/2026-10-08-approval-authority-design.md) is open
-on that point. Then PR 4 writes the structure to disk (§23.7), and PR 5 puts
-the roadmap and plans behind the map gate (§23.9).
+**§23 PR 3c is next**: the project switches that widen the Planner's reach
+(connectors, skills, `CLAUDE.md`). Its [owner](./superpowers/specs/2026-10-08-approval-authority-design.md)
+§24.3 holds the OPEN probe that must close first. PR 3b, PR 4 and PR 5 are
+merged (§23.9).
 The [PR 2 dated evidence](./evidence/2026-10-12-guided-planning-pr2.md)
 records actual Windows/Claude browser acceptance and final gate status.
 PR 1's browser acceptance remains partial as recorded above. §18 Stage 3,
