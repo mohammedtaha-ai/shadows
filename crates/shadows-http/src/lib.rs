@@ -8,7 +8,8 @@
 //! `harness.rs` (the harnesses and a thread's session), `thread.rs` (changing
 //! a thread itself), `workflow.rs` (plan versions and their approval),
 //! `grants.rs` (external agents' MCP grants), `instructions.rs` (a project's
-//! Planner instructions), `code.rs` (the code index: questions, links, settings),
+//! Planner instructions), `code.rs` (the code index: questions, links, settings), `roadmap.rs`
+//! (roadmap proposals),
 //! `sse.rs` (the replay-then-live stream), `fs.rs` (choosing a project directory),
 //! `openapi.rs` (the document describing all of it), `failure.rs` (the
 //! transport mapping), `guard.rs` (refusing requests pages were made to send).
@@ -31,6 +32,7 @@ mod instructions;
 mod openapi;
 mod project;
 mod queue;
+mod roadmap;
 pub mod sse;
 mod thread;
 mod workflow;
@@ -130,6 +132,8 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(design::vision_proposals))
         .routes(routes!(design::map_proposals))
         .routes(routes!(design::approve_map_proposal))
+        .routes(routes!(roadmap::roadmap_proposals))
+        .routes(routes!(roadmap::approve_roadmap_proposal))
         .routes(routes!(design::approve_vision_proposal))
         .routes(routes!(design::get_standards))
         .routes(routes!(design::save_standards_additions))

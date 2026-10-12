@@ -530,6 +530,10 @@ tests:
     checks: Add, change (content and part references) and a guarded remove.
   - name: a_hand_edit_of_the_outcome_outdates_its_pending_change
     checks: An outcome revision change outdates its pending change card.
+  - name: the_planner_proposes_and_approves_a_roadmap_after_the_structure
+    checks: Over MCP, STAGE_BLOCKED before the structure, roadmap_approve as planner, then a tied plan approves.
+  - name: roadmap_proposal_routes_list_and_approve
+    checks: HTTP list and replayable approval; no Planner approval without a running turn; events reach the tail.
   - name: hand_outcome_edits_wait_for_the_first_roadmap
     checks: A hand outcome create is STAGE_BLOCKED until the roadmap; then accepted.
   - name: a_hand_part_create_before_the_first_map_is_stage_blocked

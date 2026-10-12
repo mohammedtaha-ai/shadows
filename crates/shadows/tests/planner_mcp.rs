@@ -142,6 +142,8 @@ async fn a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval() {
     assert!(r["append"].as_str().unwrap().contains(first_line), "{r}");
     assert!(r["append"].as_str().unwrap().contains("vision_propose"));
     assert!(r["append"].as_str().unwrap().contains("map_propose"));
+    assert!(r["append"].as_str().unwrap().contains("roadmap_propose"));
+    assert!(r["append"].as_str().unwrap().contains("roadmap_approve"));
     assert_eq!(r["allowed"], json!(["mcp__shadows__*"]));
 }
 

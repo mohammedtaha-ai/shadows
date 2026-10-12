@@ -338,6 +338,11 @@ obligations:
   - rule: Planner instructions describe whole first maps and person-approved waiver cards; no tool approves a map.
     tested_by: map_propose_before_a_complete_vision_answers_stage_blocked
   - rule: >
+      Planner instructions name roadmap_propose and roadmap_approve, say that plans
+      come after the roadmap, and that draft_start takes the parts a plan changes.
+      The Planner's tools stay the one mcp__shadows__* pattern (§24.2).
+    tested_by: a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval
+  - rule: >
       Effective standards reach the session at opening, then once after each
       base or additions version change, between turns. A fork receives them
       even before it has an invocation of its own. Every person's prompt ends

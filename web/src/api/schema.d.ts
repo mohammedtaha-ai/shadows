@@ -627,6 +627,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/roadmap-proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["roadmap_proposals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/roadmap-proposals/{proposal_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approve_roadmap_proposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/stage": {
         parameters: {
             query?: never;
@@ -2071,6 +2103,16 @@ export interface components {
         };
         /** @enum {string} */
         ProposalStatus: "Pending" | "Approved" | "Superseded";
+        /** @description One outcome of a proposal, with the parts it references. */
+        ProposedOutcome: {
+            content: components["schemas"]["OutcomeContent"];
+            /** @description A slug, unique in the proposal. */
+            key: string;
+            parent?: null | components["schemas"]["OutcomeId"];
+            /** @description Another key of this proposal, for a first roadmap. */
+            parent_key?: string | null;
+            parts: components["schemas"]["PartId"][];
+        };
         ProposedPart: {
             content: components["schemas"]["PartContent"];
             key: string;
@@ -2129,6 +2171,20 @@ export interface components {
         RememberedSettings: {
             effort: string | null;
             model: string;
+        };
+        /** @enum {string} */
+        RoadmapAction: "first" | "add" | "change" | "remove";
+        RoadmapProposal: {
+            action: components["schemas"]["RoadmapAction"];
+            approved_by?: null | components["schemas"]["ApprovedBy"];
+            created_at: string;
+            id: string;
+            old?: null | components["schemas"]["OutcomeContent"];
+            outcome_id?: null | components["schemas"]["OutcomeId"];
+            outcomes: components["schemas"]["ProposedOutcome"][];
+            outdated: boolean;
+            status: components["schemas"]["ProposalStatus"];
+            thread_id: components["schemas"]["ThreadId"];
         };
         /** Format: uuid */
         RuntimeInstanceId: string;
@@ -4427,6 +4483,101 @@ export interface operations {
                 };
             };
             /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    roadmap_proposals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoadmapProposal"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    approve_roadmap_proposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ProjectId"];
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisionApprove"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignChange"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             500: {
                 headers: {
                     [name: string]: unknown;
