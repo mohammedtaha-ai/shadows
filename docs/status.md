@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-12 (§23 PR 3 local implementation and acceptance in progress)
+**Updated:** 2026-10-12 (§23 PR 3 is merged as `8f6b8e7`)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -9,17 +9,22 @@ restate them.
 
 ## Where we are
 
+**§23 PR 3 is on `main`**, merged through PR #26 as `8f6b8e7` on 2026-10-12.
+The Planner proposes the whole first project map; later part changes come
+as one-part cards. Approval is by the person's button only. Waiving
+`frontend` or `api` takes a reason; `backend` and `database` cannot be
+waived. Maps are versioned, and each part and served goal shows its drift.
+The Project map view shows parts, goal links, folders, starter files and a
+read-only contract. Nothing writes the structure to the project directory yet.
+The [dated record](./evidence/2026-10-12-guided-planning-pr3.md) holds a real
+Planner browser trial on the person's daemon and on an acceptance copy. The
+final Rust gate at `474a5df` passed 481 tests (one ignored); the Web suite
+passed 253 of 253 after the last streaming fix. Limits: no structure on disk,
+no plan gates, no map-history UI, no §24 enforcement, no Linux runtime
+acceptance. Existing pre-PR3 part adoption remains OPEN in §23.5.
+
 **§23 PR 2 is on `main`**, merged through PR #25 as `50146a9`.
 Versioned vision items and person-approved Planner cards are delivered.
-**§23 PR 3 is implemented locally** on `next/guided-planning-pr3`:
-whole first-map proposals, subsequent part changes, waiver consent, ownership
-checks, versioned maps, per-part drift and the Project map UI. The real
-Planner browser trial has demonstrated missing-database refusal, approval
-with a frontend waiver, contract inspection, unserved-goal drift and an
-outdated card after its served goal changed. Final review and its gate are
-still in progress; this paragraph does not claim PR 3 ready to merge.
-Disk structure writing, plan gates and §24 authority enforcement are later
-slices. Existing pre-PR3 part adoption remains OPEN in §23.5.
 
 The following PR 1 record describes that historical slice.
 
@@ -285,11 +290,13 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-**§23 PR 2 is implemented locally on `next/guided-planning-pr2`**: stable vision
-items, stored versions, Planner proposal cards and person HTTP approval. The
-[dated evidence](./evidence/2026-10-12-guided-planning-pr2.md) records actual
-Windows/Claude browser acceptance and final gate status. It is not merged.
-The next guided-planning slice is PR 3, map proposals; §24 remains PR 3b.
+**§23 PR 3b is next**: §24, principal and agent, the Planner's fixed tools
+and its approval tools. §24's real-adapter probe comes first, and its
+[owner](./superpowers/specs/2026-10-08-approval-authority-design.md) is open
+on that point. Then PR 4 writes the structure to disk (§23.7), and PR 5 puts
+the roadmap and plans behind the map gate (§23.9).
+The [PR 2 dated evidence](./evidence/2026-10-12-guided-planning-pr2.md)
+records actual Windows/Claude browser acceptance and final gate status.
 PR 1's browser acceptance remains partial as recorded above. §18 Stage 3,
 focused Planner context, has not started and remains later work in the full
 delivery roadmap. The four
@@ -316,7 +323,7 @@ manager and specialized diagrams are still unimplemented.
    independent branch review or new human browser acceptance is claimed.
 2. **Planning workspace Stage 1, merged.** The [full delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md)
    and [§18 draft](./superpowers/specs/2026-10-03-project-planning-workspace-design.md)
-   are written, together with the [Stage 1 implementation plan](./superpowers/plans/2026-10-03-planning-workspace-stage-1.md).
+   are written, together with the Stage 1 implementation plan, `docs/superpowers/plans/2026-10-03-planning-workspace-stage-1.md` at `92e6dae`.
    Its Vision, nested parts, Roadmap outcomes and existing-plan associations
    are implemented. Tasks 1–3 received independent review; Task 4 added
    migration/stream integration checks, corrected PartEditor retry and ran an
@@ -326,7 +333,7 @@ manager and specialized diagrams are still unimplemented.
    distinguishes the empty actual dev-DB copy from populated synthetic legacy
    fixtures. No separate record of Mohammed's acceptance or a whole-branch
    review was written before the merge.
-3. **§16 1b, merged:** the [scoped plan](./superpowers/plans/2026-10-04-cross-plan-links-1b.md)
+3. **§16 1b, merged:** the scoped plan, `docs/superpowers/plans/2026-10-04-cross-plan-links-1b.md` at `92e6dae`,
    is executed. Latest-task dependencies, grant-scoped related reads,
    project map, broken-link graph navigation and dependency notifications
    are implemented above the user checkpoint `dfe6070`. The final gate passed:
@@ -344,8 +351,8 @@ manager and specialized diagrams are still unimplemented.
 4. **§18 Stage 2, merged, 2026-10-05:** shared agreement lifecycle,
    validation, impact review, exact task pins, HTTP/MCP and browser adoption
    are implemented with migrations 0017/0018. The
-   [implementation plan](./superpowers/plans/2026-10-04-shared-api-agreements.md)
-   remains open. The [dated evidence](./evidence/2026-10-05-shared-api-agreements.md)
+   implementation plan, `docs/superpowers/plans/2026-10-04-shared-api-agreements.md` at `92e6dae`,
+   was removed from the tree after the merge. The [dated evidence](./evidence/2026-10-05-shared-api-agreements.md)
    records 411 Rust tests (one ignored), 188 Web tests, later focused checks,
    the native two-plan journey/restart and migration of an actual dev-DB copy.
    Complete suites were not rerun after the final focused changes: Mohammed

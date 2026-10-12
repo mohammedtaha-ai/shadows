@@ -22,12 +22,12 @@ The Stage 1 workspace and subsequent structure hygiene are inherited from
 executive manager were claimed to exist. Initial delivery used
 `codex/full-project-vision`; the starting tree was clean.
 
-## Current checkpoint (2026-10-10)
+## Current checkpoint (2026-10-12)
 
 Stages 1–2 and §16 1b are merged into `main`; their acceptance limits remain
 recorded in [project status](../../status.md). Guided planning (§23) now
-precedes the focused context work of Stage 3: PRs 0–1 are merged, and vision
-proposals (PR 2) are next. §23.9 owns that delivery sequence; §24's
+precedes the focused context work of Stage 3: PRs 0–3 are merged, and §24
+authority (PR 3b) is next. §23.9 owns that delivery sequence; §24's
 real-adapter probe and authority enforcement precede the structure write.
 The later stages below remain part of the full local-first objective.
 
@@ -179,19 +179,21 @@ not in a detailed task list written prematurely here.
 
 ## Next artifact
 
-The [Stage 1 implementation plan](./2026-10-03-planning-workspace-stage-1.md)
-has been executed; its tests and isolated Windows browser trial are recorded
+The Stage 1 implementation plan, `docs/superpowers/plans/2026-10-03-planning-workspace-stage-1.md`
+at `92e6dae`, has been executed; its tests and isolated Windows browser trial are recorded
 in [the dated evidence](../../evidence/2026-10-04-planning-workspace-stage-1.md).
-The [§16 1b implementation plan](./2026-10-04-cross-plan-links-1b.md)
-has also been executed on `codex/full-project-vision`; its automated gate and
+The §16 1b implementation plan, `docs/superpowers/plans/2026-10-04-cross-plan-links-1b.md`
+at `92e6dae`, has also been executed; its automated gate and
 isolated Windows trial are recorded in
 [dated evidence](../../evidence/2026-10-04-cross-plan-links-1b.md).
-The [shared API agreement plan](./2026-10-04-shared-api-agreements.md) has
-shipped; its remaining completion gate and acceptance limits are recorded
+The shared API agreement plan, `docs/superpowers/plans/2026-10-04-shared-api-agreements.md`
+at `92e6dae`, has shipped; its remaining completion gate and acceptance limits are recorded
 in §18.7 and [project status](../../status.md).
-The [§23 PR 1 plan](./2026-10-09-guided-planning-pr1-standards-stage.md) is
-merged with partial browser acceptance recorded in its evidence. The next
-implementation plan is §23 PR 2, vision proposals. Later subsystems retain
+The §23 PR 1 plan, `docs/superpowers/plans/2026-10-09-guided-planning-pr1-standards-stage.md`
+at `ced2095`, is merged with partial browser acceptance recorded in its evidence.
+The §23 PR 2 and PR 3 plans, at `50146a9` and `8f6b8e7`, are merged; PR 3's
+record is [dated evidence](../../evidence/2026-10-12-guided-planning-pr3.md).
+The next slice is §24 authority, PR 3b. Later subsystems retain
 their own design, implementation and acceptance work.
 
 ## Completion audit

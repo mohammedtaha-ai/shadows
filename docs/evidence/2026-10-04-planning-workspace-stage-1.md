@@ -6,7 +6,7 @@ started at 2026-10-03T22:12:59Z, which is 2026-10-04 locally.
 **Basis:** reviewed Task 3 `bceda16e01759c32e9414edd2df869e42f845a39` plus
 the Task 4 changes committed with this record.
 **Scope:** workspace Stage 1 only, under §18.2–18.3 and its
-[implementation plan](../superpowers/plans/2026-10-03-planning-workspace-stage-1.md).
+implementation plan, `docs/superpowers/plans/2026-10-03-planning-workspace-stage-1.md` at `92e6dae`.
 This record is evidence, not design authority or a whole-branch review.
 
 ## Retry correction

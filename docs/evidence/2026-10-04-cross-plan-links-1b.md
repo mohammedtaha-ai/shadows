@@ -5,7 +5,7 @@
 - Intermediate implementation: user checkpoint `dfe6070`; the remaining
   changes were verified above that checkpoint before the finishing commit.
 - Owner: [§16](../superpowers/specs/2026-10-01-project-plans-design.md).
-- Executed plan: [1b](../superpowers/plans/2026-10-04-cross-plan-links-1b.md).
+- Executed plan: `docs/superpowers/plans/2026-10-04-cross-plan-links-1b.md` at `92e6dae`.
 
 ## Automated gate
 
