@@ -49,11 +49,17 @@ waivers and Create structure stay the person's. The web cards say who approved.
 
 ## Rulings already made (do not reopen)
 
-1. **Command records keep their columns.** `command_record.principal_kind/id`
-   is the idempotency key every store uses; renaming it would touch every
-   write. §24.1's two fields are written on the approved rows instead
-   (`approved_principal`, `approved_agent`). Cost if wrong: one later
-   migration adding `agent` to `command_record`.
+1. **Command records keep their key and gain two audit columns.**
+   `command_record.principal_kind/id` stays the idempotency key every store
+   uses. Migration 0024 adds `audit_principal TEXT NULL` and
+   `audit_agent TEXT NULL` (not in the key). `CommandContext` gains
+   `pub agent: Option<String>`; `record_command` writes
+   `audit_principal = 'user:local'` and `audit_agent` when it is `Some`.
+   Every approval sets it (`human` or `planner:<harness>`); other writes
+   leave `None` until they need it. The approved rows carry the same two
+   fields plus the request (§24.1: "in the command record and on every
+   approval"). A Planner approval's durable events and its PlanApproved entry
+   use `writer.actor()`, never `Actor::user`. (Codex review, 2026-10-12.)
 2. **The request entry is the turn's latest `UserMessage`** (`thread_entry`
    with `kind = 'UserMessage'` and `operation_id` = the running turn, highest
    `ordinal`), so a steered message (§20) counts. It is the approving
@@ -66,6 +72,15 @@ waivers and Create structure stay the person's. The web cards say who approved.
    error code.
 5. **Subagents need nothing extra:** they share the Planner's grant and
    running turn (§24.3 rule 3), so their approvals record the same way.
+6. **Authority is re-checked inside the write transaction.** A grant can be
+   revoked, and a turn can end, between the core method's checks and the
+   store's write. Inside the transaction, in this order: `check_writer`
+   (the grant is live and in scope) before `classify` looks for a replay;
+   then the turn is still running for that thread; then the request entry is
+   read. Exactly as the `map_propose` store path does. (Codex review.)
+7. **"No tool policy" and "zero tools" differ.** `SessionSetup.tools` is
+   `Option<Vec<String>>`: `None` sends no `tools` key (adapter default),
+   `Some(vec![])` sends `"tools": []`. (Codex review.)
 
 ## Review Focus
 
@@ -93,7 +108,7 @@ waivers and Create structure stay the person's. The web cards say who approved.
 - Contract: `crates/shadows-core/src/harness/contract.yaml`; spec §13.8 table row in `docs/superpowers/specs/2026-09-25-planner-workflow-design.md` (add the three options to the table)
 
 **Interfaces:**
-- Produces: `SessionSetup { mcp, append, allowed_tools: Vec<String>, tools: Vec<String> }`;
+- Produces: `SessionSetup { mcp, append, allowed_tools: Vec<String>, tools: Option<Vec<String>> }`;
   `pub const PLANNER_TOOLS: [&str; 8]` in `setup.rs`.
 
 - [ ] **Step 1: Write the failing test.** In `planner_mcp.rs`, extend
@@ -129,29 +144,34 @@ fn assert_locked(r: &serde_json::Value) {
 - [ ] **Step 4: Implement.** In `acp.rs`:
 
 ```rust
-    /// The built-in tools the session has at all (§24.3); empty sends none.
-    pub tools: Vec<String>,
+    /// The built-in tools the session has at all (§24.3). `None` sets no
+    /// policy (the adapter's default set); `Some(vec![])` means none at all.
+    /// Either way a `Some` also keeps the person's own settings out.
+    pub tools: Option<Vec<String>>,
 ```
 
   and in `meta()` replace the `allowed_tools` block with:
 
 ```rust
-        if !self.allowed_tools.is_empty() || !self.tools.is_empty() {
+        let mut options = serde_json::Map::new();
+        if !self.allowed_tools.is_empty() {
+            options.insert("allowedTools".into(), serde_json::json!(self.allowed_tools));
+        }
+        if let Some(tools) = &self.tools {
             // §24.3: a fixed tool set, and none of the person's own settings,
             // MCP servers, plugins, skills or hooks.
-            let mut options = serde_json::json!({
-                "settingSources": [],
-                "strictMcpConfig": true,
-            });
-            if !self.allowed_tools.is_empty() {
-                options["allowedTools"] = serde_json::json!(self.allowed_tools);
-            }
-            if !self.tools.is_empty() {
-                options["tools"] = serde_json::json!(self.tools);
-            }
+            options.insert("tools".into(), serde_json::json!(tools));
+            options.insert("settingSources".into(), serde_json::json!([]));
+            options.insert("strictMcpConfig".into(), serde_json::json!(true));
+        }
+        if !options.is_empty() {
             meta.insert("claudeCode".into(), serde_json::json!({ "options": options }));
         }
 ```
+
+  Unit tests in `acp.rs`'s own `#[cfg(test)]` module (add one if absent):
+  `tools: None` → `meta()` has no `tools` key; `tools: Some(vec![])` →
+  `"tools": []` with `settingSources: []` and `strictMcpConfig: true`.
 
   In `setup.rs` add
 
@@ -163,9 +183,9 @@ pub const PLANNER_TOOLS: [&str; 8] = [
 ];
 ```
 
-  and set `tools: PLANNER_TOOLS.iter().map(|t| t.to_string()).collect()` in
-  the returned `SessionSetup`. Fix every other `SessionSetup { .. }`
-  construction the compiler names (add `tools: vec![]` or use `..Default`).
+  and set `tools: Some(PLANNER_TOOLS.iter().map(|t| t.to_string()).collect())`
+  in the returned `SessionSetup`. Fix every other `SessionSetup { .. }`
+  construction the compiler names (`tools: None`, or `..Default::default()`).
 - [ ] **Step 5: Run.** `cargo test -p shadows --test planner_mcp` → PASS.
   Also `cargo test -p shadows-agent` → PASS.
 - [ ] **Step 6: Contract and commit.** Add to the harness contract an
@@ -193,9 +213,10 @@ pub const PLANNER_TOOLS: [&str; 8] = [
 pub enum Approver {
     /// The person's button in the web client.
     Person,
-    /// The Planner of `thread` during `turn`; `request` is that turn's latest
-    /// UserMessage entry.
-    Planner { thread: ThreadId, harness: String, request: ThreadEntryId },
+    /// The Planner holding `writer` (a `Writer::Planner`) during `turn`. The
+    /// store re-checks the grant and the turn inside its transaction and
+    /// reads the request entry there (Ruling 6); nothing here is trusted.
+    Planner { writer: Writer, turn: OperationId, harness: String },
 }
 
 /// What an approved row says about its approval; serialized on the API.
@@ -218,9 +239,22 @@ pub struct ApprovalRequest {
 
 impl Approver {
     pub fn agent(&self) -> String; // "human" | "planner:<harness>"
-    pub fn request_entry(&self) -> Option<&ThreadEntryId>;
+    /// The durable events' and PlanApproved entry's author: `Actor::user`
+    /// for the person, `writer.actor()` for the Planner (Ruling 1).
+    pub fn actor(&self) -> Actor;
 }
+
+/// Inside a write transaction (Ruling 6): for the Planner, `check_writer`,
+/// then the turn is still running for the writer's thread, then that turn's
+/// latest UserMessage id; `None` for the person. Called before `classify`.
+pub(crate) async fn authorise_in(
+    conn: &mut SqliteConnection, approver: &Approver,
+) -> Result<Option<ThreadEntryId>, StorageError>;
 ```
+
+  `authorise_in` lives in the store layer (`crates/shadows-core/src/db/` or
+  the turns store, wherever `check_writer` and the running-turn query
+  already live; it uses SQL, so not in `command/approver.rs`).
 
   - `VisionProposal`, `MapProposal` and the plan view (`Plan`) gain
     `pub approved_by: Option<ApprovedBy>` (`None` unless approved).
@@ -250,7 +284,15 @@ UPDATE design_map_proposal SET approved_principal = 'user:local',
     approved_agent = 'human' WHERE status = 'Approved';
 UPDATE workflow SET approved_principal = 'user:local',
     approved_agent = 'human' WHERE frozen_at IS NOT NULL;
+-- Audit only; the key stays (principal_kind, principal_id, scope, command_id).
+ALTER TABLE command_record ADD COLUMN audit_principal TEXT NULL;
+ALTER TABLE command_record ADD COLUMN audit_agent TEXT NULL;
 ```
+
+  Also add `pub agent: Option<String>` to `CommandContext`
+  (`command/mod.rs`); set `None` in every existing constructor the compiler
+  names (`user_command` in `app` included); `record_command` writes
+  `audit_principal = 'user:local'`, `audit_agent = agent` when `Some`.
 
   Check the `workflow` column is `frozen_at` before relying on it (it is set
   in `approve_plan`, `plans/store/edit.rs` ~line 145).
@@ -265,9 +307,14 @@ UPDATE workflow SET approved_principal = 'user:local',
     from 23 with one Approved vision proposal reads `agent == "human"` after
     0024 (follow how the file already seeds a pre-migration database).
 - [ ] **Step 3: Run, watch fail** (`cargo test -p shadows-core --test design_vision --test design_parts --test design_migration`; `cargo test -p shadows --test plan_routes`).
-- [ ] **Step 4: Implement.** Write the three columns in the same `UPDATE`
-  that sets the approved status in each store (`approver.agent()`,
-  `"user:local"`, `approver.request_entry()`), read them back in each view
+  - In the same three tests: the approval's `command_record` row has
+    `audit_agent = 'human'`, `audit_principal = 'user:local'` (read it through
+    the test's storage handle as the file already reads rows).
+- [ ] **Step 4: Implement.** Each approve store calls `authorise_in` first
+  (before `classify`), sets `ctx.agent = Some(approver.agent())`, and writes
+  the three columns in the same `UPDATE` that sets the approved status
+  (`approver.agent()`, `"user:local"`, the entry `authorise_in` returned).
+  Events and the PlanApproved entry use `approver.actor()`. Read them back in each view
   (join `thread_entry` for `ordinal` and `thread_id` when the request is set).
   The public person methods pass `&Approver::Person`. Update the storage
   schema inventory test for the new columns if it lists columns.
@@ -311,9 +358,11 @@ impl Plans {
   Each: `writer(grant)` must be `Writer::Planner { thread, .. }` (else
   `GrantScope`, as `propose_map`); the proposal or workflow must belong to the
   grant's project (else `NotFound`, the same answer as an unknown id); a
-  running turn must exist (else `InvalidCommand` "no turn is running");
-  `request` = the turn's latest UserMessage; `harness` = the thread's
-  `harness_kind`. The command id is
+  running turn must exist (else `InvalidCommand` "no turn is running"); it
+  builds `Approver::Planner { writer, turn, harness }` with `harness` = the
+  thread's `harness_kind` and passes it to the Task 2 store method, whose
+  `authorise_in` re-checks the grant and the turn and reads the request
+  entry inside the transaction (Ruling 6). The command id is
   `derived_id(Anchor::Operation(&turn), &fingerprint(kind, params))` with the
   `CommandContext` built from `writer.principal()`, exactly as `propose_map`
   does, so a replay in the same turn returns the first result.
@@ -334,6 +383,12 @@ impl Plans {
   2. `a_steered_message_is_the_request`: a turn with a steered second
      message (§20 steer route, as `message_queue.rs` does) links the steered
      entry.
+  2a. `a_revoked_grant_cannot_approve` and `an_ended_turn_cannot_approve`:
+     call the core store method directly (`approve_vision_proposal_in` with an
+     `Approver::Planner`) after revoking the grant, and again after the turn
+     has ended; both refused, the proposal stays Pending, no
+     `command_record` row is written. These go in
+     `crates/shadows-core/tests/design_vision.rs`, beside Task 2's tests.
   3. `the_planner_cannot_approve_a_first_map_with_waivers`: `map_propose`
      first map with a frontend waiver, `map_approve` → refusal text
      contains "person's button"; the proposal stays Pending; the person's
@@ -379,25 +434,36 @@ impl Plans {
 ### Task 4: A read never writes
 
 **Files:**
+- Modify: `crates/shadows-core/src/testing/mod.rs` (behind `test-support`):
+  `pub async fn database_writes(storage: &Storage) -> i64`, reading SQLite's
+  `PRAGMA data_version` from a connection of its own. It changes whenever
+  any other connection commits a write — an `UPDATE` included, which row
+  counts miss. The PRAGMA stays inside `shadows-core` (CLAUDE.md's
+  DB-specific syntax rule).
 - Test: `crates/shadows/tests/openapi.rs`
 
 **Interfaces:** consumes `api/openapi.json` and the test fixtures the file
 already uses to start an app.
 
-- [ ] **Step 1: Write the test** `no_get_route_changes_state`: seed an app
-  with a project, a thread with one completed turn, a plan and a vision item
-  (reuse fixtures from `crates/shadows/tests/fixtures`). Read
-  `api/openapi.json`; for every path with a `get` operation whose 200
-  response is not `text/event-stream`, replace each `{param}` with the
-  seeded id whose name it matches (`project`/`project_id` → project,
-  `thread`/`thread_id` → thread, `workflow`/`workflow_id` → workflow,
-  `plan`/`plan_id` → plan) or `00000000-0000-0000-0000-000000000000`,
-  call it, and after all calls assert that
-  `SELECT COUNT(*) FROM durable_event`, `command_record`, `thread_entry`
-  and `design_command_result` are unchanged. Print the path on failure.
-- [ ] **Step 2: Run** `cargo test -p shadows --test openapi` → PASS (it should
-  pass today; if a GET writes, that is a finding: fix the route, add a line to
-  the commit message).
+- [ ] **Step 1: Write the test** `no_get_route_changes_state`. Seed an app so
+  that every path parameter has a real id: a project with a thread holding a
+  completed turn, a plan with an approved version, a vision item, a pending
+  vision proposal and map proposal, an approved map part, and an agreement
+  (reuse the seeding helpers of `design_routes.rs`, `plan_routes.rs` and
+  `agreement_routes.rs`, and `seed_map_for_tests`). Build a map from each
+  `{param}` name in `api/openapi.json` to its seeded id; the test fails,
+  naming the parameter, if a GET path uses a name the map lacks, so a new
+  route cannot slip through with a dummy id. For every `get` operation whose
+  200 response is not `text/event-stream`: read `database_writes`, call it,
+  assert the status is 2xx (a 404 means the seed is wrong, not that the route
+  is safe), read `database_writes` again, and assert it is unchanged, naming
+  the path.
+  Not covered, and the test's doc comment says so: SSE routes (they hold the
+  connection open; they only read the journal), and GETs with query
+  parameters other than the defaults.
+- [ ] **Step 2: Run** `cargo test -p shadows --test openapi` → PASS. It should
+  pass today; if a GET writes, that is a finding: fix the route and say so in
+  the commit message.
 - [ ] **Step 3: Commit** `test(http): no GET route changes state (§24.3 rule 5)`.
 
 ### Task 5: Show who approved
@@ -409,24 +475,43 @@ already uses to start an app.
 
 **Interfaces:** consumes `approved_by` from the generated API types (Task 2).
 
+The request may sit in another conversation than the card (the Planner of
+conversation B approved a card drawn in A). So the link names the request's
+own thread, never a bare `#entry-N` (Codex review):
+
 ```tsx
-/** §24.2: who approved. The Planner's line links the person's message. */
-export function ApprovedBy({ by }: { by: ApprovedBy | null | undefined }) {
+/** §24.2: who approved. The Planner's line links the person's message, in
+ * the conversation where it was written. */
+export function ApprovedBy(
+  { by, projectId }: { by: ApprovedBy | null | undefined; projectId: string },
+) {
   if (by == null) return null
   if (by.agent === 'human') return <span>Approved by you</span>
   return (
     <span>
       Approved by the Planner at your request
       {by.request && (
-        <> · <a href={`#entry-${by.request.ordinal}`}>your message</a></>
+        <> · <Link
+          to="/projects/$projectId/threads/$threadId"
+          params={{ projectId, threadId: by.request.thread_id }}
+          hash={`entry-${by.request.ordinal}`}
+        >your message</Link></>
       )}
     </span>
   )
 }
 ```
 
+  `Link` is TanStack Router's, as `message-actions.tsx:44` uses it. In
+  `messages.tsx`, after entries load, scroll the element whose id equals the
+  location hash into view (once per hash), so the link lands on the message
+  whether the thread was already open or not.
+
 - [ ] **Step 1: Failing tests.** `approved-by.test.tsx`: human → "Approved by
-  you"; planner with request → text and a link `#entry-7`; null → nothing.
+  you"; planner with request in thread `t2` → text and a link whose href is
+  `/projects/p1/threads/t2#entry-7`, even when rendered inside thread `t1`;
+  null → nothing. A `messages` test: rendering thread entries with location
+  hash `#entry-3` calls `scrollIntoView` on the third entry.
   Card tests: an Approved card with `approved_by` planner shows the Planner
   line; an Approved card from before 3b (`agent: 'human'`) shows "Approved by
   you".
