@@ -138,6 +138,9 @@ idea → vision (missing: users, goals…) → map (missing: database…)
      → structure (not written) → roadmap → plans
 ```
 
+The stage is `roadmap` once the structure write is recorded, and `plans`
+once a first roadmap is approved.
+
 It also reports drift: vision items no part serves, and a map approved
 against an older vision.
 
@@ -185,7 +188,7 @@ New MCP tools (§13.6):
 |---|---|---|
 | `vision_propose` | Add, edit or remove one vision item | The item, with the old text beside an edit |
 | `map_propose` | The first map whole; later, one change (add or change a part, its folders, files or contract) | The part tree and folders; each contract opens in the side panel |
-| `roadmap_propose` | Outcomes and the parts they reference | The outcome list |
+| `roadmap_propose` | The first roadmap whole; later, one outcome added, changed or removed | The outcome list, each with the parts it references |
 
 A map proposal carries, for each part: its title, responsibility, the vision
 items it serves, its folders, its initial files with their content (manifests
@@ -241,10 +244,11 @@ Map proposals: decided with Mohammed on 2026-10-12, for PR 3.
 - **Who writes it.** The first map comes from the Planner only: before it is
   approved, a hand create, edit or move of a part is refused. After it, the
   person edits parts by hand on the Project map page, through the same gates.
-  **OPEN — legacy adoption:** pre-PR3 parts survive migration without being
-  treated as an approved map. First-map approval refuses replacing these
-  identities. Close when an explicit adoption proposal preserves their ids,
-  associations and review provenance, with a populated upgrade journey.
+  **Legacy adoption: there is none** (decided with Mohammed on 2026-10-12).
+  Pre-PR3 parts and plans are test data; first-map approval still refuses
+  replacing their identities, and nothing adopts them. A person's existing
+  codebase enters Shadows only through the import named in §23.1, which
+  reshapes it until it meets the standards or refuses it.
 - **Identity.** A part's id is issued when it is written. Two parts with the
   same title under the same parent are one identity and conflict.
 - **Folders.** A folder belongs to one part. A child part's folders may sit
@@ -275,6 +279,34 @@ Map proposals: decided with Mohammed on 2026-10-12, for PR 3.
 - **Mandatory parts** are recognised by `kind` on a top-level part. Several
   parts may share a kind; one is enough.
 
+Roadmap proposals and plans: decided with Mohammed on 2026-10-12, for PR 5.
+
+- **The roadmap is the outcomes** (§18.3). There is no second roadmap
+  document. `roadmap_propose` mirrors `map_propose`: the first roadmap is
+  proposed whole, as one card; after its approval each later proposal adds,
+  changes or removes one outcome. Each proposed outcome carries its title,
+  intended result, acceptance items, parent and the parts it references; a
+  first roadmap with no outcome, or an outcome referencing no part, is
+  refused.
+- **Who writes it.** The first roadmap comes from the Planner only: before
+  it is approved, a hand create, edit, move or part reference of an outcome
+  is refused. After it, the person edits outcomes by hand on the Roadmap
+  page, through the same gates.
+- **Who approves.** The card's button, or the Planner at the person's
+  request through `roadmap_approve` (§24.2).
+- **Staleness** follows the map's per-item rule, not rule 4: the first
+  roadmap is outdated when a part it references changed or was removed, or
+  another roadmap was approved first; a change to one outcome is outdated
+  when that outcome changed, or a part it references changed or was removed.
+- **A plan comes after the roadmap.** No plan is started, edited or approved
+  before the first roadmap is approved.
+- **A plan is tied to a part.** A plan version is approved only when its plan
+  is linked to at least one part. The link is Design's existing plan link
+  (§18.3); an outcome link is optional. The Planner links when it starts a
+  new plan: `draft_start` carries the part ids, and Plans writes the links in
+  the same transaction through Design's declared function. The person links
+  and unlinks on the Project map page as before.
+
 ## 23.6 Gates
 
 The gates are in the methods of the service that owns each write, so HTTP
@@ -289,7 +321,9 @@ contracts (§14). No plan write path skips it — today's tools included.
 | Propose or approve a map | The vision is incomplete |
 | Approve a map | A mandatory part is missing and not waived |
 | Create structure | The map is not approved, or the directory is not empty |
-| Propose or approve a roadmap or a plan | The structure has not been written |
+| Propose or approve a roadmap | The structure has not been written |
+| Start, edit or approve a plan; edit its bindings | No roadmap is approved |
+| Approve a plan | Its plan is linked to no part |
 
 A refusal is `STAGE_BLOCKED` with the reason (`vision incomplete: users,
 goals`; `missing part: database`) — an operation outcome, not a transport
@@ -387,7 +421,7 @@ Each PR is one slice a person can try in the browser.
 | 3b | §24: principal and agent, the Planner's fixed tools, its approval tools | "Approved by the Planner at your request" beside "Approved by you" |
 | 3c | §24.3: the project switches that widen the Planner's reach (connectors, skills, `CLAUDE.md`), after their probe | A switch turns on Google Drive for one project's Planner and nothing else |
 | 4 | Writing the structure (§23.7) | The structure appears in the project directory |
-| 5 | Roadmap and plans behind the map gate | No plan before the structure exists |
+| 5 | Roadmap and plans behind their gates | A roadmap approved after the structure; no plan before it, and none approved without a part |
 
 ## 23.10 Tests and acceptance
 
@@ -402,8 +436,9 @@ Service tests, few and exact:
 4. The structure write refuses a path outside the directory and writes only
    the approved files. A write stopped after some files resumes and
    completes; a foreign file or a changed recorded file refuses the resume.
-5. A plan write through any existing path is refused before the structure
-   exists. A standards change reaches a running session before its next
+5. A roadmap proposal is refused before the structure exists; a plan write
+   through any existing path is refused before a roadmap is approved; a plan
+   linked to no part cannot be approved. A standards change reaches a running session before its next
    message, and a proposal made under older standards cannot be approved.
 6. A vision item added after the map's approval appears in the stage as
    unserved.
