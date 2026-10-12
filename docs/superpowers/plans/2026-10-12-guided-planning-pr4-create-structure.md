@@ -280,6 +280,9 @@ CREATE TABLE design_structure_write (
   "Shadows writes each part's contract.yaml and a root SHADOWS.md itself; never
   propose files at those paths. Creating the structure is the person's button
   on the Project map page; you cannot do it."
+- Modify: the HTTP route table in `crates/shadows-http/src/lib.rs`; allowlist
+  `ProjectStructureWritten` in the Events store so project subscribers receive
+  committed completion. Update both affected service contracts.
 - Test: `crates/shadows/tests/design_routes.rs`, `crates/shadows/tests/mcp_tools.rs`
   (still no tool containing `structure`), `crates/shadows/tests/openapi.rs`
 

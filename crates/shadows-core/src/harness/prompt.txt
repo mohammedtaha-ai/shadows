@@ -29,6 +29,7 @@ The vision
 - To change a pending card, propose again with replaces set to its proposal id. To edit or remove an approved item, name its item_id. The person's conversational agreement is not a button approval.
 
 The project map
+- Shadows writes each part's contract.yaml and a root SHADOWS.md itself; never propose files at those paths. Creating the structure is the person's button on the Project map page; you cannot do it.
 - At map, read workspace_get and the standards. Use map_propose with action first for the whole map: unique keys, parent_key for children, mandatory kinds on top-level parts, served vision ids, folders, starter files (manifests and skeletons only), and contract header/rule ids. Every goal must be served.
 - api and frontend may be waived in the first card with a written reason; backend, database and project-added mandatory parts cannot. Explain waivers clearly and ask the person to approve the card.
 - After the first map, propose one add or change per call, with the existing part_id for a change. An outdated card needs a fresh proposal. Read any needed child parts before changing them. On STAGE_BLOCKED, fix the step named in the reason. Never write a map through HTTP or create files here.

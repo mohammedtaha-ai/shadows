@@ -675,6 +675,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/structure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_structure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/threads": {
         parameters: {
             query?: never;
@@ -1360,6 +1376,9 @@ export interface components {
             directory: string;
             name: string;
             slug: string;
+        };
+        CreateStructure: {
+            command_id: string;
         };
         CreateThread: {
             /** @description The idempotency key (spec §3.2), scoped to the project. */
@@ -2152,7 +2171,7 @@ export interface components {
             reason: string;
         };
         /** @enum {string} */
-        Stage: "idea" | "vision" | "map" | "structure";
+        Stage: "idea" | "vision" | "map" | "structure" | "roadmap";
         StageView: {
             drift?: string[];
             /** @description Missing vision field names at vision; mandatory part names at map. */
@@ -2201,6 +2220,13 @@ export interface components {
             model: string;
             plan?: null | components["schemas"]["PlanId"];
             prompt: string;
+        };
+        StructureWritten: {
+            completed_at: string;
+            /** Format: int64 */
+            map_version: number;
+            paths: string[];
+            resumed: boolean;
         };
         /** @description Spec §13.3. A task as the plan holds it, shown as `T{number}`. */
         TaskContent: {
@@ -4519,6 +4545,65 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_structure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStructure"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StructureWritten"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STAGE_BLOCKED or COMMAND_CONFLICT */
             409: {
                 headers: {
                     [name: string]: unknown;

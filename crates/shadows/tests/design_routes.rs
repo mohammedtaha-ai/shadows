@@ -4,6 +4,86 @@ use shadows_core::testing::{EventCursor, acp};
 mod app;
 
 #[tokio::test]
+async fn create_structure_route_writes_and_refuses() {
+    use shadows_core::{DesignOp, PartContent, PartId};
+    let app = app::test_app().await;
+    let temp = tempfile::tempdir().unwrap();
+    let p = app
+        .core
+        .projects()
+        .create(
+            "structure-project".into(),
+            "structure",
+            "Structure",
+            temp.path().to_str().unwrap(),
+        )
+        .await
+        .unwrap()
+        .id;
+    app.core.design().seed_map_for_tests(&p).await.unwrap();
+    let ops = ["backend", "database", "api", "frontend"]
+        .into_iter()
+        .map(|kind| DesignOp::PartCreate {
+            id: PartId::generate(),
+            parent: None,
+            before: None,
+            content: PartContent {
+                title: kind.into(),
+                responsibility: kind.into(),
+                kind: Some(kind.into()),
+                folders: vec![kind.into()],
+                ..Default::default()
+            },
+        })
+        .collect();
+    app.core
+        .design()
+        .edit("parts".into(), &p, 0, ops)
+        .await
+        .unwrap();
+    let route = format!("/api/projects/{p}/structure");
+    std::fs::write(temp.path().join("foreign.txt"), "foreign").unwrap();
+    let (status, error) =
+        app::call(&app, "POST", &route, Some(json!({"command_id":"blocked"}))).await;
+    assert_eq!(status, 409);
+    assert_eq!(error["code"], "STAGE_BLOCKED");
+    assert!(
+        error["message"]
+            .as_str()
+            .unwrap()
+            .contains("directory not empty")
+    );
+    std::fs::remove_file(temp.path().join("foreign.txt")).unwrap();
+    let (status, result) =
+        app::call(&app, "POST", &route, Some(json!({"command_id":"write"}))).await;
+    assert_eq!(status, 200, "{result}");
+    assert_eq!(result["paths"].as_array().unwrap().len(), 5);
+    assert!(temp.path().join("backend/contract.yaml").is_file());
+    let (status, error) =
+        app::call(&app, "POST", &route, Some(json!({"command_id":"second"}))).await;
+    assert_eq!(status, 409);
+    assert_eq!(error["code"], "STAGE_BLOCKED");
+    assert_eq!(error["message"], "structure already written");
+    assert_eq!(
+        app::call(&app, "POST", &route, Some(json!({"command_id":"write"}))).await,
+        (200, result)
+    );
+    let events = app
+        .storage
+        .read_project_events_after(EventCursor(0), &p, 100)
+        .await
+        .unwrap();
+    assert_eq!(
+        events
+            .iter()
+            .filter(|e| e.kind == "ProjectStructureWritten")
+            .count(),
+        1
+    );
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
 async fn map_proposal_routes_list_and_approve() {
     use shadows_core::{DesignOp, VisionField};
     let app = app::test_app().await;
