@@ -144,6 +144,14 @@ async fn outdated_superseded_and_already_approved_cards_are_refused() {
     assert!(error);
     ok(&c, "vision_approve", json!({"proposal_id":latest["id"]})).await;
     l.app.core.turns().stop(&op).await.unwrap();
+    // `stop` only asks: the turn ends, and its handle goes, a moment later.
+    app::wait_terminal(&l.app, &op).await;
+    for _ in 0..200 {
+        if l.app.handles.running_for(&l.app.thread).await.is_none() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
     running(&l).await;
     let (error, _) =
         listening::call(&c, "vision_approve", json!({"proposal_id":latest["id"]})).await;
