@@ -51,7 +51,15 @@ Port 4318 rebuilt from this branch, same database as PR 3's trial; project
 3. The PR 3 trial conversation's two map cards, approved by the button
    before this migration, read "Approved by you".
 
-Not run in the browser: the waiver refusal and a button approval after 3b.
-Both are pinned by `workspace_mcp/approval.rs`
-(`the_planner_refuses_waiver_maps_but_the_person_approves`) and the
-Task 2 storage tests.
+4. A new project "CSV Tool" (scratchpad `csv-tool`). One message asked the
+   Planner to fill the vision and approve each card, then propose a first
+   map waiving api and frontend and try `map_approve`. It proposed and
+   approved five cards (PU1, U1, G1, B1, T1), each reading "Approved by the
+   Planner at your request · your message". Its first map proposal was
+   refused for a folder-ownership conflict, then accepted after it dropped
+   the test folders. `map_approve` answered
+   `INVALID_COMMAND: a first map with waivers is approved by the person's
+   button`, and the card stayed Pending.
+5. Pressing **Approve map and waivers** approved it: the API row reads
+   `agent: human`, `request: null`; the card reads "Approved by you"; the
+   stage moved to `structure`.
