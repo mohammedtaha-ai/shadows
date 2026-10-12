@@ -68,6 +68,7 @@ shapes:
     # Never serialized or recorded: true when the call replayed a recorded one.
     replayed: bool
   Plan:
+    approved_by: "Option<crate::command::ApprovedBy>; provenance of the frozen version"
     bindings: Vec<AgreementBinding>
     # Derived latest dependency previews, excluded from canonical PlanContent.
     # MCP omits unreachable incoming previews and redacts outgoing metadata.
@@ -327,6 +328,9 @@ functions:
       # Its PlanApproved entry goes to the version's `written_by_thread` when
       # that thread is not removed, else nowhere; `WorkflowFrozen` names that
       # thread, or none (§16.3).
+    approve_plan_with:
+      signature: "(&self, ctx: &CommandContext, workflow: &WorkflowId, expected_revision: i64, approver: &Approver) -> Result<Approved, StorageError>"
+      # Authority, request message, freeze, attributed event and command audit share one write.
     start_draft:
       signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, plan: Option<&PlanId>, source: Option<&WorkflowId>, fresh: Option<(&str, &str)>, reason: Option<&str>, operation: Option<&OperationId>, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>"
       # No plan: a new Active `plan` row and its v1 from `fresh`, in the same
@@ -623,6 +627,8 @@ open_questions:
 
 
 tests:
+  - name: the_planner_approves_a_map_without_waivers_and_a_plan
+    checks: Planner freezes a blocker-free draft with attributed conversation entry.
   - name: bindings_are_exact_version_plan_content_and_task_removal_cleans_them
     checks: Old content omits empty pins; task removal cleans bindings atomically.
   - name: binding_storage_checks_agreed_party_and_exact_operations_atomically

@@ -582,6 +582,8 @@ not_the_caller's:
 
 
 tests:
+  - name: absent_and_empty_tool_policies_are_distinct
+    checks: None leaves adapter defaults; empty explicitly removes built-in tools.
   - name: a_pending_turn_delivers_the_standards_version_it_recorded
     checks: An additions save between recording and sending waits for the following turn.
   - name: a_session_opens_with_the_effective_standards
