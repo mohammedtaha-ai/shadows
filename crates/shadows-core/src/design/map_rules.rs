@@ -2,46 +2,6 @@
 use super::{EffectiveStandards, PartContent, VisionContent};
 use std::collections::{BTreeMap, BTreeSet};
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn windows_device_names_are_refused() {
-        for path in ["nul", "backend/con.txt", "Com1", "LPT9.rs"] {
-            assert!(normalise_folder(path).is_err(), "{path}");
-        }
-    }
-
-    #[test]
-    fn reserved_initial_files_are_refused() {
-        for path in ["backend/CONTRACT.yaml", "SHADOWS.md"] {
-            let content = PartContent {
-                title: "Backend".into(),
-                folders: vec!["backend".into()],
-                files: vec![super::super::InitialFile {
-                    path: path.into(),
-                    content: "".into(),
-                }],
-                ..Default::default()
-            };
-            let parts = [MapPart {
-                key: "p1",
-                parent: None,
-                content: &content,
-            }];
-            let standards = EffectiveStandards {
-                base: super::super::standards::base().clone(),
-                additions: None,
-            };
-            assert_eq!(
-                check_shape(&parts, &[], &VisionContent::default(), &standards),
-                Err(format!("reserved path: {path}"))
-            );
-        }
-    }
-}
-
 pub(crate) struct MapPart<'a> {
     pub key: &'a str,
     pub parent: Option<&'a str>,
@@ -299,4 +259,44 @@ pub(crate) fn drift(
             .map(|g| format!("{g} is served by no part")),
     );
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn windows_device_names_are_refused() {
+        for path in ["nul", "backend/con.txt", "Com1", "LPT9.rs"] {
+            assert!(normalise_folder(path).is_err(), "{path}");
+        }
+    }
+
+    #[test]
+    fn reserved_initial_files_are_refused() {
+        for path in ["backend/CONTRACT.yaml", "SHADOWS.md"] {
+            let content = PartContent {
+                title: "Backend".into(),
+                folders: vec!["backend".into()],
+                files: vec![super::super::InitialFile {
+                    path: path.into(),
+                    content: "".into(),
+                }],
+                ..Default::default()
+            };
+            let parts = [MapPart {
+                key: "p1",
+                parent: None,
+                content: &content,
+            }];
+            let standards = EffectiveStandards {
+                base: super::super::standards::base().clone(),
+                additions: None,
+            };
+            assert_eq!(
+                check_shape(&parts, &[], &VisionContent::default(), &standards),
+                Err(format!("reserved path: {path}"))
+            );
+        }
+    }
 }

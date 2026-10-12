@@ -354,6 +354,8 @@ called_by_other_services:
   project_stage: "Harness reads the persisted workspace stage before each turn."
 
 obligations:
+  - rule: Map paths refuse Windows device names and initial files at Shadows-owned output paths.
+    tested_by: [windows_device_names_are_refused, reserved_initial_files_are_refused]
   - rule: Map proposal fingerprints use normalized titles and paths; equivalent retries replay one card.
     tested_by: equivalent_map_retries_replay_the_original_card
   - rule: An approved map reports newly required mandatory kinds in its stage line and map page.
