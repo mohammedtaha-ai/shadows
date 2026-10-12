@@ -2,7 +2,7 @@
 // entries, its turns — as the state its screen draws.
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useReducer } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import { entriesQuery, operationsQuery, queuedQuery } from '@/api/queries'
 import type { Limits, PlanShowFrame, UsageFrame } from '@/stream/frames'
 import { tabId } from '@/stream/tab-id'
@@ -95,9 +95,16 @@ export function useConversation(threadId: string, onShowHere?: (show: PlanShowFr
 
   const running = runningTurn(turns)
   const runningText = running === null ? undefined : stream.streaming[running.id]
-  useEffect(() => {
-    dispatchReply({ type: 'stream', op: running?.id ?? null, text: runningText })
-  }, [running?.id, runningText])
+  // The reply follows the streamed text during render, not from an effect: an
+  // effect made each delta a second, nested update, and a long turn passed
+  // React's update depth limit (react.dev: "storing information from
+  // previous renders").
+  const streamed = { op: running?.id ?? null, text: runningText }
+  const [applied, setApplied] = useState<typeof streamed>({ op: null, text: undefined })
+  if (applied.op !== streamed.op || applied.text !== streamed.text) {
+    setApplied(streamed)
+    dispatchReply({ type: 'stream', ...streamed })
+  }
 
   const replyTurn = turns.find((turn) => turn.id === reply.op)
   const shown = shownReply(reply, {

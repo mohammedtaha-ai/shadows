@@ -158,7 +158,13 @@ daemon, with the real Planner (Claude Code, Opus 5.5 Medium), project
    part was reviewed` and `G3 is served by no part`; the page counted one
    pending map proposal, not two.
 
-The `Maximum update depth exceeded` error from `thread-stream.ts` appeared
-again after a full reload with no HMR, on the conversation page. This PR's
-diff does not touch that stream path; it is recorded for a separate
-investigation, not claimed as fixed or as caused here.
+The `Maximum update depth exceeded` error from `thread-stream.ts` was not an
+HMR artefact. It came during live turns that call a tool, not on page load
+and not in a long tool-free reply. It predates this PR: `use-conversation.ts`
+mirrored each streamed delta into the reply reducer from an effect. The reply
+now follows the streamed text during render. After the fix, two tool-calling
+turns on the same conversation logged no error; before it, one in two did.
+`use-conversation.test.tsx` streams 120 deltas and pins the reply text, but
+it passed before the fix too: under happy-dom the error did not reproduce, so
+the browser runs are the evidence. Web after the fix: 253/253, typecheck, lint
+and build passed.
