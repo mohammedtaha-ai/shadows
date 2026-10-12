@@ -1,0 +1,206 @@
+//! §23.6: no plan work before an approved roadmap, and no approval of an untied plan.
+use super::*;
+use shadows_core::{ErrorCode, Grant, OutcomeContent, OutcomeId};
+
+fn blocked<T: std::fmt::Debug>(result: Result<T, CoreError>, reason: &str) {
+    match result.unwrap_err() {
+        CoreError::Storage(StorageError::StageBlocked(message))
+        | CoreError::Refused {
+            code: ErrorCode::StageBlocked,
+            message,
+        } => assert!(message.contains(reason), "{message}"),
+        other => panic!("expected STAGE_BLOCKED {reason}: {other:?}"),
+    }
+}
+
+async fn setup() -> (tempfile::TempDir, Arc<AppCore>, ProjectId, Grant, Storage) {
+    let tmp = tempfile::tempdir().unwrap();
+    let db = tmp.path().join("gate.sqlite3");
+    let core = core_at(&db).await;
+    let p = project(&core, "gate", tmp.path()).await;
+    let grant = core.grants().issue("grant".into(), &p).await.unwrap().grant;
+    (tmp, core, p, grant, Storage::open(&db).await.unwrap())
+}
+
+async fn start(core: &AppCore, grant: &Grant, parts: Vec<PartId>) -> DraftStart {
+    let draft_ref = core.plans().prepare_draft(grant).await.unwrap();
+    DraftStart {
+        title: Some("Plan".into()),
+        goal: Some("Goal".into()),
+        plan_id: None,
+        reason: None,
+        draft_ref: Some(draft_ref),
+        parts,
+    }
+}
+
+fn add_task() -> PlanOp {
+    PlanOp::TaskAdd {
+        task: TaskContent {
+            number: 1,
+            title: "Task".into(),
+            goal: "Goal".into(),
+            reads: vec![],
+            writes: vec!["file.rs".into()],
+            acceptance: vec![AcceptanceItem {
+                number: 1,
+                text: "works".into(),
+            }],
+        },
+    }
+}
+
+fn edit_args(workflow: &shadows_core::WorkflowId, revision: i64, command: &str) -> PlanEdit {
+    PlanEdit {
+        workflow_id: Some(workflow.clone()),
+        expected_revision: revision,
+        command_id: Some(command.into()),
+        ops: vec![add_task()],
+    }
+}
+
+async fn unapprove_roadmap(storage: &Storage, p: &ProjectId) {
+    sqlx::query("UPDATE design_workspace SET roadmap_revision=0 WHERE project_id=?")
+        .bind(p.as_str())
+        .execute(storage.reader())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_plan_cannot_start_before_the_roadmap() {
+    let (_tmp, core, p, grant, _storage) = setup().await;
+    let args = start(&core, &grant, vec![]).await;
+    blocked(
+        core.plans().start_draft(&grant, args).await,
+        "no roadmap approved",
+    );
+    core.design().seed_roadmap_for_tests(&p).await.unwrap();
+    let args = start(&core, &grant, vec![]).await;
+    core.plans().start_draft(&grant, args).await.unwrap();
+}
+
+#[tokio::test]
+async fn edit_and_approve_wait_for_the_roadmap() {
+    let (_tmp, core, p, grant, storage) = setup().await;
+    let part = core.design().seed_roadmap_for_tests(&p).await.unwrap();
+    let args = start(&core, &grant, vec![part]).await;
+    let started = core.plans().start_draft(&grant, args).await.unwrap();
+    unapprove_roadmap(&storage, &p).await;
+    blocked(
+        core.plans()
+            .edit(&grant, edit_args(&started.workflow_id, 0, "edit-1"))
+            .await,
+        "no roadmap approved",
+    );
+    blocked(
+        core.plans()
+            .approve("approve-0".into(), &started.workflow_id, 0)
+            .await,
+        "no roadmap approved",
+    );
+    let unbind = PlanOp::BindingRemove {
+        task: 1,
+        agreement_id: shadows_core::AgreementId::generate(),
+        role: shadows_core::AgreementRole::Provides,
+    };
+    blocked(
+        core.plans()
+            .edit_bindings("bind-0".into(), &started.workflow_id, 0, vec![unbind])
+            .await,
+        "no roadmap approved",
+    );
+    core.design().seed_roadmap_for_tests(&p).await.unwrap();
+    core.plans()
+        .edit(&grant, edit_args(&started.workflow_id, 0, "edit-2"))
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_plan_with_no_part_cannot_be_approved() {
+    let (_tmp, core, p, grant, _storage) = setup().await;
+    let part = core.design().seed_roadmap_for_tests(&p).await.unwrap();
+    let args = start(&core, &grant, vec![]).await;
+    let bare = core.plans().start_draft(&grant, args).await.unwrap();
+    core.plans()
+        .edit(&grant, edit_args(&bare.workflow_id, 0, "bare-edit"))
+        .await
+        .unwrap();
+    blocked(
+        core.plans()
+            .approve("bare-approve".into(), &bare.workflow_id, 1)
+            .await,
+        "plan has no part",
+    );
+    let args = start(&core, &grant, vec![part.clone()]).await;
+    let tied = core.plans().start_draft(&grant, args).await.unwrap();
+    core.plans()
+        .edit(&grant, edit_args(&tied.workflow_id, 0, "tied-edit"))
+        .await
+        .unwrap();
+    core.plans()
+        .approve("tied-approve".into(), &tied.workflow_id, 1)
+        .await
+        .unwrap();
+    let view = core.design().part(&p, &part).await.unwrap();
+    assert_eq!(view.plans, vec![tied.plan_id]);
+}
+
+#[tokio::test]
+async fn a_start_with_an_unknown_part_links_nothing() {
+    let (_tmp, core, p, grant, _storage) = setup().await;
+    core.design().seed_roadmap_for_tests(&p).await.unwrap();
+    let args = start(&core, &grant, vec![PartId::generate()]).await;
+    let refused = core.plans().start_draft(&grant, args).await;
+    assert!(refused.is_err(), "{refused:?}");
+    assert!(core.plans().map(&p).await.unwrap().plans.is_empty());
+}
+
+#[tokio::test]
+async fn hand_outcome_edits_wait_for_the_first_roadmap() {
+    let (_tmp, core, p, _grant, _storage) = setup().await;
+    let create = || DesignOp::OutcomeCreate {
+        id: OutcomeId::generate(),
+        parent: None,
+        before: None,
+        content: OutcomeContent {
+            title: "Ship".into(),
+            intended_result: "shipped".into(),
+            acceptance: vec![],
+        },
+    };
+    blocked(
+        core.design()
+            .edit("early".into(), &p, 0, vec![create()])
+            .await,
+        "the first roadmap comes from the Planner",
+    );
+    core.design().seed_roadmap_for_tests(&p).await.unwrap();
+    core.design()
+        .edit("late".into(), &p, 0, vec![create()])
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_recorded_start_still_answers_before_the_roadmap() {
+    let (_tmp, core, p, grant, storage) = setup().await;
+    core.design().seed_roadmap_for_tests(&p).await.unwrap();
+    let args = start(&core, &grant, vec![]).await;
+    let draft_ref = args.draft_ref.clone();
+    let first = core.plans().start_draft(&grant, args).await.unwrap();
+    unapprove_roadmap(&storage, &p).await;
+    let again = DraftStart {
+        title: Some("Plan".into()),
+        goal: Some("Goal".into()),
+        plan_id: None,
+        reason: None,
+        draft_ref,
+        parts: vec![],
+    };
+    assert_eq!(
+        core.plans().start_draft(&grant, again).await.unwrap(),
+        first
+    );
+}

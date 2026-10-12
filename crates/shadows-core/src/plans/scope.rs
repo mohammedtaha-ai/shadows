@@ -100,6 +100,7 @@ impl Plans {
             "goal": args.goal,
             "reason": args.reason,
         });
+        let params = with_parts(params, &args.parts);
         let fp = fingerprint("DraftStart", &params);
         let ctx = command(
             &writer,
@@ -125,6 +126,7 @@ impl Plans {
                 args.reason.as_deref(),
                 Some(&op),
                 None,
+                &args.parts,
             )
             .await?)
     }
@@ -164,6 +166,7 @@ impl Plans {
             "project": grant.project_id,
             "reason": args.reason,
         });
+        let params = with_parts(params, &args.parts);
         let fp = fingerprint("DraftStart", &params);
         let ctx = command(
             &writer,
@@ -211,9 +214,18 @@ impl Plans {
                 args.reason.as_deref(),
                 None,
                 Some(draft_ref),
+                &args.parts,
             )
             .await?)
     }
+}
+
+/// The fingerprint names `parts` only when given, so older starts replay unchanged.
+fn with_parts(mut params: serde_json::Value, parts: &[crate::design::PartId]) -> serde_json::Value {
+    if !parts.is_empty() {
+        params["parts"] = json!(parts);
+    }
+    params
 }
 
 /// A refusal whose code and text this service writes.

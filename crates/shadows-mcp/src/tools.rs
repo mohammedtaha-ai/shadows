@@ -70,6 +70,11 @@ struct DraftStartArgs {
     /// answers the same plan; a new plan takes a new ref.
     #[serde(default)]
     draft_ref: Option<String>,
+    /// parts: the part ids this plan changes; a plan cannot be approved until
+    /// it is tied to at least one part.
+    #[serde(default)]
+    #[schemars(with = "Vec<String>")]
+    parts: Vec<shadows_core::PartId>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -264,7 +269,9 @@ impl Shadows {
     #[tool(
         description = "Start a plan version to edit. Give plan_id to continue that plan, \
                        or leave it out to create a new plan from a title and goal. \
-                       A later version needs a reason; an existing Draft is returned unchanged."
+                       A later version needs a reason; an existing Draft is returned unchanged. \
+                       parts: the part ids this plan changes; a plan cannot be approved until \
+                       it is tied to at least one part."
     )]
     async fn draft_start(
         &self,
@@ -277,6 +284,7 @@ impl Shadows {
             plan_id: args.plan_id,
             reason: args.reason,
             draft_ref: args.draft_ref,
+            parts: args.parts,
         };
         answer(
             self.core

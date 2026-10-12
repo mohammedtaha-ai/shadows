@@ -52,6 +52,8 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/design/store/map_approval.rs` | committing approved map proposals | `crates/shadows-core/src/design/contract.yaml` |
 | `crates/shadows-core/src/design/map_rules.rs` | pure map validation | `crates/shadows-core/src/design/contract.yaml` |
 | `crates/shadows-core/src/design/store/map_versions.rs` | durable map snapshots | `crates/shadows-core/src/design/contract.yaml` |
+| `crates/shadows-core/src/design/store/roadmap_gate.rs` | refusing work that needs an approved roadmap | `crates/shadows-core/src/design/contract.yaml` |
+| `crates/shadows-core/src/design/store/roadmap_seed.rs` | test-only seeding of the plans stage | `crates/shadows-core/src/design/contract.yaml` |
 | `crates/shadows/src/main.rs` | the one binary Shadows ships | `crates/shadows/src/cli/mod.rs` |
 | `crates/shadows/src/cli/` | daemon startup | `crates/shadows/src/cli/args.rs` |
 | `crates/shadows/src/config.rs` | startup configuration resolved once | `crates/shadows/src/config.rs` |

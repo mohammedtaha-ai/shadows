@@ -76,7 +76,17 @@ impl Storage {
         .await?
         .flatten();
         if written.is_some() {
-            stage.stage = crate::Stage::Roadmap;
+            let roadmap: Option<i64> = sqlx::query_scalar(
+                "SELECT roadmap_revision FROM design_workspace WHERE project_id=?",
+            )
+            .bind(project.as_str())
+            .fetch_optional(&mut *tx)
+            .await?;
+            stage.stage = if roadmap.unwrap_or(0) > 0 {
+                crate::Stage::Plans
+            } else {
+                crate::Stage::Roadmap
+            };
         }
         tx.commit().await?;
         Ok(stage)

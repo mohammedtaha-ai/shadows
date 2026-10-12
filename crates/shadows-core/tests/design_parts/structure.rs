@@ -1,7 +1,7 @@
 use super::*;
 use shadows_core::{ContractHead, InitialFile, Stage};
 
-async fn setup() -> (
+pub(super) async fn setup() -> (
     tempfile::TempDir,
     Storage,
     Arc<AppCore>,
@@ -70,6 +70,8 @@ async fn create_structure_writes_exactly_the_approved_files() {
     assert_eq!(result.map_version, 2);
     assert!(!result.resumed);
     assert_eq!(core.design().stage(&p).await.unwrap().stage, Stage::Roadmap);
+    core.design().seed_roadmap_for_tests(&p).await.unwrap();
+    assert_eq!(core.design().stage(&p).await.unwrap().stage, Stage::Plans);
     for kind in ["backend", "database", "api", "frontend"] {
         assert_eq!(
             std::fs::read_to_string(dir.join(format!("{kind}/src/initial.txt"))).unwrap(),

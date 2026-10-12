@@ -24,7 +24,9 @@ mod structure_write;
 pub use structure_create::StructureWritten;
 mod vision_items;
 mod workspace;
-pub(crate) use store::check_agreement_binding_in;
+pub(crate) use store::{
+    check_agreement_binding_in, link_plan_parts_in, plan_has_part_in, require_roadmap_in,
+};
 
 use std::sync::Arc;
 
@@ -55,6 +57,10 @@ impl Design {
     #[cfg(feature = "test-support")]
     pub async fn seed_map_for_tests(&self, project: &ProjectId) -> Result<(), CoreError> {
         Ok(self.storage.seed_map_for_tests(project).await?)
+    }
+    #[cfg(feature = "test-support")]
+    pub async fn seed_roadmap_for_tests(&self, project: &ProjectId) -> Result<PartId, CoreError> {
+        Ok(self.storage.seed_roadmap_for_tests(project).await?)
     }
     pub async fn standards(&self, project: &ProjectId) -> Result<EffectiveStandards, CoreError> {
         Ok(EffectiveStandards {

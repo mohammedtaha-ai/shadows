@@ -234,6 +234,11 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
     );
     let a = PartId::generate();
     storage.seed_map_for_tests(&project).await.unwrap();
+    sqlx::query("UPDATE design_workspace SET roadmap_revision=1 WHERE project_id=?")
+        .bind(project.as_str())
+        .execute(storage.reader())
+        .await
+        .unwrap();
     let b = PartId::generate();
     let child = PartId::generate();
     let outcome = OutcomeId::generate();

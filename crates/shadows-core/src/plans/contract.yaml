@@ -47,6 +47,9 @@ shapes:
     reason: Option<String>
     # External agents only; required for them, and it is the command's id.
     draft_ref: Option<String>
+    # The parts this plan changes (§23.6); tied inside the start's transaction.
+    # In the fingerprint only when non-empty, so older starts replay unchanged.
+    parts: Vec<PartId>
   PlanEdit:
     # Required by `in_scope`; it names the version to edit.
     workflow_id: Option<WorkflowId>
@@ -332,7 +335,7 @@ functions:
       signature: "(&self, ctx: &CommandContext, workflow: &WorkflowId, expected_revision: i64, approver: &Approver) -> Result<Approved, StorageError>"
       # Authority, request message, freeze, attributed event and command audit share one write.
     start_draft:
-      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, plan: Option<&PlanId>, source: Option<&WorkflowId>, fresh: Option<(&str, &str)>, reason: Option<&str>, operation: Option<&OperationId>, draft_ref: Option<&str>) -> Result<DraftStarted, StorageError>"
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, plan: Option<&PlanId>, source: Option<&WorkflowId>, fresh: Option<(&str, &str)>, reason: Option<&str>, operation: Option<&OperationId>, draft_ref: Option<&str>, parts: &[PartId]) -> Result<DraftStarted, StorageError>"
       # No plan: a new Active `plan` row and its v1 from `fresh`, in the same
       # transaction. A plan (of `project`, else GrantScope): its Draft, else
       # its next version from the latest, which needs a non-blank `reason`
@@ -564,6 +567,17 @@ obligations:
     tested_by: migration_0012_moves_every_version_into_a_plan
 
 agreements:
+  - between: [start_draft, design::require_roadmap_in]
+    rule: >
+      Plans asks Design, inside the write's own transaction, whether the roadmap
+      is approved. start_draft, edit_plan (the binding edit included) and
+      approve_plan_with refuse with StageBlocked before it, after the writer or
+      authority check and the replay lookup; approval further refuses a plan
+      tied to no part (design::plan_has_part_in). start_draft ties its plan to
+      the given parts through design::link_plan_parts_in. Design owns the
+      roadmap and the links.
+    holds: true
+    tested_by: [a_plan_cannot_start_before_the_roadmap, edit_and_approve_wait_for_the_roadmap, a_plan_with_no_part_cannot_be_approved, a_recorded_start_still_answers_before_the_roadmap]
   - between: [check_design_plan, design::edit_design]
     rule: >
       Design validates project-qualified plan identities in its own transaction.

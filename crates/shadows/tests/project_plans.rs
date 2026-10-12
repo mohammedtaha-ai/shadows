@@ -64,6 +64,7 @@ async fn a_new_version_needs_its_reason() {
                 goal: None,
                 plan_id: Some(plan_id.clone()),
                 reason: reason.map(str::to_string),
+                parts: vec![],
                 draft_ref: Some(draft_ref),
             };
             plans.start_draft(grant, args).await
@@ -120,6 +121,7 @@ async fn first_start(app: &App, writer: &Writer) -> DraftStarted {
             None,
             None,
             None,
+            std::slice::from_ref(app.part.as_ref().unwrap()),
         )
         .await
         .unwrap()
@@ -173,6 +175,7 @@ async fn approving_an_external_version_writes_no_entry() {
             None,
             None,
             Some(&r),
+            std::slice::from_ref(app.part.as_ref().unwrap()),
         )
         .await
         .unwrap();

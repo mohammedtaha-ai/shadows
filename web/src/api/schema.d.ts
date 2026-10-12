@@ -2171,7 +2171,7 @@ export interface components {
             reason: string;
         };
         /** @enum {string} */
-        Stage: "idea" | "vision" | "map" | "structure" | "roadmap";
+        Stage: "idea" | "vision" | "map" | "structure" | "roadmap" | "plans";
         StageView: {
             drift?: string[];
             /** @description Missing vision field names at vision; mandatory part names at map. */

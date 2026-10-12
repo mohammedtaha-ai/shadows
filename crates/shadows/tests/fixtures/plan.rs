@@ -261,20 +261,39 @@ pub async fn plan_of(app: &App, thread: &ThreadId) -> Option<PlanId> {
 pub async fn draft_on(app: &App, thread: &ThreadId, command: &str) -> DraftStarted {
     let writer = planner(app, thread).await;
     let plan = plan_of(app, thread).await;
+    let project = project_of(app, thread).await;
+    // The thread may sit in another project: its roadmap is seeded as the app's is.
+    let part = app.storage.seed_roadmap_for_tests(&project).await.unwrap();
     app.storage
         .start_draft(
             &writer_ctx(&writer, command, "DraftStart", json!({ "t": thread })),
             &writer,
-            &project_of(app, thread).await,
+            &project,
             plan.as_ref(),
             None,
             Some(("Login", "people can log in")),
             Some("the plan changed"),
             None,
             None,
+            std::slice::from_ref(&part),
         )
         .await
         .unwrap()
+}
+
+/// Ties the plan of `workflow` to its project's seeded part, as the person
+/// does on the Project map page: a plan tied to no part is not approved (§23.6).
+pub async fn tie_to_part(app: &App, workflow: &WorkflowId) {
+    let plan = app.storage.get_plan(workflow).await.unwrap();
+    let part = app
+        .storage
+        .seed_roadmap_for_tests(&plan.project_id)
+        .await
+        .unwrap();
+    app.storage
+        .link_plan_part_for_tests(&plan.project_id, &plan.plan_id, &part)
+        .await
+        .unwrap();
 }
 
 pub async fn edit(app: &App, workflow: &WorkflowId, expected: i64, ops: &[PlanOp]) -> i64 {

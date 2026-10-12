@@ -22,7 +22,6 @@ use serde_json::{Value, json};
 use shadows::cli::router;
 use shadows_agent::events::HarnessEvent;
 use shadows_agent::policy;
-use shadows_core::ProjectId;
 use shadows_core::UiSignal;
 use shadows_core::testing::LiveHandles;
 use shadows_core::testing::ProjectDirectory;
@@ -32,6 +31,7 @@ use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::testing::{Sessions, SessionsConfig};
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
+use shadows_core::{PartId, ProjectId};
 use shadows_core::{ThreadEntry, ThreadEntryKind, ThreadId};
 use shadows_http::AppState;
 use tower::ServiceExt;
@@ -54,6 +54,9 @@ pub struct App {
     pub core: Arc<AppCore>,
     pub router: Router,
     pub project: ProjectId,
+    /// The part the project's seeded roadmap answers, which plans tie to
+    /// (§23.6); `None` for an app made by `test_app_unseeded`.
+    pub part: Option<PartId>,
     pub thread: ThreadId,
     // Held: a dropped sender reads as a stopping daemon.
     _stopping: tokio::sync::watch::Sender<bool>,
@@ -92,8 +95,26 @@ pub async fn test_app_at(dir: &Path) -> App {
 }
 
 /// As `test_app_at`, with the sessions' own configuration and the `/mcp` URL
-/// the daemon reports.
+/// the daemon reports. Its project is at the plans stage: plan work needs an
+/// approved roadmap (§23.6), so the roadmap is seeded with one part.
 pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) -> App {
+    assemble(dir, config, mcp_url, true).await
+}
+
+/// As `test_app`, with the project at its start: no map and no roadmap, for
+/// the tests that walk the vision and map stages themselves.
+pub async fn test_app_unseeded() -> App {
+    let tmp = tempfile::tempdir().unwrap();
+    let app = test_app_unseeded_with(tmp.path(), acp::test_config(), acp::MCP_URL).await;
+    app.owning(tmp)
+}
+
+/// As `test_app_with`, with the project at its start (see `test_app_unseeded`).
+pub async fn test_app_unseeded_with(dir: &Path, config: SessionsConfig, mcp_url: &str) -> App {
+    assemble(dir, config, mcp_url, false).await
+}
+
+async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bool) -> App {
     let db = dir.join("s.sqlite3");
     let storage = Arc::new(Storage::open(&db).await.unwrap());
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
@@ -108,6 +129,10 @@ pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) ->
         )
         .await
         .unwrap();
+    let part = match roadmap {
+        true => Some(storage.seed_roadmap_for_tests(&project.id).await.unwrap()),
+        false => None,
+    };
     let thread = storage
         .create_planning_thread(
             &ctx("c2", "thread.create"),
@@ -148,6 +173,7 @@ pub async fn test_app_with(dir: &Path, config: SessionsConfig, mcp_url: &str) ->
         core,
         router,
         project: project.id,
+        part,
         thread,
         _stopping: stopping,
     }

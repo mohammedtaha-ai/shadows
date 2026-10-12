@@ -17,6 +17,10 @@ mod parts;
 mod proposal_approval;
 mod proposal_read;
 mod proposals;
+mod roadmap_gate;
+#[cfg(feature = "test-support")]
+mod roadmap_seed;
+pub(crate) use roadmap_gate::{link_plan_parts_in, plan_has_part_in, require_roadmap_in};
 mod stage;
 mod standards;
 pub(super) mod structure;

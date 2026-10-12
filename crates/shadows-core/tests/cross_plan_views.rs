@@ -99,6 +99,7 @@ async fn incoming_previews_obey_the_grants_one_way_project_reach() {
     .execute(storage.reader())
     .await
     .unwrap();
+    cross_plan::approve_roadmap(&storage, "q", &[TARGET_PLAN]).await;
     storage
         .edit_plan(
             &command("source"),
@@ -215,6 +216,7 @@ async fn a_frozen_sources_preview_follows_the_targets_new_version() {
         )
         .await
         .unwrap();
+    cross_plan::approve_roadmap(&storage, "p", &[TARGET_PLAN]).await;
     storage
         .approve_plan(&command("freeze-source"), &source, 1)
         .await
@@ -247,6 +249,7 @@ async fn a_frozen_sources_preview_follows_the_targets_new_version() {
             Some("Replace the API task"),
             None,
             Some(&draft_ref),
+            &[],
         )
         .await
         .unwrap();
