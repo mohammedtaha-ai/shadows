@@ -18,6 +18,7 @@ pub use proposals::{ProposalStatus, VisionAction, VisionProposal, VisionPropose}
 pub(crate) mod stage;
 pub(crate) mod standards;
 mod store;
+mod structure;
 mod vision_items;
 mod workspace;
 pub(crate) use store::check_agreement_binding_in;

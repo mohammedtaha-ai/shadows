@@ -2,6 +2,46 @@
 use super::{EffectiveStandards, PartContent, VisionContent};
 use std::collections::{BTreeMap, BTreeSet};
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn windows_device_names_are_refused() {
+        for path in ["nul", "backend/con.txt", "Com1", "LPT9.rs"] {
+            assert!(normalise_folder(path).is_err(), "{path}");
+        }
+    }
+
+    #[test]
+    fn reserved_initial_files_are_refused() {
+        for path in ["backend/CONTRACT.yaml", "SHADOWS.md"] {
+            let content = PartContent {
+                title: "Backend".into(),
+                folders: vec!["backend".into()],
+                files: vec![super::super::InitialFile {
+                    path: path.into(),
+                    content: "".into(),
+                }],
+                ..Default::default()
+            };
+            let parts = [MapPart {
+                key: "p1",
+                parent: None,
+                content: &content,
+            }];
+            let standards = EffectiveStandards {
+                base: super::super::standards::base().clone(),
+                additions: None,
+            };
+            assert_eq!(
+                check_shape(&parts, &[], &VisionContent::default(), &standards),
+                Err(format!("reserved path: {path}"))
+            );
+        }
+    }
+}
+
 pub(crate) struct MapPart<'a> {
     pub key: &'a str,
     pub parent: Option<&'a str>,
@@ -17,13 +57,46 @@ pub(crate) fn normalise_folder(raw: &str) -> Result<String, String> {
     if path.is_empty()
         || path.starts_with('/')
         || path.contains(':')
-        || path
-            .split('/')
-            .any(|s| s.is_empty() || s == "." || s == ".." || s.ends_with(['.', ' ']))
+        || path.split('/').any(|s| {
+            s.is_empty()
+                || s == "."
+                || s == ".."
+                || s.ends_with(['.', ' '])
+                || device_name(s)
+                || s.chars().any(|c| c.is_control() || "<>\"|?*".contains(c))
+        })
     {
         return Err(format!("invalid relative path: {raw}"));
     }
     Ok(path.into())
+}
+
+fn device_name(segment: &str) -> bool {
+    let stem = segment
+        .split('.')
+        .next()
+        .unwrap_or(segment)
+        .to_ascii_uppercase();
+    matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || ["COM", "LPT"].iter().any(|prefix| {
+            stem.strip_prefix(prefix)
+                .is_some_and(|n| n.len() == 1 && ("1"..="9").contains(&n))
+        })
+}
+
+pub(crate) fn check_reserved<'a>(
+    path: &str,
+    first_folders: impl Iterator<Item = &'a String>,
+) -> Result<(), String> {
+    if path.eq_ignore_ascii_case("SHADOWS.md")
+        || first_folders.into_iter().any(|f| {
+            normalise_folder(f)
+                .is_ok_and(|f| path.eq_ignore_ascii_case(&format!("{f}/contract.yaml")))
+        })
+    {
+        return Err(format!("reserved path: {path}"));
+    }
+    Ok(())
 }
 
 pub(crate) fn normalise(content: &mut PartContent) -> Result<(), String> {
@@ -107,6 +180,10 @@ pub(crate) fn check_shape(
             folders.push((part.key, normalise_folder(folder)?.to_lowercase()));
         }
         for file in &part.content.files {
+            check_reserved(
+                &file.path,
+                parts.iter().filter_map(|p| p.content.folders.first()),
+            )?;
             let path = normalise_folder(&file.path)?.to_lowercase();
             if !part
                 .content

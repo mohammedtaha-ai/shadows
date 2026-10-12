@@ -1,5 +1,9 @@
 # Owns project design edits (§18.2, §18.10–18.11), first called by person HTTP.
 # Reads lazily return an empty revision-zero vision for a live project.
+# Map paths reject Windows device names and Shadows-owned initial files.
+# Rendering rechecks old snapshots and emits contracts with yaml-rust2.
+# Held by reserved_initial_files_are_refused, windows_device_names_are_refused,
+# renders_folders_contracts_files_and_shadows_md and a_reserved_path_refuses.
 # Replay precedes project/revision validation and returns an immutable result.
 name: design
 # Approval stores derive principal/agent/request in one transaction (§24.1).

@@ -148,7 +148,8 @@ pub(crate) fn sha256_hex(bytes: &[u8]) -> String;
   `shadows_md_names_map_and_standards`. In `map_rules.rs`:
   `reserved_initial_files_are_refused` and `windows_device_names_are_refused`
   (`nul`, `backend/con.txt`, `Com1`).
-- [ ] **Step 2: Run, watch fail:** `cargo test -p shadows-core --lib structure map_rules`.
+- [ ] **Step 2: Run, watch fail:** `cargo test -p shadows-core --lib structure`,
+  then `cargo test -p shadows-core --lib map_rules` (Cargo accepts one filter).
 - [ ] **Step 3: Implement.** Re-run `normalise_folder` on every path inside
   `render` (defence: an older snapshot predates Ruling 4).
 - [ ] **Step 4: Run** → PASS. `cargo test -p shadows-core --test design_parts` → PASS
