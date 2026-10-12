@@ -10,6 +10,10 @@ mod stage;
 
 #[path = "design_parts/map.rs"]
 mod map;
+#[path = "design_parts/roadmap.rs"]
+mod roadmap;
+#[path = "design_parts/roadmap_changes.rs"]
+mod roadmap_changes;
 #[path = "design_parts/roadmap_gate.rs"]
 mod roadmap_gate;
 #[path = "design_parts/structure.rs"]

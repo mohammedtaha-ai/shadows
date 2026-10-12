@@ -4142,7 +4142,8 @@
           "PlanView",
           "PlanApproved",
           "VisionProposal",
-          "MapProposal"
+          "MapProposal",
+          "RoadmapProposal"
         ],
         "type": "string"
       },
