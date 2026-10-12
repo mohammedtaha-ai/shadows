@@ -83,9 +83,12 @@ stop this; this section does, by giving the Planner no hand to send it:
    removes), and also the project's `CLAUDE.md`; the project's instructions
    reach the Planner through Shadows' own (§13.8). Decided with Mohammed on
    2026-10-12.
-3. **The Planner's subagents are advisers.** They inherit the same tools: they
-   read and answer, and never run or write code. Executors are a different
-   matter (the OPEN below).
+3. **The Planner's subagents are advisers with the Planner's authority.**
+   They inherit the same tools, Shadows' MCP tools included, over the same
+   grant: what they propose or approve is recorded as `planner:<harness>`,
+   with the same limits (no waiver map, no Create structure). They never run
+   or write code. Executors are a different matter (the OPEN below). Decided
+   with Mohammed on 2026-10-12.
 4. **Every permission request is still refused**, as today: defence in depth
    for any tool the list lets through.
 5. **A read never writes.** Every HTTP route that changes state is a `POST`,
