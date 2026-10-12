@@ -101,7 +101,8 @@ code at `d8d3465`) showed on `claude-agent-acp` 0.81.1: without these options
 the Planner's session held Bash, PowerShell, Write and Edit and the person's
 claude.ai connectors (Google Drive, Claude Docs); with them, in both modes
 Shadows offers (`acceptEdits`, `auto`) and in a subagent, none of those
-existed. Bypass is not in Shadows' mode policy (§12.4) and was not run; the
+existed, and a planted project hook, skill and `CLAUDE.md` that plain Claude
+Code loaded did not reach the Planner. Bypass is not in Shadows' mode policy (§12.4) and was not run; the
 tool list does not depend on the mode.
 
 > **OPEN — executors.** §17's executors need a shell, so §24.3's rule cannot

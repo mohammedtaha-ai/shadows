@@ -56,13 +56,27 @@ operations route (`invocation.requested_mode`).
   Planner's subagents: the tools are absent, not refused.
 - (b) Yes: without these options a session loads the person's own claude.ai
   MCP connectors and settings. `strictMcpConfig` and `settingSources: []`
-  keep them out.
+  keep them out, hooks, skills and the project's `CLAUDE.md` included
+  (next section).
+
+## Settings: hooks, skills, `CLAUDE.md`
+
+Run after Codex's review of the spec, on the same probe build. Planted in the
+project folder: `CLAUDE.md` with a marker word; `.claude/settings.json` with
+a `SessionStart` and a `UserPromptSubmit` hook, each writing a file;
+`.claude/skills/marker-skill/SKILL.md` with a second marker.
+
+| Run | Marker word | Marker skill | Hook files |
+|---|---|---|---|
+| Plain `claude -p` in that folder (control) | read | listed | both written |
+| A new Shadows Planner conversation | absent | absent | none written |
+
+The Planner named no skill or plugin of the person's (their `superpowers`
+plugin included); it saw only Claude Code's built-in commands and agent
+types. The planted files were removed afterwards.
 
 ## Not measured
 
-- What `settingSources: []` also drops: the project's `CLAUDE.md`, the
-  person's skills, plugins and hooks. The Planner kept working without them
-  in these two turns.
 - A `bypassPermissions` turn: Shadows never offers it, so it was not run.
 - The adapter logs `CLAUDE_SDK_CAN_USE_TOOL_SHADOWED` for
   `mcp__shadows__*`: the bare `allowedTools` entry approves Shadows' tools
