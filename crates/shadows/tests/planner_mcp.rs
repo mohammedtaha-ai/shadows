@@ -27,7 +27,7 @@ use app::{
     start_and_finish, start_and_finish_on, start_settled, wait_terminal,
 };
 use listening::{listening_app, listening_at, listening_with};
-use plan::{add, events, issue_grant};
+use plan::{add, events, issue_grant, tie_to_part};
 use serve::serve;
 
 const PROMPT: &str = shadows_core::testing::PROMPT;
@@ -142,6 +142,8 @@ async fn a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval() {
     assert!(r["append"].as_str().unwrap().contains(first_line), "{r}");
     assert!(r["append"].as_str().unwrap().contains("vision_propose"));
     assert!(r["append"].as_str().unwrap().contains("map_propose"));
+    assert!(r["append"].as_str().unwrap().contains("roadmap_propose"));
+    assert!(r["append"].as_str().unwrap().contains("roadmap_approve"));
     assert_eq!(r["allowed"], json!(["mcp__shadows__*"]));
 }
 
@@ -185,6 +187,7 @@ async fn a_second_conversation_carries_the_plan_on() {
     let edit = json!({ "workflow_id": v1, "expected_revision": 0, "ops": [add(1)] });
     let edited = reply(&l.app, &format!("mcp plan_edit {edit}")).await;
     let edited: Value = serde_json::from_str(&edited).expect(&edited);
+    tie_to_part(&l.app, &v1).await;
     l.app
         .core
         .plans()
@@ -355,6 +358,10 @@ async fn the_daemon_opens_sessions_with_its_own_mcp_address() {
         json!({ "command_id": "p1", "slug": "demo", "name": "Demo", "directory": dir }),
     )
     .await;
+    // Plan work needs an approved roadmap (§23.6): seeded beside the daemon.
+    let seeded = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let id = shadows_core::ProjectId::from_literal(project["id"].as_str().unwrap());
+    seeded.seed_roadmap_for_tests(&id).await.unwrap();
     let path = format!("/api/projects/{}/threads", project["id"].as_str().unwrap());
     let thread = post(&path, json!({ "command_id": "t1", "title": "T" })).await;
     let turns = format!("/api/threads/{}/turns", thread["id"].as_str().unwrap());

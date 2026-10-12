@@ -82,6 +82,8 @@ pub struct DraftStart {
     /// Why a next version is started (§16.3): needed from v2 on.
     pub reason: Option<String>,
     pub draft_ref: Option<String>,
+    /// The parts this plan changes (§23.6); a plan cannot be approved untied.
+    pub parts: Vec<crate::design::PartId>,
 }
 
 /// `plan_edit`'s arguments, as the tool received them.

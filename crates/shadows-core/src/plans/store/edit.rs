@@ -49,6 +49,7 @@ impl Storage {
                 if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await? {
                     return recorded_outcome(conn, &event).await;
                 }
+                crate::design::require_roadmap_in(conn, &project).await?;
                 let plan = load_plan(conn, &workflow, None).await?;
                 require_active(conn, &plan.plan_id).await?;
                 writable(
@@ -147,6 +148,7 @@ impl Storage {
                 if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await? {
                     return recorded_outcome(conn, &event).await;
                 }
+                crate::design::require_roadmap_in(conn, &project).await?;
                 let plan = load_plan(conn, &workflow, None).await?;
                 require_active(conn, &plan.plan_id).await?;
                 writable(
@@ -158,6 +160,13 @@ impl Storage {
                     &workflow,
                 )
                 .await?;
+                if !crate::design::plan_has_part_in(conn, &project, &plan.plan_id).await? {
+                    return Err(StorageError::StageBlocked(
+                        "plan has no part: link it to a part on the Project map page, \
+                         or start it with parts"
+                            .into(),
+                    ));
+                }
                 let blockers = plan.blockers;
                 super::bindings::validate(conn, &project, &plan.bindings).await?;
                 if !blockers.is_empty() {

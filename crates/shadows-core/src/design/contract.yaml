@@ -152,7 +152,8 @@ shapes:
     next: Option<OutcomeId>
 
 enums:
-  Stage: [Idea, Vision, Map, Structure]
+  Stage: [Idea, Vision, Map, Structure, Roadmap, Plans]
+  RoadmapAction: [First, Add, Change, Remove]
   DesignOp:
     OutcomeCreate: "{ id: OutcomeId, parent: Option<OutcomeId>, before: Option<OutcomeId>, content: OutcomeContent }"
     OutcomePut: "{ id: OutcomeId, content: OutcomeContent }"
@@ -194,6 +195,19 @@ functions:
       signature: "(&self, command_id: String, project: &ProjectId, proposal: &str) -> Result<DesignChange, CoreError>"
     seed_map_for_tests:
       signature: "test-support only: (&self, project: &ProjectId) -> Result<(), CoreError>"
+    seed_roadmap_for_tests:
+      signature: "test-support only: (&self, project: &ProjectId) -> Result<PartId, CoreError>"
+      # Seeds the map if absent, one part and roadmap_revision 1; answers the part. Idempotent.
+    propose_roadmap:
+      signature: "(&self, grant: &Grant, args: RoadmapPropose) -> Result<RoadmapProposal, CoreError>"
+      # Planner/thread grant plus running turn; structure write and roadmap revision checked in the store.
+    roadmap_proposals:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<RoadmapProposal>, CoreError>"
+    approve_roadmap_proposal:
+      signature: "(&self, command_id: String, project: &ProjectId, proposal: &str) -> Result<DesignChange, CoreError>"
+    approve_roadmap_proposal_as_planner:
+      signature: "(&self, grant: &Grant, proposal: &str) -> Result<DesignChange, CoreError>"
+      # Same §24 provenance as the map: planner:<harness> with the request entry.
     propose_vision:
       signature: "(&self, grant: &Grant, args: VisionPropose) -> Result<VisionProposal, CoreError>"
       # Planner/thread grant plus running turn only; writer rechecked in write transaction.
@@ -273,6 +287,16 @@ functions:
       signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, StorageError>"
     seed_map_for_tests:
       signature: "test-support only: (&self, project: &ProjectId) -> Result<(), StorageError>"
+    seed_roadmap_for_tests:
+      signature: "test-support only: (&self, project: &ProjectId) -> Result<PartId, StorageError>"
+    link_plan_part_for_tests:
+      signature: "test-support only: (&self, project: &ProjectId, plan: &PlanId, part: &PartId) -> Result<(), StorageError>"
+    propose_roadmap_in:
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: RoadmapPropose) -> Result<RoadmapProposal, StorageError>"
+    list_roadmap_proposals:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<RoadmapProposal>, StorageError>"
+    approve_roadmap_proposal_in:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, StorageError>"
     propose_vision_in:
       signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: VisionPropose) -> Result<VisionProposal, StorageError>"
     list_vision_proposals:
@@ -346,6 +370,9 @@ agreements:
     tested_by: part_order_is_stable_across_restart
 
 shared_in_transaction:
+  require_roadmap_in: "Plans calls it in start_draft, edit_plan (the binding edit included) and approve_plan_with, after the replay lookup: STAGE_BLOCKED while roadmap_revision is 0. Design owns the revision."
+  plan_has_part_in: "Plans calls it in approve_plan_with: whether the plan has a design_part_plan row. Design owns the link rows."
+  link_plan_parts_in: "Plans calls it in start_draft: ties the plan to the named parts of the project, ON CONFLICT DO NOTHING, no event of its own."
   check_agreement_binding_in: "Plans validates exact Agreed versions, declared roles and operation identities inside edit/approval's transaction. Design owns agreement content."
 
 called_by_other_services:
@@ -362,6 +389,30 @@ obligations:
     tested_by: [approved_map_reports_new_missing_mandatory_kinds, an_added_part_is_mandatory_for_the_stage]
   - rule: Map cards pin invocation standards; person approval rechecks ownership and gates atomically.
     tested_by: [first_map_approval_records_waiver_and_replays_once, proposals_pin_the_turns_standards_not_newer_additions, first_map_refuses_an_unserved_goal_without_writes, approval_rechecks_vision_completeness_for_an_independent_addition, a_second_add_with_the_same_identity_is_refused_at_approval]
+  - rule: >
+      Stage is plans once the structure write is complete and roadmap_revision is above zero.
+      Hand outcome edits and outcome plan links refuse STAGE_BLOCKED while it is zero.
+    tested_by: [create_structure_writes_exactly_the_approved_files, hand_outcome_edits_wait_for_the_first_roadmap]
+  - rule: >
+      A roadmap is proposed and approved only after the structure write. The first
+      is proposed whole; later proposals add, change or remove one outcome, every
+      outcome referencing at least one part of the project. Malformed proposals
+      refuse whole and write no card.
+    tested_by: [a_roadmap_waits_for_the_structure, a_malformed_roadmap_is_refused_whole, add_change_and_remove_work_after_the_first_roadmap]
+  - rule: >
+      Approval writes the outcomes, their part references and roadmap_revision in
+      one transaction with §24 provenance; replay writes nothing. A change replaces
+      its outcome's content, parts and parent, moving it when the parent differs.
+      A remove refuses an outcome with children or plans.
+    tested_by: [the_button_approves_a_first_roadmap_and_opens_the_plans_stage, the_planner_approves_at_the_persons_request, add_change_and_remove_work_after_the_first_roadmap, a_change_moves_its_outcome_to_the_parent_it_names]
+  - rule: >
+      A newer first, a newer change or remove of the same outcome, or a named
+      replaces supersedes the pending card. A card is outdated only by a referenced
+      part's content changing or the part going, its outcome's content or parent
+      changing or the outcome going, or (for a first) an approved roadmap. Plan
+      links and reordering raise revisions but outdate nothing; vision and
+      standards edits do not outdate it either.
+    tested_by: [a_newer_first_or_a_replaces_supersedes_the_pending_card, a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not, a_hand_edit_of_the_outcome_outdates_its_pending_change, tying_a_plan_to_a_part_leaves_a_pending_card_valid]
   - rule: Part writes before the first approved map refuse atomically; every later part write stores a map version.
     tested_by: a_hand_part_create_before_the_first_map_is_stage_blocked
   - rule: Folder ownership follows containment; case-insensitive file paths never also name directories.
@@ -466,6 +517,32 @@ tests:
     checks: A live independent card cannot bypass a newly incomplete vision.
   - name: a_second_add_with_the_same_identity_is_refused_at_approval
     checks: Concurrent pending additions revalidate identity against the committed map.
+  - name: a_roadmap_waits_for_the_structure
+    checks: STAGE_BLOCKED before the structure write; no card is stored.
+  - name: the_button_approves_a_first_roadmap_and_opens_the_plans_stage
+    checks: Card writes no outcome; approval writes the tree and parts once, replays, stage is plans.
+  - name: the_planner_approves_at_the_persons_request
+    checks: planner:<harness> provenance with the request entry.
+  - name: a_newer_first_or_a_replaces_supersedes_the_pending_card
+    checks: Supersession by a newer first and by replaces; a superseded card cannot be approved.
+  - name: a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not
+    checks: Per-part staleness; outdated approval is STAGE_BLOCKED with no write.
+  - name: a_malformed_roadmap_is_refused_whole
+    checks: No part, unknown part, blank title, duplicate key, cycle, change before a roadmap.
+  - name: add_change_and_remove_work_after_the_first_roadmap
+    checks: Add, change (content and part references) and a guarded remove.
+  - name: a_hand_edit_of_the_outcome_outdates_its_pending_change
+    checks: A hand content edit of the outcome outdates its pending change card.
+  - name: a_change_moves_its_outcome_to_the_parent_it_names
+    checks: A change with no parent moves a child to the top; naming a parent moves it back.
+  - name: tying_a_plan_to_a_part_leaves_a_pending_card_valid
+    checks: A person's plan link to a referenced part keeps the card valid; a content edit outdates it.
+  - name: the_planner_proposes_and_approves_a_roadmap_after_the_structure
+    checks: Over MCP, STAGE_BLOCKED before the structure, roadmap_approve as planner, then a tied plan approves.
+  - name: roadmap_proposal_routes_list_and_approve
+    checks: HTTP list and replayable approval; no Planner approval without a running turn; events reach the tail.
+  - name: hand_outcome_edits_wait_for_the_first_roadmap
+    checks: A hand outcome create is STAGE_BLOCKED until the roadmap; then accepted.
   - name: a_hand_part_create_before_the_first_map_is_stage_blocked
     checks: Refusal without writes; test-only seed enables edits and immutable map snapshots.
   - name: folders_nest_only_under_their_parent

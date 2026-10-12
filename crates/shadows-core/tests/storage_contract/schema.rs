@@ -49,6 +49,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "design_part",
             "design_part_plan",
             "design_part_waiver",
+            "design_roadmap_proposal",
             "design_structure_write",
             "design_vision_proposal",
             "design_vision_version",
@@ -81,6 +82,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0011 §12.4's per-model effort, 0012 §16.9's plan, 0013 §18's vision, \
          0017–0018 §18's agreements and exact task pins, \
          0019 §20's queue, 0021 §23's standards additions, \
-         0023 §23's map proposals, versions and waivers)"
+         0023 §23's map proposals, versions and waivers, \
+         0026 §23.5's roadmap proposals)"
     );
 }

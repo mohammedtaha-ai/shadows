@@ -86,7 +86,7 @@ async fn create_structure_route_writes_and_refuses() {
 #[tokio::test]
 async fn map_proposal_routes_list_and_approve() {
     use shadows_core::{DesignOp, VisionField};
-    let app = app::test_app().await;
+    let app = app::test_app_unseeded().await;
     let ops = [
         VisionField::Purpose,
         VisionField::Users,
@@ -423,7 +423,7 @@ async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
 
 #[tokio::test]
 async fn part_routes_paginate_and_refuse_invalid_references() {
-    let app = app::test_app().await;
+    let app = app::test_app_unseeded().await;
     app.storage.seed_map_for_tests(&app.project).await.unwrap();
     let edits = format!("/api/projects/{}/design/edits", app.project);
     let parts = format!("/api/projects/{}/design/parts", app.project);

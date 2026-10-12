@@ -63,7 +63,8 @@ impl Storage {
                                'PlanArchived', 'PlanUnarchived', 'ProjectDesignChanged',
                                'PlanDependenciesChanged', 'ProjectLinked', 'ProjectUnlinked',
                                'ProjectRemoved', 'AgreementChanged', 'ProjectStandardsSaved',
-                               'VisionProposed','MapProposed','ProjectStructureWritten')
+                               'VisionProposed','MapProposed','ProjectStructureWritten',
+                               'RoadmapProposed','RoadmapApproved')
               ORDER BY e.seq LIMIT ?",
         )
         .bind(project.as_str())

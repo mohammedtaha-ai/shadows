@@ -61,5 +61,19 @@ pub async fn fixture() -> (tempfile::TempDir, Storage) {
     .execute(storage.reader())
     .await
     .unwrap();
+    approve_roadmap(&storage, "p", &["source-plan"]).await;
     (temp, storage)
+}
+
+/// Puts `project` at the plans stage and ties each of `plans` to its seeded part.
+pub async fn approve_roadmap(storage: &Storage, project: &str, plans: &[&str]) {
+    let project = shadows_core::ProjectId::from_literal(project);
+    let part = storage.seed_roadmap_for_tests(&project).await.unwrap();
+    for plan in plans {
+        let plan = shadows_core::PlanId::from_literal(*plan);
+        storage
+            .link_plan_part_for_tests(&project, &plan, &part)
+            .await
+            .unwrap();
+    }
 }

@@ -70,7 +70,7 @@ fn part(id: &PartId, title: &str) -> DesignOp {
     }
 }
 async fn edit(core: &AppCore, p: &ProjectId, rev: i64, ops: Vec<DesignOp>) {
-    core.design().seed_map_for_tests(p).await.unwrap();
+    core.design().seed_roadmap_for_tests(p).await.unwrap();
     assert_eq!(
         core.design()
             .edit(format!("edit-{p}-{rev}"), p, rev, ops)
@@ -97,6 +97,7 @@ async fn draft(
         thread: thread.clone(),
         grant: grant.id,
     };
+    let part = storage.seed_roadmap_for_tests(p).await.unwrap();
     let started = storage
         .start_draft(
             &ctx(&writer, &format!("draft-{n}"), "DraftStart"),
@@ -108,6 +109,7 @@ async fn draft(
             None,
             None,
             None,
+            &[part],
         )
         .await
         .unwrap();

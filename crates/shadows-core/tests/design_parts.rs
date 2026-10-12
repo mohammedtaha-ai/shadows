@@ -10,6 +10,12 @@ mod stage;
 
 #[path = "design_parts/map.rs"]
 mod map;
+#[path = "design_parts/roadmap.rs"]
+mod roadmap;
+#[path = "design_parts/roadmap_changes.rs"]
+mod roadmap_changes;
+#[path = "design_parts/roadmap_gate.rs"]
+mod roadmap_gate;
 #[path = "design_parts/structure.rs"]
 mod structure;
 
@@ -204,6 +210,7 @@ async fn part_order_is_stable_across_restart() {
         ],
     )
     .await;
+    let seeded = core.design().seed_roadmap_for_tests(&p).await.unwrap();
     let grant = core.grants().issue("grant".into(), &p).await.unwrap().grant;
     let draft_ref = core.plans().prepare_draft(&grant).await.unwrap();
     let start = core
@@ -216,6 +223,7 @@ async fn part_order_is_stable_across_restart() {
                 plan_id: None,
                 reason: None,
                 draft_ref: Some(draft_ref),
+                parts: vec![seeded],
             },
         )
         .await

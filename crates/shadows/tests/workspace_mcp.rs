@@ -11,6 +11,8 @@ mod plan;
 use listening::{listening_app, ok, thread_client};
 #[path = "workspace_mcp/approval.rs"]
 mod approval;
+#[path = "workspace_mcp/roadmap.rs"]
+mod roadmap;
 
 #[tokio::test]
 async fn map_propose_before_a_complete_vision_answers_stage_blocked() {
@@ -73,7 +75,7 @@ async fn the_planner_proposes_vision_cards_but_an_external_agent_cannot() {
 
 #[tokio::test]
 async fn a_planner_reads_the_workspace_a_person_wrote() {
-    let l = listening_app().await;
+    let l = listening::listening_unseeded().await;
     l.app
         .storage
         .seed_map_for_tests(&l.app.project)

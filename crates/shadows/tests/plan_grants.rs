@@ -42,6 +42,7 @@ async fn external_start(
             Some("the search changed"),
             None,
             draft_ref,
+            &[],
         )
         .await
 }

@@ -146,6 +146,8 @@ pub enum ThreadEntryKind {
     /// A vision proposal's immutable card (§23.5).
     VisionProposal,
     MapProposal,
+    /// A roadmap proposal's immutable card (§23.5).
+    RoadmapProposal,
 }
 
 impl ThreadEntryKind {
@@ -161,6 +163,7 @@ impl ThreadEntryKind {
             Self::PlanApproved => "PlanApproved",
             Self::VisionProposal => "VisionProposal",
             Self::MapProposal => "MapProposal",
+            Self::RoadmapProposal => "RoadmapProposal",
         }
     }
 
@@ -176,6 +179,7 @@ impl ThreadEntryKind {
             Self::PlanApproved,
             Self::VisionProposal,
             Self::MapProposal,
+            Self::RoadmapProposal,
         ]
         .into_iter()
         .find(|kind| kind.as_str() == s)

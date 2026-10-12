@@ -22,7 +22,7 @@ use std::path::Path;
 use shadows_core::testing::SessionsConfig;
 
 use super::acp;
-use super::app::{App, test_app_with};
+use super::app::{App, test_app_unseeded_with, test_app_with};
 use super::plan::issue_grant;
 
 /// A connected MCP client, as `mcp_client` answers it.
@@ -49,8 +49,20 @@ pub async fn listening_with(config: SessionsConfig) -> Listening {
     l
 }
 
+/// As `listening_app`, with the project at its start (see `test_app_unseeded`).
+pub async fn listening_unseeded() -> Listening {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut l = listen(tmp.path(), acp::test_config(), false).await;
+    l.app = l.app.owning(tmp);
+    l
+}
+
 /// As `listening_with`, on the database in `dir` (see `test_app_at`).
 pub async fn listening_at(dir: &Path, config: SessionsConfig) -> Listening {
+    listen(dir, config, true).await
+}
+
+async fn listen(dir: &Path, config: SessionsConfig, roadmap: bool) -> Listening {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let mcp_url = format!("{base}/mcp");
@@ -58,7 +70,10 @@ pub async fn listening_at(dir: &Path, config: SessionsConfig) -> Listening {
         mcp_url: Some(mcp_url.clone()),
         ..config
     };
-    let app = test_app_with(dir, config, &mcp_url).await;
+    let app = match roadmap {
+        true => test_app_with(dir, config, &mcp_url).await,
+        false => test_app_unseeded_with(dir, config, &mcp_url).await,
+    };
     let router = app.router.clone();
     tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
     Listening { app, base }

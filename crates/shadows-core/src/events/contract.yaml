@@ -222,6 +222,8 @@ enums:
 obligations:
   - rule: MapProposed is included in project event subscriptions with identifier-only payloads.
     tested_by: map_proposal_routes_list_and_approve
+  - rule: RoadmapProposed and RoadmapApproved reach the project event tail with identifier-only payloads.
+    tested_by: roadmap_proposal_routes_list_and_approve
   - rule: VisionProposed reaches its project event tail with proposal identifiers only.
     tested_by: vision_proposal_routes_list_and_approve
   - rule: >

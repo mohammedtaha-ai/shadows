@@ -48,6 +48,7 @@ async fn an_archive_blocks_every_new_version_write_in_storage() {
             Some("the API changed"),
             None,
             None,
+            &[],
         )
         .await;
     let approved = app

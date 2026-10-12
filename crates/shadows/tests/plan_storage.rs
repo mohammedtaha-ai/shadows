@@ -84,6 +84,7 @@ async fn start_draft_answers_the_existing_draft_unchanged() {
             None,
             None,
             None,
+            &[],
         )
         .await
         .unwrap();

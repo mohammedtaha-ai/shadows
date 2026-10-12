@@ -13,6 +13,7 @@ pub enum Stage {
     Map,
     Structure,
     Roadmap,
+    Plans,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -71,7 +72,10 @@ pub(crate) fn line(view: &StageView) -> String {
     let missing = view.missing.join(", ");
     let mut line = match view.stage {
         Stage::Roadmap => "[Shadows] Stage: roadmap. The structure is written; \
-            outcomes and plans come next."
+            propose the roadmap with roadmap_propose."
+            .into(),
+        Stage::Plans => "[Shadows] Stage: plans. The roadmap is approved; plan work for \
+            its outcomes, each plan tied to the parts it changes."
             .into(),
         Stage::Idea => "[Shadows] Stage: idea. Nothing is written yet: discuss the idea; \
                         when the person asks how to start, walk the vision fields one at a time."

@@ -145,7 +145,7 @@ pub(super) async fn vision_proposals(
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct VisionApprove {
-    command_id: String,
+    pub(super) command_id: String,
 }
 
 #[utoipa::path(get,path="/api/projects/{id}/map-proposals",tag="design",

@@ -165,7 +165,7 @@ async fn outdated_superseded_and_already_approved_cards_are_refused() {
 
 #[tokio::test]
 async fn the_planner_refuses_waiver_maps_but_the_person_approves() {
-    let l = listening_app().await;
+    let l = listening::listening_unseeded().await;
     vision(&l).await;
     running(&l).await;
     let c = thread_client(&l, &l.app.thread).await;
@@ -224,7 +224,7 @@ async fn the_planner_refuses_waiver_maps_but_the_person_approves() {
 
 #[tokio::test]
 async fn the_planner_approves_a_map_without_waivers_and_a_plan() {
-    let l = listening_app().await;
+    let l = listening::listening_unseeded().await;
     vision(&l).await;
     running(&l).await;
     let c = thread_client(&l, &l.app.thread).await;
@@ -250,7 +250,19 @@ async fn the_planner_approves_a_map_without_waivers_and_a_plan() {
             .agent,
         "planner:claude-code"
     );
-    let draft = ok(&c, "draft_start", json!({"title":"Plan","goal":"Ship"})).await;
+    // Plans come after the roadmap (§23.6); the plan is tied to a part of the map.
+    let part = l
+        .app
+        .storage
+        .seed_roadmap_for_tests(&l.app.project)
+        .await
+        .unwrap();
+    let draft = ok(
+        &c,
+        "draft_start",
+        json!({"title":"Plan","goal":"Ship","parts":[part]}),
+    )
+    .await;
     let edited = ok(
         &c,
         "plan_edit",

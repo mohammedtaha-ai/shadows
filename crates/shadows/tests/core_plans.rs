@@ -10,7 +10,7 @@ mod plan;
 
 use app::{other_project, post, start_settled};
 use listening::{listening_app, ok, project_client, refused, thread_client};
-use plan::{add, draft_on};
+use plan::{add, draft_on, tie_to_part};
 use serde_json::json;
 use shadows_core::testing::fingerprint;
 
@@ -61,7 +61,9 @@ async fn plan_command_fingerprints_do_not_move() {
     let scratch = json!({ "title": "X", "goal": "Y", "draft_ref": r["draft_ref"] });
     ok(&external, "draft_start", scratch).await;
 
-    // A person's PlanApprove.
+    // A person's PlanApprove, of a plan tied to a part (§23.6).
+    let workflow = shadows_core::WorkflowId::from_literal(v1.as_str().unwrap());
+    tie_to_part(&l.app, &workflow).await;
     let approve = json!({ "command_id": "pin-approve", "expected_revision": 1 });
     let (status, body) = post(
         &l.app,

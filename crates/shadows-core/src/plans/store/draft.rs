@@ -2,7 +2,8 @@
 //! new plan's first version, the next one copied from a frozen version with
 //! its reason, or the Draft already there. `DraftStarted` names the version,
 //! which never changes as the draft is edited, so a replay answers the same.
-//! Changing a version is `edit.rs`.
+//! Changing a version is `edit.rs`. A start may also tie its plan to parts
+//! (§23.6), in the same transaction.
 
 use sqlx::SqliteConnection;
 
@@ -12,6 +13,7 @@ use super::read::{latest_version, load_plan};
 use super::task::write_content;
 use crate::command::{CommandContext, Writer};
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
+use crate::design::PartId;
 use crate::grants::{bind_draft_ref, check_writer};
 use crate::plans::model::{DraftStarted, PlanContent, PlanId, WorkflowId, WorkflowState};
 use crate::plans::rules::Problem;
@@ -41,12 +43,14 @@ impl Storage {
         reason: Option<&str>,
         operation: Option<&OperationId>,
         draft_ref: Option<&str>,
+        parts: &[PartId],
     ) -> Result<DraftStarted, StorageError> {
         let (ctx, writer, project, ts) = (ctx.clone(), writer.clone(), project.clone(), now());
         let (plan, source, operation) = (plan.cloned(), source.cloned(), operation.cloned());
         let fresh = fresh.map(|(t, g)| (t.to_string(), g.to_string()));
         let reason = reason.map(str::to_string);
         let draft_ref = draft_ref.map(str::to_string);
+        let parts = parts.to_vec();
         self.write_txn(move |conn| {
             Box::pin(async move {
                 check_writer(conn, &writer, &project).await?;
@@ -60,6 +64,7 @@ impl Storage {
                 if let Some(id) = recorded(conn, &ctx, scope, &project).await? {
                     return started(conn, &WorkflowId::from_stored(id)).await;
                 }
+                crate::design::require_roadmap_in(conn, &project).await?;
                 if let Some(plan) = &plan {
                     require_active(conn, plan).await?;
                 }
@@ -130,8 +135,10 @@ impl Storage {
                 if let Some(r) = &draft_ref {
                     bind_draft_ref(conn, &writer, r, &id, &project, &ts).await?;
                 }
+                let started = started(conn, &id).await?;
+                crate::design::link_plan_parts_in(conn, &project, &started.plan_id, &parts).await?;
                 record_command(conn, &ctx, scope.0, scope.1, "Workflow", id.as_str(), &ts).await?;
-                started(conn, &id).await
+                Ok(started)
             })
         })
         .await

@@ -3374,6 +3374,48 @@
         ],
         "type": "string"
       },
+      "ProposedOutcome": {
+        "description": "One outcome of a proposal, with the parts it references.",
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/OutcomeContent"
+          },
+          "key": {
+            "description": "A slug, unique in the proposal.",
+            "type": "string"
+          },
+          "parent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OutcomeId",
+                "description": "An existing outcome: an add's parent, or a change's resulting parent\n(absent for the top level)."
+              }
+            ]
+          },
+          "parent_key": {
+            "description": "Another key of this proposal, for a first roadmap.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/PartId"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "content",
+          "parts"
+        ],
+        "type": "object"
+      },
       "ProposedPart": {
         "properties": {
           "content": {
@@ -3588,6 +3630,94 @@
         ],
         "type": "object"
       },
+      "RoadmapAction": {
+        "enum": [
+          "first",
+          "add",
+          "change",
+          "remove"
+        ],
+        "type": "string"
+      },
+      "RoadmapProposal": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/RoadmapAction"
+          },
+          "approved_by": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ApprovedBy"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "old": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OutcomeContent"
+              }
+            ]
+          },
+          "old_parent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OutcomeId",
+                "description": "The named outcome's parent when proposed; a change whose parent differs moves it."
+              }
+            ]
+          },
+          "outcome_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OutcomeId"
+              }
+            ]
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedOutcome"
+            },
+            "type": "array"
+          },
+          "outdated": {
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProposalStatus"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          }
+        },
+        "required": [
+          "id",
+          "thread_id",
+          "action",
+          "outcomes",
+          "status",
+          "outdated",
+          "created_at"
+        ],
+        "type": "object"
+      },
       "RuntimeInstanceId": {
         "format": "uuid",
         "type": "string"
@@ -3721,7 +3851,8 @@
           "vision",
           "map",
           "structure",
-          "roadmap"
+          "roadmap",
+          "plans"
         ],
         "type": "string"
       },
@@ -4141,7 +4272,8 @@
           "PlanView",
           "PlanApproved",
           "VisionProposal",
-          "MapProposal"
+          "MapProposal",
+          "RoadmapProposal"
         ],
         "type": "string"
       },
@@ -7294,6 +7426,147 @@
         "summary": "Saves the project's instructions as its next version; nothing earlier is\noverwritten. A running Planner is told of the change before its next turn\n(§13.8), never mid-turn.",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/projects/{id}/roadmap-proposals": {
+      "get": {
+        "operationId": "roadmap_proposals",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoadmapProposal"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/projects/{id}/roadmap-proposals/{proposal_id}/approve": {
+      "post": {
+        "operationId": "approve_roadmap_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisionApprove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignChange"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
         ]
       }
     },

@@ -204,6 +204,7 @@ async fn a_foreign_target_requires_an_outgoing_project_link_and_breaks_after_unl
     .execute(storage.reader())
     .await
     .unwrap();
+    cross_plan::approve_roadmap(&storage, "q", &[TARGET_PLAN]).await;
     let ops = [task(4), dependency(4, TARGET_PLAN, 3)];
     let refused = storage
         .edit_plan(

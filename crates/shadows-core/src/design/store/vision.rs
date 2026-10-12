@@ -115,6 +115,7 @@ impl Storage {
                         ));
                     }
                 }
+                super::roadmap_gate::check_hand_edit(conn, &project, &ops).await?;
                 for op in &ops {
                     match op {
                         DesignOp::PartCreate { id, .. } => {

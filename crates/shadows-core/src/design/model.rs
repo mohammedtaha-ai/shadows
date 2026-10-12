@@ -5,7 +5,16 @@ pub type DesignRevision = i64;
 crate::id::newtype_id!(PartId);
 crate::id::newtype_id!(OutcomeId);
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
 pub struct OutcomeContent {
     pub title: String,
     pub intended_result: String,

@@ -27,7 +27,7 @@ async fn binding_storage_checks_agreed_party_and_exact_operations_atomically() {
     let workflow = WorkflowId::from_literal(cross_plan::SOURCE);
     let project = core.plans().get(&workflow).await.unwrap().project_id;
     let part = PartId::generate();
-    storage.seed_map_for_tests(&project).await.unwrap();
+    storage.seed_roadmap_for_tests(&project).await.unwrap();
     core.design()
         .edit(
             "part".into(),

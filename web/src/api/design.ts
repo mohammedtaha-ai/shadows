@@ -9,6 +9,7 @@ export type VisionItem = components['schemas']['VisionItem']
 export type VisionField = components['schemas']['VisionField']
 export type VisionProposal = components['schemas']['VisionProposal']
 export type MapProposal = components['schemas']['MapProposal']
+export type RoadmapProposal = components['schemas']['RoadmapProposal']
 export type ContractHead = components['schemas']['ContractHead']
 export type DesignChange = components['schemas']['DesignChange']
 export type DesignEdit = components['schemas']['DesignEdit']
@@ -57,6 +58,15 @@ export function listMapProposals(projectId: string): Promise<MapProposal[]> {
 }
 export function approveMapProposal(projectId: string, proposalId: string, commandId: string): Promise<DesignChange> {
   return unwrap(client.POST('/api/projects/{id}/map-proposals/{proposal_id}/approve', {
+    params:{path:{id:projectId,proposal_id:proposalId}},body:{command_id:commandId},
+  }))
+}
+
+export function listRoadmapProposals(projectId: string): Promise<RoadmapProposal[]> {
+  return unwrap(client.GET('/api/projects/{id}/roadmap-proposals', {params:{path:{id:projectId}}}))
+}
+export function approveRoadmapProposal(projectId: string, proposalId: string, commandId: string): Promise<DesignChange> {
+  return unwrap(client.POST('/api/projects/{id}/roadmap-proposals/{proposal_id}/approve', {
     params:{path:{id:projectId,proposal_id:proposalId}},body:{command_id:commandId},
   }))
 }

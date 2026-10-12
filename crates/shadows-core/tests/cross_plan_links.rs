@@ -179,6 +179,7 @@ async fn a_frozen_versions_cross_links_refuse_every_database_write() {
             Some("Continue the same dependency"),
             None,
             Some(&draft_ref),
+            &[],
         )
         .await
         .unwrap();
