@@ -19,14 +19,49 @@ pub(super) struct VisionProposeArgs {
     replaces: Option<String>,
 }
 
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub(super) struct ProposalApproveArgs {
+    proposal_id: String,
+}
+
 #[tool_router(router = workspace_tool_router, vis = "pub(super)")]
 impl Shadows {
+    #[tool(description = "Approve a vision proposal at the person's request, recorded as Planner.")]
+    async fn vision_approve(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<ProposalApproveArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .design()
+                .approve_vision_proposal_as_planner(&grant, &args.proposal_id)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+    #[tool(
+        description = "Approve a map at the person's request. First-map waivers need their button."
+    )]
+    async fn map_approve(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<ProposalApproveArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .design()
+                .approve_map_proposal_as_planner(&grant, &args.proposal_id)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
     #[tool(
         description = "Propose a project map. first proposes all parts with slug keys
         and parent_key;
         add/change proposes one part, change names part_id. Include served vision ids, folders,
         starter files and contract rules. First-map api/frontend waivers need written reasons.
-        One call draws one card. Only the person approves; this tool writes no approved parts."
+        One call draws one card. Approval is separate; this tool writes no approved parts."
     )]
     async fn map_propose(
         &self,
@@ -44,7 +79,7 @@ impl Shadows {
     #[tool(
         description = "Propose one change to the vision: add an item to a field, or edit or \
         remove an item by its id. One call is one card; several calls in a reply are several \
-        cards. Nothing changes until the person approves the card's button."
+        cards. Nothing changes until the button or Planner approval tool approves."
     )]
     async fn vision_propose(
         &self,

@@ -48,7 +48,7 @@ Out:
 | User-supplied MCP servers and plugins passed to agents | A later slice |
 | A project-level event stream | When a screen needs changes live that polling cannot serve (§13.10) |
 | Remote access to `/mcp` | §1's remote-access OPEN block |
-| Restricting the Planner's Claude tools | Mohammed's ruling: the Planner keeps every tool Milestone 1 gives it |
+| Restricting the Planner's Claude tools | Superseded by §24.3 (2026-10-12): the Planner's tools are a fixed list |
 
 ## 13.2 The plan and its versions
 
@@ -82,9 +82,10 @@ States used in Milestone 2 are `Draft` and `Frozen` (§2.5's lifecycle, §4
   holds what execution will need. When execution is built, its own readiness
   check runs; whatever a contract lacks is added in a new version, because a
   frozen version is never unfrozen.
-- **Approval is a person's action in the web client** (§13.10). No MCP tool
-  approves, for the internal Planner or for an external agent, and the
-  Planner's instructions say approval is the person's (§13.8).
+- **Who approves is §24's.** Until §23.9 PR 3b, approval is the person's
+  action in the web client (§13.10) and no MCP tool approves. From PR 3b the
+  Planner also approves through its tools, recorded in its name, except what
+  §24.2 keeps for the person's button.
 
 > **Closed for the Planner by §24 (2026-10-08):** the Planner has no shell, so
 > its writes come only through its tools and are recorded in its name. What
@@ -93,8 +94,8 @@ States used in Milestone 2 are `Draft` and `Frozen` (§2.5's lifecycle, §4
 > **OPEN — the server cannot tell a person from a local process.** The
 > approval route, and the routes that issue grants and save instructions, are
 > HTTP API routes, and §1's request guard admits any request without browser
-> headers (`curl`, a script). The Planner keeps every Claude tool (§13.1),
-> shell commands included, so a Planner that runs a command could approve its
+> headers (`curl`, a script). Before §24.3's fixed tools the Planner kept
+> every Claude tool, shell commands included, so a Planner that runs a command could approve its
 > own plan or issue itself a project grant. "Only a person approves" is
 > therefore a rule of the tools and the client, not a guarantee the daemon
 > enforces.
@@ -355,16 +356,15 @@ A grant is Shadows' answer to "who may do what" on `/mcp` (§2.12's
 `include_str!`. Their version is a hash of the compiled text, computed once when the daemon starts.
 They tell the Planner:
 
-1. its main job — analyse, discuss, and build the plan with Shadows' tools; no
-   Claude tool is taken away from it;
+1. its main job — analyse, discuss, and build the plan with Shadows' tools;
+   §24.3 owns its fixed tools and settings;
 2. how to use the tools — read with `workflow_get` before editing, put every
    change of one step in a single `plan_edit`, choose task numbers;
 3. what the two link kinds and a label mean;
 4. that an acceptance item is a sentence someone can check;
 5. that `REVISION_CONFLICT` means read the plan again, then rebuild the edit;
-6. that approving is the person's: when asked to approve, it asks the person to
-   press Approve, and never reaches the daemon's HTTP API itself (§13.2's OPEN
-   block).
+6. §24 owns approval authority: the person's button or a Planner approval tool
+   at their request; the Planner never reaches the daemon's HTTP API.
 
 **Project instructions** are edited in project settings. Each save is a new row
 of `planner_instructions_version` (§13.15) with the next `number`; nothing is
@@ -380,11 +380,16 @@ the installed adapter reads them (0.81.1, `acp-agent.js`):
 | `mcpServers` (a field of the request) | `shadows`, type http, the `/mcp` URL, `Authorization: Bearer <token>` |
 | `_meta.systemPrompt` | `{ append: Shadows' instructions + project instructions }` — appended to Claude Code's own prompt, which is kept |
 | `_meta.claudeCode.options.allowedTools` | `["mcp__shadows__*"]` |
+| `_meta.claudeCode.options.tools` | §24.3's fixed built-in tool list |
+| `_meta.claudeCode.options.settingSources` | `[]` |
+| `_meta.claudeCode.options.strictMcpConfig` | `true` |
 
 `allowedTools` pre-approves Shadows' tools only. Milestone 1 refuses every
 permission request (§12.3), and Accept edits (§12.5's default) does not
 pre-approve MCP tools, so without it the Planner could not write a plan in the
-default mode. It restricts nothing; the grant remains the authority.
+default mode. It restricts nothing; the grant remains the authority. The same
+`_meta.claudeCode.options` also carries `tools`, `settingSources` and
+`strictMcpConfig`, which §24.3 owns.
 
 **What a Claude session keeps.** Claude Code writes the appended instructions
 into the session's transcript when the session is created, and restores them

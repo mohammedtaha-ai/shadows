@@ -103,10 +103,13 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "agreement_review",
             "agreement_start",
             "draft_start",
+            "map_approve",
             "map_propose",
+            "plan_approve",
             "plan_edit",
             "plan_show",
             "task_get",
+            "vision_approve",
             "vision_propose",
             "workflow_get",
             "workflow_list",
@@ -186,10 +189,13 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
             "agreement_review",
             "agreement_start",
             "draft_start",
+            "map_approve",
             "map_propose",
+            "plan_approve",
             "plan_edit",
             "plan_show",
             "task_get",
+            "vision_approve",
             "vision_propose",
             "workflow_get",
             "workflow_list",
@@ -242,7 +248,7 @@ async fn the_discover_lifecycle_works_without_a_session() {
     let tools = answer["result"]["tools"]
         .as_array()
         .unwrap_or_else(|| panic!("{answer}"));
-    assert_eq!(tools.len(), 14, "{answer}");
+    assert_eq!(tools.len(), 17, "{answer}");
     assert_eq!(answer["result"]["cacheScope"], "private", "{answer}");
 
     let get = request(

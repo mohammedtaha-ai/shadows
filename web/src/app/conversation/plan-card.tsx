@@ -8,6 +8,7 @@ import type { Plan, PlanTask, ThreadEntry } from '@/api/client'
 import { ErrorLine } from '../error-line'
 import { PlanGraph } from '../workflows/plan-graph'
 import { usePlan } from '../workflows/use-plan'
+import { ApprovedBy } from './approved-by'
 
 /** The plan version an entry refers to, and the task if it names one. */
 function planRefs(entry: ThreadEntry): { workflowId: string | null; taskId: string | null } {
@@ -120,6 +121,8 @@ export function PlanHeading({
           Plan v{plan.version} · revision {plan.revision}
           {plan.state === 'Frozen' && ' · Approved'}
         </p>
+        {plan.state === 'Frozen' && <p className="text-xs text-faint-foreground">
+          <ApprovedBy by={plan.approved_by} projectId={projectId} /></p>}
       </div>
       <div className="flex shrink-0 items-center gap-1">
         <Link

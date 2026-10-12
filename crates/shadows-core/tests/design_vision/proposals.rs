@@ -54,11 +54,27 @@ impl Fixture {
             .unwrap()
     }
     async fn approve(&self, cmd: &str, id: &str) -> shadows_core::DesignChange {
-        self.core
+        let change = self
+            .core
             .design()
             .approve_vision_proposal(cmd.into(), &self.p, id)
             .await
-            .unwrap()
+            .unwrap();
+        let proposals = self.core.design().vision_proposals(&self.p).await.unwrap();
+        let p = proposals.iter().find(|p| p.id == id).unwrap();
+        let json = serde_json::to_value(p).unwrap();
+        assert_eq!(json["approved_by"]["agent"], "human");
+        assert_eq!(json["approved_by"]["principal"], "user:local");
+        assert!(json["approved_by"]["request"].is_null());
+        let audit: (String, String) = sqlx::query_as(
+            "SELECT audit_principal,audit_agent FROM command_record WHERE command_id=?",
+        )
+        .bind(cmd)
+        .fetch_one(self.storage.reader())
+        .await
+        .unwrap();
+        assert_eq!(audit, ("user:local".into(), "human".into()));
+        change
     }
     async fn close(self) {
         self.core
@@ -78,6 +94,74 @@ fn add(text: &str) -> VisionPropose {
     }
 }
 
+async fn refused_authority(end_turn: bool) {
+    use shadows_core::testing::{CommandContext, Writer};
+    let f = Fixture::new().await;
+    let p = f.propose(add("Never approve late")).await;
+    let thread = f.grant.thread_id.as_ref().unwrap();
+    let op: String =
+        sqlx::query_scalar("SELECT id FROM operation WHERE thread_id=? AND status_kind='Running'")
+            .bind(thread.as_str())
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    let turn = shadows_core::OperationId::from_literal(&op);
+    if end_turn {
+        f.core.turns().stop(&turn).await.unwrap();
+    } else {
+        sqlx::query("UPDATE mcp_grant SET revoked_at='2026-10-12' WHERE id=?")
+            .bind(f.grant.id.as_str())
+            .execute(f.storage.reader())
+            .await
+            .unwrap();
+    }
+    let ctx = CommandContext {
+        agent: None,
+        principal_kind: "Thread".into(),
+        principal_id: thread.to_string(),
+        command_id: "forbidden-approval".into(),
+        command_kind: "VisionProposalApprove".into(),
+        command_schema_ver: 1,
+        request_fingerprint: "fixture".into(),
+    };
+    let approver = shadows_core::Approver::Planner {
+        writer: Writer::Planner {
+            thread: thread.clone(),
+            grant: f.grant.id.clone(),
+        },
+        turn,
+        harness: "claude-code".into(),
+    };
+    assert!(
+        f.storage
+            .approve_vision_proposal_in(&ctx, &f.p, &p.id, &approver)
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        f.core.design().vision_proposals(&f.p).await.unwrap()[0].status,
+        ProposalStatus::Pending
+    );
+    let count: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM command_record WHERE command_id='forbidden-approval'",
+    )
+    .fetch_one(f.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(count, 0);
+    f.close().await;
+}
+
+#[tokio::test]
+async fn a_revoked_grant_cannot_approve() {
+    refused_authority(false).await;
+}
+
+#[tokio::test]
+async fn an_ended_turn_cannot_approve() {
+    refused_authority(true).await;
+}
+
 #[tokio::test]
 async fn a_new_proposal_cannot_commit_under_a_finished_turn() {
     use shadows_core::testing::{CommandContext, Writer, fingerprint};
@@ -93,6 +177,7 @@ async fn a_new_proposal_cannot_commit_under_a_finished_turn() {
     f.core.turns().stop(&operation).await.unwrap();
     let args = add("Must not be stored");
     let ctx = CommandContext {
+        agent: None,
         principal_kind: "Thread".into(),
         principal_id: thread.to_string(),
         command_id: "late".into(),

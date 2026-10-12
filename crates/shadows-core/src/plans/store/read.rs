@@ -239,6 +239,17 @@ pub(super) async fn load_plan(
             changed_tasks: e.changed_tasks,
         });
     let mut plan = Plan {
+        approved_by: {
+            let (principal, agent, request): (Option<String>, Option<String>, Option<String>) =
+                sqlx::query_as(
+                    "SELECT approved_principal,approved_agent,approved_request_entry
+                    FROM workflow WHERE id=?",
+                )
+                .bind(id.as_str())
+                .fetch_one(&mut *conn)
+                .await?;
+            crate::db::approval::read_in(conn, principal, agent, request).await?
+        },
         id: id.clone(),
         plan_id: PlanId::from_stored(plan_id),
         plan_state: parse_plan_state(&plan_state)?,

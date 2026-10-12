@@ -16,6 +16,7 @@ mod runtime;
 pub mod testing;
 mod threads;
 mod turns;
+pub use command::{ApprovalRequest, ApprovedBy, Approver, Writer};
 
 // The public surface (spec §14.4, §14.6): the application, its failure, the
 // services, and every type an adapter names or serializes. Storage, the

@@ -12,7 +12,7 @@ use super::read::{edits_of, load_plan, recorded_outcome};
 use super::task::write_content;
 use crate::command::{CommandContext, Writer};
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
-use crate::events::{Actor, DurableEvent};
+use crate::events::DurableEvent;
 use crate::grants::check_writer;
 use crate::plans::model::{Approved, EditOutcome, PlanId, WorkflowId, WorkflowState, WrittenBy};
 use crate::plans::ops::{PlanOp, apply};
@@ -121,10 +121,29 @@ impl Storage {
         workflow: &WorkflowId,
         expected_revision: i64,
     ) -> Result<Approved, StorageError> {
-        let (ctx, workflow, ts) = (ctx.clone(), workflow.clone(), now());
+        self.approve_plan_with(
+            ctx,
+            workflow,
+            expected_revision,
+            &crate::command::Approver::Person,
+        )
+        .await
+    }
+
+    pub async fn approve_plan_with(
+        &self,
+        ctx: &CommandContext,
+        workflow: &WorkflowId,
+        expected_revision: i64,
+        approver: &crate::command::Approver,
+    ) -> Result<Approved, StorageError> {
+        let (mut ctx, workflow, ts) = (ctx.clone(), workflow.clone(), now());
+        let approver = approver.clone();
         self.write_txn(move |conn| {
             Box::pin(async move {
                 let (_, project) = owner(conn, &workflow).await?;
+                let request = crate::db::approval::authorise_in(conn, &approver, &project).await?;
+                ctx.agent = Some(approver.agent());
                 if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await? {
                     return recorded_outcome(conn, &event).await;
                 }
@@ -145,15 +164,18 @@ impl Storage {
                     return Err(StorageError::PlanInvalid(blockers));
                 }
                 sqlx::query(
-                    "UPDATE workflow SET state = 'Frozen', frozen_at = ?, updated_at = ?
+                    "UPDATE workflow SET state = 'Frozen', frozen_at = ?, updated_at = ?,
+                     approved_principal='user:local',approved_agent=?,approved_request_entry=?
                       WHERE id = ?",
                 )
                 .bind(&ts)
                 .bind(&ts)
+                .bind(approver.agent())
+                .bind(request.as_ref().map(|r| r.as_str()))
                 .bind(workflow.as_str())
                 .execute(&mut *conn)
                 .await?;
-                let actor = Actor::user(&ctx.principal_id);
+                let actor = approver.actor();
                 let thread = match &plan.written_by {
                     WrittenBy::Planner {
                         thread_id,
@@ -163,7 +185,15 @@ impl Storage {
                     _ => None,
                 };
                 if let Some(thread) = thread {
-                    let body = format!("Plan v{} approved", plan.version);
+                    let body = match &approver {
+                        crate::command::Approver::Person => {
+                            format!("Plan v{} approved", plan.version)
+                        }
+                        _ => format!(
+                            "Plan v{} approved by the Planner at your request",
+                            plan.version
+                        ),
+                    };
                     let refs = [EntryRef::Workflow(workflow.clone())];
                     let entry = NewThreadEntry {
                         kind: ThreadEntryKind::PlanApproved,

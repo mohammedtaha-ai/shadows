@@ -2,6 +2,8 @@
 # Reads lazily return an empty revision-zero vision for a live project.
 # Replay precedes project/revision validation and returns an immutable result.
 name: design
+# Approval stores derive principal/agent/request in one transaction (§24.1).
+# Planner grants and running turns are rechecked before replay; waiver maps are human-only.
 version: 1
 status: current
 source: crates/shadows-core/src/design
@@ -60,6 +62,7 @@ shapes:
     text: Option<String>
     replaces: Option<String>
   VisionProposal:
+    approved_by: "Option<crate::command::ApprovedBy>; provenance on approved proposals only"
     id: String
     thread_id: ThreadId
     action: VisionAction
@@ -156,6 +159,14 @@ enums:
 
 functions:
   service:
+    planner_approver:
+      signature: "private: derives Planner writer, running operation and harness from grant/thread"
+    approve_vision_proposal_as_planner:
+      signature: "(&self, grant: &Grant, proposal: &str) -> Result<DesignChange, CoreError>"
+      # Operation-scoped retry; store rechecks live grant and turn before approval.
+    approve_map_proposal_as_planner:
+      signature: "(&self, grant: &Grant, proposal: &str) -> Result<DesignChange, CoreError>"
+      # Same provenance; first-map waiver refusal is enforced inside the store.
     propose_map:
       signature: "(&self, grant: &Grant, args: MapPropose) -> Result<MapProposal, CoreError>"
     map_proposals:
@@ -240,7 +251,7 @@ functions:
     list_map_proposals:
       signature: "(&self, project: &ProjectId) -> Result<Vec<MapProposal>, StorageError>"
     approve_map_proposal_in:
-      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str) -> Result<DesignChange, StorageError>"
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, StorageError>"
     seed_map_for_tests:
       signature: "test-support only: (&self, project: &ProjectId) -> Result<(), StorageError>"
     propose_vision_in:
@@ -248,7 +259,7 @@ functions:
     list_vision_proposals:
       signature: "(&self, project: &ProjectId) -> Result<Vec<VisionProposal>, StorageError>"
     approve_vision_proposal_in:
-      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str) -> Result<DesignChange, StorageError>"
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, StorageError>"
     standards_additions_for_invocation:
       signature: "(&self, operation: &OperationId) -> Result<Option<StandardsAdditionsVersion>, StorageError>"
       # Joins invocation pin to its thread's live project and same-project immutable version.
@@ -400,6 +411,14 @@ obligations:
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
 
 tests:
+  - name: a_revoked_grant_cannot_approve
+    checks: A revoked Planner grant cannot commit approval or record a command.
+  - name: an_ended_turn_cannot_approve
+    checks: A terminal operation cannot approve a pending proposal.
+  - name: the_planner_approves_a_vision_card_and_replay_appends_nothing
+    checks: Latest operation message, Planner agent, immutable retry and audit columns.
+  - name: the_planner_refuses_waiver_maps_but_the_person_approves
+    checks: Planner refusal preserves Pending state; human approval succeeds.
   - name: equivalent_map_retries_replay_the_original_card
     checks: Equivalent title/path spellings retain one pending proposal identity.
   - name: approved_map_reports_new_missing_mandatory_kinds

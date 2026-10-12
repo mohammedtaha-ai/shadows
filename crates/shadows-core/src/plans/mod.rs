@@ -100,6 +100,47 @@ pub struct PlanShow {
 }
 
 impl Plans {
+    pub async fn approve_as_planner(
+        &self,
+        grant: &Grant,
+        workflow: &WorkflowId,
+        expected_revision: i64,
+    ) -> Result<Approved, CoreError> {
+        let writer = scope::writer_of(grant)?;
+        let crate::command::Writer::Planner { thread, .. } = &writer else {
+            return Err(CoreError::Refused {
+                code: crate::ErrorCode::GrantScope,
+                message: "approval needs a Planner's conversation".into(),
+            });
+        };
+        let plan = self.storage.get_plan(workflow).await?;
+        if plan.project_id != grant.project_id {
+            return Err(crate::StorageError::NotFound("workflow").into());
+        }
+        let turn = self
+            .handles
+            .running_for(thread)
+            .await
+            .ok_or_else(|| CoreError::Refused {
+                code: crate::ErrorCode::InvalidCommand,
+                message: "no turn is running".into(),
+            })?;
+        let harness = self.storage.turn_context(thread).await?.harness;
+        let approver = crate::command::Approver::Planner {
+            writer,
+            turn,
+            harness,
+        };
+        let ctx = approver.command(
+            "PlanApprove",
+            serde_json::json!({"workflow":workflow,"expected_revision":expected_revision}),
+        );
+        Ok(self
+            .storage
+            .approve_plan_with(&ctx, workflow, expected_revision, &approver)
+            .await?)
+    }
+
     /// Active plans with latest metadata and counted links in either direction.
     pub async fn map(&self, project: &ProjectId) -> Result<PlanMap, CoreError> {
         Ok(self.storage.plan_map(project).await?)

@@ -14,6 +14,7 @@ use crate::app::{AppCore, CoreParts};
 pub mod acp;
 pub mod queue;
 pub mod turn;
+pub use crate::db::write_observer::{DatabaseWrites, database_writes};
 
 /// The `fake-acp` binary, built once per test process. `CARGO_BIN_EXE_*`
 /// only names binaries of the test's own package, and `fake-acp` is its own

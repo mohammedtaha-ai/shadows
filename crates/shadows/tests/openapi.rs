@@ -29,6 +29,8 @@ use shadows_http::{AppState, openapi_document};
 use tower::ServiceExt;
 
 use shadows_core::testing::acp;
+#[path = "openapi/read_only.rs"]
+mod read_only;
 
 fn checked_in() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../api/openapi.json")

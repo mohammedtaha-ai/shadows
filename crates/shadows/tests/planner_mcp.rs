@@ -60,6 +60,30 @@ fn blocks(report: &Value) -> Vec<&str> {
     list.iter().map(|b| b.as_str().unwrap()).collect()
 }
 
+fn assert_locked(r: &Value) {
+    assert_eq!(
+        r["options"]["tools"],
+        json!([
+            "Read",
+            "Grep",
+            "Glob",
+            "WebSearch",
+            "WebFetch",
+            "ToolSearch",
+            "Agent",
+            "TodoWrite"
+        ]),
+        "{r}"
+    );
+    assert_eq!(r["options"]["settingSources"], json!([]), "{r}");
+    assert_eq!(r["options"]["strictMcpConfig"], json!(true), "{r}");
+    assert_eq!(
+        r["options"]["allowedTools"],
+        json!(["mcp__shadows__*"]),
+        "{r}"
+    );
+}
+
 /// `(token_hash, revoked_at)` of every thread grant, oldest first.
 async fn thread_grants(storage: &Storage) -> Vec<(String, Option<String>)> {
     sqlx::query_as(
@@ -101,6 +125,7 @@ async fn project_dir(app: &App) -> std::path::PathBuf {
 async fn a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval() {
     let l = listening_app().await;
     let r = report(&l.app).await;
+    assert_locked(&r);
 
     assert_eq!(
         r["mcp"],
@@ -252,6 +277,7 @@ async fn reopening_after_idle_issues_a_new_grant_and_revokes_the_old() {
 
     let second = report(&l.app).await;
     assert_eq!(second["how"], "resume");
+    assert_locked(&second);
     assert_ne!(second["bearer_hash"], first["bearer_hash"]);
     assert!(live(&l.app.storage, &second["bearer_hash"]).await);
     let started: Value = serde_json::from_str(&started).expect(&started);
@@ -537,6 +563,7 @@ async fn a_forks_first_turn_gets_instruction_and_continue_plan_blocks() {
     assert_eq!(done.status_kind, "Completed", "{done:?}");
     let first: Value = serde_json::from_str(&last_agent_entry_on(&l.app, fork).await.body).unwrap();
     assert_eq!(first["how"], "fork");
+    assert_locked(&first);
     let sent = blocks(&first);
     assert_eq!(sent.len(), 4, "{sent:?}");
     assert!(

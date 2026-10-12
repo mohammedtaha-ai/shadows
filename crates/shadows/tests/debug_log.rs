@@ -228,6 +228,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (Daemon, tokio::sync::watch::Send
 async fn seed_thread(runtime: &Runtime) -> shadows_core::ThreadId {
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: "c1".into(),

@@ -489,7 +489,7 @@ enums:
 
 
 shared_in_transaction:
-  check_running_turn_in: "Design's vision proposal write validates the exact operation is Running in its live thread after replay and before supersession, entry or event writes."
+  check_running_turn_in: "Design's vision proposal write validates the exact operation is Running in its live thread after replay and before supersession, entry or event writes; db/approval validates the exact Planner operation the same way before an approval or its replay (§24)."
   take_queued_in: "The start of a waiting message (§20.3) and Send now (§20.4): the row is removed inside the same write that commits the turn or the steered entry, so a message is sent once or not at all"
   has_open_operation: "Threads' fork (threads/store/fork.rs fork_thread): a thread with a turn not yet ended cannot be forked, judged inside the fork's own write"
   read_before: "Runtime recovery (runtime/store.rs reconcile_orphans): reads each orphan's status and thread inside the write that marks it Interrupted"

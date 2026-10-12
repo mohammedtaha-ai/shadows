@@ -61,6 +61,7 @@ pub struct App {
 
 pub fn ctx(id: &str, kind: &str) -> CommandContext {
     CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: id.into(),

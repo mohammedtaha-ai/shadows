@@ -120,6 +120,7 @@ impl Setups {
             mcp,
             append: Some(append),
             allowed_tools: vec![ALLOWED.to_string()],
+            tools: Some(PLANNER_TOOLS.iter().map(|t| t.to_string()).collect()),
         })
     }
 
@@ -214,6 +215,18 @@ impl Setups {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 }
+
+/// §24.3: built-in tools permitted in every Planner session.
+pub const PLANNER_TOOLS: [&str; 8] = [
+    "Read",
+    "Grep",
+    "Glob",
+    "WebSearch",
+    "WebFetch",
+    "ToolSearch",
+    "Agent",
+    "TodoWrite",
+];
 
 /// `prompt.txt` without its closing newline.
 fn ours() -> &'static str {

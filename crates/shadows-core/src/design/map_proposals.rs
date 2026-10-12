@@ -45,6 +45,8 @@ pub struct MapPropose {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MapProposal {
+    #[serde(default)]
+    pub approved_by: Option<crate::command::ApprovedBy>,
     pub id: String,
     pub thread_id: ThreadId,
     pub action: MapAction,
@@ -57,6 +59,23 @@ pub struct MapProposal {
     pub created_at: String,
 }
 impl Design {
+    pub async fn approve_map_proposal_as_planner(
+        &self,
+        grant: &Grant,
+        proposal: &str,
+    ) -> Result<DesignChange, CoreError> {
+        let approver = self.planner_approver(grant).await?;
+        let ctx = approver.command(
+            "MapProposalApprove",
+            serde_json::json!({"project":grant.project_id,"proposal":proposal}),
+        );
+        // The store performs waiver rejection after project scoping and authority checks.
+        self.storage
+            .approve_map_proposal_in(&ctx, &grant.project_id, proposal, &approver)
+            .await
+            .map_err(super::proposals::core_error)
+    }
+
     pub async fn propose_map(
         &self,
         grant: &Grant,
@@ -91,6 +110,7 @@ impl Design {
         );
         let (kind, id) = writer.principal();
         let ctx = CommandContext {
+            agent: None,
             principal_kind: kind.into(),
             principal_id: id,
             command_id: derived_id(Anchor::Operation(&turn), &fp),
@@ -118,7 +138,7 @@ impl Design {
             serde_json::json!({"project":project,"proposal":proposal}),
         );
         self.storage
-            .approve_map_proposal_in(&ctx, project, proposal)
+            .approve_map_proposal_in(&ctx, project, proposal, &crate::command::Approver::Person)
             .await
             .map_err(super::proposals::core_error)
     }

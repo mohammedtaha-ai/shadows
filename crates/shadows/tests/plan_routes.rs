@@ -162,6 +162,7 @@ async fn a_replayed_approval_answers_the_first_result() {
     );
     let plan: Value = get_json(&app, &format!("/api/workflows/{v1}")).await;
     assert_eq!(plan["state"], "Frozen");
+    assert_eq!(plan["approved_by"]["agent"], "human");
 }
 
 #[tokio::test]

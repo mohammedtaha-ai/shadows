@@ -228,7 +228,8 @@ Vision proposals: decided with Mohammed on 2026-10-12.
   The Vision page names how many are waiting, with a link to each
   conversation that has one.
 - **Who approves.** In PR 2 only the card's button approves. Approval by the
-  Planner at the person's request arrives with §24 in PR 3b.
+  Planner at the person's request arrives with §24 in PR 3b; a first map
+  carrying a waiver stays the button's only (§24.2).
 
 Map proposals: decided with Mohammed on 2026-10-12, for PR 3.
 
@@ -374,6 +375,7 @@ Each PR is one slice a person can try in the browser.
 | 2 | Vision proposals (§23.3, §23.5) | Vision items are written from the conversation after approval |
 | 3 | Map and contracts, with their gates (§23.5, §23.6) | A proposed map approved; a clear refusal when something is missing |
 | 3b | §24: principal and agent, the Planner's fixed tools, its approval tools | "Approved by the Planner at your request" beside "Approved by you" |
+| 3c | §24.3: the project switches that widen the Planner's reach (connectors, skills, `CLAUDE.md`), after their probe | A switch turns on Google Drive for one project's Planner and nothing else |
 | 4 | Writing the structure (§23.7) | The structure appears in the project directory |
 | 5 | Roadmap and plans behind the map gate | No plan before the structure exists |
 

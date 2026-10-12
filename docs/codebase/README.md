@@ -42,6 +42,9 @@ pattern to follow, not merely an example.
 
 | Module | Its one job | Reference file |
 |---|---|---|
+| `crates/shadows-core/src/command/approver.rs` | approval provenance values | `docs/superpowers/specs/2026-10-08-approval-authority-design.md` |
+| `crates/shadows-core/src/db/approval.rs` | transaction-local approval provenance | `docs/superpowers/specs/2026-10-08-approval-authority-design.md` |
+| `crates/shadows-core/src/db/write_observer.rs` | test-only committed-write observation | `crates/shadows/tests/openapi/read_only.rs` |
 | `crates/shadows-core/src/design/map_proposals.rs` | map proposal service entry points | `crates/shadows-core/src/design/contract.yaml` |
 | `crates/shadows-core/src/design/store/map_proposals.rs` | recording map proposals | `crates/shadows-core/src/design/contract.yaml` |
 | `crates/shadows-core/src/design/store/map_proposal_shape.rs` | assembling proposed map shapes | `crates/shadows-core/src/design/contract.yaml` |

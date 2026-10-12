@@ -11,9 +11,12 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Connection, SqliteConnection, SqlitePool};
 use tokio::sync::{Mutex, watch};
 
+pub(crate) mod approval;
 mod command;
 mod error;
 mod journal;
+#[cfg(feature = "test-support")]
+pub(crate) mod write_observer;
 
 pub use error::StorageError;
 

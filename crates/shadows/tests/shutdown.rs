@@ -50,6 +50,7 @@ async fn fixture() -> Fixture {
 
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: "c1".into(),

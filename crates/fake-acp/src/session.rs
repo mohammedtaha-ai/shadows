@@ -53,6 +53,7 @@ pub(crate) struct Setup {
     pub(crate) bearer: Option<String>,
     pub(crate) append: Option<String>,
     pub(crate) allowed: Value,
+    pub(crate) options: Value,
 }
 
 pub(crate) fn setup_of(servers: &[McpServer], meta: Option<&Meta>) -> Setup {
@@ -65,6 +66,10 @@ pub(crate) fn setup_of(servers: &[McpServer], meta: Option<&Meta>) -> Setup {
         .map(|m| Value::Object(m.clone()))
         .unwrap_or(Value::Null);
     Setup {
+        options: meta
+            .pointer("/claudeCode/options")
+            .cloned()
+            .unwrap_or(Value::Null),
         mcp: http
             .map(|h| json!({"name":h.name,"url":h.url}))
             .unwrap_or(Value::Null),

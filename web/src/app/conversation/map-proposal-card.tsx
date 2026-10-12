@@ -8,6 +8,7 @@ import {mapProposalsQuery} from '@/api/queries'
 import {Button} from '@/components/ui/button'
 import {ErrorLine} from '../error-line'
 import {MapPartDetails} from '../design/map-part-details'
+import {ApprovedBy} from './approved-by'
 
 function snapshot(entry:ThreadEntry): MapProposal | null {
   const card = entry.card
@@ -55,6 +56,8 @@ export function MapProposalCard({entry,projectId}: {entry:ThreadEntry;projectId:
       {proposed.waivers.map(w => <p key={w.part} dir="auto">Without {w.part} — reason: {w.reason}</p>)}
     </section>}
     <p role="status" className="text-sm">{status}</p>
+    {live?.status==='Approved' && <p className="text-sm">
+      <ApprovedBy by={live.approved_by} projectId={projectId} /></p>}
     {live?.status==='Pending' && !live.outdated && query.error===null && <Button size="sm"
       disabled={approve.isPending} onClick={submit}>{proposed.waivers.length ? 'Approve map and waivers' : 'Approve map'}</Button>}
     {query.error && <ErrorLine error={query.error} />}{approve.error && <ErrorLine error={approve.error} />}

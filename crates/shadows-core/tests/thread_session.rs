@@ -35,6 +35,7 @@ async fn fixture() -> (Fixture, ThreadId, ThreadId) {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
     let ctx = |id: &str, kind: &str| CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: id.into(),

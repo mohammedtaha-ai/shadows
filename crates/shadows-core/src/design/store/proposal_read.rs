@@ -16,10 +16,24 @@ struct Row {
     expected_item_revision: Option<i64>,
     status: String,
     created_at: String,
+    approved_principal: Option<String>,
+    approved_agent: Option<String>,
+    approved_request_entry: Option<String>,
 }
 impl Row {
-    fn view(self, content: &VisionContent) -> Result<VisionProposal, StorageError> {
+    async fn view(
+        self,
+        conn: &mut SqliteConnection,
+        content: &VisionContent,
+    ) -> Result<VisionProposal, StorageError> {
         let mut p = VisionProposal {
+            approved_by: crate::db::approval::read_in(
+                conn,
+                self.approved_principal,
+                self.approved_agent,
+                self.approved_request_entry,
+            )
+            .await?,
             id: self.id,
             thread_id: crate::ThreadId::from_stored(self.thread_id),
             action: serde_json::from_value(serde_json::json!(self.action))?,
@@ -68,15 +82,17 @@ pub(super) async fn load(
 ) -> Result<VisionProposal, StorageError> {
     sqlx::query_as::<_, Row>(
         "SELECT id,thread_id,action,field,item_id,text,old_text,
-        expected_item_revision,status,created_at FROM design_vision_proposal
+        expected_item_revision,status,created_at,approved_principal,approved_agent,
+        approved_request_entry FROM design_vision_proposal
         WHERE project_id=? AND id=?",
     )
     .bind(project.as_str())
     .bind(id)
-    .fetch_optional(conn)
+    .fetch_optional(&mut *conn)
     .await?
     .ok_or(StorageError::NotFound("vision proposal"))?
-    .view(content)
+    .view(conn, content)
+    .await
 }
 
 impl Storage {
@@ -88,12 +104,17 @@ impl Storage {
         let content = live_vision(&mut txn, project).await?;
         let rows = sqlx::query_as::<_, Row>(
             "SELECT id,thread_id,action,field,item_id,text,old_text,
-            expected_item_revision,status,created_at FROM design_vision_proposal
+            expected_item_revision,status,created_at,approved_principal,approved_agent,
+            approved_request_entry FROM design_vision_proposal
             WHERE project_id=? ORDER BY seq",
         )
         .bind(project.as_str())
         .fetch_all(&mut *txn)
         .await?;
-        rows.into_iter().map(|r| r.view(&content)).collect()
+        let mut result = Vec::new();
+        for row in rows {
+            result.push(row.view(&mut txn, &content).await?);
+        }
+        Ok(result)
     }
 }

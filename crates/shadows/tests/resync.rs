@@ -37,6 +37,7 @@ use shadows_core::testing::acp;
 async fn seed(storage: &Storage) -> (Project, PlanningThread) {
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: "c1".into(),
@@ -475,6 +476,7 @@ fn delta(thread_id: &ThreadId, text: &str) -> (ThreadId, OperationId, HarnessEve
 fn thread_ctx(command_id: &str) -> CommandContext {
     let params = serde_json::json!({ "title": command_id });
     CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: command_id.into(),

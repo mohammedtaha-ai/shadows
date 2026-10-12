@@ -30,6 +30,7 @@ pub fn turn_command(id: &str, thread: &ThreadId, prompt: &str, s: &TurnSettings)
         "thread_id": thread, "prompt": prompt, "model": s.model, "mode": s.mode, "effort": s.effort,
     });
     CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: id.into(),

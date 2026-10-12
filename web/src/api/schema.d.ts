@@ -1233,6 +1233,12 @@ export interface components {
             /** @description Up to 10 names containing the text, only when `hits` is empty. */
             suggestions: string[];
         };
+        ApprovalRequest: {
+            entry_id: components["schemas"]["ThreadEntryId"];
+            /** Format: int64 */
+            ordinal: number;
+            thread_id: components["schemas"]["ThreadId"];
+        };
         ApprovePlan: {
             /** @description The idempotency key (spec §13.5), scoped to the plan version. */
             command_id: string;
@@ -1250,6 +1256,11 @@ export interface components {
             /** Format: int64 */
             version: number;
             workflow_id: components["schemas"]["WorkflowId"];
+        };
+        ApprovedBy: {
+            agent: string;
+            principal: string;
+            request?: null | components["schemas"]["ApprovalRequest"];
         };
         BaseStandards: {
             contract_template: components["schemas"]["ContractTemplate"];
@@ -1756,6 +1767,7 @@ export interface components {
         };
         MapProposal: {
             action: components["schemas"]["MapAction"];
+            approved_by?: null | components["schemas"]["ApprovedBy"];
             created_at: string;
             id: string;
             old?: null | components["schemas"]["PartContent"];
@@ -1852,6 +1864,7 @@ export interface components {
         };
         /** @description One stored version of a plan, as a reader sees it now (§13.2). */
         Plan: {
+            approved_by?: null | components["schemas"]["ApprovedBy"];
             bindings?: components["schemas"]["AgreementBinding"][];
             /**
              * @description What blocks approval ([`approval_problems`]) for a `Draft`; empty for
@@ -2326,6 +2339,7 @@ export interface components {
         };
         VisionProposal: {
             action: components["schemas"]["VisionAction"];
+            approved_by?: null | components["schemas"]["ApprovedBy"];
             created_at: string;
             /** Format: int64 */
             expected_item_revision?: number | null;

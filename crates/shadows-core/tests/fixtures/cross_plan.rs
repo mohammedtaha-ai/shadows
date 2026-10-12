@@ -8,6 +8,7 @@ pub const TARGET_PLAN: &str = "44444444-4444-4444-8444-444444444444";
 
 pub fn command(id: &str) -> CommandContext {
     CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: id.into(),

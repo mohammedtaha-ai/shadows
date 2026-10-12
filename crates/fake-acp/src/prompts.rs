@@ -119,6 +119,7 @@ pub(crate) async fn answer(
                 "bearer_hash": bearer_hash,
                 "append": s.setup.append,
                 "allowed": s.setup.allowed,
+                "options": s.setup.options,
                 "blocks": blocks,
                 "resumes": resumes,
                 "client_meta": client_meta,

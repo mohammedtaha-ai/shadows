@@ -67,8 +67,8 @@ pub(crate) async fn record_command(
         "INSERT INTO command_record
            (principal_kind, principal_id, command_scope_kind, command_scope_key,
             command_id, command_kind, command_schema_ver, request_fingerprint,
-            outcome_kind, entity_kind, outcome_ref, recorded_at)
-         VALUES (?,?,?,?,?,?,?,?,'Entity',?,?,?)",
+            outcome_kind, entity_kind, outcome_ref, recorded_at, audit_principal, audit_agent)
+         VALUES (?,?,?,?,?,?,?,?,'Entity',?,?,?,?,?)",
     )
     .bind(&ctx.principal_kind)
     .bind(&ctx.principal_id)
@@ -81,6 +81,8 @@ pub(crate) async fn record_command(
     .bind(entity_kind)
     .bind(outcome_ref)
     .bind(ts)
+    .bind(ctx.agent.as_ref().map(|_| "user:local"))
+    .bind(&ctx.agent)
     .execute(&mut *conn)
     .await?;
     Ok(())
