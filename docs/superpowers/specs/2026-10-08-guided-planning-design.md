@@ -165,8 +165,12 @@ stages require the recorded structure write.
 
 From PR 3 the stage is `map` until a first map is approved, and `structure`
 after. Drift is reported from then on, in the stage line and beside the goal
-on the Project map page: each goal no part serves, and the vision having
-changed since the map version was approved.
+on the Project map page: each goal no part serves, and each part whose
+served item changed or was removed since that part was last written. Drift is
+per part, so editing one part never clears another's. A link to a removed
+item is drift, not a refusal: it never blocks an edit of another part.
+Paths are compared case-insensitively, as Windows does, and a part's initial
+files lie inside its own folders.
 
 ## 23.5 Proposals and approval
 

@@ -66,7 +66,13 @@ Record each as a ledger `Ruling:` line at Task 1.
    - Why: the hand-create gate (spec: "before it is approved, a hand create, edit or move of a part is refused") breaks every existing test that creates a part by hand. A seam costs one line per test; walking each test through a real Planner turn costs a fake session per test.
    - The seam never runs in product code; `cargo tree` step 5 of the gate already proves `test-support` stays out of the product build.
 9. **The stage is `map` until `map_revision >= 1`, then `structure`.** `missing` at `map` lists the mandatory kinds not yet present or waived. `StageView` gains `drift: Vec<String>`, empty before the first map.
-10. **`design/contract.yaml` may pass 500 lines.** It is one contract per service by rule, and `contracts.rs` reads one file per service. The commit that crosses 500 says so.
+10. **Codex review of the plan (2026-10-12), accepted:**
+   - **Only the written part's links are checked.** `check_shape` checks `serves` ids exist only for the parts the edit or proposal writes. A link in another part to a since-removed item is drift (`notifications serves G2, which was removed`), never a refusal: removing G2 must not block an edit of an unrelated part.
+   - **Approval re-checks the vision is complete,** inside its write, for every action (§23.6: "propose or approve a map"). A field emptied by hand after the proposal refuses with `StageBlocked("vision incomplete: …")`.
+   - **Standards versions come from the Planner's turn,** not from the current state: the proposal records the base version and the additions version that turn's `agent_invocation` row recorded, and staleness compares those with the current ones. The current versions may hold rules the Planner never saw.
+   - **Drift is per part, not per map version.** A part records the revision of each item it serves when it is written (`design_part.served_revisions`). Drift names each part whose served item changed or was removed since then, and each unserved goal. There is no "the vision changed since the map" line, so a small edit of one part cannot clear another part's drift.
+   - **Paths are compared as Windows sees them:** case-insensitively (`src/API` conflicts with `src/api`). An initial file's path lies inside one of its part's folders, and two files with the same path (case-insensitively) conflict.
+11. **`design/contract.yaml` may pass 500 lines.** It is one contract per service by rule, and `contracts.rs` reads one file per service. The commit that crosses 500 says so.
 
 ## Review Focus
 
@@ -115,10 +121,15 @@ Record each as a ledger `Ruling:` line at Task 1.
   /// One part as the rules see it: its place in the tree and its content.
   pub(crate) struct MapPart<'a> { pub key: &'a str, pub parent: Option<&'a str>,
       pub content: &'a PartContent }
-  /// Identity, folder ownership, served ids and rule ids: any failure is
-  /// `StorageError::Constraint` (422).
-  pub(crate) fn check_shape(parts: &[MapPart], vision: &VisionContent,
+  /// Identity, folder and file ownership (case-insensitive), and the rule ids
+  /// of every part; served ids only for the keys in `written` (Ruling 10).
+  /// Any failure is `StorageError::Constraint` (422).
+  pub(crate) fn check_shape(parts: &[MapPart], written: &[&str], vision: &VisionContent,
       standards: &EffectiveStandards) -> Result<(), String>;
+  /// Per-part drift: served items changed or removed since the part's
+  /// `served_revisions`, then goals no part serves.
+  pub(crate) fn drift(parts: &[(MapPart, &BTreeMap<String, i64>)],
+      vision: &VisionContent) -> Vec<String>;
   /// Mandatory kinds on top-level parts, minus waivers: what is missing.
   pub(crate) fn missing_kinds(parts: &[MapPart], waived: &[String],
       standards: &EffectiveStandards) -> Vec<String>;
@@ -136,13 +147,17 @@ Record each as a ledger `Ruling:` line at Task 1.
 -- parts after the first approved map is a stored version; waivers are recorded.
 ALTER TABLE design_workspace ADD COLUMN map_revision INTEGER NOT NULL DEFAULT 0
     CHECK (map_revision >= 0);
+-- Each served item's revision when the part was last written: drift per part.
+ALTER TABLE design_part ADD COLUMN served_revisions TEXT NOT NULL DEFAULT '{}'
+    CHECK (json_valid(served_revisions));
 
 CREATE TABLE design_map_version (
     project_id      TEXT NOT NULL REFERENCES design_workspace(project_id) ON DELETE RESTRICT,
     number          INTEGER NOT NULL CHECK (number >= 1),
     -- Every part: id, parent, ordinal, revision, content.
     parts_json      TEXT NOT NULL CHECK (json_valid(parts_json)),
-    -- The vision version this map version was made against: drift compares it.
+    -- The vision version when this map version was written; a record only.
+    -- Drift reads design_part.served_revisions (Ruling 10).
     vision_revision INTEGER NOT NULL,
     -- The approved map proposal; NULL for a hand edit or the test seam.
     proposal_id     TEXT NULL,
@@ -175,7 +190,9 @@ In `tests/design_parts.rs` (or a new `tests/design_parts/map.rs` submodule for t
 
 In `tests/design_parts/stage.rs`:
 - `the_stage_is_map_until_a_map_is_approved_then_structure`;
-- `drift_names_an_unserved_goal_and_a_newer_vision`: after the seam with parts serving G1, add G2 by hand. Drift is `["G2 is served by no part", "the vision changed since the map"]`.
+- `drift_names_an_unserved_goal_and_a_changed_served_item`: after the seam with part `core` serving G1 and part `web` serving nothing, add G2 and edit G1 by hand. Drift is `["G2 is served by no part", "core: G1 changed since the part was written"]`. Then a hand edit of `web` alone leaves both lines (Ruling 10).
+- `removing_a_served_goal_does_not_block_another_part`: remove G1, which `core` serves; a hand edit of `web` succeeds, and drift names `core serves G1, which was removed`.
+- `paths_conflict_case_insensitively_and_files_stay_in_their_folders`: folders `src/API` and `src/api` on two siblings conflict; a file `other/x.rs` on a part whose folders are `src` is refused.
 
 In `tests/plan_migration.rs`:
 - `migration_0023_keeps_parts_and_starts_without_a_map`: a part row written before 0023 still parses with empty `serves`, `folders`, `files` and contract; `map_revision` is 0.
@@ -190,7 +207,7 @@ Expected: FAIL (compile errors on the new fields and the seam).
 - Migration, model fields, `map_rules.rs`, `map_versions.rs`, `StageBlocked` end to end, and the seam.
 - In `edit_design`, after the revision check and before applying ops:
   1. If any op is a part op and `map_revision == 0`: `StageBlocked("the first map comes from the Planner: ask it to propose one")`.
-  2. After applying the ops, read every part, then call `check_shape` and `missing_kinds`, inside the same transaction. A missing kind that was not missing before the edit is `StageBlocked("missing part: <kind>")`. Then insert a map version and set `map_revision = number`.
+  2. After applying the ops, read every part, then call `check_shape` (served ids checked only for the parts this edit wrote) and `missing_kinds`, inside the same transaction. A missing kind that was not missing before the edit is `StageBlocked("missing part: <kind>")`. Set each written part's `served_revisions`. Then insert a map version and set `map_revision = number`.
 - `stage::compute` takes `map_revision`, the waivers and the parts' `serves` instead of the bare kinds.
 - `stage::line` at `structure` appends drift, for example `Drift: G4 is served by no part.`
 
@@ -294,7 +311,7 @@ CREATE INDEX map_proposal_part ON design_map_proposal(project_id,part_id,status)
    - `add` / `change`: `map_revision >= 1`, or `StageBlocked("no map yet: propose the first map")`. `change` needs an existing `part_id`.
 5. Shape: build the whole resulting set (the current parts with the change applied, or the proposal's parts for `first`) and run `check_shape`. Waivers: a waiver of a non-waivable kind is `Constraint`, and a waiver needs a non-blank reason. Coverage and missing kinds are **not** checked at proposal; they are approval gates (§23.6 table), so the Planner can show a draft.
 6. Supersede: `first` supersedes every pending `first`; `change` supersedes pending changes of the same `part_id`; `replaces` supersedes the named pending proposal (any action).
-7. Record the expectations: the current `vision_revision` and `map_revision`; for `change` the part's revision; and for `add`/`change` the revision of each id in `serves` (`expected_items_json`).
+7. Record the expectations: the current `vision_revision` and `map_revision`; for `change` the part's revision; and for `add`/`change` the revision of each id in `serves` (`expected_items_json`). The two standards versions are the ones the turn's `agent_invocation` row recorded (Ruling 10), as `propose_vision_in` already does for the additions version.
 8. Append the `MapProposal` entry with the card, the row, the `MapProposed` event, and `record_command`.
 
 **Outdated** (computed on read, Pending only):
@@ -304,11 +321,11 @@ CREATE INDEX map_proposal_part ON design_map_proposal(project_id,part_id,status)
 
 **Approve** (one write; check order as in PR 2):
 1. Replay; the live project; the proposal belongs to this project; status Pending (Superseded and Approved refuse); outdated refuses with `Constraint("the map changed after this proposal; ask the Planner to propose again")`.
-2. Build the resulting set, then run `check_shape` again (conflicts may have appeared since: Review Focus 3).
+2. The vision is complete, or `StageBlocked("vision incomplete: <fields>")` (Ruling 10). Then build the resulting set and run `check_shape` again (conflicts may have appeared since: Review Focus 3).
 3. The gates, as `StageBlocked`:
    - `first`: `missing_kinds` with the proposal's waivers is empty, else `missing part: database, api`; and `unserved_goals` is empty, else `unserved goals: G3`.
    - `add`/`change`: `missing_kinds` is no worse than before (a change may not drop a kind).
-4. Write: create the parts (`first`: a `PartId::generate()` per key, parents before children, ordinal by proposal order) or update the one part; the waivers with `approved_by` = the person's principal id; a map version with `proposal_id`; `map_revision`; the design revision +1; the proposal `Approved`; `ProjectDesignChanged` with `changed_parts`; `design_command_result`; `record_command`.
+4. Write: create the parts (`first`: a `PartId::generate()` per key, parents before children, ordinal by proposal order) or update the one part, setting each written part's `served_revisions` from the current vision; the waivers with `approved_by` = the person's principal id; a map version with `proposal_id`; `map_revision`; the design revision +1; the proposal `Approved`; `ProjectDesignChanged` with `changed_parts`; `design_command_result`; `record_command`.
 
 - [ ] **Step 1: Write the failing tests** in `tests/design_parts/map.rs`. Use PR 2's helpers for a running Planner turn (`tests/design_vision/proposals.rs` shows how).
   - `first_map_is_stage_blocked_while_the_vision_is_incomplete`
