@@ -10,6 +10,88 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 const PROJECT: &str = "00000000-0000-4000-8000-000000000001";
 const PLAN: &str = "00000000-0000-4000-8000-000000000002";
 
+#[tokio::test]
+async fn migration_24_backfills_preexisting_approved_proposal_views() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("pre24.sqlite3");
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true)
+                .foreign_keys(true),
+        )
+        .await
+        .unwrap();
+    let mut old = sqlx::migrate!("./migrations");
+    old.migrations = Cow::Owned(
+        old.migrations
+            .iter()
+            .filter(|m| m.version <= 23)
+            .cloned()
+            .collect(),
+    );
+    old.run(&pool).await.unwrap();
+    sqlx::raw_sql(
+        "INSERT INTO project(id,slug,name,directory,created_at)
+         VALUES ('P','old','Old','C:/old','old');
+         INSERT INTO planning_thread(id,project_id,title,status,created_at,title_source)
+         VALUES ('T','P','Old','Open','old','client');
+         INSERT INTO runtime_instance(id,version,started_at) VALUES ('R','old','old');
+         INSERT INTO operation(id,kind,thread_id,runtime_instance_id,created_at)
+         VALUES ('O','PlannerTurn','T','R','old');
+         INSERT INTO thread_entry(id,thread_id,ordinal,kind,author_kind,author_id,body,created_at)
+         VALUES ('E','T',1,'VisionProposal','Thread','T','Old','old');",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO design_workspace(project_id,revision,vision_revision,vision_content)
+         VALUES ('P',0,0,?)",
+    )
+    .bind(serde_json::to_string(&shadows_core::VisionContent::default()).unwrap())
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO design_vision_proposal
+         (id,project_id,thread_id,operation_id,entry_id,action,field,text,status,
+          standards_version,created_at,seq)
+         VALUES ('V','P','T','O','E','add','goals','Old','Approved',1,'old',1)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let payload = serde_json::json!({"id":"M","thread_id":"T","action":"first","parts":[],
+        "part_id":null,"old":null,"waivers":[],"status":"Approved","outdated":false,
+        "created_at":"old"});
+    sqlx::query(
+        "INSERT INTO design_map_proposal
+         (id,project_id,thread_id,operation_id,entry_id,action,payload_json,vision_revision,
+          map_revision,status,standards_version,created_at,seq)
+         VALUES ('M','P','T','O','E','first',?,0,0,'Approved',1,'old',1)",
+    )
+    .bind(payload.to_string())
+    .execute(&pool)
+    .await
+    .unwrap();
+    pool.close().await;
+    let storage = Storage::open(&path).await.unwrap();
+    let project = ProjectId::from_literal("P");
+    let vision = storage.list_vision_proposals(&project).await.unwrap();
+    let maps = storage.list_map_proposals(&project).await.unwrap();
+    for by in [
+        vision[0].approved_by.as_ref().unwrap(),
+        maps[0].approved_by.as_ref().unwrap(),
+    ] {
+        assert_eq!(by.agent, "human");
+        assert_eq!(by.principal, "user:local");
+        assert!(by.request.is_none());
+    }
+}
+
 /// Runs only on the externally prepared SQLite backup; never on the live DB.
 #[tokio::test]
 #[ignore = "requires SHADOWS_DESIGN_MIGRATION_COPY made through SQLite backup"]

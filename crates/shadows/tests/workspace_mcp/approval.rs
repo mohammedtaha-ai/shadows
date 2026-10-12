@@ -64,8 +64,12 @@ async fn the_planner_approves_a_vision_card_and_replay_appends_nothing() {
         .unwrap();
     assert_eq!(kind, "UserMessage");
     let audit: (String, String) = sqlx::query_as(
-        "SELECT audit_principal,audit_agent FROM command_record WHERE command_kind='VisionProposalApprove'",
-    ).fetch_one(l.app.storage.reader()).await.unwrap();
+        "SELECT audit_principal,audit_agent FROM command_record
+         WHERE command_kind='VisionProposalApprove'",
+    )
+    .fetch_one(l.app.storage.reader())
+    .await
+    .unwrap();
     assert_eq!(audit, ("user:local".into(), "planner:claude-code".into()));
     c.cancel().await.unwrap();
     app::shut_down_app(l.app).await;
