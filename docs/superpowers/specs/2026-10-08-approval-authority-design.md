@@ -1,9 +1,10 @@
 # Section 24 — Who Approved: Principal and Agent
 
 - **Date:** 2026-10-08.
-- **Status:** Accepted by Mohammed in conversation on 2026-10-08; awaits his
-  review of this file. Enforcement is planned for §23.9 PR 3b, before §23's
-  structure write (PR 4), after the real-adapter probe in §24.3.
+- **Status:** Accepted by Mohammed in conversation on 2026-10-08. The
+  real-adapter probe ran on 2026-10-12 and §24.2–§24.3 were amended with
+  Mohammed the same day. Enforcement is §23.9 PR 3b, before §23's structure
+  write (PR 4).
 - **Evidence:** the earlier `shadow`'s
   `crates/domain/shadow-actor/src/lib.rs` (two fields per write) and
   `crates/runtime/shadow-core/src/authority.rs` (the core as the boundary),
@@ -50,8 +51,16 @@ for plans (§13.2) — and every approval through them is recorded in its name.
 The code cannot read whether the person truly asked; it links the approval to
 the person's message in the same turn, so the person can see it.
 
-**Create structure stays the person's only.** It writes to disk; no MCP tool
-calls it (§23.7).
+**Two approvals stay the person's only**, by the button in the web client:
+
+- **Create structure.** It writes to disk; no MCP tool calls it (§23.7).
+- **A first map that carries a waiver** (§23.5). A waiver gives up a
+  mandatory part of the person's project; the Planner's map approval tool
+  refuses any proposal that carries one, and says the person must approve it.
+  A map without waivers, and a later one-part change, the Planner may approve
+  at the person's request.
+
+Decided with Mohammed on 2026-10-12.
 
 ## 24.3 What must be impossible: the Planner as `human`
 
@@ -60,27 +69,40 @@ that the person did not click. The Planner could do it only by sending the web
 client's own HTTP request from a shell (`curl`). The earlier `shadow` did not
 stop this; this section does, by giving the Planner no hand to send it:
 
-1. **The Planner's tools are fixed by Shadows** when it opens the session:
-   reading files (Read, Grep, Glob), web search and fetch (reads only), and
-   Shadows' MCP tools. No shell, no Write, no Edit, no other MCP server.
-2. **Every permission request is refused outside that list**, in every mode
-   the person can choose, bypass included. Shadows already answers each
-   permission request; this makes the answer fixed for the Planner.
-3. **A read never writes.** Every HTTP route that changes state is a `POST`,
+1. **The Planner's tools are fixed by Shadows** when it opens the session.
+   Its built-in tools are exactly Read, Grep, Glob, WebSearch, WebFetch,
+   ToolSearch, Agent and TodoWrite, plus Shadows' MCP tools. ToolSearch is
+   how Claude Code loads the deferred MCP tools; Agent starts the Planner's
+   subagents (§22); TodoWrite keeps a list inside the session and writes no
+   file. No shell, no Write, no Edit, no other MCP server. Sent as
+   `_meta.claudeCode.options.tools` on every session opening; a tool not in
+   the list does not exist in the session, so no mode can run it.
+2. **The person's own Claude settings stay out**: `settingSources: []` and
+   `strictMcpConfig: true`. That drops their MCP connectors, plugins, skills
+   and hooks (a hook runs a shell command, the very hand this section
+   removes), and also the project's `CLAUDE.md`; the project's instructions
+   reach the Planner through Shadows' own (§13.8). Decided with Mohammed on
+   2026-10-12.
+3. **The Planner's subagents are advisers.** They inherit the same tools: they
+   read and answer, and never run or write code. Executors are a different
+   matter (the OPEN below).
+4. **Every permission request is still refused**, as today: defence in depth
+   for any tool the list lets through.
+5. **A read never writes.** Every HTTP route that changes state is a `POST`,
    `PUT` or `DELETE`; a `GET` changes nothing, so a fetch tool cannot approve.
-4. **The core is the boundary.** An approval method checks its agent itself;
+6. **The core is the boundary.** An approval method checks its agent itself;
    the tools and the client are defence in depth.
 
 Losing the shell costs the Planner running commands such as `git log` or a
 build. It plans; reading files is enough for that.
 
-> **OPEN — what the adapter actually honours.** Before building, a probe on
-> the real adapter must show: (a) the fixed tool list holds in every mode,
-> bypass included; (b) whether a session loads MCP servers, plugins or hooks
-> from the person's own Claude settings, such as browser tools — if it does,
-> Shadows must keep them out of the Planner's session. **Closes when** the
-> probe's evidence file is written and this section is amended with what it
-> showed.
+The probe ([evidence](../../evidence/2026-10-12-planner-tool-lock-probe.md),
+code at `d8d3465`) showed on `claude-agent-acp` 0.81.1: without these options
+the Planner's session held Bash, PowerShell, Write and Edit and the person's
+claude.ai connectors (Google Drive, Claude Docs); with them, in both modes
+Shadows offers (`acceptEdits`, `auto`) and in a subagent, none of those
+existed. Bypass is not in Shadows' mode policy (§12.4) and was not run; the
+tool list does not depend on the mode.
 
 > **OPEN — executors.** §17's executors need a shell, so §24.3's rule cannot
 > protect them. **Closes when** §17 specifies their sandbox: a shell that
@@ -97,10 +119,13 @@ agents Shadows launches, which it controls.
 
 1. An approval through an MCP tool records agent = `planner:<harness>` and
    the turn's person message, whatever its arguments claim.
-2. The Planner session refuses a shell, Write or Edit permission request in
-   every mode, bypass included.
+2. Every Planner session opening (new, resume, fork) sends the fixed `tools`
+   list, `settingSources: []` and `strictMcpConfig: true`, and a permission
+   request is still refused.
 3. No `GET` route changes state (one test walks the router).
 4. Create structure has no MCP tool.
+5. The Planner's map approval tool refuses a proposal carrying a waiver, and
+   the same proposal approved by the person's button passes.
 
 ## 24.6 External human confirmation and assessment
 

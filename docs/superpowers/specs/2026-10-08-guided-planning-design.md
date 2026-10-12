@@ -228,7 +228,8 @@ Vision proposals: decided with Mohammed on 2026-10-12.
   The Vision page names how many are waiting, with a link to each
   conversation that has one.
 - **Who approves.** In PR 2 only the card's button approves. Approval by the
-  Planner at the person's request arrives with §24 in PR 3b.
+  Planner at the person's request arrives with §24 in PR 3b; a first map
+  carrying a waiver stays the button's only (§24.2).
 
 Map proposals: decided with Mohammed on 2026-10-12, for PR 3.
 
