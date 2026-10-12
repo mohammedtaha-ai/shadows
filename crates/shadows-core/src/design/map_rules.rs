@@ -84,13 +84,12 @@ pub(crate) fn check_shape(
                 part.content.title
             ));
         }
-        if let Some(parent) = part.parent {
-            if !parts.iter().any(|p| p.key == parent)
+        if let Some(parent) = part.parent
+            && (!parts.iter().any(|p| p.key == parent)
                 || parent == part.key
-                || descendant(parts, parent, part.key)
-            {
-                return Err("missing parent or containment cycle".into());
-            }
+                || descendant(parts, parent, part.key))
+        {
+            return Err("missing parent or containment cycle".into());
         }
         if written.contains(&part.key) {
             for id in &part.content.serves {
