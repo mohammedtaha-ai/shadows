@@ -48,7 +48,10 @@ function Editor({projectId,saved,titles}: {projectId:string;saved:VisionView;tit
   const reload = async (discard:boolean) => {
     setRefreshing(true); setRefreshError(null)
     try {
-      const v = await client.fetchQuery({...visionQuery(projectId),staleTime:0})
+      const options = visionQuery(projectId)
+      // Share the active fetch with SSE refetches rather than canceling the save refresh.
+      await client.refetchQueries({...options,type:'active'}, {cancelRefetch:false,throwOnError:true})
+      const v = await client.fetchQuery({...options,staleTime:Infinity})
       setBase(v); setConflict(false)
       if (discard) { setEditing(null); setDrafts(emptyDrafts()); attempt.current = null; save.reset() }
     } catch (e) { setRefreshError(e instanceof Error ? e : new Error(String(e))) }
@@ -60,7 +63,7 @@ function Editor({projectId,saved,titles}: {projectId:string;saved:VisionView;tit
       const op = body.ops[0]
       if (op.kind === 'VisionItemAdd') setDrafts(d => ({...d,[op.field]:''}))
       setEditing(null); attempt.current = null; setConflict(false)
-      void client.invalidateQueries({queryKey:['projects',projectId,'design']})
+      await client.invalidateQueries({queryKey:['projects',projectId,'design']}, {cancelRefetch:false})
       await reload(false)
     },
     onError: (e) => {

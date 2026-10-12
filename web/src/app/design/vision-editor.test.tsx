@@ -11,6 +11,33 @@ const initial = (): VisionView => ({ revision: 1, content: {
 } })
 const field = (a: TestApp, label: string) => a.container.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[aria-label="${label}"]`)
 const proposal = (id: string, thread_id: string) => ({ id, thread_id, action: 'add', field: 'goals', item_id: null, text: 'Ship', old_text: null, expected_item_revision: null, status: 'Pending', outdated: false, created_at: '2026-10-12T00:00:00Z' })
+it('committed saves survive SSE invalidating the concurrent refresh', async () => {
+  let vision = initial()
+  let app: TestApp
+  let inject = false
+  app = open = await startApp('/projects/p1/workspace', {...answers(),
+    'GET /api/projects/p1/design/vision': async () => {
+      if (inject) {
+        inject=false
+        app.sources.find(s => s.url.includes('/projects/p1/events'))?.emit('durable',JSON.stringify({
+          seq:1,kind:'ProjectDesignChanged',operation_id:null,thread_id:null,payload:{project_id:'p1'}}))
+        await new Promise(resolve => setTimeout(resolve,10))
+      }
+      return Response.json(vision)
+    },
+    'POST /api/projects/p1/design/edits': () => {
+      vision={...vision,revision:2,content:{...vision.content,purpose:[{id:'PU1',text:'Saved purpose',revision:1,approved_from:null}]}}
+      inject=true
+      return Response.json({revision:2})
+    },
+  })
+  await until(() => field(app,'Add purpose') !== null && app.sources.some(s => s.url.includes('/projects/p1/events')))
+  typeInto(field(app,'Add purpose')!,'Saved purpose')
+  act(() => app.button('Add Purpose')?.click())
+  await until(() => app.text().includes('PU1') && !field(app,'Add users')?.disabled)
+  expect(app.text()).not.toContain('CancelledError')
+  expect(app.button('Reload')).toBeUndefined()
+})
 it('lists stable items and pending conversation links', async () => {
   const a = open = await startApp('/projects/p1/workspace', { ...answers(),
     'GET /api/projects/p1/design/vision': initial(),

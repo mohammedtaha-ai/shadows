@@ -104,14 +104,27 @@ async fn a_new_proposal_cannot_commit_under_a_finished_turn() {
         thread: thread.clone(),
         grant: f.grant.id.clone(),
     };
-    let cursor = f.storage.current_cursor().await.unwrap().0;
+    let proposal_events: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM durable_event WHERE kind='VisionProposed' AND project_id=?",
+    )
+    .bind(f.p.as_str())
+    .fetch_one(f.storage.reader())
+    .await
+    .unwrap();
     assert!(
         f.storage
             .propose_vision_in(&ctx, &writer, &f.p, &operation, args)
             .await
             .is_err()
     );
-    assert_eq!(f.storage.current_cursor().await.unwrap().0, cursor);
+    let after: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM durable_event WHERE kind='VisionProposed' AND project_id=?",
+    )
+    .bind(f.p.as_str())
+    .fetch_one(f.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(after, proposal_events);
     assert!(
         f.core
             .design()
