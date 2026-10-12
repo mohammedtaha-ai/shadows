@@ -346,6 +346,16 @@ only, paths inside it only, the approved files only.
 After the write, the contracts in Shadows remain the source; the files are
 their output. Hand edits to those files are the executors' concern (§17).
 
+Decided with Mohammed on 2026-10-12, for PR 4:
+
+- **A part's `contract.yaml` is its approved head only:** the part's title,
+  kind, responsibility, the vision items it serves, and its approved header
+  and rules. There is no template beyond that. Filling in methods,
+  obligations and tests is the first executor's task (§17).
+- **No Git.** Create structure writes files and nothing else; `git init`
+  is the person's or an executor's. A directory already holding `.git` is
+  accepted (rule 2).
+
 ## 23.8 Groundwork: what this section fixes first
 
 The first PR changes no behaviour a person sees. It removes debt that §23
