@@ -235,9 +235,10 @@ of the eight describe work that is on `main`:
 | `2026-09-30-milestone-3-code-index.md` | PR #9 |
 | `2026-10-01-project-plans-1a.md` | PR #14 |
 
-Two remain: `2026-10-03-planning-workspace-stage-1.md`, describing work in
-flight on this branch, and `2026-10-03-project-planning-roadmap.md`, describing
-work not yet started. Both stay.
+Only `2026-10-03-project-planning-roadmap.md` stays, describing work not yet
+started. Every other plan is deleted once its PR merges, and references name
+it at that merge commit: `2026-10-03-planning-workspace-stage-1.md` at
+`92e6dae`.
 
 `CLAUDE.md` already applies this rule to code — "Spike code is deleted once its
 evidence file is written" — and it was applied to the execution ledgers, which
