@@ -29,6 +29,23 @@ pub struct ApprovedBy {
 }
 
 impl Approver {
+    pub(crate) fn command(&self, kind: &str, params: serde_json::Value) -> super::CommandContext {
+        let Self::Planner { writer, turn, .. } = self else {
+            unreachable!("Planner command construction is core-only")
+        };
+        let fp = super::fingerprint(kind, &params);
+        let (principal_kind, principal_id) = writer.principal();
+        super::CommandContext {
+            agent: Some(self.agent()),
+            principal_kind: principal_kind.into(),
+            principal_id,
+            command_id: super::derive::derived_id(super::derive::Anchor::Operation(turn), &fp),
+            command_kind: kind.into(),
+            command_schema_ver: 1,
+            request_fingerprint: fp,
+        }
+    }
+
     pub fn agent(&self) -> String {
         match self {
             Self::Person => "human".into(),

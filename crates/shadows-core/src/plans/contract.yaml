@@ -256,6 +256,9 @@ functions:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, number: u32) -> Result<PlanTask, CoreError>"
       # INVALID_COMMAND "T{n} does not exist in this plan" when the number is absent.
   writes:
+    approve_as_planner:
+      signature: "(&self, grant: &Grant, workflow: &WorkflowId, expected_revision: i64) -> Result<Approved, CoreError>"
+      # Thread grant only; same plan blockers; operation-scoped command and §24 attribution.
     approve:
       signature: "(&self, command_id: String, workflow: &WorkflowId, expected_revision: i64) -> Result<Approved, CoreError>"
       # "PlanApprove", params { workflow, expected_revision }, principal User/local.

@@ -363,9 +363,8 @@ They tell the Planner:
 3. what the two link kinds and a label mean;
 4. that an acceptance item is a sentence someone can check;
 5. that `REVISION_CONFLICT` means read the plan again, then rebuild the edit;
-6. that approving is the person's: when asked to approve, it asks the person to
-   press Approve, and never reaches the daemon's HTTP API itself (§13.2's OPEN
-   block).
+6. §24 owns approval authority: the person's button or a Planner approval tool
+   at their request; the Planner never reaches the daemon's HTTP API.
 
 **Project instructions** are edited in project settings. Each save is a new row
 of `planner_instructions_version` (§13.15) with the next `number`; nothing is

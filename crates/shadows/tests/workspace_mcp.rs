@@ -9,6 +9,8 @@ mod listening;
 #[path = "fixtures/plan.rs"]
 mod plan;
 use listening::{listening_app, ok, thread_client};
+#[path = "workspace_mcp/approval.rs"]
+mod approval;
 
 #[tokio::test]
 async fn map_propose_before_a_complete_vision_answers_stage_blocked() {

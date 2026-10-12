@@ -158,6 +158,14 @@ enums:
 
 functions:
   service:
+    planner_approver:
+      signature: "private: derives Planner writer, running operation and harness from grant/thread"
+    approve_vision_proposal_as_planner:
+      signature: "(&self, grant: &Grant, proposal: &str) -> Result<DesignChange, CoreError>"
+      # Operation-scoped retry; store rechecks live grant and turn before approval.
+    approve_map_proposal_as_planner:
+      signature: "(&self, grant: &Grant, proposal: &str) -> Result<DesignChange, CoreError>"
+      # Same provenance; first-map waiver refusal is enforced inside the store.
     propose_map:
       signature: "(&self, grant: &Grant, args: MapPropose) -> Result<MapProposal, CoreError>"
     map_proposals:

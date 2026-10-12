@@ -35,6 +35,13 @@ struct PlanArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct PlanApproveArgs {
+    #[schemars(with = "String")]
+    workflow_id: WorkflowId,
+    expected_revision: i64,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct TaskArgs {
     /// As for `workflow_get`.
     #[serde(default)]
@@ -126,6 +133,22 @@ struct OutlineArgs {
 
 #[tool_router(vis = "pub(super)")]
 impl Shadows {
+    #[tool(
+        description = "Approve a plan only at the person's request. Records Planner attribution."
+    )]
+    async fn plan_approve(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<PlanApproveArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .plans()
+                .approve_as_planner(&grant, &args.workflow_id, args.expected_revision)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
     #[tool(
         description = "Where a name is defined: project, file, line, kind and signature. \
                        Never the code; open the file if you need it."

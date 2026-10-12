@@ -59,6 +59,23 @@ pub struct MapProposal {
     pub created_at: String,
 }
 impl Design {
+    pub async fn approve_map_proposal_as_planner(
+        &self,
+        grant: &Grant,
+        proposal: &str,
+    ) -> Result<DesignChange, CoreError> {
+        let approver = self.planner_approver(grant).await?;
+        let ctx = approver.command(
+            "MapProposalApprove",
+            serde_json::json!({"project":grant.project_id,"proposal":proposal}),
+        );
+        // The store performs waiver rejection after project scoping and authority checks.
+        self.storage
+            .approve_map_proposal_in(&ctx, &grant.project_id, proposal, &approver)
+            .await
+            .map_err(super::proposals::core_error)
+    }
+
     pub async fn propose_map(
         &self,
         grant: &Grant,

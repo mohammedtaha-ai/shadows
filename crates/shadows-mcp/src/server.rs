@@ -24,7 +24,10 @@ use shadows_core::{Grant, GrantKind};
 
 /// The internal Planner's tools: plans belong to the project now. Only it
 /// shows a plan; an external agent cannot move a person's screen.
-const THREAD_TOOLS: [&str; 14] = [
+const THREAD_TOOLS: [&str; 17] = [
+    "vision_approve",
+    "map_approve",
+    "plan_approve",
     "map_propose",
     "agreement_list",
     "agreement_get",

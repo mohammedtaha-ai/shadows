@@ -66,6 +66,49 @@ pub(super) fn core_error(e: crate::StorageError) -> CoreError {
 }
 
 impl Design {
+    pub(super) async fn planner_approver(
+        &self,
+        grant: &Grant,
+    ) -> Result<crate::command::Approver, CoreError> {
+        let writer = super::agreement_scope::writer(grant)?;
+        let Writer::Planner { thread, .. } = &writer else {
+            return Err(CoreError::Refused {
+                code: ErrorCode::GrantScope,
+                message: "approval needs a Planner's conversation".into(),
+            });
+        };
+        let turn = self
+            .handles
+            .running_for(thread)
+            .await
+            .ok_or_else(|| CoreError::Refused {
+                code: ErrorCode::InvalidCommand,
+                message: "no turn is running".into(),
+            })?;
+        let harness = self.storage.turn_context(thread).await?.harness;
+        Ok(crate::command::Approver::Planner {
+            writer,
+            turn,
+            harness,
+        })
+    }
+
+    pub async fn approve_vision_proposal_as_planner(
+        &self,
+        grant: &Grant,
+        proposal: &str,
+    ) -> Result<DesignChange, CoreError> {
+        let approver = self.planner_approver(grant).await?;
+        let ctx = approver.command(
+            "VisionProposalApprove",
+            serde_json::json!({"project":grant.project_id,"proposal":proposal}),
+        );
+        self.storage
+            .approve_vision_proposal_in(&ctx, &grant.project_id, proposal, &approver)
+            .await
+            .map_err(core_error)
+    }
+
     pub async fn propose_vision(
         &self,
         grant: &Grant,
