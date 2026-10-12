@@ -4,6 +4,7 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { LoaderCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useLocation } from '@tanstack/react-router'
 import type { Choice, Operation, Plan, PlanTask, ThreadEntry } from '@/api/client'
 import { policyOf } from '../mode-policy'
 import { Entry, ReplyText } from './entry'
@@ -64,6 +65,8 @@ export function Messages({
 }) {
   const scroller = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
+  const location = useLocation()
+  const followed = useRef<string | null>(null)
 
   // Follow the bottom while the reader is there; leave them be once they
   // scroll up to read.
@@ -71,6 +74,19 @@ export function Messages({
     const el = scroller.current
     if (el !== null && pinned.current) el.scrollTop = el.scrollHeight
   })
+
+  useEffect(() => {
+    const hash = location.hash.replace(/^#/, '')
+    if (!hash) { followed.current = null; return }
+    const key = `${location.pathname}#${hash}`
+    if (followed.current === key) return
+    const target = document.getElementById(hash)
+    if (target && scroller.current?.contains(target)) {
+      pinned.current = false
+      target.scrollIntoView({ block: 'center' })
+      followed.current = key
+    }
+  }, [entries, location.hash, location.pathname])
 
   // An entry that takes over from the streamed reply is already on screen as
   // that reply's text: it must not fade in again. Recorded while the reply
@@ -115,6 +131,7 @@ export function Messages({
           {shown.map((entry) => (
             <motion.li
               key={entry.id}
+              id={`entry-${entry.ordinal}`}
               {...appear}
               initial={handedOver.has(entry.ordinal) ? false : appear.initial}
               data-entry-kind={isTool(entry) ? 'tool' : entry.kind}

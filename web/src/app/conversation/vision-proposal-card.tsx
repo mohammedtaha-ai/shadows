@@ -8,6 +8,7 @@ import { visionProposalsQuery } from '@/api/queries'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { VISION_FIELDS } from '../design/vision-fields'
+import { ApprovedBy } from './approved-by'
 
 type Snapshot = Pick<VisionProposal, 'id' | 'action' | 'field' | 'item_id' | 'text' | 'old_text'>
 function proposed(entry: ThreadEntry): Snapshot | null {
@@ -54,6 +55,8 @@ export function VisionProposalCard({ entry, projectId }: { entry: ThreadEntry; p
     {snapshot.action === 'edit' && <del dir="auto" className="block whitespace-pre-wrap text-muted-foreground">{snapshot.old_text}</del>}
     <p dir="auto" className="whitespace-pre-wrap">{snapshot.action === 'remove' ? snapshot.old_text : snapshot.text}</p>
     <p role="status" className="text-xs text-muted-foreground">{status}</p>
+    {live?.status === 'Approved' && <p className="text-xs text-muted-foreground">
+      <ApprovedBy by={live.approved_by} projectId={projectId} /></p>}
     {live?.status === 'Pending' && !live.outdated && query.error === null &&
       <Button size="sm" onClick={submit} disabled={approve.isPending}>Approve</Button>}
     {query.error !== null && <ErrorLine error={query.error} />}

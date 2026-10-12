@@ -16,6 +16,17 @@ const pending = (): MapProposal => ({id:'m1',thread_id:'t1',action:'first',part_
     contract:{header:'Backend contract',rules:['S1']}}}]})
 const entry = () => ({...agentEntry('e1','Project map proposal'),kind:'MapProposal' as const,card:{...pending()}})
 
+it.each(['human','planner:claude-code'])('shows live %s map approval attribution',async agent => {
+  const by = {principal:'user:local',agent,request:agent==='human' ? null :
+    {thread_id:'t2',entry_id:'request',ordinal:7}}
+  const a = app = await startApp('/projects/p1/threads/t1',{...answers({entries:[entry()]}),
+    'GET /api/projects/p1/map-proposals':[{...pending(),waivers:agent==='human' ? pending().waivers : [],
+      status:'Approved',approved_by:by}],
+  })
+  await until(() => a.text().includes(agent==='human' ? 'Approved by you' : 'Approved by the Planner'))
+  if (agent!=='human') expect(a.container.querySelector('a[href="/projects/p1/threads/t2#entry-7"]')).not.toBeNull()
+})
+
 it('shows waiver consent and posts one replayable approval', async () => {
   expect(MapProposalCard).toBeTypeOf('function')
   let live = pending()
