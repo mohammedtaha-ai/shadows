@@ -36,8 +36,9 @@ pub use design::{
     AgreementParty, AgreementPartyReview, AgreementReview, AgreementRole, AgreementState,
     AgreementVersion, AgreementWriter, BaseStandards, ContractHead, ContractTemplate, Design,
     DesignAnchor, DesignChange, DesignOp, DesignRevision, EffectiveStandards, InitialFile,
-    MandatoryPart, Outcome, OutcomeContent, OutcomeId, OutcomePage, OutcomeView, Part, PartContent,
-    PartId, PartPage, PartView, PartWaiver, Stage, StageView, StandardRule, StandardsAdditions,
+    MandatoryPart, MapAction, MapProposal, MapPropose, Outcome, OutcomeContent, OutcomeId,
+    OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage, PartView, PartWaiver,
+    ProposedPart, ProposedWaiver, Stage, StageView, StandardRule, StandardsAdditions,
     StandardsAdditionsVersion, VisionContent, VisionField, VisionItem, VisionView, WorkspaceView,
     base_standards,
 };

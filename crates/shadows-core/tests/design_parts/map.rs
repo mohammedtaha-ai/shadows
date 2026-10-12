@@ -1,5 +1,8 @@
 use super::*;
 
+#[path = "map_proposals.rs"]
+mod proposals;
+
 async fn setup() -> (tempfile::TempDir, Storage, Arc<AppCore>, ProjectId) {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("map.sqlite3");

@@ -16,7 +16,7 @@ fn kinded(kind: &str) -> DesignOp {
     }
 }
 
-fn vision(users: &str) -> Vec<DesignOp> {
+pub(super) fn vision(users: &str) -> Vec<DesignOp> {
     use shadows_core::VisionField;
     [
         (VisionField::Purpose, "Sell books"),

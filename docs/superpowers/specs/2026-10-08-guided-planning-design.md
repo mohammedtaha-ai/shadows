@@ -240,6 +240,10 @@ Map proposals: decided with Mohammed on 2026-10-12, for PR 3.
 - **Who writes it.** The first map comes from the Planner only: before it is
   approved, a hand create, edit or move of a part is refused. After it, the
   person edits parts by hand on the Project map page, through the same gates.
+  **OPEN — legacy adoption:** pre-PR3 parts survive migration without being
+  treated as an approved map. First-map approval refuses replacing these
+  identities. Close when an explicit adoption proposal preserves their ids,
+  associations and review provenance, with a populated upgrade journey.
 - **Identity.** A part's id is issued when it is written. Two parts with the
   same title under the same parent are one identity and conflict.
 - **Folders.** A folder belongs to one part. A child part's folders may sit

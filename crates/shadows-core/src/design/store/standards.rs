@@ -155,7 +155,7 @@ fn into_version(
     })
 }
 
-async fn load_version(
+pub(super) async fn load_version(
     conn: &mut SqliteConnection,
     id: &str,
 ) -> Result<StandardsAdditionsVersion, StorageError> {

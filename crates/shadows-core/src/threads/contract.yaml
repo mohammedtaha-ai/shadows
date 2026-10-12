@@ -100,6 +100,7 @@ shapes:
     PlanView: unit
     PlanApproved: unit
     VisionProposal: unit # Immutable proposed content; live status belongs to Design.
+    MapProposal: unit # Immutable map snapshot; current status belongs to Design.
   CreatedTitle:
     # Private: who named a thread at create, its first `title_source`.
     # `Client` (create_thread) is replaced by the first message and the
