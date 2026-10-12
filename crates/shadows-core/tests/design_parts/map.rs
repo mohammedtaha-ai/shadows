@@ -242,6 +242,61 @@ async fn initial_files_cannot_escape_part_ownership() {
 }
 
 #[tokio::test]
+async fn initial_files_cannot_also_be_directories() {
+    let (_tmp, _storage, core, p) = setup().await;
+    for (n, (folder, files)) in [
+        ("SRC/config", vec!["src/CONFIG"]),
+        ("src/config/nested", vec!["src/config"]),
+        ("src", vec!["src/config", "SRC/CONFIG/settings.toml"]),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut c = content("core");
+        c.folders = vec!["src".into()];
+        c.files = files
+            .into_iter()
+            .map(|path| shadows_core::InitialFile {
+                path: path.into(),
+                content: String::new(),
+            })
+            .collect();
+        let parent = PartId::generate();
+        let mut ops = vec![DesignOp::PartCreate {
+            id: parent.clone(),
+            parent: None,
+            before: None,
+            content: c,
+        }];
+        if folder != "src" {
+            ops.push(mapped(
+                &PartId::generate(),
+                Some(&parent),
+                "child",
+                &[folder],
+            ));
+        }
+        let result = core
+            .design()
+            .edit(format!("collision-{n}"), &p, 0, ops)
+            .await;
+        assert!(
+            result.is_err(),
+            "file/directory collision was accepted: {folder}"
+        );
+        assert_eq!(core.design().vision(&p).await.unwrap().revision, 0);
+        assert!(
+            core.design()
+                .parts(&p, None, None)
+                .await
+                .unwrap()
+                .items
+                .is_empty()
+        );
+    }
+}
+
+#[tokio::test]
 async fn a_hand_part_create_before_the_first_map_is_stage_blocked() {
     let tmp = tempfile::tempdir().unwrap();
     let core = core_at(&tmp.path().join("map.sqlite3")).await;

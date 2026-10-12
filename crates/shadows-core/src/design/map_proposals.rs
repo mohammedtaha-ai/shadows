@@ -60,7 +60,7 @@ impl Design {
     pub async fn propose_map(
         &self,
         grant: &Grant,
-        args: MapPropose,
+        mut args: MapPropose,
     ) -> Result<MapProposal, CoreError> {
         let writer = super::agreement_scope::writer(grant)?;
         let Writer::Planner { thread, .. } = &writer else {
@@ -77,6 +77,14 @@ impl Design {
                 code: ErrorCode::InvalidCommand,
                 message: "no turn is running".into(),
             })?;
+        for part in &mut args.parts {
+            super::map_rules::normalise(&mut part.content).map_err(|message| {
+                CoreError::Refused {
+                    code: ErrorCode::InvalidCommand,
+                    message,
+                }
+            })?;
+        }
         let fp = fingerprint(
             "MapPropose",
             &serde_json::to_value(&args).map_err(crate::StorageError::from)?,

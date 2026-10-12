@@ -324,12 +324,16 @@ called_by_other_services:
   project_stage: "Harness reads the persisted workspace stage before each turn."
 
 obligations:
+  - rule: Map proposal fingerprints use normalized titles and paths; equivalent retries replay one card.
+    tested_by: equivalent_map_retries_replay_the_original_card
+  - rule: An approved map reports newly required mandatory kinds in its stage line and map page.
+    tested_by: [approved_map_reports_new_missing_mandatory_kinds, an_added_part_is_mandatory_for_the_stage]
   - rule: Map cards pin invocation standards; person approval rechecks ownership and gates atomically.
     tested_by: [first_map_approval_records_waiver_and_replays_once, proposals_pin_the_turns_standards_not_newer_additions, first_map_refuses_an_unserved_goal_without_writes, approval_rechecks_vision_completeness_for_an_independent_addition, a_second_add_with_the_same_identity_is_refused_at_approval]
   - rule: Part writes before the first approved map refuse atomically; every later part write stores a map version.
     tested_by: a_hand_part_create_before_the_first_map_is_stage_blocked
-  - rule: Folder ownership follows containment, with case-insensitive path and file checks.
-    tested_by: [folders_nest_only_under_their_parent, initial_files_cannot_escape_part_ownership]
+  - rule: Folder ownership follows containment; case-insensitive file paths never also name directories.
+    tested_by: [folders_nest_only_under_their_parent, initial_files_cannot_escape_part_ownership, initial_files_cannot_also_be_directories]
   - rule: Missing mandatory kinds cannot be introduced by hand edits; metadata changes preserve review baselines.
     tested_by: [a_hand_edit_cannot_drop_a_mandatory_part, removed_links_and_metadata_edits_preserve_drift]
   - rule: A fresh proposal rechecks its exact running turn in its write transaction; terminal turns produce no card or supersession.
@@ -396,6 +400,10 @@ obligations:
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
 
 tests:
+  - name: equivalent_map_retries_replay_the_original_card
+    checks: Equivalent title/path spellings retain one pending proposal identity.
+  - name: approved_map_reports_new_missing_mandatory_kinds
+    checks: Structure stage does not claim map completeness when mandatory kinds are missing.
   - name: first_map_approval_records_waiver_and_replays_once
     checks: Proposal writes no parts; approval records the person, waiver and exactly one version on replay.
   - name: proposals_pin_the_turns_standards_not_newer_additions
@@ -412,6 +420,8 @@ tests:
     checks: Ancestor-owned folders allow child ownership; sibling overlap rolls back.
   - name: initial_files_cannot_escape_part_ownership
     checks: A starter file outside its part's folders is refused.
+  - name: initial_files_cannot_also_be_directories
+    checks: A file equal to a folder or containing a folder/file below it refuses the whole write.
   - name: a_hand_edit_cannot_drop_a_mandatory_part
     checks: Kind edits and moves cannot remove mandatory top-level ownership.
   - name: removed_links_and_metadata_edits_preserve_drift

@@ -89,6 +89,26 @@ fn first() -> MapPropose {
 }
 
 #[tokio::test]
+async fn equivalent_map_retries_replay_the_original_card() {
+    let f = Fixture::new().await;
+    let original = f
+        .core
+        .design()
+        .propose_map(&f.grant, first())
+        .await
+        .unwrap();
+    let mut retry = first();
+    retry.parts[0].content.title = " backend ".into();
+    retry.parts[0].content.folders = vec!["./backend/".into()];
+    let repeated = f.core.design().propose_map(&f.grant, retry).await.unwrap();
+    assert_eq!(original.id, repeated.id);
+    let proposals = f.core.design().map_proposals(&f.p).await.unwrap();
+    assert_eq!(proposals.len(), 1);
+    assert_eq!(proposals[0].status, shadows_core::ProposalStatus::Pending);
+    f.close().await;
+}
+
+#[tokio::test]
 async fn first_map_approval_records_waiver_and_replays_once() {
     let f = Fixture::new().await;
     let p = f

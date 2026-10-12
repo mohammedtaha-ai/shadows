@@ -33,6 +33,9 @@ export function PartsView({ projectId, selected }: { projectId: string; selected
       </aside>}
       {(stage.data?.drift?.length ?? 0) > 0 && <aside aria-label="Map drift" className="rounded border p-3">
         <h3>Drift</h3><ul>{stage.data?.drift?.map(d => <li key={d} dir="auto">{d}</li>)}</ul></aside>}
+      {stage.data?.stage === 'structure' && stage.data.missing.length > 0 && <aside role="status" className="rounded border p-3">
+        Missing mandatory parts: {stage.data?.missing.join(', ')}
+      </aside>}
       {stage.error && <ErrorLine error={stage.error} />}{proposals.error && <ErrorLine error={proposals.error} />}
       <div className="flex gap-2">{approved && <Button size="sm" onClick={() => setCreating(true)}>Create part</Button>}
         <Button size="sm" variant="secondary" onClick={() => setDestination(null)}>Use project root</Button></div>

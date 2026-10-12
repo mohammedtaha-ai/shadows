@@ -121,6 +121,15 @@ pub(crate) fn check_shape(
             }
         }
     }
+    for file in &files {
+        if folders
+            .iter()
+            .any(|(_, folder)| folder == file || inside(folder, file))
+            || files.iter().any(|other| inside(other, file))
+        {
+            return Err(format!("file path is also a directory: {file}"));
+        }
+    }
     for (i, (owner, folder)) in folders.iter().enumerate() {
         for (other, path) in &folders[i + 1..] {
             if folder == path

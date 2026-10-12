@@ -6,6 +6,14 @@ import type { DesignEdit, PartView } from '@/api/design'
 import { type TestApp, startApp, typeInto, until } from '../test-app'
 
 let app: TestApp | null = null
+
+it('shows mandatory kinds added after map approval', async () => {
+  const a = app = await startApp('/projects/p1/workspace?view=map', {
+    ...answers(),
+    'GET /api/projects/p1/stage': {stage:'structure',missing:['billing'],drift:[]},
+  })
+  await until(() => a.text().includes('Missing mandatory parts: billing'))
+})
 const answers = () => ({ ...baseAnswers(),
   'GET /api/projects/p1/stage': {stage:'structure',missing:[],drift:[]} })
 afterEach(() => { app?.unmount(); app = null })

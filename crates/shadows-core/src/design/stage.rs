@@ -74,6 +74,10 @@ pub(crate) fn line(view: &StageView) -> String {
             .into(),
         Stage::Vision => format!("[Shadows] Stage: vision. Missing vision fields: {missing}."),
         Stage::Map => format!("[Shadows] Stage: map. Missing mandatory parts: {missing}."),
+        Stage::Structure if !view.missing.is_empty() => format!(
+            "[Shadows] Stage: structure. Missing mandatory parts: {missing}; \
+             update the approved map before creating structure."
+        ),
         Stage::Structure => "[Shadows] Stage: structure. The vision and map are complete; \
              the structure is not written yet."
             .into(),
@@ -82,4 +86,23 @@ pub(crate) fn line(view: &StageView) -> String {
         line.push_str(&format!(" Drift: {}.", view.drift.join("; ")));
     }
     line
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn approved_map_reports_new_missing_mandatory_kinds() {
+        let rendered = line(&StageView {
+            stage: Stage::Structure,
+            missing: vec!["billing".into()],
+            drift: vec![],
+        });
+        assert!(
+            rendered.contains("Missing mandatory parts: billing"),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("map are complete"), "{rendered}");
+    }
 }
