@@ -10,6 +10,8 @@ mod stage;
 
 #[path = "design_parts/map.rs"]
 mod map;
+#[path = "design_parts/structure.rs"]
+mod structure;
 
 async fn core_at(path: &std::path::Path) -> Arc<AppCore> {
     let storage = Arc::new(Storage::open(path).await.unwrap());

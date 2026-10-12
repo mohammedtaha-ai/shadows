@@ -2,6 +2,9 @@
 # Reads lazily return an empty revision-zero vision for a live project.
 # Map paths reject Windows device names and Shadows-owned initial files.
 # Rendering rechecks old snapshots and emits contracts with yaml-rust2.
+# Structure writes pin map and standards, persist hashes before writing, refuse
+# foreign/changed files before cleanup, publish without clobbering, and move to
+# roadmap only on committed completion. No MCP method invokes this operation.
 # Held by reserved_initial_files_are_refused, windows_device_names_are_refused,
 # renders_folders_contracts_files_and_shadows_md and a_reserved_path_refuses.
 # Replay precedes project/revision validation and returns an immutable result.
@@ -13,6 +16,11 @@ status: current
 source: crates/shadows-core/src/design
 
 shapes:
+  StructureWritten:
+    map_version: i64
+    paths: Vec<String>
+    completed_at: String
+    resumed: bool
   MandatoryPart:
     name: String
     owns: String
@@ -163,6 +171,11 @@ enums:
 
 functions:
   service:
+    create_structure:
+      signature: "(&self, command_id: String, project: &ProjectId) -> Result<StructureWritten, CoreError>"
+      # Person HTTP only; daemon mutex, intent before disk, immutable command replay.
+    create_structure_stopping_after:
+      signature: "test-support only: (&self, command: String, project: &ProjectId, n: usize) -> Result<StructureWritten, CoreError>"
     planner_approver:
       signature: "private: derives Planner writer, running operation and harness from grant/thread"
     approve_vision_proposal_as_planner:
@@ -415,6 +428,16 @@ obligations:
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
 
 tests:
+  - name: create_structure_writes_exactly_the_approved_files
+    checks: Approved bytes, contracts, SHADOWS.md, roadmap and one durable event.
+  - name: a_stopped_write_resumes
+    checks: Incomplete intent preserves structure stage; matching files remain and temp is removed.
+  - name: a_foreign_or_changed_file_refuses_the_resume
+    checks: Foreign or changed bytes refuse before cleanup; existing temporary file remains.
+  - name: a_reserved_path_from_an_older_map_refuses
+    checks: Older snapshot with backend/CONTRACT.yaml refuses with no disk write.
+  - name: concurrent_calls_write_once
+    checks: Daemon mutex serializes clicks; exactly one writes.
   - name: a_revoked_grant_cannot_approve
     checks: A revoked Planner grant cannot commit approval or record a command.
   - name: an_ended_turn_cannot_approve

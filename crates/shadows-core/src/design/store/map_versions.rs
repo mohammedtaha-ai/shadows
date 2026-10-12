@@ -6,7 +6,7 @@ use crate::{ProjectId, StorageError};
 use sqlx::{FromRow, SqliteConnection};
 use std::collections::{BTreeMap, BTreeSet};
 
-#[derive(FromRow, serde::Serialize)]
+#[derive(FromRow, serde::Serialize, serde::Deserialize)]
 pub(super) struct MapRow {
     pub id: String,
     pub parent_id: Option<String>,

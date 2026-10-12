@@ -163,6 +163,8 @@ pub(crate) fn sha256_hex(bytes: &[u8]) -> String;
 - Create: `crates/shadows-core/migrations/0025_structure_write.sql`
 - Create: `crates/shadows-core/src/design/store/structure.rs` — one job: the
   structure write's records (intent, success, reads).
+- Create: `crates/shadows-core/src/design/structure_create.rs` — one job:
+  coordinate the person's structure write, keeping `design/mod.rs` compact.
 - Create: `crates/shadows-core/src/design/structure_write.rs` — one job: put
   the planned files on disk safely (empty check, temp + rename, resume check).
 - Modify: `crates/shadows-core/src/design/mod.rs` (the service method),
@@ -228,7 +230,10 @@ CREATE TABLE design_structure_write (
      content differs) refuses with `STAGE_BLOCKED: unexpected files: <list>`
      and changes nothing.
   5. Create folders; for each file not already correct, write
-     `<path>.shadows-tmp`, flush, rename onto `<path>`.
+     `<path>.shadows-tmp`, flush and sync, publish without replacing an existing
+     destination, then remove the temporary name. A same-directory hard link
+     supplies atomic no-clobber publication; ordinary rename replaces existing
+     destinations on Unix and would violate §23.7's foreign-file protection.
   6. Write transaction: set `completed_at`, append durable event
      `ProjectStructureWritten` (actor `Actor::user("local")`, payload
      `{project_id, map_version, paths}`), `record_command`.

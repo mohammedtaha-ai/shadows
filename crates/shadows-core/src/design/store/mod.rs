@@ -19,5 +19,6 @@ mod proposal_read;
 mod proposals;
 mod stage;
 mod standards;
+pub(super) mod structure;
 mod vision;
 mod vision_versions;

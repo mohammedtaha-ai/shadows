@@ -68,6 +68,16 @@ impl Storage {
             let parts = parts.into_iter().zip(&revisions).collect::<Vec<_>>();
             stage.drift = crate::design::map_rules::drift(&parts, &vision);
         }
+        let written: Option<String> = sqlx::query_scalar(
+            "SELECT completed_at FROM design_structure_write WHERE project_id=?",
+        )
+        .bind(project.as_str())
+        .fetch_optional(&mut *tx)
+        .await?
+        .flatten();
+        if written.is_some() {
+            stage.stage = crate::Stage::Roadmap;
+        }
         tx.commit().await?;
         Ok(stage)
     }
