@@ -38,6 +38,7 @@ shapes:
     base: BaseStandards
     additions: Option<StandardsAdditionsVersion>
   StageView:
+    drift: Vec<String>
     stage: Stage
     missing: Vec<String>
   Design:
@@ -88,6 +89,10 @@ shapes:
   DesignChange:
     revision: DesignRevision
   PartContent:
+    serves: Vec<String>
+    folders: Vec<String>
+    files: Vec<InitialFile>
+    contract: ContractHead
     title: String
     responsibility: String
     design: String
@@ -151,6 +156,14 @@ enums:
 
 functions:
   service:
+    propose_map:
+      signature: "(&self, grant: &Grant, args: MapPropose) -> Result<MapProposal, CoreError>"
+    map_proposals:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<MapProposal>, CoreError>"
+    approve_map_proposal:
+      signature: "(&self, command_id: String, project: &ProjectId, proposal: &str) -> Result<DesignChange, CoreError>"
+    seed_map_for_tests:
+      signature: "test-support only: (&self, project: &ProjectId) -> Result<(), CoreError>"
     propose_vision:
       signature: "(&self, grant: &Grant, args: VisionPropose) -> Result<VisionProposal, CoreError>"
       # Planner/thread grant plus running turn only; writer rechecked in write transaction.
@@ -222,6 +235,14 @@ functions:
       # over project, expected_revision and ordered typed ops; trim only titles,
       # validate client UUID references. Other text remains exact.
   store:
+    propose_map_in:
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: MapPropose) -> Result<MapProposal, StorageError>"
+    list_map_proposals:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<MapProposal>, StorageError>"
+    approve_map_proposal_in:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str) -> Result<DesignChange, StorageError>"
+    seed_map_for_tests:
+      signature: "test-support only: (&self, project: &ProjectId) -> Result<(), StorageError>"
     propose_vision_in:
       signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: VisionPropose) -> Result<VisionProposal, StorageError>"
     list_vision_proposals:
@@ -303,6 +324,18 @@ called_by_other_services:
   project_stage: "Harness reads the persisted workspace stage before each turn."
 
 obligations:
+  - rule: Map proposal fingerprints use normalized titles and paths; equivalent retries replay one card.
+    tested_by: equivalent_map_retries_replay_the_original_card
+  - rule: An approved map reports newly required mandatory kinds in its stage line and map page.
+    tested_by: [approved_map_reports_new_missing_mandatory_kinds, an_added_part_is_mandatory_for_the_stage]
+  - rule: Map cards pin invocation standards; person approval rechecks ownership and gates atomically.
+    tested_by: [first_map_approval_records_waiver_and_replays_once, proposals_pin_the_turns_standards_not_newer_additions, first_map_refuses_an_unserved_goal_without_writes, approval_rechecks_vision_completeness_for_an_independent_addition, a_second_add_with_the_same_identity_is_refused_at_approval]
+  - rule: Part writes before the first approved map refuse atomically; every later part write stores a map version.
+    tested_by: a_hand_part_create_before_the_first_map_is_stage_blocked
+  - rule: Folder ownership follows containment; case-insensitive file paths never also name directories.
+    tested_by: [folders_nest_only_under_their_parent, initial_files_cannot_escape_part_ownership, initial_files_cannot_also_be_directories]
+  - rule: Missing mandatory kinds cannot be introduced by hand edits; metadata changes preserve review baselines.
+    tested_by: [a_hand_edit_cannot_drop_a_mandatory_part, removed_links_and_metadata_edits_preserve_drift]
   - rule: A fresh proposal rechecks its exact running turn in its write transaction; terminal turns produce no card or supersession.
     tested_by: a_new_proposal_cannot_commit_under_a_finished_turn
   - rule: A proposal is an immutable pending card without a vision write; replay returns its original snapshot.
@@ -367,6 +400,32 @@ obligations:
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
 
 tests:
+  - name: equivalent_map_retries_replay_the_original_card
+    checks: Equivalent title/path spellings retain one pending proposal identity.
+  - name: approved_map_reports_new_missing_mandatory_kinds
+    checks: Structure stage does not claim map completeness when mandatory kinds are missing.
+  - name: first_map_approval_records_waiver_and_replays_once
+    checks: Proposal writes no parts; approval records the person, waiver and exactly one version on replay.
+  - name: proposals_pin_the_turns_standards_not_newer_additions
+    checks: Newer standards never overwrite the Planner invocation pin; stale approval refuses.
+  - name: first_map_refuses_an_unserved_goal_without_writes
+    checks: Unserved goals refuse approval without any partial map.
+  - name: approval_rechecks_vision_completeness_for_an_independent_addition
+    checks: A live independent card cannot bypass a newly incomplete vision.
+  - name: a_second_add_with_the_same_identity_is_refused_at_approval
+    checks: Concurrent pending additions revalidate identity against the committed map.
+  - name: a_hand_part_create_before_the_first_map_is_stage_blocked
+    checks: Refusal without writes; test-only seed enables edits and immutable map snapshots.
+  - name: folders_nest_only_under_their_parent
+    checks: Ancestor-owned folders allow child ownership; sibling overlap rolls back.
+  - name: initial_files_cannot_escape_part_ownership
+    checks: A starter file outside its part's folders is refused.
+  - name: initial_files_cannot_also_be_directories
+    checks: A file equal to a folder or containing a folder/file below it refuses the whole write.
+  - name: a_hand_edit_cannot_drop_a_mandatory_part
+    checks: Kind edits and moves cannot remove mandatory top-level ownership.
+  - name: removed_links_and_metadata_edits_preserve_drift
+    checks: Rename does not acknowledge changed goals; removed links do not block unrelated edits.
   - name: a_new_proposal_cannot_commit_under_a_finished_turn
     checks: Captured operation stopped before persistence refuses with no version, card or event.
   - name: the_base_standards_parse_with_the_four_mandatory_parts

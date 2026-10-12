@@ -131,6 +131,7 @@ async fn a_new_foreign_dependency_invalidates_the_targets_project_once() {
 #[tokio::test]
 async fn design_stream_replays_resumes_and_keeps_projects_separate() {
     let app = app::test_app().await;
+    app.storage.seed_map_for_tests(&app.project).await.unwrap();
     let (foreign, _) = app::other_project(&app).await;
     let edits = format!("/api/projects/{}/design/edits", app.project);
     let path = format!("/api/projects/{}/events", app.project);

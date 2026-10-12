@@ -4,6 +4,103 @@ use shadows_core::testing::{EventCursor, acp};
 mod app;
 
 #[tokio::test]
+async fn map_proposal_routes_list_and_approve() {
+    use shadows_core::{DesignOp, VisionField};
+    let app = app::test_app().await;
+    let ops = [
+        VisionField::Purpose,
+        VisionField::Users,
+        VisionField::Goals,
+        VisionField::Boundaries,
+        VisionField::TechnicalDirection,
+    ]
+    .into_iter()
+    .map(|field| DesignOp::VisionItemAdd {
+        field,
+        text: "synthetic".into(),
+    })
+    .collect();
+    app.core
+        .design()
+        .edit("vision".into(), &app.project, 0, ops)
+        .await
+        .unwrap();
+    let op = app::start_settled(&app, "hang").await;
+    let (grant, _) = app.storage.issue_thread_grant(&app.thread).await.unwrap();
+    let parts: Vec<_> = ["backend", "database", "api"]
+        .into_iter()
+        .map(|kind| {
+            json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
+            "kind":kind,"serves":["G1"]}})
+        })
+        .collect();
+    let mut args = json!({"action":"first","parts":parts,
+        "waivers":[{"part":"frontend","reason":"Terminal tool"}]});
+    args["parts"].as_array_mut().unwrap().remove(1);
+    let bad = app
+        .core
+        .design()
+        .propose_map(&grant, serde_json::from_value(args.clone()).unwrap())
+        .await
+        .unwrap();
+    let list = format!("/api/projects/{}/map-proposals", app.project);
+    let (status, _) = app::call(&app, "GET", &list, None).await;
+    assert_eq!(status, 200);
+    let (status, error) = app::call(
+        &app,
+        "POST",
+        &format!("{list}/{}/approve", bad.id),
+        Some(json!({"command_id":"blocked"})),
+    )
+    .await;
+    assert_eq!(status, 409);
+    assert_eq!(error["code"], "STAGE_BLOCKED");
+    args["parts"] =
+        json!(["backend","database","api"].into_iter().map(|kind|
+        json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
+            "kind":kind,"serves":["G1"]}})).collect::<Vec<_>>());
+    let good = app
+        .core
+        .design()
+        .propose_map(&grant, serde_json::from_value(args).unwrap())
+        .await
+        .unwrap();
+    let approve = format!("{list}/{}/approve", good.id);
+    for _ in 0..2 {
+        assert_eq!(
+            app::call(
+                &app,
+                "POST",
+                &approve,
+                Some(json!({"command_id":"approved"}))
+            )
+            .await,
+            (200, json!({"revision":2}))
+        );
+    }
+    let (foreign, _) = app::other_project(&app).await;
+    assert_eq!(
+        app::call(
+            &app,
+            "POST",
+            &format!("/api/projects/{foreign}/map-proposals/{}/approve", good.id),
+            Some(json!({"command_id":"foreign"}))
+        )
+        .await
+        .0,
+        404
+    );
+    let events = app
+        .storage
+        .read_project_events_after(EventCursor(0), &app.project, 100)
+        .await
+        .unwrap();
+    assert_eq!(events.iter().filter(|e| e.kind == "MapProposed").count(), 2);
+    app.core.turns().stop(&op).await.unwrap();
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
 async fn vision_proposal_routes_list_and_approve() {
     let app = app::test_app().await;
     let op = app::start_settled(&app, "hang").await;
@@ -105,7 +202,7 @@ async fn standards_routes_read_the_base_and_save_additions() {
     let stage = format!("/api/projects/{}/stage", app.project);
     assert_eq!(
         app::call(&app, "GET", &stage, None).await,
-        (200, json!({"stage":"idea","missing":[]}))
+        (200, json!({"stage":"idea","missing":[],"drift":[]}))
     );
     for suffix in ["standards", "stage"] {
         let unknown = format!("/api/projects/{}/{suffix}", uuid::Uuid::new_v4());
@@ -181,6 +278,7 @@ async fn mixed_workspace_batch_rolls_back_and_outcome_pages_are_bounded() {
 #[tokio::test]
 async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
     let app = app::test_app().await;
+    app.storage.seed_map_for_tests(&app.project).await.unwrap();
     let edits = format!("/api/projects/{}/design/edits", app.project);
     let outcomes = format!("/api/projects/{}/design/outcomes", app.project);
     let part = uuid::Uuid::new_v4().to_string();
@@ -246,6 +344,7 @@ async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
 #[tokio::test]
 async fn part_routes_paginate_and_refuse_invalid_references() {
     let app = app::test_app().await;
+    app.storage.seed_map_for_tests(&app.project).await.unwrap();
     let edits = format!("/api/projects/{}/design/edits", app.project);
     let parts = format!("/api/projects/{}/design/parts", app.project);
     let a = uuid::Uuid::new_v4().to_string();

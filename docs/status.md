@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-10 (§23 PR 1 merged into `main`)
+**Updated:** 2026-10-12 (§23 PR 3 local implementation and acceptance in progress)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -8,6 +8,20 @@ decision live in the topic owners indexed by
 restate them.
 
 ## Where we are
+
+**§23 PR 2 is on `main`**, merged through PR #25 as `50146a9`.
+Versioned vision items and person-approved Planner cards are delivered.
+**§23 PR 3 is implemented locally** on `next/guided-planning-pr3`:
+whole first-map proposals, subsequent part changes, waiver consent, ownership
+checks, versioned maps, per-part drift and the Project map UI. The real
+Planner browser trial has demonstrated missing-database refusal, approval
+with a frontend waiver, contract inspection, unserved-goal drift and an
+outdated card after its served goal changed. Final review and its gate are
+still in progress; this paragraph does not claim PR 3 ready to merge.
+Disk structure writing, plan gates and §24 authority enforcement are later
+slices. Existing pre-PR3 part adoption remains OPEN in §23.5.
+
+The following PR 1 record describes that historical slice.
 
 **§23 PR 1 is on `main`**, merged through PR #24 as `ced2095` on 2026-10-10.
 Compiled-in base standards, versioned project additions, the Standards tab,

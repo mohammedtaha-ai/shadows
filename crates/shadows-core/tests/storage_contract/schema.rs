@@ -41,11 +41,14 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "code_tag",
             "command_record",
             "design_command_result",
+            "design_map_proposal",
+            "design_map_version",
             "design_outcome",
             "design_outcome_part",
             "design_outcome_plan",
             "design_part",
             "design_part_plan",
+            "design_part_waiver",
             "design_vision_proposal",
             "design_vision_version",
             "design_workspace",
@@ -76,6 +79,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          (0005 adds §12's four, 0007 §13.15's six, 0008 §15.4's four, \
          0011 §12.4's per-model effort, 0012 §16.9's plan, 0013 §18's vision, \
          0017–0018 §18's agreements and exact task pins, \
-         0019 §20's queue, 0021 §23's standards additions)"
+         0019 §20's queue, 0021 §23's standards additions, \
+         0023 §23's map proposals, versions and waivers)"
     );
 }

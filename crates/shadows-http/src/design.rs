@@ -148,6 +148,33 @@ pub(super) struct VisionApprove {
     command_id: String,
 }
 
+#[utoipa::path(get,path="/api/projects/{id}/map-proposals",tag="design",
+    params(("id" = ProjectId, Path)),responses((status=200,body=Vec<shadows_core::MapProposal>),
+        (status=404,body=ErrorBody),(status=500,body=ErrorBody)))]
+pub(super) async fn map_proposals(
+    State(s): State<AppState>,
+    Path(p): Path<ProjectId>,
+) -> Result<Json<Vec<shadows_core::MapProposal>>, Failure> {
+    Ok(Json(s.core.design().map_proposals(&p).await?))
+}
+
+#[utoipa::path(post,path="/api/projects/{id}/map-proposals/{proposal_id}/approve",tag="design",
+    request_body=VisionApprove,params(("id" = ProjectId,Path),("proposal_id" = String,Path)),
+    responses((status=200,body=DesignChange),(status=404,body=ErrorBody),
+        (status=409,body=ErrorBody),(status=422,body=ErrorBody),(status=500,body=ErrorBody)))]
+pub(super) async fn approve_map_proposal(
+    State(s): State<AppState>,
+    Path((p, id)): Path<(ProjectId, String)>,
+    Json(body): Json<VisionApprove>,
+) -> Result<Json<DesignChange>, Failure> {
+    Ok(Json(
+        s.core
+            .design()
+            .approve_map_proposal(body.command_id, &p, &id)
+            .await?,
+    ))
+}
+
 #[utoipa::path(post, path = "/api/projects/{id}/vision-proposals/{proposal_id}/approve",
     tag = "design", request_body = VisionApprove,
     params(("id" = ProjectId, Path, description = "The project"),

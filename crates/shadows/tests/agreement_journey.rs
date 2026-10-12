@@ -15,6 +15,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
     let temp = tempfile::tempdir().unwrap();
     let a = app::test_app_at(temp.path()).await;
     let provider = PartId::generate();
+    a.storage.seed_map_for_tests(&a.project).await.unwrap();
     let consumer = PartId::generate();
     let parts = vec![
         (provider.clone(), "Backend"),
@@ -33,6 +34,10 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
                     parent: None,
                     before: None,
                     content: PartContent {
+                        serves: vec![],
+                        folders: vec![],
+                        files: vec![],
+                        contract: Default::default(),
                         title: title.into(),
                         responsibility: "Login".into(),
                         design: "".into(),

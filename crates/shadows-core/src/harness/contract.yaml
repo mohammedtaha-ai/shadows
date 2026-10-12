@@ -330,6 +330,8 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: Planner instructions describe whole first maps and person-approved waiver cards; no tool approves a map.
+    tested_by: map_propose_before_a_complete_vision_answers_stage_blocked
   - rule: >
       Effective standards reach the session at opening, then once after each
       base or additions version change, between turns. A fork receives them

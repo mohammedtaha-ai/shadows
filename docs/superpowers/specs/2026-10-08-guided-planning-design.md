@@ -163,6 +163,19 @@ the map says which items each part serves, so with vision items alone (PR 2)
 the stage still reports what is missing only. PR 1 ends at `structure`; later
 stages require the recorded structure write.
 
+From PR 3 the stage is `map` until a first map is approved, and `structure`
+after. Drift is reported from then on, in the stage line and beside the goal
+on the Project map page: each goal no part serves, and each part whose
+served item changed or was removed since that part was last written. Drift is
+per part, so editing one part never clears another's. A link to a removed
+item is drift, not a refusal: it never blocks an edit of another part.
+Renaming, reordering, moving or changing plan associations does not refresh
+a part's served-item review baseline. A person content edit reviews its
+responsibility, design or served-item links; an approved Planner change is
+an explicit review of that part.
+Paths are compared case-insensitively, as Windows does, and a part's initial
+files lie inside its own folders.
+
 ## 23.5 Proposals and approval
 
 The Planner never writes the workspace. It proposes; the person approves.
@@ -217,6 +230,50 @@ Vision proposals: decided with Mohammed on 2026-10-12.
 - **Who approves.** In PR 2 only the card's button approves. Approval by the
   Planner at the person's request arrives with §24 in PR 3b.
 
+Map proposals: decided with Mohammed on 2026-10-12, for PR 3.
+
+- **The map is the parts.** There is no second map document. A part gains
+  what the map needs: the vision items it serves, its folders, its initial
+  files and its contract head (header and the standards rule ids that apply).
+  Approving the first map writes every part in one write; every later change
+  to the parts, approved or by hand, is a stored map version.
+- **Who writes it.** The first map comes from the Planner only: before it is
+  approved, a hand create, edit or move of a part is refused. After it, the
+  person edits parts by hand on the Project map page, through the same gates.
+  **OPEN — legacy adoption:** pre-PR3 parts survive migration without being
+  treated as an approved map. First-map approval refuses replacing these
+  identities. Close when an explicit adoption proposal preserves their ids,
+  associations and review provenance, with a populated upgrade journey.
+- **Identity.** A part's id is issued when it is written. Two parts with the
+  same title under the same parent are one identity and conflict.
+- **Folders.** A folder belongs to one part. A child part's folders may sit
+  inside its parent's; any other overlap is an ownership conflict and is
+  refused.
+- **Waivers.** A waiver of `api` or `frontend` travels inside the first map's
+  card, with the Planner's written reason, shown apart so it is not missed.
+  Approving the card approves the waiver, recorded with the person who
+  approved. `backend`, `database` and a project's added parts are never
+  waived.
+- **Staleness.**
+  - **The first map** is outdated when anything in the vision or the
+    standards changed after it was proposed, or another map was approved
+    first.
+  - **A change to one part** is outdated when that part changed, when a
+    vision item the change serves changed or was removed, or when the
+    standards changed. A change to another part, or a goal it does not
+    serve, leaves it valid: `notifications` serving G2 is outdated by an edit
+    of G2, not by a new G4.
+  - **Adding a part** is checked for conflicts (identity and folders) when
+    proposed and again when approved, because the parts may change between.
+- **Coverage.** Every goal (`G`) must be served by at least one part for the
+  first map to be approved; the refusal names the unserved goals. After that,
+  an unserved goal is drift, shown and not blocking. Purpose, users,
+  boundaries and technical direction guide the map and need no part: a
+  boundary may say what is not built. Serving a goal is planned coverage,
+  never proof the goal is met.
+- **Mandatory parts** are recognised by `kind` on a top-level part. Several
+  parts may share a kind; one is enough.
+
 ## 23.6 Gates
 
 The gates are in the methods of the service that owns each write, so HTTP
@@ -236,7 +293,15 @@ contracts (§14). No plan write path skips it — today's tools included.
 A refusal is `STAGE_BLOCKED` with the reason (`vision incomplete: users,
 goals`; `missing part: database`) — an operation outcome, not a transport
 error, like `PLAN_BLOCKED`. The Planner reads the reason and returns to the
-missing step.
+missing step. Over HTTP it is `409` with the code `STAGE_BLOCKED`; over MCP
+it is a tool result whose text begins `STAGE_BLOCKED:` (§13.6). A hand edit
+after the first map meets the same gate: it may not leave a mandatory,
+unwaived kind without a top-level part.
+If a standards update adds a mandatory kind to an already approved map,
+that pre-existing gap is reported in `missing`; incremental part edits and
+approvals may repair it without first repairing every other gap. They may
+not introduce another missing kind. Creating structure rechecks all current
+mandatory kinds and refuses any unwaived gap.
 
 **After approval.** Changing an approved vision deletes nothing. The stage
 line names the change ("G3 added since the map; no part serves it"), the

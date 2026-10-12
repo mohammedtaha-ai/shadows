@@ -11,8 +11,33 @@ mod plan;
 use listening::{listening_app, ok, thread_client};
 
 #[tokio::test]
+async fn map_propose_before_a_complete_vision_answers_stage_blocked() {
+    let l = listening_app().await;
+    let op = app::start_settled(&l.app, "hang").await;
+    let client = thread_client(&l, &l.app.thread).await;
+    let (error, text) = listening::call(
+        &client,
+        "map_propose",
+        json!({"action":"first",
+        "parts":[{"key":"backend","content":{"title":"Backend","responsibility":"logic",
+            "design":"","kind":"backend"}}]}),
+    )
+    .await;
+    assert!(error);
+    assert!(text.starts_with("STAGE_BLOCKED:"), "{text}");
+    l.app.core.turns().stop(&op).await.unwrap();
+    client.cancel().await.unwrap();
+    app::shut_down_app(l.app).await;
+}
+
+#[tokio::test]
 async fn the_planner_proposes_vision_cards_but_an_external_agent_cannot() {
     let l = listening_app().await;
+    l.app
+        .storage
+        .seed_map_for_tests(&l.app.project)
+        .await
+        .unwrap();
     let op = app::start_settled(&l.app, "hang").await;
     for _ in 0..200 {
         if l.app.handles.running_for(&l.app.thread).await.as_ref() == Some(&op) {
@@ -47,6 +72,11 @@ async fn the_planner_proposes_vision_cards_but_an_external_agent_cannot() {
 #[tokio::test]
 async fn a_planner_reads_the_workspace_a_person_wrote() {
     let l = listening_app().await;
+    l.app
+        .storage
+        .seed_map_for_tests(&l.app.project)
+        .await
+        .unwrap();
     let vision: Vec<_> = [
         (VisionField::Purpose, "Review pull requests"),
         (VisionField::Users, "Small teams"),
@@ -61,6 +91,10 @@ async fn a_planner_reads_the_workspace_a_person_wrote() {
     })
     .collect();
     let part = PartContent {
+        serves: vec![],
+        folders: vec![],
+        files: vec![],
+        contract: Default::default(),
         title: "Backend".into(),
         responsibility: "Webhook and review flow".into(),
         design: String::new(),

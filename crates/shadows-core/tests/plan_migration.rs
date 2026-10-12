@@ -10,6 +10,55 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 const FROZEN: &str = "a frozen plan version never changes";
 
 #[tokio::test]
+async fn migration_0023_keeps_parts_and_starts_without_a_map() {
+    let tmp = tempfile::tempdir().unwrap();
+    let db = tmp.path().join("map.sqlite3");
+    let pool = migrated_to(&db, 22).await;
+    exec(
+        &pool,
+        "INSERT INTO project(id,slug,name,directory,created_at)
+        VALUES ('P','p','P','C:/p','2026-10-12')",
+    )
+    .await;
+    exec(
+        &pool,
+        "INSERT INTO design_workspace(project_id,revision,vision_revision,vision_content)
+        VALUES ('P',1,0,'{}')",
+    )
+    .await;
+    let old = r#"{"title":"core","responsibility":"logic","design":"","kind":"backend"}"#;
+    sqlx::query(
+        "INSERT INTO design_part(id,project_id,parent_id,revision,ordinal,content_json)
+        VALUES ('part','P',NULL,1,0,?)",
+    )
+    .bind(old)
+    .execute(&pool)
+    .await
+    .unwrap();
+    pool.close().await;
+    let storage = Storage::open(&db).await.unwrap();
+    let json: String = sqlx::query_scalar("SELECT content_json FROM design_part")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(json, old);
+    let part: shadows_core::PartContent = serde_json::from_str(&json).unwrap();
+    assert!(part.serves.is_empty() && part.folders.is_empty() && part.files.is_empty());
+    let map: i64 = sqlx::query_scalar("SELECT map_revision FROM design_workspace")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(map, 0);
+    assert!(
+        sqlx::query("PRAGMA foreign_key_check")
+            .fetch_all(storage.reader())
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[tokio::test]
 async fn migration_0022_turns_vision_text_into_items() {
     let tmp = tempfile::tempdir().unwrap();
     let db = tmp.path().join("vision.sqlite3");

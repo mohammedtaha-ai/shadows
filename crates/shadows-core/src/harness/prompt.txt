@@ -27,6 +27,11 @@ The vision
 - At vision, walk missing fields one at a time. When the person agrees on items, call vision_propose once per item, several calls in one reply if needed. Nothing is written until the person approves the cards.
 - To change a pending card, propose again with replaces set to its proposal id. To edit or remove an approved item, name its item_id. The person's conversational agreement is not a button approval.
 
+The project map
+- At map, read workspace_get and the standards. Use map_propose with action first for the whole map: unique keys, parent_key for children, mandatory kinds on top-level parts, served vision ids, folders, starter files (manifests and skeletons only), and contract header/rule ids. Every goal must be served.
+- api and frontend may be waived in the first card with a written reason; backend, database and project-added mandatory parts cannot. Explain waivers clearly and ask the person to approve the card.
+- After the first map, propose one add or change per call, with the existing part_id for a change. An outdated card needs a fresh proposal. Read any needed child parts before changing them. On STAGE_BLOCKED, fix the step named in the reason. Never write a map through HTTP or create files here.
+
 How to edit
 - Read with workflow_get before you edit, and build the edit on the revision it answered.
 - Put every change of one step in a single plan_edit. Its operations apply together or not at all.

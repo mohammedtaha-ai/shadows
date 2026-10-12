@@ -57,6 +57,10 @@ fn part(id: &PartId, title: &str) -> DesignOp {
         parent: None,
         before: None,
         content: PartContent {
+            serves: vec![],
+            folders: vec![],
+            files: vec![],
+            contract: Default::default(),
             title: title.into(),
             responsibility: "جزء".into(),
             design: "تصميم".into(),
@@ -65,6 +69,7 @@ fn part(id: &PartId, title: &str) -> DesignOp {
     }
 }
 async fn edit(core: &AppCore, p: &ProjectId, rev: i64, ops: Vec<DesignOp>) {
+    core.design().seed_map_for_tests(p).await.unwrap();
     assert_eq!(
         core.design()
             .edit(format!("edit-{p}-{rev}"), p, rev, ops)
@@ -178,6 +183,10 @@ async fn outcome_spans_parts_without_copying_them() {
         vec![DesignOp::PartPut {
             id: a.clone(),
             content: PartContent {
+                serves: vec![],
+                folders: vec![],
+                files: vec![],
+                contract: Default::default(),
                 title: "الخدمات".into(),
                 responsibility: "جزء".into(),
                 design: "تصميم جديد".into(),

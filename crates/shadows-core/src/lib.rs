@@ -34,11 +34,13 @@ pub use db::StorageError;
 pub use design::{
     AdditionalPart, AgreementContent, AgreementId, AgreementIssue, AgreementParticipantImpact,
     AgreementParty, AgreementPartyReview, AgreementReview, AgreementRole, AgreementState,
-    AgreementVersion, AgreementWriter, BaseStandards, ContractTemplate, Design, DesignAnchor,
-    DesignChange, DesignOp, DesignRevision, EffectiveStandards, MandatoryPart, Outcome,
-    OutcomeContent, OutcomeId, OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage,
-    PartView, Stage, StageView, StandardRule, StandardsAdditions, StandardsAdditionsVersion,
-    VisionContent, VisionField, VisionItem, VisionView, WorkspaceView, base_standards,
+    AgreementVersion, AgreementWriter, BaseStandards, ContractHead, ContractTemplate, Design,
+    DesignAnchor, DesignChange, DesignOp, DesignRevision, EffectiveStandards, InitialFile,
+    MandatoryPart, MapAction, MapProposal, MapPropose, Outcome, OutcomeContent, OutcomeId,
+    OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage, PartView, PartWaiver,
+    ProposedPart, ProposedWaiver, Stage, StageView, StandardRule, StandardsAdditions,
+    StandardsAdditionsVersion, VisionContent, VisionField, VisionItem, VisionView, WorkspaceView,
+    base_standards,
 };
 pub use design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub use error::{CoreError, ErrorCode};

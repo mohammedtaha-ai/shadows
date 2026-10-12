@@ -4,6 +4,8 @@ use crate::plans::{PlanId, Problem, WorkflowId};
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
+    #[error("{0}")]
+    StageBlocked(String),
     #[error("storage is unavailable: {0}")]
     Unavailable(String),
     #[error("migration failed: {0}")]

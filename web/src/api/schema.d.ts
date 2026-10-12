@@ -530,6 +530,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/map-proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["map_proposals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/map-proposals/{proposal_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approve_map_proposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/mcp-grants": {
         parameters: {
             query?: never;
@@ -1290,6 +1322,10 @@ export interface components {
             /** Format: int64 */
             tokens: number;
         };
+        ContractHead: {
+            header: string;
+            rules: string[];
+        };
         ContractTemplate: {
             rules: string[];
             shape: string[];
@@ -1507,7 +1543,7 @@ export interface components {
          *     Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
+        ErrorCode: "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
         /**
          * @description The task a person points at when they send a turn: the task's id, in the
          *     plan version and at the revision they were looking at. It is checked to
@@ -1590,6 +1626,10 @@ export interface components {
         } | {
             /** @enum {string} */
             state: "directory_missing";
+        };
+        InitialFile: {
+            content: string;
+            path: string;
         };
         /**
          * @description One saved version of a project's instructions. `id` is what an
@@ -1690,6 +1730,8 @@ export interface components {
             owns: string;
             waivable: boolean;
         };
+        /** @enum {string} */
+        MapAction: "first" | "add" | "change";
         MapLink: {
             after: components["schemas"]["PlanId"];
             broken: boolean;
@@ -1711,6 +1753,18 @@ export interface components {
             /** Format: int64 */
             version?: number | null;
             workflow_id?: null | components["schemas"]["WorkflowId"];
+        };
+        MapProposal: {
+            action: components["schemas"]["MapAction"];
+            created_at: string;
+            id: string;
+            old?: null | components["schemas"]["PartContent"];
+            outdated: boolean;
+            part_id?: null | components["schemas"]["PartId"];
+            parts: components["schemas"]["ProposedPart"][];
+            status: components["schemas"]["ProposalStatus"];
+            thread_id: components["schemas"]["ThreadId"];
+            waivers: components["schemas"]["ProposedWaiver"][];
         };
         /**
          * @description Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
@@ -1773,9 +1827,13 @@ export interface components {
             revision: number;
         };
         PartContent: {
+            contract?: components["schemas"]["ContractHead"];
             design: string;
+            files?: components["schemas"]["InitialFile"][];
+            folders?: string[];
             kind?: string | null;
             responsibility: string;
+            serves?: string[];
             title: string;
         };
         /** Format: uuid */
@@ -1981,6 +2039,16 @@ export interface components {
         };
         /** @enum {string} */
         ProposalStatus: "Pending" | "Approved" | "Superseded";
+        ProposedPart: {
+            content: components["schemas"]["PartContent"];
+            key: string;
+            parent?: null | components["schemas"]["PartId"];
+            parent_key?: string | null;
+        };
+        ProposedWaiver: {
+            part: string;
+            reason: string;
+        };
         PutLink: {
             /** @description The idempotency key (spec §13.5), scoped to the project. */
             command_id: string;
@@ -2073,6 +2141,7 @@ export interface components {
         /** @enum {string} */
         Stage: "idea" | "vision" | "map" | "structure";
         StageView: {
+            drift?: string[];
             /** @description Missing vision field names at vision; mandatory part names at map. */
             missing: string[];
             stage: components["schemas"]["Stage"];
@@ -2187,7 +2256,7 @@ export interface components {
          *     an enum, so no stored row is rewritten.
          * @enum {string}
          */
-        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "Subagent" | "PermissionRefused" | "PlanView" | "PlanApproved" | "VisionProposal";
+        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "Subagent" | "PermissionRefused" | "PlanView" | "PlanApproved" | "VisionProposal" | "MapProposal";
         /** Format: uuid */
         ThreadId: string;
         /**
@@ -4014,6 +4083,101 @@ export interface operations {
             };
             /** @description Unknown or removed project */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    map_proposals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapProposal"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    approve_map_proposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ProjectId"];
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisionApprove"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignChange"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

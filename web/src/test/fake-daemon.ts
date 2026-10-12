@@ -179,6 +179,7 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
       purpose: [], users: [], goals: [], boundaries: [], technical_direction: [],
     } },
     'GET /api/projects/p1/vision-proposals': [],
+    'GET /api/projects/p1/map-proposals': [],
     'GET /api/projects/p1/code/links': [],
     'GET /api/code/settings': { active_limit: 5 },
     // Any grant the test gave the project can be revoked.
