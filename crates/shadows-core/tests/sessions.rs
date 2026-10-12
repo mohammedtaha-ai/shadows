@@ -24,6 +24,7 @@ async fn fixture(config: SessionsConfig) -> Fixture {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: "c1".into(),
@@ -116,6 +117,7 @@ async fn a_removed_thread_cannot_reuse_its_still_open_adapter() {
     let fx = fixture(SessionsConfig::default()).await;
     fx.sessions.open(&fx.thread).await.unwrap();
     let ctx = CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: "remove".into(),
@@ -266,6 +268,7 @@ async fn second_thread(fx: &Fixture) -> ThreadId {
         .project_id;
     let params = serde_json::json!({ "slug": "demo" });
     let ctx = CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: "c3".into(),

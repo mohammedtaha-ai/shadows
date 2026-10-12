@@ -304,6 +304,7 @@ async fn after_a_restart_the_next_turn_resumes_the_recorded_session() {
     let db = tmp.path().join("s.sqlite3");
     let first = Daemon::start(&db).await;
     let ctx = |id: &str, kind: &str| shadows_core::testing::CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: id.into(),

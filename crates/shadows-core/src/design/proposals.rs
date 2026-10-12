@@ -31,6 +31,8 @@ pub enum ProposalStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct VisionProposal {
+    #[serde(default)]
+    pub approved_by: Option<crate::command::ApprovedBy>,
     pub id: String,
     pub thread_id: ThreadId,
     pub action: VisionAction,
@@ -90,6 +92,7 @@ impl Design {
         );
         let (kind, id) = writer.principal();
         let ctx = CommandContext {
+            agent: None,
             principal_kind: kind.into(),
             principal_id: id,
             command_id: derived_id(Anchor::Operation(&op), &fp),
@@ -122,7 +125,7 @@ impl Design {
             serde_json::json!({"project":project,"proposal":proposal}),
         );
         self.storage
-            .approve_vision_proposal_in(&ctx, project, proposal)
+            .approve_vision_proposal_in(&ctx, project, proposal, &crate::command::Approver::Person)
             .await
             .map_err(core_error)
     }

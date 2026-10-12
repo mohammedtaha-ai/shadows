@@ -454,6 +454,26 @@
         ],
         "type": "object"
       },
+      "ApprovalRequest": {
+        "properties": {
+          "entry_id": {
+            "$ref": "#/components/schemas/ThreadEntryId"
+          },
+          "ordinal": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId"
+          }
+        },
+        "required": [
+          "thread_id",
+          "entry_id",
+          "ordinal"
+        ],
+        "type": "object"
+      },
       "ApprovePlan": {
         "properties": {
           "command_id": {
@@ -495,6 +515,31 @@
           "version",
           "revision",
           "frozen_at"
+        ],
+        "type": "object"
+      },
+      "ApprovedBy": {
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "principal": {
+            "type": "string"
+          },
+          "request": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ApprovalRequest"
+              }
+            ]
+          }
+        },
+        "required": [
+          "principal",
+          "agent"
         ],
         "type": "object"
       },
@@ -2247,6 +2292,16 @@
           "action": {
             "$ref": "#/components/schemas/MapAction"
           },
+          "approved_by": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ApprovedBy"
+              }
+            ]
+          },
           "created_at": {
             "type": "string"
           },
@@ -2675,6 +2730,16 @@
       "Plan": {
         "description": "One stored version of a plan, as a reader sees it now (§13.2).",
         "properties": {
+          "approved_by": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ApprovedBy"
+              }
+            ]
+          },
           "bindings": {
             "items": {
               "$ref": "#/components/schemas/AgreementBinding"
@@ -4267,6 +4332,16 @@
         "properties": {
           "action": {
             "$ref": "#/components/schemas/VisionAction"
+          },
+          "approved_by": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ApprovedBy"
+              }
+            ]
           },
           "created_at": {
             "type": "string"

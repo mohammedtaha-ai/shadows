@@ -19,6 +19,7 @@ fn ctx(command_id: &str, params: &serde_json::Value) -> CommandContext {
 
 fn ctx_kind(command_id: &str, kind: &str, params: &serde_json::Value) -> CommandContext {
     CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: command_id.into(),

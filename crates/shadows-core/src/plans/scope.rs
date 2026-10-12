@@ -259,6 +259,7 @@ pub(super) fn command(
 ) -> CommandContext {
     let (principal_kind, principal_id) = writer.principal();
     CommandContext {
+        agent: None,
         principal_kind: principal_kind.into(),
         principal_id,
         command_id,

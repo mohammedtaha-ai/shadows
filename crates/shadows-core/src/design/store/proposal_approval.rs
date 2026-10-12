@@ -10,11 +10,15 @@ impl Storage {
         ctx: &CommandContext,
         project: &ProjectId,
         proposal: &str,
+        approver: &crate::command::Approver,
     ) -> Result<DesignChange, StorageError> {
-        let (ctx, project, proposal, ts) =
+        let (mut ctx, project, proposal, ts) =
             (ctx.clone(), project.clone(), proposal.to_string(), now());
+        let approver = approver.clone();
         self.write_txn(move |conn| {
             Box::pin(async move {
+                let request = crate::db::approval::authorise_in(conn, &approver, &project).await?;
+                ctx.agent = Some(approver.agent());
                 if let Some(id) = classify(conn, &ctx, "Project", project.as_str()).await? {
                     let json: String = sqlx::query_scalar(
                         "SELECT result_json FROM design_command_result
@@ -125,10 +129,13 @@ impl Storage {
                 )
                 .await?;
                 sqlx::query(
-                    "UPDATE design_vision_proposal SET status='Approved',item_id=?
+                    "UPDATE design_vision_proposal SET status='Approved',item_id=?,
+                 approved_principal='user:local',approved_agent=?,approved_request_entry=?
                 WHERE id=? AND project_id=?",
                 )
                 .bind(new_id.or(p.item_id))
+                .bind(approver.agent())
+                .bind(request.as_ref().map(|r| r.as_str()))
                 .bind(&proposal)
                 .bind(project.as_str())
                 .execute(&mut *conn)
@@ -143,12 +150,10 @@ impl Storage {
                 .bind(serde_json::to_string(&change)?)
                 .execute(&mut *conn)
                 .await?;
-                let event = crate::events::DurableEvent::new(
-                    "ProjectDesignChanged",
-                    crate::events::Actor::user(&ctx.principal_id),
-                )
-                .with_project(&project)
-                .with_payload(serde_json::json!({"project_id":project,"revision":next,
+                let event =
+                    crate::events::DurableEvent::new("ProjectDesignChanged", approver.actor())
+                        .with_project(&project)
+                        .with_payload(serde_json::json!({"project_id":project,"revision":next,
                     "changed_parts":[],"changed_outcomes":[],"vision_changed":true}));
                 append_event(conn, &event, &ts).await?;
                 record_command(

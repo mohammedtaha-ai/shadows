@@ -33,6 +33,7 @@ fn context(
 ) -> Result<CommandContext, CoreError> {
     let (principal_kind, principal_id) = writer(grant)?.principal();
     Ok(CommandContext {
+        agent: None,
         principal_kind: principal_kind.into(),
         principal_id,
         command_id: id,

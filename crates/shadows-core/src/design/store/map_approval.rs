@@ -12,10 +12,14 @@ impl Storage {
         ctx: &CommandContext,
         p: &ProjectId,
         id: &str,
+        approver: &crate::command::Approver,
     ) -> Result<DesignChange, StorageError> {
-        let (ctx, p, id, ts) = (ctx.clone(), p.clone(), id.to_owned(), now());
+        let (mut ctx, p, id, ts) = (ctx.clone(), p.clone(), id.to_owned(), now());
+        let approver = approver.clone();
         self.write_txn(move |conn| {
             Box::pin(async move {
+                let request = crate::db::approval::authorise_in(conn, &approver, &p).await?;
+                ctx.agent = Some(approver.agent());
                 if let Some(result) = classify(conn, &ctx, "Project", p.as_str()).await? {
                     let json: String = sqlx::query_scalar(
                         "SELECT result_json FROM design_command_result WHERE id=? AND project_id=?",
@@ -28,6 +32,14 @@ impl Storage {
                 }
                 let vision = super::proposal_read::live_vision(conn, &p).await?;
                 let proposal = super::map_proposal_read::load(conn, &p, &id).await?;
+                if matches!(approver, crate::command::Approver::Planner { .. })
+                    && proposal.action == MapAction::First
+                    && !proposal.waivers.is_empty()
+                {
+                    return Err(StorageError::Constraint(
+                        "a first map with waivers is approved by the person's button".into(),
+                    ));
+                }
                 if proposal.status != ProposalStatus::Pending || proposal.outdated {
                     return Err(StorageError::Constraint(
                         "proposal is approved, superseded or outdated; \
@@ -159,8 +171,12 @@ impl Storage {
                         .await?;
                 let change = DesignChange { revision };
                 sqlx::query(
-                    "UPDATE design_map_proposal SET status='Approved' WHERE project_id=? AND id=?",
+                    "UPDATE design_map_proposal SET status='Approved',
+                     approved_principal='user:local',approved_agent=?,approved_request_entry=?
+                     WHERE project_id=? AND id=?",
                 )
+                .bind(approver.agent())
+                .bind(request.as_ref().map(|r| r.as_str()))
                 .bind(p.as_str())
                 .bind(&id)
                 .execute(&mut *conn)
@@ -172,12 +188,10 @@ impl Storage {
                     .bind(serde_json::to_string(&change)?)
                     .execute(&mut *conn)
                     .await?;
-                let event = crate::events::DurableEvent::new(
-                    "ProjectDesignChanged",
-                    crate::events::Actor::user(&ctx.principal_id),
-                )
-                .with_project(&p)
-                .with_payload(serde_json::json!({"project_id":p,"revision":revision,
+                let event =
+                    crate::events::DurableEvent::new("ProjectDesignChanged", approver.actor())
+                        .with_project(&p)
+                        .with_payload(serde_json::json!({"project_id":p,"revision":revision,
                     "changed_parts":changed,"changed_outcomes":[],"vision_changed":false}));
                 append_event(conn, &event, &ts).await?;
                 record_command(

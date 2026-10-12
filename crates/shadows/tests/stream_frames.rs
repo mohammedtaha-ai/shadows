@@ -53,6 +53,7 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
 
     let params = serde_json::json!({});
     let ctx = |id: &str, kind: &str| CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: id.into(),

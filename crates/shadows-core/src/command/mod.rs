@@ -4,12 +4,15 @@ use crate::events::Actor;
 use crate::grants::GrantId;
 use crate::threads::ThreadId;
 
+pub mod approver;
 pub mod derive;
+pub use approver::{ApprovalRequest, ApprovedBy, Approver};
 
 /// Spec section 5.2, external write origin: everything needed to decide whether
 /// a submission is new, a replay, or a conflict.
 #[derive(Debug, Clone)]
 pub struct CommandContext {
+    pub agent: Option<String>,
     pub principal_kind: String,
     pub principal_id: String,
     pub command_id: String,

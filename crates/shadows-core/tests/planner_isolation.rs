@@ -25,6 +25,7 @@ use shadows_core::testing::turn;
 async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> ThreadId {
     let params = serde_json::json!({ "slug": slug });
     let ctx = CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: format!("{slug}-project"),

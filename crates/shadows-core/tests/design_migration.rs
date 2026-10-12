@@ -122,6 +122,19 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
 
     let storage = Storage::open(&path).await.unwrap();
     assert_eq!(old_rows(storage.reader()).await, before);
+    let audit: (String, String) =
+        sqlx::query_as("SELECT approved_principal,approved_agent FROM workflow WHERE id='W'")
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(audit, ("user:local".into(), "human".into()));
+    assert!(
+        sqlx::query("UPDATE workflow SET title='illegal' WHERE id='W'")
+            .execute(storage.reader())
+            .await
+            .is_err(),
+        "frozen guard survives backfill"
+    );
     let faults = sqlx::query("PRAGMA foreign_key_check")
         .fetch_all(storage.reader())
         .await
@@ -190,6 +203,7 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
         },
     ];
     let command = CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: "migration-edit".into(),

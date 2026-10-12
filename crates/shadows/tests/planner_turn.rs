@@ -57,6 +57,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
 
     let params = json!({ "slug": "demo" });
     let ctx = CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: "c1".into(),

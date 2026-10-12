@@ -77,6 +77,7 @@ impl Storage {
                 .execute(&mut *conn)
                 .await?;
                 let p = VisionProposal {
+                    approved_by: None,
                     id: uuid::Uuid::new_v4().to_string(),
                     thread_id: thread.clone(),
                     action: args.action,

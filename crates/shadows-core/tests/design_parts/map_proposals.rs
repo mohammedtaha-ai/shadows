@@ -139,6 +139,12 @@ async fn first_map_approval_records_waiver_and_replays_once() {
         .await
         .unwrap();
     assert_eq!(a, b);
+    let proposals = f.core.design().map_proposals(&f.p).await.unwrap();
+    let approved = proposals.iter().find(|x| x.id == p.id).unwrap();
+    assert_eq!(
+        serde_json::to_value(approved).unwrap()["approved_by"]["agent"],
+        "human"
+    );
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM design_map_version")
         .fetch_one(f.storage.reader())
         .await

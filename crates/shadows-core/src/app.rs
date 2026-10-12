@@ -90,6 +90,7 @@ pub(crate) fn user_command(
     params: serde_json::Value,
 ) -> CommandContext {
     CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id,

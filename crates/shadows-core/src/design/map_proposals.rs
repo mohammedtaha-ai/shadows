@@ -45,6 +45,8 @@ pub struct MapPropose {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MapProposal {
+    #[serde(default)]
+    pub approved_by: Option<crate::command::ApprovedBy>,
     pub id: String,
     pub thread_id: ThreadId,
     pub action: MapAction,
@@ -91,6 +93,7 @@ impl Design {
         );
         let (kind, id) = writer.principal();
         let ctx = CommandContext {
+            agent: None,
             principal_kind: kind.into(),
             principal_id: id,
             command_id: derived_id(Anchor::Operation(&turn), &fp),
@@ -118,7 +121,7 @@ impl Design {
             serde_json::json!({"project":project,"proposal":proposal}),
         );
         self.storage
-            .approve_map_proposal_in(&ctx, project, proposal)
+            .approve_map_proposal_in(&ctx, project, proposal, &crate::command::Approver::Person)
             .await
             .map_err(super::proposals::core_error)
     }

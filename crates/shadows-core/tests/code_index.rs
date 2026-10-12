@@ -56,6 +56,7 @@ async fn eventually<F: Future<Output = bool>>(check: impl Fn() -> F) {
 
 async fn new_project(storage: &Storage, slug: &str, dir: &std::path::Path) -> ProjectId {
     let ctx = CommandContext {
+        agent: None,
         principal_kind: "User".into(),
         principal_id: "local".into(),
         command_id: format!("c-{slug}"),

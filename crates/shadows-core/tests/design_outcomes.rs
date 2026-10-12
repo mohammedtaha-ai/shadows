@@ -10,6 +10,7 @@ use std::sync::Arc;
 fn ctx(writer: &Writer, id: &str, kind: &str) -> CommandContext {
     let (principal_kind, principal_id) = writer.principal();
     CommandContext {
+        agent: None,
         principal_kind: principal_kind.into(),
         principal_id,
         command_id: id.into(),

@@ -33,6 +33,7 @@ pub fn writer_ctx(
 ) -> CommandContext {
     let (principal_kind, principal_id) = writer.principal();
     CommandContext {
+        agent: None,
         principal_kind: principal_kind.into(),
         principal_id,
         command_id: command_id.into(),
@@ -54,6 +55,7 @@ pub fn edit_ctx(
     let fp = fingerprint("PlanEdit", &params);
     let (principal_kind, principal_id) = writer.principal();
     CommandContext {
+        agent: None,
         principal_kind: principal_kind.into(),
         principal_id,
         command_id: derived_id(Anchor::Revision(expected), &fp),

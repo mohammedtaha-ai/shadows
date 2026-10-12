@@ -2,6 +2,8 @@
 # Reads lazily return an empty revision-zero vision for a live project.
 # Replay precedes project/revision validation and returns an immutable result.
 name: design
+# Approval stores derive principal/agent/request in one transaction (§24.1).
+# Planner grants and running turns are rechecked before replay; waiver maps are human-only.
 version: 1
 status: current
 source: crates/shadows-core/src/design

@@ -197,6 +197,8 @@ pub struct LastEdit {
 /// One stored version of a plan, as a reader sees it now (§13.2).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct Plan {
+    #[serde(default)]
+    pub approved_by: Option<crate::command::ApprovedBy>,
     pub id: WorkflowId,
     pub plan_id: PlanId,
     pub plan_state: PlanState,
