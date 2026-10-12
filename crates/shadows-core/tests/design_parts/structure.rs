@@ -299,3 +299,72 @@ async fn concurrent_calls_write_once() {
         "structure already written",
     );
 }
+
+#[tokio::test]
+async fn a_recorded_file_with_a_temp_suffix_is_never_cleaned_up() {
+    let (_tmp, _storage, core, p, dir) = setup().await;
+    let backend = core
+        .design()
+        .parts(&p, None, None)
+        .await
+        .unwrap()
+        .items
+        .into_iter()
+        .find(|part| part.content.title == "backend")
+        .unwrap();
+    let mut content = backend.content;
+    for path in [
+        "backend/contract.yaml.shadows-tmp",
+        "backend/contract.yaml.shadows-tmp.shadows-tmp",
+    ] {
+        content.files.push(InitialFile {
+            path: path.into(),
+            content: "approved starter".into(),
+        });
+    }
+    core.design()
+        .edit(
+            "temp-suffix".into(),
+            &p,
+            1,
+            vec![DesignOp::PartPut {
+                id: backend.id,
+                content,
+            }],
+        )
+        .await
+        .unwrap();
+    assert!(
+        core.design()
+            .create_structure_stopping_after("stop".into(), &p, 8)
+            .await
+            .is_err()
+    );
+    let recorded = dir.join("backend/contract.yaml.shadows-tmp");
+    std::fs::write(&recorded, "person's changed bytes").unwrap();
+    blocked(
+        core.design().create_structure("resume".into(), &p).await,
+        "backend/contract.yaml.shadows-tmp",
+    );
+    assert_eq!(
+        std::fs::read_to_string(&recorded).unwrap(),
+        "person's changed bytes"
+    );
+    assert!(dir.join("database/src/initial.txt.shadows-tmp").exists());
+    std::fs::write(&recorded, "approved starter").unwrap();
+    let written = core
+        .design()
+        .create_structure("resume".into(), &p)
+        .await
+        .unwrap();
+    assert!(written.resumed);
+    for path in [
+        "backend/contract.yaml.shadows-tmp",
+        "backend/contract.yaml.shadows-tmp.shadows-tmp",
+    ] {
+        assert_eq!(
+            std::fs::read_to_string(dir.join(path)).unwrap(),
+            "approved starter"
+        );
+    }
+}

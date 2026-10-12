@@ -57,6 +57,23 @@ fn directories(plan: &Planned) -> BTreeSet<String> {
     dirs
 }
 
+fn temporary_paths(plan: &Planned) -> BTreeMap<&str, String> {
+    let mut occupied: BTreeSet<_> = directories(plan)
+        .into_iter()
+        .chain(plan.files.iter().map(|f| f.path.clone()))
+        .map(|p| p.to_lowercase())
+        .collect();
+    let mut result = BTreeMap::new();
+    for file in &plan.files {
+        let mut temp = format!("{}.shadows-tmp", file.path);
+        while !occupied.insert(temp.to_lowercase()) {
+            temp.push_str(".shadows-tmp");
+        }
+        result.insert(file.path.as_str(), temp);
+    }
+    result
+}
+
 /// Read the entire directory before deleting even a single temporary file.
 pub(super) async fn check(
     root: &Path,
@@ -68,7 +85,7 @@ pub(super) async fn check(
         .iter()
         .map(|f| (f.path.as_str(), &f.bytes))
         .collect();
-    let temps: BTreeSet<_> = files.keys().map(|p| format!("{p}.shadows-tmp")).collect();
+    let temps: BTreeSet<_> = temporary_paths(plan).into_values().collect();
     let dirs = directories(plan);
     let mut stack = vec![String::new()];
     let mut unexpected = Vec::new();
@@ -101,13 +118,13 @@ pub(super) async fn check(
                 unexpected.push(relative);
             } else if meta.is_dir() && dirs.contains(&relative) {
                 stack.push(relative);
-            } else if meta.is_file() && temps.contains(&relative) {
-                cleanup.push(entry.path());
             } else if meta.is_file() && files.contains_key(relative.as_str()) {
                 let bytes = tokio::fs::read(entry.path()).await.map_err(io)?;
                 if sha256_hex(&bytes) != sha256_hex(files[relative.as_str()]) {
                     unexpected.push(relative);
                 }
+            } else if meta.is_file() && temps.contains(&relative) {
+                cleanup.push(entry.path());
             } else {
                 unexpected.push(relative);
             }
@@ -157,6 +174,7 @@ pub(super) async fn write(
         }
     }
     let mut written = 0;
+    let temps = temporary_paths(plan);
     for file in &plan.files {
         let path = joined(root, &file.path)?;
         match tokio::fs::symlink_metadata(&path).await {
@@ -172,7 +190,7 @@ pub(super) async fn write(
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => return Err(io(e)),
         }
-        let temp = joined(root, &format!("{}.shadows-tmp", file.path))?;
+        let temp = joined(root, &temps[file.path.as_str()])?;
         let mut output = tokio::fs::OpenOptions::new()
             .create_new(true)
             .write(true)

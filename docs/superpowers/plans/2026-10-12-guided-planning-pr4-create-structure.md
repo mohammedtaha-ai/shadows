@@ -230,7 +230,9 @@ CREATE TABLE design_structure_write (
      content differs) refuses with `STAGE_BLOCKED: unexpected files: <list>`
      and changes nothing.
   5. Create folders; for each file not already correct, write
-     `<path>.shadows-tmp`, flush and sync, publish without replacing an existing
+     `<path>.shadows-tmp` (append the suffix again until the temporary name
+     conflicts with no planned file, folder or other temporary name), flush
+     and sync, publish without replacing an existing
      destination, then remove the temporary name. A same-directory hard link
      supplies atomic no-clobber publication; ordinary rename replaces existing
      destinations on Unix and would violate §23.7's foreign-file protection.

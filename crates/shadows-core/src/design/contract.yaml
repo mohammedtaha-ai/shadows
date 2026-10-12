@@ -3,6 +3,8 @@
 # Map paths reject Windows device names and Shadows-owned initial files.
 # Rendering rechecks old snapshots and emits contracts with yaml-rust2.
 # Structure writes pin map and standards, persist hashes before writing, refuse
+# Temporary names avoid all planned files, folders and other temporary names;
+# recorded file hashes are checked before temporary cleanup classification.
 # foreign/changed files before cleanup, publish without clobbering, and move to
 # roadmap only on committed completion. No MCP method invokes this operation.
 # Held by reserved_initial_files_are_refused, windows_device_names_are_refused,
@@ -428,6 +430,8 @@ obligations:
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
 
 tests:
+  - name: a_recorded_file_with_a_temp_suffix_is_never_cleaned_up
+    checks: Changed approved temp-suffixed filenames refuse without deletion; restoration resumes.
   - name: create_structure_writes_exactly_the_approved_files
     checks: Approved bytes, contracts, SHADOWS.md, roadmap and one durable event.
   - name: a_stopped_write_resumes
