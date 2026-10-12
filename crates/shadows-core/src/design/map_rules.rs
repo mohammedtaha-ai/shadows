@@ -140,10 +140,14 @@ pub(crate) fn check_shape(
             folders.push((part.key, normalise_folder(folder)?.to_lowercase()));
         }
         for file in &part.content.files {
-            check_reserved(
-                &file.path,
-                parts.iter().filter_map(|p| p.content.folders.first()),
-            )?;
+            // Only the parts this write changes: an older part's reserved file
+            // must not block the change that removes another's (§23.6 repair).
+            if written.contains(&part.key) {
+                check_reserved(
+                    &file.path,
+                    parts.iter().filter_map(|p| p.content.folders.first()),
+                )?;
+            }
             let path = normalise_folder(&file.path)?.to_lowercase();
             if !part
                 .content
@@ -294,9 +298,18 @@ mod tests {
                 additions: None,
             };
             assert_eq!(
-                check_shape(&parts, &[], &VisionContent::default(), &standards),
+                check_shape(&parts, &["p1"], &VisionContent::default(), &standards),
                 Err(format!("reserved path: {path}"))
             );
+            // An unchanged part's reserved file never blocks another part's
+            // change: each can then be repaired one at a time. (A root
+            // SHADOWS.md is also outside its part's folders, refused anyway.)
+            if path != "SHADOWS.md" {
+                assert_eq!(
+                    check_shape(&parts, &[], &VisionContent::default(), &standards),
+                    Ok(())
+                );
+            }
         }
     }
 }
