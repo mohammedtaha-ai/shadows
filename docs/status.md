@@ -271,7 +271,11 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 
 ## Next
 
-**The next guided-planning slice is §23 PR 2, vision proposals** (§23.9).
+**§23 PR 2 is implemented locally on `next/guided-planning-pr2`**: stable vision
+items, stored versions, Planner proposal cards and person HTTP approval. The
+[dated evidence](./evidence/2026-10-12-guided-planning-pr2.md) records actual
+Windows/Claude browser acceptance and final gate status. It is not merged.
+The next guided-planning slice is PR 3, map proposals; §24 remains PR 3b.
 PR 1's browser acceptance remains partial as recorded above. §18 Stage 3,
 focused Planner context, has not started and remains later work in the full
 delivery roadmap. The four

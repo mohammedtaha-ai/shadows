@@ -1,6 +1,6 @@
 # §23 PR 2 — Vision Proposals Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** The vision becomes five lists of items with stable ids.
 - The Planner proposes one item change per card with `vision_propose`.
@@ -147,7 +147,7 @@ Record each as a ledger `Ruling:` line at Task 1.
   ```
   The counters live in `design_workspace.vision_counters`, a JSON column. They are read and written in the same write as the vision, so issuing an id never reads the history (Codex review: the cost would grow with the history). `PU` is matched before `U` in `of_id`, and the id after the prefix must be all digits.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `design_vision.rs`:
 1. Replace the `content(text)` helper and the existing `VisionPut` tests with item-op equivalents. Keep their assertions on atomicity, replay and revision.
@@ -242,12 +242,12 @@ Update `design_routes.rs` `vision_routes_round_trip_conflict_and_preserve_conver
 - the request ops become `VisionItemAdd`;
 - the expected `content` becomes lists of `{ id, text, approved_from: null }`.
 
-- [ ] **Step 2: Run them to see them fail**
+- [x] **Step 2: Run them to see them fail**
 
 Run: `… cargo test -p shadows-core --test design_vision`
 Expected: compile errors on `VisionField` / `VisionItemAdd`.
 
-- [ ] **Step 3: Write the migration** `0022_vision_items.sql`
+- [x] **Step 3: Write the migration** `0022_vision_items.sql`
 
 ```sql
 -- §23.3: the vision's five fields become lists of items with stable ids, and
@@ -311,7 +311,7 @@ SELECT project_id, vision_revision, vision_content, NULL, strftime('%Y-%m-%dT%H:
 
 Check that `json_object(…, 'approved_from', NULL)` stores JSON `null`; the migration test asserts it.
 
-- [ ] **Step 4: Write the model and `vision_items.rs`.** `apply`:
+- [x] **Step 4: Write the model and `vision_items.rs`.** `apply`:
   - **`VisionItemAdd`:** needs `id_for_add` and refuses a blank `text`. It pushes `VisionItem { id, text, approved_from: from.cloned() }` onto the field's list.
   - **`VisionItemPut`:** finds the item by id in the field `VisionField::of_id` names; when the id is unknown it returns `Err("G9 is not in the vision")`. It replaces `text`, sets `approved_from = from.cloned()`, and raises `revision` by one. An add starts at `revision: 1`.
   - **`VisionItemRemove`:** removes the item; an unknown id is an error.
@@ -328,7 +328,7 @@ Check that `json_object(…, 'approved_from', NULL)` stores JSON `null`; the mig
   `VisionCounters::slot_mut(field) -> &mut u32` picks the field's counter.
   `of_id` tries `PU` first, then `U`, `G`, `B`, `T`, and needs a digits-only rest.
 
-- [ ] **Step 5: Wire the store**
+- [x] **Step 5: Wire the store**
 
 In `edit_design`, replace the `VisionPut` arm by collecting the vision ops in order. If there are any, after the part and outcome ops:
 1. Load the current content and `vision_counters`.
@@ -340,7 +340,7 @@ An `apply` error becomes `StorageError::Constraint(message)`; `Design::edit` alr
 
 In `stage.rs`, change the "empty" test to `items(field).is_empty()`.
 
-- [ ] **Step 6: Run the tests**
+- [x] **Step 6: Run the tests**
 
 Run:
 1. `… cargo test -p shadows-core --test design_vision`
@@ -354,7 +354,7 @@ Run:
 
 Expected: all pass. `schema.d.ts` changes.
 
-- [ ] **Step 7: Contract, code map, commit**
+- [x] **Step 7: Contract, code map, commit**
   - **`design/contract.yaml`:**
     - shapes: `VisionItem`, `VisionField`, the new `VisionContent`;
     - `DesignOp` vision variants;
@@ -429,7 +429,7 @@ Ruling 8: the proposal table goes in `0022` with the items, since neither is on 
   }
   ```
 
-- [ ] **Step 1: Write the failing tests** in `tests/design_vision/proposals.rs`.
+- [x] **Step 1: Write the failing tests** in `tests/design_vision/proposals.rs`.
   - **Setup:**
     - Reuse the fixture the `planner_mcp`/`plan_in_conversation` tests use to get a thread grant with a running turn, if one is reachable from `shadows-core` tests through `shadows_core::testing`. Find it with LSP `workspaceSymbol` "running_for" or the test files.
     - If none is reachable, set the turn running by writing the handle directly through `testing::LiveHandles` the way `plans`' show tests do.
@@ -512,12 +512,12 @@ async fn a_proposal_names_a_known_item_and_carries_text() {
 
 Write each body in full in the test file. The comments above are the exact assertions.
 
-- [ ] **Step 2: Run them to see them fail**
+- [x] **Step 2: Run them to see them fail**
 
 Run: `… cargo test -p shadows-core --test design_vision proposals`
 Expected: compile errors, unknown `propose_vision`.
 
-- [ ] **Step 3: Append to `0022_vision_items.sql`**
+- [x] **Step 3: Append to `0022_vision_items.sql`**
 
 ```sql
 CREATE TABLE design_vision_proposal (
@@ -543,9 +543,9 @@ CREATE TABLE design_vision_proposal (
 
 `seq` is the project's proposal order, MAX+1 inside the write, so listings never rely on insertion order (CLAUDE.md "Ordering is explicit"). A proposal on a project with no `design_workspace` row creates that row first, as `edit_design` does. Use the planning-thread table name that `thread_entry` references; check it in `0001`.
 
-- [ ] **Step 4: Write `ThreadEntryKind::VisionProposal`.** Add it to `as_str` and `parse`, with the doc "a vision proposal's card (§23.5); its `card` is the proposal as proposed".
+- [x] **Step 4: Write `ThreadEntryKind::VisionProposal`.** Add it to `as_str` and `parse`, with the doc "a vision proposal's card (§23.5); its `card` is the proposal as proposed".
 
-- [ ] **Step 5: Write the store.** It holds `propose_vision_in` and `approve_vision_proposal_in`, each one `write_txn`, plus `list_vision_proposals`.
+- [x] **Step 5: Write the store.** It holds `propose_vision_in` and `approve_vision_proposal_in`, each one `write_txn`, plus `list_vision_proposals`.
   - **Propose** (the command is classified on Thread scope, like `show_plan`):
     1. `check_writer`.
     2. Validate the action's required fields, and for edit/remove that the item exists; read `old_text` and `expected_item_revision` from it.
@@ -576,7 +576,7 @@ CREATE TABLE design_vision_proposal (
     }
     ```
 
-- [ ] **Step 6: Write the service** (`design/proposals.rs`).
+- [x] **Step 6: Write the service** (`design/proposals.rs`).
   - **`propose_vision`:**
     - Derive the writer from the grant; a `Writer::External` is refused `GRANT_SCOPE` "vision_propose needs a Planner's conversation".
     - The running turn comes from `self.handles.running_for(thread)`; none is refused `INVALID_COMMAND`.
@@ -584,7 +584,7 @@ CREATE TABLE design_vision_proposal (
   - **`approve_vision_proposal`:** built with `user_command(command_id, "VisionProposalApprove", json!({ "project": project, "proposal": proposal }))`.
   - **`vision_proposals`:** returns all of them, ordered by `seq`.
 
-- [ ] **Step 7: Run the tests**
+- [x] **Step 7: Run the tests**
 
 Run:
 1. `… cargo test -p shadows-core --test design_vision`
@@ -593,7 +593,7 @@ Run:
 
 Expected: all pass.
 
-- [ ] **Step 8: Contracts and commit**
+- [x] **Step 8: Contracts and commit**
   - **`design/contract.yaml`:**
     - shapes and the three methods;
     - obligations, each with its test from Step 1:
@@ -625,16 +625,16 @@ git commit -m "§23.5: vision proposals as cards, approved one item at a time"
 - Consumes: `Design::propose_vision(grant, VisionPropose)` (Task 2).
 - Produces: the MCP tool `vision_propose` with arguments `{ action, field?, item_id?, text?, replaces? }`, answering the `VisionProposal` JSON.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - **In `workspace_mcp.rs`:** a thread grant with a running turn calls `vision_propose` `{ "action": "add", "field": "goals", "text": "Ship" }`. The answer has `status: "Pending"`, and a project grant's tool list has no `vision_propose`.
   - **In `mcp_tools.rs`:** update the expected thread tool list.
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `… cargo test -p shadows --test workspace_mcp`
 Expected: FAIL, unknown tool.
 
-- [ ] **Step 3: Implement the tool** in `workspace_tools.rs`:
+- [x] **Step 3: Implement the tool** in `workspace_tools.rs`:
 
 ```rust
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -655,7 +655,7 @@ pub(super) struct VisionProposeArgs {
 - **Body:** it calls `self.core.design().propose_vision(&grant, …)` and goes through `answer(…map_err(Refusal::from))`.
 - **Schema derive:** if `VisionAction`/`VisionField` do not derive `schemars::JsonSchema`, take them as `String` and parse, refusing `INVALID_COMMAND`. Follow what `PlanShowArgs` does for `place`.
 
-- [ ] **Step 4: Update the prompt.**
+- [x] **Step 4: Update the prompt.**
   - **Tool list:** add a `vision_propose` line under "Shadows' tools".
   - **New paragraph** after "Standards and stage":
     ```text
@@ -665,7 +665,7 @@ pub(super) struct VisionProposeArgs {
     - When the person asks to change a pending card, propose again with replaces set to that proposal's id. To change or remove an approved item, propose an edit or a removal by its id.
     ```
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests**
 
 Run:
 1. `… cargo test -p shadows --test workspace_mcp`
@@ -675,7 +675,7 @@ Run:
 
 Expected: all pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add crates
@@ -700,7 +700,7 @@ git commit -m "§23.5: the Planner proposes vision items through vision_propose"
     - 404 for an unknown project or proposal;
     - 409 `COMMAND_CONFLICT`.
 
-- [ ] **Step 1: Write the failing route test** `vision_proposal_routes_list_and_approve`:
+- [x] **Step 1: Write the failing route test** `vision_proposal_routes_list_and_approve`:
   1. Create a proposal through the core service in the test, as Task 2's tests do.
   2. GET the list: one entry, Pending.
   3. POST approve: 200 with `{ revision }`.
@@ -708,14 +708,14 @@ git commit -m "§23.5: the Planner proposes vision items through vision_propose"
   5. POST again under a new command id: 422 `INVALID_COMMAND`.
   6. Check the journal: the events include `VisionProposed` and `ProjectDesignChanged`.
 
-- [ ] **Step 2: Run, see it fail**
+- [x] **Step 2: Run, see it fail**
 
 Run: `… cargo test -p shadows --test design_routes vision_proposal`
 Expected: 404 on the new path.
 
-- [ ] **Step 3: Write the two handlers.** Model them on `design::edit` and the standards routes; each calls one service method.
+- [x] **Step 3: Write the two handlers.** Model them on `design::edit` and the standards routes; each calls one service method.
 
-- [ ] **Step 4: Run, regenerate**
+- [x] **Step 4: Run, regenerate**
 
 Run:
 1. `… cargo test -p shadows --test design_routes`
@@ -724,7 +724,7 @@ Run:
 
 Expected: all pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add crates api web/src/api/schema.d.ts
@@ -750,7 +750,7 @@ git commit -m "§23.5: routes to list vision proposals and approve one"
   - `fieldLabel(field)`: "Purpose", "Users", "Goals", "Boundaries", "Technical direction";
   - a shared `ItemOrigin` that renders "from <thread title link>" or "added by hand".
 
-- [ ] **Step 1: Write the failing tests** in `vision-editor.test.tsx`, replacing the textarea-form tests.
+- [x] **Step 1: Write the failing tests** in `vision-editor.test.tsx`, replacing the textarea-form tests.
   - Each field lists its items with ids, such as `G1 · Sell books`.
   - An item approved from a conversation links to `/projects/p1/threads/t1`; a hand item says "added by hand".
   - **Add:**
@@ -766,12 +766,12 @@ git commit -m "§23.5: routes to list vision proposals and approve one"
   - **Pending banner:** with two pending proposals in thread `t1` and one in `t2`, the page shows "3 proposals await your approval", with links to both conversations, each with its count.
   - **`use-project-events.test.tsx`:** a `VisionProposed` event invalidates the design key.
 
-- [ ] **Step 2: Run, see them fail**
+- [x] **Step 2: Run, see them fail**
 
 Run: `cd web && npx vitest run src/app/design/vision-editor.test.tsx src/stream/use-project-events.test.tsx`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
   - **Header comment:** `// One job: the vision as five lists of items (§23.3): read, edited by hand one item at a time, with what awaits approval.`
   - **One item edit at a time:**
     - an edit in progress keeps its text across refetches;
@@ -780,7 +780,7 @@ Expected: FAIL.
   - **Text:** `dir="auto"` on all item text.
   - **Thread titles for links:** read them from the existing project threads query. Find it in `queries.ts`; a missing title shows "a conversation".
 
-- [ ] **Step 4: Run, pass; type-check**
+- [x] **Step 4: Run, pass; type-check**
 
 Run:
 1. The Step 2 command;
@@ -789,7 +789,7 @@ Run:
 
 Expected: pass. Other type errors left from the schema change are fixed in this task. `grep -rn "VisionPut\|VisionContent" web/src` must show no stale use.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web
@@ -809,7 +809,7 @@ git commit -m "§23.3 web: the Vision page lists items, edits them by hand, name
 **Interfaces:**
 - Consumes: `visionProposalsQuery`, `approveVisionProposal`, `fieldLabel` (Task 5).
 
-- [ ] **Step 1: Write the failing tests** in `vision-proposal-card.test.tsx`.
+- [x] **Step 1: Write the failing tests** in `vision-proposal-card.test.tsx`.
   - **Pending add:** shows "Add goal" and the text, with an **Approve** button.
     1. Press Approve.
     2. Check: it POSTs to `/approve` with a command id.
@@ -821,17 +821,17 @@ git commit -m "§23.3 web: the Vision page lists items, edits them by hand, name
   - **Refused approval:** the daemon's message shows through `ErrorLine`.
   - **Copy:** the message actions copy the body line, like other entries. Follow `subagent-card.test.tsx`.
 
-- [ ] **Step 2: Run, see them fail**
+- [x] **Step 2: Run, see them fail**
 
 Run: `cd web && npx vitest run src/app/conversation/vision-proposal-card.test.tsx`
 Expected: FAIL, module not found.
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
   - **Data:** the card reads its proposal from `entry.card`, which holds the proposal as proposed, and its live status from `visionProposalsQuery(projectId)`, found by id. While that query loads, it shows the card without a button.
   - **Header comment:** `// One job: a vision proposal's card (§23.5): what the Planner proposed, its live status, and the person's Approve.`
   - **Entry:** in `entry.tsx`, `if (entry.kind === 'VisionProposal') return <VisionProposalCard entry={entry} projectId={…} />`. Use the project id the conversation already passes to its entries; add the prop if it does not.
 
-- [ ] **Step 4: Run, pass**
+- [x] **Step 4: Run, pass**
 
 Run:
 1. `npx vitest run src/app/conversation`
@@ -840,7 +840,7 @@ Run:
 
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web
@@ -855,7 +855,7 @@ git commit -m "§23.5 web: vision proposal cards with Approve, Superseded and Ou
 - Modify: `docs/status.md` (§23 PR 2 line)
 - Create: `docs/evidence/2026-10-12-guided-planning-pr2.md` (what ran, as PR 1's evidence did)
 
-- [ ] **Step 1: Browser run on a copy of the development database**
+- [x] **Step 1: Browser run on a copy of the development database**
   1. Copy the database with SQLite's online backup, as in PR 1's evidence, to an ignored trial path.
   2. Point `.claude/launch.json` at the copy and start the preview.
   3. Check the migration: the existing projects' vision text shows as one item per field.
@@ -876,7 +876,7 @@ git commit -m "§23.5 web: vision proposal cards with Approve, Superseded and Ou
 
   Record it in the evidence file, including any step not observed. If the Claude limit is exhausted, use the MiniMax wrapper approach from PR 1's evidence only with Mohammed's say-so.
 
-- [ ] **Step 2: Full gate, once**
+- [x] **Step 2: Full gate, once**
 
 Run, from the root, with the cargo prefix:
 1. `cargo fmt --all --check`
@@ -890,9 +890,17 @@ Run, from the root, with the cargo prefix:
 
 Expected: everything passes, except step 5, whose exit 1 is the expected empty result.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs
 git commit -m "§23 PR 2: vision proposals built and run"
 ```
+
+Execution note (2026-10-12): actual acceptance uses independent ports 4325/5195
+and an online backup, without changing .claude/launch.json or stopping the
+original daemon. Trial DB is retained for inspection. The configured original
+DB was at migration 12 with no vision rows; populated vision conversion is
+verified by plan_migration. The first full gate was repeated after a final-review
+running-turn race fix and after clearing inherited RUST_LOG for validation.
+See docs/evidence/2026-10-12-guided-planning-pr2.md for exact results.
