@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-10-12 (§23 PR 3 is merged as `8f6b8e7`)
+**Updated:** 2026-10-12 (§23 PR 4 is merged as `9d2a611`)
 
 This file says where the project is. It decides nothing — the design and every
 decision live in the topic owners indexed by
@@ -8,6 +8,28 @@ decision live in the topic owners indexed by
 restate them.
 
 ## Where we are
+
+**§23 PR 4 is on `main`**, merged through PR #28 as `9d2a611` on 2026-10-12.
+Create structure, the person's button on the Project map page, writes the
+approved map into the project's empty directory: each part's folders, its
+`contract.yaml`, the approved starter files and a root `SHADOWS.md`. A write
+stopped part way resumes; a foreign or changed file refuses the resume. The
+gate passed 510 Rust tests (one ignored) and 264 Web tests. On the person's
+daemon the structure was written for a real project and the stage moved to
+`roadmap`; the trial found and fixed one defect in the reserved-path check.
+See [the dated record](./evidence/2026-10-12-guided-planning-pr4.md).
+Limits: no plan gate yet (PR 5), no Linux runtime acceptance.
+
+**§24 authority, §23 PR 3b, is on `main`**, merged through PR #27 as
+`b4a1338`. The Planner's tools are fixed by Shadows; it can approve only at
+the person's request, and its approval reads "Approved by the Planner at
+your request" beside "Approved by you". A first map with waivers is approved
+by the person's button only. The gate passed 490 Rust tests (one ignored)
+and 259 Web tests. See
+[the dated record](./evidence/2026-10-12-guided-planning-pr3b.md).
+
+**Next: §23 PR 5**, the roadmap and plans behind the map gate. PR 3c, the
+project switches, waits on §24.3's OPEN probe.
 
 **§23 PR 3 is on `main`**, merged through PR #26 as `8f6b8e7` on 2026-10-12.
 The Planner proposes the whole first project map; later part changes come
