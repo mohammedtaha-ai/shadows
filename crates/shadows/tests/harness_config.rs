@@ -65,10 +65,28 @@ fn the_adapter_inherits_path_by_name_and_names_its_claude() {
     assert!(get("PATH").is_some(), "the test process itself has a PATH");
     assert_eq!(get("CLAUDE_CODE_EXECUTABLE"), Some("/opt/claude"));
     assert!(
-        spec.env.iter().all(
-            |(k, _)| ["PATH", "HOME", "TMPDIR", "LANG", "CLAUDE_CODE_EXECUTABLE"]
-                .contains(&k.as_str())
-        ),
+        spec.env.iter().all(|(k, _)| [
+            "PATH",
+            "HOME",
+            "TMPDIR",
+            "LANG",
+            "CLAUDE_CODE_EXECUTABLE",
+            "ANTHROPIC_BASE_URL",
+            "ANTHROPIC_AUTH_TOKEN",
+            "ANTHROPIC_MODEL",
+            "ANTHROPIC_DEFAULT_OPUS_MODEL",
+            "ANTHROPIC_DEFAULT_SONNET_MODEL",
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+            "API_TIMEOUT_MS",
+            "CLAUDE_CODE_MAX_CONTEXT_TOKENS",
+            "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "NO_PROXY",
+            "NODE_USE_ENV_PROXY",
+            "NODE_EXTRA_CA_CERTS"
+        ]
+        .contains(&k.as_str())),
         "only named variables are passed: {:?}",
         spec.env.iter().map(|(k, _)| k).collect::<Vec<_>>()
     );
