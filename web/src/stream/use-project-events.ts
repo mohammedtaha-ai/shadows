@@ -67,7 +67,7 @@ function watchProject(queryClient: QueryClient, projectId: string): () => void {
           void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'agreement'] })
           return
         }
-        if (event.kind === 'ProjectDesignChanged' || event.kind === 'ProjectStandardsSaved' || event.kind === 'VisionProposed' || event.kind === 'MapProposed' || event.kind === 'ProjectStructureWritten') {
+        if (event.kind === 'ProjectDesignChanged' || event.kind === 'ProjectStandardsSaved' || event.kind === 'VisionProposed' || event.kind === 'MapProposed' || event.kind === 'RoadmapProposed' || event.kind === 'RoadmapApproved' || event.kind === 'ProjectStructureWritten') {
           void queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'design'] })
           return
         }
