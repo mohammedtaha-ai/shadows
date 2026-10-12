@@ -15,6 +15,8 @@ pub(crate) mod approval;
 mod command;
 mod error;
 mod journal;
+#[cfg(feature = "test-support")]
+pub(crate) mod write_observer;
 
 pub use error::StorageError;
 
