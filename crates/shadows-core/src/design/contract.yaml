@@ -303,6 +303,8 @@ called_by_other_services:
   project_stage: "Harness reads the persisted workspace stage before each turn."
 
 obligations:
+  - rule: A fresh proposal rechecks its exact running turn in its write transaction; terminal turns produce no card or supersession.
+    tested_by: a_new_proposal_cannot_commit_under_a_finished_turn
   - rule: A proposal is an immutable pending card without a vision write; replay returns its original snapshot.
     tested_by: a_proposal_is_a_pending_card_in_its_conversation
   - rule: Person approval is project scoped, replayable and serialized; item revisions alone govern staleness.
@@ -365,6 +367,8 @@ obligations:
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
 
 tests:
+  - name: a_new_proposal_cannot_commit_under_a_finished_turn
+    checks: Captured operation stopped before persistence refuses with no version, card or event.
   - name: the_base_standards_parse_with_the_four_mandatory_parts
     checks: Four parts with explicit waiver flags, S rules, contract shape.
   - name: standards_without_additions_are_the_base

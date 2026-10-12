@@ -139,6 +139,29 @@ pub(crate) async fn has_open_operation(
     Ok(found.is_some())
 }
 
+/// Checks a Planner card's exact running turn inside the card write.
+pub(crate) async fn check_running_turn_in(
+    conn: &mut SqliteConnection,
+    thread: &ThreadId,
+    operation: &OperationId,
+) -> Result<(), StorageError> {
+    let found: Option<i64> = sqlx::query_scalar(
+        "SELECT 1 FROM operation o JOIN planning_thread t ON t.id=o.thread_id
+         WHERE o.id=? AND o.thread_id=? AND o.status_kind='Running'
+           AND t.removed_at IS NULL",
+    )
+    .bind(operation.as_str())
+    .bind(thread.as_str())
+    .fetch_optional(conn)
+    .await?;
+    if found.is_none() {
+        return Err(StorageError::Constraint(
+            "the proposal's turn is no longer running".into(),
+        ));
+    }
+    Ok(())
+}
+
 impl Storage {
     /// §12.7's one transaction. A replay found inside it answers the recorded
     /// ids with `replayed: true`, so two concurrent first requests produce

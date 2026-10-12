@@ -77,6 +77,51 @@ fn add(text: &str) -> VisionPropose {
         replaces: None,
     }
 }
+
+#[tokio::test]
+async fn a_new_proposal_cannot_commit_under_a_finished_turn() {
+    use shadows_core::testing::{CommandContext, Writer, fingerprint};
+    let f = Fixture::new().await;
+    let thread = f.grant.thread_id.as_ref().unwrap();
+    let operation: String =
+        sqlx::query_scalar("SELECT id FROM operation WHERE thread_id=? AND status_kind='Running'")
+            .bind(thread.as_str())
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    let operation = shadows_core::OperationId::from_literal(&operation);
+    f.core.turns().stop(&operation).await.unwrap();
+    let args = add("Must not be stored");
+    let ctx = CommandContext {
+        principal_kind: "Thread".into(),
+        principal_id: thread.to_string(),
+        command_id: "late".into(),
+        command_kind: "VisionPropose".into(),
+        command_schema_ver: 1,
+        request_fingerprint: fingerprint("VisionPropose", &serde_json::to_value(&args).unwrap()),
+    };
+    let writer = Writer::Planner {
+        thread: thread.clone(),
+        grant: f.grant.id.clone(),
+    };
+    let cursor = f.storage.current_cursor().await.unwrap().0;
+    assert!(
+        f.storage
+            .propose_vision_in(&ctx, &writer, &f.p, &operation, args)
+            .await
+            .is_err()
+    );
+    assert_eq!(f.storage.current_cursor().await.unwrap().0, cursor);
+    assert!(
+        f.core
+            .design()
+            .vision_proposals(&f.p)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    f.close().await;
+}
 fn edit(text: &str) -> VisionPropose {
     VisionPropose {
         action: VisionAction::Edit,
