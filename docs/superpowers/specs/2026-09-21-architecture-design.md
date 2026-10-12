@@ -382,7 +382,11 @@ Shadows owns two things on this path. **The sharing switch:** a project is
 readable by NYLRA only after the person turns it on for that project, and
 turning it off refuses the next read. **The projection:** one read returns the
 bounded `nylra-context/1` items, each with its version, and the project's
-revision. Nothing outside the projection is reachable through it, and what it
+revision. It carries the project's name, current roadmap outcomes, current plans
+with their states, and the recent Planner and person messages of the planning
+thread in question (the work's thread, or the one an escalation names), so
+NYLRA can explain what the Planner said without another Planner turn. Older
+threads are not included. Nothing outside the projection is reachable through it, and what it
 returns grants nothing: approvals and other writes keep their own routes and
 §24's rules. Both are methods of one service, with their lines in its contract.
 
