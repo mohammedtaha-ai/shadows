@@ -52,14 +52,15 @@ impl Storage {
                     ));
                 }
                 shape::validate(&mut args)?;
-                let expected_parts = shape::part_revisions(conn, &p, &args).await?;
+                let expected_parts = shape::part_snapshots(conn, &p, &args).await?;
                 let existing = shape::existing(conn, &p, &args).await?;
                 supersede(conn, &p, &args).await?;
-                let (old, expected_outcome) = match existing {
-                    Some((content, revision)) if args.outcome_id.is_some() => {
-                        (Some(content), Some(revision))
+                let (old, old_parent, expected_outcome) = match existing {
+                    Some(outcome) => {
+                        let snapshot = shape::outcome_snapshot(&outcome)?;
+                        (Some(outcome.content), outcome.parent, Some(snapshot))
                     }
-                    _ => (None, None),
+                    None => (None, None, None),
                 };
                 let proposal = RoadmapProposal {
                     approved_by: None,
@@ -69,6 +70,7 @@ impl Storage {
                     outcomes: args.outcomes,
                     outcome_id: args.outcome_id,
                     old,
+                    old_parent,
                     status: ProposalStatus::Pending,
                     outdated: false,
                     created_at: ts.clone(),
@@ -91,7 +93,7 @@ impl Storage {
                 sqlx::query(
                     "INSERT INTO design_roadmap_proposal
                      (id,project_id,thread_id,operation_id,entry_id,action,outcome_id,
-                      payload_json,roadmap_revision,expected_outcome_revision,
+                      payload_json,roadmap_revision,expected_outcome_json,
                       expected_parts_json,status,created_at,seq)
                      VALUES (?,?,?,?,?,?,?,?,?,?,?,'Pending',?,
                       (SELECT COALESCE(MAX(seq),0)+1 FROM design_roadmap_proposal

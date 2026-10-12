@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 struct Row {
     payload_json: String,
     status: String,
-    expected_outcome_revision: Option<i64>,
+    expected_outcome_json: Option<String>,
     expected_parts_json: String,
     approved_principal: Option<String>,
     approved_agent: Option<String>,
@@ -22,7 +22,7 @@ pub(super) async fn load(
     id: &str,
 ) -> Result<RoadmapProposal, StorageError> {
     let row: Row = sqlx::query_as(
-        "SELECT payload_json,status,expected_outcome_revision,expected_parts_json,
+        "SELECT payload_json,status,expected_outcome_json,expected_parts_json,
          approved_principal,approved_agent,approved_request_entry
          FROM design_roadmap_proposal WHERE project_id=? AND id=?",
     )
@@ -53,25 +53,19 @@ async fn view(
             .bind(p.as_str())
             .fetch_one(&mut *conn)
             .await?;
-    let expected: BTreeMap<String, i64> = serde_json::from_str(&row.expected_parts_json)?;
+    let expected: BTreeMap<String, String> = serde_json::from_str(&row.expected_parts_json)?;
     let mut outdated = proposal.action == RoadmapAction::First && revision > 0;
     for (part, expected) in &expected {
-        let current: Option<i64> =
-            sqlx::query_scalar("SELECT revision FROM design_part WHERE project_id=? AND id=?")
-                .bind(p.as_str())
-                .bind(part)
-                .fetch_optional(&mut *conn)
-                .await?;
-        outdated |= current != Some(*expected);
+        let current = super::roadmap_shape::part_snapshot(conn, p, part).await?;
+        outdated |= current.as_ref() != Some(expected);
     }
     if let Some(id) = &proposal.outcome_id {
-        let current: Option<i64> =
-            sqlx::query_scalar("SELECT revision FROM design_outcome WHERE project_id=? AND id=?")
-                .bind(p.as_str())
-                .bind(id.as_str())
-                .fetch_optional(&mut *conn)
-                .await?;
-        outdated |= current.is_none() || current != row.expected_outcome_revision;
+        let current = match super::outcomes::load(conn, p, id).await {
+            Ok(outcome) => Some(super::roadmap_shape::outcome_snapshot(&outcome)?),
+            Err(StorageError::NotFound(_)) => None,
+            Err(other) => return Err(other),
+        };
+        outdated |= current.is_none() || current != row.expected_outcome_json;
     }
     proposal.outdated = proposal.status == ProposalStatus::Pending && outdated;
     Ok(proposal)
@@ -85,7 +79,7 @@ impl Storage {
         let mut tx = self.reader().begin().await?;
         super::proposal_read::live_vision(&mut tx, p).await?;
         let rows: Vec<Row> = sqlx::query_as(
-            "SELECT payload_json,status,expected_outcome_revision,expected_parts_json,
+            "SELECT payload_json,status,expected_outcome_json,expected_parts_json,
              approved_principal,approved_agent,approved_request_entry
              FROM design_roadmap_proposal WHERE project_id=? ORDER BY seq,id",
         )

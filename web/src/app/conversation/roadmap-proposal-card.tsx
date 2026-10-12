@@ -4,7 +4,7 @@ import {useRef} from 'react'
 import type {ThreadEntry} from '@/api/client'
 import {type Attempt,attemptFor} from '@/api/command-id'
 import {approveRoadmapProposal,type OutcomeContent,type RoadmapProposal} from '@/api/design'
-import {partQuery,roadmapProposalsQuery} from '@/api/queries'
+import {outcomeQuery,partQuery,roadmapProposalsQuery} from '@/api/queries'
 import {Button} from '@/components/ui/button'
 import {ErrorLine} from '../error-line'
 import {ApprovedBy} from './approved-by'
@@ -50,6 +50,9 @@ export function RoadmapProposalCard({entry,projectId}: {entry:ThreadEntry;projec
       <h4>{proposed.action==='remove' ? 'Outcome to remove' : 'Current outcome'}</h4>
       <OutcomeText content={proposed.old} />
     </section>}
+    {proposed.action==='change' && proposed.outcomes[0]
+      && (proposed.outcomes[0].parent ?? null)!==(proposed.old_parent ?? null)
+      && <MoveLine projectId={projectId} parent={proposed.outcomes[0].parent ?? null} />}
     {proposed.outcomes.length>0 && <OutcomeTree outcomes={proposed.outcomes} projectId={projectId}
       first={proposed.action==='first'} />}
     <p role="status" className="text-sm">{status}</p>
@@ -68,6 +71,12 @@ function OutcomeText({content}: {content:OutcomeContent}) {
     {content.acceptance.length>0 && <ul className="list-disc ps-5 text-sm">
       {content.acceptance.map((a,i) => <li key={i} dir="auto">{a}</li>)}</ul>}
   </>
+}
+
+function MoveLine({projectId,parent}: {projectId:string;parent:string | null}) {
+  const target = useQuery({...outcomeQuery(projectId,parent ?? ''),enabled:parent!==null})
+  return <p role="note" dir="auto" className="text-sm font-medium">{parent===null ? 'Moves to the top level'
+    : `Moves under: ${target.data?.outcome.content.title ?? parent}`}</p>
 }
 
 function PartTitle({projectId,partId}: {projectId:string;partId:string}) {

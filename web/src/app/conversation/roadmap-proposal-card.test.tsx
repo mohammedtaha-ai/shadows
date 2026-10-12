@@ -87,3 +87,16 @@ it('shows the old outcome beside a change and keeps the command on refusal', asy
   await until(() => a.bodies.length===2)
   expect(a.bodies[1]).toEqual(a.bodies[0])
 })
+
+it('shows that a change moves its outcome to the top level', async () => {
+  const change: RoadmapProposal = {...pending(),id:'r2',action:'change',outcome_id:'o2',old_parent:'o1',
+    old:{title:'Single sign-on',intended_result:'Company accounts work',acceptance:[]},
+    outcomes:[{key:'sso',parent_key:null,parent:null,parts:['part-1'],
+      content:{title:'Single sign-on',intended_result:'Company accounts work',acceptance:[]}}]}
+  const a = app = await startApp('/projects/p1/threads/t1',{...answers({entries:[entry(change)]}),
+    'GET /api/projects/p1/roadmap-proposals':[change],
+    'GET /api/projects/p1/design/parts/part-1':part,
+  })
+  await until(() => a.text().includes('Change outcome'))
+  expect(a.text()).toContain('Moves to the top level')
+})

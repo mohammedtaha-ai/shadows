@@ -13,7 +13,10 @@ CREATE TABLE design_roadmap_proposal (
     outcome_id TEXT NULL,
     payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
     roadmap_revision INTEGER NOT NULL,
-    expected_outcome_revision INTEGER NULL,
+    -- The named outcome's parent and content when proposed (change/remove).
+    expected_outcome_json TEXT NULL CHECK (expected_outcome_json IS NULL
+        OR json_valid(expected_outcome_json)),
+    -- Part id -> that part's content when proposed; plan links do not count.
     expected_parts_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(expected_parts_json)),
     status TEXT NOT NULL CHECK (status IN ('Pending','Approved','Superseded')),
     approved_principal TEXT NULL,

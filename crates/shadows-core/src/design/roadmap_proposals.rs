@@ -27,7 +27,8 @@ pub struct ProposedOutcome {
     pub key: String,
     /// Another key of this proposal, for a first roadmap.
     pub parent_key: Option<String>,
-    /// An existing outcome, for an add.
+    /// An existing outcome: an add's parent, or a change's resulting parent
+    /// (absent for the top level).
     #[schemars(with = "Option<String>")]
     pub parent: Option<OutcomeId>,
     pub content: OutcomeContent,
@@ -54,6 +55,9 @@ pub struct RoadmapProposal {
     pub outcomes: Vec<ProposedOutcome>,
     pub outcome_id: Option<OutcomeId>,
     pub old: Option<OutcomeContent>,
+    /// The named outcome's parent when proposed; a change whose parent differs moves it.
+    #[serde(default)]
+    pub old_parent: Option<OutcomeId>,
     pub status: ProposalStatus,
     pub outdated: bool,
     pub created_at: String,

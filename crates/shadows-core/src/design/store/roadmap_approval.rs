@@ -187,6 +187,14 @@ async fn change(
         content: outcome.content.clone(),
     };
     outcome_edit::apply(conn, p, put, changed).await?;
+    if outcome.parent != proposal.old_parent {
+        let move_to = DesignOp::OutcomeMove {
+            id: id.clone(),
+            parent: outcome.parent.clone(),
+            before: None,
+        };
+        outcome_edit::apply(conn, p, move_to, changed).await?;
+    }
     let old: Vec<String> = sqlx::query_scalar(
         "SELECT part_id FROM design_outcome_part WHERE project_id=? AND outcome_id=?
          ORDER BY part_id",

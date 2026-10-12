@@ -155,3 +155,129 @@ async fn a_hand_edit_of_the_outcome_outdates_its_pending_change() {
     );
     f.close().await;
 }
+
+#[tokio::test]
+async fn a_change_moves_its_outcome_to_the_parent_it_names() {
+    let f = Fixture::new(true).await;
+    f.approve_first().await;
+    let login = f
+        .core
+        .design()
+        .outcomes(&f.p, None, None)
+        .await
+        .unwrap()
+        .items[0]
+        .clone();
+    let sso = f
+        .core
+        .design()
+        .outcomes(&f.p, Some(&login.id), None)
+        .await
+        .unwrap()
+        .items[0]
+        .clone();
+    let mut change = f.first();
+    change.action = RoadmapAction::Change;
+    change.outcome_id = Some(sso.id.clone());
+    change.outcomes = vec![f.outcome("sso", None, &[1])];
+    let card = f
+        .core
+        .design()
+        .propose_roadmap(&f.grant, change)
+        .await
+        .unwrap();
+    assert_eq!(card.old_parent.as_ref(), Some(&login.id));
+    f.core
+        .design()
+        .approve_roadmap_proposal("move".into(), &f.p, &card.id)
+        .await
+        .unwrap();
+    let moved = f.core.design().outcome(&f.p, &sso.id).await.unwrap();
+    assert_eq!(moved.outcome.parent, None);
+    let mut back = f.first();
+    back.action = RoadmapAction::Change;
+    back.outcome_id = Some(sso.id.clone());
+    back.outcomes = vec![f.outcome("sso", None, &[1])];
+    back.outcomes[0].parent = Some(login.id.clone());
+    let card = f
+        .core
+        .design()
+        .propose_roadmap(&f.grant, back)
+        .await
+        .unwrap();
+    f.core
+        .design()
+        .approve_roadmap_proposal("back".into(), &f.p, &card.id)
+        .await
+        .unwrap();
+    let moved = f.core.design().outcome(&f.p, &sso.id).await.unwrap();
+    assert_eq!(moved.outcome.parent, Some(login.id.clone()));
+    f.close().await;
+}
+
+#[tokio::test]
+async fn tying_a_plan_to_a_part_leaves_a_pending_card_valid() {
+    let f = Fixture::new(true).await;
+    f.approve_first().await;
+    let mut add = f.first();
+    add.action = RoadmapAction::Add;
+    add.outcomes = vec![f.outcome("billing", None, &[0])];
+    let card = f
+        .core
+        .design()
+        .propose_roadmap(&f.grant, add)
+        .await
+        .unwrap();
+    let plan = f
+        .core
+        .plans()
+        .start_draft(
+            &f.grant,
+            DraftStart {
+                title: Some("Plan".into()),
+                goal: Some("Goal".into()),
+                plan_id: None,
+                reason: None,
+                draft_ref: None,
+                parts: vec![],
+            },
+        )
+        .await
+        .unwrap()
+        .plan_id;
+    let link = DesignOp::PlanLinkPut {
+        anchor: DesignAnchor::Part(f.parts[0].clone()),
+        plan,
+    };
+    let revision = f.core.design().vision(&f.p).await.unwrap().revision;
+    f.core
+        .design()
+        .edit("link".into(), &f.p, revision, vec![link])
+        .await
+        .unwrap();
+    let outdated = |cards: Vec<shadows_core::RoadmapProposal>| {
+        cards.iter().find(|c| c.id == card.id).unwrap().outdated
+    };
+    assert!(
+        !outdated(f.proposals().await),
+        "a plan link is not a part change"
+    );
+    let part = f.core.design().part(&f.p, &f.parts[0]).await.unwrap();
+    let mut content = part.part.content.clone();
+    content.responsibility = "Changed by hand".into();
+    let put = DesignOp::PartPut {
+        id: f.parts[0].clone(),
+        content,
+    };
+    let revision = f.core.design().vision(&f.p).await.unwrap().revision;
+    f.core
+        .design()
+        .edit("part".into(), &f.p, revision, vec![put])
+        .await
+        .unwrap();
+    assert!(
+        outdated(f.proposals().await),
+        "a content change outdates it"
+    );
+    f.close().await;
+}

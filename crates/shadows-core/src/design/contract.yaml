@@ -401,15 +401,18 @@ obligations:
     tested_by: [a_roadmap_waits_for_the_structure, a_malformed_roadmap_is_refused_whole, add_change_and_remove_work_after_the_first_roadmap]
   - rule: >
       Approval writes the outcomes, their part references and roadmap_revision in
-      one transaction with §24 provenance; replay writes nothing. A remove refuses
-      an outcome with children or plans.
-    tested_by: [the_button_approves_a_first_roadmap_and_opens_the_plans_stage, the_planner_approves_at_the_persons_request, add_change_and_remove_work_after_the_first_roadmap]
+      one transaction with §24 provenance; replay writes nothing. A change replaces
+      its outcome's content, parts and parent, moving it when the parent differs.
+      A remove refuses an outcome with children or plans.
+    tested_by: [the_button_approves_a_first_roadmap_and_opens_the_plans_stage, the_planner_approves_at_the_persons_request, add_change_and_remove_work_after_the_first_roadmap, a_change_moves_its_outcome_to_the_parent_it_names]
   - rule: >
       A newer first, a newer change or remove of the same outcome, or a named
       replaces supersedes the pending card. A card is outdated only by a referenced
-      part changing or going, its outcome changing or going, or (for a first) an
-      approved roadmap; vision and standards edits do not outdate it.
-    tested_by: [a_newer_first_or_a_replaces_supersedes_the_pending_card, a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not, a_hand_edit_of_the_outcome_outdates_its_pending_change]
+      part's content changing or the part going, its outcome's content or parent
+      changing or the outcome going, or (for a first) an approved roadmap. Plan
+      links and reordering raise revisions but outdate nothing; vision and
+      standards edits do not outdate it either.
+    tested_by: [a_newer_first_or_a_replaces_supersedes_the_pending_card, a_part_edit_outdates_the_pending_roadmap_and_a_vision_edit_does_not, a_hand_edit_of_the_outcome_outdates_its_pending_change, tying_a_plan_to_a_part_leaves_a_pending_card_valid]
   - rule: Part writes before the first approved map refuse atomically; every later part write stores a map version.
     tested_by: a_hand_part_create_before_the_first_map_is_stage_blocked
   - rule: Folder ownership follows containment; case-insensitive file paths never also name directories.
@@ -529,7 +532,11 @@ tests:
   - name: add_change_and_remove_work_after_the_first_roadmap
     checks: Add, change (content and part references) and a guarded remove.
   - name: a_hand_edit_of_the_outcome_outdates_its_pending_change
-    checks: An outcome revision change outdates its pending change card.
+    checks: A hand content edit of the outcome outdates its pending change card.
+  - name: a_change_moves_its_outcome_to_the_parent_it_names
+    checks: A change with no parent moves a child to the top; naming a parent moves it back.
+  - name: tying_a_plan_to_a_part_leaves_a_pending_card_valid
+    checks: A person's plan link to a referenced part keeps the card valid; a content edit outdates it.
   - name: the_planner_proposes_and_approves_a_roadmap_after_the_structure
     checks: Over MCP, STAGE_BLOCKED before the structure, roadmap_approve as planner, then a tied plan approves.
   - name: roadmap_proposal_routes_list_and_approve

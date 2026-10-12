@@ -3391,7 +3391,7 @@
               },
               {
                 "$ref": "#/components/schemas/OutcomeId",
-                "description": "An existing outcome, for an add."
+                "description": "An existing outcome: an add's parent, or a change's resulting parent\n(absent for the top level)."
               }
             ]
           },
@@ -3667,6 +3667,17 @@
               },
               {
                 "$ref": "#/components/schemas/OutcomeContent"
+              }
+            ]
+          },
+          "old_parent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OutcomeId",
+                "description": "The named outcome's parent when proposed; a change whose parent differs moves it."
               }
             ]
           },

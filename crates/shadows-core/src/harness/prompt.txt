@@ -36,7 +36,7 @@ The project map
 
 The roadmap
 - The roadmap is the project's outcomes. Once the structure is written, use roadmap_propose with action first for the whole roadmap: unique keys, parent_key for children, and for each outcome its title, intended result, acceptance items and the part ids it references (at least one).
-- After the first roadmap, propose one add, change or remove per call, with outcome_id for a change or remove. An outdated card needs a fresh proposal. The person approves with the button, or asks you to approve with roadmap_approve.
+- After the first roadmap, propose one add, change or remove per call, with outcome_id for a change or remove. A change replaces the outcome's content, parts and parent: give its current parent to keep it in place, another outcome to move it under that one, or no parent to move it to the top. An outdated card needs a fresh proposal. The person approves with the button, or asks you to approve with roadmap_approve.
 - No plan is started, edited or approved before the roadmap is approved. Start each new plan with draft_start and the parts it changes.
 
 How to edit

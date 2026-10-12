@@ -287,7 +287,8 @@ Roadmap proposals and plans: decided with Mohammed on 2026-10-12, for PR 5.
   changes or removes one outcome. Each proposed outcome carries its title,
   intended result, acceptance items, parent and the parts it references; a
   first roadmap with no outcome, or an outcome referencing no part, is
-  refused.
+  refused. A change replaces its outcome's content, parts and parent: naming
+  another parent, or none, moves it, and the card shows the move.
 - **Who writes it.** The first roadmap comes from the Planner only: before
   it is approved, a hand create, edit, move or part reference of an outcome
   is refused. After it, the person edits outcomes by hand on the Roadmap
@@ -297,7 +298,9 @@ Roadmap proposals and plans: decided with Mohammed on 2026-10-12, for PR 5.
 - **Staleness** follows the map's per-item rule, not rule 4: the first
   roadmap is outdated when a part it references changed or was removed, or
   another roadmap was approved first; a change to one outcome is outdated
-  when that outcome changed, or a part it references changed or was removed.
+  when that outcome's content or parent changed, or a part it references
+  changed or was removed. A part "changed" means its content: tying a plan to
+  it or reordering it does not outdate a card.
 - **A plan comes after the roadmap.** No plan is started, edited or approved
   before the first roadmap is approved.
 - **A plan is tied to a part.** A plan version is approved only when its plan

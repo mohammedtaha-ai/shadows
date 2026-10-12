@@ -2180,6 +2180,7 @@ export interface components {
             created_at: string;
             id: string;
             old?: null | components["schemas"]["OutcomeContent"];
+            old_parent?: null | components["schemas"]["OutcomeId"];
             outcome_id?: null | components["schemas"]["OutcomeId"];
             outcomes: components["schemas"]["ProposedOutcome"][];
             outdated: boolean;

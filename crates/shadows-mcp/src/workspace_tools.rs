@@ -96,7 +96,9 @@ impl Shadows {
     #[tool(
         description = "Propose the roadmap once the structure is written. first proposes \
         every outcome with slug keys and parent_key; after it, add, change or remove one \
-        outcome (change and remove name outcome_id; add may name an existing parent). Each \
+        outcome (change and remove name outcome_id; add may name an existing parent; a \
+        change replaces content, parts and parent, so give the current parent to keep it \
+        and omit it to move the outcome to the top). Each \
         outcome has a title, intended result, acceptance items and the part ids it \
         references (at least one). One call draws one card. Approval is separate; this tool \
         writes no outcome."

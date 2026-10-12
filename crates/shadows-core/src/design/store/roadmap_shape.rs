@@ -1,6 +1,6 @@
 //! Checking a proposed roadmap against its action and the parts and outcomes it names.
 use super::outcomes::load as load_outcome;
-use crate::design::{OutcomeContent, OutcomeId, RoadmapAction, RoadmapPropose};
+use crate::design::{Outcome, OutcomeId, RoadmapAction, RoadmapPropose};
 use crate::{ProjectId, StorageError};
 use sqlx::SqliteConnection;
 use std::collections::{BTreeMap, BTreeSet};
@@ -56,10 +56,8 @@ pub(super) fn validate(args: &mut RoadmapPropose) -> Result<(), StorageError> {
             RoadmapAction::Add if outcome.parent_key.is_some() => {
                 return Err(bad("an add names an existing parent, not parent_key"));
             }
-            RoadmapAction::Change if outcome.parent.is_some() || outcome.parent_key.is_some() => {
-                return Err(bad(
-                    "a change edits content; use the page to move an outcome",
-                ));
+            RoadmapAction::Change if outcome.parent_key.is_some() => {
+                return Err(bad("a change names its parent outcome, not parent_key"));
             }
             _ => {}
         }
@@ -112,34 +110,54 @@ pub(super) async fn require_structure(
     Ok(())
 }
 
-/// The part revisions at proposal time; an unknown part refuses the proposal.
-pub(super) async fn part_revisions(
+/// Each referenced part's snapshot at proposal time; an unknown part refuses it.
+
+pub(super) async fn part_snapshots(
     conn: &mut SqliteConnection,
     project: &ProjectId,
     args: &RoadmapPropose,
-) -> Result<BTreeMap<String, i64>, StorageError> {
-    let mut revisions = BTreeMap::new();
+) -> Result<BTreeMap<String, String>, StorageError> {
+    let mut snapshots = BTreeMap::new();
     for part in args.outcomes.iter().flat_map(|o| &o.parts) {
-        let revision: Option<i64> =
-            sqlx::query_scalar("SELECT revision FROM design_part WHERE project_id=? AND id=?")
-                .bind(project.as_str())
-                .bind(part.as_str())
-                .fetch_optional(&mut *conn)
-                .await?;
-        let revision = revision.ok_or_else(|| {
-            StorageError::Constraint(format!("part {part} does not belong to project {project}"))
-        })?;
-        revisions.insert(part.to_string(), revision);
+        let snapshot = part_snapshot(conn, project, part.as_str())
+            .await?
+            .ok_or_else(|| {
+                StorageError::Constraint(format!(
+                    "part {part} does not belong to project {project}"
+                ))
+            })?;
+        snapshots.insert(part.to_string(), snapshot);
     }
-    Ok(revisions)
+    Ok(snapshots)
 }
 
-/// The outcome a change or remove names, and the existing parent an add names.
+/// What a card depends on in a part: its content. Linking a plan or reordering
+/// raises the part's revision but leaves this unchanged (§23.5 staleness).
+pub(super) async fn part_snapshot(
+    conn: &mut SqliteConnection,
+    project: &ProjectId,
+    part: &str,
+) -> Result<Option<String>, StorageError> {
+    Ok(
+        sqlx::query_scalar("SELECT content_json FROM design_part WHERE project_id=? AND id=?")
+            .bind(project.as_str())
+            .bind(part)
+            .fetch_optional(&mut *conn)
+            .await?,
+    )
+}
+
+/// What a change or remove depends on in its outcome: its parent and content.
+pub(super) fn outcome_snapshot(outcome: &Outcome) -> Result<String, StorageError> {
+    Ok(serde_json::to_string(&(&outcome.parent, &outcome.content))?)
+}
+
+/// The outcome a change or remove names, and the existing parent an outcome names.
 pub(super) async fn existing(
     conn: &mut SqliteConnection,
     project: &ProjectId,
     args: &RoadmapPropose,
-) -> Result<Option<(OutcomeContent, i64)>, StorageError> {
+) -> Result<Option<Outcome>, StorageError> {
     let unknown = |id: &OutcomeId| {
         StorageError::Constraint(format!("outcome {id} does not belong to project {project}"))
     };
@@ -154,13 +172,13 @@ pub(super) async fn existing(
     let outcome = load_outcome(conn, project, id)
         .await
         .map_err(|_| unknown(id))?;
-    Ok(Some((outcome.content, outcome.revision)))
+    Ok(Some(outcome))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::design::{PartId, ProposedOutcome};
+    use crate::design::{OutcomeContent, PartId, ProposedOutcome};
 
     fn outcome(key: &str, parent_key: Option<&str>) -> ProposedOutcome {
         ProposedOutcome {
