@@ -2,22 +2,25 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Part, PartContent, PartView } from '@/api/design'
-import { partQuery, partsQuery, plansQuery } from '@/api/queries'
+import { partQuery, partsQuery, plansQuery, visionQuery } from '@/api/queries'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { usePartPages } from './use-part-pages'
 import { type DesignEditorConfig, useDesignEditor } from './use-design-editor'
+import { MapPartDetails } from './map-part-details'
 
 const EDITOR: DesignEditorConfig<PartView, PartContent> = {
   entityKind: 'Part',
-  empty: { title: '', responsibility: '', design: '', kind: null },
+  empty: { title: '', responsibility: '', design: '', kind: null, serves:[],folders:[],files:[],contract:{header:'',rules:[]} },
   idOf: view => view.part.id,
   contentOf: view => view.part.content,
   detailQuery: partQuery,
   listQuery: partsQuery,
-  contentOp: (id, content, position) => position
-    ? { kind: 'PartCreate', id, content, ...position }
-    : { kind: 'PartPut', id, content },
+  contentOp: (id, content, position) => {
+    const cleaned = {...content,folders:content.folders?.filter(Boolean),contract:content.contract
+      ? {...content.contract,rules:content.contract.rules.filter(Boolean)} : undefined}
+    return position ? {kind:'PartCreate',id,content:cleaned,...position} : {kind:'PartPut',id,content:cleaned}
+  },
 }
 
 export function PartEditor({ projectId, saved, destination, onCreated }: {
@@ -27,6 +30,8 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
   onCreated?: () => void
 }) {
   const plans = useQuery(plansQuery(projectId, true))
+  const vision = useQuery(visionQuery(projectId))
+  const items = Object.values(vision.data?.content ?? {}).flat()
   const {
     base, draft, setDraft, linked, setLinked,
     moving, setMoving, before, setBefore, id, dirty, newer,
@@ -45,6 +50,23 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
       <label className="block text-sm">Title<input aria-label="Part title" dir="auto" value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} className="block w-full rounded border bg-transparent p-2" /></label>
       {(['responsibility', 'design', 'kind'] as const).map(field => <label key={field} className="block text-sm">{field}
         <textarea aria-label={`Part ${field}`} dir="auto" rows={field === 'design' ? 5 : 2} value={draft[field] ?? ''} onChange={e => setDraft({ ...draft, [field]: field === 'kind' ? e.target.value || null : e.target.value })} className="block w-full rounded border bg-transparent p-2" /></label>)}
+      <div><h4>Served vision items</h4>{[...new Set([...items.map(i => i.id),...(draft.serves ?? [])])].map(id =>
+        <label key={id} className="block text-sm"><input type="checkbox" aria-label={`Serves ${id}`}
+          checked={(draft.serves ?? []).includes(id)} onChange={e => setDraft({...draft,serves:e.target.checked
+            ? [...(draft.serves ?? []),id] : (draft.serves ?? []).filter(i => i !== id)})} />
+          {id} · {items.find(i => i.id === id)?.text ?? 'Removed item'}</label>)}</div>
+      <label className="block text-sm">Folders<textarea aria-label="Part folders" rows={3}
+        value={(draft.folders ?? []).join('\n')} onChange={e => setDraft({...draft,folders:e.target.value.split('\n')})}
+        className="block w-full rounded border bg-transparent p-2" /></label>
+      <label className="block text-sm">Contract header<textarea aria-label="Part contract header" dir="auto"
+        value={draft.contract?.header ?? ''} onChange={e => setDraft({...draft,
+          contract:{header:e.target.value,rules:draft.contract?.rules ?? []}})}
+        className="block w-full rounded border bg-transparent p-2" /></label>
+      <label className="block text-sm">Contract rule ids<textarea aria-label="Part contract rules"
+        value={(draft.contract?.rules ?? []).join('\n')} onChange={e => setDraft({...draft,
+          contract:{header:draft.contract?.header ?? '',rules:e.target.value.split('\n')}})}
+        className="block w-full rounded border bg-transparent p-2" /></label>
+      <MapPartDetails content={draft} projectId={projectId} />
       {base && <label className="block text-sm"><input type="checkbox" checked={moving} onChange={e => { setMoving(e.target.checked); setBefore('') }} /> Move part to {destination?.content.title ?? 'Project root'}</label>}
       {(moving || !base) && <PartOrder key={destination?.id ?? 'root'} projectId={projectId} parent={destination?.id} id={id} value={before} change={setBefore} />}
       <div className="space-y-1"><h4 className="text-sm">Linked plans (including archived)</h4>

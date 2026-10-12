@@ -1,14 +1,44 @@
 // @vitest-environment happy-dom
 import { act } from 'react'
 import { afterEach, expect, it } from 'vitest'
-import { answers } from '@/test/fake-daemon'
+import { answers as baseAnswers } from '@/test/fake-daemon'
 import type { DesignEdit, PartView } from '@/api/design'
 import { type TestApp, startApp, typeInto, until } from '../test-app'
 
 let app: TestApp | null = null
+const answers = () => ({ ...baseAnswers(),
+  'GET /api/projects/p1/stage': {stage:'structure',missing:[],drift:[]} })
 afterEach(() => { app?.unmount(); app = null })
 const part = (id: string, title = id, parent: string | null = null) => ({ id, parent, ordinal: 0, revision: 1,
   content: { title, responsibility: 'مسؤولية', design: 'تصميم', kind: null } })
+
+it('hides creation before the first map and shows drift with actionable proposals', async () => {
+  const a = app = await startApp('/projects/p1/workspace?view=map', {
+    ...answers(), 'GET /api/projects/p1/stage': {stage:'map',missing:['database'],drift:['G4 is served by no part']},
+    'GET /api/projects/p1/map-proposals': [{id:'m1',thread_id:'t1',action:'first',status:'Pending',outdated:false}],
+  })
+  await until(() => a.text().includes('The first map comes from the Planner'))
+  expect(a.button('Create part')).toBeUndefined()
+  expect(a.text()).toContain('G4 is served by no part')
+  expect(a.text()).toContain('1 map proposal awaits your approval')
+  expect(a.container.querySelector('a[href="/projects/p1/threads/t1"]')).not.toBeNull()
+})
+
+it('edits served goals and normalised folder input without dropping starter files', async () => {
+  const saved = {revision:1,part:{...part('n1'),content:{...part('n1').content,serves:['G1'],folders:['src'],
+    files:[{path:'src/main.rs',content:'fn main() {}'}],contract:{header:'Core contract',rules:['S1']}}},ancestors:[],plans:[]}
+  const a = app = await startApp('/projects/p1/workspace?view=map&part=n1', {...answers(),
+    'GET /api/projects/p1/design/parts/n1':saved,
+    'GET /api/projects/p1/design/vision':{revision:1,content:{purpose:[],users:[],goals:[{id:'G1',text:'Read',revision:1,approved_from:null}],boundaries:[],technical_direction:[]}},
+    'POST /api/projects/p1/design/edits':() => Response.json({code:'STAGE_BLOCKED',message:'missing part: backend'},{status:409}),
+  })
+  await until(() => a.container.querySelector('[aria-label="Part folders"]') !== null)
+  typeInto(a.container.querySelector<HTMLTextAreaElement>('[aria-label="Part folders"]')!,'src\nlib')
+  act(() => a.button('Save part')?.click())
+  await until(() => a.text().includes('missing part: backend'))
+  const body = a.bodies.at(-1) as DesignEdit
+  expect(body.ops[0]).toMatchObject({kind:'PartPut',content:{folders:['src','lib'],serves:['G1'],files:saved.part.content.files}})
+})
 
 it('part save replays the committed command after its follow-up read fails', async () => {
   let saved: PartView = { revision: 1, part: part('n1', 'قسم'), ancestors: [], plans: [] }
