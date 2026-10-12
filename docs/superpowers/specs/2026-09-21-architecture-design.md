@@ -370,6 +370,31 @@ When that computer is offline, the device can read permitted cached evidence or
 queue proposals, but cannot start its Planner or claim acceptance. A separate
 personal workspace on another computer has a separate identity.
 
+### NYLRA on the owning computer
+
+Decided with Mohammed on 2026-10-12: the Shadows–NYLRA integration starts with
+NYLRA desktop on the computer that owns the workspace. It reads project context
+from this daemon's local API; the cloud never reads the daemon on this path. The
+backend's [same-machine context path](../../../../shadows-backend/docs/architecture.md#same-machine-context-path)
+owns the cloud half.
+
+Shadows owns two things on this path. **The sharing switch:** a project is
+readable by NYLRA only after the person turns it on for that project, and
+turning it off refuses the next read. **The projection:** one read returns the
+bounded `nylra-context/1` items, each with its version, and the project's
+revision. Nothing outside the projection is reachable through it, and what it
+returns grants nothing: approvals and other writes keep their own routes and
+§24's rules. Both are methods of one service, with their lines in its contract.
+
+The connector, for the phone and other computers, carries the same projection
+when it is built; it is not needed for this slice.
+
+> **OPEN — who may call the projection.** Today the daemon knows a caller only
+> by its browser `Origin`; any local process can call it, as it can call every
+> route. That is accepted for a read the person switched on, and recorded as a
+> limit. **Closes when** the connector slice adds an authenticated caller, or
+> earlier if a local write is added to this path.
+
 ### Execution is assigned, not synchronized
 
 A team runtime may assign a bounded attempt to an enrolled local worker or, later,
