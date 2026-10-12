@@ -18,6 +18,10 @@ pub use proposals::{ProposalStatus, VisionAction, VisionProposal, VisionPropose}
 pub(crate) mod stage;
 pub(crate) mod standards;
 mod store;
+mod structure;
+mod structure_create;
+mod structure_write;
+pub use structure_create::StructureWritten;
 mod vision_items;
 mod workspace;
 pub(crate) use store::check_agreement_binding_in;
@@ -34,6 +38,7 @@ pub use model::{
 pub struct Design {
     storage: Arc<Storage>,
     handles: Arc<crate::turns::LiveHandles>,
+    structure_lock: tokio::sync::Mutex<()>,
 }
 pub use agreement::{
     AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
@@ -83,7 +88,11 @@ impl Design {
     }
 
     pub(crate) fn new(storage: Arc<Storage>, handles: Arc<crate::turns::LiveHandles>) -> Self {
-        Self { storage, handles }
+        Self {
+            storage,
+            handles,
+            structure_lock: tokio::sync::Mutex::new(()),
+        }
     }
 
     pub async fn vision(&self, project: &ProjectId) -> Result<VisionView, CoreError> {

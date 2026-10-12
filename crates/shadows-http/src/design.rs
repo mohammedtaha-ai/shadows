@@ -7,7 +7,7 @@ use axum::{
 use shadows_core::{
     DesignChange, DesignOp, EffectiveStandards, OutcomeId, OutcomePage, OutcomeView, PartId,
     PartPage, PartView, ProjectId, StageView, StandardsAdditions, StandardsAdditionsVersion,
-    VisionView,
+    StructureWritten, VisionView,
 };
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
@@ -265,4 +265,28 @@ pub(super) async fn get_stage(
     Path(project): Path<ProjectId>,
 ) -> Result<Json<StageView>, Failure> {
     Ok(Json(s.core.design().stage(&project).await?))
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct CreateStructure {
+    command_id: String,
+}
+
+#[utoipa::path(post, path = "/api/projects/{id}/structure", tag = "design",
+    params(("id" = ProjectId, Path, description = "The project")),
+    request_body = CreateStructure,
+    responses((status = 200, body = StructureWritten), (status = 404, body = ErrorBody),
+        (status = 409, description = "STAGE_BLOCKED or COMMAND_CONFLICT", body = ErrorBody),
+        (status = 422, body = ErrorBody), (status = 500, body = ErrorBody)))]
+pub(super) async fn create_structure(
+    State(s): State<AppState>,
+    Path(project): Path<ProjectId>,
+    Json(body): Json<CreateStructure>,
+) -> Result<Json<StructureWritten>, Failure> {
+    Ok(Json(
+        s.core
+            .design()
+            .create_structure(body.command_id, &project)
+            .await?,
+    ))
 }

@@ -153,6 +153,10 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/grants/store.rs` | an MCP grant's rows, from issue to revocation | `crates/shadows-core/src/grants/store.rs` |
 | `crates/shadows-core/src/instructions/` | a project's numbered Planner instructions | `crates/shadows-core/src/instructions/mod.rs` |
 | `crates/shadows-core/src/design/` | a project's design workspace | `crates/shadows-core/src/design/mod.rs` |
+| `crates/shadows-core/src/design/structure.rs` | rendering an approved map as files | `crates/shadows-core/src/design/structure.rs` |
+| `crates/shadows-core/src/design/structure_create.rs` | coordinating a person's structure write | `crates/shadows-core/src/design/structure_create.rs` |
+| `crates/shadows-core/src/design/structure_write.rs` | publishing recorded files safely | `crates/shadows-core/src/design/structure_write.rs` |
+| `crates/shadows-core/src/design/store/structure.rs` | structure write records | `crates/shadows-core/src/design/store/structure.rs` |
 | `crates/shadows-core/src/design/vision_items.rs` | applying vision item changes | `crates/shadows-core/src/design/vision_items.rs` |
 | `crates/shadows-core/src/design/store/vision_versions.rs` | stored vision versions | `crates/shadows-core/src/design/store/vision_versions.rs` |
 | `crates/shadows-core/src/design/proposals.rs` | vision proposal entry points | `crates/shadows-core/src/design/proposals.rs` |

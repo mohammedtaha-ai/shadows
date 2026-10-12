@@ -845,6 +845,17 @@
         ],
         "type": "object"
       },
+      "CreateStructure": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id"
+        ],
+        "type": "object"
+      },
       "CreateThread": {
         "properties": {
           "command_id": {
@@ -3709,7 +3720,8 @@
           "idea",
           "vision",
           "map",
-          "structure"
+          "structure",
+          "roadmap"
         ],
         "type": "string"
       },
@@ -3912,6 +3924,33 @@
           "model",
           "mode",
           "effort"
+        ],
+        "type": "object"
+      },
+      "StructureWritten": {
+        "properties": {
+          "completed_at": {
+            "type": "string"
+          },
+          "map_version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "resumed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "map_version",
+          "paths",
+          "completed_at",
+          "resumed"
         ],
         "type": "object"
       },
@@ -7438,6 +7477,87 @@
         },
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/projects/{id}/structure": {
+      "post": {
+        "operationId": "create_structure",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStructure"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StructureWritten"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STAGE_BLOCKED or COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
         ]
       }
     },

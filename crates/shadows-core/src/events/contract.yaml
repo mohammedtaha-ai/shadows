@@ -19,6 +19,9 @@
 # delivery — are `shadows-http/src/sse.rs`'s. A `Delivery` is not a frame.
 
 name: events
+# ProjectStructureWritten is allowlisted for project subscriptions, carrying
+# project_id, map_version and paths after committed completion.
+# Held by create_structure_route_writes_and_refuses.
 version: 1
 status: current
 source: crates/shadows-core/src/events

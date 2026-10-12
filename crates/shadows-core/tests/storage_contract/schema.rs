@@ -49,6 +49,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "design_part",
             "design_part_plan",
             "design_part_waiver",
+            "design_structure_write",
             "design_vision_proposal",
             "design_vision_version",
             "design_workspace",

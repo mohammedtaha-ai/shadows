@@ -20,6 +20,19 @@ use app::{App, ctx, other_project, start_settled};
 use listening::{call, listening_app, ok, project_client, refused, thread_client};
 use plan::{add, an_hour_ago, approved_v1, draft, draft_on, events_of, insert_draft_ref, task};
 
+#[tokio::test]
+async fn structure_writing_is_not_an_mcp_tool() {
+    let l = listening_app().await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let (_, external) = project_client(&l).await;
+    for tools in [
+        planner.list_all_tools().await.unwrap(),
+        external.list_all_tools().await.unwrap(),
+    ] {
+        assert!(tools.iter().all(|tool| !tool.name.contains("structure")));
+    }
+}
+
 /// A turn of the app's thread that hangs, once `LiveHandles` sees it running.
 async fn turn_running(app: &App) {
     let op = start_settled(app, "hang").await;

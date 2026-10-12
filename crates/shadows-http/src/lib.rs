@@ -134,6 +134,7 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(design::get_standards))
         .routes(routes!(design::save_standards_additions))
         .routes(routes!(design::get_stage))
+        .routes(routes!(design::create_structure))
         .routes(routes!(design::parts))
         .routes(routes!(design::outcomes))
         .routes(routes!(design::outcome))

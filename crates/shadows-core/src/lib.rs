@@ -32,6 +32,7 @@ pub use code::{
 // `StorageError`, `StartError` and `DirectoryError` are what `CoreError`
 // carries, which each adapter maps.
 pub use db::StorageError;
+pub use design::StructureWritten;
 pub use design::{
     AdditionalPart, AgreementContent, AgreementId, AgreementIssue, AgreementParticipantImpact,
     AgreementParty, AgreementPartyReview, AgreementReview, AgreementRole, AgreementState,
