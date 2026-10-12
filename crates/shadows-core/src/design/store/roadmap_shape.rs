@@ -111,7 +111,6 @@ pub(super) async fn require_structure(
 }
 
 /// Each referenced part's snapshot at proposal time; an unknown part refuses it.
-
 pub(super) async fn part_snapshots(
     conn: &mut SqliteConnection,
     project: &ProjectId,
