@@ -297,6 +297,11 @@ missing step. Over HTTP it is `409` with the code `STAGE_BLOCKED`; over MCP
 it is a tool result whose text begins `STAGE_BLOCKED:` (§13.6). A hand edit
 after the first map meets the same gate: it may not leave a mandatory,
 unwaived kind without a top-level part.
+If a standards update adds a mandatory kind to an already approved map,
+that pre-existing gap is reported in `missing`; incremental part edits and
+approvals may repair it without first repairing every other gap. They may
+not introduce another missing kind. Creating structure rechecks all current
+mandatory kinds and refuses any unwaived gap.
 
 **After approval.** Changing an approved vision deletes nothing. The stage
 line names the change ("G3 added since the map; no part serves it"), the

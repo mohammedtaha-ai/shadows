@@ -15,6 +15,16 @@
 
 **Tech Stack:** Rust (SQLx 0.9 / SQLite, axum + utoipa, rmcp), React + TanStack Query.
 
+**Execution (2026-10-12):** Tasks 1–6 implemented in local commits
+`30f5919`, `0841e21`, `c265416`, `dd1c116`, `b1fbb73`, `a3c4133`.
+Browser acceptance exposed and fixed Vision save/SSE cancellation in
+`1266b23`. Final review and Task 7 are in progress. The ledger is
+`.superpowers/sdd/2026-10-12-guided-planning-pr3-project-map/progress.md`.
+Metadata-only edits preserve served-item baselines; explicit content review
+refreshes them. Standards-added gaps permit no-worsening incremental repair.
+Preexisting legacy parts require explicit adoption (owner spec OPEN), so a
+first-map approval never discards their identities silently.
+
 **Spec:** `docs/superpowers/specs/2026-10-08-guided-planning-design.md`
 - §23.5, with its "Map proposals: decided with Mohammed on 2026-10-12" block;
 - §23.6, gates and `STAGE_BLOCKED`;
@@ -179,7 +189,7 @@ CREATE TABLE design_part_waiver (
 ```
 The proposal table is added in Task 2 by the same migration file. Task 1 writes the file; Task 2 appends its `CREATE TABLE` before the branch's first push. The file is new in this PR, so this edits no shipped migration.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/design_parts.rs` (or a new `tests/design_parts/map.rs` submodule for the map ones):
 - `folders_nest_only_under_their_parent` (Review Focus 4);
@@ -197,12 +207,12 @@ In `tests/design_parts/stage.rs`:
 In `tests/plan_migration.rs`:
 - `migration_0023_keeps_parts_and_starts_without_a_map`: a part row written before 0023 still parses with empty `serves`, `folders`, `files` and contract; `map_revision` is 0.
 
-- [ ] **Step 2: Run them; each fails**
+- [x] **Step 2: Run them; each fails**
 
 Run: `cargo test -p shadows-core --test design_parts --test plan_migration`
 Expected: FAIL (compile errors on the new fields and the seam).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 - Migration, model fields, `map_rules.rs`, `map_versions.rs`, `StageBlocked` end to end, and the seam.
 - In `edit_design`, after the revision check and before applying ops:
@@ -211,13 +221,13 @@ Expected: FAIL (compile errors on the new fields and the seam).
 - `stage::compute` takes `map_revision`, the waivers and the parts' `serves` instead of the bare kinds.
 - `stage::line` at `structure` appends drift, for example `Drift: G4 is served by no part.`
 
-- [ ] **Step 4: Run the tests and the existing parts and agreement tests**
+- [x] **Step 4: Run the tests and the existing parts and agreement tests**
 
 Run: `cargo test -p shadows-core --test design_parts --test plan_migration --test design_outcomes --test agreement_bindings --test agreement_review --test design_migration`
 Then: `cargo test -p shadows --test design_routes --test project_events --test workspace_mcp --test agreement_journey`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A crates api web/src/api docs/codebase
@@ -327,7 +337,7 @@ CREATE INDEX map_proposal_part ON design_map_proposal(project_id,part_id,status)
    - `add`/`change`: `missing_kinds` is no worse than before (a change may not drop a kind).
 4. Write: create the parts (`first`: a `PartId::generate()` per key, parents before children, ordinal by proposal order) or update the one part, setting each written part's `served_revisions` from the current vision; the waivers with `approved_by` = the person's principal id; a map version with `proposal_id`; `map_revision`; the design revision +1; the proposal `Approved`; `ProjectDesignChanged` with `changed_parts`; `design_command_result`; `record_command`.
 
-- [ ] **Step 1: Write the failing tests** in `tests/design_parts/map.rs`. Use PR 2's helpers for a running Planner turn (`tests/design_vision/proposals.rs` shows how).
+- [x] **Step 1: Write the failing tests** in `tests/design_parts/map.rs`. Use PR 2's helpers for a running Planner turn (`tests/design_vision/proposals.rs` shows how).
   - `first_map_is_stage_blocked_while_the_vision_is_incomplete`
   - `first_map_approval_needs_every_mandatory_part_or_a_waiver`: missing `database` refuses; a waiver of `frontend` with a reason passes and is recorded with the approver; a waiver of `backend` is refused at proposal.
   - `first_map_refuses_an_unserved_goal` (Review Focus 1)
@@ -338,10 +348,10 @@ CREATE INDEX map_proposal_part ON design_map_proposal(project_id,part_id,status)
   - `approving_a_map_twice_with_one_command_writes_once`
   - `a_proposal_from_an_ended_turn_is_refused`
 
-- [ ] **Step 2: Run them; each fails.** Run: `cargo test -p shadows-core --test design_parts map::`. Expected: FAIL.
-- [ ] **Step 3: Implement** as above.
-- [ ] **Step 4: Run.** Run: `cargo test -p shadows-core --test design_parts --test design_vision`. Expected: PASS.
-- [ ] **Step 5: Commit** `feat(design): Planner map proposals and atomic person approval`.
+- [x] **Step 2: Run them; each fails.** Run: `cargo test -p shadows-core --test design_parts map::`. Expected: FAIL.
+- [x] **Step 3: Implement** as above.
+- [x] **Step 4: Run.** Run: `cargo test -p shadows-core --test design_parts --test design_vision`. Expected: PASS.
+- [x] **Step 5: Commit** `feat(design): Planner map proposals and atomic person approval`.
 
 ---
 
@@ -352,16 +362,16 @@ CREATE INDEX map_proposal_part ON design_map_proposal(project_id,part_id,status)
 - Modify: `crates/shadows-core/src/harness/prompt.txt`, `crates/shadows-core/src/harness/contract.yaml`, `crates/shadows-core/src/grants/contract.yaml`
 - Test: `crates/shadows/tests/workspace_mcp.rs`, `crates/shadows/tests/mcp_server.rs`, `crates/shadows/tests/planner_mcp.rs`
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - `map_propose_draws_a_card_and_writes_nothing`
   - `map_propose_before_a_complete_vision_answers_stage_blocked`: the tool text begins `STAGE_BLOCKED: vision incomplete`.
   - The tool list counts grow by one.
-- [ ] **Step 2: Run; they fail.** Run: `cargo test -p shadows --test workspace_mcp --test mcp_server --test planner_mcp`.
-- [ ] **Step 3: Implement.**
+- [x] **Step 2: Run; they fail.** Run: `cargo test -p shadows --test workspace_mcp --test mcp_server --test planner_mcp`.
+- [x] **Step 3: Implement.**
   - The tool description: "Propose the project map, or one change to it. With `first`, give every part (each with a `key`, and `parent_key` for a child), the vision ids it serves, its folders, its initial files (manifests and skeletons, no logic) and its contract head. Add a waiver only for `api` or `frontend`, with the reason. With `add` or `change`, give one part. One call is one card. Nothing changes until the person approves it."
   - `prompt.txt` gains a paragraph for the map stage: read `workspace_get` and the standards, propose the whole first map in one call, every goal served, mandatory parts as top-level parts with their `kind`, and on `STAGE_BLOCKED` go back to what the reason names.
-- [ ] **Step 4: Run.** Expected: PASS.
-- [ ] **Step 5: Commit** `feat(mcp): let the Planner propose the project map`.
+- [x] **Step 4: Run.** Expected: PASS.
+- [x] **Step 5: Commit** `feat(mcp): let the Planner propose the project map`.
 
 ---
 
@@ -377,11 +387,11 @@ Routes, copying the vision proposal pair:
 - `POST /api/projects/{id}/map-proposals/{proposal_id}/approve` with `{ command_id }` → `DesignChange`.
   - Refusals: `409 STAGE_BLOCKED` for a gate; `422 INVALID_COMMAND` for the rest.
 
-- [ ] **Step 1: Failing test** `map_proposal_routes_list_and_approve`: a refused approval answers 409 with code `STAGE_BLOCKED`, and a valid one 200.
-- [ ] **Step 2: Run; it fails.** Run: `cargo test -p shadows --test design_routes --test openapi`.
-- [ ] **Step 3: Implement**, then `npm run gen:api` in `web/`.
-- [ ] **Step 4: Run.** Expected: PASS.
-- [ ] **Step 5: Commit** `feat(http): list and approve map proposals`.
+- [x] **Step 1: Failing test** `map_proposal_routes_list_and_approve`: a refused approval answers 409 with code `STAGE_BLOCKED`, and a valid one 200.
+- [x] **Step 2: Run; it fails.** Run: `cargo test -p shadows --test design_routes --test openapi`.
+- [x] **Step 3: Implement**, then `npm run gen:api` in `web/`.
+- [x] **Step 4: Run.** Expected: PASS.
+- [x] **Step 5: Commit** `feat(http): list and approve map proposals`.
 
 ---
 
@@ -402,16 +412,16 @@ Behaviour:
 - **The part editor** edits title, responsibility, design, kind, serves (checkboxes of vision items), folders (one per line) and the contract header and rules. Files are read-only (Ruling 6).
 - **Errors:** a `STAGE_BLOCKED` answer is shown as the reason text, in place.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - `hides_add_part_before_the_first_map`;
   - `shows_drift_and_the_pending_count`;
   - `edits_serves_and_folders`;
   - `shows_a_stage_blocked_reason`;
   - and, in the events test, `MapProposed` invalidates design.
-- [ ] **Step 2: Run; they fail.** Run: `npx vitest run src/app/design/parts-view.test.tsx src/stream/use-project-events.test.tsx` in `web/`.
-- [ ] **Step 3: Implement.**
-- [ ] **Step 4: Run them, then `npx tsc -b --noEmit` and `npm run lint`.** Expected: PASS.
-- [ ] **Step 5: Commit** `feat(web): the project map with served goals, folders, contracts and drift`.
+- [x] **Step 2: Run; they fail.** Run: `npx vitest run src/app/design/parts-view.test.tsx src/stream/use-project-events.test.tsx` in `web/`.
+- [x] **Step 3: Implement.**
+- [x] **Step 4: Run them, then `npx tsc -b --noEmit` and `npm run lint`.** Expected: PASS.
+- [x] **Step 5: Commit** `feat(web): the project map with served goals, folders, contracts and drift`.
 
 ---
 
@@ -431,22 +441,22 @@ Behaviour:
 - **Status** is read live from the list query, as the vision card does: Approve, Approved, Superseded, or "Outdated — ask the Planner to propose again".
 - **A refused approval** shows its reason under the button, `STAGE_BLOCKED` included.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
   - `shows_waivers_apart_before_approve`;
   - `approve_posts_and_shows_approved`;
   - `outdated_has_no_approve_button`;
   - `a_stage_blocked_refusal_shows_its_reason`;
   - `a_contract_opens_in_the_side_panel`.
-- [ ] **Step 2: Run; they fail.** Run: `npx vitest run src/app/conversation/map-proposal-card.test.tsx`.
-- [ ] **Step 3: Implement.**
-- [ ] **Step 4: Run; then type-check and lint.** Expected: PASS.
-- [ ] **Step 5: Commit** `feat(web): approve the project map from its conversation card`.
+- [x] **Step 2: Run; they fail.** Run: `npx vitest run src/app/conversation/map-proposal-card.test.tsx`.
+- [x] **Step 3: Implement.**
+- [x] **Step 4: Run; then type-check and lint.** Expected: PASS.
+- [x] **Step 5: Commit** `feat(web): approve the project map from its conversation card`.
 
 ---
 
 ### Task 7: Evidence, the browser run and the full gate
 
-- [ ] **Step 1: Browser run on a copy of the development database.**
+- [x] **Step 1: Browser run on a copy of the development database.**
   - Start a separate daemon and web on free ports. Leave `.claude/launch.json` and the person's daemon alone.
   - Use the real Planner: complete a vision, then ask for the map. Check:
     1. a map missing `database` is refused with its reason, in the card;
