@@ -375,6 +375,7 @@ Each PR is one slice a person can try in the browser.
 | 2 | Vision proposals (§23.3, §23.5) | Vision items are written from the conversation after approval |
 | 3 | Map and contracts, with their gates (§23.5, §23.6) | A proposed map approved; a clear refusal when something is missing |
 | 3b | §24: principal and agent, the Planner's fixed tools, its approval tools | "Approved by the Planner at your request" beside "Approved by you" |
+| 3c | §24.3: the project switches that widen the Planner's reach (connectors, skills, `CLAUDE.md`), after their probe | A switch turns on Google Drive for one project's Planner and nothing else |
 | 4 | Writing the structure (§23.7) | The structure appears in the project directory |
 | 5 | Roadmap and plans behind the map gate | No plan before the structure exists |
 

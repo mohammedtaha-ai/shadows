@@ -108,6 +108,21 @@ existed, and a planted project hook, skill and `CLAUDE.md` that plain Claude
 Code loaded did not reach the Planner. Bypass is not in Shadows' mode policy (§12.4) and was not run; the
 tool list does not depend on the mode.
 
+**The person may widen the Planner's reach, never its hands.** Planned for
+§23.9 PR 3c: a project settings page with switches for what is safe to give
+the Planner — the person's own MCP connectors, their skills, and the
+project's `CLAUDE.md`. Write, Edit, Bash and PowerShell are never offered:
+a shell is the forgery this section removes, and writing code is the
+executors' (§17). Decided with Mohammed on 2026-10-12.
+
+> **OPEN — how each switch is delivered without the settings it rides on.**
+> `settingSources: ["project"]` would bring the project's hooks with its
+> `CLAUDE.md`, and a hook runs a shell command. Shadows may instead read
+> `CLAUDE.md` itself into the appended instructions, pass chosen MCP servers
+> in `mcpServers`, and pass skills through the SDK's own options. **Closes
+> when** a probe like 2026-10-12's shows each switch brings its item and no
+> hook runs, and this paragraph names the delivery.
+
 > **OPEN — executors.** §17's executors need a shell, so §24.3's rule cannot
 > protect them. **Closes when** §17 specifies their sandbox: a shell that
 > cannot reach the daemon's port.
