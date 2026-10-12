@@ -39,6 +39,8 @@ pub struct SessionSetup {
     pub append: Option<String>,
     /// Pre-approved tools (`_meta.claudeCode.options.allowedTools`).
     pub allowed_tools: Vec<String>,
+    /// None keeps adapter defaults; Some(empty) explicitly removes built-in tools.
+    pub tools: Option<Vec<String>>,
 }
 
 /// One HTTP MCP server, reached with `Authorization: Bearer <bearer>`.
@@ -78,9 +80,20 @@ impl SessionSetup {
                 serde_json::json!({ "append": append }),
             );
         }
+        let mut options = serde_json::Map::new();
         if !self.allowed_tools.is_empty() {
-            let options = serde_json::json!({ "options": { "allowedTools": self.allowed_tools } });
-            meta.insert("claudeCode".into(), options);
+            options.insert("allowedTools".into(), serde_json::json!(self.allowed_tools));
+        }
+        if let Some(tools) = &self.tools {
+            options.insert("tools".into(), serde_json::json!(tools));
+            options.insert("settingSources".into(), serde_json::json!([]));
+            options.insert("strictMcpConfig".into(), serde_json::json!(true));
+        }
+        if !options.is_empty() {
+            meta.insert(
+                "claudeCode".into(),
+                serde_json::json!({ "options": options }),
+            );
         }
         (!meta.is_empty()).then_some(meta)
     }
@@ -449,6 +462,31 @@ fn capabilities() -> ClientCapabilities {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn absent_and_empty_tool_policies_are_distinct() {
+        assert!(SessionSetup::default().meta().is_none());
+        let setup = SessionSetup {
+            tools: Some(vec![]),
+            ..Default::default()
+        };
+        let meta = serde_json::to_value(setup.meta().unwrap()).unwrap();
+        assert_eq!(
+            meta["claudeCode"]["options"]["tools"],
+            serde_json::json!([])
+        );
+        assert_eq!(
+            meta["claudeCode"]["options"]["settingSources"],
+            serde_json::json!([])
+        );
+        assert_eq!(meta["claudeCode"]["options"]["strictMcpConfig"], true);
+        let defaults = SessionSetup {
+            allowed_tools: vec!["mcp__shadows__*".into()],
+            ..Default::default()
+        };
+        let meta = serde_json::to_value(defaults.meta().unwrap()).unwrap();
+        assert!(meta["claudeCode"]["options"].get("tools").is_none());
+    }
 
     #[test]
     fn a_server_error_mentioning_connection_closed_is_still_an_rpc_error() {

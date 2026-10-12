@@ -356,8 +356,8 @@ A grant is Shadows' answer to "who may do what" on `/mcp` (§2.12's
 `include_str!`. Their version is a hash of the compiled text, computed once when the daemon starts.
 They tell the Planner:
 
-1. its main job — analyse, discuss, and build the plan with Shadows' tools; no
-   Claude tool is taken away from it;
+1. its main job — analyse, discuss, and build the plan with Shadows' tools;
+   §24.3 owns its fixed tools and settings;
 2. how to use the tools — read with `workflow_get` before editing, put every
    change of one step in a single `plan_edit`, choose task numbers;
 3. what the two link kinds and a label mean;
@@ -381,6 +381,9 @@ the installed adapter reads them (0.81.1, `acp-agent.js`):
 | `mcpServers` (a field of the request) | `shadows`, type http, the `/mcp` URL, `Authorization: Bearer <token>` |
 | `_meta.systemPrompt` | `{ append: Shadows' instructions + project instructions }` — appended to Claude Code's own prompt, which is kept |
 | `_meta.claudeCode.options.allowedTools` | `["mcp__shadows__*"]` |
+| `_meta.claudeCode.options.tools` | §24.3's fixed built-in tool list |
+| `_meta.claudeCode.options.settingSources` | `[]` |
+| `_meta.claudeCode.options.strictMcpConfig` | `true` |
 
 `allowedTools` pre-approves Shadows' tools only. Milestone 1 refuses every
 permission request (§12.3), and Accept edits (§12.5's default) does not
