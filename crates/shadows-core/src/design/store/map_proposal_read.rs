@@ -77,10 +77,15 @@ impl Storage {
     ) -> Result<Vec<MapProposal>, StorageError> {
         let mut tx = self.reader().begin().await?;
         super::proposal_read::live_vision(&mut tx, p).await?;
-        let rows: Vec<Row> = sqlx::query_as("SELECT payload_json,status,vision_revision,
-            expected_part_revision,expected_items_json,standards_version,standards_additions_version_id
-            FROM design_map_proposal WHERE project_id=? ORDER BY seq,id")
-            .bind(p.as_str()).fetch_all(&mut *tx).await?;
+        let rows: Vec<Row> = sqlx::query_as(
+            "SELECT payload_json,status,vision_revision,
+            expected_part_revision,expected_items_json,standards_version,
+            standards_additions_version_id
+            FROM design_map_proposal WHERE project_id=? ORDER BY seq,id",
+        )
+        .bind(p.as_str())
+        .fetch_all(&mut *tx)
+        .await?;
         let mut result = Vec::new();
         for row in rows {
             result.push(view(&mut tx, p, row).await?);

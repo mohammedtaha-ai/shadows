@@ -22,7 +22,8 @@ pub(super) struct VisionProposeArgs {
 #[tool_router(router = workspace_tool_router, vis = "pub(super)")]
 impl Shadows {
     #[tool(
-        description = "Propose a project map. first proposes all parts with slug keys and parent_key;
+        description = "Propose a project map. first proposes all parts with slug keys
+        and parent_key;
         add/change proposes one part, change names part_id. Include served vision ids, folders,
         starter files and contract rules. First-map api/frontend waivers need written reasons.
         One call draws one card. Only the person approves; this tool writes no approved parts."
