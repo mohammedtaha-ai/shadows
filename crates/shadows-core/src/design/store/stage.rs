@@ -38,7 +38,36 @@ impl Storage {
             base: standards::base().clone(),
             additions: super::standards::current_in(&mut tx, project).await?,
         };
-        let stage = stage::compute(&vision, &kinds, &effective.mandatory_parts());
+        let waived = super::map_versions::waived(&mut tx, project).await?;
+        let required: Vec<_> = effective
+            .mandatory_parts()
+            .into_iter()
+            .filter(|k| !waived.iter().any(|w| w == k))
+            .collect();
+        let mut stage = stage::compute(&vision, &kinds, &required);
+        let map: Option<i64> =
+            sqlx::query_scalar("SELECT map_revision FROM design_workspace WHERE project_id=?")
+                .bind(project.as_str())
+                .fetch_optional(&mut *tx)
+                .await?;
+        if matches!(stage.stage, crate::Stage::Map | crate::Stage::Structure) {
+            stage.stage = if map.unwrap_or(0) == 0 {
+                crate::Stage::Map
+            } else {
+                crate::Stage::Structure
+            };
+        }
+        if map.unwrap_or(0) > 0 {
+            let rows = super::map_versions::rows(&mut tx, project).await?;
+            let content = super::map_versions::contents(&rows)?;
+            let revisions: Vec<std::collections::BTreeMap<String, i64>> = rows
+                .iter()
+                .map(|r| serde_json::from_str(&r.served_revisions))
+                .collect::<Result<_, _>>()?;
+            let parts = super::map_versions::views(&rows, &content);
+            let parts = parts.into_iter().zip(&revisions).collect::<Vec<_>>();
+            stage.drift = crate::design::map_rules::drift(&parts, &vision);
+        }
         tx.commit().await?;
         Ok(stage)
     }

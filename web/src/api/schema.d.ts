@@ -1290,6 +1290,10 @@ export interface components {
             /** Format: int64 */
             tokens: number;
         };
+        ContractHead: {
+            header: string;
+            rules: string[];
+        };
         ContractTemplate: {
             rules: string[];
             shape: string[];
@@ -1507,7 +1511,7 @@ export interface components {
          *     Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
+        ErrorCode: "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
         /**
          * @description The task a person points at when they send a turn: the task's id, in the
          *     plan version and at the revision they were looking at. It is checked to
@@ -1590,6 +1594,10 @@ export interface components {
         } | {
             /** @enum {string} */
             state: "directory_missing";
+        };
+        InitialFile: {
+            content: string;
+            path: string;
         };
         /**
          * @description One saved version of a project's instructions. `id` is what an
@@ -1773,9 +1781,13 @@ export interface components {
             revision: number;
         };
         PartContent: {
+            contract?: components["schemas"]["ContractHead"];
             design: string;
+            files?: components["schemas"]["InitialFile"][];
+            folders?: string[];
             kind?: string | null;
             responsibility: string;
+            serves?: string[];
             title: string;
         };
         /** Format: uuid */
@@ -2073,6 +2085,7 @@ export interface components {
         /** @enum {string} */
         Stage: "idea" | "vision" | "map" | "structure";
         StageView: {
+            drift?: string[];
             /** @description Missing vision field names at vision; mandatory part names at map. */
             missing: string[];
             stage: components["schemas"]["Stage"];

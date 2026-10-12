@@ -8,6 +8,9 @@ use std::sync::Arc;
 #[path = "design_parts/stage.rs"]
 mod stage;
 
+#[path = "design_parts/map.rs"]
+mod map;
+
 async fn core_at(path: &std::path::Path) -> Arc<AppCore> {
     let storage = Arc::new(Storage::open(path).await.unwrap());
     let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
@@ -36,6 +39,7 @@ fn content(title: &str) -> PartContent {
         responsibility: " مسؤولية ".into(),
         design: " تصميم\n".into(),
         kind: Some("طبقة".into()),
+        ..Default::default()
     }
 }
 
@@ -49,6 +53,12 @@ fn create(id: &PartId, parent: Option<&PartId>, title: &str) -> DesignOp {
 }
 
 async fn edit(core: &AppCore, p: &ProjectId, rev: i64, ops: Vec<DesignOp>) {
+    if ops
+        .iter()
+        .any(|op| matches!(op, DesignOp::PartCreate { .. }))
+    {
+        core.design().seed_map_for_tests(p).await.unwrap();
+    }
     assert_eq!(
         core.design()
             .edit(format!("edit-{p}-{rev}"), p, rev, ops)
@@ -397,6 +407,7 @@ async fn part_pages_are_bounded_and_replay_is_immutable() {
     let core = core_at(&tmp.path().join("test.sqlite3")).await;
     let p = project(&core, "one", tmp.path()).await;
     let ids: Vec<_> = (0..51).map(|_| PartId::generate()).collect();
+    core.design().seed_map_for_tests(&p).await.unwrap();
     let ops = ids
         .iter()
         .enumerate()

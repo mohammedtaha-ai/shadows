@@ -6,6 +6,7 @@ mod agreement_scope;
 pub(crate) use agreement_scope::AgreementOrigin;
 mod agreement_validation;
 mod agreements;
+mod map_rules;
 mod model;
 mod ops;
 mod outcomes;
@@ -23,9 +24,9 @@ use std::sync::Arc;
 
 use crate::{app::user_command, db::Storage, error::CoreError, projects::ProjectId};
 pub use model::{
-    DesignAnchor, DesignChange, DesignOp, DesignRevision, Outcome, OutcomeContent, OutcomeId,
-    OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage, PartView, VisionContent,
-    VisionField, VisionItem, VisionView, WorkspaceView,
+    ContractHead, DesignAnchor, DesignChange, DesignOp, DesignRevision, InitialFile, Outcome,
+    OutcomeContent, OutcomeId, OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage,
+    PartView, PartWaiver, VisionContent, VisionField, VisionItem, VisionView, WorkspaceView,
 };
 
 pub struct Design {
@@ -44,6 +45,10 @@ pub use standards::{
 };
 
 impl Design {
+    #[cfg(feature = "test-support")]
+    pub async fn seed_map_for_tests(&self, project: &ProjectId) -> Result<(), CoreError> {
+        Ok(self.storage.seed_map_for_tests(project).await?)
+    }
     pub async fn standards(&self, project: &ProjectId) -> Result<EffectiveStandards, CoreError> {
         Ok(EffectiveStandards {
             base: standards::base().clone(),

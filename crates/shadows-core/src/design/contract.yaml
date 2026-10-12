@@ -38,6 +38,7 @@ shapes:
     base: BaseStandards
     additions: Option<StandardsAdditionsVersion>
   StageView:
+    drift: Vec<String>
     stage: Stage
     missing: Vec<String>
   Design:
@@ -88,6 +89,10 @@ shapes:
   DesignChange:
     revision: DesignRevision
   PartContent:
+    serves: Vec<String>
+    folders: Vec<String>
+    files: Vec<InitialFile>
+    contract: ContractHead
     title: String
     responsibility: String
     design: String
@@ -151,6 +156,8 @@ enums:
 
 functions:
   service:
+    seed_map_for_tests:
+      signature: "test-support only: (&self, project: &ProjectId) -> Result<(), CoreError>"
     propose_vision:
       signature: "(&self, grant: &Grant, args: VisionPropose) -> Result<VisionProposal, CoreError>"
       # Planner/thread grant plus running turn only; writer rechecked in write transaction.
@@ -222,6 +229,8 @@ functions:
       # over project, expected_revision and ordered typed ops; trim only titles,
       # validate client UUID references. Other text remains exact.
   store:
+    seed_map_for_tests:
+      signature: "test-support only: (&self, project: &ProjectId) -> Result<(), StorageError>"
     propose_vision_in:
       signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: VisionPropose) -> Result<VisionProposal, StorageError>"
     list_vision_proposals:
@@ -303,6 +312,12 @@ called_by_other_services:
   project_stage: "Harness reads the persisted workspace stage before each turn."
 
 obligations:
+  - rule: Part writes before the first approved map refuse atomically; every later part write stores a map version.
+    tested_by: a_hand_part_create_before_the_first_map_is_stage_blocked
+  - rule: Folder ownership follows containment, with case-insensitive path and file checks.
+    tested_by: [folders_nest_only_under_their_parent, initial_files_cannot_escape_part_ownership]
+  - rule: Missing mandatory kinds cannot be introduced by hand edits; metadata changes preserve review baselines.
+    tested_by: [a_hand_edit_cannot_drop_a_mandatory_part, removed_links_and_metadata_edits_preserve_drift]
   - rule: A fresh proposal rechecks its exact running turn in its write transaction; terminal turns produce no card or supersession.
     tested_by: a_new_proposal_cannot_commit_under_a_finished_turn
   - rule: A proposal is an immutable pending card without a vision write; replay returns its original snapshot.
@@ -367,6 +382,16 @@ obligations:
     tested_by: vision_routes_round_trip_conflict_and_preserve_conversations
 
 tests:
+  - name: a_hand_part_create_before_the_first_map_is_stage_blocked
+    checks: Refusal without writes; test-only seed enables edits and immutable map snapshots.
+  - name: folders_nest_only_under_their_parent
+    checks: Ancestor-owned folders allow child ownership; sibling overlap rolls back.
+  - name: initial_files_cannot_escape_part_ownership
+    checks: A starter file outside its part's folders is refused.
+  - name: a_hand_edit_cannot_drop_a_mandatory_part
+    checks: Kind edits and moves cannot remove mandatory top-level ownership.
+  - name: removed_links_and_metadata_edits_preserve_drift
+    checks: Rename does not acknowledge changed goals; removed links do not block unrelated edits.
   - name: a_new_proposal_cannot_commit_under_a_finished_turn
     checks: Captured operation stopped before persistence refuses with no version, card or event.
   - name: the_base_standards_parse_with_the_four_mandatory_parts

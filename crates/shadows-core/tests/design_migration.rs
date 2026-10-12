@@ -138,6 +138,7 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
             .is_empty()
     );
     let a = PartId::generate();
+    storage.seed_map_for_tests(&project).await.unwrap();
     let b = PartId::generate();
     let child = PartId::generate();
     let outcome = OutcomeId::generate();
@@ -146,6 +147,10 @@ async fn workspace_migrations_preserve_old_frozen_bytes_and_reopened_links() {
         parent,
         before: None,
         content: PartContent {
+            serves: vec![],
+            folders: vec![],
+            files: vec![],
+            contract: Default::default(),
             title: title.into(),
             responsibility: "مسؤولية".into(),
             design: "تصميم\n".into(),

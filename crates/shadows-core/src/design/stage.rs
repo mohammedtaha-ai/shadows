@@ -16,6 +16,8 @@ pub enum Stage {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct StageView {
+    #[serde(default)]
+    pub drift: Vec<String>,
     pub stage: Stage,
     /// Missing vision field names at vision; mandatory part names at map.
     pub missing: Vec<String>,
@@ -36,12 +38,14 @@ pub(crate) fn compute(vision: &VisionContent, kinds: &[String], required: &[&str
         .collect();
     if empty.len() == fields.len() {
         return StageView {
+            drift: vec![],
             stage: Stage::Idea,
             missing: vec![],
         };
     }
     if !empty.is_empty() {
         return StageView {
+            drift: vec![],
             stage: Stage::Vision,
             missing: empty,
         };
@@ -52,6 +56,7 @@ pub(crate) fn compute(vision: &VisionContent, kinds: &[String], required: &[&str
         .map(|name| name.to_string())
         .collect();
     StageView {
+        drift: vec![],
         stage: if missing.is_empty() {
             Stage::Structure
         } else {
@@ -63,7 +68,7 @@ pub(crate) fn compute(vision: &VisionContent, kinds: &[String], required: &[&str
 
 pub(crate) fn line(view: &StageView) -> String {
     let missing = view.missing.join(", ");
-    match view.stage {
+    let mut line = match view.stage {
         Stage::Idea => "[Shadows] Stage: idea. Nothing is written yet: discuss the idea; \
                         when the person asks how to start, walk the vision fields one at a time."
             .into(),
@@ -72,5 +77,9 @@ pub(crate) fn line(view: &StageView) -> String {
         Stage::Structure => "[Shadows] Stage: structure. The vision and map are complete; \
              the structure is not written yet."
             .into(),
+    };
+    if !view.drift.is_empty() {
+        line.push_str(&format!(" Drift: {}.", view.drift.join("; ")));
     }
+    line
 }

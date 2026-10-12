@@ -36,6 +36,7 @@ impl Refusal {
 impl From<StorageError> for Refusal {
     fn from(e: StorageError) -> Self {
         match e {
+            StorageError::StageBlocked(message) => Self::new(ErrorCode::StageBlocked, message),
             StorageError::RevisionConflict { current, summary } => Self::new(
                 ErrorCode::RevisionConflict,
                 format!(

@@ -34,12 +34,69 @@ pub struct OutcomePage {
     pub next: Option<OutcomeId>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
 pub struct PartContent {
     pub title: String,
     pub responsibility: String,
     pub design: String,
     pub kind: Option<String>,
+    #[serde(default)]
+    pub serves: Vec<String>,
+    #[serde(default)]
+    pub folders: Vec<String>,
+    #[serde(default)]
+    pub files: Vec<InitialFile>,
+    #[serde(default)]
+    pub contract: ContractHead,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+pub struct InitialFile {
+    pub path: String,
+    pub content: String,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+pub struct ContractHead {
+    pub header: String,
+    pub rules: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct PartWaiver {
+    pub part: String,
+    pub reason: String,
+    pub approved_by: String,
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]

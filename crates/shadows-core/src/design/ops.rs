@@ -31,6 +31,7 @@ pub(super) fn normalize(ops: &mut [DesignOp]) -> Result<(), CoreError> {
                     valid_id(reference.as_str())?;
                 }
                 content.title = content.title.trim().into();
+                super::map_rules::normalise(content).map_err(invalid)?;
                 if content.title.is_empty() {
                     return Err(invalid(format!("part {id} needs a title")));
                 }
@@ -38,6 +39,7 @@ pub(super) fn normalize(ops: &mut [DesignOp]) -> Result<(), CoreError> {
             DesignOp::PartPut { id, content } => {
                 valid_id(id.as_str())?;
                 content.title = content.title.trim().into();
+                super::map_rules::normalise(content).map_err(invalid)?;
                 if content.title.is_empty() {
                     return Err(invalid(format!("part {id} needs a title")));
                 }

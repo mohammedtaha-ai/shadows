@@ -2,6 +2,7 @@
 mod agreement_binding;
 mod agreements;
 mod hierarchy;
+mod map_versions;
 pub(crate) use agreement_binding::check_agreement_binding_in;
 mod agreement_review;
 mod agreement_write;

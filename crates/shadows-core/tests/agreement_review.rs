@@ -31,7 +31,12 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
         .unwrap()
         .id;
     let part = PartId::generate();
+    storage.seed_map_for_tests(&project).await.unwrap();
     let part_content = PartContent {
+        serves: vec![],
+        folders: vec![],
+        files: vec![],
+        contract: Default::default(),
         title: "API".into(),
         responsibility: "Login".into(),
         design: "".into(),

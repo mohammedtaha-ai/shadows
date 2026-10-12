@@ -719,6 +719,24 @@
         ],
         "type": "object"
       },
+      "ContractHead": {
+        "properties": {
+          "header": {
+            "type": "string"
+          },
+          "rules": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "header",
+          "rules"
+        ],
+        "type": "object"
+      },
       "ContractTemplate": {
         "properties": {
           "rules": {
@@ -1473,6 +1491,7 @@
       "ErrorCode": {
         "description": "Stable codes clients pattern-match on. Never match on human text.\nSpec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.",
         "enum": [
+          "STAGE_BLOCKED",
           "HARNESS_START_FAILED",
           "PROCESS_SPAWN_FAILED",
           "PROCESS_TERMINATED",
@@ -1786,6 +1805,21 @@
             "type": "object"
           }
         ]
+      },
+      "InitialFile": {
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "type": "object"
       },
       "InstructionsVersion": {
         "description": "One saved version of a project's instructions. `id` is what an\n`agent_invocation` records (§13.15); a client sees the number instead.",
@@ -2454,8 +2488,23 @@
       },
       "PartContent": {
         "properties": {
+          "contract": {
+            "$ref": "#/components/schemas/ContractHead"
+          },
           "design": {
             "type": "string"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/InitialFile"
+            },
+            "type": "array"
+          },
+          "folders": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "kind": {
             "type": [
@@ -2465,6 +2514,12 @@
           },
           "responsibility": {
             "type": "string"
+          },
+          "serves": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "title": {
             "type": "string"
@@ -3476,6 +3531,12 @@
       },
       "StageView": {
         "properties": {
+          "drift": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "missing": {
             "description": "Missing vision field names at vision; mandatory part names at map.",
             "items": {

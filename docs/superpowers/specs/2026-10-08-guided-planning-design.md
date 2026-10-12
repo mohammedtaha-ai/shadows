@@ -169,6 +169,10 @@ on the Project map page: each goal no part serves, and each part whose
 served item changed or was removed since that part was last written. Drift is
 per part, so editing one part never clears another's. A link to a removed
 item is drift, not a refusal: it never blocks an edit of another part.
+Renaming, reordering, moving or changing plan associations does not refresh
+a part's served-item review baseline. A person content edit reviews its
+responsibility, design or served-item links; an approved Planner change is
+an explicit review of that part.
 Paths are compared case-insensitively, as Windows does, and a part's initial
 files lie inside its own folders.
 

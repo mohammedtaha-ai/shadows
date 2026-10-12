@@ -83,6 +83,64 @@ impl Storage {
                 .bind(serde_json::to_string(&VisionContent::default())?)
                 .execute(&mut *conn)
                 .await?;
+                let before_parts = super::map_versions::rows(conn, &project).await?;
+                let mut written = BTreeSet::new();
+                let mut reviewed = BTreeSet::new();
+                let touches_parts = ops.iter().any(|op| {
+                    matches!(
+                        op,
+                        DesignOp::PartCreate { .. }
+                            | DesignOp::PartPut { .. }
+                            | DesignOp::PartMove { .. }
+                            | DesignOp::PlanLinkPut {
+                                anchor: DesignAnchor::Part(_),
+                                ..
+                            }
+                            | DesignOp::PlanLinkRemove {
+                                anchor: DesignAnchor::Part(_),
+                                ..
+                            }
+                    )
+                });
+                if touches_parts {
+                    let map: i64 = sqlx::query_scalar(
+                        "SELECT map_revision FROM design_workspace WHERE project_id=?",
+                    )
+                    .bind(project.as_str())
+                    .fetch_one(&mut *conn)
+                    .await?;
+                    if map == 0 {
+                        return Err(StorageError::StageBlocked(
+                            "the first map comes from the Planner: ask it to propose one".into(),
+                        ));
+                    }
+                }
+                for op in &ops {
+                    match op {
+                        DesignOp::PartCreate { id, .. } => {
+                            written.insert(id.to_string());
+                            reviewed.insert(id.to_string());
+                        }
+                        DesignOp::PartPut { id, content } => {
+                            written.insert(id.to_string());
+                            let old = before_parts
+                                .iter()
+                                .find(|r| r.id == id.as_str())
+                                .map(|r| {
+                                    serde_json::from_str::<crate::PartContent>(&r.content_json)
+                                })
+                                .transpose()?;
+                            if old.is_none_or(|c| {
+                                c.serves != content.serves
+                                    || c.responsibility != content.responsibility
+                                    || c.design != content.design
+                            }) {
+                                reviewed.insert(id.to_string());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
                 let mut changed = BTreeSet::new();
                 let mut created = BTreeSet::new();
                 let mut changed_outcomes = BTreeSet::new();
@@ -183,6 +241,39 @@ impl Storage {
                     .bind(id)
                     .execute(&mut *conn)
                     .await?;
+                }
+                if touches_parts {
+                    let content = super::proposal_read::live_vision(conn, &project).await?;
+                    let rows = super::map_versions::rows(conn, &project).await?;
+                    let contents = super::map_versions::contents(&rows)?;
+                    let parts = super::map_versions::views(&rows, &contents);
+                    let standards = super::map_versions::effective(conn, &project).await?;
+                    let waived = super::map_versions::waived(conn, &project).await?;
+                    crate::design::map_rules::check_shape(
+                        &parts,
+                        &written.iter().map(String::as_str).collect::<Vec<_>>(),
+                        &content,
+                        &standards,
+                    )
+                    .map_err(StorageError::Constraint)?;
+                    let old_contents = super::map_versions::contents(&before_parts)?;
+                    let old_parts = super::map_versions::views(&before_parts, &old_contents);
+                    let old_missing =
+                        crate::design::map_rules::missing_kinds(&old_parts, &waived, &standards);
+                    let missing =
+                        crate::design::map_rules::missing_kinds(&parts, &waived, &standards);
+                    let newly: Vec<_> = missing
+                        .into_iter()
+                        .filter(|k| !old_missing.contains(k))
+                        .collect();
+                    if !newly.is_empty() {
+                        return Err(StorageError::StageBlocked(format!(
+                            "missing part: {}",
+                            newly.join(", ")
+                        )));
+                    }
+                    super::map_versions::review(conn, &project, &reviewed, &content).await?;
+                    super::map_versions::insert_version(conn, &project, None, &ts).await?;
                 }
                 for id in changed_outcomes
                     .iter()

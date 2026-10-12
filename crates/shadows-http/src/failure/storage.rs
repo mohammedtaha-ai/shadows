@@ -19,6 +19,9 @@ impl From<StorageError> for Failure {
             detail: Detail::default(),
         };
         let (status, code, message) = match &e {
+            StorageError::StageBlocked(_) => {
+                return own(StatusCode::CONFLICT, ErrorCode::StageBlocked);
+            }
             StorageError::CommandConflict => {
                 return own(StatusCode::CONFLICT, ErrorCode::CommandConflict);
             }

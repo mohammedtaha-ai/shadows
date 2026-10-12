@@ -27,6 +27,7 @@ async fn binding_storage_checks_agreed_party_and_exact_operations_atomically() {
     let workflow = WorkflowId::from_literal(cross_plan::SOURCE);
     let project = core.plans().get(&workflow).await.unwrap().project_id;
     let part = PartId::generate();
+    storage.seed_map_for_tests(&project).await.unwrap();
     core.design()
         .edit(
             "part".into(),
@@ -37,6 +38,10 @@ async fn binding_storage_checks_agreed_party_and_exact_operations_atomically() {
                 parent: None,
                 before: None,
                 content: PartContent {
+                    serves: vec![],
+                    folders: vec![],
+                    files: vec![],
+                    contract: Default::default(),
                     title: "Web".into(),
                     responsibility: "Login".into(),
                     design: "".into(),

@@ -105,7 +105,7 @@ async fn standards_routes_read_the_base_and_save_additions() {
     let stage = format!("/api/projects/{}/stage", app.project);
     assert_eq!(
         app::call(&app, "GET", &stage, None).await,
-        (200, json!({"stage":"idea","missing":[]}))
+        (200, json!({"stage":"idea","missing":[],"drift":[]}))
     );
     for suffix in ["standards", "stage"] {
         let unknown = format!("/api/projects/{}/{suffix}", uuid::Uuid::new_v4());
@@ -181,6 +181,7 @@ async fn mixed_workspace_batch_rolls_back_and_outcome_pages_are_bounded() {
 #[tokio::test]
 async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
     let app = app::test_app().await;
+    app.storage.seed_map_for_tests(&app.project).await.unwrap();
     let edits = format!("/api/projects/{}/design/edits", app.project);
     let outcomes = format!("/api/projects/{}/design/outcomes", app.project);
     let part = uuid::Uuid::new_v4().to_string();
@@ -246,6 +247,7 @@ async fn outcome_routes_round_trip_independent_hierarchy_and_references() {
 #[tokio::test]
 async fn part_routes_paginate_and_refuse_invalid_references() {
     let app = app::test_app().await;
+    app.storage.seed_map_for_tests(&app.project).await.unwrap();
     let edits = format!("/api/projects/{}/design/edits", app.project);
     let parts = format!("/api/projects/{}/design/parts", app.project);
     let a = uuid::Uuid::new_v4().to_string();

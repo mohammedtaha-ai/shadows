@@ -8,6 +8,7 @@ use crate::turns::StartError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
+    StageBlocked,
     HarnessStartFailed,
     ProcessSpawnFailed,
     ProcessTerminated,
