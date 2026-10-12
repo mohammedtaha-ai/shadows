@@ -217,6 +217,8 @@ enums:
 
 
 obligations:
+  - rule: VisionProposed reaches its project event tail with proposal identifiers only.
+    tested_by: vision_proposal_routes_list_and_approve
   - rule: >
       ProjectStandardsSaved reaches the project journal stream after commit,
       with only its saved number. A command replay produces no second event.

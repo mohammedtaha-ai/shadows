@@ -9,13 +9,21 @@ use shadows_core::{
 #[path = "design_vision/standards.rs"]
 mod standards;
 
+#[path = "design_vision/items.rs"]
+mod items;
+
+#[path = "design_vision/proposals.rs"]
+mod proposals;
+
 fn content(text: &str) -> VisionContent {
     VisionContent {
-        purpose: text.into(),
-        users: " مطورون ".into(),
-        goals: "أهداف\n".into(),
-        boundaries: "حدود".into(),
-        technical_direction: "Rust + React".into(),
+        purpose: vec![shadows_core::VisionItem {
+            id: "PU1".into(),
+            text: text.into(),
+            approved_from: None,
+            revision: 1,
+        }],
+        ..VisionContent::default()
     }
 }
 
@@ -49,8 +57,9 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         .unwrap()
         .id;
     assert_eq!(core.design().vision(&project).await.unwrap().revision, 0);
-    let first = vec![DesignOp::VisionPut {
-        content: content(" رؤية "),
+    let first = vec![DesignOp::VisionItemAdd {
+        field: shadows_core::VisionField::Purpose,
+        text: " رؤية ".into(),
     }];
     assert_eq!(
         core.design()
@@ -69,8 +78,9 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
             "second".into(),
             &project,
             1,
-            vec![DesignOp::VisionPut {
-                content: content("ثانية"),
+            vec![DesignOp::VisionItemPut {
+                id: "PU1".into(),
+                text: "ثانية".into(),
             }],
         )
         .await
@@ -89,8 +99,9 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
                 "first".into(),
                 &project,
                 0,
-                vec![DesignOp::VisionPut {
-                    content: content("changed")
+                vec![DesignOp::VisionItemPut {
+                    id: "PU1".into(),
+                    text: "changed".into()
                 }]
             )
             .await,
@@ -107,8 +118,9 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         .await
         .unwrap()
         .id;
-    let ops = vec![DesignOp::VisionPut {
-        content: content("competing"),
+    let ops = vec![DesignOp::VisionItemAdd {
+        field: shadows_core::VisionField::Purpose,
+        text: "competing".into(),
     }];
     let (a, b) = tokio::join!(
         core.design().edit("a".into(), &other, 0, ops.clone()),
@@ -135,8 +147,9 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
                 "removed".into(),
                 &project,
                 2,
-                vec![DesignOp::VisionPut {
-                    content: content("bad")
+                vec![DesignOp::VisionItemPut {
+                    id: "PU1".into(),
+                    text: "bad".into()
                 }]
             )
             .await
@@ -179,8 +192,9 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
                 "rollback".into(),
                 &other,
                 1,
-                vec![DesignOp::VisionPut {
-                    content: content("must roll back")
+                vec![DesignOp::VisionItemPut {
+                    id: "PU1".into(),
+                    text: "must roll back".into()
                 }]
             )
             .await
@@ -198,11 +212,13 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
         .await
         .unwrap();
     let batch = vec![
-        DesignOp::VisionPut {
-            content: content("first put"),
+        DesignOp::VisionItemPut {
+            id: "PU1".into(),
+            text: "first put".into(),
         },
-        DesignOp::VisionPut {
-            content: content("last put"),
+        DesignOp::VisionItemPut {
+            id: "PU1".into(),
+            text: "last put".into(),
         },
     ];
     assert_eq!(
@@ -215,7 +231,13 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
     );
     assert_eq!(
         core.design().vision(&other).await.unwrap().content,
-        content("last put")
+        VisionContent {
+            purpose: vec![shadows_core::VisionItem {
+                revision: 3,
+                ..content("last put").purpose.remove(0)
+            }],
+            ..VisionContent::default()
+        }
     );
     let revisions: (i64, i64) = sqlx::query_as(
         "SELECT revision, vision_revision FROM design_workspace WHERE project_id = ?",

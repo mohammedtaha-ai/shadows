@@ -80,11 +80,49 @@ pub enum DesignAnchor {
     Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
 )]
 pub struct VisionContent {
-    pub purpose: String,
-    pub users: String,
-    pub goals: String,
-    pub boundaries: String,
-    pub technical_direction: String,
+    pub purpose: Vec<VisionItem>,
+    pub users: Vec<VisionItem>,
+    pub goals: Vec<VisionItem>,
+    pub boundaries: Vec<VisionItem>,
+    pub technical_direction: Vec<VisionItem>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct VisionItem {
+    pub id: String,
+    pub text: String,
+    pub approved_from: Option<crate::threads::ThreadId>,
+    pub revision: i64,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum VisionField {
+    Purpose,
+    Users,
+    Goals,
+    Boundaries,
+    TechnicalDirection,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct VisionCounters {
+    pub purpose: u32,
+    pub users: u32,
+    pub goals: u32,
+    pub boundaries: u32,
+    pub technical_direction: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
@@ -126,8 +164,16 @@ pub enum DesignOp {
         outcome: OutcomeId,
         part: PartId,
     },
-    VisionPut {
-        content: VisionContent,
+    VisionItemAdd {
+        field: VisionField,
+        text: String,
+    },
+    VisionItemPut {
+        id: String,
+        text: String,
+    },
+    VisionItemRemove {
+        id: String,
     },
     PartCreate {
         id: PartId,

@@ -270,12 +270,15 @@ Personal use stays exactly as above. For companies:
 - **The contracts are the link.** They are agreed at the top, and everyone below
   is free in how they build, as long as they keep them.
 
-This is a large topic and likely its own backend, maybe its own repository. It
-waits until personal use is complete.
+The deployment and synchronization decision now belongs to
+[§1.7](./superpowers/specs/2026-09-21-architecture-design.md#17-workspace-authority-and-deployment).
+The shared cloud application is in `shadows-backend`; the same Rust project rules
+serve the future team deployment. NYLRA's optional human-facing experience is in
+`nylra`. Team delivery follows the complete local product.
 
-**Today:** the storage layer was chosen with PostgreSQL in mind. SQLx was
-validated against PostgreSQL 16, and `CLAUDE.md` names a future PostgreSQL
-adapter. Nothing else exists.
+**Today:** PostgreSQL was evaluated during persistence selection. The product's
+server store, team runtime and remote execution are not implemented by this
+documentation decision.
 
 ## 8. The plan belongs to the project, and remembers who decided what and why
 
@@ -487,6 +490,19 @@ sequence and acceptance inventory; each technical decision stays in its owner.
 **Today:** this full local journey is the active delivery objective. The
 planning-workspace foundation and formatting cleanup exist; the later paths
 above remain implementation work.
+
+### Future production operations
+
+Beyond building and deploying, Shadows should help operate the application:
+observe its AWS environment, investigate sustained pressure or errors, propose
+an evidence-based remedy, execute within explicit authority, and verify impact.
+NYLRA explains the situation and brings decisions to the person. Scaling is one
+possible remedy, not the automatic answer to every alarm. Personal and team
+projects can both have production environments without moving their workspace.
+The lifecycle is owned by
+[§17.12](./superpowers/specs/2026-10-01-task-contracts-and-evidence-design.md#1712-production-operations-extension).
+This is future product direction, independent of any hackathon, not implemented
+monitoring, deployment or cloud authority.
 
 ## 11. Structure that stays understandable as the product grows
 

@@ -40,6 +40,10 @@ it('independent tabs refresh every design slice, deduplicate and resume after di
     revision = 4
     act(() => sources.forEach(source => source.durable(8, 'ProjectStandardsSaved')))
     await until(() => tabs.every(tab => tab.textContent === '4:4:4'))
+    const beforeProposal = [...reads]
+    act(() => sources.forEach(source => source.durable(9, 'VisionProposed', null,
+      { project_id: 'p1', proposal_id: 'proposal' })))
+    await until(() => reads.every((count, tab) => count > beforeProposal[tab]))
     const afterWrite = [...reads]
     act(() => sources.forEach(source => source.durable(7, 'ProjectDesignChanged')))
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)) })
@@ -48,14 +52,14 @@ it('independent tabs refresh every design slice, deduplicate and resume after di
     act(() => sources[0].fail())
     expect(sources[0].closed).toBe(true)
     await until(() => sources.length === 3)
-    expect(sources[2].param('after')).toBe('8')
+    expect(sources[2].param('after')).toBe('9')
     revision = 2
     // A replayed event refreshes the disconnected tab before caught-up; duplicates stay ignored.
-    act(() => { sources[2].durable(9, 'ProjectDesignChanged'); sources[2].caughtUp(9) })
+    act(() => { sources[2].durable(10, 'ProjectDesignChanged'); sources[2].caughtUp(10) })
     await until(() => tabs[0].textContent === '2:2:2')
     expect(tabs[1].textContent).toBe('4:4:4')
     revision = 3
-    act(() => sources[2].caughtUp(9))
+    act(() => sources[2].caughtUp(10))
     await until(() => tabs[0].textContent === '3:3:3')
     await act(async () => render(0, 'p2'))
     await until(() => sources.length === 4 && tabs[0].textContent === '3:3:3')

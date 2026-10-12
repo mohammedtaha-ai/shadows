@@ -21,7 +21,7 @@ design-note, and status narratives.
 | Sections | Owner |
 |---|---|
 | §0 | [`2026-09-21-principles-design.md`](./2026-09-21-principles-design.md) |
-| §1 | [`2026-09-21-architecture-design.md`](./2026-09-21-architecture-design.md) |
+| §1 | [`2026-09-21-architecture-design.md`](./2026-09-21-architecture-design.md); §1.7 owns personal/team authority, runtime placement and synchronization |
 | §2 | [`2026-09-21-data-flow-design.md`](./2026-09-21-data-flow-design.md) |
 | §3 | [`2026-09-21-errors-and-testing-design.md`](./2026-09-21-errors-and-testing-design.md) |
 | §4 | [`2026-09-21-domain-model-design.md`](./2026-09-21-domain-model-design.md) |
@@ -34,7 +34,7 @@ design-note, and status narratives.
 | §14 | [`2026-09-26-application-core-design.md`](./2026-09-26-application-core-design.md) |
 | §15 | [`2026-09-30-code-index-design.md`](./2026-09-30-code-index-design.md) |
 | §16 | [`2026-10-01-project-plans-design.md`](./2026-10-01-project-plans-design.md) |
-| §17 | [`2026-10-01-task-contracts-and-evidence-design.md`](./2026-10-01-task-contracts-and-evidence-design.md) |
+| §17 | [`2026-10-01-task-contracts-and-evidence-design.md`](./2026-10-01-task-contracts-and-evidence-design.md); §17.12 records future production operations |
 | §18 | [`2026-10-03-project-planning-workspace-design.md`](./2026-10-03-project-planning-workspace-design.md) — draft for review |
 | §19 | [`2026-10-03-agent-profiles-and-extensions-design.md`](./2026-10-03-agent-profiles-and-extensions-design.md) — draft profiles, specialist dispatch and extensions |
 | §20 | [`2026-10-05-message-queue-design.md`](./2026-10-05-message-queue-design.md) — the queue and Send now; merged through PR #19 (2026-10-05) |

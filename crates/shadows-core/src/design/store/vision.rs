@@ -87,10 +87,12 @@ impl Storage {
                 let mut created = BTreeSet::new();
                 let mut changed_outcomes = BTreeSet::new();
                 let mut created_outcomes = BTreeSet::new();
-                let mut vision = None;
+                let mut vision = Vec::new();
                 for op in ops {
                     match op {
-                        DesignOp::VisionPut { content } => vision = Some(content),
+                        other @ (DesignOp::VisionItemAdd { .. }
+                        | DesignOp::VisionItemPut { .. }
+                        | DesignOp::VisionItemRemove { .. }) => vision.push(other),
                         other @ (DesignOp::PartCreate { .. }
                         | DesignOp::PartPut { .. }
                         | DesignOp::PartMove { .. }
@@ -133,15 +135,44 @@ impl Storage {
                         }
                     }
                 }
-                let vision_changed = vision.is_some();
-                if let Some(content) = vision {
+                let vision_changed = !vision.is_empty();
+                if vision_changed {
+                    let (json, counter_json, number): (String, String, i64) = sqlx::query_as(
+                        "SELECT vision_content,vision_counters,vision_revision
+                         FROM design_workspace WHERE project_id=?",
+                    )
+                    .bind(project.as_str())
+                    .fetch_one(&mut *conn)
+                    .await?;
+                    let mut content: VisionContent = serde_json::from_str(&json)?;
+                    let mut counters = serde_json::from_str(&counter_json)?;
+                    for op in &vision {
+                        let id = match op {
+                            DesignOp::VisionItemAdd { field, .. } => Some(
+                                super::super::vision_items::next_id(*field, &mut counters)
+                                    .map_err(StorageError::Constraint)?,
+                            ),
+                            _ => None,
+                        };
+                        super::super::vision_items::apply(&mut content, op, id, None)
+                            .map_err(StorageError::Constraint)?;
+                    }
+                    let number = number.checked_add(1).ok_or_else(|| {
+                        StorageError::Unavailable("vision revision exhausted".into())
+                    })?;
                     sqlx::query(
-                        "UPDATE design_workspace SET vision_content=?, \
-                         vision_revision=vision_revision+1 WHERE project_id=?",
+                        "UPDATE design_workspace SET vision_content=?,vision_counters=?, \
+                         vision_revision=? WHERE project_id=?",
                     )
                     .bind(serde_json::to_string(&content)?)
+                    .bind(serde_json::to_string(&counters)?)
+                    .bind(number)
                     .bind(project.as_str())
                     .execute(&mut *conn)
+                    .await?;
+                    super::vision_versions::insert_version(
+                        conn, &project, number, &content, None, &ts,
+                    )
                     .await?;
                 }
                 for id in changed.iter().filter(|id| !created.contains(*id)) {

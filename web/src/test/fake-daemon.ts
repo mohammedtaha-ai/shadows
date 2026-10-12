@@ -175,6 +175,10 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
         })
       }),
     'GET /api/projects/p1/code/status': codeStatusFixture(project.slug),
+    'GET /api/projects/p1/design/vision': { revision: 0, content: {
+      purpose: [], users: [], goals: [], boundaries: [], technical_direction: [],
+    } },
+    'GET /api/projects/p1/vision-proposals': [],
     'GET /api/projects/p1/code/links': [],
     'GET /api/code/settings': { active_limit: 5 },
     // Any grant the test gave the project can be revoked.

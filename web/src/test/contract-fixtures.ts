@@ -21,6 +21,12 @@ import type {
   SessionChoices,
   ThreadEntry,
 } from '@/api/client'
+import type { VisionProposal } from '@/api/design'
+
+export function visionProposalEntry(id: string, proposal: VisionProposal): ThreadEntry {
+  return { ...agentEntry(id, `Add goal: ${proposal.text ?? proposal.item_id}`),
+    kind: 'VisionProposal', card: { ...proposal } }
+}
 
 /** One offered value; the label defaults to the id. */
 export function choice(id: string, label = id): Choice {

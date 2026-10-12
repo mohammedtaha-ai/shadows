@@ -4,6 +4,69 @@ use shadows_core::testing::{EventCursor, acp};
 mod app;
 
 #[tokio::test]
+async fn vision_proposal_routes_list_and_approve() {
+    let app = app::test_app().await;
+    let op = app::start_settled(&app, "hang").await;
+    for _ in 0..200 {
+        if app.handles.running_for(&app.thread).await.as_ref() == Some(&op) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    let (grant, _) = app.storage.issue_thread_grant(&app.thread).await.unwrap();
+    let p = app
+        .core
+        .design()
+        .propose_vision(
+            &grant,
+            shadows_core::VisionPropose {
+                action: shadows_core::VisionAction::Add,
+                field: Some(shadows_core::VisionField::Goals),
+                item_id: None,
+                text: Some("Ship".into()),
+                replaces: None,
+            },
+        )
+        .await
+        .unwrap();
+    let list = format!("/api/projects/{}/vision-proposals", app.project);
+    let approve = format!("{list}/{}/approve", p.id);
+    let (status, pending) = app::call(&app, "GET", &list, None).await;
+    assert_eq!(status, 200);
+    assert_eq!(pending[0]["status"], "Pending");
+    let body = json!({"command_id":"approve"});
+    assert_eq!(
+        app::call(&app, "POST", &approve, Some(body.clone())).await,
+        (200, json!({"revision":1}))
+    );
+    assert_eq!(
+        app::call(&app, "POST", &approve, Some(body)).await,
+        (200, json!({"revision":1}))
+    );
+    let done = app::call(&app, "GET", &list, None).await.1;
+    assert_eq!(done[0]["status"], "Approved");
+    assert_eq!(done[0]["item_id"], "G1");
+    let (status, refusal) =
+        app::call(&app, "POST", &approve, Some(json!({"command_id":"again"}))).await;
+    assert_eq!(status, 422);
+    assert_eq!(refusal["code"], "INVALID_COMMAND");
+    let events = app
+        .storage
+        .read_project_events_after(EventCursor(0), &app.project, 100)
+        .await
+        .unwrap();
+    assert!(events.iter().any(|e| e.kind == "VisionProposed"));
+    assert_eq!(
+        events
+            .iter()
+            .filter(|e| e.kind == "ProjectDesignChanged")
+            .count(),
+        1
+    );
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
 async fn standards_routes_read_the_base_and_save_additions() {
     let app = app::test_app().await;
     let standards = format!("/api/projects/{}/standards", app.project);
@@ -253,17 +316,19 @@ async fn vision_routes_round_trip_conflict_and_preserve_conversations() {
     let vision = format!("/api/projects/{}/design/vision", app.project);
     let edits = format!("/api/projects/{}/design/edits", app.project);
     assert_eq!(app::call(&app, "GET", &vision, None).await.1["revision"], 0);
-    let content = json!({
-        "purpose": " رؤية \n",
-        "users": "مطورون",
-        "goals": "اهداف",
-        "boundaries": "",
-        "technical_direction": "Rust"
-    });
+    let item =
+        |id: &str, text: &str| json!({"id":id,"text":text,"revision":1,"approved_from":null});
+    let content = json!({"purpose":[item("PU1", " رؤية \n")], "users":[item("U1","مطورون")],
+        "goals":[item("G1","اهداف")],"boundaries":[],"technical_direction":[item("T1","Rust")]});
     let request = json!({
         "command_id": "vision",
         "expected_revision": 0,
-        "ops": [{ "kind": "VisionPut", "content": content }]
+        "ops": [
+            {"kind":"VisionItemAdd","field":"purpose","text":" رؤية \n"},
+            {"kind":"VisionItemAdd","field":"users","text":"مطورون"},
+            {"kind":"VisionItemAdd","field":"goals","text":"اهداف"},
+            {"kind":"VisionItemAdd","field":"technical_direction","text":"Rust"}
+        ]
     });
     assert_eq!(
         app::call(&app, "POST", &edits, Some(request.clone())).await,
@@ -280,7 +345,7 @@ async fn vision_routes_round_trip_conflict_and_preserve_conversations() {
     assert_eq!(failure["code"], "REVISION_CONFLICT");
     assert_eq!(failure["current_revision"], 1);
     let mut changed = request;
-    changed["ops"][0]["content"]["purpose"] = json!("changed");
+    changed["ops"][0]["text"] = json!("changed");
     let (status, failure) = app::call(&app, "POST", &edits, Some(changed)).await;
     assert_eq!(status, 409);
     assert_eq!(failure["code"], "COMMAND_CONFLICT");

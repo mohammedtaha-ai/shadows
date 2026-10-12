@@ -25,6 +25,7 @@ mod shutdown;
 mod spawn;
 mod steer;
 mod store;
+pub(crate) use store::check_running_turn_in;
 mod subagents;
 mod turn;
 

@@ -107,6 +107,27 @@ methods and revision checks apply.
 
 The vision is **complete** when every field has at least one item.
 
+Decided with Mohammed on 2026-10-12, for PR 2:
+
+- **Ids.** Each field has a prefix:
+  - purpose `PU`;
+  - users `U`;
+  - goals `G`;
+  - boundaries `B`;
+  - technical direction `T`.
+
+  `PU` keeps purpose apart from a project rule's `P1` (§23.2). Numbers count
+  per field from 1. An add gets its id when it is approved, so two pending
+  adds never claim the same one. The next number is one past the highest
+  ever issued in that field, so a removed id is never reused.
+- **Versions.** Every change to the vision is a new version, whether an
+  approval or a hand edit, and each version is stored. A page to read the
+  history comes later, when the person or NYLRA needs to see what changed.
+- **Origin.** On the Vision page each item names the conversation it was
+  approved from, as a link, or says it was added by hand.
+- **Migration.** A project's existing text fields become one item each; an
+  empty field becomes an empty list.
+
 ## 23.4 The stage
 
 A function of the `design` service computes the project's stage from the
@@ -137,8 +158,9 @@ The Planner receives the stage in three ways:
 
 The conversation's header shows the same stage to the person.
 
-Drift arrives with vision items (PR 2) and map approval (PR 3); until then
-the stage reports what is missing only. PR 1 ends at `structure`; later
+Drift arrives with map approval (PR 3). An unserved item is known only once
+the map says which items each part serves, so with vision items alone (PR 2)
+the stage still reports what is missing only. PR 1 ends at `structure`; later
 stages require the recorded structure write.
 
 ## 23.5 Proposals and approval
@@ -170,6 +192,30 @@ Rules:
 4. A proposal records the workspace revision and the standards versions it
    was made against. Approval is refused if either changed since, and the
    Planner is asked for a fresh proposal.
+
+Vision proposals: decided with Mohammed on 2026-10-12.
+
+- **Several pending cards.** Several vision proposals may wait at once, each
+  its own card, so the Planner can propose three goals in one reply. The
+  person can approve two of them and ask for the third to change.
+- **Supersession.** For an edit or a removal, a newer proposal for the same
+  item supersedes the pending one. An add supersedes only the proposal it
+  names as the one it replaces.
+- **Staleness is per item.** For vision proposals this replaces rule 4.
+  - **An add** is never stale.
+  - **An edit or a removal** is refused when its item was edited or removed
+    after the proposal. The card then shows **Outdated**, and the Planner
+    proposes again on the current text.
+  - **Other changes** do not make it stale: approving one card must not make
+    its neighbours stale.
+  - **Standards versions** are recorded with a vision proposal but not
+    compared: the standards govern parts, not the vision.
+  - **Map and roadmap** proposals keep rule 4.
+- **Where they show.** Pending proposals are shown in the conversation only.
+  The Vision page names how many are waiting, with a link to each
+  conversation that has one.
+- **Who approves.** In PR 2 only the card's button approves. Approval by the
+  Planner at the person's request arrives with §24 in PR 3b.
 
 ## 23.6 Gates
 

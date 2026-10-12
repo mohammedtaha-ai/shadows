@@ -1,7 +1,7 @@
 // One job: the TanStack Query identity of each piece of daemon state.
 
 import { queryOptions } from '@tanstack/react-query'
-import { getOutcome, getOutcomes, getPart, getParts, getVision } from './design'
+import { getOutcome, getOutcomes, getPart, getParts, getVision, listVisionProposals } from './design'
 import {
   getCodeSettings,
   getCodeStatus,
@@ -151,6 +151,11 @@ export function visionQuery(projectId: string) {
     queryKey: ['projects', projectId, 'design', 'vision'],
     queryFn: () => getVision(projectId),
   })
+}
+
+export function visionProposalsQuery(projectId: string) {
+  return queryOptions({ queryKey: ['projects', projectId, 'design', 'vision-proposals'],
+    queryFn: () => listVisionProposals(projectId) })
 }
 
 export function partQuery(projectId: string, partId: string) {
