@@ -173,6 +173,16 @@ proposal; voice-only approval remains unavailable until a separately reviewed
 confirmation mechanism proves equivalent binding and origin. Optional future
 delegated policies are explicit owner-enforced grants, never learned preferences.
 
+**Delegation to AYLUL** (decided with Mohammed on 2026-10-13). The person may
+let AYLUL approve on their behalf under an explicit grant the person creates
+and can revoke. The approval is recorded with AYLUL as agent under that grant,
+never as the person, the same way a Planner approval names the Planner. Shadows
+stores and enforces grants over its own operations in the `grants` service;
+matching is deterministic, and model output never decides. Create structure is
+never grantable. This lands after the first AYLUL release, which delegates only
+Claude Code and Codex requests on the laptop
+([NYLRA delivery spec](../../../../nylra/docs/superpowers/specs/2026-10-10-nylra-delivery-design.md#independent-companion)).
+
 An assessment request through NYLRA runs with a capability set that cannot edit
 or approve plans/agreements/proposals, create structure, or dispatch execution.
 Durable assessment/conversation records are allowed; project adoption is not.
