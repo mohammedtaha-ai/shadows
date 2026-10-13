@@ -370,6 +370,33 @@ When that computer is offline, the device can read permitted cached evidence or
 queue proposals, but cannot start its Planner or claim acceptance. A separate
 personal workspace on another computer has a separate identity.
 
+### NYLRA on the owning computer
+
+Decided with Mohammed on 2026-10-12 and 2026-10-13. AYLUL, NYLRA's companion,
+is an independent assistant that reads Shadows as one of several agents; the
+[NYLRA delivery spec](../../../../nylra/docs/superpowers/specs/2026-10-10-nylra-delivery-design.md#independent-companion)
+owns it. AYLUL desktop, on the computer that owns the workspace, reads project
+context from this daemon's local API. It also owns the link to the cloud, so
+the daemon opens no cloud connection on this path and the cloud never reads it.
+
+Shadows owns two things here. **The sharing switch:** a project is readable by
+NYLRA only after the person turns it on for that project, and turning it off
+refuses the next read. **The projection:** one read returns the bounded
+`nylra-context/1` items, each with its version, and the project's revision. It
+carries the project's name, current roadmap outcomes, current plans with their
+states, and the recent Planner and person messages of the planning thread in
+question (the work's thread, or the one an escalation names). Older threads are
+not included. Nothing outside the projection is reachable through it, and what
+it returns grants nothing: approvals and other writes keep their own routes and
+§24's rules. Both are methods of one service, with their lines in its contract;
+the plan that builds them names the service.
+
+> **OPEN — who may call the projection.** Today the daemon knows a caller only
+> by its browser `Origin`; any local process can call it, as it can call every
+> route. That is accepted for a read the person switched on, and recorded as a
+> limit. **Closes when** a remote caller reaches the projection, or earlier if a
+> local write is added to this path.
+
 ### Execution is assigned, not synchronized
 
 A team runtime may assign a bounded attempt to an enrolled local worker or, later,
