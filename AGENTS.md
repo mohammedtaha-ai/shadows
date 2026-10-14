@@ -7,12 +7,18 @@
 > | [CLAUDE.md](./CLAUDE.md) | Architecture, conventions, rules (this file) |
 > | [docs/superpowers/specs/README.md](./docs/superpowers/specs/README.md) | **Index of the authoritative design sections and their owners.** |
 > | [docs/codebase/README.md](./docs/codebase/README.md) | **The code map.** What each crate and module owns, and the Architecture Invariants. Read before writing code. |
+> | [docs/frontend/codebase/README.md](./docs/frontend/codebase/README.md) | **The frontend code map.** What each file in `web/src` owns; each feature folder's `contract.yaml` sits next to its code. Read before changing `web/`. |
 > | `crates/shadows-core/src/<service>/contract.yaml` | **One contract per service, next to its code**: its methods, obligations, agreements and tests. Read before changing that service. Written to [docs/codebase/contracts/TEMPLATE.yaml](./docs/codebase/contracts/TEMPLATE.yaml). |
 > | [docs/vision.md](./docs/vision.md) | **What Shadows is for and where it is going.** Read before specifying any new milestone. Decides nothing. |
 > | [docs/status.md](./docs/status.md) | Where the project is right now. Decides nothing. |
 > | [docs/evidence/](./docs/evidence/) | Dated measurement records. Facts, not decisions. |
+> | [docs/backend/AGENTS.md](./docs/backend/AGENTS.md) · [docs/frontend/AGENTS.md](./docs/frontend/AGENTS.md) | **The two sides.** Hamoud (backend) and Masada (frontend): their domains, tasks in `stages.md`, builders and fixers. |
+> | [docs/shared/README.md](./docs/shared/README.md) | **Shared requests.** How the frontend and backend agree on the API before either writes code. |
 >
 > **Documentation rules:**
+> - **New specs and plans go to their side:** `docs/backend/{specs,plans}/` or
+>   `docs/frontend/{specs,plans}/`. `docs/superpowers/` is the record of earlier
+>   decisions: read it, amend an existing owner section in place, add no new file.
 > - The specs are split by topic. Every decision has exactly one owner file and
 >   is amended **in place**. Other files refer to it; they do not copy it.
 > - Do not create an ADR, a design note, or a plan document for a struct shape,
