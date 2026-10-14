@@ -1,0 +1,222 @@
+# Owns the left pane (spec §13.11): the app name, the project tree, the conversations
+# and plans shown under each open project, the Settings link, and deleting a
+# conversation from its row. The one piece of state it keeps is which projects are
+# open, persisted to localStorage per browser (open-projects).
+#
+# Trap 1: the project in the URL opens by itself whenever the URL comes to it. Folding
+# it afterwards leaves the URL alone, so the open conversation stays on screen.
+#
+# Trap 2: the stored open set is only ever added to (toggle adds or removes the id the
+# person touched). Ids of removed projects are never pruned, and every tab writes its
+# own copy of the whole set, so the last writer wins.
+#
+# Trap 3: the Workflows list fetches active and archived plans in one query and splits
+# them here; the archived fold is a local toggle, not a second request.
+
+name: web-sidebar
+version: 1
+status: current
+source: web/src/app/sidebar
+
+
+# ── shapes ───────────────────────────────────────────────────────────────────────
+
+shapes:
+  OpenProjectsStore:
+    # localStorage key "shadows.sidebar.open-projects": a JSON array of project ids.
+    # Anything else in the key reads as null, meaning nothing is stored.
+    key: "'shadows.sidebar.open-projects'"
+    value: "string[]"
+
+
+# ── external types ───────────────────────────────────────────────────────────────
+
+external:
+  Project: "web/src/api/client; id, slug, name, directory"
+  PlanningThread: "web/src/api/client; id, project_id, title, removed_at"
+  PlanListing: "web/src/api/client; id, plan_id, plan_state, title, state, version"
+
+
+# ── functions ────────────────────────────────────────────────────────────────────
+
+components:
+  Sidebar:
+    signature: "() => JSX.Element"
+    # The aside: app name, New project button, the project tree, the connection
+    # indicator and the Settings link (marked current on /settings).
+  ProjectList:
+    signature: "() => JSX.Element"
+    # Renders nothing until the project list answers; "No projects yet." when it is empty.
+  ThreadList:
+    signature: "({ projectId: string, selected?: string }) => JSX.Element"
+    # Conversation links of one project, with a per-row menu whose Delete opens the dialog.
+  WorkflowList:
+    signature: "({ projectId: string, selected?: string }) => JSX.Element"
+    # Starts the project's live stream (useProjectEvents) and lists its plans.
+  DeleteThreadDialog:
+    signature: >-
+      ({ thread: PlanningThread, open: boolean, onOpenChange: (open: boolean) => void,
+      isCurrent: boolean }) => JSX.Element
+
+hooks:
+  useOpenProjects:
+    signature: >-
+      (urlProject: string | undefined) -> { isOpen: (id: string) => boolean;
+      toggle: (id: string) => void }
+    # The open set: stored ids, plus the URL's project, which is added whenever it changes.
+
+private_helpers:
+  read:
+    # The stored set, or null when storage is missing, blocked, or not a list of strings.
+    signature: "() -> string[] | null"
+    private: true
+  write:
+    # Persists the set; a storage failure is ignored, so the set lasts until reload.
+    signature: "(ids: ReadonlySet<string>) -> void"
+    private: true
+  ProjectRow:
+    # The fold button and the + link. The button never navigates.
+    private: true
+  SettingsLink:
+    private: true
+  PlanRow:
+    private: true
+
+
+# ── obligations ──────────────────────────────────────────────────────────────────
+
+obligations:
+  - rule: >
+      The URL's project opens when the URL comes to it. Folding the project that holds the
+      open conversation leaves the conversation on screen.
+    tested_by:
+      - "folds each project on its own, keeps the conversation, and remembers across a reload"
+
+  - rule: >
+      Each project folds on its own; several can be open at once.
+    tested_by:
+      - "folds each project on its own, keeps the conversation, and remembers across a reload"
+
+  - rule: >
+      The open set outlives a reload in the same browser.
+    tested_by:
+      - "folds each project on its own, keeps the conversation, and remembers across a reload"
+
+  - rule: >
+      The + on a project row opens a draft conversation in that project, without opening
+      the project or making any conversation on the daemon.
+    tested_by:
+      - "a row’s + opens a draft in that project and creates nothing"
+    note: >
+      The test checks that no POST reached any /threads path. It does not check other
+      writes; the name says "creates nothing" more widely than the assertion proves.
+
+  - rule: >
+      An open project's conversations are refetched every 10 seconds, so a title sent by
+      the harness later appears.
+    tested_by:
+      - "an open project’s conversations are polled, so a title the harness sends later shows"
+
+  - rule: >
+      Delete asks first: Cancel sends nothing. Confirming sends one command for that
+      conversation, and if it was the open one, navigates to the project's draft page.
+    tested_by:
+      - "deletes a conversation after asking, and leaves its page"
+
+  - rule: >
+      A plan whose writer conversation is deleted keeps the plan and its history, marked
+      as deleted by its writer, without leaving the plan's page.
+    tested_by:
+      - "refreshes retained plan attribution when its writer is deleted"
+    note: >
+      The test lives in the sidebar file but asserts on the plan page's text. The name
+      says "refreshes retained plan attribution"; the assertion is the "(deleted)" label.
+
+  - rule: >
+      The Workflows list shows active plans, with a folded "Archived (N)" group for the
+      rest. The group opens on demand.
+    tested_by:
+      - "lists active plans and folds the archived ones"
+
+  - rule: >
+      A plan list that cannot be read shows its error in the sidebar.
+    tested_by:
+      - "shows a sidebar error when plans cannot be listed"
+
+  - rule: >
+      A project with no plans shows an invitation to ask the Planner for one. Each plan
+      links to its page.
+    tested_by:
+      - "the sidebar lists the project’s plans, or invites asking for one"
+
+  - rule: >
+      A retry of a refused or lost delete reuses its command id when the dialog is
+      reopened, and a settled delete clears it.
+    tested_by: none
+    note: >
+      Implemented through attemptFor, with the ref in DeleteThreadDialog itself. The
+      dialog stays mounted while closed (ThreadList keeps `deleting` set), so the ref
+      survives Cancel. The test does not exercise the retry.
+
+  - rule: >
+      Only the open conversation's row is marked current. The Settings link is marked
+      current on /settings.
+    tested_by: none
+
+
+# ── gaps ─────────────────────────────────────────────────────────────────────────
+
+gaps:
+  - at: useOpenProjects
+    gap: >
+      The stored set is read once, at mount. Its ids are added and removed but never
+      pruned, so a removed project's id stays in storage for good. Each write persists this
+      tab's whole in-memory set, so a second tab's change is overwritten on the next toggle
+      in the first. Both are harmless to the display, since only listed projects render,
+      but the stored set only grows and is not merged across tabs.
+
+
+# ── open_questions ───────────────────────────────────────────────────────────────
+
+open_questions:
+  - >
+      Does the open-project set need to stay in step across tabs? The code says no and
+      gives no sync. Confirm with the person before changing it.
+  - >
+      Does a new plan reach the Workflows list without a reload? WorkflowList calls
+      useProjectEvents (web/src/stream) and reads plansQuery; neither the stream hook nor
+      plansQuery's refresh policy is inspected here.
+
+
+# ── tests ────────────────────────────────────────────────────────────────────────
+
+tests:
+  - name: "folds each project on its own, keeps the conversation, and remembers across a reload"
+    checks: >
+      The URL's project opens and the other stays folded; folding the open project keeps the
+      conversation's URL; two projects open together show their conversations; after a
+      remount both stay open.
+  - name: "a row’s + opens a draft in that project and creates nothing"
+    checks: >
+      The folded project's + link navigates to its /new draft and shows the first-message
+      note; no POST to a /threads path is sent.
+  - name: "an open project’s conversations are polled, so a title the harness sends later shows"
+    checks: "The threads query for the open project has refetchInterval 10000."
+  - name: "deletes a conversation after asking, and leaves its page"
+    checks: >
+      The dialog's text appears only after the menu opens, Cancel sends no DELETE, and Delete
+      sends one with a UUID command id, navigates to the project's /new page, and the
+      thread disappears from the list after a refetch.
+  - name: "refreshes retained plan attribution when its writer is deleted"
+    checks: >
+      On the plan page, after deleting the writer conversation, the attribution reads
+      "from Login (deleted)" and the path stays on the plan.
+  - name: "the sidebar lists the project’s plans, or invites asking for one"
+    checks: >
+      A plan appears as a link to its page with "Draft v2"; a project with no plans shows
+      "Ask the Planner for a plan".
+  - name: "shows a sidebar error when plans cannot be listed"
+    checks: "A 503 STORAGE_UNAVAILABLE shows its message in a role=alert line."
+  - name: "lists active plans and folds the archived ones"
+    checks: >
+      Only the active plan shows, with "Archived (1)"; opening the group shows the archived one.

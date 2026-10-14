@@ -1,0 +1,224 @@
+# Owns the New project dialog: the one place a project is created from the browser.
+# It holds the folder choice as a small state machine (folder-state), the browsing
+# of the daemon's disk (folder-browser, new-folder), the slug rule (slug), and the
+# command that creates the project, retried under the same id after a lost answer.
+#
+# Trap 1: typing in the Folder field never browses; Enter does. A half-typed path
+# therefore never triggers a listing, and the chosen folder is the field's trimmed text.
+#
+# Trap 2: the attempt (command id) lives in NewProjectForm, which is the child of the
+# dialog popup. The popup unmounts when closed, so Cancel ends the retry window: the
+# next opening starts with a new command id.
+#
+# Trap 3: the slug keeps ASCII letters and digits only. A name with none of them has
+# an empty slug, and Create stays disabled.
+
+name: web-new-project
+version: 1
+status: current
+source: web/src/app/new-project
+
+
+# ── shapes ───────────────────────────────────────────────────────────────────────
+
+shapes:
+  FolderState:
+    # `at` is the directory being listed; null lists the roots (drives on Windows).
+    # `input` is the Folder field's text, which is the folder the project will own.
+    # The two are one choice seen two ways, but they can differ: typing changes `input`
+    # only, and Enter or a row click moves `at`.
+    at: "string | null"
+    input: string
+  FolderAction:
+    # enter: a subdirectory was clicked, or a new folder was created.
+    # up: the Up row; `parent` is the listing's parent, null above a root.
+    # type: text typed or pasted into the field.
+    # go: Enter in the field.
+    enter: "{ path: string }"
+    up: "{ parent: string | null }"
+    type: "{ text: string }"
+    go: "{}"
+
+
+# ── external types ───────────────────────────────────────────────────────────────
+
+external:
+  Project: "web/src/api/client; id, name, slug, directory, allowed_modes"
+  CreateProject: "name, slug, directory, command_id"
+  DirectoryEntry: "name, path, hidden"
+  DirectoryListing: "path, parent, entries"
+
+
+# ── functions ────────────────────────────────────────────────────────────────────
+
+components:
+  NewProjectProvider:
+    signature: "({ children: ReactNode }) => JSX.Element"
+    # Owns the open flag and renders the one dialog beside its children.
+  NewProjectDialog:
+    signature: "({ open: boolean, onOpenChange: (open: boolean) => void }) => JSX.Element"
+    # Wraps NewProjectForm in the popup, so each opening starts blank.
+  FolderBrowser:
+    signature: "({ state: FolderState, dispatch: Dispatch<FolderAction> }) => JSX.Element"
+    # Lists `state.at` (or the roots) with the Up row, subfolders, and NewFolder.
+  NewFolder:
+    signature: "({ parent: string, onCreated: (path: string) => void }) => JSX.Element"
+
+hooks:
+  useOpenNewProject:
+    signature: "() => () => void"
+    # Throws when no NewProjectProvider is above the caller.
+
+pure:
+  folderReducer:
+    signature: "(state: FolderState, action: FolderAction) -> FolderState"
+    # `go` with blank input returns the roots and an empty field.
+  chosenFolder:
+    signature: "(state: FolderState) -> string | null"
+    # The trimmed input, or null when it is blank.
+  slugify:
+    signature: "(name: string) -> string"
+    # NFKD, combining marks dropped, lowercased, every other run to one dash, dashes trimmed.
+
+contexts:
+  OpenNewProject:
+    signature: "createContext<(() => void) | null>(null)"
+
+private_helpers:
+  NewProjectForm:
+    # Owns the name, the folder reducer, the create mutation and the attempt ref.
+    private: true
+
+
+# ── obligations ──────────────────────────────────────────────────────────────────
+
+obligations:
+  - rule: >
+      Typing in the Folder field changes the chosen folder without listing anything;
+      Enter lists what was typed, and an empty Enter returns to the roots.
+    tested_by:
+      - "typing chooses without browsing; Enter browses to what was typed"
+
+  - rule: >
+      Entering a folder lists it and chooses it. Up lists the parent, and above a root
+      it returns to the roots with an empty field.
+    tested_by:
+      - "entering a folder lists it and chooses it"
+      - "going up lists the parent, and above a root lists the roots"
+    note: >
+      The initial state is the roots with nothing chosen; the test checks both.
+
+  - rule: >
+      The slug is lowercase ASCII letters and digits joined by single dashes; accents
+      are dropped, not their letters; a name with nothing to keep is empty.
+    tested_by:
+      - "lowercases and joins words with single dashes"
+      - "keeps digits and drops accents, not their letters"
+      - "is empty for a name with nothing to keep"
+
+  - rule: >
+      Create sends name, slug, directory and a command id. A refused answer shows in the
+      dialog. A retry of an unchanged request reuses the command id; a changed request
+      gets a new one.
+    tested_by:
+      - "retries a lost create under the same command id, and a changed one under a new id"
+    note: >
+      The test covers a lost answer, a refusal shown in the dialog, and a changed folder.
+      It does not cover Cancel and reopening (see gaps), nor a successful create.
+
+  - rule: >
+      Create is disabled until the slug and the folder are non-empty and no create is in
+      flight.
+    tested_by: none
+    note: >
+      The first test asserts the slug text only. Nothing checks the disabled state.
+
+  - rule: >
+      A successful create closes the dialog, clears the attempt, and opens the new
+      project's conversation draft.
+    tested_by: none
+
+  - rule: >
+      Escape in the New folder name box closes that box and not the dialog.
+    tested_by:
+      - "Escape closes the name box, not the dialog"
+
+  - rule: >
+      Enter in the New folder name box creates the folder and does not submit the dialog.
+    tested_by: none
+
+
+# ── gaps ─────────────────────────────────────────────────────────────────────────
+
+gaps:
+  - at: NewProjectForm
+    gap: >
+      The attempt ref lives in NewProjectForm, which is inside the popup that unmounts
+      when the dialog closes (as NewProjectDialog's comment says). A Create whose answer
+      was lost, followed by Cancel and a reopening, sends a new command id for the same
+      request. The retry window ends at Cancel. Whether the daemon then refuses a
+      duplicate depends on the server, not inspected here.
+
+  - at: FolderBrowser
+    gap: >
+      The Up row dispatches `parent: listing.data?.parent ?? null`. While the listing is
+      pending or has failed, that is null, and Up goes to the roots, not to the parent of
+      the folder shown. The Up row is clickable in both states.
+
+  - at: NewFolder
+    gap: >
+      Create is disabled while the mutation is pending, but the name box's Enter handler
+      calls submit(), which checks only that the name is not blank. A second Enter sends a
+      second createDir for the same name while the first is in flight, and the single
+      mutation then tracks the second request.
+
+  - at: slugify
+    gap: >
+      A name with no ASCII letter or digit (for example one written only in Arabic) gives
+      an empty slug. Create stays disabled, and the only hint is "The slug comes from the
+      name." The app's own tests type Arabic into names and instructions, so this is a
+      real limit on what can be named, not a corner case.
+
+
+# ── open_questions ───────────────────────────────────────────────────────────────
+
+open_questions:
+  - >
+      Does the daemon's project create refuse a slug that is already taken, and how does it
+      answer? The dialog shows the refusal text, but the answer shape is in the projects
+      service.
+  - >
+      Does POST /api/fs/dirs (createDir) accept a repeated create of the same name as a
+      replay, or refuse it? createDir sends no command id, which the other mutations here
+      all send. Answering needs the filesystem route in the daemon.
+  - >
+      Does the daemon accept a slug the dialog would produce from a non-ASCII name, or does
+      its rule match slugify's ASCII-only rule? The dialog cannot send a non-ASCII slug.
+
+
+# ── tests ────────────────────────────────────────────────────────────────────────
+
+tests:
+  - name: "retries a lost create under the same command id, and a changed one under a new id"
+    checks: >
+      The first POST fails with a network error and the second is refused with
+      PATH_NOT_FOUND. The second request carries the first's command id, and a request
+      with another folder carries a new one. The refusal text reaches the dialog.
+  - name: "Escape closes the name box, not the dialog"
+    checks: >
+      Escape in the New folder name box removes the box and leaves the Folder field in
+      the dialog.
+  - name: "lowercases and joins words with single dashes"
+    checks: "slugify turns 'My Planner Project' and padded punctuation into single-dash slugs."
+  - name: "keeps digits and drops accents, not their letters"
+    checks: "'Café Déjà Vu 2' becomes 'cafe-deja-vu-2'."
+  - name: "is empty for a name with nothing to keep"
+    checks: "A name of only punctuation gives the empty slug."
+  - name: "typing chooses without browsing; Enter browses to what was typed"
+    checks: >
+      Typing changes only `input`; `go` moves `at` to the trimmed text; blank `go`
+      returns the initial state.
+  - name: "entering a folder lists it and chooses it"
+    checks: "`enter` sets both `at` and `input` to the path."
+  - name: "going up lists the parent, and above a root lists the roots"
+    checks: "`up` to a parent sets both; `up` with a null parent returns the initial state."

@@ -1,0 +1,582 @@
+# Owns the Design workspace screens: the vision editor, the parts tree and part
+# editor, the roadmap (outcomes) tree and editor, the standards additions, the
+# structure confirmation, and the Workspace route that switches between them.
+#
+# Owns the two shared mechanisms the screens rely on. useDesignEditor is the
+# save/reload lifecycle for a part or an outcome: one command id per unchanged
+# request, a Reload banner instead of an overwrite, and a base that adopts a newer
+# saved revision only while the draft is clean. useDesignPages accumulates pages
+# of one branch only while the branch's revision holds.
+#
+# Trap: the vision editor does not use useDesignEditor. Vision edits are one item
+# at a time, each its own command, so its save lifecycle is its own (`Editor`).
+#
+# Trap: a part needs an approved first map before it can be created, but an
+# outcome does not. The roadmap has no approval gate. Its empty-state text says
+# plan approval does not complete an outcome; no screen derives Done from a plan.
+#
+# Trap: a save that committed but whose follow-up read failed leaves the editor's
+# base at the pre-save revision. The next edit is then refused as a conflict. See
+# gaps at useDesignEditor.
+
+name: web-design
+version: 1
+status: current
+source: web/src/app/design
+
+
+# ── shapes ───────────────────────────────────────────────────────────────────
+#
+# Declared here. View and Content types (PartView, PartContent, OutcomeView,
+# OutcomeContent, VisionView, VisionItem, VisionContent, Part, Outcome,
+# EffectiveStandards, StandardsAdditions, StructureWritten, DesignEdit) come from
+# '@/api/design' and '@/api/client'. Not restated.
+
+DesignEditorConfig:
+  # Generic over View (a detail read) and Content (the editable fields).
+  entityKind: "'Part' | 'Outcome'"
+  empty: Content
+  idOf: "(view: View) -> string"
+  contentOf: "(view: View) -> Content"
+  detailQuery: "(projectId, id) -> query options"
+  listQuery: "(projectId) -> query options, revision-bearing"
+  contentOp: >
+    "(id, content, position | null) -> DesignOp". A position makes a create
+    (PartCreate / OutcomeCreate); none makes a put (PartPut / OutcomePut).
+  relations:
+    note: >
+      Optional. Outcomes use it for referenced parts: read(view) gives the saved
+      part ids; ops(id, selected, previous) gives OutcomePartPut and
+      OutcomePartRemove for the difference only.
+
+ViewBasis:
+  # Structural minimum a detail view must provide (not exported).
+  revision: int
+  plans: "string[]"
+
+Page:
+  # One page of a branch read (not exported).
+  revision: int
+  items: "T[]"
+  next: "string | null | undefined"
+
+DraftState:
+  # Standards editor draft (not exported). Rule parts are edited as comma text.
+  parts: "{ name: string; owns: string }[]"
+  rules: "{ id: string; text: string; partsText: string }[]"
+
+VisionDraft:
+  # One text buffer per vision field. Never shared with the saved content.
+  purpose: string
+  users: string
+  goals: string
+  boundaries: string
+  technical_direction: string
+
+
+# ── functions ────────────────────────────────────────────────────────────────
+
+hooks:
+  useDesignEditor:
+    signature: >-
+      "<View, Content>(config: DesignEditorConfig<View, Content>,
+      { projectId, saved?, destination?, onCreated? }) -> { base, draft, setDraft,
+      linked, setLinked, related, setRelated, moving, setMoving, before, setBefore,
+      id, dirty, newer, createRevision, reloading, reloadError, save, submit, reload }"
+    note: >
+      Used by PartEditor and OutcomeEditor. A create (no saved view) takes its
+      expected_revision from the list read and mints the entity id once per mount.
+      submit sends one PartCreate or PartPut (or the outcome forms), then a Move if
+      moving, then PlanLinkPut and PlanLinkRemove for the plan-link difference, then
+      the relations ops. An edit adopts the saved revision after the save succeeds.
+  useDesignPages:
+    signature: >-
+      "<T>(baseKey: readonly unknown[], load: (after?) => Promise<Page<T>>)
+      -> { items: T[]; next; more(): Promise<void>; loading; pending; error }"
+    note: >
+      The first page is a query. Further pages are kept in state only while their
+      revision equals the first page's. A page whose revision differs invalidates
+      the branch's first page and drops the extra pages.
+  usePartPages:
+    signature: "(projectId: string, parent?: string) -> useDesignPages result"
+  useOutcomePages:
+    signature: "(projectId: string, parent?: string) -> useDesignPages result"
+
+vision:
+  VisionEditor: "({ projectId }) -> JSX.Element"
+  ItemOrigin: "({ projectId, item, titles }) -> JSX.Element"
+  fieldLabel: "(field: VisionField) -> string"
+  VISION_FIELDS: "['purpose','users','goals','boundaries','technical_direction']"
+
+parts:
+  PartsView:
+    signature: "({ projectId, selected? }) -> JSX.Element"
+    note: >
+      The tree on the left; the editor on the right. Create part shows only once
+      the map is approved (stage structure or roadmap, or an Approved first map
+      proposal). Expand loads one child branch and never the whole tree.
+  PartEditor:
+    signature: "({ projectId, saved?, destination, onCreated? }) -> JSX.Element"
+    note: >
+      Its EDITOR config is internal: contentOp trims blank folder and rule lines,
+      and turns an empty kind into null.
+  PartReferences: "({ projectId, selected, change }) -> JSX.Element"
+  MapPartDetails: "({ content, projectId }) -> JSX.Element"
+  CreateStructure: "({ projectId }) -> JSX.Element"
+  fileCount:
+    signature: "(projectId: string) -> Promise<number>"
+    private: true
+    note: >
+      Walks the whole part tree serially, one request per branch page. Counts one
+      root SHADOWS.md, then one per part plus one per starter file. Throws 'Map
+      changed; try again.' if a page's revision differs or an id repeats.
+
+roadmap:
+  RoadmapView:
+    signature: "({ projectId, selected? }) -> JSX.Element"
+    note: >
+      Create outcome is always offered. The empty-state text says plan approval or
+      archive does not complete an outcome.
+  OutcomeEditor:
+    signature: "({ projectId, saved?, destination, onCreated? }) -> JSX.Element"
+    note: "Acceptance is one item per line; the input is not trimmed or filtered."
+
+standards:
+  StandardsView: "({ projectId }) -> JSX.Element"
+  # The Editor inside it (not exported) saves via saveStandardsAdditions with a
+  # command id from attemptFor; a new rule id is the first free P<n>.
+
+workspace:
+  WorkspacePage: "() -> JSX.Element"
+  note: >
+    Reads view, part and outcome from the search string. An unknown or missing view
+    shows Vision.
+  WorkspacePlans: "({ projectId }) -> JSX.Element"
+
+
+# ── externally owned types ───────────────────────────────────────────────────
+
+enums:
+  VisionField:
+    source: web/src/api/design.ts
+    values: [purpose, users, goals, boundaries, technical_direction]
+  DesignEdit.ops:
+    source: web/src/api/design.ts
+    values: "VisionItemAdd, VisionItemPut, VisionItemRemove, PartCreate, PartPut, PartMove,
+      OutcomeCreate, OutcomePut, OutcomeMove, OutcomePartPut, OutcomePartRemove,
+      PlanLinkPut, PlanLinkRemove"
+
+
+# ── obligations ──────────────────────────────────────────────────────────────
+
+obligations:
+  - rule: >
+      A part or outcome editor adopts a newer saved revision only while its draft is
+      clean. A dirty draft keeps its text and shows a banner that offers Reload.
+    tested_by: part deep link follows identity after move and keeps stale input until Reload
+    note: >
+      Outcome counterpart: roadmap-view.test.tsx, 'roadmap editor keeps local content
+      through a stale save until Reload'.
+
+  - rule: >
+      Reload replaces the unsaved text with the saved content and clears the conflict.
+    tested_by: part deep link follows identity after move and keeps stale input until Reload
+    note: "Same test as above; it asserts the title becomes the saved one after Reload."
+
+  - rule: >
+      A part save that committed but whose follow-up read failed is retried as the same
+      command with the same body, and the daemon's replay leaves the text as typed.
+    tested_by: part save replays the committed command after its follow-up read fails
+
+  - rule: >
+      An outcome save that committed but whose follow-up read failed is retried with the
+      same body and the same command.
+    tested_by: outcome save retries the committed command when its follow-up read fails
+
+  - rule: >
+      A create whose response was lost is retried with the same command id, the same
+      expected_revision, and the same body, even after an unrelated refetch changed the
+      list revision.
+    tested_by: a create retry keeps its command and revision after an unrelated refetch
+
+  - rule: >
+      An outcome create keeps its identity and basis across a refetch of the design
+      namespace, and sends OutcomeCreate.
+    tested_by: an outcome create retry preserves its identity and basis through a refetch
+    note: "Also shows Create outcome is offered with no stage stub, so no approval gate."
+
+  - rule: >
+      A vision item save re-sent unchanged after a lost response reuses its command id.
+    tested_by: none
+    note: >
+      Editor's attempt ref is reset on Edit, Cancel and on success. No test drives a
+      retry.
+
+  - rule: >
+      A standards save re-sent unchanged after a refusal reuses its command id.
+    tested_by: shows refusals and reuses the command for an unchanged retry
+
+  - rule: >
+      A successful standards save stays on screen when the authoritative refetch fails,
+      and it is not sent twice.
+    tested_by: keeps a successful save when the authoritative refetch fails
+
+  - rule: >
+      A save response older than a newer journal-refetched version never replaces it.
+    tested_by: keeps a newer journal-refetched version when an older save response arrives
+
+  - rule: >
+      The standards base is shown read-only; project additions are edited and saved as a
+      new numbered version, and Save is disabled while the draft is unchanged.
+    tested_by: shows the read-only base and saves a project part as a new version
+
+  - rule: >
+      The parts tree reads a branch only when it is opened, in the daemon's pages, with
+      Load more for the next page.
+    tested_by: parts_view_loads_only_open_branches
+    note: "The fixture pages at fifty items; the client does not set a page size."
+
+  - rule: >
+      Before the first map is approved, the Create part control is hidden, and the view
+      says the Planner writes the first map. Pending map proposals are listed by
+      conversation.
+    tested_by: hides creation before the first map and shows drift with actionable proposals
+
+  - rule: >
+      Drift items are listed. Mandatory parts missing from a structure-stage map are named.
+    tested_by: shows mandatory kinds added after map approval
+    note: "The drift list is also asserted by the test above."
+
+  - rule: >
+      A part save sends folders split on lines with the starter files and served goals
+      unchanged, and shows the daemon's refusal verbatim.
+    tested_by: edits served goals and normalised folder input without dropping starter files
+
+  - rule: >
+      The roadmap keeps archived and unassigned plans reachable from the plan list and
+      never shows Done or Completed for an outcome.
+    tested_by: roadmap_navigation_keeps_old_plans_accessible
+
+  - rule: >
+      Selecting another outcome or switching project discards the local draft of the
+      previous one, so no text crosses screens.
+    tested_by: outcome selection and project changes isolate local editor state
+
+  - rule: >
+      A committed vision save survives a concurrent refresh that the stream triggers, with
+      no cancelled-request error and no Reload banner.
+    tested_by: committed saves survive SSE invalidating the concurrent refresh
+
+  - rule: >
+      The vision shows each item with its stable id, its origin (conversation or by
+      hand), and the count of pending proposals per conversation with a link to it.
+    tested_by: lists stable items and pending conversation links
+    note: "The origin text is not asserted; only the id and the pending counts are."
+
+  - rule: >
+      Add sends the field's text exactly as typed, with spaces kept.
+    tested_by: adds exact Arabic text through an item operation
+
+  - rule: >
+      Edit and Remove address the item by its stable id.
+    tested_by: edits and removes by stable id
+
+  - rule: >
+      A vision conflict keeps the typed text and offers Reload; switching project resets
+      the editor so no draft crosses projects.
+    tested_by: preserves dirty text on conflict and resets it on project switch
+
+  - rule: >
+      A vision proposal event refetches the pending cards and keeps an item draft as typed.
+    tested_by: proposal events refetch pending cards while preserving an item draft
+
+  - rule: >
+      Create structure is enabled only at the structure stage with no missing mandatory
+      part, and its reason is shown when disabled.
+    tested_by: disables Create structure with the missing mandatory kind
+    note: "Enabled case: enables Create structure for a complete approved map."
+
+  - rule: >
+      Confirming shows the project directory and file count before anything is written.
+      The write sends one command id, and success shows the path count and the written
+      paths, and survives the stage moving to roadmap.
+    tested_by: >-
+      confirms the directory and count, writes, then preserves success after roadmap
+      refresh
+    note: >
+      The count is checked for one part with one starter file only. Whether each part
+      always gets a contract file is an open question.
+
+  - rule: >
+      A daemon refusal of the write appears verbatim under the control, and Create
+      structure stays available to retry.
+    tested_by: shows the daemon refusal verbatim below the control
+
+  - rule: >
+      At the roadmap stage the page says Structure written and shows no Create control.
+    tested_by: shows Structure written with no create button at roadmap
+
+  - rule: >
+      Changing an outcome's referenced parts sends only the difference, as
+      OutcomePartPut and OutcomePartRemove.
+    tested_by: none
+
+  - rule: >
+      Moving a part or outcome sends a Move op after the put, with the chosen destination
+      and place-before.
+    tested_by: none
+
+  - rule: >
+      Changing plan links sends PlanLinkPut for added plans and PlanLinkRemove for
+      removed ones, and never for plans already linked.
+    tested_by: none
+
+  - rule: >
+      A branch's extra pages are dropped and the first page refetched when the branch
+      revision changes.
+    tested_by: none
+
+  - rule: >
+      Structure file count walks every branch and counts one per part plus its starter files.
+    tested_by: >-
+      confirms the directory and count, writes, then preserves success after roadmap
+      refresh
+    note: >
+      Only one part with one file is exercised. A branch read that changes mid-walk
+      (the 'Map changed' throw) has no test.
+
+  - rule: >
+      The Workspace route shows Vision when the view is missing, and the section nav
+      links each view.
+    tested_by: none
+
+  - rule: >
+      The Move checkbox appears only for an existing part. The Place-before list appears
+      when creating or when Move is ticked.
+    tested_by: none
+
+  - rule: >
+      The map detail panel shows a starter file's full text and the contract with
+      header and rule ids, and closes with its button.
+    tested_by: none
+
+  - rule: >
+      The Workspace plans list lets archived plans appear when Include archived is ticked.
+    tested_by: none
+
+
+# ── agreements ───────────────────────────────────────────────────────────────
+
+agreements:
+  - between: [WorkspacePlans (workspace-plans.tsx), stateLabel (workflows/plan-state.ts)]
+    must: >
+      show a frozen version with the same word, Approved
+    holds: false
+    why: >
+      stateLabel shows a Frozen version as Approved. WorkspacePlans prints the raw
+      state ('Frozen') next to the version number.
+    tested_by: none
+
+  - between: [VisionEditor's dirty rule, useDesignEditor's dirty rule]
+    must: >
+      treat an unsaved change as blocking adoption of a newer saved revision
+    holds: true
+    why: >
+      Both refuse to replace the base while the person has unsaved text. The vision
+      editor's rule ignores the base comparison because its edits are item-level.
+    tested_by: preserves dirty text on conflict and resets it on project switch
+
+
+# ── not_the_caller's ─────────────────────────────────────────────────────────
+
+not_the_caller's:
+  - >
+      Write a save lifecycle for a part or outcome. Use useDesignEditor, which owns the
+      command id, the revision basis and the Reload path.
+  - >
+      Call editDesign with a fresh command id for an unchanged request. Reuse the one
+      attemptFor returned, so a lost response replays.
+  - >
+      Load a whole parts tree for a picker or a summary. Open one branch with
+      usePartPages, which pages at fifty items.
+  - >
+      Compute a part's file count outside fileCount, or count folders as files. The
+      preview is the only count the confirmation shows.
+  - >
+      Print a frozen plan's state as Frozen. Use stateLabel from web/src/app/workflows.
+
+
+# ── gaps ─────────────────────────────────────────────────────────────────────
+
+gaps:
+  - at: useDesignEditor
+    gap: >
+      When save succeeds but its follow-up read fails, onSuccess throws before
+      adopt(), and base stays at the pre-save revision. The draft, now equal to the
+      committed content, still differs from that base, so the render-phase adoption
+      never runs. The next edit therefore submits the old expected_revision and the
+      daemon refuses it as REVISION_CONFLICT. Once reads recover, the banner reads as
+      newer data for the person's own change. The tests only press Save again with
+      the same content, which replays.
+
+  - at: OutcomeEditor
+    gap: >
+      The acceptance textarea is split on newlines and the outcome's contentOp passes
+      the array unchanged. A blank line or a trailing newline therefore sends an empty
+      acceptance item. PartEditor's contentOp removes blank lines from folders and
+      rules, so the two editors disagree on the same input.
+
+  - at: WorkspacePlans
+    gap: >
+      Each row prints the raw state: `v{version} · {state}` shows 'Frozen' where every
+      other surface, through stateLabel, shows 'Approved'.
+
+  - at: fileCount
+    gap: >
+      Opening the confirmation issues one request per part branch page, serially, over
+      the whole tree, and aborts on any revision change. Its cost grows with the map,
+      not with the structure being written. No limit or cache bounds it.
+
+
+# ── open_questions ───────────────────────────────────────────────────────────
+
+open_questions:
+  - >
+      Does the structure writer write exactly one contract.yaml per part, and no file
+      for a folder? fileCount counts one per part plus starter files. Answering needs
+      the structure writer in crates/shadows-core (design service), not read here.
+  - >
+      Does the daemon refuse a blank outcome acceptance item or a blank standards part
+      name, or does it store them? Answering needs the design service's validation.
+  - >
+      Which query keys do the design events (ProjectDesignChanged, ProjectStandardsSaved,
+      VisionProposed, MapProposed, RoadmapApproved, ProjectStructureWritten) invalidate?
+      The tests depend on that refetch. It runs in web/src/stream/use-project-events.ts,
+      which was only grepped for event names here, not traced.
+  - >
+      A create refused as REVISION_CONFLICT keeps its command id and its stale
+      createRevision. Pressing Create again sends the same request. Does the daemon
+      replay that refusal, or evaluate the request again? Answering needs the design
+      edit command handling in crates/shadows-core.
+
+
+# ── tests ────────────────────────────────────────────────────────────────────
+
+tests:
+  # create-structure.test.tsx
+  - name: enables Create structure for a complete approved map
+    checks: >
+      At the structure stage with no missing parts the control is enabled, and no
+      POST is sent before a click.
+  - name: disables Create structure with the missing mandatory kind
+    checks: >
+      With billing missing, the control is disabled and 'missing part: billing' shows.
+  - name: confirms the directory and count, writes, then preserves success after roadmap refresh
+    checks: >
+      The dialog names the project directory and '3 files' before any POST. Confirm sends
+      a POST with a command_id, then 'Structure written · 3 files' and the written paths
+      show. The stage query is then 'roadmap' and the control is gone.
+  - name: shows the daemon refusal verbatim below the control
+    checks: >
+      A 409 STAGE_BLOCKED message appears as text, and the Create structure control is
+      still present.
+  - name: shows Structure written with no create button at roadmap
+    checks: >
+      At roadmap the 'Structure written' status shows and no Create structure control.
+  # parts-view.test.tsx
+  - name: shows mandatory kinds added after map approval
+    checks: >
+      The 'Missing mandatory parts: billing' status shows at the structure stage.
+  - name: hides creation before the first map and shows drift with actionable proposals
+    checks: >
+      Before a first map, the Planner text shows and Create part does not. Drift text
+      shows, and the pending proposal count and its conversation link show.
+  - name: edits served goals and normalised folder input without dropping starter files
+    checks: >
+      Typed folders 'src' and 'lib' reach PartPut as ['src','lib'], with serves ['G1']
+      and the starter file kept. A daemon refusal text shows.
+  - name: part save replays the committed command after its follow-up read fails
+    checks: >
+      The first save commits and its read fails. Typed text stays. The second press
+      sends a body equal to the first, and the daemon replays it with no 'already
+      committed' message.
+  - name: parts_view_loads_only_open_branches
+    checks: >
+      Fifty items show on the first page and 'قسم 50' only after Load more. Two
+      parts reads run, and 51 tree rows exist. Expanding a part reads its child branch,
+      a third read.
+  - name: part deep link follows identity after move and keeps stale input until Reload
+    checks: >
+      The part's new parent ancestor and its child show. Typed text survives a conflict
+      and a Reload banner. Reload replaces the title and the URL keeps part=child.
+  - name: a create retry keeps its command and revision after an unrelated refetch
+    checks: >
+      A lost create response is followed by a design invalidation. The second press sends
+      a body equal to the first, with expected_revision 0.
+  # roadmap-view.test.tsx
+  - name: roadmap_navigation_keeps_old_plans_accessible
+    checks: >
+      The outcome page never shows Done or Completed. The plans tab lists the linked and
+      unassigned plans, and the archived plan's link opens with 'Archived · read only' and
+      no Approve.
+  - name: roadmap editor keeps local content through a stale save until Reload
+    checks: >
+      A conflicted outcome save keeps the typed title and shows Reload. Reload then shows
+      the newer saved title.
+  - name: outcome save retries the committed command when its follow-up read fails
+    checks: >
+      The second press after a failed read sends a body equal to the first. The title
+      text stays, with no 'already committed' text.
+  - name: an outcome create retry preserves its identity and basis through a refetch
+    checks: >
+      Create outcome opens the editor with no stage answer, and a lost create is retried
+      with the same body, expected_revision 0 and OutcomeCreate. The form unmounts when
+      it succeeds.
+  - name: outcome selection and project changes isolate local editor state
+    checks: >
+      Typed text on outcome o1 is replaced when o2 is chosen, and on project p2 the
+      editor shows p2's outcome. Neither typed value appears on screen.
+  # standards-view.test.tsx
+  - name: shows the read-only base and saves a project part as a new version
+    checks: >
+      The base rules show as text with no inputs. After Add part and Save, the body is
+      {command_id, content with the new part and no rules}, the text 'version 1' shows,
+      and Save is disabled.
+  - name: shows refusals and reuses the command for an unchanged retry
+    checks: >
+      A 400 refusal shows its message. The retry sends a body equal to the first, with
+      rule P1 text and parts ['backend','billing'], and then 'version 1' shows.
+  - name: keeps a successful save when the authoritative refetch fails
+    checks: >
+      After the save, a 500 on the standards read keeps 'version 1' and the typed name,
+      and Save stays disabled. Only one PUT was sent.
+  - name: keeps a newer journal-refetched version when an older save response arrives
+    checks: >
+      With the save held open, a newer version 2 arrives by the stream. When the older
+      version 1 response lands, the page keeps 'version 2' and does not show 'version 1'.
+  # vision-editor.test.tsx
+  - name: committed saves survive SSE invalidating the concurrent refresh
+    checks: >
+      A save commits while a ProjectDesignChanged durable event arrives mid-refresh. The
+      saved item PU1 shows, the next field is enabled, no CancelledError text, and no
+      Reload banner.
+  - name: lists stable items and pending conversation links
+    checks: >
+      'G1 · Sell books' shows. The pending count reads '3 proposals await your approval'
+      with '2 pending' for thread t1, and links exist for threads t1 and t2.
+  - name: adds exact Arabic text through an item operation
+    checks: >
+      The VisionItemAdd body carries expected_revision 1 and the field text exactly as
+      typed, with leading and trailing spaces.
+  - name: edits and removes by stable id
+    checks: >
+      Edit G1 then Save sends VisionItemPut with id G1. Remove G1 sends VisionItemRemove
+      with id G1.
+  - name: preserves dirty text on conflict and resets it on project switch
+    checks: >
+      A 409 keeps the unsaved edit text and shows Reload. After Reload and a switch to
+      p2, the Edit G1 field is gone.
+  - name: proposal events refetch pending cards while preserving an item draft
+    checks: >
+      A VisionProposed durable event adds the '1 proposal awaits' status and keeps the
+      unsaved edit text, with Reload visible because the revision moved.

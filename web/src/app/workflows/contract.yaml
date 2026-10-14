@@ -1,0 +1,572 @@
+# Owns the client's view of one plan version: its graph (laid out, never dragged),
+# the Workflows page around it, the approval bar, the version line, the plan map,
+# and the watch that refetches a plan when its thread's stream reports a change.
+#
+# Trap: the layout sizes every box itself, before the browser measures anything,
+# and hands React Flow those sizes. The box dagre spaced is the box drawn, so each
+# node's rows must fit the height layout.ts computes for it. A row added to a task
+# card without a matching term in taskNode's height overflows into the gap dagre
+# left for the next box.
+#
+# Trap: cross-plan dependencies are drawn from `plan.linked_tasks` (linkedLayout),
+# not from `plan.links`. `plan.links` carries local links only where `after` is a
+# number; a `TaskParent` object is never drawn by layoutPlan's own edge pass.
+#
+# Trap: the client never says `Frozen`. `stateLabel` shows a frozen version as
+# Approved. Several surfaces must agree on that word; one in the design folder does
+# not (see gaps).
+#
+# Trap: a plan refetches from two streams. `usePlanFrames` watches the writer
+# thread's stream here (one shared connection per thread). The project stream,
+# read by stream/use-project-events.ts (not in this folder), also invalidates the
+# workflows query family. Both paths are real; neither alone covers every event.
+
+name: web-workflows
+version: 1
+status: current
+source: web/src/app/workflows
+
+
+# ── shapes ───────────────────────────────────────────────────────────────────
+#
+# Declared here, consumed by the graph components. Wire types (Plan, PlanTask,
+# PlanLink, LinkedTask, WrittenBy, PlanMap, MapPlan, PlanListing) come from
+# '@/api/client' and are owned by web/src/api/schema.d.ts. Not restated.
+
+TaskData:
+  task: PlanTask
+  # Set when the last edit changed this task (`last_edit.changed_tasks`).
+  changed: bool
+  # Set by PlanGraph for the task it centres; never by the layout.
+  focused: "bool | undefined"
+  writes: "string[] (at most 3)"
+  moreWrites: int
+  needs: "string | null"
+  waits: "string[]"
+StartData:
+  title: string
+  goal: string
+LinkData:
+  # 'start' is the faint edge from the start node to a task nothing precedes.
+  kind: "'needs' | 'completes_after' | 'start'"
+  label: string
+  broken: "bool | undefined"
+  sourceYOffset: "number | undefined"
+  targetYOffset: "number | undefined"
+  stepPosition: "number | undefined"
+LinkedData:
+  view: LinkedTask
+  foreign: bool
+MissingData:
+  number: int
+  reason: string
+MapData:
+  plan: MapPlan
+  foreign: bool
+CanvasSize:
+  width: number
+  height: number
+# Node and edge aliases: TaskNode = Node<TaskData,'task'>, StartNode, LinkedNode,
+# MissingNode, PlanNode (their union), PlanEdge = Edge<LinkData,'link'>.
+
+
+# ── functions ────────────────────────────────────────────────────────────────
+
+layout:
+  layoutPlan: "(plan: Plan) -> { nodes: PlanNode[]; edges: PlanEdge[] }"
+  placeGraph:
+    signature: "(nodes: Node[], edges: PlanEdge[]) -> void"
+    note: >
+      Mutates nodes and edges in place: writes position, handles, and the offset
+      and stepPosition fields of each edge. Called by layoutPlan and by the plan
+      map. Nothing else positions a node.
+  taskNodeId: "(number: number) -> string"
+  linkId: "(link: Pick<PlanLink,'kind'|'after'|'task'>) -> string"
+  waitsFor: "(count: number, after: number | string) -> string"
+  constants:
+    TASK_WIDTH: 256
+    START_WIDTH: 256
+    LINE_HEIGHT: 16
+    MAX_WRITES: 3
+
+linked:
+  parentName: "(after: TaskParent, views?: LinkedTask[]) -> string"
+  linkedLayout:
+    signature: "(plan: Plan) -> { nodes: (LinkedNode | MissingNode)[]; edges: PlanEdge[] }"
+    note: >
+      Builds the related-task nodes ('p{plan_id}-t{n}') and their edges from
+      linked_tasks. An incoming view whose local target is absent yields a
+      'missing' node. An outgoing view whose local task is absent yields nothing.
+
+camera:
+  MIN_ZOOM: 0.01
+  firstFit: "(compact: boolean, focusTask: number | undefined) -> FitViewOptions"
+  useCanvasSize:
+    signature: "(ref: RefObject<HTMLElement | null>) -> CanvasSize | null"
+    note: "ResizeObserver; null until the first observation, then only real size changes."
+  useCamera:
+    signature: >-
+      "({ size, compact, focusTask, lastClicked, nodes }) -> void"
+    note: >
+      Must render inside ReactFlow. Opens a wide page at its start column once, then
+      refits a focused or clicked task whenever the canvas size changes.
+
+frames:
+  isPlanEvent: "(kind: string) -> boolean"
+  refetchPlans: "(queryClient: QueryClient) -> void"
+  usePlanFrames:
+    signature: "(threadId: string | undefined) -> void"
+    note: >
+      Opens one ThreadStream per thread for all watchers in the QueryClient. The
+      stream closes when its last watcher unmounts. A thread that an enclosing screen
+      holds through HeldThreadStream is not opened a second time.
+  HeldThreadStream: "React context: string | null"
+
+plan_data:
+  usePlan:
+    signature: "(workflowId: string) -> UseQueryResult<Plan>"
+    note: "Watches the writer thread when the plan was written by a Planner."
+  writerThread: "(target: WrittenBy | Plan | undefined) -> string | undefined"
+  stateLabel: "(plan: Pick<Plan,'state'|'version'>) -> string"
+
+components:
+  PlanPage: "() -> JSX.Element"
+  PlanGraph: >
+    "({ plan, compact?, focusTask?, onSelectTask? }) -> JSX.Element"
+  PlanMapPage: "() -> JSX.Element"
+  ApproveBar: "({ plan }) -> JSX.Element"
+  InspectPanel: "({ plan, task, onClose }) -> JSX.Element"
+  VersionLine: "({ version, writtenBy, changeReason?, projectId? }) -> JSX.Element"
+  LinkEdge: "(props: EdgeProps<PlanEdge>) -> JSX.Element"
+  StartNodeView: "(props: NodeProps<StartNode>) -> JSX.Element"
+  TaskNodeView: "(props: NodeProps<TaskNode>) -> JSX.Element"
+  LinkedNodeView: "(props: NodeProps<LinkedNode>) -> JSX.Element"
+  MissingTaskNodeView: "(props: NodeProps<MissingNode>) -> JSX.Element"
+  CHANGED_WHILE_LOOKING: "string constant, shown on a REVISION_CONFLICT"
+
+
+# ── enums and externally owned types ─────────────────────────────────────────
+
+enums:
+  PlanLink.kind:
+    source: web/src/api/schema.d.ts (LinkKind)
+    values: [needs, completes_after]
+  LinkedTask.broken:
+    source: web/src/api/schema.d.ts (LinkedTask)
+    values: "optional string | null; the field may be absent"
+
+
+# ── obligations ──────────────────────────────────────────────────────────────
+
+obligations:
+  - rule: >
+      Each task is placed right of every task it needs or waits for, so no arrow
+      runs backward.
+    tested_by: lays out left to right with each task right of what it needs
+
+  - rule: >
+      No two node boxes overlap, however many tasks and links the plan holds.
+    tested_by: lays out 60 tasks without overlapping nodes
+    note: >
+      The fixture has only two kinds of link and two of three writes per task. It
+      does not use cross-plan links.
+
+  - rule: >
+      A cross-plan dependency is drawn between plan-qualified node ids, and a task
+      with a cross-plan predecessor gets no start edge.
+    tested_by: places outgoing and incoming tasks using plan-qualified node identities
+
+  - rule: >
+      A broken dependency keeps its explanation on the node and its edge is drawn
+      broken.
+    tested_by: keeps a broken dependency node with its explanation
+
+  - rule: >
+      An incoming dependency whose local target is missing keeps its edge to a
+      'missing' node.
+    tested_by: retains an incoming edge when its local target task is missing
+
+  - rule: >
+      The first view is readable (zoom at least 0.75 for a page, 0.5 for a card),
+      and the wheel and the Controls fit button can still zoom far out.
+    tested_by: fits readably at first but lets the person zoom out to the whole plan
+    note: "Card fit is checked by: a card fits with its own options."
+
+  - rule: >
+      A card renders without a minimap and with its own fit options.
+    tested_by: a card fits with its own options
+
+  - rule: >
+      The fit control shows a sixty-task linear plan in full at its minimum zoom.
+    tested_by: the fit control can show a linear sixty-task plan end to end
+
+  - rule: >
+      A wide plan opens at its start column, at the readable zoom, and not zoomed out
+      to the whole plan.
+    tested_by: opens a wide plan at its start column at a readable zoom
+
+  - rule: >
+      Resizing the canvas without a selected task keeps the person's pan and zoom.
+    tested_by: keeps the current view when the canvas changes size without a selected task
+
+  - rule: >
+      Opening or closing Inspect changes the canvas width; the clicked task is kept
+      in view at the zoom the person already had, and the graph is never remounted.
+    tested_by: refits the graph when Inspect opens and closes, on the same canvas
+
+  - rule: >
+      Approve sends the revision the person saw, and the page then reads the plan
+      again rather than trusting the answer.
+    tested_by: approve sends the revision it showed
+    note: "The same test shows 'Approved v1' after approval, covering stateLabel."
+
+  - rule: >
+      A REVISION_CONFLICT on Approve reads the plan again, shows what changed before
+      the next press, and the next press is a new command at the new revision.
+    tested_by: a revision conflict on Approve refetches and says the plan changed
+
+  - rule: >
+      A WORKFLOW_VALIDATION_FAILED refusal lists the daemon's problems inside the
+      alert region, one per list item.
+    tested_by: shows the problems when approval is refused as invalid
+
+  - rule: >
+      Blockers are listed above the Approve button, and Approve stays enabled while
+      blockers exist, so the daemon's 422 is what refuses it.
+    tested_by: shows Draft v2 with its blockers above Approve
+
+  - rule: >
+      A frozen plan shows no Approve button and a banner saying that editing creates
+      the next draft, unless the next version already exists.
+    tested_by: an approved plan has no Approve and shows the banner
+
+  - rule: >
+      A frozen plan whose next version exists says so rather than saying editing
+      creates one.
+    tested_by: an approved plan whose next version exists says so, not that editing creates it
+
+  - rule: >
+      A task changed by the last edit carries a 'changed' mark; unchanged tasks do not.
+    tested_by: changed tasks are marked
+
+  - rule: >
+      A needs edge is solid and a completes_after edge is dashed and labelled. The task
+      shows how many parts wait for its predecessor.
+    tested_by: a completes_after edge is dashed and labelled
+
+  - rule: >
+      Every text element in a task node carries dir="auto", so an Arabic title reads
+      right to left.
+    tested_by: an Arabic task title renders with dir auto
+
+  - rule: >
+      A WorkflowEdited on the writer thread's stream, received while live, refetches
+      the plan and shows the new task.
+    tested_by: a Workflow durable frame refetches the plan
+
+  - rule: >
+      A WorkflowEdited on the project stream refetches the plan, its version list and
+      the workflow list.
+    tested_by: "integration: refetches the plan when the project stream names it"
+    note: >
+      Lives in web/src/app/workflows/plan-page.test.tsx. The project stream itself is
+      read by web/src/stream/use-project-events.ts, which this contract does not trace.
+
+  - rule: >
+      Archiving a plan makes it read-only: Archived is shown and Approve disappears.
+    tested_by: heads a version with its writer and reason, and archives the plan
+
+  - rule: >
+      The version line names the writing conversation, model and harness, and the
+      change reason for versions after the first.
+    tested_by: heads a version with its writer and reason, and archives the plan
+
+  - rule: >
+      A version whose change reason is blank says 'Reason not recorded' from version 2 on.
+    tested_by: none
+    note: "formatReason in version-line.tsx; no test is in this folder."
+
+  - rule: >
+      The plan map shows every current plan, its state and task count, and each
+      cross-plan link with its count and broken flag.
+    tested_by: opens the plan map from the sidebar with foreign plan navigation
+
+  - rule: >
+      The plan map refreshes after a dependency or reach notification without a page
+      reload.
+    tested_by: refreshes the rendered map after dependency and reach notifications
+    note: >
+      PlanMapPage does not watch a stream itself. The refresh comes from
+      web/src/stream/use-project-events.ts (REACH_EVENTS), which this contract does
+      not trace.
+
+  - rule: >
+      A linked task opens in its own plan and inspects that plan's task, never the
+      local task with the same number.
+    tested_by: >-
+      opens a linked task in its own plan without selecting a local task with the same
+      number
+
+  - rule: >
+      One ThreadStream is shared by every watcher of a thread, and it closes when the
+      last watcher unmounts.
+    tested_by: none
+    note: >
+      Only the project stream's sharing is tested (plan-map.test.tsx, sidebar test),
+      not usePlanFrames' own map.
+
+  - rule: >
+      An enclosing screen that holds its thread's stream (HeldThreadStream) receives
+      plan events through it, and no second stream opens for that thread.
+    tested_by: none
+
+  - rule: >
+      writerThread returns a thread only when a Planner wrote the version; an external
+      writer watches nothing.
+    tested_by: none
+
+  - rule: >
+      A retry of an approval at the same revision, after a lost answer, sends the
+      same command id.
+    tested_by: none
+    note: >
+      approve-bar.tsx keeps its Attempt in a ref. The tests use a new revision or a
+      single press, never a repeated press at the same revision.
+
+  - rule: >
+      An archive or unarchive retry after a lost answer reuses its command id.
+    tested_by: none
+    note: >
+      Known false: toggleArchive generates a new id on every press. See gaps.
+
+  - rule: >
+      An acceptance item says which task it waits for when a completes_after link
+      names it.
+    tested_by: none
+    note: "InspectPanel's waitingFor; no test opens the inspector on a waiting task."
+
+  - rule: >
+      Inspect shows the goal, reads, writes and acceptance items of one task, and
+      closes with its Close button.
+    tested_by: none
+
+
+# ── agreements ───────────────────────────────────────────────────────────────
+
+agreements:
+  - between: [taskNode (layout.ts), InspectPanel (inspect-panel.tsx)]
+    must: >
+      report the same waits for one completes_after link with an empty waiting_items
+      list
+    holds: false
+    why: >
+      taskNode maps a completes_after link with no waiting items to 'one part waits'
+      (Math.max(length, 1)). InspectPanel shows nothing for it, because no acceptance
+      item names it. Each surface is right by its own rule, and they disagree.
+    tested_by: none
+
+  - between: [layoutPlan (layout.ts), linkedLayout (linked-layout.ts)]
+    must: >
+      draw each dependency through exactly one edge, using the same id scheme for the
+      same task
+    holds: true
+    why: >
+      Local links use numeric ids from layout.ts. Cross-plan links come only from
+      linked_tasks, and layoutPlan keeps only numeric-after links from plan.links, so
+      no dependency is drawn twice.
+    tested_by: places outgoing and incoming tasks using plan-qualified node identities
+
+
+# ── not_the_caller's ─────────────────────────────────────────────────────────
+
+not_the_caller's:
+  - >
+      Position nodes or call dagre yourself. placeGraph is the single layout, and a
+      second pass over the same nodes overwrites the first.
+  - >
+      Read `plan.links` to draw cross-plan dependencies. Use linked_tasks through
+      linkedLayout; plan.links holds them as objects that layoutPlan does not draw.
+  - >
+      Call useQuery(planQuery) in a component that needs live updates and leave the
+      watch out. Use usePlan, so the stream is shared and closes correctly.
+  - >
+      Print a version's state word yourself. Use stateLabel, so Frozen reads Approved
+      everywhere.
+  - >
+      Mount ReactFlow with nodesDraggable on. Nodes are never dragged, and the layout
+      would drift from the recomputed positions.
+
+
+# ── gaps ─────────────────────────────────────────────────────────────────────
+
+gaps:
+  - at: linkedLayout
+    gap: >
+      The edge's broken flag is `view.broken !== null`. LinkedTask.broken is optional
+      in web/src/api/schema.d.ts, so a view that omits the field gives undefined, and
+      undefined !== null is true. The edge is then drawn in the destructive colour as
+      broken. The consequence is a false error on a healthy dependency whenever the
+      daemon omits the key. Every fixture in the tests sets broken: null explicitly,
+      so no test sees this.
+
+  - at: taskNode
+    gap: >
+      waits maps each completes_after link to waitsFor(Math.max(waiting_items length,
+      1)). An empty waiting list is shown as "1 part waits for T8", a count nothing
+      in the data supports. The sibling InspectPanel shows nothing for the same link.
+
+  - at: PlanView
+    gap: >
+      inspected stores a task number, not an identity. Task numbers are plan-local
+      (version N's T4 is not version N+1's T4). A live edit that renumbers tasks
+      while Inspect is open silently points the open panel at a different task, or
+      closes it if the number is gone and reopens it later on a reused number.
+
+  - at: Header
+    gap: >
+      toggleArchive calls crypto.randomUUID() on every press. Approve keeps one
+      Attempt per revision and replays it after a lost answer. An archive whose
+      response was lost is therefore retried as a new command, not a replay, and
+      the daemon's answer to a second archive of an archived plan is untested here.
+      The archive-failure test only checks that the button re-enables.
+
+
+# ── open_questions ───────────────────────────────────────────────────────────
+
+open_questions:
+  - >
+      Can plan.links name a local task number that is absent from plan.tasks? If so,
+      taskNode shows its 'needs' text while layoutPlan draws no edge, because the
+      filter in layoutPlan drops that link. Answering needs the daemon's plan
+      projection (crates/shadows-core/src/plans), not read here.
+  - >
+      Does the thread stream carry PlanArchived and PlanUnarchived? PLAN_KINDS in
+      plan-frames.ts omits them. A writer-thread watcher therefore refetches on
+      archive only if the project stream reaches it. Answering needs the thread
+      stream's event list (web/src/stream).
+  - >
+      Does the daemon accept an archive or unarchive command id it has already
+      committed, and answer with the same result? Answering needs the Plans archive
+      command in crates/shadows-core/src/plans.
+
+
+# ── tests ────────────────────────────────────────────────────────────────────
+
+tests:
+  # layout.test.ts
+  - name: lays out left to right with each task right of what it needs
+    checks: >
+      For every link, the target box starts right of the source box's right edge.
+      The start node sits left of every task. Three needs edges are present.
+  - name: lays out 60 tasks without overlapping nodes
+    checks: >
+      Sixty tasks with needs and completes_after links lay out as 61 boxes, each with
+      positive size, pairwise disjoint.
+  - name: places outgoing and incoming tasks using plan-qualified node identities
+    checks: >
+      Outgoing and incoming linked nodes are 'pbackend-t3' and 'pconsumer-t3'.
+      Edges run to and from t4, and no start-4 edge exists.
+  - name: keeps a broken dependency node with its explanation
+    checks: >
+      The linked node's view carries the broken string; the edge's broken flag is
+      true. Only the true case is checked.
+  - name: retains an incoming edge when its local target task is missing
+    checks: >
+      A 'missing' node 't3' is created, the linked node 'pweb-t4' remains, and the
+      edge between them is broken.
+  # plan-graph.test.tsx
+  - name: fits readably at first but lets the person zoom out to the whole plan
+    checks: >
+      The ReactFlow minZoom is at most 0.2, fitViewOptions.minZoom at least 0.75 and
+      maxZoom 1, and Controls' fit minZoom at most 0.2.
+  - name: a card fits with its own options
+    checks: >
+      A compact card's fitViewOptions.minZoom is below 0.75, its minZoom at most 0.2,
+      and no minimap renders.
+  - name: the fit control can show a linear sixty-task plan end to end
+    checks: >
+      The fit viewport for the sixty-task chain has its left and right bounds within a
+      1100-pixel canvas at the Controls' minZoom.
+  - name: opens a wide plan at its start column at a readable zoom
+    checks: >
+      After the canvas is sized, exactly one setViewport lands, with the zoom of the
+      0.8-minimum fit and x placing the start column at the padded left edge.
+  - name: keeps the current view when the canvas changes size without a selected task
+    checks: >
+      The first size produces no fitView call. A later size change produces none
+      either, and the ReactFlow node is the same element.
+  # plan-map.test.tsx
+  - name: opens the plan map from the sidebar with foreign plan navigation
+    checks: >
+      The foreign plan's link goes to its own project's workflow route, carries the
+      project name, and the link count reads '2 task links · broken'. The map nav
+      link is present.
+  - name: refreshes the rendered map after dependency and reach notifications
+    checks: >
+      Through the project stream, PlanDependenciesChanged and ProjectUnlinked each
+      refetch the map and the link text changes to 2 and then 3 broken.
+    note: "The refetch is driven by web/src/stream/use-project-events.ts."
+  - name: opens a linked task in its own plan without selecting a local task with the same number
+    checks: >
+      Clicking the linked node 'Open Backend · T3' navigates to w2 and shows 'Login
+      API' at node t3, and 'Local T3' never appears.
+  - name: keeps another open projects sidebar current without duplicating the active project stream
+    checks: >
+      Opening another project's section yields one stream for p1 and one for p2. A
+      WorkflowDraftStarted on p2 shows 'Draft v2' and its link without a new p1 stream.
+    note: "Tests the sidebar's stream sharing (web/src/stream), not this folder's code."
+  # plan-page.test.tsx
+  - name: shows an archive failure so the person can retry it
+    checks: >
+      A 500 from archive shows the storage message, and the Archive button is enabled
+      afterward.
+  - name: refetches the plan when the project stream names it
+    checks: >
+      Through the project stream, WorkflowEdited re-reads the plan, the versions and
+      the list. PlanArchived then shows 'Archived · read only'.
+  - name: shows Draft v2 with its blockers above Approve
+    checks: >
+      The blocker text precedes the Approve button in document order, and Approve is
+      enabled.
+  - name: approve sends the revision it showed
+    checks: >
+      The POST carries expected_revision 7 and a UUID command_id. After the answer the
+      plan is read again and 'Approved v1' shows with no Approve button.
+  - name: a revision conflict on Approve refetches and says the plan changed
+    checks: >
+      A 409 shows the changed message, the changed task appears, and the second press
+      sends revision 4 with a different command id from the first press.
+  - name: shows the problems when approval is refused as invalid
+    checks: >
+      The two daemon problems appear as list items inside the alert region, in order.
+  - name: an approved plan has no Approve and shows the banner
+    checks: >
+      'Approved v1 · editing creates draft v2' shows and no Approve button renders.
+  - name: an approved plan whose next version exists says so, not that editing creates it
+    checks: >
+      'Approved v1 · v2 is its next version' shows and 'editing creates' does not.
+  - name: changed tasks are marked
+    checks: >
+      Node 2 carries 'changed' and node 1 does not.
+  - name: a completes_after edge is dashed and labelled
+    checks: >
+      The completes_after path has a dash array and the needs path does not. Its label
+      reads 'the final screen', node 3 reads '1 part waits for T2', and the needs
+      label appears.
+  - name: an Arabic task title renders with dir auto
+    checks: >
+      Every p and span inside node 2 has dir="auto" and the title text is present.
+  - name: refits the graph when Inspect opens and closes, on the same canvas
+    checks: >
+      After resizing, a click on node 2 opens 'T2' and the next resize refits to node
+      't2' at equal min and max zoom. Closing and resizing refits again, and the
+      ReactFlow and canvas elements are the same objects.
+  - name: a Workflow durable frame refetches the plan
+    checks: >
+      A WorkflowEdited on the thread t1 stream while live re-reads the plan, and node 3
+      shows the new task.
+  - name: heads a version with its writer and reason, and archives the plan
+    checks: >
+      The version line shows 'v2 · from Web fixes · opus-5-5 · Claude Code' and the
+      change reason. Archive sends a UUID command id, and afterward 'Archived · read
+      only' shows with no Approve button.

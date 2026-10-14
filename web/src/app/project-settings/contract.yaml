@@ -1,0 +1,358 @@
+# Owns the project settings page (spec §13.11): the page that composes five
+# sections, each keyed by project id, and the logic of each section's own form.
+# The sections are the Planner instructions, the allowed modes, the external agents
+# (Connect and Revoke), the code index (links), and removing the project.
+#
+# Trap 1: the router keeps this page mounted when only the project changes, so each
+# section is keyed by project id. Without the key, one project's draft, pending
+# command id or one-time Connect command would show under another.
+#
+# Trap 2: the Connect token exists only in ExternalAgents' `issued` state. Leaving the
+# page drops it, and the daemon does not keep it, so a replayed Connect has no command.
+#
+# Trap 3: command ids come from api/command-id's attemptFor. A retry of an unanswered
+# request reuses its id; a settled attempt must be cleared (null) first, or the next
+# identical request replays the old answer. ProjectModes does not clear its attempt.
+
+name: web-project-settings
+version: 1
+status: current
+source: web/src/app/project-settings
+
+
+# ── shapes ───────────────────────────────────────────────────────────────────────
+
+shapes:
+  Allowed:
+    # Per harness kind, the modes in the order the harness's policy lists them.
+    # A missing harness reads as an empty list, which turns off every turn there.
+    "<harness kind>": "string[]"
+  ProjectLinkRow:
+    # A link is stored as a slug (`linked`). LinkedRow joins it with the project list
+    # for the name, folder and id; see its gap.
+    linked: string
+
+
+# ── external types ───────────────────────────────────────────────────────────────
+
+external:
+  Project: "web/src/api/client; id, slug, name, directory, allowed_modes"
+  ProjectLink: "project, linked, created_at"
+  ProjectStatus: "state (ready | indexing | inactive | no_directory | directory_missing),
+    files, skipped, updated_at"
+  Grant: "id, kind (project | thread), created_at, revoked_at"
+  IssuedGrant: "grant, token, command"
+  InstructionsVersion: "body, number, created_at"
+
+
+# ── functions ────────────────────────────────────────────────────────────────────
+
+components:
+  ProjectSettings:
+    signature: "() => JSX.Element"
+    # Route body for /projects/$projectId/settings. Sections that need the project
+    # render only once the project list has answered.
+  InstructionsEditor:
+    signature: "({ projectId: string }) => JSX.Element"
+    # Renders its Editor only once the saved version has loaded.
+  ProjectModes:
+    signature: "({ project: Project }) => JSX.Element"
+    # One checkbox per mode of each harness; a toggle sends the whole new set.
+  ExternalAgents:
+    signature: "({ projectId: string }) => JSX.Element"
+    # Connect; the one answer's command; the project's grants with Revoke.
+  CodeIndex:
+    signature: "({ project: Project }) => JSX.Element"
+    # Index status, the links, and a picker for the unlinked projects.
+  RemoveProject:
+    signature: "({ project: Project }) => JSX.Element"
+    # The danger zone. Its Remove is off while the thread count is unknown or not zero.
+
+pure:
+  when:
+    signature: "(iso: string) -> string"
+    # The stored time in the reader's locale (medium date, short time); the raw
+    # value when it does not parse.
+  ago:
+    signature: "(iso: string, now?: number) -> string"
+    # "2 min. ago"-style, with the locale's numeric auto. A future time reads as now.
+
+private_helpers:
+  Editor:
+    # The instructions text area. Keeps its base version and rebases the draft only
+    # when the person has not typed since.
+    private: true
+  Issued:
+    # Shows the one-time command, or the replay notice when the command is null.
+    private: true
+  GrantRow:
+    private: true
+  IndexStatus:
+    private: true
+  LinkedRow:
+    private: true
+  LinkPicker:
+    private: true
+  ConfirmRemove:
+    private: true
+
+
+# ── obligations ──────────────────────────────────────────────────────────────────
+
+obligations:
+  - rule: >
+      Saving instructions sends the body under a command id, and the answer becomes the
+      saved version (shown as "version N").
+    tested_by:
+      - "saving instructions sends the body with a command id"
+
+  - rule: >
+      An unsaved instructions draft survives a background refetch of a newer version,
+      and the newer one shows only as the "Last changed" line.
+    tested_by:
+      - "a newer version fetched in the background keeps unsaved edits"
+
+  - rule: >
+      Each project's sections are isolated: a draft, a pending command id, or a Connect
+      command from one project never shows under another.
+    tested_by:
+      - "another project's settings do not show this one's command or draft"
+
+  - rule: >
+      Connect sends one command and shows its token once, with the notice about
+      ~/.claude.json. Leaving the page and coming back does not show the token again.
+    tested_by:
+      - "connect shows the command once with the notice"
+
+  - rule: >
+      A Connect answered as a replay (no token, no command) shows the "already created"
+      notice and no command block.
+    tested_by:
+      - "a replayed connect without a token explains why"
+
+  - rule: >
+      Revoke sends one command for that grant and marks it revoked. A revoked grant shows
+      no Revoke button. Only project grants are listed; a thread grant is never shown.
+    tested_by:
+      - "revoke removes the grant from the list"
+      - "a revoked grant shows as revoked, with no Revoke button"
+    note: >
+      The revoke test asserts the "Revoked" text and that no Revoke button remains. It
+      does not assert the revoked row's date.
+
+  - rule: >
+      The grant list refetches every 10 seconds while the page is open.
+    tested_by:
+      - "the grant list is polled every 10 s while the page is open"
+
+  - rule: >
+      Each mode toggle is one command with its own id. A second toggle made while the
+      first is in flight is sent after it, and the "No mode left" line shows at once.
+    tested_by:
+      - "project settings edit allowed modes"
+    note: >
+      The test asserts the second command id differs from the first, and that the
+      second body is the empty set.
+
+  - rule: >
+      A click made after a save answers from the saved set, even when the project query
+      has not yet re-rendered the page.
+    tested_by:
+      - "a click after a save uses that save while the project query has not rendered"
+
+  - rule: >
+      A harness whose modes are not decided shows that sentence instead of a checklist.
+    tested_by:
+      - "a harness whose modes are not decided says so instead of a checklist"
+
+  - rule: >
+      A retry of an unanswered toggle reuses its command id; a toggle after an answered
+      one never sends the answered id again.
+    tested_by: none
+    note: >
+      The second half does not hold. ProjectModes never clears its pending attempt after a
+      save answers (see gaps and agreements).
+
+  - rule: >
+      Linking sends one command naming the linked project's id. Unlinking sends one
+      command for that link. Both lists follow the answer.
+    tested_by:
+      - "links another project, then unlinks it"
+
+  - rule: >
+      An index that is inactive still counts its files.
+    tested_by:
+      - "an inactive index still counts its files"
+
+  - rule: >
+      A missing folder counts no files in the status line; the line goes from state to date.
+    tested_by:
+      - "links another project, then unlinks it"
+    note: >
+      Checked inside the link test, not in its own test.
+
+  - rule: >
+      Remove is off until the conversation count is known and while it is not zero.
+    tested_by:
+      - "is off while the project has conversations, and says why"
+
+  - rule: >
+      With no conversations, Remove confirms, sends one command, and on success goes home
+      and drops the project from the list.
+    tested_by:
+      - "with none, confirms, sends the command and goes home"
+
+  - rule: >
+      A Remove whose answer was lost, or refused, retries under the same command id when
+      the dialog is reopened.
+    tested_by:
+      - "a retry after a lost answer sends the same command"
+    note: >
+      The test refuses the first attempt with a 500 (STORAGE_UNAVAILABLE), which is a
+      refusal, not a lost answer. The id reuse is what it proves.
+
+  - rule: >
+      A Remove refused with PROJECT_HAS_THREADS shows the refusal in the dialog and turns
+      Remove off after the conversations reload.
+    tested_by:
+      - "a conversation started meanwhile is refused in the dialog, and turns Remove off"
+
+  - rule: >
+      A time less than a second in the future reads as "now", and a past time reads as
+      how long ago it was.
+    tested_by:
+      - "reads a past time as how long ago it was"
+      - "reads a time ahead of the browser clock as now"
+
+  - rule: >
+      Only a project grant is listed in External agents; a Planner's thread grant is not
+      the person's to manage.
+    tested_by:
+      - "a revoked grant shows as revoked, with no Revoke button"
+
+
+# ── agreements ───────────────────────────────────────────────────────────────────
+
+agreements:
+  - between: [ProjectModes save, "api/command-id attemptFor"]
+    must: >
+      clear the pending attempt when its save answers, so a later identical request
+      gets a new command id, as attemptFor's own doc requires (`null` once one succeeded)
+    holds: false
+    why: >
+      ProjectModes assigns its pending ref in toggle and nowhere else, so it keeps the
+      answered attempt. InstructionsEditor, ExternalAgents, CodeIndex and RemoveProject
+      all clear it on success.
+    tested_by: none
+    note: Recorded as a gap below.
+
+  - between: [ExternalAgents Connect, ExternalAgents GrantRow Revoke]
+    must: use the same retry rule for their commands
+    holds: true
+    why: >
+      Both keep their attempt until the answer and clear it on success; an error keeps it.
+    tested_by:
+      - "a replayed connect without a token explains why"
+    note: >
+      The replay test drives Connect only. Revoke's retry is not exercised.
+
+
+# ── gaps ─────────────────────────────────────────────────────────────────────────
+
+gaps:
+  - at: ProjectModes
+    gap: >
+      `pending` is set in toggle through attemptFor and is never cleared; no success
+      path resets it. If the same set is asked again later, attemptFor returns the
+      answered command id. Under the idempotency rule the daemon replays its first answer
+      without writing. If another client changed the set in between, onSuccess then writes
+      the replayed (old) set into the projects cache, and the page shows it until the next
+      refetch, while the daemon holds the other set. The fix is one line: clear the ref in
+      onSuccess, as the other forms do.
+
+  - at: LinkedRow
+    gap: >
+      `linked` is undefined both while the project list is loading and when no listed
+      project has the link's slug. Unlink is disabled whenever `linked` is undefined, and
+      startUnlink needs the project's id, which only that listed project supplies. A link to a
+      project the list no longer shows can therefore not be removed from this page. The
+      comment on the prop says undefined means "the project list has not answered", which
+      the code does not distinguish.
+
+
+# ── open_questions ───────────────────────────────────────────────────────────────
+
+open_questions:
+  - >
+      Can a code link outlive its linked project's removal, and is the link then still
+      listed by slug? Answering needs the projects removal path and the code links route,
+      which are outside this folder. If yes, LinkedRow's gap is live; if no, it is moot.
+  - >
+      Does the daemon record a refused command, so that a retry of it replays the refusal?
+      That decides whether the retry rule in RemoveProject (kept after PROJECT_HAS_THREADS)
+      and ProjectModes (kept after a refusal) can recover. Answering needs the command log.
+
+
+# ── tests ────────────────────────────────────────────────────────────────────────
+
+tests:
+  - name: "saving instructions sends the body with a command id"
+    checks: >
+      The PUT carries the typed Arabic body and a non-empty command id, the textarea keeps
+      dir="auto", and "version 2" appears after the save.
+  - name: "connect shows the command once with the notice"
+    checks: >
+      The one-time block shows the bearer token and the notice; after leaving the page and
+      returning the block is gone and the token text is absent.
+  - name: "a replayed connect without a token explains why"
+    checks: "A null token and null command show the replay notice and no code block."
+  - name: "revoke removes the grant from the list"
+    checks: >
+      The DELETE carries a command id; afterwards the page shows Revoked and no Revoke button.
+  - name: "a revoked grant shows as revoked, with no Revoke button"
+    checks: >
+      With one active project grant, one revoked grant and one thread grant, only two rows
+      render, one Revoke button exists, and its label names the active grant's id.
+  - name: "a newer version fetched in the background keeps unsaved edits"
+    checks: "After a refetch brings version 2, the typed draft is still in the textarea."
+  - name: "another project's settings do not show this one's command or draft"
+    checks: >
+      Navigating to p2 shows no code block and an empty instructions field after p1's
+      connect and typed draft.
+  - name: "the grant list is polled every 10 s while the page is open"
+    checks: "The grants query's refetchInterval is 10000."
+  - name: "project settings edit allowed modes"
+    checks: >
+      Unchecking Auto sends a PATCH with ['acceptEdits']; unchecking Accept edits while the
+      first waits sends [] with a different command id, and the empty-set line appears.
+  - name: "a click after a save uses that save while the project query has not rendered"
+    checks: >
+      With React Query's notifications held, the cache holds the PATCH answer but the
+      checkbox still shows the old set; the next click sends the set from that answer.
+  - name: "a harness whose modes are not decided says so instead of a checklist"
+    checks: "Codex shows the 'decided when Codex is enabled' sentence and no checklist."
+  - name: "links another project, then unlinks it"
+    checks: >
+      Linking PUTs the id and shows the row with its name, folder and status; the picker is
+      disabled with no candidates; unlinking sends a DELETE with a command id and restores
+      "Only this project.".
+  - name: "an inactive index still counts its files"
+    checks: "An inactive status shows 'Inactive · 277 files'."
+  - name: "is off while the project has conversations, and says why"
+    checks: "With one conversation, the text names it and Remove is disabled."
+  - name: "with none, confirms, sends the command and goes home"
+    checks: >
+      Remove opens the dialog without a request, then sends one DELETE with a command id,
+      navigates to /, and the sidebar shows "No projects yet.".
+  - name: "a retry after a lost answer sends the same command"
+    checks: >
+      The first DELETE fails with a 500; after Cancel and reopening, the second DELETE has
+      the same command id, and the navigation to / follows.
+  - name: "a conversation started meanwhile is refused in the dialog, and turns Remove off"
+    checks: >
+      A PROJECT_HAS_THREADS refusal shows its message in the dialog, the page stays on
+      settings, and the count of one conversation disables Remove.
+  - name: "reads a past time as how long ago it was"
+    checks: "ago(two minutes before now) equals the Intl format of -2 minute."
+  - name: "reads a time ahead of the browser clock as now"
+    checks: "ago(three seconds after now) equals the Intl format of 0 second."

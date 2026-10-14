@@ -1,0 +1,115 @@
+# Owns the global Settings page (spec §13.11): the daemon's settings that belong to no
+# one project, one section each. Today there is one: the active-projects limit of the
+# code index (§15.6), an integer from 1 to 20 that the daemon holds the setting to.
+#
+# Trap: the form keeps the person's typed number until it is saved or the saved value
+# changes while the field is untouched. The save's success clears that edit without
+# checking for a newer one, so an edit typed while the save was in flight is lost.
+#
+# A new setting is one more component rendered by SettingsPage.
+
+name: web-settings
+version: 1
+status: current
+source: web/src/app/settings
+
+
+# ── shapes ───────────────────────────────────────────────────────────────────────
+
+shapes:
+  Limit:
+    # The bounds the form enforces before it sends. The daemon's own bounds are
+    # the same numbers by its comment; see open_questions.
+    MIN: 1
+    MAX: 20
+
+
+# ── external types ───────────────────────────────────────────────────────────────
+
+external:
+  CodeSettings: "web/src/api/client; active_limit"
+
+
+# ── functions ────────────────────────────────────────────────────────────────────
+
+components:
+  SettingsPage:
+    signature: "() => JSX.Element"
+    # The page shell; it renders one section per daemon setting.
+  ActiveProjects:
+    signature: "() => JSX.Element"
+    # Reads the code settings; renders the form once they load.
+
+private_helpers:
+  LimitForm:
+    # The form. `edited` is null until the person types; it then holds their text.
+    private: true
+
+
+# ── obligations ──────────────────────────────────────────────────────────────────
+
+obligations:
+  - rule: >
+      The limit must be a whole number from 1 to 20. Any other text disables Save and
+      shows "A whole number from 1 to 20."
+    tested_by:
+      - "saves the active limit"
+
+  - rule: >
+      Save sends the number with one command id. A retry of the same number reuses the id;
+      another number gets a new one.
+    tested_by:
+      - "saves the active limit"
+    note: >
+      The test checks the body's command id is present, not that a retry reuses it.
+
+  - rule: >
+      Save is disabled while the field holds the saved value, and while a save is in
+      flight.
+    tested_by:
+      - "follows a value changed elsewhere while the field is untouched"
+      - "saves the active limit"
+
+  - rule: >
+      A value saved elsewhere replaces an untouched field after a refetch.
+    tested_by:
+      - "follows a value changed elsewhere while the field is untouched"
+
+  - rule: >
+      An edit typed while a save is in flight survives that save's success.
+    tested_by: none
+    note: >
+      Does not hold; see gaps.
+
+
+# ── gaps ─────────────────────────────────────────────────────────────────────────
+
+gaps:
+  - at: LimitForm
+    gap: >
+      onSuccess calls setEdited(null) unconditionally. The input is not disabled while a
+      save is in flight, so a number typed then is dropped: the field snaps back to the
+      value the save returned. The project's instructions editor guards this case
+      (its base-version rule), and this form does not.
+
+
+# ── open_questions ───────────────────────────────────────────────────────────────
+
+open_questions:
+  - >
+      Does the daemon hold active_limit to 1 through 20 as the comment says, and how does it
+      refuse a number outside them? Answering needs the code settings route, which is outside
+      this folder.
+
+
+# ── tests ────────────────────────────────────────────────────────────────────────
+
+tests:
+  - name: "saves the active limit"
+    checks: >
+      Typing 25 shows the range message and disables Save; typing 8 and saving sends
+      active_limit 8 with a command id; after the refetched value reaches the cache the
+      field shows 8 and Save is disabled.
+  - name: "follows a value changed elsewhere while the field is untouched"
+    checks: >
+      After another tab's 7 is refetched, the untouched field shows 7 and Save is disabled.

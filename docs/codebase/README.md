@@ -228,7 +228,8 @@ pattern to follow, not merely an example.
 | `crates/fake-acp/src/prompts.rs` | the scripted answers to a prompt | `crates/fake-acp/src/prompts.rs` |
 
 The Web client in `web/` is a separate program outside this workspace and this
-map; [`web/README.md`](../../web/README.md) describes it.
+map; [`docs/frontend/codebase/README.md`](../frontend/codebase/README.md) is its
+code map, and [`web/README.md`](../../web/README.md) says how to run it.
 
 A module absent from this table is a module that does not exist yet. The
 planned services are named in [`CLAUDE.md`](../../CLAUDE.md); this table is not
