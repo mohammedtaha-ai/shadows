@@ -13,7 +13,13 @@
 > | [docs/status.md](./docs/status.md) | Where the project is right now. Decides nothing. |
 > | [docs/evidence/](./docs/evidence/) | Dated measurement records. Facts, not decisions. |
 >
+> | [docs/backend/AGENTS.md](./docs/backend/AGENTS.md) · [docs/frontend/AGENTS.md](./docs/frontend/AGENTS.md) | **The two sides.** Hamoud (backend) and Masada (frontend): their domains, tasks in `stages.md`, builders and fixers. |
+> | [docs/shared/README.md](./docs/shared/README.md) | **Shared requests.** How the frontend and backend agree on the API before either writes code. |
+>
 > **Documentation rules:**
+> - **New specs and plans go to their side:** `docs/backend/{specs,plans}/` or
+>   `docs/frontend/{specs,plans}/`. `docs/superpowers/` is the record of earlier
+>   decisions: read it, amend an existing owner section in place, add no new file.
 > - The specs are split by topic. Every decision has exactly one owner file and
 >   is amended **in place**. Other files refer to it; they do not copy it.
 > - Do not create an ADR, a design note, or a plan document for a struct shape,
