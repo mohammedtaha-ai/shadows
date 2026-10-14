@@ -1,0 +1,262 @@
+# Owns the browser side of shared API contracts (agreements): the page that lists
+# them, the editor for one exact version, the adoption of an exact Agreed version by
+# a plan's task, and the structured editing of the OpenAPI document that holds a
+# contract's operations.
+#
+# Trap: a contract's content is one OpenAPI document. The structured view and the
+# JSON view edit that same document, and the editor holds a parsed copy of it, not
+# the server's record. A refused Save locks every field, and the only ways out are
+# to Save again (same snapshot, same revision) or Reload, which remounts the editor
+# and drops unsaved text, although the inline message says the text is retained.
+#
+# Command ids: AgreementEditor's Save keeps its command id and first revision until
+# the save answers; a binding edit keeps its id until the plan read after it succeeds.
+# Agree keeps its approval id until it answers. The start of a contract is in
+# AgreementsView, which this file names but does not export.
+
+name: web-agreements
+version: 1
+status: current
+source: web/src/app/agreements
+
+
+# ── shapes ───────────────────────────────────────────────────────────────────────
+
+shapes:
+  Party:
+    # AgreementContent["parties"][number], a declared participant. The pair
+    # (part_id, role) is one row: the picker never holds one part twice in a role.
+    part_id: string
+    role: "'provides' | 'uses'"
+  Operation:
+    # An operation offered for binding. Only an OpenAPI operation that carries
+    # x-shadows-operation-id appears here; the key is that id.
+    key: string
+    label: "'METHOD /path'"
+
+
+# ── external types (owned by web/src/api/schema.d.ts, re-exported by api/client) ─
+
+external:
+  AgreementVersion: "agreement_id, version, revision, state, writer, content, issues"
+  AgreementContent: "capability, purpose, behavior, acceptance, parties, openapi"
+  AgreementReview: "review_id, revision, compatibility, changes, parties, participants"
+  Plan: "id, project_id, revision, state, plan_state, bindings"
+  PlanOp: "binding_put | binding_remove"
+
+
+# ── functions ────────────────────────────────────────────────────────────────────
+
+components:
+  AgreementsPage:
+    signature: "() => JSX.Element"
+    # Route body for /projects/$projectId/agreements. Reads the `agreement` and
+    # `version` search params; keys the whole view by project id.
+  AgreementEditor:
+    signature: >-
+      ({ version: AgreementVersion, projectId: string,
+      onSaved: (v: AgreementVersion) => void, onReload: () => void }) => JSX.Element
+    # Holds the unsaved content in state, initialised once from `version`.
+  BindingEditor:
+    signature: "({ plan: Plan, task: number }) => JSX.Element"
+    # Shown in a task's detail. Lists its current bindings; offers adoption only
+    # while the plan is a Draft and not archived.
+  PartyPicker:
+    signature: >-
+      ({ projectId: string, parties: Party[],
+      onChange: (p: Party[]) => void, disabled: boolean }) => JSX.Element
+  OperationsEditor:
+    signature: >-
+      ({ value: unknown, onChange: (v: unknown) => void, readOnly: boolean,
+      onValidity: (label: string, invalid: boolean) => void }) => JSX.Element
+  PartName:
+    signature: "({ projectId: string, id: string }) => JSX.Element"
+  WriterName:
+    signature: "({ writer: AgreementVersion['writer'] }) => JSX.Element"
+    # Thread: the conversation's title. Grant: "External agent". Anything else: "You".
+
+pure:
+  object:
+    signature: "(value: unknown) -> Record<string, unknown>"
+    # Anything that is not a plain object becomes {}, so an extension field survives an
+    # edit of a sibling field.
+  operations:
+    signature: "(value: unknown) -> Operation[]"
+    # Walks paths and the eight HTTP methods; an operation without the identity is skipped.
+
+private_helpers:
+  AgreementsView:
+    # Owns the start mutation, its command ref ({ kind: new | continue, id }) and the
+    # reload counter that remounts AgreementEditor.
+    private: true
+  isContent:
+    # The only gate on text pasted into the JSON view: string fields, string
+    # acceptance, parties with a known role, and an openapi key present.
+    private: true
+  PinnedOperations:
+    # Fetches the exact version a binding pins to name its operations.
+    private: true
+  PartyOption:
+    private: true
+  Branch:
+    # One page of parts under `parent`; keyed by parent by PartyPicker.
+    private: true
+  OperationAddress:
+    private: true
+  JsonField:
+    # A textarea for one OpenAPI field; keeps its own draft and reports validity.
+    private: true
+  ThreadName:
+    private: true
+
+
+# ── obligations ──────────────────────────────────────────────────────────────────
+
+obligations:
+  - rule: >
+      Text typed into an editor survives a refused Save: the field keeps it, the
+      server's message is shown, and the next Save still sends the typed purpose.
+    tested_by: "agreement editor preserves unsaved text after a revision conflict"
+    note: >
+      Only the Save path is covered. Reload, retry, Agreed versions and the JSON view
+      are not.
+
+  - rule: >
+      An Agreed version cannot be edited: its fields and Save Draft are locked, and
+      Review impact and Agree are not offered.
+    tested_by: none
+
+  - rule: >
+      Agreeing sends the review's revision and review id, and only a review of the
+      current Draft: any unsaved change disables Agree, and a save clears the review.
+    tested_by: none
+    note: >
+      The code keeps the approval id until the agree answers and clears it when a
+      review runs again. Nothing exercises this.
+
+  - rule: >
+      Save sends the content the editor holds, with the revision it was last in step
+      with, under a command id; a retry of the same Save reuses both.
+    tested_by: "agreement editor preserves unsaved text after a revision conflict"
+    note: >
+      The test checks expected_revision 0 and the purpose on the first body only. The
+      retry reuse is not asserted.
+
+  - rule: >
+      A task adopts only an Agreed exact version, only for a declared participant of
+      it, and only with at least one operation checked.
+    tested_by: none
+    note: >
+      The guards are in BindingEditor's Adopt button. Whether the daemon refuses the
+      same request is in the server's binding route, not inspected here.
+
+  - rule: >
+      Only an operation with an x-shadows-operation-id can be bound: the binding picker
+      lists those, and the operations editor marks the others "identity missing".
+    tested_by: none
+
+  - rule: >
+      The party picker holds at most one row for each (part_id, role). Checking a role
+      adds its row; unchecking removes that row only.
+    tested_by: none
+
+  - rule: >
+      Start next Draft needs a non-blank change reason; New contract takes its
+      capability from the typed name.
+    tested_by: none
+
+  - rule: >
+      The JSON view replaces the content only with text that passes isContent. Invalid
+      text leaves the last valid content in place and blocks Save Draft.
+    tested_by: none
+
+  - rule: >
+      A version's writer is named as its conversation, as an external agent, or as You.
+    tested_by: none
+
+
+# ── agreements ───────────────────────────────────────────────────────────────────
+
+agreements:
+  - between: [OperationsEditor, "agreement-document operations"]
+    must: list the same operations from one OpenAPI document, by the same method order
+    holds: true
+    why: >
+      Both walk the document's paths and methods; the editor shows every operation and
+      the picker only those with an identity.
+    tested_by: none
+
+  - between: [AgreementEditor structured view, AgreementEditor JSON view]
+    must: edit one content value, so a valid edit in either shows in the other
+    holds: true
+    why: >
+      Both write into the same content state; the JSON view writes only parsed content
+      that passes isContent.
+    tested_by: none
+
+
+# ── not_the_caller's ─────────────────────────────────────────────────────────────
+
+not_the_caller's:
+  - >
+      Do not read a binding's operation labels from the plan alone. PinnedOperations
+      resolves them from the exact version the binding names; the plan holds only keys.
+
+
+# ── gaps ─────────────────────────────────────────────────────────────────────────
+
+gaps:
+  - at: AgreementEditor
+    gap: >
+      `locked` includes `save.isError`, and nothing clears that except a new save. After
+      any refused Save every field is disabled. Save Draft stays enabled and resends the
+      same snapshot and revision, so a revision conflict repeats. Reload's
+      onReload remounts the editor (its key includes the reload counter) and sets
+      `content` from the refetched version, so unsaved text is lost. The message shown
+      on a changed revision reads "your text is retained", which that path does not do.
+
+  - at: AgreementEditor
+    gap: >
+      `invalidFields` is set by JsonField's onValidity and never cleared when the field
+      unmounts (Remove operation, or the switch to the JSON view). Save Draft stays
+      disabled while any label still holds true, until that same label is typed into
+      again.
+
+  - at: AgreementsView
+    gap: >
+      Reload calls start.reset(), which clears the mutation's error and unlocks the
+      title and reason inputs, but leaves the `command` ref as it was. A changed title
+      then sends the unfinished command id with another request. The idempotency rule in
+      CLAUDE.md refuses that as a conflict (the daemon side is not inspected), so New
+      contract cannot succeed with another title until the view remounts.
+
+  - at: BindingEditor
+    gap: >
+      The version field stores Number(e.target.value), so an empty field becomes 0 and
+      the exact-version query fetches version 0. The failure shows as an error line and
+      Adopt stays disabled, so nothing is written. Minor: the query is wasted, and the
+      field shows no reason.
+
+
+# ── open_questions ───────────────────────────────────────────────────────────────
+
+open_questions:
+  - >
+      Does the daemon refuse an adoption of a version that is not Agreed, or of an
+      operation id absent from that version? BindingEditor only offers Agreed versions and
+      their listed ids. Answering needs the bindings route in the plans or agreements
+      service.
+  - >
+      Does the daemon give an OpenAPI operation saved without x-shadows-operation-id an
+      identity, or report it in `version.issues`? The editor shows "identity missing"
+      and the picker omits it. Answering needs the agreements service.
+
+
+# ── tests ────────────────────────────────────────────────────────────────────────
+
+tests:
+  - name: "agreement editor preserves unsaved text after a revision conflict"
+    checks: >
+      A Save refused with REVISION_CONFLICT (409) leaves the typed Arabic purpose in the
+      textarea, shows the server's message, and the last PUT body carries
+      expected_revision 0 and that purpose.

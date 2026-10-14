@@ -1,0 +1,525 @@
+# Owns the one door from the web client to the daemon's HTTP API, and the rules
+# that go with it: how each call is shaped, how every failure becomes one typed
+# `ApiError`, which idempotency key a form attaches to a retry, and the TanStack
+# Query keys that name each piece of daemon state.
+#
+# Types come from `schema.d.ts`, which is generated from the daemon's OpenAPI
+# document and is the external type source. This folder re-exports its names as
+# aliases (`Schemas['X']`) and never copies their fields.
+#
+# Trap: `unwrap` and `unwrapEmpty` are not interchangeable. `unwrap` requires a
+# body, and a success with no body becomes an error (see gaps). `unwrapEmpty` is
+# for a route whose success is an empty response.
+#
+# Trap: client.ts never makes a command id. Every mutating function takes one
+# from its caller, and a retry must pass the same one. `command-id.ts` makes the
+# key a form reuses, and only it does. `changeModel` and `changeEffort` carry no
+# command id by design: they write nothing durable.
+#
+# Trap: the keys in `queries.ts` are prefixes that `src/stream/` invalidates by
+# shape. Renaming a key here silently stops that invalidation.
+
+name: web-api
+version: 1
+status: current
+source: web/src/api
+
+
+# ── shapes ───────────────────────────────────────────────────────────────────
+
+shapes:
+  Problem:
+    unreachable: "{ kind: 'unreachable' }; no HTTP answer arrived at all"
+    daemon: "{ kind: 'daemon', status, code, currentRevision?, problems? }"
+    http: "{ kind: 'http', status, body: string }; a failure that is not an ErrorBody"
+  ApiError:
+    extends: Error
+    name: "'ApiError'"
+    problem: Problem
+    note: >
+      message is the ErrorBody's message when there is one, otherwise
+      `HTTP <status>` or `HTTP <status>: <body>`
+  Attempt:
+    fingerprint: "string; the request as canonical JSON, keys sorted"
+    commandId: string
+  Answer:
+    note: "openapi-fetch's result as `unwrap` reads it: data?, error?, response"
+
+
+externally_owned:
+  schema: "web/src/api/schema.d.ts, generated from api/openapi.json; not described here"
+  aliases: >
+    client.ts and design.ts re-export `Schemas['X']` / `components['schemas']['X']`
+    under the same name. Each alias is that schema's type; none is redefined here.
+  ErrorCode: "schema.d.ts components.schemas.ErrorCode; the daemon's error codes"
+
+
+# ── functions ────────────────────────────────────────────────────────────────
+#
+# Every function in client.ts is one HTTP call that resolves to its body through
+# `unwrap` (or `unwrapEmpty`). The client adds no retry, no cache and no
+# validation of arguments; the daemon owns those rules.
+
+client_core:
+  DAEMON_URL: "string; VITE_SHADOWS_URL or http://127.0.0.1:4318, trailing slashes removed"
+  client: "openapi-fetch client<paths>; fetch looked up per call"
+  subscribeUrl: "(threadId: string, after: number) -> string"
+  projectEventsUrl: "(projectId: string, after: number) -> string"
+
+threads_and_turns:
+  listHarnesses: "() -> Promise<HarnessInfo[]>"
+  openSession: "(threadId: string) -> Promise<SessionChoices>"
+  changeModel: "(threadId: string, model: string) -> Promise<SessionChoices>"
+  changeEffort: "(threadId: string, effort: string) -> Promise<SessionChoices>"
+  readContext: "(threadId: string) -> Promise<ContextBreakdown>"
+  listThreads: "(projectId: string) -> Promise<PlanningThread[]>"
+  getThread: "(threadId: string) -> Promise<PlanningThread>"
+  createThread: "(projectId: string, body: CreateThread) -> Promise<PlanningThread>"
+  removeThread: "(threadId: string, commandId: string) -> Promise<PlanningThread>"
+  listEntries: "(threadId: string) -> Promise<ThreadEntry[]>"
+  listOperations: "(threadId: string) -> Promise<Operation[]>"
+  startTurn:
+    "(threadId: string, commandId: string, prompt: string, settings: TurnSettings,
+      opts: { focus?: Focus | null; plan?: string | null; clientTab: string })
+      -> Promise<string>; resolves to the operation id"
+  queueMessage:
+    "(threadId: string, commandId: string, prompt: string, settings: TurnSettings,
+      opts: { focus?: Focus | null; plan?: string | null; clientTab: string })
+      -> Promise<Queued>"
+  listQueued: "(threadId: string) -> Promise<QueuedMessage[]>"
+  unqueueMessage: "(threadId: string, id: string, commandId: string) -> Promise<void>"
+  sendQueuedNow: "(threadId: string, id: string, commandId: string) -> Promise<SentNow>"
+  setThreadHarness: "(threadId: string, commandId: string, harness: string) ->
+      Promise<PlanningThread>"
+  forkThread: "(threadId: string, commandId: string, atEntryId: string) -> Promise<PlanningThread>"
+  stopTurn: "(operationId: string) -> Promise<Operation>; no command id"
+
+projects_and_code:
+  listProjects: "() -> Promise<Project[]>; also the reachability probe"
+  createProject: "(body: CreateProject) -> Promise<Project>"
+  setProjectModes: "(projectId: string, commandId: string, allowedModes: Record<string, string[]>)
+      -> Promise<Project>"
+  removeProject: "(projectId: string, commandId: string) -> Promise<Project>"
+  getCodeStatus: "(projectId: string) -> Promise<ProjectStatus>"
+  listCodeLinks: "(projectId: string) -> Promise<ProjectLink[]>"
+  putCodeLink: "(projectId: string, linkedId: string, commandId: string) -> Promise<ProjectLink>"
+  removeCodeLink: "(projectId: string, linkedId: string, commandId: string) -> Promise<void>"
+  getCodeSettings: "() -> Promise<CodeSettings>"
+  setActiveLimit: "(commandId: string, activeLimit: number) -> Promise<CodeSettings>"
+
+plans:
+  listPlans: "(projectId: string, archived?: boolean) -> Promise<PlanListing[]>"
+  getPlanVersions: "(planId: string) -> Promise<PlanVersions>"
+  archivePlan: "(planId: string, commandId: string) -> Promise<PlanVersions>"
+  unarchivePlan: "(planId: string, commandId: string) -> Promise<PlanVersions>"
+  getPlan: "(workflowId: string) -> Promise<Plan>"
+  getPlanMap: "(projectId: string) -> Promise<PlanMap>"
+  approvePlan: "(workflowId: string, commandId: string, expectedRevision: number) ->
+      Promise<Approved>"
+  editBindings: "(id: string, command_id: string, expected_revision: number, ops: PlanOp[]) ->
+      Promise<EditOutcome>"
+
+instructions_and_standards:
+  getInstructions: "(projectId: string) -> Promise<InstructionsVersion | null>"
+  saveInstructions: "(projectId: string, commandId: string, body: string) ->
+      Promise<InstructionsVersion>"
+  getStandards: "(projectId: string) -> Promise<EffectiveStandards>"
+  saveStandardsAdditions: "(projectId: string, commandId: string, content: StandardsAdditions) ->
+      Promise<StandardsAdditionsVersion>"
+  getStage: "(projectId: string) -> Promise<StageView>"
+
+agreement_calls:
+  listAgreements: "(projectId: string) -> Promise<AgreementVersion[]>"
+  getAgreement: "(projectId: string, agreement: string, version?: number) ->
+      Promise<AgreementVersion>"
+  startAgreement: "(projectId: string, command_id: string, content?: AgreementContent,
+      agreement_id?: string, reason?: string) -> Promise<AgreementVersion>"
+  editAgreement: "(projectId: string, agreement: string, command_id: string, version: number,
+      expected_revision: number, content: AgreementContent) -> Promise<AgreementVersion>"
+  reviewAgreement: "(projectId: string, agreement: string) -> Promise<AgreementReview>"
+  agreeAgreement: "(projectId: string, agreement: string, command_id: string, expected_revision:
+      number, review_id: string) -> Promise<AgreementVersion>"
+
+grants_and_fs:
+  listGrants: "(projectId: string) -> Promise<Grant[]>"
+  issueGrant: "(projectId: string, commandId: string) -> Promise<IssuedGrant>"
+  revokeGrant: "(grantId: string, commandId: string) -> Promise<Grant>"
+  listDirs: "(path: string | null) -> Promise<DirectoryListing>; null sends no path query"
+  createDir: "(parent: string, name: string) -> Promise<DirectoryEntry>; sends no command_id"
+
+design:
+  # design.ts
+  createStructure: "(projectId: string, commandId: string) -> Promise<StructureWritten>"
+  getOutcome: "(projectId: string, outcomeId: string) -> Promise<OutcomeView>"
+  getOutcomes: "(projectId: string, parent?: string, after?: string) -> Promise<OutcomePage>"
+  getPart: "(projectId: string, partId: string) -> Promise<PartView>"
+  getParts: "(projectId: string, parent?: string, after?: string) -> Promise<PartPage>"
+  getVision: "(projectId: string) -> Promise<VisionView>"
+  editDesign: "(projectId: string, body: DesignEdit) -> Promise<DesignChange>"
+  listVisionProposals: "(projectId: string) -> Promise<VisionProposal[]>"
+  listMapProposals: "(projectId: string) -> Promise<MapProposal[]>"
+  approveMapProposal: "(projectId: string, proposalId: string, commandId: string) ->
+      Promise<DesignChange>"
+  listRoadmapProposals: "(projectId: string) -> Promise<RoadmapProposal[]>"
+  approveRoadmapProposal: "(projectId: string, proposalId: string, commandId: string) ->
+      Promise<DesignChange>"
+  approveVisionProposal: "(projectId: string, proposalId: string, commandId: string) ->
+      Promise<DesignChange>"
+
+errors:
+  # error.ts
+  toApiError: "(response: Response, body: unknown) -> ApiError"
+  unwrap: "<T>(pending: Promise<Answer<T>>) -> Promise<T>"
+  unwrapEmpty: "<T>(pending: Promise<Answer<T>>) -> Promise<void>"
+  answered:
+    signature: "<T>(pending: Promise<Answer<T>>) -> Promise<Answer<T>>"
+    private: true
+  isErrorBody:
+    signature: "(body: unknown) -> body is ErrorBody"
+    private: true
+
+command_ids:
+  # command-id.ts
+  attemptFor: "(previous: Attempt | null, request: unknown, fresh?: () => string) -> Attempt"
+  canonical:
+    signature: "(value: unknown) -> string"
+    private: true
+
+query_keys:
+  # queries.ts: each returns queryOptions unless it is a key or a constant
+  projectsQuery: "const; ['projects']; retry 2; polled every 10 s only after a first answer"
+  harnessesQuery: "const; ['harnesses']"
+  threadsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'threads']; polled 10 s"
+  threadQuery: "(threadId: string) -> queryOptions; ['threads', id, 'detail']"
+  threadEntriesKey: "(threadId: string) -> ['threads', id, 'entries']"
+  entriesQuery: "(threadId: string) -> queryOptions"
+  queuedQuery: "(threadId: string) -> queryOptions; ['threads', id, 'queue']"
+  threadOperationsKey: "(threadId: string) -> ['threads', id, 'operations']"
+  operationsQuery: "(threadId: string) -> queryOptions"
+  workflowsKey: "const; ['workflows']; the prefix of every plan query"
+  planMapQuery: "(projectId: string) -> queryOptions; ['workflows', 'map', id]"
+  plansQuery: "(projectId: string, archived?: boolean) -> queryOptions; ['workflows', 'list', id, {
+      archived }]"
+  planVersionsQuery: "(planId: string) -> queryOptions; ['workflows', 'versions', planId]"
+  planQuery: "(workflowId: string) -> queryOptions; ['workflows', 'plan', workflowId]"
+  instructionsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'instructions']"
+  standardsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design', 'standards']"
+  stageQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design', 'stage']"
+  visionQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design', 'vision']"
+  visionProposalsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design',
+      'vision-proposals']"
+  mapProposalsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design',
+      'map-proposals']"
+  roadmapProposalsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design',
+      'roadmap-proposals']"
+  partQuery: "(projectId: string, partId: string) -> queryOptions; ['projects', id, 'design',
+      'part', partId]"
+  outcomeQuery: "(projectId: string, outcomeId: string) -> queryOptions; ['projects', id, 'design',
+      'outcome', outcomeId]"
+  outcomesQuery: "(projectId: string, parent?: string, after?: string) -> queryOptions"
+  partsQuery: "(projectId: string, parent?: string, after?: string) -> queryOptions"
+  grantsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'grants']; polled 10 s"
+  codeStatusQuery: "(projectId: string) -> queryOptions; ['projects', id, 'code', 'status']; 2 s
+      while indexing, else 10 s"
+  codeLinksQuery: "(projectId: string) -> queryOptions; ['projects', id, 'code', 'links']"
+  codeSettingsQuery: "const; ['code', 'settings']"
+  dirsQuery: "(path: string | null) -> queryOptions; ['fs', 'dirs', path]; retry false"
+
+
+# ── obligations ──────────────────────────────────────────────────────────────
+
+obligations:
+  - rule: >
+      Every failure of a call is one `ApiError`: a daemon `ErrorBody` keeps its code, and
+      its current revision and problems when it carries them.
+    tested_by: "maps the daemon's ErrorBody to a daemon problem carrying its code"
+
+  - rule: >
+      A conflict or validation answer keeps `currentRevision` and `problems` from the body.
+    tested_by: "keeps the current revision and the problems an ErrorBody carries"
+
+  - rule: >
+      A non-JSON failure body (axum's plain-text rejection) is an `http` problem holding the text.
+    tested_by: "maps axum's plain-text rejection to an http problem"
+
+  - rule: >
+      A failure with an empty body is an `http` problem with an empty body string.
+    tested_by: "maps a failure with an empty body to an http problem"
+
+  - rule: >
+      No HTTP answer at all (fetch rejects with a TypeError) is `unreachable`.
+    tested_by: "maps no answer at all to unreachable"
+
+  - rule: >
+      A success with a body resolves to that body.
+    tested_by: "returns the body of a success"
+
+  - rule: >
+      A body that lacks a string `code` or a string `message` is not an ErrorBody, so the
+      failure is an `http` problem carrying the JSON text of that body.
+    tested_by: none
+    note: >
+      error.test.ts covers only bodies that are plain text or empty. A JSON body without
+      `code` or `message` takes the `http` branch of toApiError, which no test reaches.
+
+  - rule: >
+      `unwrapEmpty` resolves to nothing on a 2xx and throws the same `ApiError` as `unwrap`
+      on a failure.
+    tested_by: none
+    note: >
+      No test calls unwrapEmpty. Its success path (removeCodeLink, unqueueMessage) is
+      untested in this folder.
+
+  - rule: >
+      startTurn sends the caller's command id, prompt, settings, focus and client tab, and
+      sends `plan` only when one is given; it returns the operation id it was answered with.
+    tested_by: "startTurn sends the settings, the caller's command id and its tab"
+
+  - rule: >
+      queueMessage sends the same body shape as startTurn to the queue route.
+    tested_by: none
+    note: >
+      Its body is built the same way as startTurn's, by code reading only; no test calls it.
+
+  - rule: >
+      setThreadHarness, setProjectModes and forkThread each send the caller's command id on
+      their own route (PATCH thread, PATCH project, POST fork).
+    tested_by: "changes a thread, a project and forks, each with the given command id"
+
+  - rule: >
+      openSession posts to the thread's session route with no body.
+    tested_by: "openSession posts to the thread session route"
+
+  - rule: >
+      changeModel and changeEffort send their value and no command id, because they write
+      nothing durable.
+    tested_by: "integration: picking a model sets it on the session at once, so its efforts show
+        before Send"
+    note: >
+      Tested in web/src/app/conversation/composer-bar.test.tsx, which asserts the route only,
+      not the absence of a command id. Also covered by a second route assertion in that file.
+
+  - rule: >
+      Every other mutation in this folder (plans, agreements, grants, design, code links,
+      standards, instructions, projects) passes the caller's command id unchanged.
+    tested_by: none
+    note: >
+      Only the three calls named above are tested here. The rest are checked by reading.
+
+  - rule: >
+      design reads (vision, part, outcome) go through the one client to the daemon's origin.
+    tested_by: "reads each route through the shared client"
+
+  - rule: >
+      Design reads not named in that test (getOutcomes, getParts, getStage, the proposals
+      lists) and all design writes route to the daemon's URL with no test.
+    tested_by: none
+
+  - rule: >
+      attemptFor reuses the previous key when the canonical request is the same.
+    tested_by: "reuses the key when the same request is sent again"
+
+  - rule: >
+      attemptFor gives a changed request a fresh key, and a retry after a forgotten attempt
+      also gets a fresh key.
+    tested_by: "gives a changed request a fresh key"
+
+  - rule: >
+      Without a previous attempt, attemptFor always makes a fresh key.
+    tested_by: "gives a fresh key once the previous attempt is forgotten"
+
+  - rule: >
+      subscribeUrl carries thread_id and the resume cursor `after` as query parameters, built
+      from DAEMON_URL.
+    tested_by: "integration: holds one connection under StrictMode and closes it on unmount"
+    note: >
+      web/src/stream/use-thread-stream.test.tsx reads `thread_id` off the opened URL. The
+      `after` value is checked by the test "independent tabs" only for projects, and by
+      "refetches entries at each caught-up ..." for threads.
+
+  - rule: >
+      projectEventsUrl encodes the project id into the path and carries `after`.
+    tested_by: "integration: independent tabs refresh every design slice, deduplicate and resume
+        after disconnect"
+    note: >
+      web/src/stream/use-project-events.test.tsx checks the URL contains /projects/p2/events
+      and that the resumed `after` is 0.
+
+  - rule: >
+      Query keys are arrays whose prefixes match the invalidations in src/stream and src/app.
+    tested_by: "integration: refetches entries at each caught-up, per live entry and live turn end,
+        never per replayed one"
+    note: >
+      That test in web/src/stream/use-thread-stream.test.tsx uses threadEntriesKey and
+      threadOperationsKey to find the invalidations it counts. Only those two keys are checked.
+
+  - rule: >
+      The project list is not polled until it has answered once, so a daemon that is down
+      does not flash "Connecting".
+    tested_by: unknown
+    note: >
+      The rule is stated in queries.ts; no test in web/src/api checks it, and app-level tests
+      were not inspected.
+
+
+# ── agreements ───────────────────────────────────────────────────────────────
+
+agreements:
+  - between: [unwrap, unwrapEmpty]
+    must: >
+      report the same ApiError for the same failure, because both read failures through answered
+    holds: true
+    why: >
+      Both call `answered`, so the failure classification is written once.
+    tested_by: none
+    note: >
+      error.test.ts exercises only unwrap. The agreement holds by construction, not by test.
+
+  - between: [startTurn, queueMessage]
+    must: >
+      send the same command_id, prompt, settings, focus, plan (only when given) and client_tab
+    holds: true
+    why: >
+      Both build the body from the same arguments in the same order.
+    tested_by: "startTurn sends the settings, the caller's command id and its tab"
+    note: >
+      The test checks startTurn only. queueMessage's body is confirmed by reading.
+
+  - between: [subscribeUrl, projectEventsUrl]
+    must: >
+      take the resume cursor as `after` and build the URL from DAEMON_URL
+    holds: true
+    why: >
+      Both set `after` with String(after); the stream feeds each one its applied seq.
+    tested_by: "integration: independent tabs refresh every design slice, deduplicate and resume
+        after disconnect"
+    note: >
+      web/src/stream/use-project-events.test.tsx checks the project one only.
+
+
+# ── gaps ─────────────────────────────────────────────────────────────────────
+
+gaps:
+  - at: unwrap
+    gap: >
+      By design `unwrap` is for routes that answer with a body and `unwrapEmpty` for
+      empty `204` routes. The choice is made by hand at each call site: if `unwrap` is
+      used on a route whose success has no body, the success rejects as an `http`
+      problem (`HTTP 204: a success with no body`). Nothing checks the choice against
+      the OpenAPI document, and no test covers that branch.
+
+  - at: answered
+    gap: >
+      Every TypeError thrown by `pending` is reported as `unreachable` ("The daemon is not
+      reachable"), not only the TypeError that fetch raises when no answer arrived. A
+      TypeError from a bug in openapi-fetch, in the middleware, or in the injected
+      `fetch: (request) => fetch(request)` is labelled a connectivity failure, and the
+      original error survives only as `cause`. The comment at the catch says that anything
+      else "stays loud", but a TypeError is not kept apart from a network failure.
+    # tested_by of the classification is "maps no answer at all to unreachable".
+
+
+# ── open_questions ───────────────────────────────────────────────────────────
+
+open_questions:
+  - >
+    createDir posts `{ parent, name }` to /api/fs/dirs with no command id, unlike every other
+    mutation in this folder. A retry after a lost answer may therefore fail on the directory
+    the first attempt made. Whether the daemon's create_dir is idempotent is decided in the
+    daemon handler (crates/shadows-http), which was not read; this folder cannot answer it.
+
+  - >
+    getInstructions returns `null` before the first save and relies on the daemon answering
+    200 with JSON null. An empty 200 or a 204 would be the `unwrap` gap above. Confirm the
+    daemon's planner-instructions handler answers JSON null.
+
+  - >
+    Whether `listDirs(null)` sends no `path` query, and whether openapi-fetch drops
+    undefined `parent` and `after` values from the query of getOutcomes and getParts, was
+    decided by reading openapi-fetch's source behavior, not by a test here.
+
+
+# ── not_the_caller's ─────────────────────────────────────────────────────────
+
+not_the_caller's:
+  - >
+    Generate a command id inside a call here. Each mutating function takes one from its
+    caller; a form obtains it from `attemptFor` and reuses it on a retry.
+  - >
+    Call `unwrap` for a route whose success is an empty 204. Use `unwrapEmpty`.
+  - >
+    Build a stream URL by hand. Use `subscribeUrl` or `projectEventsUrl`, which read
+    DAEMON_URL and encode the cursor.
+  - >
+    Add a route here before a screen calls it. The header of client.ts makes that rule.
+  - >
+    Rename a query key in `queries.ts` without finding every invalidation that matches it
+    in src/stream and src/app; those matches are by prefix, so a rename stops them silently.
+
+
+# ── tests ────────────────────────────────────────────────────────────────────
+
+tests:
+  # client.test.ts
+  - name: startTurn sends the settings, the caller's command id and its tab
+    checks: >
+      Two startTurn calls send bodies with the caller's command ids, the settings spread in,
+      focus null when absent, a focus object when given, and client_tab. The returned value
+      is the operation id.
+
+  - name: openSession posts to the thread session route
+    checks: >
+      Exactly one request, POST /api/threads/t1/session.
+
+  - name: changes a thread, a project and forks, each with the given command id
+    checks: >
+      PATCH thread (harness), PATCH project (allowed_modes) and POST fork (at_entry_id), in
+      that order, each body carrying the given command_id.
+
+  # command-id.test.ts
+  - name: reuses the key when the same request is sent again
+    checks: >
+      Same fields in a different key order give the same commandId, so key order does not
+      change the fingerprint.
+
+  - name: gives a changed request a fresh key
+    checks: >
+      Changing a field value gives a new commandId.
+
+  - name: gives a fresh key once the previous attempt is forgotten
+    checks: >
+      With previous null, the same request gets a new commandId.
+
+  # design.test.ts
+  - name: reads each route through the shared client
+    checks: >
+      getVision, getPart and getOutcome request the full daemon URL for their route, which
+      shows they go through the one client. Responses are minimal stubs.
+
+  # error.test.ts
+  - name: maps the daemon's ErrorBody to a daemon problem carrying its code
+    checks: >
+      A 500 ErrorBody gives problem { kind 'daemon', status 500, code } and the message is the
+      body's message.
+
+  - name: keeps the current revision and the problems an ErrorBody carries
+    checks: >
+      A 409 carries currentRevision, a 422 carries problems, each with toStrictEqual (no extra
+      keys).
+
+  - name: maps axum's plain-text rejection to an http problem
+    checks: >
+      A 400 plain-text body becomes { kind 'http', status 400, body: the text }.
+
+  - name: maps a failure with an empty body to an http problem
+    checks: >
+      A 503 with no body becomes { kind 'http', status 503, body '' }.
+
+  - name: maps no answer at all to unreachable
+    checks: >
+      A fetch that throws TypeError becomes { kind 'unreachable' }. A non-TypeError is not
+      tested here.
+
+  - name: returns the body of a success
+    checks: >
+      A 200 JSON array resolves to that array. No test covers a success with no body.

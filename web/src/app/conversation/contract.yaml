@@ -1,0 +1,1339 @@
+# Owns the open conversation's pane and the Planner's writing surface: the thread's
+# stream folded into screen state (`useConversation`), the turn and reply state
+# machines that decide what runs and what the reply text is, the composer's send,
+# queue and stop path, and the draft-to-thread handoff (`useFirstSend`, `carrySend`).
+#
+# Trap: a turn's status never comes from one source alone. The operations snapshot
+# and the durable operation events are merged by `turnReducer` so a status only moves
+# forward; a reader that trusts whichever arrived last can pull a finished turn back.
+#
+# Trap: the streamed reply and the durable entries share the screen. The reply hides
+# the entries it stands in for (`ShownReply.hidden`), and `Messages` drops them. Neither
+# hides anything on its own, and a message must never be on screen twice.
+#
+# Trap: a CommandId is the replay key. A retry reuses its id only while the request is
+# unchanged; changing a setting or the text makes a new command. Two paths build the
+# same first-send command (the draft and the thread page) and must agree.
+#
+# Trap: `/model` and `/effort` typed as text are picker actions, never turns
+# (`sessionCommand`). The harness's own `/` list is only shown, not executed here.
+#
+# Trap: `ReplyText` names two components. `entry.tsx` exports a lazy wrapper that
+# shows plain text until the Streamdown chunk lands; `reply-text.tsx` is the renderer.
+
+name: web-conversation
+version: 1
+status: current
+source: web/src/app/conversation
+
+
+# ── shapes ───────────────────────────────────────────────────────────────────
+
+shapes:
+  Status:
+    # Pending, then Running, then one terminal status that never changes.
+    # Unknown daemon statuses are read as Pending (asStatus), never as terminal.
+    values: "'Pending' | 'Running' | 'Completed' | 'Failed' | 'Cancelled' | 'Interrupted'"
+  Turn:
+    id: string
+    status: Status
+    # A stop was asked for and the turn has not ended yet, or ended since.
+    stopRequested: bool
+    # When this client learned the turn had ended (ms); set once and kept.
+    endedAt: "number | null"
+  ReplyState:
+    # The turn whose text this is; `live` means the stream is still delivering it.
+    op: "string | null"
+    # Messages of this turn already announced as agent entries.
+    segments: "string[]"
+    # How much of the turn's streamed text `segments` hold; `tail` is the rest.
+    consumed: number
+    tail: string
+    # Ordinals of the agent entries `segments` stand in for.
+    covers: "number[]"
+    live: bool
+  ShownReply:
+    text: string
+    # Still streaming: the cursor is drawn.
+    live: bool
+    # Entries this text stands in for; the list does not draw them.
+    hidden: "Set<number>"
+  Durable:
+    # What the fetched entries list holds, and when it was fetched.
+    ordinals: "Set<number>"
+    fetchedAt: number
+    endedAt: "number | null"
+  ContextFigures:
+    # Either may be missing; a figure not reported is null, never estimated.
+    contextUsed: "number | null"
+    contextWindow: "number | null"
+  PointedTask:
+    # A task clicked in a card or the side panel, at the version and revision seen.
+    workflowId: string
+    revision: number
+    task: PlanTask
+  SideShown:
+    workflowId: string
+    taskNumber: "number | null"
+  ForkPoint:
+    projectId: string
+    threadId: string
+    # The daemon decides whether this is a valid fork point and says why when not.
+    entryId: string
+  CarriedSend:
+    # A draft's first message whose turn failed once its thread existed.
+    text: string
+    # The failed turn's command, as `attemptFor` would have made it.
+    attempt: Attempt
+    error: Error
+    planId: "string | undefined"
+  SessionView:
+    # Opened as a query; `failed` carries Retry. See `useSession`.
+    values: "{ state: 'connecting' } | { state: 'ready'; choices: SessionChoices } | { state:
+      'failed'; error: Error; retry: () => void }"
+  SessionCommand:
+    # What `/model` or `/effort` asks of the pickers.
+    values: "{ kind: 'open'; setting } | { kind: 'set'; setting; id: string } | { kind: 'unknown';
+      message: string }"
+  SendTo:
+    # Where Send goes: an open thread's next turn, or a draft that makes the thread first.
+    values: "{ threadId: string } | { draft: (commandId, text, settings) => Promise<string>;
+      planId?: string }"
+  Shown:
+    # What a harness operational label means to a person (`describeLabel`).
+    icon: LucideIcon
+    text: string
+
+
+# ── externally owned types ───────────────────────────────────────────────────
+#
+# Reference only; the fields live in the source named here.
+
+enums:
+  SessionChoices:
+    source: "web/src/api/client.ts (SessionChoices: current, modes, models, efforts)"
+    values: []
+  TurnSettings:
+    source: "web/src/api/client.ts (TurnSettings: mode, model, effort)"
+    values: []
+  Choice:
+    source: "web/src/api/client.ts (Choice: id, label, description, enabled, reason)"
+    values: []
+  Attempt:
+    source: web/src/api/command-id.ts
+    values: []
+  Plan:
+    source: web/src/api/client.ts
+    values: []
+  PlanTask:
+    source: web/src/api/client.ts
+    values: []
+  ThreadEntry:
+    source: "web/src/api/client.ts (fields incl. kind, ordinal, body, card, refs, operation_id)"
+    values: []
+  Operation:
+    source: "web/src/api/client.ts (fields incl. status_kind, cancel_requested_at, invocation)"
+    values: []
+  PlanningThread:
+    source: web/src/api/client.ts
+    values: []
+  SubagentCard:
+    source: web/src/stream/frames.ts (readSubagentCard)
+    values: []
+  DurableEvent:
+    source: web/src/stream/frames.ts
+    values: []
+  SlashCommand:
+    source: web/src/stream/frames.ts
+    values: []
+  Limits:
+    source: "web/src/stream/frames.ts (LimitWindow, Limits)"
+    values: []
+  PlanShowFrame:
+    source: web/src/stream/frames.ts
+    values: []
+  Connection:
+    source: web/src/stream/thread-stream.ts
+    values: []
+  VisionProposal:
+    source: web/src/api/design.ts
+    values: []
+  MapProposal:
+    source: web/src/api/design.ts
+    values: []
+  RoadmapProposal:
+    source: web/src/api/design.ts
+    values: []
+
+
+# ── functions ────────────────────────────────────────────────────────────────
+
+components:
+  ConversationRoute:
+    signature: "() => JSX.Element"
+    # Route component for /projects/$projectId/threads/$threadId. A removed thread
+    # never mounts `Conversation`, so it never opens a session.
+  DraftRoute:
+    signature: "() => JSX.Element"
+    # Route component for /projects/$projectId/new; keyed by project.
+  Composer:
+    signature: "(props: { to: SendTo; carried?: CarriedSend | null; harness: string; harnessLabel:
+      string; session: SessionView; running: Turn | null; directory: string | null | undefined;
+      known: boolean; commands?: readonly SlashCommand[]; ring?: ReactNode; onStarted: (operationId:
+      string) => void; pointed: PointedTask | null; onPointed: (done: PointedTask) => void }) =>
+      JSX.Element"
+    # Send, queue (while a turn runs) and Stop. Send waits for `known` and for the
+    # session to hold the chosen model before it can act.
+  ComposerBar:
+    signature: "(props: { harness: string; harnessLabel: string; session: SessionView; settings:
+      TurnSettings | null; onSettings: (next: TurnSettings) => void; changingModel: boolean;
+      sessionless?: boolean; directory: string | null | undefined; note: string | null; ring?:
+      ReactNode; opened?: 'model' | 'effort' | null; onOpened?: (opened: 'model' | 'effort' | null)
+      => void }) => JSX.Element"
+    # The row under the box: Mode, folder, Model, Effort and the ring. Every menu is
+    # built from the session's choices. The effort menu is disabled until the session
+    # holds the chosen model.
+  Setting:
+    signature: "(props: { title: string; options: readonly Choice[]; value: string; onChange: (id:
+      string) => void; disabled?: boolean; describe?: (id: string) => string | null; open?: boolean;
+      onOpenChange?: (open: boolean) => void }) => JSX.Element"
+    private: true
+    # Disabled choices render with the session's reason; `describe` adds the mode line.
+  CliPicker:
+    signature: "(props: { projectId: string; threadId: string; harness: string; label: string;
+      locked: boolean }) => JSX.Element"
+    # Locked (a lock and a tooltip) once the thread has run a turn or is a fork.
+  CliMenu:
+    signature: "(props: { harness: string; label: string; onPick: (kind: string) => void; disabled?:
+      boolean }) => JSX.Element"
+    # Also used by a draft, which holds the pick itself until its first send.
+  Messages:
+    signature: "(props: { entries: readonly ThreadEntry[] | undefined; projectId: string; onPointAt:
+      (plan: Plan, task: PlanTask) => void; subagents: readonly SubagentCard[]; onOpenSubagent: (id:
+      string) => void; operations: readonly Operation[] | undefined; models: readonly Choice[];
+      harness: string; forkFrom: { projectId: string; threadId: string } | null; loading: boolean;
+      reply: ShownReply | null; running: boolean; thinking: boolean; label: string | undefined }) =>
+      JSX.Element"
+    # Entries in order, then the reply, the running turn's cards, the waiting line
+    # and the operational label. Follows the bottom while the reader is there.
+  Entry:
+    signature: "(props: { entry: ThreadEntry; policy: HarnessPolicy; requestedMode: string | null;
+      projectId: string; onPointAt: (plan: Plan, task: PlanTask) => void; onOpenSubagent: (id:
+      string) => void }) => JSX.Element"
+    # Dispatches on `entry.kind`: the kind decides the card, never the text.
+  ReplyText:
+    signature: "(props: { text: string; live?: boolean }) => JSX.Element"
+    # Declared in entry.tsx as a lazy wrapper around reply-text.tsx's renderer.
+  PlanCard:
+    signature: "(props: { entry: ThreadEntry; projectId: string; onPointAt: (plan: Plan, task:
+      PlanTask) => void }) => JSX.Element"
+    # A `PlanView` as a live graph of its version (pinned to it, never the next one).
+  PlanHeading:
+    signature: "(props: { plan: Plan; projectId: string; children?: ReactNode }) => JSX.Element"
+    # Shared by the card and the side panel. Shows Approved and its attribution.
+  PlanSidePanel:
+    signature: "(props: { shown: SideShown; projectId: string; onClose: () => void; onPointAt:
+      (plan: Plan, task: PlanTask) => void }) => JSX.Element"
+  VisionProposalCard:
+    signature: "(props: { entry: ThreadEntry; projectId: string }) => JSX.Element"
+    # Approval shown only when live status is Pending, not outdated, and readable.
+  MapProposalCard:
+    signature: "(props: { entry: ThreadEntry; projectId: string }) => JSX.Element"
+    # Waivers are shown as consent; the button label names them when present.
+  RoadmapProposalCard:
+    signature: "(props: { entry: ThreadEntry; projectId: string }) => JSX.Element"
+  ApprovedBy:
+    signature: "(props: { by: Plan['approved_by'] | null | undefined; projectId: string }) =>
+      JSX.Element | null"
+  SubagentCardView:
+    signature: "(props: { card: SubagentCard; onOpen: (id: string) => void }) => JSX.Element"
+  SubagentPanel:
+    signature: "(props: { card: SubagentCard; onClose: () => void }) => JSX.Element"
+  WaitingMessages:
+    signature: "(props: { threadId: string; running: boolean }) => JSX.Element | null"
+    # Renders nothing when nothing waits.
+  MessageActions:
+    signature: "(props: { text: string; forkPoint?: ForkPoint }) => JSX.Element"
+    # Shown on hover and focus. Fork exists only where `forkPoint` was given.
+  ContextRing:
+    signature: "(props: { threadId: string; usage: ContextFigures | null; limits: Limits | null })
+      => JSX.Element"
+    # Opens at once. The breakdown is the only daemon read, and only on Details.
+  DeletedConversation:
+    signature: "(props: { thread: PlanningThread; projectId: string }) => JSX.Element"
+    # Read-only history; never opens a session.
+  FocusChip:
+    signature: "(props: { pointed: PointedTask; onClear: () => void }) => JSX.Element"
+  SlashMenu:
+    signature: "(props: { items: readonly SlashCommand[]; highlighted: number; onPick: (command:
+      SlashCommand) => void; onHighlight: (index: number) => void }) => JSX.Element"
+    # Keys are the composer's. Pick uses mouse-down so the textarea keeps focus.
+  StageChip:
+    signature: "(props: { projectId: string }) => JSX.Element | null"
+  StatusBadge:
+    signature: "(props: { running: Turn | null; latest: Turn | null }) => JSX.Element | null"
+    # Running (or Starting, or Stopping) while a turn runs; else how the latest ended.
+  StreamBanner:
+    signature: "(props: { connection: Connection; problem: string | null; retry: () => void }) =>
+      JSX.Element | null"
+    # Shows only reconnecting and failed; connecting and live show nothing.
+
+hooks:
+  useConversation:
+    signature: "(threadId: string, onShowHere?: (show: PlanShowFrame) => void) => ConversationView"
+    # Mount once per thread. Folds the stream into the turn and reply reducers, the
+    # entries, the operations snapshot, usage, commands and plan refetches. `onShowHere`
+    # hears only a live plan-show naming this tab and this thread.
+  useSession:
+    signature: "(threadId: string) => SessionView"
+    # One POST /session, held as a query: never on a timer or on focus.
+  useCarriedSend:
+    signature: "(threadId: string) => CarriedSend | null"
+    # Reads what carrySend left, once, on the first render.
+  useCommands:
+    signature: "(threadId: string | null) => readonly SlashCommand[]"
+    # Enabled false: only the stream fills it. Empty when there is no thread.
+
+pure:
+  turnReducer:
+    signature: "(state: TurnState, action: TurnAction) => TurnState"
+    # Newest first. A status only moves forward; a terminal status never changes.
+  isTerminal:
+    signature: "(status: Status) => boolean"
+  runningTurn:
+    signature: "(state: TurnState) => Turn | null"
+    # The newest turn that has not ended.
+  latestTurn:
+    signature: "(state: TurnState) => Turn | null"
+  replyReducer:
+    signature: "(state: ReplyState, action: ReplyAction) => ReplyState"
+    # `stream` follows the streamed text; `agent-entry` cuts a segment where the
+    # stream stood when the entry was announced.
+  shownReply:
+    signature: "(state: ReplyState, durable: Durable) => ShownReply | null"
+    # Shown until the entries hold every covered ordinal, or until a fetch after the
+    # turn ended.
+  agentOrdinal:
+    signature: "(payload: unknown) => number | null"
+    # Exported from use-conversation.ts. AgentMessage, ToolCall and Subagent only.
+  initialSettings:
+    signature: "(c: SessionChoices) => TurnSettings"
+  withModel:
+    signature: "(c: SessionChoices, s: TurnSettings, model: string) => TurnSettings"
+    # An effort is kept for a model whose efforts are not yet known, and Send waits.
+  effortsKnown:
+    signature: "(c: SessionChoices, model: string) => boolean"
+    # True only when the session holds that model; efforts belong to one model.
+  afterOptions:
+    signature: "(prev: SessionChoices, next: SessionChoices, s: TurnSettings, busy: boolean) => {
+      settings: TurnSettings; note: string | null }"
+    # Follows the session's reports. `busy` holds back the refusal check during a send.
+  modeNote:
+    signature: "(prev: TurnSettings, next: SessionChoices) => string | null"
+  sendable:
+    signature: "(c: SessionChoices, s: TurnSettings) => boolean"
+  labelOf:
+    signature: "(choices: readonly Choice[], id: string | null) => string"
+  sessionCommand:
+    signature: "(text: string, choices: SessionChoices | null) => SessionCommand | null"
+    # Null unless the text is /model or /effort. See the gap on disabled choices.
+  slashMatches:
+    signature: "(commands: readonly SlashCommand[], text: string) => readonly SlashCommand[] | null"
+    # Null unless the whole text is a slash and one word. Prefix, then after colon, then contains.
+  contextShown:
+    signature: "(used: number | null, window: number | null) => { used: number; window: number;
+      percent: number } | null"
+  formatTokens:
+    signature: "(n: number) => string"
+  resetIn:
+    signature: "(resetsAt: number, now: number) => string"
+    # Unix seconds in, two largest units out: `3d21h`, `4h18m`, `7m`, or `now`.
+  latestContext:
+    signature: "(operations: readonly Operation[]) => ContextFigures | null"
+  toolTitle:
+    signature: "(entry: ThreadEntry) => string | null"
+  toolText:
+    signature: "(title: string) => string | null"
+    # A sentence for Shadows' tools, the title for any other, null when the tool adds no line.
+  subagentOf:
+    signature: "(entry: ThreadEntry) => SubagentCard | null"
+    # Null for any other kind, and for a card that fails to read (no throw escapes).
+  isTool:
+    signature: "(entry: ThreadEntry) => boolean"
+  silent:
+    signature: "(entry: ThreadEntry) => boolean"
+    # True for a tool call whose title reads as nothing (plan_show).
+  copyText:
+    signature: "(entry: ThreadEntry) => string"
+    # What Copy puts on the clipboard: a subagent's report, a tool's sentence, or the body.
+  duration:
+    signature: "(ms: number) => string"
+  tokens:
+    signature: "(n: number) => string"
+  modelName:
+    signature: "(model: string) => string"
+  numbers:
+    signature: "(card: SubagentCard) => string"
+    # The card's duration, tokens and tool count, each only when reported.
+  describeLabel:
+    signature: "(label: string) => Shown | null"
+    # Streaming bookkeeping returns null; the rest maps to an icon and a line.
+  rehypeDirAuto:
+    signature: "() => (tree: HastNode) => void"
+    # Runs after Streamdown's plugins. Gives each block its own direction.
+
+queries_and_mutations:
+  sessionKey:
+    signature: "(threadId: string) => readonly ['threads', string, 'session']"
+  replaceChoices:
+    signature: "(queryClient: QueryClient, threadId: string, choices: SessionChoices) => void"
+    # Ignored while the opening is in flight, so the open's own answer decides.
+  reopenSession:
+    signature: "(queryClient: QueryClient, threadId: string) => void"
+    # Clears the commands, then resets the session query so it is opened again.
+  commandsKey:
+    signature: "(threadId: string) => readonly ['threads', string, 'commands']"
+  replaceCommands:
+    signature: "(qc: QueryClient, threadId: string, list: readonly SlashCommand[]) => void"
+  clearCommands:
+    signature: "(qc: QueryClient, threadId: string) => void"
+    # Empties the list on a harness switch: the old harness's list is not the new one's.
+  carrySend:
+    signature: "(threadId: string, send: CarriedSend) => void"
+    # Module-level map: a draft that failed after its thread existed hands its text here.
+  useFirstSend:
+    signature: "(projectId: string, harness: string, planId?: string) => (commandId: string, text:
+      string, chosen: TurnSettings) => Promise<string>"
+    private: true
+    # Creates the thread, opens its session, starts the turn, and only then navigates.
+    # On a later failure it carries the send to the thread page and rethrows.
+
+
+# ── obligations ──────────────────────────────────────────────────────────────
+
+obligations:
+  - rule: >
+      A turn's status only moves forward (Pending, Running, one terminal). A snapshot
+      read before a turn ended does not bring it back, and a replayed start does not
+      restart a turn the snapshot already saw end.
+    tested_by:
+      - "a snapshot read before a turn ended does not bring it back"
+      - "a reload during a running turn shows it running, then follows it to its end"
+
+  - rule: >
+      A turn begun after a snapshot was read is the newest turn, and a later snapshot
+      does not reorder it behind older ones.
+    tested_by: "a turn begun after the snapshot is newest, and stays so when the snapshot is read
+      again"
+
+  - rule: >
+      The start route's answer counts as a running turn before any of its events arrive.
+    tested_by: "knows a turn is running from the start route before any of its events"
+
+  - rule: >
+      A stop already requested is read from the snapshot's cancel time. An event naming no
+      operation changes nothing, and returns the same state object.
+    tested_by: "reads a stop already requested from the snapshot, and ignores events of no
+      operation"
+
+  - rule: >
+      A streamed reply stays on screen after its turn-end until the entries list holds
+      every agent entry it stands in for, and it hides exactly those entries, so a message
+      is never shown twice.
+    tested_by:
+      - "stays after turn-end until the entries list holds the agent entry"
+      - "shows nothing before any text streams"
+
+  - rule: >
+      A turn stopped mid-sentence keeps its partial reply until the entries are fetched
+      after the turn ended. Entries fetched before then do not end it.
+    tested_by: "a turn stopped mid-sentence stays until entries are fetched after it ended"
+
+  - rule: >
+      While a turn still streams, an announced agent entry does not hand the reply over.
+    tested_by: "does not give way to the entry while the turn is still streaming"
+
+  - rule: >
+      A message is cut where the stream stood when its entry was announced, not where the
+      last render left it. Text that arrived before the announcement belongs to the earlier
+      message.
+    tested_by: "splits messages where the stream stood when the entry was announced, not at the last
+      render"
+
+  - rule: >
+      A new turn's text replaces the last turn's reply and never appends to it.
+    tested_by: "a new turn replaces what the last one left"
+
+  - rule: >
+      Only an AgentMessage, ToolCall or Subagent entry moves the streamed reply on. A
+      person's message, a plan card or a refusal does not.
+    tested_by:
+      - "moves the reply on for each kind a turn writes (§23.8)"
+      - "ignores the person, plans and refusals"
+
+  - rule: >
+      A long reply streams without exceeding the update depth. The reply follows the
+      streamed text during render, not through an effect per delta.
+    tested_by: "streams a long reply without exceeding the update depth"
+
+  - rule: >
+      Settings follow the session's own reports, but a report that arrives during a send or
+      a running turn is not a refusal of the mode.
+    tested_by: "follows a model change the session reports, but not while a send or a turn is in
+      flight"
+
+  - rule: >
+      Changing the model to one whose efforts are not yet known keeps the effort, and Send
+      waits until the session reports that model's efforts.
+    tested_by:
+      - "keeps the effort until the session reports the new model, whose efforts are unknown"
+      - "picking a model sets it on the session at once, so its efforts show before Send"
+
+  - rule: >
+      A model that offers no effort runs with no effort, and changing to a model that does
+      not offer the current effort moves to one it does offer.
+    tested_by:
+      - "a model that offers no effort runs with none"
+      - "changing model resets an effort it does not offer"
+
+  - rule: >
+      After a model move, the effort is the one the session reports for that model, not an
+      earlier report and not the person's previous effort.
+    tested_by:
+      - "a picked model the session moves to takes the effort the session reports for it"
+      - "a picked model ends at the effort its answer reports, not an earlier report"
+
+  - rule: >
+      A mode the project does not allow is never sendable, and the first allowed mode is
+      taken instead. With no allowed mode, nothing can be sent.
+    tested_by:
+      - "a mode the project disallowed is not sendable"
+      - "no mode left is not sendable"
+
+  - rule: >
+      When a model change moves the mode, the note says which mode the model does not offer
+      and what it switched to.
+    tested_by:
+      - "names the model that moved the mode"
+      - "a model without auto moves the mode and the bar says so"
+
+  - rule: >
+      `/model` and `/effort` typed as text are picker actions: the composer answers them
+      without sending a turn. A named choice is set; a choice the session does not offer
+      is refused in words and the text stays.
+    tested_by:
+      - "/model with a name sets the model picker and sends nothing"
+      - "/model with a name the session does not offer says so"
+
+  - rule: >
+      `sessionCommand` names a choice by id, label, or a part of either, ignoring case.
+    tested_by: "names a choice by id, label or a part of either, ignoring case"
+
+  - rule: >
+      `sessionCommand` refuses a choice the session does not offer, and refuses any named
+      choice when no session is ready.
+    tested_by: "refuses a choice the session does not offer, or no session"
+    note: >
+      Does not cover a choice the session offers but has disabled. See the gap at
+      `sessionCommand`.
+
+  - rule: >
+      A slash menu lists only for a text that is a slash and one word. Its order is name
+      prefix, then the part after the last colon, then a contained name.
+    tested_by:
+      - "applies only to a whole text of / and no whitespace"
+      - "orders name prefix, then the part after the last colon, then contains"
+      - "ignores case and keeps the adapter order within a group"
+      - "applies with no match, listing nothing"
+
+  - rule: >
+      The slash menu opens on a text that is only a slash and a word, and lists the matches.
+      Arrows move, Tab and Enter pick, Escape dismisses it until the text changes, and a click
+      picks. A newline in the text closes it. A pick writes "/name " and shows its hint.
+      Enter while a turn runs picks and does not queue.
+    tested_by:
+      - "opens on / and filters as the person types"
+      - "arrows move, Tab picks, Escape closes and keeps the text"
+      - "Enter picks without sending, writes /name and shows the hint"
+      - "the hint goes once the person types"
+      - "a click picks"
+      - "a newline closes the menu"
+      - "Enter picks while a turn runs; it does not queue"
+      - "a shorter new list clamps the highlight"
+      - "the highlighted entry is scrolled into view"
+      - "an empty list opens nothing"
+      - "with no match the menu closes and Enter sends"
+      - "picking model from the menu opens the model picker"
+
+  - rule: >
+      A session that is still opening shows a word, not a spinner. A failed opening shows the
+      message and a Retry, and Retry opens it again.
+    tested_by:
+      - "says it is connecting, then builds every menu from the session"
+      - "a failed opening shows the message and a retry, never an endless spinner"
+
+  - rule: >
+      Session frames that arrive while the opening is in flight do not override its answer.
+    tested_by: "a frame sent while the session opens does not override its answer"
+
+  - rule: >
+      Send carries the chosen mode, model and effort, and a retry of the same send reuses its
+      command id. Changing a setting after a failed send makes a new command id.
+    tested_by:
+      - "sends the chosen model, mode and effort"
+      - "a retried Send reuses the same command id"
+      - "changing a setting after a failed send makes a new command id"
+
+  - rule: >
+      A refused mode or model keeps the prompt, and a refused model returns the menu to the
+      session's model with the daemon's words. A refused effort returns to the session's effort.
+    tested_by:
+      - "shows the refusal when the daemon refuses the mode and keeps the prompt"
+      - "a model the harness refuses goes back to the session’s, with its words"
+      - "an effort the harness refuses goes back to the session’s, on the error line"
+
+  - rule: >
+      Choosing a value closes its menu so the menu never covers Send, and the mode menu says
+      what each mode allows.
+    tested_by:
+      - "choosing a value closes its menu, so it never covers Send"
+      - "the mode menu says plainly what Accept edits allows"
+
+  - rule: >
+      The CLI is changeable before a thread's first turn and locked after it, and a fork is
+      locked from birth.
+    tested_by:
+      - "the CLI picker changes the harness before the first turn and shows a lock after"
+      - "a fresh fork shows the CLI locked before any turn"
+
+  - rule: >
+      The first message of a draft creates the thread, opens its session for the model it
+      holds, starts the turn with the chosen mode, and only then replaces the draft's URL.
+    tested_by: "the first message creates the thread, then sends, then opens the thread"
+    note: >
+      The draft's model is "Set on send" and is disabled until the session opens.
+
+  - rule: >
+      A draft whose turn fails after its thread exists carries the text, command and error to
+      the thread page, and a retry there sends the same command. The draft does not make a
+      second thread on that retry.
+    tested_by: "carries the selected plan and command into a failed first-send retry"
+    note: >
+      The test asserts the two start bodies are equal. It does not count thread creations, so
+      the no-second-thread half is unproven.
+
+  - rule: >
+      A person who leaves a draft while it sends stays where they went. The thread appears in
+      the sidebar and nothing pulls them back.
+    tested_by: "keeps the person where they went"
+
+  - rule: >
+      A draft's opened session is the same cache entry the thread page reads, so the thread
+      page does not open the session again.
+    tested_by: none
+    note: >
+      Holds by code reading: `useFirstSend` sets `sessionKey(thread.id)` and `useSession` has
+      `staleTime: Infinity`. No test counts session opens after the navigation.
+
+  - rule: >
+      A removed conversation shows its history read-only: no session is opened and there is
+      no message box.
+    tested_by: "shows a deleted conversation read only"
+
+  - rule: >
+      The header shows the project's stage and what it is missing.
+    tested_by: "shows the project stage in the conversation header"
+
+  - rule: >
+      Enter queues a message while a turn runs. A waiting message offers Send now and Remove,
+      and each reaches the daemon.
+    tested_by: "queues on Enter while a turn runs, and offers Send now and Remove"
+
+  - rule: >
+      Stop is shown while a turn runs and reads Stopping once a stop is asked for. A stop the
+      daemon could not carry out offers Stop again, even though the request is durable.
+    tested_by:
+      - "shows Running and a Stop that reaches the daemon, until the turn ends"
+      - "shows why and can be asked again, even though the request is durable"
+
+  - rule: >
+      The status badge reads Running while a turn runs, then Completed, Failed, Stopped or
+      Interrupted for the latest turn.
+    tested_by:
+      - "shows Running and a Stop that reaches the daemon, until the turn ends"
+    note: >
+      Only Running and Stopped are asserted, through the body text. Starting, Stopping and
+      Failed, Completed and Interrupted badge text is not tested.
+
+  - rule: >
+      Fork is offered only on the last shown message of an idle thread, never while a turn
+      runs, and a refused fork shows the daemon's message and keeps the person in place.
+    tested_by:
+      - "fork shows only on the last message of an idle thread and opens the fork"
+      - "fork is absent while a turn runs"
+      - "a refused fork shows the daemon message and stays"
+      - "a turn that ends with a plan card can still be forked, from its real last entry"
+
+  - rule: >
+      Copy copies the text as it reads: a tool's sentence or title, and a subagent's report.
+    tested_by:
+      - "copy is on every message and copies its text"
+      - "Copy on a tool line copies its title (§23.8)"
+      - "Copy on a card copies its report, not its JSON (§23.8)"
+
+  - rule: >
+      A refused permission reads as a quiet line naming what was asked, the mode it was refused
+      in, and the mode that would have allowed it.
+    tested_by: "a refused permission renders as a quiet line naming what was asked"
+
+  - rule: >
+      A tool call reads as a line of its own, not as bracketed text. Shadows' own tools read as
+      a sentence, and plan_show adds no line.
+    tested_by:
+      - "a tool call reads as a tool line, not as bracketed text"
+      - "plan tool lines read as sentences"
+
+  - rule: >
+      A PlanView entry draws its own version's graph, pinned to that version, with an Open
+      plan link.
+    tested_by: "a PlanView entry renders the graph of its version"
+
+  - rule: >
+      Clicking a task points the next turn at that task's id and the version and revision the
+      person saw. Sending clears the chip.
+    tested_by: "clicking a task adds the focus chip and the next send carries it"
+
+  - rule: >
+      A live plan-show frame moves only the tab that sent the turn. A page navigates, a side
+      panel opens on that version, another tab's frame changes nothing, and a replayed card
+      opens no panel.
+    tested_by:
+      - "a plan-show frame for this tab and page navigates"
+      - "a plan-show frame for this tab and side opens the panel on that version"
+      - "a plan-show frame for another tab only shows the card"
+      - "a replayed PlanView entry does not open the side panel"
+
+  - rule: >
+      A conversation holds one stream for its thread, and a plan event on it refetches the plan
+      the card shows.
+    tested_by: "a conversation with a plan card holds one stream for its thread"
+
+  - rule: >
+      Vision approval is shown only while live status is Pending, not outdated, and readable.
+      It posts one command, and a retry of an unchanged approval reuses it.
+    tested_by:
+      - "approves the exact proposal and reads its resulting live status"
+      - "uses live %s state instead of the snapshot"
+      - "does not expose approval when live status cannot be read"
+      - "waits for live status before exposing approval"
+      - "shows refusal and reuses the command for an unchanged retry"
+
+  - rule: >
+      Vision edit and remove show the old item beside the proposal, with its id.
+    tested_by: "shows the old item for %s"
+
+  - rule: >
+      Map approval shows its waivers as consent, labels the button to name them, and posts one
+      replayable approval. A refused approval keeps its command, and View contract opens beside
+      the card.
+    tested_by:
+      - "shows waiver consent and posts one replayable approval"
+      - "keeps an unchanged command on refusal and opens a contract beside the card"
+
+  - rule: >
+      Map approval is hidden for every live state except Pending, and hidden when outdated.
+    tested_by: "hides approval for live %s state (outdated %s)"
+    note: "Declared in both map-proposal-card.test.tsx and roadmap-proposal-card.test.tsx."
+
+  - rule: >
+      Roadmap approval shows the outcome tree with the titles of its parts, posts one replayable
+      approval, and hides the button once approved. A change shows the old outcome, and a move
+      says where it goes.
+    tested_by:
+      - "shows the outcome tree with the titles of the parts it references"
+      - "posts one replayable approval and hides the button once approved"
+      - "shows the old outcome beside a change and keeps the command on refusal"
+      - "shows that a change moves its outcome to the top level"
+
+  - rule: >
+      Approval attribution reads "Approved by you" for a person, and for the Planner names the
+      request's conversation with a link to the message.
+    tested_by:
+      - "shows %s attribution with the correct request conversation"
+      - "shows live %s map approval attribution"
+      - "shows live %s roadmap approval attribution"
+      - "shows approval attribution on a frozen plan card"
+
+  - rule: >
+      A link to a requested entry lands on it once history has loaded, and scrolls it into view.
+    tested_by: "lands on the requested entry after conversation history loads"
+
+  - rule: >
+      A subagent entry reads as a card: its task, model, status and numbers. A click opens what
+      it did in the side panel, and Close shuts it.
+    tested_by:
+      - "an entry is drawn as a card with its task, model and numbers"
+      - "a click opens what it did beside the conversation"
+
+  - rule: >
+      A live subagent frame draws a running card until its entry is written.
+    tested_by: "a live frame draws a running card until its entry is in the list"
+    note: >
+      The body asserts the running card appears. It does not assert the card goes away when the
+      entry lands, despite the name.
+
+  - rule: >
+      A subagent's model reads as the pickers do, and its numbers appear only when reported.
+    tested_by: "names a model the way the pickers do"
+    note: >
+      The body checks modelName('claude-opus-5-5'), 'sonnet', and an empty numbers string for a bare
+      card. It does not compare against the pickers' labels, despite the name. The dated model
+      form is not tested. See the gap at modelName.
+
+  - rule: >
+      The context ring opens at once with the figures held, or says there are none. The breakdown
+      is read only when Details is pressed.
+    tested_by:
+      - "opens at once with no figures and never shows a spinner"
+      - "opening the second level fetches the breakdown, or says why there is none"
+
+  - rule: >
+      The context summary shows context use, the five-hour and weekly limits with resets, and when
+      they were observed.
+    tested_by: "shows the summary level: context, five-hour and weekly with resets, and when
+      observed"
+
+  - rule: >
+      Context is shown only when both the used and the window figures were reported.
+    tested_by: "shows context only when both numbers were reported"
+
+  - rule: >
+      Context figures come from the newest turn that reported them.
+    tested_by: "reads the context of the newest turn that reported one"
+
+  - rule: >
+      Token counts and reset times read in the two largest units, and a reset in the past reads now.
+    tested_by: "formats tokens and reset times"
+    note: >
+      The 999,999-token boundary is not tested. See the gap at formatTokens.
+
+  - rule: >
+      A reply whose answering model differs from the requested one says both; a reply answered by
+      the model asked for says nothing more.
+    tested_by:
+      - "a reply whose observed model differs from the requested one says both"
+      - "a reply answered by the model asked for says nothing more"
+
+  - rule: >
+      The thread's `/` list is kept per thread, and a harness switch clears it.
+    tested_by: "keeps the last list per thread and clears on a harness switch"
+
+  - rule: >
+      Each block of a reply gets its own direction, and a block of blocks takes the direction of
+      its first letter. Code stays left to right.
+    tested_by: "gives every block its own direction, and code left to right"
+
+  - rule: >
+      A stage chip shows nothing while the stage is pending or failed.
+    tested_by: none
+
+  - rule: >
+      The stream banner says when live updates are reconnecting or have stopped, and offers Retry.
+    tested_by: none
+
+  - rule: >
+      reopenSession clears the thread's `/` list and reopens its session, so a harness switch never
+      shows the old harness's choices.
+    tested_by: none
+
+  - rule: >
+      describeLabel turns streaming bookkeeping labels into nothing, and every other harness label
+      into an icon and a line.
+    tested_by: none
+
+  - rule: >
+      A deleted conversation's subagent card opens its panel, and a removed thread never opens a
+      session.
+    tested_by: none
+    note: >
+      The second half is tested (the read-only test). The panel-from-deleted path is not.
+
+  - rule: >
+      A waiting-message retry (Send now, Remove) carries one command id per request, so the daemon
+      can recognize the same request.
+    tested_by: none
+    note: >
+      Violated: see the gap at WaitingMessages. Recorded here so the rule is visible to a reviewer.
+
+
+# ── agreements ───────────────────────────────────────────────────────────────
+
+agreements:
+  - between: [copyText, Entry tool line]
+    must: >
+      read the same text for a tool call, so what Copy takes is what the person sees
+    holds: true
+    why: >
+      Both use toolText with the same fallback to the title.
+    tested_by: "Copy on a tool line copies its title (§23.8)"
+
+  - between: [useFirstSend (draft), Composer submit (thread page)]
+    must: >
+      fingerprint a retried first send the same way, so the thread page's retry replays the
+      draft's command and is not a new turn
+    holds: true
+    why: >
+      The draft's catch builds its attempt from the same text, settings and plan; the thread
+      page's composer takes it as `carried.attempt`.
+    tested_by: "carries the selected plan and command into a failed first-send retry"
+
+  - between: [useFirstSend (setQueryData sessionKey), useSession]
+    must: >
+      share one session cache entry, so the thread page does not open the session again
+    holds: true
+    why: >
+      The draft writes the opened choices under the thread's session key, and useSession holds
+      them with staleTime Infinity.
+    tested_by: none
+    note: >
+      Holds by code reading. No test counts POST /session after the navigation.
+
+  - between: [turnReducer, reply shownReply]
+    must: >
+      agree on which turn is running, so the reply and the running label never disagree about it
+    holds: true
+    why: >
+      The reply's op is set from runningTurn's id in use-conversation.ts; shownReply then looks
+      that turn up in the same turn list.
+    tested_by: none
+    note: >
+      Holds by code reading. No test drives both reducers together through use-conversation.
+
+
+# ── not_the_caller's ─────────────────────────────────────────────────────────
+
+not_the_caller's:
+  - >
+      Mint a CommandId for a send or a queue. Use the composer's pending attempt through
+      `attemptFor`, so a retry replays and a changed request is new.
+  - >
+      Send `/model` or `/effort` to the harness as text. Use the pickers; `sessionCommand` is the
+      only path that reads them.
+  - >
+      Decide whether a reply is shown from the entries list alone. Pass the entries' ordinals and
+      fetch time to `shownReply` along with the reply state.
+  - >
+      Open a thread's session after a draft has sent. The draft seeds its cache entry; a second POST
+      would open the harness again.
+  - >
+      Treat `useCommands` as a fetch. It has no query function; only the stream fills it.
+
+
+# ── gaps ─────────────────────────────────────────────────────────────────────
+
+gaps:
+  - at: sessionCommand
+    gap: >
+      `match` (called by sessionCommand) keeps only enabled choices. A model or effort the session
+      offers but has disabled is reported as "This session offers no model named ..." The reason
+      the session gave is lost, and the person is told the choice does not exist.
+
+  - at: formatTokens
+    gap: >
+      It rounds to one decimal before choosing the unit, so 999999 reads "1000k" instead of "1M".
+      Cosmetic, but the boundary is wrong.
+
+  - at: tokens
+    gap: >
+      It rounds to whole thousands, so 999600 reads "1000k" instead of "1M". Same boundary as
+      formatTokens; a subagent's token count is the visible case.
+
+  - at: modelName
+    gap: >
+      The regex takes the first digits after the family as the major version. A dated model id
+      such as "claude-opus-4-20250514" reads "Opus 4.20250514". "claude-3-5-sonnet" reads
+      "Claude 3.5", which drops the family.
+
+  - at: toolText
+    gap: >
+      `name in SENTENCES` also matches inherited Object.prototype keys. "mcp__shadows__constructor"
+      returns the Object function, which is neither null nor the title. Reachable only with a
+      shadows tool name outside the table. Low severity; an own-property check fixes it.
+
+  - at: ApprovedBy
+    gap: >
+      Every `agent` other than 'human' reads as "Approved by the Planner at your request". An
+      approval by another agent kind would be credited to the Planner. The "at your request" wording
+      also shows with no link when `request` is null.
+
+  - at: WaitingMessages
+    gap: >
+      Send now and Remove each take a new crypto.randomUUID() per press. A retry after a lost
+      response carries a new command id, so the daemon cannot recognize it as the same request. Send
+      in Composer reuses its command id through attemptFor; this does not.
+
+  - at: ContextRing
+    gap: >
+      The breakdown mutation's data is kept after the popover closes. Reopening shows the last
+      breakdown with no time, while the summary figures are live. The person cannot tell which is
+      current.
+
+  - at: carrySend
+    gap: >
+      The module-level map keeps a carried send until its thread page mounts. If nobody opens that
+      thread, the entry stays in memory for the rest of the session. Small; the map is never cleared
+      otherwise.
+
+
+# ── open_questions ───────────────────────────────────────────────────────────
+
+open_questions:
+  - >
+      Should a queued message clear the focus chip? `Composer`'s queue `onSuccess` does not call
+      `onPointed`, while a sent turn does. The queued message stores its focus (WaitingMessages'
+      rows carry it), so the chip staying means the next message carries it too. Intent is not
+      stated in code; decide, then align composer.tsx.
+
+  - >
+      Does the daemon retitle a draft's thread on its first start? `useFirstSend` creates the thread
+      with the title "New conversation", and its comment says the first message retitles it. Nothing
+      in this folder retitles it. Inspect the daemon's thread-start route.
+
+  - >
+      Does the app's QueryClient garbage-collect `commandsKey` entries? `useCommands` has no fetch,
+      so
+      a thread's `/` list with no mounted observer is collected after the default gcTime and comes
+      back empty until the stream resends it. Inspect the QueryClient defaults (api/queries or the
+      app root) and whether the stream resends commands on reopen.
+
+  - >
+      Do vision, map and roadmap approvals refresh their card's status? `onSuccess` invalidates
+      `['projects', projectId, 'design']`. The card reads `visionProposalsQuery` (and its map and
+      roadmap twins). Inspect web/src/api/queries.ts for those keys' prefix. The success tests pass,
+      so some other path refetches; find it.
+
+  - >
+      Does a map 'change' proposal's changed part sit at parts[0]? MapProposalCard's changed-fields
+      list compares `old` with `parts[0]`. Inspect the daemon's map proposal builder for the order
+      of
+      parts on a change.
+
+  - >
+      Does readSubagentCard guarantee a status of running, completed, failed or stopped? STATE in
+      subagent-card.tsx is indexed by it with no fallback. Inspect web/src/stream/frames.ts.
+
+  - >
+      Which agent values can an approval carry? ApprovedBy treats every non-'human' value alike.
+      Inspect
+      approved_by.agent in web/src/api/schema.d.ts and the daemon's approval attribution.
+
+  - >
+      Which harness frame carries the operational label 'user'? describeLabel maps it to "Using a
+      tool".
+      Inspect the stream's meta frames or the harness adapter that writes labels.
+
+
+# ── tests ────────────────────────────────────────────────────────────────────
+#
+# Every inspected test, by name, with what its body proves. Test files: the folder's
+# *.test.ts / *.test.tsx. Where a name repeats in two files, the checks line says which.
+
+tests:
+  # conversation.test.tsx
+  - name: "shows the project stage in the conversation header"
+    checks: "Stage line shows, then updates on a ProjectDesignChanged frame; 'missing' drops."
+  - name: "shows a deleted conversation read only"
+    checks: "Removed thread: read-only text, history shown, no session POST, no textarea or Send."
+  - name: "shows Running and a Stop that reaches the daemon, until the turn ends"
+    checks: "Running, Stop POSTs, Stopping shows, durable cancel then end: Send back, Stopped."
+  - name: "shows why and can be asked again, even though the request is durable"
+    checks: "Failed stop shows its code and Stop again; a second POST is sent."
+
+  # use-conversation.test.tsx
+  - name: "streams a long reply without exceeding the update depth"
+    checks: "120 deltas outside act: no error, and the reply text is all 120 characters."
+
+  # turn-state.test.ts
+  - name: "a reload during a running turn shows it running, then follows it to its end"
+    checks: "Snapshot plus replayed events give b Running, then Cancelled with endedAt 42."
+  - name: "a snapshot read before a turn ended does not bring it back"
+    checks: "Completed event then a stale Running snapshot: no running turn, endedAt kept at 7."
+  - name: "a turn begun after the snapshot is newest, and stays so when the snapshot is read again"
+    checks: "A turn from events stays first after a second snapshot lists it."
+  - name: "knows a turn is running from the start route before any of its events"
+    checks: "started action gives a Pending running turn b."
+  - name: "reads a stop already requested from the snapshot, and ignores events of no operation"
+    checks: "cancel_requested_at gives stopRequested; a null-operation event returns same state."
+
+  # reply.test.ts
+  - name: "moves the reply on for each kind a turn writes (§23.8)"
+    checks: "AgentMessage, ToolCall and Subagent each yield their ordinal."
+  - name: "ignores the person, plans and refusals"
+    checks: "UserMessage, PlanView and PermissionRefused yield null."
+  - name: "stays after turn-end until the entries list holds the agent entry"
+    checks: "Hidden set {2} and text 'Hello' until durable ordinals include 2, then null."
+  - name: "does not give way to the entry while the turn is still streaming"
+    checks: "A live reply keeps its text and cursor even when entry 2 is in the list."
+  - name: "splits messages where the stream stood when the entry was announced, not at the last
+    render"
+    checks: "Cut at the announced stream text: 'First.' then 'Second' joined by a blank line."
+  - name: "a turn stopped mid-sentence stays until entries are fetched after it ended"
+    checks: "Stopped reply shown until a fetch at or after endedAt, then null."
+  - name: "a new turn replaces what the last one left"
+    checks: "A second op's stream replaces the first's text and goes live."
+  - name: "shows nothing before any text streams"
+    checks: "A stopped turn with no text yields null."
+
+  # turn-settings.test.ts
+  - name: "starts from the session current values"
+    checks: "initialSettings equals the session's current values for fakeChoices."
+  - name: "changing model resets an effort it does not offer"
+    checks: "withModel to a model with efforts low/high from max gives low."
+  - name: "keeps the effort until the session reports the new model, whose efforts are unknown"
+    checks: "withModel to an unknown-efforts model keeps effort and sets model only."
+  - name: "a model that offers no effort runs with none"
+    checks: "A model with no efforts yields null effort."
+  - name: "a mode the project disallowed is not sendable"
+    checks: "A disabled mode is not sendable; initialSettings moves to the enabled acceptEdits."
+  - name: "no mode left is not sendable"
+    checks: "All modes disabled: not sendable."
+  - name: "names the model that moved the mode"
+    checks: "modeNote gives the 'does not offer Auto; switched to Accept edits' line, else null."
+  - name: "a picked model the session moves to takes the effort the session reports for it"
+    checks: "afterOptions takes the reported effort on a model move, but keeps a held effort."
+  - name: "follows a model change the session reports, but not while a send or a turn is in flight"
+    checks: "Not busy: mode moves with a note. Busy: mode held and no note."
+
+  # session-commands.test.ts
+  - name: "leaves any other text alone"
+    checks: "/compact, /models x and text before /model yield null."
+  - name: "opens the picker when no choice is named"
+    checks: "/model and '/effort  ' yield open."
+  - name: "names a choice by id, label or a part of either, ignoring case"
+    checks: "fake-small, SMALL and max resolve to set; ids and labels both match."
+  - name: "refuses a choice the session does not offer, or no session"
+    checks: "/model opus is unknown; /model small with null choices is unknown."
+
+  # slash-filter.test.ts
+  - name: "applies only to a whole text of / and no whitespace"
+    checks: "Null for text with spaces, newlines, or empty; '/' lists everything."
+  - name: "orders name prefix, then the part after the last colon, then contains"
+    checks: "/br, /rev and /storm each give the expected three-group order."
+  - name: "ignores case and keeps the adapter order within a group"
+    checks: "/BR matches the lowercase result."
+  - name: "applies with no match, listing nothing"
+    checks: "/zzz gives an empty list, not null."
+
+  # usage.test.ts
+  - name: "shows context only when both numbers were reported"
+    checks: "Percent computed when both reported; null if either is missing or window is 0."
+  - name: "formats tokens and reset times"
+    checks: "126800 gives 126.8k, 1M, 200k, 950; resetIn gives 4h18m, 3d21h, 7m, now."
+  - name: "reads the context of the newest turn that reported one"
+    checks: "Newest reporting operation wins; a silent-only list gives null."
+
+  # use-commands.test.ts
+  - name: "keeps the last list per thread and clears on a harness switch"
+    checks: "replace keeps per-thread lists; clear leaves an empty list."
+
+  # reply-text.test.tsx
+  - name: "gives every block its own direction, and code left to right"
+    checks: "p, li, h2, td, th carry dir=auto; ul and blockquote get rtl; inline code ltr; pre
+      none."
+
+  # slash-menu.test.tsx
+  - name: "opens on / and filters as the person types"
+    checks: "/ lists both commands; /br narrows; 'hi /br' closes the menu."
+  - name: "Enter picks without sending, writes /name and shows the hint"
+    checks: "Enter writes '/superpowers:brainstorming ', shows the hint, sends nothing."
+  - name: "the hint goes once the person types"
+    checks: "Typing again removes the hint text."
+  - name: "arrows move, Tab picks, Escape closes and keeps the text"
+    checks: "ArrowDown then Tab picks the second; Escape keeps '/co'; typing reopens it."
+  - name: "a click picks"
+    checks: "mousedown on an option writes '/compact '."
+  - name: "with no match the menu closes and Enter sends"
+    checks: "'/zzz' closes the menu; Enter posts a turn (no slash match, so it is text)."
+  - name: "an empty list opens nothing"
+    checks: "A commands frame with no entries: '/' opens no menu."
+  - name: "Enter picks while a turn runs; it does not queue"
+    checks: "While running, Enter writes '/compact ' and posts neither turn nor queue."
+  - name: "a newline closes the menu"
+    checks: "A newline in the text closes the menu."
+  - name: "a shorter new list clamps the highlight"
+    checks: "A shorter list after ArrowDown still picks the only entry on Enter."
+  - name: "the highlighted entry is scrolled into view"
+    checks: "ArrowDown calls scrollIntoView on the highlighted option."
+  - name: "/model with a name sets the model picker and sends nothing"
+    checks: "'/model small' PUTs model fake-small; the text clears; no turn or queue POST."
+  - name: "/model with a name the session does not offer says so"
+    checks: "'/model opus' shows the 'offers no model named' line and keeps the text."
+  - name: "picking model from the menu opens the model picker"
+    checks: "A listed 'model' command, picked, opens the model menu and clears the text."
+
+  # composer-bar.test.tsx
+  - name: "says it is connecting, then builds every menu from the session"
+    checks: "Connecting text until the session answers; Accept edits and high menu items exist."
+  - name: "a frame sent while the session opens does not override its answer"
+    checks: "options frames during opening are ignored; the answer's max effort holds."
+  - name: "a failed opening shows the message and a retry, never an endless spinner"
+    checks: "502 shows its message and Retry; Retry opens again (tries reaches 2)."
+  - name: "choosing a value closes its menu, so it never covers Send"
+    checks: "After choosing Auto, the mode menu item is gone and the Auto button shows."
+  - name: "sends the chosen model, mode and effort"
+    checks: "Turn body carries model fake-large, mode auto, effort high, prompt hi."
+  - name: "a model without auto moves the mode and the bar says so"
+    checks: "Model change to fake-small: note text shown and mode back to Accept edits."
+  - name: "picking a model sets it on the session at once, so its efforts show before Send"
+    checks: "PUT model; Send and effort disabled while changing; no turn starts."
+  - name: "a picked model ends at the effort its answer reports, not an earlier report"
+    checks: "Bodies hold only the model put; a later effort report does not set effort."
+  - name: "picking an effort sets it on the session at once"
+    checks: "PUT effort max; Send then carries effort max."
+  - name: "an effort the harness refuses goes back to the session’s, on the error line"
+    checks: "422 on effort: error line shows; the menu holds high; one PUT only."
+  - name: "a model the harness refuses goes back to the session’s, with its words"
+    checks: "422 on model: error shows; fake-large is restored in the menu."
+  - name: "the mode menu says plainly what Accept edits allows"
+    checks: "Mode menu item text carries the description for Accept edits and Auto."
+  - name: "a fresh fork shows the CLI locked before any turn"
+    checks: "A forked thread shows the CLI-locked label before a turn."
+  - name: "the CLI picker changes the harness before the first turn and shows a lock after"
+    checks: "Codex is disabled before a turn; a completed operation shows the lock."
+  - name: "a retried Send reuses the same command id"
+    checks: "Network error then retry: both turn bodies share command_id."
+  - name: "changing a setting after a failed send makes a new command id"
+    checks: "Setting change between sends gives a different command_id."
+  - name: "shows the refusal when the daemon refuses the mode and keeps the prompt"
+    checks: "403 MODE_NOT_ALLOWED text shows; textarea still holds 'hi'."
+
+  # context-ring.test.tsx
+  - name: "opens at once with no figures and never shows a spinner"
+    checks: "No figures yet text; no busy state; no fetch calls on open."
+  - name: "shows the summary level: context, five-hour and weekly with resets, and when observed"
+    checks: "Context figures, both limit bars with reset text and 'updated' appear on open."
+  - name: "opening the second level fetches the breakdown, or says why there is none"
+    checks: "Details fetches once and shows categories; a null breakdown shows its reason."
+  - name: "a reply whose observed model differs from the requested one says both"
+    checks: "'Asked for fake-small · answered by fake-large-answering' line shows (messages.tsx)."
+  - name: "a reply answered by the model asked for says nothing more"
+    checks: "No 'Asked for' line when the observed model contains the requested one."
+
+  # draft.test.tsx
+  - name: "shows the project stage before the first message"
+    checks: "Stage text shows in the draft's header."
+  - name: "carries the selected plan and command into a failed first-send retry"
+    checks: "Retry body equals the first body with plan plan1; thread created on the first try."
+    # Does not count thread POSTs; the no-second-thread rule is unproven.
+  - name: "the first message creates the thread, then sends, then opens the thread"
+    checks: "POST thread, session, turn in order; turn body mode auto and model fake-large."
+  - name: "keeps the person where they went"
+    checks: "Navigating away mid-send keeps the settings route; turn still starts."
+
+  # approved-by.test.tsx
+  - name: "shows %s attribution with the correct request conversation"
+    checks: "Human: 'Approved by you', no link. Planner: text and link to t2#entry-7."
+  - name: "lands on the requested entry after conversation history loads"
+    checks: "scrollIntoView called on #entry-3 once the list loads (messages.tsx hash logic)."
+  - name: "shows approval attribution on a frozen plan card"
+    checks: "A frozen plan card shows Planner attribution with the request link."
+
+  # message-actions.test.tsx
+  - name: "copy is on every message and copies its text"
+    checks: "Copy on each message; clicking copies the text and shows Copied."
+  - name: "fork shows only on the last message of an idle thread and opens the fork"
+    checks: "One Fork on the idle thread; fork POST at a1 navigates to t9."
+  - name: "fork is absent while a turn runs"
+    checks: "No Fork button while Stop is shown."
+  - name: "a refused fork shows the daemon message and stays"
+    checks: "422 message shows; path unchanged."
+  - name: "a refused permission renders as a quiet line naming what was asked"
+    checks: "PermissionRefused shows the text, 'refused in Accept edits', and the 'Auto would allow'
+      line."
+  - name: "a tool call reads as a tool line, not as bracketed text"
+    checks: "No '[tool:' text; data-entry-kind tool present."
+  - name: "Copy on a tool line copies its title (§23.8)"
+    checks: "Copy on a tool entry writes its title, 'npm test'."
+
+  # map-proposal-card.test.tsx
+  - name: "shows live %s map approval attribution"
+    checks: "Human: 'Approved by you'. Planner: link to t2#entry-7 (both states)."
+  - name: "shows waiver consent and posts one replayable approval"
+    checks: "Waiver text shows, button labelled with waivers; one POST with command_id; then
+      Approved."
+  - name: "hides approval for live %s state (outdated %s)"
+    checks: "Approve hidden for Superseded, Approved, and outdated Pending.
+      (map-proposal-card.test.tsx)"
+  - name: "keeps an unchanged command on refusal and opens a contract beside the card"
+    checks: "409 keeps the same body on retry; View contract opens the dialog with its header."
+
+  # roadmap-proposal-card.test.tsx
+  - name: "shows the outcome tree with the titles of the parts it references"
+    checks: "Outcome titles, acceptance and a referenced part title appear."
+  - name: "shows live %s roadmap approval attribution"
+    checks: "Human and Planner attribution as for map cards."
+  - name: "posts one replayable approval and hides the button once approved"
+    checks: "One POST with command_id; then Approved and the button is gone."
+  - name: "hides approval for live %s state (outdated %s)"
+    checks: "Approve hidden for Superseded, Approved, outdated Pending.
+      (roadmap-proposal-card.test.tsx)"
+  - name: "shows the old outcome beside a change and keeps the command on refusal"
+    checks: "Change shows the old outcome; 409 keeps the same body on retry."
+  - name: "shows that a change moves its outcome to the top level"
+    checks: "'Moves to the top level' note when the new parent is null."
+
+  # vision-proposal-card.test.tsx
+  - name: "approves the exact proposal and reads its resulting live status"
+    checks: "POST approve with command_id; 'Approved · G1' shows; button gone."
+  - name: "uses live %s state instead of the snapshot"
+    checks: "Live Superseded, Outdated and Approved labels shown; no Approve."
+  - name: "shows the old item for %s"
+    checks: "Edit shows old text in del and the item id; remove shows old text."
+  - name: "shows refusal and reuses the command for an unchanged retry"
+    checks: "422 shows its message; retry sends the same body."
+  - name: "does not expose approval when live status cannot be read"
+    checks: "503 on proposals shows its message and no Approve button."
+  - name: "waits for live status before exposing approval"
+    checks: "Loading status text and no Approve until the proposals answer."
+  - name: "copies the recorded body through the usual message actions"
+    checks: "Copy writes the entry body."
+
+  # plan-in-conversation.test.tsx
+  - name: "a PlanView entry renders the graph of its version"
+    checks: "Card shows title, revision, graph node T1, Open plan link, no minimap, legend below."
+  - name: "clicking a task adds the focus chip and the next send carries it"
+    checks: "Chip shows T2 · Login screen; send carries focus w1/task-2/rev 3; chip cleared; same
+      tab id."
+  - name: "a plan-show frame for this tab and page navigates"
+    checks: "A page plan-show for this tab navigates to the workflow page."
+  - name: "a plan-show frame for this tab and side opens the panel on that version"
+    checks: "Side plan-show opens the panel at revision 3; Close plan closes it."
+  - name: "a plan-show frame for another tab only shows the card"
+    checks: "Frames for other tabs and null tabs change nothing, route and panel."
+  - name: "a replayed PlanView entry does not open the side panel"
+    checks: "A replayed PlanShown (side) opens no panel."
+  - name: "plan tool lines read as sentences"
+    checks: "Shadows tool names become sentences; plan_show adds no line; PlanApproved line shows."
+  - name: "a turn that ends with a plan card can still be forked, from its real last entry"
+    checks: "Fork sits on the card and forks from the plan_show tool entry a1."
+  - name: "a conversation with a plan card holds one stream for its thread"
+    checks: "One open stream for t1; WorkflowEdited on it refetches the plan."
+
+  # subagent-card.test.tsx
+  - name: "an entry is drawn as a card with its task, model and numbers"
+    checks: "Title, 'general-purpose · Sonnet 5.5' and '4m 12s · 43k tokens · 4 tools' shown."
+  - name: "a click opens what it did beside the conversation"
+    checks: "Click opens the panel with prompt, steps and report; Close shuts it."
+  - name: "Copy on a card copies its report, not its JSON (§23.8)"
+    checks: "Copy on a subagent writes the report text."
+  - name: "a live frame draws a running card until its entry is in the list"
+    checks: "A live subagent frame draws a running card. Does NOT test removal once the entry
+      lands."
+  - name: "names a model the way the pickers do"
+    checks: "modelName for opus-5-5 and sonnet; numbers empty for a bare card. Not a picker
+      comparison."
+
+  # waiting-messages.test.tsx
+  - name: "queues on Enter while a turn runs, and offers Send now and Remove"
+    checks: "Enter POSTs the queue; Send now and Remove each reach the daemon. The list is not
+      re-read."

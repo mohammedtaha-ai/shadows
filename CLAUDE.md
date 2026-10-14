@@ -7,6 +7,7 @@
 > | [CLAUDE.md](./CLAUDE.md) | Architecture, conventions, rules (this file) |
 > | [docs/superpowers/specs/README.md](./docs/superpowers/specs/README.md) | **Index of the authoritative design sections and their owners.** |
 > | [docs/codebase/README.md](./docs/codebase/README.md) | **The code map.** What each crate and module owns, and the Architecture Invariants. Read before writing code. |
+> | [docs/frontend/codebase/README.md](./docs/frontend/codebase/README.md) | **The frontend code map.** What each file in `web/src` owns; each feature folder's `contract.yaml` sits next to its code. Read before changing `web/`. |
 > | `crates/shadows-core/src/<service>/contract.yaml` | **One contract per service, next to its code**: its methods, obligations, agreements and tests. Read before changing that service. Written to [docs/codebase/contracts/TEMPLATE.yaml](./docs/codebase/contracts/TEMPLATE.yaml). |
 > | [docs/vision.md](./docs/vision.md) | **What Shadows is for and where it is going.** Read before specifying any new milestone. Decides nothing. |
 > | [docs/status.md](./docs/status.md) | Where the project is right now. Decides nothing. |
