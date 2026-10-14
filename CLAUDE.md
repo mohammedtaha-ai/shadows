@@ -12,7 +12,6 @@
 > | [docs/vision.md](./docs/vision.md) | **What Shadows is for and where it is going.** Read before specifying any new milestone. Decides nothing. |
 > | [docs/status.md](./docs/status.md) | Where the project is right now. Decides nothing. |
 > | [docs/evidence/](./docs/evidence/) | Dated measurement records. Facts, not decisions. |
->
 > | [docs/backend/AGENTS.md](./docs/backend/AGENTS.md) · [docs/frontend/AGENTS.md](./docs/frontend/AGENTS.md) | **The two sides.** Hamoud (backend) and Masada (frontend): their domains, tasks in `stages.md`, builders and fixers. |
 > | [docs/shared/README.md](./docs/shared/README.md) | **Shared requests.** How the frontend and backend agree on the API before either writes code. |
 >
