@@ -112,6 +112,15 @@ runtime passed Docker health/auth/capabilities using a disposable home/key. No
 model or conversation ran; no personal config or key was read or modified. Both
 listeners were ephemeral; persistent operator-selected service setup remains open.
 
+Later B-H1 checkpoint: backend `8fbb068` added the internal native client and
+proved a real configured MiniMax-M3 session journey. Lost-ACK identical replay,
+completed-result recovery after API restart, session continuity, conflict refusal
+and native stop/SSE cursor replay were observed. See the
+[dated journey](../../../shadows-backend/docs/evidence/2026-10-18-hermes-session-journey.md).
+The account-owned facade, PostgreSQL command intents, desktop client and public
+backend event stream remain B-H2+ work. The acceptance receipt file is not product
+persistence. No local code/context bridge or Core mutation is activated by this proof.
+
 ## Different F-drive Hermes WS reference — not selected for this slice
 
 That reference has authenticated WebSocket **`/api/ws`**. A method name below

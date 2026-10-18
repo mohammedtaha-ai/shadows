@@ -27,6 +27,11 @@ contract. Follow its [plan](../../../../../shadows-backend/docs/backend/plans/20
 The current installed source, not the different F-drive fork, owns its upstream
 API. Transport readiness is separate from actual model/session acceptance.
 
+2026-10-18 checkpoint: the backend internal client and actual MiniMax-M3
+session/recovery journey passed in `8fbb068`; see its dated evidence. Native H-1
+still waits for the account-scoped facade/generated client and credential-handoff
+contract. A paid acceptance driver is not a public account or desktop endpoint.
+
 ## H-1 — Compose the local application core with backend status
 
 **Create when first caller exists:** `apps/desktop/sidecar/src/{app.ts,app.test.ts}`,
