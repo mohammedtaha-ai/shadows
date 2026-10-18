@@ -5,6 +5,7 @@
 > | Document | Purpose |
 > |----------|---------|
 > | [CLAUDE.md](./CLAUDE.md) | Architecture, conventions, rules (this file) |
+> | [docs/README.md](./docs/README.md) | Product/runtime documentation routing: Core, AYLUL, independent code intelligence and integration. |
 > | [docs/superpowers/specs/README.md](./docs/superpowers/specs/README.md) | **Index of the authoritative design sections and their owners.** |
 > | [docs/codebase/README.md](./docs/codebase/README.md) | **The code map.** What each crate and module owns, and the Architecture Invariants. Read before writing code. |
 > | [docs/frontend/codebase/README.md](./docs/frontend/codebase/README.md) | **The frontend code map.** What each file in `web/src` owns; each feature folder's `contract.yaml` sits next to its code. Read before changing `web/`. |
@@ -16,9 +17,12 @@
 > | [docs/shared/README.md](./docs/shared/README.md) | **Shared requests.** How the frontend and backend agree on the API before either writes code. |
 >
 > **Documentation rules:**
-> - **New specs and plans go to their side:** `docs/backend/{specs,plans}/` or
->   `docs/frontend/{specs,plans}/`. `docs/superpowers/` is the record of earlier
->   decisions: read it, amend an existing owner section in place, add no new file.
+> - **New specs and plans follow their product owner.** Core backend/frontend
+>   use `docs/backend/{specs,plans}/` and `docs/frontend/{specs,plans}/`; AYLUL uses
+>   `docs/aylul/`, standalone code intelligence uses `docs/code-intelligence/`.
+>   [The documentation map](./docs/README.md) routes native/character and integration work.
+>   `docs/superpowers/` records earlier Core decisions: read it, amend an existing
+>   owner section in place, add no new file.
 > - The specs are split by topic. Every decision has exactly one owner file and
 >   is amended **in place**. Other files refer to it; they do not copy it.
 > - Do not create an ADR, a design note, or a plan document for a struct shape,

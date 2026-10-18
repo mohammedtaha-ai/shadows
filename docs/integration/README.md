@@ -1,0 +1,15 @@
+# Cross-runtime agreements
+
+This area routes agreements between AYLUL, code intelligence, Core and the remote
+brain. Each operation/data format retains one implementation/contract owner.
+An integration document links those owners rather than defining their APIs twice.
+
+Core web-to-backend requests continue through the existing
+[Core shared-request workflow](../shared/README.md). Future agreements crossing
+product/runtime boundaries belong to this area with an explicitly named caller,
+owner, schema and acceptance. Do not conflate them with an ordinary `web/` screen.
+
+The current integration design is
+[AYLUL's interruption-to-direction path](../aylul/specs/2026-10-18-aylul-hermes-semantic-context-design.md).
+Its Core projection/control requirements still need their scoped caller/authority
+contracts. No new request directory or schema is scaffolded before that need is addressed.

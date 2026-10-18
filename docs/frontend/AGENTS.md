@@ -7,6 +7,10 @@ frontend side. The backend has its own file,
 [`docs/backend/AGENTS.md`](../backend/AGENTS.md); read it only when a shared
 request needs it.
 
+This side owns the **existing Shadows Core web client**. AYLUL's primary UI and
+character/native domains follow [the documentation map](../README.md); they are
+not automatically part of `web/` or this side's stages.
+
 ## The domain
 
 | Yours | Not yours |
