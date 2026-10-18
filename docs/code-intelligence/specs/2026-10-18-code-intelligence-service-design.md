@@ -42,10 +42,11 @@ must prove this through independent installation/startup, not only import scans.
 ## 3. Workspace ownership
 
 An authorized launch/registration associates an opaque workspace ID with an
-absolute canonical worktree root. Every shared-service request identifies its
+absolute canonical project root. Every shared-service request identifies its
 workspace explicitly. A model-supplied cwd is not authority to add a root.
 
-- Different Git worktrees remain different workspaces, even for one repository.
+- Different project roots remain different workspaces. Worktree-specific support
+  and acceptance are deferred by human instruction, not prerequisites for this pilot.
 - Paths in requests/results are relative to the selected root. Canonical path
   checks reject escapes through parent paths, symlinks or Windows junctions.
 - Same-named symbols are resolved within the root and source file. Ambiguous
@@ -157,6 +158,26 @@ as MIT because SolidLSP has a different license. Keep provenance with reused cod
 Measure correct reference locations, two-root isolation, changed-file freshness,
 Windows lifecycle, returned bytes and cold/warm latency. Improvement over Serena
 is a measured result, not a product claim assumed by the design.
+
+### 8.1 Real-project checkpoint and provisional recommendation
+
+[The real Shadows baseline](../../evidence/code-intelligence/2026-10-18-serena-real-shadows.md)
+proved selected Rust/TypeScript outlines, exact bodies, same-name reference
+separation, bounded-result behavior and fixed read-tool scope. Two separately
+owned stdio instances survived peer cancellation/disconnect without Core or AYLUL.
+The two roots were nested; distinct-worktree isolation, edited-source freshness,
+server-side cancellation acknowledgement and shared-daemon lifetime remain unproved.
+
+Keep Serena as the learning reference. Do not approve an extracted standalone
+SolidLSP package solely from its MIT label: in the pinned checkout `solidlsp/ls.py`
+imports GPL-tagged `serena.util.file_system` and `serena.util.text_utils`.
+The evidence records exact paths/version. Resolve that dependency boundary before
+describing its distributable runtime as MIT-only.
+
+Rust `async-lsp` is a source-inspected client-framework candidate, not an executed
+replacement. No package language/location is selected by this checkpoint. CI-3
+must combine the remaining isolation/freshness/lifecycle evidence with a resolved
+dependency boundary before producing its implementation plan.
 
 ## 9. Acceptance and next gate
 
