@@ -15,7 +15,7 @@ expanding this file into their implementation owners.
 **Architecture:** Retain the NYLRA Node sidecar and hook as independent local
 components. Consume Core through its services/API, query source through a local
 project-bound standalone code-intelligence service selected after evaluation,
-and use one remote Hermes AYLUL profile as the brain. Its process/install lifecycle
+and use one remote Hermes AYLUL profile behind shadows-backend as the brain. Its process/install lifecycle
 is independent of Core, AYLUL and the editor; direct coding clients can use it too.
 AYLUL remains the main NYLRA/Tauri experience; load the existing Shadows workspace
 only when the person chooses it. This host choice was confirmed during planning.
@@ -39,6 +39,7 @@ already work. Proposed new symbols/files below do not yet exist.
 - Existing Core services retain their rules/data. No cross-process SQLite access.
 - One composition root per runtime: existing `AppCore` for Shadows, native/sidecar startup for AYLUL, an independent service entry point for code intelligence, upstream startup for Hermes.
 - Hook/sidecar remain independent of AppCore; no TypeScript-to-Rust rewrite.
+- NYLRA uses shadows-backend as the sole account/assistant entry point. Backend calls the installed Hermes native API internally; local Docker reuses Windows Hermes rather than installing it. The earlier direct brain-client transport is superseded by the backend slice.
 - The code-intelligence package is independent: stopping Core/AYLUL does not stop a separately launched service used by other clients. No duplicate LSP stack inside each client.
 - Source queries stay bound to one selected project root. If Serena is selected, use one fixed-root process per active project. Worktree-specific testing is outside the current scope by human instruction.
 - Assessment is read-only: no Planner turn, approval call, shell/edit/REPL tool or write-capable MCP credential.
@@ -92,9 +93,11 @@ because a new architecture document was written.
 | End-to-end explanation/control | T5/T6 | Above data paths plus each adapter's actual control capability |
 | Primary UI and optional workspace | T7, then T8 acceptance | Stable native/sidecar contract and proven path; no source relocation prerequisite |
 
-The first executable phase is the dedicated standalone baseline. Do not start
-replacement package scaffolding or a repository merge while its implementation
-choice is open. No product task is marked complete by these documentation changes.
+The selected next slice is backend connection preparation and an account-backed
+assistant facade, followed by the [native backend-client plan](../native/plans/2026-10-18-aylul-local-runtime-hermes.md).
+The standalone baseline has its own evidence; no replacement package scaffolding
+is needed before a simple backend conversation. No product task is marked done
+by this planning change.
 
 No Hermes core modifications are planned. If transport adaptation requires Python,
 ship a standalone Hermes plugin outside upstream, using the documented extension surface.
@@ -204,22 +207,24 @@ Proposed routes: `PUT /api/projects/{id}/nylra-sharing`,
 
 ## T4 - Connect the local bridge to one Hermes AYLUL profile
 
-**Files (N):** create `apps/desktop/sidecar/src/brain/{hermes.ts,hermes.test.ts,contract.yaml}`,
-`apps/desktop/sidecar/src/bridge/{assessment-tools.ts,assessment-tools.test.ts,contract.yaml}`;
-modify native connection storage/commands under `apps/desktop/src-tauri/src/commands/`
-with a separate reviewed connection contract. Generated Hermes wire types carry
-upstream commit and generator provenance; never hand-edit a second API definition.
+**Routing amendment:** backend owns the Hermes native API client under its
+[assistant design](../../../../shadows-backend/docs/backend/specs/2026-10-18-hermes-backed-assistant-design.md).
+Desktop consumes our generated backend HTTP/SSE types, not a raw Hermes credential
+or direct gateway client. Native account handoff and local assessment tools keep
+their separately reviewed boundaries. Follow the dedicated native/backend plans
+for exact initial files; this older T4 sketch no longer owns direct brain transport.
 
 **Interfaces:** `explain(bundle: ContextBundle, signal): AsyncIterable<ExplanationPart>`;
 `ExplanationPart = textDelta | done | unavailable`;
 read-only bridge tools `read_work_context`, `query_code`, `read_source_excerpt`.
-Connection configuration selects one URL/profile; secrets stay native-side, not in the webview.
+Desktop selects the backend account connection; internal Hermes URL/profile and
+service credentials stay backend-side. No service key reaches the webview.
 
 - [ ] RED: `auth_material_never_enters_renderer`, `assessment_tool_call_cannot_dispatch_action`, `profile_routing_does_not_bleed`, `reconnect_resumes_without_duplicate_prompt`.
-- [ ] Implement the pinned protocol proven in T0. Reuse the transport client where distributable; otherwise a narrow adapter uses the upstream-generated schema and the standard WebSocket implementation. No Hermes core fork.
-- [ ] Personal network path: authenticated HTTPS/WSS to Hermes; a private route for its read-only MCP access to the local bridge. Bind the bridge to loopback/private ingress only. Do not expose the raw Serena process or Core to the internet.
+- [ ] Implement the installed native API through the backend-owned adapter and our generated desktop contract. No Hermes core fork or generic public proxy.
+- [ ] Personal network path: authenticated HTTPS/SSE to our backend, private backend-to-Hermes API. Later add the scoped read-only route to the laptop bridge. Do not expose raw Hermes, Serena or Core to the internet.
 - [ ] Recheck local consent for every tool call. Return stable unavailable/refused outcomes when laptop, project or the semantic backend is offline; never fall back to searching the server's unrelated filesystem.
-- [ ] Verify `node --test src/brain/hermes.test.ts src/bridge/assessment-tools.test.ts` and `npm run typecheck`, then a synthetic two-machine round trip separately.
+- [ ] Run the dedicated backend/native plan's focused tests and typecheck, then a synthetic two-machine round trip separately; a transport fixture is not real Hermes/model acceptance.
 
 ## T5 - Explain an attention item without querying the Planner
 

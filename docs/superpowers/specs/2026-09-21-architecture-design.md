@@ -374,7 +374,7 @@ personal workspace on another computer has a separate identity.
 
 Decided with Mohammed on 2026-10-12 and 2026-10-13. AYLUL, NYLRA's companion,
 is an independent assistant that reads Shadows as one of several agents; the
-[NYLRA delivery spec](../../../../nylra/docs/superpowers/specs/2026-10-10-nylra-delivery-design.md#independent-companion)
+[NYLRA delivery spec](../../aylul/specs/2026-10-10-nylra-delivery-design.md#independent-companion)
 owns it. AYLUL desktop, on the computer that owns the workspace, reads project
 context from this daemon's local API. It also owns the link to the cloud, so
 the daemon opens no cloud connection on this path and the cloud never reads it.

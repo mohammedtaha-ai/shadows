@@ -7,6 +7,8 @@ and remote Hermes brain do not become services inside Shadows `AppCore`.
 
 - [Current integration design](specs/2026-10-18-aylul-hermes-semantic-context-design.md)
 - [Integration plan](plans/2026-10-18-aylul-hermes-semantic-context.md)
+- [Multiple application cores and endpoint routing](../integration/2026-10-18-runtime-endpoints.md)
+- [Next backend-client slice](native/plans/2026-10-18-aylul-local-runtime-hermes.md)
 - [Vision/document/test transition](plans/2026-10-18-nylra-transition.md)
 - [Existing NYLRA vision](vision.md)
 - [Existing code map](codebase/README.md)
@@ -32,3 +34,11 @@ The former backend-compatible relay/client continuation is not the active path
 after the human's 2026-10-18 direction change. Completed implementation, tests and
 dated acceptance remain valid for their recorded scope; unfinished old tasks are
 not continued just to complete the superseded roadmap.
+
+The selected replacement uses **our backend as the single account/assistant
+entry**. Hermes is internal to its deployment. Local Docker reuses the installed
+Windows Hermes; it does not install another copy. The old roadmap remains stopped,
+but the new [backend-owned Hermes slice](../../../shadows-backend/docs/backend/specs/2026-10-18-hermes-backed-assistant-design.md)
+is explicitly authorized preparation. Direct desktop-to-Hermes transport is not
+the chosen path. Core, local AYLUL, backend, code service and upstream Hermes keep
+their separate application composition/state owners.

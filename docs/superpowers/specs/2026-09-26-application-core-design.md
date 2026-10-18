@@ -178,6 +178,19 @@ the [independent service design](../../code-intelligence/specs/2026-10-18-code-i
 owns its proposed package boundary. The current workspace table stays an inventory
 of implemented crates, not a place to pre-create the future package.
 
+**Multiple application cores, clarified 2026-10-18:** the product family has
+separate application cores, not one enlarged `AppCore`. The existing Rust symbol
+keeps its name and ten services. AYLUL's local application core composes the
+existing Node hook/session/approval owners with its backend/Core clients; Tauri
+keeps native windows, protected connections and child lifetime. The independent
+code service composes its own workspace/query/LSP state when its first package is
+implemented. The Node backend has its own application composition and owns the
+internal Hermes connection; Hermes retains its upstream runtime. No common `AppCore` base class,
+shared container, cross-runtime database or transaction is introduced. The
+[integration owner](../../aylul/specs/2026-10-18-aylul-hermes-semantic-context-design.md#runtime-composition-and-data-ownership)
+defines the proposed AYLUL composition files and endpoint boundaries. Creating
+several cores is not a reason to split Projects, Plans or Turns out of this runtime.
+
 A caller reaches a service through an accessor: `core.plans()`, `core.turns()`,
 and so on. Each service is a struct with methods and one job.
 

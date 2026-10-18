@@ -15,4 +15,10 @@ Character design/renderer and native companion lifetime keep their separate owne
 
 ## Tasks
 
-None yet.
+### H-2 · Present one account-backend conversation
+- Status: blocked on backend/native contract and H-1
+- Plan: docs/aylul/native/plans/2026-10-18-aylul-local-runtime-hermes.md#h-2--one-main-window-backend-conversation
+- Read: generated backend assistant contract and local/native shared request once accepted.
+- Touch: H-2 feature/platform/test files and their actual contracts only.
+- Needs: account-scoped backend facade and native handoff; no direct Hermes credentials.
+- Done when: selected conversation, reply/recovery and stop states work with local monitoring and optional character preserved.

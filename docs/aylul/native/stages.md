@@ -9,7 +9,18 @@ their task here and set its status. Task shape: [`AGENTS.md`](AGENTS.md#a-task-i
 Do not continue the former shadows-backend-compatible relay/client roadmap.
 AYLUL's new Hermes/Core/independent-service direction is documented in the
 [transition plan](../plans/2026-10-18-nylra-transition.md).
-No replacement native implementation task is activated by this documentation update.
+The [backend-client replacement plan](plans/2026-10-18-aylul-local-runtime-hermes.md)
+now prepares the new route: NYLRA -> account backend -> private Hermes. Exact
+desktop payload acceptance and backend assistant implementation remain prerequisites.
+No native source implementation has started.
+
+### H-1 · Compose the local core with the backend client
+- Status: blocked on backend facade and accepted native contract
+- Plan: docs/aylul/native/plans/2026-10-18-aylul-local-runtime-hermes.md#h-1--compose-the-local-application-core-with-backend-status
+- Read: local/backend shared requests, current native/sidecar contracts and source map.
+- Touch: proposed files and current owners listed in H-1 only, after prerequisites.
+- Needs: backend-owned generated contract; reviewed native credential handoff.
+- Done when: backend status and existing hooks coexist without a direct Hermes connection or secret projection.
 
 Independent companion specification approved by the user on 2026-10-16:
 [`2026-10-16-independent-companion-design.md`](specs/2026-10-16-independent-companion-design.md).

@@ -121,22 +121,25 @@ Serena; this proposal does not decide licensing consequences. [S1]
 
 ```mermaid
 flowchart LR
-  UI[AYLUL primary UI] --> LOCAL[NYLRA local sidecar]
+  UI[AYLUL primary UI] --> NATIVE[Tauri native host]
+  NATIVE --> LOCAL[AYLUL local application core / sidecar]
   UI -->|Open on request| WORKSPACE[Existing Shadows workspace]
   WORKSPACE --> CORE[Shadows Core: local API and SSE]
   HOOK[Existing Claude hook] --> LOCAL
   OTHER[Codex or other proven adapter] --> LOCAL
   LOCAL --> CORE
-  LOCAL --> CODE[Selected semantic backend: local worktree]
+  LOCAL --> CODE[Independent code-intelligence application core]
   DIRECT[Claude / Codex / other MCP client] --> CODE
   CORE --> CODE
-  LOCAL <--> HERMES[Hermes AYLUL profile on server]
+  LOCAL <--> BACKEND[Account backend: sole public assistant entry]
+  BACKEND <--> HERMES[Internal Hermes API runtime]
 ```
 
 | Owner | Sole authority in this journey |
 |---|---|
 | Core | Project/plan state, managed Planner turns, its journal and command outcomes |
 | Local sidecar | Agent-session binding, disclosure consent, bounded context, dispatch receipts |
+| Backend application core | Account authorization, opaque assistant bindings and the internal Hermes connection |
 | Standalone code-intelligence service | Workspace-scoped source queries and language-server lifecycle; no plan or session authority |
 | Hermes AYLUL profile | Explanation text and proposed directions from the evidence supplied |
 | UI/native host | Deliberate person actions and presentation; native companion lifecycle stays native |
@@ -160,6 +163,47 @@ application singleton, cross-process SQL access or transaction spanning local
 Core, sidecar and Hermes. A consumer stores identifiers/cursors/receipts as needed,
 not another owner's mutable tables or a second version of its rules.
 
+The human confirmed **multiple application cores** on 2026-10-18. Keep Rust's
+implemented `AppCore` as the Shadows core; use proposed `AylulAppCore` in the Node
+sidecar for local assistant composition. Native `lib.rs` remains the platform
+composition root, not another implementation of assistant rules. The code service
+gets its own application core after CI-3 selects its package; Hermes already has
+its upstream authority/runtime. These are separate startup/stop/state owners,
+not subclasses of one global core and not a service/process for every Core folder.
+
+Create `sidecar/src/app.ts` only with the first backend-status consumer: compose
+the existing Store, Approvals, hook route and RPC handlers plus the new backend
+client; let `main.ts` load config and run startup/shutdown. Do not rewrite those
+owners or move their tables. `backend/` translates our HTTP/SSE wire and caches
+backend-owned bindings/projections; later `context/` retrieves scoped evidence
+and `control/` addresses proven agent owners. `store/` remains the SQLite query
+owner. The [next-slice plan](../native/plans/2026-10-18-aylul-local-runtime-hermes.md)
+names exact initial files and tests; these proposed modules do not exist today.
+
+### Endpoint ownership and the selected first connection
+
+The [endpoint inventory](../../integration/2026-10-18-runtime-endpoints.md) owns
+the cross-runtime routing table. The human clarified that NYLRA uses **one backend
+origin** for login and assistant services. Hermes is internal to that deployment,
+not a second desktop connection. Local Docker reaches the existing Windows
+installation; server deployment changes the internal service target. Separate
+processes/application cores keep their state/lifetimes; there is no Python-agent
+loop inside TypeScript. The earlier direct-sidecar-to-Hermes proposal is superseded.
+
+The installed v0.22.2 native REST session/run API is the selected baseline, distinct
+from the F-drive fork's canonical WebSocket dialect. Backend owns auth, binding,
+idempotency/recovery and public projection; Hermes owns sessions/runs/model memory.
+Its key stays internal. The existing backend text-only `ReplyPort` is not a full
+native-run adapter. Preserve its provider chat work; define the assistant facade
+in the [backend owner](../../../../shadows-backend/docs/backend/specs/2026-10-18-hermes-backed-assistant-design.md).
+Core HTTP/SSE remains unchanged until its own scoped caller contract is built.
+
+The existing local RPC deadline is 10 seconds. New conversation calls return a
+local intent/snapshot promptly; the background backend client owns network waits.
+Reuse bounded UI polling for read projections initially; no token-by-token blocking
+stdio call or unsolicited stdout frames. Stop targets the captured Hermes
+backend turn/run identity; it is distinct from cancelling a Core turn or external CLI.
+
 ### Independent lifecycle
 
 | Action | Expected scope |
@@ -174,14 +218,15 @@ A convenience launcher may start an absent component, but must distinguish a
 child it created from an already-running shared owner. It may not terminate the
 latter when its own window exits. No universal supervisor/DI container is required.
 
-### Code placement without an immediate repository move
+### Code placement after the tracked-source import
 
-For now, keep Core and `web/` in Shadows; keep Tauri, hook, sidecar and AYLUL UI
-in NYLRA; keep upstream Hermes and the Serena reference outside product source.
-The service package gets an independent manifest/build/start boundary after its
-baseline selects a language/location. The monorepo sketch is a possible later
-placement, not permission to move files or rewrite the existing native components.
-Its source map/contract documents real modules only as they are implemented.
+Core and `web/` remain in Shadows. The completed import placed Tauri, hook, sidecar
+and AYLUL UI in `apps/desktop/`, with active docs under `docs/aylul/`; the old NYLRA
+checkout is retained provenance. Upstream Hermes and the Serena reference stay
+outside product source. The service package gets an independent manifest/build/
+start boundary after its baseline selects a language/location. Source relocation
+has not merged any application core, database or process lifetime. Code maps and
+contracts describe actual modules only as their implementation arrives.
 
 ### Vision, document and acceptance transition
 
@@ -194,9 +239,9 @@ the measured implementation. Initial hashes cover 143 selected tracked files.
 
 ### Independent character/avatar domain
 
-The character's appearance/renderer/motion/studio remain owned by NYLRA's
-`docs/character/` and `features/companion/`. Native window behavior remains owned
-by `docs/native/` and `src-tauri/src/windows/companion/`. These are independent
+The character's appearance/renderer/motion/studio remain owned by
+`docs/aylul/character/` and desktop `features/companion/`. Native window behavior remains owned
+by `docs/aylul/native/` and `src-tauri/src/windows/companion/`. These are independent
 design responsibilities, not another mandatory runtime or an AppCore service.
 The new assistant UI and Hermes integration do not redesign the avatar or turn
 its animation state into authority about task success, approval or execution.
@@ -223,11 +268,11 @@ available code context. Unknown is a legitimate value, not a failed search for a
 Planner relationship that never existed.
 
 Every observed session has a stable local `sessionKey`, source `agent`, `deviceId`,
-`sourceSessionId`, connection generation and a canonical worktree root. Optional
+`sourceSessionId`, connection generation and a canonical project root. Optional
 Core project/thread/operation IDs and a plan/task binding are references, not guesses.
 
-- Register the worktree from the managed session or the verified hook project root.
-  A nested cwd cannot silently replace it. Git worktrees of one repository are distinct.
+- Register the project root from the managed session or verified hook project root.
+  A nested cwd cannot silently replace it. Worktree-specific support is outside this pilot.
 - Bind an external session to a Core task only through an explicit relation from
   the owner or a person-selected association. No matching by title, recency or model guess.
 - Without a Core task, still explain from the external session, code map, contract
@@ -378,6 +423,10 @@ is amended/retired explicitly; dated facts and completed acceptance do not disap
   license/dependency boundaries. Candidates are Serena, standalone SolidLSP and
   existing native LSP client integration; choose one. Core index expansion remains
   separate future work until its own owner-spec amendment is accepted.
+- **G8 - Backend-to-installed-Hermes connection:** closes after the native API,
+  account binding, capability/idempotency recovery and actual Docker-to-host
+  session journey are proven on the installed version. The readiness probe and
+  a synthetic host listener alone do not prove a working assistant conversation.
 
 ## 11. Standalone package direction
 

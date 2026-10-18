@@ -30,7 +30,7 @@ externally owned references; do not invent a second contract format.
 - Explain edits first. Report actual local, browser-fixture, native and external
   acceptance separately. No personal hook installation, credential migration,
   push or deployment is implied by relocation.
-- Use the current branch; no worktrees. Stage exact paths if a commit is requested.
+- Use the current branch; no worktrees. Stage exact paths and commit completed local work.
   Preserve unrelated changes; do not switch, stash, reset or publish silently.
 
 Owners: [UI](../../docs/aylul/ui/AGENTS.md),

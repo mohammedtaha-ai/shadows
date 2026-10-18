@@ -47,8 +47,9 @@ and carries the person's decisions to them.
   not itself proof of arbitrary prompt submission. Shadows is read through its local API's NYLRA projection
   ([Shadows §1.7](../../superpowers/specs/2026-09-21-architecture-design.md#17-workspace-authority-and-deployment)).
 - **The cloud link belongs to AYLUL desktop.** The sidecar owns the connection to
-  the selected Hermes brain/relay. Its reviewed transport may use a private route
-  or an outbound relay; neither Core nor raw Serena is exposed publicly. Existing
+  our authenticated backend, which connects internally to Hermes. The human selected
+  this single account/assistant entry point on 2026-10-18. Locally the Docker
+  backend reuses installed Windows Hermes. Neither Core nor raw Serena is exposed publicly. Existing
   backend relay code is preserved, and remote control/sharing gates remain open.
 - **Optional workspaces.** AYLUL opens the existing Shadows UI on request. Code
   intelligence is a separate install/runtime usable without Core or AYLUL. The

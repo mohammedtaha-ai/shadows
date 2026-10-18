@@ -4,6 +4,11 @@ This area routes agreements between AYLUL, code intelligence, Core and the remot
 brain. Each operation/data format retains one implementation/contract owner.
 An integration document links those owners rather than defining their APIs twice.
 
+Start with [runtime cores and endpoint disposition](2026-10-18-runtime-endpoints.md).
+NYLRA uses shadows-backend as one public entry; its private Hermes client uses
+the installed native API. Local Docker reuses Windows Hermes; server deployment
+changes that internal target. Core, AYLUL and code intelligence remain independent.
+
 Core web-to-backend requests continue through the existing
 [Core shared-request workflow](../shared/README.md). Future agreements crossing
 product/runtime boundaries belong to this area with an explicitly named caller,

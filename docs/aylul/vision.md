@@ -19,12 +19,16 @@ AYLUL also explains work in directly used Claude/Codex sessions without requirin
 a Shadows plan. Agent identity, project context and actual supported controls
 come from their owners, not from a model guessing which executor is involved.
 
-For the personal-first delivery, reuse Hermes as AYLUL's remote brain rather
+For the personal-first delivery, reuse Hermes behind our account backend as AYLUL's remote brain rather
 than expanding a second custom local/cloud agent loop. Keep the tested local
 hook, sidecar, native shell and their evidence. An independent code-intelligence
 package supplies semantic project queries to AYLUL, Core and direct coding clients;
 it runs without either application. Its implementation is selected after the
 Serena learning baseline, not assumed complete.
+
+NYLRA uses one backend origin for login and assistant services. Locally Docker
+reuses the already installed Windows Hermes; on the server Hermes is an internal
+service of the same deployment. The client does not connect to Hermes directly.
 
 The character/avatar remains an independently designed, optional presence with
 its own renderer, motion, studio and native-window owners. Text conversation and

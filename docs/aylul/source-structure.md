@@ -9,7 +9,8 @@ boundaries. Listed paths are future destinations, not claims of existing code.
 
 2026-10-18 runtime amendment: AYLUL remains the primary UI and opens Shadows on
 request. The sidecar is a local integration runtime; the selected personal-pilot
-brain is remote Hermes. Code intelligence is independently packaged and consumed
+brain is Hermes behind shadows-backend, the one external account/assistant entry.
+Local Docker reuses Windows Hermes rather than installing it. Code intelligence is independently packaged and consumed
 as a client capability. The [transition plan](plans/2026-10-18-nylra-transition.md)
 records the 2026-10-18 tracked-source import into Shadows. The actual desktop
 keeps `apps/desktop/` here, with its own npm lockfiles and separate Rust workspaces.
@@ -69,7 +70,7 @@ apps/
     sidecar/                     AYLUL's laptop process, Node and TypeScript
       src/
         main.ts                  entry: started by Tauri, stopped when AYLUL quits
-        brain/                   client for the selected Hermes brain protocol
+        backend/                 client for the owning backend's assistant API
         link/                    outbound WebSocket to shadows-backend
         agents/                  writes agent settings: hook entries and permission rules
         hooks/                   named-pipe server receiving aylul-hook events
@@ -128,7 +129,8 @@ AYLUL desktop is three processes on the laptop, each with one job:
   `src-tauri/src/sidecar/` relays them over the sidecar's standard input and
   output. The sidecar opens no local port.
 - **The sidecar keeps no credential on disk.** Tauri's `auth` module holds the
-  backend session and hands it to the sidecar when it starts.
+  backend session. Its scoped handoff to the backend client is planned, not present
+  in the imported sidecar startup. Hermes service credentials stay backend-side.
 - **The pipe is restricted to the current Windows user.** `aylul-hook` refuses
   to run when the pipe is missing or owned by another user.
 - **Failure is not consent.** If the sidecar is off, the pipe is missing or a
@@ -139,8 +141,8 @@ AYLUL desktop is three processes on the laptop, each with one job:
   matches it, not AYLUL ([step 2(a)](specs/2026-10-13-aylul-hook-laptop-design.md#5-rules)).
   Model output, file content and session text never create one. Only the laptop
   creates or widens a grant; a revocation from the phone arrives through `link/`.
-- **The selected brain is a remote runtime.** `brain/` is the narrow Hermes
-  protocol client for the personal pilot, not a copied model loop. Existing
+- **The selected brain is an internal backend runtime.** `backend/` consumes our
+  authenticated assistant facade; it does not dial Hermes or copy a model loop. Existing
   backend `aylul-brain` code is retained until its own migration decision.
   Code intelligence has its own process/manifest and is not owned by sidecar startup.
 - **`agents/` changes another program's settings.** It backs up the agent's
