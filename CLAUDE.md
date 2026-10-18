@@ -63,6 +63,11 @@
 
 ## Architecture
 
+This section describes Shadows Core. The imported AYLUL desktop lives in
+`apps/desktop/` with its own [instructions](apps/desktop/AGENTS.md), npm lockfiles
+and separate Rust workspaces. Its documentation is under `docs/aylul/`; it does
+not join AppCore or the Core Cargo gate. See [documentation routing](docs/README.md).
+
 A Cargo workspace with a flat `crates/` directory (spec §14.3 owns the list), plus an independent browser client in `web/`. The one binary, `shadows serve`, serves the product locally but never opens a browser automatically.
 
 ```text

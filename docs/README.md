@@ -10,7 +10,7 @@ work. Sharing a repository does not make every runtime a service of `AppCore`.
 | AYLUL / NYLRA | Assistant experience, native/sidecar integration and document transition | [AYLUL](aylul/README.md) |
 | Code intelligence | Independent semantic service and its package/evaluation | [Code intelligence](code-intelligence/README.md) |
 | Integration | Agreements crossing product/runtime boundaries | [Integration](integration/README.md) |
-| Evidence | Dated facts grouped by originating runtime/slice | [Evidence directory](evidence/) |
+| Evidence | Dated facts grouped by originating runtime/slice | [Evidence directory](evidence) |
 | Earlier Core decisions | Existing authoritative section owners; amended in place | [Spec index](superpowers/specs/README.md) |
 
 `docs/backend/` and `docs/frontend/` remain specific to Shadows Core and its
@@ -22,7 +22,8 @@ New product-scoped specs/plans live under `docs/aylul/{specs,plans}/` or
 backend/frontend paths. Source `contract.yaml` files stay next to actual code;
 documentation moves do not invent modules or change their implementation.
 
-NYLRA's existing vision, character/native owners and dated acceptance currently
-remain in its source repository. The [transition manifest](aylul/plans/2026-10-18-nylra-transition.md)
-specifies their eventual destinations and reference/provenance checks. Do not
-copy them into a second active owner before that transition is executed.
+NYLRA's tracked desktop code is now under `apps/desktop/`; its active vision,
+maps and character/native/UI owners are under `docs/aylul/`. Historical acceptance
+is under `docs/evidence/nylra/`. The [transition plan](aylul/plans/2026-10-18-nylra-transition.md)
+and per-file manifest record provenance and remaining acceptance. The original
+checkout remains a preserved snapshot, not a second active development owner.

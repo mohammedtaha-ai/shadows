@@ -1,0 +1,37 @@
+   Compiling zmij v1.0.23
+   Compiling serde_core v1.0.229
+   Compiling serde_json v1.0.154
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling aylul-hook v0.1.0 (E:\Globalprojects\shadows\apps\desktop\hook)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.39s
+     Running unittests src\lib.rs (apps\desktop\hook\target\debug\deps\aylul_hook-3013a044f916c322.exe)
+
+running 12 tests
+test tests::deadlines_follow_the_event ... ok
+test tests::malformed_input_gives_no_output ... ok
+test tests::no_endpoint_gives_no_output ... ok
+test tests::connect_error_gives_no_output ... ok
+test tests::no_project_dir_is_left_out ... ok
+test tests::empty_reply_gives_no_output ... ok
+test tests::request_carries_version_token_and_event ... ok
+test tests::reply_output_is_returned ... ok
+test tests::a_busy_pipe_is_retried_and_other_errors_are_not ... ok
+test tests::busy_code_is_231_and_a_forever_busy_pipe_is_tried_exactly_three_times ... ok
+test tests::endpoint_file_is_read_or_ignored ... ok
+test tests::stalled_sidecar_is_cut_at_the_deadline ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running unittests src\main.rs (apps\desktop\hook\target\debug\deps\aylul_hook-0fa8fdcf47a2a897.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aylul_hook
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

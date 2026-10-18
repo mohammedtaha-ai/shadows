@@ -1,0 +1,69 @@
+name: companion-presentation
+version: 1
+status: current
+source: apps/desktop/src/features/companion
+responsibility: Present procedural AYLUL with isolated motion and explicit native rendering permission; desktop gestures invoke narrow platform wrappers. Reusable in-window presence owns message lifetime and optional tones. Development studio is separately owned.
+exports:
+  - name: DesktopCompanion
+    file: apps/desktop/src/features/companion/DesktopCompanion.tsx
+  - name: Companion
+    file: apps/desktop/src/features/companion/Companion.tsx
+  - name: renderCharacter
+    file: apps/desktop/src/features/companion/renderer/character.ts
+  - name: renderScene
+    file: apps/desktop/src/features/companion/renderer/scene.ts
+obligations:
+  - rule: Recoverable gesture errors preserve the Canvas and renderer failures report to the native retry owner.
+    tested_by: apps/desktop/tests/companion/desktop-window.spec.ts
+    test: drawing failure after readiness reports to native recovery owner
+  - rule: The compact entry draws a transparent character without account or studio loading.
+    tested_by: apps/desktop/tests/companion/desktop-window.spec.ts
+    test: desktop entry draws transparent character without account or studio
+  - rule: An eight pixel drag consumes the panel click and lost mouse-up does not strand the next gesture.
+    tested_by: apps/desktop/tests/companion/desktop-gesture.test.ts
+    test: eight pixel drag consumes panel click and next gesture survives lost up
+  - rule: Explicit native denial cancels all draws even if document visibility remains visible.
+    tested_by: apps/desktop/tests/companion/native-visibility.spec.ts
+    test: native denial stops all draws while document remains visible
+  - rule: Canvas readiness does not depend on permission to draw.
+    tested_by: apps/desktop/tests/companion/native-visibility.spec.ts
+    test: initialization reports ready without a draw under denied permission
+  - rule: Perching uses scene-aware scale and position so the hands meet the mock top with hood headroom.
+    tested_by: apps/desktop/tests/companion/model.test.ts
+    test: perch hands meet the mock top without clipping the hood
+  - rule: A live browser DPR change updates backing pixels while motion remains paused.
+    tested_by: apps/desktop/tests/companion/presence.spec.ts
+    test: live DPR change resizes backing pixels while paused
+  - rule: Locked direction updates remain visible on a still frame without advancing motion.
+    tested_by: apps/desktop/tests/companion/model.test.ts
+    test: locked direction is visible on a still redraw without advancing motion
+  - rule: Poking cannot replace owner messages or report work outcomes.
+    tested_by: apps/desktop/tests/companion/presence.spec.ts
+    test: poke preserves controlled message
+  - rule: Paused input updates redraw a still without continuous animation.
+    tested_by: apps/desktop/tests/companion/presence.spec.ts
+    test: paused changes repaint without animation
+  - rule: Hidden document cancels scheduled rendering until visibility returns.
+    tested_by: apps/desktop/tests/companion/presence.spec.ts
+    test: hidden document cancels frames until restored
+  - rule: Frame cadence preserves elapsed simulation and each model owns its random state.
+    tested_by: apps/desktop/tests/companion/model.test.ts
+    test: motion cadence is stable at 30 60 and 120 Hz and inputs unchanged
+  - rule: One frame owner cancels callbacks on pause and disposal.
+    tested_by: apps/desktop/tests/companion/scheduler.test.ts
+    test: one loop is owned across double starts stop and dispose
+  - rule: Repeated message IDs cannot extend their lifetime.
+    tested_by: apps/desktop/tests/companion/messages.test.ts
+    test: same ID does not extend expiry and same text new ID does
+  - rule: All nine expressions and ten outfits draw with a real Canvas context and no global engine.
+    tested_by: apps/desktop/tests/companion/renderer.spec.ts
+    test: all expressions and outfits draw without global engine
+  - rule: Identical frame inputs produce identical pixels.
+    tested_by: apps/desktop/tests/companion/renderer.spec.ts
+    test: same inputs produce same pixels
+  - rule: The character canvas retains transparent corners.
+    tested_by: apps/desktop/tests/companion/renderer.spec.ts
+    test: character render preserves transparent corners
+gaps:
+  - at: CompanionCanvas
+    gap: Simulated document visibility and Chromium tests do not establish Windows tray-hide suspension, DPI or native rendering cost.

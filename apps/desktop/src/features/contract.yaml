@@ -1,0 +1,22 @@
+name: desktop-aylul-screens
+version: 1
+status: current
+source: apps/desktop/src/features
+responsibility: Show sessions and the items waiting for the person, and carry the person's answers. The companion subdirectory and its studio have separate contracts and are excluded from this owner.
+public_api:
+  SessionsPanel: Connect Claude Code after showing the settings diff; list sessions with state, last step and last message.
+  ApprovalsPanel: Allow once or deny a request; for a refusal, edit the rule, preview the diff, approve or dismiss.
+  RulePreviewGuard: Discard responses from previews invalidated by an edit; carry the exact previewed rule into approval; clear stale previews after settings_changed or preview_mismatch.
+obligations:
+  - rule: A rule is approved only after its diff was shown.
+    tested_by: none
+    note: Approve appears only after Preview returned a plan; real UI acceptance is still required.
+  - rule: Requests and refusals show the project and session before an answer.
+    tested_by: 'integration: apps/desktop/tests/approvals-ui.test.mjs#identical requests expose their own project and session before approval; a refusal exposes its project and session before rule approval'
+  - rule: A late preview cannot be used after an edit and approval uses the captured rule.
+    tested_by: 'integration: apps/desktop/tests/rule-preview.test.ts#an edit invalidates a preview response still in flight; approval uses the rule captured for the displayed preview'
+  - rule: A changed settings file or mismatched preview lets the person preview again.
+    tested_by: 'integration: apps/desktop/tests/rule-preview.test.ts#settings_changed invalidates the stale preview so it can be requested again; preview_mismatch also clears the stale preview'
+gaps:
+  - at: ApprovalsPanel
+    gap: Static markup and preview-state tests ran; real interactive desktop acceptance is still missing.

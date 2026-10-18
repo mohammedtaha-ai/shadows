@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-companion-paused"
+description = "Enables the set_companion_paused command without any pre-configured scope."
+commands.allow = ["set_companion_paused"]
+
+[[permission]]
+identifier = "deny-set-companion-paused"
+description = "Denies the set_companion_paused command without any pre-configured scope."
+commands.deny = ["set_companion_paused"]

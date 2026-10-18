@@ -1,0 +1,5 @@
+Exception: E:\Globalprojects\shadows\apps\desktop\tests\windows-companion.ps1:94
+Line |
+  94 |  … Code -ne 0){throw 'Native WebView checks failed; inspect native.json' …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Native WebView checks failed; inspect native.json

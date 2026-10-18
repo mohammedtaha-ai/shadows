@@ -40,7 +40,7 @@ already work. Proposed new symbols/files below do not yet exist.
 - One composition root per runtime: existing `AppCore` for Shadows, native/sidecar startup for AYLUL, an independent service entry point for code intelligence, upstream startup for Hermes.
 - Hook/sidecar remain independent of AppCore; no TypeScript-to-Rust rewrite.
 - The code-intelligence package is independent: stopping Core/AYLUL does not stop a separately launched service used by other clients. No duplicate LSP stack inside each client.
-- Source queries stay bound to one selected worktree. If Serena is selected, use one worker per active worktree; first pilot one, concurrent-project acceptance two.
+- Source queries stay bound to one selected project root. If Serena is selected, use one fixed-root process per active project. Worktree-specific testing is outside the current scope by human instruction.
 - Assessment is read-only: no Planner turn, approval call, shell/edit/REPL tool or write-capable MCP credential.
 - Evidence bounds: 8 excerpts, 120 lines each, 64 KiB UTF-8 total, 10 semantic queries, 20 seconds retrieval deadline.
 - Recheck sharing and binding before emitting results after asynchronous work.
@@ -48,13 +48,13 @@ already work. Proposed new symbols/files below do not yet exist.
 - Delivery is not completion. Ambiguous writes are not automatically replayed.
 - Read contracts before code. Update the changed owner's contract and map in the same eventual code commit.
 - Existing owner specs must be amended in place before implementation changes their decisions.
-- No product source relocation/deletion, push, merge, deployment or ignored-secret reads are authorized. The human separately authorized documentation snapshot commits on new Shadows and shadows-backend branches on 2026-10-18.
+- NYLRA relocation was subsequently authorized first on 2026-10-18 through its transition manifest. This does not authorize behavior changes, source deletion, push, merge, deployment or ignored-secret reads.
 
 ## Review focus
 
 | Failure condition | Required behavior | Owning task |
 |---|---|---|
-| Same symbol name in two worktrees | Correct root or explicit ambiguity, never a guessed match | T2 |
+| Same symbol name in two projects | Correct root or explicit ambiguity, never a guessed match | T2 |
 | Root opt-out/revocation during an awaited query | No result emitted after the policy changes | T2/T3 |
 | Replayed Stop/terminal event after reconnect | No duplicate notification or extra model dispatch | T1/T5 |
 | Connection lost after a direction may have been accepted | Receipt lookup or unknown; no silent resend | T6 |
@@ -67,6 +67,11 @@ At planning time: `S = E:/Globalprojects/shadows` at `6c17249`;
 `B = E:/Globalprojects/shadows-backend` at `e4d178a`;
 `H = F:/projects_frok/hermes-agent-shallow` at `ccc695635094d7615373db267b77f894d978b1a0`.
 Recheck branch/status at execution time. These are evidence snapshots, not immutable workspaces.
+
+2026-10-18 relocation: active desktop source is now `S/apps/desktop`; all subsequent
+`N/apps/desktop` paths below resolve there. Active NYLRA documents are under
+`S/docs/aylul`, historical acceptance under `S/docs/evidence/nylra`. N is retained
+as source provenance, not an active implementation destination.
 
 Implementation belongs to each owning repository/side. Keep contracts beside new
 cohesive modules, not one contract per helper. Native-to-web changes need accepted
@@ -144,7 +149,7 @@ Keep existing hook and permission handling intact.
 `observationsAfter(after, limit): Observation[]`.
 Optional Core project/thread/operation/task references are explicit bindings.
 
-- [ ] RED: tests `project_root_survives_nested_cwd`, `two_worktrees_are_distinct`, `unknown_root_requires_selection`, `same_source_id_on_two_devices_does_not_collide`.
+- [ ] RED: tests `project_root_survives_nested_cwd`, `two_project_roots_are_distinct`, `unknown_root_requires_selection`, `same_source_id_on_two_devices_does_not_collide`.
 - [ ] RED: `replay_does_not_notify_twice`, `new_turn_with_same_text_is_not_discarded`, `stop_is_not_automatically_blocked`, `observation_cursor_survives_reopen`.
 - [ ] Implement the smallest persistent observation journal in the existing SQLite owner. Use source event identity when available; otherwise document limited source deduplication and dedupe attention by known turn/state, not text alone.
 - [ ] Keep `lastMessage` as a 2,000-character preview. Add an opaque message reference/digest plus explicit truncation; no arbitrary transcript path in cloud requests.
@@ -288,7 +293,7 @@ window on explicit user request only; it does not inherit AYLUL's privileged IPC
 
 - [ ] Exercise external Claude interruption -> selected root -> contract/symbol evidence -> Hermes explanation -> user direction -> actual target continuation. Run the same journey for a Core-managed session.
 - [ ] Exercise Codex using the transport that passed T0; record separately any existing-Desktop/CLI attachment limits. Failure is not a pass for the broader requirement.
-- [ ] Repeat through restart/reconnect, an opted-out root, missing language server, busy target, duplicate command, same-named symbols and two worktrees. Use synthetic content until disclosure/lifecycle gates are satisfied.
+- [ ] Repeat through restart/reconnect, an opted-out root, missing language server, busy target, duplicate command, same-named symbols and two project roots. Worktree-specific behavior is deferred. Use synthetic content until disclosure/lifecycle gates are satisfied.
 - [ ] Compare five fixed explanation questions with the same model/settings: bounded map/contract/text retrieval versus the selected semantic backend. Record input/output tokens, tool result bytes, cold/warm latency, source correctness and whether a Planner call occurred. No savings claim from a single attractive example.
 - [ ] Report the five-question result as a pilot sample, including failures and setup cost; do not generalize it into a guaranteed saving for all projects/models.
 - [ ] Run focused checks during tasks. Once per finished branch, run the repository's final gates. For Core: fmt, both required Clippy modes, workspace tests, no production test-support features and canonical API freshness. For web/native: existing required build/lint/type/test gates plus physical Windows use. Hermes/Serena upstream tests are not replaced by these client checks.

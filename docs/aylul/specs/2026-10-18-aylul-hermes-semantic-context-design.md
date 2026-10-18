@@ -2,7 +2,8 @@
 
 Date: 2026-10-18.
 Status: **Runtime/authority boundaries agreed in conversation. Integration details
-remain a draft for review; product implementation and repository migration have not started.**
+remain a draft for review; integration implementation has not started. NYLRA
+tracked-source relocation began on 2026-10-18 under its transition manifest.**
 
 Document size review (over 300 lines): this file's single responsibility is the
 interruption-to-direction design. Its evidence, operating modes and acceptance

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-aylul-call"
+description = "Enables the aylul_call command without any pre-configured scope."
+commands.allow = ["aylul_call"]
+
+[[permission]]
+identifier = "deny-aylul-call"
+description = "Denies the aylul_call command without any pre-configured scope."
+commands.deny = ["aylul_call"]

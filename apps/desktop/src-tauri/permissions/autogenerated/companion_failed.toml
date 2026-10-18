@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-companion-failed"
+description = "Enables the companion_failed command without any pre-configured scope."
+commands.allow = ["companion_failed"]
+
+[[permission]]
+identifier = "deny-companion-failed"
+description = "Denies the companion_failed command without any pre-configured scope."
+commands.deny = ["companion_failed"]

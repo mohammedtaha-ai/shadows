@@ -1,0 +1,59 @@
+name: windows-native-login-primitives
+version: 1
+status: current
+source: apps/desktop/src-tauri/src/native_login
+responsibility: >
+  Own IPv4 loopback return capture, client S256 verifier, reviewed-origin system
+  browser launch and Windows user-scoped DPAPI persistence. No HTTP backend adapter,
+  account rules, token validation or network authentication is implemented.
+public_api:
+  ReturnBinding::new: Bind 127.0.0.1 on an OS-assigned port and generate 32 random bytes with BCryptGenRandom.
+  ReturnBinding::challenge: Return unpadded base64url SHA-256 of the local verifier.
+  ReturnBinding::wait_cancellable: Consume one structurally valid local callback, stop on deadline/cancellation and close the listener on return.
+  NativeReturn::verifier: Native-only verifier access for the auth module's return redemption; never registered in IPC.
+  open_system_browser: Reject non-HTTPS, foreign-origin, credentialed or fragmented URLs before ShellExecuteW.
+  save_session: DPAPI-encrypt opaque bytes before a random create-new sibling file and write-through replacement.
+  load_session: Return protected material or absence; never establish authenticated identity. The auth module validates a stored handle with the backend before the shell shows an account.
+  clear_session: Remove local persisted material, idempotently when absent; no remote revocation.
+external_types:
+  - url::Url
+  - windows_sys::Win32::Security::Cryptography::CRYPT_INTEGER_BLOB
+obligations:
+  - rule: A foreign Host header cannot consume the legitimate callback listener.
+    tested_by: loopback_ignores_foreign_host_and_returns_one_owned_callback
+  - rule: Cancellation drops the native listener.
+    tested_by: cancellation_closes_native_listener
+  - rule: Verifier entropy is client generated and challenge uses S256.
+    tested_by: client_binding_is_random_and_s256
+  - rule: DPAPI ciphertext persists across a fresh process, and local logout removes it.
+    tested_by: 'integration: apps/desktop/tests/native-fixture.ps1'
+    note: Synthetic opaque bytes only; this is not backend authentication or provider logout.
+  - rule: Corrupted ciphertext must not become a session handle.
+    tested_by: protected_store_replaces_material_and_refuses_corruption
+gaps:
+  - at: ReturnBinding::wait_cancellable
+    gap: >
+      Any structurally valid local GET may consume the listener. This is not proof
+      of ticket authenticity: the auth module checks the query shape and the backend's
+      redemption decides; a refused or ambiguous redemption fails the login.
+  - at: NativeReturn
+    gap: Native material has no explicit memory zeroization. It is neither logged nor serialized but remains in process memory for its lifetime.
+open_questions:
+  - The auth module now consumes backend auth-v1 1.1.0; browser UI acceptance and production issuer configuration retain their own closing triggers.
+tests:
+  - name: client_binding_is_random_and_s256
+    checks: Two 43-character verifiers differ; challenge matches SHA-256; URI is fixed-path IPv4 loopback with a nonzero port.
+  - name: loopback_ignores_foreign_host_and_returns_one_owned_callback
+    checks: Real TCP peer sees 400 for foreign Host, then 200 for owned Host; raw fixture query returned and listener closed.
+  - name: cancellation_closes_native_listener
+    checks: Pre-cancel returns Interrupted and the bound port refuses subsequent connect.
+  - name: callback_rejects_wrong_method_path_fragment_and_duplicate_host
+    checks: Four malformed callback headers are refused by the native structural parser.
+  - name: dpapi_roundtrip_and_tamper_refusal
+    checks: Ciphertext excludes fixture plaintext, decrypts correctly and fails after byte mutation.
+  - name: restart_load_then_local_logout_clears_material
+    checks: Local save/load/clear and repeated clear; does not simulate process restart.
+  - name: protected_store_replaces_material_and_refuses_corruption
+    checks: A second protected handle replaces the first; corrupted file fails load.
+  - name: browser_refuses_unreviewed_or_unsafe_url_before_launch
+    checks: HTTP, foreign-origin, credentialed and fragmented URLs refuse before launching a browser.

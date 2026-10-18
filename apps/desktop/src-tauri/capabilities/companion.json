@@ -1,0 +1,1 @@
+{"identifier":"companion","description":"Local companion only; no account actions.","windows":["companion"],"permissions":["companion-actions","core:event:allow-listen","core:event:allow-unlisten"]}

@@ -1,7 +1,8 @@
 # NYLRA Vision, Documentation and Acceptance Transition Plan
 
-Date: 2026-10-18. Status: documentation/migration plan; no file relocation,
-source deletion or product migration has been executed.
+Date: 2026-10-18. Status: tracked-source/document import executed in the current
+Shadows branch; local checks and scoped native acceptance recorded. Original checkout/history and
+ignored art remain intact. No source deletion or runtime retirement.
 
 **Goal:** Carry the existing NYLRA product, evidence and independently owned AYLUL
 character into the agreed runtime architecture without losing verified behavior
@@ -19,18 +20,28 @@ Documentation routing was clarified on 2026-10-18: `docs/backend` and
 `docs/frontend` remain Core-specific. New integration drafts are filed under
 `docs/aylul`, independent service work under `docs/code-intelligence`, and
 cross-runtime agreements are routed by `docs/integration`. See `docs/README.md`.
-Only the task-authored new drafts were relocated during documentation cleanup;
-NYLRA's existing historical/source/document trees have not been moved.
+The task-authored integration drafts were relocated first. The human subsequently
+requested moving NYLRA before independent code-service work. The exact import is
+recorded in the [relocation manifest](../../evidence/aylul/2026-10-18-nylra-relocation-manifest.json).
 
 The human stopped continuation of the former backend-compatible NYLRA client
 path. Preserve everything already completed; unfinished old relay/consumer work
 is not completed merely to satisfy its superseded roadmap. The backend is being
 saved as a documentation snapshot on a new branch, with no further implementation.
 
-The runtime boundaries and AYLUL-first experience are agreed. A repository
-consolidation remains a later operation with an exact source/destination manifest.
-Do not move a whole folder merely because the sketch places it under one root.
-Current source maps continue describing current files until the move occurs.
+The reviewed tracked files now use these canonical destinations: desktop source,
+contracts/tests/lockfiles at `apps/desktop/`; vision and source map at
+`docs/aylul/{vision.md,source-structure.md,codebase/}`; separate character/native/UI
+owners at `docs/aylul/{character,native,ui}/`; accepted internal requests at
+`docs/aylul/shared/`; active delivery/hook specs at `docs/aylul/specs/`; prior
+top-level sequencing at `docs/aylul/history/plans/`; byte-identical dated reports
+at `docs/evidence/nylra/`. Root build/agent guidance and CI are adapted explicitly.
+
+The manifest covers all 237 source-tracked files: 225 imported and 12 retained at
+origin (nine agent launcher definitions, local MCP configuration, root Git ignore
+and attributes policy). No ignored dependencies, credentials, data or art were
+copied. Keep the source checkout/history until native acceptance and separately
+accounted art/data permit retirement; new development belongs to Shadows.
 
 Use one action per item: **retain**, **amend in place**, **move unchanged**,
 **supersede/archive**, or **delete after review**. An item being superseded does
@@ -39,7 +50,9 @@ not mean its evidence or tested implementation is invalid.
 ## 2. Initial disposition ledger
 
 Paths below start in `E:/Globalprojects/nylra`; S means the Shadows repository.
-Destinations are a concrete consolidation proposal to review, not existing paths.
+The table records the initial proposal. The per-file manifest above is the
+executed source/destination authority; its exclusions and current hashes take
+precedence over this family-level starting ledger.
 
 | Current owner/family | Action now | Proposed action if consolidation is approved |
 |---|---|---|
@@ -133,39 +146,56 @@ or real cloud-provider acceptance. Historical ignored tests do not become passes
 
 ### M-0 - Inventory and reference audit
 
-- [ ] Expand the initial 143-file inventory with remaining selected tracked docs,
+- [x] Expand the initial 143-file inventory with remaining selected tracked docs,
   build metadata, test entry points and explicit ignored-art/evidence needs.
-- [ ] Map each active design section to one current owner; flag conflicts with
+- [x] Map each active design section to one current owner; flag conflicts with
   the updated vision instead of copying both versions into the new tree.
-- [ ] Record broken/cross-repository links and relative runtime/build paths before movement.
+- [x] Record broken/cross-repository links and relative runtime/build paths before movement.
 
 ### M-1 - Amend vision and existing owners
 
-- [ ] Review the dated changes in Vision/delivery/cloud architecture and ensure
+- [x] Review the dated changes in Vision/delivery/cloud architecture and ensure
   the old custom-brain placement is not still presented as the selected active path.
-- [ ] Keep implemented code maps factual, completed stages historical and new
+- [x] Keep implemented code maps factual, completed stages historical and new
   task readiness explicit. Do not erase completed work because ordering changed.
-- [ ] Confirm that character/native appearance owners remain authoritative.
+- [x] Confirm that character/native appearance owners remain authoritative.
 
 ### M-2 - Relocate one owner at a time after destination approval
 
-- [ ] Produce exact absolute source/destination paths and verify destinations stay
+- [x] Produce exact absolute source/destination paths and verify destinations stay
   inside the approved target checkout before recursive moves.
-- [ ] Preserve Git provenance; never reset the source checkout or overwrite
+- [x] Preserve Git provenance; never reset the source checkout or overwrite
   unrelated destination files. Do not copy ignored credential/dependency stores.
-- [ ] Move source with its contract/tests and update maps/imports/build roots.
+- [x] Move source with its contract/tests and update maps/imports/build roots.
   Relocate docs through the manifest; one canonical owner plus redirects, not two copies.
-- [ ] Verify unchanged-file hashes against the inventory. Every hash difference
+- [x] Verify unchanged-file hashes against the inventory. Every hash difference
   must be classified as a reviewed path edit or a separately authorized behavior change.
 
 ### M-3 - Revalidate and retire replaced decisions
 
-- [ ] Run path/contract/build checks and the affected existing suites first.
+- [x] Run path/contract/build checks and the affected existing suites first.
   Repeat real Windows/agent journeys where native/process boundaries moved.
-- [ ] Write new dated evidence with environment, versions, outcomes and remaining gaps.
-- [ ] Check the current vision and entrypoint docs for competing decision owners.
+- [x] Write new dated evidence with environment, versions, outcomes and remaining gaps.
+- [x] Check the current vision and entrypoint docs for competing decision owners.
   Remove only explicitly reviewed obsolete material, retaining provenance/redirects.
 - [ ] Retire a former repository/runtime only after the new location has passed
   its required acceptance and retained data/artifacts are accounted for.
 
-No move, deletion, new test pass or visual redesign is claimed by this plan.
+This relocation changes source/document location and routing, not behavior or
+visual design. No Hermes, code-service or agent-control integration is claimed.
+
+## 7. Relocation acceptance checkpoint
+
+See [dated relocation evidence](../../evidence/aylul/2026-10-18-nylra-relocation.md)
+for actual commands, 142 passing selected automated cases, the ignored Docker-auth
+case, initial browser failures and scoped native results. The native debug app
+started from the new path, retained independent companion/window authority and
+removed its isolated sidecar endpoint after tray quit. The foreground witness
+precondition failed in the focus trial; no post-move no-focus-steal claim is made.
+Historical DPI/performance/agent/account limits remain open.
+
+The source repository is retained, with README/agent entrypoints marked as a
+preserved snapshot. Ignored artwork/data and nine launcher definitions remain
+there. M-3's retirement/decision-removal items stay unchecked deliberately: this
+import does not delete a working runtime, migrate personal stores or activate the
+superseded cloud-relay roadmap. The next feature work uses the new AYLUL location.

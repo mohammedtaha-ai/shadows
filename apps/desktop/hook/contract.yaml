@@ -1,0 +1,26 @@
+name: aylul-hook
+version: 1
+status: current
+source: apps/desktop/hook
+responsibility: Carry one Claude Code hook event to AYLUL's sidecar and print its answer.
+public_api:
+  run: Parse the event, take the endpoint, exchange one line each way within the event's deadline; None on any failure.
+  run_within: run with an explicit deadline (tests).
+  exchange: Write {"v":1,"token","project_dir"?,"event"} and a newline; read one line; return its object `output`.
+  connect_retrying: Retry opening while the pipe is busy (231); any other error returns at once.
+  deadline: 590 s PermissionRequest, 125 s PermissionDenied, 3 s otherwise.
+  read_endpoint: Read {"pipe","token"} from hook.json; None when missing or malformed.
+obligations:
+  - rule: No endpoint, malformed input, a connect error or an empty reply print nothing.
+    tested_by: no_endpoint_gives_no_output, malformed_input_gives_no_output, connect_error_gives_no_output, empty_reply_gives_no_output
+  - rule: A stalled sidecar is cut at the deadline.
+    tested_by: stalled_sidecar_is_cut_at_the_deadline
+  - rule: The request carries version, token, CLAUDE_PROJECT_DIR when set, and the event unchanged.
+    tested_by: request_carries_version_token_and_event, no_project_dir_is_left_out
+  - rule: A busy pipe is retried; other connect errors are not.
+    tested_by: a_busy_pipe_is_retried_and_other_errors_are_not, busy_code_is_231_and_a_forever_busy_pipe_is_tried_exactly_three_times
+  - rule: The real executable round-trips with the sidecar's pipe server.
+    tested_by: 'integration: apps/desktop/sidecar/src/hooks/roundtrip.test.ts'
+gaps:
+  - at: main
+    gap: The process exits 0 on every path, including a panic (silent hook, caught) and a closed stdout (write error ignored); a failure is visible only as no output. Exit 0 is checked manually on the release binary; no automated test covers it.

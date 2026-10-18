@@ -27,3 +27,11 @@ sandbox/persistence-delta/results/
 
 # Browser-check screenshots and traces; evidence that matters is copied into docs/evidence/.
 /output/
+
+# AYLUL's independently built desktop application and local execution records.
+**/node_modules/
+/apps/desktop/dist/
+/apps/desktop/tests/.runs/
+/apps/desktop/test-results/
+/apps/desktop/playwright-report/
+/.superpowers/

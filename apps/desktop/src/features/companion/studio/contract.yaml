@@ -1,0 +1,31 @@
+name: companion-development-studio
+version: 1
+status: current
+source: apps/desktop/src/features/companion/studio
+responsibility: Review character variants and simulate outcomes locally using the shared renderer; no native or project execution authority.
+exports:
+  - name: CompanionStudio
+    file: apps/desktop/src/features/companion/studio/CompanionStudio.tsx
+  - name: createSimulation
+    file: apps/desktop/src/features/companion/studio/simulation.ts
+  - name: exportCharacterPNG
+    file: apps/desktop/src/features/companion/studio/export.ts
+obligations:
+  - rule: Export combines the frozen motion pose with current expression outfit and direction even if the stage cannot draw.
+    tested_by: apps/desktop/tests/companion/studio.spec.ts
+    test: offscreen export uses the latest expression outfit and direction
+  - rule: Mock window stays inside the stage after initial narrow layout and resizing.
+    tested_by: apps/desktop/tests/companion/studio.spec.ts
+    test: mock window reclamps on narrow stage and resize
+  - rule: Manual identical-expression selection invalidates notification callbacks.
+    tested_by: apps/desktop/tests/companion/studio.spec.ts
+    test: manual same-expression selection cancels notification
+  - rule: A replacement simulation cannot overwrite main presence.
+    tested_by: apps/desktop/tests/companion/studio.spec.ts
+    test: new run supersedes old run and studio cannot change main presence
+  - rule: Export failures are visible rather than a false successful download.
+    tested_by: apps/desktop/tests/companion/studio.spec.ts
+    test: export failure shows error
+gaps:
+  - at: downloadCharacterPNG
+    gap: Chromium download evidence does not establish native WebView2 download behavior.

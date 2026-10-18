@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-drag-companion"
+description = "Enables the drag_companion command without any pre-configured scope."
+commands.allow = ["drag_companion"]
+
+[[permission]]
+identifier = "deny-drag-companion"
+description = "Denies the drag_companion command without any pre-configured scope."
+commands.deny = ["drag_companion"]

@@ -1,0 +1,18 @@
+{
+  "name": "aylul-sidecar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.15.0"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test --test-concurrency=1 \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2"
+  }
+}

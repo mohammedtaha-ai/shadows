@@ -1,0 +1,36 @@
+name: sidecar-agent-settings
+version: 1
+status: current
+source: apps/desktop/sidecar/src/agents
+responsibility: Propose narrow permission rules and change Claude Code settings files safely.
+public_api:
+  proposeRule: Exact Bash or PowerShell command, Edit/Read path anchored at the project root (/path), WebFetch host, or one MCP tool; null otherwise.
+  isNarrowRule: Accept only the shapes proposeRule makes; any *, ?, [ ], unanchored or directory path, ~ or // path is refused.
+  planEdit: Parse the file (missing or whitespace means {}), apply a change to a copy; settings_invalid for non-object JSON.
+  planAllowRule: Refuse non-narrow rules with rule_not_narrow; otherwise append the rule to permissions.allow once.
+  fingerprint: sha-256 of the file text a preview showed.
+  expectBefore: settings_changed unless the file still matches the previewed fingerprint.
+  writePlan: settings_changed if the file differs from the plan; timestamped backup; write temp then rename, retrying a locked file.
+  diffLines: Changed lines with + and - prefixes.
+  planHookInstall: Replace entries whose command ends in aylul-hook.exe with one exec-form entry per HOOK_EVENTS; keep all other hooks and settings.
+  hooksInstalled: Every HOOK_EVENTS event has an entry with exactly this executable.
+obligations:
+  - rule: Multi-line, parenthesised, wildcard, pattern-character, outside-project and other-drive calls get no proposal.
+    tested_by: a command with a newline, a closing parenthesis or a * proposes nothing, a file outside the project, on another drive, or with a pattern character proposes nothing
+  - rule: Only exact rules are accepted, and every proposal is one.
+    tested_by: only exact rules are accepted, every proposed rule is accepted as narrow
+  - rule: A broad rule cannot enter a settings plan even if a caller skips presentation validation.
+    tested_by: a broad rule is refused before any settings file is written
+  - rule: Invalid settings are never written; existing keys survive; a backup precedes the write.
+    tested_by: invalid JSON or a wrong shape is refused and the file is untouched, existing settings are kept, a backup is written, and the diff shows the rule
+  - rule: A file changed after the preview is not overwritten.
+    tested_by: a file changed after the preview is not overwritten, approving against a preview of a file that changed since is refused
+  - rule: The person's own hooks survive; AYLUL's entry appears once per event after repeated installs.
+    tested_by: "the person's own hooks and settings are kept; AYLUL's are replaced, not repeated"
+  - rule: Entries use exec form, async PostToolUse, 600 s PermissionRequest and 130 s PermissionDenied.
+    tested_by: every event gets one exec-form entry with its options
+gaps:
+  - at: proposeRule
+    gap: Whether Claude Code's Bash rule matches a compound command (a && b) as typed is not checked here.
+  - at: writePlan
+    gap: The retry on a locked file (EPERM, EACCES, EBUSY) is not exercised by a test.
