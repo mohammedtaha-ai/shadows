@@ -193,16 +193,34 @@ for this change. `web/src/api/client.ts` is unchanged at 549 lines.
   remains local. Task 4 adds no dependency.
 - The unrelated external edit in `CLAUDE.md` is preserved unstaged/uncommitted.
 
-## Controller-owned live acceptance - NOT RUN
+## Controller live acceptance (browser journey, 2026-10-19)
 
-1. **NOT RUN:** add `API_KEY` in Settings, move the import source away,
-   restart the daemon and obtain an AYLUL reply on a database copy.
-2. **NOT RUN:** byte-search that live database, WAL and SHM for the submitted value.
-3. **NOT RUN:** replace it and confirm a new live conversation uses the replacement.
-4. **NOT RUN:** remove it without a daemon fallback and observe
-   `AYLUL_KEY_MISSING` naming `API_KEY`.
+Run by the controller (Claude) at commit `ca2de6c`, debug `shadows.exe serve`
+on port 4318, the web client on 5173. It ran on a copy of the dev database
+(`shadows.sqlite3` with its `-wal` and `-shm`), with a test `aylul.json` whose
+`env_file` named a copy of the git-ignored `.env`. The real `.env`, the real
+database and `C:\Users\Mohammed\.claude` were not changed.
 
-Automated synthetic database/adapter checks cover corresponding boundaries, but
-do not substitute for this browser/keyring journey. No real `.env` file,
-`C:\Users\Mohammed\.claude` or user Claude state was accessed. No push, PR,
-merge, branch switch or production action was performed.
+1. **PASS: import, then a reply with no env file.** The first start logged
+   `secrets.imported stored=1 skipped=[]` and created the Credential Manager
+   entry `secrets-master-key.shadows` (shown by `cmdkey /list`, name only).
+   Settings listed `API_KEY` with its `updated_at` and no value. The env-file
+   copy was then deleted and the daemon restarted. The second start logged no
+   import, because the marker held. In a new AYLUL conversation, MiniMax-M3
+   replied in Arabic ("Asked for MiniMax-M3 · answered by MiniMax-M3").
+2. **PASS: no plaintext.** The key value (126 bytes) was searched for as fixed
+   bytes. Hits: `shadows.sqlite3` 0, `-wal` 0, `-shm` 0, daemon logs 0, profile
+   home (`%LOCALAPPDATA%\aylul`) 0. Only the counts were printed.
+3. **PASS: a replaced value reaches a new conversation without restart.**
+   "Replace" saved a fake test value from Settings. The next new AYLUL
+   conversation's transcript in the profile home shows MiniMax answering
+   `401 authentication_error` seven times, so the new adapter used the
+   replaced value.
+4. **PASS: a removed key is named.** After "Remove", the list was empty. A new
+   AYLUL conversation showed `AYLUL_KEY_MISSING` "AYLUL key is missing:
+   API_KEY", with a Retry button and no adapter spawned.
+
+**Found, not fixed (follow-up):** with a wrong key, the turn shows "Thinking"
+for over a minute while Claude Code retries the 401 internally. The person
+sees no error until the retries end. Whether other provider errors behave the
+same was not checked.
