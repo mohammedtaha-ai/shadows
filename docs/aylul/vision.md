@@ -13,6 +13,13 @@ desktop/mobile connection paths replace the earlier alternative deployments.
 
 ## Current direction (2026-10-19)
 
+Later 2026-10-19 direction: the human selected one product daemon hosting optional
+Shadows planning and an independently available assistant. Hermes connection code
+stays TypeScript. The [product-daemon design](../integration/2026-10-19-product-daemon-hermes-design.md)
+defines the proposed local/server boundary and remains pending written review.
+Account services remain in shadows-backend. The backend-only chat placement below
+describes current implementation; local daemon chat has not been implemented.
+
 The human's next product direction is a workspace for creating and configuring
 multiple assistant bots, with AYLUL as a monitoring-role bot. Conversations,
 bot-specific provider/model choices and settings are the next UI priority before

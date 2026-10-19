@@ -12,6 +12,14 @@ competing design document. Detailed execution steps live in the linked plan.
 
 ## 1. Intent
 
+2026-10-19 product-host amendment: the human selected local or server deployment
+of a product daemon, with Shadows planning as one capability and AYLUL available
+independently. The [product-daemon design](../../integration/2026-10-19-product-daemon-hermes-design.md)
+owns the proposed host and TypeScript Hermes extraction. Its written review is
+pending. The current account-backed chat remains implemented; the backend-only
+placement below records the earlier delivery, not a requirement for future local
+chat. The existing planning `AppCore` retains its domain scope.
+
 2026-10-19 UI direction amendment: AYLUL's monitoring role will be one bot in
 the proposed multi-bot desktop workspace. The
 [workspace UI owner](../ui/specs/2026-10-19-agent-workspace-design.md) owns bot/chat

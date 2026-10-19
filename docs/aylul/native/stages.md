@@ -5,6 +5,12 @@ their task here and set its status. Task shape: [`AGENTS.md`](AGENTS.md#a-task-i
 
 ## Now
 
+2026-10-19 next direction: the human requested moving the TypeScript Hermes
+connection behind a Rust product daemon while retaining the account backend.
+The [written design](../../integration/2026-10-19-product-daemon-hermes-design.md)
+is pending review. No implementation task is started by that design commit;
+the current account path and its acceptance below remain intact.
+
 2026-10-18 direction change: preserve the completed companion/hook work below.
 Do not continue the former shadows-backend-compatible relay/client roadmap.
 AYLUL's new Hermes/Core/independent-service direction is documented in the

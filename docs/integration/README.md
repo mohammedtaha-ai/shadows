@@ -4,8 +4,14 @@ This area routes agreements between AYLUL, code intelligence, Core and the remot
 brain. Each operation/data format retains one implementation/contract owner.
 An integration document links those owners rather than defining their APIs twice.
 
+2026-10-19 direction: the human selected a product daemon with optional planning
+and an independently available Hermes-backed assistant. The
+[product-daemon design](2026-10-19-product-daemon-hermes-design.md) is pending
+written review; no source move or routing cutover has occurred. It proposes
+keeping the Hermes client in TypeScript and cloud account services separate.
+
 Start with [runtime cores and endpoint disposition](2026-10-18-runtime-endpoints.md).
-NYLRA uses shadows-backend as one public entry; its private Hermes client uses
+The currently implemented NYLRA chat uses shadows-backend as one public entry; its private Hermes client uses
 the installed native API. Local Docker reuses Windows Hermes; server deployment
 changes that internal target. Core, AYLUL and code intelligence remain independent.
 
