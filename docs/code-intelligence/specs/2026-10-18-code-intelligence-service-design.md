@@ -4,9 +4,8 @@ Date: 2026-10-18.
 Status: Runtime independence agreed in conversation; wire/implementation design
 is proposed for review. No replacement product has been implemented.
 
-This file owns the standalone service boundary. The
-[AYLUL design](../../aylul/specs/2026-10-18-aylul-hermes-semantic-context-design.md) owns its use in
-the interruption/explanation journey. Existing Shadows section 15 continues to
+This file owns the standalone service boundary. AYLUL's use of it in the
+explanation journey belongs to AYLUL's later work-profile design. Existing Shadows section 15 continues to
 own the implemented `Code` service and `shadows-index`; this document does not
 silently replace them.
 

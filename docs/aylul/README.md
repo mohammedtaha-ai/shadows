@@ -1,54 +1,26 @@
 # AYLUL documentation
 
-AYLUL is the selected primary assistant experience. Opening the existing Shadows
-workspace on request and explaining direct coding-agent work are the integration
-direction; they are not implemented by source relocation. Its native/local runtime
-and remote Hermes brain do not become services inside Shadows `AppCore`.
+AYLUL is Mohammed's assistant: it stands between him and his agents (Claude,
+Codex, Gemini) and later handles personal tasks. Its desktop code lives in
+`apps/desktop/`.
 
-- [Current integration design](specs/2026-10-18-aylul-hermes-semantic-context-design.md)
-- [Local product daemon and TypeScript Hermes service](../integration/2026-10-19-product-daemon-hermes-design.md)
-- [Local/server assistant implementation](../integration/2026-10-19-product-daemon-hermes-plan.md)
-- [Proposed multi-bot workspace](ui/specs/2026-10-19-agent-workspace-design.md)
-- [Integration plan](plans/2026-10-18-aylul-hermes-semantic-context.md)
-- [Multiple application cores and endpoint routing](../integration/2026-10-18-runtime-endpoints.md)
-- [Normal-chat slice and remaining gates](native/plans/2026-10-18-aylul-local-runtime-hermes.md)
-- [Normal-chat verification](../evidence/aylul/2026-10-19-normal-chat.md)
-- [Vision/document/test transition](plans/2026-10-18-nylra-transition.md)
-- [Existing NYLRA vision](vision.md)
-- [Existing code map](codebase/README.md)
-- [Existing character design owner](character/AGENTS.md)
-- [Existing native owner](native/AGENTS.md)
-- [Existing desktop UI owner](ui/AGENTS.md)
+2026-10-19 direction: AYLUL's brain is Claude Code in its own home folder,
+run by Shadows core inside the same product daemon and database, shown in the
+Shadows web client. Hermes is no longer AYLUL's brain. Order of work: brain,
+work profile (watching agents through hooks), personal profile, voice; remote
+alerts later.
 
-On 2026-10-18 the tracked desktop, sidecar, hook, tests and contracts were imported
-to `apps/desktop/`. This is the active AYLUL development location. Its UI, native
-and character documentation now lives under `ui/`, `native/` and `character/`.
-Character appearance/renderer/studio ownership stays distinct from model
-orchestration, local command authority and the native window owner.
+- [Brain design](specs/2026-10-19-aylul-claude-code-brain-design.md): the active design.
+- [Isolated-home probe](../evidence/aylul/2026-10-19-claude-code-isolated-home.md): its measured facts.
+- [Vision](vision.md): the full product idea. Decides nothing.
+- [Laptop hook design](specs/2026-10-13-aylul-hook-laptop-design.md): what AYLUL learns from Claude Code on the laptop.
+- [Product daemon](../integration/2026-10-19-product-daemon-hermes-design.md): the host process.
+- [Code map](codebase/README.md): what each implemented desktop module owns.
+- Owners: [character](character/AGENTS.md), [native](native/AGENTS.md), [desktop UI](ui/AGENTS.md).
 
-The [file manifest](../evidence/aylul/2026-10-18-nylra-relocation-manifest.json)
-records original paths/hashes and retained items. The original NYLRA Git checkout
-and ignored art archive remain intact for provenance and recovery. Historical
-reports were carried byte-for-byte to `docs/evidence/nylra/`; they are not fresh
-acceptance. See the [desktop build instructions](../../apps/desktop/README.md).
-The [post-import acceptance](../evidence/aylul/2026-10-18-nylra-relocation.md)
-separates local tests, real native checks and remaining physical limits.
-
-The former backend-compatible relay/client continuation is not the active path
-after the human's 2026-10-18 direction change. Completed implementation, tests and
-dated acceptance remain valid for their recorded scope; unfinished old tasks are
-not continued just to complete the superseded roadmap.
-
-The selected replacement uses **our backend as the single account/assistant
-entry**. Hermes is internal to its deployment. Local Docker reuses the installed
-Windows Hermes; it does not install another copy. The old roadmap remains stopped,
-but the new [backend-owned Hermes slice](../../../shadows-backend/docs/backend/specs/2026-10-18-hermes-backed-assistant-design.md)
-is explicitly authorized preparation. Direct desktop-to-Hermes transport is not
-the chosen path. Core, local AYLUL, backend, code service and upstream Hermes keep
-their separate application composition/state owners.
-
-Normal account chat is implemented through native authenticated HTTP and backend
-snapshot polling. It uses the installed Hermes with configured MiniMax in an
-isolated chat home. A real two-message browser journey and separate native HTTP
-checks passed; physical Tauri chat remains user-run after execution review refused
-launch. See the linked evidence and desktop README for startup.
+Superseded documents (the Hermes brain, the NYLRA transition, the desktop
+workspace UI, older delivery plans) were deleted on 2026-10-19 and stay in Git
+history at `feat/agent-workspace` commit `226d0a3`. The workspace UI code
+(U-W1 to U-W4) is still in `apps/desktop/` until the Shadows web client
+replaces it. Dated evidence stays under `docs/evidence/aylul/` and
+`docs/evidence/nylra/`.

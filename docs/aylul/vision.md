@@ -4,58 +4,35 @@
 
 **Product:** A standalone AI companion and human-liaison platform that connects a person to complex multi-agent systems such as Shadows. AYLUL is its companion character.
 
-**Updated:** 2026-10-19. This file owns the full product vision. The agreed
-[shared architecture](../../../shadows-backend/docs/architecture.md) owns deployment,
-languages, connection paths, context sharing, and authority boundaries.
-The vision records intended capabilities, not implemented or verified software.
-Cloud NYLRA, selected-project linking, bounded current-work context, and the
-desktop/mobile connection paths replace the earlier alternative deployments.
+**Updated:** 2026-10-19. This file holds the full product idea. It records
+intended capabilities, not implemented software, and decides nothing: each
+decision lives in its owner design under `docs/aylul/`.
 
 ## Current direction (2026-10-19)
 
-Later 2026-10-19 direction: the human selected one product daemon hosting optional
-Shadows planning and an independently available assistant. Hermes connection code
-stays TypeScript. The [product-daemon design](../integration/2026-10-19-product-daemon-hermes-design.md)
-defines the local/server boundary. Initial local daemon chat is implemented;
-acceptance limits are recorded in its delivery evidence. Account services remain
-in shadows-backend. The backend-only chat placement below describes the earlier
-remote delivery, which is retained as an explicitly selected source.
+AYLUL is Mohammed's assistant. It stands between him and his agents (Claude,
+Codex, Gemini, and Shadows' planner and executors), explains their work in his
+language, carries his decisions back, and later handles personal tasks such as
+email and music. It must keep working when one agent's subscription runs out.
 
-The human's next product direction is a workspace for creating and configuring
-multiple assistant bots, with AYLUL as a monitoring-role bot. Conversations,
-bot-specific provider/model choices and settings are the next UI priority before
-the later work-context/control integrations. Each bot can have its own character
-configuration; the human selected one visible desktop character for the selected
-bot. The [workspace design proposal](ui/specs/2026-10-19-agent-workspace-design.md)
-owns the concrete experience and delivery boundaries; it is not implemented yet.
+- **Brain:** Claude Code in AYLUL's own home folder, with its own profiles,
+  provider and key, run by Shadows core inside the same product daemon and
+  database. Hermes is no longer the brain. Owner:
+  [brain design](specs/2026-10-19-aylul-claude-code-brain-design.md).
+- **Screen:** the Shadows web client and its settings, with AYLUL as its own
+  section. The character stays a separate native window.
+- **Where it works:** from its own home, never inside a project. It learns about
+  work through hooks and reads what it needs when asked.
+- **Order:** brain; work profile (watching agents, explaining, alerting);
+  personal profile (email, YouTube, preferences); voice. Remote alerts (for
+  example Telegram) later.
+- **Shadows flow it serves later:** the planner hands tasks to executors; an
+  executor fixes what is inside its task and reports the rest to the planner;
+  the planner adjusts or escalates to Mohammed; when he is away, AYLUL relays
+  the question and his answer.
 
-AYLUL is the primary desktop experience. The existing Shadows workspace opens
-on request; its Core remains the owner of projects, plans and managed execution.
-AYLUL also explains work in directly used Claude/Codex sessions without requiring
-a Shadows plan. Agent identity, project context and actual supported controls
-come from their owners, not from a model guessing which executor is involved.
-
-For remote account delivery, reuse Hermes behind our account backend as AYLUL's remote brain rather
-than expanding a second custom local/cloud agent loop. Keep the tested local
-hook, sidecar, native shell and their evidence. An independent code-intelligence
-package supplies semantic project queries to AYLUL, Core and direct coding clients;
-it runs without either application. Its implementation is selected after the
-Serena learning baseline, not assumed complete.
-
-Remote NYLRA uses one backend origin for login and assistant services. Locally Docker
-reuses the already installed Windows Hermes; on the server Hermes is an internal
-service of the same deployment. The client does not connect to Hermes directly.
-
-The character/avatar remains an independently designed, optional presence with
-its own renderer, motion, studio and native-window owners. Text conversation and
-work monitoring remain usable if the character is hidden or unavailable.
-
-This updates runtime allocation and delivery priority, not the full future
-capability inventory below. Earlier local/cloud-brain placement prose is subject
-to the amended delivery/architecture owners. Existing backend data/code and dated
-acceptance reports are not deleted or reclassified by a vision change. The
-[transition plan](plans/2026-10-18-nylra-transition.md)
-tracks document/source movement, replaced decisions and retained acceptance.
+The sections below are the original long-form vision. Where they name Hermes,
+a cloud brain, or a separate NYLRA backend, the direction above replaces them.
 
 ---
 

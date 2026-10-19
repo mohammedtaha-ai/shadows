@@ -1,10 +1,14 @@
 # Product daemon: TypeScript Hermes service
 
 Date: 2026-10-19.
-Status: The human authorized execution on 2026-10-19 after confirming local/server
-selection. Initial local implementation exists; final review and acceptance are
-recorded in the [implementation plan](2026-10-19-product-daemon-hermes-plan.md).
-Remote account chat is retained; backend-to-daemon deployment is a later adapter.
+Status: Implemented locally on 2026-10-19 ([evidence](../evidence/aylul/2026-10-19-product-daemon-hermes.md);
+the plan was deleted later that day, Git `226d0a3`).
+
+2026-10-19 amendment: the daemon stays AYLUL's host, but AYLUL's brain is now
+Claude Code run by Shadows core inside this daemon, owned by the
+[brain design](../aylul/specs/2026-10-19-aylul-claude-code-brain-design.md).
+The Hermes service and TypeScript client below stay in the code, unused by
+default; the sections about them describe existing code, not the direction.
 
 ## 1. Approved intent
 
@@ -14,9 +18,7 @@ same daemon program can run locally or on a server. A local assistant must not
 require the account backend or a running Planner. Keep Hermes integration in
 TypeScript: this is an extraction and lifecycle change, not a Rust rewrite.
 
-This file owns the proposed product host and Hermes extraction boundary. The
-[context integration design](../aylul/specs/2026-10-18-aylul-hermes-semantic-context-design.md)
-continues to own explanation/context/control. The
+This file owns the product host and the Hermes extraction boundary. The
 [backend assistant design](../../../shadows-backend/docs/backend/specs/2026-10-18-hermes-backed-assistant-design.md)
 owns the currently implemented account API and its PostgreSQL authority. Existing
 source contracts remain descriptions of existing code until implementation.

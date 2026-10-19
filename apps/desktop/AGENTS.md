@@ -5,8 +5,7 @@ It is independent of Shadows `AppCore` and of the root Cargo workspace.
 Commands documented for `apps/desktop/` assume the Shadows repository root.
 
 Read [AYLUL](../../docs/aylul/README.md),
-[vision](../../docs/aylul/vision.md),
-[source structure](../../docs/aylul/source-structure.md) and
+[vision](../../docs/aylul/vision.md) and
 [inspected code map](../../docs/aylul/codebase/README.md) before source edits.
 Read the colocated contract before changing a module. Update its contract and
 code-map row in the same change when its public behavior or ownership changes.

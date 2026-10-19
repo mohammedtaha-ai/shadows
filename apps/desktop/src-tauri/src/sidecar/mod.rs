@@ -135,7 +135,7 @@ impl SidecarState {
     }
 }
 
-/// Development locations; the installed app's are OPEN in source-structure.md.
+/// Development locations; the installed app's locations are not decided yet.
 pub fn start_default() -> SidecarState {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     let node = std::env::var_os("AYLUL_NODE")

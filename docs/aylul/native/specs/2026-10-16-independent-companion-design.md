@@ -18,7 +18,7 @@ application when restored passively, and stops animation work when hidden.
 The main account panel remains usable if the character fails.
 
 This extends the existing two-surface direction in the
-[delivery design](../../specs/2026-10-10-nylra-delivery-design.md#4-windows-architecture-and-interaction).
+delivery design (deleted 2026-10-19; Git `226d0a3`).
 The [in-window specification](../../character/specs/2026-10-16-aylul-in-window-design.md)
 still owns the extracted artwork and studio. This specification supersedes its
 exclusion of a floating surface only for this newly authorized integration.

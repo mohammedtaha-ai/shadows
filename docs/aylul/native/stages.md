@@ -5,57 +5,19 @@ their task here and set its status. Task shape: [`AGENTS.md`](AGENTS.md#a-task-i
 
 ## Now
 
-2026-10-19 next direction: the human requested moving the TypeScript Hermes
-connection behind a Rust product daemon while retaining the account backend.
-The [design](../../integration/2026-10-19-product-daemon-hermes-design.md) and
-[plan](../../integration/2026-10-19-product-daemon-hermes-plan.md) now have human
-execution authorization. Transport extraction, local persistence, daemon hosting
-and native source selection are implemented. One fresh review plus its targeted
-fix round is complete. The account path and its acceptance below remain intact.
-The [runtime handoff](../../integration/2026-10-19-local-assistant-handoff.md)
-records local startup and explicit source selection.
+2026-10-19: AYLUL's brain moves to Claude Code run by Shadows core in the same
+product daemon ([brain design](../specs/2026-10-19-aylul-claude-code-brain-design.md)).
+Its plan and tasks come next. The Hermes work below is done and stays in the
+code; it is no longer the direction.
 
-### D-H1 · Product daemon local assistant
-- Status: done; local automated acceptance complete, physical GUI acceptance separate
-- Plan: docs/integration/2026-10-19-product-daemon-hermes-plan.md
-- Read: product-daemon design, local assistant and native assistant contracts.
-- Touch: exact files listed in that plan, including its reviewed recovery amendment.
-- Needs: portable TypeScript client, closed native source selection.
-- Done when: composed restart/recovery/stop journey, local authenticated readiness,
-  source isolation and retained remote account checks pass with explicit limits.
-
-Evidence: [2026-10-19 local daemon delivery](../../evidence/aylul/2026-10-19-product-daemon-hermes.md).
-Root Rust gate 534 passed/1 ignored, full Chromium 65/65, native library 34 passed/
-2 ignored, backend focused Docker 32/32. No provider call, physical GUI or server
-rollout is implied. Both runtime source selection and remote account checks remain
-separate from a future backend-to-daemon deployment adapter.
-
-2026-10-18 direction change: preserve the completed companion/hook work below.
-Do not continue the former shadows-backend-compatible relay/client roadmap.
-AYLUL's new Hermes/Core/independent-service direction is documented in the
-[transition plan](../plans/2026-10-18-nylra-transition.md).
-The [backend-client replacement plan](plans/2026-10-18-aylul-local-runtime-hermes.md)
-implements normal chat through NYLRA -> account backend -> private Hermes.
-The backend facade is committed at `02aca92`, generated wire 0.5.0. Native HTTP
-retains the protected account handle; no sidecar bearer handoff is introduced.
-
-### H-1 · Compose the local core with the backend client
-- Status: implemented and locally verified; physical desktop chat acceptance open
-- Plan: docs/aylul/native/plans/2026-10-18-aylul-local-runtime-hermes.md#h-1--compose-the-local-application-core-with-backend-status
-- Read: local/backend shared requests, current native/sidecar contracts and source map.
-- Touch: actual native mapping/auth/commands/permissions files in the amended H-1 plan.
-- Needs: accepted local request and backend-owned generated contract (both satisfied).
-- Done when: backend status and existing hooks coexist without a direct Hermes connection or secret projection.
-
-Checks and exact limits: [normal-chat evidence](../../evidence/aylul/2026-10-19-normal-chat.md).
-Automatic review refused physical application launch; a user-operated launcher is
-provided. Browser substitution plus native HTTP does not establish GUI acceptance.
+Done and kept: the product daemon with a local Hermes assistant (D-H1, evidence
+[2026-10-19 local daemon delivery](../../evidence/aylul/2026-10-19-product-daemon-hermes.md))
+and account-backend chat (H-1, evidence
+[normal chat](../../evidence/aylul/2026-10-19-normal-chat.md)). Their plans were
+deleted on 2026-10-19 and stay in Git at `226d0a3`.
 
 Independent companion specification approved by the user on 2026-10-16:
 [`2026-10-16-independent-companion-design.md`](specs/2026-10-16-independent-companion-design.md).
-The implementation plan is approved; inline execution began on 2026-10-16.
-Execution remains inline in
-the original checkout; no worktrees.
 
 ## Tasks
 
@@ -110,14 +72,9 @@ Implemented and locally verified 2026-10-17 in debug, per user instruction.
 See [current acceptance](../../evidence/nylra/2026-10-16-independent-companion-acceptance.md)
 for exact results and remaining optimized performance, hardware and hit-test gates.
 
-## Next discussion: desktop laptop relay
+## Hook merge
 
-The human requested collaborative planning on the same existing branch and
-one commit per completed, verified task. The inspected starting points and
-scope decisions are in the
-[planning brief](specs/2026-10-17-laptop-relay-planning-brief.md).
-The human subsequently requested merging their joint human/Claude hook work
-into this branch. That local integration is recorded in
+The joint human/Claude hook work is merged into this branch; see
 [merge evidence](../../evidence/nylra/2026-10-17-hook-companion-merge.md) and its
 [accepted shared request](../shared/requests/2026-10-17-hook-companion-merge.md).
-Cloud relay-consumer implementation tasks remain in planning, not started.
+The cloud relay direction was stopped on 2026-10-18.
