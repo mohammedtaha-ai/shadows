@@ -117,6 +117,11 @@ its limit, AYLUL keeps working on its own provider and key.
   (`CLAUDE.md`, `settings.json`). The key comes from a named environment
   variable of the daemon (for MiniMax, `MINIMAX_API_KEY`); configuration holds
   only that name. A UI to create profiles and enter keys is a later slice.
+- **Both commands that build the core run AYLUL** (amended 2026-10-19).
+  `shadows serve`, which Mohammed opens daily with the web client, takes the
+  section as `--aylul-config <file>`; `shadows daemon` takes it as the `aylul`
+  key of its planner configuration. Both read the same section shape and run
+  the same seeding and project setup. Without it, neither shows AYLUL.
 - **AYLUL's remembered model and effort are kept apart from the Planner's.**
   Choosing a model in AYLUL never changes the Planner's remembered defaults.
 - **The picker shows what the adapter offers.** The profile names the real
