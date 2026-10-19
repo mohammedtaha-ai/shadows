@@ -3,7 +3,10 @@
 Date: 2026-10-19. Status: design and interactive Chat-first mockup approved by the
 human, who requested task-by-task execution. The first written UI task breakdown
 is prepared for review before product implementation. The human selected one
-visible desktop character for the selected bot.
+visible desktop character for the selected bot. The approved mockup is kept in
+[`2026-10-19-agent-workspace-mockup/`](2026-10-19-agent-workspace-mockup/):
+`agent-workspace.html` (open it in a browser) and its screenshots. It is the
+visual reference for layout, spacing and theme; this text decides behaviour.
 
 ## 1. Intended result
 

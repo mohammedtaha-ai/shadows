@@ -46,7 +46,7 @@ Character design/renderer and native companion lifetime keep their separate owne
 ### U-W2 · Shared live conversation navigation
 - Status: todo
 - Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-2---put-real-conversations-in-the-workspace-sidebar
-- Read: Task 2 interfaces; workspace design §3 and §5; app/assistant/platform contracts.
+- Read: Task 2 interfaces; workspace design §3 and §5; docs/aylul/ui/specs/2026-10-19-agent-workspace-mockup/ (visual reference: agent-workspace-desktop.png, agent-workspace-settings.png); app/assistant/platform contracts.
 - Touch: apps/desktop/src/features/assistant/{useAssistantConversation.ts,ConversationSidebar.tsx,ConversationView.tsx,AssistantPage.tsx,assistant.css,contract.yaml}; apps/desktop/src/app/{main.tsx,WorkspaceShell.tsx,workspace.css,contract.yaml}; apps/desktop/tests/companion/{workspace-conversations.spec.ts,fixture.tsx}; apps/desktop/tests/{assistant-fixture.tsx,assistant-state.mjs}; docs/aylul/codebase/README.md; docs/aylul/ui/stages.md.
 - Needs: U-W1
 - Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace-conversations.spec.ts tests/companion/workspace.spec.ts` and `node tests/assistant-state.mjs` pass; task committed.
@@ -55,7 +55,7 @@ Character design/renderer and native companion lifetime keep their separate owne
 ### U-W3 · Scoped settings, bots list and assistant inspector
 - Status: todo
 - Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-3---expose-truthful-botsettings-surfaces
-- Read: Task 3; workspace design §3, §5 (OPEN - Effective model readback); character and app/assistant contracts; source settings inventory.
+- Read: Task 3; workspace design §3, §5 (OPEN - Effective model readback); docs/aylul/ui/specs/2026-10-19-agent-workspace-mockup/ (visual reference: agent-workspace-desktop.png, agent-workspace-settings.png); character and app/assistant contracts; source settings inventory.
 - Touch: apps/desktop/src/app/{SettingsPanel.tsx,main.tsx,WorkspaceShell.tsx,workspace.css,contract.yaml}; apps/desktop/src/features/assistant/{AssistantDetails.tsx,BotList.tsx,ConversationView.tsx,assistant.css,contract.yaml}; apps/desktop/tests/companion/{workspace.spec.ts,workspace-conversations.spec.ts,production.test.ts}; docs/aylul/codebase/README.md; docs/aylul/ui/stages.md.
 - Needs: U-W2
 - Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace.spec.ts tests/companion/workspace-conversations.spec.ts && npm run test:companion:production` passes; task committed.
