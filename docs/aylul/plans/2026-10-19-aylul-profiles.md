@@ -299,8 +299,8 @@ Amended after a Codex review of this plan on 2026-10-19.
 
 ### Task 4: Gate (once)
 
-- [ ] Run CI steps 1–6 from `CLAUDE.md`, the 100-column check and `web` gen:api/typecheck/lint/test/build. All must be green.
-- [ ] Report the test counts and each file that passed 300 lines, with its one job. Do not push.
+- [x] Run CI steps 1–6 from `CLAUDE.md`, the 100-column check and `web` gen:api/typecheck/lint/test/build. All must be green.
+- [x] Report the test counts and each file that passed 300 lines, with its one job. Do not push.
 
 The controller runs the browser journey (spec §11 acceptance 1–7) on a copy of
 the database and records it in `docs/evidence/aylul/`. Before that journey,
