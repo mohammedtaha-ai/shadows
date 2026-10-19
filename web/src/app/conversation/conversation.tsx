@@ -4,6 +4,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
+import { agentsQuery } from '@/api/aylul-profiles'
 import type { Plan, PlanTask, PlanningThread, Project, ThreadEntry } from '@/api/client'
 import { harnessesQuery, projectsQuery, threadQuery, threadsQuery } from '@/api/queries'
 import { type PlanShowFrame, type SubagentCard, toLimits } from '@/stream/frames'
@@ -103,6 +104,9 @@ function Conversation({
   const info = useQuery(harnessesQuery).data?.find((h) => h.kind === harness)
   // The kind itself until the list has answered.
   const label = info?.label ?? harness
+  const configuredAgents = useQuery({ ...agentsQuery, enabled: harness === 'aylul' })
+  const agentLabel = configuredAgents.data === undefined ? '…' :
+    configuredAgents.data.agents.find(a => a.slug === thread?.profile)?.name ?? 'Deleted agent'
   // Limits are account-wide: reported live on this stream, else as the
   // daemon last kept them for the harness.
   const limits = c.limits ?? (info?.limits == null ? null : toLimits(info.limits))
@@ -124,9 +128,9 @@ function Conversation({
               <h1 dir="auto" className="truncate text-start text-sm font-medium">
                 {thread?.title ?? 'Conversation'}
               </h1>
-              <StageChip projectId={projectId} />
+              {harness !== 'aylul' && <StageChip projectId={projectId} />}
               <p className="truncate text-xs text-faint-foreground">
-                <bdi>{project?.name ?? '…'}</bdi>
+                <bdi>{harness === 'aylul' ? agentLabel : project?.name ?? '…'}</bdi>
                 {project?.assistant === true ? null : ' · Planner'}
               </p>
             </div>

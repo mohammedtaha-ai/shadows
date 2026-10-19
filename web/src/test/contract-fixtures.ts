@@ -73,6 +73,7 @@ export function projectWithModes(modes: Record<string, string[]>): Project {
 export const projectFixture: Project = projectWithModes({ 'claude-code': ['acceptEdits', 'auto'] })
 
 export const threadFixture: PlanningThread = {
+  profile: null,
   id: 't1',
   project_id: 'p1',
   title: 'Conversation 1',

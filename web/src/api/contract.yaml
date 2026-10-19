@@ -524,9 +524,16 @@ tests:
     checks: >
       A 200 JSON array resolves to that array. No test covers a success with no body.
 
-aylul_environment:
-  EnvEntry: schema.d.ts components.schemas.EnvEntry; name and updated_at only
-  aylulEnvQuery: "queryKey ['aylul-env']; listAylulEnv"
-  listAylulEnv: "() -> Promise<EnvEntry[]>"
-  setAylulEnv: "(name, commandId, value) -> Promise<EnvEntry>"
-  removeAylulEnv: "(name, commandId) -> Promise<void>; unwrapEmpty on 204"
+aylul_configuration:
+  source: aylul-profiles.ts
+  providersQuery: "['aylul-providers']; provider metadata only"
+  agentsQuery: "['aylul-agents']; hidden project id with live agents"
+  agentThreadsQuery: "['aylul-agent', slug, 'threads']; newest conversations; polls every 10 seconds"
+  agentEnvQuery: "['aylul-agent', slug, 'env']; names and timestamps only"
+  saveProvider: Create or update metadata with a caller-owned command id.
+  setProviderKey: Send a write-only value; receive metadata only.
+  removeProviderKey: Remove a key with a caller-owned command id.
+  saveAgent: Create or update agent configuration with a caller-owned command id.
+  deleteAgent: Soft deletion; history stays readable.
+  setAgentEnv: Write a variable in one agent scope.
+  removeAgentEnv: Remove one agent variable.

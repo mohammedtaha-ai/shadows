@@ -6,14 +6,15 @@ import { Ellipsis, MessageSquare, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import type { PlanningThread } from '@/api/client'
 import { threadsQuery } from '@/api/queries'
+import { agentThreadsQuery } from '@/api/aylul-profiles'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DeleteThreadDialog } from './delete-thread-dialog'
 
-export function ThreadList({ projectId, selected }: { projectId: string; selected?: string }) {
-  const { data: threads } = useQuery(threadsQuery(projectId))
+export function ThreadList({ projectId, selected, profile }: { projectId: string; selected?: string; profile?: string }) {
+  const { data: threads } = useQuery(profile === undefined ? threadsQuery(projectId) : agentThreadsQuery(profile))
   const [deleting, setDeleting] = useState<PlanningThread | null>(null)
   const [open, setOpen] = useState(false)
 

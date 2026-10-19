@@ -1,0 +1,98 @@
+# Owns the AYLUL workspace's pages (brain spec §11): its landing pane, the Providers
+# page, and each agent's page with its environment variables (§10, per agent).
+#
+# Trap 1: a provider key and an agent variable are write-only. The daemon answers
+# metadata (`key_set`, names, times) and never a value; these screens keep a typed value
+# only until its save answers, then clear the field.
+#
+# Trap 2: a provider save that creates the provider and then fails on its key leaves a
+# provider behind. The form remembers the slug it was answered, so the retry edits that
+# provider instead of creating a second one.
+
+name: web-agents
+version: 1
+status: current
+source: web/src/app/agents
+
+external:
+  Provider: web/src/api/schema.d.ts components.schemas.Provider
+  Agent: web/src/api/schema.d.ts components.schemas.Agent
+  EnvEntry: web/src/api/schema.d.ts components.schemas.EnvEntry
+
+components:
+  AylulHome:
+    signature: "() => JSX.Element"
+    # /aylul, and / while AYLUL is the stored workspace. With no provider it asks for one;
+    # with providers and no agent it asks for an agent.
+  ProviderSettings:
+    signature: "() => JSX.Element"
+    # /aylul/providers: the saved providers (name, URL, model count, whether a key is
+    # saved), a New provider row, and the picked provider's form.
+  ProviderForm:
+    signature: "({ provider: Provider | null, onSaved: (p: Provider | null) => void }) => JSX.Element"
+    # Name, URL, API key (password, write-only, Remove key when one is saved), models one
+    # per line, context window; Delete provider in its danger zone.
+  NewAgent:
+    signature: "() => JSX.Element"
+    # /aylul/agents/new; a saved agent opens its settings.
+  AgentSettings:
+    signature: "() => JSX.Element"
+    # /aylul/agents/$slug/settings: name, provider, default model, the agent's variables,
+    # Delete agent. A deleted agent's page says its conversations stay readable.
+  AgentEnv:
+    signature: "({ slug: string }) => JSX.Element"
+  DeleteZone:
+    signature: "({ title, summary, consequence, action, pending, error, onConfirm }) => JSX.Element"
+    # The danger zone shared by both forms: deleting is asked in a dialog, whose error
+    # line shows a refusal such as PROVIDER_IN_USE.
+  Field:
+    signature: "({ label, hint?, children }) => JSX.Element"
+  Select:
+    signature: "(props: ComponentProps<'select'>) => JSX.Element"
+  TextArea:
+    signature: "(props: ComponentProps<'textarea'>) => JSX.Element"
+
+pure:
+  parseModels:
+    signature: "(text: string) -> string[] | string"
+    private: true
+    # The ids, one per line or comma, or the reason they cannot be saved: none or more
+    # than 20, `default`, a duplicate, a space or control character, over 128 characters.
+
+obligations:
+  - rule: Provider keys are password inputs and clear after a successful save.
+    tested_by: [provider_form_saves_and_clears_key]
+  - rule: The model editor refuses duplicate ids and the reserved default id before sending.
+    tested_by: [models_editor_rejects_duplicates_and_default]
+  - rule: An agent selects its default model from its provider models.
+    tested_by: [agent_form_lists_provider_models]
+  - rule: Agent variables use scoped query keys and never display stored values.
+    tested_by: [lists_names_without_values, adding_clears_the_input, replaces_and_removes_a_variable]
+  - rule: Agent variables live on the agent's page, not on the global Settings page.
+    tested_by: [global_settings_has_no_agent_environment]
+  - rule: Configuration writes apply to the next spawn, including resumed conversations.
+    tested_by: none
+    note: Forms say this; core session tests own spawn behavior.
+  - rule: Empty states guide provider creation before agent creation.
+    tested_by: [empty_states_guide_to_provider_then_agent]
+  - rule: Deleting a provider or an agent is confirmed in a dialog first.
+    tested_by: none
+    note: The daemon refuses a provider in use with PROVIDER_IN_USE; the dialog shows it.
+
+tests:
+  - name: provider_form_saves_and_clears_key
+    checks: Saving a new provider with a key posts the provider, then the key; the field empties and the key never shows.
+  - name: models_editor_rejects_duplicates_and_default
+    checks: A duplicated id and `default` each show a "Models must" line, and nothing is posted.
+  - name: agent_form_lists_provider_models
+    checks: The new-agent form's default-model menu lists the first provider's models in order.
+  - name: lists_names_without_values
+    checks: A stored variable shows its name, time, Replace and Remove; the value field is a password.
+  - name: adding_clears_the_input
+    checks: A typed name is uppercased; after a save the value field is empty and the value never shows.
+  - name: global_settings_has_no_agent_environment
+    checks: The global Settings page never asks for agent variables.
+  - name: shows_unavailable_error
+    checks: SECRETS_UNAVAILABLE on the variable list shows its error line.
+  - name: replaces_and_removes_a_variable
+    checks: Replace sends the new value for that name; Remove sends one DELETE.

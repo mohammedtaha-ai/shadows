@@ -167,13 +167,13 @@ test_only:
 # ── agreements ───────────────────────────────────────────────────────────────
 
 agreements:
-  - between: [useThreadStream invalidation predicate isThreadList, threadsQuery key]
+  - between: [useThreadStream invalidation predicate isThreadList, threadsQuery key, agentThreadsQuery key]
     must: >
-      match the same thread-list keys: ['projects', id, 'threads']
+      match the same thread-list keys: ['projects', id, 'threads'] and ['aylul-agent', slug, 'threads']
     holds: true
     why: >
-      isThreadList matches key[0] 'projects' and key[2] 'threads', the shape threadsQuery builds
-      in src/api/queries.ts.
+      isThreadList matches key[0] 'projects' or 'aylul-agent' and key[2] 'threads', the shapes
+      threadsQuery (src/api/queries.ts) and agentThreadsQuery (src/api/aylul-profiles.ts) build.
     tested_by: "reads the thread lists again on a retitle: live at once, replayed at the caught-up"
 
   - between: [use-project-events design invalidation, design keys in src/api/queries.ts]

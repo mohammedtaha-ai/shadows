@@ -46,6 +46,7 @@ above. `codemap.test.ts` checks that each one exists.
 - `web/src/app/new-project`
 - `web/src/app/project-settings`
 - `web/src/app/settings`
+- `web/src/app/agents`
 - `web/src/app/sidebar`
 - `web/src/app/workflows`
 
@@ -58,14 +59,20 @@ it is that folder's `contract.yaml`.
 
 | File | Its one job | Reference file |
 |---|---|---|
-| `web/src/api/aylul-env.ts` | AYLUL environment HTTP calls | `web/src/api/contract.yaml` |
-| `web/src/app/settings/aylul-env.tsx` | AYLUL environment editor | `web/src/app/settings/contract.yaml` |
+| `web/src/api/aylul-profiles.ts` | HTTP calls for AYLUL configuration: providers, agents, keys, variables, agent threads | `web/src/api/contract.yaml` |
 | `web/src/api/client.ts` | The one door to the daemon's HTTP API | `web/src/api/contract.yaml` |
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |
 | `web/src/api/design.ts` | HTTP calls for the project design workspace | `web/src/api/client.ts` |
 | `web/src/api/error.ts` | Every failed daemon call as one typed error | `web/src/api/contract.yaml` |
 | `web/src/api/queries.ts` | TanStack Query keys for each piece of daemon state | `web/src/api/client.ts` |
 | `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/client.ts` |
+| `web/src/app/agents/agent-env.tsx` | One agent's environment variables, values write-only | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/agent-settings.tsx` | One agent's settings page, or a new agent's | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/delete-zone.tsx` | Danger zone confirming the deletion of a provider or agent | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/form-field.tsx` | Labelled controls drawn for the AYLUL forms | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/home.tsx` | Main pane of the AYLUL workspace when no conversation is open | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/provider-form.tsx` | Form for one provider, its key write-only | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/provider-settings.tsx` | Providers page: picks the provider its form edits | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agreements/agreement-document.ts` | Reads OpenAPI object fields for the editor | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/agreements/agreement-editor.tsx` | Editor for one agreement version | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/agreements/agreements-page.tsx` | Page listing agreement identities with versions | `web/src/app/agreements/contract.yaml` |
@@ -151,13 +158,15 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/active-projects.tsx` | Editor for how many projects the index keeps active | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/settings-page.tsx` | Global settings page, one section per setting | `web/src/app/settings/contract.yaml` |
 | `web/src/app/shell.tsx` | Two-pane frame every screen sits in | `web/src/app/home.tsx` |
-| `web/src/app/sidebar/aylul-entry.tsx` | Sidebar entry that opens the AYLUL assistant project | `web/src/app/sidebar/contract.yaml` |
+| `web/src/app/sidebar/agent-list.tsx` | Sidebar agent tree with their conversations | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/delete-thread-dialog.tsx` | Confirms removing a conversation as one command | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/open-projects.ts` | Remembers which projects the sidebar shows open | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/project-list.tsx` | Sidebar project tree with its conversations, plans | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/sidebar.tsx` | Left pane holding the sidebar's sections | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/thread-list.tsx` | An open project's conversations in the sidebar | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/workflow-list.tsx` | An open project's plans in the sidebar | `web/src/app/sidebar/contract.yaml` |
+| `web/src/app/sidebar/workspace-switcher.tsx` | Sidebar title as the workspace menu | `web/src/app/sidebar/contract.yaml` |
+| `web/src/app/sidebar/workspace.ts` | Which workspace the sidebar shows, the page deciding before the stored choice | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/test-app.tsx` | Test harness running the app over a fake daemon | `web/src/test/fake-daemon.ts` |
 | `web/src/app/workflows/approve-bar.tsx` | Approval control for a Draft plan, with refusals | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/inspect-panel.tsx` | Panel showing one task beside the graph | `web/src/app/workflows/contract.yaml` |

@@ -291,11 +291,11 @@ Amended after a Codex review of this plan on 2026-10-19.
     - `deleted_agent_conversation_reads`
     - `empty_states_guide_to_provider_then_agent`
 
-- [ ] **Step 1:** Write the failing tests.
-- [ ] **Step 2:** Run `cargo test -p shadows-http aylul` and `npm --prefix web test -- aylul agent provider switcher first-send`. Expected: FAIL.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run the same tests, plus `cargo test -p shadows --test openapi` and `npm --prefix web run typecheck`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat(web): workspace switcher; AYLUL agents and providers`.
+- [x] **Step 1:** Write the failing tests.
+- [x] **Step 2:** Run `cargo test -p shadows-http aylul` and `npm --prefix web test -- aylul agent provider switcher first-send`. Expected: FAIL.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run the same tests, plus `cargo test -p shadows --test openapi` and `npm --prefix web run typecheck`. Expected: PASS.
+- [x] **Step 5:** Commit `feat(web): workspace switcher; AYLUL agents and providers`.
 
 ### Task 4: Gate (once)
 

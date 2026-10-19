@@ -11,6 +11,7 @@ import {
   createRootRoute, createRoute, createRouter, lazyRouteComponent, redirect,
 } from '@tanstack/react-router'
 import { Home } from './app/home'
+import { storedWorkspace } from './app/sidebar/workspace'
 import { PagePending } from './app/page-pending'
 import { Shell } from './app/shell'
 
@@ -25,12 +26,18 @@ const PlanPage = lazyRouteComponent(() => import('./app/workflows/plan-page'), '
 const PlanMapPage = lazyRouteComponent(() => import('./app/workflows/plan-map'), 'PlanMapPage')
 const AgreementsPage = lazyRouteComponent(() => import('./app/agreements/agreements-page'), 'AgreementsPage')
 
+const AylulHome = lazyRouteComponent(() => import('./app/agents/home'), 'AylulHome')
+const ProviderSettings = lazyRouteComponent(() => import('./app/agents/provider-settings'), 'ProviderSettings')
+const NewAgent = lazyRouteComponent(() => import('./app/agents/agent-settings'), 'NewAgent')
+const AgentSettings = lazyRouteComponent(() => import('./app/agents/agent-settings'), 'AgentSettings')
+const AgentDraftRoute = lazyRouteComponent(() => import('./app/conversation/draft'), 'AgentDraftRoute')
+
 const rootRoute = createRootRoute({ component: Shell })
 
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: Home,
+  component: () => storedWorkspace() === 'aylul' ? <AylulHome /> : <Home />,
 })
 
 // Kept because links and older tabs name it; what a person opens a project
@@ -103,11 +110,22 @@ const appSettingsRoute = createRoute({
   component: SettingsPage,
 })
 
+const aylulHomeRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul', component: AylulHome })
+const providersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/providers', component: ProviderSettings })
+const newAgentRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/agents/new', component: NewAgent })
+const agentSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/agents/$slug/settings', component: AgentSettings })
+const agentDraftRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/agents/$slug/new', component: AgentDraftRoute })
+
 export const router = createRouter({
   defaultPendingComponent: PagePending,
   defaultPendingMs: 150,
   routeTree: rootRoute.addChildren([
     homeRoute,
+    aylulHomeRoute,
+    providersRoute,
+    newAgentRoute,
+    agentSettingsRoute,
+    agentDraftRoute,
     projectRoute,
     draftRoute,
     threadRoute,

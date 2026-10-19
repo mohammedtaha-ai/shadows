@@ -9,7 +9,7 @@ import { type Notice, type StreamState, ThreadStream } from './thread-stream'
 
 /** Every project's thread list: a title lives there, and the stream names
  * the thread, not its project. */
-const isThreadList = (key: readonly unknown[]) => key[0] === 'projects' && key[2] === 'threads'
+const isThreadList = (key: readonly unknown[]) => (key[0] === 'projects' || key[0] === 'aylul-agent') && key[2] === 'threads'
 
 /** Operation events after which the operation is over. */
 const TERMINAL_KINDS: ReadonlySet<string> = new Set([

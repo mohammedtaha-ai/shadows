@@ -1,48 +1,48 @@
+// One job: one agent's environment variables (AYLUL spec section 10, per agent):
+// their names, and adding, replacing or removing a value never shown again.
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useRef, useState } from 'react'
-import { aylulEnvQuery, removeAylulEnv, setAylulEnv, type EnvEntry } from '@/api/aylul-env'
+import { agentEnvQuery, removeAgentEnv, setAgentEnv, type EnvEntry } from '@/api/aylul-profiles'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { ApiError } from '@/api/error'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ErrorLine } from '../error-line'
 
-export function AylulEnv() {
-  const saved = useQuery(aylulEnvQuery)
-  if (saved.error instanceof ApiError && saved.error.problem.kind === 'daemon' &&
-      saved.error.problem.code === 'AYLUL_NOT_CONFIGURED') return null
+export function AgentEnv({ slug }: { slug: string }) {
+  const saved = useQuery(agentEnvQuery(slug))
 
   return (
     <section className="space-y-3">
       <div className="space-y-1">
-        <h2 className="text-sm font-medium">AYLUL environment</h2>
+        <h2 className="text-sm font-medium">Environment variables</h2>
         <p className="text-xs text-muted-foreground">
-          Values are encrypted and never shown again. Changes apply to new AYLUL conversations.
+          Values are encrypted and never shown again. Changes apply to new and resumed conversations.
         </p>
       </div>
       {saved.error !== null && <ErrorLine error={saved.error} />}
       {saved.data !== undefined && <>
         <ul className="space-y-3">
-          {saved.data.map((entry) => <EnvRow key={entry.name} entry={entry} />)}
+          {saved.data.map((entry) => <EnvRow key={entry.name} entry={entry} slug={slug} />)}
         </ul>
-        <EnvEditor />
+        <EnvEditor slug={slug} />
       </>}
     </section>
   )
 }
 
-function EnvRow({ entry }: { entry: EnvEntry }) {
+function EnvRow({ entry, slug }: { entry: EnvEntry; slug: string }) {
   const [replacing, setReplacing] = useState(false)
   const queryClient = useQueryClient()
   const commandId = useRef<string | null>(null)
   const remove = useMutation({
     mutationFn: () => {
       commandId.current ??= crypto.randomUUID()
-      return removeAylulEnv(entry.name, commandId.current)
+      return removeAgentEnv(slug, entry.name, commandId.current)
     },
     onSuccess: () => {
       commandId.current = null
-      void queryClient.invalidateQueries({ queryKey: aylulEnvQuery.queryKey })
+      void queryClient.invalidateQueries({ queryKey: agentEnvQuery(slug).queryKey })
     },
   })
   return (
@@ -56,25 +56,25 @@ function EnvRow({ entry }: { entry: EnvEntry }) {
           disabled={remove.isPending || replacing} onClick={() => remove.mutate()}>Remove</Button>
       </div>
       {remove.error !== null && <ErrorLine error={remove.error} />}
-      {replacing && <EnvEditor name={entry.name} onDone={() => setReplacing(false)} />}
+      {replacing && <EnvEditor slug={slug} name={entry.name} onDone={() => setReplacing(false)} />}
     </li>
   )
 }
 
-function EnvEditor({ name, onDone }: { name?: string; onDone?: () => void }) {
+function EnvEditor({ slug, name, onDone }: { slug: string; name?: string; onDone?: () => void }) {
   const [draftName, setDraftName] = useState('')
   const [value, setValue] = useState('')
   const pending = useRef<Attempt | null>(null)
   const queryClient = useQueryClient()
   const save = useMutation({
     mutationFn: (request: { name: string; commandId: string; value: string }) =>
-      setAylulEnv(request.name, request.commandId, request.value),
+      setAgentEnv(slug, request.name, request.commandId, request.value),
     onSuccess: () => {
       pending.current = null
       setValue('')
       setDraftName('')
       save.reset()
-      void queryClient.invalidateQueries({ queryKey: aylulEnvQuery.queryKey })
+      void queryClient.invalidateQueries({ queryKey: agentEnvQuery(slug).queryKey })
       onDone?.()
     },
   })
