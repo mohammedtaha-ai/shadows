@@ -68,7 +68,7 @@ Character design/renderer and native companion lifetime keep their separate owne
 - Done when: from apps/desktop/, `npm run build && npm test && npm run test:companion:unit && npm run test:companion:browser && npm run test:companion:production` passes; `cargo build --locked --manifest-path apps/desktop/src-tauri/Cargo.toml` succeeds; Mohammed's hands-on journey is recorded in the evidence file; whole-branch review done.
 
 ### H-2 · Present one account-backend conversation
-- Status: implemented and locally verified; physical desktop chat acceptance open
+- Status: done (Mohammed sent a message and got a reply in the desktop window on 2026-10-19; stop/recovery in the window not checked by hand)
 - Plan: docs/aylul/native/plans/2026-10-18-aylul-local-runtime-hermes.md#h-2--one-main-window-backend-conversation
 - Read: generated backend assistant contract and local/native shared request once accepted.
 - Touch: H-2 feature/platform/test files and their actual contracts only.
