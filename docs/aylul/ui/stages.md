@@ -50,6 +50,7 @@ Character design/renderer and native companion lifetime keep their separate owne
 - Touch: apps/desktop/src/features/assistant/{useAssistantConversation.ts,ConversationSidebar.tsx,ConversationView.tsx,AssistantPage.tsx,assistant.css,contract.yaml}; apps/desktop/src/app/{main.tsx,WorkspaceShell.tsx,workspace.css,contract.yaml}; apps/desktop/tests/companion/{workspace-conversations.spec.ts,fixture.tsx}; apps/desktop/tests/{assistant-fixture.tsx,assistant-state.mjs}; docs/aylul/codebase/README.md; docs/aylul/ui/stages.md.
 - Needs: U-W1
 - Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace-conversations.spec.ts tests/companion/workspace.spec.ts` and `node tests/assistant-state.mjs` pass; task committed.
+- Also: U-W1 left two checks weak because its fixture is signed out. With a signed-in assistant fixture, `workspace_routes_account_to_settings_and_preserves_chat_draft` must type a draft and find it after Settings -> Chat, and `workspace_narrow_layout_preserves_navigation_and_composer_390` must assert the composer is visible.
 
 ### U-W3 · Scoped settings, bots list and assistant inspector
 - Status: todo
