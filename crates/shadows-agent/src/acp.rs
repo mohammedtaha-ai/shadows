@@ -41,6 +41,9 @@ pub struct SessionSetup {
     pub allowed_tools: Vec<String>,
     /// None keeps adapter defaults; Some(empty) explicitly removes built-in tools.
     pub tools: Option<Vec<String>>,
+    /// Which settings files Claude Code loads (`settingSources`). None leaves
+    /// the Planner rule (`[]` with `tools`); AYLUL sends `["user"]`.
+    pub setting_sources: Option<Vec<String>>,
 }
 
 /// One HTTP MCP server, reached with `Authorization: Bearer <bearer>`.
@@ -88,6 +91,9 @@ impl SessionSetup {
             options.insert("tools".into(), serde_json::json!(tools));
             options.insert("settingSources".into(), serde_json::json!([]));
             options.insert("strictMcpConfig".into(), serde_json::json!(true));
+        }
+        if let Some(sources) = &self.setting_sources {
+            options.insert("settingSources".into(), serde_json::json!(sources));
         }
         if !options.is_empty() {
             meta.insert(
@@ -486,6 +492,20 @@ mod tests {
         };
         let meta = serde_json::to_value(defaults.meta().unwrap()).unwrap();
         assert!(meta["claudeCode"]["options"].get("tools").is_none());
+    }
+
+    #[test]
+    fn aylul_meta_loads_only_user_settings() {
+        let setup = SessionSetup {
+            setting_sources: Some(vec!["user".into()]),
+            ..Default::default()
+        };
+        let meta = serde_json::to_value(setup.meta().unwrap()).unwrap();
+        assert_eq!(
+            meta["claudeCode"]["options"]["settingSources"],
+            serde_json::json!(["user"])
+        );
+        assert!(meta.get("systemPrompt").is_none());
     }
 
     #[test]

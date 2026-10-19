@@ -13,14 +13,17 @@ pub const CLAUDE_CODE: &str = "claude-code";
 /// Codex: listed, not yet runnable (§12.1).
 pub const CODEX: &str = "codex";
 
+/// AYLUL's brain: Claude Code on its own profile, opened without Planner setup.
+pub const AYLUL: &str = "aylul";
+
 /// Every harness Shadows knows, in the order a client lists them.
-pub const KNOWN: [&str; 2] = [CLAUDE_CODE, CODEX];
+pub const KNOWN: [&str; 3] = [CLAUDE_CODE, CODEX, AYLUL];
 
 /// The modes Shadows allows for `kind`. Empty for a harness whose modes are
 /// not decided (Codex) or that Shadows does not know.
 pub fn allowed_modes(kind: &str) -> &'static [&'static str] {
     match kind {
-        CLAUDE_CODE => &["acceptEdits", "auto"],
+        CLAUDE_CODE | AYLUL => &["acceptEdits", "auto"],
         _ => &[],
     }
 }
@@ -29,7 +32,7 @@ pub fn allowed_modes(kind: &str) -> &'static [&'static str] {
 /// its session is set to (§12.2). Never remembered.
 pub fn default_mode(kind: &str) -> Option<&'static str> {
     match kind {
-        CLAUDE_CODE => Some("acceptEdits"),
+        CLAUDE_CODE | AYLUL => Some("acceptEdits"),
         _ => None,
     }
 }
@@ -44,6 +47,11 @@ pub fn is_available(kind: &str) -> bool {
     kind == CLAUDE_CODE
 }
 
+/// `is_available`, plus AYLUL when the daemon has an `aylul` profile.
+pub fn is_available_with(kind: &str, aylul_configured: bool) -> bool {
+    is_available(kind) || (kind == AYLUL && aylul_configured)
+}
+
 /// What a new project allows: every mode of every harness's policy (§12.5).
 pub fn default_modes() -> BTreeMap<String, Vec<String>> {
     KNOWN
@@ -54,4 +62,19 @@ pub fn default_modes() -> BTreeMap<String, Vec<String>> {
             (kind.to_string(), modes)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn aylul_is_known_with_modes() {
+        assert!(is_known(AYLUL));
+        assert_eq!(allowed_modes(AYLUL), ["acceptEdits", "auto"]);
+        assert_eq!(default_mode(AYLUL), Some("acceptEdits"));
+        assert!(!is_available(AYLUL));
+        assert!(!is_available_with(AYLUL, false));
+        assert!(is_available_with(AYLUL, true));
+    }
 }
