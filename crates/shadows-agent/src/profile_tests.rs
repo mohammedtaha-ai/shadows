@@ -114,7 +114,10 @@ fn an_edit_applies_on_the_next_spawn() {
 #[test]
 fn profile_error_never_prints_a_value() {
     let result = profile("T_NEVER_SET_KEY_10").spawn_env_with(&pairs(&[("OTHER", "synthetic")]));
-    let error = result.err().expect("missing key");
+    let error = match result {
+        Err(error) => error,
+        Ok(_) => panic!("missing key must be refused"),
+    };
     for shown in [error.to_string(), format!("{error:?}")] {
         assert!(!shown.contains("synthetic"), "error carries no value");
     }

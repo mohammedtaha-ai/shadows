@@ -49,7 +49,8 @@ pub(super) async fn list(State(s): State<AppState>) -> Result<Json<Vec<EnvEntry>
     params(("name" = String, Path)), request_body = SetEnv,
     responses(
         (status = 200, body = EnvEntry),
-        (status = 400, description = "Invalid environment name, value or JSON body", body = ErrorBody),
+        (status = 400, description = "Invalid environment name, value or JSON body",
+            body = ErrorBody),
         (status = 404, description = "AYLUL_NOT_CONFIGURED", body = ErrorBody),
         (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
         (status = 503, description = "SECRETS_UNAVAILABLE", body = ErrorBody),

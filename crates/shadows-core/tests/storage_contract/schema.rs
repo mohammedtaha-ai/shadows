@@ -69,6 +69,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "project_mode",
             "queued_message",
             "runtime_instance",
+            "secret_env",
+            "secret_env_import",
             "standards_additions_version",
             "task",
             "task_agreement_binding",
@@ -83,6 +85,6 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0017–0018 §18's agreements and exact task pins, \
          0019 §20's queue, 0021 §23's standards additions, \
          0023 §23's map proposals, versions and waivers, \
-         0026 §23.5's roadmap proposals)"
+         0026 §23.5's roadmap proposals, 0028 AYLUL's encrypted environment)"
     );
 }

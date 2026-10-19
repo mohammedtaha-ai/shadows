@@ -47,6 +47,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-agent/src/profile_tests.rs` | isolated profile environment tests | `crates/shadows-agent/src/profile.rs` |
 | `crates/shadows/src/master_key.contract.yaml` | master key storage obligations | `crates/shadows/src/master_key.rs` |
 | `crates/shadows/src/master_key.rs` | Windows master key storage | `crates/shadows/src/master_key.contract.yaml` |
+| `crates/shadows/src/master_key_tests.rs` | master key lifecycle tests with in-memory credentials | `crates/shadows/src/master_key.contract.yaml` |
 | `crates/shadows/src/aylul_tests.rs` | AYLUL startup configuration tests | `crates/shadows/src/aylul.rs` |
 | `crates/shadows-core/src/secrets/` | encrypted profile environment operations | `crates/shadows-core/src/secrets/contract.yaml` |
 | `crates/shadows-core/src/secrets/model.rs` | secret environment metadata | `crates/shadows-core/src/secrets/model.rs` |

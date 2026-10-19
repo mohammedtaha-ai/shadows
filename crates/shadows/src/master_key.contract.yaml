@@ -4,11 +4,14 @@ version: 1
 status: current
 source: crates/shadows/src/master_key.rs
 functions:
-  load_or_create: Read the binary Windows credential, creating only on NoEntry then reading back.
+  load_or_create: Serialize access to the binary Windows credential, creating only on NoEntry.
 obligations:
+  - rule: A shared per-user OS file lock covers read/create/readback across all daemon databases.
+    tested_by: [master_key_creation_waits_for_the_other_starter, absent_master_key_is_created_once]
+    note: The persistent lock file is empty; OS handle close releases the lock, including on crash.
   - rule: Wrong lengths or read errors never overwrite an existing entry and never expose its bytes.
-    tested_by: none
-    note: Real credential-store acceptance belongs to the controller; no automated test calls it.
+    tested_by: [wrong_length_master_key_is_never_replaced, unreadable_master_key_is_never_replaced]
+    note: Explicit in-memory keyring entries only; real credential-store acceptance is pending.
   - rule: The backend is explicitly windows-native; non-Windows loading fails without a mock fallback.
     tested_by: none
     note: Compilation is checked by the platform CI gate.

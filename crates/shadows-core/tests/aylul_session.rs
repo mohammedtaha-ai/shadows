@@ -158,8 +158,7 @@ async fn removed_key_is_aylul_key_missing() {
         .turns()
         .send(w.thread.clone(), send("hi"))
         .await
-        .err()
-        .expect("refused");
+        .expect_err("refused");
     assert!(matches!(error, CoreError::AylulKeyMissing(name) if name == "AYLUL_TEST_STORED_KEY"));
 }
 
@@ -185,8 +184,7 @@ async fn unreadable_row_is_secret_unreadable() {
         .turns()
         .send(w.thread.clone(), send("hi"))
         .await
-        .err()
-        .expect("refused");
+        .expect_err("refused");
     assert!(matches!(error, CoreError::SecretUnreadable(name) if name == "AYLUL_TEST_STORED_KEY"));
 }
 
@@ -300,7 +298,10 @@ async fn aylul_open_spawns_with_profile_env_and_home_cwd() {
 #[tokio::test]
 async fn aylul_open_without_key_refuses_before_spawn() {
     let w = world("AYLUL_TEST_KEY_NEVER_SET_7f3").await;
-    let error = w.sessions.open(&w.thread).await.err().expect("refused");
+    let error = match w.sessions.open(&w.thread).await {
+        Err(error) => error,
+        Ok(_) => panic!("opening without a key must be refused"),
+    };
     assert!(matches!(
         CoreError::from(error),
         CoreError::AylulKeyMissing(_)
