@@ -81,7 +81,7 @@ Character design/renderer and native companion lifetime keep their separate owne
 - Also: U-W1 left two checks weak because its fixture is signed out. With a signed-in assistant fixture, `workspace_routes_account_to_settings_and_preserves_chat_draft` must type a draft and find it after Settings -> Chat, and `workspace_narrow_layout_preserves_navigation_and_composer_390` must assert the composer is visible.
 
 ### U-W3 · Scoped settings, bots list and assistant inspector
-- Status: todo
+- Status: done
 - Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-3---expose-truthful-botsettings-surfaces
 - Read: Task 3; workspace design §3, §5 (OPEN - Effective model readback); docs/aylul/ui/specs/2026-10-19-agent-workspace-mockup/ (visual reference: agent-workspace-desktop.png, agent-workspace-settings.png); character and app/assistant contracts; source settings inventory.
 - Touch: apps/desktop/src/app/{SettingsPanel.tsx,main.tsx,WorkspaceShell.tsx,workspace.css,contract.yaml}; apps/desktop/src/features/assistant/{AssistantDetails.tsx,BotList.tsx,ConversationView.tsx,assistant.css,contract.yaml}; apps/desktop/tests/companion/{workspace.spec.ts,workspace-conversations.spec.ts,production.test.ts}; docs/aylul/codebase/README.md; docs/aylul/ui/stages.md.

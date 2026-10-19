@@ -12,6 +12,9 @@ import { SessionsPanel } from '../features/sessions/SessionsPanel';
 import { ApprovalsPanel } from '../features/approvals/ApprovalsPanel';
 import { useAssistantConversation } from '../features/assistant/useAssistantConversation';
 import { ConversationSidebar } from '../features/assistant/ConversationSidebar';
+import { BotList } from '../features/assistant/BotList';
+import { AssistantDetails } from '../features/assistant/AssistantDetails';
+import { SettingsPanel } from './SettingsPanel';
 import { ConversationView } from '../features/assistant/ConversationView';
 
 const Studio = import.meta.env.DEV
@@ -34,6 +37,7 @@ function Shell() {
   const [loggingIn,setLoggingIn]=React.useState(false);
   const [query,setQuery]=React.useState('');
   const conversation=useAssistantConversation(busy?null:auth);
+  const [inspector,setInspector]=React.useState(()=>window.matchMedia('(min-width:951px)').matches);
   const once=React.useRef(false);
   async function act(action:AuthAction) {
     setBusy(true);setError('');setLoggingIn(action==='login'||action==='enroll');
@@ -45,16 +49,17 @@ function Shell() {
   return <>
     <WorkspaceShell page={page} onNavigate={setPage} list={list} onList={setList} auth={auth}
       chats={<ConversationSidebar controller={conversation} query={query} />} query={query} onQuery={setQuery}
-      chat={<ConversationView controller={conversation} />}
-      bots={<p className="workspace-note">Additional bots are not available yet.</p>}
+      chat={<ConversationView controller={conversation} inspectorOpen={inspector} onInspector={()=>setInspector(open=>!open)} />}
+      inspector={<AssistantDetails controller={conversation} onClose={()=>setInspector(false)} />} inspectorOpen={inspector}
+      bots={<BotList />}
       activity={<><h1>Activity</h1><SessionsPanel state={aylul.state} refresh={aylul.refresh} /><ApprovalsPanel state={aylul.state} refresh={aylul.refresh} /></>}
-      settings={<><h1>Settings</h1>
-        <AccountPanel auth={auth} busy={busy} loggingIn={loggingIn} onAction={action=>void act(action)} onCancel={()=>void cancelLogin().catch(()=>setError('Unable to cancel sign-in.'))} />
-        {Studio && <section aria-labelledby="studio-dev"><h2 id="studio-dev">Development</h2>
+      settings={<SettingsPanel
+        account={<AccountPanel auth={auth} busy={busy} loggingIn={loggingIn} onAction={action=>void act(action)} onCancel={()=>void cancelLogin().catch(()=>setError('Unable to cancel sign-in.'))} />}
+        studio={Studio && <section aria-labelledby="studio-dev"><h2 id="studio-dev">Development</h2>
           <button type="button" onClick={()=>setStudioOpen(value=>!value)}>{studioOpen?'Close development studio':'Open development studio'}</button>
           {studioOpen && <PresenceBoundary><React.Suspense fallback={<p>Loading development studio…</p>}><Studio /></React.Suspense></PresenceBoundary>}
         </section>}
-        <footer>Open from the tray or press Ctrl+Alt+Shift+F12.<br /><span lang="ar" dir="rtl">أيلول معك حين تحتاجه.</span></footer></>}
+        footer={<footer>Open from the tray or press Ctrl+Alt+Shift+F12.<br /><span lang="ar" dir="rtl">أيلول معك حين تحتاجه.</span></footer>} />}
       presence={<PresenceBoundary><CompanionControls /></PresenceBoundary>}
       onHide={()=>void hideToTray().catch(()=>setError('Unable to hide the panel. Please try again.'))} />
     {error && <p role="alert" className="workspace-error">{error}</p>}

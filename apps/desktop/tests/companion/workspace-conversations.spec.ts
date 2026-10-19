@@ -83,3 +83,74 @@ test("workspace_offline_keeps_saved_history_and_recovery", async ({ page }) => {
   await expect(page.getByText("Connected", { exact: true })).toBeVisible();
   expect((await calls(page)).filter((c) => c.action === "send")).toHaveLength(0);
 });
+
+test("workspace_unavailable_bot_configuration_never_dispatches", async ({ page }) => {
+  await page.goto(url);
+  await expect(page.getByText("Alpha answer")).toBeVisible();
+  await page.getByRole("button", { name: "Bots", exact: true }).click();
+  const create = page.getByRole("button", { name: "Create bot", exact: true });
+  await expect(create).toBeDisabled();
+  await expect(create).toHaveAccessibleDescription(/Not available yet.*bot management/);
+  const save = page.getByRole("button", { name: "Save changes", exact: true });
+  await expect(save).toBeDisabled();
+  await expect(page.getByLabel("Model", { exact: true })).toBeDisabled();
+  const before = (await calls(page)).filter((c) => !["status", "snapshot"].includes(c.action));
+  await create.click({ force: true }).catch(() => {});
+  await save.click({ force: true }).catch(() => {});
+  const after = (await calls(page)).filter((c) => !["status", "snapshot"].includes(c.action));
+  expect(after).toEqual(before);
+});
+
+test("workspace_composer_never_invents_a_model_name", async ({ page }) => {
+  await page.goto(url);
+  await expect(page.getByText("Model: managed by the account backend", { exact: true })).toBeVisible();
+  const text = await page.locator(".assistant form").innerText();
+  expect(text).not.toMatch(/MiniMax|Claude|GPT|Hermes|Anthropic|OpenAI/i);
+});
+
+test("workspace_settings_keep_account_and_character_independent", async ({ page }) => {
+  await page.goto(url + "&companionFailed");
+  await page.getByRole("navigation", { name: "Workspace" }).getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Check session", exact: true })).toBeEnabled();
+  await expect(page.getByRole("heading", { name: "Appearance" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Integrations" })).toBeVisible();
+  await page.getByRole("navigation", { name: "Workspace" }).getByRole("button", { name: "Activity", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
+});
+
+test("workspace_narrow_layout_collapses_inspector", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto(url);
+  const details = page.getByRole("complementary", { name: "Bot details" });
+  await expect(details).toBeHidden();
+  await expect(page.getByLabel("Message", { exact: true })).toBeVisible();
+  const open = page.getByRole("button", { name: "Bot settings", exact: true });
+  await open.click();
+  await expect(details).toBeVisible();
+  await page.getByRole("button", { name: "Close bot details" }).click();
+  await expect(details).toBeHidden();
+  await expect(page.getByLabel("Message", { exact: true })).toBeVisible();
+});
+
+test("workspace_keyboard_reaches_navigation_list_and_composer", async ({ page }) => {
+  await page.goto(url);
+  await expect(page.getByText("Alpha answer")).toBeVisible();
+  await page.getByRole("button", { name: "Chats", exact: true }).focus();
+  const seen = new Set<string>();
+  for (let n = 0; n < 40; n++) {
+    await page.keyboard.press("Tab");
+    seen.add(await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? document.activeElement?.textContent?.trim().slice(0, 30) ?? ""));
+  }
+  for (const label of [/^Alpha plan/, /^Activity$/, /^Message$/, /^Close bot details$/]) {
+    expect([...seen].some((value) => label.test(value))).toBe(true);
+  }
+});
+
+test("workspace_mixed_text_uses_auto_direction", async ({ page }) => {
+  await page.goto(url);
+  await fx(page, "fx.data['acct-a'].turns['" + ALPHA + "'].push({id:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',commandId:'dddddddd-dddd-4ddd-8ddd-ddddddddddd1',input:'مرحبا hello',output:'أهلا بك',state:'done',createdAt:'2026-10-19T10:00:00.000Z',updatedAt:'2026-10-19T10:00:00.000Z'});");
+  const arabic = page.getByText("أهلا بك", { exact: true });
+  await expect(arabic).toBeVisible({ timeout: 5000 });
+  await expect(arabic).toHaveAttribute("dir", "auto");
+  await expect(page.getByText("مرحبا hello", { exact: true })).toHaveAttribute("dir", "auto");
+});

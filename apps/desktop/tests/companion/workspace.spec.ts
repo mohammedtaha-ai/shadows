@@ -12,7 +12,7 @@ test("workspace_routes_account_to_settings_and_preserves_chat_draft", async ({ p
   await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
   await nav(page, "Chat");
   await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeHidden();
-  await expect(page.getByRole("heading", { name: "Chat with AYLUL" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "AYLUL", exact: true })).toBeVisible();
   await expect(page.getByLabel("Message", { exact: true })).toHaveValue("Unsent draft survives");
 });
 test("workspace_activity_keeps_approval_actions_and_native_hide", async ({ page }) => {
@@ -49,7 +49,7 @@ for (const width of [390, 1280]) {
     if (width === 390) await drawer.click();
     await expect(page.getByRole("navigation", { name: "Workspace" })).toBeVisible();
     await nav(page, "Chat");
-    await expect(page.getByRole("heading", { name: "Chat with AYLUL" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "AYLUL", exact: true })).toBeVisible();
     await expect(page.getByLabel("Message", { exact: true })).toBeVisible();
   });
 }

@@ -54,3 +54,12 @@
   .workspace-side[data-open=true]{display:flex}
   .workspace-main{padding:.5rem 1rem}
 }
+.workspace-chat{flex-direction:row}
+.workspace-main{overflow:hidden;display:flex;flex-direction:column}
+.workspace-inspector{width:230px;flex:none;box-sizing:border-box;padding:20px 17px;overflow:auto;background:#1c1726;border-left:1px solid #332a42}
+.workspace-inspector[data-open=false]{display:none}
+@media(max-width:950px){
+  .workspace-chat{position:relative}
+  .workspace-inspector{display:none;position:absolute;inset:0 0 0 auto;z-index:2;width:min(18rem,90%)}
+  .workspace-inspector[data-open=true]{display:block}
+}

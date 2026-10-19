@@ -4,8 +4,8 @@ import type {AuthView} from '../platform/auth';
 export type WorkspacePage='chat'|'activity'|'settings';
 export type SidebarList='chats'|'bots';
 type Props={page:WorkspacePage;onNavigate:(page:WorkspacePage)=>void;list:SidebarList;onList:(list:SidebarList)=>void;auth:AuthView|null;
-  chats:React.ReactNode;query:string;onQuery:(value:string)=>void;chat:React.ReactNode;bots:React.ReactNode;activity:React.ReactNode;settings:React.ReactNode;presence:React.ReactNode;onHide:()=>void};
-export function WorkspaceShell({page,onNavigate,list,onList,auth,chats,query,onQuery,chat,bots,activity,settings,presence,onHide}:Props){
+  chats:React.ReactNode;query:string;onQuery:(value:string)=>void;chat:React.ReactNode;inspector:React.ReactNode;inspectorOpen:boolean;bots:React.ReactNode;activity:React.ReactNode;settings:React.ReactNode;presence:React.ReactNode;onHide:()=>void};
+export function WorkspaceShell({page,onNavigate,list,onList,auth,chats,query,onQuery,chat,inspector,inspectorOpen,bots,activity,settings,presence,onHide}:Props){
   const [drawer,setDrawer]=React.useState(false);
   const go=(next:WorkspacePage)=>{setDrawer(false);onNavigate(next);};
   const person=auth?.state==='signed_in'?auth.principal:null;
@@ -23,7 +23,7 @@ export function WorkspaceShell({page,onNavigate,list,onList,auth,chats,query,onQ
       <aside id="workspace-list" className="workspace-side" data-open={drawer} onKeyDown={esc}>
         <div className="workspace-tabs" role="group" aria-label="List">
           <button type="button" aria-pressed={page==='chat'&&list==='chats'} onClick={()=>{onList('chats');go('chat');}}><ChatsIcon/>Chats</button>
-          <button type="button" aria-pressed={list==='bots'} disabled onClick={()=>onList('bots')}><BotIcon/>Bots</button>
+          <button type="button" aria-pressed={list==='bots'} onClick={()=>{onList('bots');go('chat');}}><BotIcon/>Bots</button>
         </div>
         <label className="workspace-search"><SearchIcon/><input type="search" placeholder="Search" aria-label="Search" value={query} disabled={!person||list!=='chats'} onChange={e=>onQuery(e.target.value)} /></label>
         <div className="workspace-listarea">
@@ -40,7 +40,7 @@ export function WorkspaceShell({page,onNavigate,list,onList,auth,chats,query,onQ
           :<button type="button" className="workspace-signin" onClick={()=>go('settings')}>Sign in</button>}</div>
       </aside>
       <div className="workspace-body">
-        <div className="workspace-page" hidden={page!=='chat'}><div className="workspace-main">{chat}</div></div>
+        <div className="workspace-page workspace-chat" hidden={page!=='chat'}><div className="workspace-main">{chat}</div><aside className="workspace-inspector" aria-label="Bot details" data-open={inspectorOpen}>{inspector}</aside></div>
         <div className="workspace-page workspace-scroll" hidden={page!=='activity'}>{activity}</div>
         <div className="workspace-page workspace-scroll" hidden={page!=='settings'}>{settings}</div>
       </div>
