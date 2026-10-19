@@ -196,7 +196,22 @@ mod tests {
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
-            let output = std::process::Command::new("powershell.exe").creation_flags(0x0800_0000).args(["-NoProfile", "-NonInteractive", "-Command", "$acl=[Security.AccessControl.FileSecurity]::new($env:SHADOWS_TEST_DESCRIPTOR,[Security.AccessControl.AccessControlSections]::Access); $rules=$acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]); $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; if(-not $acl.AreAccessRulesProtected -or $rules.Count -ne 1 -or $rules[0].IdentityReference.Value -ne $sid){exit 1}"]).env("SHADOWS_TEST_DESCRIPTOR", &path).output().unwrap();
+            let check = concat!(
+                "$acl=[Security.AccessControl.FileSecurity]::new(",
+                "$env:SHADOWS_TEST_DESCRIPTOR,",
+                "[Security.AccessControl.AccessControlSections]::Access); ",
+                "$rules=$acl.GetAccessRules($true,$false,",
+                "[Security.Principal.SecurityIdentifier]); ",
+                "$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; ",
+                "if(-not $acl.AreAccessRulesProtected -or $rules.Count -ne 1 ",
+                "-or $rules[0].IdentityReference.Value -ne $sid){exit 1}",
+            );
+            let output = std::process::Command::new("powershell.exe")
+                .creation_flags(0x0800_0000)
+                .args(["-NoProfile", "-NonInteractive", "-Command", check])
+                .env("SHADOWS_TEST_DESCRIPTOR", &path)
+                .output()
+                .unwrap();
             assert!(
                 output.status.success(),
                 "descriptor must grant only its owning user: {}",
