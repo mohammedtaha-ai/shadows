@@ -95,7 +95,7 @@ Character design/renderer and native companion lifetime keep their separate owne
 - Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace.spec.ts tests/companion/workspace-conversations.spec.ts && npm run test:companion:production` passes; a 1248x948 screenshot of `/tests/companion/fixture.html?shell&signedIn` is compared with agent-workspace-desktop.png and the report lists what still differs; task committed.
 
 ### U-W4 · Batch gate and native journey
-- Status: todo
+- Status: blocked (gate and compile pass; waits for Mohammed's hands-on journey on a rebuilt debug app, then whole-branch review)
 - Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-4---run-the-batch-gate-and-the-native-journey
 - Read: Task 4; normal-chat evidence for the evidence format.
 - Touch: apps/desktop/README.md; docs/evidence/aylul/<run date>-agent-workspace.md; docs/aylul/ui/stages.md.
