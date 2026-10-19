@@ -10,7 +10,9 @@ import { CompanionControls } from './CompanionControls';
 import { useAylulState } from '../data/aylul-state';
 import { SessionsPanel } from '../features/sessions/SessionsPanel';
 import { ApprovalsPanel } from '../features/approvals/ApprovalsPanel';
-import { AssistantPage } from '../features/assistant/AssistantPage';
+import { useAssistantConversation } from '../features/assistant/useAssistantConversation';
+import { ConversationSidebar } from '../features/assistant/ConversationSidebar';
+import { ConversationView } from '../features/assistant/ConversationView';
 
 const Studio = import.meta.env.DEV
   ? React.lazy(() => import('../features/companion/studio/CompanionStudio').then(module => ({default:module.CompanionStudio})))
@@ -30,6 +32,8 @@ function Shell() {
   const [auth,setAuth]=React.useState<AuthView|null>(null);
   const [busy,setBusy]=React.useState(false);
   const [loggingIn,setLoggingIn]=React.useState(false);
+  const [query,setQuery]=React.useState('');
+  const conversation=useAssistantConversation(busy?null:auth);
   const once=React.useRef(false);
   async function act(action:AuthAction) {
     setBusy(true);setError('');setLoggingIn(action==='login'||action==='enroll');
@@ -40,7 +44,8 @@ function Shell() {
   React.useEffect(()=>{if(!once.current){once.current=true;void act('status');}},[]);
   return <>
     <WorkspaceShell page={page} onNavigate={setPage} list={list} onList={setList} auth={auth}
-      chat={<AssistantPage auth={busy?null:auth} />}
+      chats={<ConversationSidebar controller={conversation} query={query} />} query={query} onQuery={setQuery}
+      chat={<ConversationView controller={conversation} />}
       bots={<p className="workspace-note">Additional bots are not available yet.</p>}
       activity={<><h1>Activity</h1><SessionsPanel state={aylul.state} refresh={aylul.refresh} /><ApprovalsPanel state={aylul.state} refresh={aylul.refresh} /></>}
       settings={<><h1>Settings</h1>

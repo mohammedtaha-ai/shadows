@@ -8,7 +8,7 @@ and semantic project-context integration remain future paths.
 
 | Source | Owned job | Contract |
 | --- | --- | --- |
-| `apps/desktop/src/features/assistant/` | Account conversation presentation with visible-panel snapshot polling | Colocated `contract.yaml` |
+| `apps/desktop/src/features/assistant/` | Account conversation hook, sidebar and view with visible-panel snapshot polling | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/assistant/` | Closed native assistant operation mapping | Colocated `contract.yaml` |
 | `apps/desktop/src/api/generated/` | Backend-generated wire artifacts and input hash | Backend TypeBox owner; `provenance.json` |
 | `apps/desktop/src/app/` | Main React presentation: workspace navigation shell and its inline icons, account panel and local hide error | Colocated `contract.yaml` |

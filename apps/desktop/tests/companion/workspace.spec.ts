@@ -3,7 +3,9 @@ const url = "/tests/companion/fixture.html?shell";
 const nav = (page: any, name: string) =>
   (name === "Chat" ? page.getByRole("button", { name: "Chats", exact: true }) : page.getByRole("navigation", { name: "Workspace" }).getByRole("button", { name, exact: true })).click();
 test("workspace_routes_account_to_settings_and_preserves_chat_draft", async ({ page }) => {
-  await page.goto(url);
+  await page.goto(url + "&signedIn");
+  await expect(page.getByText("Connected", { exact: true })).toBeVisible();
+  await page.getByLabel("Message", { exact: true }).fill("Unsent draft survives");
   await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeHidden();
   await expect(page.getByRole("region", { name: "Account" }).getByRole("button", { name: "Sign in", exact: true })).toBeHidden();
   await nav(page, "Settings");
@@ -11,6 +13,7 @@ test("workspace_routes_account_to_settings_and_preserves_chat_draft", async ({ p
   await nav(page, "Chat");
   await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeHidden();
   await expect(page.getByRole("heading", { name: "Chat with AYLUL" })).toBeVisible();
+  await expect(page.getByLabel("Message", { exact: true })).toHaveValue("Unsent draft survives");
 });
 test("workspace_activity_keeps_approval_actions_and_native_hide", async ({ page }) => {
   await page.goto(url + "&hookSession");
@@ -23,7 +26,7 @@ test("workspace_activity_keeps_approval_actions_and_native_hide", async ({ page 
 for (const width of [390, 1280]) {
   test(`workspace_narrow_layout_preserves_navigation_and_composer_${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
-    await page.goto(url);
+    await page.goto(url + "&signedIn");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
     expect(overflow).toBe(false);
     const drawer = page.getByRole("button", { name: /Chats and bots|Close list/ });
@@ -47,6 +50,7 @@ for (const width of [390, 1280]) {
     await expect(page.getByRole("navigation", { name: "Workspace" })).toBeVisible();
     await nav(page, "Chat");
     await expect(page.getByRole("heading", { name: "Chat with AYLUL" })).toBeVisible();
+    await expect(page.getByLabel("Message", { exact: true })).toBeVisible();
   });
 }
 

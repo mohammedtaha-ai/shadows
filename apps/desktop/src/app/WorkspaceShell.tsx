@@ -4,8 +4,8 @@ import type {AuthView} from '../platform/auth';
 export type WorkspacePage='chat'|'activity'|'settings';
 export type SidebarList='chats'|'bots';
 type Props={page:WorkspacePage;onNavigate:(page:WorkspacePage)=>void;list:SidebarList;onList:(list:SidebarList)=>void;auth:AuthView|null;
-  chat:React.ReactNode;bots:React.ReactNode;activity:React.ReactNode;settings:React.ReactNode;presence:React.ReactNode;onHide:()=>void};
-export function WorkspaceShell({page,onNavigate,list,onList,auth,chat,bots,activity,settings,presence,onHide}:Props){
+  chats:React.ReactNode;query:string;onQuery:(value:string)=>void;chat:React.ReactNode;bots:React.ReactNode;activity:React.ReactNode;settings:React.ReactNode;presence:React.ReactNode;onHide:()=>void};
+export function WorkspaceShell({page,onNavigate,list,onList,auth,chats,query,onQuery,chat,bots,activity,settings,presence,onHide}:Props){
   const [drawer,setDrawer]=React.useState(false);
   const go=(next:WorkspacePage)=>{setDrawer(false);onNavigate(next);};
   const person=auth?.state==='signed_in'?auth.principal:null;
@@ -25,9 +25,9 @@ export function WorkspaceShell({page,onNavigate,list,onList,auth,chat,bots,activ
           <button type="button" aria-pressed={page==='chat'&&list==='chats'} onClick={()=>{onList('chats');go('chat');}}><ChatsIcon/>Chats</button>
           <button type="button" aria-pressed={list==='bots'} disabled onClick={()=>onList('bots')}><BotIcon/>Bots</button>
         </div>
-        <label className="workspace-search"><SearchIcon/><input type="search" placeholder="Search" aria-label="Search" disabled /></label>
+        <label className="workspace-search"><SearchIcon/><input type="search" placeholder="Search" aria-label="Search" value={query} disabled={!person||list!=='chats'} onChange={e=>onQuery(e.target.value)} /></label>
         <div className="workspace-listarea">
-          <div hidden={list!=='chats'}><p className="workspace-note">Switch conversations from the chat panel.</p></div>
+          <div hidden={list!=='chats'}>{chats}</div>
           <div hidden={list!=='bots'}>{bots}</div>
         </div>
         <nav aria-label="Workspace" className="workspace-bottom">

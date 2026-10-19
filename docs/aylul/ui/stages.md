@@ -72,7 +72,7 @@ Character design/renderer and native companion lifetime keep their separate owne
 - Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace.spec.ts tests/companion/shell.spec.ts` passes; a 1248x948 screenshot of the Chat page is compared with agent-workspace-desktop.png and the report lists what still differs in the shell; task committed.
 
 ### U-W2 · Shared live conversation navigation
-- Status: todo
+- Status: done
 - Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-2---put-real-conversations-in-the-workspace-sidebar
 - Read: Task 2 interfaces; workspace design §3 and §5; docs/aylul/ui/specs/2026-10-19-agent-workspace-mockup/ (visual reference: agent-workspace-desktop.png, agent-workspace-settings.png); app/assistant/platform contracts.
 - Touch: apps/desktop/src/features/assistant/{useAssistantConversation.ts,ConversationSidebar.tsx,ConversationView.tsx,AssistantPage.tsx,assistant.css,contract.yaml}; apps/desktop/src/app/{main.tsx,WorkspaceShell.tsx,workspace.css,contract.yaml}; apps/desktop/tests/companion/{workspace-conversations.spec.ts,fixture.tsx}; apps/desktop/tests/{assistant-fixture.tsx,assistant-state.mjs}; docs/aylul/codebase/README.md; docs/aylul/ui/stages.md.

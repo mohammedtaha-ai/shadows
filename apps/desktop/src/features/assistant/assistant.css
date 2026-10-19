@@ -1,1 +1,10 @@
 .assistant{margin-top:1rem}.assistant-heading{display:flex;align-items:center;justify-content:space-between;gap:1rem}.assistant h2{margin:0}.assistant select{max-width:100%;margin-top:.7rem;background:#241b2f;color:inherit;padding:.5rem;border:1px solid #665377;border-radius:.4rem}.assistant-messages{max-height:48vh;min-height:10rem;overflow:auto;padding:.4rem 0}.assistant-message{border-radius:.7rem;padding:.8rem 1rem;margin:.7rem 0;background:#261e31}.assistant-message.user{background:#38284a;margin-left:1.5rem}.assistant-message p{white-space:pre-wrap;overflow-wrap:anywhere;margin:.4rem 0}.assistant-message strong{color:#d1b3f4}.assistant textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:6rem;font:inherit;padding:.8rem;color:inherit;background:#1b1522;border:1px solid #79618c;border-radius:.5rem;margin:.4rem 0}.assistant-compose-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem}.assistant-compose-footer span,.assistant-empty,.assistant-connection{color:#bcb0c9;font-size:.85rem}.assistant button{cursor:pointer;border-radius:.4rem}.assistant button:disabled{cursor:default;opacity:.55}.assistant label{display:block}.assistant-message button{font-size:.8rem;padding:.35rem .6rem}
+.conversation-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.conversation-list li{display:flex;align-items:stretch;gap:2px}
+.conversation-row{flex:1;min-width:0;display:flex!important;flex-direction:column;align-items:flex-start!important;gap:0!important;text-align:left;position:relative}
+.conversation-row[aria-pressed=true]{background:#30223f!important}
+.conversation-row[aria-pressed=true]::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:2px;background:#bd9bea}
+.conversation-title{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conversation-row small{font-size:10px;color:#ada1bc}
+.conversation-pin{font-size:10px!important;color:#ada1bc;padding:4px 6px!important}
+.conversation-pin[aria-pressed=true]{color:#bd9bea}

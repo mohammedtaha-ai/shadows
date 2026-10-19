@@ -3,7 +3,10 @@ status: current
 source: apps/desktop/src/features/assistant
 responsibility: Present account-scoped persistent conversations, typed-message admission and explicit stop/recovery using native-only backend access.
 public_api:
-  AssistantPage: Load account conversations, poll bounded snapshots while visible, correlate client command IDs and ignore responses after account/session/conversation switches. A failed poll's error clears when a later poll succeeds; an action's own error stays.
+  useAssistantConversation: Own account-scoped conversation list, selection, snapshot polling, draft, pins (localStorage per account ID) and connection state; called once by the workspace and shared. retry() resends an uncertain send with its original command ID; reconnect() only re-reads, never sends.
+  ConversationSidebar: List the controller's conversations (pinned first, local title search, creation timestamps); no poller and no transcript fetch.
+  ConversationView: Render history, states, stop/recover, connection indicator with Retry connection, and the composer from the controller.
+  AssistantPage: Standalone wrapper of the hook and view: load account conversations, poll bounded snapshots while visible, correlate client command IDs and ignore responses after account/session/conversation switches. A failed poll's error clears when a later poll succeeds; an action's own error stays.
 obligations:
   - rule: Actual backend replies remain after reload without resubmitting the original message; a follow-up uses the same conversation.
     tested_by: apps/desktop/tests/assistant-acceptance.mjs
