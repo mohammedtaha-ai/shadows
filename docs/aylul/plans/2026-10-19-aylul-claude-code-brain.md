@@ -85,7 +85,7 @@ Every measurement so far used the `claude` CLI directly. This proves the adapter
   - `pub struct AylulConfig { pub profile: ClaudeProfile, pub project_slug: String }` (slug `"aylul"`), in `harness/assistant.rs`, re-exported from `shadows_core`.
   - `fn aylul_setup() -> SessionSetup` → `{ mcp: None, append: None, allowed_tools: vec![], tools: None, setting_sources: Some(vec!["user"]) }`.
   - In `open_live`: when `context.harness == policy::AYLUL`, use `aylul_setup()` instead of `setups.for_opening`, spawn with `process_spec_with(&profile.home, Some(&profile))` (cwd = profile home, not `workspace(&context)`), and skip `context_before_turn` for that thread.
-  - `threads::rules`: `aylul` allowed only in the project whose slug is `AylulConfig.project_slug`; that project allows only `aylul`.
+  - `threads::rules`: `aylul` allowed only in the project marked `assistant` (Task 4's flag, set by `ensure_assistant`); that project allows only `aylul`. Amended after review: a slug-based rule let an ordinary project named `aylul` run AYLUL, and let the AYLUL project run the Planner when the daemon started without a profile.
 
 - [ ] **Step 1: Write failing tests**
   - `aylul_open_spawns_with_profile_env_and_home_cwd`: fake-acp records the spawn env and cwd → `CLAUDE_CONFIG_DIR` = profile home, cwd = profile home, `ANTHROPIC_AUTH_TOKEN` present.
