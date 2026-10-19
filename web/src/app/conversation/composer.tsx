@@ -21,6 +21,7 @@ import type { SlashCommand } from '@/stream/frames'
 import { tabId } from '@/stream/tab-id'
 import { ErrorLine } from '../error-line'
 import type { CarriedSend } from './carried-send'
+import { AYLUL_HARNESS } from './cli-picker'
 import { ComposerBar } from './composer-bar'
 import { FocusChip, type PointedTask } from './focus-chip'
 import { type SessionCommand, sessionCommand } from './session-commands'
@@ -309,7 +310,7 @@ export function Composer({
                 }
               }}
               rows={2}
-              placeholder="Ask the Planner…"
+              placeholder={harness === AYLUL_HARNESS ? 'Ask AYLUL…' : 'Ask the Planner…'}
               aria-label="Message"
               className="max-h-48 min-h-10 w-full resize-none bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-faint-foreground"
             />

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation } from '@tanstack/react-router'
 import type { Choice, Operation, Plan, PlanTask, ThreadEntry } from '@/api/client'
 import { policyOf } from '../mode-policy'
+import { AYLUL_HARNESS } from './cli-picker'
 import { Entry, ReplyText } from './entry'
 import { MessageActions } from './message-actions'
 import { describeLabel } from './operational-label'
@@ -124,7 +125,9 @@ export function Messages({
         )}
         {!loading && shown.length === 0 && reply === null && !running && (
           <li className="py-16 text-center text-sm text-faint-foreground">
-            Ask the Planner something about this project.
+            {harness === AYLUL_HARNESS
+              ? 'Ask AYLUL anything.'
+              : 'Ask the Planner something about this project.'}
           </li>
         )}
         <AnimatePresence initial={false}>
