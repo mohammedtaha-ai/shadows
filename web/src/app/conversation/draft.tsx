@@ -86,7 +86,7 @@ function Draft({ projectId }: { projectId: string }) {
           <StageChip projectId={projectId} />
           <p className="truncate text-xs text-faint-foreground">
             <bdi>{project?.name ?? '…'}</bdi>
-                {project?.assistant === true ? null : ' · Planner'}
+            {project?.assistant === true ? null : ' · Planner'}
           </p>
         </div>
         <CliMenu
