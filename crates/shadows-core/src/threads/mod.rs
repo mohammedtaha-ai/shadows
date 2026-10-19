@@ -25,6 +25,7 @@ pub use model::{
     EntryRef, NewThreadEntry, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind,
     ThreadId, TurnContext,
 };
+use rules::harness_fits_project;
 pub(crate) use rules::known_harness;
 // What another write calls inside its own transaction (spec §14.6): a turn,
 // an approval or a shown plan appends an entry, and a turn titles its thread
@@ -83,6 +84,9 @@ impl Threads {
     ) -> Result<PlanningThread, CoreError> {
         let harness = harness.unwrap_or(policy::CLAUDE_CODE);
         known_harness(harness)?;
+        if let Ok(found) = self.storage.get_project(project).await {
+            harness_fits_project(harness, &found.slug, self.harness.aylul_slug())?;
+        }
         let params = serde_json::json!({
             "project": project, "title": title, "harness": harness,
         });
@@ -104,7 +108,11 @@ impl Threads {
         harness: &str,
     ) -> Result<PlanningThread, CoreError> {
         known_harness(harness)?;
-        let before = self.storage.turn_context(thread).await?.harness;
+        let context = self.storage.turn_context(thread).await?;
+        if let Ok(found) = self.storage.get_project(&context.project_id).await {
+            harness_fits_project(harness, &found.slug, self.harness.aylul_slug())?;
+        }
+        let before = context.harness;
         let params = serde_json::json!({ "thread_id": thread, "harness": harness });
         let c = user_command(command_id, "thread.harness", params);
         let updated = self.storage.set_thread_harness(&c, thread, harness).await?;

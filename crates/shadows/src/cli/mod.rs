@@ -24,6 +24,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         node_path: config.node_path.clone(),
         adapter_path: config.adapter_path.clone(),
         harness_path: config.harness_path.clone(),
+        aylul: None,
     };
     let core = AppCore::start(&start, mcp_url).await?;
     let (stopping, shutdown) = tokio::sync::watch::channel(false);

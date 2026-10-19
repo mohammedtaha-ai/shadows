@@ -18,6 +18,7 @@ use tokio::{
 };
 use tracing::Instrument;
 
+use super::assistant::{AylulConfig, Opening};
 use super::commands::{Commands, keep_commands};
 use super::offers::{Offers, intercept};
 use super::setup::Setups;
@@ -44,6 +45,8 @@ pub struct SessionsConfig {
     pub context_wait: Duration,
     /// Shadows' `/mcp`, as the daemon bound it; `None` in tests that need no MCP.
     pub mcp_url: Option<String>,
+    /// AYLUL's profile; `None` when the daemon has no `aylul` section.
+    pub aylul: Option<AylulConfig>,
 }
 
 impl Default for SessionsConfig {
@@ -54,6 +57,7 @@ impl Default for SessionsConfig {
             setup_wait: Duration::from_secs(20),
             context_wait: Duration::from_secs(5),
             mcp_url: None,
+            aylul: None,
         }
     }
 }
@@ -120,14 +124,14 @@ pub(super) struct Live {
 type Slot = Arc<Mutex<Option<Live>>>;
 
 pub struct Sessions {
-    adapter: Arc<ClaudeAdapter>,
+    pub(super) adapter: Arc<ClaudeAdapter>,
     storage: Arc<Storage>,
     pub(super) config: SessionsConfig,
     pub(super) live: Mutex<HashMap<ThreadId, Slot>>,
     pub(super) offers: Arc<Offers>,
     pub(super) commands: Arc<Commands>,
     generations: AtomicU64,
-    setups: Setups,
+    pub(super) setups: Setups,
 }
 
 impl Sessions {
@@ -196,7 +200,6 @@ impl Sessions {
             *live = None;
             self.forget(thread).await;
         }
-        let cwd = workspace(&context).map_err(OpenError::Workspace)?;
         // A fork's first opening forks the source's session (§12.9); once
         // the fork's first turn has recorded its own, it resumes that.
         let (how, start) = match (
@@ -211,9 +214,8 @@ impl Sessions {
             OpenError::Start(format!("no mode policy for harness {}", context.harness))
         })?;
         let remembered = self.storage.remembered(&context.harness).await?;
-        let setup = (self.setups.for_opening(thread, &context.project_id).await)
-            .map_err(OpenError::Start)?;
-        let mut handle = match process::spawn(self.adapter.process_spec(&cwd)) {
+        let Opening { cwd, setup, spec } = self.opening(thread, &context).await?;
+        let mut handle = match process::spawn(spec) {
             Ok(handle) => handle,
             Err(error) => {
                 self.setups.forget(thread).await;

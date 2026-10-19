@@ -14,6 +14,7 @@
 //! `store` the queries. `Turns` drives a turn through `Sessions`, the methods
 //! `contract.yaml` names.
 
+mod assistant;
 mod commands;
 mod context;
 mod model;
@@ -32,6 +33,7 @@ use shadows_agent::events::{AccountLimits, SlashCommand};
 use shadows_agent::policy;
 use tokio::sync::broadcast;
 
+pub use assistant::AylulConfig;
 pub use model::{ContextBreakdown, HarnessInfo, RememberedSettings};
 pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig};
 pub use setup::prompt_version;
@@ -55,6 +57,11 @@ pub struct Harness {
 impl Harness {
     pub(crate) fn new(storage: Arc<Storage>, sessions: Arc<Sessions>) -> Self {
         Self { storage, sessions }
+    }
+
+    /// The slug of the project AYLUL lives in, when the daemon has a profile.
+    pub(crate) fn aylul_slug(&self) -> Option<&str> {
+        self.sessions.aylul_slug()
     }
 
     /// Every harness Shadows knows, runnable or not, with the model and effort

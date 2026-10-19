@@ -226,6 +226,16 @@ functions:
     stage_line:
       signature: "(&self, thread: &ThreadId) -> Result<String, StorageError>"
       # Setups: the current stage, sent last in new prompts and Send now.
+      # Empty for an `aylul` thread (the prompt drops empty parts), as is
+      # `context_before_turn`'s block.
+    opening:
+      signature: "(&self, thread: &ThreadId, context: &TurnContext) -> Result<Opening, OpenError>"
+      # assistant.rs, private to harness, called by `open_live`: cwd, session
+      # setup and spawn spec. A Planner thread gets its project folder and
+      # `for_opening`'s setup; an `aylul` thread the profile home, no
+      # prompt/tools/MCP grant, `settingSources ["user"]`, and the profile's
+      # env. OpenError::Start names the key variable when it is unset, before
+      # any spawn, and says so when no profile is configured.
     change_model:
       signature: "(&self, thread, opened, model: &str, effort: Option<&str>) -> Result<Offered, SettingRefused>"
       # pub(crate), on `Sessions`, called by `Harness::change_model` only:
@@ -589,6 +599,12 @@ not_the_caller's:
 
 
 tests:
+  - name: aylul_open_spawns_with_profile_env_and_home_cwd
+    checks: tests/aylul_session.rs - profile home as cwd and CLAUDE_CONFIG_DIR, token present, only the user settings source, no append/MCP, one prompt block.
+  - name: aylul_open_without_key_refuses_before_spawn
+    checks: tests/aylul_session.rs - an unset key variable fails the opening, naming the variable.
+  - name: aylul_model_choice_does_not_move_planner_memory
+    checks: tests/aylul_session.rs - an aylul turn remembers under aylul and leaves claude-code's memory empty.
   - name: absent_and_empty_tool_policies_are_distinct
     checks: None leaves adapter defaults; empty explicitly removes built-in tools.
   - name: a_pending_turn_delivers_the_standards_version_it_recorded

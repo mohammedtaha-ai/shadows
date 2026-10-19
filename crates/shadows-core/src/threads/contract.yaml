@@ -126,13 +126,16 @@ functions:
       # lists its threads (§15.6). It never fails the listing.
     create:
       signature: "(&self, command_id: String, project: &ProjectId, title: &str, harness: Option<&str>) -> Result<PlanningThread, CoreError>"
-      # harness or `claude-code` → known_harness → "thread.create",
+      # harness or `claude-code` → known_harness → harness_fits_project
+      # (`aylul` only in the AYLUL project, which allows only `aylul`;
+      # SettingNotOffered otherwise) → "thread.create",
       # principal User/local, schema 1, params { project, title, harness }
       # → `create_planning_thread`. Refusals: SettingNotOffered; NotFound (no
       # such project); CommandConflict.
     set_harness:
       signature: "(&self, command_id: String, thread: &ThreadId, harness: &str) -> Result<PlanningThread, CoreError>"
-      # known_harness → turn_context (NotFound) → "thread.harness", params
+      # known_harness → turn_context (NotFound) → harness_fits_project →
+      # "thread.harness", params
       # { thread_id, harness } → `set_thread_harness` (HarnessLocked,
       # CommandConflict) → close the session when the harness moved.
     fork:
@@ -444,6 +447,8 @@ not_the_caller's:
 
 
 tests:
+  - name: aylul_harness_only_in_the_aylul_project
+    checks: tests/aylul_session.rs - aylul in a normal project and claude-code in the AYLUL project are refused; a default thread in a normal project is created.
   - name: migration_0020_moves_tool_and_subagent_bodies_into_their_kinds
     checks: >
       On a database at 0019, a `[tool: X]` row reads back `ToolCall` / `X`, a

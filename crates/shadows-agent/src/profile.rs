@@ -1,5 +1,5 @@
-//! One job: the child environment that gives Claude Code its own home and
-//! provider, with the key read from the daemon's environment at spawn.
+//! One job: the child environment of an isolated Claude Code profile: its home,
+//! provider and a key read from the daemon's environment at spawn.
 
 use std::path::PathBuf;
 

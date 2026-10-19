@@ -127,6 +127,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/harness/` | the harnesses, each thread's open session included | `crates/shadows-core/src/harness/mod.rs` |
 | `crates/shadows-core/src/harness/model.rs` | the harness shapes callers meet | `crates/shadows-core/src/harness/model.rs` |
 | `crates/shadows-core/src/harness/store.rs` | the rows kept per harness | `crates/shadows-core/src/harness/store.rs` |
+| `crates/shadows-core/src/harness/assistant.rs` | what an AYLUL session opens with | `crates/shadows-core/src/harness/assistant.rs` |
 | `crates/shadows-core/src/harness/sessions.rs` | the live adapter connection each open thread holds | `crates/shadows-core/src/harness/sessions.rs` |
 | `crates/shadows-core/src/harness/settings.rs` | setting an open session's options | `crates/shadows-core/src/harness/settings.rs` |
 | `crates/shadows-core/src/harness/setup.rs` | what a Planner session opens with | `crates/shadows-core/src/harness/setup.rs` |
@@ -217,6 +218,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-agent/src/acp.rs` | the ACP client connection to one adapter process | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/events.rs` | what a harness connection reports | `crates/shadows-agent/src/events.rs` |
 | `crates/shadows-agent/src/policy.rs` | the modes Shadows allows per harness | `crates/shadows-agent/src/policy.rs` |
+| `crates/shadows-agent/src/profile.rs` | the child environment of an isolated Claude Code profile | `crates/shadows-agent/src/profile.rs` |
 | `crates/shadows-agent/src/choices.rs` | reading the harness's offered choices | `crates/shadows-agent/src/choices.rs` |
 | `crates/shadows-agent/src/breakdown.rs` | reading Claude's `/context` answer | `crates/shadows-agent/src/breakdown.rs` |
 | `crates/shadows-agent/src/claude.rs` | the launch spec of the pinned Claude ACP adapter | `crates/shadows-agent/src/claude.rs` |

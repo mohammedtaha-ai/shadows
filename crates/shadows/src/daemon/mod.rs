@@ -75,6 +75,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
                 node_path: planner.node_path,
                 adapter_path: planner.adapter_path,
                 harness_path: planner.harness_path,
+                aylul: None,
             },
             format!("http://{address}/mcp"),
         )

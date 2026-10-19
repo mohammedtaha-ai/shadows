@@ -46,7 +46,10 @@ async fn attempt(
     };
     let connection = w.opened.connection();
     let stage = w.sessions.setups().stage_line(&w.thread_id).await?;
-    let prompt = format!("{}\n\n{stage}", queued.prompt);
+    let prompt = match stage.is_empty() {
+        true => queued.prompt.clone(),
+        false => format!("{}\n\n{stage}", queued.prompt),
+    };
     match connection.steer(&w.opened.session_id, &prompt).await {
         Ok(Steer::Injected) => {
             persist(w, collector.cut()).await;
