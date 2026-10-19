@@ -67,6 +67,11 @@ impl Projects {
             }
             return Ok(found);
         }
+        // A removed AYLUL project keeps its slug (UNIQUE) and a replay of the
+        // creation command would answer that dead row: bring the row back.
+        if let Some(restored) = self.storage.restore_assistant_project(slug).await? {
+            return Ok(restored);
+        }
         let directory = ProjectDirectory::resolve(directory)?;
         let params = serde_json::json!({
             "slug": slug, "name": name, "directory": directory.as_str(),

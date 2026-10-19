@@ -90,6 +90,8 @@ functions:
       # as is (never claimed unless it is already `assistant`); else created
       # as "project.create" with a fixed command id over the resolved
       # directory, then marked by `mark_assistant_project`. Idempotent.
+      # A removed assistant project (its slug stays taken) is restored by
+      # `restore_assistant_project` instead of created again.
     create:
       signature: "(&self, command_id: String, slug: &str, name: &str, directory: &str) -> Result<Project, CoreError>"
       # resolve (DirectoryError → CoreError::Directory) → "project.create",
@@ -341,6 +343,10 @@ not_the_caller's:
 
 
 tests:
+  - name: ensure_assistant_recreates_a_removed_assistant_project
+    checks: >
+      tests/project_assistant.rs: after the assistant project is removed, the
+      next ensure_assistant succeeds by restoring it.
   - name: ensure_assistant_is_idempotent
     checks: >
       tests/project_assistant.rs: two calls give one `assistant` project over

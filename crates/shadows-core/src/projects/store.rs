@@ -120,6 +120,33 @@ impl Storage {
         .await
     }
 
+    /// Brings back the removed project `slug` when it was AYLUL's (a slug
+    /// stays taken after a removal). `None` when there is no such project.
+    pub async fn restore_assistant_project(
+        &self,
+        slug: &str,
+    ) -> Result<Option<Project>, StorageError> {
+        let slug = slug.to_string();
+        self.write_txn(move |conn| {
+            Box::pin(async move {
+                let id: Option<String> = sqlx::query_scalar(
+                    "SELECT id FROM project                      WHERE slug = ? AND assistant = 1 AND removed_at IS NOT NULL",
+                )
+                .bind(&slug)
+                .fetch_optional(&mut *conn)
+                .await?;
+                let Some(id) = id else { return Ok(None) };
+                let id = ProjectId::from_stored(id);
+                sqlx::query("UPDATE project SET removed_at = NULL WHERE id = ?")
+                    .bind(id.as_str())
+                    .execute(&mut *conn)
+                    .await?;
+                Ok(Some(load_project(conn, &id).await?))
+            })
+        })
+        .await
+    }
+
     /// The project, NotFound once removed (§4.2).
     pub async fn get_project(&self, id: &ProjectId) -> Result<Project, StorageError> {
         let mut conn = self.reader().acquire().await?;
