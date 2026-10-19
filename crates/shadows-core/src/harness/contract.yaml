@@ -105,6 +105,8 @@ shapes:
     # one `Arc` by `Harness` and `Turns`.
     config: SessionsConfig
   SessionsConfig:
+    secrets: Option<Arc<Secrets>>
+    aylul: Option<AylulConfig>
     # Defaults: 15 min, 10 s, 20 s, 5 s, None.
     idle_after: Duration
     cancel_wait: Duration

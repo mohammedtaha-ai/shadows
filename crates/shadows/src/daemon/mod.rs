@@ -74,6 +74,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         let aylul = crate::aylul::prepare(planner.aylul)?;
         let core = AppCore::start(
             &StartConfig {
+                secret_key: None,
                 db_path: planner.db_path,
                 node_path: planner.node_path,
                 adapter_path: planner.adapter_path,

@@ -42,6 +42,11 @@ pattern to follow, not merely an example.
 
 | Module | Its one job | Reference file |
 |---|---|---|
+| `crates/shadows-core/src/secrets/` | encrypted profile environment operations | `crates/shadows-core/src/secrets/contract.yaml` |
+| `crates/shadows-core/src/secrets/model.rs` | secret environment metadata | `crates/shadows-core/src/secrets/model.rs` |
+| `crates/shadows-core/src/secrets/store.rs` | encrypted environment SQL | `crates/shadows-core/src/secrets/store.rs` |
+| `crates/shadows-core/src/secrets/crypto.rs` | authenticated environment encryption | `crates/shadows-core/src/secrets/crypto.rs` |
+| `crates/shadows-core/src/secrets/crypto_tests.rs` | envelope integrity tests | `crates/shadows-core/src/secrets/crypto_tests.rs` |
 | `crates/shadows-core/src/command/approver.rs` | approval provenance values | `docs/superpowers/specs/2026-10-08-approval-authority-design.md` |
 | `crates/shadows-core/src/db/approval.rs` | transaction-local approval provenance | `docs/superpowers/specs/2026-10-08-approval-authority-design.md` |
 | `crates/shadows-core/src/db/write_observer.rs` | test-only committed-write observation | `crates/shadows/tests/openapi/read_only.rs` |

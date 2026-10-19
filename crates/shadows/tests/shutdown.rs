@@ -356,6 +356,7 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
     let (_stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            secrets: shadows_core::testing::secrets(f.runtime.storage.clone(), None),
             storage: f.runtime.storage.clone(),
             runtime: f.runtime.clone(),
             sessions: f.sessions.clone(),

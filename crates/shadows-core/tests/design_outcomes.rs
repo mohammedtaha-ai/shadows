@@ -23,6 +23,7 @@ async fn fixture(path: &std::path::Path) -> (Arc<Storage>, Arc<AppCore>) {
     let storage = Arc::new(Storage::open(path).await.unwrap());
     let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
     let core = AppCore::assemble(CoreParts {
+        secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime,
         sessions: acp::fake_sessions(storage.clone()),

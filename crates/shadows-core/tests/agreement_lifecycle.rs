@@ -7,6 +7,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
     let core = AppCore::assemble(CoreParts {
+        secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime: Arc::new(Runtime::start(storage.clone()).await.unwrap().0),
         sessions: acp::fake_sessions(storage.clone()),

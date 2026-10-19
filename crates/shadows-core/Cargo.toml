@@ -12,6 +12,10 @@ doctest = false
 workspace = true
 
 [dependencies]
+aes-gcm = "0.10"
+hkdf = "0.12"
+hmac = "0.12"
+rand = "0.8"
 anyhow = { workspace = true }
 dunce = { workspace = true }
 escargot = { workspace = true, optional = true }

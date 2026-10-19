@@ -55,6 +55,7 @@ async fn world(key_env: &str) -> World {
     );
     let handles = Arc::new(LiveHandles::default());
     let core = AppCore::assemble(CoreParts {
+        secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime: runtime.clone(),
         sessions: sessions.clone(),
@@ -272,6 +273,7 @@ async fn aylul_is_unavailable_without_a_profile() {
     let with = world("PATH").await;
     let w = World {
         core: AppCore::assemble(CoreParts {
+            secrets: shadows_core::testing::secrets(with.storage.clone(), None),
             storage: with.storage.clone(),
             runtime: with.runtime.clone(),
             sessions: Sessions::new(

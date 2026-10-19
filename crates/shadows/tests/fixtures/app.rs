@@ -149,6 +149,7 @@ async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bo
     let (ui, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let core = AppCore::assemble(CoreParts {
+        secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime: runtime.clone(),
         sessions: sessions.clone(),

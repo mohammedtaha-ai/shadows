@@ -35,6 +35,7 @@ async fn a_client_that_disconnects_mid_request_strands_nothing() {
     let handles = Arc::new(LiveHandles::default());
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            secrets: shadows_core::testing::secrets(storage.clone(), None),
             storage: storage.clone(),
             runtime: Arc::new(runtime),
             sessions: acp::fake_sessions(storage.clone()),

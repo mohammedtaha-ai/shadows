@@ -93,6 +93,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let router = router(AppState {
         core: AppCore::assemble(CoreParts {
+            secrets: shadows_core::testing::secrets(storage.clone(), None),
             storage,
             runtime: runtime.clone(),
             sessions: sessions.clone(),

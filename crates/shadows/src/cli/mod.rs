@@ -24,6 +24,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         None => None,
     };
     let start = StartConfig {
+        secret_key: None,
         db_path: config.db_path.clone(),
         node_path: config.node_path.clone(),
         adapter_path: config.adapter_path.clone(),

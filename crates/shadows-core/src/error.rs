@@ -8,6 +8,12 @@ use crate::turns::StartError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
+    SecretNameInvalid,
+    SecretValueInvalid,
+    SecretUnreadable,
+    SecretsUnavailable,
+    AylulKeyMissing,
+    AylulNotConfigured,
     StageBlocked,
     HarnessStartFailed,
     ProcessSpawnFailed,
@@ -67,6 +73,18 @@ pub enum ErrorCode {
 /// MCP — and the codes and texts clients see stay exactly what they were.
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {
+    #[error("invalid environment variable name: {0}")]
+    SecretNameInvalid(String),
+    #[error("invalid environment variable value for {0}")]
+    SecretValueInvalid(String),
+    #[error("cannot decrypt {0}; replace it in Settings")]
+    SecretUnreadable(String),
+    #[error("encrypted environment storage is unavailable")]
+    SecretsUnavailable,
+    #[error("AYLUL key is missing: {0}")]
+    AylulKeyMissing(String),
+    #[error("AYLUL is not configured")]
+    AylulNotConfigured,
     #[error(transparent)]
     Storage(StorageError),
     #[error(transparent)]
