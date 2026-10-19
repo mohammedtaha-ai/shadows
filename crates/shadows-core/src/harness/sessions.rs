@@ -3,7 +3,6 @@
 use std::{
     collections::HashMap,
     io,
-    path::PathBuf,
     sync::{
         Arc,
         atomic::{AtomicU64, Ordering},
@@ -25,7 +24,7 @@ use super::setup::Setups;
 use super::titles::keep_titles;
 use crate::{
     db::{Storage, StorageError},
-    threads::{ThreadId, TurnContext},
+    threads::ThreadId,
 };
 use shadows_agent::{
     acp::{Connection, SessionStart},
@@ -482,23 +481,6 @@ async fn stop_handle(handle: &mut ProcessHandle) -> io::Result<()> {
         .await
         .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "adapter did not exit in time"))?
         .map(|_| ())
-}
-
-/// Resolve the project's directory at opening, so a moved or deleted directory
-/// fails instead of running in the daemon's own working directory.
-pub(super) fn workspace(context: &TurnContext) -> Result<PathBuf, String> {
-    let Some(dir) = &context.project_directory else {
-        return Err(
-            "the project has no directory: it was created before projects owned one".into(),
-        );
-    };
-    if !dir.is_dir() {
-        return Err(format!(
-            "the project directory is missing or no longer a directory: {}",
-            dir.display()
-        ));
-    }
-    Ok(dir.clone())
 }
 
 /// The thread's live adapter, if it is still the one `opened` was made on.

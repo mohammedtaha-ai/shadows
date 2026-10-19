@@ -62,9 +62,11 @@ async fn world(key_env: &str) -> World {
         ui: tokio::sync::broadcast::channel(16).0,
         mcp_url: acp::MCP_URL.into(),
     });
+    // Under another slug than the configured one: the project is AYLUL's
+    // because `ensure_assistant` marked it, not because of its slug.
     let project = core
         .projects()
-        .create("c1".into(), "aylul", "AYLUL", home.to_str().unwrap())
+        .ensure_assistant("assistant", "AYLUL", &home)
         .await
         .unwrap();
     let thread = core
@@ -175,9 +177,10 @@ async fn aylul_harness_only_in_the_aylul_project() {
     let normal = w
         .core
         .projects()
+        // Holds the configured slug but was never marked: an ordinary project.
         .create(
             "c3".into(),
-            "normal",
+            "aylul",
             "Normal",
             other.path().to_str().unwrap(),
         )
@@ -190,16 +193,27 @@ async fn aylul_harness_only_in_the_aylul_project() {
             .await
             .is_err()
     );
-    assert!(
-        threads
-            .create("c5".into(), &normal.id, "x", None)
-            .await
-            .is_ok()
-    );
+    let plain = threads
+        .create("c5".into(), &normal.id, "x", None)
+        .await
+        .unwrap();
     let aylul = w.storage.turn_context(&w.thread).await.unwrap().project_id;
     assert!(
         threads
             .create("c6".into(), &aylul, "x", Some(policy::CLAUDE_CODE))
+            .await
+            .is_err()
+    );
+    // A harness change follows the same rule, both ways.
+    assert!(
+        threads
+            .set_harness("c7".into(), &plain.id, policy::AYLUL)
+            .await
+            .is_err()
+    );
+    assert!(
+        threads
+            .set_harness("c8".into(), &w.thread, policy::CLAUDE_CODE)
             .await
             .is_err()
     );

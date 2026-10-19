@@ -45,7 +45,8 @@ impl ClaudeAdapter {
 /// §4: the child environment is built explicitly, never cleared blindly).
 /// Claude runs the Planner's shell tools, which need `PATH` to find `git` or
 /// `ls`, and reads its own configuration and sign-in from the home directory.
-/// No isolation profile exists yet; when one does, it replaces these values.
+/// An isolation profile (`process_spec_with`) adds its home and provider after
+/// these, so its `CLAUDE_CONFIG_DIR` decides where Claude reads them instead.
 const INHERITED: &[&str] = &["PATH", "HOME", "TMPDIR", "LANG"];
 
 fn environment(agent: &Path) -> Vec<(String, String)> {

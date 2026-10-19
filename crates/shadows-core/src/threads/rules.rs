@@ -5,14 +5,10 @@ use shadows_agent::policy;
 use crate::error::CoreError;
 
 /// AYLUL's harness lives only in the AYLUL project, and that project allows
-/// nothing else. `aylul_slug` is None when the daemon has no profile.
-pub(crate) fn harness_fits_project(
-    harness: &str,
-    project_slug: &str,
-    aylul_slug: Option<&str>,
-) -> Result<(), CoreError> {
-    let in_aylul_project = aylul_slug == Some(project_slug);
-    if (harness == policy::AYLUL) == in_aylul_project {
+/// nothing else. The AYLUL project is the one `Projects::ensure_assistant`
+/// marked `assistant`, never one that merely holds the configured slug.
+pub(crate) fn harness_fits_project(harness: &str, assistant: bool) -> Result<(), CoreError> {
+    if (harness == policy::AYLUL) == assistant {
         Ok(())
     } else {
         Err(CoreError::SettingNotOffered {

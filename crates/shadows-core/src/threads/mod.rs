@@ -85,7 +85,7 @@ impl Threads {
         let harness = harness.unwrap_or(policy::CLAUDE_CODE);
         known_harness(harness)?;
         if let Ok(found) = self.storage.get_project(project).await {
-            harness_fits_project(harness, &found.slug, self.harness.aylul_slug())?;
+            harness_fits_project(harness, found.assistant)?;
         }
         let params = serde_json::json!({
             "project": project, "title": title, "harness": harness,
@@ -110,7 +110,7 @@ impl Threads {
         known_harness(harness)?;
         let context = self.storage.turn_context(thread).await?;
         if let Ok(found) = self.storage.get_project(&context.project_id).await {
-            harness_fits_project(harness, &found.slug, self.harness.aylul_slug())?;
+            harness_fits_project(harness, found.assistant)?;
         }
         let before = context.harness;
         let params = serde_json::json!({ "thread_id": thread, "harness": harness });

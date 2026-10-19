@@ -1,6 +1,8 @@
-//! One job: what an AYLUL session opens with. Claude Code on its own profile,
-//! in the profile's home, with none of the Planner's prompt, tools, MCP grant
-//! or stage text, loading only the profile's user settings.
+//! One job: choosing what a thread's adapter opens with, by harness kind. A
+//! Planner thread opens in its project folder on the Planner's setup; an AYLUL
+//! thread opens Claude Code on its own profile, in the profile's home, with
+//! none of the Planner's prompt, tools, MCP grant or stage text, loading only
+//! the profile's user settings.
 
 use std::path::PathBuf;
 
@@ -9,14 +11,14 @@ use shadows_agent::policy;
 use shadows_agent::profile::ClaudeProfile;
 use shadows_process::ProcessSpec;
 
-use super::sessions::{OpenError, Sessions, workspace};
+use super::sessions::{OpenError, Sessions};
 use crate::threads::{ThreadId, TurnContext};
 
 /// The daemon's `aylul` section, as the core needs it.
 #[derive(Debug, Clone)]
 pub struct AylulConfig {
     pub profile: ClaudeProfile,
-    /// The slug of the one project AYLUL's conversations live in.
+    /// The slug `Projects::ensure_assistant` gives AYLUL's project.
     pub project_slug: String,
 }
 
@@ -31,7 +33,7 @@ pub(super) fn aylul_setup() -> SessionSetup {
     }
 }
 
-/// Where an AYLUL adapter runs and how it starts.
+/// Where an adapter runs and how it starts.
 pub(super) struct Opening {
     pub(super) cwd: PathBuf,
     pub(super) setup: SessionSetup,
@@ -42,10 +44,6 @@ impl Sessions {
     /// The one answer to "can a turn run on `kind` here": AYLUL only with a profile.
     pub(crate) fn harness_available(&self, kind: &str) -> bool {
         policy::is_available_with(kind, self.config.aylul.is_some())
-    }
-
-    pub(super) fn aylul_slug(&self) -> Option<&str> {
-        self.config.aylul.as_ref().map(|a| a.project_slug.as_str())
     }
 
     /// Where the thread's adapter runs and what it opens with. A Planner
@@ -75,4 +73,21 @@ impl Sessions {
             spec,
         })
     }
+}
+
+/// Resolve the project's directory at opening, so a moved or deleted directory
+/// fails instead of running in the daemon's own working directory.
+fn workspace(context: &TurnContext) -> Result<PathBuf, String> {
+    let Some(dir) = &context.project_directory else {
+        return Err(
+            "the project has no directory: it was created before projects owned one".into(),
+        );
+    };
+    if !dir.is_dir() {
+        return Err(format!(
+            "the project directory is missing or no longer a directory: {}",
+            dir.display()
+        ));
+    }
+    Ok(dir.clone())
 }

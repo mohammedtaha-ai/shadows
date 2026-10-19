@@ -59,11 +59,6 @@ impl Harness {
         Self { storage, sessions }
     }
 
-    /// The slug of the project AYLUL lives in, when the daemon has a profile.
-    pub(crate) fn aylul_slug(&self) -> Option<&str> {
-        self.sessions.aylul_slug()
-    }
-
     /// Every harness Shadows knows, runnable or not, with the model and effort
     /// last used on it and the account limits it last reported.
     pub async fn list(&self) -> Result<Vec<HarnessInfo>, CoreError> {

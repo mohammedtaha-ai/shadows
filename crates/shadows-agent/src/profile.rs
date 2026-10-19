@@ -35,11 +35,13 @@ impl ClaudeProfile {
             .ok()
             .filter(|v| !v.is_empty())
             .ok_or_else(|| ProfileError::MissingKey(self.key_env.clone()))?;
-        let mut env = vec![(
-            "CLAUDE_CONFIG_DIR".to_string(),
+        // The profile's own values go last, so an extra `env` pair can never
+        // move the home or replace the key (a later pair wins at spawn).
+        let mut env = self.env.clone();
+        env.push((
+            "CLAUDE_CONFIG_DIR".into(),
             self.home.to_string_lossy().into_owned(),
-        )];
-        env.extend(self.env.iter().cloned());
+        ));
         env.push(("ANTHROPIC_API_KEY".into(), String::new()));
         env.push(("ANTHROPIC_AUTH_TOKEN".into(), key));
         Ok(env)
@@ -58,9 +60,17 @@ mod tests {
             name: "a".into(),
             home: "C:/a/home".into(),
             key_env: "PATH".into(),
-            env: vec![("ANTHROPIC_MODEL".into(), "MiniMax-M3".into())],
+            env: vec![
+                ("ANTHROPIC_MODEL".into(), "MiniMax-M3".into()),
+                // An extra pair naming the home or key never wins.
+                ("CLAUDE_CONFIG_DIR".into(), "C:/elsewhere".into()),
+                ("ANTHROPIC_AUTH_TOKEN".into(), "from-config".into()),
+            ],
         };
         let env = p.spawn_env().unwrap();
+        let last = |name: &str| env.iter().rev().find(|(k, _)| k == name).unwrap().1.clone();
+        assert_eq!(last("CLAUDE_CONFIG_DIR"), "C:/a/home");
+        assert_eq!(last("ANTHROPIC_AUTH_TOKEN"), k1);
         for pair in [
             ("CLAUDE_CONFIG_DIR", "C:/a/home"),
             ("ANTHROPIC_AUTH_TOKEN", k1.as_str()),
@@ -72,6 +82,30 @@ mod tests {
                 "{pair:?}"
             );
         }
+    }
+
+    #[test]
+    fn a_profile_spawn_spec_never_prints_its_key() {
+        let key = std::env::var("PATH").unwrap();
+        let adapter = crate::claude::ClaudeAdapter {
+            node: "node".into(),
+            adapter: "a.js".into(),
+            agent: "claude".into(),
+            adapter_version: String::new(),
+            agent_version: String::new(),
+        };
+        let profile = ClaudeProfile {
+            name: "a".into(),
+            home: "h".into(),
+            key_env: "PATH".into(),
+            env: vec![],
+        };
+        let spec = adapter
+            .process_spec_with("h".as_ref(), Some(&profile))
+            .unwrap();
+        let shown = format!("{spec:?}");
+        assert!(shown.contains("ANTHROPIC_AUTH_TOKEN"), "{shown}");
+        assert!(!shown.contains(&key));
     }
 
     #[test]

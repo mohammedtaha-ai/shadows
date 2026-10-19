@@ -12,7 +12,7 @@ use tokio::process::{ChildStderr, ChildStdin, ChildStdout, Command};
 
 /// OS-level intent and nothing else. Spec §1.5: `shadows-process` knows nothing about
 /// Role, Claude, Codex, planning, workflows, or verification.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ProcessSpec {
     pub executable: PathBuf,
     pub args: Vec<String>,
@@ -24,6 +24,21 @@ pub struct ProcessSpec {
     pub env: Vec<(String, String)>,
     pub capture_stdout: bool,
     pub pipe_stdin: bool,
+}
+
+/// Names the environment's variables, never their values: a provider key
+/// travels here (AYLUL's `ANTHROPIC_AUTH_TOKEN`), and `{:?}` must not print it.
+impl std::fmt::Debug for ProcessSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProcessSpec")
+            .field("executable", &self.executable)
+            .field("args", &self.args)
+            .field("cwd", &self.cwd)
+            .field("env", &self.env.iter().map(|(k, _)| k).collect::<Vec<_>>())
+            .field("capture_stdout", &self.capture_stdout)
+            .field("pipe_stdin", &self.pipe_stdin)
+            .finish()
+    }
 }
 
 pub type ChildIn = ChildStdin;

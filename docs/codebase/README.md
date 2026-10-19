@@ -128,7 +128,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/harness/` | the harnesses, each thread's open session included | `crates/shadows-core/src/harness/mod.rs` |
 | `crates/shadows-core/src/harness/model.rs` | the harness shapes callers meet | `crates/shadows-core/src/harness/model.rs` |
 | `crates/shadows-core/src/harness/store.rs` | the rows kept per harness | `crates/shadows-core/src/harness/store.rs` |
-| `crates/shadows-core/src/harness/assistant.rs` | what an AYLUL session opens with | `crates/shadows-core/src/harness/assistant.rs` |
+| `crates/shadows-core/src/harness/assistant.rs` | choosing what a thread's adapter opens with, by harness kind | `crates/shadows-core/src/harness/assistant.rs` |
 | `crates/shadows-core/src/harness/sessions.rs` | the live adapter connection each open thread holds | `crates/shadows-core/src/harness/sessions.rs` |
 | `crates/shadows-core/src/harness/settings.rs` | setting an open session's options | `crates/shadows-core/src/harness/settings.rs` |
 | `crates/shadows-core/src/harness/setup.rs` | what a Planner session opens with | `crates/shadows-core/src/harness/setup.rs` |
