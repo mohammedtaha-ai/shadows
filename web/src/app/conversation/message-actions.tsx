@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { GitBranch } from 'lucide-react'
 import { useRef } from 'react'
+import { agentThreadsQuery } from '@/api/aylul-profiles'
 import { forkThread } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { threadsQuery } from '@/api/queries'
@@ -40,6 +41,10 @@ export function MessageActions({
     onSuccess: (created, { at }) => {
       pending.current = null
       void queryClient.invalidateQueries({ queryKey: threadsQuery(at.projectId).queryKey })
+      // An AYLUL fork keeps its agent, so it also shows under that agent.
+      if (created.profile != null) {
+        void queryClient.invalidateQueries({ queryKey: agentThreadsQuery(created.profile).queryKey })
+      }
       void navigate({
         to: '/projects/$projectId/threads/$threadId',
         params: { projectId: created.project_id, threadId: created.id },
