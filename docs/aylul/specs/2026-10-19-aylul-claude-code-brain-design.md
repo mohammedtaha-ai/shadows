@@ -326,8 +326,16 @@ config-file provider.
     provider.
 - **The model menu comes from the adapter, restricted by the provider.**
   `claude-agent-acp` 0.81.1 honours `availableModels` in the user
-  `settings.json`: it shows those exact ids and passes them unchanged to
-  `setModel` (`session-model.js`, `applyAvailableModelsAllowlist`).
+  `settings.json` (`session-model.js`, `applyAvailableModelsAllowlist`). It
+  shows those exact ids and passes them unchanged to `setModel`, unless two
+  things intervene:
+  - a `modelOverrides` entry rewrites an id
+  - `ANTHROPIC_CUSTOM_MODEL_OPTION` adds an entry outside the list
+
+  So the opening refuses, with a named error, a `settings.json` that holds
+  `modelOverrides`, or an `env` key in the reserved list below. The adapter may
+  show or hide its own "Default" entry (it hides it when the client supports
+  `recommendedValue`).
   - At each spawn, Shadows writes two keys in the agent home's
     `settings.json`: `availableModels` (the provider's `models`) and `model`
     (the agent's `default_model`). Every other key stays as Mohammed left it.
@@ -353,6 +361,45 @@ config-file provider.
   `env_file` with them, so a stale file fails loudly at start. The one-time env
   import of §10 is removed, because the variables already imported stay in the
   database.
+- **Amended after a Codex review (2026-10-19):**
+  - **The provider decides where its key goes.** These names are reserved:
+    - for an agent's variables (refused at set; an existing row fails the
+      opening with `SECRET_NAME_RESERVED` naming it)
+    - inside the agent home's `settings.json` `env`
+
+    They are `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`,
+    `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`,
+    `ANTHROPIC_DEFAULT_HAIKU_MODEL`, `ANTHROPIC_SMALL_FAST_MODEL`,
+    `ANTHROPIC_CUSTOM_MODEL_OPTION`, `CLAUDE_CODE_MAX_CONTEXT_TOKENS` and
+    `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, plus §10's three.
+  - **A provider URL is `https://`.** `http://` is accepted only for
+    `localhost`, `127.0.0.1` and `[::1]`.
+  - **The model id `default` is refused.** Each provider model is listed once,
+    and the session's current model is always one of them.
+  - **Agent slugs are never reused.** Deleting an agent marks it deleted and
+    keeps its row. Its slug stays taken, its conversations stay readable by
+    their URL, and sending in one gives `AYLUL_PROFILE_NOT_FOUND`. Deleting an
+    agent also closes its live adapters. Every send checks the thread's agent
+    before it reuses a live adapter.
+  - **Edits apply at the next spawn,** including a resumed conversation. The
+    agent and provider forms say so.
+  - **Conversations live in one hidden assistant project,** slug `aylul`, whose
+    directory is `home_root`. The agents list returns its id, so a draft under
+    an agent can create its thread.
+  - **The conversations that exist today belong to the agent `aylul`.** The
+    migration sets `profile = 'aylul'` on every AYLUL thread. When Mohammed
+    creates an agent named "AYLUL", it takes that slug and those
+    conversations. Its earlier variables (`API_KEY`) are already stored under
+    `aylul` and stay.
+  - **`aylul.json`'s cutover is manual.** The file becomes
+    `{"home_root": "..."}`. The provider URL and key are re-entered under
+    Providers, and the old keys are refused at start, naming each one.
+  - **Writes to `settings.json`** are serialized per home and skipped when the
+    two keys are already right. They use a unique temp file and a rename. Key
+    order may change. Every other key and value is kept.
+  - **The workspace follows the page:** an AYLUL conversation or agent page
+    shows the AYLUL workspace whatever was stored. Switching workspaces
+    navigates to that workspace's last page or its home.
 - **Web:**
   - The workspace switcher above.
   - "Providers" opens a list and one form: name, URL, API key, models, context
@@ -381,3 +428,8 @@ config-file provider.
    it shows `AYLUL_PROFILE_NOT_FOUND`.
 5. No provider key appears in any response, log, `settings.json` or plaintext
    database byte.
+6. The conversations from before this slice appear under the agent "AYLUL"
+   once it is created.
+7. An agent variable named `ANTHROPIC_BASE_URL` is refused. A
+   `settings.json` holding `modelOverrides` fails the opening with a named
+   error, and the key is never sent.
