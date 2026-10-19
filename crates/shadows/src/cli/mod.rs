@@ -19,12 +19,20 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
     let addr = listener.local_addr()?;
     let mcp_url = format!("http://{addr}/mcp");
-    let aylul = match &config.aylul_config {
+    let prepared = match &config.aylul_config {
         Some(path) => crate::aylul::prepare(Some(crate::aylul::load(path)?))?,
         None => None,
     };
+    let (aylul, import_path) = prepared.map(|(c, p)| (Some(c), p)).unwrap_or_default();
+    let secret_key = aylul.as_ref().and_then(|_| {
+        crate::master_key::load_or_create()
+            .map_err(|error| {
+                tracing::warn!(%error, "secrets.master_key_unavailable");
+            })
+            .ok()
+    });
     let start = StartConfig {
-        secret_key: None,
+        secret_key,
         db_path: config.db_path.clone(),
         node_path: config.node_path.clone(),
         adapter_path: config.adapter_path.clone(),
@@ -33,6 +41,9 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     };
     let core = AppCore::start(&start, mcp_url).await?;
     crate::aylul::ensure_project(&core, aylul.as_ref()).await?;
+    if let (Some(config), Some(path)) = (aylul.as_ref(), import_path.as_ref()) {
+        crate::aylul::import_env(&core, config, path).await;
+    }
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {
         core: core.clone(),

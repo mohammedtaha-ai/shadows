@@ -66,6 +66,8 @@ impl Default for SessionsConfig {
 #[derive(Debug, thiserror::Error)]
 pub enum OpenError {
     #[error(transparent)]
+    Env(#[from] crate::CoreError),
+    #[error(transparent)]
     Storage(#[from] StorageError),
     #[error("harness start failed: {0}")]
     Start(String),

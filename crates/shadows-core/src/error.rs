@@ -131,6 +131,7 @@ impl From<StorageError> for CoreError {
 impl From<OpenError> for CoreError {
     fn from(e: OpenError) -> Self {
         match e {
+            OpenError::Env(e) => e,
             OpenError::Storage(e) => CoreError::Storage(e),
             OpenError::Start(reason) => CoreError::HarnessStartFailed(reason),
             OpenError::Workspace(reason) => CoreError::ProjectDirectoryUnusable(reason),

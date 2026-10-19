@@ -100,6 +100,15 @@ pub(crate) async fn answer(
             update(cx, id, SessionUpdate::ToolCallUpdate(done))?;
             chunk(cx, id, "m2", "second")?;
         }
+        "check-env-one" | "check-env-two" => {
+            let expected = if prompt == "check-env-one" {
+                "synthetic-stored-one"
+            } else {
+                "synthetic-stored-two"
+            };
+            let matches = std::env::var("ANTHROPIC_AUTH_TOKEN").is_ok_and(|v| v == expected);
+            chunk(cx, id, "m1", if matches { "true" } else { "false" })?;
+        }
         "report" => {
             let bearer_hash = s
                 .setup

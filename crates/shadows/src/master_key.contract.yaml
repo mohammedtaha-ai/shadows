@@ -1,0 +1,14 @@
+# The binary owns OS credentials. No core service accesses keyring.
+name: secrets-master-key
+version: 1
+status: current
+source: crates/shadows/src/master_key.rs
+functions:
+  load_or_create: Read the binary Windows credential, creating only on NoEntry then reading back.
+obligations:
+  - rule: Wrong lengths or read errors never overwrite an existing entry and never expose its bytes.
+    tested_by: none
+    note: Real credential-store acceptance belongs to the controller; no automated test calls it.
+  - rule: The backend is explicitly windows-native; non-Windows loading fails without a mock fallback.
+    tested_by: none
+    note: Compilation is checked by the platform CI gate.

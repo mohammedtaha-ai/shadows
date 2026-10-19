@@ -5,6 +5,10 @@ what can be checked:
 
 | File | Kind | Answers |
 |---|---|---|
+| `crates/shadows-agent/src/profile_tests.rs` | isolated profile environment tests | `crates/shadows-agent/src/profile.rs` |
+| `crates/shadows/src/master_key.contract.yaml` | master key storage obligations | `crates/shadows/src/master_key.rs` |
+| `crates/shadows/src/master_key.rs` | Windows master key storage | `crates/shadows/src/master_key.contract.yaml` |
+| `crates/shadows/src/aylul_tests.rs` | AYLUL startup configuration tests | `crates/shadows/src/aylul.rs` |
 | this file | written by hand | *Where does my new code go?* The one job each crate and module holds, and the invariants no change may break. |
 | each service's `contract.yaml` | written by hand, next to its code in `crates/shadows-core/src/<service>/` | *What must stay true of this service?* Its methods, obligations, agreements and tests, in the shape of [`contracts/TEMPLATE.yaml`](./contracts/TEMPLATE.yaml). |
 
@@ -42,6 +46,10 @@ pattern to follow, not merely an example.
 
 | Module | Its one job | Reference file |
 |---|---|---|
+| `crates/shadows-agent/src/profile_tests.rs` | isolated profile environment tests | `crates/shadows-agent/src/profile.rs` |
+| `crates/shadows/src/master_key.contract.yaml` | master key storage obligations | `crates/shadows/src/master_key.rs` |
+| `crates/shadows/src/master_key.rs` | Windows master key storage | `crates/shadows/src/master_key.contract.yaml` |
+| `crates/shadows/src/aylul_tests.rs` | AYLUL startup configuration tests | `crates/shadows/src/aylul.rs` |
 | `crates/shadows-core/src/secrets/` | encrypted profile environment operations | `crates/shadows-core/src/secrets/contract.yaml` |
 | `crates/shadows-core/src/secrets/model.rs` | secret environment metadata | `crates/shadows-core/src/secrets/model.rs` |
 | `crates/shadows-core/src/secrets/store.rs` | encrypted environment SQL | `crates/shadows-core/src/secrets/store.rs` |
