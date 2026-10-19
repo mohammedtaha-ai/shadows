@@ -16,9 +16,10 @@ desktop/mobile connection paths replace the earlier alternative deployments.
 Later 2026-10-19 direction: the human selected one product daemon hosting optional
 Shadows planning and an independently available assistant. Hermes connection code
 stays TypeScript. The [product-daemon design](../integration/2026-10-19-product-daemon-hermes-design.md)
-defines the proposed local/server boundary and remains pending written review.
-Account services remain in shadows-backend. The backend-only chat placement below
-describes current implementation; local daemon chat has not been implemented.
+defines the local/server boundary. Initial local daemon chat is implemented;
+acceptance limits are recorded in its delivery evidence. Account services remain
+in shadows-backend. The backend-only chat placement below describes the earlier
+remote delivery, which is retained as an explicitly selected source.
 
 The human's next product direction is a workspace for creating and configuring
 multiple assistant bots, with AYLUL as a monitoring-role bot. Conversations,
@@ -34,14 +35,14 @@ AYLUL also explains work in directly used Claude/Codex sessions without requirin
 a Shadows plan. Agent identity, project context and actual supported controls
 come from their owners, not from a model guessing which executor is involved.
 
-For the personal-first delivery, reuse Hermes behind our account backend as AYLUL's remote brain rather
+For remote account delivery, reuse Hermes behind our account backend as AYLUL's remote brain rather
 than expanding a second custom local/cloud agent loop. Keep the tested local
 hook, sidecar, native shell and their evidence. An independent code-intelligence
 package supplies semantic project queries to AYLUL, Core and direct coding clients;
 it runs without either application. Its implementation is selected after the
 Serena learning baseline, not assumed complete.
 
-NYLRA uses one backend origin for login and assistant services. Locally Docker
+Remote NYLRA uses one backend origin for login and assistant services. Locally Docker
 reuses the already installed Windows Hermes; on the server Hermes is an internal
 service of the same deployment. The client does not connect to Hermes directly.
 

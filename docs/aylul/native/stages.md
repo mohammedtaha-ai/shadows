@@ -7,9 +7,28 @@ their task here and set its status. Task shape: [`AGENTS.md`](AGENTS.md#a-task-i
 
 2026-10-19 next direction: the human requested moving the TypeScript Hermes
 connection behind a Rust product daemon while retaining the account backend.
-The [written design](../../integration/2026-10-19-product-daemon-hermes-design.md)
-is pending review. No implementation task is started by that design commit;
-the current account path and its acceptance below remain intact.
+The [design](../../integration/2026-10-19-product-daemon-hermes-design.md) and
+[plan](../../integration/2026-10-19-product-daemon-hermes-plan.md) now have human
+execution authorization. Transport extraction, local persistence, daemon hosting
+and native source selection are implemented. One fresh review plus its targeted
+fix round is complete. The account path and its acceptance below remain intact.
+The [runtime handoff](../../integration/2026-10-19-local-assistant-handoff.md)
+records local startup and explicit source selection.
+
+### D-H1 · Product daemon local assistant
+- Status: done; local automated acceptance complete, physical GUI acceptance separate
+- Plan: docs/integration/2026-10-19-product-daemon-hermes-plan.md
+- Read: product-daemon design, local assistant and native assistant contracts.
+- Touch: exact files listed in that plan, including its reviewed recovery amendment.
+- Needs: portable TypeScript client, closed native source selection.
+- Done when: composed restart/recovery/stop journey, local authenticated readiness,
+  source isolation and retained remote account checks pass with explicit limits.
+
+Evidence: [2026-10-19 local daemon delivery](../../evidence/aylul/2026-10-19-product-daemon-hermes.md).
+Root Rust gate 534 passed/1 ignored, full Chromium 65/65, native library 34 passed/
+2 ignored, backend focused Docker 32/32. No provider call, physical GUI or server
+rollout is implied. Both runtime source selection and remote account checks remain
+separate from a future backend-to-daemon deployment adapter.
 
 2026-10-18 direction change: preserve the completed companion/hook work below.
 Do not continue the former shadows-backend-compatible relay/client roadmap.

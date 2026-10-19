@@ -6,12 +6,18 @@ An integration document links those owners rather than defining their APIs twice
 
 2026-10-19 direction: the human selected a product daemon with optional planning
 and an independently available Hermes-backed assistant. The
-[product-daemon design](2026-10-19-product-daemon-hermes-design.md) is pending
-written review; no source move or routing cutover has occurred. It proposes
-keeping the Hermes client in TypeScript and cloud account services separate.
+[product-daemon design](2026-10-19-product-daemon-hermes-design.md) owns the
+TypeScript client extraction and local service. The
+[implementation plan](2026-10-19-product-daemon-hermes-plan.md) records delivery.
+[Local runtime handoff](2026-10-19-local-assistant-handoff.md) records startup and
+source-selection behavior.
+[Dated verification](../evidence/aylul/2026-10-19-product-daemon-hermes.md) records
+the completed local gates and their physical/provider/server limits.
+Local conversation is available through the product daemon; cloud account
+services and the existing remote path remain separate.
 
 Start with [runtime cores and endpoint disposition](2026-10-18-runtime-endpoints.md).
-The currently implemented NYLRA chat uses shadows-backend as one public entry; its private Hermes client uses
+Remote NYLRA chat uses shadows-backend as one public entry; its private Hermes client uses
 the installed native API. Local Docker reuses Windows Hermes; server deployment
 changes that internal target. Core, AYLUL and code intelligence remain independent.
 

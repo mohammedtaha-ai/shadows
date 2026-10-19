@@ -1,8 +1,10 @@
 # Product daemon: TypeScript Hermes service
 
 Date: 2026-10-19.
-Status: Human-selected direction; written design pending human review.
-No implementation or transport cutover is claimed by this document.
+Status: The human authorized execution on 2026-10-19 after confirming local/server
+selection. Initial local implementation exists; final review and acceptance are
+recorded in the [implementation plan](2026-10-19-product-daemon-hermes-plan.md).
+Remote account chat is retained; backend-to-daemon deployment is a later adapter.
 
 ## 1. Approved intent
 

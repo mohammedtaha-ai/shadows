@@ -5,6 +5,7 @@ work. Sharing a repository does not make every runtime a service of `AppCore`.
 
 | Area | Owns | Entry point |
 |---|---|---|
+| Product daemon | Optional capability composition and local assistant lifetime | [Runtime design](integration/2026-10-19-product-daemon-hermes-design.md) |
 | Shadows Core backend | Current Rust runtime, its services and API | [Backend](backend/AGENTS.md), [stages](backend/stages.md), [code map](codebase/README.md) |
 | Shadows Core frontend | Existing `web/` Planner/project workspace | [Frontend](frontend/AGENTS.md), [code map](frontend/codebase/README.md) |
 | AYLUL / NYLRA | Assistant experience, native/sidecar integration and document transition | [AYLUL](aylul/README.md) |

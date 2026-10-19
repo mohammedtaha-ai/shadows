@@ -24,6 +24,14 @@ implemented source in this snapshot. Historical evidence is in
 Windows-first experiments and phased acceptance. This file remains the owner of
 source placement; the plans do not create parallel ownership maps.
 
+2026-10-19 product-host amendment: the Hermes transport now has one portable
+TypeScript source owner at `packages/hermes-client/`. The local assistant lives
+in `services/assistant/`, supervised by `crates/shadows/src/daemon/`. It owns a
+separate assistant SQLite store; it is not part of the hook sidecar. Tauri
+selects local daemon versus remote account chat through closed native commands.
+The earlier backend-only placement describes remote chat; it is not a local
+login requirement. See the [host design](../integration/2026-10-19-product-daemon-hermes-design.md).
+
 ## Selected approach
 
 Keep desktop and mobile applications in one repository, each with its normal
@@ -131,7 +139,9 @@ AYLUL desktop is three processes on the laptop, each with one job:
 - **The sidecar keeps no credential on disk.** Tauri's `auth` module holds the
   backend session and serves normal chat through the closed `assistant_call`
   boundary. This path requires no credential handoff to the sidecar.
-  Hermes service credentials stay backend-side.
+  Remote Hermes service credentials stay backend-side. Local assistant service
+  credentials resolve only in Node from an operator key-file reference; the
+  native descriptor capability never reaches the webview.
 - **The pipe is restricted to the current Windows user.** `aylul-hook` refuses
   to run when the pipe is missing or owned by another user.
 - **Failure is not consent.** If the sidecar is off, the pipe is missing or a

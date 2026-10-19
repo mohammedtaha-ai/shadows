@@ -13,7 +13,7 @@ and semantic project-context integration remain future paths.
 | `apps/desktop/src/features/assistant/` | Source-scoped conversation hook, sidebar, view, bot list and read-only details with visible-panel snapshot polling | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/assistant/` | Closed native assistant operations through captured local installation or remote account routing | Colocated `contract.yaml` |
 | `apps/desktop/src/api/generated/` | Backend-generated wire artifacts and input hash | Backend TypeBox owner; `provenance.json` |
-| `apps/desktop/src/app/` | Main React presentation: workspace navigation shell, its inline icons and settings grouping, account panel and local hide error | Colocated `contract.yaml` |
+| `apps/desktop/src/app/` | Main workspace presentation with explicit assistant source selection | Colocated `contract.yaml` |
 | `apps/desktop/src/platform/` | Typed native invocation wrappers | Colocated `contract.yaml` |
 | `apps/desktop/src/features/` | Local sessions and requests presentation with person actions | Colocated `contract.yaml`; excludes separately owned assistant, companion and studio |
 | `apps/desktop/src/data/aylul-state.ts` | Refresh local sidecar state while the panel is visible | Features contract; presentation polling |

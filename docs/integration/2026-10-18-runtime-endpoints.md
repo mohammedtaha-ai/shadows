@@ -1,6 +1,6 @@
 # Runtime connections and endpoint disposition
 
-Date: 2026-10-18. Status: inspected source plus backend-first routing. Docker host
+Date: 2026-10-18, amended 2026-10-19. Status: inspected local and remote routing. Docker host
 network/client checks are separate from live Hermes/model acceptance. Design authority remains the
 [AYLUL integration owner](../aylul/specs/2026-10-18-aylul-hermes-semantic-context-design.md).
 
@@ -8,17 +8,26 @@ network/client checks are separate from live Hermes/model acceptance. Design aut
 
 | Application core | Composition | Owned state | Other runtimes call |
 |---|---|---|---|
+| Product daemon | `crates/shadows/src/daemon/mod.rs` | Process lifetime, protected local connection descriptor | Native authenticated loopback assistant route; optional existing Core routes |
+| Local assistant | `services/assistant/src/service.ts` | Separate assistant SQLite intents/bindings/projections | Closed bounded stdio operations owned by the daemon |
 | Shadows | Existing `crates/shadows-core/src/app.rs::AppCore` | Ten services, Core SQLite, managed ACP sessions | Existing HTTP/SSE/MCP; future scoped companion operations |
 | AYLUL local | Proposed `apps/desktop/sidecar/src/app.ts::AylulAppCore`; Tauri owns platform startup | Existing hook/session/approval store, local context, backend client projections | Main-only Tauri `aylul_call`, translated to allowlisted stdio calls |
 | Backend | Existing `shadows-backend/src/app/compose.ts`; its own application composition | Accounts/devices, external conversation ownership and internal Hermes bindings | One authenticated public origin for NYLRA |
 | Code intelligence | Independent package/entry point selected by CI-3 | Registered project roots and LSP state | Selected package query protocol/MCP |
-| Hermes | Installed upstream API-server runtime; internal service within backend deployment | Its profile, sessions, runs and memory | Private native REST runs/session API, never direct desktop access |
+| Hermes | Installed upstream API-server runtime, local or server | Its profile, sessions, runs and memory | Portable TypeScript native REST client; desktop never receives its key |
 
 Multiple application cores do not require renaming the existing Rust symbol or
 splitting its ten services. They require separate startup/state/shutdown owners.
 There is no umbrella core, shared database, universal proxy or cloud connection
 inside Shadows `AppCore`. `aylul-hook` remains a short-lived client of the local
 named pipe; the avatar renderer and native windows keep their current owners.
+
+The product host now composes capabilities beside AppCore. It does not put AYLUL
+inside planning AppCore or merge their databases. The
+[daemon design](2026-10-19-product-daemon-hermes-design.md) owns that boundary.
+The initial local daemon can run without planning; `--planner-config` optionally
+starts the existing Core on the same host. Hook-sidecar lifetime remains owned
+by Tauri until its later integration task.
 
 ## Inspected sources
 
@@ -35,7 +44,20 @@ findings below remain comparison evidence. No
 Shadows MCP navigation or Rust LSP was connected; maps/contracts preceded scoped
 file reads. A source operation and a planned operation have different labels below.
 
-## Desktop to existing shadows-backend
+## Local desktop to product daemon
+
+Native `assistant_sources` returns installation identity only. An explicitly
+selected `assistant_local_call` verifies that identity against the private
+descriptor before reaching the loopback `/assistant` route. The daemon checks
+the installation capability and rejects browser origins; Node alone resolves
+the Hermes key-file reference. Local chat needs no cloud sign-in.
+
+The TypeScript client source lives in `packages/hermes-client`; the backend
+consumes its integrity-locked packed artifact. Local conversation/intent state
+lives in `services/assistant`, not Core SQLite or Hermes SQLite. Local and remote
+histories have separate sources; there is no automatic copy or send failover.
+
+## Remote desktop to existing shadows-backend
 
 These native calls already exist in `apps/desktop/src-tauri/src/auth/service.rs`.
 Retain their implementation and tests. New assistant operations use the same
