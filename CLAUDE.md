@@ -120,6 +120,15 @@ and `verification` services.
      without `test-support`, where the core's boundary is checked
   5. `cargo tree -e features,no-dev --workspace | grep test-support` prints nothing
   6. `git diff --exit-code api/`: `api/openapi.json` changes only with a route
+- **One build cache, built over in place.** Every build goes into the project's
+  `target/` and reuses what is there; it is a development cache, not a release.
+  Never start a second copy: no `CARGO_TARGET_DIR`, no worktree build, no
+  `cargo clean`, no `--release`, `--profile`, `--target` or changed `RUSTFLAGS`.
+  The settings that keep it small stay as they are: `rust-lld.exe` in
+  `.cargo/config.toml`, `[lib] doctest = false` in each crate,
+  `debug = "line-tables-only"` and dependencies at `debug = false`. When
+  `target/debug/deps` holds old copies of a test binary, delete the older ones
+  (`.exe`, `.pdb`, `.d`) and keep the newest; never delete the dependency cache.
 - CI's format-overflow check is owned by [structure hygiene §1.2](./docs/superpowers/specs/2026-10-04-structure-hygiene-design.md#12-what-is-decided).
 - **Library-first for infrastructure only:** no custom ORM, no custom migration engine,
   no hand-written crypto. Security and infrastructure use established crates (SQLx, axum,
