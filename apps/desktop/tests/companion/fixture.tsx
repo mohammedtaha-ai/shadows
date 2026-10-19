@@ -98,7 +98,7 @@ if (new URLSearchParams(location.search).has("shell")) {
         case 'list':return {conversations:[...mine.conversations]};
         case 'create':{const id=`cccccccc-cccc-4ccc-8ccc-${String(mine.conversations.length+1).padStart(12,'0')}`;mine.conversations.unshift(mk(id,'New conversation'));mine.turns[id]=[];return snap(id);}
         case 'snapshot':{const out=snap(r.conversationId!);if(fx.gate)await fx.gate;return out;}
-        case 'send':{if(!mine.turns[r.conversationId!].some((t:any)=>t.commandId===r.commandId))mine.turns[r.conversationId!].push({...turnOf(9,r.text!,'Reply to '+r.text),commandId:r.commandId,id:crypto.randomUUID()});if(fx.dropSendResponse){fx.dropSendResponse=false;throw Error('backend_unavailable');}return snap(r.conversationId!);}
+        case 'send':{if(!mine.turns[r.conversationId!].some((t:any)=>t.commandId===r.commandId))mine.turns[r.conversationId!].push({...turnOf(9,r.text!,'Reply to '+r.text),commandId:r.commandId,id:crypto.randomUUID()});if(fx.sendGate)await fx.sendGate;if(fx.dropSendResponse){fx.dropSendResponse=false;throw Error('backend_unavailable');}return snap(r.conversationId!);}
       }
       throw Error('request_refused');
     }

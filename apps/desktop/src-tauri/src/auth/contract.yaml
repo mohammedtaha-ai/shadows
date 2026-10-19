@@ -4,7 +4,7 @@ status: current
 source: apps/desktop/src-tauri/src/auth
 responsibility: Consume backend auth-v1 1.1.0 through native HTTP and protected account storage.
 public_api:
-  AuthService::assistant: Resolve the protected backend handle, call only a closed native assistant operation with a 128 KiB response cap, then refuse delivery if the stored handle changed.
+  AuthService::assistant: Resolve the protected backend handle, verify captured public account/session identity with that exact bearer, call only a closed operation with a 128 KiB response cap, then refuse delivery if the stored handle changed.
   AuthController::assistant: Keep account actions separate from assistant polling; create the authenticated native service without exposing account material to IPC.
   AuthController::perform: Serialize native actions; expose only the credential-free View.
   AuthController::cancel: Ask an in-flight login to stop without waiting for the worker.
@@ -16,6 +16,9 @@ external_types:
   - backend auth-v1 1.1.0 Principal, LoginStart, SessionGrant and LogoutResult
   - reqwest::blocking::Client
 obligations:
+  - rule: A delayed remote command cannot cross an account or session change before dispatch.
+    tested_by: assistant_refuses_a_delayed_command_after_account_or_session_changes assistant_preserves_remote_calls_with_the_captured_account_session
+    note: Native HTTP fixtures exercise stale selectors and the retained matching-scope list path.
   - rule: Return contains exactly one opaque ticket; browser URLs use the configured origin and approved operation path.
     tested_by: callback_requires_exactly_one_opaque_ticket browser_urls_require_reviewed_origin_and_operation_path
   - rule: Owner wire fixtures deserialize and extra provider fields refuse.

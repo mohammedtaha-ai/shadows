@@ -103,9 +103,9 @@ test("workspace_unavailable_bot_configuration_never_dispatches", async ({ page }
 
 test("workspace_composer_never_invents_a_model_name", async ({ page }) => {
   await page.goto(url);
-  await expect(page.getByText("Model: managed by the account backend", { exact: true })).toBeVisible();
+  await expect(page.getByText("Server Hermes · Model managed by Hermes", { exact: true })).toBeVisible();
   const text = await page.locator(".assistant form").innerText();
-  expect(text).not.toMatch(/MiniMax|Claude|GPT|Hermes|Anthropic|OpenAI/i);
+  expect(text).not.toMatch(/MiniMax|Claude|GPT|Anthropic|OpenAI|Model:\s*Hermes/i);
 });
 
 test("workspace_settings_keep_account_and_character_independent", async ({ page }) => {

@@ -22,11 +22,17 @@ impl AuthController {
     pub fn assistant(
         &self,
         request: crate::assistant::Request,
+        expected_account: &str,
+        expected_session: &str,
     ) -> Result<serde_json::Value, &'static str> {
         if self.busy.load(Ordering::SeqCst) {
             return Err("busy");
         }
-        AuthService::from_environment(self.path.clone())?.assistant(request)
+        AuthService::from_environment(self.path.clone())?.assistant(
+            request,
+            expected_account,
+            expected_session,
+        )
     }
     pub fn new(path: PathBuf) -> Arc<Self> {
         Arc::new(Self {

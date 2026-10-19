@@ -4,7 +4,7 @@ status: current
 source: apps/desktop/src-tauri/src/commands
 responsibility: Restrict native account and sidecar actions to main and companion navigation/readiness/drag actions to the owned local surface.
 public_api:
-  assistant_call: Require main; translate the closed Request through the protected account service on a blocking worker. No URL/key selector or account handle reaches the webview.
+  assistant_call: Require main; translate the closed Request with captured public account/session IDs through the protected account service on a blocking worker. No URL/key selector or account handle reaches the webview.
   assistant_local_call: Require main; dispatch a closed local request with captured installation identity on a blocking worker.
   assistant_sources: Require main; expose local installation identity without the connection capability.
   aylul_call: Require the main label; relay one listed method to the sidecar on a blocking worker; return its result or a stable code.

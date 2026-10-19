@@ -5,10 +5,11 @@ export type AssistantConversation=components['schemas']['AssistantConversation']
 export type AssistantStatus=components['schemas']['AssistantStatus'];
 export type AssistantSelection={source:'remote'}|{source:'local';installationId:string};
 export const localInstallation=()=>invoke<string|null>('assistant_sources');
-export function assistantFor(selection:AssistantSelection={source:'remote'}){
+export function assistantFor(selection:AssistantSelection={source:'remote'},principal?:{accountId:string;sessionId:string}){
  const call=<T>(request:object)=>selection.source==='local'
   ?invoke<T>('assistant_local_call',{request,installationId:selection.installationId})
-  :invoke<T>('assistant_call',{request});
+  :principal?invoke<T>('assistant_call',{request,expectedAccountId:principal.accountId,expectedSessionId:principal.sessionId})
+  :Promise.reject<T>(new Error('verification_refused'));
  return {
  status:()=>call<AssistantStatus>({action:'status'}),
  list:()=>call<{conversations:AssistantConversation[]}>({action:'list'}),

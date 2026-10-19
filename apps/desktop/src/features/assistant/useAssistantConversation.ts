@@ -58,7 +58,7 @@ export function useAssistantConversation(auth: AuthView | null, selection:Assist
   const account = local?'local:'+local:selection?.source==='remote'?principal?.accountId??'':'';
   const session = local||principal?.sessionId||'';
   const source=selection?.source??'remote';
-  const assistant=React.useMemo(()=>assistantFor(selection??{source:'remote'}),[source,local]);
+  const assistant=React.useMemo(()=>assistantFor(selection??{source:'remote'},principal??undefined),[source,local,account,session]);
   const [conversations, setConversations] = React.useState<AssistantConversation[]>([]);
   const [selected, setSelected] = React.useState('');
   const [snapshot, setSnapshot] = React.useState<AssistantSnapshot | null>(null);
@@ -71,7 +71,8 @@ export function useAssistantConversation(auth: AuthView | null, selection:Assist
   const [pinned, setPinned] = React.useState<ReadonlySet<string>>(new Set());
   const [listKey, setListKey] = React.useState(0);
 
-  const scope = source + ':' + account + ':' + session + ':' + selected;
+  const sourceEpoch = React.useRef(0);
+  const scope = source + ':' + account + ':' + session + ':' + selected + ':' + sourceEpoch.current;
   const live = React.useRef(scope);
   live.current = scope;
   const pending = React.useRef<Intent | null>(null);
@@ -83,6 +84,7 @@ export function useAssistantConversation(auth: AuthView | null, selection:Assist
 
   // Clear the old source before paint, including switches with colliding IDs.
   React.useLayoutEffect(() => {
+    sourceEpoch.current++;
     setSnapshot(null);
     setConversations([]);
     setSelected('');

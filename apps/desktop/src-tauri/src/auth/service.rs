@@ -29,6 +29,8 @@ impl AuthService {
     pub fn assistant(
         &self,
         request: crate::assistant::Request,
+        expected_account: &str,
+        expected_session: &str,
     ) -> Result<serde_json::Value, &'static str> {
         let operation = request.operation()?;
         let credentials = self.store.load()?;
@@ -36,6 +38,22 @@ impl AuthService {
             .handle
             .as_deref()
             .ok_or("verification_refused")?;
+        // A queued IPC worker may start after login changed. Resolve the public
+        // scope using this exact protected handle before dispatching any write.
+        let principal = self.backend.request::<wire::Principal>(
+            Method::GET,
+            "/v1/auth/session",
+            None,
+            Some(handle),
+        )?;
+        if !valid_principal(&principal)
+            || principal.account_id != expected_account
+            || principal.session_id != expected_session
+            || credentials.account.as_deref() != Some(expected_account)
+            || self.store.load()?.handle.as_deref() != Some(handle)
+        {
+            return Err("source_changed");
+        }
         let result = self.backend.request_bounded(
             operation.method,
             &operation.path,
