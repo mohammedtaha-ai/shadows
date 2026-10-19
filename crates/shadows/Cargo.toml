@@ -10,6 +10,11 @@ default-run = "shadows"
 [lib]
 doctest = false
 
+[[bin]]
+name = "assistant-fixture"
+path = "tests/fixtures/assistant_process.rs"
+required-features = ["test-support"]
+
 [lints]
 workspace = true
 
@@ -20,6 +25,10 @@ clap = { workspace = true }
 shadows-core = { path = "../shadows-core" }
 shadows-http = { path = "../shadows-http" }
 shadows-mcp = { path = "../shadows-mcp" }
+shadows-process = { path = "../shadows-process" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }

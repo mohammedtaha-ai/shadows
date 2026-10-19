@@ -62,6 +62,10 @@ pattern to follow, not merely an example.
 | `crates/shadows/src/main.rs` | the one binary Shadows ships | `crates/shadows/src/cli/mod.rs` |
 | `crates/shadows/src/cli/` | daemon startup | `crates/shadows/src/cli/args.rs` |
 | `crates/shadows/src/config.rs` | startup configuration resolved once | `crates/shadows/src/config.rs` |
+| `crates/shadows/src/daemon/` | product service composition | `docs/integration/2026-10-19-product-daemon-hermes-design.md` |
+| `crates/shadows/src/daemon/bridge.rs` | bounded Node request ownership | `crates/shadows/src/daemon/bridge.rs` |
+| `crates/shadows/src/daemon/http.rs` | native assistant request translation | `crates/shadows/src/daemon/http.rs` |
+| `crates/shadows/src/daemon/descriptor.rs` | private connection descriptor ownership | `crates/shadows/src/daemon/descriptor.rs` |
 | `crates/shadows/src/tracing.rs` | tracing subscriber setup | `crates/shadows/src/tracing.rs` |
 | `crates/shadows-http/src/lib.rs` | the HTTP/SSE surface every client talks to | `crates/shadows-http/src/project.rs` |
 | `crates/shadows-http/src/project.rs` | the routes over projects, their threads included | `crates/shadows-http/src/project.rs` |
