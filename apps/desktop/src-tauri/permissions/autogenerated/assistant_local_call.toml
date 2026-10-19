@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-assistant-local-call"
+description = "Enables the assistant_local_call command without any pre-configured scope."
+commands.allow = ["assistant_local_call"]
+
+[[permission]]
+identifier = "deny-assistant-local-call"
+description = "Denies the assistant_local_call command without any pre-configured scope."
+commands.deny = ["assistant_local_call"]

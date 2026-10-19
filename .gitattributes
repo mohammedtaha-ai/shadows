@@ -48,6 +48,5 @@
 
 # Imported historical reports and captured command output retain their exact bytes.
 docs/evidence/nylra/*.md -text whitespace=cr-at-eol
-docs/aylul/history/nylra-readme.md -text whitespace=cr-at-eol
 docs/evidence/aylul/2026-10-18-nylra-relocation/* -text whitespace=cr-at-eol
 docs/evidence/aylul/2026-10-18-nylra-relocation/*.log -text whitespace=cr-at-eol,-blank-at-eof

@@ -4,9 +4,17 @@ status: current
 source: apps/desktop/src/app
 responsibility: Compose separate main and compact companion entries; main retains native account verification, local sidecar sessions/requests, companion controls and a development-only studio.
 public_api:
+  AssistantLocation: Present explicit local or server selection with native source discovery; retain selection without cross-source fallback.
+  useAssistantLocation: Discover credential-free installation identity and capture the selected source for the conversation controller.
   Shell: Show account identity only from a freshly validated native View; compose the independently owned assistant, sessions, requests and companion controls; preserve login and explicit account surrender.
+  WorkspaceShell: A top bar (mark, presence controls, Hide to tray) over one left column (Chats|Bots tabs with Lucide-path inline icons from icons.tsx, search (filters real conversations locally once signed in), list, Activity, Scheduled jobs, Settings, account footer or Sign in); Chat, Activity and Settings sit in persistent slots (inactive views are hidden, never unmounted, so an unsent draft survives navigation); Scheduled jobs stays disabled; the Bots tab lists the one assistant; a collapsible Bot details inspector sits right of Chat (a drawer at or below 950px) until a real contract exists; at narrow widths the column is a keyboard-operable drawer.
+  SettingsPanel: Group Settings into Account, Appearance and Integrations slots plus the DEV-only studio; each slot is an independent owner, so a failing character never disables account actions; unsupported integrations stay disabled with a reason.
+  AccountPanel: Present account state and sign-in/out/revoke actions from the native View only, confirming new installation, sign-out-all and revoke; holds no credential.
   CompanionControls: Observe revisioned native companion state and request visibility/pause without optimistic success.
 obligations:
+  - rule: Account and studio live under Settings, sessions and requests under Activity, and chat is not remounted by navigation.
+    tested_by: 'integration: apps/desktop/tests/companion/workspace.spec.ts'
+    note: mocked Chromium with synthetic IPC; draft preservation rests on persistent mounting, not a typed-draft assertion, because the fixture has no signed-in assistant.
   - rule: Main presents local hook requests alongside independent companion and account controls; a missing sidecar leaves those controls usable.
     tested_by: 'integration: apps/desktop/tests/companion/shell.spec.ts'
     note: merged main keeps account companion and local hook requests together and unavailable local sidecar preserves account and companion controls use synthetic IPC, not actual agent/Windows approval acceptance.

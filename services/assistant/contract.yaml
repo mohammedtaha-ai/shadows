@@ -1,0 +1,35 @@
+name: local-assistant
+status: current
+source: services/assistant
+owns: Persistent installation-scoped assistant conversations through the portable Hermes client.
+public_api:
+  openService: Open local SQLite and expose a closed request dispatcher plus installation identity.
+  parseRequest: Validate the canonical TypeBox request before any operation.
+  Store: Own assistant conversation/turn persistence and explicit ordinal ordering.
+obligations:
+  - rule: Local conversation identity and projections survive reopening without a cloud account.
+    tested_by: local_chat_reopens_without_account_or_planner_and_keeps_identity
+    note: tests/service.test.mjs uses SQLite and an owned native HTTP fixture.
+  - rule: Lost admission replies require explicit recovery with the original key.
+    tested_by: lost_admission_reply_is_only_recovered_explicitly_under_the_same_key
+    note: tests/service.test.mjs verifies one execution across two submissions.
+  - rule: Recovery outside upstream retention never dispatches again.
+    tested_by: expired_recovery_does_not_resubmit_and_unknown_fields_refuse
+    note: tests/service.test.mjs advances the clock past the native guarantee.
+  - rule: Equal timestamps do not change conversation order.
+    tested_by: turn_order_is_explicit_even_when_timestamps_are_equal
+    note: tests/service.test.mjs checks the newest thirty turns.
+  - rule: Recovery never extends the durable guarantee captured before the first upstream write.
+    tested_by: recovery_never_extends_the_guarantee_captured_before_submission
+    note: SQLite v2 stores the original deadline; a later retention increase cannot permit an expired replay.
+  - rule: Prepared writes reopen as unknown; legacy intents without a captured guarantee never replay.
+    tested_by: prepared_intents_reopen_as_unknown_without_automatic_dispatch version_one_unknown_intents_migrate_without_inventing_a_recovery_deadline
+    note: Reads retain the intent without dispatch; the v1 migration preserves installation identity.
+  - rule: Stop acknowledgement remains stopping across restart until a run read confirms cancellation.
+    tested_by: stop_ack_remains_stopping_across_restart_until_the_upstream_confirms_cancellation
+    note: No second turn admits while the prior run is stopping.
+  - rule: The actual stdio process rejects arbitrary selectors without returning credentials.
+    tested_by: actual_stdio_process_has_closed_requests_and_does_not_print_credentials
+    note: tests/process.test.mjs runs the real Node process without a model call.
+open_questions:
+  - Physical desktop and installed-provider acceptance are recorded separately from fixture checks.

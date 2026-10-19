@@ -5,8 +5,7 @@ It is independent of Shadows `AppCore` and of the root Cargo workspace.
 Commands documented for `apps/desktop/` assume the Shadows repository root.
 
 Read [AYLUL](../../docs/aylul/README.md),
-[vision](../../docs/aylul/vision.md),
-[source structure](../../docs/aylul/source-structure.md) and
+[vision](../../docs/aylul/vision.md) and
 [inspected code map](../../docs/aylul/codebase/README.md) before source edits.
 Read the colocated contract before changing a module. Update its contract and
 code-map row in the same change when its public behavior or ownership changes.
@@ -17,8 +16,9 @@ externally owned references; do not invent a second contract format.
 - Keep TypeScript/React presentation, Rust/Tauri platform integration, Node
   sidecar and `aylul-hook`; relocation is not a language or behavior rewrite.
 - AYLUL is the main experience; loading the existing Shadows workspace remains
-  planned integration. Normal chat uses Hermes through the account backend;
-  semantic project context and external agent control remain later slices.
+  planned integration. Normal chat selects the protected local product daemon
+  or the retained account backend; both use the portable TypeScript Hermes client.
+  Semantic project context and external agent control remain later slices.
 - Core owns its rules, plans and managed execution. The sidecar owns local agent
   observation and integration. Code intelligence has independent lifetime/state.
 - UI calls typed Tauri boundaries; it does not access the sidecar or databases

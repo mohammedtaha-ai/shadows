@@ -11,6 +11,8 @@ pub fn allowed_caller(label: &str, command: &str) -> bool {
         | "auth_action"
         | "aylul_call"
         | "assistant_call"
+        | "assistant_local_call"
+        | "assistant_sources"
         | "cancel_login"
         | "hide_main" => label == "main",
         _ => false,
@@ -99,6 +101,8 @@ mod tests {
                 "drag_companion",
                 "open_main_from_companion",
                 "auth_action",
+                "assistant_local_call",
+                "assistant_sources",
                 "aylul_call",
                 "cancel_login",
                 "hide_main",

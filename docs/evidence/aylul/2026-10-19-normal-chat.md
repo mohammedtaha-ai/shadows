@@ -93,3 +93,10 @@ cancellation billing, Core/MCP, arbitrary CLI control or code disclosure.
 
 Shadows MCP index and Rust LSP navigation were unavailable in this session;
 inspection used the actual AYLUL map/contracts and their named source files.
+
+## Physical window check (2026-10-19, later)
+
+Mohammed opened the desktop app himself, sent a message in the Tauri window and
+received AYLUL's reply. He reported it to Masada; no log or screenshot was kept.
+This closes the open physical-conversation gate above. It does not cover stop,
+recovery or account switching in the window.

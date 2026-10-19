@@ -66,6 +66,7 @@ export function projectWithModes(modes: Record<string, string[]>): Project {
     directory: 'C:\\work\\demo',
     created_at: '2026-09-24T00:00:00Z',
     allowed_modes: modes,
+    assistant: false,
   }
 }
 

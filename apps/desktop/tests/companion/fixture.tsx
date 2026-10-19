@@ -73,9 +73,43 @@ if (new URLSearchParams(location.search).has("shell")) {
     const failed=new URLSearchParams(location.search).has('companionFailed');
     const hookSession=new URLSearchParams(location.search).has('hookSession');
     let pending=hookSession?[{id:'request-one',kind:'request',sessionId:'session-one',project:'C:/synthetic/project',tool:'Read',target:'C:/synthetic/project/a.ts',reason:null,proposedRule:null,at:'2026-10-17T10:00:00Z',held:true}]:[];
+    const signedIn=new URLSearchParams(location.search).has('signedIn');
+    const stamp='2026-10-19T10:00:00.000Z';
+    const mk=(id:string,title:string,at=stamp)=>({id,title,createdAt:at,updatedAt:at});
+    const turnOf=(n:number,input:string,output:string)=>({id:`00000000-0000-4000-8000-00000000000${n}`,commandId:`10000000-0000-4000-8000-00000000000${n}`,input,output,state:'done',createdAt:stamp,updatedAt:stamp});
+    const fx:any={
+      principal:{accountId:'acct-a',sessionId:'sess-a',deviceId:'dev-1'},
+      data:{
+        'acct-a':{conversations:[mk('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1','Alpha plan','2026-10-19T09:00:00.000Z'),mk('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2','Beta notes','2026-10-19T09:30:00.000Z')],turns:{'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1':[turnOf(1,'Alpha question','Alpha answer')],'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2':[turnOf(2,'Beta question','Beta answer')]}},
+        'acct-b':{conversations:[mk('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1','Other account chat')],turns:{'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1':[turnOf(3,'Other question','Other answer')]}},
+      },
+      calls:[] as any[],offline:false,dropSendResponse:false,gate:null as null|Promise<void>,
+    };
+    fx.data.local=structuredClone(fx.data['acct-a']);
+    fx.data.local.turns['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1']=[turnOf(1,'Local question','Local answer')];
+    (window as any).__fx=fx;
+    async function assistantCall(r:Record<string,string>,owner=fx.principal.accountId){
+      const mine=fx.data[owner];
+      fx.calls.push({...r,account:owner});
+      if(fx.offline)throw Error('backend_unavailable');
+      const snap=(id:string)=>({conversation:mine.conversations.find((c:any)=>c.id===id),turns:[...(mine.turns[id]??[])],truncated:false});
+      switch(r.action){
+        case 'status':return {state:'ready'};
+        case 'list':return {conversations:[...mine.conversations]};
+        case 'create':{const id=`cccccccc-cccc-4ccc-8ccc-${String(mine.conversations.length+1).padStart(12,'0')}`;mine.conversations.unshift(mk(id,'New conversation'));mine.turns[id]=[];return snap(id);}
+        case 'snapshot':{const out=snap(r.conversationId!);if(fx.gate)await fx.gate;return out;}
+        case 'send':{if(!mine.turns[r.conversationId!].some((t:any)=>t.commandId===r.commandId))mine.turns[r.conversationId!].push({...turnOf(9,r.text!,'Reply to '+r.text),commandId:r.commandId,id:crypto.randomUUID()});if(fx.sendGate)await fx.sendGate;if(fx.dropSendResponse){fx.dropSendResponse=false;throw Error('backend_unavailable');}return snap(r.conversationId!);}
+      }
+      throw Error('request_refused');
+    }
     let companion={revision:1,visible:!failed,renderAllowed:!failed,paused:false,error:failed?'companion_unavailable':null as string|null};
     mockIPC((command, args) => {
       callLog.textContent += `${command} ${JSON.stringify(args)}\n`;
+      if (command === "auth_action" && args?.action === "status" && signedIn)
+        return {state:"signed_in",hasEnrollment:true,principal:fx.principal,providerLogout:null};
+      if (command === "assistant_sources") return new URLSearchParams(location.search).has('localAssistant')?'00000000-0000-4000-8000-000000000099':null;
+      if (command === "assistant_local_call") return assistantCall(args?.request as Record<string,string>,'local');
+      if (command === "assistant_call") return assistantCall(args?.request as Record<string,string>);
       if (command === "auth_action" && args?.action === "status")
         return {
           state: "signed_out",

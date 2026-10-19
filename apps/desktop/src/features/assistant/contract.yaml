@@ -1,10 +1,27 @@
 name: assistant-conversation-presentation
 status: current
 source: apps/desktop/src/features/assistant
-responsibility: Present account-scoped persistent conversations, typed-message admission and explicit stop/recovery using native-only backend access.
+responsibility: Present source-scoped persistent conversations through native-only local or remote access.
 public_api:
-  AssistantPage: Load account conversations, poll bounded snapshots while visible, correlate client command IDs and ignore responses after account/session/conversation switches. A failed poll's error clears when a later poll succeeds; an action's own error stays.
+  useAssistantConversation: Own account-scoped conversation list, selection, snapshot polling, draft, pins (localStorage per account ID) and connection state; called once by the workspace and shared. retry() resends an uncertain send with its original command ID; reconnect() only re-reads, never sends.
+  ConversationSidebar: List the controller's conversations (pinned first, local title search, creation timestamps); no poller and no transcript fetch.
+  ConversationView: Render the header with a small connection indicator and Retry connection, the scrolling history (own message as a right bubble, AYLUL plain, dir auto) and the bottom-pinned composer from the controller.
+  BotList: Show the one existing AYLUL assistant and a disabled Create bot control that names the missing backend bot-management capability; dispatches nothing.
+  AssistantDetails: Describe connection state and read-only profile; every edit and Save stays disabled with its reason; the composer names no model because AssistantStatus carries none (spec section 5 OPEN).
+  AssistantPage: >-
+    Standalone wrapper of the hook and view; load account conversations, poll
+    bounded snapshots while visible, correlate command IDs and ignore stale
+    responses. Poll errors clear on successful polling; action errors remain.
 obligations:
+  - rule: Remote operations carry the displayed account and session to native verification before dispatch.
+    tested_by: apps/desktop/tests/companion/assistant-source.spec.ts
+    note: The IPC fixture checks captured public IDs; native auth tests prove pre-dispatch refusal after changes.
+  - rule: Signed-out local chat works and source changes discard drafts and stale responses even when conversation IDs collide.
+    tested_by: apps/desktop/tests/companion/assistant-source.spec.ts
+    note: Real frontend with explicit native IPC substitutes; no model call.
+  - rule: Returning to the same source creates a new scope epoch; an earlier send reply cannot clear its new draft.
+    tested_by: apps/desktop/tests/companion/assistant-source.spec.ts
+    note: returning_to_a_source_does_not_accept_an_older_send_reply_or_clear_a_new_draft holds the original send response across a local/remote/local switch.
   - rule: Actual backend replies remain after reload without resubmitting the original message; a follow-up uses the same conversation.
     tested_by: apps/desktop/tests/assistant-acceptance.mjs
     note: Real backend and MiniMax with an explicit browser substitute for native IPC; not physical Tauri acceptance.

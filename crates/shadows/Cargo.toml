@@ -10,6 +10,11 @@ default-run = "shadows"
 [lib]
 doctest = false
 
+[[bin]]
+name = "assistant-fixture"
+path = "tests/fixtures/assistant_process.rs"
+required-features = ["test-support"]
+
 [lints]
 workspace = true
 
@@ -20,12 +25,19 @@ clap = { workspace = true }
 shadows-core = { path = "../shadows-core" }
 shadows-http = { path = "../shadows-http" }
 shadows-mcp = { path = "../shadows-mcp" }
+shadows-process = { path = "../shadows-process" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Security_Authorization"] }
 
 [features]
 # Compiles in `shadows-core`'s test hooks (`testing`,

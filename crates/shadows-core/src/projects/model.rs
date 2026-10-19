@@ -27,4 +27,7 @@ pub struct Project {
     /// Each list is a set: its order carries no meaning. Every known harness
     /// is present; an empty list means no turn can start on it.
     pub allowed_modes: BTreeMap<String, Vec<String>>,
+    /// True only for the project `Projects::ensure_assistant` created: the
+    /// home of AYLUL's conversations, which clients list apart from projects.
+    pub assistant: bool,
 }

@@ -74,6 +74,8 @@ pub struct StartConfig {
     pub node_path: PathBuf,
     pub adapter_path: PathBuf,
     pub harness_path: PathBuf,
+    /// AYLUL's profile; `None` leaves AYLUL absent.
+    pub aylul: Option<crate::harness::AylulConfig>,
 }
 
 /// The `CommandContext` a person's command carries: principal `User`, id
@@ -135,6 +137,7 @@ impl AppCore {
             storage.clone(),
             SessionsConfig {
                 mcp_url: Some(mcp_url.clone()),
+                aylul: config.aylul.clone(),
                 ..SessionsConfig::default()
             },
         );

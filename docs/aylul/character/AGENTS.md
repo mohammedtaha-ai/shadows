@@ -21,7 +21,6 @@ only through the teacher.
 ## Where things are
 
 1. [`docs/aylul/vision.md`](../vision.md): the experience.
-   [`docs/aylul/source-structure.md`](../source-structure.md): where source goes.
 2. [`docs/aylul/codebase/README.md`](../codebase/README.md): what each implemented
    module owns. Read it before opening code.
 3. `contract.yaml` next to the code

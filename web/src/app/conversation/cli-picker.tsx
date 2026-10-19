@@ -20,13 +20,18 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ErrorLine } from '../error-line'
 import { reopenSession } from './use-session'
 
+/** The harness kind of AYLUL's brain, offered in the assistant project only. */
+export const AYLUL_HARNESS = 'aylul'
+
 export function CliPicker({
   projectId,
   threadId,
   harness,
   label,
   locked,
+  assistant = false,
 }: {
+  assistant?: boolean
   projectId: string
   threadId: string
   /** The thread's harness kind, and how it reads. */
@@ -80,7 +85,13 @@ export function CliPicker({
 
   return (
     <span className="flex items-center gap-2">
-      <CliMenu harness={harness} label={label} onPick={pick} disabled={change.isPending} />
+      <CliMenu
+        harness={harness}
+        label={label}
+        onPick={pick}
+        disabled={change.isPending}
+        assistant={assistant}
+      />
       {change.error !== null && <ErrorLine error={change.error} />}
     </span>
   )
@@ -93,9 +104,12 @@ export function CliMenu({
   label,
   onPick,
   disabled = false,
+  assistant = false,
 }: {
   harness: string
   label: string
+  /** AYLUL's project offers only `aylul`; every other project never does. */
+  assistant?: boolean
   onPick: (kind: string) => void
   disabled?: boolean
 }) {
@@ -108,7 +122,7 @@ export function CliMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuRadioGroup value={harness} onValueChange={(v: string) => onPick(v)}>
-          {(harnesses ?? []).map((h) => (
+          {(harnesses ?? []).filter((h) => (h.kind === AYLUL_HARNESS) === assistant).map((h) => (
             <DropdownMenuRadioItem key={h.kind} value={h.kind} disabled={!h.available}>
               <span>{h.label}</span>
               {!h.available && <span className="text-xs text-muted-foreground">coming</span>}

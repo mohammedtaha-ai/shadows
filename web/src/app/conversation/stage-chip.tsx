@@ -1,9 +1,11 @@
 // One job: the project's stage (§23.4) as one line in the conversation header.
 import { useQuery } from '@tanstack/react-query'
-import { stageQuery } from '@/api/queries'
+import { projectsQuery, stageQuery } from '@/api/queries'
 
 export function StageChip({ projectId }: { projectId: string }) {
-  const stage = useQuery(stageQuery(projectId))
+  const assistant = useQuery(projectsQuery).data?.find((p) => p.id === projectId)?.assistant
+  const stage = useQuery({ ...stageQuery(projectId), enabled: assistant !== true })
+  if (assistant === true) return null
   if (stage.isPending || stage.isError || stage.data === undefined) return null
   return <p className="text-xs text-muted-foreground">
     Stage: {stage.data.stage}{stage.data.missing.length > 0 && <> · missing <bdi dir="auto">{stage.data.missing.join(', ')}</bdi></>}

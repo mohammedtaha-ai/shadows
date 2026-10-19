@@ -50,6 +50,8 @@ shapes:
     # Every known harness is present (`empty_modes` fills the gaps); each list
     # is a set read in `mode_id` order, and an empty list allows no turn.
     allowed_modes: BTreeMap<String, Vec<String>>
+    # True only for the project `ensure_assistant` created (migration 0027).
+    assistant: bool
   ProjectDirectory:
     # Built only by `resolve`, so a value is proof the check ran.
     "0": String
@@ -82,6 +84,14 @@ functions:
     list:
       signature: "(&self) -> Result<Vec<Project>, CoreError>"
       # `list_projects`: oldest first by the `ProjectCreated` event's seq.
+    ensure_assistant:
+      signature: "(&self, slug: &str, name: &str, directory: &Path) -> Result<Project, CoreError>"
+      # AYLUL's project. A live project already holding `slug` is returned
+      # as is (never claimed unless it is already `assistant`); else created
+      # as "project.create" with a fixed command id over the resolved
+      # directory, then marked by `mark_assistant_project`. Idempotent.
+      # A removed assistant project (its slug stays taken) is restored by
+      # `restore_assistant_project` instead of created again.
     create:
       signature: "(&self, command_id: String, slug: &str, name: &str, directory: &str) -> Result<Project, CoreError>"
       # resolve (DirectoryError → CoreError::Directory) → "project.create",
@@ -333,6 +343,14 @@ not_the_caller's:
 
 
 tests:
+  - name: ensure_assistant_recreates_a_removed_assistant_project
+    checks: >
+      tests/project_assistant.rs: after the assistant project is removed, the
+      next ensure_assistant succeeds by restoring it.
+  - name: ensure_assistant_is_idempotent
+    checks: >
+      tests/project_assistant.rs: two calls give one `assistant` project over
+      the home; an ordinary project is not marked.
   - name: project_create_replays_after_the_move
     checks: >
       One body twice (the second with a trailing separator) answers one id

@@ -7,9 +7,12 @@ frontend side. The backend has its own file,
 [`docs/backend/AGENTS.md`](../backend/AGENTS.md); read it only when a shared
 request needs it.
 
-This side owns the **existing Shadows Core web client**. AYLUL's primary UI and
-character/native domains follow [the documentation map](../README.md); they are
-not automatically part of `web/` or this side's stages.
+This side owns the **existing Shadows Core web client**. Since 2026-10-19 (the
+human's ruling) Masada also leads the **AYLUL desktop UI**
+(`apps/desktop/`, except the character and native parts): its domain, task
+shape (U-<n>) and rules are in [`docs/aylul/ui/AGENTS.md`](../aylul/ui/AGENTS.md)
+and its tasks in [`docs/aylul/ui/stages.md`](../aylul/ui/stages.md). AYLUL's
+character and native domains follow [the documentation map](../README.md).
 
 ## The domain
 

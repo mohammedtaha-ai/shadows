@@ -49,7 +49,9 @@ pub use design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose
 pub use error::{CoreError, ErrorCode};
 pub use events::{Actor, Delivery, Events, StoredEvent, Subscription, UiSignal};
 pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};
-pub use harness::{ContextBreakdown, Harness, HarnessInfo, OpenError, RememberedSettings};
+pub use harness::{
+    AylulConfig, ContextBreakdown, Harness, HarnessInfo, OpenError, RememberedSettings,
+};
 pub use instructions::{Instructions, InstructionsVersion};
 pub use plans::{
     AcceptanceItem, AgreementBinding, Approved, BindingParticipant, DraftStart, DraftStarted,
@@ -73,3 +75,4 @@ pub use turns::{
 // `shadows-http` serializes. Re-exported so no adapter depends on
 // `shadows-agent` (spec §14.3, §14.6 #1); the schema name is unchanged.
 pub use shadows_agent::choices::SessionChoices;
+pub use shadows_agent::profile::ClaudeProfile;

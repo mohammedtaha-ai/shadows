@@ -1,10 +1,14 @@
 name: native-assistant-operations
 status: current
 source: apps/desktop/src-tauri/src/assistant
-responsibility: Translate a closed main-window request into a fixed account-backend assistant operation; hold no credential or model rule.
+responsibility: Translate closed assistant operations through explicit remote account or protected local daemon routing.
 public_api:
   Request::operation: Validate UUID selectors and a 4096-byte text bound; return only the allowlisted backend method/path/body.
+  local::installation: Return only configured installation identity from the native descriptor.
+  local::call: Read the protected descriptor and require captured installation identity before native loopback dispatch.
 obligations:
+  - rule: Local endpoint selectors reject external hosts, credentials, paths and query strings.
+    tested_by: assistant::local::tests::descriptor_targets_are_native_loopback_only
   - rule: Arbitrary URLs, extra fields and path escapes are refused before authenticated dispatch.
     tested_by: assistant::tests::assistant_routes_are_fixed_and_reject_arbitrary_selectors
   - rule: Oversized text is refused without a backend call.

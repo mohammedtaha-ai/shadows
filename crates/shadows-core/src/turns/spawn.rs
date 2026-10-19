@@ -119,6 +119,7 @@ impl PlannerTurn {
                         .chain(focus)
                         .chain(continue_plan)
                         .chain(std::iter::once(stage))
+                        .filter(|part| !part.is_empty())
                         .collect::<Vec<String>>()
                 })
             }

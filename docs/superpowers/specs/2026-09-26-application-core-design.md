@@ -165,31 +165,18 @@ composition root written by hand and checked by the compiler, so no
 dependency-injection library is used. `shaku` and the like add macros and
 indirection and buy nothing here.
 
-**Scope clarification, agreed 2026-10-18:** one `AppCore` means one composition
-root for a Shadows runtime, not a parent application for every related product.
-AYLUL's desktop/sidecar runtime, the independent code-intelligence service and
-the remote Hermes runtime have their own startup, state and shutdown ownership.
-They communicate through explicit client interfaces; they are not additional
-services/accessors on this `AppCore`. Sharing a repository, launcher or window
-does not merge those authorities or lifetimes. This clarification changes no
-existing service, executable or database behavior. The new integration is
-specified in the [AYLUL design](../../aylul/specs/2026-10-18-aylul-hermes-semantic-context-design.md);
-the [independent service design](../../code-intelligence/specs/2026-10-18-code-intelligence-service-design.md)
-owns its proposed package boundary. The current workspace table stays an inventory
-of implemented crates, not a place to pre-create the future package.
-
-**Multiple application cores, clarified 2026-10-18:** the product family has
-separate application cores, not one enlarged `AppCore`. The existing Rust symbol
-keeps its name and ten services. AYLUL's local application core composes the
-existing Node hook/session/approval owners with its backend/Core clients; Tauri
-keeps native windows, protected connections and child lifetime. The independent
-code service composes its own workspace/query/LSP state when its first package is
-implemented. The Node backend has its own application composition and owns the
-internal Hermes connection; Hermes retains its upstream runtime. No common `AppCore` base class,
-shared container, cross-runtime database or transaction is introduced. The
-[integration owner](../../aylul/specs/2026-10-18-aylul-hermes-semantic-context-design.md#runtime-composition-and-data-ownership)
-defines the proposed AYLUL composition files and endpoint boundaries. Creating
-several cores is not a reason to split Projects, Plans or Turns out of this runtime.
+**Scope clarification, agreed 2026-10-18, amended 2026-10-19:** one `AppCore`
+means one composition root for a Shadows runtime. On 2026-10-19 Mohammed chose
+to run AYLUL's conversations on this `AppCore`, inside the same product daemon
+and database, with Claude Code as its brain in an isolated home; the
+[AYLUL brain design](../../aylul/specs/2026-10-19-aylul-claude-code-brain-design.md)
+owns that, and how it is represented here is decided in its plan. The AYLUL
+hook/sidecar runtime, the native Tauri shell and the independent
+code-intelligence service keep their own startup, state and shutdown, and talk
+through explicit client interfaces. No common base class, shared container or
+cross-runtime transaction is introduced, and the integration is not a reason to
+split Projects, Plans or Turns out of this runtime. The earlier text tying AYLUL
+to a remote Hermes brain is in Git at `226d0a3`.
 
 A caller reaches a service through an accessor: `core.plans()`, `core.turns()`,
 and so on. Each service is a struct with methods and one job.

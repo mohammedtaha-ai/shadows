@@ -6,6 +6,8 @@ fn main() {
             "cancel_login",
             "aylul_call",
             "assistant_call",
+            "assistant_local_call",
+            "assistant_sources",
             "companion_state",
             "companion_ready",
             "companion_failed",

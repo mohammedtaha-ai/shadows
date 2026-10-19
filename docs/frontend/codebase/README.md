@@ -149,6 +149,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/active-projects.tsx` | Editor for how many projects the index keeps active | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/settings-page.tsx` | Global settings page, one section per setting | `web/src/app/settings/contract.yaml` |
 | `web/src/app/shell.tsx` | Two-pane frame every screen sits in | `web/src/app/home.tsx` |
+| `web/src/app/sidebar/aylul-entry.tsx` | Sidebar entry that opens the AYLUL assistant project | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/delete-thread-dialog.tsx` | Confirms removing a conversation as one command | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/open-projects.ts` | Remembers which projects the sidebar shows open | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/project-list.tsx` | Sidebar project tree with its conversations, plans | `web/src/app/sidebar/contract.yaml` |

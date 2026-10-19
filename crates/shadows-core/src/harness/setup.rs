@@ -21,6 +21,7 @@ use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 use crate::turns::OperationId;
 use shadows_agent::acp::{McpServerSpec, SessionSetup};
+use shadows_agent::policy;
 
 /// Shadows' instructions to the Planner, compiled in.
 const PROMPT: &str = include_str!("prompt.txt");
@@ -121,6 +122,7 @@ impl Setups {
             append: Some(append),
             allowed_tools: vec![ALLOWED.to_string()],
             tools: Some(PLANNER_TOOLS.iter().map(|t| t.to_string()).collect()),
+            setting_sources: None,
         })
     }
 
@@ -135,6 +137,9 @@ impl Setups {
         operation: &OperationId,
     ) -> Result<Option<String>, StorageError> {
         let context = self.storage.turn_context(thread).await?;
+        if context.harness == policy::AYLUL {
+            return Ok(None);
+        }
         let latest = self.storage.latest_invocation_versions(thread).await?;
         let current = self
             .storage
@@ -194,6 +199,9 @@ impl Setups {
     /// The stage line every person's message carries (§23.4).
     pub(crate) async fn stage_line(&self, thread: &ThreadId) -> Result<String, StorageError> {
         let context = self.storage.turn_context(thread).await?;
+        if context.harness == policy::AYLUL {
+            return Ok(String::new());
+        }
         let view = self.storage.project_stage(&context.project_id).await?;
         Ok(crate::design::stage::line(&view))
     }

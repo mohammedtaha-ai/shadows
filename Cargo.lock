@@ -2617,6 +2617,7 @@ dependencies = [
  "shadows-core",
  "shadows-http",
  "shadows-mcp",
+ "shadows-process",
  "sqlx",
  "tempfile",
  "thiserror",
@@ -2628,6 +2629,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "uuid",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

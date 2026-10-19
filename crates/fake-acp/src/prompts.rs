@@ -113,6 +113,8 @@ pub(crate) async fn answer(
                 "model": s.model,
                 "effort": s.effort,
                 "mode": s.mode,
+                "config_dir": std::env::var("CLAUDE_CONFIG_DIR").ok(),
+                "has_token": std::env::var("ANTHROPIC_AUTH_TOKEN").is_ok_and(|v| !v.is_empty()),
                 "claude": std::env::var("CLAUDE_CODE_EXECUTABLE")
                     .unwrap_or_default(),
                 "mcp": s.setup.mcp,

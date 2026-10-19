@@ -1,0 +1,21 @@
+name: product-daemon
+status: current
+source: crates/shadows/src/daemon
+owns: Independent product service composition beside optional planning.
+public_api:
+  serve: Bind a loopback native listener and supervise TypeScript with optional existing AppCore.
+  Bridge::start: Own a bounded stdio child through shadows-process.
+  Bridge::call: Forward one request without retries; poison the connection after uncertain transport failure.
+obligations:
+  - rule: Assistant-only startup has no required Planner CLI arguments.
+    tested_by: product_daemon_does_not_require_planner_configuration
+    note: cli/args.rs tests command parsing; composed Node acceptance is separate.
+  - rule: Local native calls require an installation capability and refuse browser origins.
+    tested_by: daemon_requires_capability_and_refuses_browser_origins
+    note: tests/assistant_daemon.rs uses a test-only stdio peer.
+  - rule: A failed child does not replay requests or automatically respawn.
+    tested_by: child_death_never_replays_the_last_command
+    note: tests/assistant_daemon.rs closes the actual managed process.
+  - rule: Descriptor replacement protects the capability before writing it without changing parent-directory permissions.
+    tested_by: descriptor_replacement_is_private_without_changing_parent_permissions
+    note: Fresh files use Unix mode 0600 or a protected Windows DACL granting the current user only.

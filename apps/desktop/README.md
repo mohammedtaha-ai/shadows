@@ -135,3 +135,8 @@ config on port 4180. It calls the real configured provider. The deterministic
 calls. Neither enters the production bundle or ordinary `npm test`. See
 [normal-chat evidence](../../docs/evidence/aylul/2026-10-19-normal-chat.md) for
 the separate native HTTP, browser and remaining physical GUI results.
+
+The main window is the agent workspace: Chats and Bots in one left column, the
+conversation with its composer, and Activity, Settings and the account in the same
+shell. Its gate and the pending hands-on journey are in the
+[agent workspace evidence](../../docs/evidence/aylul/2026-10-19-agent-workspace.md).

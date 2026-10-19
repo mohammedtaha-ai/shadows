@@ -74,7 +74,7 @@ impl Storage {
     /// so a project could never be hidden by a missing event; there is none.
     pub async fn list_projects(&self) -> Result<Vec<Project>, StorageError> {
         let rows: Vec<ProjectRow> = sqlx::query_as(
-            "SELECT p.id, p.slug, p.name, p.directory, p.created_at
+            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant
                FROM project p
                LEFT JOIN durable_event e
                  ON e.project_id = p.id AND e.kind = 'ProjectCreated'
@@ -91,6 +91,61 @@ impl Storage {
                 project(row, allowed)
             })
             .collect())
+    }
+
+    /// Marks the live project `slug` as AYLUL's home. Idempotent; `None`
+    /// when no live project has that slug.
+    pub async fn mark_assistant_project(
+        &self,
+        slug: &str,
+    ) -> Result<Option<Project>, StorageError> {
+        let slug = slug.to_string();
+        self.write_txn(move |conn| {
+            Box::pin(async move {
+                let id: Option<String> = sqlx::query_scalar(
+                    "SELECT id FROM project WHERE slug = ? AND removed_at IS NULL",
+                )
+                .bind(&slug)
+                .fetch_optional(&mut *conn)
+                .await?;
+                let Some(id) = id else { return Ok(None) };
+                let id = ProjectId::from_stored(id);
+                sqlx::query("UPDATE project SET assistant = 1 WHERE id = ?")
+                    .bind(id.as_str())
+                    .execute(&mut *conn)
+                    .await?;
+                Ok(Some(load_project(conn, &id).await?))
+            })
+        })
+        .await
+    }
+
+    /// Brings back the removed project `slug` when it was AYLUL's (a slug
+    /// stays taken after a removal). `None` when there is no such project.
+    pub async fn restore_assistant_project(
+        &self,
+        slug: &str,
+    ) -> Result<Option<Project>, StorageError> {
+        let slug = slug.to_string();
+        self.write_txn(move |conn| {
+            Box::pin(async move {
+                let id: Option<String> = sqlx::query_scalar(
+                    "SELECT id FROM project \
+                     WHERE slug = ? AND assistant = 1 AND removed_at IS NOT NULL",
+                )
+                .bind(&slug)
+                .fetch_optional(&mut *conn)
+                .await?;
+                let Some(id) = id else { return Ok(None) };
+                let id = ProjectId::from_stored(id);
+                sqlx::query("UPDATE project SET removed_at = NULL WHERE id = ?")
+                    .bind(id.as_str())
+                    .execute(&mut *conn)
+                    .await?;
+                Ok(Some(load_project(conn, &id).await?))
+            })
+        })
+        .await
     }
 
     /// The project, NotFound once removed (§4.2).
@@ -276,10 +331,10 @@ async fn project_modes(
     Ok(group(rows).remove(id.as_str()).unwrap_or_else(empty_modes))
 }
 
-type ProjectRow = (String, String, String, Option<String>, String);
+type ProjectRow = (String, String, String, Option<String>, String, bool);
 
 fn project(
-    (id, slug, name, directory, created_at): ProjectRow,
+    (id, slug, name, directory, created_at, assistant): ProjectRow,
     allowed_modes: BTreeMap<String, Vec<String>>,
 ) -> Project {
     let allowed_modes = if allowed_modes.is_empty() {
@@ -294,6 +349,7 @@ fn project(
         directory,
         created_at,
         allowed_modes,
+        assistant,
     }
 }
 
@@ -312,12 +368,13 @@ async fn load_project(
     conn: &mut SqliteConnection,
     id: &ProjectId,
 ) -> Result<Project, StorageError> {
-    let row: ProjectRow =
-        sqlx::query_as("SELECT id, slug, name, directory, created_at FROM project WHERE id = ?")
-            .bind(id.as_str())
-            .fetch_optional(&mut *conn)
-            .await?
-            .ok_or(StorageError::NotFound("project"))?;
+    let row: ProjectRow = sqlx::query_as(
+        "SELECT id, slug, name, directory, created_at, assistant FROM project WHERE id = ?",
+    )
+    .bind(id.as_str())
+    .fetch_optional(&mut *conn)
+    .await?
+    .ok_or(StorageError::NotFound("project"))?;
     let modes = project_modes(conn, id).await?;
     Ok(project(row, modes))
 }

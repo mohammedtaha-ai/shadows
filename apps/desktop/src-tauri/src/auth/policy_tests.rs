@@ -23,11 +23,19 @@ fn assistant_local_backend_uses_protected_account_without_exposing_handle() {
     };
     service.store.save(&credentials).unwrap();
     let result = service
-        .assistant(crate::assistant::Request::Status {})
+        .assistant(
+            crate::assistant::Request::Status {},
+            grant["principal"]["accountId"].as_str().unwrap(),
+            grant["principal"]["sessionId"].as_str().unwrap(),
+        )
         .unwrap();
     assert_eq!(result["state"], "ready");
     let history = service
-        .assistant(crate::assistant::Request::List {})
+        .assistant(
+            crate::assistant::Request::List {},
+            grant["principal"]["accountId"].as_str().unwrap(),
+            grant["principal"]["sessionId"].as_str().unwrap(),
+        )
         .unwrap();
     assert!(!history["conversations"].as_array().unwrap().is_empty());
     assert!(!result
@@ -66,6 +74,8 @@ fn fixture(statuses: Vec<u16>) -> (AuthService, std::thread::JoinHandle<()>, Pat
             let request = String::from_utf8_lossy(&buf[..n]);
             let (status, body) = if request.starts_with("DELETE ") {
                 (200, "{}".to_string())
+            } else if status == 200 && request.contains(" /v1/nylra/assistant/") {
+                (200, r#"{"conversations":[]}"#.to_string())
             } else if status == 200 {
                 (200,r#"{"accountId":"00000000-0000-4000-8000-000000000001","deviceId":"00000000-0000-4000-8000-000000000002","sessionId":"00000000-0000-4000-8000-000000000003"}"#.to_string())
             } else {
@@ -105,6 +115,51 @@ fn current_device_revocation_does_not_require_provider_validation() {
     let c = service.store.load().unwrap();
     assert!(c.handle.is_none());
     assert!(c.enrollment.is_none());
+    peer.join().unwrap();
+    crate::native_login::clear_session(&path).unwrap();
+}
+
+#[test]
+fn assistant_refuses_a_delayed_command_after_account_or_session_changes() {
+    for (account, session) in [
+        (
+            "00000000-0000-4000-8000-000000000099",
+            "00000000-0000-4000-8000-000000000003",
+        ),
+        (
+            "00000000-0000-4000-8000-000000000001",
+            "00000000-0000-4000-8000-000000000099",
+        ),
+    ] {
+        let (service, peer, path) = fixture(vec![200]);
+        assert_eq!(
+            service
+                .assistant(
+                    crate::assistant::Request::Create {
+                        command_id: "00000000-0000-4000-8000-000000000004".into()
+                    },
+                    account,
+                    session
+                )
+                .unwrap_err(),
+            "source_changed"
+        );
+        peer.join().unwrap();
+        crate::native_login::clear_session(&path).unwrap();
+    }
+}
+
+#[test]
+fn assistant_preserves_remote_calls_with_the_captured_account_session() {
+    let (service, peer, path) = fixture(vec![200, 200]);
+    let result = service
+        .assistant(
+            crate::assistant::Request::List {},
+            "00000000-0000-4000-8000-000000000001",
+            "00000000-0000-4000-8000-000000000003",
+        )
+        .unwrap();
+    assert_eq!(result["conversations"], serde_json::json!([]));
     peer.join().unwrap();
     crate::native_login::clear_session(&path).unwrap();
 }

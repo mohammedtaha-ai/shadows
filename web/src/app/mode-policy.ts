@@ -22,23 +22,27 @@ export interface HarnessPolicy {
   readonly unattended: string | null
 }
 
+const CLAUDE_CODE_POLICY: HarnessPolicy = {
+  modes: [
+    // Claude Code's own acceptEdits: file commands inside the project
+    // folder, `rm` included, run without a permission request, so Shadows
+    // never sees them; anything else is asked, and Shadows refuses it.
+    {
+      id: 'acceptEdits',
+      label: 'Accept edits',
+      description:
+        'Claude Code edits, creates and deletes files in the project folder without asking. Other commands are refused.',
+    },
+    { id: 'auto', label: 'Auto', description: 'Claude Code decides on its own; nothing is asked.' },
+  ],
+  initial: 'acceptEdits',
+  unattended: 'auto',
+}
+
+// AYLUL's brain is Claude Code on its own profile: the same two modes.
 const POLICY: Readonly<Record<string, HarnessPolicy>> = {
-  'claude-code': {
-    modes: [
-      // Claude Code's own acceptEdits: file commands inside the project
-      // folder, `rm` included, run without a permission request, so Shadows
-      // never sees them; anything else is asked, and Shadows refuses it.
-      {
-        id: 'acceptEdits',
-        label: 'Accept edits',
-        description:
-          'Claude Code edits, creates and deletes files in the project folder without asking. Other commands are refused.',
-      },
-      { id: 'auto', label: 'Auto', description: 'Claude Code decides on its own; nothing is asked.' },
-    ],
-    initial: 'acceptEdits',
-    unattended: 'auto',
-  },
+  'claude-code': CLAUDE_CODE_POLICY,
+  aylul: CLAUDE_CODE_POLICY,
 }
 
 /** A harness's policy; one with no decided modes (Codex, today) allows none. */

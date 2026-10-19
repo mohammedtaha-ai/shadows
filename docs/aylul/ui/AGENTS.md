@@ -1,7 +1,10 @@
 # Desktop UI agents
 
-Rules for `desktop-ui-lead` (the desktop UI lead) and the two agents it runs,
-`desktop-ui-builder` (Sonnet) and `desktop-ui-fixer` (Opus). The repository rules in
+Rules for **Masada** (the desktop UI lead) and the two agents she runs,
+`frontend-builder` (Sonnet) and `frontend-fixer` (Opus). Since 2026-10-19 (the
+human's ruling) Masada leads this side as well as the Shadows web client
+([`docs/frontend/AGENTS.md`](../../frontend/AGENTS.md)); the former
+`desktop-ui-lead`/`-builder`/`-fixer` roles are retired. The repository rules in
 [`AGENTS.md`](../../../apps/desktop/AGENTS.md) still apply; this file adds who does what.
 The ordinary session in this repository is the **teacher**: it oversees the
 leads, rules on disputed requests, and starts new features.
@@ -21,7 +24,6 @@ only through the teacher.
 ## Where things are
 
 1. [`docs/aylul/vision.md`](../vision.md): the experience.
-   [`docs/aylul/source-structure.md`](../source-structure.md): where source goes.
 2. [`docs/aylul/codebase/README.md`](../codebase/README.md): what each implemented
    module owns. Read it before opening code.
 3. `contract.yaml` next to the code

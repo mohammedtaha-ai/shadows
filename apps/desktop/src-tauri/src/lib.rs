@@ -13,6 +13,8 @@ pub fn run() {
             commands::cancel_login,
             commands::aylul_call,
             commands::assistant_call,
+            commands::assistant_local_call,
+            commands::assistant_sources,
             commands::companion::companion_state,
             commands::companion::companion_ready,
             commands::companion::companion_failed,

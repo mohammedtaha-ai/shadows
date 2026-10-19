@@ -3273,6 +3273,10 @@
             },
             "type": "object"
           },
+          "assistant": {
+            "description": "True only for the project `Projects::ensure_assistant` created: the\nhome of AYLUL's conversations, which clients list apart from projects.",
+            "type": "boolean"
+          },
           "created_at": {
             "type": "string"
           },
@@ -3298,7 +3302,8 @@
           "slug",
           "name",
           "created_at",
-          "allowed_modes"
+          "allowed_modes",
+          "assistant"
         ],
         "type": "object"
       },

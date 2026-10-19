@@ -4,6 +4,7 @@ pub mod choices;
 pub mod claude;
 pub mod events;
 pub mod policy;
+pub mod profile;
 
 /// The settings a turn runs with (spec §12.7). `effort` is `None` exactly
 /// when the model offers none (§12.4).

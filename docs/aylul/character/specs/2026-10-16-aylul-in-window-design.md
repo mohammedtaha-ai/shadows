@@ -50,7 +50,6 @@ checkout; the user explicitly forbids worktrees.
   `file://` policy; no runtime acceptance is claimed here.
 
 Architecture and source-placement owners remain [Vision](../../vision.md),
-[source structure](../../source-structure.md),
 [shared architecture](../../../../../shadows-backend/docs/architecture.md), and
 [source-contract convention](../../../../../shadows-backend/docs/contracts/README.md).
 

@@ -126,7 +126,8 @@ function Conversation({
               </h1>
               <StageChip projectId={projectId} />
               <p className="truncate text-xs text-faint-foreground">
-                <bdi>{project?.name ?? '…'}</bdi> · Planner
+                <bdi>{project?.name ?? '…'}</bdi>
+                {project?.assistant === true ? null : ' · Planner'}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -135,6 +136,7 @@ function Conversation({
                 threadId={threadId}
                 harness={harness}
                 label={label}
+                assistant={project?.assistant === true}
                 // A fork is locked from birth (spec §12.9): its session is a fork
                 // of its source's, which no other harness could continue.
                 locked={c.latest !== null || thread?.forked_from_thread != null}

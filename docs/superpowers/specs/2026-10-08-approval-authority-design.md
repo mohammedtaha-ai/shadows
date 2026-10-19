@@ -181,7 +181,7 @@ stores and enforces grants over its own operations in the `grants` service;
 matching is deterministic, and model output never decides. Create structure is
 never grantable. This lands after the first AYLUL release, which delegates only
 Claude Code and Codex requests on the laptop
-([NYLRA delivery spec](../../../../nylra/docs/superpowers/specs/2026-10-10-nylra-delivery-design.md#independent-companion)).
+(the NYLRA delivery spec, deleted 2026-10-19, Git `226d0a3`).
 
 An assessment request through NYLRA runs with a capability set that cannot edit
 or approve plans/agreements/proposals, create structure, or dispatch execution.
