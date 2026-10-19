@@ -1,6 +1,6 @@
 # Desktop UI stages
 
-Where this side's work is now. `desktop-ui-lead` keeps this file; builders read
+Where this side's work is now. Masada keeps this file; builders read
 their task here and set its status. Task shape: [`AGENTS.md`](AGENTS.md#a-task-in-stagesmd).
 
 ## Now
@@ -9,10 +9,10 @@ their task here and set its status. Task shape: [`AGENTS.md`](AGENTS.md#a-task-i
 Hermes Desktop's bots/chats/settings and selected one visible character for the
 selected bot. The [written proposal](specs/2026-10-19-agent-workspace-design.md)
 and Chat-first mockup were approved. The [first UI plan](plans/2026-10-19-agent-workspace-ui.md)
-was reviewed by Masada on 2026-10-19 and its fixes applied; U-W1 is next. For this
-batch the `desktop-ui-builder`/`desktop-ui-fixer` roles are suspended (their
-definitions are not installed in this repository): the session executes inline,
-and each task still changes only its `Touch:` files. No workspace/bot-registry
+was reviewed by Masada on 2026-10-19 and its fixes applied; U-W1 is next. Since
+2026-10-19 (the human's ruling) Masada leads this side: she runs
+`frontend-builder` with `Do task U-<n> in docs/aylul/ui/stages.md`, and
+`frontend-fixer` for failures; each task changes only its `Touch:` files. No workspace/bot-registry
 implementation has started; normal chat below remains delivered. Backend
 management capabilities, and the effective-model readback (spec §5 OPEN), need
 their own proof.

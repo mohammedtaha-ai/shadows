@@ -10,7 +10,7 @@ companion needs from the UI. A request to the cloud API goes instead to
 | Side | Lead | Rules |
 |---|---|---|
 | Character (AYLUL) | `aylul-lead` | [docs/aylul/character/AGENTS.md](../character/AGENTS.md) |
-| Desktop UI | `desktop-ui-lead` | [docs/aylul/ui/AGENTS.md](../ui/AGENTS.md) |
+| Desktop UI | `masada` | [docs/aylul/ui/AGENTS.md](../ui/AGENTS.md) |
 | Native (Tauri, sidecar, hook) | `native-lead` | [docs/aylul/native/AGENTS.md](../native/AGENTS.md) |
 
 Mobile has no lead until `apps/mobile` exists.

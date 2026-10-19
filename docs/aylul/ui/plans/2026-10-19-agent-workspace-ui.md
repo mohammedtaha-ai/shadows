@@ -1,13 +1,10 @@
 # Agent workspace UI implementation plan
 
-> **For agentic workers:** Use `superpowers:executing-plans` for inline,
-> task-by-task execution in the current checkout. No worktrees or implementer
-> subagents. One local commit per verified task; one final whole-branch review.
-> The `desktop-ui-builder`/`desktop-ui-fixer` roles in
-> [`AGENTS.md`](../AGENTS.md) are suspended for this batch: their definitions
-> stay in the preserved NYLRA checkout and are not installed here (teacher
-> ruling, 2026-10-19). Each task still keeps the `stages.md` shape and changes
-> only its `Touch:` files.
+> **For agentic workers:** Masada runs each task with `frontend-builder`
+> (`Do task U-<n> in docs/aylul/ui/stages.md`) and failures with
+> `frontend-fixer`, under [`AGENTS.md`](../AGENTS.md) (the human's ruling,
+> 2026-10-19). No worktrees. One local commit per verified task; one final
+> whole-branch review. Each task changes only its `Touch:` files.
 
 **Goal:** Deliver the approved Chat-first desktop workspace while preserving real
 account chat, local hook actions and the independent character.
