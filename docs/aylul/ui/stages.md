@@ -36,7 +36,7 @@ Character design/renderer and native companion lifetime keep their separate owne
 - Done when: layout, bot/configuration ownership, staged feature inventory and selected-character semantics are accepted; then write an exact implementation plan.
 
 ### U-W1 · Live workspace shell
-- Status: todo
+- Status: done
 - Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-1---ship-the-workspace-shell-with-working-account-chat
 - Read: workspace design §3; source settings inventory; app/assistant/features contracts.
 - Touch: apps/desktop/src/app/{WorkspaceShell.tsx,AccountPanel.tsx,workspace.css,main.tsx,shell.css,contract.yaml}; apps/desktop/tests/companion/{workspace.spec.ts,shell.spec.ts,fixture.tsx}; docs/aylul/codebase/README.md; docs/aylul/ui/stages.md.
