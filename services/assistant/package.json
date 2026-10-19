@@ -1,0 +1,7 @@
+{
+  "name": "@shadows/local-assistant", "version": "0.1.0", "private": true, "type": "module",
+  "engines": {"node": ">=24 <25"},
+  "scripts": {"build": "tsc", "schema": "npm run build && node dist/export-schema.js", "test": "npm run build && node --test tests/*.test.mjs", "start": "node dist/main.js"},
+  "dependencies": {"@shadows/hermes-client": "file:../../packages/hermes-client", "@sinclair/typebox": "0.34.52"},
+  "devDependencies": {"@types/node": "24.19.2", "typescript": "5.9.3"}
+}
