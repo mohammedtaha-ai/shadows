@@ -2,10 +2,10 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Mohammed creates several AYLUL profiles in Settings, each with its
-own provider URL, key, models and environment variables. A new AYLUL
-conversation picks a profile, and its model menu shows exactly that profile's
-models, once each.
+**Goal:** The sidebar title becomes a workspace switcher (Shadows / AYLUL). In
+AYLUL, Mohammed creates several agents (profiles), each with its own provider
+URL, key, models and environment variables. A conversation is started under its
+agent, and its model menu shows exactly that agent's models, once each.
 
 **Architecture:**
 - A new `profiles` service in `shadows-core` owns the profile rows. Keys and
@@ -55,8 +55,8 @@ dependency.
    `model` changed.
 3. Editing a profile's models while a conversation is open: the open adapter
    keeps its menu, and a new conversation shows the new list.
-4. The profile menu after the first message is read-only. A `set_profile`
-   after the first turn is refused.
+4. The workspace choice survives a reload, and a deep link to an AYLUL
+   conversation opens the AYLUL workspace even if Shadows was the last choice.
 5. Two profiles with the same name (different slugs are needed): the second
    gets a `-2` slug, never a collision with the first's secrets.
 
@@ -72,8 +72,10 @@ dependency.
 - Modify: `crates/shadows-core/src/app.rs` (compose `Profiles`, accessor `profiles()`, shared with `Sessions`), `lib.rs`, `error.rs` (`AYLUL_PROFILE_NOT_FOUND`, `PROFILE_INVALID`)
 - Modify: `crates/shadows-core/src/threads/{mod.rs,model.rs,store}`:
   - `create` takes `profile: Option<&str>`, which is required when the harness is `aylul` and refused otherwise
-  - new `set_profile(command_id, thread, profile)`, before the first turn only
-  - `PlanningThread.profile: Option<String>`
+  - `PlanningThread.profile: Option<String>`; there is no way to change it after
+    creation
+  - `list_for_profile(slug) -> Result<Vec<PlanningThread>, CoreError>`, ordered
+    by `created_at` then `id`, the newest first
 - Modify: `docs/codebase/README.md`, `docs/superpowers/specs/2026-09-26-application-core-design.md` §14.4 (twelve services), and CLAUDE.md's service count
 - Test: `crates/shadows-core/tests/aylul_profiles.rs`, and `threads` tests
 
@@ -96,7 +98,7 @@ dependency.
   - `list_is_ordered_by_name`
   - `aylul_thread_requires_a_profile`
   - `planner_thread_refuses_a_profile`
-  - `set_profile_after_first_turn_is_refused`
+  - `threads_list_by_profile_only`
   - `replay_with_other_input_conflicts`
 - [ ] **Step 2:** Run `cargo test -p shadows-core --test aylul_profiles`. Expected: FAIL.
 - [ ] **Step 3:** Implement. The contract lists the methods and their rules.
@@ -151,27 +153,30 @@ dependency.
   - `PUT /api/aylul/profiles/{slug}`
   - `DELETE /api/aylul/profiles/{slug}?command_id=`
 - Modify: `crates/shadows-http/src/aylul_env.rs`: the routes become `/api/aylul/profiles/{slug}/env[/{name}]`, and the old `/api/aylul/env` routes are removed.
-- Modify: the thread create route (`profile` field), a new `PUT /api/threads/{id}/profile`, `openapi.rs`, and `api/openapi.json` (`UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`)
+- Modify: the thread create route (`profile` field), add `GET /api/aylul/profiles/{slug}/threads`, update `openapi.rs`, and regenerate `api/openapi.json` (`UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`)
 - Create:
-  - `web/src/api/aylul-profiles.ts` (moves the env calls here too; `aylul-env.ts` is removed)
-  - `web/src/app/settings/aylul-profiles.tsx` (the list, and the create/edit form with an "API key" password field and a models editor)
-  - `web/src/app/settings/aylul-profile-env.tsx` (the §10 env section, scoped to one profile)
-  - `web/src/app/conversation/profile-picker.tsx`
+  - `web/src/api/aylul-profiles.ts` (the env calls move here too; `aylul-env.ts` is removed)
+  - `web/src/app/sidebar/workspace-switcher.tsx`: a title dropdown with label, description and check. "Shadows: Plan and build projects" and "AYLUL: Your agents and their conversations". The choice is kept in `localStorage` (inside try/catch); a route under an AYLUL thread or agent wins over the stored choice.
+  - `web/src/app/sidebar/agent-list.tsx`: the agents, each expandable to its conversations like a project, with a "New conversation" entry and "Agent settings". With no agents it shows "Add an agent to start".
+  - `web/src/app/agents/agent-settings.tsx`: one form for "New agent" and "Agent settings" (name, provider URL, an "API key" password field, a models editor, default model, context window, delete with confirmation), plus the env section
+  - `web/src/app/agents/agent-env.tsx`: the §10 env section, scoped to one agent
 - Modify:
-  - `web/src/app/settings/settings-page.tsx`
-  - `web/src/app/conversation/draft.tsx` (a profile menu on a new AYLUL conversation; it sets `profile` at create; the model menu before the session exists shows the chosen profile's models)
-  - `web/src/app/conversation/conversation.tsx` (a read-only profile label)
-  - the sidebar AYLUL entry (with no profiles, it links to Settings and says "Add a profile to use AYLUL")
+  - `web/src/app/sidebar/sidebar.tsx` (switcher in the header; projects or agents below; "New agent" replaces "New project" in AYLUL)
+  - remove `web/src/app/sidebar/aylul-entry.tsx` and its test
+  - `web/src/app/settings/settings-page.tsx` (the §10 section leaves the global Settings page)
+  - `web/src/app/conversation/draft.tsx` (a new conversation under an agent creates its thread with that `profile`; the model menu before the session exists shows the agent's models)
+  - `web/src/app/conversation/conversation.tsx` (the header names the agent)
+  - the routes for `/agents/new`, `/agents/{slug}/settings` and `/agents/{slug}/new`
   - contracts, `docs/frontend/codebase/README.md`, and `schema.d.ts` (`gen:api`)
 - Test:
-  - Rust route tests: `create_list_update_delete_profile`, `profile_responses_have_no_key`, `env_routes_are_per_profile`, `thread_create_with_profile`
-  - Web: `profile_form_saves_and_clears_key`, `models_editor_requires_default_in_list`, `draft_shows_profile_menu_and_its_models`, `profile_is_read_only_after_first_message`, `no_profiles_links_to_settings`
+  - Rust route tests: `create_list_update_delete_profile`, `profile_responses_have_no_key`, `env_routes_are_per_profile`, `thread_create_with_profile`, `threads_listed_per_profile`
+  - Web: `switcher_shows_both_with_check_on_current`, `switcher_choice_survives_reload`, `aylul_thread_route_opens_aylul_workspace`, `shadows_workspace_has_no_aylul_entry`, `agent_list_shows_conversations_per_agent`, `agent_form_saves_and_clears_key`, `models_editor_requires_default_in_list`, `new_conversation_under_agent_sets_profile`, `no_agents_shows_add_prompt`
 
 - [ ] **Step 1:** Write the failing tests.
 - [ ] **Step 2:** Run `cargo test -p shadows-http aylul` and `npm --prefix web test -- aylul profile`. Expected: FAIL.
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** Run the same tests, plus `cargo test -p shadows --test openapi` and `npm --prefix web run typecheck`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat(web): AYLUL profiles in Settings and a profile menu in new conversations`.
+- [ ] **Step 5:** Commit `feat(web): workspace switcher; AYLUL agents with their conversations and settings`.
 
 ### Task 4: Gate (once)
 

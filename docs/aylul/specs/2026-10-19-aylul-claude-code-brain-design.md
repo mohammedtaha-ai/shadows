@@ -264,19 +264,27 @@ encrypted in the database; no Windows environment variable.
 
 ## 11. Profiles from the UI, each with its provider and models (slice 3, decided 2026-10-19)
 
-Mohammed creates, edits and deletes AYLUL profiles in Settings. Each profile
-has its own provider, key, models, environment variables and home. A new AYLUL
-conversation picks its profile, and the model menu shows exactly that profile's
-models. This replaces §7's single seeded profile and its config-file provider.
+Mohammed creates, edits and deletes AYLUL agents (profiles) in the AYLUL
+workspace of the sidebar. Each has its own provider, key, models, environment
+variables and home. A conversation is started under its agent, and the model
+menu shows exactly that agent's models. This replaces §7's single seeded profile and its config-file provider.
 
 **Decided by Mohammed:**
 
 - Profiles, providers and models are entered in the UI and stored in the
   database. Nothing is taken from the env file or `aylul.json` any more.
 - Several profiles now, not only AYLUL.
-- AYLUL stays one entry in the sidebar. A new conversation has a profile menu
-  next to the model menu. After the first message, the conversation's profile
-  is fixed.
+- **Workspace switcher.** The sidebar's "Shadows" title becomes a dropdown
+  (title trigger with a chevron, items with a label, a description and a check
+  on the current one): **Shadows** ("Plan and build projects") and **AYLUL**
+  ("Your agents and their conversations"). The title shows the current
+  workspace, and the choice is remembered in the browser.
+  - Shadows shows today's sidebar: projects, their conversations and
+    workflows. The separate "AYLUL" entry above the projects is removed.
+  - AYLUL shows the agents (one per profile), each with its conversations,
+    laid out like projects, with "New agent" in place of "New project".
+- A conversation is started under its agent in the sidebar, so it belongs to
+  that profile from creation and never changes.
 
 **My calls (Claude):**
 
@@ -314,32 +322,34 @@ models. This replaces §7's single seeded profile and its config-file provider.
   folder on disk. The "aylul" home that exists today is reused by a profile
   whose slug is `aylul`.
 - **The conversation holds its profile:** a `profile` column on the thread,
-  set at its first turn from the composer's choice and never changed after.
+  set when the thread is created under an agent and never changed.
   Opening resolves that profile. A conversation whose profile was deleted fails
   with `AYLUL_PROFILE_NOT_FOUND`, and its history stays readable.
 - **Remembered model and effort are per profile.**
 - **AYLUL is available** when at least one profile exists. With none, the
-  sidebar entry leads to Settings with "Add a profile to use AYLUL".
+  AYLUL workspace shows "Add an agent to start" and the "New agent" button.
 - **`aylul.json` shrinks to `home_root`.** The other keys are refused, and
   `env_file` with them, so a stale file fails loudly at start. The one-time env
   import of §10 is removed, because the variables already imported stay in the
   database.
 - **Web:**
-  - Settings → "AYLUL profiles": a list of profiles, and a form to create or
-    edit one (name, provider URL, API key, models, default model, context
-    window) with that profile's environment variables (the §10 section, now per
-    profile). Deleting asks for confirmation.
-  - Composer: a profile menu on a new AYLUL conversation, a read-only profile
-    label after the first message, and the model menu showing that profile's
+  - The workspace switcher above.
+  - "New agent" and each agent's "Agent settings" (like "Project settings")
+    open one form: name, provider URL, API key, models, default model, context
+    window, and that agent's environment variables (the §10 section, now per
+    profile). Deleting asks for confirmation. The §10 section leaves the global
+    Settings page.
+  - The conversation header names its agent. The model menu shows that agent's
     models.
 
 **Acceptance:**
 
-1. Mohammed creates profile "AYLUL" (MiniMax, two models) in Settings, and a
-   new conversation answers. Its model menu shows exactly those two models,
-   once each.
-2. He creates a second profile with another provider or model list. A new
-   conversation picks it, and its menu shows only its own models.
+1. Mohammed switches the sidebar to AYLUL, creates agent "AYLUL" (MiniMax, two
+   models) with "New agent", starts a conversation under it, and it answers.
+   Its model menu shows exactly those two models, once each.
+2. He creates a second agent with another provider or model list. A
+   conversation under it shows only its own models. Switching back to Shadows
+   shows the projects as before, with no AYLUL entry.
 3. Switching between the two models in one conversation works, and the next
    reply says which model answered.
 4. Deleting the second profile leaves its conversation readable, and sending
