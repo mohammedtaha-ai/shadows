@@ -24,26 +24,23 @@ impl std::fmt::Debug for Secrets {
     }
 }
 
-/// Also used by the binary when loading `key_env`.
+/// Validate agent variable names before encryption: reserved names are refused.
 pub fn validate_env_name(name: &str) -> Result<(), CoreError> {
-    if reserved_env_name(name)
-        && !matches!(
-            name,
-            "CLAUDE_CONFIG_DIR" | "ANTHROPIC_API_KEY" | "ANTHROPIC_AUTH_TOKEN"
-        )
-    {
+    if reserved_env_name(name) {
         return Err(CoreError::SecretNameReserved(name.into()));
     }
+    validate_env_format(name)
+}
+
+/// The name's shape alone. Removal uses it, so a row stored before its name
+/// became reserved can still be removed after the opening names it.
+fn validate_env_format(name: &str) -> Result<(), CoreError> {
     let bytes = name.as_bytes();
     let valid = (1..=128).contains(&bytes.len())
         && (bytes[0].is_ascii_uppercase() || bytes[0] == b'_')
         && bytes
             .iter()
-            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || *b == b'_')
-        && !matches!(
-            name,
-            "CLAUDE_CONFIG_DIR" | "ANTHROPIC_API_KEY" | "ANTHROPIC_AUTH_TOKEN"
-        );
+            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || *b == b'_');
     if valid {
         Ok(())
     } else {
@@ -106,6 +103,54 @@ impl Secrets {
         name: &str,
         value: &str,
     ) -> Result<EnvEntry, CoreError> {
+        self.set_env_mode(command_id, profile, name, value, false)
+            .await
+    }
+    pub async fn remove_env(
+        &self,
+        command_id: String,
+        profile: &str,
+        name: &str,
+    ) -> Result<(), CoreError> {
+        self.remove_env_mode(command_id, profile, name, false).await
+    }
+    pub async fn set_agent_env(
+        &self,
+        command_id: String,
+        agent: &str,
+        name: &str,
+        value: &str,
+    ) -> Result<EnvEntry, CoreError> {
+        self.set_env_mode(command_id, agent, name, value, true)
+            .await
+    }
+    pub async fn remove_agent_env(
+        &self,
+        command_id: String,
+        agent: &str,
+        name: &str,
+    ) -> Result<(), CoreError> {
+        self.remove_env_mode(command_id, agent, name, true).await
+    }
+    pub async fn list_agent_env(&self, agent: &str) -> Result<Vec<EnvEntry>, CoreError> {
+        let mut conn = self
+            .storage
+            .reader()
+            .acquire()
+            .await
+            .map_err(crate::StorageError::from)?;
+        crate::profiles::require_live_agent_in(&mut conn, agent).await?;
+        self.list_env(agent).await
+    }
+
+    async fn set_env_mode(
+        &self,
+        command_id: String,
+        profile: &str,
+        name: &str,
+        value: &str,
+        agent_only: bool,
+    ) -> Result<EnvEntry, CoreError> {
         let keys = self.keys()?;
         validate_env_name(name)?;
         validate_value(name, value)?;
@@ -118,17 +163,18 @@ impl Secrets {
         );
         let sealed = crypto::seal(&keys.aead, &aad(profile, name), value)
             .map_err(|_| CoreError::SecretsUnavailable)?;
-        Ok(store::set(&self.storage, c, profile, name, sealed).await?)
+        Ok(store::set(&self.storage, c, profile, name, sealed, agent_only).await?)
     }
 
-    pub async fn remove_env(
+    async fn remove_env_mode(
         &self,
         command_id: String,
         profile: &str,
         name: &str,
+        agent_only: bool,
     ) -> Result<(), CoreError> {
         self.keys()?;
-        validate_env_name(name)?;
+        validate_env_format(name)?;
         let c = user_command(
             command_id,
             "secret_env.remove",
@@ -136,7 +182,7 @@ impl Secrets {
                 "profile": profile, "name": name,
             }),
         );
-        Ok(store::remove(&self.storage, c, profile, name).await?)
+        Ok(store::remove(&self.storage, c, profile, name, agent_only).await?)
     }
 
     pub async fn set_provider_key(

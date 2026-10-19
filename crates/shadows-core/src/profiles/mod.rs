@@ -6,7 +6,7 @@ mod store;
 
 use crate::db::Storage;
 use crate::{CoreError, ProjectId};
-pub use model::{Agent, AgentInput, Provider, ProviderInput};
+pub use model::{Agent, AgentInput, AgentWorkspace, Provider, ProviderInput};
 use std::path::PathBuf;
 use std::sync::Arc;
 pub(crate) use store::{require_live_agent_in, require_provider_in};
@@ -45,6 +45,13 @@ impl Profiles {
 
     pub async fn agent(&self, slug: &str) -> Result<Agent, CoreError> {
         Ok(store::agent(&self.storage, slug).await?)
+    }
+
+    pub async fn workspace(&self) -> Result<AgentWorkspace, CoreError> {
+        Ok(AgentWorkspace {
+            project_id: self.assistant_project().await?,
+            agents: self.agents().await?,
+        })
     }
 
     pub async fn assistant_project(&self) -> Result<ProjectId, CoreError> {

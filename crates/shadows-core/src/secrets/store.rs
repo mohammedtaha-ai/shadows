@@ -1,4 +1,4 @@
-//! SQL for encrypted environments and the once-only import marker.
+//! SQL for encrypted environment scopes.
 
 use sqlx::SqliteConnection;
 
@@ -74,6 +74,7 @@ pub(super) async fn set(
     profile: &str,
     name: &str,
     sealed: Sealed,
+    agent_only: bool,
 ) -> Result<EnvEntry, StorageError> {
     let (profile, name) = (profile.to_owned(), name.to_owned());
     storage
@@ -83,6 +84,9 @@ pub(super) async fn set(
                 if let Some(outcome) = classify(conn, &ctx, "aylul_env", &scope).await? {
                     return serde_json::from_str(&outcome)
                         .map_err(|_| StorageError::Unavailable("invalid secret outcome".into()));
+                }
+                if agent_only {
+                    crate::profiles::require_live_agent_in(conn, &profile).await?;
                 }
                 if let Some(provider) = profile.strip_prefix("provider/") {
                     crate::profiles::require_provider_in(conn, provider).await?;
@@ -106,6 +110,7 @@ pub(super) async fn remove(
     ctx: CommandContext,
     profile: &str,
     name: &str,
+    agent_only: bool,
 ) -> Result<(), StorageError> {
     let (profile, name) = (profile.to_owned(), name.to_owned());
     storage
@@ -114,6 +119,12 @@ pub(super) async fn remove(
                 let scope = format!("{profile}/{name}");
                 if classify(conn, &ctx, "aylul_env", &scope).await?.is_some() {
                     return Ok(());
+                }
+                if agent_only {
+                    crate::profiles::require_live_agent_in(conn, &profile).await?;
+                }
+                if let Some(provider) = profile.strip_prefix("provider/") {
+                    crate::profiles::require_provider_in(conn, provider).await?;
                 }
                 sqlx::query("DELETE FROM secret_env WHERE profile = ? AND name = ?")
                     .bind(&profile)

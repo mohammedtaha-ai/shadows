@@ -154,7 +154,7 @@ async fn lower_case_bad_and_reserved_names_are_refused() {
     ] {
         assert!(matches!(
             w.secrets.set_env("a".into(), "aylul", name, VALUE).await,
-            Err(CoreError::SecretNameInvalid(_))
+            Err(CoreError::SecretNameInvalid(_) | CoreError::SecretNameReserved(_))
         ));
     }
 }
@@ -212,4 +212,21 @@ async fn value_absent_from_db_wal_shm_and_command_record() {
             assert!(!bytes.windows(VALUE.len()).any(|v| v == VALUE.as_bytes()));
         }
     }
+}
+
+#[tokio::test]
+async fn reserved_name_can_be_removed() {
+    let w = world().await;
+    // A row stored before its name became reserved fails the opening, which
+    // names it; removing it must stay possible.
+    assert!(
+        w.secrets
+            .remove_env("r".into(), "aylul", "ANTHROPIC_BASE_URL")
+            .await
+            .is_ok()
+    );
+    assert!(matches!(
+        w.secrets.remove_env("r2".into(), "aylul", "bad").await,
+        Err(CoreError::SecretNameInvalid(_))
+    ));
 }

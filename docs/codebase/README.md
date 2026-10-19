@@ -5,6 +5,8 @@ what can be checked:
 
 | File | Kind | Answers |
 |---|---|---|
+| `crates/shadows-http/src/aylul_profiles.rs` | AYLUL configuration HTTP translation | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-http/src/aylul_profiles_tests.rs` | AYLUL configuration route acceptance tests | `crates/shadows-http/src/aylul_profiles.rs` |
 | this file | written by hand | *Where does my new code go?* The one job each crate and module holds, and the invariants no change may break. |
 | each service's `contract.yaml` | written by hand, next to its code in `crates/shadows-core/src/<service>/` | *What must stay true of this service?* Its methods, obligations, agreements and tests, in the shape of [`contracts/TEMPLATE.yaml`](./contracts/TEMPLATE.yaml). |
 

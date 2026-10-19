@@ -21,6 +21,7 @@
 
 mod agreements;
 mod aylul_env;
+mod aylul_profiles;
 mod code;
 mod conversation;
 mod design;
@@ -128,6 +129,24 @@ pub fn router(state: AppState, mcp: Router) -> Router {
 /// or miss one it has. Each `routes!` groups the methods of one path.
 fn routes() -> OpenApiRouter<AppState> {
     OpenApiRouter::with_openapi(openapi::base())
+        .routes(routes!(
+            aylul_profiles::providers,
+            aylul_profiles::create_provider
+        ))
+        .routes(routes!(
+            aylul_profiles::update_provider,
+            aylul_profiles::delete_provider
+        ))
+        .routes(routes!(aylul_profiles::set_key, aylul_profiles::remove_key))
+        .routes(routes!(
+            aylul_profiles::agents,
+            aylul_profiles::create_agent
+        ))
+        .routes(routes!(
+            aylul_profiles::update_agent,
+            aylul_profiles::delete_agent
+        ))
+        .routes(routes!(aylul_profiles::threads))
         .routes(routes!(aylul_env::list))
         .routes(routes!(aylul_env::set, aylul_env::remove))
         .routes(routes!(project::list_projects, project::create_project))

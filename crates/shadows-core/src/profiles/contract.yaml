@@ -15,6 +15,7 @@ shapes:
     source: model.rs
     deleted: Permanent identity tombstone
 functions:
+  workspace: Read the hidden project identity with its live agent list.
   new: Construct configuration over the shared storage.
   providers: List providers in creation order with slug tie break.
   provider: Read provider metadata including key presence.
@@ -28,7 +29,7 @@ functions:
   update_agent: Change live configuration while retaining the slug.
   delete_agent: Keep the identity and remove variables in one transaction, then close its adapters.
 shared_in_transaction:
-  require_live_agent_in: Threads checks the identity inside its creation transaction.
+  require_live_agent_in: Threads checks creation; Secrets checks agent environment writes inside their transaction.
   require_provider_in: Secrets checks provider existence before storing a provider key.
 obligations:
   - rule: Provider credentials are never returned as provider metadata.
