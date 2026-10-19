@@ -537,6 +537,3 @@ tests:
 
 # AYLUL creation requires a live profile inside the write transaction.
 # Planner creation refuses any profile. A fork copies its profile.
-
-# AYLUL creation requires a live profile inside the write transaction.
-# Planner creation refuses any profile. A fork copies its profile.

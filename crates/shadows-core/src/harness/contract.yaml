@@ -622,28 +622,46 @@ not_the_caller's:
 tests:
   - name: opening_uses_agent_and_provider
     checks: >
-      tests/aylul_session.rs: a send on an aylul thread reaches the adapter
-      through Turns::send.
-  - name: deleting_last_agent_is_not_found_not_unavailable
-    checks: >
-      tests/aylul_session.rs: no profile gives HarnessUnavailable, and the list
-      shows aylul available=false, "Coming later".
+      tests/aylul_session/opening.rs: a send on an agent's thread spawns with
+      the agent home as cwd and CLAUDE_CONFIG_DIR, the provider token present,
+      only the user settings source, no append/MCP, one prompt block.
   - name: two_agents_share_one_provider_key
     checks: >
-      tests/aylul_session.rs: with a profile the list has aylul, labelled
-      AYLUL, available.
-  - name: opening_uses_agent_and_provider
+      tests/aylul_session/opening.rs: two agents on one provider both receive
+      the token from the single `provider/<slug>` row.
+  - name: deleted_agent_with_live_adapter_is_not_found
     checks: >
-      tests/aylul_session.rs: profile home as cwd and CLAUDE_CONFIG_DIR, token
-      present, only the user settings source, no append/MCP, one prompt block.
+      tests/aylul_session/opening.rs: deleting an agent whose thread holds a
+      live adapter makes the next send AYLUL_PROFILE_NOT_FOUND.
+  - name: deleting_last_agent_is_not_found_not_unavailable
+    checks: >
+      tests/aylul_session/opening.rs: with the last agent deleted, opening and
+      sending give AYLUL_PROFILE_NOT_FOUND, not HarnessUnavailable, while the
+      list shows aylul available=false.
   - name: missing_provider_key_is_named
     checks: >
-      tests/aylul_session.rs: an unset key variable fails the opening, naming
-      the variable.
+      tests/aylul_session/opening.rs: a provider with no key fails the opening
+      with AYLUL_KEY_MISSING naming the provider.
+  - name: reserved_variable_row_fails_opening
+    checks: >
+      tests/aylul_session/opening.rs: an agent variable row with a reserved
+      name fails the opening with SECRET_NAME_RESERVED naming it.
+  - name: settings_json_keeps_other_keys
+    checks: >
+      tests/aylul_session/homes.rs: the opening writes only availableModels
+      and model, keeping every other key.
+  - name: concurrent_openings_keep_settings_valid
+    checks: >
+      tests/aylul_session/homes.rs: two openings of one agent leave a valid
+      settings.json with the person's keys intact.
+  - name: aylul_choices_have_no_default_model
+    checks: >
+      tests/aylul_session/preferences.rs: AYLUL choices list each provider
+      model once and never `default`.
   - name: remembered_model_is_per_agent
     checks: >
-      tests/aylul_session.rs: an aylul turn remembers under aylul and leaves
-      claude-code's memory empty.
+      tests/aylul_session/preferences.rs: a turn, the opening read and
+      change_model use `aylul:<slug>`, leaving claude-code's memory empty.
   - name: absent_and_empty_tool_policies_are_distinct
     checks: None leaves adapter defaults; empty explicitly removes built-in tools.
   - name: a_pending_turn_delivers_the_standards_version_it_recorded
