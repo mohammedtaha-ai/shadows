@@ -1,0 +1,23 @@
+name: sidecar-sessions
+version: 1
+status: current
+source: apps/desktop/sidecar/src/sessions
+responsibility: Turn hook events into session state and trimmed steps.
+public_api:
+  trimStep: Tool, target (path, URL, pattern or one-line Bash/PowerShell command) and a one-line summary. A URL target keeps scheme, host and path only; query, fragment and credentials are dropped.
+  oneLine: Collapse whitespace; cut at max with an ellipsis.
+  applyEvent: New session object after one event; never mutates the given one.
+obligations:
+  - rule: No content, patch or tool output field reaches a step.
+    tested_by: a step keeps tool and path and drops every content field, a Bash step is the command on one line with its description
+  - rule: SessionStart/PostToolUse running; PermissionRequest, waiting notices and Stop waiting; SessionEnd ended.
+    tested_by: a session moves through its states and keeps the last step and message, an auth_success notice does not mark the session waiting
+  - rule: A URL target is stored without its query string, fragment or credentials; a value that is not a URL is kept as one line.
+    tested_by: a URL step keeps scheme, host and path only, never the query or fragment
+  - rule: The last message is kept up to MAX_MESSAGE characters.
+    tested_by: the last message is kept whole up to its limit (exactly MAX_MESSAGE is kept unchanged; longer is cut)
+  - rule: The session's project is project_dir; cwd only fills in when it never arrived.
+    tested_by: the project is the root from aylul-hook, not the folder Claude moved into
+gaps:
+  - at: trimStep
+    gap: A Bash or PowerShell command is kept as typed, so a secret written inline in a command is stored on the laptop.

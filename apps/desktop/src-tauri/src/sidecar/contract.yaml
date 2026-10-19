@@ -1,0 +1,27 @@
+name: desktop-sidecar-lifecycle
+version: 1
+status: current
+source: apps/desktop/src-tauri/src/sidecar
+responsibility: Start the Node sidecar, relay allowed calls over stdio, stop it on exit.
+public_api:
+  Sidecar::start: Spawn node with the script, AYLUL_HOOK_EXE set, no console window; one reader thread routes replies by id.
+  Sidecar::call: Listed METHODS only; 10 s reply limit; the sidecar's error code is returned as the error.
+  Sidecar::stop: Close stdin so the sidecar removes hook.json and exits; kill only after 3 s.
+  SidecarState: None when start failed; every call then answers sidecar_unavailable.
+  start_default: AYLUL_NODE, AYLUL_SIDECAR, AYLUL_HOOK_EXE, else node on PATH, ../sidecar/src/main.ts and the cargo target's release hook.
+obligations:
+  - rule: A call round-trips; sidecar error codes come back as errors.
+    tested_by: a_call_reaches_the_sidecar_and_returns_its_result, a_sidecar_error_code_comes_back_as_the_error
+  - rule: An unlisted method never reaches the sidecar.
+    tested_by: an_unlisted_method_is_refused_before_it_reaches_the_sidecar
+  - rule: A failed start leaves the app running and calls unavailable.
+    tested_by: no_sidecar_answers_unavailable
+  - rule: Stopping closes stdin and the fixture sidecar exits by itself; later calls are unavailable.
+    tested_by: stop_lets_the_sidecar_exit_by_itself
+gaps:
+  - at: Sidecar::stop
+    gap: The fixture does not verify real sidecar cleanup of hook.json on Tauri exit.
+  - at: start_default
+    gap: Paths are development paths; how the installer ships Node and the sidecar is OPEN.
+  - at: Sidecar::start
+    gap: A sidecar that dies is not restarted; calls then fail until AYLUL restarts.

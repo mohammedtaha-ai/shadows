@@ -7,6 +7,10 @@ backend side. The frontend has its own file,
 [`docs/frontend/AGENTS.md`](../frontend/AGENTS.md); read it only when a shared
 request needs it.
 
+This side is the **Shadows Core backend**. AYLUL/native and independent
+code-intelligence product work follow [the documentation map](../README.md),
+not this side merely because they also run background code.
+
 ## The domain
 
 | Yours | Not yours |

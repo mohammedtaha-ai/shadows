@@ -1,0 +1,45 @@
+[
+  {
+    "ExtendedStyle": 134480152,
+    "Scenario": "native-window-style",
+    "Style": 348848128,
+    "Window": {
+      "Title": "AYLUL",
+      "Handle": 3934066,
+      "Left": 1664,
+      "Top": 776,
+      "Width": 240,
+      "Height": 240,
+      "DPI": 96
+    }
+  },
+  {
+    "ExtendedStyle": 134480152,
+    "Binary": "12BE3475508D6DB45134F302786FCBCBCD8158F65772A3B24A39CA24183C8B46",
+    "Passed": true,
+    "Style": 348848128,
+    "Scenario": "native-companion-start",
+    "Window": {
+      "Title": "AYLUL",
+      "Handle": 3934066,
+      "Left": 1664,
+      "Top": 776,
+      "Width": 240,
+      "Height": 240,
+      "DPI": 96
+    }
+  },
+  {
+    "Passed": true,
+    "Scenario": "close-main-independence"
+  },
+  {
+    "FocusCyclesRequested": 0,
+    "Scenario": "native-webview-state-recovery",
+    "Passed": true
+  },
+  {
+    "Passed": true,
+    "Scenario": "actual-tray-quit"
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "contractVersion": "1.1.0",
+  "notice": "Synthetic wire examples only. Repeated-character handles are unusable fixture values, not credentials.",
+  "login": {"platform":"windows","returnUri":"http://127.0.0.1:49152/oidc-return","returnChallenge":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "newEnrollmentReturn": {"ticket":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","returnVerifier":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","enrollment":{"mode":"new"}},
+  "reauthenticationReturn": {"ticket":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","returnVerifier":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","enrollment":{"mode":"reuse","credential":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}},
+  "newEnrollmentGrant": {"handle":"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh","principal":{"accountId":"00000000-0000-4000-8000-000000000001","deviceId":"00000000-0000-4000-8000-000000000002","sessionId":"00000000-0000-4000-8000-000000000003"},"expiresAt":"2026-11-10T00:00:00.000Z","enrollmentCredential":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
+  "providerPending": {"local":"revoked","provider":"pending","browserLogoutUrl":"https://127.0.0.1:8443/v1/auth/provider-logout?ticket=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+  "refusals": [{"status":400,"body":{"code":"request_invalid"}},{"status":400,"body":{"code":"login_refused"}},{"status":400,"body":{"code":"return_refused"}},{"status":401,"body":{"code":"unauthorized"}},{"status":400,"body":{"code":"device_refused"}},{"status":400,"body":{"code":"logout_refused"}},{"status":429,"body":{"code":"rate_limited"}},{"status":503,"body":{"code":"operation_failed"}}]
+}

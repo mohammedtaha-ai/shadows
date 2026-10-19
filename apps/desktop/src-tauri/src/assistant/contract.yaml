@@ -1,0 +1,13 @@
+name: native-assistant-operations
+status: current
+source: apps/desktop/src-tauri/src/assistant
+responsibility: Translate a closed main-window request into a fixed account-backend assistant operation; hold no credential or model rule.
+public_api:
+  Request::operation: Validate UUID selectors and a 4096-byte text bound; return only the allowlisted backend method/path/body.
+obligations:
+  - rule: Arbitrary URLs, extra fields and path escapes are refused before authenticated dispatch.
+    tested_by: assistant::tests::assistant_routes_are_fixed_and_reject_arbitrary_selectors
+  - rule: Oversized text is refused without a backend call.
+    tested_by: assistant::tests::assistant_path_escape_and_oversized_text_refuse
+external_types:
+  - Backend nylra-v1 0.5 assistant payloads and projections.

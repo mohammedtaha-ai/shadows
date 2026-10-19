@@ -1,0 +1,27 @@
+
+> nylra-desktop@0.1.0 test:companion:unit
+> node --test tests/companion/model.test.ts tests/companion/geometry.test.ts tests/companion/scheduler.test.ts tests/companion/messages.test.ts tests/companion/contracts.test.ts tests/companion/native-state.test.ts tests/companion/desktop-gesture.test.ts
+
+✔ companion contracts name real source exports and inspected tests (34.9723ms)
+✔ eight pixel drag consumes panel click and next gesture survives lost up (2.4776ms)
+✔ secondary cancellation disposal and drag rejection recover safely (0.6842ms)
+✔ zero size and invalid viewport stay finite (3.013ms)
+✔ DPR doubles pixels while pointer stays in CSS space (1.3169ms)
+✔ same ID does not extend expiry and same text new ID does (2.6185ms)
+✔ replacement owns its deadline and invalid duration falls back (0.3891ms)
+✔ locked direction is visible on a still redraw without advancing motion (2.9021ms)
+✔ perch hands meet the mock top without clipping the hood (8.3608ms)
+✔ motion cadence is stable at 30 60 and 120 Hz and inputs unchanged (2.6134ms)
+✔ long gaps clamp and resize or zero geometry remain finite (0.4829ms)
+✔ older ready reply cannot reverse newer native hide (6.8458ms)
+✔ late subscription after disposal cleans up without readiness or callbacks (2.893ms)
+✔ listener failure and malformed events never enable drawing (1.67ms)
+✔ one loop is owned across double starts stop and dispose (2.281ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2108.1936

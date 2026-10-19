@@ -1,0 +1,97 @@
+.aylul-studio {
+  box-sizing: border-box;
+  min-width: 0;
+  color: #eee0ff;
+  background: #100b1b;
+  padding: 1rem;
+  border: 1px solid #6c4286;
+  border-radius: 1rem;
+  margin-top: 1rem;
+}
+.aylul-studio-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  gap: 1rem;
+}
+.aylul-studio-stage {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: radial-gradient(ellipse, #37204455, transparent 70%);
+}
+.aylul-studio button,
+.aylul-studio select,
+.aylul-studio input {
+  font: inherit;
+  color: inherit;
+  background: #251735;
+  border: 1px solid #72518b;
+  border-radius: 0.4rem;
+  padding: 0.4rem;
+  margin: 0.2rem;
+  box-sizing: border-box;
+}
+.aylul-studio button[aria-pressed="true"] {
+  background: #662b86;
+  border-color: #d18af2;
+}
+.aylul-studio fieldset {
+  border: 1px solid #51345f;
+  border-radius: 0.6rem;
+  margin-bottom: 0.6rem;
+  min-width: 0;
+}
+.aylul-studio fieldset button {
+  font-size: 0.75rem;
+}
+.aylul-studio label {
+  display: block;
+  font-size: 0.8rem;
+}
+.aylul-studio input[type="range"] {
+  width: 95%;
+}
+.aylul-studio form input {
+  width: 100%;
+}
+.aylul-preview-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.aylul-preview-grid figure {
+  margin: 0.25rem;
+  text-align: center;
+  font-size: 0.7rem;
+}
+.aylul-preview-grid canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.aylul-mock-window {
+  position: absolute;
+  box-sizing: border-box;
+  width: min(240px, 85%);
+  height: 115px;
+  border: 1px solid #8b5da3;
+  background: #151120;
+  border-radius: 0.5rem;
+}
+.aylul-mock-window button {
+  width: 100%;
+  margin: 0;
+  touch-action: none;
+  cursor: grab;
+}
+.aylul-mock-window pre {
+  padding: 0.4rem;
+  font-size: 0.7rem;
+}
+@media (max-width: 650px) {
+  .aylul-studio-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,0 +1,32 @@
+name: sidecar-approvals
+version: 1
+status: current
+source: apps/desktop/sidecar/src/approvals
+responsibility: Hold permission requests and auto-mode refusals until the person answers.
+public_api:
+  request: Hold until answer, hang-up (answered in terminal) or requestHoldMs (timed out); reply allow, deny or {}.
+  refusal: Propose a rule; hold up to refusalHoldMs; stays listed after the hold.
+  answer: allow or deny one held request; not_pending otherwise.
+  approveRule: Narrow rule and a known project root only; write it against the previewed fingerprint, record rule_written, then retry a still-held hook.
+  dismiss: Remove a refusal; a held hook gets {}.
+  pending: Current items, oldest first.
+obligations:
+  - rule: Nothing is allowed without answer or approveRule.
+    tested_by: allow from AYLUL answers the hook with allow, an unanswered request times out with no decision
+  - rule: A PowerShell request exposes its command in the pending item before an answer.
+    tested_by: a PowerShell request shows the command before it can be answered
+  - rule: A request shows the complete one-line shell command, including a tail beyond the step summary limit.
+    tested_by: a request keeps the command tail visible before approval
+  - rule: The terminal answering first ends the request without a decision.
+    tested_by: an answer in the terminal ends the request without a decision
+  - rule: Concurrent requests are independent; an id is answered once.
+    tested_by: two requests are answered independently, answering twice or an unknown id is refused
+  - rule: The rule is written before the retry, and also after the hold ended.
+    tested_by: approving the rule within the hold writes it, then asks Claude to retry, a late approval still writes the rule
+  - rule: Broad rules are refused.
+    tested_by: a broad rule is refused and nothing is written
+  - rule: A refusal without project_dir gets no proposal and is never written.
+    tested_by: a refusal with no project root proposes nothing and cannot be approved
+gaps:
+  - at: Approvals
+    gap: Items live in memory; a sidecar restart drops listed refusals (their records stay in the store).

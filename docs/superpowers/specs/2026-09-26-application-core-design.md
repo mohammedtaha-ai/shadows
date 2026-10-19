@@ -158,12 +158,38 @@ depends on the core, and Cargo would build two copies of its types.
 
 ## 14.4 `shadows-core`: `AppCore` and its services
 
-`AppCore` is the application. The binary builds it once, with
+`AppCore` is the Shadows application. The binary builds it once, with
 `AppCore::start(config, mcp_url)`, and shares it as `Arc<AppCore>`. It is **not**
 a global: no `static`, no `OnceLock`, no service locator. Rust's idiom is a
 composition root written by hand and checked by the compiler, so no
 dependency-injection library is used. `shaku` and the like add macros and
 indirection and buy nothing here.
+
+**Scope clarification, agreed 2026-10-18:** one `AppCore` means one composition
+root for a Shadows runtime, not a parent application for every related product.
+AYLUL's desktop/sidecar runtime, the independent code-intelligence service and
+the remote Hermes runtime have their own startup, state and shutdown ownership.
+They communicate through explicit client interfaces; they are not additional
+services/accessors on this `AppCore`. Sharing a repository, launcher or window
+does not merge those authorities or lifetimes. This clarification changes no
+existing service, executable or database behavior. The new integration is
+specified in the [AYLUL design](../../aylul/specs/2026-10-18-aylul-hermes-semantic-context-design.md);
+the [independent service design](../../code-intelligence/specs/2026-10-18-code-intelligence-service-design.md)
+owns its proposed package boundary. The current workspace table stays an inventory
+of implemented crates, not a place to pre-create the future package.
+
+**Multiple application cores, clarified 2026-10-18:** the product family has
+separate application cores, not one enlarged `AppCore`. The existing Rust symbol
+keeps its name and ten services. AYLUL's local application core composes the
+existing Node hook/session/approval owners with its backend/Core clients; Tauri
+keeps native windows, protected connections and child lifetime. The independent
+code service composes its own workspace/query/LSP state when its first package is
+implemented. The Node backend has its own application composition and owns the
+internal Hermes connection; Hermes retains its upstream runtime. No common `AppCore` base class,
+shared container, cross-runtime database or transaction is introduced. The
+[integration owner](../../aylul/specs/2026-10-18-aylul-hermes-semantic-context-design.md#runtime-composition-and-data-ownership)
+defines the proposed AYLUL composition files and endpoint boundaries. Creating
+several cores is not a reason to split Projects, Plans or Turns out of this runtime.
 
 A caller reaches a service through an accessor: `core.plans()`, `core.turns()`,
 and so on. Each service is a struct with methods and one job.

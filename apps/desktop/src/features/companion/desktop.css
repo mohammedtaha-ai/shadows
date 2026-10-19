@@ -1,0 +1,9 @@
+:root { color-scheme:dark; background:transparent; }
+html, body, #root { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:transparent; }
+.aylul-desktop { position:relative; width:100%; height:100%; background:transparent; color:#f5eaff; touch-action:none; user-select:none; }
+.aylul-desktop .aylul-operation-error {position:absolute;bottom:0;pointer-events:none;max-width:calc(100% - 40px);}
+.aylul-desktop .aylul-canvas-region { position:relative; width:100%; height:100%; overflow:hidden; }
+.aylul-desktop .aylul-poke { display:block; width:100%; height:100%; margin:0; padding:0; border:0; background:transparent; cursor:grab; touch-action:none; }
+.aylul-desktop .aylul-poke:active { cursor:grabbing; }
+.aylul-desktop canvas { display:block; width:100%; height:100%; }
+.aylul-desktop [role=alert] { margin:8px; padding:12px; border-radius:12px; background:#21122d; font:14px/1.4 system-ui; overflow-wrap:anywhere; }

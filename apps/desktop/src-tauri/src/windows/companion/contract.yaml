@@ -1,0 +1,37 @@
+name: native-companion-window
+version: 1
+status: current
+source: apps/desktop/src-tauri/src/windows/companion
+responsibility: Own the independent local companion window, revisioned rendering permission, physical fitting and no-activation show adapter.
+public_api:
+  Store: Application-owned native model, retained origin and optional tray item.
+  setup_companion: Build or reconstruct a hidden transparent 240px logical window; report construction failure without terminating main.
+  snapshot: Return the current credential-free companion projection.
+  ready: Initialize current surface and apply requested visibility; used after local Canvas resources are ready.
+  failed: Revoke drawing and mark the native projection retryable after Canvas failure.
+  set_visible: Apply requested visibility, deny rendering before hide and reconcile actual native visibility.
+  set_paused: Publish the application-owned motion pause state.
+  drag: Start native dragging for the owned companion.
+  on_ui: Serialize command effects onto the native UI thread without retaining the model lock.
+external_types:
+  - tauri::WebviewWindow
+  - tauri::Monitor
+obligations:
+  - rule: Initial permission is denied and hide before initialization wins.
+    tested_by: windows::companion::state::tests::companion_initially_denies_drawing_and_hide_before_ready_wins
+  - rule: A failed hide reconciles actual visibility and reports error.
+    tested_by: windows::companion::state::tests::companion_failed_hide_reconciles_actual_visibility
+  - rule: Initialization deadlines and retries are generation-scoped.
+    tested_by: windows::companion::state::tests::companion_initialization_deadline_is_retryable_and_generation_scoped
+  - rule: Drawing failure after readiness revokes permission and exposes Retry.
+    tested_by: windows::companion::state::tests::companion_drawing_failure_revokes_permission_and_is_retryable
+  - rule: Placement fits complete rectangles and preserves negative monitor positions.
+    tested_by: windows::companion::placement::tests::companion_negative_origin_and_small_or_missing_areas
+  - rule: Direct no-activate show is paired with direct hide rather than Tao's cached visibility flags.
+    tested_by: 'integration: apps/desktop/tests/windows-companion.ps1 and companion-native.mjs'
+    note: Native hidden-frame and actual-tray assertions; dated report identifies run outcome.
+gaps:
+  - at: no_activate::show
+    gap: Full optimized resource acceptance is deferred by user instruction to develop in debug. Current device driver is separate from unit tests.
+  - at: fit
+    gap: Hardware monitor removal and mixed-DPI transitions remain untested.

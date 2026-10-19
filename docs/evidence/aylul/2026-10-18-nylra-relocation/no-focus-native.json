@@ -1,0 +1,49 @@
+{
+  "focusCycles": [],
+  "hiddenFrames": {
+    "before": 89,
+    "after": 89,
+    "documentVisibility": "visible"
+  },
+  "observations": [
+    {
+      "scenario": "actual-native-ipc-scope",
+      "passed": true
+    },
+    {
+      "scenario": "canvas-failure-reconstruction",
+      "passed": true
+    }
+  ],
+  "profiles": [],
+  "hideReply": {
+    "revision": 5,
+    "visible": false,
+    "renderAllowed": false,
+    "paused": false,
+    "error": null
+  },
+  "actualStateAfterHide": {
+    "revision": 5,
+    "visible": false,
+    "renderAllowed": false,
+    "paused": false,
+    "error": null
+  },
+  "companionDocument": {
+    "url": "http://tauri.localhost/companion.html",
+    "scripts": [
+      "http://tauri.localhost/assets/companion-BiXsoyQS.js"
+    ],
+    "metadata": {
+      "currentWindow": {
+        "label": "companion"
+      },
+      "currentWebview": {
+        "label": "companion"
+      }
+    }
+  },
+  "focusCyclesRequested": 0,
+  "passed": true
+}

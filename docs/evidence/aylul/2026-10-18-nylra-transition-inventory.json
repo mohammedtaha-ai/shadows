@@ -1,0 +1,581 @@
+{
+  "date": "2026-10-18",
+  "kind": "pre-transition tracked-file inventory, not a new test run",
+  "sourceRoot": "E:/Globalprojects/nylra",
+  "sourceCommit": "2b0427339a4e92d07cc7a0811dbafb2c5faecffd",
+  "exclusions": "Ignored files and archives are not inventoried or read",
+  "files": [
+    {
+      "path": "Vision.md",
+      "sha256": "7da1640a7cdbb5ef075e19618c56bcc39a0c62a500ecf8e78342ad49a438dc86"
+    },
+    {
+      "path": "apps/desktop/hook/Cargo.lock",
+      "sha256": "6699827f20b0098a7b698eabcddb3f6af05d50a7d514ff475bd5d124ca61355d"
+    },
+    {
+      "path": "apps/desktop/hook/Cargo.toml",
+      "sha256": "6a78883eefce24948d629483193a8ebaac2a910c930758c1caf98121d0836be6"
+    },
+    {
+      "path": "apps/desktop/hook/contract.yaml",
+      "sha256": "bde16263ad86f791340ab3690d748adeccfc3e802cf3bac6dc1342ccb00abde2"
+    },
+    {
+      "path": "apps/desktop/hook/src/lib.rs",
+      "sha256": "29f73342bd79792ed1a161d7d991c1bf2ae973bef29d4e381ea05e3a768d127d"
+    },
+    {
+      "path": "apps/desktop/hook/src/main.rs",
+      "sha256": "92ffa0eb538fd0371c17563056601201339a6ecb0d2e5ab71d7c9b8f189f057c"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/agents/contract.yaml",
+      "sha256": "bc6d2ca22afb46bdff60b0c4fa480ee9f25acb9e2366c8e46952caa8450c7b61"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/agents/install.test.ts",
+      "sha256": "89a2578298748db1ed381d7687eb64095bc4f63cf01c822c507b767b4fa31bd2"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/agents/install.ts",
+      "sha256": "16795946375abe5200d93902691c963516de38af16a5a6059805dd8eb75bd7b7"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/agents/rules.test.ts",
+      "sha256": "6e42d71020cd2841abf6c724d2e9793eb6f7517e6c1c60fa8c227cb35eccef10"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/agents/rules.ts",
+      "sha256": "783e0789061975106ad6c4c6c77038aab71bc2eff0361c010dfba4e3a81616d3"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/agents/settings-file.test.ts",
+      "sha256": "0a447517cd94673c3631101c7e05d8704dff44ca91e63890b9c52894b153b898"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/agents/settings-file.ts",
+      "sha256": "80ac952ac96dace433362661cc65357844a84ad0d9cbe0007835b3caeeef0e21"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/approvals/approvals.test.ts",
+      "sha256": "a42f20ae690b947781f284ec9d4d22e4eb2c7aa992e607adf97e478c31b27acb"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/approvals/approvals.ts",
+      "sha256": "cb3086c3e11a0de8cc17be7d7c147a8da71dad484ad9e6959afd38daa5802146"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/approvals/contract.yaml",
+      "sha256": "98e9d66c87f04a45645724f7dbbcfc9e8f88ba7ff91f834a68975a7ac491b637"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/contract.yaml",
+      "sha256": "1b0054a03b9880e90b8a7b3c89f8ba127f61dbf9db478c0b6b0b882fe49da262"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/handlers.test.ts",
+      "sha256": "61031577d70bb49df8d4c2ea2e4718645085d65540da9f1363a58b14da6b52c3"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/handlers.ts",
+      "sha256": "db2a7c3a74b897fb7c1a714a2eecfc4dbe197f84077a5b7345ebf3621894119c"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/hooks/contract.yaml",
+      "sha256": "80d12de85c5a16ced7cdc47036978af9230287c9c81cd5eb005173a8308a7601"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/hooks/endpoint.ts",
+      "sha256": "af49953be896d4d2e1d36abe1d1d2dac3d7c05c41ef6ca506027b65a131df146"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/hooks/roundtrip.test.ts",
+      "sha256": "293ca8efd091b646896933587553fc0b9476b6bb6922312e73fafc86ca092942"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/hooks/route.test.ts",
+      "sha256": "67179d6b1277359bce767d98c8837f0a8d1e933bf7fff790a4a460b305df75ec"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/hooks/route.ts",
+      "sha256": "e4bb7eedcfb90a9063b2a65ccad993b4644776d9a161b147aef858b5b303dc55"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/hooks/server.test.ts",
+      "sha256": "df64b9f399f6303ca22e3fca3d09df1064a68555f6434a0de3dd410e28388a1e"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/hooks/server.ts",
+      "sha256": "56b9dce4057fd23a7507a3c6b3f8599bfa8df891181573cb2551e0861f6ad33c"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/main.ts",
+      "sha256": "747d3cf9be079769e6cf6f0d98b0b0f74287564c66fcd1abde74a1cf3574294b"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/protocol.ts",
+      "sha256": "fd2364aa623400f4a9ef63e94abbc5301c1eac76915379d23e494958c55d55a2"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/rpc.test.ts",
+      "sha256": "b50c4dd88f14f76e4917ad0e2362f7341f4ad1898a33040b479aa5a4be85b20b"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/rpc.ts",
+      "sha256": "9b32cbc0407ae3eca813acf8fc21a36468c0f8a9639b2cb4162a2df7c2c8dc6c"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/sessions/contract.yaml",
+      "sha256": "10eccca9ecb0ce4d1ce374390c1bcfd5afe3f421eade3f6e3c2be0d285defd39"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/sessions/session.ts",
+      "sha256": "7d560fc6ae896fcb597f89001749f4e8ae06a5b2692538279118ee84796d48df"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/sessions/sessions.test.ts",
+      "sha256": "2962f92bfd04227cf75ce12c7932b87ad8aea904623780b66e0d7949d7b86358"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/sessions/steps.ts",
+      "sha256": "d0dfa3cd4e93d14afd12e32ec3b355093826220cf10da6a918cd1fb33828a5b3"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/store/contract.yaml",
+      "sha256": "2954db09ccfa5d0743dd34bcf6028356eb935a156fafa39c048b46ad1964a8fa"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/store/store.test.ts",
+      "sha256": "0982357643908c86a4e4059116d5678235f6924dd5a6c7e74eea37b603d1b9ed"
+    },
+    {
+      "path": "apps/desktop/sidecar/src/store/store.ts",
+      "sha256": "8eb0478b83b43595cfb4294e0b1540dbb6f1f4d6e99c14558bd5363800860265"
+    },
+    {
+      "path": "apps/desktop/src-tauri/src/windows/companion/contract.yaml",
+      "sha256": "a61924967dd8b4644b4330599b7e4e8d9c28a275624ae1b7b845f3e259990f84"
+    },
+    {
+      "path": "apps/desktop/src-tauri/src/windows/companion/mod.rs",
+      "sha256": "34e644a10eb826844d87a78531570bb9e2d2647cc0eeebb8b43dd49255d79f85"
+    },
+    {
+      "path": "apps/desktop/src-tauri/src/windows/companion/no_activate.rs",
+      "sha256": "063c343c22f070df549d7f6cd1201f4868ab0f2b92255df64f1a7578e1448148"
+    },
+    {
+      "path": "apps/desktop/src-tauri/src/windows/companion/placement.rs",
+      "sha256": "88dbe36715508716cde35fc6f681a4d07859403447e280a1bbdf29d4a794052c"
+    },
+    {
+      "path": "apps/desktop/src-tauri/src/windows/companion/state.rs",
+      "sha256": "e656ee4657e3cd217ae270a01b4de96fc5bb227e5f514af2ccfc705f2ce4601c"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/Companion.tsx",
+      "sha256": "f9377e8039a9e0d94ffd95f83c000fe9ff8d60268c9a34adf437b9ad72e8ebf4"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/CompanionCanvas.tsx",
+      "sha256": "d3635cd50735dc8d62c0a85d88a5f9a6fecb805e1f5001115df1b99f15541f5c"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/DesktopCompanion.tsx",
+      "sha256": "8c537b70f45b1499a1e05201e947f84b48379408e96d414f7422ce5adf0501cd"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/SpeechBubble.tsx",
+      "sha256": "60156211da77d9ce5e5f99e393dd72e337d9b96e90bd00f1d2daf31226851e28"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/animation/geometry.ts",
+      "sha256": "465a2ddab908d08f11ad57d09a807805b2fc8ad1093d2f8232455038d86e58e3"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/animation/messages.ts",
+      "sha256": "1d3f84eb118de840d9bb8adbc296ad33dfcfecaf3e281e92462363033b9a733c"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/animation/model.ts",
+      "sha256": "9278c585ddc0002f67c0ccaaeb20de18f0734240c57045465a78e2ed8a8c823e"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/animation/scheduler.ts",
+      "sha256": "c9d9ef7a09d4a5c1a0fdcb707694954bc6c7fff4d78defad4a63ed556cecc21a"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/audio.ts",
+      "sha256": "c329bba9483f05792067f1ef213fc4901b9e63b1f8c91edfa4e963ab6c45630d"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/catalog.ts",
+      "sha256": "4c4ef862c5ccd13c41fe20d54cf19b8e5bedfb0b6b759556d77158d8830c3843"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/companion.css",
+      "sha256": "8cf26300585cd2d73a7b495deeb7a1aa35db4f95ebdab378ece04ebf89fb638c"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/contract.yaml",
+      "sha256": "271453ec75363a0645ccf3b728e8b32bf11656a9be6519a0e4a6cfe3596154ee"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/desktop-gesture.ts",
+      "sha256": "a322c320118a1a495f91f7ce2fdff72431338cd79734eb6e9dc83d71afb98ee5"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/desktop.css",
+      "sha256": "eb1a81a8017c3e44047bb9efec72b8268867c1910139560c07cef4a809a60dee"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/renderer/character.ts",
+      "sha256": "d9f2592fddf0f2b470dc9c70e3104ed0d28c85a90b8b0108ae5d948c24d3be73"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/renderer/crystals.ts",
+      "sha256": "2d3f78a67881565037c9e047916a627995e8e60691a56da1a9270c54a834a863"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/renderer/effects.ts",
+      "sha256": "d417dd13eb305c7ad7b4f1876e8a72a83a94f2f58498e22062b0c59c7b904b09"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/renderer/eyes.ts",
+      "sha256": "54812712ef0d00ed736435b713e8f29d18bf43216b7131e92e4202e0cee7c338"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/renderer/hands.ts",
+      "sha256": "61418f883da0631fa4bd46938586049df3c1bd681b48e0dbec384a1939c52f44"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/renderer/outfits.ts",
+      "sha256": "bcc4ae1cb23c5ceda800357360fca8ff810ad98795e17daa59113917f8a2183d"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/renderer/scene.ts",
+      "sha256": "c9abdceb1566cbfb200eb218a12a6a2cfebb5ae29565e3133dfe098ccd8195fd"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/studio/CompanionStudio.tsx",
+      "sha256": "e499e9241a6800345b75f17cdd34270bf59fd9c03ea95985f1f4dd8ae57551d2"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/studio/MockWindow.tsx",
+      "sha256": "93a1f216880f9c326aad6c846cbde513e6f8597d469310e1c5c655dcb1a9c8b9"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/studio/PreviewGrid.tsx",
+      "sha256": "dab6e1bbaaf0649c6b8c5b876be02d5d4c3b90ce79273ffce0ca7132e6380e25"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/studio/SceneControls.tsx",
+      "sha256": "b9832317ae09e2e88e57e77ef2eb51703cb4ebd03b3c34879d1d7607c9b87ae8"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/studio/contract.yaml",
+      "sha256": "4ec0753085d3b96b9f90ce8ce20db725e71df473fe9674b6e82601b548324fdf"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/studio/export.ts",
+      "sha256": "5b75115fbde59966daad3f0dee80bfb51109dcd10595a2cf87d5bdb8fbfe63a1"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/studio/simulation.ts",
+      "sha256": "495826c96b3b46e3792feffa88b605e17de4dfb66abedde4dc5ab4a4c0276fe9"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/studio/studio.css",
+      "sha256": "fbdabaa96b2c7bd0f8f3a7ff2172d6dc80c985dbdf8f15521544a98feeb5d62e"
+    },
+    {
+      "path": "apps/desktop/src/features/companion/types.ts",
+      "sha256": "3fcadab4f2c62d4cb437f255390d49bfb47fb48eeaf7db3ecd7f3994f78649cb"
+    },
+    {
+      "path": "apps/desktop/tests/approvals-ui.test.mjs",
+      "sha256": "2708666eebd730e07f3e66f2c55ba7be463cb33e7ad6a1609e6154a9af1a69a2"
+    },
+    {
+      "path": "apps/desktop/tests/check-auth.cjs",
+      "sha256": "0c5a68d5bf29844ce56939640ff67b3d10a707925e2964552e937c966eca1a61"
+    },
+    {
+      "path": "apps/desktop/tests/companion-native.mjs",
+      "sha256": "137fab1ac623b852fcfae6c99d33036e428dc8ad06b02b5d911e457d035e1541"
+    },
+    {
+      "path": "apps/desktop/tests/companion/contracts.test.ts",
+      "sha256": "9985c6464805e42a8b3478b01593192913c16647e07d72e2a5cdfb2445cd7ce0"
+    },
+    {
+      "path": "apps/desktop/tests/companion/desktop-gesture.test.ts",
+      "sha256": "d52094c794a020978d44addc36f5b0a374746aa92197f8cdbd8f1b60b6262514"
+    },
+    {
+      "path": "apps/desktop/tests/companion/desktop-window.spec.ts",
+      "sha256": "fa69913f721dba4b29b89da5ac5cfabe7f1d803c33304007546aab864badb226"
+    },
+    {
+      "path": "apps/desktop/tests/companion/fakes.ts",
+      "sha256": "e89557d0a94100c65d784452ef75423cfdb97c1d4156f56fec30e380b12462c2"
+    },
+    {
+      "path": "apps/desktop/tests/companion/fixture.html",
+      "sha256": "7c8650774c4f1827cbaae780604e56a6d7aebdc0207299c63abdcb667e2e0bc7"
+    },
+    {
+      "path": "apps/desktop/tests/companion/fixture.tsx",
+      "sha256": "0a49cbd3108c80682ff3e60bad35bc5f5be5a55cc416336b436065a544a5a5a0"
+    },
+    {
+      "path": "apps/desktop/tests/companion/geometry.test.ts",
+      "sha256": "25f946cb7d55774d68f7cfb0f59dd780af025f08c1af69f513a41b9009b2a696"
+    },
+    {
+      "path": "apps/desktop/tests/companion/messages.test.ts",
+      "sha256": "6054c9f9665ad2691ea075d96969c76337b795bb6e61acb17c94bc5227247389"
+    },
+    {
+      "path": "apps/desktop/tests/companion/model.test.ts",
+      "sha256": "9c7c71607a5e2b30c08e22fef31c2eed741befea3047d59ef9542524a8416c11"
+    },
+    {
+      "path": "apps/desktop/tests/companion/native-state.test.ts",
+      "sha256": "4c6ea2910004fc3f463d48b7831a47d28e79593dc07f0e99cf499df0a45ab6a8"
+    },
+    {
+      "path": "apps/desktop/tests/companion/native-visibility.spec.ts",
+      "sha256": "57af410c3256ce2a0ad96ab3390363db0e5b11ec6d1ce625fdca734bfd0aa0e3"
+    },
+    {
+      "path": "apps/desktop/tests/companion/presence.spec.ts",
+      "sha256": "785665385caa0006ead4ccee0e4d8838a5b2bd61f9d58e08edd38576a9c5f6ce"
+    },
+    {
+      "path": "apps/desktop/tests/companion/production.test.ts",
+      "sha256": "3c160463e9e845f1f9faf3173da2e68f73da5ffd786de6803760c4df1d90c2f2"
+    },
+    {
+      "path": "apps/desktop/tests/companion/renderer.spec.ts",
+      "sha256": "cfaa144574f72aed0157e24b1428a22122a8e78ef769362b178b06a104c855ea"
+    },
+    {
+      "path": "apps/desktop/tests/companion/scheduler.test.ts",
+      "sha256": "811035e20accc50023d3a67156dc2e897ec17974a19be6c18aaa154aeac40523"
+    },
+    {
+      "path": "apps/desktop/tests/companion/shell.spec.ts",
+      "sha256": "9e67376c9f621c35221c317e1736463eb449b34d02a7102ac48fc30e989c2bfe"
+    },
+    {
+      "path": "apps/desktop/tests/companion/studio.spec.ts",
+      "sha256": "a60b9f942710977ab7c3e817946a4309935388f2772c876cccfac65548216950"
+    },
+    {
+      "path": "apps/desktop/tests/companion/visual.spec.ts",
+      "sha256": "a73b6b50193b882a891fc7e6634bfcb702af8d0a19ecc9b39362d7ccd6c6fad5"
+    },
+    {
+      "path": "apps/desktop/tests/fixtures/auth-v1.1.json",
+      "sha256": "5b3fde03f175ad18bfdd7ac227bf0852ad1fa8c20a229894c5adb5067d20a413"
+    },
+    {
+      "path": "apps/desktop/tests/native-acl.test.mjs",
+      "sha256": "11453b69fb8adeaf5bb71b7fb222deeb130dbbeed05ace7c18a29375851e61e0"
+    },
+    {
+      "path": "apps/desktop/tests/native-fixture.ps1",
+      "sha256": "a345555bb9e9fd20e8afc6d30d5de5f0c720fc214dae554e3f8412a3bf5ababd"
+    },
+    {
+      "path": "apps/desktop/tests/rule-preview.test.ts",
+      "sha256": "b6416d0ca60688e79d3854694a5e454f21fc2c9b700a910e1d00e12b1d965cdb"
+    },
+    {
+      "path": "apps/desktop/tests/tray-menu.ps1",
+      "sha256": "df4a25fa706ef78b5ec4bf229572f9587eee715513ffc3c61c22dda80e8872ca"
+    },
+    {
+      "path": "apps/desktop/tests/windows-companion.ps1",
+      "sha256": "89dbae9ad4c0df7a7626bfcbe5003d78cd38e42d74871f9e3c654aa49f8f7572"
+    },
+    {
+      "path": "apps/desktop/tests/windows-shell.ps1",
+      "sha256": "803057b061f3441bbf18035e9861c03d856a167c0e861495ff31d9374c0df97a"
+    },
+    {
+      "path": "apps/desktop/tests/windows-support.ps1",
+      "sha256": "10bb47ce45270016697629545b45e251d073589fa4700c53edc3114aa5f817fb"
+    },
+    {
+      "path": "assets/aylul/README.md",
+      "sha256": "42458d56a693240938fcd7460b9692dcd311157b7d10ef62c6140fa237bdf35c"
+    },
+    {
+      "path": "docs/character/AGENTS.md",
+      "sha256": "0a7f4b1588c5ade7212f3172ead790c45032577e3fd75188c8fb567aaa58208b"
+    },
+    {
+      "path": "docs/character/plans/2026-10-16-aylul-in-window-implementation.md",
+      "sha256": "c5ffde4836ebaf6bb85823d0e224e2f1b7137aa7b01f5754bd92646cc8facb1e"
+    },
+    {
+      "path": "docs/character/plans/README.md",
+      "sha256": "bd8d34129dd547e6cc6d5e07c2eb537a41c666ffc02a625f207b0ac4c135745f"
+    },
+    {
+      "path": "docs/character/specs/2026-10-16-aylul-in-window-design.md",
+      "sha256": "25b7eb8b0fdf5b064ad9e583f60da0d2758490cb996fd11aad796c956783a441"
+    },
+    {
+      "path": "docs/character/specs/README.md",
+      "sha256": "51a9fd0a5680589505417ae362ec806f20168f01c60664e95cbbe044d405007a"
+    },
+    {
+      "path": "docs/character/stages.md",
+      "sha256": "f6c45fc07316036cc9a9a55a0abe4ae5a4957a5b302504b482c88ac548068a37"
+    },
+    {
+      "path": "docs/codebase/README.md",
+      "sha256": "b4d114148a638ace6db6ceeb91207d1cfadf42dd5c1787b176cd3e8251edfd8f"
+    },
+    {
+      "path": "docs/desktop-ui/AGENTS.md",
+      "sha256": "643c36d45ad227fd70b5a4b2480f7dafb852f44d1513bf502bd2a77788d781c9"
+    },
+    {
+      "path": "docs/desktop-ui/plans/README.md",
+      "sha256": "55336d1329b958f22b1375c925ad7f211413510df693c96a635f06b2ceb72063"
+    },
+    {
+      "path": "docs/desktop-ui/specs/README.md",
+      "sha256": "4511c89b18b273691cc645698b838ec44109ca43fc638a6a9cc0465a55c4b92f"
+    },
+    {
+      "path": "docs/desktop-ui/stages.md",
+      "sha256": "af3fa009fc830690503229d6fc7cb2d7d4701e8864c3185ccff5cd874b96a2e3"
+    },
+    {
+      "path": "docs/evidence/2026-10-10-aylul-windows-probes.md",
+      "sha256": "e73ef40b134c85bdb61ae03b8dc36b573fcdd748580cde9400b09fb4863d4a35"
+    },
+    {
+      "path": "docs/evidence/2026-10-10-coucou-and-library-research.md",
+      "sha256": "e6c5b74e4d4159659df1b1488aa604b95aa60fd47872de293a75c3bf0b1895b6"
+    },
+    {
+      "path": "docs/evidence/2026-10-10-production-and-hackathon-research.md",
+      "sha256": "3298f831c31d586ea58a5baf1b071fad9c65306eb15772970b96cac661c6430a"
+    },
+    {
+      "path": "docs/evidence/2026-10-11-aylul-asset-continuation.md",
+      "sha256": "30bc282da0ea2af27da2a7681969be9f1f8dbf71e666cf96cdca08c96eb9f6e0"
+    },
+    {
+      "path": "docs/evidence/2026-10-11-aylul-windows-probes.md",
+      "sha256": "b56063f197ecbe4e44e026555434cd64fedc6b5aba6b7eecfcbd42c7dc26733f"
+    },
+    {
+      "path": "docs/evidence/2026-10-11-joint-native-auth.md",
+      "sha256": "120e03a627d82c9ededc90117e27d44fd48855f534d71b09d31e5f7921d63ed9"
+    },
+    {
+      "path": "docs/evidence/2026-10-11-windows-shell-continuation.md",
+      "sha256": "a35b8271df0aa279585f3908ed08938ebfacdfd27f8dee38ab4a60460488d07e"
+    },
+    {
+      "path": "docs/evidence/2026-10-12-approved-aylul-and-six-expressions.md",
+      "sha256": "e50a18a7e05df77eacbc699f988631e585deb59a2e9fbc32289ba45acb00786f"
+    },
+    {
+      "path": "docs/evidence/2026-10-12-linux-probe.md",
+      "sha256": "4ba1190b211d9b9418f3d43129811fe17e88ac61de0f631071817482a0a8fa39"
+    },
+    {
+      "path": "docs/evidence/2026-10-13-aylul-hook-probe.md",
+      "sha256": "defbd027ea7ad6e4ffd734502173c359dcd1a6295c56031317eb403ae1424ace"
+    },
+    {
+      "path": "docs/evidence/2026-10-16-aylul-in-window-acceptance.md",
+      "sha256": "c4d28f01e46965309a8890df79b559df5e0197c552f67e44e7548bc71da21dd1"
+    },
+    {
+      "path": "docs/evidence/2026-10-16-independent-companion-acceptance.md",
+      "sha256": "3e6f6425ad46375d58a19323afdedac08869130f0d0f5aa497fd2dedc5b569fe"
+    },
+    {
+      "path": "docs/evidence/2026-10-17-hook-companion-merge.md",
+      "sha256": "4b5b079804501926a9c6c2ec4f2674cf7da70f5a6ad0746aecd42ef1c147331e"
+    },
+    {
+      "path": "docs/native/AGENTS.md",
+      "sha256": "34a44e252d6e4685d84a7e37b39ea2b4046a1c07011f56857e73b6dcbd4f5de0"
+    },
+    {
+      "path": "docs/native/plans/2026-10-16-independent-companion-implementation.md",
+      "sha256": "e8cb962f66e16a7b2b292ef3d8c06647276c270d96b05235fbb316527971fc94"
+    },
+    {
+      "path": "docs/native/plans/README.md",
+      "sha256": "347298b66883a5e6f63d8273aee639bcb2892effba463d52982cf9fa1ff58c86"
+    },
+    {
+      "path": "docs/native/specs/2026-10-16-independent-companion-design.md",
+      "sha256": "55cd111fd6b9ed2d3bf7b28c8d05b9efef7c60b8c53e3cce18b0e8972f3c63e6"
+    },
+    {
+      "path": "docs/native/specs/2026-10-17-laptop-relay-planning-brief.md",
+      "sha256": "e2a7a33148bd8f01970b1921b2bca8cd36488ddc01a30b95258ea96309e4093a"
+    },
+    {
+      "path": "docs/native/specs/README.md",
+      "sha256": "694799b8c973a789152292fa70031e6c88269fb5c7962654488da058f32465e2"
+    },
+    {
+      "path": "docs/native/stages.md",
+      "sha256": "ebda1d4b13e11517158ab6498bc6b7e7c23a559884d721cbb25da4fd06f3b298"
+    },
+    {
+      "path": "docs/shared/README.md",
+      "sha256": "452646bc346134adae1b9604e7046e7b5cec8473ca6a8fa61b4d674341d2fe7b"
+    },
+    {
+      "path": "docs/shared/requests/2026-10-16-companion-shell-embedding.md",
+      "sha256": "45f5b65f143c31a18ddcb761ed1be2408d91afa7524235a6f454d74a2d404e54"
+    },
+    {
+      "path": "docs/shared/requests/2026-10-16-independent-companion-window.md",
+      "sha256": "db307949ec127f0a0603c3bf03318867ead86be4a591a3d7f89d1844b53ba9b8"
+    },
+    {
+      "path": "docs/shared/requests/2026-10-17-hook-companion-merge.md",
+      "sha256": "6539c28ae42f746c3999d5ba0aa1061ed6217ef2807b6f137a8d5a8107d6ea73"
+    },
+    {
+      "path": "docs/shared/requests/TEMPLATE.md",
+      "sha256": "775ebef81d20d5573046e5fe309d42f85d846a4a9e6d0ca6753f6f00a9f8f8f2"
+    },
+    {
+      "path": "docs/source-structure.md",
+      "sha256": "e9669a10f7082fa59194ff4af0cca51befe7a0f3cce7c14dbdde329271bd0ded"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-10-nylra-initial-plan.md",
+      "sha256": "2d3590f3aa9e9c322892417f7e6b819ee776a72f3922fe51f111b74f34e636a5"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-13-aylul-hook-laptop.md",
+      "sha256": "3e961087d1b688595f8d5bbf0c4b2d886efef64696c2a1189eae2a4e2223aa06"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-10-nylra-delivery-design.md",
+      "sha256": "8e8c82fd7ec7ffeb6f50318dbf15daeb13378c4be49ca69d6327e77d532156a8"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-13-aylul-hook-laptop-design.md",
+      "sha256": "8d3a35f8ebb52b501e876475c66d6578a7074f60be823d6bb9257ac1dc6d5513"
+    }
+  ]
+}

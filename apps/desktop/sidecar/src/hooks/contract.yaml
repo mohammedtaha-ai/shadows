@@ -1,0 +1,26 @@
+name: sidecar-hook-endpoint
+version: 1
+status: current
+source: apps/desktop/sidecar/src/hooks
+responsibility: Accept aylul-hook connections on a per-run pipe and hand each event to a route.
+public_api:
+  makeRoute: Apply every event to the session and step store, note steps covered by a recorded rule, then hand PermissionRequest and PermissionDenied to approvals; {} otherwise.
+  createEndpoint: New random pipe name and 32-byte token, written to hook.json under the given directory.
+  removeEndpoint: Delete hook.json.
+  startHookServer: Listen on the pipe; first line must carry v 1 and the token; set event.project_dir from the line's project_dir; reply one line with the route's answer.
+obligations:
+  - rule: Steps are stored trimmed; a covered call becomes a grant use; a step after a terminal answer marks it allowed.
+    tested_by: a PostToolUse event saves the session and a trimmed step, and answers at once, a call covered by a recorded rule is noted as a grant use, a step after a terminal answer marks it allowed
+  - rule: A line without the right token, or malformed, is dropped unanswered.
+    tested_by: a request without the right token is dropped unanswered, a malformed line is dropped unanswered
+  - rule: Only the request's top-level project_dir (from CLAUDE_PROJECT_DIR) sets event.project_dir.
+    tested_by: the project root from aylul-hook reaches the route; one sent inside the event does not
+  - rule: A failing route answers {} (no decision).
+    tested_by: a failing route answers with no decision
+  - rule: The route's signal aborts when the hook hangs up first.
+    tested_by: the route learns when the hook hangs up before the answer
+  - rule: The real aylul-hook.exe round-trips, and prints nothing without a sidecar.
+    tested_by: aylul-hook.exe carries an event and prints the answer, aylul-hook.exe with no sidecar prints nothing and exits 0
+gaps:
+  - at: createEndpoint
+    gap: The pipe keeps Node's default access list; only the token in a user-readable file keeps other accounts out.

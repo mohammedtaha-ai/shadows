@@ -1,0 +1,1 @@
+{"identifier":"main","description":"Local main shell only; no remote webview or auth material in IPC.","windows":["main"],"permissions":["main-actions","core:event:allow-listen","core:event:allow-unlisten"]}
