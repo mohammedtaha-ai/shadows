@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {hermesFixture} from './fixture.mjs';
+import {DatabaseSync} from 'node:sqlite';
 
 async function setup() {
   assert.ok(existsSync(new URL('../dist/service.js',import.meta.url)), 'Local assistant implementation is missing');
@@ -15,7 +16,7 @@ async function setup() {
   let now=Date.now(), service;
   const open=()=>service=openService({database:join(root,'assistant.sqlite'),client,clock:()=>new Date(now)});
   open();
-  return {fixture,get service(){return service;},open,advance(ms){now+=ms;},close(){service.close();return fixture.close().finally(()=>rmSync(root,{recursive:true,force:true}));}};
+  return {fixture,database:join(root,'assistant.sqlite'),get service(){return service;},open,advance(ms){now+=ms;},close(){service.close();return fixture.close().finally(()=>rmSync(root,{recursive:true,force:true}));}};
 }
 
 test('local_chat_reopens_without_account_or_planner_and_keeps_identity',async()=>{
@@ -61,5 +62,52 @@ test('turn_order_is_explicit_even_when_timestamps_are_equal',async()=>{
     const snapshot=await f.service.call({action:'snapshot',conversationId:conversation.id});
     assert.equal(snapshot.truncated,true);
     assert.deepEqual(snapshot.turns.map(turn=>turn.input),Array.from({length:30},(_,index)=>'Message '+(index+5)));
+  }finally{await f.close();}
+});
+test('recovery_never_extends_the_guarantee_captured_before_submission',async()=>{
+  const f=await setup();try{
+    const {conversation}=await f.service.call({action:'create',commandId:randomUUID()});
+    f.fixture.loseReply();const value=await f.service.call({action:'send',conversationId:conversation.id,commandId:randomUUID(),text:'Hello'});
+    f.service.close();f.open();f.advance(61000);f.fixture.retention(120);
+    const recovered=await f.service.call({action:'recover',conversationId:conversation.id,turnId:value.turns[0].id});
+    assert.equal(recovered.turns[0].state,'unknown');
+    assert.equal(f.fixture.submits,1,'Changed capabilities must not extend an already expired command guarantee');
+  }finally{await f.close();}
+});
+test('prepared_intents_reopen_as_unknown_without_automatic_dispatch',async()=>{
+  const f=await setup();try{
+    const {conversation}=await f.service.call({action:'create',commandId:randomUUID()});
+    f.fixture.loseReply();const value=await f.service.call({action:'send',conversationId:conversation.id,commandId:randomUUID(),text:'Hello'});
+    f.service.close();const db=new DatabaseSync(f.database);
+    db.prepare("UPDATE turns SET state='submitting' WHERE id=?").run(value.turns[0].id);db.close();f.open();
+    assert.equal((await f.service.call({action:'snapshot',conversationId:conversation.id})).turns[0].state,'unknown');
+    assert.equal(f.fixture.submits,1);
+    assert.equal((await f.service.call({action:'recover',conversationId:conversation.id,turnId:value.turns[0].id})).turns[0].state,'done');
+    assert.equal(f.fixture.executions,1);
+  }finally{await f.close();}
+});
+test('version_one_unknown_intents_migrate_without_inventing_a_recovery_deadline',async()=>{
+  const f=await setup();try{
+    const {conversation}=await f.service.call({action:'create',commandId:randomUUID()});
+    f.fixture.loseReply();const value=await f.service.call({action:'send',conversationId:conversation.id,commandId:randomUUID(),text:'Hello'});
+    const installation=f.service.installationId;f.service.close();const db=new DatabaseSync(f.database);
+    db.exec('ALTER TABLE turns DROP COLUMN recovery_until; PRAGMA user_version=1;');db.close();f.open();
+    assert.equal(f.service.installationId,installation);
+    assert.equal((await f.service.call({action:'recover',conversationId:conversation.id,turnId:value.turns[0].id})).turns[0].state,'unknown');
+    assert.equal(f.fixture.submits,1);
+  }finally{await f.close();}
+});
+test('stop_ack_remains_stopping_across_restart_until_the_upstream_confirms_cancellation',async()=>{
+  const f=await setup();try{
+    const {conversation}=await f.service.call({action:'create',commandId:randomUUID()});f.fixture.running();
+    const value=await f.service.call({action:'send',conversationId:conversation.id,commandId:randomUUID(),text:'Hello'});
+    assert.equal(value.turns[0].state,'running');
+    assert.equal((await f.service.call({action:'stop',conversationId:conversation.id,turnId:value.turns[0].id})).turns[0].state,'stopping');
+    f.service.close();f.open();
+    assert.equal((await f.service.call({action:'snapshot',conversationId:conversation.id})).turns[0].state,'stopping');
+    await assert.rejects(f.service.call({action:'send',conversationId:conversation.id,commandId:randomUUID(),text:'Another'}),/generation_busy/);
+    f.fixture.cancelRuns();
+    assert.equal((await f.service.call({action:'snapshot',conversationId:conversation.id})).turns[0].state,'cancelled');
+    assert.equal(f.fixture.submits,1);
   }finally{await f.close();}
 });

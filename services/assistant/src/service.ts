@@ -27,12 +27,17 @@ export function openService(options:{database:string;client:Client;clock?:()=>Da
     }
     return {conversation:view(conversation),turns:turns.reverse(),truncated,connection};
   }
-  async function dispatch(id:string,turnId:string){
+  async function dispatch(id:string,turnId:string,recovery=false){
     const conversation=store.conversation(id),turn=store.turn(turnId,id);
     try{
       const capabilities=await client.capabilities();
       const age=clock().getTime()-Date.parse(turn.created_at);
       if(!capabilities.durableIdempotency||age<0||age>=capabilities.retentionSeconds*1000)throw new Error('outcome_unknown');
+      if(recovery&&(turn.recovery_until===null||clock().getTime()>=turn.recovery_until))throw new Error('outcome_unknown');
+      // Capture the verified deadline durably before the first upstream write.
+      // A later configuration change must never extend an older receipt's life.
+      const deadline=Math.min(Number.MAX_SAFE_INTEGER,Date.parse(turn.created_at)+capabilities.retentionSeconds*1000,turn.recovery_until??Number.MAX_SAFE_INTEGER);
+      store.guarantee(turnId,deadline);
       try{await client.getSession(conversation.session_id);}catch(error){if(!(error instanceof Error)||error.message!=='not_found')throw error;await client.createSession(conversation.session_id,'AYLUL '+conversation.id);}
       const admission=await client.submitRun({sessionId:conversation.session_id,commandId:turn.id,input:turn.input});
       store.update(turnId,'running',now(),admission.runId);
@@ -56,14 +61,14 @@ export function openService(options:{database:string;client:Client;clock?:()=>Da
         const old=store.turnCommand(request.commandId);
         if(old){if(old.fingerprint!==fingerprint)throw new Error('command_conflict');return {id:old.id,replay:true};}
         if(store.active(id))throw new Error('generation_busy');const turnId=randomUUID(),time=now();
-        store.insert({id:turnId,conversation_id:id,command_id:request.commandId,fingerprint,input:request.text,output:'',run_id:null,state:'submitting',created_at:time,updated_at:time});return {id:turnId,replay:false};
+        store.insert({id:turnId,conversation_id:id,command_id:request.commandId,fingerprint,input:request.text,output:'',run_id:null,state:'submitting',created_at:time,updated_at:time,recovery_until:null});return {id:turnId,replay:false};
       });
       return intent.replay?snapshot(id):dispatch(id,intent.id);
     }
     const turn=store.turn(request.turnId,id);
     if(request.action==='recover'){
       if(turn.state!=='unknown'||turn.run_id)return snapshot(id);
-      store.update(turn.id,'submitting',now());return dispatch(id,turn.id);
+      store.update(turn.id,'submitting',now());return dispatch(id,turn.id,true);
     }
     if(waiting(turn.state)&&turn.run_id){try{await client.stopRun(turn.run_id);store.update(turn.id,'stopping',now());}catch{/* Poll the exact run; do not invent a cancellation result. */}}
     return snapshot(id);
