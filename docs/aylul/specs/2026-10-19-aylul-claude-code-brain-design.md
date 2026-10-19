@@ -261,3 +261,88 @@ encrypted in the database; no Windows environment variable.
 3. A replaced value is used by a new AYLUL conversation without a restart.
 4. With the key removed and no daemon variable, a new AYLUL conversation
    shows `AYLUL_KEY_MISSING` naming `API_KEY`.
+
+## 11. Profiles from the UI, each with its provider and models (slice 3, decided 2026-10-19)
+
+Mohammed creates, edits and deletes AYLUL profiles in Settings. Each profile
+has its own provider, key, models, environment variables and home. A new AYLUL
+conversation picks its profile, and the model menu shows exactly that profile's
+models. This replaces §7's single seeded profile and its config-file provider.
+
+**Decided by Mohammed:**
+
+- Profiles, providers and models are entered in the UI and stored in the
+  database. Nothing is taken from the env file or `aylul.json` any more.
+- Several profiles now, not only AYLUL.
+- AYLUL stays one entry in the sidebar. A new conversation has a profile menu
+  next to the model menu. After the first message, the conversation's profile
+  is fixed.
+
+**My calls (Claude):**
+
+- **Owner: a `profiles` service in `shadows-core`** (the twelfth). It owns the
+  profile rows. Their environment variables and keys stay with `secrets`, keyed
+  by the profile's slug.
+- **A profile is:**
+  - `slug`: from the name at creation, never changed; it names the home folder
+    and the secrets
+  - `name`
+  - `base_url`: the provider's Anthropic-compatible URL
+  - `models`: an ordered list of provider model ids, 1 to 20, no duplicates
+  - `default_model`: one of `models`
+  - `context_window`: tokens, default 200000
+  - `created_at` and `updated_at`
+- **The provider key** is the profile's secret named `PROVIDER_API_KEY`. It is
+  entered in its own password field on the profile form and becomes
+  `ANTHROPIC_AUTH_TOKEN` at spawn. `key_env` and the daemon-variable fallback
+  are removed. A profile with no key is listed, and its conversations fail with
+  `AYLUL_KEY_MISSING` naming `PROVIDER_API_KEY`.
+- **The model menu comes from the adapter, restricted by the profile.**
+  `claude-agent-acp` 0.81.1 honours `availableModels` in the user
+  `settings.json`: it shows those exact ids and passes them unchanged to
+  `setModel` (`session-model.js`, `applyAvailableModelsAllowlist`). At each
+  spawn, Shadows writes the profile home's `settings.json` keys `availableModels`
+  (the profile's `models`) and `model` (`default_model`), and keeps every other
+  key as Mohammed left it. The adapter always adds a "Default" entry. Shadows
+  drops `default` from an AYLUL session's model choices, so the menu lists each
+  provider model once. The env still sets `ANTHROPIC_MODEL` and the
+  `ANTHROPIC_DEFAULT_*_MODEL` names to `default_model`, so Claude Code's
+  internal small-model calls reach a model the provider has. The context-window
+  pair takes `context_window`.
+- **Home:** `<home_root>/profiles/<slug>/`, seeded from the repository's
+  persona and settings templates on creation. Deleting a profile keeps its home
+  folder on disk. The "aylul" home that exists today is reused by a profile
+  whose slug is `aylul`.
+- **The conversation holds its profile:** a `profile` column on the thread,
+  set at its first turn from the composer's choice and never changed after.
+  Opening resolves that profile. A conversation whose profile was deleted fails
+  with `AYLUL_PROFILE_NOT_FOUND`, and its history stays readable.
+- **Remembered model and effort are per profile.**
+- **AYLUL is available** when at least one profile exists. With none, the
+  sidebar entry leads to Settings with "Add a profile to use AYLUL".
+- **`aylul.json` shrinks to `home_root`.** The other keys are refused, and
+  `env_file` with them, so a stale file fails loudly at start. The one-time env
+  import of §10 is removed, because the variables already imported stay in the
+  database.
+- **Web:**
+  - Settings → "AYLUL profiles": a list of profiles, and a form to create or
+    edit one (name, provider URL, API key, models, default model, context
+    window) with that profile's environment variables (the §10 section, now per
+    profile). Deleting asks for confirmation.
+  - Composer: a profile menu on a new AYLUL conversation, a read-only profile
+    label after the first message, and the model menu showing that profile's
+    models.
+
+**Acceptance:**
+
+1. Mohammed creates profile "AYLUL" (MiniMax, two models) in Settings, and a
+   new conversation answers. Its model menu shows exactly those two models,
+   once each.
+2. He creates a second profile with another provider or model list. A new
+   conversation picks it, and its menu shows only its own models.
+3. Switching between the two models in one conversation works, and the next
+   reply says which model answered.
+4. Deleting the second profile leaves its conversation readable, and sending
+   in it shows `AYLUL_PROFILE_NOT_FOUND`.
+5. No provider key appears in any response, log, `settings.json` or plaintext
+   database byte.
