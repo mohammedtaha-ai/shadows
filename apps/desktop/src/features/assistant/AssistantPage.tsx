@@ -14,7 +14,7 @@ export function AssistantPage({auth}:{auth:AuthView|null}){
  const [ready,setReady]=React.useState(false);
  const scope=account+':'+session+':'+selected,live=React.useRef(scope);live.current=scope;
  const pending=React.useRef<{id:string;text:string;conversation:string}|null>(null);
- const sending=React.useRef(false),initial=React.useRef(crypto.randomUUID()),tail=React.useRef<HTMLDivElement>(null);
+ const sending=React.useRef(false),pollFailed=React.useRef(false),initial=React.useRef(crypto.randomUUID()),tail=React.useRef<HTMLDivElement>(null);
  React.useEffect(()=>{
   setSnapshot(null);setConversations([]);setSelected('');setDraft('');setError('');setReady(false);pending.current=null;
   if(!account)return;
@@ -33,25 +33,26 @@ export function AssistantPage({auth}:{auth:AuthView|null}){
   const refresh=async()=>{if(refreshing)return;refreshing=true;
    try{const [status,data]=await Promise.all([assistant.status(),assistant.snapshot(selected)]);
     if(!active||live.current!==current)return;setReady(status.state==='ready');setSnapshot(data);
+    if(pollFailed.current){pollFailed.current=false;setError('');}
     if(pending.current&&data.turns.some(turn=>turn.commandId===pending.current?.id)){pending.current=null;setDraft('');}
-   }catch(e){if(active&&live.current===current){setReady(false);setError(message(e));}}finally{refreshing=false;}
+   }catch(e){if(active&&live.current===current){setReady(false);pollFailed.current=true;setError(message(e));}}finally{refreshing=false;}
   };
   void refresh();const timer=setInterval(()=>{if(!document.hidden)void refresh();},1500);
   return()=>{active=false;clearInterval(timer);};
  },[account,session,selected]);
  React.useEffect(()=>{tail.current?.scrollIntoView({block:'nearest'});},[snapshot?.turns.map(t=>t.id+t.state+t.output.length).join('|')]);
- async function createNew(){if(busy)return;const current=scope;setBusy(true);setError('');
+ async function createNew(){if(busy)return;const current=scope;setBusy(true);pollFailed.current=false;setError('');
   try{const data=await assistant.create(crypto.randomUUID());if(live.current!==current)return;pending.current=null;setDraft('');setConversations(list=>[data.conversation,...list]);setSelected(data.conversation.id);setSnapshot(data);}
   catch(e){if(live.current===current)setError(message(e));}finally{setBusy(false);}
  }
  async function send(){if(sending.current||!selected||!draft.trim()||!ready)return;
   if(new TextEncoder().encode(draft).length>4096){setError('Keep your message under 4 KB.');return;}
   const current=scope;const intent=pending.current?.conversation===selected&&pending.current.text===draft?pending.current:{id:crypto.randomUUID(),text:draft,conversation:selected};
-  pending.current=intent;sending.current=true;setBusy(true);setError('');
+  pending.current=intent;sending.current=true;setBusy(true);pollFailed.current=false;setError('');
   try{const data=await assistant.send(selected,intent.id,intent.text);if(live.current!==current)return;setSnapshot(data);setDraft('');pending.current=null;}
   catch(e){if(live.current===current)setError(message(e));}finally{sending.current=false;setBusy(false);}
  }
- async function control(turnId:string,recover=false){const current=scope;setError('');setBusy(true);
+ async function control(turnId:string,recover=false){const current=scope;pollFailed.current=false;setError('');setBusy(true);
   try{const data=await (recover?assistant.recover(selected,turnId):assistant.stop(selected,turnId));if(live.current===current)setSnapshot(data);}
   catch(e){if(live.current===current)setError(message(e));}finally{setBusy(false);}
  }
