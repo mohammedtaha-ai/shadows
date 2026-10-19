@@ -85,10 +85,12 @@ if (new URLSearchParams(location.search).has("shell")) {
       },
       calls:[] as any[],offline:false,dropSendResponse:false,gate:null as null|Promise<void>,
     };
+    fx.data.local=structuredClone(fx.data['acct-a']);
+    fx.data.local.turns['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1']=[turnOf(1,'Local question','Local answer')];
     (window as any).__fx=fx;
-    async function assistantCall(r:Record<string,string>){
-      const mine=fx.data[fx.principal.accountId];
-      fx.calls.push({...r,account:fx.principal.accountId});
+    async function assistantCall(r:Record<string,string>,owner=fx.principal.accountId){
+      const mine=fx.data[owner];
+      fx.calls.push({...r,account:owner});
       if(fx.offline)throw Error('backend_unavailable');
       const snap=(id:string)=>({conversation:mine.conversations.find((c:any)=>c.id===id),turns:[...(mine.turns[id]??[])],truncated:false});
       switch(r.action){
@@ -105,6 +107,8 @@ if (new URLSearchParams(location.search).has("shell")) {
       callLog.textContent += `${command} ${JSON.stringify(args)}\n`;
       if (command === "auth_action" && args?.action === "status" && signedIn)
         return {state:"signed_in",hasEnrollment:true,principal:fx.principal,providerLogout:null};
+      if (command === "assistant_sources") return new URLSearchParams(location.search).has('localAssistant')?'00000000-0000-4000-8000-000000000099':null;
+      if (command === "assistant_local_call") return assistantCall(args?.request as Record<string,string>,'local');
       if (command === "assistant_call") return assistantCall(args?.request as Record<string,string>);
       if (command === "auth_action" && args?.action === "status")
         return {

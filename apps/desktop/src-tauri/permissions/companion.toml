@@ -1,7 +1,7 @@
 [[permission]]
 identifier = "main-actions"
 description = "Account, local sidecar and companion controls for main only."
-commands.allow = ["hide_main", "auth_action", "cancel_login", "aylul_call", "assistant_call", "companion_state", "set_companion_visible", "set_companion_paused"]
+commands.allow = ["hide_main", "auth_action", "cancel_login", "aylul_call", "assistant_call", "assistant_local_call", "assistant_sources", "companion_state", "set_companion_visible", "set_companion_paused"]
 
 [[permission]]
 identifier = "companion-actions"

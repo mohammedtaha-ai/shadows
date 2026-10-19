@@ -1,10 +1,11 @@
 import React from 'react';
-import {assistant,type AssistantSnapshot,type AssistantConversation} from '../../platform/assistant';
+import {assistantFor,type AssistantSelection,type AssistantSnapshot,type AssistantConversation} from '../../platform/assistant';
 import type {AuthView} from '../../platform/auth';
 
 export type Connection = 'connected' | 'unavailable';
 
 export type AssistantController = {
+  source?: 'local'|'remote';
   conversations: AssistantConversation[];
   selected: string;
   snapshot: AssistantSnapshot | null;
@@ -51,10 +52,13 @@ function readPins(account: string): Set<string> {
   }
 }
 
-export function useAssistantConversation(auth: AuthView | null): AssistantController {
+export function useAssistantConversation(auth: AuthView | null, selection:AssistantSelection|null={source:'remote'}): AssistantController {
   const principal = auth?.state === 'signed_in' ? auth.principal : null;
-  const account = principal?.accountId ?? '';
-  const session = principal?.sessionId ?? '';
+  const local=selection?.source==='local'?selection.installationId:'';
+  const account = local?'local:'+local:selection?.source==='remote'?principal?.accountId??'':'';
+  const session = local||principal?.sessionId||'';
+  const source=selection?.source??'remote';
+  const assistant=React.useMemo(()=>assistantFor(selection??{source:'remote'}),[source,local]);
   const [conversations, setConversations] = React.useState<AssistantConversation[]>([]);
   const [selected, setSelected] = React.useState('');
   const [snapshot, setSnapshot] = React.useState<AssistantSnapshot | null>(null);
@@ -67,7 +71,7 @@ export function useAssistantConversation(auth: AuthView | null): AssistantContro
   const [pinned, setPinned] = React.useState<ReadonlySet<string>>(new Set());
   const [listKey, setListKey] = React.useState(0);
 
-  const scope = account + ':' + session + ':' + selected;
+  const scope = source + ':' + account + ':' + session + ':' + selected;
   const live = React.useRef(scope);
   live.current = scope;
   const pending = React.useRef<Intent | null>(null);
@@ -77,8 +81,8 @@ export function useAssistantConversation(auth: AuthView | null): AssistantContro
   const refreshNow = React.useRef<(() => void) | null>(null);
   const loaded = React.useRef(false);
 
-  // A different account or session discards everything the previous one showed.
-  React.useEffect(() => {
+  // Clear the old source before paint, including switches with colliding IDs.
+  React.useLayoutEffect(() => {
     setSnapshot(null);
     setConversations([]);
     setSelected('');
@@ -87,10 +91,12 @@ export function useAssistantConversation(auth: AuthView | null): AssistantContro
     setReady(false);
     setConnection('connected');
     setUncertain(false);
+    setBusy(false);
+    sending.current=false;
     setPinned(account ? readPins(account) : new Set());
     pending.current = null;
     loaded.current = false;
-  }, [account, session]);
+  }, [account, session,source]);
 
   React.useEffect(() => {
     if (!account) return;
@@ -118,7 +124,7 @@ export function useAssistantConversation(auth: AuthView | null): AssistantContro
       }
     });
     return () => { active = false; };
-  }, [account, session, listKey]);
+  }, [account, session, listKey,assistant]);
 
   React.useEffect(() => {
     if (!account || !selected) return;
@@ -163,7 +169,7 @@ export function useAssistantConversation(auth: AuthView | null): AssistantContro
       refreshNow.current = null;
       clearInterval(timer);
     };
-  }, [account, session, selected]);
+  }, [account, session, selected,assistant]);
 
   function select(id: string) {
     if (id === selected) return;
@@ -193,7 +199,7 @@ export function useAssistantConversation(auth: AuthView | null): AssistantContro
     } catch (e) {
       if (live.current === current) setError(message(e));
     } finally {
-      setBusy(false);
+      if(live.current===current)setBusy(false);
     }
   }
 
@@ -217,8 +223,7 @@ export function useAssistantConversation(auth: AuthView | null): AssistantContro
         setError(message(e));
       }
     } finally {
-      sending.current = false;
-      setBusy(false);
+      if(live.current===current){sending.current = false;setBusy(false);}
     }
   }
 
@@ -260,7 +265,7 @@ export function useAssistantConversation(auth: AuthView | null): AssistantContro
     } catch (e) {
       if (live.current === current) setError(message(e));
     } finally {
-      setBusy(false);
+      if(live.current===current)setBusy(false);
     }
   }
 
@@ -275,7 +280,7 @@ export function useAssistantConversation(auth: AuthView | null): AssistantContro
   }
 
   return {
-    conversations, selected, snapshot, draft, error, ready, busy, pinned, connection, uncertain,
+    source,conversations, selected, snapshot, draft, error, ready, busy, pinned, connection, uncertain,
     activeTurn: snapshot?.turns.find(t => waiting(t.state)),
     signedIn: !!account,
     setDraft, select, create, send, retry, reconnect, togglePin,

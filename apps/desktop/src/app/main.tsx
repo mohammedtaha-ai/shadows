@@ -16,6 +16,7 @@ import { BotList } from '../features/assistant/BotList';
 import { AssistantDetails } from '../features/assistant/AssistantDetails';
 import { SettingsPanel } from './SettingsPanel';
 import { ConversationView } from '../features/assistant/ConversationView';
+import {AssistantLocation,useAssistantLocation} from './AssistantLocation';
 
 const Studio = import.meta.env.DEV
   ? React.lazy(() => import('../features/companion/studio/CompanionStudio').then(module => ({default:module.CompanionStudio})))
@@ -36,7 +37,8 @@ function Shell() {
   const [busy,setBusy]=React.useState(false);
   const [loggingIn,setLoggingIn]=React.useState(false);
   const [query,setQuery]=React.useState('');
-  const conversation=useAssistantConversation(busy?null:auth);
+  const location=useAssistantLocation();
+  const conversation=useAssistantConversation(busy?null:auth,location.selection);
   const [inspector,setInspector]=React.useState(()=>window.matchMedia('(min-width:951px)').matches);
   const once=React.useRef(false);
   async function act(action:AuthAction) {
@@ -49,7 +51,7 @@ function Shell() {
   return <>
     <WorkspaceShell page={page} onNavigate={setPage} list={list} onList={setList} auth={auth}
       chats={<ConversationSidebar controller={conversation} query={query} />} query={query} onQuery={setQuery}
-      chat={<ConversationView controller={conversation} inspectorOpen={inspector} onInspector={()=>setInspector(open=>!open)} />}
+      chat={<><AssistantLocation location={location}/>{location.source==='local'&&!location.selection?<p>Start the local daemon, then refresh connections.</p>:<ConversationView controller={conversation} inspectorOpen={inspector} onInspector={()=>setInspector(open=>!open)} />}</>}
       inspector={<AssistantDetails controller={conversation} onClose={()=>setInspector(false)} />} inspectorOpen={inspector}
       bots={<BotList />}
       activity={<><h1>Activity</h1><SessionsPanel state={aylul.state} refresh={aylul.refresh} /><ApprovalsPanel state={aylul.state} refresh={aylul.refresh} /></>}

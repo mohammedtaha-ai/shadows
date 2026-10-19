@@ -59,7 +59,7 @@ export function ConversationView({controller, inspectorOpen, onInspector}: Props
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void controller.send(); }
           }} />
         <div className="assistant-compose-footer">
-          <span className="assistant-chip">Model: managed by the account backend</span>
+          <span className="assistant-chip">{controller.source==='local'?'Local Hermes':'Server Hermes'} · Model managed by Hermes</span>
           <span className="assistant-hint">Enter to send · Shift+Enter for a new line</span>
           {controller.uncertain && <button type="button" disabled={busy} onClick={() => void controller.retry()}>Retry send</button>}
           <button type="submit" className="assistant-send" aria-label="Send message" disabled={!ready || busy || !!activeTurn || !draft.trim()}><SendIcon /></button>

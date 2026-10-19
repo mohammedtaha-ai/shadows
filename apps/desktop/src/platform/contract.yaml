@@ -5,6 +5,8 @@ source: apps/desktop/src/platform
 responsibility: Isolate typed frontend invocations for the native shell, local sidecar and credential-free account projection.
 public_api:
   assistant: Typed assistant_call wrappers using backend-generated nylra-v1 0.5 projections; carry no bearer, service key or upstream selector.
+  assistantFor: Capture local installation identity or remote account routing per request; never fail over implicitly.
+  localInstallation: Read credential-free local source identity from the main-only native boundary.
   getState/answerRequest/previewRule/approveRule/dismissRefusal/previewHooks/installHooks: Invoke aylul_call with one sidecar method each.
   aylulMessage: Map a stable error code to a sentence; unknown codes to a generic retry.
   authAction: Invoke only named native account actions; returns AuthView without credentials.

@@ -13,8 +13,8 @@ export function AssistantDetails({controller, onClose}: {controller: AssistantCo
     <section aria-label="Connection"><h3>Connection</h3><p>{state}</p></section>
     <section aria-label="Bot profile"><h3>Profile</h3>
       <label>Name<input value="AYLUL" readOnly disabled /></label>
-      <label>Instructions<textarea readOnly disabled value="Managed by the account backend." /></label>
-      <label>Model<input value="Managed by the account backend" readOnly disabled /></label>
+      <label>Instructions<textarea readOnly disabled value="Managed by the selected Hermes runtime." /></label>
+      <label>Model<input value="Managed by the selected Hermes runtime" readOnly disabled /></label>
       <p className="details-reason">Editing the name, instructions, provider or model is not available yet: it needs bot management from the account backend.</p>
       <button type="button" disabled aria-describedby="details-save-reason">Save changes</button>
       <small id="details-save-reason">Nothing can be saved yet.</small>

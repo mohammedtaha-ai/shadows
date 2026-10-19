@@ -48,6 +48,28 @@ pub async fn assistant_call(
         .map_err(|_| "action_failed".to_string())?
 }
 #[tauri::command]
+pub async fn assistant_sources(window: tauri::WebviewWindow) -> Result<Option<String>, String> {
+    if window.label() != "main" {
+        return Err("main_required".into());
+    }
+    crate::assistant::local::installation().map_err(str::to_string)
+}
+#[tauri::command]
+pub async fn assistant_local_call(
+    window: tauri::WebviewWindow,
+    request: crate::assistant::Request,
+    installation_id: String,
+) -> Result<serde_json::Value, String> {
+    if window.label() != "main" {
+        return Err("main_required".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::assistant::local::call(request, &installation_id).map_err(str::to_string)
+    })
+    .await
+    .map_err(|_| "action_failed".to_string())?
+}
+#[tauri::command]
 pub async fn aylul_call(
     window: tauri::WebviewWindow,
     sidecar: tauri::State<'_, std::sync::Arc<crate::sidecar::SidecarState>>,

@@ -1,8 +1,9 @@
 use reqwest::Method;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+pub mod local;
 use serde_json::{json, Value};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(
     tag = "action",
     rename_all = "snake_case",

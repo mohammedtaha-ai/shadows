@@ -63,3 +63,6 @@
   .workspace-inspector{display:none;position:absolute;inset:0 0 0 auto;z-index:2;width:min(18rem,90%)}
   .workspace-inspector[data-open=true]{display:block}
 }
+.assistant-location{display:flex;align-items:center;gap:12px;padding:10px 20px;flex-wrap:wrap;border-bottom:1px solid var(--border,#302a3c)}
+.assistant-location select{max-width:100%;padding:6px;background:#1c1726;color:inherit;border:1px solid #51445f;border-radius:6px}
+.assistant-location p{width:100%;margin:0}
