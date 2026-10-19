@@ -46,6 +46,14 @@ Plan: `docs/aylul/plans/2026-10-19-aylul-claude-code-brain.md`, Task 6.
 - "Stage: idea" in AYLUL's headers. Fixed in `809af82`.
 - "· Planner" and "Ask the Planner…" in AYLUL's conversation. Fixed in `991243b`.
 
+## Re-run with the key from an env file (`942d338`)
+
+- The section now names `env_file: E:/Globalprojects/shadows/.env` (git-ignored)
+  and `key_env: API_KEY`. The server was started with `MINIMAX_API_KEY` and
+  `API_KEY` removed from its environment.
+- A new message in the same AYLUL conversation got the reply "تم", "answered by
+  MiniMax-M3": the spawn read the key from the file alone.
+
 ## Left open
 
 - The model menu repeats "MiniMax-M3" three times and offers Fable 5.1, which
