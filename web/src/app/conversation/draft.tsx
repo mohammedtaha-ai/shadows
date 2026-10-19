@@ -19,7 +19,7 @@ import { harnessesQuery, planVersionsQuery, plansQuery, projectsQuery, threadsQu
 import { tabId } from '@/stream/tab-id'
 import { policyOf } from '../mode-policy'
 import { carrySend } from './carried-send'
-import { CliMenu } from './cli-picker'
+import { AYLUL_HARNESS, CliMenu } from './cli-picker'
 import { Composer } from './composer'
 import { DEFAULT_HARNESS } from './conversation'
 import { type SessionView, sessionKey } from './use-session'
@@ -51,7 +51,9 @@ function Draft({ projectId }: { projectId: string }) {
   const navigate = useNavigate()
   const { plan: planId } = route.useSearch()
   const project = useQuery(projectsQuery).data?.find((p) => p.id === projectId)
-  const [harness, setHarness] = useState(DEFAULT_HARNESS)
+  const [picked, setHarness] = useState(DEFAULT_HARNESS)
+  // AYLUL's project runs on `aylul` alone.
+  const harness = project?.assistant === true ? AYLUL_HARNESS : picked
   const label = useQuery(harnessesQuery).data?.find((h) => h.kind === harness)?.label ?? harness
   const allowed = project?.allowed_modes[harness]
   const session = useMemo(() => draftSession(harness, allowed), [harness, allowed])
@@ -86,7 +88,12 @@ function Draft({ projectId }: { projectId: string }) {
             <bdi>{project?.name ?? '…'}</bdi> · Planner
           </p>
         </div>
-        <CliMenu harness={harness} label={label} onPick={setHarness} />
+        <CliMenu
+          harness={harness}
+          label={label}
+          onPick={setHarness}
+          assistant={project?.assistant === true}
+        />
       </header>
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
         <div className="relative flex items-center justify-center">

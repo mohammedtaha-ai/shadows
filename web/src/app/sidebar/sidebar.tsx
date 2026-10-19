@@ -6,6 +6,7 @@ import { Plus, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConnectionIndicator } from '../daemon-status'
 import { useOpenNewProject } from '../new-project/open-new-project'
+import { AylulEntry } from './aylul-entry'
 import { ProjectList } from './project-list'
 
 export function Sidebar() {
@@ -30,6 +31,7 @@ export function Sidebar() {
         </Button>
       </div>
       <nav aria-label="Projects and conversations" className="flex-1 overflow-y-auto px-2 pb-3">
+        <AylulEntry />
         <ProjectList />
       </nav>
       <footer className="flex items-center justify-between gap-3 border-t border-sidebar-border px-4 py-3">

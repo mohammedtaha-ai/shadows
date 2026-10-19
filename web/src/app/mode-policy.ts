@@ -22,8 +22,7 @@ export interface HarnessPolicy {
   readonly unattended: string | null
 }
 
-const POLICY: Readonly<Record<string, HarnessPolicy>> = {
-  'claude-code': {
+const CLAUDE_CODE_POLICY: HarnessPolicy = {
     modes: [
       // Claude Code's own acceptEdits: file commands inside the project
       // folder, `rm` included, run without a permission request, so Shadows
@@ -38,7 +37,12 @@ const POLICY: Readonly<Record<string, HarnessPolicy>> = {
     ],
     initial: 'acceptEdits',
     unattended: 'auto',
-  },
+}
+
+// AYLUL's brain is Claude Code on its own profile: the same two modes.
+const POLICY: Readonly<Record<string, HarnessPolicy>> = {
+  'claude-code': CLAUDE_CODE_POLICY,
+  aylul: CLAUDE_CODE_POLICY,
 }
 
 /** A harness's policy; one with no decided modes (Codex, today) allows none. */

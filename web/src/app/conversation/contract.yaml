@@ -1337,3 +1337,11 @@ tests:
   - name: "queues on Enter while a turn runs, and offers Send now and Remove"
     checks: "Enter POSTs the queue; Send now and Remove each reach the daemon. The list is not
       re-read."
+  - name: "aylul_composer_offers_models_and_efforts_from_choices"
+    checks: >
+      An aylul conversation shows the model and effort menus from the session's choices, and
+      picking another model sends the existing change-model request.
+  - name: "the CLI menu offers only aylul in the assistant project, and never in another"
+    checks: >
+      A draft in the assistant project lists AYLUL alone; a draft in an ordinary project
+      lists Claude Code and not AYLUL.

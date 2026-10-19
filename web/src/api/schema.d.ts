@@ -2061,6 +2061,11 @@ export interface components {
             allowed_modes: {
                 [key: string]: string[];
             };
+            /**
+             * @description True only for the project `Projects::ensure_assistant` created: the
+             *     home of AYLUL's conversations, which clients list apart from projects.
+             */
+            assistant: boolean;
             created_at: string;
             /**
              * @description Spec §4.2: the directory this project's turns run in, as

@@ -220,3 +220,7 @@ tests:
   - name: "lists active plans and folds the archived ones"
     checks: >
       Only the active plan shows, with "Archived (1)"; opening the group shows the archived one.
+  - name: "sidebar_shows_aylul_entry_and_hides_its_project"
+    checks: >
+      With one ordinary and one assistant project, one "AYLUL" link points to the assistant
+      project's latest conversation, and Projects lists only the ordinary project.
