@@ -96,8 +96,18 @@ Set-Location E:/Globalprojects/shadows-backend
 docker compose -f compose.yaml -f compose.hermes-host.yaml up -d --no-deps backend
 ```
 
-After the frontend/native debug build above, double-click
-[`start-chat.cmd`](../../start-chat.cmd) from the Shadows repository. Sign in using
+After the frontend/native debug build above, start the desktop with the backend
+URL, its development CA and the hook path set. A local, untracked `start-chat.cmd`
+at the Shadows root can hold these lines:
+
+```bat
+set "NYLRA_BACKEND_URL=https://127.0.0.1:8443"
+set "NYLRA_DEV_CA=%~dp0..\shadows-backend\.local-runtime\tls\ca.pem"
+set "AYLUL_HOOK_EXE=%~dp0apps\desktop\hook\target\debug\aylul-hook.exe"
+start "" "%~dp0apps\desktop\src-tauri\target\debug\nylra-desktop.exe"
+```
+
+Sign in using
 the existing Account section, then type into Chat with AYLUL. Enter sends;
 Shift+Enter inserts a newline. Conversations persist on the backend and reload
 without repeating the original send. Unknown outcomes offer explicit recovery;
