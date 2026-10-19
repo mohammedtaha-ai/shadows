@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(~/.claude/**)",
+      "Edit(~/.claude/**)",
+      "Write(~/.claude/**)",
+      "Read(~/.claude.json)",
+      "Edit(~/.claude.json)",
+      "Write(~/.claude.json)"
+    ]
+  }
+}

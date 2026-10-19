@@ -75,3 +75,4 @@ pub use turns::{
 // `shadows-http` serializes. Re-exported so no adapter depends on
 // `shadows-agent` (spec §14.3, §14.6 #1); the schema name is unchanged.
 pub use shadows_agent::choices::SessionChoices;
+pub use shadows_agent::profile::ClaudeProfile;

@@ -65,6 +65,7 @@ pattern to follow, not merely an example.
 | `crates/shadows/src/daemon/` | product service composition | `docs/integration/2026-10-19-product-daemon-hermes-design.md` |
 | `crates/shadows/src/daemon/bridge.rs` | bounded Node request ownership | `crates/shadows/src/daemon/bridge.rs` |
 | `crates/shadows/src/daemon/http.rs` | native assistant request translation | `crates/shadows/src/daemon/http.rs` |
+| `crates/shadows/src/daemon/aylul.rs` | turning the `aylul` config section into a seeded profile | `crates/shadows/src/daemon/aylul.rs` |
 | `crates/shadows/src/daemon/descriptor.rs` | private connection descriptor ownership | `crates/shadows/src/daemon/descriptor.rs` |
 | `crates/shadows/src/tracing.rs` | tracing subscriber setup | `crates/shadows/src/tracing.rs` |
 | `crates/shadows-http/src/lib.rs` | the HTTP/SSE surface every client talks to | `crates/shadows-http/src/project.rs` |

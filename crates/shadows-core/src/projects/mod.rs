@@ -27,7 +27,7 @@ pub use model::{Project, ProjectId};
 
 use crate::app::user_command;
 use crate::code::Code;
-use crate::db::Storage;
+use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
 use crate::threads::known_harness;
 
@@ -46,6 +46,41 @@ impl Projects {
     /// Every project, oldest first.
     pub async fn list(&self) -> Result<Vec<Project>, CoreError> {
         Ok(self.storage.list_projects().await?)
+    }
+
+    /// AYLUL's project: the live project `slug`, created over `directory`
+    /// when absent and marked `assistant`. Idempotent: a second call returns
+    /// the same project. A project that already holds the slug and is not
+    /// AYLUL's is returned unchanged, never claimed.
+    pub async fn ensure_assistant(
+        &self,
+        slug: &str,
+        name: &str,
+        directory: &Path,
+    ) -> Result<Project, CoreError> {
+        if let Some(found) = (self.storage.list_projects().await?)
+            .into_iter()
+            .find(|p| p.slug == slug)
+        {
+            if !found.assistant {
+                tracing::warn!(slug, "projects.assistant_slug_taken");
+            }
+            return Ok(found);
+        }
+        let directory = ProjectDirectory::resolve(directory)?;
+        let params = serde_json::json!({
+            "slug": slug, "name": name, "directory": directory.as_str(),
+        });
+        let c = user_command(
+            format!("assistant-project-{slug}"),
+            "project.create",
+            params,
+        );
+        self.storage
+            .create_project(&c, slug, name, &directory, &policy::default_modes())
+            .await?;
+        let marked = self.storage.mark_assistant_project(slug).await?;
+        marked.ok_or_else(|| StorageError::NotFound("project").into())
     }
 
     /// Creates a project owning an existing directory: "project.create",
