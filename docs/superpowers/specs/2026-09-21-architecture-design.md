@@ -85,7 +85,7 @@ error/
 tracing/
 ```
 
-`process/` is the `shadows-process` crate and `mcp/` the `shadows-mcp` crate; `config/` and `tracing/` are modules of the `shadows` binary, and `error/` is `shadows-core`'s (§14.3). `secrets/` is not built yet. “Cross-cutting” describes responsibility, not a separate architectural layer.
+`process/` is the `shadows-process` crate and `mcp/` the `shadows-mcp` crate; `config/` and `tracing/` are modules of the `shadows` binary, and `error/` is `shadows-core`'s (§14.3). `secrets/` is `shadows-core`'s `secrets` service (AYLUL brain §10). “Cross-cutting” describes responsibility, not a separate architectural layer.
 
 ## 1.3 Ownership rules
 
@@ -96,7 +96,7 @@ tracing/
 | `shadows-core`: `db/`, each service's `store` and `runtime/store.rs` | SQLx, SQLite schema/query code, migrations, future backend adapters (§2.9) |
 | `shadows-http` | HTTP/SSE transport |
 | `shadows-mcp` | MCP adapter and MCP request/response translation |
-| `secrets` (planned) | `SecretRef` resolution; secret values are resolved only at spawn |
+| `shadows-core`'s `secrets` | Encrypted variable storage; values are decrypted only at spawn ([AYLUL brain §10](../../aylul/specs/2026-10-19-aylul-claude-code-brain-design.md)) |
 | `scheduler` (planned) | Pure scheduling decision logic; no I/O |
 | `shadows-core`'s `events` | Durable-event vocabulary, cursor semantics, transient live-event abstraction |
 
