@@ -47,6 +47,14 @@ impl Profiles {
 
     pub async fn delete_agent(&self, command_id: String, slug: &str) -> Result<(), CoreError> {
         let command = user_command(command_id, "agent.delete", serde_json::json!({"slug":slug}));
-        Ok(store::delete_agent(&self.storage, command, slug).await?)
+        store::delete_agent(&self.storage, command, slug).await?;
+        if let Some(sessions) = self.sessions.upgrade() {
+            for thread in self.storage.list_threads_for_profile(slug).await? {
+                if let Err(error) = sessions.terminate(&thread.id).await {
+                    tracing::warn!(thread_id=%thread.id, %error, "agent.adapter_close_failed");
+                }
+            }
+        }
+        Ok(())
     }
 }

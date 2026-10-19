@@ -23,7 +23,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         Some(path) => crate::aylul::prepare(Some(crate::aylul::load(path)?))?,
         None => None,
     };
-    let (aylul, import_path) = prepared.map(|(c, p)| (Some(c), p)).unwrap_or_default();
+    let aylul = prepared;
     let secret_key = aylul.as_ref().and_then(|_| {
         crate::master_key::load_or_create()
             .map_err(|error| {
@@ -41,9 +41,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     };
     let core = AppCore::start(&start, mcp_url).await?;
     crate::aylul::ensure_project(&core, aylul.as_ref()).await?;
-    if let (Some(config), Some(path)) = (aylul.as_ref(), import_path.as_ref()) {
-        crate::aylul::import_env(&core, config, path).await;
-    }
+
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {
         core: core.clone(),

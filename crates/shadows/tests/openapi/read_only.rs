@@ -14,12 +14,7 @@ async fn no_get_route_changes_state() {
     let tmp = tempfile::tempdir().unwrap();
     let config = shadows_core::testing::SessionsConfig {
         aylul: Some(shadows_core::AylulConfig {
-            profile: shadows_core::ClaudeProfile {
-                name: "aylul".into(),
-                home: tmp.path().to_owned(),
-                key_env: "AYLUL_READ_ONLY_TEST_KEY".into(),
-                env: vec![],
-            },
+            home_root: tmp.path().to_owned(),
             project_slug: "aylul".into(),
         }),
         ..acp::test_config()

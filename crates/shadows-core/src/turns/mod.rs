@@ -272,7 +272,8 @@ impl Turns {
             ),
             None => None,
         };
-        if !self.sessions.harness_available(&context.harness) {
+        self.sessions.check_context(&context).await?;
+        if !self.sessions.harness_available(&context.harness).await? {
             return Err(CoreError::HarnessUnavailable(context.harness));
         }
         // Checked before the session is touched: setting a model below would

@@ -5,7 +5,7 @@ mod providers;
 mod store;
 
 use crate::db::Storage;
-use crate::{CoreError, ProjectId, Secrets};
+use crate::{CoreError, ProjectId};
 pub use model::{Agent, AgentInput, Provider, ProviderInput};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -15,15 +15,20 @@ pub struct Profiles {
     storage: Arc<Storage>,
 
     home_root: Option<PathBuf>,
+    sessions: std::sync::Weak<crate::harness::Sessions>,
 }
 
 impl Profiles {
     pub(crate) fn new(
         storage: Arc<Storage>,
-        _secrets: Arc<Secrets>,
         home_root: Option<PathBuf>,
+        sessions: std::sync::Weak<crate::harness::Sessions>,
     ) -> Arc<Self> {
-        Arc::new(Self { storage, home_root })
+        Arc::new(Self {
+            storage,
+            home_root,
+            sessions,
+        })
     }
 
     pub async fn providers(&self) -> Result<Vec<Provider>, CoreError> {

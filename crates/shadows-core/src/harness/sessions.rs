@@ -103,6 +103,8 @@ impl OpenSession {
 }
 
 pub struct Sessions {
+    pub(crate) profiles: Arc<crate::Profiles>,
+    pub(super) homes: super::profile_home::Homes,
     pub(super) adapter: Arc<ClaudeAdapter>,
     pub(super) storage: Arc<Storage>,
     pub(super) config: SessionsConfig,
@@ -124,7 +126,13 @@ impl Sessions {
         let period = (config.idle_after / 4)
             .min(Duration::from_secs(60))
             .max(Duration::from_millis(1));
-        let sessions = Arc::new(Self {
+        let sessions = Arc::new_cyclic(|weak| Self {
+            profiles: crate::Profiles::new(
+                storage.clone(),
+                config.aylul.as_ref().map(|c| c.home_root.clone()),
+                weak.clone(),
+            ),
+            homes: super::profile_home::Homes::default(),
             setups: Setups::new(storage.clone(), config.mcp_url.clone()),
             adapter,
             storage,

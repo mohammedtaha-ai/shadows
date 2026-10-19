@@ -1,6 +1,49 @@
 //! AYLUL threads behavior.
 use super::*;
 
+#[tokio::test]
+async fn aylul_harness_only_in_the_aylul_project() {
+    let w = seeded().await;
+    let core = core(&w).await;
+    w.profiles
+        .create_agent("agent".into(), agent("Work"))
+        .await
+        .unwrap();
+    let normal = core
+        .projects()
+        .create(
+            "normal".into(),
+            "normal",
+            "Normal",
+            w._tmp.path().to_str().unwrap(),
+        )
+        .await
+        .unwrap();
+    let assistant = core
+        .projects()
+        .ensure_assistant("aylul", "AYLUL", &w._tmp.path().join("home"))
+        .await
+        .unwrap();
+    assert!(
+        core.threads()
+            .create(
+                "invalid1".into(),
+                &normal.id,
+                "Chat",
+                Some("aylul"),
+                Some("work")
+            )
+            .await
+            .is_err()
+    );
+    assert!(
+        core.threads()
+            .create("invalid2".into(), &assistant.id, "Chat", None, None)
+            .await
+            .is_err()
+    );
+}
+
 async fn core(w: &World) -> Arc<shadows_core::AppCore> {
     use shadows_core::testing::{LiveHandles, Runtime, Sessions, SessionsConfig};
     let (runtime, _) = Runtime::start(w.storage.clone()).await.unwrap();
@@ -19,12 +62,7 @@ async fn core(w: &World) -> Arc<shadows_core::AppCore> {
             secrets: Some(w.secrets.clone()),
             aylul: Some(shadows_core::AylulConfig {
                 project_slug: "aylul".into(),
-                profile: shadows_core::ClaudeProfile {
-                    name: "aylul".into(),
-                    home: root.join("profiles/aylul"),
-                    key_env: "UNUSED".into(),
-                    env: vec![],
-                },
+                home_root: root.clone(),
             }),
             ..Default::default()
         },

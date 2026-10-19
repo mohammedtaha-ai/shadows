@@ -186,8 +186,7 @@ impl AppCore {
         let stopper = ThreadStopper::new(runtime.clone(), handles.clone(), sessions.clone());
         let threads = Threads::new(storage.clone(), harness.clone(), code.clone(), stopper);
         let events = Events::new(storage.clone(), harness.clone(), bus.clone(), ui.clone());
-        let profiles =
-            crate::Profiles::new(storage.clone(), secrets.clone(), sessions.aylul_home_root());
+        let profiles = sessions.profiles.clone();
         Arc::new(AppCore {
             profiles,
             secrets,

@@ -278,7 +278,9 @@ impl Storage {
                     .bind(&ts)
                     .execute(&mut *conn)
                     .await?;
-                    remember_settings(conn, kind, &settings, &ts).await?;
+                    let profile = crate::threads::profile_in(conn, &thread).await?;
+                    let preference = crate::harness::preference_key(kind, profile.as_deref());
+                    remember_settings(conn, &preference, &settings, &ts).await?;
                     let outcome = serde_json::json!({
                         "operation_id": op.as_str(),
                         "entry_id": entry.id.as_str(),

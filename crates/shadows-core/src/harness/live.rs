@@ -44,6 +44,7 @@ impl Sessions {
         // Deletion commits before Stop/close. Even a cached adapter cannot
         // make a removed thread available to a new opening in that interval.
         let context = self.storage.turn_context(thread).await?;
+        self.check_context(&context).await?;
         if let Some(current) = live.as_mut() {
             if !current.handle.has_exited() && !current.opened.connection.is_closed() {
                 current.last_used = Instant::now();
@@ -68,8 +69,25 @@ impl Sessions {
         let default_mode = policy::default_mode(&context.harness).ok_or_else(|| {
             OpenError::Start(format!("no mode policy for harness {}", context.harness))
         })?;
-        let remembered = self.storage.remembered(&context.harness).await?;
-        let Opening { cwd, setup, spec } = self.opening(thread, &context).await?;
+        let preference = super::preference_key(&context.harness, context.profile.as_deref());
+        let mut remembered = self.storage.remembered(&preference).await?;
+        let Opening {
+            cwd,
+            setup,
+            spec,
+            aylul_models,
+        } = self.opening(thread, &context).await?;
+        if let Some((models, default)) = &aylul_models {
+            if !remembered
+                .model
+                .as_ref()
+                .is_some_and(|m| models.contains(m))
+            {
+                remembered.model = Some(default.clone());
+            }
+            self.offers
+                .restrict_models(thread, models.clone(), default.clone());
+        }
         let mut handle = match process::spawn(spec) {
             Ok(handle) => handle,
             Err(error) => {
@@ -95,7 +113,19 @@ impl Sessions {
                 connection,
                 generation: self.generations.fetch_add(1, Ordering::Relaxed),
             };
-            let offered = self.offers.record(thread, &session.options)?;
+            let mut offered = self.offers.record(thread, &session.options)?;
+            if let Some((models, default)) = &aylul_models {
+                if !models.iter().all(|id| offered.offers_model(id)) {
+                    return Err("adapter did not offer all provider models".into());
+                }
+                let raw = shadows_agent::choices::parse(&session.options)?;
+                if !models.contains(&raw.current.model) {
+                    offered = self
+                        .set_option(thread, &opened, &offered.ids.model, default)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                }
+            }
             self.apply_opening_settings(thread, &opened, offered, default_mode, remembered)
                 .await
                 .map_err(|e| e.to_string())?;

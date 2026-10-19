@@ -110,7 +110,7 @@ Amended after a Codex review of this plan on 2026-10-19.
 **Files:**
 - Create: `crates/shadows-core/migrations/0029_aylul_profiles.sql`, with:
   - `aylul_provider(slug TEXT PRIMARY KEY, name TEXT NOT NULL, base_url TEXT NOT NULL, models TEXT NOT NULL, context_window INTEGER NOT NULL, created_at TEXT, updated_at TEXT)`, where `models` is a JSON array
-  - `aylul_agent(slug TEXT PRIMARY KEY, name TEXT NOT NULL, provider TEXT NOT NULL REFERENCES aylul_provider(slug) ON DELETE RESTRICT, default_model TEXT NOT NULL, deleted_at TEXT NULL, created_at TEXT, updated_at TEXT)`
+  - `aylul_agent(slug TEXT PRIMARY KEY, name TEXT NOT NULL, provider TEXT REFERENCES aylul_provider(slug) ON DELETE SET NULL, default_model TEXT NOT NULL, deleted_at TEXT NULL, created_at TEXT, updated_at TEXT)`
   - `ALTER TABLE planning_thread ADD COLUMN profile TEXT NULL`
   - `UPDATE planning_thread SET profile = 'aylul' WHERE harness = 'aylul'` (the legacy mapping)
 - Create: `crates/shadows-core/src/profiles/{mod.rs,model.rs,providers.rs,agents.rs,store.rs,contract.yaml}`
@@ -221,18 +221,18 @@ Amended after a Codex review of this plan on 2026-10-19.
   - `profile.rs`: unit tests for the token rule
   - `aylul.rs`: `old_section_keys_are_refused_by_name`
 
-- [ ] **Step 1: Probe first.** The plan depends on it. Run the real adapter once with Shadows' own client capabilities, on a temp home whose `settings.json` has `"availableModels": ["MiniMax-M3", "MiniMax-M2.7"]`, with a fake key and `settingSources ["user"]`. Record in `docs/evidence/aylul/2026-10-19-available-models-probe.md`:
+- [x] **Step 1: Probe first.** The plan depends on it. Run the real adapter once with Shadows' own client capabilities, on a temp home whose `settings.json` has `"availableModels": ["MiniMax-M3", "MiniMax-M2.7"]`, with a fake key and `settingSources ["user"]`. Record in `docs/evidence/aylul/2026-10-19-available-models-probe.md`:
   - the `configOptions` model values
   - the current model
   - whether `default` is present
 
   Pass means both ids are present and the current model is one of them or `default`. Otherwise stop and report.
-- [ ] **Step 2:** Do the split commit.
-- [ ] **Step 3:** Write the failing tests listed above.
-- [ ] **Step 4:** Run `cargo test -p shadows-core -p fake-acp --features fake-acp/test-support --test aylul_session`, `cargo test -p shadows-agent profile` and `cargo test -p shadows --lib aylul`. Expected: FAIL.
-- [ ] **Step 5:** Implement.
-- [ ] **Step 6:** Run the same tests. Expected: PASS.
-- [ ] **Step 7:** Commit `feat(aylul): sessions open by agent on its provider's models`.
+- [x] **Step 2:** Do the split commit.
+- [x] **Step 3:** Write the failing tests listed above.
+- [x] **Step 4:** Run `cargo test -p shadows-core -p fake-acp --features fake-acp/test-support --test aylul_session`, `cargo test -p shadows-agent profile` and `cargo test -p shadows --lib aylul`. Expected: FAIL.
+- [x] **Step 5:** Implement.
+- [x] **Step 6:** Run the same tests. Expected: PASS.
+- [x] **Step 7:** Commit `feat(aylul): sessions open by agent on its provider's models`.
 
 ### Task 3: HTTP routes and the web
 

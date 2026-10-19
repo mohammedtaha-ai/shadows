@@ -7,6 +7,7 @@ shapes:
   Profiles:
     storage: Arc<Storage>
     home_root: Optional isolated home root
+    sessions: Weak session owner used after deletion commits
   Provider:
     source: model.rs
     key_set: Metadata only; no key value
@@ -25,7 +26,7 @@ functions:
   delete_provider: Refuse live users and remove the encrypted key in the same write.
   create_agent: Validate the provider default and seed absent home files before insertion.
   update_agent: Change live configuration while retaining the slug.
-  delete_agent: Keep the identity and remove its variables in one transaction.
+  delete_agent: Keep the identity and remove variables in one transaction, then close its adapters.
 shared_in_transaction:
   require_live_agent_in: Threads checks the identity inside its creation transaction.
   require_provider_in: Secrets checks provider existence before storing a provider key.

@@ -26,10 +26,10 @@ pub async fn resolve_secret_env(
 
 pub fn profiles(
     storage: Arc<Storage>,
-    secrets: Arc<crate::Secrets>,
+    _secrets: Arc<crate::Secrets>,
     home_root: std::path::PathBuf,
 ) -> Arc<crate::Profiles> {
-    crate::Profiles::new(storage, secrets, Some(home_root))
+    crate::Profiles::new(storage, Some(home_root), std::sync::Weak::new())
 }
 
 pub mod acp;

@@ -5,14 +5,13 @@ mod crypto_tests;
 mod model;
 mod store;
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::CoreError;
 use crate::app::user_command;
 use crate::db::Storage;
 use crypto::Keys;
-pub use model::{EnvEntry, ImportReport, SecretKey};
+pub use model::{EnvEntry, SecretKey};
 
 pub struct Secrets {
     storage: Arc<Storage>,
@@ -175,29 +174,6 @@ impl Secrets {
             .any(|e| e.name == "PROVIDER_API_KEY"))
     }
 
-    pub async fn import_needed(&self, profile: &str) -> Result<bool, CoreError> {
-        self.keys()?;
-        Ok(store::import_needed(&self.storage, profile).await?)
-    }
-
-    pub async fn import_env_once(
-        &self,
-        profile: &str,
-        pairs: Vec<(String, String)>,
-    ) -> Result<Option<ImportReport>, CoreError> {
-        let keys = self.keys()?;
-        let mut valid = BTreeMap::new();
-        let mut skipped = Vec::new();
-        for (name, value) in pairs {
-            if validate_env_name(&name).is_err() || validate_value(&name, &value).is_err() {
-                skipped.push(name);
-            } else {
-                valid.insert(name, value);
-            }
-        }
-        Ok(store::import(&self.storage, profile, valid, skipped, keys).await?)
-    }
-
     pub(crate) async fn resolve_env(
         &self,
         profile: &str,
@@ -207,6 +183,9 @@ impl Secrets {
             .await?
             .into_iter()
             .map(|(name, sealed)| {
+                if reserved_env_name(&name) {
+                    return Err(CoreError::SecretNameReserved(name));
+                }
                 let value = crypto::open(&keys.aead, &aad(profile, &name), &sealed)
                     .map_err(|_| CoreError::SecretUnreadable(name.clone()))?;
                 Ok((name, value))

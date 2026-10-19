@@ -4,7 +4,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use shadows_core::testing::{LiveHandles, Runtime, Sessions, Storage, acp, secrets};
-use shadows_core::{AppCore, AylulConfig, ClaudeProfile, CoreParts, SecretKey};
+use shadows_core::{AppCore, AylulConfig, CoreParts, SecretKey};
 use tower::ServiceExt;
 
 use crate::AppState;
@@ -33,12 +33,7 @@ async fn world(configured: bool, key: bool) -> World {
         shadows_core::testing::SessionsConfig {
             secrets: Some(secrets.clone()),
             aylul: configured.then(|| AylulConfig {
-                profile: ClaudeProfile {
-                    name: "aylul".into(),
-                    home: tmp.path().to_owned(),
-                    key_env: "AYLUL_HTTP_TEST_KEY_735".into(),
-                    env: vec![],
-                },
+                home_root: tmp.path().to_owned(),
                 project_slug: "aylul".into(),
             }),
             ..acp::test_config()

@@ -343,3 +343,15 @@ impl Storage {
         Ok(rows.into_iter().map(into_thread).collect())
     }
 }
+
+pub(crate) async fn profile_in(
+    conn: &mut SqliteConnection,
+    thread: &ThreadId,
+) -> Result<Option<String>, StorageError> {
+    Ok(
+        sqlx::query_scalar("SELECT profile FROM planning_thread WHERE id=?")
+            .bind(thread.as_str())
+            .fetch_one(conn)
+            .await?,
+    )
+}
