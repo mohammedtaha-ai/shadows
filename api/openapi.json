@@ -1510,6 +1510,21 @@
           }
         ]
       },
+      "EnvEntry": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "updated_at"
+        ],
+        "type": "object"
+      },
       "ErrorBody": {
         "description": "The body of every error this API answers: the stable code a client\nmatches on (spec §3.4), and a human message nobody should match on. A\nrequest axum rejects before a handler runs (malformed JSON, a missing query\nparameter) gets one too, through\n[`rejections_as_error_bodies`].",
         "properties": {
@@ -1547,6 +1562,12 @@
       "ErrorCode": {
         "description": "Stable codes clients pattern-match on. Never match on human text.\nSpec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.",
         "enum": [
+          "SECRET_NAME_INVALID",
+          "SECRET_VALUE_INVALID",
+          "SECRET_UNREADABLE",
+          "SECRETS_UNAVAILABLE",
+          "AYLUL_KEY_MISSING",
+          "AYLUL_NOT_CONFIGURED",
           "STAGE_BLOCKED",
           "HARNESS_START_FAILED",
           "PROCESS_SPAWN_FAILED",
@@ -3832,6 +3853,21 @@
         ],
         "type": "object"
       },
+      "SetEnv": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "value"
+        ],
+        "type": "object"
+      },
       "Skipped": {
         "description": "Files not parsed, for one reason: `too_large`, `binary` or `not_utf8`.",
         "properties": {
@@ -4684,6 +4720,228 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/aylul/env": {
+      "get": {
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EnvEntry"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "AYLUL_NOT_CONFIGURED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "SECRETS_UNAVAILABLE"
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/env/{name}": {
+      "delete": {
+        "operationId": "remove",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Variable removed"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Invalid environment name or command query"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "AYLUL_NOT_CONFIGURED"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "SECRETS_UNAVAILABLE"
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      },
+      "put": {
+        "operationId": "set",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetEnv"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvEntry"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Invalid environment name, value or JSON body"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "AYLUL_NOT_CONFIGURED"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "SECRETS_UNAVAILABLE"
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
     "/api/code/settings": {
       "get": {
         "operationId": "get_settings",
@@ -9481,6 +9739,10 @@
     }
   },
   "tags": [
+    {
+      "description": "AYLUL environment metadata and writes",
+      "name": "aylul"
+    },
     {
       "description": "Project design workspace",
       "name": "design"

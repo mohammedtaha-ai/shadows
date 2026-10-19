@@ -54,6 +54,16 @@ pub struct ErrorBody {
 }
 
 impl Failure {
+    pub(super) fn invalid_env_json() -> Self {
+        Self {
+            status: StatusCode::BAD_REQUEST,
+            code: ErrorCode::InvalidCommand,
+            message: "the request body is not valid JSON for this route".into(),
+            cause: None,
+            detail: Detail::default(),
+        }
+    }
+
     /// The thread's project has no usable directory. A 4xx whose message is
     /// the reason, because the user can act on it: the text is ours, about a
     /// directory the user chose (§3.2).

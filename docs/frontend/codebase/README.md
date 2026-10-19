@@ -13,9 +13,9 @@ listed under Contracts has no `contract.yaml`. The map is checked on every
 
 What the code keeps true. Each one was checked by reading the code that enforces it.
 
-- Every HTTP call goes through `web/src/api/client.ts`. It is the only file that
+- Feature HTTP calls go through `web/src/api/`. `client.ts` is the only file that
   calls `fetch` and the only one that creates the `openapi-fetch` client; every other
-  file calls one of its functions.
+  API module uses this shared client.
 - `web/src/api/schema.d.ts` is generated from the daemon's `api/openapi.json` by
   `npm run gen:api`. It is committed, its header says not to edit it, and CI fails
   on any difference after regeneration. A protocol change is made in the daemon and
@@ -58,6 +58,8 @@ it is that folder's `contract.yaml`.
 
 | File | Its one job | Reference file |
 |---|---|---|
+| `web/src/api/aylul-env.ts` | AYLUL environment HTTP calls | `web/src/api/contract.yaml` |
+| `web/src/app/settings/aylul-env.tsx` | AYLUL environment editor | `web/src/app/settings/contract.yaml` |
 | `web/src/api/client.ts` | The one door to the daemon's HTTP API | `web/src/api/contract.yaml` |
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |
 | `web/src/api/design.ts` | HTTP calls for the project design workspace | `web/src/api/client.ts` |

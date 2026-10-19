@@ -523,3 +523,10 @@ tests:
   - name: returns the body of a success
     checks: >
       A 200 JSON array resolves to that array. No test covers a success with no body.
+
+aylul_environment:
+  EnvEntry: schema.d.ts components.schemas.EnvEntry; name and updated_at only
+  aylulEnvQuery: "queryKey ['aylul-env']; listAylulEnv"
+  listAylulEnv: "() -> Promise<EnvEntry[]>"
+  setAylulEnv: "(name, commandId, value) -> Promise<EnvEntry>"
+  removeAylulEnv: "(name, commandId) -> Promise<void>; unwrapEmpty on 204"

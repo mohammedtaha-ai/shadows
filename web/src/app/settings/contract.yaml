@@ -1,6 +1,6 @@
 # Owns the global Settings page (spec §13.11): the daemon's settings that belong to no
-# one project, one section each. Today there is one: the active-projects limit of the
-# code index (§15.6), an integer from 1 to 20 that the daemon holds the setting to.
+# one project, one section each. The active-projects limit belongs to the
+# code index (§15.6). AYLUL environment metadata and write-only inputs follow brain §10.
 #
 # Trap: the form keeps the person's typed number until it is saved or the saved value
 # changes while the field is untouched. The save's success clears that edit without
@@ -33,6 +33,9 @@ external:
 # ── functions ────────────────────────────────────────────────────────────────────
 
 components:
+  AylulEnv:
+    signature: "() => JSX.Element | null"
+    # Names/timestamps only; password inputs are cleared after a successful write.
   SettingsPage:
     signature: "() => JSX.Element"
     # The page shell; it renders one section per daemon setting.
@@ -49,6 +52,13 @@ private_helpers:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: The AYLUL section hides only for AYLUL_NOT_CONFIGURED; all other errors remain visible.
+    tested_by: [hidden_only_when_not_configured, shows_unavailable_error]
+  - rule: Values are password inputs, never read back or rendered as text, and clear after save.
+    tested_by: [lists_names_without_values, adding_clears_the_input, replaces_and_removes_a_variable]
+  - rule: Added names are uppercased as typed; replacement/removal use fresh command IDs with retry reuse.
+    tested_by: [adding_clears_the_input, replaces_and_removes_a_variable]
+    note: Tests exercise writes and removal; command reuse follows attemptFor without a dedicated retry test.
   - rule: >
       The limit must be a whole number from 1 to 20. Any other text disables Save and
       shows "A whole number from 1 to 20."

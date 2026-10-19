@@ -3,6 +3,7 @@
 // section here.
 
 import { ActiveProjects } from './active-projects'
+import { AylulEnv } from './aylul-env'
 
 export function SettingsPage() {
   return (
@@ -13,6 +14,7 @@ export function SettingsPage() {
           <p className="text-xs text-faint-foreground">For every project on this machine.</p>
         </header>
         <ActiveProjects />
+        <AylulEnv />
       </div>
     </div>
   )

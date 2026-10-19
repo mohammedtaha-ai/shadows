@@ -55,6 +55,16 @@ pub struct Harness {
 }
 
 impl Harness {
+    /// The configured AYLUL profile, without exposing its environment.
+    pub fn aylul_profile(&self) -> Result<&str, CoreError> {
+        self.sessions
+            .config
+            .aylul
+            .as_ref()
+            .map(|c| c.profile.name.as_str())
+            .ok_or(CoreError::AylulNotConfigured)
+    }
+
     pub(crate) fn new(storage: Arc<Storage>, sessions: Arc<Sessions>) -> Self {
         Self { storage, sessions }
     }

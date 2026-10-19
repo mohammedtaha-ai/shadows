@@ -138,6 +138,9 @@ shapes:
 
 functions:
   service:
+    aylul_profile:
+      signature: "(&self) -> Result<&str, CoreError>"
+      # Configuration-only metadata; absence is AylulNotConfigured.
     list:
       signature: "(&self) -> Result<Vec<HarnessInfo>, CoreError>"
       # For each of `policy::KNOWN`: availability, `remembered_settings`,

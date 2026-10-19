@@ -106,11 +106,13 @@ fn the_document_names_every_route() {
     assert_eq!(
         named,
         [
+            "DELETE /api/aylul/env/{name}",
             "DELETE /api/mcp-grants/{id}",
             "DELETE /api/projects/{id}",
             "DELETE /api/projects/{id}/code/links/{linked}",
             "DELETE /api/threads/{id}",
             "DELETE /api/threads/{id}/queue/{qid}",
+            "GET /api/aylul/env",
             "GET /api/code/settings",
             "GET /api/fs/dirs",
             "GET /api/harnesses",
@@ -171,6 +173,7 @@ fn the_document_names_every_route() {
             "POST /api/threads/{id}/turns",
             "POST /api/workflows/{id}/approve",
             "POST /api/workflows/{id}/bindings",
+            "PUT /api/aylul/env/{name}",
             "PUT /api/code/settings",
             "PUT /api/projects/{id}/agreements/{agreement}",
             "PUT /api/projects/{id}/code/links/{linked}",
