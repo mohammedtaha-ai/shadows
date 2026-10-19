@@ -117,9 +117,12 @@ proved a real configured MiniMax-M3 session journey. Lost-ACK identical replay,
 completed-result recovery after API restart, session continuity, conflict refusal
 and native stop/SSE cursor replay were observed. See the
 [dated journey](../../../shadows-backend/docs/evidence/2026-10-18-hermes-session-journey.md).
-The account-owned facade, PostgreSQL command intents, desktop client and public
-backend event stream remain B-H2+ work. The acceptance receipt file is not product
-persistence. No local code/context bridge or Core mutation is activated by this proof.
+The account facade and PostgreSQL command intents were subsequently implemented
+in backend `02aca92`, contract 0.5.0. The desktop uses native authenticated HTTP
+for status/list/create/snapshot/send/stop/recover under `/v1/nylra/assistant`.
+The first public transport is snapshot polling; public assistant SSE remains
+deferred. The acceptance receipt file is not product persistence. No local
+code/context bridge or Core mutation is activated by normal chat.
 
 ## Different F-drive Hermes WS reference — not selected for this slice
 

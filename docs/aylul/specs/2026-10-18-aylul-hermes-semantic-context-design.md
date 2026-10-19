@@ -198,10 +198,12 @@ native-run adapter. Preserve its provider chat work; define the assistant facade
 in the [backend owner](../../../../shadows-backend/docs/backend/specs/2026-10-18-hermes-backed-assistant-design.md).
 Core HTTP/SSE remains unchanged until its own scoped caller contract is built.
 
-The existing local RPC deadline is 10 seconds. New conversation calls return a
-local intent/snapshot promptly; the background backend client owns network waits.
-Reuse bounded UI polling for read projections initially; no token-by-token blocking
-stdio call or unsolicited stdout frames. Stop targets the captured Hermes
+The first normal-chat caller reuses Tauri's protected authenticated HTTP client
+through the main-only `assistant_call`, with a 15-second HTTP deadline and bounded
+responses. No bearer handoff to Node or new local core is needed for this slice.
+The existing local sidecar RPC deadline stays 10 seconds. Bounded visible-panel
+polling reads backend snapshots; no public assistant SSE or unsolicited stdio.
+Stop targets the captured Hermes
 backend turn/run identity; it is distinct from cancelling a Core turn or external CLI.
 
 ### Independent lifecycle

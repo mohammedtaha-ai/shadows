@@ -5,6 +5,7 @@ fn main() {
             "auth_action",
             "cancel_login",
             "aylul_call",
+            "assistant_call",
             "companion_state",
             "companion_ready",
             "companion_failed",

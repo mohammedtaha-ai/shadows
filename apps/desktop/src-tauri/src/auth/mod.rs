@@ -19,6 +19,15 @@ pub struct AuthController {
     cancelled: AtomicBool,
 }
 impl AuthController {
+    pub fn assistant(
+        &self,
+        request: crate::assistant::Request,
+    ) -> Result<serde_json::Value, &'static str> {
+        if self.busy.load(Ordering::SeqCst) {
+            return Err("busy");
+        }
+        AuthService::from_environment(self.path.clone())?.assistant(request)
+    }
     pub fn new(path: PathBuf) -> Arc<Self> {
         Arc::new(Self {
             path,

@@ -10,17 +10,21 @@ Do not continue the former shadows-backend-compatible relay/client roadmap.
 AYLUL's new Hermes/Core/independent-service direction is documented in the
 [transition plan](../plans/2026-10-18-nylra-transition.md).
 The [backend-client replacement plan](plans/2026-10-18-aylul-local-runtime-hermes.md)
-now prepares the new route: NYLRA -> account backend -> private Hermes. Exact
-desktop payload acceptance and backend assistant implementation remain prerequisites.
-No native source implementation has started.
+implements normal chat through NYLRA -> account backend -> private Hermes.
+The backend facade is committed at `02aca92`, generated wire 0.5.0. Native HTTP
+retains the protected account handle; no sidecar bearer handoff is introduced.
 
 ### H-1 · Compose the local core with the backend client
-- Status: blocked on backend facade and accepted native contract
+- Status: implemented and locally verified; physical desktop chat acceptance open
 - Plan: docs/aylul/native/plans/2026-10-18-aylul-local-runtime-hermes.md#h-1--compose-the-local-application-core-with-backend-status
 - Read: local/backend shared requests, current native/sidecar contracts and source map.
-- Touch: proposed files and current owners listed in H-1 only, after prerequisites.
-- Needs: backend-owned generated contract; reviewed native credential handoff.
+- Touch: actual native mapping/auth/commands/permissions files in the amended H-1 plan.
+- Needs: accepted local request and backend-owned generated contract (both satisfied).
 - Done when: backend status and existing hooks coexist without a direct Hermes connection or secret projection.
+
+Checks and exact limits: [normal-chat evidence](../../evidence/aylul/2026-10-19-normal-chat.md).
+Automatic review refused physical application launch; a user-operated launcher is
+provided. Browser substitution plus native HTTP does not establish GUI acceptance.
 
 Independent companion specification approved by the user on 2026-10-16:
 [`2026-10-16-independent-companion-design.md`](specs/2026-10-16-independent-companion-design.md).

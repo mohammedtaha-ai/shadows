@@ -1,3 +1,4 @@
+mod assistant;
 pub mod auth;
 mod commands;
 pub mod native_login;
@@ -11,6 +12,7 @@ pub fn run() {
             commands::auth_action,
             commands::cancel_login,
             commands::aylul_call,
+            commands::assistant_call,
             commands::companion::companion_state,
             commands::companion::companion_ready,
             commands::companion::companion_failed,

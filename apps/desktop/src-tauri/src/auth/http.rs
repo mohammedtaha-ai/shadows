@@ -64,6 +64,19 @@ impl Backend {
         body: Option<Value>,
         handle: Option<&str>,
     ) -> Result<T, &'static str> {
+        self.request_bounded(method, path, body, handle, 16384)
+    }
+    pub fn request_bounded<T: DeserializeOwned>(
+        &self,
+        method: reqwest::Method,
+        path: &str,
+        body: Option<Value>,
+        handle: Option<&str>,
+        limit: u64,
+    ) -> Result<T, &'static str> {
+        if limit > 131072 {
+            return Err("response_invalid");
+        }
         let url = self.base.join(path).map_err(|_| "configuration_invalid")?;
         if url.origin() != self.base.origin() {
             return Err("configuration_invalid");
@@ -86,15 +99,17 @@ impl Backend {
                 401 => "verification_refused",
                 400 => "request_refused",
                 429 => "rate_limited",
+                404 => "not_found",
+                409 => "request_conflict",
                 _ => "backend_unavailable",
             });
         }
         let mut bytes = Vec::new();
         response
-            .take(16385)
+            .take(limit + 1)
             .read_to_end(&mut bytes)
             .map_err(|_| "backend_unavailable")?;
-        if bytes.len() > 16384 {
+        if bytes.len() as u64 > limit {
             return Err("response_invalid");
         }
         serde_json::from_slice(&bytes).map_err(|_| "response_invalid")

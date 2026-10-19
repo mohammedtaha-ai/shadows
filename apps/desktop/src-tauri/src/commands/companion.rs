@@ -10,6 +10,7 @@ pub fn allowed_caller(label: &str, command: &str) -> bool {
         | "set_companion_paused"
         | "auth_action"
         | "aylul_call"
+        | "assistant_call"
         | "cancel_login"
         | "hide_main" => label == "main",
         _ => false,

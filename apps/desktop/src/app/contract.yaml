@@ -4,7 +4,7 @@ status: current
 source: apps/desktop/src/app
 responsibility: Compose separate main and compact companion entries; main retains native account verification, local sidecar sessions/requests, companion controls and a development-only studio.
 public_api:
-  Shell: Show account identity only from a freshly validated native View; mount sessions and requests from local sidecar state; provide login, cancellation, session checks and explicit surrender actions.
+  Shell: Show account identity only from a freshly validated native View; compose the independently owned assistant, sessions, requests and companion controls; preserve login and explicit account surrender.
   CompanionControls: Observe revisioned native companion state and request visibility/pause without optimistic success.
 obligations:
   - rule: Main presents local hook requests alongside independent companion and account controls; a missing sidecar leaves those controls usable.

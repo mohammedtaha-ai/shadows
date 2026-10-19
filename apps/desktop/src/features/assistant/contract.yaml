@@ -1,0 +1,18 @@
+name: assistant-conversation-presentation
+status: current
+source: apps/desktop/src/features/assistant
+responsibility: Present account-scoped persistent conversations, typed-message admission and explicit stop/recovery using native-only backend access.
+public_api:
+  AssistantPage: Load account conversations, poll bounded snapshots while visible, correlate client command IDs and ignore responses after account/session/conversation switches.
+obligations:
+  - rule: Actual backend replies remain after reload without resubmitting the original message; a follow-up uses the same conversation.
+    tested_by: apps/desktop/tests/assistant-acceptance.mjs
+    note: Real backend and MiniMax with an explicit browser substitute for native IPC; not physical Tauri acceptance.
+  - rule: Companion surfaces have no assistant-call authority.
+    tested_by: apps/desktop/tests/native-acl.test.mjs
+  - rule: Unknown outcomes never auto-resubmit; recovery and stop address the displayed turn; account changes clear history and the unsent draft.
+    tested_by: apps/desktop/tests/assistant-state.mjs
+    note: Deterministic browser responses and native IPC substitute; no live backend or provider.
+open_questions:
+  - Live token streaming and advanced history/deletion UI are not part of the initial snapshot-polling path.
+  - Physical Tauri launch was rejected by automatic review; native authenticated HTTP and generated permissions were verified separately.

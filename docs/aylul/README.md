@@ -8,7 +8,8 @@ and remote Hermes brain do not become services inside Shadows `AppCore`.
 - [Current integration design](specs/2026-10-18-aylul-hermes-semantic-context-design.md)
 - [Integration plan](plans/2026-10-18-aylul-hermes-semantic-context.md)
 - [Multiple application cores and endpoint routing](../integration/2026-10-18-runtime-endpoints.md)
-- [Next backend-client slice](native/plans/2026-10-18-aylul-local-runtime-hermes.md)
+- [Normal-chat slice and remaining gates](native/plans/2026-10-18-aylul-local-runtime-hermes.md)
+- [Normal-chat verification](../evidence/aylul/2026-10-19-normal-chat.md)
 - [Vision/document/test transition](plans/2026-10-18-nylra-transition.md)
 - [Existing NYLRA vision](vision.md)
 - [Existing code map](codebase/README.md)
@@ -42,3 +43,9 @@ but the new [backend-owned Hermes slice](../../../shadows-backend/docs/backend/s
 is explicitly authorized preparation. Direct desktop-to-Hermes transport is not
 the chosen path. Core, local AYLUL, backend, code service and upstream Hermes keep
 their separate application composition/state owners.
+
+Normal account chat is implemented through native authenticated HTTP and backend
+snapshot polling. It uses the installed Hermes with configured MiniMax in an
+isolated chat home. A real two-message browser journey and separate native HTTP
+checks passed; physical Tauri chat remains user-run after execution review refused
+launch. See the linked evidence and desktop README for startup.

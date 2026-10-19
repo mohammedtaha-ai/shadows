@@ -4,6 +4,8 @@ status: current
 source: apps/desktop/src-tauri/src/auth
 responsibility: Consume backend auth-v1 1.1.0 through native HTTP and protected account storage.
 public_api:
+  AuthService::assistant: Resolve the protected backend handle, call only a closed native assistant operation with a 128 KiB response cap, then refuse delivery if the stored handle changed.
+  AuthController::assistant: Keep account actions separate from assistant polling; create the authenticated native service without exposing account material to IPC.
   AuthController::perform: Serialize native actions; expose only the credential-free View.
   AuthController::cancel: Ask an in-flight login to stop without waiting for the worker.
   AuthService::status: Validate a persisted handle with the backend before exposing a principal.

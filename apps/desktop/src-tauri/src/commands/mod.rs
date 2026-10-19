@@ -34,6 +34,20 @@ pub fn cancel_login(
 }
 
 #[tauri::command]
+pub async fn assistant_call(
+    window: tauri::WebviewWindow,
+    auth: tauri::State<'_, std::sync::Arc<crate::auth::AuthController>>,
+    request: crate::assistant::Request,
+) -> Result<serde_json::Value, String> {
+    if window.label() != "main" {
+        return Err("main_required".into());
+    }
+    let auth = auth.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || auth.assistant(request).map_err(str::to_string))
+        .await
+        .map_err(|_| "action_failed".to_string())?
+}
+#[tauri::command]
 pub async fn aylul_call(
     window: tauri::WebviewWindow,
     sidecar: tauri::State<'_, std::sync::Arc<crate::sidecar::SidecarState>>,

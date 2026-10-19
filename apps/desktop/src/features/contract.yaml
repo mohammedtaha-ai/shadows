@@ -2,7 +2,7 @@ name: desktop-aylul-screens
 version: 1
 status: current
 source: apps/desktop/src/features
-responsibility: Show sessions and the items waiting for the person, and carry the person's answers. The companion subdirectory and its studio have separate contracts and are excluded from this owner.
+responsibility: Show sessions and the items waiting for the person, and carry the person's answers. Companion, studio and assistant subdirectories have separate contracts and are excluded from this owner.
 public_api:
   SessionsPanel: Connect Claude Code after showing the settings diff; list sessions with state, last step and last message.
   ApprovalsPanel: Allow once or deny a request; for a refusal, edit the rule, preview the diff, approve or dismiss.

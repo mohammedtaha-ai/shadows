@@ -17,7 +17,8 @@ externally owned references; do not invent a second contract format.
 - Keep TypeScript/React presentation, Rust/Tauri platform integration, Node
   sidecar and `aylul-hook`; relocation is not a language or behavior rewrite.
 - AYLUL is the main experience; loading the existing Shadows workspace remains
-  planned integration. Hermes is the selected personal-pilot brain, not yet wired.
+  planned integration. Normal chat uses Hermes through the account backend;
+  semantic project context and external agent control remain later slices.
 - Core owns its rules, plans and managed execution. The sidecar owns local agent
   observation and integration. Code intelligence has independent lifetime/state.
 - UI calls typed Tauri boundaries; it does not access the sidecar or databases

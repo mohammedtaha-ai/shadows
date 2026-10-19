@@ -4,6 +4,7 @@ status: current
 source: apps/desktop/src-tauri/src/commands
 responsibility: Restrict native account and sidecar actions to main and companion navigation/readiness/drag actions to the owned local surface.
 public_api:
+  assistant_call: Require main; translate the closed Request through the protected account service on a blocking worker. No URL/key selector or account handle reaches the webview.
   aylul_call: Require the main label; relay one listed method to the sidecar on a blocking worker; return its result or a stable code.
   auth_action: Require the main label; execute native auth on a blocking worker; return only View or a stable code.
   cancel_login: Require the main label; signal cancellation without waiting for the account worker.

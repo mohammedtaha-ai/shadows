@@ -3,6 +3,38 @@ use std::{
     io::{Read, Write},
     net::TcpListener,
 };
+#[test]
+#[ignore = "requires the owned local backend synthetic acceptance session"]
+fn assistant_local_backend_uses_protected_account_without_exposing_handle() {
+    let path =
+        std::env::var("NYLRA_ASSISTANT_ACCEPTANCE_GRANT").expect("explicit acceptance grant");
+    let grant: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    let home = std::env::temp_dir().join(format!(
+        "nylra-assistant-acceptance-{}.dpapi",
+        std::process::id()
+    ));
+    let service = AuthService::from_environment(home.clone()).unwrap();
+    let credentials = Credentials {
+        handle: Some(grant["handle"].as_str().unwrap().into()),
+        enrollment: None,
+        account: Some(grant["principal"]["accountId"].as_str().unwrap().into()),
+        device: Some(grant["principal"]["deviceId"].as_str().unwrap().into()),
+        origin: service.backend.base.origin().ascii_serialization(),
+    };
+    service.store.save(&credentials).unwrap();
+    let result = service
+        .assistant(crate::assistant::Request::Status {})
+        .unwrap();
+    assert_eq!(result["state"], "ready");
+    let history = service
+        .assistant(crate::assistant::Request::List {})
+        .unwrap();
+    assert!(!history["conversations"].as_array().unwrap().is_empty());
+    assert!(!result
+        .to_string()
+        .contains(credentials.handle.as_ref().unwrap()));
+    std::fs::remove_file(home).unwrap();
+}
 fn fixture(statuses: Vec<u16>) -> (AuthService, std::thread::JoinHandle<()>, PathBuf) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let base = url::Url::parse(&format!(

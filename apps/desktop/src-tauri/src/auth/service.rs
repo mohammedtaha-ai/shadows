@@ -26,6 +26,28 @@ pub struct AuthService {
     store: Store,
 }
 impl AuthService {
+    pub fn assistant(
+        &self,
+        request: crate::assistant::Request,
+    ) -> Result<serde_json::Value, &'static str> {
+        let operation = request.operation()?;
+        let credentials = self.store.load()?;
+        let handle = credentials
+            .handle
+            .as_deref()
+            .ok_or("verification_refused")?;
+        let result = self.backend.request_bounded(
+            operation.method,
+            &operation.path,
+            operation.body,
+            Some(handle),
+            131072,
+        )?;
+        if self.store.load()?.handle.as_deref() != Some(handle) {
+            return Err("verification_refused");
+        }
+        Ok(result)
+    }
     pub fn from_environment(path: PathBuf) -> Result<Self, &'static str> {
         let backend = Backend::from_environment()?;
         let store = Store::new(path, backend.base.origin().ascii_serialization());

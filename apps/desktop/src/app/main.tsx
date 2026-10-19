@@ -7,6 +7,7 @@ import { CompanionControls } from './CompanionControls';
 import { useAylulState } from '../data/aylul-state';
 import { SessionsPanel } from '../features/sessions/SessionsPanel';
 import { ApprovalsPanel } from '../features/approvals/ApprovalsPanel';
+import { AssistantPage } from '../features/assistant/AssistantPage';
 
 const Studio = import.meta.env.DEV
   ? React.lazy(() => import('../features/companion/studio/CompanionStudio').then(module => ({default:module.CompanionStudio})))
@@ -36,6 +37,7 @@ function Shell() {
     <p className="eyebrow">NYLRA · Windows</p>
     <h1>Your companion, when you need it.</h1>
     <p>Keep this panel nearby, or close it to the tray and reopen it when you need it.</p>
+    <AssistantPage auth={busy?null:auth} />
     <section aria-labelledby="account"><h2 id="account">Account</h2>
       <p role="status">{busy ? (loggingIn?'Complete sign-in in your browser.':'Checking your account…') : auth?.state==='signed_in'?'Signed in':auth?.state==='verification_refused'?'Your session could not be verified. Sign in again or retry.':auth?.state==='unavailable'?'The backend is unavailable. Your device registration is preserved.':auth?.state==='device_revoked'?'This device registration was revoked.':'Signed out'}</p>
       {auth?.principal && !busy && <p>Account: {auth.principal.accountId}<br/>Device: {auth.principal.deviceId}</p>}

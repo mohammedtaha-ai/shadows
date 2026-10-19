@@ -129,8 +129,9 @@ AYLUL desktop is three processes on the laptop, each with one job:
   `src-tauri/src/sidecar/` relays them over the sidecar's standard input and
   output. The sidecar opens no local port.
 - **The sidecar keeps no credential on disk.** Tauri's `auth` module holds the
-  backend session. Its scoped handoff to the backend client is planned, not present
-  in the imported sidecar startup. Hermes service credentials stay backend-side.
+  backend session and serves normal chat through the closed `assistant_call`
+  boundary. This path requires no credential handoff to the sidecar.
+  Hermes service credentials stay backend-side.
 - **The pipe is restricted to the current Windows user.** `aylul-hook` refuses
   to run when the pipe is missing or owned by another user.
 - **Failure is not consent.** If the sidecar is off, the pipe is missing or a

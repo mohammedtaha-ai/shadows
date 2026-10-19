@@ -10,6 +10,8 @@ test('generated native permissions grant sidecar access only to main',()=>{
  const commands=label=>Object.values(capabilities).filter(c=>c.local&&c.windows.includes(label))
   .flatMap(c=>c.permissions.flatMap(p=>permissions[p]?.commands.allow??[]));
  assert.ok(commands('main').includes('aylul_call'),'main must reach the merged local sidecar');
+ assert.ok(commands('main').includes('assistant_call'),'main must reach authenticated assistant HTTP');
+ assert.ok(!commands('companion').includes('assistant_call'),'companion must not send assistant messages');
  assert.ok(commands('main').includes('set_companion_visible'),'main keeps companion controls');
  assert.ok(!commands('companion').includes('aylul_call'),'companion must not approve agent requests');
  assert.ok(!commands('companion').includes('auth_action'),'companion must not receive account authority');
