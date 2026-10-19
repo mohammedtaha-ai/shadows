@@ -1345,3 +1345,8 @@ tests:
     checks: >
       A draft in the assistant project lists AYLUL alone; a draft in an ordinary project
       lists Claude Code and not AYLUL.
+  # stage-chip.test.tsx
+  - name: "stage_chip_hidden_in_the_assistant_project"
+    checks: >
+      A normal project's header shows its stage; the assistant project's shows no stage
+      and never fetches it.
