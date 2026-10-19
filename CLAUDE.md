@@ -121,7 +121,13 @@ and `verification` services.
   5. `cargo tree -e features,no-dev --workspace | grep test-support` prints nothing
   6. `git diff --exit-code api/`: `api/openapi.json` changes only with a route
 - CI's format-overflow check is owned by [structure hygiene §1.2](./docs/superpowers/specs/2026-10-04-structure-hygiene-design.md#12-what-is-decided).
-- **Library-first:** no custom ORM, no custom migration engine. Use Rust ecosystem crates.
+- **Library-first for infrastructure only:** no custom ORM, no custom migration engine,
+  no hand-written crypto. Security and infrastructure use established crates (SQLx, axum,
+  tokio, aes-gcm, hkdf, hmac, keyring).
+- **Product logic is ours.** Parsing, validation, domain rules and small helpers are
+  written in this codebase, not pulled from a general-purpose crate (`parse_dotenv` is
+  ours, not `dotenvy`). A new dependency's commit names which of the two it is; a
+  general crate for product logic is refused in review.
 - **A file earns its size.** At **300 lines** a file stops being free: the change that
   pushes it over states, in its commit message or report, what that file's single
   responsibility is and why the new code shares it. At **500 lines** it splits. Split by
