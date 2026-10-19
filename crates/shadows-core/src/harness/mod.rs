@@ -19,6 +19,7 @@ mod commands;
 mod context;
 mod model;
 mod offers;
+pub(crate) mod profile_home;
 mod sessions;
 mod settings;
 mod setup;

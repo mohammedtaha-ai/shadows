@@ -42,6 +42,12 @@ pattern to follow, not merely an example.
 
 | Module | Its one job | Reference file |
 |---|---|---|
+| `crates/shadows-core/src/profiles/` | AYLUL agent configuration | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/model.rs` | public configuration metadata | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/providers.rs` | provider mutation rules | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/agents.rs` | agent mutation rules | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/store.rs` | transactional configuration SQL | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/harness/profile_home.rs` | isolated agent home files | `docs/aylul/specs/2026-10-19-aylul-claude-code-brain-design.md` |
 | `crates/shadows-http/src/aylul_env.rs` | AYLUL environment HTTP translation | `crates/shadows-core/src/secrets/contract.yaml` |
 | `crates/shadows-http/src/aylul_env_tests.rs` | AYLUL environment route acceptance tests | `crates/shadows-http/src/aylul_env.rs` |
 | `crates/shadows-agent/src/profile_tests.rs` | isolated profile environment tests | `crates/shadows-agent/src/profile.rs` |

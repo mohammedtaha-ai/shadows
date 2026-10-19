@@ -51,6 +51,7 @@ async fn second_thread(app: &App) -> ThreadId {
             &app.project,
             "Second",
             policy::CLAUDE_CODE,
+            None,
         )
         .await
         .unwrap()

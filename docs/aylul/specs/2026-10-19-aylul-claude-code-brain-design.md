@@ -381,6 +381,8 @@ config-file provider.
     their URL, and sending in one gives `AYLUL_PROFILE_NOT_FOUND`. Deleting an
     agent also closes its live adapters. Every send checks the thread's agent
     before it reuses a live adapter.
+  - Deleted agent rows keep their slug permanently. Deleting an unused provider
+    sets only deleted agents provider references to null; live agents require a provider.
   - **Edits apply at the next spawn,** including a resumed conversation. The
     agent and provider forms say so.
   - **Conversations live in one hidden assistant project,** slug `aylul`, whose

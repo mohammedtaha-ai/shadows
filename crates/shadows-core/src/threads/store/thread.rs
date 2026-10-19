@@ -20,6 +20,7 @@ impl Storage {
         project_id: &ProjectId,
         title: &str,
         harness: &str,
+        profile: Option<&str>,
     ) -> Result<PlanningThread, StorageError> {
         let (ctx, project_id, title, harness, ts) = (
             ctx.clone(),
@@ -28,11 +29,15 @@ impl Storage {
             harness.to_string(),
             now(),
         );
+        let profile = profile.map(str::to_owned);
         self.write_txn(move |conn| {
             Box::pin(async move {
                 let scope_key = project_id.as_str().to_string();
                 if let Some(id) = classify(conn, &ctx, "Project", &scope_key).await? {
                     return load_thread(conn, &ThreadId::from_stored(id)).await;
+                }
+                if let Some(profile) = &profile {
+                    crate::profiles::require_live_agent_in(conn, profile).await?;
                 }
                 let actor = Actor::user(&ctx.principal_id);
                 let id = insert_thread(
@@ -45,6 +50,11 @@ impl Storage {
                     &ts,
                 )
                 .await?;
+                sqlx::query("UPDATE planning_thread SET profile=? WHERE id=?")
+                    .bind(&profile)
+                    .bind(id.as_str())
+                    .execute(&mut *conn)
+                    .await?;
                 record_command(
                     conn,
                     &ctx,
@@ -137,10 +147,11 @@ impl Storage {
             String,
             String,
             Option<String>,
+            Option<String>,
         );
-        let (directory, session, harness, project_id, fork_session): Row = sqlx::query_as(
+        let (directory, session, harness, project_id, fork_session, profile): Row = sqlx::query_as(
             "SELECT p.directory, t.harness_session_id, t.harness_kind, t.project_id,
-                    t.fork_session_id
+                    t.fork_session_id, t.profile
                FROM planning_thread t JOIN project p ON p.id = t.project_id
               WHERE t.id = ? AND t.removed_at IS NULL",
         )
@@ -149,6 +160,7 @@ impl Storage {
         .await?
         .ok_or(StorageError::NotFound("planning_thread"))?;
         Ok(TurnContext {
+            profile,
             project_directory: directory.map(PathBuf::from),
             harness_session_id: session,
             harness,
@@ -196,7 +208,7 @@ impl Storage {
         // the reason `list_projects` gives.
         let rows: Vec<ThreadRow> = sqlx::query_as(
             "SELECT t.id, t.project_id, t.title, t.status, t.created_at, t.harness_kind,
-                    t.forked_from_thread, t.removed_at
+                    t.forked_from_thread, t.removed_at, t.profile
                FROM planning_thread t
                LEFT JOIN durable_event e
                  ON e.thread_id = t.id AND e.kind = 'PlanningThreadCreated'
@@ -282,6 +294,7 @@ type ThreadRow = (
     String,
     Option<String>,
     Option<String>,
+    Option<String>,
 );
 
 fn into_thread(r: ThreadRow) -> PlanningThread {
@@ -294,6 +307,7 @@ fn into_thread(r: ThreadRow) -> PlanningThread {
         harness: r.5,
         forked_from_thread: r.6.map(ThreadId::from_stored),
         removed_at: r.7,
+        profile: r.8,
     }
 }
 
@@ -303,7 +317,7 @@ pub(super) async fn load_thread(
 ) -> Result<PlanningThread, StorageError> {
     let row: ThreadRow = sqlx::query_as(
         "SELECT id, project_id, title, status, created_at, harness_kind, \
-         forked_from_thread, removed_at
+         forked_from_thread, removed_at, profile
            FROM planning_thread WHERE id = ?",
     )
     .bind(id.as_str())
@@ -311,4 +325,21 @@ pub(super) async fn load_thread(
     .await?
     .ok_or(StorageError::NotFound("planning_thread"))?;
     Ok(into_thread(row))
+}
+
+impl Storage {
+    pub async fn list_threads_for_profile(
+        &self,
+        slug: &str,
+    ) -> Result<Vec<PlanningThread>, StorageError> {
+        let rows: Vec<ThreadRow> = sqlx::query_as(
+            "SELECT id, project_id, title, status, created_at, harness_kind,
+             forked_from_thread, removed_at, profile FROM planning_thread
+             WHERE profile=? AND removed_at IS NULL ORDER BY created_at DESC, id DESC",
+        )
+        .bind(slug)
+        .fetch_all(self.reader())
+        .await?;
+        Ok(rows.into_iter().map(into_thread).collect())
+    }
 }

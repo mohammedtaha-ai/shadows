@@ -328,7 +328,13 @@ async fn after_a_restart_the_next_turn_resumes_the_recorded_session() {
         .await
         .unwrap();
     let thread = storage
-        .create_planning_thread(&ctx("c2", "thread.create"), &project.id, "T", "claude-code")
+        .create_planning_thread(
+            &ctx("c2", "thread.create"),
+            &project.id,
+            "T",
+            "claude-code",
+            None,
+        )
         .await
         .unwrap()
         .id;

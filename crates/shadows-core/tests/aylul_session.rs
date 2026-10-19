@@ -126,7 +126,7 @@ async fn replaced_value_reaches_a_new_adapter() {
     let next = w
         .core
         .threads()
-        .create("next".into(), &project, "next", Some(policy::AYLUL))
+        .create("next".into(), &project, "next", Some(policy::AYLUL), None)
         .await
         .unwrap();
     assert!(
@@ -227,7 +227,7 @@ async fn world(key_env: &str) -> World {
         .unwrap();
     let thread = core
         .threads()
-        .create("c2".into(), &project.id, "talk", Some(policy::AYLUL))
+        .create("c2".into(), &project.id, "talk", Some(policy::AYLUL), None)
         .await
         .unwrap()
         .id;

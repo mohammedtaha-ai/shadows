@@ -37,7 +37,7 @@ async fn fixture() -> (tempfile::TempDir, Storage, RuntimeInstanceId, ThreadId) 
         ..ctx
     };
     let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
         .await
         .unwrap();
     (tmp, storage, runtime, thread.id)

@@ -25,7 +25,7 @@ impl Fixture {
             .unwrap();
         let thread = core
             .threads()
-            .create("thread".into(), &p, "Map", None)
+            .create("thread".into(), &p, "Map", None, None)
             .await
             .unwrap();
         core.turns()

@@ -220,7 +220,13 @@ async fn a_planner_grant_writes_only_in_its_own_project() {
     let foreign = other_project(&app).await;
     let other = app
         .storage
-        .create_planning_thread(&ctx("t2", "thread.create"), &foreign, "O", "claude-code")
+        .create_planning_thread(
+            &ctx("t2", "thread.create"),
+            &foreign,
+            "O",
+            "claude-code",
+            None,
+        )
         .await
         .unwrap()
         .id;

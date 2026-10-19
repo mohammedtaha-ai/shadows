@@ -105,6 +105,11 @@ impl From<CoreError> for Refusal {
 /// The code HTTP answers the same failure with.
 fn code_of(e: &CoreError) -> ErrorCode {
     match e {
+        CoreError::AylulProfileNotFound(_) => ErrorCode::AylulProfileNotFound,
+        CoreError::AylulProviderNotFound(_) => ErrorCode::AylulProviderNotFound,
+        CoreError::ProviderInUse(_) => ErrorCode::ProviderInUse,
+        CoreError::ProfileInvalid(_) => ErrorCode::ProfileInvalid,
+        CoreError::SecretNameReserved(_) => ErrorCode::SecretNameReserved,
         CoreError::SecretNameInvalid(_) => ErrorCode::SecretNameInvalid,
         CoreError::SecretValueInvalid(_) => ErrorCode::SecretValueInvalid,
         CoreError::SecretUnreadable(_) => ErrorCode::SecretUnreadable,

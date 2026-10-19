@@ -41,6 +41,16 @@ pub(super) struct Opening {
 }
 
 impl Sessions {
+    pub(crate) fn aylul_home_root(&self) -> Option<PathBuf> {
+        self.config.aylul.as_ref().and_then(|c| {
+            c.profile
+                .home
+                .parent()
+                .and_then(|p| p.parent())
+                .map(|p| p.to_path_buf())
+        })
+    }
+
     /// The one answer to "can a turn run on `kind` here": AYLUL only with a profile.
     pub(crate) fn harness_available(&self, kind: &str) -> bool {
         policy::is_available_with(kind, self.config.aylul.is_some())

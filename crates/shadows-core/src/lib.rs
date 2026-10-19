@@ -10,6 +10,7 @@ mod harness;
 mod id;
 mod instructions;
 mod plans;
+mod profiles;
 mod projects;
 mod runtime;
 mod secrets;
@@ -61,6 +62,7 @@ pub use plans::{
     PlanTask, PlanVersions, Plans, Problem, TaskContent, TaskId, TaskParent, TaskPreview,
     VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
+pub use profiles::{Agent, AgentInput, Profiles, Provider, ProviderInput};
 pub use projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
 };

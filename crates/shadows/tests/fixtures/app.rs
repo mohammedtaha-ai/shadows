@@ -139,6 +139,7 @@ async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bo
             &project.id,
             "T",
             policy::CLAUDE_CODE,
+            None,
         )
         .await
         .unwrap()
@@ -263,6 +264,7 @@ pub async fn other_project(app: &App) -> (ProjectId, ThreadId) {
             &project,
             "Other",
             policy::CLAUDE_CODE,
+            None,
         )
         .await
         .unwrap()

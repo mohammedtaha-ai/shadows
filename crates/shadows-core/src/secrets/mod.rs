@@ -27,6 +27,14 @@ impl std::fmt::Debug for Secrets {
 
 /// Also used by the binary when loading `key_env`.
 pub fn validate_env_name(name: &str) -> Result<(), CoreError> {
+    if reserved_env_name(name)
+        && !matches!(
+            name,
+            "CLAUDE_CONFIG_DIR" | "ANTHROPIC_API_KEY" | "ANTHROPIC_AUTH_TOKEN"
+        )
+    {
+        return Err(CoreError::SecretNameReserved(name.into()));
+    }
     let bytes = name.as_bytes();
     let valid = (1..=128).contains(&bytes.len())
         && (bytes[0].is_ascii_uppercase() || bytes[0] == b'_')
@@ -43,6 +51,26 @@ pub fn validate_env_name(name: &str) -> Result<(), CoreError> {
         Err(CoreError::SecretNameInvalid(name.into()))
     }
 }
+
+pub(crate) fn reserved_env_name(name: &str) -> bool {
+    matches!(
+        name,
+        "CLAUDE_CONFIG_DIR"
+            | "ANTHROPIC_API_KEY"
+            | "ANTHROPIC_AUTH_TOKEN"
+            | "ANTHROPIC_BASE_URL"
+            | "ANTHROPIC_MODEL"
+            | "ANTHROPIC_DEFAULT_OPUS_MODEL"
+            | "ANTHROPIC_DEFAULT_SONNET_MODEL"
+            | "ANTHROPIC_DEFAULT_HAIKU_MODEL"
+            | "ANTHROPIC_SMALL_FAST_MODEL"
+            | "ANTHROPIC_CUSTOM_MODEL_OPTION"
+            | "CLAUDE_CODE_MAX_CONTEXT_TOKENS"
+            | "CLAUDE_CODE_AUTO_COMPACT_WINDOW"
+    )
+}
+
+pub(crate) use store::remove_scope_in;
 
 fn validate_value(name: &str, value: &str) -> Result<(), CoreError> {
     if value.is_empty() || value.len() > 32768 || value.contains('\0') {
@@ -110,6 +138,41 @@ impl Secrets {
             }),
         );
         Ok(store::remove(&self.storage, c, profile, name).await?)
+    }
+
+    pub async fn set_provider_key(
+        &self,
+        command_id: String,
+        provider: &str,
+        value: &str,
+    ) -> Result<EnvEntry, CoreError> {
+        self.set_env(
+            command_id,
+            &format!("provider/{provider}"),
+            "PROVIDER_API_KEY",
+            value,
+        )
+        .await
+    }
+
+    pub async fn remove_provider_key(
+        &self,
+        command_id: String,
+        provider: &str,
+    ) -> Result<(), CoreError> {
+        self.remove_env(
+            command_id,
+            &format!("provider/{provider}"),
+            "PROVIDER_API_KEY",
+        )
+        .await
+    }
+
+    pub async fn provider_key_set(&self, provider: &str) -> Result<bool, CoreError> {
+        Ok(store::list(&self.storage, &format!("provider/{provider}"))
+            .await?
+            .iter()
+            .any(|e| e.name == "PROVIDER_API_KEY"))
     }
 
     pub async fn import_needed(&self, profile: &str) -> Result<bool, CoreError> {

@@ -118,6 +118,7 @@ shapes:
 
 functions:
   service:
+    list_for_profile: Read live agent conversations newest first by created_at then id.
     list:
       signature: "(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, CoreError>"
       # Oldest first by the `PlanningThreadCreated` event's seq; an unknown
@@ -170,7 +171,7 @@ functions:
       # `policy::is_known`, else SettingNotOffered { "harness", id, None }.
   store:
     create_planning_thread:
-      signature: "(&self, ctx, project_id, title, harness) -> Result<PlanningThread, StorageError>"
+      signature: "(&self, ctx, project_id, title, harness, profile) -> Result<PlanningThread, StorageError>"
       # One write: classify (scope Project) → insert_thread → record_command.
     set_thread_harness:
       signature: "(&self, ctx, thread, harness) -> Result<PlanningThread, StorageError>"
@@ -531,3 +532,9 @@ tests:
     checks: >
       After a first message the row is set back to "T", `client`; a second
       message leaves "T", `client`.
+
+# AYLUL creation requires a live profile inside the write transaction.
+# Planner creation refuses any profile. A fork copies its profile.
+
+# AYLUL creation requires a live profile inside the write transaction.
+# Planner creation refuses any profile. A fork copies its profile.

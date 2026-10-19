@@ -8,6 +8,11 @@ use crate::turns::StartError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
+    AylulProfileNotFound,
+    AylulProviderNotFound,
+    ProviderInUse,
+    ProfileInvalid,
+    SecretNameReserved,
     SecretNameInvalid,
     SecretValueInvalid,
     SecretUnreadable,
@@ -73,6 +78,16 @@ pub enum ErrorCode {
 /// MCP — and the codes and texts clients see stay exactly what they were.
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {
+    #[error("AYLUL agent not found: {0}")]
+    AylulProfileNotFound(String),
+    #[error("AYLUL provider not found: {0}")]
+    AylulProviderNotFound(String),
+    #[error("provider is used by: {0}")]
+    ProviderInUse(String),
+    #[error("invalid profile: {0}")]
+    ProfileInvalid(String),
+    #[error("reserved environment name: {0}")]
+    SecretNameReserved(String),
     #[error("invalid environment variable name: {0}")]
     SecretNameInvalid(String),
     #[error("invalid environment variable value for {0}")]
@@ -119,6 +134,10 @@ pub enum CoreError {
 impl From<StorageError> for CoreError {
     fn from(error: StorageError) -> Self {
         match error {
+            StorageError::AylulProfileNotFound(s) => Self::AylulProfileNotFound(s),
+            StorageError::AylulProviderNotFound(s) => Self::AylulProviderNotFound(s),
+            StorageError::ProviderInUse(s) => Self::ProviderInUse(s),
+            StorageError::ProfileInvalid(s) => Self::ProfileInvalid(s),
             StorageError::PlanArchived(_) | StorageError::PlanLinkInvalid(_) => Self::Refused {
                 code: ErrorCode::InvalidCommand,
                 message: error.to_string(),

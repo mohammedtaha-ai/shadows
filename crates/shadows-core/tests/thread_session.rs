@@ -57,7 +57,13 @@ async fn fixture() -> (Fixture, ThreadId, ThreadId) {
     let mut threads = Vec::new();
     for id in ["c2", "c3"] {
         let thread = storage
-            .create_planning_thread(&ctx(id, "thread.create"), &project.id, id, "claude-code")
+            .create_planning_thread(
+                &ctx(id, "thread.create"),
+                &project.id,
+                id,
+                "claude-code",
+                None,
+            )
             .await
             .unwrap();
         threads.push(thread.id);

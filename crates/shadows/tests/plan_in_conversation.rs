@@ -369,6 +369,7 @@ async fn a_thread_grant_can_read_and_show_any_plan_in_its_project() {
             &l.app.project,
             "Other",
             shadows_agent::policy::CLAUDE_CODE,
+            None,
         )
         .await
         .unwrap();

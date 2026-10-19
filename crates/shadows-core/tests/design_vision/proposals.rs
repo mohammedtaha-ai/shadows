@@ -15,7 +15,7 @@ impl Fixture {
         let (core, p) = standards::core_and_project(&tmp).await;
         let thread = core
             .threads()
-            .create("thread".into(), &p, "Vision", None)
+            .create("thread".into(), &p, "Vision", None, None)
             .await
             .unwrap();
         core.turns()
@@ -495,7 +495,7 @@ async fn a_proposal_names_a_known_item_and_carries_text() {
     let t = f
         .core
         .threads()
-        .create("idle".into(), &f.p, "Idle", None)
+        .create("idle".into(), &f.p, "Idle", None, None)
         .await
         .unwrap();
     let (grant, _) = f.storage.issue_thread_grant(&t.id).await.unwrap();

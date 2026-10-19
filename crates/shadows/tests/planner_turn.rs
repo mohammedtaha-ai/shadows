@@ -82,7 +82,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
         ..ctx
     };
     let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
         .await
         .unwrap()
         .id;

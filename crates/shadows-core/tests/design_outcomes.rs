@@ -89,7 +89,7 @@ async fn draft(
 ) -> (shadows_core::DraftStarted, shadows_core::ThreadId) {
     let thread = core
         .threads()
-        .create(format!("thread-{n}"), p, n, None)
+        .create(format!("thread-{n}"), p, n, None, None)
         .await
         .unwrap()
         .id;

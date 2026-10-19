@@ -39,6 +39,8 @@ impl CreatedTitle {
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct PlanningThread {
+    #[schema(value_type = Option<String>, required)]
+    pub profile: Option<String>,
     pub id: ThreadId,
     pub project_id: ProjectId,
     pub title: String,
@@ -61,6 +63,7 @@ pub struct PlanningThread {
 /// client that could name a turn's directory could run it anywhere.
 #[derive(Debug, Clone)]
 pub struct TurnContext {
+    pub profile: Option<String>,
     /// The owning project's directory. `None` for a project created before
     /// projects owned one — see `Project::directory`.
     pub project_directory: Option<PathBuf>,

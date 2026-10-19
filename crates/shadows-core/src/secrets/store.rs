@@ -85,6 +85,9 @@ pub(super) async fn set(
                     return serde_json::from_str(&outcome)
                         .map_err(|_| StorageError::Unavailable("invalid secret outcome".into()));
                 }
+                if let Some(provider) = profile.strip_prefix("provider/") {
+                    crate::profiles::require_provider_in(conn, provider).await?;
+                }
                 let ts = now();
                 upsert(conn, &profile, &name, sealed, &ts).await?;
                 let entry = EnvEntry {
@@ -180,4 +183,16 @@ pub(super) async fn import(
             })
         })
         .await
+}
+
+/// Remove one scope inside a caller's configuration deletion transaction.
+pub(crate) async fn remove_scope_in(
+    conn: &mut SqliteConnection,
+    scope: &str,
+) -> Result<(), StorageError> {
+    sqlx::query("DELETE FROM secret_env WHERE profile = ?")
+        .bind(scope)
+        .execute(conn)
+        .await?;
+    Ok(())
 }

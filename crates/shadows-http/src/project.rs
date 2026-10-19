@@ -142,6 +142,7 @@ pub(super) async fn create_thread(
                 &project_id,
                 &body.title,
                 body.harness.as_deref(),
+                None,
             )
             .await?,
     ))

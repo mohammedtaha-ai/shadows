@@ -207,6 +207,7 @@ async fn a_second_conversation_carries_the_plan_on() {
             &l.app.project,
             "B",
             "claude-code",
+            None,
         )
         .await
         .unwrap()

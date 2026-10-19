@@ -87,9 +87,9 @@ impl Storage {
                     "INSERT INTO planning_thread
                        (id, project_id, title, title_source, status, next_entry_ordinal,
                         harness_kind, forked_from_thread, forked_from_entry, fork_session_id,
-                        created_at)
+                        created_at, profile)
                      VALUES (?,?,?, (SELECT title_source FROM planning_thread WHERE id = ?),
-                             'Open', ?, ?, ?, ?, ?, ?)",
+                             'Open', ?, ?, ?, ?, ?, ?, ?)",
                 )
                 .bind(id.as_str())
                 .bind(original.project_id.as_str())
@@ -101,6 +101,7 @@ impl Storage {
                 .bind(at.as_str())
                 .bind(&session)
                 .bind(&ts)
+                .bind(&original.profile)
                 .execute(&mut *conn)
                 .await?;
                 append_event(

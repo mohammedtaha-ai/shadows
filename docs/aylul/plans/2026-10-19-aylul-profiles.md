@@ -149,7 +149,7 @@ Amended after a Codex review of this plan on 2026-10-19.
   - `create_agent`, `update_agent` and `delete_agent`. `create_agent` seeds the home before inserting, and seeding writes only absent files, so a replay is safe. `delete_agent` soft-deletes and removes the agent's variables.
   - `assistant_project() -> ProjectId`
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - `provider_slug_rules` (non-Latin name, 40-char name, collision suffixes)
   - `invalid_provider_input_is_refused`, covering:
     - no models, 21 models, a duplicate, a space, and the id `default`
@@ -169,10 +169,10 @@ Amended after a Codex review of this plan on 2026-10-19.
   - `legacy_aylul_threads_map_to_aylul`
   - `threads_list_by_profile_only`
   - `replay_with_other_input_conflicts`
-- [ ] **Step 2:** Run `cargo test -p shadows-core --test aylul_profiles`. Expected: FAIL.
-- [ ] **Step 3:** Implement. The contract lists the methods and their rules.
-- [ ] **Step 4:** Run the same tests, plus `cargo test -p shadows-core --test storage_contract`, `cargo test -p shadows --test codemap`, `cargo test -p shadows-core --test contracts` and `cargo test -p shadows-mcp`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat(core): AYLUL providers and agents; threads carry their agent`.
+- [x] **Step 2:** Run `cargo test -p shadows-core --test aylul_profiles`. Expected: FAIL.
+- [x] **Step 3:** Implement. The contract lists the methods and their rules.
+- [x] **Step 4:** Run the same tests, plus `cargo test -p shadows-core --test storage_contract`, `cargo test -p shadows --test codemap`, `cargo test -p shadows-core --test contracts` and `cargo test -p shadows-mcp`. Expected: PASS.
+- [x] **Step 5:** Commit `feat(core): AYLUL providers and agents; threads carry their agent`.
 
 ### Task 2: Opening by agent, model allowlist, `aylul.json` shrinks
 

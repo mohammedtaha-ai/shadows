@@ -177,7 +177,7 @@ async fn turn_without_key_is_aylul_key_missing() {
     let t = w
         .core
         .threads()
-        .create("t".into(), &p.id, "talk", Some("aylul"))
+        .create("t".into(), &p.id, "talk", Some("aylul"), None)
         .await
         .unwrap();
     let body = json!({"command_id":"turn", "prompt":"hi", "model":"fake-large",

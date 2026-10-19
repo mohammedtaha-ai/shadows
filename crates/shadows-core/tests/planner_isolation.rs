@@ -52,7 +52,7 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
     };
     runtime
         .storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
         .await
         .unwrap()
         .id
