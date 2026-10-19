@@ -3,35 +3,28 @@
 use std::{
     collections::HashMap,
     io,
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering},
-    },
+    sync::{Arc, atomic::AtomicU64},
     time::Duration,
 };
 
-use shadows_process::{self as process, ProcessHandle};
+use shadows_process::ProcessHandle;
 use tokio::{
     sync::{Mutex, broadcast, mpsc},
     time::Instant,
 };
 use tracing::Instrument;
 
-use super::assistant::{AylulConfig, Opening};
-use super::commands::{Commands, keep_commands};
-use super::offers::{Offers, intercept};
+use super::assistant::AylulConfig;
+use super::commands::Commands;
+use super::live::{Live, LiveMap, Slot};
+use super::offers::Offers;
 use super::setup::Setups;
-use super::titles::keep_titles;
 use crate::{
     db::{Storage, StorageError},
     threads::ThreadId,
 };
 use shadows_agent::{
-    acp::{Connection, SessionStart},
-    choices::Offered,
-    claude::ClaudeAdapter,
-    events::HarnessEvent,
-    policy,
+    acp::Connection, choices::Offered, claude::ClaudeAdapter, events::HarnessEvent,
 };
 
 #[derive(Debug, Clone)]
@@ -99,8 +92,8 @@ pub enum LeaseError {
 pub struct OpenSession {
     pub session_id: String,
     pub how: &'static str,
-    connection: Connection,
-    generation: u64,
+    pub(super) connection: Connection,
+    pub(super) generation: u64,
 }
 
 impl OpenSession {
@@ -109,31 +102,14 @@ impl OpenSession {
     }
 }
 
-pub(super) struct Live {
-    pub(super) handle: ProcessHandle,
-    pub(super) opened: OpenSession,
-    /// `None` while a turn (or a `/context` read) has taken them.
-    pub(super) events: Option<mpsc::UnboundedReceiver<HarnessEvent>>,
-    last_used: Instant,
-    /// Whether a Planner turn has answered in this adapter: before one has,
-    /// `/context` can stall a fresh session for tens of seconds (§12.8).
-    pub(super) answered: bool,
-}
-
-/// One thread's place in `Sessions`: empty until an adapter opens, and while
-/// one is replaced. Its own lock is held through an opening, a close or a
-/// stop; the map's lock only while a slot is found or added (§16.6). A slot
-/// is never removed, so two callers can never hold two slots for one thread.
-type Slot = Arc<Mutex<Option<Live>>>;
-
 pub struct Sessions {
     pub(super) adapter: Arc<ClaudeAdapter>,
-    storage: Arc<Storage>,
+    pub(super) storage: Arc<Storage>,
     pub(super) config: SessionsConfig,
-    pub(super) live: Mutex<HashMap<ThreadId, Slot>>,
+    pub(super) live: LiveMap,
     pub(super) offers: Arc<Offers>,
     pub(super) commands: Arc<Commands>,
-    generations: AtomicU64,
+    pub(super) generations: AtomicU64,
     pub(super) setups: Setups,
 }
 
@@ -174,7 +150,7 @@ impl Sessions {
 
     /// Drops what a closed or failed session left: its offer, its `/` list
     /// and its grant.
-    async fn forget(&self, thread: &ThreadId) {
+    pub(super) async fn forget(&self, thread: &ThreadId) {
         self.offers.forget(thread);
         self.commands.forget(thread);
         self.setups.forget(thread).await;
@@ -184,91 +160,6 @@ impl Sessions {
         self.open_live(thread)
             .instrument(tracing::info_span!("sessions.open", thread_id = %thread))
             .await
-    }
-
-    async fn open_live(&self, thread: &ThreadId) -> Result<OpenSession, OpenError> {
-        let slot = self.slot(thread).await;
-        let mut live = slot.lock().await;
-        // Deletion commits before Stop/close. Even a cached adapter cannot
-        // make a removed thread available to a new opening in that interval.
-        let context = self.storage.turn_context(thread).await?;
-        if let Some(current) = live.as_mut() {
-            if !current.handle.has_exited() && !current.opened.connection.is_closed() {
-                current.last_used = Instant::now();
-                return Ok(current.opened.clone());
-            }
-            stop_handle(&mut current.handle)
-                .await
-                .map_err(|e| OpenError::Start(format!("could not close dead adapter: {e}")))?;
-            *live = None;
-            self.forget(thread).await;
-        }
-        // A fork's first opening forks the source's session (§12.9); once
-        // the fork's first turn has recorded its own, it resumes that.
-        let (how, start) = match (
-            context.harness_session_id.clone(),
-            context.fork_session_id.clone(),
-        ) {
-            (Some(id), _) => ("resume", SessionStart::Resume(id)),
-            (None, Some(source)) => ("fork", SessionStart::Fork(source)),
-            (None, None) => ("new", SessionStart::New),
-        };
-        let default_mode = policy::default_mode(&context.harness).ok_or_else(|| {
-            OpenError::Start(format!("no mode policy for harness {}", context.harness))
-        })?;
-        let remembered = self.storage.remembered(&context.harness).await?;
-        let Opening { cwd, setup, spec } = self.opening(thread, &context).await?;
-        let mut handle = match process::spawn(spec) {
-            Ok(handle) => handle,
-            Err(error) => {
-                self.setups.forget(thread).await;
-                return Err(OpenError::Start(error.to_string()));
-            }
-        };
-        let (tx, rx) = mpsc::unbounded_channel();
-        let events = intercept(self.offers.clone(), thread.clone(), tx);
-        let events = keep_titles(self.storage.clone(), thread.clone(), events);
-        let events = keep_commands(self.commands.clone(), thread.clone(), events);
-        let setup = tokio::time::timeout(self.config.setup_wait, async {
-            let connection = Connection::open(&mut handle, events)
-                .await
-                .map_err(|e| e.to_string())?;
-            let session = connection
-                .start_session(&cwd, start, &setup)
-                .await
-                .map_err(|e| e.to_string())?;
-            let opened = OpenSession {
-                session_id: session.session_id,
-                how,
-                connection,
-                generation: self.generations.fetch_add(1, Ordering::Relaxed),
-            };
-            let offered = self.offers.record(thread, &session.options)?;
-            self.apply_opening_settings(thread, &opened, offered, default_mode, remembered)
-                .await
-                .map_err(|e| e.to_string())?;
-            Ok::<_, String>(opened)
-        })
-        .await
-        .unwrap_or_else(|_| Err("harness setup timed out".into()));
-        let opened = match setup {
-            Ok(opened) => opened,
-            Err(error) => {
-                self.forget(thread).await;
-                if let Err(cleanup) = stop_handle(&mut handle).await {
-                    tracing::error!(%cleanup, "sessions.failed_open_cleanup");
-                }
-                return Err(OpenError::Start(error));
-            }
-        };
-        *live = Some(Live {
-            handle,
-            opened: opened.clone(),
-            events: Some(rx),
-            last_used: Instant::now(),
-            answered: false,
-        });
-        Ok(opened)
     }
 
     /// The thread's slot, added empty when it has none. The map's lock is
@@ -477,7 +368,7 @@ impl Sessions {
     }
 }
 
-async fn stop_handle(handle: &mut ProcessHandle) -> io::Result<()> {
+pub(super) async fn stop_handle(handle: &mut ProcessHandle) -> io::Result<()> {
     if !handle.has_exited() {
         handle.terminate_tree()?;
     }

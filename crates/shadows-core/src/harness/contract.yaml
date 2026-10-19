@@ -770,3 +770,4 @@ tests:
 # From<OpenError> preserves Env's AylulKeyMissing/SecretUnreadable/SecretsUnavailable codes.
 # Evidence: stored_key_reaches_the_adapter, replaced_value_reaches_a_new_adapter,
 # removed_key_is_aylul_key_missing, unreadable_row_is_secret_unreadable.
+# live.rs owns adapter opening and cache slot types; sessions.rs owns session leases.

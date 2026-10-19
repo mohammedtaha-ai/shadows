@@ -17,6 +17,7 @@
 mod assistant;
 mod commands;
 mod context;
+mod live;
 mod model;
 mod offers;
 pub(crate) mod profile_home;
