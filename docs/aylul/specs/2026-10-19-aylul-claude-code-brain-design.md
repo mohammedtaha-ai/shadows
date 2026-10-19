@@ -122,6 +122,15 @@ its limit, AYLUL keeps working on its own provider and key.
   section as `--aylul-config <file>`; `shadows daemon` takes it as the `aylul`
   key of its planner configuration. Both read the same section shape and run
   the same seeding and project setup. Without it, neither shows AYLUL.
+- **The profile's environment comes from an env file today, from the UI later**
+  (Mohammed, 2026-10-19). The section names an `env_file` (dotenv; today
+  `E:\Globalprojects\shadows\.env`, git-ignored) that the product reads at each
+  AYLUL spawn: every pair goes into the session's environment, and `key_env`
+  names the pair that becomes `ANTHROPIC_AUTH_TOKEN`. No Windows variable is
+  needed. **Next slice, decided:** these variables are added and edited from the
+  Shadows UI, like Claude Code desktop's environment settings, and stored
+  **encrypted in the Shadows database** under the planned `secrets` owner; the
+  env file then becomes an import path, not the store.
 - **AYLUL's remembered model and effort are kept apart from the Planner's.**
   Choosing a model in AYLUL never changes the Planner's remembered defaults.
 - **The picker shows what the adapter offers.** The profile names the real
