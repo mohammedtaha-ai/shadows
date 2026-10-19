@@ -96,9 +96,14 @@ impl Threads {
         if harness == policy::AYLUL && profile.is_none() {
             return Err(CoreError::AylulProfileNotFound("agent required".into()));
         }
-        let params = serde_json::json!({
-            "project": project, "title": title, "harness": harness, "profile":profile,
+        let mut params = serde_json::json!({
+            "project": project, "title": title, "harness": harness,
         });
+        // Only an agent's thread names one, so a Planner thread's fingerprint
+        // stays what it was before agents existed.
+        if let Some(profile) = profile {
+            params["profile"] = profile.into();
+        }
         let c = user_command(command_id, "thread.create", params);
         Ok(self
             .storage
