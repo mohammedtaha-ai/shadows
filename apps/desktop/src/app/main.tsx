@@ -39,7 +39,7 @@ function Shell() {
   }
   React.useEffect(()=>{if(!once.current){once.current=true;void act('status');}},[]);
   return <>
-    <WorkspaceShell page={page} onNavigate={setPage} list={list} onList={setList}
+    <WorkspaceShell page={page} onNavigate={setPage} list={list} onList={setList} auth={auth}
       chat={<AssistantPage auth={busy?null:auth} />}
       bots={<p className="workspace-note">Additional bots are not available yet.</p>}
       activity={<><h1>Activity</h1><SessionsPanel state={aylul.state} refresh={aylul.refresh} /><ApprovalsPanel state={aylul.state} refresh={aylul.refresh} /></>}

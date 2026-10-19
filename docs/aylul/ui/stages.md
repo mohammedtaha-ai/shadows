@@ -44,7 +44,7 @@ Character design/renderer and native companion lifetime keep their separate owne
 - Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace.spec.ts tests/companion/shell.spec.ts` passes; task committed.
 
 ### U-W1b · Match the workspace shell to the approved mockup
-- Status: todo
+- Status: done
 - Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-1---ship-the-workspace-shell-with-working-account-chat (same behaviour; this task changes only the shell's look and placement)
 - Read: docs/aylul/ui/specs/2026-10-19-agent-workspace-mockup/agent-workspace-desktop.png and agent-workspace-settings.png (the target), agent-workspace.html (exact colours, sizes, spacing: copy its values); workspace design §3; apps/desktop/src/app/contract.yaml.
 - Touch: apps/desktop/src/app/{WorkspaceShell.tsx,AccountPanel.tsx,workspace.css,shell.css,main.tsx,contract.yaml}; apps/desktop/tests/companion/{workspace.spec.ts,shell.spec.ts}; docs/aylul/ui/stages.md.
