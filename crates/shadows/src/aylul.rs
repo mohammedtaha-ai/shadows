@@ -32,6 +32,9 @@ pub struct AylulSection {
     model: String,
     #[serde(default)]
     env: BTreeMap<String, String>,
+    /// A dotenv file (absolute) read at each AYLUL spawn.
+    #[serde(default)]
+    env_file: Option<PathBuf>,
 }
 
 /// Creates the home and writes the two profile files that are absent; a file
@@ -71,6 +74,9 @@ pub fn prepare(section: Option<AylulSection>) -> io::Result<Option<AylulConfig>>
     if !section.home_root.is_absolute() {
         return Err(io::Error::other("aylul home_root must be absolute"));
     }
+    if section.env_file.as_ref().is_some_and(|p| !p.is_absolute()) {
+        return Err(io::Error::other("aylul env_file must be absolute"));
+    }
     let home = section.home_root.join("profiles").join("aylul");
     seed_profile(&home)?;
     let mut env: Vec<(String, String)> = vec![("ANTHROPIC_BASE_URL".into(), section.base_url)];
@@ -90,6 +96,7 @@ pub fn prepare(section: Option<AylulSection>) -> io::Result<Option<AylulConfig>>
             home,
             key_env: section.key_env,
             env,
+            env_file: section.env_file,
         },
         project_slug: PROJECT_SLUG.into(),
     }))
@@ -138,6 +145,17 @@ mod tests {
         )
         .unwrap();
         assert!(load(&file).is_err());
+    }
+
+    #[test]
+    fn a_section_with_a_relative_env_file_is_refused() {
+        let tmp = tempfile::tempdir().unwrap();
+        let section: AylulSection = serde_json::from_value(serde_json::json!({
+            "home_root": tmp.path(), "key_env": "K", "base_url": "u", "model": "m",
+            "env_file": "relative/.env",
+        }))
+        .unwrap();
+        assert!(prepare(Some(section)).is_err());
     }
 
     #[test]

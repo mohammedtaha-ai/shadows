@@ -22,6 +22,7 @@ fn config(home: &Path, key_env: &str) -> AylulConfig {
             home: home.to_path_buf(),
             key_env: key_env.into(),
             env: vec![("ANTHROPIC_MODEL".into(), "MiniMax-M3".into())],
+            env_file: None,
         },
         project_slug: "aylul".into(),
     }
