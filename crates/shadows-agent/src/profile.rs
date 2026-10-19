@@ -231,7 +231,10 @@ mod tests {
     fn env_file_cannot_override_home_or_token() {
         let path = temp_env(
             "override",
-            "CLAUDE_CONFIG_DIR=C:/elsewhere\nANTHROPIC_AUTH_TOKEN=evil\nANTHROPIC_API_KEY=x\nMK=good\n",
+            concat!(
+                "CLAUDE_CONFIG_DIR=C:/elsewhere\n",
+                "ANTHROPIC_AUTH_TOKEN=evil\nANTHROPIC_API_KEY=x\nMK=good\n",
+            ),
         );
         let env = with_file(path, "MK").spawn_env().unwrap();
         assert_eq!(

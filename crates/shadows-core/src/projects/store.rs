@@ -130,7 +130,8 @@ impl Storage {
         self.write_txn(move |conn| {
             Box::pin(async move {
                 let id: Option<String> = sqlx::query_scalar(
-                    "SELECT id FROM project                      WHERE slug = ? AND assistant = 1 AND removed_at IS NOT NULL",
+                    "SELECT id FROM project \
+                     WHERE slug = ? AND assistant = 1 AND removed_at IS NOT NULL",
                 )
                 .bind(&slug)
                 .fetch_optional(&mut *conn)
