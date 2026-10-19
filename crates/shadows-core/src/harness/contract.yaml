@@ -7,7 +7,7 @@
 #
 # `change_model`'s and `change_effort`'s order is the rule (§14.9), held in
 # one place, `open_idle`: the thread's harness is checked with
-# `policy::is_available`, then `thread_is_busy`, before `Sessions::open`
+# `Sessions::harness_available` (`policy::is_available_with`; `aylul` only with a profile), then `thread_is_busy`, before `Sessions::open`
 # touches anything; the value is then set under the session's lease
 # (`Sessions::change_model` / `change_effort` take the events the way a turn
 # does and give them back whatever the outcome), so a turn that took the
@@ -61,7 +61,7 @@ shapes:
   HarnessInfo:
     # `claude-code` or `codex` (`policy::KNOWN`, in that order).
     kind: String
-    # "Claude Code", "Codex", or "Unknown" (`label`).
+    # "Claude Code", "Codex", "AYLUL", or "Unknown" (`label`).
     label: String
     available: bool
     # "Coming later" exactly when `available` is false.
@@ -282,6 +282,12 @@ functions:
       # other event goes on to `next`. The adapter sends its title after the
       # turn answered, when no turn reads the events (§12.3).
   for_tests:
+  - name: aylul_turn_starts_when_configured
+    checks: tests/aylul_session.rs - a send on an aylul thread reaches the adapter through Turns::send.
+  - name: aylul_is_unavailable_without_a_profile
+    checks: tests/aylul_session.rs - no profile gives HarnessUnavailable and available=false, Coming later.
+  - name: harness_list_names_aylul
+    checks: tests/aylul_session.rs - with a profile the list has aylul, labelled AYLUL, available.
     # Behind `test-support`, reached through `shadows_core::testing`.
     take_events:
       signature: "(&self, thread: &ThreadId) -> Option<UnboundedReceiver<HarnessEvent>>"
@@ -367,7 +373,7 @@ obligations:
       - send_now_steers_the_running_turn_after_its_streamed_text
   - rule: >
       Harness availability. `open_session` and `change_model` check
-      `policy::is_available` on the thread's harness before any session work:
+      `Sessions::harness_available` (`policy::is_available_with`; `aylul` only with a profile) on the thread's harness before any session work:
       an unavailable one is HarnessUnavailable and no adapter is opened.
     tested_by:
       - change_model_on_an_unavailable_harness_opens_no_session
@@ -555,7 +561,7 @@ agreements:
     holds: true
     why: >
       Both call `Storage::thread_is_busy` (`has_open_operation` on a read
-      connection) after `policy::is_available` and before `Sessions::open`,
+      connection) after `Sessions::harness_available` (`policy::is_available_with`; `aylul` only with a profile) and before `Sessions::open`,
       and both change the session only while holding `lease_events`, mapping
       its Busy to ThreadBusy.
     tested_by:
@@ -568,7 +574,7 @@ agreements:
   - between: [open_session, change_model]
     must: judge a harness's availability identically
     holds: true
-    why: Both call `policy::is_available` on `turn_context`'s harness, first.
+    why: Both call `Sessions::harness_available` (`policy::is_available_with`; `aylul` only with a profile) on `turn_context`'s harness, first.
     tested_by:
       - a_codex_thread_cannot_open_a_session
       - change_model_on_an_unavailable_harness_opens_no_session
@@ -599,6 +605,12 @@ not_the_caller's:
 
 
 tests:
+  - name: aylul_turn_starts_when_configured
+    checks: tests/aylul_session.rs - a send on an aylul thread reaches the adapter through Turns::send.
+  - name: aylul_is_unavailable_without_a_profile
+    checks: tests/aylul_session.rs - no profile gives HarnessUnavailable and available=false, Coming later.
+  - name: harness_list_names_aylul
+    checks: tests/aylul_session.rs - with a profile the list has aylul, labelled AYLUL, available.
   - name: aylul_open_spawns_with_profile_env_and_home_cwd
     checks: tests/aylul_session.rs - profile home as cwd and CLAUDE_CONFIG_DIR, token present, only the user settings source, no append/MCP, one prompt block.
   - name: aylul_open_without_key_refuses_before_spawn

@@ -11,6 +11,7 @@ use shadows_agent::policy;
 use shadows_agent::profile::ClaudeProfile;
 use shadows_core::testing::{LiveHandles, Runtime, Sessions, SessionsConfig, Storage, acp, turn};
 use shadows_core::{AppCore, AylulConfig, CoreParts, OpenError, ThreadEntryKind, ThreadId};
+use shadows_core::{CoreError, SendTurn};
 
 /// `PATH` is a variable every process has, so the key resolves without
 /// `set_var`; `key_env` names a variable nothing sets for the missing case.
@@ -202,4 +203,103 @@ async fn aylul_harness_only_in_the_aylul_project() {
             .await
             .is_err()
     );
+}
+
+fn send(prompt: &str) -> SendTurn {
+    SendTurn {
+        command_id: "send-1".into(),
+        prompt: prompt.into(),
+        model: "fake-large".into(),
+        mode: "acceptEdits".into(),
+        effort: Some("high".into()),
+        focus: None,
+        plan: None,
+        client_tab: None,
+    }
+}
+
+#[tokio::test]
+async fn aylul_turn_starts_when_configured() {
+    let w = world("PATH").await;
+    let op = w
+        .core
+        .turns()
+        .send(w.thread.clone(), send("report"))
+        .await
+        .unwrap();
+    for _ in 0..200 {
+        if w.storage
+            .get_operation(&op)
+            .await
+            .unwrap()
+            .finished_at
+            .is_some()
+        {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    let entries = w.storage.list_thread_entries(&w.thread).await.unwrap();
+    let reply = entries
+        .iter()
+        .find(|e| e.kind == ThreadEntryKind::AgentMessage)
+        .expect("the adapter got a prompt and answered");
+    let report: Value = serde_json::from_str(&reply.body).unwrap();
+    assert_eq!(
+        report["options"]["settingSources"],
+        serde_json::json!(["user"])
+    );
+}
+
+#[tokio::test]
+async fn aylul_is_unavailable_without_a_profile() {
+    // The thread exists from an earlier run with a profile; this daemon has none.
+    let with = world("PATH").await;
+    let w = World {
+        core: AppCore::assemble(CoreParts {
+            storage: with.storage.clone(),
+            runtime: with.runtime.clone(),
+            sessions: Sessions::new(
+                acp::fake_adapter(),
+                with.storage.clone(),
+                acp::test_config(),
+            ),
+            handles: with.handles.clone(),
+            bus: tokio::sync::broadcast::channel(16).0,
+            ui: tokio::sync::broadcast::channel(16).0,
+            mcp_url: acp::MCP_URL.into(),
+        }),
+        ..with
+    };
+    let error = w
+        .core
+        .turns()
+        .send(w.thread.clone(), send("hi"))
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(error, CoreError::HarnessUnavailable(_)),
+        "{error:?}"
+    );
+    let aylul = aylul_entry(&w).await;
+    assert_eq!(aylul["available"], false);
+    assert_eq!(aylul["reason"], "Coming later");
+}
+
+#[tokio::test]
+async fn harness_list_names_aylul() {
+    let w = world("PATH").await;
+    let aylul = aylul_entry(&w).await;
+    assert_eq!(aylul["label"], "AYLUL");
+    assert_eq!(aylul["available"], true);
+}
+
+async fn aylul_entry(w: &World) -> Value {
+    let list = serde_json::to_value(w.core.harness().list().await.unwrap()).unwrap();
+    list.as_array()
+        .unwrap()
+        .iter()
+        .find(|h| h["kind"] == "aylul")
+        .unwrap()
+        .clone()
 }

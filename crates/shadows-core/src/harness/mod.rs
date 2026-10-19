@@ -69,7 +69,7 @@ impl Harness {
     pub async fn list(&self) -> Result<Vec<HarnessInfo>, CoreError> {
         let mut list = Vec::new();
         for kind in policy::KNOWN {
-            let available = policy::is_available(kind);
+            let available = self.sessions.harness_available(kind);
             let remembered = self
                 .storage
                 .remembered_settings(kind)
@@ -91,7 +91,7 @@ impl Harness {
     /// offers. Idempotent: an open session answers what it holds.
     pub async fn open_session(&self, thread: &ThreadId) -> Result<SessionChoices, CoreError> {
         let context = self.storage.turn_context(thread).await?;
-        if !policy::is_available(&context.harness) {
+        if !self.sessions.harness_available(&context.harness) {
             return Err(CoreError::HarnessUnavailable(context.harness));
         }
         self.sessions.open(thread).await?;
@@ -148,7 +148,7 @@ impl Harness {
     /// Answers the harness kind and the open session.
     async fn open_idle(&self, thread: &ThreadId) -> Result<(String, OpenSession), CoreError> {
         let context = self.storage.turn_context(thread).await?;
-        if !policy::is_available(&context.harness) {
+        if !self.sessions.harness_available(&context.harness) {
             return Err(CoreError::HarnessUnavailable(context.harness));
         }
         if self.storage.thread_is_busy(thread).await? {

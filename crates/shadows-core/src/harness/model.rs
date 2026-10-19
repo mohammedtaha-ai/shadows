@@ -36,6 +36,7 @@ pub(super) fn label(kind: &str) -> &'static str {
     match kind {
         policy::CLAUDE_CODE => "Claude Code",
         policy::CODEX => "Codex",
+        policy::AYLUL => "AYLUL",
         _ => "Unknown",
     }
 }

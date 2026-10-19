@@ -34,7 +34,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use shadows_agent::TurnSettings;
-use shadows_agent::policy;
 
 pub use handles::LiveHandles;
 pub use model::{
@@ -273,7 +272,7 @@ impl Turns {
             ),
             None => None,
         };
-        if !policy::is_available(&context.harness) {
+        if !self.sessions.harness_available(&context.harness) {
             return Err(CoreError::HarnessUnavailable(context.harness));
         }
         // Checked before the session is touched: setting a model below would

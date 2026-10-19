@@ -580,7 +580,7 @@ obligations:
       - a_turn_requested_after_shutdown_began_is_refused
 
   - rule: >
-      Harness availability. `policy::is_available` is checked on the thread's
+      Harness availability. `Sessions::harness_available` is checked on the thread's
       harness before any session work: an unavailable one is
       HarnessUnavailable and no adapter is opened.
     tested_by:
