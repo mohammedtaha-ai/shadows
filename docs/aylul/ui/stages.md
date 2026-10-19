@@ -58,7 +58,7 @@ Character design/renderer and native companion lifetime keep their separate owne
 - Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace.spec.ts tests/companion/shell.spec.ts` passes; the report lists every visible difference from agent-workspace-desktop.png that remains in the shell; task committed.
 
 ### U-W1c · Shell icons and spacing polish
-- Status: todo
+- Status: done
 - Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-1---ship-the-workspace-shell-with-working-account-chat (look only; no behaviour change)
 - Read: docs/aylul/ui/specs/2026-10-19-agent-workspace-mockup/agent-workspace-desktop.png (target) and agent-workspace.html (it names each Lucide icon with `data-lucide="<name>"`); apps/desktop/src/app/contract.yaml; docs/aylul/codebase/README.md (app rows).
 - Touch: apps/desktop/src/app/{icons.tsx (new),WorkspaceShell.tsx,workspace.css,contract.yaml}; apps/desktop/tests/companion/workspace.spec.ts; docs/aylul/codebase/README.md; docs/aylul/ui/stages.md.

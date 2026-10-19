@@ -1,4 +1,5 @@
 import React from 'react';
+import {MarkIcon,ChatsIcon,BotIcon,SearchIcon,ActivityIcon,JobsIcon,SettingsIcon,PanelLeftIcon} from './icons';
 import type {AuthView} from '../platform/auth';
 export type WorkspacePage='chat'|'activity'|'settings';
 export type SidebarList='chats'|'bots';
@@ -11,8 +12,8 @@ export function WorkspaceShell({page,onNavigate,list,onList,auth,chat,bots,activ
   const esc=(e:React.KeyboardEvent)=>{if(e.key==='Escape')setDrawer(false);};
   return <div className="workspace">
     <header className="workspace-top">
-      <button type="button" className="workspace-drawer-button" aria-expanded={drawer} aria-controls="workspace-list" onClick={()=>setDrawer(open=>!open)} onKeyDown={esc}>{drawer?'Close list':'Chats and bots'}</button>
-      <span className="workspace-mark" aria-hidden="true">✦</span>
+      <button type="button" className="workspace-drawer-button" aria-expanded={drawer} aria-controls="workspace-list" onClick={()=>setDrawer(open=>!open)} onKeyDown={esc}><PanelLeftIcon/>{drawer?'Close list':'Chats and bots'}</button>
+      <span className="workspace-mark" aria-hidden="true"><MarkIcon/></span>
       <span className="workspace-wordmark">AYLUL</span>
       <span className="workspace-subtitle">/ personal workspace</span>
       <div className="workspace-presence" role="group" aria-label="AYLUL presence">{presence}
@@ -21,18 +22,18 @@ export function WorkspaceShell({page,onNavigate,list,onList,auth,chat,bots,activ
     <div className="workspace-frame">
       <aside id="workspace-list" className="workspace-side" data-open={drawer} onKeyDown={esc}>
         <div className="workspace-tabs" role="group" aria-label="List">
-          <button type="button" aria-pressed={page==='chat'&&list==='chats'} onClick={()=>{onList('chats');go('chat');}}>Chats</button>
-          <button type="button" aria-pressed={list==='bots'} disabled onClick={()=>onList('bots')}>Bots</button>
+          <button type="button" aria-pressed={page==='chat'&&list==='chats'} onClick={()=>{onList('chats');go('chat');}}><ChatsIcon/>Chats</button>
+          <button type="button" aria-pressed={list==='bots'} disabled onClick={()=>onList('bots')}><BotIcon/>Bots</button>
         </div>
-        <input type="search" className="workspace-search" placeholder="Search" aria-label="Search" disabled />
+        <label className="workspace-search"><SearchIcon/><input type="search" placeholder="Search" aria-label="Search" disabled /></label>
         <div className="workspace-listarea">
           <div hidden={list!=='chats'}><p className="workspace-note">Switch conversations from the chat panel.</p></div>
           <div hidden={list!=='bots'}>{bots}</div>
         </div>
         <nav aria-label="Workspace" className="workspace-bottom">
-          <button type="button" aria-current={page==='activity'?'page':undefined} onClick={()=>go('activity')}>Activity</button>
-          <button type="button" disabled title="Not available yet">Scheduled jobs<small>Not available yet</small></button>
-          <button type="button" aria-current={page==='settings'?'page':undefined} onClick={()=>go('settings')}>Settings</button>
+          <button type="button" aria-current={page==='activity'?'page':undefined} onClick={()=>go('activity')}><ActivityIcon/>Activity</button>
+          <button type="button" disabled title="Not available yet"><JobsIcon/><span className="workspace-nav-text">Scheduled jobs<small>Not available yet</small></span></button>
+          <button type="button" aria-current={page==='settings'?'page':undefined} onClick={()=>go('settings')}><SettingsIcon/>Settings</button>
         </nav>
         <div className="workspace-account">{person
           ?<><span className="workspace-initial" aria-hidden="true">{person.accountId.slice(0,1).toUpperCase()}</span><span className="workspace-who"><strong>{person.accountId}</strong><small>Personal workspace</small></span></>

@@ -49,3 +49,13 @@ for (const width of [390, 1280]) {
     await expect(page.getByRole("heading", { name: "Chat with AYLUL" })).toBeVisible();
   });
 }
+
+test("workspace_wide_shell_keeps_jobs_and_presence_on_one_line_1248", async ({ page }) => {
+  await page.setViewportSize({ width: 1248, height: 948 });
+  await page.goto(url);
+  const jobs = page.getByRole("navigation", { name: "Workspace" }).getByRole("button", { name: /Scheduled jobs/ });
+  expect(await jobs.evaluate((e) => e.getBoundingClientRect().height)).toBeLessThan(44);
+  const top = await page.locator(".workspace-presence").evaluate((e) => e.getBoundingClientRect().height);
+  expect(top).toBeLessThan(36);
+  await page.screenshot({ path: process.env.SHOT ?? "test-results/u-w1c.png" });
+});
