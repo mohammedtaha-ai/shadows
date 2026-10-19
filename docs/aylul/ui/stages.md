@@ -57,12 +57,26 @@ Character design/renderer and native companion lifetime keep their separate owne
   - Keep every U-W1 behaviour: pages stay mounted, the drawer at 390px opens and closes by mouse and keyboard, no horizontal overflow at 390px and 1280px. Update tests only where a label or position moved.
 - Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace.spec.ts tests/companion/shell.spec.ts` passes; the report lists every visible difference from agent-workspace-desktop.png that remains in the shell; task committed.
 
+### U-W1c · Shell icons and spacing polish
+- Status: todo
+- Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-1---ship-the-workspace-shell-with-working-account-chat (look only; no behaviour change)
+- Read: docs/aylul/ui/specs/2026-10-19-agent-workspace-mockup/agent-workspace-desktop.png (target) and agent-workspace.html (it names each Lucide icon with `data-lucide="<name>"`); apps/desktop/src/app/contract.yaml; docs/aylul/codebase/README.md (app rows).
+- Touch: apps/desktop/src/app/{icons.tsx (new),WorkspaceShell.tsx,workspace.css,contract.yaml}; apps/desktop/tests/companion/workspace.spec.ts; docs/aylul/codebase/README.md; docs/aylul/ui/stages.md.
+- Needs: U-W1b
+- Scope:
+  - `icons.tsx` holds the shell's icons as small inline SVG components, with the path data of the Lucide icons the mockup names (Lucide is ISC-licensed; say so in a one-line comment). No new npm dependency.
+  - Icons as in the mockup: the AYLUL mark, Chats (`messages-square`), Bots (`bot`), the search box's magnifier (`search`), Activity (`activity`), Scheduled jobs (`calendar-clock`), Settings (`settings-2`), and the drawer button (`panel-left`). Use the names the HTML actually has where they differ from these. Icons are `aria-hidden`; accessible names stay as today.
+  - "Scheduled jobs" stays on one line at 1248px; "Not available yet" goes under it or becomes its tooltip/title, not a squeezed column.
+  - Top bar right side: presence text and buttons on one row, aligned and spaced like the mockup's top bar (small, muted, no wrapping at 1248px).
+  - The selected list/nav item gets the mockup's left accent bar.
+- Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace.spec.ts tests/companion/shell.spec.ts` passes; a 1248x948 screenshot of the Chat page is compared with agent-workspace-desktop.png and the report lists what still differs in the shell; task committed.
+
 ### U-W2 · Shared live conversation navigation
 - Status: todo
 - Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-2---put-real-conversations-in-the-workspace-sidebar
 - Read: Task 2 interfaces; workspace design §3 and §5; docs/aylul/ui/specs/2026-10-19-agent-workspace-mockup/ (visual reference: agent-workspace-desktop.png, agent-workspace-settings.png); app/assistant/platform contracts.
 - Touch: apps/desktop/src/features/assistant/{useAssistantConversation.ts,ConversationSidebar.tsx,ConversationView.tsx,AssistantPage.tsx,assistant.css,contract.yaml}; apps/desktop/src/app/{main.tsx,WorkspaceShell.tsx,workspace.css,contract.yaml}; apps/desktop/tests/companion/{workspace-conversations.spec.ts,fixture.tsx}; apps/desktop/tests/{assistant-fixture.tsx,assistant-state.mjs}; docs/aylul/codebase/README.md; docs/aylul/ui/stages.md.
-- Needs: U-W1b
+- Needs: U-W1c
 - Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace-conversations.spec.ts tests/companion/workspace.spec.ts` and `node tests/assistant-state.mjs` pass; task committed.
 - Also: U-W1 left two checks weak because its fixture is signed out. With a signed-in assistant fixture, `workspace_routes_account_to_settings_and_preserves_chat_draft` must type a draft and find it after Settings -> Chat, and `workspace_narrow_layout_preserves_navigation_and_composer_390` must assert the composer is visible.
 
