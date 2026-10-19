@@ -86,7 +86,13 @@ Character design/renderer and native companion lifetime keep their separate owne
 - Read: Task 3; workspace design §3, §5 (OPEN - Effective model readback); docs/aylul/ui/specs/2026-10-19-agent-workspace-mockup/ (visual reference: agent-workspace-desktop.png, agent-workspace-settings.png); character and app/assistant contracts; source settings inventory.
 - Touch: apps/desktop/src/app/{SettingsPanel.tsx,main.tsx,WorkspaceShell.tsx,workspace.css,contract.yaml}; apps/desktop/src/features/assistant/{AssistantDetails.tsx,BotList.tsx,ConversationView.tsx,assistant.css,contract.yaml}; apps/desktop/tests/companion/{workspace.spec.ts,workspace-conversations.spec.ts,production.test.ts}; docs/aylul/codebase/README.md; docs/aylul/ui/stages.md.
 - Needs: U-W2
-- Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace.spec.ts tests/companion/workspace-conversations.spec.ts && npm run test:companion:production` passes; task committed.
+- Also (found in U-W2's screenshot, design §3 and the mockup):
+  - The composer is pinned to the bottom of the chat area; only the message history scrolls. Today it sits right under the last message.
+  - Conversation header as in the mockup: bot mark, "AYLUL", its role line, and a small truthful connection indicator, not a "Connected" paragraph.
+  - Messages as in the mockup: the person's message is a right-aligned bubble; AYLUL's reply is plain text under a small "AYLUL" label, not a full-width card. Arabic keeps automatic direction.
+  - Composer as in the mockup: one rounded box with the textarea, a model chip reading "Model: managed by the account backend" (design §5 OPEN), and a round send icon button.
+  - Sidebar Pin/Unpin becomes a small icon button (`pin`), with the same accessible name.
+- Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace.spec.ts tests/companion/workspace-conversations.spec.ts && npm run test:companion:production` passes; a 1248x948 screenshot of `/tests/companion/fixture.html?shell&signedIn` is compared with agent-workspace-desktop.png and the report lists what still differs; task committed.
 
 ### U-W4 · Batch gate and native journey
 - Status: todo
