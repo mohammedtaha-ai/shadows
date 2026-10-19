@@ -61,6 +61,9 @@ enum Commands {
             default_values = config::DEFAULT_ALLOWED_ORIGINS,
         )]
         allow_origin: Vec<String>,
+        /// JSON file with AYLUL's section (home_root, key_env, base_url, model).
+        #[arg(long, value_parser = parse_harness)]
+        aylul_config: Option<PathBuf>,
     },
 }
 
@@ -102,6 +105,7 @@ impl Cli {
                 adapter,
                 debug,
                 allow_origin,
+                aylul_config,
             } => {
                 let data_dir = config::data_dir(&db);
                 // Held until serve returns, so the file log is flushed.
@@ -114,6 +118,7 @@ impl Cli {
                     harness_path: harness,
                     debug_log: log.as_ref().map(|l| l.path().to_path_buf()),
                     allowed_origins: allow_origin,
+                    aylul_config,
                 })
                 .await
             }
@@ -124,6 +129,42 @@ impl Cli {
 #[cfg(test)]
 mod tests {
     use super::*;
+    const DIR: &str = env!("CARGO_MANIFEST_DIR");
+    const SERVE: [&str; 8] = [
+        "shadows",
+        "serve",
+        "--harness",
+        DIR,
+        "--node",
+        DIR,
+        "--adapter",
+        DIR,
+    ];
+
+    #[test]
+    fn serve_accepts_an_aylul_config_path() {
+        let cli = Cli::try_parse_from(SERVE.iter().chain(&["--aylul-config", DIR])).unwrap();
+        assert!(matches!(
+            cli.command,
+            Commands::Serve {
+                aylul_config: Some(_),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn serve_without_the_flag_still_parses() {
+        let cli = Cli::try_parse_from(SERVE).unwrap();
+        assert!(matches!(
+            cli.command,
+            Commands::Serve {
+                aylul_config: None,
+                ..
+            }
+        ));
+    }
+
     #[test]
     fn product_daemon_does_not_require_planner_configuration() {
         let result = Cli::try_parse_from([

@@ -20,6 +20,8 @@ pub struct Config {
     /// each built through [`allowed_origin`]. Every client is on another
     /// origin — the daemon serves no page of its own.
     pub allowed_origins: Vec<String>,
+    /// A JSON `AylulSection` file; without it `serve` has no AYLUL.
+    pub aylul_config: Option<PathBuf>,
 }
 
 /// Vite's dev server, under both names a browser may use for it. What

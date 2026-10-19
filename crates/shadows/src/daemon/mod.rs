@@ -1,5 +1,4 @@
 //! Compose optional planning beside the independently owned Node assistant.
-mod aylul;
 pub mod bridge;
 mod descriptor;
 pub mod http;
@@ -27,7 +26,7 @@ struct PlannerConfig {
     harness_path: PathBuf,
     allowed_origins: Vec<String>,
     #[serde(default)]
-    aylul: Option<aylul::AylulSection>,
+    aylul: Option<crate::aylul::AylulSection>,
 }
 
 pub async fn serve(config: Config) -> anyhow::Result<()> {
@@ -72,7 +71,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
             .iter()
             .map(|origin| crate::config::allowed_origin(origin))
             .collect::<Result<Vec<_>, _>>()?;
-        let aylul = aylul::prepare(planner.aylul)?;
+        let aylul = crate::aylul::prepare(planner.aylul)?;
         let core = AppCore::start(
             &StartConfig {
                 db_path: planner.db_path,
@@ -84,11 +83,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
             format!("http://{address}/mcp"),
         )
         .await?;
-        if let Some(aylul) = &aylul {
-            core.projects()
-                .ensure_assistant(&aylul.project_slug, "AYLUL", &aylul.profile.home)
-                .await?;
-        }
+        crate::aylul::ensure_project(&core, aylul.as_ref()).await?;
         router = router.merge(crate::cli::router(shadows_http::AppState {
             core: core.clone(),
             allowed_origins: origins,

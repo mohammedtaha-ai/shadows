@@ -6,10 +6,10 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
-use shadows_core::{AylulConfig, ClaudeProfile};
+use shadows_core::{AppCore, AylulConfig, ClaudeProfile};
 
-const PERSONA: &str = include_str!("../../assets/aylul-profile/CLAUDE.md");
-const SETTINGS: &str = include_str!("../../assets/aylul-profile/settings.json");
+const PERSONA: &str = include_str!("../assets/aylul-profile/CLAUDE.md");
+const SETTINGS: &str = include_str!("../assets/aylul-profile/settings.json");
 
 /// The project AYLUL's conversations live in.
 pub const PROJECT_SLUG: &str = "aylul";
@@ -43,6 +43,21 @@ pub fn seed_profile(home: &Path) -> io::Result<()> {
         if !path.exists() {
             std::fs::write(path, text)?;
         }
+    }
+    Ok(())
+}
+
+/// Reads a section file; an unknown field is refused.
+pub fn load(path: &Path) -> anyhow::Result<AylulSection> {
+    Ok(serde_json::from_slice(&std::fs::read(path)?)?)
+}
+
+/// Creates AYLUL's project once the core is up; nothing without a profile.
+pub async fn ensure_project(core: &AppCore, config: Option<&AylulConfig>) -> anyhow::Result<()> {
+    if let Some(config) = config {
+        core.projects()
+            .ensure_assistant(&config.project_slug, "AYLUL", &config.profile.home)
+            .await?;
     }
     Ok(())
 }
@@ -111,6 +126,18 @@ mod tests {
             "mine"
         );
         assert!(tmp.path().join("settings.json").exists());
+    }
+
+    #[test]
+    fn a_section_file_with_an_unknown_field_is_refused() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file = tmp.path().join("a.json");
+        std::fs::write(
+            &file,
+            r#"{"home_root":"/x","key_env":"K","base_url":"u","model":"m","key":"s"}"#,
+        )
+        .unwrap();
+        assert!(load(&file).is_err());
     }
 
     #[test]

@@ -19,14 +19,19 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
     let addr = listener.local_addr()?;
     let mcp_url = format!("http://{addr}/mcp");
+    let aylul = match &config.aylul_config {
+        Some(path) => crate::aylul::prepare(Some(crate::aylul::load(path)?))?,
+        None => None,
+    };
     let start = StartConfig {
         db_path: config.db_path.clone(),
         node_path: config.node_path.clone(),
         adapter_path: config.adapter_path.clone(),
         harness_path: config.harness_path.clone(),
-        aylul: None,
+        aylul: aylul.clone(),
     };
     let core = AppCore::start(&start, mcp_url).await?;
+    crate::aylul::ensure_project(&core, aylul.as_ref()).await?;
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {
         core: core.clone(),
