@@ -1,8 +1,9 @@
 # Agent workspace: bots, conversations and selected-bot presence
 
-Date: 2026-10-19. Status: proposed design for human review; no product implementation
-is authorized by this document alone. The human requested the experience below
-and selected one visible desktop character for the selected bot.
+Date: 2026-10-19. Status: design and interactive Chat-first mockup approved by the
+human, who requested task-by-task execution. The first written UI task breakdown
+is prepared for review before product implementation. The human selected one
+visible desktop character for the selected bot.
 
 ## 1. Intended result
 
@@ -132,9 +133,10 @@ must retain account ownership, revision and runtime capability checks.
 | Advanced diagnostics and files | Explicit advanced view | Bounded authorized capability, no raw home exposure |
 
 This inventory preserves the requested breadth; it is not a claim of complete
-setting-by-setting parity. Before the implementation plan, inventory the installed
-Hermes settings manifest and live configuration schema into supported, deferred
-or platform-specific rows, including plugin-provided settings. A page whose operation is not
+setting-by-setting parity. The [source inventory](2026-10-19-hermes-settings-inventory.md)
+maps the inspected manifest/categories for the first workspace UI plan. Before
+enabled schema/plugin configuration, inventory the isolated live configuration
+schema into supported, deferred or platform-specific rows. A page whose operation is not
 implemented must say so and disable its action; it must not submit to a guessed
 Hermes route. Staging the delivery does not silently remove these capabilities.
 
