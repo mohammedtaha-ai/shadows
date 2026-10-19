@@ -43,6 +43,13 @@ and attributes policy). No ignored dependencies, credentials, data or art were
 copied. Keep the source checkout/history until native acceptance and separately
 accounted art/data permit retirement; new development belongs to Shadows.
 
+**Link repair, 2026-10-19:** relative links in nine imported files under
+`docs/aylul/history/` and `docs/evidence/nylra/` were rewritten for their new
+locations, and one code line the import had misread as a link
+(`handlers['hooks.preview']({})` in the hook-laptop plan) was restored. Those files'
+bytes now differ from the manifest's `destination_sha256`; Git history holds both.
+Links to the never-tracked asset packs name the local NYLRA archive instead.
+
 Use one action per item: **retain**, **amend in place**, **move unchanged**,
 **supersede/archive**, or **delete after review**. An item being superseded does
 not mean its evidence or tested implementation is invalid.

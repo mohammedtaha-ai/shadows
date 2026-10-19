@@ -53,7 +53,7 @@ the listener, bounds in-flight HTTP and attempts to revoke an already issued ses
   Clippy initially found an existing fixed-chunk warning in the tray-icon loop,
   corrected without changing its pixels.
 - Sibling Docker root suite passed 42/42. Its rebuilt persistent Compose journey
-  passed. See [backend evidence](../../../shadows-backend/docs/evidence/2026-10-11-joint-native-auth.md).
+  passed. See [backend evidence](../../../../shadows-backend/docs/evidence/2026-10-11-joint-native-auth.md).
 
 Commands from NYLRA root:
 

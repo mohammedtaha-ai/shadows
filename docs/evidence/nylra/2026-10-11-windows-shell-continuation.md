@@ -18,7 +18,7 @@ AYLUL design sheet. No push, deployment, AWS, phone or N2 conversation work.
 | Linux backend identity | shadows-backend | Independently owned B0/B1 evidence, not re-run here |
 | Joint real login | Both | PENDING published owner wire contract, fixtures and runnable backend, then actual integrated login |
 
-The [updated plan](../superpowers/plans/2026-10-10-nylra-initial-plan.md) separates
+The [updated plan](../../aylul/history/plans/2026-10-10-nylra-initial-plan.md) separates
 N1a main-shell/local native plumbing from N1b animated companion prerequisites.
 It does not accept failed assets or silently close the aggregate N0 gate.
 
@@ -147,7 +147,7 @@ a one-pixel monitor sliver; hardware-removal acceptance remains pending.
 
 There is no product companion, notification background show, conversation, provider
 SDK or Shadows connector. The synthetic app icon is not AYLUL artwork. Behavior
-owners and colocated source contracts are mapped in [the code map](../codebase/README.md).
+owners and colocated source contracts are mapped in [the code map](../../aylul/codebase/README.md).
 
 Actual Release shell at **96 DPI** passed owned tray icon left-click at (1606,836),
 restoring visible foreground; ten close/hide/shortcut cycles; keyboard Tab+Space

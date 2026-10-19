@@ -57,6 +57,6 @@ Claude Code hooks, launched no app against personal settings and uploaded no
 local history. The backend checkout was not changed.
 
 The local hook/store/sidecar now form the integrated baseline for the
-[relay planning discussion](../native/specs/2026-10-17-laptop-relay-planning-brief.md).
+[relay planning discussion](../../aylul/native/specs/2026-10-17-laptop-relay-planning-brief.md).
 Generated cloud-artifact consumption, durable outgoing checkpoints and native
 credential handoff are still to be designed and implemented together.

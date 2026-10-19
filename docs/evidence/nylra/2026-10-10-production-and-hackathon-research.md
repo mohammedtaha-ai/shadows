@@ -2,7 +2,7 @@
 
 Date: 2026-10-10. Research only; no deployed integration, entry or eligibility
 approval is claimed. Production is the user's independent product feature.
-Its owner is [Shadows §17.12](../../../shadows/docs/superpowers/specs/2026-10-01-task-contracts-and-evidence-design.md#1712-production-operations-extension).
+Its owner is [Shadows §17.12](../../superpowers/specs/2026-10-01-task-contracts-and-evidence-design.md#1712-production-operations-extension).
 This record does not change that design or the full delivery roadmap.
 
 ## Sources and verification

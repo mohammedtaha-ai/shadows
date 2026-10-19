@@ -77,7 +77,7 @@ Concrete continuation status:
 - [ ] Complete full system-browser/app UI login, restart, cancellation and logout acceptance with browser trust configured correctly. See joint native evidence; automated form-driver acceptance alone does not close this gate.
 - [ ] Accept assets/motion and implement N1b; complete unavailable mixed-DPI/removal and 200% cases when hardware/settings permit.
 
-[Backend plan](../../../../shadows-backend/docs/superpowers/plans/2026-10-10-backend-initial-plan.md)
+[Backend plan](../../../../../shadows-backend/docs/backend/specs/2026-10-10-backend-foundations.md)
 owns J1 wire artifacts and names J0-J3. N0/B0 can proceed independently. N1 is a
 local shell; N2 waits for J1/B3 and real Shadows context for J2 acceptance. N3 waits
 for B4 and actual Shadows §24.6 enforcement before J3 acceptance. Never hide that

@@ -14,7 +14,7 @@ remaining six expressions instead of immediate Windows product integration.
 
 ## Three approved sources
 
-Copied without pixel changes into [canonical pack](../../assets/aylul/states/v1/manifest.json):
+Copied without pixel changes into canonical pack `assets/aylul/states/v1/manifest.json` (now in the local, untracked [NYLRA archive](../../../assets/aylul/README.md)):
 idle-v3-clean -> idle.png, listening-v5-clean -> listening.png, blocked-v4-clean ->
 blocked.png. Their approved hashes remain identical to the previously inspected
 source images. Appearance approval accepts the displayed lighting/glow variation;
@@ -24,7 +24,7 @@ reference. No approved drawing was regenerated or overwritten.
 
 ## Six prepared candidates
 
-[Candidate pack](../../assets/aylul/candidates/2026-10-11/manifest.json) contains:
+Candidate pack `assets/aylul/candidates/2026-10-11/manifest.json` (local [NYLRA archive](../../../assets/aylul/README.md)) contains:
 
 | Expression | Selected source | Visual distinction |
 | --- | --- | --- |

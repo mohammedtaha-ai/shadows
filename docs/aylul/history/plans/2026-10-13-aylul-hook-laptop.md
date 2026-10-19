@@ -2457,7 +2457,7 @@ function setup(withExe = true) {
 test('state reports hooks not installed, then installed after hooks.install', async () => {
   const { handlers, home } = setup();
   assert.equal((await handlers.state({}) as { hooksInstalled: boolean }).hooksInstalled, false);
-  const preview = await handlers['hooks.preview'](../../../../../nylra/docs/superpowers/plans/{}) as { path: string; lines: string[]; before: string };
+  const preview = await handlers['hooks.preview']({}) as { path: string; lines: string[]; before: string };
   assert.equal(preview.path, join(home, '.claude', 'settings.json'));
   assert.ok(preview.lines.some(l => l.includes('aylul-hook.exe')));
   await handlers['hooks.install']({ before: preview.before });

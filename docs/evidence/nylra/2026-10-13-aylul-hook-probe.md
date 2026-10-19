@@ -5,8 +5,8 @@ deleted in the next commit; this file keeps its findings. Raw event logs stayed
 local because they hold session ids and local paths.
 
 Two questions for step 2(a) of the
-[first release](../superpowers/specs/2026-10-10-nylra-delivery-design.md#first-release-and-who-builds-it):
-what `aylul-hook` is written in (OPEN in [source structure](../source-structure.md)),
+[first release](../../aylul/specs/2026-10-10-nylra-delivery-design.md#first-release-and-who-builds-it):
+what `aylul-hook` is written in (OPEN in [source structure](../../aylul/source-structure.md)),
 and how Claude Code behaves while a `PermissionRequest` hook waits for a decision
 from AYLUL or the phone.
 
