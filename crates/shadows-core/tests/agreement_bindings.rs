@@ -16,6 +16,7 @@ async fn binding_storage_checks_agreed_party_and_exact_operations_atomically() {
     let (tmp, storage) = cross_plan::fixture().await;
     let storage = Arc::new(storage);
     let core = AppCore::assemble(CoreParts {
+        secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime: Arc::new(Runtime::start(storage.clone()).await.unwrap().0),
         sessions: acp::fake_sessions(storage.clone()),

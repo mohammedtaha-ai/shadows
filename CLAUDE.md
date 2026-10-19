@@ -80,11 +80,11 @@ Dependencies point one way, and Cargo refuses a cycle. An adapter depends on
 `shadows-core` only; a `shadows-agent` type it serializes, such as
 `SessionChoices`, is re-exported by `shadows-core`. `fake-acp` is the test
 adapter binary; no product crate links it. `shadows-index` depends on no
-Shadows crate (spec §15.2). Inside `shadows-core`, `AppCore` holds ten
+Shadows crate (spec §15.2). Inside `shadows-core`, `AppCore` holds eleven
 services, one folder each: `projects`, `threads`, `turns`, `harness`, `plans`,
-`grants`, `instructions`, `events`, `code`, `design` (spec §14.4). Planned,
+`grants`, `instructions`, `events`, `code`, `design`, `secrets` (spec §14.4). Planned,
 and not created until their first user exists: the `scheduler`, `execution`
-and `verification` services, and `secrets`.
+and `verification` services.
 
 ### Single-ownership rules
 
@@ -97,7 +97,7 @@ and `verification` services, and `secrets`.
 | `shadows-agent` | The AI subprocess harness (the ACP `Connection`) |
 | `shadows-index` | tree-sitter: a file's text in, its tags out, knowing nothing of SQLite or projects (spec §15.3) |
 | `shadows-process` | `tokio::process` / `process-wrap` (private to this crate) |
-| `secrets` (planned) | Secret value resolution (config holds refs only) |
+| `secrets` | Encrypted profile environment resolution inside `shadows-core` (config holds refs only) |
 
 ### Persistence (spike outcome)
 
@@ -121,7 +121,13 @@ and `verification` services, and `secrets`.
   5. `cargo tree -e features,no-dev --workspace | grep test-support` prints nothing
   6. `git diff --exit-code api/`: `api/openapi.json` changes only with a route
 - CI's format-overflow check is owned by [structure hygiene §1.2](./docs/superpowers/specs/2026-10-04-structure-hygiene-design.md#12-what-is-decided).
-- **Library-first:** no custom ORM, no custom migration engine. Use Rust ecosystem crates.
+- **Library-first for infrastructure only:** no custom ORM, no custom migration engine,
+  no hand-written crypto. Security and infrastructure use established crates (SQLx, axum,
+  tokio, aes-gcm, hkdf, hmac, keyring).
+- **Product logic is ours.** Parsing, validation, domain rules and small helpers are
+  written in this codebase, not pulled from a general-purpose crate (`parse_dotenv` is
+  ours, not `dotenvy`). A new dependency's commit names which of the two it is; a
+  general crate for product logic is refused in review.
 - **A file earns its size.** At **300 lines** a file stops being free: the change that
   pushes it over states, in its commit message or report, what that file's single
   responsibility is and why the new code shares it. At **500 lines** it splits. Split by

@@ -28,6 +28,7 @@ async fn app(tmp: &tempfile::TempDir) -> (Router, tokio::sync::watch::Sender<boo
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            secrets: shadows_core::testing::secrets(storage.clone(), None),
             sessions: acp::fake_sessions(storage.clone()),
             storage,
             runtime: Arc::new(runtime),

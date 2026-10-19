@@ -71,9 +71,18 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
             .iter()
             .map(|origin| crate::config::allowed_origin(origin))
             .collect::<Result<Vec<_>, _>>()?;
-        let aylul = crate::aylul::prepare(planner.aylul)?;
+        let prepared = crate::aylul::prepare(planner.aylul)?;
+        let (aylul, import_path) = prepared.map(|(c, p)| (Some(c), p)).unwrap_or_default();
+        let secret_key = aylul.as_ref().and_then(|_| {
+            crate::master_key::load_or_create()
+                .map_err(|error| {
+                    tracing::warn!(%error, "secrets.master_key_unavailable");
+                })
+                .ok()
+        });
         let core = AppCore::start(
             &StartConfig {
+                secret_key,
                 db_path: planner.db_path,
                 node_path: planner.node_path,
                 adapter_path: planner.adapter_path,
@@ -84,6 +93,9 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         )
         .await?;
         crate::aylul::ensure_project(&core, aylul.as_ref()).await?;
+        if let (Some(config), Some(path)) = (aylul.as_ref(), import_path.as_ref()) {
+            crate::aylul::import_env(&core, config, path).await;
+        }
         router = router.merge(crate::cli::router(shadows_http::AppState {
             core: core.clone(),
             allowed_origins: origins,

@@ -12,6 +12,7 @@ mod instructions;
 mod plans;
 mod projects;
 mod runtime;
+mod secrets;
 #[cfg(feature = "test-support")]
 pub mod testing;
 mod threads;
@@ -64,6 +65,7 @@ pub use projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
 };
 pub use runtime::{RuntimeInstanceId, StopKind};
+pub use secrets::{EnvEntry, ImportReport, SecretKey, Secrets, validate_env_name};
 pub use threads::{
     EntryRef, PlanningThread, ThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, Threads,
 };

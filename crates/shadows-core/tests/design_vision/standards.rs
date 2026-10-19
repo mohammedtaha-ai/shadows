@@ -8,6 +8,7 @@ pub(super) async fn core_and_project(tmp: &tempfile::TempDir) -> (Arc<AppCore>, 
     );
     let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
     let core = AppCore::assemble(CoreParts {
+        secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime,
         sessions: acp::fake_sessions(storage.clone()),

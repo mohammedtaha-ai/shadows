@@ -10,7 +10,7 @@ use serde_json::Value;
 use shadows_agent::policy;
 use shadows_agent::profile::ClaudeProfile;
 use shadows_core::testing::{LiveHandles, Runtime, Sessions, SessionsConfig, Storage, acp, turn};
-use shadows_core::{AppCore, AylulConfig, CoreParts, OpenError, ThreadEntryKind, ThreadId};
+use shadows_core::{AppCore, AylulConfig, CoreParts, ThreadEntryKind, ThreadId};
 use shadows_core::{CoreError, SendTurn};
 
 /// `PATH` is a variable every process has, so the key resolves without
@@ -22,7 +22,6 @@ fn config(home: &Path, key_env: &str) -> AylulConfig {
             home: home.to_path_buf(),
             key_env: key_env.into(),
             env: vec![("ANTHROPIC_MODEL".into(), "MiniMax-M3".into())],
-            env_file: None,
         },
         project_slug: "aylul".into(),
     }
@@ -39,22 +38,178 @@ struct World {
     thread: ThreadId,
 }
 
+async fn env_matches(w: &World, thread: &ThreadId, prompt: &str) -> bool {
+    let op = turn::start_direct(
+        &w.runtime,
+        &w.handles,
+        &w.sessions,
+        &tokio::sync::broadcast::channel(16).0,
+        thread,
+        prompt,
+    )
+    .await
+    .unwrap();
+    for _ in 0..200 {
+        if w.storage
+            .get_operation(&op)
+            .await
+            .unwrap()
+            .finished_at
+            .is_some()
+        {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    let entries = w.storage.list_thread_entries(thread).await.unwrap();
+    let body = &entries
+        .iter()
+        .rev()
+        .find(|e| e.kind == ThreadEntryKind::AgentMessage)
+        .expect("boolean adapter reply")
+        .body;
+    serde_json::from_str::<bool>(body).expect("adapter returns a boolean only")
+}
+
+#[tokio::test]
+async fn stored_key_reaches_the_adapter() {
+    let w = world("AYLUL_TEST_STORED_KEY").await;
+    w.core
+        .secrets()
+        .set_env(
+            "s1".into(),
+            "aylul",
+            "AYLUL_TEST_STORED_KEY",
+            "synthetic-stored-one",
+        )
+        .await
+        .unwrap();
+    assert!(
+        env_matches(&w, &w.thread, "check-env-one").await,
+        "stored key reaches child"
+    );
+}
+
+#[tokio::test]
+async fn replaced_value_reaches_a_new_adapter() {
+    let w = world("AYLUL_TEST_STORED_KEY").await;
+    w.core
+        .secrets()
+        .set_env(
+            "s1".into(),
+            "aylul",
+            "AYLUL_TEST_STORED_KEY",
+            "synthetic-stored-one",
+        )
+        .await
+        .unwrap();
+    assert!(
+        env_matches(&w, &w.thread, "check-env-one").await,
+        "first adapter"
+    );
+    w.core
+        .secrets()
+        .set_env(
+            "s2".into(),
+            "aylul",
+            "AYLUL_TEST_STORED_KEY",
+            "synthetic-stored-two",
+        )
+        .await
+        .unwrap();
+    // A live adapter keeps its starting environment.
+    assert!(
+        env_matches(&w, &w.thread, "check-env-one").await,
+        "existing adapter unchanged"
+    );
+    let project = w.storage.turn_context(&w.thread).await.unwrap().project_id;
+    let next = w
+        .core
+        .threads()
+        .create("next".into(), &project, "next", Some(policy::AYLUL))
+        .await
+        .unwrap();
+    assert!(
+        env_matches(&w, &next.id, "check-env-two").await,
+        "new adapter uses replacement"
+    );
+}
+
+#[tokio::test]
+async fn removed_key_is_aylul_key_missing() {
+    let w = world("AYLUL_TEST_STORED_KEY").await;
+    w.core
+        .secrets()
+        .set_env(
+            "s1".into(),
+            "aylul",
+            "AYLUL_TEST_STORED_KEY",
+            "synthetic-stored-one",
+        )
+        .await
+        .unwrap();
+    w.core
+        .secrets()
+        .remove_env("s2".into(), "aylul", "AYLUL_TEST_STORED_KEY")
+        .await
+        .unwrap();
+    let error = w
+        .core
+        .turns()
+        .send(w.thread.clone(), send("hi"))
+        .await
+        .expect_err("refused");
+    assert!(matches!(error, CoreError::AylulKeyMissing(name) if name == "AYLUL_TEST_STORED_KEY"));
+}
+
+#[tokio::test]
+async fn unreadable_row_is_secret_unreadable() {
+    let w = world("AYLUL_TEST_STORED_KEY").await;
+    w.core
+        .secrets()
+        .set_env(
+            "s1".into(),
+            "aylul",
+            "AYLUL_TEST_STORED_KEY",
+            "synthetic-stored-one",
+        )
+        .await
+        .unwrap();
+    sqlx::query("UPDATE secret_env SET nonce = X'00'")
+        .execute(w.storage.reader())
+        .await
+        .unwrap();
+    let error = w
+        .core
+        .turns()
+        .send(w.thread.clone(), send("hi"))
+        .await
+        .expect_err("refused");
+    assert!(matches!(error, CoreError::SecretUnreadable(name) if name == "AYLUL_TEST_STORED_KEY"));
+}
+
 async fn world(key_env: &str) -> World {
     let tmp = tempfile::tempdir().unwrap();
     let home = tmp.path().join("home");
     std::fs::create_dir(&home).unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let secrets = shadows_core::testing::secrets(
+        storage.clone(),
+        Some(shadows_core::SecretKey::from_bytes([7; 32])),
+    );
     let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
     let sessions = Sessions::new(
         acp::fake_adapter(),
         storage.clone(),
         SessionsConfig {
+            secrets: Some(secrets.clone()),
             aylul: Some(config(&home, key_env)),
             ..acp::test_config()
         },
     );
     let handles = Arc::new(LiveHandles::default());
     let core = AppCore::assemble(CoreParts {
+        secrets,
         storage: storage.clone(),
         runtime: runtime.clone(),
         sessions: sessions.clone(),
@@ -143,11 +298,14 @@ async fn aylul_open_spawns_with_profile_env_and_home_cwd() {
 #[tokio::test]
 async fn aylul_open_without_key_refuses_before_spawn() {
     let w = world("AYLUL_TEST_KEY_NEVER_SET_7f3").await;
-    let error = w.sessions.open(&w.thread).await.err().expect("refused");
-    match error {
-        OpenError::Start(text) => assert!(text.contains("AYLUL_TEST_KEY_NEVER_SET_7f3"), "{text}"),
-        other => panic!("expected Start, got {other:?}"),
-    }
+    let error = match w.sessions.open(&w.thread).await {
+        Err(error) => error,
+        Ok(_) => panic!("opening without a key must be refused"),
+    };
+    assert!(matches!(
+        CoreError::from(error),
+        CoreError::AylulKeyMissing(_)
+    ));
 }
 
 #[tokio::test]
@@ -272,6 +430,7 @@ async fn aylul_is_unavailable_without_a_profile() {
     let with = world("PATH").await;
     let w = World {
         core: AppCore::assemble(CoreParts {
+            secrets: shadows_core::testing::secrets(with.storage.clone(), None),
             storage: with.storage.clone(),
             runtime: with.runtime.clone(),
             sessions: Sessions::new(

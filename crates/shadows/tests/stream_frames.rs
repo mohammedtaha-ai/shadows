@@ -39,6 +39,7 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
     let (_stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            secrets: shadows_core::testing::secrets(storage.clone(), None),
             storage: storage.clone(),
             runtime: Arc::new(runtime),
             sessions: acp::fake_sessions(storage.clone()),

@@ -48,6 +48,7 @@ async fn fixture() -> Fixture {
     let sessions = acp::fake_sessions(storage.clone());
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            secrets: shadows_core::testing::secrets(storage.clone(), None),
             storage: storage.clone(),
             runtime: Arc::new(runtime),
             sessions: sessions.clone(),

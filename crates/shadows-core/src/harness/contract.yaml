@@ -105,6 +105,8 @@ shapes:
     # one `Arc` by `Harness` and `Turns`.
     config: SessionsConfig
   SessionsConfig:
+    secrets: Option<Arc<Secrets>>
+    aylul: Option<AylulConfig>
     # Defaults: 15 min, 10 s, 20 s, 5 s, None.
     idle_after: Duration
     cancel_wait: Duration
@@ -121,6 +123,7 @@ shapes:
     # so a turn that outlives its adapter never gives its events to, marks,
     # or terminates the adapter that replaced it.
   OpenError:
+    Env: CoreError
     Storage: StorageError
     # Includes "harness setup timed out" after `setup_wait`.
     Start: String
@@ -135,6 +138,9 @@ shapes:
 
 functions:
   service:
+    aylul_profile:
+      signature: "(&self) -> Result<&str, CoreError>"
+      # Configuration-only metadata; absence is AylulNotConfigured.
     list:
       signature: "(&self) -> Result<Vec<HarnessInfo>, CoreError>"
       # For each of `policy::KNOWN`: availability, `remembered_settings`,
@@ -144,7 +150,7 @@ functions:
       # turn_context (NotFound → 404 INVALID_COMMAND) → harness_available
       # (HarnessUnavailable) → Sessions::open (OpenError through
       # `From<OpenError>`: HarnessStartFailed, ProjectDirectoryUnusable,
-      # Storage) → the offer, or HarnessStartFailed "the session closed as it
+      # Storage, typed Env errors) → the offer, or HarnessStartFailed "the session closed as it
       # opened" → `choices`.
     change_model:
       signature: "(&self, thread: &ThreadId, model: &str) -> Result<SessionChoices, CoreError>"
@@ -235,8 +241,8 @@ functions:
       # setup and spawn spec. A Planner thread gets its project folder and
       # `for_opening`'s setup; an `aylul` thread the profile home, no
       # prompt/tools/MCP grant, `settingSources ["user"]`, and the profile's
-      # env. OpenError::Start names the key variable when it is unset, before
-      # any spawn, and says so when no profile is configured.
+      # env. OpenError::Env preserves AylulKeyMissing before
+      # any spawn, or AylulNotConfigured when no profile exists.
     harness_available:
       signature: "(&self, kind: &str) -> bool"
       # pub(crate), assistant.rs: `policy::is_available_with` with whether a
@@ -351,6 +357,10 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: AYLUL resolves encrypted pairs at each spawn; live adapters retain their starting environment.
+    tested_by: [stored_key_reaches_the_adapter, replaced_value_reaches_a_new_adapter]
+  - rule: Missing and unreadable stored keys keep their typed client errors before any spawn.
+    tested_by: [removed_key_is_aylul_key_missing, unreadable_row_is_secret_unreadable]
   - rule: Planner instructions describe whole first maps and person-approved waiver cards; no tool approves a map.
     tested_by: map_propose_before_a_complete_vision_answers_stage_blocked
   - rule: >
@@ -754,3 +764,9 @@ tests:
       With `mcp_url` set, a subscriber taken before POST session reads the
       thread's `McpGrantIssued` as its next durable frame, within the frame
       wait.
+
+# AYLUL environment resolution belongs to Secrets, not the adapter.
+# Opening decrypts the profile pairs at each spawn; live adapters keep their environment.
+# From<OpenError> preserves Env's AylulKeyMissing/SecretUnreadable/SecretsUnavailable codes.
+# Evidence: stored_key_reaches_the_adapter, replaced_value_reaches_a_new_adapter,
+# removed_key_is_aylul_key_missing, unreadable_row_is_secret_unreadable.

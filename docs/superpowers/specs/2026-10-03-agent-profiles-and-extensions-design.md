@@ -167,6 +167,10 @@ Acceptance must demonstrate:
 > resolver and per-project/per-profile configuration boundary. Prove that one
 > profile's provider, tools or hooks cannot leak into another profile's run.
 > This does not block a first profile using the existing CLI-owned login.
+> The secret resolver is chosen for AYLUL profiles in
+> [AYLUL brain §10](../../aylul/specs/2026-10-19-aylul-claude-code-brain-design.md):
+> AES-256-GCM rows in the database, keyed from the OS credential store. The
+> per-profile configuration boundary for Planner profiles stays open.
 
 §17.5 owns the open manager-authority/recovery prerequisite. Shared-folder
 concurrency remains outside §17.1 until its conflict design is proven. Profiles

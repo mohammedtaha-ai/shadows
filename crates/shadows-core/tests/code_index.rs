@@ -87,6 +87,7 @@ async fn core_over(storage: Arc<Storage>) -> Arc<AppCore> {
     });
     let (runtime, _) = Runtime::start(storage.clone()).await.unwrap();
     AppCore::assemble(CoreParts {
+        secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime: Arc::new(runtime),
         // No turn runs here, so the adapter is never started: no `fake-acp` build.

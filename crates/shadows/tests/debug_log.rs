@@ -204,6 +204,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (Daemon, tokio::sync::watch::Send
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {
         core: AppCore::assemble(CoreParts {
+            secrets: shadows_core::testing::secrets(storage.clone(), None),
             storage,
             runtime: runtime.clone(),
             sessions: sessions.clone(),

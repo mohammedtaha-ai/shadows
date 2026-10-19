@@ -398,6 +398,7 @@ impl Live {
         let (stopping, shutdown) = tokio::sync::watch::channel(false);
         let state = AppState {
             core: AppCore::assemble(CoreParts {
+                secrets: shadows_core::testing::secrets(storage.clone(), None),
                 sessions: acp::fake_sessions(storage.clone()),
                 storage,
                 runtime: runtime.clone(),

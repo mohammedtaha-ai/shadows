@@ -32,7 +32,7 @@ pub struct AylulSection {
     model: String,
     #[serde(default)]
     env: BTreeMap<String, String>,
-    /// A dotenv file (absolute) read at each AYLUL spawn.
+    /// A dotenv file (absolute) imported once at startup.
     #[serde(default)]
     env_file: Option<PathBuf>,
 }
@@ -65,9 +65,41 @@ pub async fn ensure_project(core: &AppCore, config: Option<&AylulConfig>) -> any
     Ok(())
 }
 
+/// Startup import errors are retryable and never expose source text or stop the daemon.
+pub async fn import_env(core: &AppCore, config: &AylulConfig, path: &Path) {
+    let profile = &config.profile.name;
+    match core.secrets().import_needed(profile).await {
+        Ok(false) => return,
+        Ok(true) => {}
+        Err(_) => {
+            tracing::warn!("secrets.import_unavailable");
+            return;
+        }
+    }
+    let text = match std::fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(error) => {
+            tracing::warn!(kind = ?error.kind(), "secrets.import_read_failed");
+            return;
+        }
+    };
+    match core
+        .secrets()
+        .import_env_once(profile, parse_dotenv(&text))
+        .await
+    {
+        Ok(Some(report)) => tracing::info!(stored = report.stored, skipped = ?report.skipped,
+            "secrets.imported"),
+        Ok(None) => {}
+        Err(_) => tracing::warn!("secrets.import_failed"),
+    }
+}
+
 /// Seeds the home and builds what the core runs it with; `None` without a
 /// section, so AYLUL is absent everywhere.
-pub fn prepare(section: Option<AylulSection>) -> io::Result<Option<AylulConfig>> {
+pub fn prepare(
+    section: Option<AylulSection>,
+) -> io::Result<Option<(AylulConfig, Option<PathBuf>)>> {
     let Some(section) = section else {
         return Ok(None);
     };
@@ -77,6 +109,7 @@ pub fn prepare(section: Option<AylulSection>) -> io::Result<Option<AylulConfig>>
     if section.env_file.as_ref().is_some_and(|p| !p.is_absolute()) {
         return Err(io::Error::other("aylul env_file must be absolute"));
     }
+    shadows_core::validate_env_name(&section.key_env).map_err(io::Error::other)?;
     let home = section.home_root.join("profiles").join("aylul");
     seed_profile(&home)?;
     let mut env: Vec<(String, String)> = vec![("ANTHROPIC_BASE_URL".into(), section.base_url)];
@@ -90,95 +123,42 @@ pub fn prepare(section: Option<AylulSection>) -> io::Result<Option<AylulConfig>>
     }
     env.extend(CONTEXT_WINDOW.map(|(k, v)| (k.to_string(), v.to_string())));
     env.extend(section.env);
-    Ok(Some(AylulConfig {
-        profile: ClaudeProfile {
-            name: "aylul".into(),
-            home,
-            key_env: section.key_env,
-            env,
-            env_file: section.env_file,
+    Ok(Some((
+        AylulConfig {
+            profile: ClaudeProfile {
+                name: "aylul".into(),
+                home,
+                key_env: section.key_env,
+                env,
+            },
+            project_slug: PROJECT_SLUG.into(),
         },
-        project_slug: PROJECT_SLUG.into(),
-    }))
+        section.env_file,
+    )))
+}
+
+fn parse_dotenv(text: &str) -> Vec<(String, String)> {
+    text.lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                return None;
+            }
+            let line = line.strip_prefix("export ").unwrap_or(line);
+            let (key, value) = line.split_once('=')?;
+            let value = value.trim();
+            let unquoted = ["\"", "'"]
+                .iter()
+                .find_map(|q| value.strip_prefix(q).and_then(|v| v.strip_suffix(q)));
+            Some((
+                key.trim().to_string(),
+                unquoted.unwrap_or(value).to_string(),
+            ))
+        })
+        .filter(|(key, _)| !key.is_empty())
+        .collect()
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn seeding_creates_both_files_in_an_empty_home() {
-        let tmp = tempfile::tempdir().unwrap();
-        let home = tmp.path().join("h");
-        seed_profile(&home).unwrap();
-        assert!(
-            std::fs::read_to_string(home.join("CLAUDE.md"))
-                .unwrap()
-                .contains("AYLUL")
-        );
-        assert!(
-            std::fs::read_to_string(home.join("settings.json"))
-                .unwrap()
-                .contains("permissions")
-        );
-    }
-
-    #[test]
-    fn seeding_keeps_existing_profile_files() {
-        let tmp = tempfile::tempdir().unwrap();
-        std::fs::write(tmp.path().join("CLAUDE.md"), "mine").unwrap();
-        seed_profile(tmp.path()).unwrap();
-        assert_eq!(
-            std::fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap(),
-            "mine"
-        );
-        assert!(tmp.path().join("settings.json").exists());
-    }
-
-    #[test]
-    fn a_section_file_with_an_unknown_field_is_refused() {
-        let tmp = tempfile::tempdir().unwrap();
-        let file = tmp.path().join("a.json");
-        std::fs::write(
-            &file,
-            r#"{"home_root":"/x","key_env":"K","base_url":"u","model":"m","key":"s"}"#,
-        )
-        .unwrap();
-        assert!(load(&file).is_err());
-    }
-
-    #[test]
-    fn a_section_with_a_relative_env_file_is_refused() {
-        let tmp = tempfile::tempdir().unwrap();
-        let section: AylulSection = serde_json::from_value(serde_json::json!({
-            "home_root": tmp.path(), "key_env": "K", "base_url": "u", "model": "m",
-            "env_file": "relative/.env",
-        }))
-        .unwrap();
-        assert!(prepare(Some(section)).is_err());
-    }
-
-    #[test]
-    fn no_aylul_config_means_no_aylul_project() {
-        assert!(prepare(None).unwrap().is_none());
-    }
-
-    #[test]
-    fn a_section_builds_the_profile_with_context_window_and_no_secret() {
-        let tmp = tempfile::tempdir().unwrap();
-        let section: AylulSection = serde_json::from_value(serde_json::json!({
-            "home_root": tmp.path(), "key_env": "MINIMAX_API_KEY",
-            "base_url": "https://api.minimax.io/anthropic", "model": "MiniMax-M3",
-        }))
-        .unwrap();
-        let config = prepare(Some(section)).unwrap().unwrap();
-        let env = &config.profile.env;
-        assert!(env.contains(&("ANTHROPIC_MODEL".into(), "MiniMax-M3".into())));
-        assert!(env.contains(&("CLAUDE_CODE_MAX_CONTEXT_TOKENS".into(), "1000000".into())));
-        assert_eq!(config.profile.key_env, "MINIMAX_API_KEY");
-        assert_eq!(
-            config.profile.home,
-            tmp.path().join("profiles").join("aylul")
-        );
-    }
-}
+#[path = "aylul_tests.rs"]
+mod tests;

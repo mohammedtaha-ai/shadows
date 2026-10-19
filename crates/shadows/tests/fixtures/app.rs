@@ -143,12 +143,24 @@ async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bo
         .await
         .unwrap()
         .id;
+    let secrets = shadows_core::testing::secrets(
+        storage.clone(),
+        config
+            .aylul
+            .as_ref()
+            .map(|_| shadows_core::SecretKey::from_bytes([7; 32])),
+    );
+    let config = SessionsConfig {
+        secrets: Some(secrets.clone()),
+        ..config
+    };
     let sessions = Sessions::new(acp::fake_adapter(), storage.clone(), config);
     let handles = Arc::new(LiveHandles::default());
     let (bus, _) = tokio::sync::broadcast::channel(256);
     let (ui, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let core = AppCore::assemble(CoreParts {
+        secrets,
         storage: storage.clone(),
         runtime: runtime.clone(),
         sessions: sessions.clone(),

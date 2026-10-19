@@ -23,6 +23,39 @@ impl From<CoreError> for Failure {
     /// `CoreError`, so no status, code or text moves.
     fn from(e: CoreError) -> Self {
         match e {
+            CoreError::SecretNameInvalid(_)
+            | CoreError::SecretValueInvalid(_)
+            | CoreError::SecretUnreadable(_)
+            | CoreError::SecretsUnavailable
+            | CoreError::AylulKeyMissing(_)
+            | CoreError::AylulNotConfigured => {
+                let (status, code) = match &e {
+                    CoreError::SecretNameInvalid(_) => {
+                        (StatusCode::BAD_REQUEST, ErrorCode::SecretNameInvalid)
+                    }
+                    CoreError::SecretValueInvalid(_) => {
+                        (StatusCode::BAD_REQUEST, ErrorCode::SecretValueInvalid)
+                    }
+                    CoreError::SecretUnreadable(_) => {
+                        (StatusCode::CONFLICT, ErrorCode::SecretUnreadable)
+                    }
+                    CoreError::SecretsUnavailable => (
+                        StatusCode::SERVICE_UNAVAILABLE,
+                        ErrorCode::SecretsUnavailable,
+                    ),
+                    CoreError::AylulKeyMissing(_) => {
+                        (StatusCode::CONFLICT, ErrorCode::AylulKeyMissing)
+                    }
+                    _ => (StatusCode::NOT_FOUND, ErrorCode::AylulNotConfigured),
+                };
+                Failure {
+                    status,
+                    code,
+                    message: e.to_string(),
+                    cause: None,
+                    detail: Detail::default(),
+                }
+            }
             CoreError::Storage(e) => e.into(),
             CoreError::Start(e) => e.into(),
             CoreError::Directory(e) => e.into(),

@@ -28,6 +28,7 @@ use crate::plans::Plans;
 use crate::projects::Projects;
 use crate::runtime::Runtime;
 use crate::runtime::StopKind;
+use crate::secrets::{SecretKey, Secrets};
 use crate::threads::{ThreadId, Threads};
 use crate::turns::{LiveHandles, OperationId, ThreadStopper, Turns};
 
@@ -40,6 +41,7 @@ pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEve
 /// Outside the crate it is named only under `test-support` (§14.6): its
 /// fields are the internals no adapter reaches.
 pub struct CoreParts {
+    pub secrets: Arc<Secrets>,
     pub storage: Arc<Storage>,
     pub runtime: Arc<Runtime>,
     pub sessions: Arc<Sessions>,
@@ -54,6 +56,7 @@ pub struct CoreParts {
 
 /// The application: every service, built once.
 pub struct AppCore {
+    secrets: Arc<Secrets>,
     design: Design,
     plans: Plans,
     grants: Grants,
@@ -70,6 +73,7 @@ pub struct AppCore {
 /// adapter and harness paths. `Config` stays in the binary, which owns argument
 /// parsing, and builds this.
 pub struct StartConfig {
+    pub secret_key: Option<SecretKey>,
     pub db_path: PathBuf,
     pub node_path: PathBuf,
     pub adapter_path: PathBuf,
@@ -109,6 +113,7 @@ impl AppCore {
     /// and a daemon that cannot bind must not run recovery (§14.4).
     pub async fn start(config: &StartConfig, mcp_url: String) -> anyhow::Result<Arc<AppCore>> {
         let storage = Arc::new(Storage::open(&config.db_path).await?);
+        let secrets = Secrets::new(storage.clone(), config.secret_key.clone());
         // `Runtime::start` logs recovery (`recovery.reconcile`).
         let (runtime, _report) = Runtime::start(storage.clone()).await?;
         let runtime = Arc::new(runtime);
@@ -136,6 +141,7 @@ impl AppCore {
             }),
             storage.clone(),
             SessionsConfig {
+                secrets: Some(secrets.clone()),
                 mcp_url: Some(mcp_url.clone()),
                 aylul: config.aylul.clone(),
                 ..SessionsConfig::default()
@@ -143,6 +149,7 @@ impl AppCore {
         );
         let (bus, _) = tokio::sync::broadcast::channel(4096);
         let core = Self::from_parts(CoreParts {
+            secrets,
             storage,
             runtime,
             sessions,
@@ -163,6 +170,7 @@ impl AppCore {
     /// `AppCore::assemble` (`testing`).
     pub(crate) fn from_parts(parts: CoreParts) -> Arc<AppCore> {
         let CoreParts {
+            secrets,
             storage,
             runtime,
             sessions,
@@ -178,6 +186,7 @@ impl AppCore {
         let threads = Threads::new(storage.clone(), harness.clone(), code.clone(), stopper);
         let events = Events::new(storage.clone(), harness.clone(), bus.clone(), ui.clone());
         Arc::new(AppCore {
+            secrets,
             design: Design::new(storage.clone(), handles.clone()),
             plans: Plans::new(storage.clone(), handles.clone(), ui.clone()),
             grants: Grants::new(storage.clone(), mcp_url),
@@ -200,6 +209,10 @@ impl AppCore {
 
     pub fn plans(&self) -> &Plans {
         &self.plans
+    }
+
+    pub fn secrets(&self) -> &Secrets {
+        &self.secrets
     }
 
     pub fn design(&self) -> &Design {

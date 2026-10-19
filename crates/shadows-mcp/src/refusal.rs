@@ -105,6 +105,12 @@ impl From<CoreError> for Refusal {
 /// The code HTTP answers the same failure with.
 fn code_of(e: &CoreError) -> ErrorCode {
     match e {
+        CoreError::SecretNameInvalid(_) => ErrorCode::SecretNameInvalid,
+        CoreError::SecretValueInvalid(_) => ErrorCode::SecretValueInvalid,
+        CoreError::SecretUnreadable(_) => ErrorCode::SecretUnreadable,
+        CoreError::SecretsUnavailable => ErrorCode::SecretsUnavailable,
+        CoreError::AylulKeyMissing(_) => ErrorCode::AylulKeyMissing,
+        CoreError::AylulNotConfigured => ErrorCode::AylulNotConfigured,
         CoreError::Storage(_) | CoreError::Start(StartError::Storage(_)) => {
             ErrorCode::StorageUnavailable
         }

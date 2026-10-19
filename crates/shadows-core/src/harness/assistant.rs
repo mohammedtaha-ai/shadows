@@ -62,11 +62,22 @@ impl Sessions {
             let spec = self.adapter.process_spec(&cwd);
             return Ok(Opening { cwd, setup, spec });
         }
-        let config = (self.config.aylul.as_ref())
-            .ok_or_else(|| OpenError::Start("aylul is not configured".into()))?;
+        let config = (self.config.aylul.as_ref()).ok_or(crate::CoreError::AylulNotConfigured)?;
+        let secrets = self
+            .config
+            .secrets
+            .as_ref()
+            .ok_or(crate::CoreError::SecretsUnavailable)?;
+        let stored = secrets.resolve_env(&config.profile.name).await?;
         let cwd = config.profile.home.clone();
-        let spec = (self.adapter.process_spec_with(&cwd, Some(&config.profile)))
-            .map_err(|e| OpenError::Start(e.to_string()))?;
+        let spec = self
+            .adapter
+            .process_spec_with(&cwd, Some(&config.profile), &stored)
+            .map_err(|error| match error {
+                shadows_agent::profile::ProfileError::MissingKey(name) => {
+                    crate::CoreError::AylulKeyMissing(name)
+                }
+            })?;
         Ok(Opening {
             cwd,
             setup: aylul_setup(),

@@ -36,6 +36,7 @@ use shadows_agent::{
 
 #[derive(Debug, Clone)]
 pub struct SessionsConfig {
+    pub secrets: Option<Arc<crate::Secrets>>,
     pub idle_after: Duration,
     pub cancel_wait: Duration,
     /// How long an adapter has to start and open its session (§12.2).
@@ -51,6 +52,7 @@ pub struct SessionsConfig {
 impl Default for SessionsConfig {
     fn default() -> Self {
         Self {
+            secrets: None,
             idle_after: Duration::from_secs(15 * 60),
             cancel_wait: Duration::from_secs(10),
             setup_wait: Duration::from_secs(20),
@@ -63,6 +65,8 @@ impl Default for SessionsConfig {
 
 #[derive(Debug, thiserror::Error)]
 pub enum OpenError {
+    #[error(transparent)]
+    Env(#[from] crate::CoreError),
     #[error(transparent)]
     Storage(#[from] StorageError),
     #[error("harness start failed: {0}")]

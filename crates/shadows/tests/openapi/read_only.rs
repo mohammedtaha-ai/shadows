@@ -11,7 +11,22 @@ mod plan;
 #[tokio::test]
 async fn no_get_route_changes_state() {
     use shadows_core::{DesignOp, OutcomeContent, OutcomeId, PartContent, PartId, VisionField};
-    let a = app::test_app().await;
+    let tmp = tempfile::tempdir().unwrap();
+    let config = shadows_core::testing::SessionsConfig {
+        aylul: Some(shadows_core::AylulConfig {
+            profile: shadows_core::ClaudeProfile {
+                name: "aylul".into(),
+                home: tmp.path().to_owned(),
+                key_env: "AYLUL_READ_ONLY_TEST_KEY".into(),
+                env: vec![],
+            },
+            project_slug: "aylul".into(),
+        }),
+        ..acp::test_config()
+    };
+    let a = app::test_app_with(tmp.path(), config, acp::MCP_URL)
+        .await
+        .owning(tmp);
     a.storage.seed_map_for_tests(&a.project).await.unwrap();
     let part = PartId::generate();
     let outcome = OutcomeId::generate();

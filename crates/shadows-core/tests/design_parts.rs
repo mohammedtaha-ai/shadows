@@ -23,6 +23,7 @@ async fn core_at(path: &std::path::Path) -> Arc<AppCore> {
     let storage = Arc::new(Storage::open(path).await.unwrap());
     let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
     AppCore::assemble(CoreParts {
+        secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime,
         sessions: acp::fake_sessions(storage.clone()),

@@ -20,6 +20,7 @@
 //! `axum` stops.
 
 mod agreements;
+mod aylul_env;
 mod code;
 mod conversation;
 mod design;
@@ -127,6 +128,8 @@ pub fn router(state: AppState, mcp: Router) -> Router {
 /// or miss one it has. Each `routes!` groups the methods of one path.
 fn routes() -> OpenApiRouter<AppState> {
     OpenApiRouter::with_openapi(openapi::base())
+        .routes(routes!(aylul_env::list))
+        .routes(routes!(aylul_env::set, aylul_env::remove))
         .routes(routes!(project::list_projects, project::create_project))
         .routes(routes!(design::vision))
         .routes(routes!(design::vision_proposals))

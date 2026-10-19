@@ -22,3 +22,9 @@ tower-http = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
+
+[dev-dependencies]
+shadows-agent = { path = "../shadows-agent" }
+shadows-core = { path = "../shadows-core", features = ["test-support"] }
+tempfile = { workspace = true }
+tower = { workspace = true }

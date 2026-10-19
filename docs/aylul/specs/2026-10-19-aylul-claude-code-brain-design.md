@@ -166,3 +166,98 @@ its limit, AYLUL keeps working on its own provider and key.
   answers with its own persona.
 - Mohammed's own Claude sessions and the Shadows Planner behave as before.
 - Run by a person in the real app, logs read, before it is called done.
+
+## 10. Environment variables from the UI (slice 2, decided 2026-10-19)
+
+Mohammed adds, replaces and removes AYLUL's environment variables from the
+Shadows web client, like Claude Code desktop's environment settings. The
+values are stored encrypted in the Shadows database. The env file of §7 stops
+being read at spawn and becomes a one-time import. Amended 2026-10-19 after a
+Codex review of the plan.
+
+**Decided by Mohammed:** variables come from the UI; values are stored
+encrypted in the database; no Windows environment variable.
+
+**My calls (Claude):**
+
+- **Owner: a `secrets` service in `shadows-core`,** the eleventh, one folder
+  like the others (amends the service list of
+  [application core §14.4](../../superpowers/specs/2026-09-26-application-core-design.md)).
+  It is the planned `secrets` owner of
+  [architecture §1.3](../../superpowers/specs/2026-09-21-architecture-design.md),
+  built as a core service because its store is SQLite and its first caller is
+  the harness. Its public methods take a `command_id` and return `CoreError`,
+  like every service. This closes the OPEN "credential backend" of
+  [agent profiles §19.5](../../superpowers/specs/2026-10-03-agent-profiles-and-extensions-design.md)
+  for AYLUL profiles.
+- **Master key:** 32 random bytes in the Windows Credential Manager,
+  `keyring` 3.6.3 with the `windows-native` feature (without a platform
+  feature, v3 silently uses a mock store), service `shadows`, user
+  `secrets-master-key`, stored as a binary secret. Only the binary touches it.
+  It is created when absent, then read back, so two daemons starting together
+  end on the one stored key. An entry that exists but cannot be read or has the
+  wrong length is an error and is never replaced. The binary hands the key to
+  `AppCore::start`; the core never calls the credential store. There is no
+  plaintext fallback. This is how principle 15 holds: the database keeps only
+  ciphertext, and the key that opens it lives outside the database.
+- **Two keys come from the master key,** by HKDF-SHA256 with the infos
+  `shadows/secrets/aead/v1` and `shadows/secrets/fingerprint/v1`. Neither is
+  stored.
+- **Encryption:** AES-256-GCM, a fresh 12-byte nonce from the OS RNG on every
+  write, and a `format` column (1) on each row. The associated data is
+  `profile`, a NUL byte, then `name`, so a row copied under another name fails
+  to decrypt. A malformed row (bad nonce length, unknown format) is a decrypt
+  error, never a panic.
+- **Idempotency:** a replayed `set` with a different value must conflict. The
+  fingerprint covers `profile`, `name` and HMAC-SHA256(fingerprint key,
+  value). That is never a plain hash, so `command_record` gives no offline
+  guessing oracle.
+- **A value goes in and never comes out to a reader.** Listing returns names
+  and `updated_at` only. No HTTP response, SSE event, durable event, command
+  record, log line, error text or `Debug` output carries a value. The routes'
+  body-parse errors are replaced with a fixed message, because serde's text can
+  quote the input. The only reader is the AYLUL opening.
+- **When an edit applies:** at the next AYLUL adapter spawn. An adapter that
+  is already running keeps the environment it started with, because Shadows
+  reuses live adapters. The UI says "applies to new AYLUL conversations".
+- **No MCP tool.** No agent can read or set these through Shadows. This is
+  not a sandbox: an AYLUL session can read its own environment with its shell,
+  as any process can.
+- **Names** are upper case only, `^[A-Z_][A-Z0-9_]{0,127}$`. That avoids two
+  rows Windows would treat as one variable. `CLAUDE_CONFIG_DIR`,
+  `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` are refused, because the
+  product sets them. `key_env` must match the same rule. **Values** are
+  1..=32768 bytes with no NUL. The UI takes one line (a password input); the
+  API accepts newlines.
+- **Spawn order is unchanged** (profile `env`, then stored pairs, then the
+  home, a blank API key and the token). The stored pairs take the env file's
+  old slot. The token is the stored pair named by `key_env`; if there is none,
+  it is the daemon's variable of that name.
+- **Errors keep their names to the client.** A missing key
+  (`AYLUL_KEY_MISSING`), an undecryptable row (`SECRET_UNREADABLE`, which
+  names the variable and says to replace it in Settings) and no master key
+  (`SECRETS_UNAVAILABLE`) reach the web client as their own codes, not as
+  "the harness could not start".
+- **Import:** at start, the binary asks whether the profile was ever imported
+  (a marker row) before it opens the env file. If not, it parses the file.
+  One write transaction then re-checks the marker, stores every valid pair
+  (last duplicate wins; invalid names are skipped and counted by name) and
+  writes the marker, even for an empty file. A failure stores nothing and no
+  marker, is logged without values, and never stops the daemon; the next start
+  retries it.
+- **Lost master key:** the names still list. Each value must be replaced in
+  Settings, because a replace overwrites the old row.
+- **Web:** the Settings page shows an "AYLUL environment" section, hidden only
+  on `AYLUL_NOT_CONFIGURED`. Other errors are shown. It lists names, lets
+  Mohammed replace or remove each, and has an add form. A saved value is never
+  shown again.
+
+**Acceptance:**
+
+1. Mohammed adds `API_KEY` from Settings, moves `.env` away, restarts
+   `shadows serve`, and AYLUL answers.
+2. A byte search of `shadows.db`, `-wal` and `-shm` for the key value finds
+   nothing.
+3. A replaced value is used by a new AYLUL conversation without a restart.
+4. With the key removed and no daemon variable, a new AYLUL conversation
+   shows `AYLUL_KEY_MISSING` naming `API_KEY`.

@@ -13,6 +13,7 @@ async fn ensure_assistant_is_idempotent() {
     std::fs::create_dir(&home).unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let core = AppCore::assemble(CoreParts {
+        secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime: Arc::new(Runtime::start(storage.clone()).await.unwrap().0),
         sessions: acp::fake_sessions(storage.clone()),
@@ -54,6 +55,7 @@ async fn ensure_assistant_recreates_a_removed_assistant_project() {
     std::fs::create_dir(&home).unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let core = AppCore::assemble(CoreParts {
+        secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime: Arc::new(Runtime::start(storage.clone()).await.unwrap().0),
         sessions: acp::fake_sessions(storage.clone()),
