@@ -36,6 +36,9 @@ tracing = { workspace = true }
 tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Security_Authorization"] }
+
 [features]
 # Compiles in `shadows-core`'s test hooks (`testing`,
 # `from_literal`, `force_termination_failure`), which must never

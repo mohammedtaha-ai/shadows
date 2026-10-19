@@ -16,3 +16,6 @@ obligations:
   - rule: A failed child does not replay requests or automatically respawn.
     tested_by: child_death_never_replays_the_last_command
     note: tests/assistant_daemon.rs closes the actual managed process.
+  - rule: Descriptor replacement protects the capability before writing it without changing parent-directory permissions.
+    tested_by: descriptor_replacement_is_private_without_changing_parent_permissions
+    note: Fresh files use Unix mode 0600 or a protected Windows DACL granting the current user only.
