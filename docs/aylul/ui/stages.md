@@ -9,9 +9,13 @@ their task here and set its status. Task shape: [`AGENTS.md`](AGENTS.md#a-task-i
 Hermes Desktop's bots/chats/settings and selected one visible character for the
 selected bot. The [written proposal](specs/2026-10-19-agent-workspace-design.md)
 and Chat-first mockup were approved. The [first UI plan](plans/2026-10-19-agent-workspace-ui.md)
-is prepared for task-by-task inline execution after written-plan review. No
-workspace/bot-registry implementation has started; normal
-chat below remains delivered. Backend management capabilities need their own proof.
+was reviewed by Masada on 2026-10-19 and its fixes applied; U-W1 is next. For this
+batch the `desktop-ui-builder`/`desktop-ui-fixer` roles are suspended (their
+definitions are not installed in this repository): the session executes inline,
+and each task still changes only its `Touch:` files. No workspace/bot-registry
+implementation has started; normal chat below remains delivered. Backend
+management capabilities, and the effective-model readback (spec §5 OPEN), need
+their own proof.
 
 Normal-chat H-2 is implemented. On 2026-10-18 the human selected
 AYLUL as the primary UI with the existing Shadows workspace loaded on request.
@@ -32,28 +36,36 @@ Character design/renderer and native companion lifetime keep their separate owne
 - Done when: layout, bot/configuration ownership, staged feature inventory and selected-character semantics are accepted; then write an exact implementation plan.
 
 ### U-W1 · Live workspace shell
-- Status: ready for written-plan review
+- Status: todo
 - Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-1---ship-the-workspace-shell-with-working-account-chat
-- Read: workspace design, source settings inventory and current app/assistant/features contracts.
-- Touch: exactly Task 1 Files.
-- Needs: review of the first written UI plan; inline execution in this checkout.
-- Done when: Task 1 browser checks and frontend build pass; contract/map/stage updated and task committed.
+- Read: workspace design §3; source settings inventory; app/assistant/features contracts.
+- Touch: apps/desktop/src/app/{WorkspaceShell.tsx,AccountPanel.tsx,workspace.css,main.tsx,shell.css,contract.yaml}; apps/desktop/tests/companion/{workspace.spec.ts,shell.spec.ts,fixture.tsx}; docs/aylul/codebase/README.md; docs/aylul/ui/stages.md.
+- Needs: none
+- Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace.spec.ts tests/companion/shell.spec.ts` passes; task committed.
 
 ### U-W2 · Shared live conversation navigation
 - Status: todo
 - Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-2---put-real-conversations-in-the-workspace-sidebar
-- Read: Task 2 interfaces; app/assistant/platform contracts.
-- Touch: exactly Task 2 Files.
-- Needs: U-W1.
-- Done when: exact routing, account race, uncertain-send and existing assistant regressions pass; task committed.
+- Read: Task 2 interfaces; workspace design §3 and §5; app/assistant/platform contracts.
+- Touch: apps/desktop/src/features/assistant/{useAssistantConversation.ts,ConversationSidebar.tsx,ConversationView.tsx,AssistantPage.tsx,assistant.css,contract.yaml}; apps/desktop/src/app/{main.tsx,WorkspaceShell.tsx,workspace.css,contract.yaml}; apps/desktop/tests/companion/{workspace-conversations.spec.ts,fixture.tsx}; apps/desktop/tests/{assistant-fixture.tsx,assistant-state.mjs}; docs/aylul/codebase/README.md; docs/aylul/ui/stages.md.
+- Needs: U-W1
+- Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace-conversations.spec.ts tests/companion/workspace.spec.ts` and `node tests/assistant-state.mjs` pass; task committed.
 
-### U-W3 · Scoped settings and assistant inspector
+### U-W3 · Scoped settings, bots list and assistant inspector
 - Status: todo
-- Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-3---expose-truthful-botsettings-surfaces-and-verify-the-ui-batch
-- Read: Task 3; character and app/assistant contracts; source settings inventory.
-- Touch: exactly Task 3 Files.
-- Needs: U-W2; backend bot capabilities remain separately gated.
-- Done when: settings/capability tests, complete affected UI gate and whole-branch review pass; evidence and task committed.
+- Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-3---expose-truthful-botsettings-surfaces
+- Read: Task 3; workspace design §3, §5 (OPEN - Effective model readback); character and app/assistant contracts; source settings inventory.
+- Touch: apps/desktop/src/app/{SettingsPanel.tsx,main.tsx,WorkspaceShell.tsx,workspace.css,contract.yaml}; apps/desktop/src/features/assistant/{AssistantDetails.tsx,BotList.tsx,ConversationView.tsx,assistant.css,contract.yaml}; apps/desktop/tests/companion/{workspace.spec.ts,workspace-conversations.spec.ts,production.test.ts}; docs/aylul/codebase/README.md; docs/aylul/ui/stages.md.
+- Needs: U-W2
+- Done when: from apps/desktop/, `npm run build && npx playwright test tests/companion/workspace.spec.ts tests/companion/workspace-conversations.spec.ts && npm run test:companion:production` passes; task committed.
+
+### U-W4 · Batch gate and native journey
+- Status: todo
+- Plan: docs/aylul/ui/plans/2026-10-19-agent-workspace-ui.md#task-4---run-the-batch-gate-and-the-native-journey
+- Read: Task 4; normal-chat evidence for the evidence format.
+- Touch: apps/desktop/README.md; docs/evidence/aylul/<run date>-agent-workspace.md; docs/aylul/ui/stages.md.
+- Needs: U-W3
+- Done when: from apps/desktop/, `npm run build && npm test && npm run test:companion:unit && npm run test:companion:browser && npm run test:companion:production` passes; `cargo build --locked --manifest-path apps/desktop/src-tauri/Cargo.toml` succeeds; Mohammed's hands-on journey is recorded in the evidence file; whole-branch review done.
 
 ### H-2 · Present one account-backend conversation
 - Status: implemented and locally verified; physical desktop chat acceptance open

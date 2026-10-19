@@ -74,6 +74,8 @@ The account footer opens account/settings pages. Account/device UUIDs, device
 enrollment, sign-out-all and revocation move to an explicit account/security view.
 The main conversation retains a small truthful connection indicator and a useful
 recovery action. A temporary backend outage preserves readable saved history.
+An Activity page, beside Chat and Settings, holds the existing local Sessions and
+Requests (approvals); it is not part of the conversation layout above.
 
 ## 4. Bots and conversations
 
@@ -112,6 +114,13 @@ turn; active or uncertain dispatch cannot be redirected by changing a selector.
 Unsupported model options remain visibly unavailable rather than pretending to
 have been saved. Provider secrets use the backend's established protected-write
 pattern and metadata-only readback; stored values never return to the renderer.
+
+**OPEN - Effective model readback.** The 0.5.0 `AssistantStatus` carries only
+`state`, so the composer cannot name the effective provider/model truthfully;
+until then it shows "Model: managed by the account backend" and no model name.
+Close when the account backend's assistant status or snapshot reports the
+effective provider/model, requested from Hamoud through
+`../shadows-backend/docs/shared/requests/`.
 
 The backend's existing provider-settings service is useful implemented work, but
 its old provider-chat dispatch is not evidence that a setting configures Hermes.

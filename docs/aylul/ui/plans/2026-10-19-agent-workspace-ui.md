@@ -3,6 +3,11 @@
 > **For agentic workers:** Use `superpowers:executing-plans` for inline,
 > task-by-task execution in the current checkout. No worktrees or implementer
 > subagents. One local commit per verified task; one final whole-branch review.
+> The `desktop-ui-builder`/`desktop-ui-fixer` roles in
+> [`AGENTS.md`](../AGENTS.md) are suspended for this batch: their definitions
+> stay in the preserved NYLRA checkout and are not installed here (teacher
+> ruling, 2026-10-19). Each task still keeps the `stages.md` shape and changes
+> only its `Touch:` files.
 
 **Goal:** Deliver the approved Chat-first desktop workspace while preserving real
 account chat, local hook actions and the independent character.
@@ -38,6 +43,8 @@ The human approved the interactive mockup and requested task-by-task execution o
 3. Lost send replies must retain the original command ID; reads never POST (Task 2).
 4. Narrow windows and long Arabic/English text must preserve composer/navigation (Tasks 1/3).
 5. Missing bot management must never look like a successful configurable bot (Task 3).
+6. The composer never names a model the backend did not report (Task 3).
+7. A person runs the native app before the batch is called done (Task 4).
 
 ## File ownership
 
@@ -56,21 +63,29 @@ describe implemented ownership at each commit, not the proposed final tree.
 | `features/assistant/ConversationView.tsx` | Conversation history/composer presentation |
 | `features/assistant/AssistantPage.tsx` | Standalone compatibility wrapper for existing acceptance |
 | `features/assistant/AssistantDetails.tsx` | Truthful current-assistant capability inspector |
+| `features/assistant/BotList.tsx` | The Bots list showing the one real assistant |
 | `app/SettingsPanel.tsx` | Settings category navigation with actual availability |
 
 ## Task 1 - Ship the workspace shell with working account chat
 
 **Files:** create `src/app/{WorkspaceShell.tsx,AccountPanel.tsx,workspace.css}`;
 modify `src/app/{main.tsx,shell.css,contract.yaml}`;
-create `tests/companion/workspace.spec.ts`; adapt
-`tests/companion/{shell.spec.ts,fixture.tsx}` to the intentional page relocation;
-update `docs/aylul/{codebase/README.md,ui/stages.md}`.
+create `tests/companion/workspace.spec.ts`; modify
+`tests/companion/{shell.spec.ts,fixture.tsx}` for the intentional page relocation;
+modify `docs/aylul/{codebase/README.md,ui/stages.md}`.
 
 **Interfaces:**
-- `WorkspacePage = 'chat' | 'activity' | 'settings'`.
-- `WorkspaceShell({page,onNavigate,chat,activity,settings,presence,onHide})` accepts
-  React nodes and callbacks. All content owners stay mounted; inactive views use
-  `hidden`, not conditional unmounting. `presence` is a compact native control slot.
+- `WorkspacePage = 'chat' | 'activity' | 'settings'`. Activity is the home of the
+  existing Sessions/Requests views (spec §3).
+- `SidebarList = 'chats' | 'bots'`: the spec §3 Chats | Bots switch inside the
+  list column of the Chat page, not a fourth page. Task 1 renders the switch with
+  Chats only active; Task 3 fills the Bots list.
+- `WorkspaceShell({page,onNavigate,list,onList,chat,bots,activity,settings,presence,
+  onHide})` accepts React nodes and callbacks. All content owners stay mounted;
+  inactive views use `hidden`, not conditional unmounting. `presence` is a compact
+  native control slot.
+- Contract rows added to `src/app/contract.yaml`: `WorkspaceShell`, `AccountPanel`.
+  The existing `shell.spec.ts` obligations are rewritten to name their new page.
 - `AccountPanel({auth,busy,loggingIn,onAction,onCancel})` consumes existing
   `AuthView | null`, `AuthAction` and native callbacks. Preserve confirmation text
   for new installation, sign-out-all and revoke. It holds no credential.
@@ -83,6 +98,8 @@ update `docs/aylul/{codebase/README.md,ui/stages.md}`.
   Sessions/Requests remain actionable under Activity and hide still invokes native.
 - [ ] RED: `workspace_narrow_layout_preserves_navigation_and_composer` checks 390px
   and 1280px, no horizontal overflow, accessible navigation and visible composer.
+  At 390px the list column is closed behind a drawer button that opens and
+  closes it by mouse and keyboard.
 - [ ] Run `npx playwright test tests/companion/workspace.spec.ts` from desktop;
   confirm failures describe missing workspace behavior, not fixture setup.
 - [ ] Implement the sidebar/full-window shell using the approved restrained purple
@@ -91,24 +108,38 @@ update `docs/aylul/{codebase/README.md,ui/stages.md}`.
   companion bundle. Reuse existing account/assistant/session/approval operations.
 - [ ] Adapt old shell assertions to navigate to Settings/Activity before their
   controls. Preserve their behavioral assertions; do not simply delete them.
-- [ ] Run `npm run build`, the new workspace suite and existing shell suite.
+- [ ] From `apps/desktop/`: `npm run build && npx playwright test
+  tests/companion/workspace.spec.ts tests/companion/shell.spec.ts`.
   Update app contract/map/stage and commit `feat: add the live desktop workspace shell`.
 
 ## Task 2 - Put real conversations in the workspace sidebar
 
 **Files:** create
 `src/features/assistant/{useAssistantConversation.ts,ConversationSidebar.tsx,ConversationView.tsx}`;
-modify `AssistantPage.tsx`, `assistant.css`, its `contract.yaml`, `app/main.tsx`,
-`app/WorkspaceShell.tsx`, app contract; create
-`tests/companion/workspace-conversations.spec.ts`; extend the existing shell fixture
-with explicit account/list/snapshot/command responses, preserving current flags;
-update assistant acceptance fixture/runner only where composition intentionally
-changes; update code map and stages.
+modify `src/features/assistant/{AssistantPage.tsx,assistant.css,contract.yaml}`,
+`src/app/{main.tsx,WorkspaceShell.tsx,workspace.css,contract.yaml}`; create
+`tests/companion/workspace-conversations.spec.ts`; modify
+`tests/companion/fixture.tsx` (explicit account/list/snapshot/command responses,
+current flags preserved, and an `authAction` that can switch account/session
+mid-test for the race test), `tests/assistant-fixture.tsx` and
+`tests/assistant-state.mjs` (only for the hook/view split); modify
+`docs/aylul/{codebase/README.md,ui/stages.md}`.
 
 **Interfaces:**
 - `useAssistantConversation(auth: AuthView | null): AssistantController` returns
-  `conversations,selected,snapshot,draft,error,ready,busy,activeTurn` plus
-  `setDraft(text),select(id),create(),send(),stop(turnId),recover(turnId)`.
+  `conversations,selected,snapshot,draft,error,ready,busy,activeTurn,pinned,connection`
+  plus `setDraft(text),select(id),create(),send(),retry(),stop(turnId),
+  recover(turnId),togglePin(id)`. `retry()` resends the uncertain send with its
+  original command ID; it never mints a new one.
+- `pinned` is a set of conversation IDs kept in `localStorage` under a key that
+  includes the account ID; another account never sees it (spec §5 first slice).
+- `connection` is `'connected' | 'unavailable'` from the existing
+  `assistant.status`/call failures. While unavailable, the last loaded list and
+  snapshot stay readable and the view shows a small indicator with a Retry action.
+- Contract rows added to `src/features/assistant/contract.yaml`:
+  `useAssistantConversation`, `ConversationSidebar`, `ConversationView`.
+- The new hook and views are written as readable multi-line source, not the
+  single-line style of the current `assistant.css`/`shell.css`.
 - DTOs remain generated `AssistantConversation`/`AssistantSnapshot` aliases.
 - `ConversationSidebar({controller})` reads that controller; no independent poller.
 - `ConversationView({controller})` renders the existing history, states and composer.
@@ -121,51 +152,92 @@ changes; update code map and stages.
   account/session, then resolves it; neither prior text nor draft can reappear.
 - [ ] RED: `workspace_uncertain_send_keeps_command_without_automatic_repost`
   rejects the response after accepting a send; polling/navigation never sends a
-  new command and explicit retry retains its identity.
+  new command and `retry()` sends the original command ID.
+- [ ] RED: `workspace_pins_conversation_per_account` pins one conversation, sees
+  it first in the list, switches account and sees no pin.
+- [ ] RED: `workspace_offline_keeps_saved_history_and_recovery` fails status and
+  calls after a loaded snapshot; history stays readable, the indicator shows, and
+  Retry restores the connected state with no send.
 - [ ] Run the new conversation suite to observe RED, then move existing state,
   polling and command logic into the hook without changing 4096-byte input,
   1500ms visible polling, stop/recovery or error recovery semantics.
 - [ ] The sidebar searches existing metadata locally and displays timestamps to
   distinguish same-titled conversations. No transcript fetch for search; no
   invented profile IDs or copied backend wire definitions.
-- [ ] Run build, workspace-conversation suite and `tests/assistant-state.mjs`
-  using its documented test-only Vite fixture. No paid acceptance call is required.
+- [ ] From `apps/desktop/`: `npm run build && npx playwright test
+  tests/companion/workspace-conversations.spec.ts tests/companion/workspace.spec.ts`
+  and `node tests/assistant-state.mjs` with its documented test-only Vite fixture.
+  No paid acceptance call is required.
 - [ ] Update affected contracts/map/stage and commit
   `feat: share live conversation state with the workspace sidebar`.
 
-## Task 3 - Expose truthful bot/settings surfaces and verify the UI batch
+## Task 3 - Expose truthful bot/settings surfaces
 
-**Files:** create `src/app/SettingsPanel.tsx` and
-`src/features/assistant/AssistantDetails.tsx`; modify the existing workspace/app/
-assistant components and CSS/contracts; extend workspace browser suites and
-`tests/companion/production.test.ts`; update desktop README, code map, UI stages
-and dated workspace evidence under `docs/evidence/aylul/`.
+**Files:** create `src/app/SettingsPanel.tsx`,
+`src/features/assistant/{AssistantDetails.tsx,BotList.tsx}`; modify
+`src/app/{main.tsx,WorkspaceShell.tsx,workspace.css,contract.yaml}`,
+`src/features/assistant/{ConversationView.tsx,assistant.css,contract.yaml}`,
+`tests/companion/{workspace.spec.ts,workspace-conversations.spec.ts,production.test.ts}`;
+modify `docs/aylul/{codebase/README.md,ui/stages.md}`.
 
 **Interfaces:**
 - `AssistantDetails()` describes the current assistant connection and unavailable
   bot-management capabilities. It takes no secret or assumed Hermes profile ID.
+- `BotList()` fills the `bots` list slot with the one existing AYLUL assistant
+  and a disabled Create bot control that names the missing capability.
 - `SettingsPanel({account,presence,studio})` receives existing presentation nodes
   and organizes Account, Appearance and Integrations. The studio remains DEV-only.
-- The Bots navigation presents the existing AYLUL assistant and a clear capability
-  boundary. Creating additional bots and saving provider/model/profile settings
-  stay disabled with a reason until a backend management contract exists.
+- Creating additional bots and saving provider/model/profile settings stay
+  disabled with a reason until a backend management contract exists.
+- The composer shows `Model: managed by the account backend` and no model name:
+  the generated `AssistantStatus` carries only `state`, so the spec §5 effective
+  model has no truthful source yet (spec §5 OPEN - Effective model readback).
+- Contract rows added: `SettingsPanel` (app); `AssistantDetails`, `BotList`
+  (assistant).
 
 - [ ] RED: `workspace_unavailable_bot_configuration_never_dispatches` verifies
   unsupported create/model controls are disabled, name the missing capability,
   and issue no native command. No fake saving/success state is permitted.
+- [ ] RED: `workspace_composer_never_invents_a_model_name` verifies the composer
+  shows the managed-by-backend line and no provider/model string.
 - [ ] RED: `workspace_settings_keep_account_and_character_independent` verifies
   character failure does not disable account navigation/actions or local activity.
+- [ ] RED: `workspace_narrow_layout_collapses_inspector` at 390px: the inspector
+  is closed, opens from a button and closes again; the composer stays visible.
+- [ ] RED: `workspace_keyboard_reaches_navigation_list_and_composer` tabs through
+  page navigation, list, composer and inspector without a trap.
+- [ ] RED: `workspace_mixed_text_uses_auto_direction`: Arabic and mixed
+  Arabic/English messages and titles carry `dir="auto"`.
 - [ ] RED: extend production graph checks: companion cannot import workspace,
   account, conversation or bot administration; no test data/studio in production.
-- [ ] Implement the inspector/settings pages without exposing unsupported schemas
-  as saved configuration. Match the approved layout; include keyboard and mixed-
-  text checks with the existing character shown only by its native owner.
-- [ ] Run the complete affected desktop gate once: build, `npm test`, companion
-  unit tests, companion browser suite and production graph check. Rebuild the
-  existing native debug executable after frontend build; no protocol change or
-  Core Cargo gate. Physical native use remains distinct from browser fixtures.
-- [ ] Record tests, screenshots and exact remaining backend/character gates;
-  commit `feat: add scoped workspace settings and assistant details`.
+- [ ] Implement the inspector/settings/bots pages without exposing unsupported
+  schemas as saved configuration. Match the approved layout; the character is
+  shown only by its native owner.
+- [ ] From `apps/desktop/`: `npm run build && npx playwright test
+  tests/companion/workspace.spec.ts tests/companion/workspace-conversations.spec.ts
+  && npm run test:companion:production`.
+- [ ] Update contracts/map/stage and commit
+  `feat: add scoped workspace settings and assistant details`.
+
+## Task 4 - Run the batch gate and the native journey
+
+**Files:** modify `apps/desktop/README.md` and `docs/aylul/ui/stages.md`; create
+`docs/evidence/aylul/<run date>-agent-workspace.md` (the date the journey runs).
+
+- [ ] Run the complete affected desktop gate once from `apps/desktop/`:
+  `npm run build && npm test && npm run test:companion:unit &&
+  npm run test:companion:browser && npm run test:companion:production`.
+  No protocol change, so no Core Cargo gate.
+- [ ] Rebuild the native debug app from the repository root:
+  `cargo build --locked --manifest-path apps/desktop/src-tauri/Cargo.toml`.
+- [ ] Mohammed runs the debug app by hand and walks one journey: sign in; chat
+  and leave a draft, navigate away and back, the draft remains; approve one
+  request under Activity; open Settings and see account actions; hide and show the
+  character. Read the app logs afterwards. Browser fixtures do not count here.
+- [ ] Write the evidence file: gate output and test counts, screenshots, the
+  journey result as Mohammed reported it, and the remaining backend/character
+  gates. Update the README and stages; commit
+  `docs: record the agent workspace UI batch`.
 - [ ] Request the single final whole-branch review; fix concrete findings with
   reproductions and scoped commits. No push/merge without the person's request.
 
@@ -183,6 +255,7 @@ external agent control, voice, jobs and server deployment retain their own gates
 
 ## Execution review
 
-Read this written task breakdown before product edits. The chosen workflow is
-inline in this checkout, preserving the user's existing preference. After this
-plan review, execute tasks continuously with their individual checks and commits.
+Masada reviewed this written breakdown on 2026-10-19; those fixes are applied
+(exact `Touch:` lists, model readback, Bots/pinning/offline/narrow checks, the
+Task 3/4 split and the execution ruling above). Execute tasks continuously with
+their individual checks and commits; Task 4's native journey needs Mohammed.
