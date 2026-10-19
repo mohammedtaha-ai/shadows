@@ -6,6 +6,7 @@ direction; they are not implemented by source relocation. Its native/local runti
 and remote Hermes brain do not become services inside Shadows `AppCore`.
 
 - [Current integration design](specs/2026-10-18-aylul-hermes-semantic-context-design.md)
+- [Proposed multi-bot workspace](ui/specs/2026-10-19-agent-workspace-design.md)
 - [Integration plan](plans/2026-10-18-aylul-hermes-semantic-context.md)
 - [Multiple application cores and endpoint routing](../integration/2026-10-18-runtime-endpoints.md)
 - [Normal-chat slice and remaining gates](native/plans/2026-10-18-aylul-local-runtime-hermes.md)

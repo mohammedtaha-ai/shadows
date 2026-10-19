@@ -4,14 +4,22 @@
 
 **Product:** A standalone AI companion and human-liaison platform that connects a person to complex multi-agent systems such as Shadows. AYLUL is its companion character.
 
-**Updated:** 2026-10-18. This file owns the full product vision. The agreed
+**Updated:** 2026-10-19. This file owns the full product vision. The agreed
 [shared architecture](../../../shadows-backend/docs/architecture.md) owns deployment,
 languages, connection paths, context sharing, and authority boundaries.
 The vision records intended capabilities, not implemented or verified software.
 Cloud NYLRA, selected-project linking, bounded current-work context, and the
 desktop/mobile connection paths replace the earlier alternative deployments.
 
-## Current direction (2026-10-18)
+## Current direction (2026-10-19)
+
+The human's next product direction is a workspace for creating and configuring
+multiple assistant bots, with AYLUL as a monitoring-role bot. Conversations,
+bot-specific provider/model choices and settings are the next UI priority before
+the later work-context/control integrations. Each bot can have its own character
+configuration; the human selected one visible desktop character for the selected
+bot. The [workspace design proposal](ui/specs/2026-10-19-agent-workspace-design.md)
+owns the concrete experience and delivery boundaries; it is not implemented yet.
 
 AYLUL is the primary desktop experience. The existing Shadows workspace opens
 on request; its Core remains the owner of projects, plans and managed execution.

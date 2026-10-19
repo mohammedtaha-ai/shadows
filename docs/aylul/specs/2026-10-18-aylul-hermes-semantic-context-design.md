@@ -12,6 +12,13 @@ competing design document. Detailed execution steps live in the linked plan.
 
 ## 1. Intent
 
+2026-10-19 UI direction amendment: AYLUL's monitoring role will be one bot in
+the proposed multi-bot desktop workspace. The
+[workspace UI owner](../ui/specs/2026-10-19-agent-workspace-design.md) owns bot/chat
+navigation, configuration and selected-bot character behavior. The person selected
+one visible character for the selected bot. This document continues to own the
+later interruption-to-direction workflow; the UI change does not implement it.
+
 AYLUL explains an interruption in ongoing development using the actual last message,
 the correct project's plans/contracts, and bounded source evidence. It should not
 spend a Planner turn merely to translate or explain something already available.
