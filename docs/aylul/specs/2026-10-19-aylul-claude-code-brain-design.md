@@ -262,18 +262,22 @@ encrypted in the database; no Windows environment variable.
 4. With the key removed and no daemon variable, a new AYLUL conversation
    shows `AYLUL_KEY_MISSING` naming `API_KEY`.
 
-## 11. Profiles from the UI, each with its provider and models (slice 3, decided 2026-10-19)
+## 11. Agents and providers from the UI (slice 3, decided 2026-10-19)
 
-Mohammed creates, edits and deletes AYLUL agents (profiles) in the AYLUL
-workspace of the sidebar. Each has its own provider, key, models, environment
-variables and home. A conversation is started under its agent, and the model
-menu shows exactly that agent's models. This replaces §7's single seeded profile and its config-file provider.
+Mohammed adds **providers** (a URL, a key and their models) and **agents** (an
+AYLUL profile on one provider) in the AYLUL workspace of the sidebar. A
+conversation is started under its agent, and the model menu shows exactly that
+agent's provider models. This replaces §7's single seeded profile and its
+config-file provider.
 
 **Decided by Mohammed:**
 
-- Profiles, providers and models are entered in the UI and stored in the
+- Providers, agents and models are entered in the UI and stored in the
   database. Nothing is taken from the env file or `aylul.json` any more.
-- Several profiles now, not only AYLUL.
+- Several agents now, not only AYLUL.
+- **A provider is separate from the agents.** A provider (URL, key, models) is
+  added once, and each agent picks one from a list, so a key is entered once
+  even when several agents share it.
 - **Workspace switcher.** The sidebar's "Shadows" title becomes a dropdown
   (title trigger with a chevron, items with a label, a description and a check
   on the current one): **Shadows** ("Plan and build projects") and **AYLUL**
@@ -281,78 +285,99 @@ menu shows exactly that agent's models. This replaces §7's single seeded profil
   workspace, and the choice is remembered in the browser.
   - Shadows shows today's sidebar: projects, their conversations and
     workflows. The separate "AYLUL" entry above the projects is removed.
-  - AYLUL shows the agents (one per profile), each with its conversations,
-    laid out like projects, with "New agent" in place of "New project".
+  - AYLUL shows the agents, each with its conversations, laid out like
+    projects, with "New agent" in place of "New project", and a "Providers"
+    link.
 - A conversation is started under its agent in the sidebar, so it belongs to
-  that profile from creation and never changes.
+  that agent from creation and never changes.
 
 **My calls (Claude):**
 
-- **Owner: a `profiles` service in `shadows-core`** (the twelfth). It owns the
-  profile rows. Their environment variables and keys stay with `secrets`, keyed
-  by the profile's slug.
-- **A profile is:**
-  - `slug`: from the name at creation, never changed; it names the home folder
-    and the secrets
+- **Owner: a `profiles` service in `shadows-core`** (the twelfth), whose one
+  job is AYLUL's agent configuration: providers in `providers.rs`, agents in
+  `agents.rs`. Keys and variables stay with `secrets`. A provider's key is
+  stored under the scope `provider/<slug>` as `PROVIDER_API_KEY`, and an
+  agent's variables are stored under its slug. `/` cannot appear in an agent
+  slug, so the two never collide.
+- **A provider is:**
+  - `slug`: made from the name, never changed
   - `name`
-  - `base_url`: the provider's Anthropic-compatible URL
-  - `models`: an ordered list of provider model ids, 1 to 20, no duplicates
-  - `default_model`: one of `models`
+  - `base_url`: an Anthropic-compatible URL
+  - `models`: an ordered list of model ids, 1 to 20, no duplicates
   - `context_window`: tokens, default 200000
+  - its key, entered in a password field and never shown again
   - `created_at` and `updated_at`
-- **The provider key** is the profile's secret named `PROVIDER_API_KEY`. It is
-  entered in its own password field on the profile form and becomes
-  `ANTHROPIC_AUTH_TOKEN` at spawn. `key_env` and the daemon-variable fallback
-  are removed. A profile with no key is listed, and its conversations fail with
-  `AYLUL_KEY_MISSING` naming `PROVIDER_API_KEY`.
-- **The model menu comes from the adapter, restricted by the profile.**
+  A provider used by an agent cannot be deleted (`PROVIDER_IN_USE`, naming the
+  agents). Removing a model that an agent has as its default is refused the
+  same way.
+- **An agent is:**
+  - `slug`: made from the name, never changed; it names the home folder and
+    the agent's secrets
+  - `name`
+  - `provider`: a provider slug
+  - `default_model`: one of the provider's models
+  - its environment variables (§10, now per agent)
+  - `created_at` and `updated_at`
+- **At spawn:**
+  - The provider key becomes `ANTHROPIC_AUTH_TOKEN`, and the provider URL
+    becomes `ANTHROPIC_BASE_URL`.
+  - `key_env` and the daemon-variable fallback are removed.
+  - A provider with no key fails the turn with `AYLUL_KEY_MISSING`, naming the
+    provider.
+- **The model menu comes from the adapter, restricted by the provider.**
   `claude-agent-acp` 0.81.1 honours `availableModels` in the user
   `settings.json`: it shows those exact ids and passes them unchanged to
-  `setModel` (`session-model.js`, `applyAvailableModelsAllowlist`). At each
-  spawn, Shadows writes the profile home's `settings.json` keys `availableModels`
-  (the profile's `models`) and `model` (`default_model`), and keeps every other
-  key as Mohammed left it. The adapter always adds a "Default" entry. Shadows
-  drops `default` from an AYLUL session's model choices, so the menu lists each
-  provider model once. The env still sets `ANTHROPIC_MODEL` and the
-  `ANTHROPIC_DEFAULT_*_MODEL` names to `default_model`, so Claude Code's
-  internal small-model calls reach a model the provider has. The context-window
-  pair takes `context_window`.
-- **Home:** `<home_root>/profiles/<slug>/`, seeded from the repository's
-  persona and settings templates on creation. Deleting a profile keeps its home
-  folder on disk. The "aylul" home that exists today is reused by a profile
-  whose slug is `aylul`.
-- **The conversation holds its profile:** a `profile` column on the thread,
-  set when the thread is created under an agent and never changed.
-  Opening resolves that profile. A conversation whose profile was deleted fails
-  with `AYLUL_PROFILE_NOT_FOUND`, and its history stays readable.
-- **Remembered model and effort are per profile.**
-- **AYLUL is available** when at least one profile exists. With none, the
-  AYLUL workspace shows "Add an agent to start" and the "New agent" button.
+  `setModel` (`session-model.js`, `applyAvailableModelsAllowlist`).
+  - At each spawn, Shadows writes two keys in the agent home's
+    `settings.json`: `availableModels` (the provider's `models`) and `model`
+    (the agent's `default_model`). Every other key stays as Mohammed left it.
+  - The adapter always adds a "Default" entry. Shadows drops `default` from an
+    AYLUL session's model choices, so the menu lists each provider model once.
+  - The env still sets `ANTHROPIC_MODEL` and the `ANTHROPIC_DEFAULT_*_MODEL`
+    names to `default_model`, so Claude Code's internal small-model calls reach
+    a model the provider has.
+  - The context-window pair takes the provider's `context_window`.
+- **Home:** `<home_root>/profiles/<agent slug>/`, seeded from the repository's
+  persona and settings templates when the agent is created. Deleting an agent
+  keeps its home folder on disk. The "aylul" home that exists today is reused
+  by an agent whose slug is `aylul`.
+- **The conversation holds its agent:** a `profile` column on the thread, set
+  when the thread is created under an agent and never changed. Opening
+  resolves the agent, then its provider. A conversation whose agent was deleted
+  fails with `AYLUL_PROFILE_NOT_FOUND`, and its history stays readable.
+- **Remembered model and effort are per agent.**
+- **AYLUL is available** when at least one agent exists. With no provider, the
+  AYLUL workspace shows "Add a provider first". With providers but no agent, it
+  shows "Add an agent to start".
 - **`aylul.json` shrinks to `home_root`.** The other keys are refused, and
   `env_file` with them, so a stale file fails loudly at start. The one-time env
   import of §10 is removed, because the variables already imported stay in the
   database.
 - **Web:**
   - The workspace switcher above.
+  - "Providers" opens a list and one form: name, URL, API key, models, context
+    window. Deleting asks for confirmation.
   - "New agent" and each agent's "Agent settings" (like "Project settings")
-    open one form: name, provider URL, API key, models, default model, context
-    window, and that agent's environment variables (the §10 section, now per
-    profile). Deleting asks for confirmation. The §10 section leaves the global
-    Settings page.
-  - The conversation header names its agent. The model menu shows that agent's
-    models.
+    open one form: name, a provider dropdown, a default-model dropdown with that
+    provider's models, and the agent's environment variables. Deleting asks for
+    confirmation.
+  - The §10 section leaves the global Settings page.
+  - The conversation header names its agent. The model menu shows the
+    provider's models.
 
 **Acceptance:**
 
-1. Mohammed switches the sidebar to AYLUL, creates agent "AYLUL" (MiniMax, two
-   models) with "New agent", starts a conversation under it, and it answers.
-   Its model menu shows exactly those two models, once each.
-2. He creates a second agent with another provider or model list. A
-   conversation under it shows only its own models. Switching back to Shadows
-   shows the projects as before, with no AYLUL entry.
+1. Mohammed switches the sidebar to AYLUL and adds provider "MiniMax" (URL,
+   key, two models). He creates agent "AYLUL" on it, starts a conversation
+   under it, and it answers. Its model menu shows exactly those two models,
+   once each.
+2. He creates a second agent on the same provider without entering the key
+   again, and it answers too. Switching back to Shadows shows the projects as
+   before, with no AYLUL entry.
 3. Switching between the two models in one conversation works, and the next
    reply says which model answered.
-4. Deleting the second profile leaves its conversation readable, and sending
-   in it shows `AYLUL_PROFILE_NOT_FOUND`.
+4. Deleting the provider while agents use it is refused, naming them.
+   Deleting the second agent leaves its conversation readable, and sending in
+   it shows `AYLUL_PROFILE_NOT_FOUND`.
 5. No provider key appears in any response, log, `settings.json` or plaintext
    database byte.
