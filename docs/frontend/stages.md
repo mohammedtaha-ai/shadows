@@ -10,7 +10,7 @@ Fixing F-1 on branch `fix/draft-mode-kept`.
 ## Tasks
 
 ### F-1 · The mode chosen in a new conversation's draft stays after the first send
-- Status: todo
+- Status: done
 - Plan: none (bug Mohammed found in the AYLUL desktop on 2026-10-20). In the draft
   (`/projects/:id/new`) he switches the mode from Accept edits to Auto, sends the
   first message, and once the thread opens the mode menu shows Accept edits again;

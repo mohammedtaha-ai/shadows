@@ -73,6 +73,30 @@ describe('the draft', () => {
       effort: 'high',
     })
   })
+
+  it('the mode chosen in the draft stays on the thread page and runs the second turn', async () => {
+    const routes = answers()
+    routes['POST /api/projects/p1/threads'] = () => Response.json(threadFixture, { status: 201 })
+    const app = (open = await startApp('/projects/p1/new', routes))
+    await until(() => app.button('Accept edits') !== undefined)
+    await choose(app, 'Accept edits', 'Auto')
+    typeInto(document.querySelector('textarea')!, 'Plan the release')
+    await until(() => app.button('Send')?.disabled === false)
+    app.button('Send')?.click()
+
+    await until(() => app.path() === '/projects/p1/threads/t1')
+    await until(() => app.button('Auto') !== undefined || app.button('Accept edits') !== undefined)
+    // The thread page's composer holds the draft's mode, not the session's opening one.
+    expect(app.button('Auto')).toBeDefined()
+    expect(app.button('Accept edits')).toBeUndefined()
+
+    typeInto(document.querySelector('textarea')!, 'And the changelog')
+    await until(() => app.button('Send')?.disabled === false)
+    app.button('Send')?.click()
+    await until(() => app.calls.filter((c) => c === 'POST /api/threads/t1/turns').length === 2)
+    await until(() => app.bodies.length >= 3)
+    expect(app.bodies.at(-1)).toMatchObject({ prompt: 'And the changelog', mode: 'auto' })
+  })
 })
 
 describe('leaving a draft while it sends', () => {

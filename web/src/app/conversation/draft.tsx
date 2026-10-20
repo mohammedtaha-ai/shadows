@@ -231,7 +231,13 @@ function useFirstSend(projectId: string, harness: string, planId?: string, profi
       if (profile !== undefined && chosen.model !== choices.current.model) {
         choices = await changeModel(thread.id, chosen.model)
       }
-      queryClient.setQueryData(sessionKey(thread.id), choices)
+      // The session opens at the policy's mode (§12.4); the turn runs at the
+      // draft's. The thread page's composer starts from this entry, so it
+      // holds the mode the turn ran with, not the one the session opened at.
+      queryClient.setQueryData(sessionKey(thread.id), {
+        ...choices,
+        current: { ...choices.current, mode: chosen.mode },
+      })
       settings = { mode: chosen.mode, model: choices.current.model, effort: choices.current.effort }
       const operationId = await startTurn(thread.id, commandId, text, settings, {
         plan: planId ?? null,
