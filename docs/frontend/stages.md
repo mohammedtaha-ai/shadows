@@ -6,8 +6,8 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 ## Now
 
 Work and improvements continue on branch `improvements`. Next: the settings dialog,
-F-2 to F-6 (F-7 to F-12 wait on the settings dialog request; F-13 and F-14 on the
-character colour's desktop side).
+F-2 to F-6 (F-7 to F-12 wait on the settings dialog request; F-14 on the character
+colour's desktop side).
 
 ## Tasks
 
@@ -89,10 +89,11 @@ character colour's desktop side).
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-9-agents-character-colour-per-agent
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Agents, Character colour);
-  `web/src/app/agents/contract.yaml`; `web/src/app/desktop/contract.yaml`
+  `web/src/app/agents/contract.yaml`; `web/src/app/desktop/contract.yaml`; `web/src/app/sidebar/contract.yaml`
 - Touch: the Files list of Task F-9 in the plan
 - Needs: F-6; `docs/shared/requests/2026-10-20-settings-dialog.md` (Agents: character colour)
-  accepted, built and shown in `api/openapi.json`
+  accepted, built and shown in `api/openapi.json`; `assets/aylul/character-colors.json`
+  delivered by the character side (AYLUL shared request, not yet filed)
 - Done when: `character-colors.test.ts`, `aylul.test.tsx` and `companion-binding.test.tsx` pass with
   codemap, `npm run typecheck`, `npm run lint`
 
@@ -119,16 +120,6 @@ character colour's desktop side).
 - Touch: to be named with the steps
 - Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (General) accepted and built
 - Done when: to be named with the steps
-
-### F-13 · A still of AYLUL in the chosen colour beside the swatches
-- Status: blocked
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-13-a-still-of-the-character-beside-the-swatches
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Character colour, the preview); `web/src/app/agents/contract.yaml`
-- Touch: the Files list of Task F-13 in the plan
-- Needs: F-9; the six colour stills from the character side (AYLUL shared request for the
-  renderer palette, not yet filed); Mohammed's yes to the preview
-- Done when: `aylul.test.tsx` passes with codemap, typecheck, lint, and the report holds the
-  browser screenshot of the six stills
 
 ### F-14 · Saving the companion agent repaints AYLUL at once
 - Status: blocked

@@ -251,49 +251,66 @@ answer fixes the shapes; each follows the TDD shape above.
 
 ### Task F-9: Agents: character colour per agent
 
-Spec: "Character colour" under Agents. Written before the request's answer because the field is
-small; if the answer renames `character_color` or its values, Masada amends this section before
-the task leaves `blocked`.
+Spec: "Character colour" under Agents. The colours are dynamic: the web reads them from the one
+colour table, `assets/aylul/character-colors.json` (the character side's file), and treats
+`character_color` as an opaque id. If the request's answer names the field differently, Masada
+amends this section before the task leaves `blocked`.
 
 **Files:**
 - Create: `web/src/app/agents/character-colors.ts`, `web/src/app/agents/color-swatches.tsx`
 - Modify: `web/src/api/schema.d.ts` (only by `npm run gen:api`), `web/src/app/agents/agent-settings.tsx`
   (`AgentForm`: the field), `web/src/app/settings/sections/agents.tsx` (dot and Companion tag),
   `web/src/app/desktop/companion-settings.tsx` (the colour line under the picker),
+  `web/src/app/sidebar/agent-list.tsx` (`AgentRow`'s `Bot` icon in the agent's colour),
+  `web/tsconfig.app.json` (`resolveJsonModule: true`), `web/vite.config.ts` (only if the dev
+  server refuses the file outside `web/`: `server.fs.allow` gains that one file),
   `web/src/app/agents/contract.yaml`, `web/src/app/desktop/contract.yaml`,
-  `docs/frontend/codebase/README.md` (rows for the two new files)
+  `web/src/app/sidebar/contract.yaml`, `docs/frontend/codebase/README.md` (rows for the two new files)
+- Read only, never changed by this task: `assets/aylul/character-colors.json`
 - Test: `web/src/app/agents/character-colors.test.ts` (new), `web/src/app/agents/aylul.test.tsx`
   (its agent fixtures gain `character_color`), `web/src/app/desktop/companion-binding.test.tsx`
 
 **Interfaces:**
-- Consumes: `Agent['character_color']` and `AgentInput['character_color']` from the regenerated
-  schema; `useCompanionBinding()` and `isDesktop()` from `web/src/desktop/`; `AgentForm` from F-6.
-- Produces, in `character-colors.ts`:
-  - `type CharacterColor = 'blue' | 'red' | 'green' | 'purple' | 'orange' | 'pink'` (equal to the
-    schema's union; a `satisfies` check fails the typecheck if they drift)
-  - `CHARACTER_COLORS: readonly { id: CharacterColor; label: string; swatch: string }[]`, in
-    order: `blue` Blue `#3b82f6`, `red` Red `#ef4444`, `green` Green `#22c55e`, `purple` Purple
-    `#a855f7`, `orange` Orange `#f97316`, `pink` Pink `#ec4899`
-  - `colorOf(value: string | null | undefined): CharacterColor`: the value when known, else `'purple'`
-- Produces, in `color-swatches.tsx`: `ColorSwatches({ value, onChange, disabled }: { value:
-  CharacterColor; onChange: (c: CharacterColor) => void; disabled?: boolean })`, a
-  `role="radiogroup"` named `Character colour` of native radio inputs (visually round swatches,
-  a ring on the checked one, `title` = label); `ColorDot({ color }: { color: CharacterColor })`,
-  an `aria-hidden` dot with `data-color={color}`.
+- Consumes: `assets/aylul/character-colors.json`, an ordered array of `{ id: string; label:
+  string; swatch: string; tones: object }` (the web reads `id`, `label`, `swatch` and ignores
+  `tones`); `Agent['character_color']` and `AgentInput['character_color']` from the regenerated
+  schema (a `string`, no union); `useCompanionBinding()` and `isDesktop()` from `web/src/desktop/`;
+  `AgentForm` from F-6.
+- Produces, in `character-colors.ts` (the only web file that imports the table):
+  - `type CharacterColor = { id: string; label: string; swatch: string }`
+  - `CHARACTER_COLORS: readonly CharacterColor[]`, the table's entries in its order, without `tones`
+  - `DEFAULT_COLOR = 'purple'`
+  - `colorOf(id: string | null | undefined): CharacterColor`: the entry with that id, else the
+    purple entry
+- Produces, in `color-swatches.tsx`: `ColorSwatches({ value, onChange, disabled }: { value: string;
+  onChange: (id: string) => void; disabled?: boolean })`, a `role="radiogroup"` named
+  `Character colour` with one native radio per `CHARACTER_COLORS` entry (round swatch filled with
+  `swatch`, a ring on the checked one, accessible name and `title` = `label`); the checked radio
+  is `colorOf(value).id`. `ColorDot({ id }: { id: string | null | undefined })`, an `aria-hidden`
+  dot with `data-color={colorOf(id).id}` and that swatch as its colour.
+- No component, test or other file names a colour except the table, `DEFAULT_COLOR` and the order
+  test. Adding a colour is one table entry (character side) plus its id in the order test.
 
 - [ ] **Step 1: Write the failing tests:**
-  - `character-colors.test.ts`, `the six colours keep their order and swatches`: ids equal
-    `['blue','red','green','purple','orange','pink']` and purple's swatch is `#a855f7`;
-    `an unknown or missing colour reads as purple`: `colorOf('teal')`, `colorOf(null)` and
-    `colorOf(undefined)` are `'purple'`, `colorOf('blue')` is `'blue'`.
+  - `character-colors.test.ts`, `the table's colours, in order`: `CHARACTER_COLORS.map(c => c.id)`
+    equals `['blue','green','purple','orange','pink']` (the one line a new colour adds to).
+  - `character-colors.test.ts`, `every colour is complete`: for each entry, `id` matches
+    `/^[a-z][a-z0-9-]{0,31}$/`, `label` is non-empty, `swatch` matches `/^#[0-9a-f]{6}$/i`; ids are
+    unique; an entry with id `purple` exists.
+  - `character-colors.test.ts`, `an unknown or missing id reads as purple`: `colorOf('red')`,
+    `colorOf('teal')`, `colorOf('')`, `colorOf(null)` and `colorOf(undefined)` are the purple
+    entry; for each table entry, `colorOf(entry.id)` is that entry.
   - `aylul.test.tsx`, `a new agent starts on Purple`: open New agent; the radio group
-    `Character colour` holds radios named, in order, Blue Red Green Purple Orange Pink, and only
-    Purple is checked.
+    `Character colour` holds one radio per `CHARACTER_COLORS` entry, named by its `label`, in
+    table order, and only Purple is checked.
   - `aylul.test.tsx`, `an agent's colour is shown and saved with the form`: agent `ay` with
     `character_color: 'blue'`; open its form, Blue is checked; click Green, then `Save agent`: the
     `PUT /api/aylul/agents/ay` body is `{ name: 'ay', provider, default_model,
     character_color: 'green' }` with the fixture's provider and model; before Save no request
     was sent.
+  - `aylul.test.tsx`, `an id the table does not know shows Purple and is replaced on save`: agent
+    `ay` with `character_color: 'red'`; its form has Purple checked; `Save agent` sends
+    `character_color: 'purple'`.
   - `aylul.test.tsx`, `the hint says when the colour shows`: desktop fixture with binding agent
     `ay`: "AYLUL wears this colour now." under `ay`'s swatches; another agent's form: "AYLUL
     wears this colour when this agent is the companion agent."; browser fixture: "AYLUL wears this
@@ -302,6 +319,11 @@ the task leaves `blocked`.
     blue and bound, `zed` pink; `ay`'s row holds `[data-color="blue"]` and the text `Companion`,
     `zed`'s row `[data-color="pink"]` and no `Companion`. F-6's row-text assertion stays true
     (the dot has no text; it changes only for the tag).
+  - `aylul.test.tsx`, `the sidebar's agent icon wears the agent's colour`: agents `ay` blue and
+    `zed` with no `character_color` in the fixture; in the app sidebar, `ay`'s row icon has
+    `data-color="blue"` and its `color` style is `colorOf('blue').swatch`, `zed`'s has
+    `data-color="purple"` and `colorOf('purple').swatch`; opening `ay` keeps its icon blue (the
+    open agent is still shown by the row's text colour, as today).
   - `companion-binding.test.tsx`, `the picker names the chosen agent's colour`: binding agent
     `ay` with `character_color: 'blue'`: the text `Character colour: Blue` and
     `[data-color="blue"]` under the select; no binding: no such line.
@@ -309,31 +331,17 @@ the task leaves `blocked`.
   src/app/agents/aylul.test.tsx src/app/desktop/companion-binding.test.tsx`; expected: FAIL.
 - [ ] **Step 3: Regenerate** with `npm run gen:api` (only once `api/openapi.json` shows
   `character_color`); the schema is committed with the task.
-- [ ] **Step 4: Implement.** `AgentForm`'s value gains `character_color: colorOf(original?.character_color)`
+- [ ] **Step 4: Implement.** `AgentForm`'s value gains `character_color: colorOf(original?.character_color).id`
   (purple for a new agent); a `Field label="Character colour"` after Default model holds
   `ColorSwatches` and the hint line (on the desktop, `useCompanionBinding()?.agent === slug`). The
   attempt fingerprint covers the new field as it covers the others (an unchanged retry reuses
-  its command id). Nothing is sent to the native shell in this task.
-- [ ] **Step 5: Run** the three files, `src/codemap.test.ts`, `npm run typecheck`, `npm run lint`; PASS.
+  its command id). In `AgentRow`, the `Bot` icon drops `text-accent-line` and takes
+  `style={{ color: colorOf(agent.character_color).swatch }}` and `data-color`. Nothing is sent to
+  the native shell in this task. If the desktop build's module inventory
+  (`apps/desktop/tests/desktop-build.test.mjs`) refuses the JSON outside `web/`, stop and report.
+- [ ] **Step 5: Run** the three files, `src/codemap.test.ts`, `npm run typecheck`, `npm run lint`,
+  `npm run build`; PASS.
 - [ ] **Step 6: Commit** `feat(web): each agent picks AYLUL's character colour`.
-
-### Task F-13: A still of the character beside the swatches
-
-**Files:**
-- Create: `web/public/aylul/character/<color>.png`, six files copied unchanged from the stills the
-  character side delivers (one per `CHARACTER_COLORS` id, 192×192, transparent)
-- Modify: `web/src/app/agents/color-swatches.tsx` (the still), `web/src/app/agents/contract.yaml`
-- Test: `web/src/app/agents/aylul.test.tsx`
-
-- [ ] **Step 1: Write the failing test** `the still follows the chosen colour`: open `ay`'s form
-  (blue): an `img` named `AYLUL in Blue` whose `src` ends `/aylul/character/blue.png`, 96×96 CSS
-  px; click Pink: its name is `AYLUL in Pink` and its `src` ends `pink.png`.
-- [ ] **Step 2: Run**; FAIL.
-- [ ] **Step 3: Implement.** The image sits left of the swatch row; the six files are referenced
-  by URL, not imported, so the bundle does not grow.
-- [ ] **Step 4: Run** the file, codemap, typecheck, lint; PASS. Open the form in a browser and
-  compare the six stills with the studio's export (screenshot in the report).
-- [ ] **Step 5: Commit** `feat(web): a still of AYLUL in the chosen colour`.
 
 ### Task F-14: Saving the companion agent repaints AYLUL at once
 

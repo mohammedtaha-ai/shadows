@@ -125,8 +125,10 @@ The person's own data comes first, then the account state, then only the actions
   **+ New agent** and Edit replace the list with today's agent form (`agent-settings.tsx`) inside
   the dialog, including its environment variables (`agent-env.tsx`).
 - **Character colour per agent:** each agent picks the colour of AYLUL's character when it is the
-  companion agent: blue, red, green, purple, orange, pink (a row of swatches; purple is today's
-  look). *(needs backend: the colour is stored with the agent)*
+  companion agent, from a row of swatches; purple is today's look and the default. The colours
+  are **dynamic** (Mohammed's ruling, 2026-10-21): they come from one colour table, and adding a
+  colour later needs no backend or native change. The first table holds blue, green, purple,
+  orange, pink. *(needs backend: the colour id is stored with the agent)*
 
 #### Character colour
 
@@ -142,24 +144,38 @@ The person's own data comes first, then the account state, then only the actions
 
 No CSS variable reaches the drawing: Canvas takes colours as strings at draw time.
 
-**The approach: a palette passed to the renderer.** The renderer gets one `CharacterColor` per frame
-and reads every accent and cloth tint from a palette for it, instead of literals. Purple's palette
-is today's literals exactly (same pixels). Each other palette is the same tone family in its hue
-(its 500 tone is the glow and the swatch: blue `#3b82f6`, red `#ef4444`, green `#22c55e`, purple
-`#a855f7`, orange `#f97316`, pink `#ec4899`), and the dark cloth tinted toward it. What does not
-change with the palette: gold metal (stud, hoop, `special` outfit), white sparkles, outfit
-accessories' own colours, and the state colours (`blocked` rose, `success` gold), since they are
-signals.
+**The approach: one colour table, read by the swatches and the renderer.**
+- **The table** is one data file, `assets/aylul/character-colors.json`, the only place a colour is
+  named. It is an ordered list; each entry is `{ id, label, swatch, tones }`: `id` a short
+  lowercase name (`blue`), `label` its English name, `swatch` the `#rrggbb` the web draws, `tones`
+  the renderer's palette for that colour. The web client and the companion renderer both import
+  this file (two packages, one file; neither copies it). The tone names in `tones` are the
+  character side's call, written in its plan; purple's tones are today's literals exactly (same
+  pixels).
+- **Adding a colour** is one new entry in the table plus its id in the table's order test
+  (`character-colors.test.ts`); every other test iterates the table. No backend, native, web
+  component or renderer code changes.
+- **Ids are opaque everywhere else.** Core stores `character_color` as a string, default
+  `"purple"`, with no list of values; the native shell passes it through unread. Each reader
+  resolves it against the table, and **an id not in the table draws purple** (and shows the
+  Purple swatch as chosen in the form, so saving the form repairs it).
+- **First table** (Mohammed's rulings, 2026-10-21): blue `#3b82f6`, green `#22c55e`, purple
+  `#a855f7`, orange `#f97316`, pink `#ec4899`. Red is left out: the `blocked` state turns the
+  accents rose, and a red character would lose that signal. Each palette tints the glow, rims and
+  eyes **and the dark cloth** (hood, body, bevel, void rim) toward its hue.
+- What no palette changes: gold metal (stud, hoop, `special` outfit), white sparkles, outfit
+  accessories' own colours, and the state colours (`blocked` rose, `success` gold), since they are
+  signals.
 - Why not the others: a hue filter (`filter: hue-rotate()` on the canvas, or `ctx.filter`) is free
   to build and cheap on the GPU, but it turns the gold metal and the state colours too (a blue
   AYLUL's `blocked` would stop being red) and shifts the dark cloth's brightness unevenly per hue.
   Recoloured assets do not apply: there are no assets. CSS tokens cannot reach a canvas.
-- Cost: no asset work; one palette object per colour in the renderer; no draw call is added, so
-  frame cost is unchanged. The work is a careful pass over the renderer's literals, owned by the
-  character side, with a pixel test that purple is unchanged.
+- Cost: no image work; one table entry per colour; no draw call is added, so frame cost is
+  unchanged. The work is one careful pass over the renderer's literals, owned by the character
+  side, with a pixel test that purple is unchanged.
 
 **The picker** (in the agent form, after Default model):
-- A radio group named **Character colour**: six round swatches in the order above, each with its
+- A radio group named **Character colour**: one round swatch per table entry, in the table's order, each with its
   name as its accessible label and as a tooltip; the chosen one has a ring. A new agent starts on
   Purple. The colour is saved with the rest of the form by **Save agent**, like the other fields.
 - Under it, one line says when the colour shows: "AYLUL wears this colour now." when this agent is
@@ -171,31 +187,27 @@ signals.
   on the companion agent (desktop only).
 - The AYLUL character section shows, under the companion agent picker, "Character colour: <name>"
   with its dot, for the chosen agent.
-- My call: **the preview** is a small still of the character in the chosen colour beside the
-  swatches, from six PNGs the character studio exports (one per colour). The web client cannot run
-  the desktop renderer (a separate package and owner), so a live preview would mean copying it.
-  Until the six stills exist, no preview is drawn; the live companion is the preview once saved.
+- The app sidebar's agent row: its `Bot` icon takes the agent's colour (Mohammed's ruling,
+  2026-10-21), on the desktop and in the browser.
+- **No preview in the form** (Mohammed's ruling, 2026-10-21): the live companion, repainted once
+  the form is saved, is the preview. The web client does not copy the desktop renderer.
 
 **How the colour reaches the companion window.** Core stores the colour on the agent; the web
 client never sends it to the native shell. The native presence already reads the agent from
 Core's agent list when the companion agent is selected and checks it every 10 seconds while bound;
-it reads `character_color` there too and publishes it in the companion state it already sends the
-window (`companion-state`), as `appearance.color`. No bound agent, an unavailable agent, a missing
-field or an unknown value all draw purple. Changing the companion agent repaints at once (selection
+it reads `character_color` there too and publishes it unchanged, as an opaque string, in the
+companion state it already sends the window (`companion-state`), as `appearance.color`. The
+window's renderer resolves it against the table. No bound agent, an unavailable agent, a missing
+field or an id not in the table all draw purple. Changing the companion agent repaints at once (selection
 already republishes the state). Saving the companion agent's form calls a main-only native
 command that rereads the agent and republishes, so an edit shows at once rather than after the
 next 10-second check.
 
-**Who builds what:** the web picker, list dot, character-section line and the save-time refresh
-call are this side's (F-9, F-14; the preview F-13); the companion state's parsing in
-`apps/desktop/src/platform/` is the desktop UI's (U-1); the native read and command, and the
-renderer palette with the six stills, belong to the native and character sides and are asked for
-by AYLUL shared requests.
-
-> **OPEN — red and the blocked state.** The `blocked` state turns the accents rose (`#f43f5e`); a
-> red AYLUL's `blocked` then differs from its normal look only by its shake and warning mark.
-> Closed by Mohammed's answer: keep red as is, use another state colour for a red character, or
-> drop red from the six.
+**Who builds what:** the web picker, list dot, sidebar icon, character-section line and the
+save-time refresh call are this side's (F-9, F-14); the companion state's parsing in
+`apps/desktop/src/platform/` is the desktop UI's (U-1); the native read and command belong to the
+native side; the colour table, its tones and the renderer reading them belong to the character
+side. Both are asked for by AYLUL shared requests.
 
 ### Plugins & Skills
 
