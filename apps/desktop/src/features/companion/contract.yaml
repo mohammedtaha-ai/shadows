@@ -4,6 +4,10 @@ status: current
 source: apps/desktop/src/features/companion
 responsibility: Present procedural AYLUL with isolated motion and explicit native rendering permission; desktop gestures invoke narrow platform wrappers. Reusable in-window presence owns message lifetime and optional tones. Development studio is separately owned.
 exports:
+  - name: CompanionComposer
+    file: apps/desktop/src/features/companion/CompanionComposer.tsx
+  - name: createDrafts/nextAttempt/submitKey/errorMessage
+    file: apps/desktop/src/features/companion/composer-model.ts
   - name: createNativePresentation
     file: apps/desktop/src/features/companion/native-presentation.ts
   - name: DesktopCompanion
@@ -15,6 +19,12 @@ exports:
   - name: renderScene
     file: apps/desktop/src/features/companion/renderer/scene.ts
 obligations:
+  - rule: Ready is an accessible native editor toggle; artwork alone owns drag and main navigation.
+    tested_by: apps/desktop/tests/companion/composer.spec.ts
+  - rule: One in-flight send keeps draft and command identity on uncertain Retry; scope changes discard drafts and late results cannot clear new text.
+    tested_by: [apps/desktop/tests/companion/composer.test.ts, apps/desktop/tests/companion/composer.spec.ts]
+  - rule: Enter sends, Shift Enter inserts newline, IME Enter does not submit, Escape closes; hide retains same-scope drafts and pause does not disable typing.
+    tested_by: apps/desktop/tests/companion/composer.spec.ts
   - rule: Desktop status comes from native presence; a plain two-line preview retains its absolute expiry and repeated IDs cannot extend it.
     tested_by: apps/desktop/tests/companion/live-presence.spec.ts
     test: native status and a compact plain reply retain their deadlines across repeated events

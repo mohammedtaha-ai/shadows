@@ -286,12 +286,12 @@
     - `companion_core_unavailable`: "Core unavailable. Retry local Core in Settings."
     - Anything else: "Unable to send. Retry."
 
-- [ ] **Step 1: Write the failing unit tests** in `composer.test.ts`:
+- [x] **Step 1: Write the failing unit tests** in `composer.test.ts`:
   - Drafts: survive `drop(sameScope)`, vanish on `drop(otherScope)`.
   - `nextAttempt`: keeps the id for the same scope and text, and makes a new id when either changes.
   - `submitKey`: Enter gives send; Shift+Enter gives newline; Enter with `isComposing` gives null; Escape gives close.
   - `errorMessage`: an unknown code gives the generic message, and no output contains the input code.
-- [ ] **Step 2: Write the failing browser tests** in `composer.spec.ts`, against the existing fixture and fakes:
+- [x] **Step 2: Write the failing browser tests** in `composer.spec.ts`, against the existing fixture and fakes:
   1. **Status button:** it is a `button` with `aria-expanded`. A real Playwright `click()`, Enter and Space each toggle the input. None of them calls `openMainFromCompanion` or `dragCompanion`.
   1a. **Real clicks reach the strip:** a Playwright `click()` on Send sends once. A `click()` into the textarea places the caret there. Neither calls `openMainFromCompanion`.
   1b. **Artwork is unchanged:** a `click()` on the artwork still calls `openMainFromCompanion` once.
@@ -302,8 +302,8 @@
   6. **No agent:** with `context: null`, the strip shows a "Choose an agent" button that calls `openMainFromCompanion`, and no textarea.
   7. **Draft lifetime:** close, then reopen, and the draft is still there. A state with a new `scope` (main switched between two conversations of the same agent) empties the draft and drops the pending attempt, so the next Send uses a new `commandId`.
   8. **Pause:** with `paused: true`, typing and Send still work.
-- [ ] **Step 3: Run** `npm --prefix apps/desktop run test:companion:unit` and `npx --prefix apps/desktop playwright test tests/companion/composer.spec.ts`. Expected: FAIL.
-- [ ] **Step 4: Implement.**
+- [x] **Step 3: Run** `npm --prefix apps/desktop run test:companion:unit` and `npx --prefix apps/desktop playwright test tests/companion/composer.spec.ts`. Expected: FAIL.
+- [x] **Step 4: Implement.**
   - **Status bar:** replace the `aylul-live-status` paragraph with a `<button aria-expanded>` that keeps `role="status"` text inside a child `span`.
   - **Event isolation:**
     - Today the root `.aylul-desktop` element carries the pointer handlers, the `onClickCapture` that calls `preventDefault`/`stopPropagation`, and the Enter/Space open-main `onKeyDown`. A capture-phase handler on an ancestor runs before any child, so `stopPropagation` on the button cannot escape it.
@@ -313,8 +313,8 @@
   - **Successful send:** clear the draft and keep the input open. The reply arrives through the existing bubble.
   - **Agent caption:** show `composer.agent` as plain text.
   - **Layout:** the open layout puts the strip below the status, inside the 296×320 surface. The closed layout is unchanged.
-- [ ] **Step 5: Run** the Step 3 commands, then `npm --prefix apps/desktop run test:companion:browser`, so the existing gesture, presence and visual specs stay green. Expected: PASS.
-- [ ] **Step 6: Update `features/companion/contract.yaml`** with the composer, the gesture isolation and the draft lifetime. Commit: `feat(companion): Ready toggles a compact text input under the character`
+- [x] **Step 5: Run** the Step 3 commands, then `npm --prefix apps/desktop run test:companion:browser`, so the existing gesture, presence and visual specs stay green. Expected: PASS.
+- [x] **Step 6: Update `features/companion/contract.yaml`** with the composer, the gesture isolation and the draft lifetime. Commit: `feat(companion): Ready toggles a compact text input under the character`
 
 ### Task 5: Docs, full gate, native acceptance
 
