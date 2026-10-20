@@ -30,7 +30,9 @@ jobs:
         with:
           node-version: 24.19.0
           cache: npm
-          cache-dependency-path: apps/desktop/package-lock.json
+          cache-dependency-path: |
+            apps/desktop/package-lock.json
+            web/package-lock.json
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -45,6 +47,10 @@ jobs:
             apps/desktop/hook -> target
 
       - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install shared dashboard dependencies
+        working-directory: web
         run: npm ci
 
       - name: Build frontend
