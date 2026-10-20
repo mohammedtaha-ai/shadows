@@ -164,7 +164,7 @@
      - The text must equal the captured prompt, else `companion_send_invalid`.
      - The current `scope` must equal `Captured.scope`, else `companion_send_stale`. The context token is not checked, because the first send's own bind changed it.
    - Skip steps 3–6, and POST `Captured.body` unchanged to `Captured.thread_id` (step 7).
-   - Otherwise: check that `context` equals the current token, and capture `request(Some(generation))`.
+   - Otherwise: check that `context` equals the current token, and capture `request(Some(generation))`. In the same lock, record the `admitted_scope`: the scope at the moment this send is accepted. Every later step uses `admitted_scope`, never the scope current at that time.
 3. `workspace` + `live_agent`.
 4. Choose the thread:
    - **With a target:** re-validate it with `binding::target`.
@@ -173,11 +173,14 @@
      - Then `commit(request, |view| view.target = Some(target))`. If the commit fails, return `companion_send_stale`.
 5. POST `/api/threads/{id}/session` and read `SessionChoices.current`.
 6. **New thread only:** if the agent's `default_model` is set and differs from the current model, PUT `/api/threads/{id}/session/model` with `{"model": ...}` and use the returned `current`.
-7. Build the turn body `{"command_id", "prompt": text, "model", "mode", "effort", "focus": null, "client_tab": null}`. Store it as `Captured` with the thread id and current scope, then POST it to `/api/threads/{id}/turns`.
+7. Build the turn body `{"command_id", "prompt": text, "model", "mode", "effort", "focus": null, "client_tab": null}`. Store it as `Captured` with the thread id and `admitted_scope`, then POST it to `/api/threads/{id}/turns`.
+   - The store happens only if the current scope still equals `admitted_scope` and the `Captured` slot is empty or holds this `command_id`.
+   - Otherwise nothing is stored. The turn still posts to its captured thread, since an admitted request is never redirected, but this attempt can no longer be retried.
 8. **What happens to `Captured`:**
    - Cleared on success, and on any definitive refusal (`setup`, `settings`, `thread_invalid`, `failed`).
    - Kept on `uncertain` and `busy`, because Core did not admit the command, or may have.
    - Cleared when the scope changes.
+   - A result, on time or late, changes `Captured` only while the slot holds that result's own `command_id`. An older send that finishes late never replaces or clears a newer scope's attempt.
 
    A retry therefore sends the same command id with byte-identical body to the same thread, so Core replays the command instead of answering `COMMAND_CONFLICT`.
 
@@ -201,10 +204,16 @@
   - `uncertain_turn_retry_sends_the_captured_request`:
     - The fixture models Core idempotency: the same turn `command_id` with an identical body returns the first `operation_id`, and with a different body returns 409 `COMMAND_CONFLICT`.
     - The first turn POST stalls past the test timeout, giving `companion_send_uncertain`.
-    - Between the attempts, the fixture's session answers a different `mode` and `model`, and main's retarget bumps the context token.
+    - Between the attempts, the fixture's session answers a different `mode` and `model`, and main toggles previews. That bumps the context token but keeps the conversation and the scope.
     - The retry records no session or model call, and its turn body is byte-equal to the first.
     - It returns `Ok(Sent)` with the first `operation_id`.
     - A retry with the same `command_id` but changed text gives `companion_send_invalid` and records no request.
+  - `retry_after_main_switches_conversation_is_refused`: after an uncertain turn on T1, main retargets to T2. A retry with the same `command_id` gives `companion_send_stale`, records no request, and the `Captured` slot is empty.
+  - `late_old_send_cannot_replace_newer_attempt`:
+    - Send A is admitted under scope S1, and its session POST stalls.
+    - Main retargets (scope S2). Send B is admitted under S2, and its turn POST times out: `Captured` holds B.
+    - A's session then answers, and A's turn POST times out.
+    - `Captured` still holds B with scope S2, and A's turn was posted to T1, never to B's thread.
   - `main_switching_conversation_changes_scope`:
     - When main retargets agent A from thread T1 to T2, `context().0` changes.
     - When `send` binds a first thread, `context().0` stays the same.
@@ -228,7 +237,7 @@
 - [ ] **Step 5: Update `presence/contract.yaml`.**
   - Replace the `responsibility` wording "without mutating Core" with: "Observe the bound conversation; mutate Core only for an explicit companion submission."
   - Add `send` and `context` to `public_api`.
-  - Add obligations naming the ten tests above.
+  - Add obligations naming the twelve tests above.
   - Commit: `feat(companion): native send sequence for the companion input`
 
 ### Task 3: IPC command and the composer view
