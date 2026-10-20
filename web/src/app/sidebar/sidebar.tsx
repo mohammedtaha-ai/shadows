@@ -2,7 +2,7 @@
 // answers, and the way to the global settings.
 
 import {useState} from 'react'
-import { Link, useSearch, useNavigate } from '@tanstack/react-router'
+import { Link, useSearch } from '@tanstack/react-router'
 import {isDesktop} from '../../desktop/runtime'
 import {hideToTray} from '../../desktop/native'
 import { Plus, Settings } from 'lucide-react'
@@ -18,7 +18,6 @@ import { useOpenSettings } from '../settings/use-settings'
 export function Sidebar() {
   const [nativeError,setNativeError]=useState<string|null>(null)
   const openNewProject = useOpenNewProject()
-  const navigate = useNavigate()
   const { workspace, switchTo } = useWorkspace()
   const openSettings = useOpenSettings()
   const onSettings = useSearch({ from: '__root__' }).settings !== undefined
@@ -32,7 +31,7 @@ export function Sidebar() {
           variant="secondary"
           size="sm"
           className="w-full justify-start gap-2 shadow-xs transition-all hover:bg-secondary/90"
-          onClick={() => workspace === 'aylul' ? void navigate({ to: '/aylul/agents/new' }) : openNewProject()}
+          onClick={() => workspace === 'aylul' ? openSettings('agents', 'new') : openNewProject()}
         >
           <Plus className="size-4" />
           {workspace === 'aylul' ? 'New agent' : 'New project'}

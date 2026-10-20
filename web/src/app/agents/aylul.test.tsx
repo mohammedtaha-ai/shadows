@@ -51,7 +51,7 @@ it('aylul_thread_url_opens_aylul_workspace', async () => {
 })
 
 it('switching_navigates_to_that_workspace', async () => {
-  const a = open = await startApp('/aylul/agents/work/settings', table())
+  const a = open = await startApp('/aylul?settings=agents&agent=work', table())
   await until(() => a.button('Workspace') !== undefined)
   act(() => a.button('Workspace')!.click())
   await until(() => menuItem('Shadows') !== undefined)
@@ -105,7 +105,7 @@ it('models_editor_rejects_duplicates_and_default', async () => {
 })
 
 it('agent_form_lists_provider_models', async () => {
-  open = await startApp('/aylul/agents/new', table())
+  open = await startApp('/aylul?settings=agents&agent=new', table())
   await until(() => document.querySelector('select[aria-label="Default model"] option') !== null)
   expect([...document.querySelectorAll('select[aria-label="Default model"] option')]
     .map(o => o.textContent)).toEqual(['fake-large', 'fake-small'])
@@ -245,5 +245,91 @@ it("the AYLUL home's Add a provider opens the dialog on Providers", async () => 
   await until(() => a.button('Add a provider') !== undefined)
   act(() => a.button('Add a provider')!.click())
   await until(() => document.querySelector('[data-slot="dialog-title"]')?.textContent === 'Providers')
+  expect(a.path()).toBe('/aylul')
+})
+
+it('Agent settings opens the dialog on that agent', async () => {
+  const a = open = await startApp('/aylul', table())
+  await until(() => a.button('Work') !== undefined)
+  act(() => a.button('Work')!.click())
+  await until(() => a.button('Agent settings') !== undefined)
+  act(() => a.button('Agent settings')!.click())
+  await until(() => input('Agent name') !== null)
+  expect(document.querySelector('[data-slot="dialog-title"]')?.textContent).toBe('Agents')
+  expect(a.button('Back')).toBeDefined()
+  expect(input('Agent name').value).toBe('Work')
+  expect(a.path()).toBe('/aylul')
+})
+it('New agent opens an empty form', async () => {
+  let agents = [agent]
+  const a = open = await startApp('/aylul', { ...table(),
+    'GET /api/aylul/agents': () => Response.json({ project_id: 'p1', agents }),
+    'POST /api/aylul/agents': async (request: Request) => {
+      const value = await request.json(); const saved = { ...agent, ...value, slug: 'new-agent' }
+      agents = [...agents, saved]; return Response.json(saved, { status: 201 })
+    },
+  })
+  act(() => a.button('New agent')!.click())
+  await until(() => input('Agent name') !== null)
+  expect(input('Agent name').value).toBe('')
+  typeInto(input('Agent name'), 'New fixture agent')
+  act(() => a.button('Create agent')!.click())
+  await until(() => document.querySelector('[aria-label="Saved agents"]')?.textContent?.includes('New fixture agent') === true)
+  expect(input('Agent name')).toBeNull()
+  expect(new URLSearchParams(window.location.search).has('agent')).toBe(false)
+  expect(a.path()).toBe('/aylul')
+})
+it("the list shows each agent's provider and model", async () => {
+  const a = open = await startApp('/aylul?settings=agents', table())
+  await until(() => a.button('Edit') !== undefined)
+  const row = document.querySelector('[aria-label="Saved agents"] li')!
+  expect([...row.children].map(element => element.textContent).join(' ')).toBe('Work Test provider fake-large Edit Delete')
+})
+it('a deleted agent in the URL shows the list with a note', async () => {
+  const a = open = await startApp('/aylul?settings=agents&agent=gone', table())
+  await until(() => a.text().includes('This agent no longer exists.'))
+  expect(document.querySelector('[aria-label="Saved agents"]')).not.toBeNull()
+  expect(input('Agent name')).toBeNull()
+})
+it('closing an unsaved agent form discards the draft', async () => {
+  const a = open = await startApp('/aylul?settings=agents&agent=work', table())
+  await until(() => input('Agent name') !== null)
+  typeInto(input('Agent name'), 'Unsaved name')
+  act(() => input('Agent name').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+  await until(() => document.querySelector('[role="dialog"]') === null)
+  act(() => a.button('Settings')!.click())
+  await until(() => a.button('Agents') !== undefined)
+  act(() => a.button('Agents')!.click())
+  await until(() => document.querySelector('[aria-label="Saved agents"]') !== null)
+  expect(input('Agent name')).toBeNull()
+  expect(a.calls).not.toContain('PUT /api/aylul/agents/work')
+})
+it('saving and Back return to the Agents list', async () => {
+  const a = open = await startApp('/aylul?settings=agents&agent=work', { ...table(),
+    'PUT /api/aylul/agents/work': () => Response.json(agent),
+  })
+  await until(() => input('Agent name') !== null)
+  act(() => a.button('Back')!.click())
+  await until(() => document.querySelector('[aria-label="Saved agents"]') !== null)
+  act(() => a.button('Edit')!.click())
+  await until(() => input('Agent name') !== null)
+  act(() => a.button('Save agent')!.click())
+  await until(() => input('Agent name') === null)
+  expect(a.calls).toContain('PUT /api/aylul/agents/work')
+  expect(document.querySelector('[aria-label="Saved agents"]')).not.toBeNull()
+})
+it('agent deletion confirms inline and preserves the current page', async () => {
+  let agents = [agent]
+  const a = open = await startApp('/aylul?settings=agents', { ...table(),
+    'GET /api/aylul/agents': () => Response.json({ project_id: 'p1', agents }),
+    'DELETE /api/aylul/agents/work': () => { agents = []; return new Response(null, { status: 204 }) },
+  })
+  await until(() => a.button('Delete') !== undefined)
+  act(() => a.button('Delete')!.click())
+  expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
+  expect(a.calls).not.toContain('DELETE /api/aylul/agents/work')
+  act(() => a.button('Delete agent')!.click())
+  await until(() => document.querySelector('[aria-label="Saved agents"]')?.textContent?.includes('Work') === false)
+  expect(a.calls).toContain('DELETE /api/aylul/agents/work')
   expect(a.path()).toBe('/aylul')
 })

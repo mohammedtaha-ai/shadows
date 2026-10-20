@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { ErrorLine } from '../error-line'
 
-export function DeleteZone({ title, summary, consequence, action, pending, error, onConfirm, inline = false }: {
+export function DeleteZone({ title, summary, consequence, action, pending, error, onConfirm, inline = false, compact = false }: {
   /** "Delete provider". */
   title: string
   /** One line under the title, before anything is clicked. */
@@ -21,6 +21,7 @@ export function DeleteZone({ title, summary, consequence, action, pending, error
   pending: boolean
   error: Error | null
   inline?: boolean
+  compact?: boolean
   onConfirm: () => void
 }) {
   const [open, setOpen] = useState(false)
@@ -34,12 +35,12 @@ export function DeleteZone({ title, summary, consequence, action, pending, error
     </DialogFooter>
   </div>
   return (
-    <section className="space-y-3 rounded-md border border-destructive-border p-4">
+    <section className={compact ? 'space-y-3' : 'space-y-3 rounded-md border border-destructive-border p-4'}>
       <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
+        {!compact && <div className="space-y-1">
           <h2 className="text-sm font-medium text-destructive-foreground">{title}</h2>
           <p className="text-xs text-muted-foreground">{summary}</p>
-        </div>
+        </div>}
         <Button size="sm" variant="destructive" onClick={() => setOpen(true)}>
           <Trash2 />
           Delete

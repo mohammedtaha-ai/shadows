@@ -45,6 +45,8 @@ components:
     signature: "() => JSX.Element"
   ProvidersSection:
     signature: "() => JSX.Element"
+  AgentsSection:
+    signature: "() => JSX.Element"
   ActiveProjects:
     signature: "() => JSX.Element"
     # Reads the code settings; renders the form once they load.
@@ -72,6 +74,13 @@ functions:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: Agents selects a form through the agent search key; Back and successful save clear that key to show the list without changing the page. Missing or deleted agent IDs show the list with a note. Closing discards unsaved edits.
+    tested_by:
+      - "Agent settings opens the dialog on that agent"
+      - "New agent opens an empty form"
+      - "saving and Back return to the Agents list"
+      - "a deleted agent in the URL shows the list with a note"
+      - "closing an unsaved agent form discards the draft"
   - rule: Providers starts on its list; add and edit replace the section body; closing discards the unsaved form. Confirming deletion stays inside the existing settings dialog.
     tested_by:
       - "closing mid-form saves nothing"

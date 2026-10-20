@@ -117,6 +117,8 @@ private_helpers:
 obligations:
   - rule: No Providers link sits below the agent tree; the empty provider hint opens the Providers settings section over the current page.
     tested_by: ["the sidebar has no Providers link", "the AYLUL home's Add a provider opens the dialog on Providers"]
+  - rule: Agent settings and every New agent entry open the Agents settings section with the selected slug or new; the current page stays in place.
+    tested_by: ["Agent settings opens the dialog on that agent", "New agent opens an empty form"]
   - rule: >
       The URL's project opens when the URL comes to it. Folding the project that holds the
       open conversation leaves the conversation on screen.

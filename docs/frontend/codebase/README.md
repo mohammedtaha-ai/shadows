@@ -88,7 +88,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/queries.ts` | TanStack Query keys for each piece of daemon state | `web/src/api/client.ts` |
 | `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/client.ts` |
 | `web/src/app/agents/agent-env.tsx` | One agent's environment variables, values write-only | `web/src/app/agents/contract.yaml` |
-| `web/src/app/agents/agent-settings.tsx` | One agent's settings page, or a new agent's | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/agent-settings.tsx` | Agent editing form | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/delete-zone.tsx` | Danger zone confirming the deletion of a provider or agent | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/form-field.tsx` | Labelled controls drawn for the AYLUL forms | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/home.tsx` | Main pane of the AYLUL workspace when no conversation is open | `web/src/app/agents/contract.yaml` |
@@ -186,6 +186,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/sections/character.tsx` | Character settings content | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/core.tsx` | Local Core settings content | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/providers.tsx` | Provider settings navigation | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/agents.tsx` | Agent settings navigation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/account-actions.ts` | Account state action selection | `web/src/app/settings/contract.yaml` |
 | `web/src/app/shell.tsx` | Two-pane frame every screen sits in | `web/src/app/home.tsx` |
 | `web/src/app/sidebar/agent-list.tsx` | Sidebar agent tree with their conversations | `web/src/app/sidebar/contract.yaml` |

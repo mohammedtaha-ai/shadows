@@ -30,17 +30,17 @@ components:
     signature: "({ provider: Provider | null, group: PresetGroup | null, onSaved: (p: Provider | null) => void }) => JSX.Element"
     # Name, URL, API key (password, write-only, Remove key when one is saved), models one
     # per line, context window; Delete provider in its danger zone.
-  NewAgent:
-    signature: "() => JSX.Element"
-    # /aylul/agents/new; a saved agent opens its settings.
-  AgentSettings:
-    signature: "() => JSX.Element"
-    # /aylul/agents/$slug/settings: name, provider, default model, the agent's variables,
-    # Delete agent. A deleted agent's page says its conversations stay readable.
+  AgentForm:
+    signature: "({ slug: string | null, onDone: () => void }) => JSX.Element"
+    # Null creates an agent; a saved agent includes its scoped environment and deletion.
+    # Successful saves return to the Agents list via onDone, without changing the page.
+  DeleteAgent:
+    signature: "({ slug, name, onDone, compact? }) => JSX.Element"
+    # Reuses the same idempotent deletion from an agent form or list row.
   AgentEnv:
     signature: "({ slug: string }) => JSX.Element"
   DeleteZone:
-    signature: "({ title, summary, consequence, action, pending, error, onConfirm }) => JSX.Element"
+    signature: "({ title, summary, consequence, action, pending, error, onConfirm, inline?, compact? }) => JSX.Element"
     # The danger zone shared by both forms; inline=true keeps confirmation inside
     # Settings. Its error line shows a refusal such as PROVIDER_IN_USE.
   Field:
@@ -72,15 +72,15 @@ obligations:
     tested_by: [agent_form_lists_provider_models]
   - rule: Agent variables use scoped query keys and never display stored values.
     tested_by: [lists_names_without_values, adding_clears_the_input, replaces_and_removes_a_variable]
-  - rule: Agent variables live on the agent's page, not on the global Settings page.
-    tested_by: [global_settings_has_no_agent_environment]
+  - rule: Agent variables live on the saved agent form inside Settings; General and new-agent forms never load an agent's environment.
+    tested_by: [general_settings_has_no_agent_environment, lists_names_without_values]
   - rule: Configuration writes apply to the next spawn, including resumed conversations.
     tested_by: none
     note: Forms say this; core session tests own spawn behavior.
   - rule: Empty states guide provider creation before agent creation.
     tested_by: [empty_states_guide_to_provider_then_agent]
-  - rule: Deleting a provider or an agent requires confirmation first; a provider's confirmation is inline inside Settings.
-    tested_by: ["provider deletion confirms inside the settings dialog"]
+  - rule: Deleting a provider or an agent requires inline confirmation inside Settings; successful agent deletion preserves the current page.
+    tested_by: ["provider deletion confirms inside the settings dialog", "agent deletion confirms inline and preserves the current page"]
     note: The daemon refuses a provider in use with PROVIDER_IN_USE; the dialog shows it.
 
 tests:
@@ -94,8 +94,8 @@ tests:
     checks: A stored variable shows its name, time, Replace and Remove; the value field is a password.
   - name: adding_clears_the_input
     checks: A typed name is uppercased; after a save the value field is empty and the value never shows.
-  - name: global_settings_has_no_agent_environment
-    checks: The global Settings page never asks for agent variables.
+  - name: general_settings_has_no_agent_environment
+    checks: General never asks for agent variables.
   - name: shows_unavailable_error
     checks: SECRETS_UNAVAILABLE on the variable list shows its error line.
   - name: replaces_and_removes_a_variable

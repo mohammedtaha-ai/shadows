@@ -2,7 +2,7 @@
 // conversations and settings, and opens a new conversation from its row.
 
 import { useQuery } from '@tanstack/react-query'
-import { Link, useLocation, useParams } from '@tanstack/react-router'
+import { Link, useSearch, useParams } from '@tanstack/react-router'
 import { Bot, ChevronRight, Plus, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { type Agent, agentsQuery, providersQuery } from '@/api/aylul-profiles'
@@ -29,7 +29,7 @@ export function AgentList() {
         <EmptyHint to="providers" action="Add a provider first"
           detail="A provider is the URL, key and models your agents run on." />
       ) : list?.length === 0 ? (
-        <EmptyHint to="/aylul/agents/new" action="Add an agent to start"
+        <EmptyHint to="agents" action="Add an agent to start"
           detail="Each agent picks a provider and keeps its own conversations." />
       ) : null}
       {list !== undefined && list.length > 0 && agents.data !== undefined && (
@@ -55,15 +55,14 @@ export function AgentList() {
 }
 
 function EmptyHint({ to, action, detail }: {
-  to: 'providers' | '/aylul/agents/new'
+  to: 'providers' | 'agents'
   action: string
   detail: string
 }) {
   const openSettings = useOpenSettings()
   return (
     <div className="space-y-0.5 px-2 py-1">
-      {to === 'providers' ? <button type="button" className="text-sm text-sidebar-foreground underline-offset-4 hover:underline" onClick={() => openSettings('providers')}>{action}</button> :
-        <Link to={to} className="text-sm text-sidebar-foreground underline-offset-4 hover:underline">{action}</Link>}
+      <button type="button" className="text-sm text-sidebar-foreground underline-offset-4 hover:underline" onClick={() => openSettings(to, to === 'agents' ? 'new' : undefined)}>{action}</button>
       <p className="text-xs text-faint-foreground">{detail}</p>
     </div>
   )
@@ -122,12 +121,14 @@ function AgentRow({ agent, projectId, open, current, selected, onToggle }: {
 }
 
 function AgentSettingsLink({ slug }: { slug: string }) {
-  const isSelected = useLocation().pathname === `/aylul/agents/${slug}/settings`
+  const search = useSearch({ from: '__root__' })
+  const isSelected = search.settings === 'agents' && search.agent === slug
+  const openSettings = useOpenSettings()
   return (
     <div className="mb-1.5 ml-4 border-l border-sidebar-border pl-2">
-      <Link
-        to="/aylul/agents/$slug/settings"
-        params={{ slug }}
+      <button
+        type="button"
+        onClick={() => openSettings('agents', slug)}
         aria-current={isSelected ? 'page' : undefined}
         className={`flex items-center gap-2 rounded-r-md border-l-2 px-2 py-1 text-sm transition-colors ${
           isSelected
@@ -137,8 +138,7 @@ function AgentSettingsLink({ slug }: { slug: string }) {
       >
         <Settings className="size-3.5 shrink-0" aria-hidden />
         Agent settings
-      </Link>
+      </button>
     </div>
   )
 }
-

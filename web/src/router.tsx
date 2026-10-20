@@ -29,8 +29,6 @@ const AgreementsPage = lazyRouteComponent(() => import('./app/agreements/agreeme
 
 const Activity = lazyRouteComponent(() => import('./app/desktop/activity'), 'Activity')
 const AylulHome = lazyRouteComponent(() => import('./app/agents/home'), 'AylulHome')
-const NewAgent = lazyRouteComponent(() => import('./app/agents/agent-settings'), 'NewAgent')
-const AgentSettings = lazyRouteComponent(() => import('./app/agents/agent-settings'), 'AgentSettings')
 const AgentDraftRoute = lazyRouteComponent(() => import('./app/conversation/draft'), 'AgentDraftRoute')
 
 const rootRoute = createRootRoute({ component: Shell, validateSearch: readSettingsSearch })
@@ -112,8 +110,6 @@ const appSettingsRoute = createRoute({
 })
 
 const aylulHomeRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul', component: AylulHome })
-const newAgentRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/agents/new', component: NewAgent })
-const agentSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/agents/$slug/settings', component: AgentSettings })
 const agentDraftRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/agents/$slug/new', component: AgentDraftRoute })
 
 const activityRoute=createRoute({getParentRoute:()=>rootRoute,path:'/aylul/activity',component:Activity})
@@ -125,8 +121,6 @@ export const router = createRouter({
     homeRoute,
     activityRoute,
     aylulHomeRoute,
-    newAgentRoute,
-    agentSettingsRoute,
     agentDraftRoute,
     projectRoute,
     draftRoute,

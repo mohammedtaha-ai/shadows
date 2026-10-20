@@ -242,11 +242,13 @@ Vitest with happy-dom and the fake daemon (`web/src/app/test-app.tsx`, `@/test/f
   `/aylul/agents/new` and `/aylul/agents/$slug/settings`; keep `/aylul/agents/$slug/new`),
   `web/src/app/sidebar/agent-list.tsx:128-138` and `web/src/app/sidebar/sidebar.tsx` (New agent),
   `web/src/app/agents/home.tsx`, `web/src/app/settings/settings-dialog.tsx`
+- Modify (mechanical follow-up): `web/src/app/agents/delete-zone.tsx` (compact confirmation
+  trigger for an Agents list row; the existing deletion confirmation stays inline)
 - Test: `web/src/app/agents/aylul.test.tsx`, `web/src/app/agents/agent-env.test.tsx`
   (reach the form through the dialog)
 
 **Interfaces:**
-- Consumes: `useOpenSettings('agents', slug | 'new')` from F-2.
+- Consumes: the callback returned by `useOpenSettings()`, called with `('agents', slug | 'new')`, from F-2.
 - Produces: `AgentForm({ slug, onDone }: { slug: string | null; onDone: () => void })`.
 
 - [ ] **Step 1: Write the failing tests:**

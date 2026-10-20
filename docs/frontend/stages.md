@@ -5,9 +5,9 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Work and improvements continue on branch `improvements`. Next: the settings dialog,
-F-2 to F-6 (F-7 to F-12 wait on the settings dialog request; F-14 on the character
-colour's desktop side).
+Work and improvements continue on branch `improvements`. The settings dialog,
+F-2 to F-6, is implemented (F-7 to F-12 wait on the settings dialog request;
+F-14 on the character colour's desktop side).
 
 ## Tasks
 
@@ -61,7 +61,7 @@ colour's desktop side).
 - Done when: `aylul.test.tsx` and `provider-picker.test.tsx` pass with codemap, typecheck, lint
 
 ### F-6 · Agents in the dialog; Agent settings and New agent open it
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-6-agents-section-agent-settings-and-new-agent-open-it
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Agents, the dialog's rulings); `web/src/app/agents/contract.yaml`;
   `web/src/app/sidebar/contract.yaml`

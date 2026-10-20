@@ -1,8 +1,6 @@
-// One job: the agent page — a new agent's form, or one agent's name, provider,
-// default model, environment and deletion.
+// One job: agent editing inside Settings, including scoped environment and deletion.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useRef, useState } from 'react'
 import {
   type AgentInput, agentsQuery, deleteAgent, providersQuery, saveAgent,
@@ -16,50 +14,18 @@ import { DeleteZone } from './delete-zone'
 import { Field, Select } from './form-field'
 import { useOpenSettings } from '../settings/use-settings'
 
-export function NewAgent() {
-  return <AgentPage />
+export function AgentForm({ slug, onDone }: { slug: string | null; onDone: () => void }) {
+  const agent = useQuery(agentsQuery).data?.agents.find(agent => agent.slug === slug)
+  return <div className="space-y-6">
+    <AgentFields slug={slug} onDone={onDone} />
+    {slug !== null && agent && <><AgentEnv slug={slug} /><DeleteAgent slug={slug} name={agent.name} onDone={onDone} /></>}
+  </div>
 }
 
-export function AgentSettings() {
-  const { slug } = getRouteApi('/aylul/agents/$slug/settings').useParams()
-  // Keyed, so one agent's unsaved edits never show under another.
-  return <AgentPage key={slug} slug={slug} />
-}
-
-function AgentPage({ slug }: { slug?: string }) {
-  const agents = useQuery(agentsQuery)
-  const agent = agents.data?.agents.find((a) => a.slug === slug)
-  const missing = slug !== undefined && agents.data !== undefined && agent === undefined
-  return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-2xl space-y-8 px-6 py-8">
-        <header className="space-y-1">
-          <h1 className="text-base font-medium">{slug === undefined ? 'New agent' : 'Agent settings'}</h1>
-          <p className="text-xs text-faint-foreground">
-            {agent !== undefined ? <>
-              <span dir="auto">{agent.name}</span>
-              <span className="ml-2 font-mono">{agent.slug}</span>
-            </> : 'An agent runs on one provider and keeps its own conversations.'}
-          </p>
-        </header>
-        {agents.error !== null && <ErrorLine error={agents.error} />}
-        {missing ? (
-          <p className="text-sm text-muted-foreground">
-            This agent was deleted. Its conversations stay readable from their links.
-          </p>
-        ) : (slug === undefined || agent !== undefined) && <AgentForm slug={slug} />}
-        {slug !== undefined && agent !== undefined && <AgentEnv slug={slug} />}
-        {slug !== undefined && agent !== undefined && <DeleteAgent slug={slug} name={agent.name} />}
-      </div>
-    </div>
-  )
-}
-
-function AgentForm({ slug }: { slug?: string }) {
+function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void }) {
   const openSettings = useOpenSettings()
   const providers = useQuery(providersQuery)
   const original = useQuery(agentsQuery).data?.agents.find((a) => a.slug === slug)
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [edited, setEdited] = useState<AgentInput | null>(null)
   const pending = useRef<Attempt | null>(null)
@@ -74,14 +40,11 @@ function AgentForm({ slug }: { slug?: string }) {
       pending.current = attemptFor(pending.current, { slug: slug ?? null, input })
       return saveAgent(slug ?? null, pending.current.commandId, input)
     },
-    onSuccess: async (saved) => {
+    onSuccess: async () => {
       pending.current = null
       setEdited(null)
       await queryClient.invalidateQueries({ queryKey: agentsQuery.queryKey })
-      // A new agent opens its settings, where its variables can be added.
-      if (slug === undefined) {
-        await navigate({ to: '/aylul/agents/$slug/settings', params: { slug: saved.slug } })
-      }
+      onDone()
     },
   })
   const submit = (e: FormEvent) => {
@@ -104,7 +67,7 @@ function AgentForm({ slug }: { slug?: string }) {
   return (
     <form onSubmit={submit} className="space-y-4">
       <fieldset disabled={save.isPending} className="grid gap-4">
-        <Field label="Name" hint={slug === undefined ? 'Its address is made from the name and never changes.' : undefined}>
+        <Field label="Name" hint={slug === null ? 'Its address is made from the name and never changes.' : undefined}>
           <Input aria-label="Agent name" value={value.name} required placeholder="AYLUL"
             onChange={(e) => setEdited({ ...value, name: e.target.value })} />
         </Field>
@@ -127,7 +90,7 @@ function AgentForm({ slug }: { slug?: string }) {
         {save.error !== null && <ErrorLine error={save.error} />}
         <div className="flex items-center gap-3">
           <Button type="submit" disabled={value.provider === '' || value.default_model === ''}>
-            {save.isPending ? 'Saving…' : slug === undefined ? 'Create agent' : 'Save agent'}
+            {save.isPending ? 'Saving…' : slug === null ? 'Create agent' : 'Save agent'}
           </Button>
           <p className="text-xs text-faint-foreground">Changes apply to new and resumed conversations.</p>
         </div>
@@ -136,9 +99,8 @@ function AgentForm({ slug }: { slug?: string }) {
   )
 }
 
-function DeleteAgent({ slug, name }: { slug: string; name: string }) {
+export function DeleteAgent({ slug, name, onDone, compact = false }: { slug: string; name: string; onDone: () => void; compact?: boolean }) {
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
   const deletion = useRef<Attempt | null>(null)
   const remove = useMutation({
     mutationFn: () => {
@@ -147,12 +109,14 @@ function DeleteAgent({ slug, name }: { slug: string; name: string }) {
     },
     onSuccess: async () => {
       deletion.current = null
-      await navigate({ to: '/aylul' })
-      void queryClient.invalidateQueries({ queryKey: agentsQuery.queryKey })
+      await queryClient.invalidateQueries({ queryKey: agentsQuery.queryKey })
+      onDone()
     },
   })
   return (
     <DeleteZone
+      inline
+      compact={compact}
       title="Delete agent"
       summary="Its conversations stay readable, and its home folder stays on disk."
       action={`Delete ${name}?`}
