@@ -123,19 +123,19 @@ Tests: `persistent_child_survives_launcher_exit`, `persistent_launch_keeps_argum
 **Files:**
 - Create: `crates/shadows/src/runtime_record.rs`, `crates/shadows/src/desktop_runtime.rs`, `crates/shadows-http/src/runtime.rs`, `crates/shadows/tests/desktop_runtime.rs`.
 - Modify: `crates/shadows/src/{lib.rs,config.rs}`, `crates/shadows/src/cli/{args.rs,mod.rs}`, `crates/shadows/src/daemon/descriptor.rs`, `crates/shadows/src/daemon/contract.yaml`.
-- Modify: `crates/shadows-http/src/{lib.rs,openapi.rs}`, `crates/shadows/tests/openapi.rs`, `crates/shadows/tests/openapi/read_only.rs`, `crates/shadows/Cargo.toml`, `Cargo.lock`.
+- Modify: `crates/shadows-http/src/{lib.rs,openapi.rs,failure/mod.rs}`, `crates/shadows-core/src/error.rs`, `crates/shadows/tests/openapi.rs`, `crates/shadows/tests/openapi/read_only.rs`, `crates/shadows/Cargo.toml`, `Cargo.lock`.
 - Generate: `api/openapi.json`, `web/src/api/schema.d.ts`.
 - Update: Core/native request named above, `docs/codebase/README.md`, `web/src/api/contract.yaml`.
 
 **Interfaces:**
 - Add paired optional Serve flags `--desktop-record <absolute path>`, `--desktop-configuration <UUID>`; either both or neither. Normal Serve remains valid.
 - `DesktopLaunch { record_path: PathBuf, configuration_id: String }` becomes `Config.desktop_launch: Option<DesktopLaunch>`.
-- HTTP `RuntimeIdentity { runtime_id: String, configuration_id: String }`, JSON snake_case, GET `/api/runtime`: 200 when desktop launch metadata is installed, otherwise empty 404.
+- HTTP `RuntimeIdentity { runtime_id: String, configuration_id: String }`, JSON snake_case, GET `/api/runtime`: 200 when desktop launch metadata is installed, otherwise 404 ErrorBody with RUNTIME_NOT_CONFIGURED, following the existing HTTP contract.
 - Install identity using a router Extension, not another field on every AppState fixture or a new AppCore service.
-- Private `RuntimeReceipt` adds `origin: String`, `process: ProcessIdentity` to that identity. The binary generates runtime_id, claims a lifetime receipt-owner lock, binds/starts Core, then writes the receipt atomically.
+- Private `RuntimeReceipt` adds `origin: String`, `process: ProcessIdentity` and the actual canonical `database: PathBuf` to that identity; native attach compares the configured DB path, not just a caller-supplied configuration UUID. The binary generates runtime_id, claims a lifetime receipt-owner lock, binds/starts Core, then writes the receipt atomically.
 - Extract private atomic JSON writing from the existing descriptor implementation for its second caller; preserve the old Descriptor wire format and DACL behavior.
 
-- [ ] **Step 1:** Add `desktop_flags_are_paired`, `runtime_identity_is_installed_after_core_ready`, `receipt_matches_bound_endpoint_and_process`, `runtime_identity_does_not_expose_configuration`, `runtime_receipt_owner_is_exclusive`, `desktop_metadata_rejects_non_loopback_bind`, `native_origin_is_added_without_replacing_browser_origins`.
+- [x] **Step 1:** Add `desktop_flags_are_paired`, `runtime_identity_is_installed_after_core_ready`, `receipt_matches_bound_endpoint_and_process`, `runtime_identity_does_not_expose_configuration`, `runtime_receipt_owner_is_exclusive`, `desktop_metadata_rejects_non_loopback_bind`, `native_origin_is_added_without_replacing_browser_origins`.
 
 ~~~rust
 assert_eq!(response.status(), StatusCode::OK);
@@ -147,10 +147,10 @@ assert!(browser_origin_still_allowed);
 
 Check absence of executable/DB paths, args and tokens in the public projection, and preserve private-descriptor replacement tests. Use Task 1's exact native origin; reject null and unrelated loopback web-page origins.
 
-- [ ] **Step 2:** Run `cargo test -p shadows --test desktop_runtime`; expected RED.
-- [ ] **Step 3:** Implement metadata and receipt lifecycle, validated UUID/path flags, desktop-only loopback binding and exact origin union. Remove a receipt only if it still belongs to this runtime. Add the guarded route through the canonical HTTP route table; keep metadata rule ownership in the binary.
-- [ ] **Step 4:** Run `cargo test -p shadows --test desktop_runtime --test assistant_daemon`, `cargo test -p shadows --lib cli::args::tests`, `cargo test -p shadows-http guard::` and `cargo test -p shadows --test codemap`. Generate with PowerShell: `$env:UPDATE_OPENAPI='1'; cargo test -p shadows --test openapi; Remove-Item Env:UPDATE_OPENAPI`, then `npm --prefix web run gen:api`. Inject identity into the read-only OpenAPI fixture so it exercises the 200 route. Expected PASS and canonical artifacts.
-- [ ] **Step 5:** Commit `feat(runtime): identify desktop Core launches and publish readiness`.
+- [x] **Step 2:** Run `cargo test -p shadows --test desktop_runtime`; expected RED.
+- [x] **Step 3:** Implement metadata and receipt lifecycle, validated UUID/path flags, desktop-only loopback binding and exact origin union. Remove a receipt only if it still belongs to this runtime. Add the guarded route through the canonical HTTP route table; keep metadata rule ownership in the binary.
+- [x] **Step 4:** Run `cargo test -p shadows --test desktop_runtime --test assistant_daemon`, `cargo test -p shadows --lib cli::args::tests`, `cargo test -p shadows --test cors` and `cargo test -p shadows --test codemap`. Generate with PowerShell: `$env:UPDATE_OPENAPI='1'; cargo test -p shadows --test openapi; Remove-Item Env:UPDATE_OPENAPI`, then `npm --prefix web run gen:api`. Inject identity into the read-only OpenAPI fixture so it exercises the 200 route. Expected PASS and canonical artifacts.
+- [x] **Step 5:** Commit `feat(runtime): identify desktop Core launches and publish readiness`.
 
 ### Task 4: Auto-start Core and package the shared dashboard
 

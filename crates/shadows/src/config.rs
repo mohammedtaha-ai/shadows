@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct Config {
+    pub desktop_launch: Option<crate::desktop_runtime::DesktopLaunch>,
     pub db_path: PathBuf,
     pub bind: SocketAddr,
     /// Explicit Node runtime for the installed ACP adapter. Never resolved via `PATH`.

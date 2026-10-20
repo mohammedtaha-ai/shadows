@@ -36,7 +36,7 @@ use utoipa::OpenApi;
                                        session offers"),
         (name = "stream", description = "The replay-then-live event stream"),
         (name = "filesystem", description = "Choosing a project directory on this machine"),
-        (name = "meta", description = "This document"),
+        (name = "meta", description = "Protocol document and runtime readiness"),
     )
 )]
 struct ApiDoc;

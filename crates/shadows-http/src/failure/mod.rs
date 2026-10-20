@@ -152,6 +152,16 @@ impl Failure {
     /// Spec §1: a browser sent this on behalf of a page that is not one of
     /// this daemon's clients (`guard.rs`). 403: the request is refused for
     /// who sent it, whatever it asks.
+    pub(super) fn runtime_not_configured() -> Self {
+        Failure {
+            status: StatusCode::NOT_FOUND,
+            code: ErrorCode::RuntimeNotConfigured,
+            message: "desktop runtime identity is not configured".into(),
+            cause: None,
+            detail: Detail::default(),
+        }
+    }
+
     pub(super) fn origin_refused(why: &'static str) -> Self {
         Failure {
             status: StatusCode::FORBIDDEN,

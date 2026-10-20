@@ -82,6 +82,8 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/design/store/roadmap_approval.rs` | committing approved roadmap proposals | `crates/shadows-core/src/design/contract.yaml` |
 | `crates/shadows/src/main.rs` | the one binary Shadows ships | `crates/shadows/src/cli/mod.rs` |
 | `crates/shadows/src/cli/` | daemon startup | `crates/shadows/src/cli/args.rs` |
+| `crates/shadows/src/desktop_runtime.rs` | desktop launch identity | `docs/aylul/specs/2026-10-20-aylul-desktop-web-companion-design.md` |
+| `crates/shadows/src/runtime_record.rs` | private runtime record publication | `crates/shadows/src/runtime_record.rs` |
 | `crates/shadows/src/config.rs` | startup configuration resolved once | `crates/shadows/src/config.rs` |
 | `crates/shadows/src/daemon/` | product service composition | `docs/integration/2026-10-19-product-daemon-hermes-design.md` |
 | `crates/shadows/src/daemon/bridge.rs` | bounded Node request ownership | `crates/shadows/src/daemon/bridge.rs` |
@@ -89,6 +91,7 @@ pattern to follow, not merely an example.
 | `crates/shadows/src/aylul.rs` | AYLUL startup configuration | `crates/shadows/src/aylul.rs` |
 | `crates/shadows/src/daemon/descriptor.rs` | private connection descriptor ownership | `crates/shadows/src/daemon/descriptor.rs` |
 | `crates/shadows/src/tracing.rs` | tracing subscriber setup | `crates/shadows/src/tracing.rs` |
+| `crates/shadows-http/src/runtime.rs` | runtime readiness HTTP projection | `crates/shadows/src/desktop_runtime.rs` |
 | `crates/shadows-http/src/lib.rs` | the HTTP/SSE surface every client talks to | `crates/shadows-http/src/project.rs` |
 | `crates/shadows-http/src/project.rs` | the routes over projects, their threads included | `crates/shadows-http/src/project.rs` |
 | `crates/shadows-http/src/conversation.rs` | the routes over a thread's conversation | `crates/shadows-http/src/conversation.rs` |

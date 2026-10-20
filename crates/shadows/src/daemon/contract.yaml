@@ -18,7 +18,7 @@ obligations:
     note: tests/assistant_daemon.rs closes the actual managed process.
   - rule: Descriptor replacement protects the capability before writing it without changing parent-directory permissions.
     tested_by: descriptor_replacement_is_private_without_changing_parent_permissions
-    note: Fresh files use Unix mode 0600 or a protected Windows DACL granting the current user only.
-  - rule: With AYLUL configured, startup injects the OS master key and imports once after project setup. Key/import failure never prevents startup and has no plaintext fallback.
-    tested_by: import_reads_no_file_when_marker_exists
-    note: This test covers the shared import marker path. Real credential-store startup remains controller acceptance.
+    note: Shared binary runtime_record publication creates a fresh file with Unix mode 0600 or a protected Windows DACL granting the current user only; the legacy descriptor shape is unchanged.
+  - rule: With AYLUL configured, startup supplies the OS master key to AppCore; key-store failure preserves startup without a plaintext fallback.
+    tested_by: none
+    note: The former import path is removed. Real credential-store startup remains controller acceptance.
