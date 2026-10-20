@@ -43,6 +43,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
+            . -> target
             apps/desktop/src-tauri -> target
             apps/desktop/hook -> target
 
@@ -61,6 +62,11 @@ jobs:
 
       - name: Run clippy
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+      - name: Build Core for desktop launch tests
+        # core_connection tests start the real target/debug/shadows.exe.
+        working-directory: .
+        run: cargo build -p shadows --bin shadows
 
       - name: Run tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
