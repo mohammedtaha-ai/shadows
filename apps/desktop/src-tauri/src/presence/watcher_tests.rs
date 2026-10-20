@@ -388,7 +388,11 @@ async fn replayed_history_reconciles_once_at_caught_up() {
         .sequence
         .store(40, std::sync::atomic::Ordering::SeqCst);
     for seq in 1..=40 {
-        let kind = if seq % 2 == 0 { "ThreadEntryAppended" } else { "OperationStarted" };
+        let kind = if seq % 2 == 0 {
+            "ThreadEntryAppended"
+        } else {
+            "OperationStarted"
+        };
         api.data.replay.lock().unwrap().push((
             "durable".into(),
             serde_json::json!({"seq":seq,"kind":kind,"operation_id":"old","thread_id":THREAD_A})

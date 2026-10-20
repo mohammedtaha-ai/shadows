@@ -26,6 +26,8 @@ obligations:
     tested_by: [write_presence_fixture, web/src/desktop/native-parity.test.ts]
   - rule: Subscribe precedes snapshot; replay, duplicate seq, lagged/fatal, EOF, retarget and deletion cannot announce an old completion.
     tested_by: apps/desktop/src-tauri/src/presence/watcher_tests.rs
+  - rule: Replayed durable frames before caught-up only advance the cursor; one snapshot reconciles them at caught-up.
+    tested_by: replayed_history_reconciles_once_at_caught_up
   - rule: Read snapshots/liveness complete within 10 seconds; JSON is capped at 16 MiB and SSE input at 1 MiB; only reads retry.
     tested_by: [oversized_history_and_sse_frames_fail_with_fixed_unavailable_state, sse_header_handshake_has_a_deadline_without_a_total_stream_timeout]
   - rule: Ten failures without caught-up stop until explicit native Core Retry; metadata checks run every 10 seconds while bound.
