@@ -22,14 +22,15 @@
   - Escape or the status button closes the input. Clicking elsewhere does not.
 - **Drafts:**
   - Draft text lives in renderer memory, keyed by the native `scope` token.
-  - It survives close and hide. It is lost on quit or reload, and when the agent or configuration changes.
+  - It survives close and hide. It is lost on quit or reload, and when the agent, the configuration or the bound conversation changes.
+  - The one exception: the companion's own first send binding a new thread keeps the scope, so the input stays open after that send.
 - **Window rules:**
   - Only an explicit open grants focus.
   - Presence, replies, show and recovery never open the input or take focus.
   - Hiding the companion closes the input. Showing it again does not reopen it.
 - **Sends:**
   - One in-flight attempt at a time.
-  - An unchanged Retry uses the same command id. A timeout is "uncertain" and is never resent with a new id.
+  - An unchanged Retry uses the same command id and resends the captured thread and turn body byte for byte. A timeout is "uncertain" and is never resent with a new id.
   - While a turn is running, sending is refused as busy and the text is kept. No queue, Stop or Send now.
 - **Turn settings:**
   - A send uses the session's current model, mode and effort; native never picks a mode.
@@ -47,8 +48,8 @@
 
 1. **Arabic text and IME.** Arabic or emoji typed through an IME must not send on the Enter that commits the composition, and the text must reach Core byte-for-byte (Tasks 2, 4).
 2. **Retry after a timeout on the first send.** It must make exactly one thread and one turn (Task 2).
-3. **Agent changes while the input is open.**
-   - The old draft is dropped and the input closes.
+3. **Agent or conversation changes while the input is open.**
+   - Main switching to another conversation of the same agent, or to another agent, drops the old draft and closes the input.
    - A send already started still finishes on its captured thread and never binds into the new agent (Tasks 2, 3).
 4. **Drags.** A drag that starts on the artwork and ends over the status button or input must not toggle input or open main (Task 4).
 5. **Screen edges.** Opening at the bottom or right edge of a work area, or on a negative-origin monitor, keeps the whole open surface on screen. Closing returns the window to its exact earlier position (Task 1).
@@ -104,16 +105,22 @@
   - **The `fit` handler** in `mod.rs` must not shrink an open window back to 240: pass the mode's size.
   - **Hiding:** `set_visible(false)` calls the close path before `no_activate::hide`.
   - **Threading:** every effect runs through `on_ui`. Each open or close bumps `composer.revision` and publishes.
-  - **Fallback:** if `set_focusable` does not clear `WS_EX_NOACTIVATE` on Windows (Step 5 shows this), add the Win32 style toggle beside `show`/`hide` in `no_activate.rs`. Record which path was used in the commit message.
+  - **Fallback:** if `set_focusable` does not clear `WS_EX_NOACTIVATE` on Windows (Step 6 shows this), add the Win32 style toggle beside `show`/`hide` in `no_activate.rs`. Record which path was used in the commit message.
 - [ ] **Step 4: Run** the Step 2 command, then `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml companion_callers_are_restricted`, with `companion_input` added to that test's list as companion-only. Expected: PASS.
-- [ ] **Step 5: Focus probe on the actual program.** Extend `windows-companion.ps1` / `companion-native.mjs` with one case, using the existing focus-witness form:
-  1. Call `companion_input(true)`. The foreground window becomes the companion HWND, and main stays hidden.
-  2. Type `ab` with SendKeys. The text lands in the companion's focused element. Read it with the probe's existing webview evaluation.
-  3. Call `companion_input(false)`. The companion has `WS_EX_NOACTIVATE` again, and the witness form can take the foreground back. Main is still hidden.
-  4. Hide, then show. The input stays closed and the foreground does not change.
+- [ ] **Step 5: Build the program under test,** one command after the other, over the existing cache:
+  1. `npm --prefix apps/desktop run build:desktop`
+  2. `cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml`
 
-  Expected: all four assertions pass. **If any fails, stop:** report it and amend spec §8A before Task 2.
-- [ ] **Step 6: Update `windows/companion/contract.yaml`** with `set_input` and the obligations "only explicit open grants focus" and "hide closes input; unhide does not reopen". Then commit:
+  The debug build embeds `apps/desktop/dist` (`frontendDist`, no `devUrl`), so a probe runs the code it names. Expected: `src-tauri/target/debug/nylra-desktop.exe` is newer than this task's last source edit.
+- [ ] **Step 6: Window-focus probe only.** No input element exists yet, so this step tests focus and window style, not typing.
+  - Extend `companion-native.mjs`, started by `windows-companion.ps1`, using its existing CDP `invoke` and focus-witness form:
+    1. `invoke(companion, 'companion_input', {open: true})`: the foreground HWND becomes the companion's, `WS_EX_NOACTIVATE` is cleared, the window is 296×320 logical, and main stays hidden.
+    2. `invoke(companion, 'companion_input', {open: false})`: `WS_EX_NOACTIVATE` is set again, the size and position are back to the values before step 1, the witness form can take the foreground back, and main is still hidden.
+    3. Open, then hide, then show: `composer.open` is false, and the foreground does not change on show.
+  - Add `companion_input` to the probe's must-reject-main list.
+
+  Expected: every assertion passes. **If any fails, stop:** report it and amend spec §8A before Task 2.
+- [ ] **Step 7: Update `windows/companion/contract.yaml`** with `set_input` and the obligations "only explicit open grants focus" and "hide closes input; unhide does not reopen". Then commit:
   `git add <files above> && git commit -m "feat(companion): native open/closed input mode with explicit focus"`
 
 ### Task 2: Native send sequence
@@ -132,8 +139,9 @@
   - In `send.rs`:
     - `#[derive(Deserialize)] #[serde(rename_all = "camelCase", deny_unknown_fields)] pub struct Submission { pub text: String, pub command_id: String, pub context: String }`
     - `#[derive(Serialize)] #[serde(rename_all = "camelCase")] pub struct Sent { pub thread_id: String, pub operation_id: String }`
+    - `struct Captured { command_id: String, scope: String, thread_id: String, body: serde_json::Value }`: the exact turn request of the one pending attempt. It lives in `Presence`'s `Model` as `Option<Captured>` and is never written to disk.
     - `impl Presence { pub fn context(&self) -> (Option<String>, Option<String>) }`, returning `(scope, context)`. Native mints both tokens as uuid v4:
-      - `scope` changes when the agent or configuration changes.
+      - `scope` changes when the agent, the configuration or the target thread changes. The exception is the target that `send` itself binds on a first send (`None` → `Some(T)`).
       - `context` changes whenever the binding generation changes.
       - Both are `None` when no agent is selected.
     - `impl Presence { pub fn send(&self, submission: Submission) -> Result<Sent, &'static str> }`
@@ -151,7 +159,12 @@
 
 **The sequence `send` runs:**
 1. Validate the text and the command id.
-2. Check that `context` equals the current token. Capture `request(Some(generation))`.
+2. **Retry of a captured attempt:**
+   - When `Captured.command_id == command_id`:
+     - The text must equal the captured prompt, else `companion_send_invalid`.
+     - The current `scope` must equal `Captured.scope`, else `companion_send_stale`. The context token is not checked, because the first send's own bind changed it.
+   - Skip steps 3–6, and POST `Captured.body` unchanged to `Captured.thread_id` (step 7).
+   - Otherwise: check that `context` equals the current token, and capture `request(Some(generation))`.
 3. `workspace` + `live_agent`.
 4. Choose the thread:
    - **With a target:** re-validate it with `binding::target`.
@@ -160,7 +173,13 @@
      - Then `commit(request, |view| view.target = Some(target))`. If the commit fails, return `companion_send_stale`.
 5. POST `/api/threads/{id}/session` and read `SessionChoices.current`.
 6. **New thread only:** if the agent's `default_model` is set and differs from the current model, PUT `/api/threads/{id}/session/model` with `{"model": ...}` and use the returned `current`.
-7. POST `/api/threads/{id}/turns` with `{"command_id", "prompt": text, "model", "mode", "effort", "focus": null, "client_tab": null}`.
+7. Build the turn body `{"command_id", "prompt": text, "model", "mode", "effort", "focus": null, "client_tab": null}`. Store it as `Captured` with the thread id and current scope, then POST it to `/api/threads/{id}/turns`.
+8. **What happens to `Captured`:**
+   - Cleared on success, and on any definitive refusal (`setup`, `settings`, `thread_invalid`, `failed`).
+   - Kept on `uncertain` and `busy`, because Core did not admit the command, or may have.
+   - Cleared when the scope changes.
+
+   A retry therefore sends the same command id with byte-identical body to the same thread, so Core replays the command instead of answering `COMMAND_CONFLICT`.
 
 **HTTP rules:**
 - Same client settings as `binding::read`: `no_proxy`, no redirects, 1 MiB cap. Timeouts: 10 s for create, 30 s for session and turn.
@@ -175,10 +194,20 @@
     - The turn body has `prompt` byte-equal to `"مرحبا 👋\nثاني سطر"`, plus the session's mode and effort.
     - `presence.view().target.thread_id == T`.
   - `bound_send_reuses_target_and_keeps_session_settings`: with a target, there is no create and no model PUT, and the turn carries the session's `current` unchanged.
-  - `uncertain_first_send_retry_makes_one_thread`:
-    - The first turn POST stalls past a 200 ms test timeout, giving `companion_send_uncertain`.
-    - The retry with the same `command_id` sends the same create `command_id` (the fixture returns the same thread) and the same turn `command_id`.
-    - Exactly one distinct thread id is ever returned.
+  - `uncertain_create_retry_makes_one_thread`:
+    - The create POST stalls past a 200 ms test timeout, giving `companion_send_uncertain`.
+    - The retry with the same `command_id` sends the same create `command_id`, and the fixture returns the same thread for it.
+    - Exactly one distinct thread id and one turn are ever recorded.
+  - `uncertain_turn_retry_sends_the_captured_request`:
+    - The fixture models Core idempotency: the same turn `command_id` with an identical body returns the first `operation_id`, and with a different body returns 409 `COMMAND_CONFLICT`.
+    - The first turn POST stalls past the test timeout, giving `companion_send_uncertain`.
+    - Between the attempts, the fixture's session answers a different `mode` and `model`, and main's retarget bumps the context token.
+    - The retry records no session or model call, and its turn body is byte-equal to the first.
+    - It returns `Ok(Sent)` with the first `operation_id`.
+    - A retry with the same `command_id` but changed text gives `companion_send_invalid` and records no request.
+  - `main_switching_conversation_changes_scope`:
+    - When main retargets agent A from thread T1 to T2, `context().0` changes.
+    - When `send` binds a first thread, `context().0` stays the same.
   - `stale_context_is_refused_before_any_write`: after `select` changes the agent, an old `context` gives `companion_send_stale`, and the fixture recorded no POST.
   - `binding_change_mid_send_completes_on_captured_thread`:
     - Main retargets after the session POST.
@@ -199,7 +228,7 @@
 - [ ] **Step 5: Update `presence/contract.yaml`.**
   - Replace the `responsibility` wording "without mutating Core" with: "Observe the bound conversation; mutate Core only for an explicit companion submission."
   - Add `send` and `context` to `public_api`.
-  - Add obligations naming the eight tests above.
+  - Add obligations naming the ten tests above.
   - Commit: `feat(companion): native send sequence for the companion input`
 
 ### Task 3: IPC command and the composer view
@@ -236,7 +265,7 @@
 - Consumes: `setCompanionInput` and `sendFromCompanion` from Task 3, and `openMainFromCompanion`.
 - Produces, in `composer-model.ts`:
   - `createDrafts(): {read(scope: string): string; write(scope: string, text: string): void; drop(keep: string | null): void}`. `drop` removes every scope except `keep`.
-  - `nextAttempt(previous: {text: string; commandId: string} | null, text: string, newId: () => string): {text: string; commandId: string}`. It reuses `previous.commandId` exactly when `previous.text === text`.
+  - `nextAttempt(previous: {scope: string; text: string; commandId: string} | null, scope: string, text: string, newId: () => string): {scope: string; text: string; commandId: string}`. It reuses `previous.commandId` exactly when both scope and text are unchanged.
   - `submitKey(event: {key: string; shiftKey: boolean; isComposing: boolean}): 'send' | 'newline' | 'close' | null`
   - `errorMessage(code: string): string`, with these fixed messages:
     - `companion_send_busy`: "AYLUL is still answering. Your text is kept."
@@ -250,22 +279,27 @@
 
 - [ ] **Step 1: Write the failing unit tests** in `composer.test.ts`:
   - Drafts: survive `drop(sameScope)`, vanish on `drop(otherScope)`.
-  - `nextAttempt`: keeps the id for the same text and makes a new id for changed text.
+  - `nextAttempt`: keeps the id for the same scope and text, and makes a new id when either changes.
   - `submitKey`: Enter gives send; Shift+Enter gives newline; Enter with `isComposing` gives null; Escape gives close.
   - `errorMessage`: an unknown code gives the generic message, and no output contains the input code.
 - [ ] **Step 2: Write the failing browser tests** in `composer.spec.ts`, against the existing fixture and fakes:
-  1. **Status button:** it is a `button` with `aria-expanded`. Click, Enter and Space each toggle the input. None of them calls `openMainFromCompanion`.
+  1. **Status button:** it is a `button` with `aria-expanded`. A real Playwright `click()`, Enter and Space each toggle the input. None of them calls `openMainFromCompanion` or `dragCompanion`.
+  1a. **Real clicks reach the strip:** a Playwright `click()` on Send sends once. A `click()` into the textarea places the caret there. Neither calls `openMainFromCompanion`.
+  1b. **Artwork is unchanged:** a `click()` on the artwork still calls `openMainFromCompanion` once.
   2. **Artwork drag:** a pointer drag that starts on the artwork and ends on the status button neither toggles input nor opens main.
   3. **Open state:** with the input open, the textarea has focus. Shift+Enter inserts a newline. Enter during `compositionstart`…`compositionend` does not send.
   4. **Double send:** a double Enter sends once, and Send is disabled while sending. On `companion_send_busy` the text stays and the busy message shows.
   5. **Retry after uncertain:** Retry after `companion_send_uncertain` calls `sendFromCompanion` with the same `commandId`.
   6. **No agent:** with `context: null`, the strip shows a "Choose an agent" button that calls `openMainFromCompanion`, and no textarea.
-  7. **Draft lifetime:** close, then reopen, and the draft is still there. A state with a new `scope` empties it.
+  7. **Draft lifetime:** close, then reopen, and the draft is still there. A state with a new `scope` (main switched between two conversations of the same agent) empties the draft and drops the pending attempt, so the next Send uses a new `commandId`.
   8. **Pause:** with `paused: true`, typing and Send still work.
 - [ ] **Step 3: Run** `npm --prefix apps/desktop run test:companion:unit` and `npx --prefix apps/desktop playwright test tests/companion/composer.spec.ts`. Expected: FAIL.
 - [ ] **Step 4: Implement.**
   - **Status bar:** replace the `aylul-live-status` paragraph with a `<button aria-expanded>` that keeps `role="status"` text inside a child `span`.
-  - **Event isolation:** stop `pointerdown`, `keydown` and `click` propagation on the button and the strip, so `DesktopCompanion`'s pointer and key handlers only see artwork events. Move the Enter/Space open-main handler onto the canvas region element.
+  - **Event isolation:**
+    - Today the root `.aylul-desktop` element carries the pointer handlers, the `onClickCapture` that calls `preventDefault`/`stopPropagation`, and the Enter/Space open-main `onKeyDown`. A capture-phase handler on an ancestor runs before any child, so `stopPropagation` on the button cannot escape it.
+    - Move all of these handlers, and `setPointerCapture`, from the root onto a new `.aylul-artwork` wrapper around `CompanionCanvas` only.
+    - The bubble, status button and strip become siblings of that wrapper, not its descendants, so no gesture handler sees their events.
   - **Text:** the textarea uses `dir="auto"`. Read `event.nativeEvent.isComposing` for `submitKey`.
   - **Successful send:** clear the draft and keep the input open. The reply arrives through the existing bubble.
   - **Agent caption:** show `composer.agent` as plain text.
@@ -288,10 +322,16 @@
 
   Expected: every one exits 0. Record the test counts.
 - [ ] **Step 2: Root gate,** steps 1–5 of `CLAUDE.md`. Core is unchanged, so a pass here proves the branch did not touch it. Also check that `git diff --exit-code main -- crates api web` is empty.
-- [ ] **Step 3: Native acceptance** on the actual program and the existing database, run with the extended `windows-companion.ps1`. It covers Task 1's focus probe, plus:
+- [ ] **Step 3: Rebuild the program under test** with Task 1 Step 5's two commands, run one after the other once the gate has finished. Expected: a fresh `nylra-desktop.exe`.
+- [ ] **Step 4: Native acceptance** on the actual program and the existing database, run with the extended `windows-companion.ps1`. It reruns Task 1's window-focus probe, plus:
+  - **Typing, now that the input exists:**
+    - A status-button click through CDP opens the input.
+    - SendKeys types `ab`, and the textarea's value reads `ab`.
+    - Escape closes the input, and the foreground returns to the witness form.
+  - `companion_send` is in the must-reject-main list.
   - Open at the right/bottom edge.
   - Hide to tray, then show: the input stays closed.
   - One real send from the input to a bound agent; main stays hidden.
 
   Write the outcome to the evidence file. Separate automated fixture results from what only Mohammed's real-provider journey can show.
-- [ ] **Step 4: Update the code map, the stages and the spec Status line,** then commit: `docs(aylul): companion text input delivered`
+- [ ] **Step 5: Update the code map, the stages and the spec Status line,** then commit: `docs(aylul): companion text input delivered`
