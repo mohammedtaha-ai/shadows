@@ -11,6 +11,7 @@
       "DOM"
     ],
     "skipLibCheck": true,
+    "resolveJsonModule": true,
     "allowImportingTsExtensions": true
   },
   "include": [

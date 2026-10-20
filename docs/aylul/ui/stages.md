@@ -29,7 +29,7 @@ the renderer's palette are this side's: U-2 (table) first, since F-9 needs it; t
 ## Tasks
 
 ### U-2 · One colour table for AYLUL's character, and the palette function
-- Status: todo
+- Status: done
 - Plan: docs/aylul/ui/plans/2026-10-21-character-colour.md#task-u-2-the-colour-table-and-the-palette-function
 - Read: `apps/desktop/src/features/companion/contract.yaml`; `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Character colour)
 - Touch: the Files list of Task U-2 in the plan, `docs/aylul/ui/stages.md`

@@ -1,5 +1,11 @@
 # AYLUL appearance sources
 
+`character-colors.json` is the shared character colour table, owned by the desktop
+UI side (Masada). The web swatches and renderer palette read this one file. To add
+a colour, append its id, English label and hex swatch, then add its id to the web
+order test; optional tone overrides replace derived tones. The base entry keeps
+the renderer's original complete palette.
+
 Relocation note (2026-10-18): the renderer and this provenance moved into Shadows.
 The ignored historical archives described below remain under
 `E:/Globalprojects/nylra/archive/`; they were not copied or deleted. They are not

@@ -1,0 +1,25 @@
+{
+  "base": "purple",
+  "colors": [
+    { "id": "blue", "label": "Blue", "swatch": "#3b82f6" },
+    { "id": "green", "label": "Green", "swatch": "#22c55e" },
+    {
+      "id": "purple", "label": "Purple", "swatch": "#a855f7",
+      "tones": {
+        "glow": "#a855f7", "glowSoft": "#c084fc", "glowPale": "#d8b4fe", "glowMist": "#e9d5ff",
+        "rimLeft": "#a78bfa", "spark": "#e879f9", "sparkDeep": "#d946ef", "sparkSoft": "#f0abfc",
+        "sparkPale": "#f5d0fe", "core": "#fdf4ff", "bloom": "#9333ea", "crystalDeep": "#7e22ce",
+        "crystalDark": "#581c87", "innerRim": "#c891dc", "sleep": "#c4b5fd", "sleepGlow": "#818cf8",
+        "bodyLit": "#2a1f3d", "bodyMid": "#150f21", "bodyCore": "#08050d", "bodyRim": "#1e1136",
+        "occlusion": "#030107", "extrusion": "#120c1c", "hoodLit": "#43325c", "hoodMid": "#2b1f3d",
+        "hoodFold": "#171122", "hoodBase": "#100b18", "hoodBounce": "#2d1d42", "seamLine": "#0c0814",
+        "wing": "#1b1426", "bevelTop": "#2e1d3a", "bevelMid": "#1a1024", "bevelBottom": "#3b244b",
+        "voidCore": "#0a0513", "voidDeep": "#040208", "voidRim": "#150c24", "pawLit": "#4c356e",
+        "pawMid": "#1d142b", "pawDark": "#09060e", "maskLit": "#1e162e", "maskMid": "#2d2144",
+        "maskDark": "#120d1c", "brow": "#06030b", "floor": "#05030a"
+      }
+    },
+    { "id": "orange", "label": "Orange", "swatch": "#f97316" },
+    { "id": "pink", "label": "Pink", "swatch": "#ec4899" }
+  ]
+}
