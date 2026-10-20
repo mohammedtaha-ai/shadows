@@ -20,6 +20,12 @@ external:
   EnvEntry: web/src/api/schema.d.ts components.schemas.EnvEntry
 
 components:
+  ColorSwatches:
+    signature: "({ value: string, onChange: (id: string) => void, disabled?: boolean }) => JSX.Element"
+    note: Radio group in shared table order with per-entry label, title, colour and selected ring.
+  ColorDot:
+    signature: "({ id: string | null | undefined }) => JSX.Element"
+    note: Text-free decorative dot with the resolved colour id.
   AylulHome:
     signature: "() => JSX.Element"
     # /aylul, and / while AYLUL is the stored workspace. With no provider it asks for one;
@@ -53,6 +59,9 @@ components:
     signature: "(props: ComponentProps<'textarea'>) => JSX.Element"
 
 pure:
+  colorOf:
+    signature: "(id: string | null | undefined) => CharacterColor; unknown or missing ids resolve to the shared table base"
+    file: web/src/app/agents/character-colors.ts
   presetGroups:
     signature: "(presets: Preset[]) => PresetGroup[]; first-seen group order"
   presetOf:
@@ -66,6 +75,8 @@ pure:
     file: web/src/app/agents/model-picks.ts
 
 obligations:
+  - rule: Character colours come from the shared character table; each agent form resolves unknown IDs to the base and always saves the chosen id with its other fields. The form states whether the desktop companion currently uses this agent; no native colour mutation is issued here.
+    tested_by: ["the table's colours, in order", "every colour is complete", "a new agent starts on Purple", "an agent's colour is shown and saved with the form", "an id the table does not know shows Purple and is replaced on save", "the hint says when the colour shows"]
   - rule: Presets are queried from Core; known providers save only preset and label with ordered model objects. Each chosen model owns its editable context window; the first is default. Stored keys can be tested without revealing them.
     tested_by: ["presets come from Core, grouped by name", "a preset saves its id, not its URL", "Test connection lists the key's models", "Edit tests with the stored key", "a window out of range is refused"]
   - rule: Presets are grouped by provider name; search keeps Custom visible. Known providers fix the name and URL, with International/China selection where applicable. Custom requires its URL.

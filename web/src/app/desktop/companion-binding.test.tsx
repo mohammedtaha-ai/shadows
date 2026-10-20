@@ -5,13 +5,14 @@ import {QueryClient,QueryClientProvider} from '@tanstack/react-query'
 import {beforeEach,afterEach,it,expect,vi} from 'vitest'
 import fixture from '../../test/native-presence.json'
 import {CharacterSection} from '../settings/sections/character'
+import {CHARACTER_COLORS} from '../agents/character-colors'
 const {invoke,listen}=vi.hoisted(()=>({invoke:vi.fn(),listen:vi.fn()}))
 vi.mock('@tauri-apps/api/core',()=>({invoke}))
 vi.mock('@tauri-apps/api/event',()=>({listen}))
 vi.mock('@/api/aylul-profiles',()=>({
  providerPresetsQuery:{queryKey:['fixture-presets'],queryFn:async()=>[]},
  agentsQuery:{queryKey:['fixture-agents'],queryFn:async()=>({project_id:'project',agents:[
-  {slug:'agent-a',name:'AYLUL A',provider:'provider-a',default_model:'fake-large',deleted:false},
+  {slug:'agent-a',name:'AYLUL A',provider:'provider-a',default_model:'fake-large',deleted:false,character_color:'blue'},
   {slug:'deleted',name:'Deleted agent',provider:'provider-a',default_model:'fake-small',deleted:true},
  ]})},
  providersQuery:{queryKey:['fixture-providers'],queryFn:async()=>[{slug:'provider-a',name:'Local provider'}]},
@@ -75,4 +76,13 @@ it('a later event cannot be overwritten by an older selection response',async()=
 it('settings load failure stays local and reports a fixed message',async()=>{
  invoke.mockRejectedValue('companion_preferences_invalid')
  await render();expect(host.textContent).toContain('Unable to load companion settings')
+})
+it("the picker names the chosen agent's colour",async()=>{
+ await render()
+ expect(host.textContent).not.toContain('Character colour:')
+ const select=host.querySelector('select')!
+ await act(async()=>{select.value='agent-a';select.dispatchEvent(new Event('change',{bubbles:true}))});await flush()
+ const color=CHARACTER_COLORS[0]
+ expect(host.textContent).toContain(`Character colour: ${color.label}`)
+ expect(host.querySelector('[data-color]')?.getAttribute('data-color')).toBe(color.id)
 })

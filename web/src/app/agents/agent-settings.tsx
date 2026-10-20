@@ -13,6 +13,10 @@ import { AgentEnv } from './agent-env'
 import { DeleteZone } from './delete-zone'
 import { Field, Select } from './form-field'
 import { providerTitle } from './provider-presets'
+import { colorOf } from './character-colors'
+import { ColorSwatches } from './color-swatches'
+import { isDesktop } from '@/desktop/runtime'
+import { useCompanionBinding } from '@/desktop/presence'
 import { useOpenSettings } from '../settings/use-settings'
 
 export function AgentForm({ slug, onDone }: { slug: string | null; onDone: () => void }) {
@@ -24,6 +28,7 @@ export function AgentForm({ slug, onDone }: { slug: string | null; onDone: () =>
 }
 
 function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void }) {
+  const binding = useCompanionBinding()
   const openSettings = useOpenSettings()
   const providers = useQuery(providersQuery)
   const presets = useQuery(providerPresetsQuery)
@@ -33,8 +38,8 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
   const pending = useRef<Attempt | null>(null)
   const first = providers.data?.[0]
   const value: AgentInput = edited ?? (original === undefined
-    ? { name: '', provider: first?.slug ?? '', default_model: first?.models[0]?.id ?? '' }
-    : { name: original.name, provider: original.provider, default_model: original.default_model })
+    ? { name: '', provider: first?.slug ?? '', default_model: first?.models[0]?.id ?? '', character_color: colorOf(null).id }
+    : { name: original.name, provider: original.provider, default_model: original.default_model, character_color: colorOf(original.character_color).id })
   const provider = providers.data?.find((p) => p.slug === value.provider)
 
   const save = useMutation({
@@ -89,6 +94,14 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
             {provider?.models.map(({ id }) => <option key={id} value={id}>{id}</option>)}
           </Select>
         </Field>
+        <fieldset className="grid gap-2">
+          <legend className="mb-2 text-xs text-muted-foreground">Character colour</legend>
+          <ColorSwatches value={colorOf(value.character_color).id} disabled={save.isPending} onChange={id => setEdited({ ...value, character_color: id })} />
+          <p className="text-xs text-muted-foreground">{!isDesktop()
+            ? 'AYLUL wears this colour on the desktop when this agent is the companion agent.'
+            : slug !== null && binding?.agent === slug ? 'AYLUL wears this colour now.'
+              : 'AYLUL wears this colour when this agent is the companion agent.'}</p>
+        </fieldset>
         {save.error !== null && <ErrorLine error={save.error} />}
         <div className="flex items-center gap-3">
           <Button type="submit" disabled={value.provider === '' || value.default_model === ''}>

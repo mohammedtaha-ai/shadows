@@ -1,4 +1,6 @@
 import { providerTitle } from '../agents/provider-presets'
+import { colorOf } from '../agents/character-colors'
+import { ColorDot } from '../agents/color-swatches'
 import {useEffect,useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {agentsQuery,providersQuery,providerPresetsQuery} from '@/api/aylul-profiles'
@@ -31,6 +33,7 @@ export function CompanionSettings(){
         </option>)}
       </select>
     </label>
+    {binding?.agent && agents.data?.agents.some(agent=>agent.slug===binding.agent&&!agent.deleted)&&<p className="flex items-center gap-2 text-sm"><ColorDot id={agents.data.agents.find(agent=>agent.slug===binding.agent)?.character_color}/>Character colour: {colorOf(agents.data.agents.find(agent=>agent.slug===binding.agent)?.character_color).label}</p>}
     <button disabled={busy} onClick={()=>{void retryConnection().catch(()=>setError("Unable to retry local Core."))}}>Retry companion connection</button>
     <p className="text-sm text-muted-foreground">This character stays with the selected agent. Opening another conversation does not change it.</p>
     <label className="flex gap-2"><input type="checkbox" role="switch" checked={binding?.previews??true} disabled={busy||!binding}

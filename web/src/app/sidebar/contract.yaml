@@ -115,6 +115,8 @@ private_helpers:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: Each agent row's Bot icon uses its shared-table character colour in browser and desktop, including when its row opens; unknown or absent IDs resolve to the base colour.
+    tested_by: ["the sidebar's agent icon wears the agent's colour"]
   - rule: No Providers link sits below the agent tree; the empty provider hint opens the Providers settings section over the current page.
     tested_by: ["the sidebar has no Providers link", "the AYLUL home's Add a provider opens the dialog on Providers"]
   - rule: Agent settings and every New agent entry open the Agents settings section with the selected slug or new; the current page stays in place.

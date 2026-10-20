@@ -6,8 +6,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 ## Now
 
 Work and improvements continue on branch `improvements`. The settings dialog,
-F-2 to F-6, is implemented (F-7 to F-12 wait on the settings dialog request;
-F-14 on the character colour's desktop side).
+F-2 to F-9, is implemented. F-10, F-11, F-12 and F-14 retain their recorded blockers.
 
 ## Tasks
 
@@ -91,7 +90,7 @@ F-14 on the character colour's desktop side).
   `npm run typecheck`, `npm run lint`
 
 ### F-9 · Agents: character colour per agent
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-9-agents-character-colour-per-agent
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Agents, Character colour);
   `web/src/app/agents/contract.yaml`; `web/src/app/desktop/contract.yaml`; `web/src/app/sidebar/contract.yaml`

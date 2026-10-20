@@ -14,6 +14,8 @@ components:
   RulePreviewGuard: Invalidate edited or stale previews; approve only the captured rule and settings fingerprint.
   useActivity: Mounted visible-panel sidecar polling through React Query.
 obligations:
+  - rule: A bound live agent's resolved character colour appears under the companion selector; absent binding shows no colour line.
+    tested_by: web/src/app/desktop/companion-binding.test.tsx
   - rule: The bootstrap form imports no HTTP consumer; the native owner validates paths and origin.
     tested_by: apps/desktop/tests/desktop-bootstrap.spec.ts
   - rule: Malformed companion updates show a local error.

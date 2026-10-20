@@ -513,6 +513,9 @@ amends this section before the task leaves `blocked`.
   `web/src/app/agents/contract.yaml`, `web/src/app/desktop/contract.yaml`,
   `web/src/app/sidebar/contract.yaml`, `docs/frontend/codebase/README.md` (rows for the two new files)
 - Read only, never changed by this task: `assets/aylul/character-colors.json`
+- Mechanical follow-ups: update `web/src/app/settings/contract.yaml` for the list dot/tag.
+  Use a fieldset with legend for Character colour: the existing `Field` renders a label and
+  cannot wrap the swatches' individual labels without invalid nested labels.
 - Test: `web/src/app/agents/character-colors.test.ts` (new), `web/src/app/agents/aylul.test.tsx`
   (its agent fixtures gain `character_color`), `web/src/app/desktop/companion-binding.test.tsx`
 

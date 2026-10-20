@@ -1,6 +1,14 @@
 // @vitest-environment happy-dom
 import { act } from 'react'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
+import { CHARACTER_COLORS, DEFAULT_COLOR, colorOf } from './character-colors'
+
+const colorFixture = vi.hoisted(() => ({ desktop: false, bound: null as string | null }))
+vi.mock('@/desktop/runtime', () => ({ isDesktop: () => colorFixture.desktop }))
+vi.mock('@/desktop/presence', async importOriginal => ({
+  ...await importOriginal<typeof import('@/desktop/presence')>(),
+  useCompanionBinding: () => colorFixture.bound ? { agent: colorFixture.bound } : null,
+}))
 import { projectFixture, threadFixture, userEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, choose, menuItem, startApp, typeInto, until } from '../test-app'
@@ -20,7 +28,7 @@ const table = () => ({ ...answers(),
   'GET /api/threads/t1': thread,
 })
 let open: TestApp | null = null
-afterEach(() => { open?.unmount(); open = null; window.localStorage.clear() })
+afterEach(() => { open?.unmount(); open = null; window.localStorage.clear(); colorFixture.desktop = false; colorFixture.bound = null })
 const input = (name: string) => document.querySelector<HTMLInputElement>(`input[aria-label="${name}"]`)!
 const models = () => document.querySelector<HTMLInputElement>('input[aria-label="Add a model by id"]')!
 function addModel(a: TestApp, id: string) { typeInto(models(), id); act(() => a.button('Add')!.click()) }
@@ -334,4 +342,78 @@ it('agent deletion confirms inline and preserves the current page', async () => 
   await until(() => document.querySelector('[aria-label="Saved agents"]')?.textContent?.includes('Work') === false)
   expect(a.calls).toContain('DELETE /api/aylul/agents/work')
   expect(a.path()).toBe('/aylul')
+})
+
+const swatches = () => [...document.querySelectorAll<HTMLInputElement>('[role="radiogroup"][aria-label="Character colour"] input')]
+const colourRadio = (id: string) => swatches().find(radio => radio.value === id)!
+it('a new agent starts on Purple', async () => {
+  open = await startApp('/aylul?settings=agents&agent=new', table())
+  await until(() => swatches().length > 0)
+  expect(swatches().map(radio => radio.getAttribute('aria-label'))).toEqual(CHARACTER_COLORS.map(color => color.label))
+  expect(swatches().filter(radio => radio.checked).map(radio => radio.value)).toEqual([DEFAULT_COLOR])
+})
+it("an agent's colour is shown and saved with the form", async () => {
+  const [initial, next] = CHARACTER_COLORS
+  const a = open = await startApp('/aylul?settings=agents&agent=work', { ...table(),
+    'GET /api/aylul/agents': { project_id: 'p1', agents: [{ ...agent, character_color: initial.id }] },
+    'PUT /api/aylul/agents/work': () => Response.json({ ...agent, character_color: next.id }),
+  })
+  await until(() => swatches().length > 0)
+  expect(colourRadio(initial.id).checked).toBe(true)
+  act(() => colourRadio(next.id).click())
+  expect(colourRadio(next.id).checked).toBe(true)
+  expect(a.calls).not.toContain('PUT /api/aylul/agents/work')
+  act(() => a.button('Save agent')!.click())
+  await until(() => a.calls.includes('PUT /api/aylul/agents/work'))
+  expect(a.bodies[0]).toEqual({ command_id: expect.any(String), name: agent.name, provider: agent.provider, default_model: agent.default_model, character_color: next.id })
+})
+it('an id the table does not know shows Purple and is replaced on save', async () => {
+  const a = open = await startApp('/aylul?settings=agents&agent=work', { ...table(),
+    'GET /api/aylul/agents': { project_id: 'p1', agents: [{ ...agent, character_color: 'unknown-color' }] },
+    'PUT /api/aylul/agents/work': () => Response.json(agent),
+  })
+  await until(() => swatches().length > 0)
+  expect(colourRadio(DEFAULT_COLOR).checked).toBe(true)
+  act(() => a.button('Save agent')!.click()); await until(() => a.bodies.length > 0)
+  expect(a.bodies[0]).toEqual(expect.objectContaining({ character_color: DEFAULT_COLOR }))
+})
+it('the hint says when the colour shows', async () => {
+  let a = open = await startApp('/aylul?settings=agents&agent=work', table())
+  await until(() => swatches().length > 0)
+  expect(a.text()).toContain('AYLUL wears this colour on the desktop when this agent is the companion agent.')
+  a.unmount(); open = null
+  colorFixture.desktop = true; colorFixture.bound = 'work'
+  a = open = await startApp('/aylul?settings=agents&agent=work', table())
+  await until(() => swatches().length > 0)
+  expect(a.text()).toContain('AYLUL wears this colour now.')
+  a.unmount(); open = null; colorFixture.bound = 'other'
+  a = open = await startApp('/aylul?settings=agents&agent=work', table())
+  await until(() => swatches().length > 0)
+  expect(a.text()).toContain('AYLUL wears this colour when this agent is the companion agent.')
+})
+it("the list shows each agent's colour and the companion", async () => {
+  colorFixture.desktop = true; colorFixture.bound = 'work'
+  const [first, second] = CHARACTER_COLORS
+  open = await startApp('/aylul?settings=agents', { ...table(), 'GET /api/aylul/agents': { project_id: 'p1', agents: [
+    { ...agent, character_color: first.id }, { ...agent, slug: 'zed', name: 'Zed', character_color: second.id },
+  ] } })
+  await until(() => document.querySelector('[aria-label="Saved agents"] li') !== null)
+  const rows = document.querySelectorAll('[aria-label="Saved agents"] li')
+  expect(rows[0].querySelector('[data-color]')?.getAttribute('data-color')).toBe(first.id)
+  expect(rows[0].textContent).toContain('Companion')
+  expect(rows[1].querySelector('[data-color]')?.getAttribute('data-color')).toBe(second.id)
+  expect(rows[1].textContent).not.toContain('Companion')
+})
+it("the sidebar's agent icon wears the agent's colour", async () => {
+  const first = CHARACTER_COLORS[0]
+  const a = open = await startApp('/aylul', { ...table(), 'GET /api/aylul/agents': { project_id: 'p1', agents: [
+    { ...agent, character_color: first.id }, { ...agent, slug: 'zed', name: 'Zed' },
+  ] } })
+  await until(() => a.button('Work') !== undefined)
+  const icon = a.button('Work')!.querySelector<SVGElement>('[data-color]')!
+  expect(icon.getAttribute('data-color')).toBe(first.id)
+  expect(icon.style.color).toBe(colorOf(first.id).swatch)
+  expect(a.button('Zed')!.querySelector('[data-color]')?.getAttribute('data-color')).toBe(DEFAULT_COLOR)
+  act(() => a.button('Work')!.click())
+  expect(icon.getAttribute('data-color')).toBe(first.id)
 })

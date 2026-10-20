@@ -9,6 +9,7 @@ import { type Agent, agentsQuery, providersQuery } from '@/api/aylul-profiles'
 import { threadQuery } from '@/api/queries'
 import { ErrorLine } from '../error-line'
 import { ThreadList } from './thread-list'
+import { colorOf } from '../agents/character-colors'
 import { useOpenSettings } from '../settings/use-settings'
 
 export function AgentList() {
@@ -95,7 +96,7 @@ function AgentRow({ agent, projectId, open, current, selected, onToggle }: {
             aria-hidden
             className={`size-4 shrink-0 text-faint-foreground transition-transform ${open ? 'rotate-90' : ''}`}
           />
-          <Bot aria-hidden className={`size-4 shrink-0 ${current ? 'text-accent-line' : ''}`} />
+          <Bot aria-hidden className="size-4 shrink-0" data-color={colorOf(agent.character_color).id} style={{ color: colorOf(agent.character_color).swatch }} />
           <span dir="auto" className="min-w-0 flex-1 truncate text-start">{agent.name}</span>
         </button>
         <Link

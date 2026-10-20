@@ -51,6 +51,7 @@ components:
     note: Provider list titles use Core presets plus region and label; Edit waits for presets to load.
   AgentsSection:
     signature: "() => JSX.Element"
+    note: Each list row shows its resolved colour dot; the bound agent has a Companion tag on desktop only.
   ActiveProjects:
     signature: "() => JSX.Element"
     # Reads the code settings; renders the form once they load.
