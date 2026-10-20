@@ -96,6 +96,8 @@ The person's own data comes first, then the account state, then only the actions
 - "Check session" is not a button: the state is checked each time the section opens.
 - Until the "You" endpoint exists, that card is not drawn; the state and its actions work today
   through the native `authAction`.
+- My call (2026-10-21): since "You" works without an account, **Account is listed in the browser
+  too**, with only the You card; the state and actions above stay desktop only.
 
 ### General
 

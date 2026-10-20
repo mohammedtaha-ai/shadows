@@ -23,7 +23,8 @@ Vitest with happy-dom and the fake daemon (`web/src/app/test-app.tsx`, `@/test/f
 - Frontend only: no file under `crates/`, `api/` or `apps/desktop/src-tauri/` changes.
 - Section ids, in sidebar order: `account`, `general` (group "You"); `providers`, `agents`,
   `plugins`, `usage` (group "AI"); `character`, `core` (group "This machine").
-- Desktop-only sections (`account`, `character`, `core`) are listed only when `isDesktop()`.
+- Desktop-only sections (`character`, `core`) are listed only when `isDesktop()`. `account` is
+  listed everywhere from F-7 on; its sign-in state and actions stay desktop only.
 - A section or card that needs the backend is **not drawn** until its endpoint exists: no fake
   control. `plugins` and `usage` are not listed until F-10 and F-11.
 - No second dialog on top of the settings dialog: sub-steps replace the section body and show a
@@ -274,12 +275,189 @@ answer fixes the shapes; each follows the TDD shape above.
 
 | Task | Builds (spec section) | Needs from the request |
 |---|---|---|
-| F-7 | Account: "You" card (name, what AYLUL calls you). Devices left this plan (spec Account): the account server and device management are a separate piece of work | Account: the person |
-| F-8 | Providers: Label shown as "Provider (Label)"; `GET /api/aylul/provider-presets` replaces F-5's `PRESETS` (same shape, grouped by name, so the Region choice stays); save sends `preset` without `name`/`base_url`; Test connection through `POST /api/aylul/providers/test` and, on Edit without a key, `POST /api/aylul/providers/{slug}/test`; `reason` mapped to the spec's sentences, `message` for `unexpected`; `listed: false` offers add-by-hand only; model checklist with search, default and hand-added ids; per-model context window (`null` shows 200,000, editable); the provider-level window field goes (B-2). Lands on the same branch as B-2 | Providers (B-1, B-2, B-3) |
+| F-7 | Account: "You" card (name, what AYLUL calls you); steps below. Devices left this plan (spec Account): the account server and device management are a separate piece of work | Account: the person (B-5, built) |
+| F-8 | Steps below. Providers: Label shown as "Provider (Label)"; `GET /api/aylul/provider-presets` replaces F-5's `PRESETS` (same shape, grouped by name, so the Region choice stays); save sends `preset` without `name`/`base_url`; Test connection through `POST /api/aylul/providers/test` and, on Edit without a key, `POST /api/aylul/providers/{slug}/test`; `reason` mapped to the spec's sentences, `message` for `unexpected`; `listed: false` offers add-by-hand only; model checklist with search, default and hand-added ids; per-model context window (`null` shows 200,000, editable); the provider-level window field goes (B-2). Lands on the same branch as B-2 | Providers (B-1, B-2, B-3) |
 | F-9 | Agents: character colour swatches; steps written below | Agents: character colour |
 | F-10 | Plugins & Skills: the shared library section (list, add by folder path, remove with confirm; no switch), listed in the nav, and the agent form's per-agent switches (tests below) | Plugins & Skills (B-9, after the B-8 probe) |
 | F-11 | Usage section from `GET /api/aylul/usage?from&to` (RFC 3339): period picker, by provider and by model, cost with its `currency` and "–" when `cost` is `null`, listed in the nav | Usage (B-6, B-7) |
 | F-12 | General: language and theme read and written with the person in Core (`/api/me`, whole record on PUT; `theme` default `system`); start with Windows and hide to tray on close through native, desktop only (native request) | Account: the person (B-5); native switches |
+
+### Task F-7: Account: the You card
+
+Against the built API (B-5): `GET /api/me` → `Person` `{ name?, aylul_calls_me?, language?, theme,
+updated_at? }`; `PUT /api/me` `PersonCommand` (`PersonInput & { command_id }`, `theme` required)
+→ `Person`. Names ≤64 characters, no line breaks; Core reads `""` as `null`. The PUT takes the
+whole record, so the card sends `language` and `theme` as last read (F-12 edits them).
+
+My call, following the spec ("You" works without an account): **Account is listed in the browser
+too**, showing only the You card; its sign-in state and actions stay desktop only.
+
+**Files:**
+- Create: `web/src/api/person.ts`, `web/src/app/settings/you-card.tsx`
+- Modify: `web/src/app/settings/sections/account.tsx` (You card first; the native state and actions
+  under it only when `isDesktop()`), `web/src/app/settings/sections.ts` (`account` gets
+  `desktopOnly: false`), `web/src/test/fake-daemon.ts` (`GET`/`PUT /api/me`: by default all
+  `null`, `theme: 'system'`; `Overrides.person?: Answer`), `web/src/app/settings/contract.yaml`,
+  `docs/frontend/codebase/README.md` (rows for the two new files)
+- Test: `web/src/app/settings/you-card.test.tsx` (new), `web/src/app/settings/settings-dialog.test.tsx`
+  (the browser's nav now holds Account), `web/src/app/settings/account.test.tsx` (unchanged
+  assertions; it must still pass)
+
+**Interfaces:**
+- Produces, in `person.ts`: `type Person = components['schemas']['Person']`,
+  `type PersonInput = components['schemas']['PersonInput']`, `personQuery` (`queryKey: ['person']`,
+  `GET /api/me`), `savePerson(commandId: string, input: PersonInput): Promise<Person>`
+  (`PUT /api/me`), both through `client` and `unwrap` as `aylul-profiles.ts` does.
+- Produces, in `you-card.tsx`: `YouCard()`, a form with fields `Your name` and `What AYLUL calls
+  you`, the hint "AYLUL uses this name when it speaks to you. Without it, AYLUL uses your name.",
+  and **Save**; it uses `attemptFor` so an unchanged retry reuses its `command_id`.
+
+- [ ] **Step 1: Write the failing tests** in `you-card.test.tsx`:
+  - `the You card shows the saved names`: `/api/me` answers `{ name: 'Mohammed', aylul_calls_me:
+    'Abu Taha', language: 'ar', theme: 'dark' }` → `Your name` is `Mohammed`, `What AYLUL calls
+    you` is `Abu Taha`.
+  - `saving sends the whole record`: change `What AYLUL calls you` to `Mo`, click Save → one
+    `PUT /api/me` with body `{ command_id, name: 'Mohammed', aylul_calls_me: 'Mo', language: 'ar',
+    theme: 'dark' }`; no PUT before Save; the field shows `Mo` after the answer.
+  - `an emptied field saves as null`: clear `Your name`, Save → the body has `name: null`.
+  - `a fresh person shows empty fields`: the default answer → both fields empty, the hint shown.
+  - `more than 64 characters is refused before sending`: type 65 characters in `Your name`, Save →
+    "At most 64 characters." and no PUT.
+  - `a failed save keeps the typed values and retries with the same command`: the PUT answers
+    500 → an error line, the typed values stay; Save again → the second PUT carries the first
+    one's `command_id`.
+  - `the browser lists Account with only You`: browser fixture, open the dialog on Account → the
+    You card, no `role="status"` account state and no `Sign in` button.
+- [ ] **Step 2: Update** `settings-dialog.test.tsx`'s browser nav expectation to include
+  `Account`; run `cd web && npx vitest run src/app/settings/you-card.test.tsx
+  src/app/settings/settings-dialog.test.tsx src/app/settings/account.test.tsx`; expected: FAIL.
+- [ ] **Step 3: Implement.** The card loads with `personQuery`; until it answers the fields are
+  disabled; an error loading it shows `ErrorLine` and no form. The desktop's account state keeps
+  today's behaviour under the card.
+- [ ] **Step 4: Run** the three files, `src/codemap.test.ts`, `npm run typecheck`, `npm run lint`; PASS.
+- [ ] **Step 5: Commit** `feat(web): the You card keeps your name and what AYLUL calls you`.
+
+### Task F-8: Providers: label, presets from Core, test connection, model checklist
+
+Against the built API (B-1..B-3; `web/src/api/schema.d.ts` is already regenerated by `npm run
+gen:api` on this branch and is committed with this task):
+- `GET /api/aylul/provider-presets` → `ProviderPreset[]` `{ id, name, region?: 'international' |
+  'china' | null, base_url }`, seven rows (request answer).
+- `Provider` `{ slug, name, base_url, preset?, label?, key_set, models: { id, context_window }[], ... }`;
+  the provider-level `context_window` is gone.
+- `ProviderInput` `{ preset?, label?, models: { id, context_window? }[], name?, base_url? }`: with a
+  preset, send neither `name` nor `base_url`; with `preset: null` (Custom) both are required. A
+  missing model window is 200,000 in Core.
+- `POST /api/aylul/providers/test` `ProviderTest` `{ api_key, preset? | base_url? }` and
+  `POST /api/aylul/providers/{slug}/test` `SavedProviderTest` `{ api_key? }` (without it, the stored
+  key), both → `ProviderTestOutcome` `{ ok, listed, models: { id, context_window? }[], reason?:
+  'key_refused' | 'unreachable' | 'unexpected', status?, message? }`.
+- The provider slug `test` is reserved by Core (it is a route): no screen offers it.
+
+**Files:**
+- Create: `web/src/app/agents/provider-models.tsx` (the model checklist: search, ticks, default,
+  per-model window, add by id), `web/src/app/agents/provider-test.ts` (outcome → the line to show)
+- Modify: `web/src/api/schema.d.ts` (already regenerated; commit it), `web/src/api/aylul-profiles.ts`
+  (`providerPresetsQuery`, `testProvider`, `testSavedProvider`, the `ProviderPreset` and
+  `ProviderTestOutcome` types), `web/src/app/agents/provider-presets.ts` (the `PRESETS` constant
+  goes; `presetGroups(presets)`, `presetOf(presets, provider)` by `provider.preset`,
+  `providerTitle(provider, presets)`), `web/src/app/agents/provider-picker.tsx` (groups from the
+  query), `web/src/app/agents/provider-form.tsx` (label, test, checklist; no provider-level
+  window), `web/src/app/settings/sections/providers.tsx` (row titles, Edit's group),
+  `web/src/app/agents/agent-settings.tsx` (models are objects: options and the first model use
+  `.id`), `web/src/app/conversation/draft.tsx` (the same at lines 174 and 187),
+  `web/src/test/fake-daemon.ts` (default answers for the presets and the two test routes),
+  `web/src/app/agents/contract.yaml`, `web/src/app/conversation/contract.yaml` (only if a line
+  names the model shape), `docs/frontend/codebase/README.md` (rows for the two new files)
+- Test: `web/src/app/agents/provider-setup.test.tsx` (new), `web/src/app/agents/provider-picker.test.tsx`,
+  `web/src/app/agents/aylul.test.tsx`, `web/src/app/agents/agent-env.test.tsx`,
+  `web/src/app/conversation/companion-send.test.tsx`, `web/src/app/conversation/draft.test.tsx`
+  (where they hold a provider fixture: it takes `models: [{ id, context_window }]` and loses
+  the provider-level `context_window`)
+
+**Interfaces:**
+- Consumes: the schema types above; `attemptFor` from `@/api/command-id`; `ProviderForm`,
+  `ProviderPicker`, `ProvidersSection` from F-5.
+- Produces, in `aylul-profiles.ts`: `providerPresetsQuery` (`queryKey: ['aylul-provider-presets']`,
+  `staleTime: Infinity`); `testProvider(body: ProviderTest): Promise<ProviderTestOutcome>`;
+  `testSavedProvider(slug: string, apiKey: string | null): Promise<ProviderTestOutcome>` (sends
+  `{}` when `apiKey` is null).
+- Produces, in `provider-presets.ts`: `type Preset = ProviderPreset`; `type PresetGroup = { name:
+  string; presets: Preset[] }`; `presetGroups(presets: Preset[]): PresetGroup[]` (as F-5, input
+  from the query); `presetOf(presets: Preset[], provider: Provider): Preset | null` (by
+  `provider.preset`); `providerTitle(provider: Provider, presets: Preset[]): string`: the
+  preset's name plus ` China` for a china region, else `provider.name`, then ` (label)` when
+  `label` is set, for example `MiniMax China (Work key)`.
+- Produces, in `provider-test.ts`: `testLine(outcome: ProviderTestOutcome, providerName: string):
+  { kind: 'ok' | 'error'; text: string }`: `key_refused` → "The provider refused this key.";
+  `unreachable` → "Could not reach <providerName>. Check your connection and retry.";
+  `unexpected` → `message` (or "The test failed." when absent); `ok` and `listed` → "Key works.
+  Choose the models to add."; `ok` and not `listed` → "Key works. This provider does not list its
+  models: add them by id."
+- Produces, in `provider-models.tsx`: `type ModelPick = { id: string; contextWindow: number }`;
+  `ProviderModels({ listed, picked, onChange }: { listed: { id: string; context_window?: number |
+  null }[]; picked: ModelPick[]; onChange: (picked: ModelPick[]) => void })`: a search box
+  (`Search models`, filters the listed ids by substring, case-insensitive), one checkbox per
+  listed model, for each ticked model a `Default` radio and a `Context window` number field
+  (prefilled from the list, else 200000; 1000 to 10000000), and `Add a model by id` with **Add**
+  (refuses an empty id, a duplicate, `default`, more than 128 characters or a space). The default
+  is `picked[0]`: choosing Default moves that model first. 1 to 20 models.
+
+- [ ] **Step 1: Absorb the new shapes, behaviour unchanged.** Update the provider fixtures of the
+  four test files above; in `provider-form.tsx` read `provider.models.map(m => m.id)` into the
+  textarea and send `models: ids.map(id => ({ id }))` without `context_window` (the provider-level
+  field is removed from the form); in `agent-settings.tsx` and `draft.tsx` use `.id` where a model
+  string was read. Run `npm run typecheck` (0 errors; it had 9) and
+  `npx vitest run src/app/agents src/app/conversation/draft.test.tsx src/app/conversation/companion-send.test.tsx`;
+  PASS. Commit `fix(web): read provider models as id and context window` with the schema.
+- [ ] **Step 2: Write the failing tests** in `provider-setup.test.tsx`:
+  - `presets come from Core, grouped by name`: the default presets answer (seven rows) → the
+    picker's cards read `MiniMax`, `Anthropic`, `DeepSeek`, `OpenRouter`, `Moonshot (Kimi)`,
+    `Custom`; no file still imports a `PRESETS` constant.
+  - `the list names a provider by preset and label`: providers `{ preset: 'minimax', label:
+    'Work key' }` and `{ preset: 'minimax-china', label: null }` → rows starting `MiniMax (Work
+    key)` and `MiniMax China`.
+  - `a preset saves its id, not its URL`: pick MiniMax, China, Label `Home`, API key `sk-1`, add
+    `MiniMax-M3` by id, Save → `POST /api/aylul/providers` body `{ command_id, preset:
+    'minimax-china', label: 'Home', models: [{ id: 'MiniMax-M3', context_window: 200000 }] }` with
+    no `name` or `base_url` key; then the key PUT with `sk-1`.
+  - `Test connection lists the key's models`: pick MiniMax, key `sk-1`, Test connection → `POST
+    /api/aylul/providers/test` body `{ preset: 'minimax', api_key: 'sk-1' }`; answer `{ ok: true,
+    listed: true, models: [{ id: 'a', context_window: 1000000 }, { id: 'b', context_window: null
+    }] }` → "Key works. Choose the models to add." and checkboxes `a`, `b`, both unticked; tick
+    both, choose `b` as Default → the button reads `Add 2 models`; Save sends `models: [{ id: 'b',
+    context_window: 200000 }, { id: 'a', context_window: 1000000 }]`.
+  - `search filters the models`: listed `MiniMax-M3`, `MiniMax-M3.1-Flash`, `MiniMax-M2.5`; type
+    `flash` → only `MiniMax-M3.1-Flash`; a ticked model hidden by the search stays ticked.
+  - `a refused or unreachable key says so`: `{ ok: false, reason: 'key_refused', status: 401 }` →
+    "The provider refused this key." and no checklist; `unreachable` → "Could not reach MiniMax.
+    Check your connection and retry."; `unexpected` with `message: 'Odd answer.'` → `Odd answer.`.
+  - `Custom tests its URL and offers add by hand when nothing is listed`: Custom, name `Mine`,
+    URL `https://x.example/anthropic`, key, Test → body `{ base_url: 'https://x.example/anthropic',
+    api_key }`; answer `{ ok: true, listed: false, models: [] }` → the "does not list its models"
+    line and `Add a model by id`; Save sends `preset: null, name: 'Mine', base_url: ...`.
+  - `Edit tests with the stored key`: provider `p` with `key_set: true`; Test connection with the
+    key field empty → `POST /api/aylul/providers/p/test` body `{}`; with `sk-2` typed → `{ api_key:
+    'sk-2' }`. The key field stays empty after either.
+  - `Edit shows the saved models with their windows`: provider models `[{ id: 'm1',
+    context_window: 500000 }, { id: 'm2', context_window: 200000 }]` → `m1` and `m2` ticked, `m1`
+    Default, windows `500000` and `200000`; no provider-level `Context window` field; the button
+    reads `Save provider`.
+  - `a window out of range is refused`: set `m1`'s window to `999` → "Context window must be a
+    whole number from 1000 to 10000000." and no request.
+- [ ] **Step 3: Update** the F-5 test `a preset hides the URL and sends it` in `aylul.test.tsx` to
+  the new body (`preset: 'minimax'`, no `base_url`), and `provider-picker.test.tsx` to read the
+  presets from the fake daemon. Run `npx vitest run src/app/agents/provider-setup.test.tsx
+  src/app/agents/provider-picker.test.tsx src/app/agents/aylul.test.tsx`; FAIL.
+- [ ] **Step 4: Implement.** Set-up step order: provider name (fixed) and Region, Label (optional,
+  ≤64 characters, "Shown in parentheses, to tell two keys apart."), API key with **Test
+  connection** beside it (disabled while testing, and when there is no typed key and no stored
+  key), the test line, `ProviderModels`, Save. A new provider's Save reads `Add N models` (N
+  ticked); Edit reads `Save provider`. The key is never put in a query key, a log or the DOM after
+  saving. Deleting and key removal keep `delete-zone.tsx`.
+- [ ] **Step 5: Run** the touched tests, `src/codemap.test.ts`, `npm run typecheck`, `npm run lint`; PASS.
+  If `provider-form.tsx` passes 300 lines, the commit says why (the set-up step's one job).
+- [ ] **Step 6: Commit** `feat(web): providers keep a label, test their key and pick their models`.
 
 ### Task F-10: the agent form's Plugins & Skills picker (part of F-10)
 
@@ -388,8 +566,11 @@ amends this section before the task leaves `blocked`.
     `[data-color="blue"]` under the select; no binding: no such line.
 - [ ] **Step 2: Run** `cd web && npx vitest run src/app/agents/character-colors.test.ts
   src/app/agents/aylul.test.tsx src/app/desktop/companion-binding.test.tsx`; expected: FAIL.
-- [ ] **Step 3: Regenerate** with `npm run gen:api` (only once `api/openapi.json` shows
-  `character_color`); the schema is committed with the task.
+- [ ] **Step 3: Check the schema.** `Agent.character_color: string` and
+  `AgentInput.character_color?: string | null` are already in `web/src/api/schema.d.ts` (B-4,
+  regenerated and committed by F-8); run `npm run gen:api` only if F-8 has not landed, and commit
+  the schema with this task then. Core checks the id's shape (1 to 32 of `a-z`, `0-9`, `-`,
+  starting with a letter), which every table id passes.
 - [ ] **Step 4: Implement.** `AgentForm`'s value gains `character_color: colorOf(original?.character_color).id`
   (purple for a new agent); a `Field label="Character colour"` after Default model holds
   `ColorSwatches` and the hint line (on the desktop, `useCompanionBinding()?.agent === slug`). The

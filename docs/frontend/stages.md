@@ -71,21 +71,24 @@ F-14 on the character colour's desktop side).
 
 ### F-7 · Account: the You card
 - Status: todo
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
-- Touch: to be named with the steps
-- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Account: the person) accepted; B-5 built.
-  Devices left this plan: the account server and device management are a separate piece of work
-- Done when: to be named with the steps
+- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-7-account-the-you-card
+- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Account); `web/src/app/settings/contract.yaml`
+- Touch: the Files list of Task F-7 in the plan
+- Needs: B-5 (built). Devices left this plan: the account server and device management are a
+  separate piece of work
+- Done when: `you-card.test.tsx`, `settings-dialog.test.tsx` and `account.test.tsx` pass with codemap,
+  `npm run typecheck`, `npm run lint`
 
-### F-8 · Providers: label, test connection, model checklist, per-model context, preset regions
-- Status: blocked
-- Blocker: B-1 through B-3 are built, but the plan still contains only F-8's summary row and explicitly defers its steps; Touch and Done when remain unnamed. The task needs its implementation steps, Files list and failing-test acceptance list before execution under the task-scoped TDD rules; the regenerated API also requires mechanical model-shape updates in provider-form.tsx, agent-settings.tsx and conversation/draft.tsx.
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
-- Touch: to be named with the steps
-- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Providers) accepted; B-1, B-2, B-3 built (F-8 lands on the same branch as B-2)
-- Done when: to be named with the steps
+### F-8 · Providers: label, presets from Core, test connection, model checklist
+- Status: todo
+- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-8-providers-label-presets-from-core-test-connection-model-checklist
+- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Providers); `web/src/app/agents/contract.yaml`;
+  the request's Providers answer
+- Touch: the Files list of Task F-8 in the plan (`web/src/api/schema.d.ts` is already regenerated: commit it, do not revert it)
+- Needs: B-1, B-2, B-3 (built)
+- Done when: step 1's `npm run typecheck` has 0 errors; `provider-setup.test.tsx`, `provider-picker.test.tsx`,
+  `aylul.test.tsx`, `agent-env.test.tsx`, `companion-send.test.tsx`, `draft.test.tsx` pass with codemap,
+  `npm run typecheck`, `npm run lint`
 
 ### F-9 · Agents: character colour per agent
 - Status: todo
