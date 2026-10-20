@@ -49,8 +49,8 @@
 >   owns lives in `docs/codebase/README.md`, and
 >   `cargo test -p shadows --test codemap` refuses a module with no owner row, a
 >   path that does not exist, or a job stated with "and". Signatures are not
->   written down anywhere: the Rust LSP, or `where_is` when the `shadows` MCP
->   server is connected, answers them from the code.
+>   written down anywhere: the Rust LSP, or Serena for TypeScript,
+>   answers them from the code.
 >   `crates/shadows/tests/codemap/main.rs` owns that decision.
 > - CLAUDE.md stays compact: links + rules + architecture. No long backlogs.
 
@@ -169,17 +169,16 @@ a crawl, or a re-read was paid for and bought nothing.
 
 - **The code map is the entry point, not the source tree.** Read
   `docs/codebase/README.md` (what each module owns) and the service's
-  `contract.yaml` FIRST, then ask the LSP or `where_is` for signatures and
-  callers, and open only the files they name. Reading the tree to discover
+  `contract.yaml` FIRST, then ask the LSP (Rust) or Serena (TypeScript) for
+  signatures and callers, and open only the files they name. Reading the tree to discover
   what a signature is means you skipped them — say so in your report.
-- **Ask the code index before searching the tree.** When the `shadows` MCP
-  server is connected, `where_is`, `who_uses` and `outline` answer where a
-  name is defined, where it is used, and what a file declares, with file,
-  line and signature. Use them before Grep or opening files to find a
-  signature; open the file only at the line they name. They answer where,
-  not how or why: that is the contract, the owner spec, and the code itself.
-  If the server is not connected, say so in your report and fall back to the
-  Rust LSP.
+- **Find code with the language server, never with text search.** Rust: the
+  `LSP` tool (definition, references, callers, a file's symbols). TypeScript
+  (`.ts`/`.tsx`): Serena only. Either one names the file and line; open the
+  file only there. Grep is for text that is not a code symbol (docs, config,
+  log strings). They answer where, not how or why: that is the contract, the
+  owner spec, and the code itself. If the server for that language does not
+  answer, say so in your report before falling back to Glob and Read.
 - **The contract is the entry point for a service.** Read
   `crates/shadows-core/src/<service>/contract.yaml` before changing that
   service; open its code for what the contract points to.
