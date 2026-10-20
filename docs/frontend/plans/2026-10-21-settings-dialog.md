@@ -148,7 +148,10 @@ Vitest with happy-dom and the fake daemon (`web/src/app/test-app.tsx`, `@/test/f
 **Files:**
 - Create: `web/src/app/settings/sections/character.tsx`, `web/src/app/settings/sections/core.tsx`
 - Modify: `web/src/app/desktop/companion-controls.tsx` (switches), `web/src/app/desktop/connection-settings.tsx`
-  (paths under a closed Advanced), `web/src/app/settings/settings-dialog.tsx`
+  (paths under a closed Advanced), `web/src/app/settings/settings-dialog.tsx`,
+  `web/src/app/desktop/companion-settings.tsx` (reply-preview switch),
+  `web/src/app/desktop/native-sections.test.tsx` (remaining companion case renders CompanionControls;
+  the removed NativeSettings browser wrapper case is covered by the dialog's browser section test)
 - Delete: `web/src/app/desktop/native-settings.tsx`
 - Test: `web/src/app/desktop/companion-binding.test.tsx` (adjust), `web/src/app/settings/core.test.tsx`
 

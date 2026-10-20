@@ -45,7 +45,7 @@ colour's desktop side).
 - Done when: `account-actions.test.ts` and `account.test.tsx` pass with codemap, typecheck, lint
 
 ### F-4 · AYLUL character and Local Core sections
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-4-aylul-character-and-local-core-sections
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (AYLUL character, Local Core); `web/src/app/desktop/contract.yaml`
 - Touch: the Files list of Task F-4 in the plan

@@ -4,7 +4,7 @@ import {createRoot,type Root} from 'react-dom/client'
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query'
 import {beforeEach,afterEach,it,expect,vi} from 'vitest'
 import fixture from '../../test/native-presence.json'
-import {CompanionSettings} from './companion-settings'
+import {CharacterSection} from '../settings/sections/character'
 const {invoke,listen}=vi.hoisted(()=>({invoke:vi.fn(),listen:vi.fn()}))
 vi.mock('@tauri-apps/api/core',()=>({invoke}))
 vi.mock('@tauri-apps/api/event',()=>({listen}))
@@ -24,13 +24,24 @@ beforeEach(()=>{
  client=new QueryClient({defaultOptions:{queries:{retry:false}}})
  listen.mockReset().mockResolvedValue(()=>{})
  invoke.mockReset().mockImplementation(async(command:string)=>{
+  if(command==='companion_state')return {revision:1,visible:true,renderAllowed:true,paused:false,error:null}
+  if(command==='set_companion_paused')return {revision:2,visible:true,renderAllowed:true,paused:true,error:null}
   if(command==='companion_binding')return fixture.unbound
   if(command==='select_companion_agent')return fixture.binding
   if(command==='set_companion_previews')return {...fixture.binding,revision:4,previews:false}
  })
 })
 afterEach(async()=>{await act(async()=>root.unmount());client.clear();host.remove();delete (window as unknown as Record<string,unknown>).__TAURI_INTERNALS__})
-async function render(){await act(async()=>root.render(<QueryClientProvider client={client}><CompanionSettings/></QueryClientProvider>));await flush()}
+async function render(){await act(async()=>root.render(<QueryClientProvider client={client}><CharacterSection/></QueryClientProvider>));await flush()}
+it('character shows three switches',async()=>{
+ await render()
+ const switches=[...host.querySelectorAll<HTMLInputElement>('input[role="switch"]')]
+ expect(switches.map(input=>input.closest('label')?.textContent?.trim())).toEqual(['Show AYLUL on the desktop','Motion','Show a short reply preview'])
+ expect(switches.every(input=>input.checked)).toBe(true)
+ await act(async()=>switches[1].click());await flush()
+ expect(invoke).toHaveBeenCalledWith('set_companion_paused',{paused:true})
+ expect(switches[1].checked).toBe(false)
+})
 it('lists live agent names with provider and default model metadata',async()=>{
  await render()
  expect(host.textContent).toContain('AYLUL A · Local provider · fake-large')
@@ -56,7 +67,7 @@ it('a later event cannot be overwritten by an older selection response',async()=
  await render()
  const select=host.querySelector('select')!
  await act(async()=>{select.value='agent-a';select.dispatchEvent(new Event('change',{bubbles:true}))})
- await act(async()=>{listen.mock.calls[0][1]({payload:{...fixture.binding,revision:8,agent:null}})})
+ await act(async()=>{listen.mock.calls.find(([name])=>name==='companion-binding')![1]({payload:{...fixture.binding,revision:8,agent:null}})})
  await act(async()=>resolve({...fixture.binding,revision:2}));await flush()
  expect(select.value).toBe('')
 })

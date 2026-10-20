@@ -32,7 +32,7 @@ export function CompanionSettings(){
     </label>
     <button disabled={busy} onClick={()=>{void retryConnection().catch(()=>setError("Unable to retry local Core."))}}>Retry companion connection</button>
     <p className="text-sm text-muted-foreground">This character stays with the selected agent. Opening another conversation does not change it.</p>
-    <label className="flex gap-2"><input type="checkbox" checked={binding?.previews??true} disabled={busy||!binding}
+    <label className="flex gap-2"><input type="checkbox" role="switch" checked={binding?.previews??true} disabled={busy||!binding}
       onChange={event=>{void previews(event.target.checked)}}/>Show a short reply preview</label>
     {error&&!binding&&<button disabled={busy} onClick={()=>{void select(null)}}>Clear companion selection</button>}
     {(error||agents.error||providers.error)&&<p role="alert">{error??'Unable to load agents. Character visibility and account actions remain available.'}</p>}

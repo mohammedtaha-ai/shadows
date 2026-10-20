@@ -2,7 +2,7 @@
 import {afterEach,beforeEach,describe,it,expect,vi} from 'vitest'
 import {act} from 'react'
 import {createRoot,type Root} from 'react-dom/client'
-import {NativeSettings} from './native-settings'
+import {CompanionControls} from './companion-controls'
 import {ApprovalsPanel} from './approvals-panel'
 import {SessionsPanel} from './sessions-panel'
 import type {AylulState} from '../../desktop/activity-api'
@@ -29,14 +29,9 @@ beforeEach(()=>{
 afterEach(async()=>{await act(async()=>root.unmount());host.remove();vi.restoreAllMocks();delete (window as unknown as Record<string,unknown>).__TAURI_INTERNALS__})
 describe('native sections',()=>{
  it('malformed companion updates show a local error',async()=>{
-  await act(async()=>root.render(<NativeSettings/>));await flush()
+  await act(async()=>root.render(<CompanionControls/>));await flush()
   await act(async()=>{listen.mock.calls[0][1]({payload:{revision:'invalid'}})})
   expect(host.textContent).toContain('Unable to synchronize AYLUL')
- })
- it('browser renders no native controls and invokes nothing',async()=>{
-  delete (window as unknown as Record<string,unknown>).__TAURI_INTERNALS__
-  await act(async()=>root.render(<NativeSettings/>));await flush()
-  expect(host.textContent).toBe('');expect(invoke).not.toHaveBeenCalled()
  })
  it('local activity preserves project and session context before an answer',async()=>{
   const pending=[{id:'one',kind:'request' as const,sessionId:'session-one',project:'C:/work/first',tool:'Read',target:'a.ts',reason:null,proposedRule:null,at:'2026-10-20',held:true},

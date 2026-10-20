@@ -67,7 +67,6 @@ it is that folder's `contract.yaml`.
 | `web/src/app/desktop/companion-settings.tsx` | Companion binding controls | `web/src/app/desktop/contract.yaml` |
 | `web/src/desktop/auth.ts` | Account invocation wrappers | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/activity-api.ts` | Sidecar invocation wrappers | `web/src/desktop/contract.yaml` |
-| `web/src/app/desktop/native-settings.tsx` | Native settings sections | `web/src/app/desktop/contract.yaml` |
 | `web/src/app/desktop/companion-controls.tsx` | Character visibility controls | `web/src/app/desktop/contract.yaml` |
 | `web/src/app/desktop/activity.tsx` | Local activity page | `web/src/app/desktop/contract.yaml` |
 | `web/src/app/desktop/use-activity.ts` | Visible activity polling | `web/src/app/desktop/contract.yaml` |
@@ -183,6 +182,8 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/use-settings.ts` | Settings URL navigation hooks | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/general.tsx` | General settings content | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/account.tsx` | Account state controls | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/character.tsx` | Character settings content | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/core.tsx` | Local Core settings content | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/account-actions.ts` | Account state action selection | `web/src/app/settings/contract.yaml` |
 | `web/src/app/shell.tsx` | Two-pane frame every screen sits in | `web/src/app/home.tsx` |
 | `web/src/app/sidebar/agent-list.tsx` | Sidebar agent tree with their conversations | `web/src/app/sidebar/contract.yaml` |

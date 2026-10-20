@@ -39,6 +39,10 @@ components:
     signature: "() => JSX.Element"
   AccountSection:
     signature: "() => JSX.Element"
+  CharacterSection:
+    signature: "() => JSX.Element"
+  CoreSection:
+    signature: "() => JSX.Element"
   ActiveProjects:
     signature: "() => JSX.Element"
     # Reads the code settings; renders the form once they load.
@@ -66,6 +70,10 @@ functions:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: Character presents visibility, motion and reply preview as switches; Local Core shows its native state above configuration fields in a closed Advanced disclosure.
+    tested_by:
+      - "character shows three switches"
+      - "the Local Core paths are under a closed Advanced"
   - rule: Account shows only state-appropriate actions; checks status on each opening; pending actions disable every action except independent sign-in cancellation. Global logout and revoke require confirmation.
     tested_by:
       - "accountView gives each state its actions"
