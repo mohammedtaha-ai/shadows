@@ -39,6 +39,9 @@ components:
     signature: "() => JSX.Element"
   AccountSection:
     signature: "() => JSX.Element"
+    note: You card works in browser and desktop; native state/actions mount only in desktop.
+  YouCard:
+    signature: "() => JSX.Element"
   CharacterSection:
     signature: "() => JSX.Element"
   CoreSection:
@@ -75,6 +78,10 @@ functions:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: You edits the person's names; save preserves last-read language and theme. Empty names send null; names over 64 characters or with line breaks are refused locally. Failed saves retain input and unchanged retries reuse their command id.
+    tested_by: ["saving sends the whole record", "an emptied field saves as null", "more than 64 characters is refused before sending", "a failed save keeps the typed values and retries with the same command"]
+  - rule: Browser Account exposes You without native sign-in controls; failed person loads show an error instead of a form.
+    tested_by: ["the browser lists Account with only You", "a failed person load shows an error and no form"]
   - rule: Agents selects a form through the agent search key; Back and successful save clear that key to show the list without changing the page. Missing or deleted agent IDs show the list with a note. Closing discards unsaved edits.
     tested_by:
       - "Agent settings opens the dialog on that agent"

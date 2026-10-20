@@ -3,7 +3,7 @@ import { isDesktop } from '@/desktop/runtime'
 export type SectionId = 'account' | 'general' | 'providers' | 'agents' | 'plugins' | 'usage' | 'character' | 'core'
 
 export const SECTIONS: { id: SectionId; label: string; group: 'You' | 'AI' | 'This machine'; desktopOnly: boolean }[] = [
-  { id: 'account', label: 'Account', group: 'You', desktopOnly: true },
+  { id: 'account', label: 'Account', group: 'You', desktopOnly: false },
   { id: 'general', label: 'General', group: 'You', desktopOnly: false },
   { id: 'providers', label: 'Providers', group: 'AI', desktopOnly: false },
   { id: 'agents', label: 'Agents', group: 'AI', desktopOnly: false },

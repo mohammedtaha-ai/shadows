@@ -84,6 +84,7 @@ describe('settings', () => {
     await until(() => field() !== null)
     expect(document.querySelector('[data-slot="dialog-title"]')?.textContent).toBe('General')
     expect(document.querySelector('nav[aria-label="Settings sections"]')?.textContent).not.toContain('This machine')
+    expect(document.querySelector('nav[aria-label="Settings sections"]')?.textContent).toContain('Account')
   })
 
   it('an unknown or hidden section falls back to General', async () => {

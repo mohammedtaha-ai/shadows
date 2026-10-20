@@ -191,6 +191,8 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/sections/providers.tsx` | Provider settings navigation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/agents.tsx` | Agent settings navigation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/account-actions.ts` | Account state action selection | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/you-card.tsx` | Person name editing | `web/src/app/settings/contract.yaml` |
+| `web/src/api/person.ts` | Person HTTP operations | `web/src/api/contract.yaml` |
 | `web/src/app/shell.tsx` | Two-pane frame every screen sits in | `web/src/app/home.tsx` |
 | `web/src/app/sidebar/agent-list.tsx` | Sidebar agent tree with their conversations | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/delete-thread-dialog.tsx` | Confirms removing a conversation as one command | `web/src/app/sidebar/contract.yaml` |

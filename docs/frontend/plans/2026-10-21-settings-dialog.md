@@ -302,6 +302,8 @@ too**, showing only the You card; its sign-in state and actions stay desktop onl
 - Test: `web/src/app/settings/you-card.test.tsx` (new), `web/src/app/settings/settings-dialog.test.tsx`
   (the browser's nav now holds Account), `web/src/app/settings/account.test.tsx` (unchanged
   assertions; it must still pass)
+- Mechanical follow-up: `web/src/api/contract.yaml` documents the new person transport;
+  the native-only `account.test.tsx` mocks YouCard so its existing action assertions stay unchanged.
 
 **Interfaces:**
 - Produces, in `person.ts`: `type Person = components['schemas']['Person']`,

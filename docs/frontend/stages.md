@@ -70,7 +70,7 @@ F-14 on the character colour's desktop side).
 - Done when: `aylul.test.tsx` and `agent-env.test.tsx` pass with codemap, typecheck, lint
 
 ### F-7 · Account: the You card
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-7-account-the-you-card
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Account); `web/src/app/settings/contract.yaml`
 - Touch: the Files list of Task F-7 in the plan

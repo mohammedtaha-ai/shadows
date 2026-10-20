@@ -2,8 +2,14 @@ import { useEffect, useState } from 'react'
 import { authAction, cancelLogin, type AuthAction, type AuthView } from '@/desktop/auth'
 import { Button } from '@/components/ui/button'
 import { accountView } from '../account-actions'
+import { isDesktop } from '@/desktop/runtime'
+import { YouCard } from '../you-card'
 
 export function AccountSection() {
+  return <div className="space-y-6"><YouCard />{isDesktop() && <NativeAccount />}</div>
+}
+
+function NativeAccount() {
   const [auth, setAuth] = useState<AuthView | null>(null)
   const [busy, setBusy] = useState(true)
   const [loggingIn, setLoggingIn] = useState(false)

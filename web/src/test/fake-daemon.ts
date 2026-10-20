@@ -30,6 +30,7 @@ import {
 } from './contract-fixtures'
 
 export interface Overrides {
+  person?: Answer
   project?: Project
   entries?: ThreadEntry[]
   operations?: Operation[]
@@ -66,6 +67,7 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
   // Kept as the daemon keeps it: a refetch after a PATCH reads what the PATCH
   // saved, as it does against the real daemon.
   let project = o.project ?? projectFixture
+  let person = { name: null, aylul_calls_me: null, language: null, theme: 'system', updated_at: null }
   let instructions = o.instructions ?? null
   let grants = o.grants ?? []
   let standards: EffectiveStandards = {
@@ -82,6 +84,12 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
   }
   const connect = 'claude mcp add --transport http shadows http://127.0.0.1:4318/mcp'
   return {
+    'GET /api/me': o.person ?? (() => Response.json(person)),
+    'PUT /api/me': async (request: Request) => {
+      const { command_id: _command, ...input } = await request.json()
+      person = { ...input, updated_at: '2026-10-21T00:00:00Z' }
+      return Response.json(person)
+    },
     'GET /api/aylul/provider-presets': [
   { id: 'minimax', name: 'MiniMax', region: 'international', base_url: 'https://api.minimax.io/anthropic' },
   { id: 'minimax-china', name: 'MiniMax', region: 'china', base_url: 'https://api.minimaxi.com/anthropic' },

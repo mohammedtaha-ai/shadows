@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AccountSection } from './sections/account'
 import type { AuthView } from '@/desktop/auth'
+vi.mock('./you-card', () => ({ YouCard: () => null }))
 
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke }))
