@@ -23,7 +23,7 @@ never print, log or commit a key).
 ## Tasks
 
 ### B-1 · Provider presets and labels
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-1--provider-presets-and-labels
 - Read: crates/shadows-core/src/profiles/contract.yaml; spec §1; docs/codebase/README.md rows for `profiles/`
 - Touch: crates/shadows-core/src/profiles/presets.rs (new), crates/shadows-core/migrations/0030_provider_presets.sql (new), crates/shadows-core/src/profiles/mod.rs, crates/shadows-core/src/profiles/model.rs, crates/shadows-core/src/profiles/providers.rs, crates/shadows-core/src/profiles/store.rs, crates/shadows-core/src/profiles/contract.yaml, crates/shadows-core/src/lib.rs, crates/shadows-http/src/aylul_profiles.rs, crates/shadows-http/src/aylul_profiles_tests.rs, crates/shadows-http/src/lib.rs, api/openapi.json, docs/codebase/README.md, crates/shadows-core/tests/aylul_profiles/providers.rs, crates/shadows-core/tests/profile_migration.rs, crates/shadows-core/tests/aylul_profiles.rs, crates/shadows-core/tests/aylul_session.rs, crates/shadows-http/src/aylul_env_tests.rs, crates/shadows/tests/openapi/read_only.rs (each builds a `ProviderInput`)

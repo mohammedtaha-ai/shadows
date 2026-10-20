@@ -54,8 +54,10 @@ async fn world() -> World {
         .create_provider(
             "provider".into(),
             ProviderInput {
-                name: "Test".into(),
-                base_url: "https://example.com/anthropic".into(),
+                preset: None,
+                label: None,
+                name: Some("Test".into()),
+                base_url: Some("https://example.com/anthropic".into()),
                 models: vec!["fake-large".into(), "fake-small".into()],
                 context_window: Some(1_000_000),
             },

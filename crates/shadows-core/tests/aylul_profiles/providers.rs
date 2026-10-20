@@ -53,7 +53,7 @@ async fn invalid_provider_input_is_refused() {
         "https://u:p@host",
     ] {
         let mut input = provider("Bad");
-        input.base_url = url.into();
+        input.base_url = Some(url.into());
         assert!(
             w.profiles
                 .create_provider(uuid::Uuid::new_v4().to_string(), input)
@@ -72,7 +72,7 @@ async fn invalid_provider_input_is_refused() {
         );
     }
     let mut input = provider("Local");
-    input.base_url = "http://localhost:8000".into();
+    input.base_url = Some("http://localhost:8000".into());
     assert!(
         w.profiles
             .create_provider("local".into(), input)
@@ -168,4 +168,108 @@ async fn replay_with_other_input_conflicts() {
             shadows_core::StorageError::CommandConflict
         ))
     ));
+}
+
+#[tokio::test]
+async fn preset_supplies_url_and_name() {
+    let w = world().await;
+    let input = serde_json::from_value(serde_json::json!({
+        "preset": "minimax", "models": ["model-a"]
+    }))
+    .unwrap();
+    let p = w
+        .profiles
+        .create_provider("preset".into(), input)
+        .await
+        .unwrap();
+    assert_eq!(p.name, "MiniMax");
+    assert_eq!(p.base_url, "https://api.minimax.io/anthropic");
+}
+
+#[tokio::test]
+async fn presets_list_in_fixed_order() {
+    let w = world().await;
+    let ids: Vec<_> = w
+        .profiles
+        .provider_presets()
+        .into_iter()
+        .map(|p| p.id)
+        .collect();
+    assert_eq!(
+        ids,
+        [
+            "minimax",
+            "minimax-china",
+            "anthropic",
+            "deepseek",
+            "openrouter",
+            "moonshot",
+            "moonshot-china"
+        ]
+    );
+}
+
+#[tokio::test]
+async fn china_presets_use_china_hosts() {
+    let w = world().await;
+    let presets = w.profiles.provider_presets();
+    assert_eq!(presets[1].base_url, "https://api.minimaxi.com/anthropic");
+    assert_eq!(presets[6].base_url, "https://api.moonshot.cn/anthropic");
+    assert_eq!(
+        serde_json::to_value(&presets[1]).unwrap()["region"],
+        "china"
+    );
+}
+
+async fn refused(value: serde_json::Value) {
+    let w = world().await;
+    let input = serde_json::from_value(value).unwrap();
+    assert!(matches!(
+        w.profiles.create_provider("bad".into(), input).await,
+        Err(CoreError::ProfileInvalid(_))
+    ));
+}
+
+#[tokio::test]
+async fn preset_with_other_url_is_refused() {
+    for field in ["name", "base_url"] {
+        let mut v = serde_json::json!({"preset":"minimax","models":["m"]});
+        v[field] = "https://other.test".into();
+        refused(v).await;
+    }
+}
+
+#[tokio::test]
+async fn custom_requires_name_and_url() {
+    for v in [
+        serde_json::json!({"models":["m"]}),
+        serde_json::json!({"name":"Custom","models":["m"]}),
+        serde_json::json!({"base_url":"https://example.test","models":["m"]}),
+    ] {
+        refused(v).await;
+    }
+}
+
+#[tokio::test]
+async fn unknown_preset_is_refused() {
+    refused(serde_json::json!({"preset":"unknown","models":["m"]})).await;
+}
+
+#[tokio::test]
+async fn label_is_trimmed_and_empty_is_null() {
+    let w = world().await;
+    for (i, label, expected) in [(0, "  Work  ", Some("Work")), (1, "  ", None)] {
+        let input = serde_json::from_value(serde_json::json!({
+            "preset":"minimax","models":["m"],"label":label}))
+        .unwrap();
+        let p = w
+            .profiles
+            .create_provider(format!("p{i}"), input)
+            .await
+            .unwrap();
+        assert_eq!(p.label.as_deref(), expected);
+    }
+    for label in ["x".repeat(65), "bad\nlabel".into()] {
+        refused(serde_json::json!({"preset":"minimax","models":["m"],"label":label})).await;
+    }
 }

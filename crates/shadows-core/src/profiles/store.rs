@@ -9,6 +9,8 @@ fn provider_row(row: sqlx::sqlite::SqliteRow) -> Result<Provider, StorageError> 
         slug: row.get("slug"),
         name: row.get("name"),
         base_url: row.get("base_url"),
+        preset: row.get("preset"),
+        label: row.get("label"),
         models: serde_json::from_str(row.get("models"))?,
         context_window: row.get("context_window"),
         key_set: row.get("key_set"),
@@ -166,14 +168,24 @@ pub(super) async fn save_provider(
                         users(conn, &id, Some(&input.models)).await?;
                         id
                     }
-                    None => slug(conn, &input.name, "aylul_provider", "provider").await?,
+                    None => {
+                        slug(
+                            conn,
+                            input.name.as_deref().unwrap_or(""),
+                            "aylul_provider",
+                            "provider",
+                        )
+                        .await?
+                    }
                 };
                 let ts = now();
                 sqlx::query(
                     "INSERT INTO aylul_provider
-            (slug,name,base_url,models,context_window,created_at,updated_at) VALUES (?,?,?,?,?,?,?)
+            (slug,name,base_url,models,context_window,created_at,updated_at,preset,label)
+            VALUES (?,?,?,?,?,?,?,?,?)
             ON CONFLICT(slug) DO UPDATE SET name=excluded.name, base_url=excluded.base_url,
             models=excluded.models, context_window=excluded.context_window,
+            preset=excluded.preset, label=excluded.label,
             updated_at=excluded.updated_at",
                 )
                 .bind(&id)
@@ -183,6 +195,8 @@ pub(super) async fn save_provider(
                 .bind(input.context_window.unwrap_or(200_000))
                 .bind(&ts)
                 .bind(&ts)
+                .bind(&input.preset)
+                .bind(&input.label)
                 .execute(&mut *conn)
                 .await?;
                 record(conn, &command, &id).await?;

@@ -3,9 +3,37 @@ use super::{Profiles, Provider, ProviderInput, store};
 use crate::{CoreError, app::user_command};
 
 fn validate(input: &mut ProviderInput) -> Result<(), CoreError> {
-    input.name = input.name.trim().to_owned();
-    input.base_url = input.base_url.trim().to_owned();
-    let url = &input.base_url;
+    input.name = input.name.take().map(|v| v.trim().to_owned());
+    input.base_url = input.base_url.take().map(|v| v.trim().to_owned());
+    if let Some(id) = &input.preset {
+        let preset = super::presets::all()
+            .into_iter()
+            .find(|p| &p.id == id)
+            .ok_or_else(|| CoreError::ProfileInvalid("unknown provider preset".into()))?;
+        if input.name.as_ref().is_some_and(|v| v != &preset.name)
+            || input
+                .base_url
+                .as_ref()
+                .is_some_and(|v| v != &preset.base_url)
+        {
+            return Err(CoreError::ProfileInvalid("preset values differ".into()));
+        }
+        input.name = Some(preset.name);
+        input.base_url = Some(preset.base_url);
+    }
+    input.label = input
+        .label
+        .take()
+        .map(|v| v.trim().to_owned())
+        .filter(|v| !v.is_empty());
+    if input
+        .label
+        .as_ref()
+        .is_some_and(|v| v.chars().count() > 64 || v.chars().any(char::is_control))
+    {
+        return Err(CoreError::ProfileInvalid("invalid provider label".into()));
+    }
+    let url = input.base_url.as_deref().unwrap_or("");
     let (scheme, rest) = url.split_once("://").unwrap_or(("", ""));
     let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
     let host = if authority.starts_with('[') {
@@ -31,8 +59,8 @@ fn validate(input: &mut ProviderInput) -> Result<(), CoreError> {
                 || !models.insert(id)
         });
     let size = input.context_window.unwrap_or(200_000);
-    if input.name.is_empty()
-        || input.name.len() > 256
+    if input.name.as_deref().unwrap_or("").is_empty()
+        || input.name.as_ref().is_some_and(|v| v.len() > 256)
         || bad_url
         || bad_models
         || !(1000..=10_000_000).contains(&size)

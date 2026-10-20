@@ -10,11 +10,17 @@ shapes:
     sessions: Weak session owner used after deletion commits
   Provider:
     source: model.rs
+    preset: Optional compiled preset id
+    label: Optional trimmed label
     key_set: Metadata only; no key value
+  ProviderPreset:
+    source: presets.rs
+    note: Compiled in; no row
   Agent:
     source: model.rs
     deleted: Permanent identity tombstone
 functions:
+  provider_presets: List the compiled presets in their fixed order.
   workspace: Read the hidden project identity with its live agent list.
   new: Construct configuration over the shared storage.
   providers: List providers in creation order with slug tie break.
@@ -32,6 +38,16 @@ shared_in_transaction:
   require_live_agent_in: Threads checks creation; Secrets checks agent environment writes inside their transaction.
   require_provider_in: Secrets checks provider existence before storing a provider key.
 obligations:
+  - rule: A preset supplies the name and URL; differing input is refused.
+    tested_by: [preset_supplies_url_and_name, preset_with_other_url_is_refused]
+  - rule: Custom requires a name and a valid URL.
+    tested_by: [custom_requires_name_and_url]
+  - rule: Labels are trimmed, at most 64 characters, without controls; empty is null.
+    tested_by: [label_is_trimmed_and_empty_is_null]
+  - rule: Unknown presets are refused; China presets carry China hosts.
+    tested_by: [unknown_preset_is_refused, china_presets_use_china_hosts]
+  - rule: Presets list in fixed order; known stored URLs migrate to their preset.
+    tested_by: [presets_list_in_fixed_order, migration_marks_known_urls_with_their_preset]
   - rule: Provider credentials are never returned as provider metadata.
     tested_by: [provider_key_is_write_only]
   - rule: Live default models prevent provider deletion or model removal.

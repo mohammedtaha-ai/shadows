@@ -49,6 +49,15 @@ every task keeps spec §8.2's rules (nothing assumes the daemon is only local).
 - Test: `crates/shadows-core/tests/aylul_profiles/providers.rs`,
   `crates/shadows-core/tests/profile_migration.rs`
 
+**Mechanical follow-ups:** `crates/shadows-core/tests/aylul_profiles.rs`,
+`crates/shadows-core/tests/aylul_session.rs`, `crates/shadows-http/src/aylul_env_tests.rs`,
+`crates/shadows/tests/openapi/read_only.rs` adapt `ProviderInput` fixtures.
+
+The legacy migration fixture in `crates/shadows-core/tests/aylul_profiles/threads.rs`
+excludes every migration from 0029 onward when constructing its pre-profiles database.
+
+`crates/shadows/tests/openapi.rs` adds the preset route to its route inventory.
+
 **Shapes**
 - `ProviderPreset { id: String, name: String, region: Option<PresetRegion>,
   base_url: String }`, `PresetRegion = international | china` (snake_case); the

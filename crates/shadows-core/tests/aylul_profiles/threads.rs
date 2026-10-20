@@ -196,7 +196,8 @@ async fn legacy_aylul_threads_map_to_aylul() {
             .file_name()
             .unwrap()
             .to_string_lossy()
-            .starts_with("0029_")
+            .get(..4)
+            .is_some_and(|version| version >= "0029")
         {
             continue;
         }

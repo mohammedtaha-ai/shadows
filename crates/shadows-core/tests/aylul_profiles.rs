@@ -28,8 +28,10 @@ async fn world() -> World {
 
 fn provider(name: &str) -> ProviderInput {
     ProviderInput {
-        name: name.into(),
-        base_url: "https://example.com/anthropic".into(),
+        preset: None,
+        label: None,
+        name: Some(name.into()),
+        base_url: Some("https://example.com/anthropic".into()),
         models: vec!["model-a".into(), "model-b".into()],
         context_window: None,
     }

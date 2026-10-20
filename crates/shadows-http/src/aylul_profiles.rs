@@ -7,6 +7,7 @@ use axum::{
 };
 use shadows_core::{
     Agent, AgentInput, AgentWorkspace, EnvEntry, PlanningThread, Provider, ProviderInput,
+    ProviderPreset,
 };
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -179,3 +180,9 @@ pub(super) async fn threads(
 #[cfg(test)]
 #[path = "aylul_profiles_tests.rs"]
 mod tests;
+
+#[utoipa::path(get, path="/api/aylul/provider-presets", tag="aylul",
+    responses((status=200,body=[ProviderPreset])))]
+pub(super) async fn provider_presets(State(s): State<AppState>) -> Json<Vec<ProviderPreset>> {
+    Json(s.core.profiles().provider_presets())
+}

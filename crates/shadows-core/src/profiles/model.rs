@@ -4,6 +4,8 @@ pub struct Provider {
     pub slug: String,
     pub name: String,
     pub base_url: String,
+    pub preset: Option<String>,
+    pub label: Option<String>,
     pub models: Vec<String>,
     pub context_window: u32,
     pub key_set: bool,
@@ -13,8 +15,10 @@ pub struct Provider {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct ProviderInput {
-    pub name: String,
-    pub base_url: String,
+    pub name: Option<String>,
+    pub base_url: Option<String>,
+    pub preset: Option<String>,
+    pub label: Option<String>,
     pub models: Vec<String>,
     pub context_window: Option<u32>,
 }

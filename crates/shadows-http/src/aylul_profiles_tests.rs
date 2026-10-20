@@ -231,3 +231,13 @@ async fn threads_listed_per_agent() {
         json!([])
     );
 }
+
+#[tokio::test]
+async fn provider_presets_route_lists_all() {
+    let w = world(true, true).await;
+    let (status, list) = call(&w, "GET", "/api/aylul/provider-presets", Value::Null).await;
+    assert_eq!(status, 200);
+    assert_eq!(list.as_array().unwrap().len(), 7);
+    assert_eq!(list[0]["id"], "minimax");
+    assert_eq!(list[1]["region"], "china");
+}

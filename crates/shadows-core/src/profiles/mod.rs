@@ -1,7 +1,9 @@
 //! AYLUL agent configuration.
 mod agents;
 mod model;
+mod presets;
 mod providers;
+pub use presets::{PresetRegion, ProviderPreset};
 mod store;
 
 use crate::db::Storage;

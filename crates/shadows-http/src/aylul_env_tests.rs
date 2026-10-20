@@ -235,8 +235,10 @@ async fn agent_world(configured: bool, key: bool) -> World {
             .create_provider(
                 "seed-provider".into(),
                 shadows_core::ProviderInput {
-                    name: "Test".into(),
-                    base_url: "https://example.com".into(),
+                    preset: None,
+                    label: None,
+                    name: Some("Test".into()),
+                    base_url: Some("https://example.com".into()),
                     models: vec!["fake-large".into()],
                     context_window: None,
                 },

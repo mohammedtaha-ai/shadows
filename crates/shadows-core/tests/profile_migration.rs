@@ -54,7 +54,9 @@ async fn windows_profiles_database_reopens_without_reapplying_or_rewriting_migra
     let path = temporary.path().join("existing.sqlite3");
     let pool = database(&path, 29, "").await;
     sqlx::query(
-        "INSERT INTO aylul_provider VALUES ('existing', 'Existing', 'https://example.test',
+        "INSERT INTO aylul_provider
+         (slug,name,base_url,models,context_window,created_at,updated_at)
+         VALUES ('existing', 'Existing', 'https://example.test',
          '[\"model\"]', 200000, '2026-10-19', '2026-10-19')",
     )
     .execute(&pool)
@@ -133,5 +135,57 @@ async fn other_migrations_do_not_receive_the_profiles_compatibility_exception() 
         error
             .to_string()
             .contains("migration 28 was previously applied")
+    );
+}
+
+#[tokio::test]
+async fn migration_marks_known_urls_with_their_preset() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("presets.db");
+    let pool = SqlitePoolOptions::new()
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+    let migrations = sqlx::migrate!("./migrations")
+        .iter()
+        .filter(|m| m.version < 30)
+        .cloned()
+        .collect();
+    Migrator::with_migrations(migrations)
+        .run(&pool)
+        .await
+        .unwrap();
+    for (slug, url) in [
+        ("minimax", "https://api.minimax.io/anthropic"),
+        ("custom", "https://custom.test"),
+    ] {
+        sqlx::query(
+            "INSERT INTO aylul_provider
+            (slug,name,base_url,models,context_window,created_at,updated_at)
+            VALUES (?, 'Existing', ?, '[\"m\"]', 123456, 'old', 'old')",
+        )
+        .bind(slug)
+        .bind(url)
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+    pool.close().await;
+    let storage = Storage::open(&path).await.unwrap();
+    let rows: Vec<(String, Option<String>, Option<String>)> =
+        sqlx::query_as("SELECT slug,preset,label FROM aylul_provider ORDER BY slug")
+            .fetch_all(storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(
+        rows,
+        vec![
+            ("custom".into(), None, None),
+            ("minimax".into(), Some("minimax".into()), None)
+        ]
     );
 }

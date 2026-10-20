@@ -62,7 +62,10 @@ pub use plans::{
     PlanTask, PlanVersions, Plans, Problem, TaskContent, TaskId, TaskParent, TaskPreview,
     VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
-pub use profiles::{Agent, AgentInput, AgentWorkspace, Profiles, Provider, ProviderInput};
+pub use profiles::{
+    Agent, AgentInput, AgentWorkspace, PresetRegion, Profiles, Provider, ProviderInput,
+    ProviderPreset,
+};
 pub use projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
 };

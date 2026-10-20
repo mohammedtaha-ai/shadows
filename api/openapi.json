@@ -3391,6 +3391,13 @@
         ],
         "type": "object"
       },
+      "PresetRegion": {
+        "enum": [
+          "international",
+          "china"
+        ],
+        "type": "string"
+      },
       "Problem": {
         "description": "One broken or missing thing, named so a person can act on it: tasks as `T4`.",
         "properties": {
@@ -3628,6 +3635,12 @@
           "key_set": {
             "type": "boolean"
           },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "models": {
             "items": {
               "type": "string"
@@ -3636,6 +3649,12 @@
           },
           "name": {
             "type": "string"
+          },
+          "preset": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "slug": {
             "type": "string"
@@ -3677,13 +3696,22 @@
       "ProviderInput": {
         "properties": {
           "base_url": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "context_window": {
             "format": "int32",
             "minimum": 0,
             "type": [
               "integer",
+              "null"
+            ]
+          },
+          "label": {
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -3694,13 +3722,49 @@
             "type": "array"
           },
           "name": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preset": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
-          "name",
-          "base_url",
           "models"
+        ],
+        "type": "object"
+      },
+      "ProviderPreset": {
+        "properties": {
+          "base_url": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "region": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PresetRegion"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "base_url"
         ],
         "type": "object"
       },
@@ -5478,6 +5542,29 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/provider-presets": {
+      "get": {
+        "operationId": "provider_presets",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderPreset"
+                  },
+                  "type": "array"
                 }
               }
             },
