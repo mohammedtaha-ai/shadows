@@ -12,7 +12,6 @@ fn provider_row(row: sqlx::sqlite::SqliteRow) -> Result<Provider, StorageError> 
         preset: row.get("preset"),
         label: row.get("label"),
         models: serde_json::from_str(row.get("models"))?,
-        context_window: row.get("context_window"),
         key_set: row.get("key_set"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
@@ -165,7 +164,8 @@ pub(super) async fn save_provider(
                 let id = match existing {
                     Some(id) => {
                         require_provider_in(conn, &id).await?;
-                        users(conn, &id, Some(&input.models)).await?;
+                        let ids: Vec<_> = input.models.iter().map(|m| m.id.clone()).collect();
+                        users(conn, &id, Some(&ids)).await?;
                         id
                     }
                     None => {
@@ -192,7 +192,7 @@ pub(super) async fn save_provider(
                 .bind(&input.name)
                 .bind(&input.base_url)
                 .bind(serde_json::to_string(&input.models)?)
-                .bind(input.context_window.unwrap_or(200_000))
+                .bind(200_000)
                 .bind(&ts)
                 .bind(&ts)
                 .bind(&input.preset)
@@ -215,9 +215,10 @@ pub(crate) async fn require_provider_in(
             .bind(slug)
             .fetch_optional(conn)
             .await?;
-    Ok(serde_json::from_str(&models.ok_or_else(|| {
-        StorageError::AylulProviderNotFound(slug.into())
-    })?)?)
+    let models: Vec<super::ProviderModel> = serde_json::from_str(
+        &models.ok_or_else(|| StorageError::AylulProviderNotFound(slug.into()))?,
+    )?;
+    Ok(models.into_iter().map(|m| m.id).collect())
 }
 
 pub(crate) async fn require_live_agent_in(

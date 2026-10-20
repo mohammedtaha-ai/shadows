@@ -115,6 +115,13 @@ for each of the seven rows of §1.1.
   `crates/shadows-core/tests/profile_migration.rs`,
   `crates/shadows-core/tests/aylul_session/opening.rs`
 
+**Mechanical follow-ups:** `crates/shadows-core/src/profiles/mod.rs` re-exports the
+model types; `crates/fake-acp/src/prompts.rs` reports only the two context variables
+so opening acceptance can assert what reached the child. Existing `ProviderInput`
+fixtures in `crates/shadows-core/tests/{aylul_profiles.rs,aylul_session.rs}`,
+`crates/shadows-http/src/aylul_env_tests.rs`, and
+`crates/shadows/tests/openapi/read_only.rs` carry model objects.
+
 **Shapes**
 - `ProviderModel { id: String, context_window: u32 }`;
   `ProviderModelInput { id: String, context_window: Option<u32> }`.

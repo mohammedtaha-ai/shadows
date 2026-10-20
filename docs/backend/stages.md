@@ -31,7 +31,7 @@ never print, log or commit a key).
 - Done when: `presets_list_in_fixed_order`, `preset_supplies_url_and_name`, `preset_with_other_url_is_refused`, `custom_requires_name_and_url`, `label_is_trimmed_and_empty_is_null`, `unknown_preset_is_refused`, `china_presets_use_china_hosts`, `migration_marks_known_urls_with_their_preset`, `provider_presets_route_lists_all` pass; `cargo test -p shadows-core --test contracts`, `cargo test -p shadows --test codemap`, `cargo test -p shadows --test openapi` pass
 
 ### B-2 · Each model carries its context window
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-2--each-model-carries-its-context-window
 - Read: crates/shadows-core/src/profiles/contract.yaml; crates/shadows-core/src/harness/contract.yaml; spec §2; `Sessions::opening` in crates/shadows-core/src/harness/assistant.rs
 - Touch: crates/shadows-core/migrations/0031_model_windows.sql (new), crates/shadows-core/src/profiles/model.rs, crates/shadows-core/src/profiles/providers.rs, crates/shadows-core/src/profiles/agents.rs, crates/shadows-core/src/profiles/store.rs, crates/shadows-core/src/profiles/contract.yaml, crates/shadows-core/src/harness/assistant.rs, crates/shadows-core/src/harness/contract.yaml, crates/shadows-core/src/lib.rs, crates/shadows-http/src/aylul_profiles_tests.rs, api/openapi.json, crates/shadows-core/tests/aylul_profiles/providers.rs, crates/shadows-core/tests/aylul_profiles.rs, crates/shadows-core/tests/profile_migration.rs, crates/shadows-core/tests/aylul_session/opening.rs, crates/shadows-core/tests/aylul_session.rs, crates/shadows-http/src/aylul_env_tests.rs, crates/shadows/tests/openapi/read_only.rs (each builds a `ProviderInput`)

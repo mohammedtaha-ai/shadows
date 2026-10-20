@@ -189,3 +189,46 @@ async fn migration_marks_known_urls_with_their_preset() {
         ]
     );
 }
+
+#[tokio::test]
+async fn migration_gives_models_the_provider_window() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("windows.db");
+    let pool = SqlitePoolOptions::new()
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+    let migrations = sqlx::migrate!("./migrations")
+        .iter()
+        .filter(|m| m.version < 31)
+        .cloned()
+        .collect();
+    Migrator::with_migrations(migrations)
+        .run(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO aylul_provider
+        (slug,name,base_url,models,context_window,created_at,updated_at)
+        VALUES ('p','P','https://example.test','[\"z\",\"a\",\"b\"]',123456,'old','old')",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    pool.close().await;
+    let storage = Storage::open(&path).await.unwrap();
+    let models: String = sqlx::query_scalar("SELECT models FROM aylul_provider WHERE slug='p'")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&models).unwrap(),
+        serde_json::json!([
+        {"id":"z","context_window":123456}, {"id":"a","context_window":123456},
+        {"id":"b","context_window":123456}])
+    );
+}

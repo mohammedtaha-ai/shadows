@@ -12,7 +12,7 @@ async fn call(w: &World, method: &str, path: &str, body: Value) -> (u16, Value) 
 
 fn provider() -> Value {
     json!({"command_id":"provider","name":"Test","base_url":"https://example.com",
-        "models":["model-a","model-b"],"context_window":200000})
+        "models":[{"id":"model-a","context_window":200000},{"id":"model-b"}]})
 }
 
 async fn seed(w: &World, name: &str) {

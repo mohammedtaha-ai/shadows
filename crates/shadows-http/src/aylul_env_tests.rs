@@ -239,8 +239,13 @@ async fn agent_world(configured: bool, key: bool) -> World {
                     label: None,
                     name: Some("Test".into()),
                     base_url: Some("https://example.com".into()),
-                    models: vec!["fake-large".into()],
-                    context_window: None,
+                    models: vec!["fake-large".into()]
+                        .into_iter()
+                        .map(|id| shadows_core::ProviderModelInput {
+                            id,
+                            context_window: None,
+                        })
+                        .collect(),
                 },
             )
             .await

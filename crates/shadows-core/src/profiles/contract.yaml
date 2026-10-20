@@ -13,6 +13,12 @@ shapes:
     preset: Optional compiled preset id
     label: Optional trimmed label
     key_set: Metadata only; no key value
+  ProviderModel:
+    source: model.rs
+    context_window: Required per-model window
+  ProviderModelInput:
+    source: model.rs
+    context_window: Optional; defaults to 200000
   ProviderPreset:
     source: presets.rs
     note: Compiled in; no row
@@ -38,6 +44,12 @@ shared_in_transaction:
   require_live_agent_in: Threads checks creation; Secrets checks agent environment writes inside their transaction.
   require_provider_in: Secrets checks provider existence before storing a provider key.
 obligations:
+  - rule: Each model window defaults to 200000 and is within 1000..=10000000.
+    tested_by: [model_window_defaults_and_is_bounded]
+  - rule: Model ids stay unique, 1..=20 per provider, and never default.
+    tested_by: [model_ids_keep_their_rules]
+  - rule: Migration gives each model its provider window in array order.
+    tested_by: [migration_gives_models_the_provider_window]
   - rule: A preset supplies the name and URL; differing input is refused.
     tested_by: [preset_supplies_url_and_name, preset_with_other_url_is_refused]
   - rule: Custom requires a name and a valid URL.

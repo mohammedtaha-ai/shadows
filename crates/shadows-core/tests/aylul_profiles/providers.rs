@@ -38,7 +38,13 @@ async fn invalid_provider_input_is_refused() {
         vec!["default".into()],
     ] {
         let mut input = provider("Bad");
-        input.models = models;
+        input.models = models
+            .into_iter()
+            .map(|id| shadows_core::ProviderModelInput {
+                id,
+                context_window: None,
+            })
+            .collect();
         assert!(
             w.profiles
                 .create_provider(uuid::Uuid::new_v4().to_string(), input)
@@ -63,7 +69,7 @@ async fn invalid_provider_input_is_refused() {
     }
     for size in [999, 10_000_001] {
         let mut input = provider("Bad");
-        input.context_window = Some(size);
+        input.models[0].context_window = Some(size);
         assert!(
             w.profiles
                 .create_provider(uuid::Uuid::new_v4().to_string(), input)
@@ -102,7 +108,10 @@ async fn removing_an_agents_default_model_is_refused() {
         .await
         .unwrap();
     let mut input = provider("Provider");
-    input.models = vec!["model-b".into()];
+    input.models = vec![shadows_core::ProviderModelInput {
+        id: "model-b".into(),
+        context_window: None,
+    }];
     assert!(matches!(
         w.profiles
             .update_provider("u".into(), "provider", input)
@@ -174,7 +183,7 @@ async fn replay_with_other_input_conflicts() {
 async fn preset_supplies_url_and_name() {
     let w = world().await;
     let input = serde_json::from_value(serde_json::json!({
-        "preset": "minimax", "models": ["model-a"]
+        "preset": "minimax", "models": [{"id":"model-a"}]
     }))
     .unwrap();
     let p = w
@@ -233,7 +242,7 @@ async fn refused(value: serde_json::Value) {
 #[tokio::test]
 async fn preset_with_other_url_is_refused() {
     for field in ["name", "base_url"] {
-        let mut v = serde_json::json!({"preset":"minimax","models":["m"]});
+        let mut v = serde_json::json!({"preset":"minimax","models":[{"id":"m"}]});
         v[field] = "https://other.test".into();
         refused(v).await;
     }
@@ -242,9 +251,9 @@ async fn preset_with_other_url_is_refused() {
 #[tokio::test]
 async fn custom_requires_name_and_url() {
     for v in [
-        serde_json::json!({"models":["m"]}),
-        serde_json::json!({"name":"Custom","models":["m"]}),
-        serde_json::json!({"base_url":"https://example.test","models":["m"]}),
+        serde_json::json!({"models":[{"id":"m"}]}),
+        serde_json::json!({"name":"Custom","models":[{"id":"m"}]}),
+        serde_json::json!({"base_url":"https://example.test","models":[{"id":"m"}]}),
     ] {
         refused(v).await;
     }
@@ -252,7 +261,7 @@ async fn custom_requires_name_and_url() {
 
 #[tokio::test]
 async fn unknown_preset_is_refused() {
-    refused(serde_json::json!({"preset":"unknown","models":["m"]})).await;
+    refused(serde_json::json!({"preset":"unknown","models":[{"id":"m"}]})).await;
 }
 
 #[tokio::test]
@@ -260,7 +269,7 @@ async fn label_is_trimmed_and_empty_is_null() {
     let w = world().await;
     for (i, label, expected) in [(0, "  Work  ", Some("Work")), (1, "  ", None)] {
         let input = serde_json::from_value(serde_json::json!({
-            "preset":"minimax","models":["m"],"label":label}))
+            "preset":"minimax","models":[{"id":"m"}],"label":label}))
         .unwrap();
         let p = w
             .profiles
@@ -270,6 +279,51 @@ async fn label_is_trimmed_and_empty_is_null() {
         assert_eq!(p.label.as_deref(), expected);
     }
     for label in ["x".repeat(65), "bad\nlabel".into()] {
-        refused(serde_json::json!({"preset":"minimax","models":["m"],"label":label})).await;
+        refused(serde_json::json!({"preset":"minimax","models":[{"id":"m"}],"label":label})).await;
     }
+}
+
+#[tokio::test]
+async fn model_window_defaults_and_is_bounded() {
+    let w = world().await;
+    for (i, size) in [None, Some(1000), Some(10_000_000)].into_iter().enumerate() {
+        let input = serde_json::from_value(serde_json::json!({
+            "preset":"minimax", "models":[{"id":"m", "context_window":size}]
+        }))
+        .unwrap();
+        let p = w
+            .profiles
+            .create_provider(format!("w{i}"), input)
+            .await
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(p).unwrap()["models"][0]["context_window"],
+            size.unwrap_or(200_000)
+        );
+    }
+    for size in [999, 10_000_001] {
+        refused(serde_json::json!({"preset":"minimax",
+            "models":[{"id":"m","context_window":size}]}))
+        .await;
+    }
+}
+
+#[tokio::test]
+async fn model_ids_keep_their_rules() {
+    for ids in [
+        vec![],
+        vec!["m"; 21],
+        vec!["m", "m"],
+        vec!["default"],
+        vec!["a b"],
+        vec![""],
+        vec!["a\nb"],
+    ] {
+        let models: Vec<_> = ids
+            .into_iter()
+            .map(|id| serde_json::json!({"id":id}))
+            .collect();
+        refused(serde_json::json!({"preset":"minimax","models":models})).await;
+    }
+    refused(serde_json::json!({"preset":"minimax","models":[{"id":"a".repeat(129)}]})).await;
 }

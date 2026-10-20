@@ -130,3 +130,54 @@ async fn reserved_variable_row_fails_opening() {
         Err(CoreError::SecretNameReserved(name)) if name == "ANTHROPIC_BASE_URL"));
     assert_eq!(w.sessions.live_count().await, 0);
 }
+
+async fn provider_window(w: &World, size: u32) {
+    let input = serde_json::from_value(json!({"preset":"minimax","models":[
+        {"id":"fake-large","context_window":1000},
+        {"id":"fake-small","context_window":size}]}))
+    .unwrap();
+    let mut a = agent("AYLUL");
+    a.default_model = "fake-small".into();
+    w.core
+        .profiles()
+        .update_provider(format!("p-{size}"), "test", input)
+        .await
+        .unwrap();
+    w.core
+        .profiles()
+        .update_agent(format!("a-{size}"), "aylul", a)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn opening_uses_the_default_models_window() {
+    let w = world().await;
+    provider_window(&w, 321000).await;
+    let report = reply(&w, &w.thread, "fake-small", "high").await;
+    assert_eq!(report["context_tokens"], "321000");
+    assert_eq!(report["compact_window"], "321000");
+    let settings: Value =
+        serde_json::from_slice(&std::fs::read(w.home.join("settings.json")).unwrap()).unwrap();
+    assert_eq!(
+        settings["availableModels"],
+        json!(["fake-large", "fake-small"])
+    );
+}
+
+#[tokio::test]
+async fn auto_compact_window_is_capped_or_omitted() {
+    let w = world().await;
+    for size in [99999, 100000, 1000001] {
+        provider_window(&w, size).await;
+        let report = reply(&w, &w.thread, "fake-small", "high").await;
+        assert_eq!(report["context_tokens"], size.to_string());
+        let expected = if size < 100000 {
+            Value::Null
+        } else {
+            json!(size.min(1000000).to_string())
+        };
+        assert_eq!(report["compact_window"], expected);
+        w.sessions.terminate(&w.thread).await.unwrap();
+    }
+}

@@ -8,7 +8,9 @@ mod store;
 
 use crate::db::Storage;
 use crate::{CoreError, ProjectId};
-pub use model::{Agent, AgentInput, AgentWorkspace, Provider, ProviderInput};
+pub use model::{
+    Agent, AgentInput, AgentWorkspace, Provider, ProviderInput, ProviderModel, ProviderModelInput,
+};
 use std::path::PathBuf;
 use std::sync::Arc;
 pub(crate) use store::{require_live_agent_in, require_provider_in};

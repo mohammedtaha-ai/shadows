@@ -32,8 +32,13 @@ fn provider(name: &str) -> ProviderInput {
         label: None,
         name: Some(name.into()),
         base_url: Some("https://example.com/anthropic".into()),
-        models: vec!["model-a".into(), "model-b".into()],
-        context_window: None,
+        models: vec!["model-a".into(), "model-b".into()]
+            .into_iter()
+            .map(|id| shadows_core::ProviderModelInput {
+                id,
+                context_window: None,
+            })
+            .collect(),
     }
 }
 

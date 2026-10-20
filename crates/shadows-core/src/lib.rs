@@ -64,7 +64,7 @@ pub use plans::{
 };
 pub use profiles::{
     Agent, AgentInput, AgentWorkspace, PresetRegion, Profiles, Provider, ProviderInput,
-    ProviderPreset,
+    ProviderModel, ProviderModelInput, ProviderPreset,
 };
 pub use projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,

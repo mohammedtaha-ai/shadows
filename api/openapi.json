@@ -3624,11 +3624,6 @@
           "base_url": {
             "type": "string"
           },
-          "context_window": {
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
-          },
           "created_at": {
             "type": "string"
           },
@@ -3643,7 +3638,7 @@
           },
           "models": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ProviderModel"
             },
             "type": "array"
           },
@@ -3668,7 +3663,6 @@
           "name",
           "base_url",
           "models",
-          "context_window",
           "key_set",
           "created_at",
           "updated_at"
@@ -3701,14 +3695,6 @@
               "null"
             ]
           },
-          "context_window": {
-            "format": "int32",
-            "minimum": 0,
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
           "label": {
             "type": [
               "string",
@@ -3717,7 +3703,7 @@
           },
           "models": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ProviderModelInput"
             },
             "type": "array"
           },
@@ -3736,6 +3722,42 @@
         },
         "required": [
           "models"
+        ],
+        "type": "object"
+      },
+      "ProviderModel": {
+        "properties": {
+          "context_window": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "context_window"
+        ],
+        "type": "object"
+      },
+      "ProviderModelInput": {
+        "properties": {
+          "context_window": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
         ],
         "type": "object"
       },

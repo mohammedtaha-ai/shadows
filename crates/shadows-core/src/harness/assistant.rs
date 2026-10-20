@@ -84,8 +84,15 @@ impl Sessions {
         let agent = self.profiles.agent(slug).await?;
         let provider = self.profiles.provider(&agent.provider).await?;
         let home = config.home_root.join("profiles").join(slug);
+        let models: Vec<_> = provider.models.iter().map(|m| m.id.clone()).collect();
+        let window = provider
+            .models
+            .iter()
+            .find(|m| m.id == agent.default_model)
+            .ok_or_else(|| CoreError::ProfileInvalid("default model is not offered".into()))?
+            .context_window;
         self.homes
-            .write_models(&home, &provider.models, &agent.default_model)
+            .write_models(&home, &models, &agent.default_model)
             .await?;
         let secrets = self
             .config
@@ -110,11 +117,12 @@ impl Sessions {
         ] {
             env.push((name.into(), agent.default_model.clone()));
         }
-        for name in [
-            "CLAUDE_CODE_MAX_CONTEXT_TOKENS",
-            "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
-        ] {
-            env.push((name.into(), provider.context_window.to_string()));
+        env.push(("CLAUDE_CODE_MAX_CONTEXT_TOKENS".into(), window.to_string()));
+        if window >= 100_000 {
+            env.push((
+                "CLAUDE_CODE_AUTO_COMPACT_WINDOW".into(),
+                window.min(1_000_000).to_string(),
+            ));
         }
         let profile = ClaudeProfile {
             name: slug.into(),
@@ -129,7 +137,7 @@ impl Sessions {
             cwd: home,
             setup: aylul_setup(),
             spec,
-            aylul_models: Some((provider.models, agent.default_model)),
+            aylul_models: Some((models, agent.default_model)),
         })
     }
 }

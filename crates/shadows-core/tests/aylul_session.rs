@@ -58,8 +58,13 @@ async fn world() -> World {
                 label: None,
                 name: Some("Test".into()),
                 base_url: Some("https://example.com/anthropic".into()),
-                models: vec!["fake-large".into(), "fake-small".into()],
-                context_window: Some(1_000_000),
+                models: vec!["fake-large".into(), "fake-small".into()]
+                    .into_iter()
+                    .map(|id| shadows_core::ProviderModelInput {
+                        id,
+                        context_window: Some(1_000_000),
+                    })
+                    .collect(),
             },
         )
         .await

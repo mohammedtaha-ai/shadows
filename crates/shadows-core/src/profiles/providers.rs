@@ -52,24 +52,25 @@ fn validate(input: &mut ProviderInput) -> Result<(), CoreError> {
         || url.chars().any(|c| c.is_whitespace() || c.is_control());
     let mut models = std::collections::BTreeSet::new();
     let bad_models = !(1..=20).contains(&input.models.len())
-        || input.models.iter().any(|id| {
+        || input.models.iter_mut().any(|model| {
+            let id = &model.id;
+            let size = model.context_window.unwrap_or(200_000);
+            model.context_window = Some(size);
             id == "default"
                 || !(1..=128).contains(&id.chars().count())
                 || id.chars().any(|c| c.is_whitespace() || c.is_control())
-                || !models.insert(id)
+                || !models.insert(id.clone())
+                || !(1000..=10_000_000).contains(&size)
         });
-    let size = input.context_window.unwrap_or(200_000);
     if input.name.as_deref().unwrap_or("").is_empty()
         || input.name.as_ref().is_some_and(|v| v.len() > 256)
         || bad_url
         || bad_models
-        || !(1000..=10_000_000).contains(&size)
     {
         return Err(CoreError::ProfileInvalid(
             "invalid provider configuration".into(),
         ));
     }
-    input.context_window = Some(size);
     Ok(())
 }
 

@@ -6,8 +6,7 @@ pub struct Provider {
     pub base_url: String,
     pub preset: Option<String>,
     pub label: Option<String>,
-    pub models: Vec<String>,
-    pub context_window: u32,
+    pub models: Vec<ProviderModel>,
     pub key_set: bool,
     pub created_at: String,
     pub updated_at: String,
@@ -19,8 +18,7 @@ pub struct ProviderInput {
     pub base_url: Option<String>,
     pub preset: Option<String>,
     pub label: Option<String>,
-    pub models: Vec<String>,
-    pub context_window: Option<u32>,
+    pub models: Vec<ProviderModelInput>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
@@ -45,4 +43,16 @@ pub struct AgentInput {
 pub struct AgentWorkspace {
     pub project_id: crate::ProjectId,
     pub agents: Vec<Agent>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct ProviderModel {
+    pub id: String,
+    pub context_window: u32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct ProviderModelInput {
+    pub id: String,
+    pub context_window: Option<u32>,
 }
