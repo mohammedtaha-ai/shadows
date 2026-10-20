@@ -399,53 +399,117 @@ async fn session(
     liveness.tick().await;
     let mut entry_attempts = 0;
     let mut entry_at = 0;
+    // Replayed durable frames only advance the cursor; one reconciliation at
+    // caught-up replaces a full snapshot read per historical event.
+    let mut replayed = false;
     loop {
         tokio::select! {
-         _=&mut caught_up_deadline,if !caught_up=>return Err(Problem::Transport),
-         _=liveness.tick()=>{client.validate(binding).await?;state.apply(Observation::Ready);}
-         _=ticks.tick()=>{
-          state.apply(Observation::Tick);
-          let clock=now();
-          if state.projection.needs_entry(clock)&&entry_attempts<5&&clock>=entry_at{
-           state.refresh(client,thread,*cursor,None).await?;
-           entry_attempts+=1;entry_at=clock.saturating_add(timing.entry.saturating_mul(1u32<<entry_attempts).as_millis() as u64);
-          }
-          if !state.projection.needs_entry(clock){entry_attempts=0;entry_at=0;}
-         }
-         frame=feed.next()=>{
-          let frame=frame.ok_or(Problem::Transport)??;
-          match frame.event.as_str(){
-           "caught-up"=>{
-            #[derive(Deserialize)]struct CaughtUp{seq:i64}
-            let value:CaughtUp=serde_json::from_str(&frame.data).map_err(|_|Problem::Invalid)?;
-            if value.seq<*cursor{return Err(Problem::Invalid)}*cursor=value.seq;
-            caught_up=true;*failures=0;state.apply(Observation::CaughtUp);
-           }
-           "durable"=>{
-            #[derive(Deserialize)]struct Durable {seq:i64,kind:String,operation_id:Option<String>,thread_id:Option<String>}
-            let value:Durable=serde_json::from_str(&frame.data).map_err(|_|Problem::Invalid)?;
-            if value.seq<=0{return Err(Problem::Invalid)}
-            if value.seq<=*cursor{continue}*cursor=value.seq;
-            if value.thread_id.as_deref()!=Some(thread){continue}
-            if value.kind.starts_with("Operation")||value.kind=="ThreadEntryAppended"{
-             let completed=if caught_up&&value.kind=="OperationCompleted"{Some(value.operation_id.ok_or(Problem::Invalid)?)}else{None};
-             state.refresh(client,thread,*cursor,completed).await?;
+            _ = &mut caught_up_deadline, if !caught_up => return Err(Problem::Transport),
+            _ = liveness.tick() => {
+                client.validate(binding).await?;
+                state.apply(Observation::Ready);
             }
-           }
-           "delta"|"subagent"=>{
-            #[derive(Deserialize)]struct Progress {op:String,#[serde(default)]text:String}
-            let value:Progress=serde_json::from_str(&frame.data).map_err(|_|Problem::Invalid)?;
-            if !caught_up{continue}
-            if state.projection.current_operation()!=Some(value.op.as_str()){state.refresh(client,thread,*cursor,None).await?;}
-            if frame.event=="delta"{
-             if !value.text.is_empty(){state.apply(Observation::Delta(value.op))}
-            }else{state.apply(Observation::Tool(value.op))}
-           }
-           "turn-end"=>{if caught_up{state.refresh(client,thread,*cursor,None).await?;}}
-           "lagged"|"fatal"=>return Err(Problem::Transport),
-           _=>{}
-          }
-         }
+            _ = ticks.tick() => {
+                state.apply(Observation::Tick);
+                let clock = now();
+                if state.projection.needs_entry(clock) && entry_attempts < 5 && clock >= entry_at {
+                    state.refresh(client, thread, *cursor, None).await?;
+                    entry_attempts += 1;
+                    let backoff = timing.entry.saturating_mul(1u32 << entry_attempts);
+                    entry_at = clock.saturating_add(backoff.as_millis() as u64);
+                }
+                if !state.projection.needs_entry(clock) {
+                    entry_attempts = 0;
+                    entry_at = 0;
+                }
+            }
+            frame = feed.next() => {
+                let frame = frame.ok_or(Problem::Transport)??;
+                match frame.event.as_str() {
+                    "caught-up" => {
+                        let value: CaughtUp =
+                            serde_json::from_str(&frame.data).map_err(|_| Problem::Invalid)?;
+                        if value.seq < *cursor {
+                            return Err(Problem::Invalid);
+                        }
+                        *cursor = value.seq;
+                        if replayed {
+                            state.refresh(client, thread, *cursor, None).await?;
+                            replayed = false;
+                        }
+                        caught_up = true;
+                        *failures = 0;
+                        state.apply(Observation::CaughtUp);
+                    }
+                    "durable" => {
+                        let value: Durable =
+                            serde_json::from_str(&frame.data).map_err(|_| Problem::Invalid)?;
+                        if value.seq <= 0 {
+                            return Err(Problem::Invalid);
+                        }
+                        if value.seq <= *cursor {
+                            continue;
+                        }
+                        *cursor = value.seq;
+                        if value.thread_id.as_deref() != Some(thread) {
+                            continue;
+                        }
+                        if value.kind.starts_with("Operation") || value.kind == "ThreadEntryAppended" {
+                            if !caught_up {
+                                replayed = true;
+                                continue;
+                            }
+                            let completed = if value.kind == "OperationCompleted" {
+                                Some(value.operation_id.ok_or(Problem::Invalid)?)
+                            } else {
+                                None
+                            };
+                            state.refresh(client, thread, *cursor, completed).await?;
+                        }
+                    }
+                    "delta" | "subagent" => {
+                        let value: Progress =
+                            serde_json::from_str(&frame.data).map_err(|_| Problem::Invalid)?;
+                        if !caught_up {
+                            continue;
+                        }
+                        if state.projection.current_operation() != Some(value.op.as_str()) {
+                            state.refresh(client, thread, *cursor, None).await?;
+                        }
+                        if frame.event == "delta" {
+                            if !value.text.is_empty() {
+                                state.apply(Observation::Delta(value.op));
+                            }
+                        } else {
+                            state.apply(Observation::Tool(value.op));
+                        }
+                    }
+                    "turn-end" => {
+                        if caught_up {
+                            state.refresh(client, thread, *cursor, None).await?;
+                        }
+                    }
+                    "lagged" | "fatal" => return Err(Problem::Transport),
+                    _ => {}
+                }
+            }
         }
     }
+}
+#[derive(Deserialize)]
+struct CaughtUp {
+    seq: i64,
+}
+#[derive(Deserialize)]
+struct Durable {
+    seq: i64,
+    kind: String,
+    operation_id: Option<String>,
+    thread_id: Option<String>,
+}
+#[derive(Deserialize)]
+struct Progress {
+    op: String,
+    #[serde(default)]
+    text: String,
 }

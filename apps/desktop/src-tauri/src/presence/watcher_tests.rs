@@ -380,3 +380,32 @@ async fn explicit_send_can_wait_for_its_scoped_feed_before_a_fast_completion() {
     assert_eq!(reply.projection.preview.unwrap().text, "Fast reply");
     watcher.stop();
 }
+#[tokio::test]
+async fn replayed_history_reconciles_once_at_caught_up() {
+    let api = Fixture::new().await;
+    api.operation(THREAD_A, "old", "Completed");
+    api.data
+        .sequence
+        .store(40, std::sync::atomic::Ordering::SeqCst);
+    for seq in 1..=40 {
+        let kind = if seq % 2 == 0 { "ThreadEntryAppended" } else { "OperationStarted" };
+        api.data.replay.lock().unwrap().push((
+            "durable".into(),
+            serde_json::json!({"seq":seq,"kind":kind,"operation_id":"old","thread_id":THREAD_A})
+                .to_string(),
+        ));
+    }
+    let (watcher, mut rx, connection) = watch(&api);
+    watcher.replace(binding(1, THREAD_A, "agent-a"), connection);
+    wait(&mut rx, |update| update.projection.status == "Ready").await;
+    let reads = api
+        .data
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|path| path.ends_with("/operations"))
+        .count();
+    assert!(reads <= 2, "40 replayed frames read {reads} snapshots");
+    watcher.stop();
+}
