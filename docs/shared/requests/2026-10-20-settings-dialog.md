@@ -85,7 +85,7 @@ Every Core part is the daemon's, in the `profiles` service
 (`crates/shadows-core/src/profiles/contract.yaml`); B-2 and B-5 also touch
 `crates/shadows-core/src/harness/contract.yaml`. All routes are tag `aylul`.
 
-### Account: with a change, half not Core's
+### Account: with a change; Devices out of scope
 
 - `me`: **with a change.** `GET /api/me` → `{ name, aylul_calls_me, language, theme, updated_at }`;
   `PUT /api/me` `{ command_id, name, aylul_calls_me, language, theme }` → the same object.
@@ -93,25 +93,33 @@ Every Core part is the daemon's, in the `profiles` service
   first write: all `null`, `theme: "system"`, `updated_at: null`. `aylul_calls_me` (else `name`)
   reaches AYLUL at the next session opening. `language` and `theme` join this record (see
   General). Task B-5.
-- Devices and revoking another device: **not Core's.** Core has no account and no credential
-  to the account server. The native shell calls the account server, as `authAction` does
-  today; ask the native side (an AYLUL shared request). Whether the account server has a
-  device-list endpoint yet is unknown to me.
+- Devices and revoking another device: **out of scope** (Mohammed, 2026-10-21). The account
+  server and device management are a separate piece of work. Keep the Devices card undrawn.
+  For that later work: the same daemon runs locally (beside the desktop) and on the server
+  (beside the server backend), and the frontend will call both. Nothing in this answer
+  assumes the daemon is only local (spec §8.2). Ids are machine-independent and no answer
+  carries a local path.
 
 ### Providers: as asked, with changes
 
-- `GET /api/aylul/provider-presets` → `[{ id, name, base_url }]`, **as asked**, in this order
-  (verified against each provider's own Claude Code guide; this closes the design's OPEN):
+- `GET /api/aylul/provider-presets` → `[{ id, name, region, base_url }]`, **with a change**:
+  `region` is added (`"international" | "china" | null`). MiniMax and Moonshot each have two
+  presets, and the person picks the region (Mohammed, 2026-10-21). Show the name once, with
+  an International / China choice. In this order (this closes the design's OPEN):
 
-  | id | name | base_url |
-  |---|---|---|
-  | `minimax` | MiniMax | `https://api.minimax.io/anthropic` |
-  | `anthropic` | Anthropic | `https://api.anthropic.com` |
-  | `deepseek` | DeepSeek | `https://api.deepseek.com/anthropic` |
-  | `openrouter` | OpenRouter | `https://openrouter.ai/api` |
-  | `moonshot` | Moonshot (Kimi) | `https://api.moonshot.ai/anthropic` |
+  | id | name | region | base_url |
+  |---|---|---|---|
+  | `minimax` | MiniMax | `international` | `https://api.minimax.io/anthropic` |
+  | `minimax-china` | MiniMax | `china` | `https://api.minimaxi.com/anthropic` |
+  | `anthropic` | Anthropic | null | `https://api.anthropic.com` |
+  | `deepseek` | DeepSeek | null | `https://api.deepseek.com/anthropic` |
+  | `openrouter` | OpenRouter | null | `https://openrouter.ai/api` |
+  | `moonshot` | Moonshot (Kimi) | `international` | `https://api.moonshot.ai/anthropic` |
+  | `moonshot-china` | Moonshot (Kimi) | `china` | `https://api.moonshot.cn/anthropic` |
 
-  F-5's temporary list already has the same five URLs. China-region hosts are Custom.
+  The international URLs are verified against each provider's own Claude Code guide and
+  match F-5's temporary list. The China URLs come from the providers' Chinese pages and
+  have not been tested live.
 - `Provider` gains `preset: string | null`, `label: string | null`; `models` becomes
   `[{ id, context_window: number }]`, **with a change**: the provider-level `context_window`
   field goes. Existing providers get their preset when their URL matches, and each model
@@ -134,7 +142,9 @@ Every Core part is the daemon's, in the `profiles` service
   - The key is not stored, logged or echoed. `message` is Core's sentence, never the
     provider's body. OpenRouter's list is its whole catalogue, filtered to models that take
     tools; it can be hundreds long, so the checklist needs its search box.
-  - Task B-3. Its acceptance needs Mohammed to test one real key per preset.
+  - Task B-3. Live-tested with real keys for OpenRouter and MiniMax (international) only.
+    Anthropic, DeepSeek, Moonshot and the China presets are checked against documented
+    shapes until Mohammed has their keys.
 
 ### Agents: with a change
 
@@ -148,15 +158,22 @@ change. The field is added to the agent list the native presence already reads. 
 parser must accept a new field, and `appearance.color` in `companion-state` and the
 main-only `refresh_companion_appearance` command are **native, not Core's**. Task B-4.
 
-### Plugins & Skills: not yet, waiting for a probe and a ruling
+### Plugins & Skills: with a change, after a probe
 
-No route is promised yet. My proposal (spec §7) is one library shared by every AYLUL agent,
-added from a local folder only (no Git or URL in the first version), with each enabled item
-given to every agent home at opening. Two things come first: Mohammed's ruling on that
-scope, then a probe (B-8) of whether Claude Code loads skills and local plugins in an
-isolated `CLAUDE_CONFIG_DIR` home through ACP. The intended routes are in the plan (B-9):
-`GET /api/aylul/extensions`, `PUT /api/aylul/extensions/{kind}/{id}`, `POST /api/aylul/extensions`
-with your `Item` shape. Keep the section unlisted (F-10 stays blocked).
+Mohammed's ruling (2026-10-21): **one shared library, enabled per agent**. Each agent uses only
+the plugins and skills the person turned on for it. So the switch lives on the agent, not on
+the item. Intended routes (B-9; fixed after the probe B-8):
+- `GET /api/aylul/extensions` → `{ plugins: [Item], skills: [Item] }`, `Item = { id, name, description }`
+  (the library, without `enabled`);
+- `POST /api/aylul/extensions` `{ kind: "plugin" | "skill", path, command_id }` → `Item`. `path` is a
+  folder on the daemon's machine. No Git or URL in the first version;
+- `DELETE /api/aylul/extensions/{kind}/{id}?command_id=` → `204` (removes it from every agent);
+- `GET /api/aylul/agents/{slug}/extensions` → `{ plugins: [AgentItem], skills: [AgentItem] }`,
+  `AgentItem = Item + { enabled }`;
+- `PUT /api/aylul/agents/{slug}/extensions/{kind}/{id}` `{ enabled, command_id }` → `AgentItem`.
+
+This changes your screen: the on/off switches belong to an agent, for example inside the agent
+form or with an agent picker in Plugins & Skills. That is your call. F-10 stays blocked until B-9.
 
 ### Usage: with a change, after a probe
 
@@ -165,14 +182,14 @@ with your `Item` shape. Keep the section unlisted (F-10 stays blocked).
   Otherwise your shape.
 - Core sees no provider response, because Claude Code makes the requests. What Core gets is
   what the ACP adapter reports, and whether it reports tokens per turn and a cost is unknown.
-  A probe (B-6) answers that first. `cost` will be `null` for non-Anthropic providers unless
-  Mohammed rules otherwise: Claude Code prices by Anthropic model names. F-11 stays blocked
-  until B-7.
+  A probe (B-6, on OpenRouter and MiniMax) answers that first. `cost` is a number only where
+  it can be trusted: Anthropic, and OpenRouter if the probe shows the number is OpenRouter's
+  own charge. Otherwise it is `null` and your "–" shows. F-11 stays blocked until B-7.
 
 ### General: with a change, half native
 
-- `language` and `theme` are stored in Core with the person (`/api/me`, above), so the
-  browser and the desktop share them. `theme`: `"dark" | "light" | "system"`. `language` is a
+- `language` and `theme` are stored in Core with the person (`/api/me`, above), the same in
+  the browser and the desktop (Mohammed, 2026-10-21). `theme`: `"dark" | "light" | "system"`. `language` is a
   short tag (`"ar"`, `"en"`) whose shape Core checks without a list, so a third language
   needs no Core change.
 - Start with Windows and hide-to-tray on close: **native, not Core's.** Ask the native side.
@@ -183,14 +200,14 @@ with your `Item` shape. Keep the section unlisted (F-10 stays blocked).
 |---|---|
 | Key refused | `200 { ok: false, reason: "key_refused", status: 401 \| 403 }` |
 | Provider unreachable | `200 { ok: false, reason: "unreachable", status: null \| 5xx }` |
-| Device list, account server down | not Core's (native) |
+| Device list, account server down | out of scope (separate account work) |
 | Usage with no records | `200` with both lists empty |
 
 ### What you can build when
 
 B-1 then B-2 then B-3 unblock F-8. B-4 unblocks F-9. B-5 unblocks F-7's "You" card and
-F-12's language and theme. F-7's Devices and F-12's native switches wait on the native side.
-F-10 and F-11 wait on B-6..B-9.
+F-12's language and theme. F-12's native switches wait on the native side. F-7's Devices
+card is out of this work. F-10 and F-11 wait on B-6..B-9.
 
 ## Frontend reply
 

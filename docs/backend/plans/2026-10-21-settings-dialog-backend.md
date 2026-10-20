@@ -12,7 +12,9 @@
 **Order:** what the Providers section needs first (B-1 presets and label, B-2
 per-model windows, B-3 key test and model list), then the agent colour (B-4)
 and the person (B-5). Usage (B-6, B-7) and plugins and skills (B-8, B-9) wait
-on probes and a ruling.
+on probes; the probes change nothing the frontend sees and may run before the
+request is accepted. The account server and devices are out of scope (spec §8);
+every task keeps spec §8.2's rules (nothing assumes the daemon is only local).
 
 ## Global constraints
 
@@ -25,8 +27,13 @@ on probes and a ruling.
 - A route change regenerates `api/openapi.json`:
   `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`.
 - Run only the tests the task names. `git add` each file.
-- No API key appears in a test, a fixture, a log line or an error text. Tests
-  use the synthetic value `test-key-not-real`.
+- No API key appears in a test, a fixture, a log line, an error text or a
+  commit. Tests use the synthetic value `test-key-not-real`.
+- Live keys exist only for OpenRouter and MiniMax, in the repository's `.env`.
+  A live run reads `.env`'s variable names (`cut -d= -f1 .env`), never prints
+  its values, and loads it into one command's environment only
+  (`set -a; . ./.env; set +a; cargo test ...`). Anthropic, DeepSeek, Moonshot
+  and the China presets get no live run until Mohammed has their keys.
 
 ---
 
@@ -43,18 +50,20 @@ on probes and a ruling.
   `crates/shadows-core/tests/profile_migration.rs`
 
 **Shapes**
-- `ProviderPreset { id: String, name: String, base_url: String }` (the listing
-  details of §3.1 stay private to `presets.rs`).
+- `ProviderPreset { id: String, name: String, region: Option<PresetRegion>,
+  base_url: String }`, `PresetRegion = international | china` (snake_case); the
+  listing details of §3.1 stay private to `presets.rs`. Seven presets, §1.1.
 - `Provider` gains `preset: Option<String>`, `label: Option<String>`.
 - `ProviderInput`: `name: Option<String>`, `base_url: Option<String>`,
   `preset: Option<String>`, `label: Option<String>` (models unchanged in B-1).
 
 **Migration 0030:** `ALTER TABLE aylul_provider ADD COLUMN preset TEXT;`
 `ADD COLUMN label TEXT;` then `UPDATE ... SET preset = '<id>' WHERE base_url = '<url>'`
-for each of the five rows of §1.1.
+for each of the seven rows of §1.1.
 
 **Route**
-- `GET /api/aylul/provider-presets` → `200 [ProviderPreset]`, in §1.1's order.
+- `GET /api/aylul/provider-presets` → `200 [ProviderPreset]`, in §1.1's order
+  (`[{ id, name, region, base_url }]`).
   Tag `aylul`. No body, no command.
 
 **Contract lines (`profiles/contract.yaml`)**
@@ -70,13 +79,15 @@ for each of the five rows of §1.1.
     tested_by: [label_is_trimmed_and_empty_is_null]
   - rule: An unknown preset id is refused.
     tested_by: [unknown_preset_is_refused]
-- tests: `presets_list_in_fixed_order`, `preset_supplies_url_and_name`,
+  - rule: A China preset carries its China host; the region is part of the preset, not a separate field on the provider.
+    tested_by: [china_presets_use_china_hosts]
+- tests: `presets_list_in_fixed_order`, `china_presets_use_china_hosts`, `preset_supplies_url_and_name`,
   `preset_with_other_url_is_refused`, `custom_requires_name_and_url`,
   `label_is_trimmed_and_empty_is_null`, `unknown_preset_is_refused`,
   `migration_marks_known_urls_with_their_preset` (in `profile_migration.rs`),
-  HTTP: `provider_presets_route_lists_five` (in `aylul_profiles_tests.rs`).
+  HTTP: `provider_presets_route_lists_all` (in `aylul_profiles_tests.rs`).
 
-**Done when:** the eight tests pass:
+**Done when:** the nine tests pass:
 `cargo test -p shadows-core --test aylul_profiles`,
 `cargo test -p shadows-core --test profile_migration`,
 `cargo test -p shadows-http aylul_profiles`,
@@ -186,8 +197,16 @@ covered by `listing.rs` unit tests over fixture bodies written from §3.1.
     tested_by: [saved_test_uses_the_stored_key]
 
 **Done when:** the thirteen tests above pass, plus HTTP `provider_test_route_answers_outcome`, plus contracts, codemap and openapi.
-Acceptance: Mohammed tests one real key per preset in the browser; any answer
-that differs from §3.1 amends the spec and the parser (closes §3's OPEN).
+
+**Acceptance (live):** an `#[ignore]` test `live_keys_list_models` in
+`tests/aylul_profiles/probe.rs` reads the OpenRouter and MiniMax keys from the
+environment (the `.env` names; the test skips a preset whose variable is
+absent) and asserts `ok: true` with at least one model. It prints only the
+preset id, `ok`, `reason` and the model count. Run:
+`set -a; . ./.env; set +a; cargo test -p shadows-core --test aylul_profiles live_keys_list_models -- --ignored`.
+Any answer that differs from §3.1 amends the spec and the parser. Anthropic,
+DeepSeek, Moonshot and both China presets are accepted on fixtures only and
+keep §3's OPEN until Mohammed has their keys.
 
 ## B-4 · Character colour on the agent
 
@@ -269,9 +288,11 @@ codemap, openapi.
 
 Not product code: a recorded run, then the spike is deleted (CLAUDE.md).
 Enable `unstable_end_turn_token_usage` on `agent-client-protocol` in a probe
-commit, run one AYLUL turn against each of two providers (Mohammed's keys, run
-by him), log the raw `PromptResponse.usage` and `UsageUpdate.cost`, write
-`docs/evidence/<date>-acp-usage-probe.md`, revert the probe. Its answer amends
+commit, run one AYLUL turn on OpenRouter and one on MiniMax with the keys from
+`.env` (rules above), log the raw `PromptResponse.usage` and `UsageUpdate.cost`
+(no key, no prompt text), write `docs/evidence/<date>-acp-usage-probe.md` naming
+the probe commit, then revert the probe. No spending limit applies (Mohammed,
+2026-10-21). Its answer amends
 spec §6 and writes B-7's contract.
 
 ## B-7 · Record and report usage
@@ -288,15 +309,27 @@ frontend's planning only:
 
 ## B-8 · Probe: skills and plugins under an isolated home
 
-Blocked on Mohammed's ruling on spec §7.1. A recorded run: one skill in
-`<home>/skills/<name>/SKILL.md` and one local plugin enabled through
-`settings.json`, opened through ACP with `settingSources: ["user"]`; does the
-session list them? Evidence file, then the spike goes.
+Scope ruled (spec §7.1): one shared library, enabled per agent. A recorded run
+with a MiniMax or OpenRouter key from `.env`: two agent homes; home A has one
+skill in `<home>/skills/<name>/SKILL.md` and one local plugin enabled through
+its `settings.json`, home B has neither. Open each through ACP with
+`settingSources: ["user"]`: does A's session list both, and B's neither? Record
+how the plugin had to be declared (local marketplace, `enabledPlugins`, a flag).
+Evidence file naming the probe commit, then the spike goes.
 
-## B-9 · Plugins and skills library
+## B-9 · Plugins and skills: shared library, enabled per agent
 
-Blocked on B-8. Intended routes, for planning only:
-`GET /api/aylul/extensions` → `{ plugins: [Item], skills: [Item] }`;
-`PUT /api/aylul/extensions/{kind}/{id}` `{ enabled, command_id }` → `Item`;
-`POST /api/aylul/extensions` `{ kind, path, command_id }` → `201 Item`, where
-`Item = { id, name, description, enabled }` and `kind = plugin | skill`.
+Blocked on B-8 and the request's acceptance. Intended routes, for planning only:
+- `GET /api/aylul/extensions` → `{ plugins: [Item], skills: [Item] }`, the library,
+  `Item = { id, name, description }`, `kind = plugin | skill`.
+- `POST /api/aylul/extensions` `{ kind, path, command_id }` → `201 Item`; `path` is
+  a folder on the daemon's machine, input only, never answered back (spec §8.2).
+- `DELETE /api/aylul/extensions/{kind}/{id}?command_id=` → `204`; removes every
+  agent's enablement in the same write.
+- `GET /api/aylul/agents/{slug}/extensions` → `{ plugins: [AgentItem], skills: [AgentItem] }`,
+  `AgentItem = Item + { enabled }`, the whole library with that agent's switch.
+- `PUT /api/aylul/agents/{slug}/extensions/{kind}/{id}` `{ enabled, command_id }` →
+  `AgentItem`.
+- Obligations to come: an agent's home holds only its enabled items at opening;
+  deleting an agent removes its enablement rows with it (an agreement with
+  `delete_agent`); item ids are machine-independent.

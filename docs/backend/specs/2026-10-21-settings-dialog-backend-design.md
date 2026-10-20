@@ -9,9 +9,9 @@
 ## What this decides
 
 Which parts of the settings dialog Core serves, in which service, and the rules
-each part keeps. Core is the daemon (`shadows serve`). The account server and the
-native shell (`apps/desktop`) are not Core and are named only to say what is
-theirs.
+each part keeps. Core is the daemon (`shadows serve`). The native shell
+(`apps/desktop`) is not Core and is named only to say what is its own. The
+account server and device management are a separate piece of work (section 8).
 
 | Part | Lives in | Service |
 |---|---|---|
@@ -20,8 +20,8 @@ theirs.
 | Agent character colour | daemon | `profiles` |
 | The person: name, what AYLUL calls them, language, theme | daemon | `profiles` |
 | Usage per provider and model | daemon | `turns` records, `profiles` reports (after a probe) |
-| Plugins and skills | daemon | `profiles` (after a probe and a ruling) |
-| Devices on the account, revoking another device | account server, reached by the native shell | not Core |
+| Plugins and skills: one library, enabled per agent | daemon | `profiles` (after a probe) |
+| Devices on the account | out of scope (section 8) | - |
 | Start with Windows, hide to tray on close | native shell | not Core |
 
 `profiles` owns "AYLUL agent configuration"; everything above is configuration
@@ -35,17 +35,23 @@ the split goes by domain inside the folder (`presets.rs`, `probe.rs`,
 1.1 A preset is compiled into Core: `id`, `name`, `base_url`, and how its models
 are listed (URL, auth header, response format). The list, in this order:
 
-| id | name | base_url |
-|---|---|---|
-| `minimax` | MiniMax | `https://api.minimax.io/anthropic` |
-| `anthropic` | Anthropic | `https://api.anthropic.com` |
-| `deepseek` | DeepSeek | `https://api.deepseek.com/anthropic` |
-| `openrouter` | OpenRouter | `https://openrouter.ai/api` |
-| `moonshot` | Moonshot (Kimi) | `https://api.moonshot.ai/anthropic` |
+| id | name | region | base_url |
+|---|---|---|---|
+| `minimax` | MiniMax | `international` | `https://api.minimax.io/anthropic` |
+| `minimax-china` | MiniMax | `china` | `https://api.minimaxi.com/anthropic` |
+| `anthropic` | Anthropic | null | `https://api.anthropic.com` |
+| `deepseek` | DeepSeek | null | `https://api.deepseek.com/anthropic` |
+| `openrouter` | OpenRouter | null | `https://openrouter.ai/api` |
+| `moonshot` | Moonshot (Kimi) | `international` | `https://api.moonshot.ai/anthropic` |
+| `moonshot-china` | Moonshot (Kimi) | `china` | `https://api.moonshot.cn/anthropic` |
 
-Each URL is the one the provider's own Claude Code guide sets as
-`ANTHROPIC_BASE_URL` (evidence file). China-region hosts are not presets; a
-person who needs one uses Custom.
+Mohammed's ruling (2026-10-21): MiniMax and Moonshot each offer International
+or China, and the person picks one. A preset is one region; two presets share a
+`name`, and the client shows the name once with a region choice. `region` is
+`international`, `china` or `null` (the provider has one region). The
+international URLs are the ones each provider's own Claude Code guide sets as
+`ANTHROPIC_BASE_URL`; the China URLs are named by the providers' Chinese pages
+and search results, not read on an English guide (evidence file).
 
 1.2 A provider with a preset takes its `base_url` and `name` from the preset.
 The input may omit both; a sent `base_url` or `name` that differs from the
@@ -96,6 +102,8 @@ tokens. Per preset:
 | `deepseek` | `GET https://api.deepseek.com/models` | Bearer | `data[].id` | `context_window` |
 | `openrouter` | `GET https://openrouter.ai/api/v1/key`, then `GET https://openrouter.ai/api/v1/models` | Bearer | `data[].id` with `"tools"` in `supported_parameters` | `context_length` |
 | `moonshot` | `GET https://api.moonshot.ai/v1/models` | Bearer | `data[].id` | `context_length` |
+| `minimax-china` | as `minimax`, host `api.minimaxi.com` | `x-api-key` | `data[].id` | none |
+| `moonshot-china` | as `moonshot`, host `api.moonshot.cn` | Bearer | `data[].id` | `context_length` |
 | Custom | `GET <base_url>/v1/models` | `x-api-key` and Bearer, `anthropic-version` | `data[].id` | `max_input_tokens` if present |
 
 OpenRouter's catalogue is not scoped to the key, so its key check is
@@ -127,9 +135,10 @@ tests: infrastructure, allowed. Parsing the five answers is product logic,
 written here.
 
 > **OPEN — the live answers.** The shapes in 3.1 come from documentation, not a
-> call; DeepSeek's host and auth for `/models` are assumed. Closed by B-3's
-> acceptance run, in which Mohammed tests one real key per preset in the
-> browser; a different shape amends 3.1.
+> call. OpenRouter and MiniMax (international) are checked by B-3's live run
+> with the keys in `.env`. Anthropic, DeepSeek (whose `/models` host and auth
+> are assumed), Moonshot and both China presets stay unchecked: each closes when
+> Mohammed has a key for it and one live run passes; a different shape amends 3.1.
 
 ## 4. Character colour
 
@@ -173,9 +182,10 @@ feature, the turn's `PromptResponse.usage` token counts. Usage is recorded per
 turn, in the turn's ending transaction, as `{ thread, agent, provider_slug,
 model, tokens_in, tokens_out, cost, currency, recorded_at }`, and reported by
 period grouped by provider and by model. `cost` is `null` unless the adapter
-sent one and the provider's preset is `anthropic` (Claude Code prices by
-Anthropic model name, so its number for another provider's model is not
-trusted).
+sent one and it is trusted for that preset: `anthropic` (Claude Code prices by
+Anthropic model name), and `openrouter` if B-6 shows the number is
+OpenRouter's own charge. Mohammed (2026-10-21) set no spending limit on
+probes and live tests.
 
 > **OPEN — what the adapter sends.** Whether the pinned Claude ACP adapter
 > sends `PromptResponse.usage` and `UsageUpdate.cost` is not known. Closed by
@@ -183,22 +193,52 @@ trusted).
 
 ## 7. Plugins and skills
 
-7.1 Proposed scope, waiting for Mohammed: one library shared by every AYLUL
-agent, added from a local folder only (a skill folder holding `SKILL.md`, or a
-plugin folder in Claude Code's standard layout), copied into Core's
-`home_root/library/`, and each enabled item made visible to every agent home at
-opening. Git and URL sources are not in the first version.
+7.1 Mohammed's ruling (2026-10-21): one library shared by every AYLUL agent;
+each agent uses only the items the person enabled for that agent. An item is
+added from a folder on the daemon's machine (a skill folder holding `SKILL.md`,
+or a plugin folder in Claude Code's standard layout) and copied into Core's
+`home_root/library/`; Git and URL sources are not in the first version. At
+opening, only the items enabled for that agent are made visible in its home; an
+item no longer enabled leaves the home at the next opening. Enablement rows are
+keyed by agent slug and item id; deleting an agent removes its rows in the same
+write; removing an item from the library removes every agent's enablement of it.
 
 > **OPEN — how Claude Code loads them under `CLAUDE_CONFIG_DIR`.** Whether a
 > skill in `<home>/skills/` and a plugin enabled through `settings.json` load in
-> an ACP session with `settingSources: ["user"]` is not known. Closed by B-8,
-> a recorded probe, after Mohammed rules on 7.1's scope.
+> an ACP session with `settingSources: ["user"]`, and stay invisible to an
+> agent whose home does not enable them, is not known. Closed by B-8, a
+> recorded probe.
 
-## 8. Not Core's
+## 8. Out of scope, and what this plan must not break
 
-- Devices on the account and revoking another device: the account server's
-  API, called by the native shell like today's `authAction`. Core has no
-  account and no credentials to it.
+8.1 The account server and device management (listing the account's devices,
+revoking another device) are a separate piece of work, not planned here.
+
+8.2 The same daemon runs in two places that work together: locally, beside the
+Tauri desktop, and on the server, beside the rest of the server backend. The
+frontend will send some requests to the local daemon and others to the server
+or the daemon there. So nothing in this plan may assume the daemon is only local:
+
+- No route decides who the caller is from the connection (loopback, the OS user,
+  the host name). Today's guard stays the only gate; an identity rule, when the
+  server needs one, is added in one place for every route.
+- No stored id is derived from the machine (host name, MAC, OS user, absolute
+  path). Provider and agent slugs, preset ids, colour ids and library item ids
+  are machine-independent strings, so records can be shared or synced later.
+- No answer carries an absolute path of the daemon's machine. Library items
+  answer an id and a name, not their folder; a folder is input only.
+- The person record (section 5) is the daemon's record of its person. Whether
+  the server's daemon and the local one share it is the account work's
+  decision; this plan keeps it one row behind one `profiles` method pair, so
+  that work can route or sync it without a second store.
+- The key test (section 3) runs on whichever daemon receives it and needs only
+  outbound HTTPS. The Custom URL rule's loopback exception means the loopback of
+  the daemon running the test, which on the server is the server.
+- Nothing here reads or writes native-only state (tray, autostart, companion
+  window).
+
+8.3 Not Core's:
+
 - Start with Windows, hide to tray: the native shell.
 - Companion `appearance.color` and `refresh_companion_appearance`: the native
   shell.

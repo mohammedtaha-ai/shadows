@@ -15,8 +15,10 @@ Existing AppCore remains the composition root for this runtime only.
 Next: the settings dialog's backend
 ([spec](specs/2026-10-21-settings-dialog-backend-design.md),
 [plan](plans/2026-10-21-settings-dialog-backend.md)), on branch `improvements`.
-Every task waits for the [request](../shared/requests/2026-10-20-settings-dialog.md)
-to be `accepted`.
+Every task that changes the API waits for the [request](../shared/requests/2026-10-20-settings-dialog.md)
+to be `accepted`; the two probes (B-6, B-8) change nothing the frontend sees and may run now.
+Live keys: only OpenRouter and MiniMax, in `.env` (read its variable names, never its values;
+never print, log or commit a key).
 
 ## Tasks
 
@@ -26,7 +28,7 @@ to be `accepted`.
 - Read: crates/shadows-core/src/profiles/contract.yaml; spec §1; docs/codebase/README.md rows for `profiles/`
 - Touch: crates/shadows-core/src/profiles/presets.rs (new), crates/shadows-core/migrations/0030_provider_presets.sql (new), crates/shadows-core/src/profiles/mod.rs, crates/shadows-core/src/profiles/model.rs, crates/shadows-core/src/profiles/providers.rs, crates/shadows-core/src/profiles/store.rs, crates/shadows-core/src/profiles/contract.yaml, crates/shadows-core/src/lib.rs, crates/shadows-http/src/aylul_profiles.rs, crates/shadows-http/src/aylul_profiles_tests.rs, crates/shadows-http/src/lib.rs, api/openapi.json, docs/codebase/README.md, crates/shadows-core/tests/aylul_profiles/providers.rs, crates/shadows-core/tests/profile_migration.rs, crates/shadows-core/tests/aylul_profiles.rs, crates/shadows-core/tests/aylul_session.rs, crates/shadows-http/src/aylul_env_tests.rs, crates/shadows/tests/openapi/read_only.rs (each builds a `ProviderInput`)
 - Needs: the request `accepted`
-- Done when: `presets_list_in_fixed_order`, `preset_supplies_url_and_name`, `preset_with_other_url_is_refused`, `custom_requires_name_and_url`, `label_is_trimmed_and_empty_is_null`, `unknown_preset_is_refused`, `migration_marks_known_urls_with_their_preset`, `provider_presets_route_lists_five` pass; `cargo test -p shadows-core --test contracts`, `cargo test -p shadows --test codemap`, `cargo test -p shadows --test openapi` pass
+- Done when: `presets_list_in_fixed_order`, `preset_supplies_url_and_name`, `preset_with_other_url_is_refused`, `custom_requires_name_and_url`, `label_is_trimmed_and_empty_is_null`, `unknown_preset_is_refused`, `china_presets_use_china_hosts`, `migration_marks_known_urls_with_their_preset`, `provider_presets_route_lists_all` pass; `cargo test -p shadows-core --test contracts`, `cargo test -p shadows --test codemap`, `cargo test -p shadows --test openapi` pass
 
 ### B-2 · Each model carries its context window
 - Status: blocked
@@ -42,7 +44,7 @@ to be `accepted`.
 - Read: spec §3; docs/evidence/2026-10-21-provider-presets-research.md; crates/shadows-core/src/profiles/contract.yaml; crates/shadows-core/src/secrets/contract.yaml (`resolve_env`)
 - Touch: crates/shadows-core/src/profiles/probe.rs (new), crates/shadows-core/src/profiles/listing.rs (new), crates/shadows-core/tests/aylul_profiles/probe.rs (new), crates/shadows-core/Cargo.toml, Cargo.toml (only the `reqwest` entry), Cargo.lock, crates/shadows-core/src/profiles/mod.rs, crates/shadows-core/src/profiles/presets.rs, crates/shadows-core/src/profiles/contract.yaml, crates/shadows-core/tests/aylul_profiles.rs, crates/shadows-core/src/lib.rs, crates/shadows-http/src/aylul_profiles.rs, crates/shadows-http/src/aylul_profiles_tests.rs, crates/shadows-http/src/lib.rs, api/openapi.json, docs/codebase/README.md
 - Needs: B-2 done
-- Done when: `tested_key_is_not_stored_or_echoed`, `refused_key_reads_key_refused`, `unreachable_host_reads_unreachable`, `odd_status_reads_unexpected`, `redirect_is_not_followed`, `oversized_body_is_unexpected`, `custom_without_model_list_is_ok_unlisted`, `anthropic_list_reads_max_input_tokens`, `minimax_list_has_no_windows`, `deepseek_list_reads_context_window`, `moonshot_list_reads_context_length`, `openrouter_list_keeps_tool_models`, `saved_test_uses_the_stored_key`, `provider_test_route_answers_outcome` pass; contracts, codemap, openapi pass; `cargo tree -e features,no-dev --workspace | grep test-support` prints nothing
+- Done when: `tested_key_is_not_stored_or_echoed`, `refused_key_reads_key_refused`, `unreachable_host_reads_unreachable`, `odd_status_reads_unexpected`, `redirect_is_not_followed`, `oversized_body_is_unexpected`, `custom_without_model_list_is_ok_unlisted`, `anthropic_list_reads_max_input_tokens`, `minimax_list_has_no_windows`, `deepseek_list_reads_context_window`, `moonshot_list_reads_context_length`, `openrouter_list_keeps_tool_models`, `saved_test_uses_the_stored_key`, `provider_test_route_answers_outcome` pass; contracts, codemap, openapi pass; `cargo tree -e features,no-dev --workspace | grep test-support` prints nothing; acceptance: the ignored `live_keys_list_models` passes for `openrouter` and `minimax` with the keys from `.env` loaded into that one command's environment, printing only preset, `ok`, `reason` and the model count. Anthropic, DeepSeek, Moonshot and both China presets get no live test until Mohammed has their keys; their acceptance is the fixture tests only
 
 ### B-4 · Character colour on the agent
 - Status: blocked
@@ -57,39 +59,39 @@ to be `accepted`.
 - Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-5--the-person
 - Read: spec §5; crates/shadows-core/src/profiles/contract.yaml; crates/shadows-core/src/harness/contract.yaml; `aylul_setup` in crates/shadows-core/src/harness/assistant.rs
 - Touch: crates/shadows-core/src/profiles/person.rs (new), crates/shadows-core/migrations/0033_aylul_person.sql (new), crates/shadows-core/tests/aylul_profiles/person.rs (new), crates/shadows-core/src/profiles/mod.rs, crates/shadows-core/src/profiles/model.rs, crates/shadows-core/src/profiles/store.rs, crates/shadows-core/src/profiles/contract.yaml, crates/shadows-core/src/harness/assistant.rs, crates/shadows-core/src/harness/contract.yaml, crates/shadows-core/tests/aylul_profiles.rs, crates/shadows-core/tests/aylul_session/opening.rs, crates/shadows-core/src/lib.rs, crates/shadows-http/src/aylul_profiles.rs, crates/shadows-http/src/aylul_profiles_tests.rs, crates/shadows-http/src/lib.rs, api/openapi.json, docs/codebase/README.md
-- Needs: the request `accepted`; Mohammed's answer on language/theme living in Core (report question 2)
+- Needs: the request `accepted` (Mohammed ruled 2026-10-21: language and theme live in Core, shared by browser and desktop)
 - Done when: `person_names_are_checked`, `language_tag_shape_is_checked`, `theme_values_are_checked`, `person_replay_with_other_input_conflicts`, `opening_names_the_person`, `opening_without_person_appends_nothing`, `me_round_trips` pass; contracts, codemap, openapi pass
 
 ### B-6 · Probe: what the ACP adapter reports of usage
-- Status: blocked
+- Status: todo
 - Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-6--probe-what-the-adapter-reports-of-usage
 - Read: spec §6; docs/evidence/2026-10-21-provider-presets-research.md ("What Shadows itself can see of usage")
 - Touch: Cargo.toml (probe commit only, reverted), crates/shadows-agent/src/acp.rs (probe commit only, reverted), docs/evidence/<date>-acp-usage-probe.md (new)
-- Needs: Mohammed to run the probe turns with his own keys
-- Done when: the evidence file records the raw `PromptResponse.usage` and `UsageUpdate.cost` for two providers, the probe is reverted, and spec §6's OPEN is closed
+- Needs: nothing; uses the OpenRouter and MiniMax keys in `.env` (names only read; never printed or committed)
+- Done when: the evidence file records the raw `PromptResponse.usage` and `UsageUpdate.cost` (no key, no prompt text) for one turn on OpenRouter and one on MiniMax, the probe is reverted, and spec §6's OPEN is closed
 
 ### B-7 · Record and report usage
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-7--record-and-report-usage
 - Read: spec §6 after B-6
 - Touch: written after B-6
-- Needs: B-6 done; Mohammed's answer on cost for non-Anthropic providers (report question 3)
+- Needs: B-6 done; the request `accepted`
 - Done when: written after B-6
 
 ### B-8 · Probe: skills and plugins under an isolated agent home
-- Status: blocked
+- Status: todo
 - Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-8--probe-skills-and-plugins-under-an-isolated-home
 - Read: spec §7
 - Touch: docs/evidence/<date>-agent-home-extensions-probe.md (new); probe code reverted
-- Needs: Mohammed's ruling on spec §7.1's scope (report question 4)
-- Done when: the evidence file says whether a skill and a local plugin load in an ACP session under `CLAUDE_CONFIG_DIR`, and spec §7's OPEN is closed
+- Needs: nothing (scope ruled 2026-10-21: one shared library, enabled per agent); a MiniMax or OpenRouter key from `.env` for the session
+- Done when: the evidence file says whether a skill and a local plugin load in an ACP session under `CLAUDE_CONFIG_DIR`, and whether one agent's home can enable an item another agent's home does not, and spec §7's OPEN is closed
 
-### B-9 · Plugins and skills library
+### B-9 · Plugins and skills: shared library, enabled per agent
 - Status: blocked
-- Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-9--plugins-and-skills-library
+- Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-9--plugins-and-skills-shared-library-enabled-per-agent
 - Read: spec §7 after B-8
 - Touch: written after B-8
-- Needs: B-8 done
+- Needs: B-8 done; the request `accepted`
 - Done when: written after B-8
 
 ### B-A2 · Prepare Core's scoped context contract
