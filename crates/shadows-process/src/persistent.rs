@@ -57,7 +57,7 @@ pub fn spawn_persistent(spec: ProcessSpec) -> io::Result<ProcessIdentity> {
     }
     command.envs(spec.env);
     let mut child = command.spawn()?;
-    let identity = match inspect_process(child.id()) {
+    let identity = match identify(child.id(), &spec.executable) {
         Ok(Some(identity)) => identity,
         result => {
             let _ = child.kill();
@@ -75,6 +75,36 @@ pub fn spawn_persistent(spec: ProcessSpec) -> io::Result<ProcessIdentity> {
         let _ = child.wait();
     });
     Ok(identity)
+}
+
+/// Linux wakes a vfork parent before the child's exec installs its new image,
+/// so `/proc/<pid>/exe` can still name the launcher for a moment. Wait until
+/// the recorded image is the one launched; Windows creates it atomically.
+fn identify(pid: u32, executable: &std::path::Path) -> io::Result<Option<ProcessIdentity>> {
+    #[cfg(unix)]
+    {
+        let expected = std::fs::canonicalize(executable)?;
+        for _ in 0..200 {
+            match inspect_process(pid)? {
+                Some(identity)
+                    if std::fs::canonicalize(&identity.executable).ok().as_ref()
+                        == Some(&expected) =>
+                {
+                    return Ok(Some(identity));
+                }
+                Some(_) => std::thread::sleep(std::time::Duration::from_millis(5)),
+                None => return Ok(None),
+            }
+        }
+        Err(io::Error::other(
+            "persistent process image did not match its executable",
+        ))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = executable;
+        inspect_process(pid)
+    }
 }
 
 #[cfg(windows)]
