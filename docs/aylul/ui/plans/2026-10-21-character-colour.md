@@ -112,8 +112,12 @@ meaning; any id the table does not hold draws purple.
   - `every colour in the table has a full palette`: for each entry of `colors`, every tone is
     `#rrggbb`; a non-base entry's `glow` differs from purple's.
   - `a derived tone keeps lightness and saturation`: for each non-base entry and each tone, the
-    HSL lightness and saturation equal the base tone's within 1 percentage point, and the hue
-    differs by the swatch hue difference (mod 360) within 1 degree, unless the entry overrides it.
+    HSL lightness and saturation equal the base tone's within 1 percentage point, unless the
+    entry overrides it. The hue is checked only where 8-bit RGB can carry it: when the tone's
+    chroma (max - min of its R, G, B, 0-255) is at least 32, the hue differs by the swatch hue
+    difference (mod 360) within 2 degrees; darker or greyer tones (such as `occlusion`) are
+    checked on lightness and saturation only, since rounding to `#rrggbb` moves their hue by
+    several degrees.
   - `an override wins`: a test table with `{ id: 'x', swatch: '#3b82f6', tones: { glow: '#123456' } }`
     gives `glow === '#123456'` and the other tones derived (`paletteFor` takes an optional table
     argument for this test; the product passes none).
