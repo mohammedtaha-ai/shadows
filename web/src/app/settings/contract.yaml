@@ -37,6 +37,8 @@ components:
     # One modal in Shell; section availability follows the runtime.
   GeneralSection:
     signature: "() => JSX.Element"
+  AccountSection:
+    signature: "() => JSX.Element"
   ActiveProjects:
     signature: "() => JSX.Element"
     # Reads the code settings; renders the form once they load.
@@ -53,6 +55,8 @@ hooks:
     signature: "() => () => void"
 
 functions:
+  accountView:
+    signature: "(auth: AuthView | null, busy: boolean, loggingIn: boolean) => { message: string; actions: AccountAction[] }"
   visibleSections:
     signature: "() => typeof SECTIONS"
   readSettingsSearch:
@@ -62,6 +66,13 @@ functions:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: Account shows only state-appropriate actions; checks status on each opening; pending actions disable every action except independent sign-in cancellation. Global logout and revoke require confirmation.
+    tested_by:
+      - "accountView gives each state its actions"
+      - "an action in progress disables every button"
+      - "the state is checked when the section opens"
+      - "global logout and device revoke retain explicit confirmation"
+      - "sign-in can be cancelled independently of its pending worker"
   - rule: Settings opens over the current page; Escape or backdrop closes it, clears settings search keys and returns focus to the Settings button.
     tested_by:
       - "Escape closes the dialog and keeps the page"

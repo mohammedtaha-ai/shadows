@@ -37,7 +37,7 @@ colour's desktop side).
 - Done when: `settings-dialog.test.tsx` passes with codemap, `npm run typecheck`, `npm run lint`
 
 ### F-3 · Account shows only the actions its state allows
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-3-account-shows-only-the-actions-its-state-allows
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Account); `web/src/app/desktop/contract.yaml`
 - Touch: the Files list of Task F-3 in the plan

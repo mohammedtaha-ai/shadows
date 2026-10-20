@@ -5,8 +5,7 @@ source: web/src/app/desktop
 responsibility: Present retained native person actions in the shared dashboard.
 components:
   ConnectionSettings: Existing executable/database/configuration references; save or explicit Retry; fixed native errors.
-  NativeSettings: Desktop-only account, companion and connection sections; account failure never gates chat.
-  AccountPanel: Credential-free native View; confirm new installation, sign-out-all and revoke; independent login cancellation.
+  NativeSettings: Desktop-only companion and connection sections; account presentation now belongs to settings/sections/account.tsx.
   CompanionSettings: Explicit live agent selection with provider/model labels; independent preview preference; stale replies ignored; explicit Local Core retry also restarts the native observer.
   UseWithCompanion: Explicitly target an existing selected-agent thread; never send a turn or change the selected agent.
   CompanionControls: Subscribe before snapshot; revisioned visibility and pause; local rendering failure keeps account actions available.
@@ -18,9 +17,7 @@ components:
 obligations:
   - rule: The bootstrap form imports no HTTP consumer; the native owner validates paths and origin.
     tested_by: apps/desktop/tests/desktop-bootstrap.spec.ts
-  - rule: Account actions retain confirmation/cancellation and cannot switch chat source.
-    tested_by: web/src/app/desktop/native-sections.test.tsx
-  - rule: Companion failure does not disable account; browser exposes no native section or invocation.
+  - rule: Browser exposes no native section or invocation; malformed companion updates show a local error.
     tested_by: web/src/app/desktop/native-sections.test.tsx
   - rule: Project and session context precede approval; a missing sidecar needs no login.
     tested_by: web/src/app/desktop/native-sections.test.tsx

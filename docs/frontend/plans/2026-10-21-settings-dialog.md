@@ -113,7 +113,7 @@ Vitest with happy-dom and the fake daemon (`web/src/app/test-app.tsx`, `@/test/f
   (the account cases of `web/src/app/desktop/native-sections.test.tsx` move here)
 
 **Interfaces:**
-- Consumes: `AuthView`, `AuthAction`, `authAction`, `cancelLogin` from `web/src/desktop/native`.
+  - Consumes: `AuthView`, `AuthAction`, `authAction`, `cancelLogin` from `web/src/desktop/auth`.
 - Produces: `accountView(auth: AuthView | null, busy: boolean, loggingIn: boolean):
   { message: string; actions: { action: AuthAction | 'cancel'; label: string; confirm?: string;
   danger?: boolean }[] }` in `account-actions.ts`.
