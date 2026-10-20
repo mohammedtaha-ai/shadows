@@ -2,9 +2,10 @@
 
 Date: 2026-10-20.
 Status: Initial desktop/presence design implemented through `8bb41fc`. Mohammed
-approved the compact Ready-toggle text-input interaction on 2026-10-20. The
-written extension in §8A awaits his review before a new implementation plan;
-that approval does not expand the completed initial plan.
+approved the compact Ready-toggle text-input interaction on 2026-10-20, and on
+the same day approved §8A's native-owned send sequence and the focus probe as
+its first step. The [text-input plan](../plans/2026-10-20-aylul-companion-text-input.md)
+implements §8A and awaits his review; it does not expand the completed initial plan.
 
 This file owns the replacement of the desktop main interface with `web/`,
 automatic local Core startup for that desktop, and the existing character's
@@ -378,6 +379,13 @@ background presence, incoming replies, show/recovery and status updates never
 open input or steal focus. Closing restores the previous non-focusable mode
 without bringing main forward. Native open/close revisions defeat stale results.
 
+The companion is built non-focusable today, and switching one window between
+non-activating and focusable is sensitive on Windows. The first implementation
+step is a native probe on the actual program: open input takes keyboard focus,
+close returns the window to non-activating, and neither brings main forward.
+If the probe fails, implementation stops and this section is amended before
+any renderer work.
+
 On expansion, retain the character position when the complete open rectangle
 fits; otherwise move only as needed to keep the bubble, Ready and input in the
 same monitor work area. Collapse restores compact bounds without gradual drift.
@@ -416,13 +424,19 @@ does not redirect an already admitted request; it completes on the captured
 thread and cannot publish into the new binding. Changing binding discards the
 old unsent draft and closes input, so old text cannot be sent to another agent.
 
-Reuse the normal chat's command identity, first-send, session/model and error
-recovery behavior through shared submission logic; do not copy the large
-Composer UI or build another assistant loop. Native IPC translates only the
-closed binding-scoped request into the existing Core API. Core remains the
-owner of turn admission, idempotency and durable history. Prepare shared command
-logic under the web conversation owner when needed by the two presentations;
-no feature-specific direct fetch or second SSE framing engine is introduced.
+Native owns the send sequence. The companion is built from `apps/desktop/src`,
+not `web/`, and may not call Core itself, so it cannot share the web
+Composer's code. Native performs the same ordered calls the web first-send
+makes through the existing Core API: create the thread (AYLUL harness, selected
+agent profile, the web draft title) when there is no target, bind it, open its
+session, set the agent default model on a new thread when it differs, then start
+the turn with the session's current model/mode/effort. The thread-creation
+command identity is derived deterministically from the submission's identity,
+so an unchanged Retry reuses the same thread. Parity with the web Composer is
+proven by tests that pin the request order and bodies, not by shared code. Do
+not copy the large Composer UI, build another assistant loop, add a second SSE
+framing engine or make the companion renderer fetch anything. Core remains the
+owner of turn admission, idempotency and durable history.
 
 One explicit submission has one in-flight attempt. Disable double submission
 and keep the same command/request identities for an unchanged explicit Retry,
@@ -443,8 +457,8 @@ click in main. A local send error uses a fixed editor status, not a fabricated
 assistant response or completion. No microphone or spoken reply is implied.
 
 The character owner presents input/status and isolates gestures. Native owns
-focus/bounds, binding capture and restricted command translation. Shared chat
-owns request preparation/recovery; Core owns the existing business operations.
+focus/bounds, binding capture, the send sequence and its error mapping; Core
+owns the existing business operations.
 Contracts, capability allowlists and source maps change with implementation,
 not in this design commit. No Core schema/API endpoint is added for this editor.
 
