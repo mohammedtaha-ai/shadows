@@ -70,7 +70,7 @@ async fn world() -> World {
         .await
         .unwrap();
     core.secrets()
-        .set_provider_key("key".into(), "test", "synthetic-stored-one")
+        .set_provider_key("key".into(), "test-2", "synthetic-stored-one")
         .await
         .unwrap();
     core.profiles()
@@ -104,7 +104,7 @@ fn agent(name: &str) -> AgentInput {
     AgentInput {
         character_color: None,
         name: name.into(),
-        provider: "test".into(),
+        provider: "test-2".into(),
         default_model: "fake-large".into(),
     }
 }

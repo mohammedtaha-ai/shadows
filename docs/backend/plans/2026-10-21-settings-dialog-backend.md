@@ -171,9 +171,7 @@ when the window is below 100,000. `write_models` still receives ids.
 its existing URL check for reuse by the probe; `crates/shadows-core/tests/aylul_profiles/threads.rs`
 shares its existing core fixture with the saved-key test; `crates/shadows/tests/openapi.rs`
 adds both routes to the inventory. `Cargo.lock` records the infrastructure dependency.
-The literal `/providers/test` path also binds PUT and DELETE to the existing
-handlers for slug `test`: axum's literal POST otherwise shadows those existing
-methods. Both aliases are documented in OpenAPI and its route inventory.
+Mohammed's follow-up ruling: reserve provider slug `test` using the next free numeric suffix, remove mutation aliases, leave existing rows unchanged; add `crates/shadows-core/src/profiles/store.rs`, `crates/shadows-core/tests/{aylul_profiles/providers.rs,aylul_session.rs,aylul_session/opening.rs}`, `crates/shadows-http/src/aylul_env_tests.rs` and `crates/shadows/tests/openapi/read_only.rs` to the touch list for reservation tests and mechanical fixture updates.
 `docs/backend/specs/2026-10-21-settings-dialog-backend-design.md` updates the
 OPEN trigger after the authorized OpenRouter and MiniMax live checks pass.
 

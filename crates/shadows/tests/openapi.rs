@@ -108,7 +108,6 @@ fn the_document_names_every_route() {
         [
             "DELETE /api/aylul/agents/{slug}",
             "DELETE /api/aylul/agents/{slug}/env/{name}",
-            "DELETE /api/aylul/providers/test",
             "DELETE /api/aylul/providers/{slug}",
             "DELETE /api/aylul/providers/{slug}/key",
             "DELETE /api/mcp-grants/{id}",
@@ -189,7 +188,6 @@ fn the_document_names_every_route() {
             "POST /api/workflows/{id}/bindings",
             "PUT /api/aylul/agents/{slug}",
             "PUT /api/aylul/agents/{slug}/env/{name}",
-            "PUT /api/aylul/providers/test",
             "PUT /api/aylul/providers/{slug}",
             "PUT /api/aylul/providers/{slug}/key",
             "PUT /api/code/settings",

@@ -31,7 +31,7 @@ async fn two_agents_share_one_provider_key() {
     }
     let rows: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM secret_env
-        WHERE profile='provider/test'",
+        WHERE profile='provider/test-2'",
     )
     .fetch_one(w.storage.reader())
     .await
@@ -106,11 +106,11 @@ async fn missing_provider_key_is_named() {
     let w = world().await;
     w.core
         .secrets()
-        .remove_provider_key("remove".into(), "test")
+        .remove_provider_key("remove".into(), "test-2")
         .await
         .unwrap();
     assert!(matches!(w.core.harness().open_session(&w.thread).await,
-        Err(CoreError::AylulKeyMissing(provider)) if provider == "test"));
+        Err(CoreError::AylulKeyMissing(provider)) if provider == "test-2"));
     assert_eq!(w.sessions.live_count().await, 0);
 }
 
@@ -140,7 +140,7 @@ async fn provider_window(w: &World, size: u32) {
     a.default_model = "fake-small".into();
     w.core
         .profiles()
-        .update_provider(format!("p-{size}"), "test", input)
+        .update_provider(format!("p-{size}"), "test-2", input)
         .await
         .unwrap();
     w.core

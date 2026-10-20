@@ -55,7 +55,7 @@ async fn no_get_route_changes_state() {
             shadows_core::AgentInput {
                 character_color: None,
                 name: "AYLUL".into(),
-                provider: "test".into(),
+                provider: "test-2".into(),
                 default_model: "fake-large".into(),
             },
         )

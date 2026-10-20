@@ -327,3 +327,69 @@ async fn model_ids_keep_their_rules() {
     }
     refused(serde_json::json!({"preset":"minimax","models":[{"id":"a".repeat(129)}]})).await;
 }
+
+#[tokio::test]
+async fn test_is_a_reserved_provider_slug() {
+    let w = world().await;
+    for (command, name, expected) in [
+        ("first", "Test", "test-2"),
+        ("second", " TEST ", "test-3"),
+        ("third", "test---", "test-4"),
+        ("occupied", "Test-2", "test-2-2"),
+    ] {
+        let p = w
+            .profiles
+            .create_provider(command.into(), provider(name))
+            .await
+            .unwrap();
+        assert_eq!(p.slug, expected);
+    }
+    let replay = w
+        .profiles
+        .create_provider("first".into(), provider("Test"))
+        .await
+        .unwrap();
+    assert_eq!(replay.slug, "test-2");
+    let renamed = w
+        .profiles
+        .update_provider("rename".into(), "test-2", provider("Renamed"))
+        .await
+        .unwrap();
+    assert_eq!(renamed.slug, "test-2");
+    let mut a = agent("Test");
+    a.provider = "test-2".into();
+    assert_eq!(
+        w.profiles
+            .create_agent("agent".into(), a)
+            .await
+            .unwrap()
+            .slug,
+        "test"
+    );
+}
+
+#[tokio::test]
+async fn existing_test_provider_keeps_its_identity() {
+    let w = world().await;
+    let p = w
+        .profiles
+        .create_provider("p".into(), provider("Legacy"))
+        .await
+        .unwrap();
+    sqlx::query("UPDATE aylul_provider SET slug='test' WHERE slug=?")
+        .bind(p.slug)
+        .execute(w.storage.reader())
+        .await
+        .unwrap();
+    let p = w
+        .profiles
+        .update_provider("u".into(), "test", provider("Renamed"))
+        .await
+        .unwrap();
+    assert_eq!(p.slug, "test");
+    assert_eq!(w.profiles.provider("test").await.unwrap().name, "Renamed");
+    w.profiles
+        .delete_provider("d".into(), "test")
+        .await
+        .unwrap();
+}

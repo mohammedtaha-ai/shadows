@@ -33,7 +33,7 @@ async fn seed(w: &World, name: &str) {
             shadows_core::AgentInput {
                 character_color: None,
                 name: name.into(),
-                provider: "test".into(),
+                provider: "test-2".into(),
                 default_model: "model-a".into(),
             },
         )
@@ -47,10 +47,11 @@ async fn provider_crud_and_key_never_echoed() {
     let (status, p) = call(&w, "POST", "/api/aylul/providers", provider()).await;
     assert_eq!(status, 201);
     assert_eq!(p["key_set"], false);
+    assert_eq!(p["slug"], "test-2");
     let (status, text) = request(
         &w,
         "PUT",
-        "/api/aylul/providers/test/key",
+        "/api/aylul/providers/test-2/key",
         r#"{"command_id":"key","value":"synthetic-route-secret"}"#,
     )
     .await;
@@ -64,14 +65,16 @@ async fn provider_crud_and_key_never_echoed() {
     update["command_id"] = "update".into();
     update["name"] = "Renamed".into();
     assert_eq!(
-        call(&w, "PUT", "/api/aylul/providers/test", update).await.1["slug"],
-        "test"
+        call(&w, "PUT", "/api/aylul/providers/test-2", update)
+            .await
+            .1["slug"],
+        "test-2"
     );
     assert_eq!(
         call(
             &w,
             "DELETE",
-            "/api/aylul/providers/test?command_id=delete",
+            "/api/aylul/providers/test-2?command_id=delete",
             Value::Null
         )
         .await
@@ -86,7 +89,7 @@ async fn key_body_parse_error_does_not_echo() {
     let (status, text) = request(
         &w,
         "PUT",
-        "/api/aylul/providers/test/key",
+        "/api/aylul/providers/test-2/key",
         r#"{"command_id":"key","value":{"secret":"synthetic-do-not-echo"}}"#,
     )
     .await;
@@ -103,7 +106,7 @@ async fn agent_crud_soft_delete() {
         "POST",
         "/api/aylul/agents",
         json!({"command_id":"agent",
-        "name":"Work","provider":"test","default_model":"model-a"}),
+        "name":"Work","provider":"test-2","default_model":"model-a"}),
     )
     .await;
     assert_eq!(status, 201);
@@ -135,7 +138,7 @@ async fn provider_in_use_is_409() {
     let (status, body) = call(
         &w,
         "DELETE",
-        "/api/aylul/providers/test?command_id=delete",
+        "/api/aylul/providers/test-2?command_id=delete",
         Value::Null,
     )
     .await;
@@ -278,7 +281,7 @@ async fn provider_test_route_answers_outcome() {
     );
     call(&w, "POST", "/api/aylul/providers", provider()).await;
     assert_eq!(
-        call(&w, "POST", "/api/aylul/providers/test/test", json!({}))
+        call(&w, "POST", "/api/aylul/providers/test-2/test", json!({}))
             .await
             .0,
         409
@@ -328,5 +331,20 @@ async fn me_round_trips() {
         bad["command_id"] = field.into();
         bad[field] = value.into();
         assert_eq!(call(&w, "PUT", "/api/me", bad).await.0, 400);
+    }
+}
+
+#[tokio::test]
+async fn reserved_test_path_has_no_mutation_aliases() {
+    let w = world(true, true).await;
+    for method in ["PUT", "DELETE"] {
+        let (status, _) = call(
+            &w,
+            method,
+            "/api/aylul/providers/test?command_id=reserved",
+            json!({}),
+        )
+        .await;
+        assert_eq!(status, 405);
     }
 }

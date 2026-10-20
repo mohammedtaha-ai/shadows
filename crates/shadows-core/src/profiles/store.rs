@@ -109,7 +109,8 @@ async fn slug(
         .bind(&candidate)
         .fetch_one(&mut *conn)
         .await?;
-        if !taken {
+        let reserved = table == "aylul_provider" && candidate == "test";
+        if !taken && !reserved {
             return Ok(candidate);
         }
         let suffix = format!("-{n}");

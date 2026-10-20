@@ -71,6 +71,8 @@ shared_in_transaction:
   require_live_agent_in: Threads checks creation; Secrets checks agent environment writes inside their transaction.
   require_provider_in: Secrets checks provider existence before storing a provider key.
 obligations:
+  - rule: Provider slug test is reserved for creation; use the next free numeric suffix, leaving agent slugs and existing provider slugs unchanged.
+    tested_by: [test_is_a_reserved_provider_slug, existing_test_provider_keeps_its_identity]
   - rule: Names are trimmed, at most 64 characters, without controls or line breaks; empty is null.
     tested_by: [person_names_are_checked]
   - rule: Language is a short tag shape, not a list; theme is dark, light or system.

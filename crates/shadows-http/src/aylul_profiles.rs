@@ -196,29 +196,6 @@ pub(super) async fn test_provider(
     Ok(Json(s.core.profiles().test_provider(b).await?))
 }
 
-// A literal POST route takes precedence over {slug} for every HTTP method.
-// Keep the existing provider named "test" reachable through its mutation methods.
-#[utoipa::path(put, path="/api/aylul/providers/test", tag="aylul",
-    request_body=ProviderCommand,
-    responses((status=200,body=Provider),(status=400,body=ErrorBody),(status=404,body=ErrorBody),
-        (status=409,body=ErrorBody),(status=500,body=ErrorBody)))]
-pub(super) async fn update_test_provider(
-    state: State<AppState>,
-    body: EnvJson<ProviderCommand>,
-) -> Result<Json<Provider>, Failure> {
-    update_provider(state, Path("test".into()), body).await
-}
-
-#[utoipa::path(delete, path="/api/aylul/providers/test", tag="aylul", params(RemoveCommand),
-    responses((status=204),(status=404,body=ErrorBody),(status=409,body=ErrorBody),
-        (status=500,body=ErrorBody)))]
-pub(super) async fn delete_test_provider(
-    state: State<AppState>,
-    query: Query<RemoveCommand>,
-) -> Result<StatusCode, Failure> {
-    delete_provider(state, Path("test".into()), query).await
-}
-
 #[utoipa::path(post, path="/api/aylul/providers/{slug}/test", tag="aylul",
     params(("slug"=String,Path)), request_body=SavedProviderTest,
     responses((status=200,body=ProviderTestOutcome),(status=400,body=ErrorBody),
