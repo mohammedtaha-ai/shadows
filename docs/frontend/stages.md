@@ -69,15 +69,16 @@ colour's desktop side).
 - Needs: F-2, F-5 (both change `agent-list.tsx` and `home.tsx`)
 - Done when: `aylul.test.tsx` and `agent-env.test.tsx` pass with codemap, typecheck, lint
 
-### F-7 · Account: the You and Devices cards
+### F-7 · Account: the You card
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
 - Touch: to be named with the steps
-- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Account: the person and their devices) accepted and built
+- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Account: the person) accepted and built.
+  Devices left this plan: the account server and device management are a separate piece of work
 - Done when: to be named with the steps
 
-### F-8 · Providers: label, test connection, model checklist, per-model context
+### F-8 · Providers: label, test connection, model checklist, per-model context, preset regions
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
@@ -97,7 +98,7 @@ colour's desktop side).
 - Done when: `character-colors.test.ts`, `aylul.test.tsx` and `companion-binding.test.tsx` pass with
   codemap, `npm run typecheck`, `npm run lint`
 
-### F-10 · Plugins & Skills section
+### F-10 · Plugins & Skills: the shared library and each agent's picker
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
@@ -113,7 +114,7 @@ colour's desktop side).
 - Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Usage) accepted and built
 - Done when: to be named with the steps
 
-### F-12 · General: language, theme, start with Windows, tray
+### F-12 · General: language and theme in Core with the person; start with Windows and tray native
 - Status: blocked
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`

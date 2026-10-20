@@ -21,6 +21,17 @@ place, split into sections, that shows only what applies now.
 - Everything about providers, agents, the character, Local Core, plugins and skills, and usage is
   reached from this dialog.
 
+## Two daemons
+
+Mohammed's ruling (2026-10-21): the same daemon runs on this machine (with the Tauri desktop) and
+on the server. Later the client will take some data from the server and its daemon, and other
+data from the local daemon. Nothing in this dialog may assume one daemon: no section reads a
+fixed base URL or builds a request outside `web/src/api/client.ts`, and each section's data is
+named by its owner (this machine: AYLUL character, Local Core, start with Windows, tray; the
+person and their settings, providers, agents, plugins and skills, usage: whichever daemon the
+client is pointed at for them). Which daemon serves which data is decided with that later work,
+not here.
+
 ## Non-goals
 
 - No backend change in this work. What the screens need from the daemon or the account server is
@@ -65,7 +76,7 @@ place, split into sections, that shows only what applies now.
 The person's own data comes first, then the account state, then only the actions that state allows.
 
 - **You:** their name, and **what AYLUL calls them** (the name AYLUL uses when it speaks to them).
-  Both are kept on this machine and work without an account. *(needs backend)*
+  Both are kept by Core with the person and work without an account. *(needs backend)*
 - **State and actions**, from today's account states (`account-panel.tsx`):
 
   | State | Shown | Actions |
@@ -79,18 +90,20 @@ The person's own data comes first, then the account state, then only the actions
 
   "Register as a new device" is not a separate button: it is what Sign in does when there is no
   registration, and the only action when the device was revoked.
-- **Devices on your account** (signed in only): each device with its name, platform and last
-  activity; "this device" is marked; each other device has **Revoke** (confirm). Not signed in, the
-  card says "Sign in to see the devices linked to your account." *(needs backend)*
+- **Devices on your account** are not in this work (Mohammed's ruling, 2026-10-21): the account
+  server and device management are a separate piece of work, specified on its own later. This
+  section shows only this device's state and actions.
 - "Check session" is not a button: the state is checked each time the section opens.
-- Until the "You" and "Devices" endpoints exist, those two cards are not drawn; the state and its
-  actions work today through the native `authAction`.
+- Until the "You" endpoint exists, that card is not drawn; the state and its actions work today
+  through the native `authAction`.
 
 ### General
 
 - **Active projects** (moved here from today's page, unchanged behaviour).
-- Language and theme, start AYLUL with Windows, closing the window hides it to the tray.
-  *(needs backend / native: none of these is stored today)*. The Arabic interface itself (its
+- **Language and theme** are stored by Core with the person (with "You", `/api/me` in the
+  request), so they are the same in the browser and on the desktop (Mohammed's ruling,
+  2026-10-21). **Start AYLUL with Windows** and **closing the window hides it to the tray** are
+  native, desktop only. *(needs backend / native: none of these is stored today)*. The Arabic interface itself (its
   translations and right-to-left layout) is its own piece of work; this section only offers the
   choice once it exists.
 
@@ -111,6 +124,11 @@ The person's own data comes first, then the account state, then only the actions
        the list can still be **added by hand** by its id. *(listing needs backend)*
      - **URL is not shown** for a known provider: the preset supplies it. It is shown, and
        required, only for Custom.
+     - **Region** (Mohammed's ruling, 2026-10-21): MiniMax and Moonshot (Kimi) each offer two,
+       picked here: **International** (the default) or **China**. MiniMax International
+       `https://api.minimax.io/anthropic`, China `https://api.minimaxi.com/anthropic`; Moonshot
+       International `https://api.moonshot.ai/anthropic`, China `https://api.moonshot.cn/anthropic`.
+       A preset with one URL shows no region. The list names a China key "MiniMax China (label)".
      - The context window comes with each model instead of one number typed for the provider.
        *(needs backend)*
      - Save says how many models it adds ("Add 2 models").
@@ -213,8 +231,16 @@ reading them are Masada's too (Mohammed's ruling, 2026-10-21): U-2 and U-3.
 
 ### Plugins & Skills
 
-- Two tabs, Plugins and Skills. Each item has its name, a one-line description and an on/off
-  switch; **+ Add** installs one. *(needs backend: nothing lists or toggles them today)*
+- **One shared library** (Mohammed's ruling, 2026-10-21): this section manages it. Two tabs,
+  Plugins and Skills. Each item has its name, a one-line description and an on/off switch (on:
+  available to agents; off: no agent uses it); **+ Add** installs one into the library.
+- **Each agent uses only what the person enabled for that agent.** The agent form (Agents) gains a
+  **Plugins & Skills** part: the library's items that are on, each with a checkbox for this agent,
+  saved with the form. A new agent starts with none ticked. An item switched off in the library
+  shows in the agent form as "Off in the library", unticked and disabled; the agent's choice is
+  kept for when it is switched back on. With an empty library the part says "No plugins or skills
+  yet." with a link that opens this section.
+- *(needs backend: nothing lists, toggles or assigns them today)*
 
 ### Usage
 

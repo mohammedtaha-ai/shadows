@@ -32,6 +32,10 @@ Vitest with happy-dom and the fake daemon (`web/src/app/test-app.tsx`, `@/test/f
 - Every HTTP call goes through `web/src/api/`; each changed folder updates its `contract.yaml`
   and each new or removed file its row in `docs/frontend/codebase/README.md` in the same commit.
 - No new dependency.
+- **Two daemons** (spec "Two daemons"): no code in this plan reads a base URL, builds a URL or
+  calls `fetch` outside `web/src/api/client.ts`, and no test asserts that two sections share one
+  origin. A section's queries go through `web/src/api/` functions only, so a later change can point
+  them at another daemon in one place.
 
 ## Review Focus
 
@@ -175,15 +179,21 @@ Vitest with happy-dom and the fake daemon (`web/src/app/test-app.tsx`, `@/test/f
   `web/src/app/agents/provider-picker.test.tsx`
 
 **Interfaces:**
-- Produces: `PRESETS: { id: string; name: string; baseUrl: string }[]` with, in order,
-  `minimax` MiniMax `https://api.minimax.io/anthropic`, `anthropic` Anthropic
-  `https://api.anthropic.com`, `deepseek` DeepSeek `https://api.deepseek.com/anthropic`,
-  `openrouter` OpenRouter `https://openrouter.ai/api`, `moonshot` Moonshot (Kimi)
-  `https://api.moonshot.ai/anthropic` (spec OPEN: replaced by the backend's list in F-8);
-  `presetFor(baseUrl: string): Preset | null`.
-  `ProviderForm` gains prop `preset: Preset | null`: with a preset, the name is prefilled with
-  the preset's name, the URL is set from it and its field is not drawn; with `null` (Custom),
-  both are drawn and required.
+- Produces: `type Region = { id: 'international' | 'china'; label: string; baseUrl: string }`;
+  `PRESETS: { id: string; name: string; regions: Region[] }[]` (the first region is the default)
+  with, in order:
+  `minimax` MiniMax: International `https://api.minimax.io/anthropic`, China
+  `https://api.minimaxi.com/anthropic`; `anthropic` Anthropic: `https://api.anthropic.com`;
+  `deepseek` DeepSeek: `https://api.deepseek.com/anthropic`; `openrouter` OpenRouter:
+  `https://openrouter.ai/api`; `moonshot` Moonshot (Kimi): International
+  `https://api.moonshot.ai/anthropic`, China `https://api.moonshot.cn/anthropic`. A one-URL
+  preset has one region with id `international`. (Spec OPEN: replaced by the backend's list in F-8.)
+  `presetFor(baseUrl: string): { preset: Preset; region: Region } | null` matches any region's URL.
+  `ProviderForm` gains props `preset: Preset | null` and `region: Region['id']`: with a preset,
+  the name is prefilled with the preset's name, the URL is set from the chosen region and its
+  field is not drawn; a preset with two regions draws a `Region` radio group (International,
+  China; International checked for a new provider); with `null` (Custom), name and URL are drawn
+  and required.
 
 - [ ] **Step 1: Write the failing tests:**
   - `search filters the presets and keeps Custom`: type `mini` → cards `MiniMax`, `Custom` only.
@@ -192,6 +202,13 @@ Vitest with happy-dom and the fake daemon (`web/src/app/test-app.tsx`, `@/test/f
     `POST /api/aylul/providers` body has `base_url: 'https://api.minimax.io/anthropic'` and
     `name: 'MiniMax'`; no `Provider URL` field was drawn.
   - `Custom asks for the URL`: pick Custom → `Provider URL` is drawn and required.
+  - `MiniMax China sends the China URL`: pick MiniMax; a `Region` group with `International`
+    checked and `China`; click China, type a key and models, Save → the body has
+    `base_url: 'https://api.minimaxi.com/anthropic'`. Same for Moonshot with
+    `https://api.moonshot.cn/anthropic`.
+  - `a one-region preset shows no region`: pick Anthropic → no `Region` group.
+  - `Edit keeps the saved region`: a provider with `base_url: 'https://api.moonshot.cn/anthropic'`
+    opens with Moonshot fixed and `China` checked.
   - `the list names each provider with its model count`: two providers → rows
     `MiniMax 3 models connected Edit`, `OpenAI No key not set Set up`.
   - `closing mid-form saves nothing`: type a key, press Escape, reopen Providers → the list, and
@@ -242,12 +259,37 @@ answer fixes the shapes; each follows the TDD shape above.
 
 | Task | Builds (spec section) | Needs from the request |
 |---|---|---|
-| F-7 | Account: "You" card (name, what AYLUL calls you) and "Devices" with Revoke | Account: the person and their devices |
-| F-8 | Providers: Label shown as "Provider (Label)", Test connection, model checklist with default and hand-added ids, per-model context window, presets from the backend (closes the spec's OPEN) | Providers: label, test, models |
+| F-7 | Account: "You" card (name, what AYLUL calls you). Devices left this plan (spec Account): the account server and device management are a separate piece of work | Account: the person |
+| F-8 | Providers: Label shown as "Provider (Label)", Test connection, model checklist with default and hand-added ids, per-model context window, presets from the backend with their regions (MiniMax and Moonshot: International and China), replacing F-5's `PRESETS` (closes the spec's OPEN) | Providers: label, test, models, presets with regions |
 | F-9 | Agents: character colour swatches; steps written below | Agents: character colour |
-| F-10 | Plugins & Skills section, listed in the nav | Plugins & Skills |
+| F-10 | Plugins & Skills: the shared library section, listed in the nav, and the agent form's Plugins & Skills picker (tests below) | Plugins & Skills: library and each agent's enabled items |
 | F-11 | Usage section with period picker, by provider and by model, listed in the nav | Usage |
-| F-12 | General: language, theme, start with Windows, hide to tray on close | General |
+| F-12 | General: language and theme read and written with the person in Core (`/api/me`, the same in browser and desktop); start with Windows and hide to tray on close through native, desktop only | General; Account: the person |
+
+### Task F-10: the agent form's Plugins & Skills picker (part of F-10)
+
+The library section's steps are written with the request's answer; this part's tests are fixed
+now. Field names follow the answer (asked: the library items `{ id, name, description, enabled }`
+and, on `Agent`/`AgentInput`, the ids enabled for that agent).
+
+**Files** (with the rest of F-10's): Create `web/src/app/agents/agent-extensions.tsx`; Modify
+`web/src/app/agents/agent-settings.tsx` (`AgentForm` holds the part after Character colour),
+`web/src/api/aylul-profiles.ts` (the library query), `web/src/app/agents/contract.yaml`,
+`docs/frontend/codebase/README.md`. Test: `web/src/app/agents/agent-extensions.test.tsx` (new).
+
+- [ ] **Write the failing tests** in `agent-extensions.test.tsx`:
+  - `the form lists the library's items for this agent`: library with plugin `git` (on) and skill
+    `review` (on); open agent `ay` that enabled `git` → a group `Plugins & Skills` with checkboxes
+    `git` (checked) and `review` (unchecked), each with its description.
+  - `a new agent starts with nothing ticked`: New agent → both unchecked.
+  - `ticking is saved with the form`: tick `review`, Save agent → the PUT body carries both ids
+    for `ay`; before Save no request was sent.
+  - `an item off in the library is shown disabled and kept`: `git` off in the library, enabled for
+    `ay` → `git` unchecked, disabled, with "Off in the library"; Save keeps `git` in the body.
+  - `an empty library links to the section`: no items → "No plugins or skills yet." and a link
+    that opens the dialog on Plugins & Skills.
+- [ ] **Run** `npx vitest run src/app/agents/agent-extensions.test.tsx` → FAIL; implement; run it
+  with codemap, typecheck, lint → PASS. Commit with F-10.
 
 ### Task F-9: Agents: character colour per agent
 
