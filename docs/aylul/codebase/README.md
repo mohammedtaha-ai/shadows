@@ -9,8 +9,9 @@ Mobile and semantic project-context integration remain future paths.
 
 | Source | Owned job | Contract |
 | --- | --- | --- |
-| `apps/desktop/src-tauri/src/presence/send.rs` | Explicit companion submission admission | Presence contract |
-| `apps/desktop/src-tauri/src/presence/send_tests.rs` | Submission HTTP fixture checks | Presence contract |
+| `apps/desktop/src-tauri/src/presence/send.rs` | Captured companion submission admission | Presence contract; a newer selection owns binding publication |
+| `apps/desktop/src-tauri/src/presence/send_fixture.rs` | Scripted submission HTTP server | Presence contract; test-only |
+| `apps/desktop/src-tauri/src/presence/send_tests.rs` | Submission admission regressions | Presence contract |
 | `apps/desktop/src-tauri/src/presence/` | Configuration-scoped companion presence | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/navigation.rs` | Closed pending main navigation | `docs/aylul/shared/requests/2026-10-20-companion-binding-presence.md` |
 | `apps/desktop/src-tauri/src/app_paths.rs` | Native storage location | Existing identifier; isolated debug acceptance override |
@@ -26,7 +27,7 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src/api/generated/` | Backend-generated wire artifacts and input hash | Backend TypeBox owner; `provenance.json` |
 | `apps/desktop/src/app/` | Independent companion entry | Colocated `contract.yaml` |
 | `apps/desktop/src/platform/` | Typed companion invocation wrappers | Colocated `contract.yaml` |
-| `apps/desktop/src/features/companion/CompanionComposer.tsx` | Compact scoped text submission | Companion contract |
+| `apps/desktop/src/features/companion/CompanionComposer.tsx` | Compact scoped text submission | Companion contract; unavailable Retry retains pending identity |
 | `apps/desktop/src/features/companion/composer-model.ts` | Draft and retry identity rules | Companion contract |
 | `apps/desktop/src/features/companion/native-presentation.ts` | Absolute-expiry native reply presentation | Companion contract |
 | `apps/desktop/src/features/companion/` | Compact desktop character/gestures plus reusable presence, procedural Canvas renderer and explicit drawing permission | Colocated `contract.yaml`; excludes separately owned studio |

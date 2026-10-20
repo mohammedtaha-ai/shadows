@@ -93,5 +93,54 @@ mixed-DPI hardware transitions, optimized resource usage, microphone or release.
 - While a busy/uncertain attempt awaits Retry, its text is read-only so the UI
   cannot imply that a replacement command was admitted.
 
-No independent final reviewer was run, following Mohammed's explicit waiver.
+Initial delivery omitted the final reviewer under Mohammed's waiver. He later
+requested an independent whole-branch review with fixes, recorded below.
 No push, pull request or release is included.
+
+## Independent whole-branch review
+
+The reviewer inspected `2856339..04c47ec` and fixed four P2 lifecycle defects:
+
+- An uncertain Retry followed by Core unavailable unlocked text even though
+  native retained the captured command. Retry now retains its immutable draft
+  and command identity through that failure.
+- First-thread creation completing after main changed agent/target returned
+  stale without sending. The admitted submission now finishes privately on its
+  captured created thread with its captured agent default, preserving the newer
+  binding. Configuration/persistence failures remain refusals, and runtime
+  identity is checked before the private session write.
+- Disabling the pending textarea could asynchronously blur it and prevent
+  Escape. It now stays focusable and read-only during sending; Send remains
+  disabled and an active attempt prevents another submission.
+- Explicit unchanged Retry could not recover after native verified a restarted
+  Core for the same installation. It now captures that verified Ready atomically,
+  checks the unchanged configuration/scope and HTTP runtime, and replays only the
+  original thread/command/body. Unverified listener replacement remains refused.
+
+Each defect had a failing regression before its fix. The focus failure first
+appeared in the full browser suite (51 passed, 1 failed); its earlier focused
+probe raced the asynchronous blur. The final complete run passed.
+
+Fresh reviewer gates: native format/all-target Clippy, **102 native tests passed,
+2 ignored**; **17 submission regressions passed**; **4 desktop Node**, **20 unit**,
+**52 Chrome**, **1 production graph** and **3 web native parity** tests passed.
+Shared desktop assembly/typecheck and the native debug executable built through
+the default cache. The larger submission test module was split into a scripted
+HTTP fixture server and admission assertions.
+
+The final no-send actual Windows run
+`apps/desktop/tests/.runs/review-text-input-final-20261020/` exited 0. It passed two
+foreground-preserving cycles, physical typing/Escape with focus restoration,
+complete lower-right expansion/exact collapse, IPC scope, Canvas reconstruction,
+hidden-main independence and actual tray Quit. No provider message was sent.
+The original Core process remained running; the normal app was relaunched after
+the probe using its existing profile and database.
+
+Core/API/web-product scope remains unchanged; only the prior canonical web test
+fixture differs from base. The root full suite was not repeated for this desktop
+review. Hardware mixed-DPI/monitor removal, physical OS IME composition, release
+and real-provider restart/replay remain outside this acceptance. Restart replay
+is proven by native HTTP fixtures using the existing verified-Ready contract.
+
+Detailed review and logs are retained in the ignored plan execution directory
+`.superpowers/sdd/2026-10-20-aylul-companion-text-input/review-report.md`.

@@ -433,6 +433,11 @@ submission. A stale request is refused before admission. A later binding switch
 does not redirect an already admitted request; it completes on the captured
 thread and cannot publish into the new binding. Changing binding discards the
 old unsent draft and closes input, so old text cannot be sent to another agent.
+This also holds while the first thread's creation is in flight: if a newer
+explicit agent or target selection prevents binding publication, the admitted
+send continues privately on its created thread with the captured agent default.
+Configuration/runtime changes and preference persistence failures do not grant
+that continuation; the captured runtime identity is checked before its session write.
 
 Native owns the send sequence. The companion is built from `apps/desktop/src`,
 not `web/`, and may not call Core itself, so it cannot share the web
@@ -450,9 +455,18 @@ owner of turn admission, idempotency and durable history.
 
 One explicit submission has one in-flight attempt. Disable double submission
 and keep the same command/request identities for an unchanged explicit Retry,
-including first-thread creation. Retry revalidates the captured runtime identity
-before its POST, even if the listener URL has not changed. A network timeout is an uncertain outcome:
+including first-thread creation. Retry revalidates the native-verified runtime
+identity before its POST, even if the listener URL has not changed. After an
+explicit Core Retry verifies a new runtime for the same configuration, an
+explicit unchanged message Retry may reconcile the original command/body/thread
+through that new runtime while its binding scope is unchanged. Native Ready
+requires receipt, OS instance, actual database and HTTP identity agreement;
+an unverified listener replacement, changed configuration or changed scope
+cannot grant this recovery. No create, session or model call is repeated for a
+captured turn. A network timeout is an uncertain outcome:
 reconcile or retry that same command, never automatically resend with a new ID.
+If a later Retry finds Core unavailable, keep the same pending text read-only
+and retain its command identity until Retry resolves or the binding changes.
 Closing/hiding input never cancels, duplicates or replays an accepted request.
 If the target already has a running turn, retain text and show that it is busy;
 this compact first version offers no queue, Stop or Send now. Core still handles

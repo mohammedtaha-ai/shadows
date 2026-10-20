@@ -83,11 +83,11 @@ impl Presence {
         (inner.send.scope.clone(), inner.send.context.clone())
     }
     fn admit(&self, s: &Submission) -> Result<Admitted, &'static str> {
+        let mut inner = self.inner.lock().unwrap();
         let ready = self
             .connection
             .ready()
             .ok_or("companion_core_unavailable")?;
-        let mut inner = self.inner.lock().unwrap();
         if inner.error.is_some() {
             return Err("companion_send_failed");
         }
@@ -96,19 +96,22 @@ impl Presence {
             .scope
             .clone()
             .ok_or("companion_agent_unavailable")?;
-        let retry = inner
+        let mut retry = inner
             .send
             .captured
             .as_ref()
             .filter(|c| c.command_id == s.command_id)
             .cloned();
-        if let Some(c) = &retry {
+        if let Some(c) = &mut retry {
             if c.body["prompt"] != s.text {
                 return Err("companion_send_invalid");
             }
-            if c.scope != scope || c.ready != ready {
+            if c.scope != scope || c.ready.configuration_id != ready.configuration_id {
                 return Err("companion_send_stale");
             }
+            // Explicit Retry may reconcile durable replay after native has verified
+            // a restarted Core for the same installation. Never change its body.
+            c.ready = ready.clone();
         } else if inner.send.context.as_deref() != Some(&s.context) {
             return Err("companion_send_stale");
         }
@@ -226,8 +229,21 @@ impl Presence {
             )?;
             let id = created["id"].as_str().ok_or("companion_send_uncertain")?;
             let target = binding::target(&ready, &workspace, agent_slug, id)?;
-            self.commit_with_origin(a.request, |v| v.target = Some(target.clone()), true)
-                .map_err(|_| "companion_send_stale")?;
+            if let Err(error) =
+                self.commit_with_origin(a.request, |v| v.target = Some(target.clone()), true)
+            {
+                let current = self.view();
+                // A newer explicit selection owns the public binding. The admitted
+                // submission still owns its created thread, never the new binding.
+                if error != "companion_binding_changed"
+                    || current.configuration_id != a.view.configuration_id
+                    || self.connection.ready().as_ref() != Some(&ready)
+                    || (current.agent == a.view.agent && current.target == a.view.target)
+                {
+                    return Err("companion_send_stale");
+                }
+                binding::runtime(&ready).map_err(|_| "companion_core_unavailable")?;
+            }
             (target, true)
         };
         let default_model = {
@@ -240,7 +256,7 @@ impl Presence {
                     default_model: agent.default_model.clone(),
                 });
             }
-            inner
+            let remembered = inner
                 .send
                 .setup
                 .as_ref()
@@ -249,7 +265,12 @@ impl Presence {
                         && x.scope == a.scope
                         && x.thread_id == target.thread_id
                 })
-                .and_then(|x| x.default_model.clone())
+                .and_then(|x| x.default_model.clone());
+            if new_thread {
+                agent.default_model.clone()
+            } else {
+                remembered
+            }
         };
         let base = format!("/api/threads/{}", target.thread_id);
         let mut session = call(

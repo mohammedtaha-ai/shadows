@@ -163,14 +163,14 @@
    - When `Captured.command_id == command_id`:
      - The text must equal the captured prompt, else `companion_send_invalid`.
      - The current `scope` must equal `Captured.scope`, else `companion_send_stale`. The context token is not checked, because the first send's own bind changed it.
-   - Skip steps 3–6, and POST `Captured.body` unchanged to `Captured.thread_id` (step 7).
+   - Skip steps 3–6, and POST `Captured.body` unchanged to `Captured.thread_id` (step 7). Capture the current native-verified ReadyConnection atomically at admission; an explicit unchanged Retry may use its new runtime only for the identical configuration and binding scope. Revalidate that runtime before the POST. An unverified listener change is refused; no command id or turn body changes during recovery.
    - Otherwise: check that `context` equals the current token, and capture `request(Some(generation))`. In the same lock, record the `admitted_scope`: the scope at the moment this send is accepted. Every later step uses `admitted_scope`, never the scope current at that time.
 3. `workspace` + `live_agent`.
 4. Choose the thread:
    - **With a target:** re-validate it with `binding::target`.
    - **Without one:**
      - POST `/api/projects/{project}/threads` with `{"command_id": create_id, "title": "New conversation", "harness": "aylul", "profile": agent}`. The create id is `Uuid::new_v5(&NAMESPACE, format!("companion-thread:{command_id}"))`, using a fixed `NAMESPACE` constant in `send.rs`.
-     - Then `commit(request, |view| view.target = Some(target))`. If the commit fails, return `companion_send_stale`.
+     - Then `commit(request, |view| view.target = Some(target))`. If a newer explicit agent/target selection alone prevents publication, preserve that new binding and continue the admitted send privately on the created thread, with its captured agent default. Revalidate the captured runtime before the session write. Configuration/runtime or persistence failure still refuses continuation.
 5. POST `/api/threads/{id}/session` and read `SessionChoices.current`.
 6. **New thread only:** if the agent's `default_model` is set and differs from the current model, PUT `/api/threads/{id}/session/model` with `{"model": ...}` and use the returned `current`.
 7. Build the turn body `{"command_id", "prompt": text, "model", "mode", "effort", "focus": null, "client_tab": null}`. Store it as `Captured` with the thread id and `admitted_scope`, then POST it to `/api/threads/{id}/turns`.
@@ -178,7 +178,7 @@
    - Otherwise nothing is stored. The turn still posts to its captured thread, since an admitted request is never redirected, but this attempt can no longer be retried.
 8. **What happens to `Captured`:**
    - Cleared on success, and on any definitive refusal (`setup`, `settings`, `thread_invalid`, `failed`).
-   - Kept on `uncertain` and `busy`, because Core did not admit the command, or may have.
+   - Kept on `uncertain`, `busy` and `core_unavailable`, because Core did not admit the command, or may have. The renderer keeps the pending text read-only through these retry outcomes.
    - Cleared when the scope changes.
    - A result, on time or late, changes `Captured` only while the slot holds that result's own `command_id`. An older send that finishes late never replaces or clears a newer scope's attempt.
 

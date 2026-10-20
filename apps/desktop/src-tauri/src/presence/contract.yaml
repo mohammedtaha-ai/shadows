@@ -18,10 +18,12 @@ public_api:
   configuration_changed: Clear prior selection before a changed Core configuration can become active.
   destination: Resolve only CompanionSettings, AgentDraft or validated Conversation without creating a thread.
 obligations:
-  - rule: First send creates one AYLUL thread, binds before opening session, applies the agent default, then starts one turn; bound sends retain session settings.
+  - rule: If first creation loses binding publication only to a newer agent or target, the admitted send finishes on its captured created thread with its agent default; configuration or runtime changes still refuse further writes.
+    tested_by: [first_create_finishes_on_captured_thread_after_agent_or_target_switch, first_create_refuses_after_configuration_change, detached_first_create_revalidates_runtime_before_session_write]
+  - rule: Without a superseding selection, first send creates one AYLUL thread, binds before opening session, applies the agent default, then starts one turn; bound sends retain session settings.
     tested_by: [first_send_creates_binds_opens_and_starts_in_order, bound_send_reuses_target_and_keeps_session_settings]
-  - rule: Retry revalidates the captured runtime identity before writing; a replaced listener receives no retry POST.
-    tested_by: uncertain_retry_rechecks_runtime_before_writing
+  - rule: Explicit unchanged Retry may use a newly native-verified runtime for the same configuration and scope, replaying the captured body without session reads; runtime identity is rechecked and an unverified replaced listener receives no POST.
+    tested_by: [explicit_retry_reconciles_same_configuration_after_verified_runtime_restart, uncertain_retry_rechecks_runtime_before_writing]
   - rule: Uncertain create reuses its deterministic identity; uncertain turn retries the captured body without session reads.
     tested_by: [uncertain_create_retry_makes_one_thread, uncertain_turn_retry_sends_the_captured_request]
   - rule: Retarget changes draft scope, invalidates retry, and never redirects or lets a late admitted send replace a newer attempt.

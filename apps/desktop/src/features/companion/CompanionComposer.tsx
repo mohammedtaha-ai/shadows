@@ -16,7 +16,7 @@ export function CompanionComposer({view,busy,onClose}:Props):React.JSX.Element|n
  },[view.scope]);
  React.useEffect(()=>{if(view.open)input.current?.focus();},[view.open,view.scope]);
  const navigate=()=>{void openMainFromCompanion().catch(()=>setError('companion_send_failed'));};
- const retry=error==='companion_send_uncertain'||error==='companion_send_busy';
+ const retry=['companion_send_uncertain','companion_send_busy','companion_core_unavailable'].includes(error);
  const send=async()=>{
   const {scope,context}=latest.current;
   if(!scope||!context||active.current||!text.trim()||busy&&!retry)return;
@@ -41,7 +41,7 @@ export function CompanionComposer({view,busy,onClose}:Props):React.JSX.Element|n
  }}>
   {unavailable?<button type="button" className="aylul-choose-agent" onClick={navigate}>Choose an agent</button>:<>
    <div className="aylul-compose-row">
-    <textarea ref={input} aria-label="Message AYLUL" dir="auto" placeholder="Ask AYLUL…" rows={1} value={text} disabled={sending} readOnly={retry} onChange={event=>{
+    <textarea ref={input} aria-label="Message AYLUL" dir="auto" placeholder="Ask AYLUL…" rows={1} value={text} readOnly={sending||retry} onChange={event=>{
      setText(event.target.value);drafts.current.write(view.scope!,event.target.value);
     }} onKeyDown={event=>{
      if(submitKey({key:event.key,shiftKey:event.shiftKey,isComposing:event.nativeEvent.isComposing})==='send'){

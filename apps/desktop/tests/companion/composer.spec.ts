@@ -10,6 +10,27 @@ test('artwork drag ending on Ready never opens main or input',async({page})=>{aw
 test('Shift Enter inserts newline and IME Enter never submits',async({page})=>{await toggle(page).click();await field(page).fill('أهلًا');await field(page).press('Shift+Enter');await field(page).press('End');await page.keyboard.insertText('👋');await expect(field(page)).toHaveValue('أهلًا\n👋');await field(page).evaluate(el=>{el.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}));el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',isComposing:true,bubbles:true,cancelable:true}));el.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true}));});expect(await sends(page)).toHaveLength(0);});
 test('double Enter admits one attempt and busy keeps the draft',async({page})=>{await toggle(page).click();await page.evaluate(()=>(window as any).__composerFx.delay=true);await field(page).fill('same');await field(page).press('Enter');await page.keyboard.press('Enter');await expect(page.getByRole('button',{name:'Send message',exact:true})).toBeDisabled();expect(await sends(page)).toHaveLength(1);await page.evaluate(()=>(window as any).__composerFx.reject('companion_send_busy'));await expect(field(page)).toHaveValue('same');await expect(page.getByRole('status',{name:'Message status'})).toContainText('text is kept');});
 test('uncertain Retry reuses command identity',async({page})=>{await toggle(page).click();await page.evaluate(()=>(window as any).__composerFx.errors.push('companion_send_uncertain'));await field(page).fill('Retry me');await field(page).press('Enter');await expect(page.getByRole('status',{name:'Message status'})).toContainText('same message');await page.getByRole('button',{name:'Retry message',exact:true}).click();const c=await sends(page);expect(c).toHaveLength(2);expect(c[0].args.submission.commandId).toBe(c[1].args.submission.commandId);});
+
+test('Core unavailable during Retry keeps the captured text and command locked',async({page})=>{
+ await toggle(page).click();await field(page).fill('مرحبا 👋');
+ await page.evaluate(()=>(window as any).__composerFx.errors.push('companion_send_uncertain','companion_core_unavailable'));
+ await field(page).press('Enter');await page.getByRole('button',{name:'Retry message',exact:true}).click();
+ await expect(page.getByRole('status',{name:'Message status'})).toContainText('Core unavailable');
+ await expect(field(page)).toHaveAttribute('readonly','');
+ await page.getByRole('button',{name:'Retry message',exact:true}).click();
+ const c=await sends(page);expect(c).toHaveLength(3);
+ expect(c.map((x:any)=>x.args.submission)).toEqual([c[0].args.submission,c[0].args.submission,c[0].args.submission]);
+});
+
+test('pending send retains keyboard focus so Escape can close the editor',async({page})=>{
+ await toggle(page).click();await field(page).fill('pending');
+ await page.evaluate(()=>(window as any).__composerFx.delay=true);
+ await field(page).press('Enter');await expect(page.getByRole('status',{name:'Message status'})).toHaveText('Sending…');
+ await expect(field(page)).toBeFocused();
+ await page.keyboard.insertText('replacement');await expect(field(page)).toHaveValue('pending');
+ await page.keyboard.press('Escape');await expect(field(page)).toHaveCount(0);
+ expect(await sends(page)).toHaveLength(1);
+});
 test('no agent opens existing settings navigation',async({page})=>{await page.evaluate(()=>(window as any).__composerFx.publish({composer:{open:false,revision:2,scope:null,context:null,agent:null}}));await toggle(page).click();await expect(field(page)).toHaveCount(0);await page.getByRole('button',{name:'Choose an agent',exact:true}).click();expect(await page.evaluate(()=>(window as any).__composerFx.calls.at(-1).command)).toBe('open_main_from_companion');});
 test('draft survives close and hide; switching conversation clears it',async({page})=>{await toggle(page).click();await field(page).fill('old draft');await field(page).press('Escape');await expect(field(page)).toHaveCount(0);await toggle(page).click();await expect(field(page)).toHaveValue('old draft');await page.evaluate(()=>(window as any).__composerFx.publish({visible:false,renderAllowed:false,composer:{open:false,revision:4,scope:'one',context:'ctx',agent:'agent-a'}}));await page.evaluate(()=>(window as any).__composerFx.publish({visible:true,renderAllowed:true}));await toggle(page).click();await expect(field(page)).toHaveValue('old draft');await page.evaluate(()=>(window as any).__composerFx.publish({composer:{open:false,revision:5,scope:'two',context:'ctx-two',agent:'agent-a'}}));await expect(field(page)).toHaveCount(0);await toggle(page).click();await expect(field(page)).toHaveValue('');});
 test('pause does not disable typing or sending and outside click does not close',async({page})=>{await page.evaluate(()=>(window as any).__composerFx.publish({paused:true}));await toggle(page).click();await field(page).fill('Paused');await page.mouse.click(2,2);await expect(field(page)).toBeVisible();await field(page).press('Enter');expect(await sends(page)).toHaveLength(1);await page.screenshot({path:'test-results/companion-text-input.png',omitBackground:true});});

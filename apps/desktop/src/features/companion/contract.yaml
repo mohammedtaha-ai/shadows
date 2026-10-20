@@ -25,12 +25,15 @@ exports:
   - name: renderScene
     file: apps/desktop/src/features/companion/renderer/scene.ts
 obligations:
+  - rule: An in-flight send keeps the textarea focusable but read-only so Escape can close the editor without changing or cancelling the submission.
+    tested_by: apps/desktop/tests/companion/composer.spec.ts
+    test: pending send retains keyboard focus so Escape can close the editor
   - rule: Ready is an accessible native editor toggle; artwork alone owns drag and main navigation.
     tested_by: apps/desktop/tests/companion/composer.spec.ts
     test: Ready click and keyboard toggle input without main or drag
-  - rule: Uncertain Retry keeps command identity.
+  - rule: Uncertain Retry keeps its text read-only and command identity even when a later retry finds Core unavailable.
     tested_by: apps/desktop/tests/companion/composer.spec.ts
-    test: uncertain Retry reuses command identity
+    test: Core unavailable during Retry keeps the captured text and command locked
   - rule: Scope changes discard drafts; close and hide retain same-scope text.
     tested_by: apps/desktop/tests/companion/composer.spec.ts
     test: draft survives close and hide; switching conversation clears it

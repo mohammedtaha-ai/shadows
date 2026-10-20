@@ -5,6 +5,8 @@ mod preview;
 pub mod projection;
 pub mod send;
 #[cfg(test)]
+mod send_fixture;
+#[cfg(test)]
 mod send_tests;
 #[cfg(test)]
 mod tests;
