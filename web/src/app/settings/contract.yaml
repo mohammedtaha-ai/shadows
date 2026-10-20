@@ -1,12 +1,11 @@
-# Owns the global Settings page (spec §13.11): the daemon's settings that belong to no
-# one project, one section each. The active-projects limit belongs to the
-# code index (§15.6). Agent configuration lives in app/agents.
+# Owns the global Settings dialog: URL-selected sections over the current page.
+# The active-projects limit belongs to the code index (§15.6).
 #
 # Trap: the form keeps the person's typed number until it is saved or the saved value
 # changes while the field is untouched. The save's success clears that edit without
 # checking for a newer one, so an edit typed while the save was in flight is lost.
 #
-# A new setting is one more component rendered by SettingsPage.
+# A new section is one entry in the SettingsDialog content map.
 
 name: web-settings
 version: 1
@@ -33,11 +32,11 @@ external:
 # ── functions ────────────────────────────────────────────────────────────────────
 
 components:
-  NativeSettings:
-    signature: "() => JSX.Element | null; desktop-only account/companion/connection sections"
-  SettingsPage:
+  SettingsDialog:
     signature: "() => JSX.Element"
-    # The page shell; it renders one section per daemon setting.
+    # One modal in Shell; section availability follows the runtime.
+  GeneralSection:
+    signature: "() => JSX.Element"
   ActiveProjects:
     signature: "() => JSX.Element"
     # Reads the code settings; renders the form once they load.
@@ -47,10 +46,34 @@ private_helpers:
     # The form. `edited` is null until the person types; it then holds their text.
     private: true
 
+hooks:
+  useOpenSettings:
+    signature: "() => (section: SectionId, agent?: string) => void"
+  useCloseSettings:
+    signature: "() => () => void"
+
+functions:
+  visibleSections:
+    signature: "() => typeof SECTIONS"
+  readSettingsSearch:
+    signature: "(search: Record<string, unknown>) => { settings?: SectionId; agent?: string }"
+
 
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: Settings opens over the current page; Escape or backdrop closes it, clears settings search keys and returns focus to the Settings button.
+    tested_by:
+      - "Escape closes the dialog and keeps the page"
+      - "a backdrop click closes the dialog and keeps the page"
+  - rule: Desktop-only sections are hidden in the browser; unknown or hidden section IDs resolve to General. Plugins and Usage wait for their implementation.
+    tested_by:
+      - "the dialog lists its sections in three groups"
+      - "a desktop-only section in the browser falls back to General"
+      - "an unknown or hidden section falls back to General"
+  - rule: The legacy /settings URL redirects to the General dialog on the home page.
+    tested_by:
+      - "/settings redirects to the dialog"
   - rule: >
       The limit must be a whole number from 1 to 20. Any other text disables Save and
       shows "A whole number from 1 to 20."

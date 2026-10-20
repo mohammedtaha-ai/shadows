@@ -2,7 +2,7 @@
 // answers, and the way to the global settings.
 
 import {useState} from 'react'
-import { Link, useLocation, useNavigate } from '@tanstack/react-router'
+import { Link, useSearch, useNavigate } from '@tanstack/react-router'
 import {isDesktop} from '../../desktop/runtime'
 import {hideToTray} from '../../desktop/native'
 import { Plus, Settings } from 'lucide-react'
@@ -13,13 +13,15 @@ import { AgentList } from './agent-list'
 import { WorkspaceSwitcher } from './workspace-switcher'
 import { useWorkspace } from './workspace'
 import { ProjectList } from './project-list'
+import { useOpenSettings } from '../settings/use-settings'
 
 export function Sidebar() {
   const [nativeError,setNativeError]=useState<string|null>(null)
   const openNewProject = useOpenNewProject()
   const navigate = useNavigate()
   const { workspace, switchTo } = useWorkspace()
-  const onSettings = useLocation().pathname === '/settings'
+  const openSettings = useOpenSettings()
+  const onSettings = useSearch({ from: '__root__' }).settings !== undefined
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <header className="flex items-center justify-between px-4 pt-4 pb-3">
@@ -48,8 +50,10 @@ export function Sidebar() {
         <div className="min-w-0">
           <ConnectionIndicator />
         </div>
-        <Link
-          to="/settings"
+        <button
+          type="button"
+          data-settings-trigger
+          onClick={() => openSettings('general')}
           aria-current={onSettings ? 'page' : undefined}
           className={`flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs transition-colors ${
             onSettings
@@ -59,7 +63,7 @@ export function Sidebar() {
         >
           <Settings aria-hidden className="size-3.5" />
           Settings
-        </Link>
+        </button>
       </footer>
     </aside>
   )

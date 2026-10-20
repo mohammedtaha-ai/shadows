@@ -29,7 +29,7 @@ colour's desktop side).
   touched tests pass with `npm run typecheck` and `npm run lint`
 
 ### F-2 · Settings opens as a dialog with a sidebar of sections, General inside
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-2-dialog-shell-sidebar-of-sections-general
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`; `web/src/app/settings/contract.yaml`; `web/src/app/new-project/new-project-dialog.tsx`
 - Touch: the Files list of Task F-2 in the plan

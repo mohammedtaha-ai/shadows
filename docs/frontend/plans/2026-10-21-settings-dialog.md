@@ -82,7 +82,7 @@ Vitest with happy-dom and the fake daemon (`web/src/app/test-app.tsx`, `@/test/f
   - `the dialog lists its sections in three groups`: on the desktop fixture, the nav text reads,
     in order, `You Account General AI Providers Agents This machine AYLUL character Local Core`.
   - `Escape closes the dialog and keeps the page`: open from `/projects/p1`, press Escape;
-    no dialog, path `/projects/p1`, search has no `settings`, and focus is back on the
+    no dialog, path `/projects/p1/new` (the existing project redirect), search has no `settings`, and focus is back on the
     `Settings` button. A click on the backdrop closes it the same way.
   - `/settings redirects to the dialog`: `startApp('/settings')` → path `/`, dialog open on General.
   - `a desktop-only section in the browser falls back to General`: browser fixture,

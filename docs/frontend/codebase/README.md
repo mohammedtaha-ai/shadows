@@ -179,7 +179,10 @@ it is that folder's `contract.yaml`.
 | `web/src/app/project-settings/remove-project.tsx` | Danger-zone control that removes the project | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/when.ts` | Formats a stored time for the settings page | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/settings/active-projects.tsx` | Editor for how many projects the index keeps active | `web/src/app/settings/contract.yaml` |
-| `web/src/app/settings/settings-page.tsx` | Global settings page, one section per setting | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/settings-dialog.tsx` | URL-selected settings dialog | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections.ts` | Settings section availability | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/use-settings.ts` | Settings URL navigation hooks | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/general.tsx` | General settings content | `web/src/app/settings/contract.yaml` |
 | `web/src/app/shell.tsx` | Two-pane frame every screen sits in | `web/src/app/home.tsx` |
 | `web/src/app/sidebar/agent-list.tsx` | Sidebar agent tree with their conversations | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/delete-thread-dialog.tsx` | Confirms removing a conversation as one command | `web/src/app/sidebar/contract.yaml` |

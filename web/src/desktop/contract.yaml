@@ -7,7 +7,7 @@ public_api:
   prepareDesktop: Subscribe before snapshot; show connection controls until ready; freeze verified origin before API modules load.
   nativeCall: Desktop-only typed invocation; never called from browser startup.
   saveConnection: Persist normalized configuration natively; changed configuration reloads main at Settings.
-  watchConnection: Reload main on configuration identity replacement.
+  watchConnection: Reload main at /?settings=core on configuration identity replacement.
   authAction/cancelLogin: Existing account IPC with credential-free View; no chat-source selection.
   getState/answerRequest/previewRule/approveRule/dismissRefusal/previewHooks/installHooks: Narrow sidecar method wrappers.
   connectCompanion/setCompanionVisible/setCompanionPaused: Subscribe-before-snapshot native presentation state; latest revision wins.

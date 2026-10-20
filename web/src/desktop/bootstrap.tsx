@@ -26,7 +26,7 @@ export async function watchConnection(configurationId:string|null):Promise<()=>v
     if(view.revision<=revision)return
     revision=view.revision
     if(view.configurationId!==configurationId){
-      window.location.hash='/settings';window.location.reload()
+      window.location.hash='/?settings=core';window.location.reload()
     }
   }
   const off=await connectionBridge.listen(accept)

@@ -5,6 +5,7 @@ import { MotionConfig } from 'motion/react'
 import { useProjectEvents } from '@/stream/use-project-events'
 import { NewProjectProvider } from './new-project/new-project-provider'
 import { Sidebar } from './sidebar/sidebar'
+import { SettingsDialog } from './settings/settings-dialog'
 
 export function Shell() {
   const { projectId } = useParams({ strict: false })
@@ -20,6 +21,7 @@ export function Shell() {
             <Outlet />
           </main>
         </div>
+        <SettingsDialog />
       </NewProjectProvider>
     </MotionConfig>
   )
