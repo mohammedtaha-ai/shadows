@@ -7,7 +7,8 @@ public_api:
   Store: Application-owned native model, retained origin, visibility-intent counter and optional tray item.
   visibility_token/show_for_selection: Capture the visibility intent before agent validation; show on the UI thread only if no later visibility action occurred.
   setup_companion: Build or reconstruct a hidden transparent 240px logical window; report construction failure without terminating main.
-  snapshot: Return the current credential-free companion projection.
+  snapshot: Return revisioned visibility/render permission plus bounded native PresenceProjection.
+  present: Update only the conversation presentation; never grant drawing, clear renderer errors, show or focus a window.
   ready: Initialize current surface and apply requested visibility; used after local Canvas resources are ready.
   failed: Revoke drawing and mark the native projection retryable after Canvas failure.
   set_visible: Apply requested visibility, deny rendering before hide and reconcile actual native visibility.
@@ -18,6 +19,8 @@ external_types:
   - tauri::WebviewWindow
   - tauri::Monitor
 obligations:
+  - rule: Presence publication cannot grant rendering or clear a rendering failure.
+    tested_by: windows::companion::state::presence_tests::presence_publication_never_grants_render_permission_or_clears_render_failure
   - rule: Initial permission is denied and hide before initialization wins.
     tested_by: windows::companion::state::tests::companion_initially_denies_drawing_and_hide_before_ready_wins
   - rule: A failed hide reconciles actual visibility and reports error.

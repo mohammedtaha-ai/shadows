@@ -1,5 +1,15 @@
 pub mod binding;
+mod client;
 mod preferences;
+mod preview;
+pub mod projection;
+#[cfg(test)]
+mod tests;
+pub mod watcher;
+#[cfg(test)]
+mod watcher_fixture;
+#[cfg(test)]
+mod watcher_tests;
 use crate::{core_connection::Connection, navigation::MainDestination};
 pub use binding::{BindingView, RequestContext};
 use std::{

@@ -4,7 +4,7 @@ status: current
 source: apps/desktop/src/platform
 responsibility: Isolate credential-free native companion presentation invocations.
 public_api:
-  acceptState: Validate credential-free native projection and retain the newest safe revision.
+  acceptState: Validate credential-free native projection and retain the newest safe revision; optional presence for legacy fixtures validates expressions, scalar bounds and absolute expiry.
   connectCompanion: Subscribe before initial snapshot or readiness; clean late subscriptions and ignore stale replies.
   setCompanionVisible: Request main-only native visibility and validate the returned projection.
   setCompanionPaused: Request main-only native motion pause.

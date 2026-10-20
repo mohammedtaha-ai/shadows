@@ -6,6 +6,7 @@ pub struct CompanionState {
     pub render_allowed: bool,
     pub paused: bool,
     pub error: Option<String>,
+    pub presence: crate::presence::projection::PresenceProjection,
 }
 pub struct Model {
     pub view: CompanionState,
@@ -22,6 +23,7 @@ impl Default for Model {
                 render_allowed: false,
                 paused: false,
                 error: None,
+                presence: crate::presence::projection::PresenceProjection::unbound(),
             },
             requested: true,
             initialized: false,
@@ -36,6 +38,9 @@ impl Model {
         if self.view != before {
             self.view.revision += 1;
         }
+    }
+    pub fn present(&mut self, presence: crate::presence::projection::PresenceProjection) {
+        self.change(|view| view.presence = presence);
     }
     pub fn begin_document(&mut self) -> u64 {
         self.generation += 1;
@@ -137,5 +142,24 @@ mod tests {
         assert!(model.view.render_allowed);
         model.expire(second);
         assert!(model.view.error.is_none());
+    }
+}
+
+#[cfg(test)]
+mod presence_tests {
+    use super::*;
+    #[test]
+    fn presence_publication_never_grants_render_permission_or_clears_render_failure() {
+        let mut model = Model::default();
+        model.fail(false);
+        let error = model.view.error.clone();
+        model.present(crate::presence::projection::PresenceProjection {
+            expression: "success".into(),
+            status: "Reply ready".into(),
+            preview: None,
+        });
+        assert!(!model.view.render_allowed);
+        assert!(!model.view.visible);
+        assert_eq!(model.view.error, error);
     }
 }

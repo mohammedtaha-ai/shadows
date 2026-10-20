@@ -3,12 +3,14 @@ import fixture from '../test/native-presence.json'
 const {navigate,listen,nativeCall}=vi.hoisted(()=>({navigate:vi.fn(),listen:vi.fn(),nativeCall:vi.fn()}))
 vi.mock('@tauri-apps/api/event',()=>({listen}))
 vi.mock('./native',()=>({nativeCall}))
-import {parseBinding} from './presence'
+import {parseBinding,parsePresence} from './presence'
 vi.mock('../router',()=>({router:{load:async()=>{},navigate}}))
 import {parseNavigation,connectNavigation} from './navigation'
 it('consumes actual Rust-serialized binding and closed navigation projections',()=>{
   for(const value of [fixture.unbound,fixture.binding,fixture.target])expect(parseBinding(value)).toEqual(value)
   for(const value of fixture.destinations)expect(parseNavigation(value)).toEqual(value)
+  expect(parsePresence(fixture.companion.presence)).toEqual(fixture.companion.presence)
+  expect(parsePresence(fixture.activePresence)).toEqual(fixture.activePresence)
   expect(fixture.target.target?.projectId).toBeTruthy()
   expect(fixture.target.target?.threadId).toBeTruthy()
 })
@@ -16,6 +18,8 @@ it('refuses endpoint selectors or invalid identities instead of treating them as
   expect(()=>parseNavigation({revision:1,destination:{kind:'url',url:'https://example.com'}})).toThrow()
   expect(()=>parseNavigation({revision:1,destination:{kind:'conversation',projectId:'../escape',threadId:'invalid'}})).toThrow()
   expect(()=>parseBinding({...fixture.binding,configurationId:'foreign'})).toThrow()
+  expect(()=>parsePresence({...fixture.activePresence,expression:'listening'})).toThrow()
+  expect(()=>parsePresence({...fixture.activePresence,preview:{...fixture.activePresence.preview,text:'x'.repeat(241)}})).toThrow()
 })
 
 it('new navigation events win over a delayed snapshot and only the applied revision is acknowledged',async()=>{

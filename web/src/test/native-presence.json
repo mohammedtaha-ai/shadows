@@ -1,4 +1,13 @@
 {
+  "activePresence": {
+    "expression": "success",
+    "preview": {
+      "expiresAtMs": 10000,
+      "id": "preview-1",
+      "text": "تم تجهيز الرد"
+    },
+    "status": "Reply ready"
+  },
   "binding": {
     "agent": "agent-a",
     "configurationId": "00000000-0000-4000-8000-000000000001",
@@ -10,6 +19,11 @@
   "companion": {
     "error": null,
     "paused": false,
+    "presence": {
+      "expression": "idle",
+      "preview": null,
+      "status": "Choose an agent"
+    },
     "renderAllowed": false,
     "revision": 0,
     "visible": false

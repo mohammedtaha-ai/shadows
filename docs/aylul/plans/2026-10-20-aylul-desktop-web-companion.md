@@ -263,7 +263,7 @@ Also cover invalid/deleted agent; wrong-harness or other-agent thread; DB/config
 ### Task 7: Native background presence with replay-safe completion
 
 **Files:**
-- Create: `apps/desktop/src-tauri/src/presence/{client.rs,watcher.rs,projection.rs,preview.rs,tests.rs}`.
+- Create: `apps/desktop/src-tauri/src/presence/{client.rs,watcher.rs,projection.rs,preview.rs,tests.rs,watcher_fixture.rs,watcher_tests.rs}`.
 - Modify: `apps/desktop/src-tauri/src/presence/{mod.rs,binding.rs,contract.yaml}`, `apps/desktop/src-tauri/src/windows/companion/{mod.rs,state.rs,contract.yaml}`, `apps/desktop/src-tauri/src/lib.rs`, `apps/desktop/src-tauri/{Cargo.toml,Cargo.lock}`.
 - Modify wire consumers: `apps/desktop/src/platform/companion-state.ts`, `web/src/desktop/presence.ts`, `web/src/desktop/native-parity.test.ts`; regenerate `web/src/test/native-presence.json`.
 - Update: presence agreement and desktop source map.
@@ -276,7 +276,7 @@ Also cover invalid/deleted agent; wrong-harness or other-agent thread; DB/config
 - Bound reads: 10-second snapshot timeout, 16 MiB per JSON response, 1 MiB per SSE event; reject oversized/malformed input with a fixed unavailable status. Reconnect delay 500 ms doubling to 10 seconds, at most ten failures without caught-up, then explicit Retry.
 - reqwest async/stream, no proxy or redirects; use per-request snapshot timeouts, no total timeout on a healthy SSE connection, and eventsource-stream for framing. Business interpretation and preview sanitization remain local product code.
 
-- [ ] **Step 1:** Add reducer fixtures for all spec §8 state-table rows plus:
+- [x] **Step 1:** Add reducer fixtures for all spec §8 state-table rows plus:
 
 ~~~rust
 assert_eq!(replay_completion.preview, None);
@@ -289,13 +289,13 @@ assert_eq!(after_eight_seconds.preview, None);
 
 Tests: `terminal_before_final_entry_waits`, `terminal_is_monotonic`, `new_turn_replaces_success_timer`, `fork_provenance_is_not_a_new_reply`, `unicode_preview_is_bounded`, `hidden_expiry_does_not_revive`, `deleted_agent_clears_preview`, `provider_without_key_is_blocked`, `unknown_status_is_not_success`.
 
-- [ ] **Step 2:** Add an HTTP/SSE fixture test for subscribe-before-snapshot reconciliation, caught-up/replay suppression, duplicate seq, lagged/fatal, disconnect during a turn, rapid A-to-B retarget, active binding deletion, oversized history/frame, and native watcher continuing while main is hidden/reloaded. Assert fixture requests are reads only and there is one active target subscription.
-- [ ] **Step 3:** Run `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml presence::`; expected RED.
-- [ ] **Step 4:** Implement the watcher and pure mapping from actual operation status, durable ToolCall/Subagent progress and delta presence. Revalidate agent/target on reconnect and a bounded 10-second read-only liveness check while bound; deletion must be discovered even without a deletion event on that thread. The liveness check validates only the selected agent/provider from these existing listing APIs; no history scan, watch per agent or database access is added.
-- [ ] **Step 5:** Resolve preview only after a newly live Completed operation and a reconciled durable `AgentMessage` with matching thread_id/operation_id; choose greatest ordinal. Ignore inherited fork provenance, tool cards, user messages and old initial completions. Wait for a late final entry through bounded snapshot recovery; missing content is no preview.
-- [ ] **Step 6:** Implement the small preview sanitizer: omit fenced code and images/HTML tags, keep link labels/inline code text, remove Markdown decoration, collapse whitespace, truncate by Unicode scalar count. Add hand-authored Arabic/emoji/link/code/HTML fixtures; malformed unsupported structure returns no preview rather than raw markup. Preview text is in memory only and is never logged.
-- [ ] **Step 7:** Run presence tests plus existing native companion state tests and IPC parity tests; expected PASS. Dependency commit classifies eventsource-stream as SSE infrastructure; no general-purpose product-rule dependency is added.
-- [ ] **Step 8:** Commit `feat(companion): observe its bound conversation in the background`.
+- [x] **Step 2:** Add an HTTP/SSE fixture test for subscribe-before-snapshot reconciliation, caught-up/replay suppression, duplicate seq, lagged/fatal, disconnect during a turn, rapid A-to-B retarget, active binding deletion, oversized history/frame, and native watcher continuing while main is hidden/reloaded. Assert fixture requests are reads only and there is one active target subscription.
+- [x] **Step 3:** Run `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml presence::`; expected RED.
+- [x] **Step 4:** Implement the watcher and pure mapping from actual operation status, durable ToolCall/Subagent progress and delta presence. Revalidate agent/target on reconnect and a bounded 10-second read-only liveness check while bound; deletion must be discovered even without a deletion event on that thread. The liveness check validates only the selected agent/provider from these existing listing APIs; no history scan, watch per agent or database access is added.
+- [x] **Step 5:** Resolve preview only after a newly live Completed operation and a reconciled durable `AgentMessage` with matching thread_id/operation_id; choose greatest ordinal. Ignore inherited fork provenance, tool cards, user messages and old initial completions. Wait for a late final entry through bounded snapshot recovery; missing content is no preview.
+- [x] **Step 6:** Implement the small preview sanitizer: omit fenced code and images/HTML tags, keep link labels/inline code text, remove Markdown decoration, collapse whitespace, truncate by Unicode scalar count. Add hand-authored Arabic/emoji/link/code/HTML fixtures; malformed unsupported structure returns no preview rather than raw markup. Preview text is in memory only and is never logged.
+- [x] **Step 7:** Run presence tests plus existing native companion state tests and IPC parity tests; expected PASS. Dependency commit classifies eventsource-stream as SSE infrastructure; no general-purpose product-rule dependency is added.
+- [x] **Step 8:** Commit `feat(companion): observe its bound conversation in the background`.
 
 ### Task 8: Connect normal sends and render the character's live reactions
 

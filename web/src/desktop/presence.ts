@@ -31,3 +31,19 @@ export const companionBinding=async()=>parseBinding(await nativeCall('companion_
 export const selectCompanionAgent=async(agent:string|null)=>parseBinding(await nativeCall('select_companion_agent',{agent}))
 export const targetCompanionThread=async(threadId:string,expectedGeneration:number)=>parseBinding(await nativeCall('target_companion_thread',{threadId,expectedGeneration}))
 export const setCompanionPreviews=async(enabled:boolean)=>parseBinding(await nativeCall('set_companion_previews',{enabled}))
+
+export interface PresencePreview {id:string;text:string;expiresAtMs:number}
+export interface PresenceProjection {expression:'idle'|'thinking'|'working'|'speaking'|'success'|'blocked';status:string;preview:PresencePreview|null}
+export function parsePresence(raw:unknown):PresenceProjection{
+  if(!raw||typeof raw!=='object')throw Error('companion_presence_invalid')
+  const value=raw as PresenceProjection
+  if(!['idle','thinking','working','speaking','success','blocked'].includes(value.expression)||
+    typeof value.status!=='string'||[...value.status].length>160)throw Error('companion_presence_invalid')
+  if(value.preview!==null){
+    const preview=value.preview
+    if(!preview||typeof preview!=='object'||typeof preview.id!=='string'||preview.id.length>512||
+      typeof preview.text!=='string'||[...preview.text].length>240||
+      !Number.isSafeInteger(preview.expiresAtMs)||preview.expiresAtMs<0)throw Error('companion_presence_invalid')
+  }
+  return value
+}

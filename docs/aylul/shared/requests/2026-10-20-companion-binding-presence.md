@@ -54,3 +54,21 @@ UI consumption; the background watcher remains Task 7.
 
 UI consumes native revisions and ignores stale results. Character retains its
 existing visibility, pause and rendering-recovery boundary.
+
+## Background projection implementation
+
+Task 7 extends CompanionState with presence: expression, status, preview.
+Preview is null or {id, text, expiresAtMs}; the Rust-serialized fixture includes
+both empty and active projections. It contains only sanitized presentation text,
+never full history, raw errors or tool/user content. The six expressions are idle,
+thinking, working, speaking, success and blocked; no microphone state is implied.
+Render permission remains separately native-owned.
+
+The native feed uses only runtime identity, selected agent/provider metadata,
+target thread, operations, entries and subscribe read routes. Snapshot/liveness
+work has a 10-second deadline, JSON a 16 MiB bound and events a 1 MiB bound.
+A healthy SSE body has no total timeout. Replay/caught-up and durable sequence
+govern live completion; transient turn-end cannot declare success. Metadata
+liveness runs every 10 seconds. Ten failures without caught-up require explicit
+Local Core Retry. Completion recovery makes at most five bounded entry snapshots.
+Native timers clear a preview after eight seconds even when main is hidden.

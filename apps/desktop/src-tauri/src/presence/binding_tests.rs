@@ -238,7 +238,16 @@ fn write_presence_fixture() {
             thread_id: THREAD.into(),
         }),
     ];
-    let fixture = serde_json::json!({"unbound":unbound,"binding":binding,"target":target,"destinations":destinations,"companion":crate::windows::companion::state::Model::default().view});
+    let active_presence = super::projection::PresenceProjection {
+        expression: "success".into(),
+        status: "Reply ready".into(),
+        preview: Some(super::projection::Preview {
+            id: "preview-1".into(),
+            text: "تم تجهيز الرد".into(),
+            expires_at_ms: 10_000,
+        }),
+    };
+    let fixture = serde_json::json!({"unbound":unbound,"binding":binding,"target":target,"destinations":destinations,"companion":crate::windows::companion::state::Model::default().view,"activePresence":active_presence});
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../web/src/test/native-presence.json");
     if std::env::var("UPDATE_NATIVE_FIXTURES").as_deref() == Ok("1") {

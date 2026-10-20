@@ -284,3 +284,8 @@ pub fn show_for_selection(app: &tauri::AppHandle, token: u64) -> Result<(), Stri
     }
     Ok(())
 }
+
+pub fn present(app: &tauri::AppHandle, presence: crate::presence::projection::PresenceProjection) {
+    model(app, |model| model.present(presence));
+    publish(app);
+}
