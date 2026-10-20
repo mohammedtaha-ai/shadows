@@ -134,6 +134,12 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(runtime::identity))
         .routes(routes!(aylul_profiles::provider_presets))
         .routes(routes!(
+            aylul_profiles::test_provider,
+            aylul_profiles::update_test_provider,
+            aylul_profiles::delete_test_provider
+        ))
+        .routes(routes!(aylul_profiles::test_saved_provider))
+        .routes(routes!(
             aylul_profiles::providers,
             aylul_profiles::create_provider
         ))

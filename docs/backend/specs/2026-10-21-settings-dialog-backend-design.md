@@ -134,9 +134,9 @@ uses its stored key, read the way the harness reads it (`secrets`' scope
 tests: infrastructure, allowed. Parsing the five answers is product logic,
 written here.
 
-> **OPEN — the live answers.** The shapes in 3.1 come from documentation, not a
-> call. OpenRouter and MiniMax (international) are checked by B-3's live run
-> with the keys in `.env`. Anthropic, DeepSeek (whose `/models` host and auth
+> **OPEN — the live answers.** OpenRouter and MiniMax (international) passed B-3's
+> live model-list test on 2026-10-21 with the keys in `.env`; their documented
+> shapes matched. The remaining shapes are accepted on fixtures only. Anthropic, DeepSeek (whose `/models` host and auth
 > are assumed), Moonshot and both China presets stay unchecked: each closes when
 > Mohammed has a key for it and one live run passes; a different shape amends 3.1.
 

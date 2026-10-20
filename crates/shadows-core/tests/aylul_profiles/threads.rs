@@ -44,7 +44,7 @@ async fn aylul_harness_only_in_the_aylul_project() {
     );
 }
 
-async fn core(w: &World) -> Arc<shadows_core::AppCore> {
+pub(super) async fn core(w: &World) -> Arc<shadows_core::AppCore> {
     use shadows_core::testing::{LiveHandles, Runtime, Sessions, SessionsConfig};
     let (runtime, _) = Runtime::start(w.storage.clone()).await.unwrap();
     let root = w._tmp.path().join("home");

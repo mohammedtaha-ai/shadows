@@ -34,22 +34,7 @@ fn validate(input: &mut ProviderInput) -> Result<(), CoreError> {
         return Err(CoreError::ProfileInvalid("invalid provider label".into()));
     }
     let url = input.base_url.as_deref().unwrap_or("");
-    let (scheme, rest) = url.split_once("://").unwrap_or(("", ""));
-    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
-    let host = if authority.starts_with('[') {
-        authority
-            .find(']')
-            .map(|end| &authority[..=end])
-            .unwrap_or("")
-    } else {
-        authority.split(':').next().unwrap_or("")
-    };
-    let secure = scheme == "https"
-        || (scheme == "http" && matches!(host, "localhost" | "127.0.0.1" | "[::1]"));
-    let bad_url = !secure
-        || host.is_empty()
-        || authority.contains(['@', '%', '\\'])
-        || url.chars().any(|c| c.is_whitespace() || c.is_control());
+    validate_url(url)?;
     let mut models = std::collections::BTreeSet::new();
     let bad_models = !(1..=20).contains(&input.models.len())
         || input.models.iter_mut().any(|model| {
@@ -64,7 +49,6 @@ fn validate(input: &mut ProviderInput) -> Result<(), CoreError> {
         });
     if input.name.as_deref().unwrap_or("").is_empty()
         || input.name.as_ref().is_some_and(|v| v.len() > 256)
-        || bad_url
         || bad_models
     {
         return Err(CoreError::ProfileInvalid(
@@ -110,4 +94,27 @@ impl Profiles {
         );
         Ok(store::delete_provider(&self.storage, command, slug).await?)
     }
+}
+
+pub(super) fn validate_url(url: &str) -> Result<(), CoreError> {
+    let (scheme, rest) = url.split_once("://").unwrap_or(("", ""));
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    let host = if authority.starts_with('[') {
+        authority
+            .find(']')
+            .map(|end| &authority[..=end])
+            .unwrap_or("")
+    } else {
+        authority.split(':').next().unwrap_or("")
+    };
+    let secure = scheme == "https"
+        || (scheme == "http" && matches!(host, "localhost" | "127.0.0.1" | "[::1]"));
+    let bad_url = !secure
+        || host.is_empty()
+        || authority.contains(['@', '%', '\\'])
+        || url.chars().any(|c| c.is_whitespace() || c.is_control());
+    if bad_url {
+        return Err(CoreError::ProfileInvalid("invalid provider URL".into()));
+    }
+    Ok(())
 }

@@ -139,6 +139,7 @@ shapes:
 functions:
   preference_key: The one storage key for per-agent AYLUL model preferences.
   service:
+    test_saved_provider: Test with the supplied key or stored key through the shared probe.
     aylul_profile:
       signature: "(&self) -> Result<&str, CoreError>"
       # Configuration-only metadata; absence is AylulNotConfigured.
@@ -567,6 +568,10 @@ obligations:
 
 
 agreements:
+  - between: [test_saved_provider, opening]
+    must: Resolve scope provider/<slug>, name PROVIDER_API_KEY, through secrets.resolve_env.
+    holds: true
+    tested_by: [saved_test_uses_the_stored_key]
   - between: [change_model, turns::send]
     must: >
       refuse while the thread has an open operation: both check

@@ -70,3 +70,31 @@ impl Profiles {
         all()
     }
 }
+
+pub(super) fn listing(id: &str) -> (String, super::listing::Format, Option<String>) {
+    use super::listing::Format;
+    let (url, format) = match id {
+        "minimax" => (
+            "https://api.minimax.io/anthropic/v1/models?limit=100",
+            Format::MiniMax,
+        ),
+        "minimax-china" => (
+            "https://api.minimaxi.com/anthropic/v1/models?limit=100",
+            Format::MiniMax,
+        ),
+        "anthropic" => (
+            "https://api.anthropic.com/v1/models?limit=1000",
+            Format::Anthropic,
+        ),
+        "deepseek" => ("https://api.deepseek.com/models", Format::DeepSeek),
+        "openrouter" => ("https://openrouter.ai/api/v1/models", Format::OpenRouter),
+        "moonshot" => ("https://api.moonshot.ai/v1/models", Format::Moonshot),
+        "moonshot-china" => ("https://api.moonshot.cn/v1/models", Format::Moonshot),
+        _ => unreachable!("compiled preset id"),
+    };
+    (
+        url.into(),
+        format,
+        (id == "openrouter").then(|| "https://openrouter.ai/api/v1/key".into()),
+    )
+}

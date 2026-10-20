@@ -19,13 +19,28 @@ shapes:
   ProviderModelInput:
     source: model.rs
     context_window: Optional; defaults to 200000
+  ProviderTest:
+    source: probe.rs
+    api_key: Input only; Debug redacted
+  SavedProviderTest:
+    source: probe.rs
+    api_key: Optional replacement; Debug redacted
+  ProviderTestOutcome:
+    source: probe.rs
+    message: Core-owned text; never a provider response body
+  ListedModel:
+    source: probe.rs
+    context_window: Optional provider-reported window
   ProviderPreset:
     source: presets.rs
     note: Compiled in; no row
   Agent:
     source: model.rs
     deleted: Permanent identity tombstone
+called_by_other_services:
+  probe: Harness calls the bounded probe with an explicit resolved provider key.
 functions:
+  test_provider: Ask the provider for models using the supplied key without storing it.
   provider_presets: List the compiled presets in their fixed order.
   workspace: Read the hidden project identity with its live agent list.
   new: Construct configuration over the shared storage.
@@ -44,6 +59,18 @@ shared_in_transaction:
   require_live_agent_in: Threads checks creation; Secrets checks agent environment writes inside their transaction.
   require_provider_in: Secrets checks provider existence before storing a provider key.
 obligations:
+  - rule: Probes never store or echo the key or write a command or event.
+    tested_by: [tested_key_is_not_stored_or_echoed]
+  - rule: 401 and 403 refuse the key; connection failure, timeout and 5xx are unreachable.
+    tested_by: [refused_key_reads_key_refused, unreachable_host_reads_unreachable, probe_timeout_is_unreachable]
+  - rule: Other statuses and malformed or oversized bodies are unexpected; redirects are not followed.
+    tested_by: [odd_status_reads_unexpected, redirect_is_not_followed, oversized_body_is_unexpected]
+  - rule: A Custom 404 is successful with listed false; valid models sort by id.
+    tested_by: [custom_without_model_list_is_ok_unlisted]
+  - rule: Each listing reads its window field; OpenRouter keeps tool models only.
+    tested_by: [anthropic_list_reads_max_input_tokens, minimax_list_has_no_windows, deepseek_list_reads_context_window, moonshot_list_reads_context_length, openrouter_list_keeps_tool_models]
+  - rule: New probes require exactly one valid preset or URL and a nonempty key.
+    tested_by: [invalid_probe_input_is_refused]
   - rule: Each model window defaults to 200000 and is within 1000..=10000000.
     tested_by: [model_window_defaults_and_is_bounded]
   - rule: Model ids stay unique, 1..=20 per provider, and never default.

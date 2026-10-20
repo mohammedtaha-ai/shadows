@@ -1,9 +1,12 @@
 //! AYLUL agent configuration.
 mod agents;
+mod listing;
 mod model;
 mod presets;
+pub(crate) mod probe;
 mod providers;
 pub use presets::{PresetRegion, ProviderPreset};
+pub use probe::{ListedModel, ProviderTest, ProviderTestOutcome, SavedProviderTest, TestRefusal};
 mod store;
 
 use crate::db::Storage;

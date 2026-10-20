@@ -241,3 +241,54 @@ async fn provider_presets_route_lists_all() {
     assert_eq!(list[0]["id"], "minimax");
     assert_eq!(list[1]["region"], "china");
 }
+
+#[tokio::test]
+async fn provider_test_route_answers_outcome() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let w = world(true, true).await;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut request = [0; 4096];
+        assert!(socket.read(&mut request).await.unwrap() > 0);
+        socket
+            .write_all(b"HTTP/1.1 401 Refused\r\nContent-Length: 0\r\n\r\n")
+            .await
+            .unwrap();
+    });
+    let (status, r) = call(
+        &w,
+        "POST",
+        "/api/aylul/providers/test",
+        json!({"base_url":url,"api_key":"test-key-not-real"}),
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(r["reason"], "key_refused");
+    server.await.unwrap();
+    assert_eq!(
+        call(&w, "POST", "/api/aylul/providers/missing/test", json!({}))
+            .await
+            .0,
+        404
+    );
+    call(&w, "POST", "/api/aylul/providers", provider()).await;
+    assert_eq!(
+        call(&w, "POST", "/api/aylul/providers/test/test", json!({}))
+            .await
+            .0,
+        409
+    );
+    assert_eq!(
+        call(
+            &w,
+            "POST",
+            "/api/aylul/providers/test",
+            json!({"api_key":""})
+        )
+        .await
+        .0,
+        400
+    );
+}

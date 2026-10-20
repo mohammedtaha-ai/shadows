@@ -67,3 +67,6 @@ mod agents;
 
 #[path = "aylul_profiles/threads.rs"]
 mod threads;
+
+#[path = "aylul_profiles/probe.rs"]
+mod probe;

@@ -167,6 +167,16 @@ when the window is below 100,000. `write_models` still receives ids.
   `crates/shadows-http/src/{aylul_profiles.rs,aylul_profiles_tests.rs,lib.rs}`,
   `api/openapi.json`, `docs/codebase/README.md`
 
+**Mechanical follow-ups:** `crates/shadows-core/src/profiles/providers.rs` extracts
+its existing URL check for reuse by the probe; `crates/shadows-core/tests/aylul_profiles/threads.rs`
+shares its existing core fixture with the saved-key test; `crates/shadows/tests/openapi.rs`
+adds both routes to the inventory. `Cargo.lock` records the infrastructure dependency.
+The literal `/providers/test` path also binds PUT and DELETE to the existing
+handlers for slug `test`: axum's literal POST otherwise shadows those existing
+methods. Both aliases are documented in OpenAPI and its route inventory.
+`docs/backend/specs/2026-10-21-settings-dialog-backend-design.md` updates the
+OPEN trigger after the authorized OpenRouter and MiniMax live checks pass.
+
 **Shapes**
 - `ProviderTest { preset: Option<String>, base_url: Option<String>, api_key: String }`
   (exactly one of `preset` / `base_url`).
