@@ -370,7 +370,9 @@ Automated checks must cover:
 - Retained auth, hook approvals, tray, rendering denial, drawing failure recovery
   and optional companion failure remain independent of one another.
 
-Actual Windows acceptance on an isolated DB/profile copy must demonstrate:
+Actual Windows acceptance uses Mohammed's existing application profile/database
+and real assistant, per his 2026-10-20 execution instruction. Do not copy the
+database or substitute a synthetic runtime for this journey. It must demonstrate:
 
 1. Open desktop with a saved launch config and no daemon; exactly one matching
    daemon starts and the packaged dashboard connects without account login.
@@ -402,5 +404,9 @@ cross-device settings, remote daemon mode, cloud-chat parity, model-or-provider
 changes, personal/work-monitoring capabilities and installer/rebranding work.
 
 No personal credentials/configuration are migrated by writing this spec.
-The linked implementation plan supplies the tasks and awaits review. Product
-changes, reviewer dispatch, push and deployment are outside this design task.
+The linked implementation plan was approved for inline execution. Tasks 1–8 are
+implemented; Task 9 passed local gates and actual-profile readiness on the
+existing physical database, with its original provider and projects. Mohammed
+reserved the actual assistant/native journey for himself and explicitly waived
+the final reviewer. Those physical/provider checks remain pending his acceptance.
+See the dated desktop evidence. Push and deployment remain outside this execution.

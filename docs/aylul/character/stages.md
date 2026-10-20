@@ -51,3 +51,14 @@ Execution: native, user-approved 2026-10-16. No worktrees.
 - Done when: task-specific commands and acceptance in the linked plan have observed results; record missing native evidence explicitly.
 
 C-6 implementation and automated/native-shell checks passed; physical WebView suspension/performance, real DPI transitions, native studio download/audio and user visual acceptance remain open. See docs/evidence/nylra/2026-10-16-aylul-in-window-acceptance.md.
+
+## Shared dashboard companion · 2026-10-20
+
+Tasks 6–8 of the [desktop plan](../plans/2026-10-20-aylul-desktop-web-companion.md)
+implement a changeable selected agent, explicit conversation targeting, native
+background presence and bounded plain reply previews. Ordinary Send/Queue keeps
+its existing command path. Unit and all 41 browser checks passed; the 240px
+Arabic preview was visually inspected. Actual-profile readiness now finds the
+existing agent ay and provider m. The provider/native journey is reserved for
+Mohammed; he waived the final reviewer. Earlier physical DPI/performance gaps
+above remain open.

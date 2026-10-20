@@ -1,171 +1,117 @@
-# NYLRA Windows shell
+# AYLUL Windows desktop
 
-Imported from NYLRA into Shadows on 2026-10-18. Run the repository-root commands
-below from `E:/Globalprojects/shadows`. The native package/identifier stay unchanged
-so this relocation does not create a second installed identity or migrate stored
-credentials. Normal chat now uses Hermes through shadows-backend. Loading the
-Shadows workspace and code context remain separate work.
+The main window packages the existing Shadows dashboard from `web/`. The
+independent transparent companion uses its own entry and native lifecycle.
+The application identifier and existing native account storage remain unchanged.
 
-React/TypeScript + Tauri 2 with separate main and desktop companion windows. Close hides the corresponding window. Left tray click,
-Open NYLRA and Ctrl+Alt+Shift+F12 restore the main panel. Quit NYLRA exits.
-Sign-in consumes backend auth-v1 1.1.0 through native Rust. AYLUL is now a
-procedural Canvas companion on the desktop, with motion controls in main and
-Show/Hide AYLUL in the tray. It starts idle; no simulated operation is reported as real
-work, capture or speech playback.
-
-`npm run dev --prefix apps/desktop` includes an explicitly opened development
-studio for expressions, outfits, mock scenes and PNG export. Production excludes
-that studio. The renderer uses local source and system fonts, without CDN assets.
-Legacy PNG experiments are archived locally outside Git; see
-[`assets/aylul/README.md`](../../assets/aylul/README.md).
-
-Focused checks from `apps/desktop/`:
+Run these commands from `E:/Globalprojects/shadows`:
 
 ```powershell
-npm run test:companion:unit
-npm run test:companion:browser
-npm run test:companion:production
-npm run build
-```
-
-The browser checks use the installed Chrome channel through Playwright. They use
-synthetic IPC for shell presentation tests, not a real backend session. Real
-Windows and remaining physical acceptance are recorded in the
-[independent companion evidence](../../docs/evidence/nylra/2026-10-16-independent-companion-acceptance.md).
-
-From the repository root:
-
-```powershell
-npm ci --prefix apps/desktop
-npm run build --prefix apps/desktop
-cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+npm --prefix apps/desktop run build:desktop
 cargo build --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
-cargo build --locked --manifest-path apps/desktop/hook/Cargo.toml
-$env:NYLRA_BACKEND_URL='https://127.0.0.1:8443'
-$env:NYLRA_DEV_CA=(Resolve-Path '..\shadows-backend\.local-runtime\tls\ca.pem').Path
-$env:AYLUL_HOOK_EXE=(Resolve-Path 'apps/desktop/hook/target/debug/aylul-hook.exe').Path
 & apps/desktop/src-tauri/target/debug/nylra-desktop.exe
 ```
 
-The Windows build requires MSVC/WebView2. The native icon is a synthetic build
-resource reproduced by the N0 `prepare-icon.ps1`, deleted with the probes and kept at
-`41b8e84` (`docs/evidence/nylra/probes/2026-10-10-n0/prepare-icon.ps1`); it is not AYLUL art.
+Build assets before Rust: the debug executable embeds the assembled `dist/`.
+The build requires MSVC and WebView2. `build:desktop` builds the shared dashboard,
+builds the companion, then assembles `dist/index.html` and
+`dist/companion/companion.html`. `npm --prefix apps/desktop run build` is the same
+shared assembly. Use `build:companion` for the character alone.
 
-The commands above run a development build. Browser `npm run dev` previews the
-interface; the independent OS window requires the native executable. This debug
-workflow embeds the latest `dist`, so rebuild the frontend before rebuilding Rust.
-Transparent padding is still part of the rectangular native pointer area.
-The public local CA configures only the native client. A system browser must trust
-that CA separately; do not bypass certificate verification. Windows CurrentUser
-trust does not by itself prove Firefox trust. Start the sibling Docker stack using
-its [handoff](../../../shadows-backend/docs/nylra-local-auth-handoff.md). Credentials
-remain in Rust and DPAPI under the app-data directory, never the webview. Restart
-validates a saved handle before showing account identity. Session/provider failures
-preserve enrollment; new enrollment requires the explicit action.
+## Existing local runtime
 
-Native library acceptance against synthetic local Keycloak (no browser UI claim):
+On first launch, Local Core asks for existing absolute paths to the Shadows
+executable, database, Node, ACP adapter, Claude Code executable and AYLUL
+configuration, plus a literal local HTTP address. Save starts Core automatically.
+It verifies the process instance, canonical database and runtime/configuration
+identities before attaching. Retry never silently replaces a live process.
+Changing the configuration reloads main at Settings. Quitting desktop leaves
+Core running; the next launch verifies and reuses that runtime.
 
-```powershell
-cargo build --locked --manifest-path apps/desktop/src-tauri/Cargo.toml --example auth_state
-$env:NYLRA_ACCEPTANCE_RUNTIME=(Resolve-Path '..\shadows-backend\.local-runtime').Path
-$env:NYLRA_ACCEPTANCE_CHILD=(Resolve-Path 'apps/desktop/src-tauri/target/debug/examples/auth_state.exe').Path
-cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml native_compose -- --ignored
-```
+Use the actual existing dashboard database when continuing an installation.
+Neither the legacy Hermes `assistant.sqlite` nor the hook sidecar `aylul.db` is
+that Core database. Connection preferences contain file references, not provider
+keys. Configure providers and agents through the existing dashboard Settings.
 
-This explicit test reads only the synthetic runtime password in memory, uses
-verified HTTPS and the real loopback listener, exercises fresh-process validation,
-and cleans its encrypted acceptance store. Ordinary tests do not contact Keycloak.
-The earlier native_fixture example remains a primitive-only test. See the
-[joint evidence](../../docs/evidence/nylra/2026-10-11-joint-native-auth.md) for actual
-checks, browser limitations and remaining production gates.
+Native account and local activity controls remain in shared Settings and Local
+activity. Account login is independent of local AYLUL chat. The old desktop
+Hermes chat/source selector and its main IPC registration have been removed.
+`packages/hermes-client` and `services/assistant` retain their separate owners.
+Historical [account chat evidence](../../docs/evidence/aylul/2026-10-19-normal-chat.md)
+records that earlier UI; it does not describe the current composer.
 
-## Normal account chat
-
-Start the existing local Docker stack using the backend handoff. In a separate
-PowerShell terminal, start the installed Hermes with the isolated chat home:
+For retained account/hook functions, the existing launcher may set these public
+runtime references before starting the same executable:
 
 ```powershell
-Set-Location E:/Globalprojects/shadows-backend
-pwsh -NoProfile -File scripts/start-hermes-host.ps1
+$env:NYLRA_BACKEND_URL='https://127.0.0.1:8443'
+$env:NYLRA_DEV_CA=(Resolve-Path '../shadows-backend/.local-runtime/tls/ca.pem').Path
+$env:AYLUL_HOOK_EXE=(Resolve-Path 'apps/desktop/hook/target/debug/aylul-hook.exe').Path
 ```
 
-Keep that terminal running. In another terminal, configure the backend host route:
+Start the sibling backend using its
+[handoff](../../../shadows-backend/docs/nylra-local-auth-handoff.md) when those
+account actions need it. The public development CA configures the native client;
+do not bypass certificate verification. Account credentials remain in native
+DPAPI storage. No credential migration or personal hook installation is implied.
+
+## Bound companion
+
+Choose an AYLUL agent in Settings. You can change it later; viewing another chat
+does not change the selection. Send from that agent's chat, or choose Use with
+companion, to establish its target. The native watcher observes that one chat
+while main is hidden or reloaded. It does not send another turn.
+
+The character shows actual progress and a short plain-text completion preview.
+Previews can be disabled in Settings. Click the character or press Enter/Space
+to open its exact chat. Dragging consumes the click. Hiding or pausing stays in
+effect across replies; no microphone or voice feature is active.
+
+Closing a window hides it. The tray, left tray click and Ctrl+Alt+Shift+F12 retain
+main restoration; Quit NYLRA exits desktop. Companion failure remains separate
+from the main window, account, sidecar and Core runtime.
+
+## Checks and acceptance
 
 ```powershell
-Set-Location E:/Globalprojects/shadows-backend
-docker compose -f compose.yaml -f compose.hermes-host.yaml up -d --no-deps backend
+npm --prefix web run typecheck
+npm --prefix web run lint
+npm --prefix web run test -- --run
+npm --prefix apps/desktop test
+npm --prefix apps/desktop run test:companion:unit
+npm --prefix apps/desktop run test:companion:browser
+npm --prefix apps/desktop run test:companion:production
+cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
 ```
 
-After the frontend/native debug build above, start the desktop with the backend
-URL, its development CA and the hook path set. A local, untracked `start-chat.cmd`
-at the Shadows root can hold these lines:
+Browser checks use installed Chrome with synthetic IPC; they do not establish
+native focus, tray behavior or a real provider response. The development server
+exposes `studio.html` separately; production excludes the studio.
 
-```bat
-set "NYLRA_BACKEND_URL=https://127.0.0.1:8443"
-set "NYLRA_DEV_CA=%~dp0..\shadows-backend\.local-runtime\tls\ca.pem"
-set "AYLUL_HOOK_EXE=%~dp0apps\desktop\hook\target\debug\aylul-hook.exe"
-start "" "%~dp0apps\desktop\src-tauri\target\debug\nylra-desktop.exe"
-```
+The explicit automated native regression
+`AYLUL_RUN_NATIVE=1 node --test apps/desktop/tests/desktop-bootstrap.spec.ts`
+uses a separate temporary profile and fake ACP. Debug flags
+`--acceptance-root <existing absolute directory>` and
+`--acceptance-debug-port <port>` isolate that automated fixture's storage and
+WebViews; release has no such override. These are not the actual-program trial.
 
-Sign in using
-the existing Account section, then type into Chat with AYLUL. Enter sends;
-Shift+Enter inserts a newline. Conversations persist on the backend and reload
-without repeating the original send. Unknown outcomes offer explicit recovery;
-Stop response requests cancellation of that displayed turn.
-
-The launcher opens the desktop only; it does not start Docker or Hermes. Quitting
-the desktop leaves those runtimes running. To stop the owned isolated Hermes
-instance, create its stop file from the backend root:
+Mohammed requested that the current hands-on trial use the actual executable,
+existing profile/database and real assistant without a copy or synthetic turn.
+Current [desktop evidence](../../docs/evidence/aylul/2026-10-20-desktop-web-companion.md)
+separates passed automated gates and actual-profile readiness from that pending
+human journey. For a read-only readiness check, run:
 
 ```powershell
-New-Item -ItemType File -Force .local-runtime/hermes-chat/stop | Out-Null
+pwsh -NoProfile -File apps/desktop/tests/desktop-web-companion.ps1 -VerifyOnly
 ```
 
-Hermes internally resolves its configured MiniMax provider. This chat process
-disables tools, personal memory/context and background review. Its separate
-service key stays in the backend/Hermes runtime. Native auth owns the account
-bearer; renderer and sidecar receive neither credential. Backend 0.5.0 wire types
-are generated upstream; synchronize from `apps/desktop/` with
-`node scripts/sync-backend-api.mjs`.
+Claude Windows packaging can redirect the launcher's LocalAppData path into its
+package LocalCache directory. Set the existing physical database path in Local
+Core Settings; do not create a replacement database when metadata appears empty.
+The original Windows profiles migration 29 may have CRLF bytes. Core accepts
+only that exact SQL variant through SQLx validation and preserves its stored
+checksum; other mismatches remain errors.
 
-The opt-in browser journey `node tests/assistant-acceptance.mjs` requires an owned
-synthetic grant in the sibling backend's local runtime and the test-only Vite
-config on port 4180. It calls the real configured provider. The deterministic
-`node tests/assistant-state.mjs` uses mocked backend responses and makes no model
-calls. Neither enters the production bundle or ordinary `npm test`. See
-[normal-chat evidence](../../docs/evidence/aylul/2026-10-19-normal-chat.md) for
-the separate native HTTP, browser and remaining physical GUI results.
-
-The main window is the agent workspace: Chats and Bots in one left column, the
-conversation with its composer, and Activity, Settings and the account in the same
-shell. Its gate and the pending hands-on journey are in the
-[agent workspace evidence](../../docs/evidence/aylul/2026-10-19-agent-workspace.md).
-
-## Shared dashboard build
-
-From the repository root, run `npm --prefix apps/desktop run build:desktop`.
-It builds `web/` in desktop mode, builds the independent companion, then assembles
-`apps/desktop/dist/index.html` and `dist/companion/companion.html`.
-Build native with `cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml`.
-The existing application identifier and account storage location are retained.
-
-On first launch supply existing absolute Core/DB/Node/adapter/harness/AYLUL config
-paths and a literal local HTTP address. Core starts automatically after Save.
-Changing that configuration reloads main at Settings. Desktop Quit leaves Core
-running; relaunch verifies its process instance and readiness identity before reuse.
-No provider credentials are stored in the native connection preferences.
-
-Debug acceptance: `--acceptance-root <existing absolute directory>` isolates
-preferences, auth and both WebView profiles; it disables the personal sidecar.
-An explicit debug-only `--acceptance-debug-port <port>` gives main and companion
-separate owned CDP endpoints at port and port+1. Release has no acceptance override.
-The automated test runs only with `AYLUL_RUN_NATIVE=1`:
-`node --test apps/desktop/tests/desktop-bootstrap.spec.ts`.
-It uses an isolated real Core with fake-ACP; this is synthetic adapter acceptance.
-
-Retained account and local activity controls now live in the shared Settings and
-Local activity pages. Account login is independent of local chat. The old
-cloud/local conversation selector and its main IPC handlers are retired.
-`npm --prefix apps/desktop run build` now runs shared desktop assembly.
-For the character-only build use `build:companion`; the development server exposes
-`studio.html` as a separate entry, excluded from all production build inputs.
+Earlier physical
+DPI, native hit testing and optimized resource measurements remain open in the
+[independent companion evidence](../../docs/evidence/nylra/2026-10-16-independent-companion-acceptance.md).

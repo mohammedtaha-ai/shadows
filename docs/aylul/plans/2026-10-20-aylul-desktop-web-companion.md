@@ -330,17 +330,18 @@ Pin the first-send model selection/replay path, existing-thread send, queue, adm
 - [x] **Step 5:** Run the focused tests, web typecheck/lint, `npm --prefix apps/desktop run build:desktop`, companion unit tests and the desktop-window/native-visibility browser regressions. Expected PASS.
 - [x] **Step 6:** Commit `feat(companion): react to AYLUL replies and open the bound chat`.
 
-### Task 9: One full gate and an actual Windows journey
+### Task 9: Full gate and actual-program handoff
 
 **Files:**
+- Startup compatibility amendment: crates/shadows-core/src/db/{mod.rs,embedded_migrations.rs}, crates/shadows-core/tests/profile_migration.rs, docs/codebase/README.md and persistence owner §7. Use official SQLx validation for only the known migration-29 CRLF source, without rewriting history.
 - Create: `apps/desktop/tests/desktop-web-companion.ps1`, `docs/evidence/aylul/2026-10-20-desktop-web-companion.md`.
 - Modify: `apps/desktop/tests/{windows-shell.ps1,windows-companion.ps1,companion-native.mjs,native-acl.test.mjs}` only for the new main entry/navigation and independent presence assertions.
 - Update: `apps/desktop/README.md`, `docs/aylul/{README.md,codebase/README.md,ui/stages.md,native/stages.md,character/stages.md}`, implementation status in the spec and this plan's checkboxes.
 
-- [ ] **Step 1:** Build the debug desktop in place and use an isolated DB/profile copy plus a saved native launch config. The driver must assert the eight real Windows cases in spec §9; target owned windows/processes only. Keep account/device actions synthetic unless their real action is specifically authorized.
-- [ ] **Step 2:** Prove background completion with main actually hidden to tray, character show not stealing focus, clicking it restoring the exact conversation, binding switch during an old turn, hide/pause holding during a new reply, native ACL denial, and desktop Quit/relaunch attaching to the same daemon without a repeated send. Record actual request Origin/CSP/IPC outcomes; browser fixtures are insufficient.
-- [ ] **Step 3:** Perform one real AYLUL provider turn using the person's authorized runtime credential setup; never retrieve a key into tool output or change personal config implicitly. If credentials/human interaction are unavailable, record that acceptance as pending; do not label provider/native journey complete.
-- [ ] **Step 4:** Run the root full gate once:
+- [x] **Step 1:** Build the actual debug application, resolve the existing physical database behind Claude Windows path virtualization, save its launch references and verify actual-profile readiness with desktop-web-companion.ps1 -VerifyOnly. No database copy or synthetic assistant turn.
+- [x] **Step 2:** Prepare the eight Windows cases in spec §9 for Mohammed to perform himself, per his latest instruction. Actual hidden-main/focus/tray, binding-switch and retained action acceptance remains explicitly pending his trial.
+- [x] **Step 3:** Verify the existing provider key-presence metadata, agent and projects without reading a credential value or sending a message. Mohammed performs the real provider conversation after handoff.
+- [x] **Step 4:** Run the root full gate once:
   - `cargo fmt --all --check`
   - `cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings`
   - `cargo test --workspace`
@@ -361,9 +362,9 @@ find crates -name '*.rs' -not -path '*/target/*' -print0 \
       END { exit bad }'
 ~~~
 
-- [ ] **Step 5:** Run full relevant client/native gates: web gen:api/typecheck/lint/test/build; `npm --prefix apps/desktop run build:desktop`, retained desktop Node tests, companion unit/browser/production tests; native `cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check`, `cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings`, `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`. Sidecar/hook source is unchanged; report that separately rather than inventing a new migration gate.
-- [ ] **Step 6:** Record commands, counts, versions, actual/synthetic/native/provider distinctions, failures and outstanding hardware gaps. Name any source files over 300 lines with their one responsibility. Re-run a failed/newly affected check only after a relevant fix; no second routine whole-branch run; after completion dispatch the final same-model reviewer requested by Mohammed.
-- [ ] **Step 7:** Commit `test(desktop): verify shared dashboard and bound companion journey`. Verify only the preserved `.mcp.json` change remains, report task commits and any pending acceptance, and stop without pushing.
+- [x] **Step 5:** Run full relevant client/native gates: web gen:api/typecheck/lint/test/build; `npm --prefix apps/desktop run build:desktop`, retained desktop Node tests, companion unit/browser/production tests; native `cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check`, `cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings`, `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`. Sidecar/hook source is unchanged; report that separately rather than inventing a new migration gate.
+- [x] **Step 6:** Record local gate counts, actual-program readiness, migration compatibility and remaining human acceptance. Final reviewer explicitly waived by Mohammed; no reviewer dispatched.
+- [x] **Step 7:** Commit the completed local implementation and readiness evidence. Preserve .mcp.json, leave the actual program/Core running and stop without pushing.
 
 ## Execution notes and technical references
 

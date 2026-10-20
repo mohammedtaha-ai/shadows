@@ -125,6 +125,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/id.rs` | the UUID id newtype pattern | `crates/shadows-core/src/id.rs` |
 | `crates/shadows-core/src/command/` | external-command identity for idempotency | `crates/shadows-core/src/command/mod.rs` |
 | `crates/shadows-core/src/command/derive.rs` | command ids Shadows derives when a caller names none | `crates/shadows-core/src/command/derive.rs` |
+| `crates/shadows-core/src/db/embedded_migrations.rs` | Historical Windows profiles migration source selection | `docs/superpowers/specs/2026-09-21-persistence-api-and-migrations-design.md` |
 | `crates/shadows-core/src/db/` | the database no service owns | `crates/shadows-core/src/db/mod.rs` |
 | `crates/shadows-core/src/runtime/` | the runtime instance's lifecycle | `crates/shadows-core/src/runtime/mod.rs` |
 | `crates/shadows-core/src/testing/` | the test apparatus every crate's tests share | `crates/shadows-core/src/testing/mod.rs` |

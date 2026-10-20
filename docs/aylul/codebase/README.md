@@ -1,10 +1,11 @@
 # Inspected source map
 
-Updated: 2026-10-19 (normal conversation). Paths below are relative to the
+Updated: 2026-10-20 (shared dashboard and bound companion). Paths below are relative to the
 Shadows repository root. Desktop, hook and sidecar retain independent builds;
-no AYLUL module was added to AppCore. Main and independent companion Windows surfaces with a native
-backend login/conversation consumer, Claude Code hook and local sidecar. Mobile
-and semantic project-context integration remain future paths.
+no AYLUL module was added to AppCore. The main Windows surface hosts `web/`;
+native owns verified Core startup and the independent companion watcher.
+Account login, the Claude Code hook and local sidecar remain native functions.
+Mobile and semantic project-context integration remain future paths.
 
 | Source | Owned job | Contract |
 | --- | --- | --- |
