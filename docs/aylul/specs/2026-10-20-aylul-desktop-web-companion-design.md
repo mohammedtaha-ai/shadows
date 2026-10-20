@@ -1,8 +1,9 @@
 # AYLUL desktop: shared web interface and a bound companion
 
 Date: 2026-10-20.
-Status: Proposed for Mohammed's review. No implementation is authorized by this
-document alone.
+Status: Design approved by Mohammed on 2026-10-20; the
+[implementation plan](../plans/2026-10-20-aylul-desktop-web-companion.md) awaits
+review. No implementation is authorized by this document alone.
 
 This file owns the replacement of the desktop main interface with `web/`,
 automatic local Core startup for that desktop, and the existing character's
@@ -402,5 +403,5 @@ cross-device settings, remote daemon mode, cloud-chat parity, model-or-provider
 changes, personal/work-monitoring capabilities and installer/rebranding work.
 
 No personal credentials/configuration are migrated by writing this spec.
-No implementation plan, product changes, reviewer dispatch, push or deployment
-is included in this documentation task.
+The linked implementation plan supplies the tasks and awaits review. Product
+changes, reviewer dispatch, push and deployment are outside this design task.
