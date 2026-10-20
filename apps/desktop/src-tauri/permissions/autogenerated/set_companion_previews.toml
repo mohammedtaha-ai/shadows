@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-companion-previews"
+description = "Enables the set_companion_previews command without any pre-configured scope."
+commands.allow = ["set_companion_previews"]
+
+[[permission]]
+identifier = "deny-set-companion-previews"
+description = "Denies the set_companion_previews command without any pre-configured scope."
+commands.deny = ["set_companion_previews"]

@@ -19,3 +19,11 @@ obligations:
     tested_by: web/src/desktop/bootstrap.test.tsx
   - rule: A failed launch waits for explicit Retry.
     tested_by: web/src/desktop/bootstrap.test.tsx
+
+binding:
+  BindingView: Native revision/generation/configurationId/agent/target/previews; actual Rust fixture owns IPC parity.
+  connectBinding: Subscribe before snapshot; stale revisions and disposed replies are ignored.
+  selectCompanionAgent/targetCompanionThread/setCompanionPreviews: Main-only explicit native mutations.
+navigation:
+  parseNavigation: Accept only three closed native destination kinds with validated identities.
+  connectNavigation: Listen before snapshot, wait for router readiness, acknowledge only an applied revision.

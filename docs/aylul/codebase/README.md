@@ -8,6 +8,8 @@ and semantic project-context integration remain future paths.
 
 | Source | Owned job | Contract |
 | --- | --- | --- |
+| `apps/desktop/src-tauri/src/presence/` | Configuration-scoped companion binding | Colocated `contract.yaml` |
+| `apps/desktop/src-tauri/src/navigation.rs` | Closed pending main navigation | `docs/aylul/shared/requests/2026-10-20-companion-binding-presence.md` |
 | `apps/desktop/src-tauri/src/app_paths.rs` | Native storage location | Existing identifier; isolated debug acceptance override |
 | `apps/desktop/src-tauri/src/core_connection/` | Verified local Core lifecycle | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/windows/main_policy.rs` | Shared main response policy | Windows contract |

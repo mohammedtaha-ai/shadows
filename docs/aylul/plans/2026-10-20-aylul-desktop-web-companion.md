@@ -229,6 +229,7 @@ Cases: confirmed enroll/sign-out-all/revoke, cancellable sign-in, account error 
 - Create: `apps/desktop/src-tauri/src/presence/{mod.rs,binding.rs,preferences.rs,contract.yaml}`, `apps/desktop/src-tauri/src/navigation.rs`.
 - Create: `web/src/desktop/{presence.ts,navigation.ts,native-parity.test.ts}`, `web/src/app/desktop/{companion-settings.tsx,companion-binding.test.tsx}`; generate `web/src/test/native-presence.json` from native serialization tests.
 - Modify native: `apps/desktop/src-tauri/src/{lib.rs,commands/desktop.rs,commands/companion.rs,windows/mod.rs,windows/companion/mod.rs,core_connection/mod.rs}`, `apps/desktop/src-tauri/{build.rs,permissions/companion.toml}`.
+- Correct bootstrap literal-loopback parity in `web/src/api/daemon-origin.ts` with `web/src/desktop/bootstrap.test.tsx`.
 - Modify web: `web/src/app/desktop/native-settings.tsx`, `web/src/main.tsx`, `web/src/desktop/bootstrap.tsx`.
 - Update: presence agreement, changed contracts/maps, `apps/desktop/tests/native-acl.test.mjs`.
 
@@ -240,7 +241,7 @@ Cases: confirmed enroll/sign-out-all/revoke, cancellable sign-in, account error 
 - `PendingNavigation { revision: u64, destination: MainDestination }`; native `Navigation::request(destination) -> PendingNavigation`, `snapshot() -> Option<PendingNavigation>`, `ack(revision: u64)`; main-only snapshot/ack IPC. Ack must name the current revision. Companion only invokes existing open_main_from_companion.
 - Native settings/read failures return fixed error codes; no raw HTTP bodies. serde uses camelCase for IPC. A native `write_presence_fixture` test regenerates `web/src/test/native-presence.json` only with `UPDATE_NATIVE_FIXTURES=1`; JS parity tests consume that artifact, never an independently hand-written shape.
 
-- [ ] **Step 1:** Write `binding_tests` and `navigation_tests`:
+- [x] **Step 1:** Write `binding_tests` and `navigation_tests`:
 
 ~~~rust
 assert_eq!(after.agent.as_deref(), Some("agent-b"));
@@ -253,11 +254,11 @@ assert_eq!(navigation.snapshot().unwrap().destination, new_destination);
 
 Also cover invalid/deleted agent; wrong-harness or other-agent thread; DB/configuration change; corrupt preferences; selecting same agent as a no-op; unbound click to Settings; bound/no-thread click to draft; target click to conversation without creating it; concurrent latest retarget wins.
 
-- [ ] **Step 2:** Add Settings/parity tests: provider/model labels from generated API, selection survives app restart, changing viewed conversation does nothing, visibility/pause works independently of agent queries, stale response ignored, companion denied selection/target/settings-path access.
-- [ ] **Step 3:** Run native `binding_tests`/`navigation_tests` and `npm --prefix web test -- companion-binding`; expected RED.
-- [ ] **Step 4:** Implement atomic preferences, native validation through only fixed read endpoints, generation/revision changes and pending navigation delivered after router readiness. Selecting an agent shows the character through the existing visibility owner; later explicit hide wins. Configuration change invalidates binding before a new connection can become active.
-- [ ] **Step 5:** Run those tests, native ACL tests, web typecheck/lint and native serialization parity checks; expected PASS. No provider key, prompt or reply may exist in either preference file.
-- [ ] **Step 6:** Commit `feat(companion): select an agent and retain its conversation target`.
+- [x] **Step 2:** Add Settings/parity tests: provider/model labels from generated API, selection survives app restart, changing viewed conversation does nothing, visibility/pause works independently of agent queries, stale response ignored, companion denied selection/target/settings-path access.
+- [x] **Step 3:** Run native `binding_tests`/`navigation_tests` and `npm --prefix web test -- companion-binding`; expected RED.
+- [x] **Step 4:** Implement atomic preferences, native validation through only fixed read endpoints, generation/revision changes and pending navigation delivered after router readiness. Selecting an agent shows the character through the existing visibility owner; later explicit hide wins. Configuration change invalidates binding before a new connection can become active.
+- [x] **Step 5:** Run those tests, native ACL tests, web typecheck/lint and native serialization parity checks; expected PASS. No provider key, prompt or reply may exist in either preference file.
+- [x] **Step 6:** Commit `feat(companion): select an agent and retain its conversation target`.
 
 ### Task 7: Native background presence with replay-safe completion
 

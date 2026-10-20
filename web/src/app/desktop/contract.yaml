@@ -7,6 +7,7 @@ components:
   ConnectionSettings: Existing executable/database/configuration references; save or explicit Retry; fixed native errors.
   NativeSettings: Desktop-only account, companion and connection sections; account failure never gates chat.
   AccountPanel: Credential-free native View; confirm new installation, sign-out-all and revoke; independent login cancellation.
+  CompanionSettings: Explicit live agent selection with provider/model labels; independent preview preference; stale replies ignored.
   CompanionControls: Subscribe before snapshot; revisioned visibility and pause; local rendering failure keeps account actions available.
   Activity: Desktop-only local sessions and approval controls.
   SessionsPanel: Show session state/project; preview hook settings before confirmed installation.

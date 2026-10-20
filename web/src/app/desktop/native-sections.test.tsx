@@ -7,6 +7,7 @@ import {ApprovalsPanel} from './approvals-panel'
 import {SessionsPanel} from './sessions-panel'
 import type {AylulState} from '../../desktop/activity-api'
 const {invoke,listen}=vi.hoisted(()=>({invoke:vi.fn(),listen:vi.fn()}))
+vi.mock('./companion-settings',()=>({CompanionSettings:()=>null}))
 vi.mock('@tauri-apps/api/core',()=>({invoke}))
 vi.mock('@tauri-apps/api/event',()=>({listen}))
 let host:HTMLDivElement,root:Root

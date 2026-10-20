@@ -11,7 +11,7 @@ test('generated native permissions grant sidecar access only to main',()=>{
   .flatMap(c=>c.permissions.flatMap(p=>permissions[p]?.commands.allow??[]));
  assert.ok(commands('main').includes('aylul_call'),'main must reach the merged local sidecar');
  assert.ok(!commands('main').includes('assistant_call'),'retired assistant chat must have no main capability');
- for(const command of ['desktop_connection','desktop_connection_config','save_desktop_connection','retry_desktop_connection','open_external']) {
+ for(const command of ['companion_binding','select_companion_agent','target_companion_thread','set_companion_previews','navigation_snapshot','ack_navigation','desktop_connection','desktop_connection_config','save_desktop_connection','retry_desktop_connection','open_external']) {
    assert.ok(commands('main').includes(command),'main must reach local assistant operations');
    assert.ok(!commands('companion').includes(command),'companion must not reach local assistant authority');
  }

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import {describe,it,expect} from 'vitest'
+import {describe,it,expect,vi} from 'vitest'
 import {bootApplication,waitForReady,type ConnectionView} from './runtime'
 
 const view=(revision:number,state:ConnectionView['state'],origin:string|null=null):ConnectionView=>({
@@ -60,4 +60,11 @@ describe('desktop bootstrap',()=>{
     await ready
     expect(calls).toBe(1)
   })
+})
+
+it('accepts every literal IPv4 loopback address accepted by native launch',async()=>{
+  vi.resetModules()
+  const {setDaemonOrigin,daemonOrigin}=await import('../api/daemon-origin')
+  setDaemonOrigin('http://127.0.0.2:4318')
+  expect(daemonOrigin()).toBe('http://127.0.0.2:4318')
 })

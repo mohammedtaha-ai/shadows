@@ -1,0 +1,25 @@
+name: native-companion-binding
+version: 1
+status: current
+source: apps/desktop/src-tauri/src/presence
+responsibility: Retain one configuration-scoped companion conversation binding.
+public_api:
+  snapshot: Revisioned credential-free BindingView or fixed preference error.
+  request: Capture verified ReadyConnection, binding generation and ordered explicit-action ticket.
+  select: Validate a live agent from the existing workspace API; changed selection clears target and advances generation.
+  retarget: Validate thread ID, project, AYLUL harness, selected profile and nonremoved status; latest explicit action wins.
+  previews: Persist the person's preview opt-in without conversation content.
+  configuration_changed: Clear prior selection before a changed Core configuration can become active.
+  destination: Resolve only CompanionSettings, AgentDraft or validated Conversation without creating a thread.
+obligations:
+  - rule: Preferences contain only configuration identity, agent, target IDs and previews; corrupted preferences are not silently overwritten.
+    tested_by: [binding_changes_clear_target_and_persist_without_content, corrupt_preferences_fail_without_silently_replacing_them]
+  - rule: Old generations and older explicit actions cannot replace newer binding state.
+    tested_by: [latest_explicit_retarget_wins_and_old_generation_is_rejected, database_change_invalidates_inflight_work_and_clears_selection]
+  - rule: Binding and navigation validation perform reads only against the captured runtime identity.
+    tested_by: [validation_rejects_deleted_unknown_and_wrong_thread, click_destination_is_closed_and_does_not_create_a_thread]
+  - rule: IPC projections are serialized by native code and consumed by JS parity tests.
+    tested_by: [write_presence_fixture, web/src/desktop/native-parity.test.ts]
+gaps:
+  - at: background presence
+    gap: Task 7 adds native read-only observation and reaction projection.

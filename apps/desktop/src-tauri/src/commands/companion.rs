@@ -10,10 +10,13 @@ pub fn allowed_caller(label: &str, command: &str) -> bool {
         | "set_companion_paused"
         | "auth_action"
         | "aylul_call"
-        | "assistant_call"
-        | "assistant_local_call"
-        | "assistant_sources"
         | "cancel_login"
+        | "companion_binding"
+        | "select_companion_agent"
+        | "target_companion_thread"
+        | "set_companion_previews"
+        | "navigation_snapshot"
+        | "ack_navigation"
         | "hide_main" => label == "main",
         _ => false,
     }
@@ -81,7 +84,20 @@ pub async fn drag_companion(window: tauri::WebviewWindow) -> Result<(), String> 
 #[tauri::command]
 pub async fn open_main_from_companion(window: tauri::WebviewWindow) -> Result<(), String> {
     guard(&window, "open_main_from_companion")?;
-    companion::on_ui(window.app_handle().clone(), |app| {
+    let presence = window
+        .app_handle()
+        .state::<std::sync::Arc<crate::presence::Presence>>()
+        .inner()
+        .clone();
+    let destination = tauri::async_runtime::spawn_blocking(move || presence.destination())
+        .await
+        .map_err(|_| "main_open_failed")?;
+    companion::on_ui(window.app_handle().clone(), move |app| {
+        use tauri::Emitter;
+        let pending = app
+            .state::<std::sync::Arc<crate::navigation::Navigation>>()
+            .request(destination);
+        let _ = app.emit_to("main", "main-navigation", pending);
         crate::windows::open_main(app).map_err(|_| "main_open_failed".into())
     })
     .await
@@ -101,11 +117,15 @@ mod tests {
                 "drag_companion",
                 "open_main_from_companion",
                 "auth_action",
-                "assistant_local_call",
-                "assistant_sources",
                 "aylul_call",
                 "cancel_login",
                 "hide_main",
+                "companion_binding",
+                "select_companion_agent",
+                "target_companion_thread",
+                "set_companion_previews",
+                "navigation_snapshot",
+                "ack_navigation",
             ] {
                 let expected = match name {
                     "companion_state" => label == "main" || label == "companion",

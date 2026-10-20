@@ -177,6 +177,12 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Enables the ack_navigation command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-ack-navigation",
+          "markdownDescription": "Enables the ack_navigation command without any pre-configured scope."
+        },
+        {
           "description": "Enables the auth_action command without any pre-configured scope.",
           "type": "string",
           "const": "allow-auth-action",
@@ -193,6 +199,12 @@
           "type": "string",
           "const": "allow-cancel-login",
           "markdownDescription": "Enables the cancel_login command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the companion_binding command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-companion-binding",
+          "markdownDescription": "Enables the companion_binding command without any pre-configured scope."
         },
         {
           "description": "Enables the companion_failed command without any pre-configured scope.",
@@ -237,6 +249,12 @@
           "markdownDescription": "Enables the hide_main command without any pre-configured scope."
         },
         {
+          "description": "Enables the navigation_snapshot command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-navigation-snapshot",
+          "markdownDescription": "Enables the navigation_snapshot command without any pre-configured scope."
+        },
+        {
           "description": "Enables the open_external command without any pre-configured scope.",
           "type": "string",
           "const": "allow-open-external",
@@ -261,10 +279,22 @@
           "markdownDescription": "Enables the save_desktop_connection command without any pre-configured scope."
         },
         {
+          "description": "Enables the select_companion_agent command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-select-companion-agent",
+          "markdownDescription": "Enables the select_companion_agent command without any pre-configured scope."
+        },
+        {
           "description": "Enables the set_companion_paused command without any pre-configured scope.",
           "type": "string",
           "const": "allow-set-companion-paused",
           "markdownDescription": "Enables the set_companion_paused command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the set_companion_previews command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-set-companion-previews",
+          "markdownDescription": "Enables the set_companion_previews command without any pre-configured scope."
         },
         {
           "description": "Enables the set_companion_visible command without any pre-configured scope.",
@@ -273,10 +303,22 @@
           "markdownDescription": "Enables the set_companion_visible command without any pre-configured scope."
         },
         {
+          "description": "Enables the target_companion_thread command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-target-companion-thread",
+          "markdownDescription": "Enables the target_companion_thread command without any pre-configured scope."
+        },
+        {
           "description": "Local companion presentation and explicit main navigation only.",
           "type": "string",
           "const": "companion-actions",
           "markdownDescription": "Local companion presentation and explicit main navigation only."
+        },
+        {
+          "description": "Denies the ack_navigation command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-ack-navigation",
+          "markdownDescription": "Denies the ack_navigation command without any pre-configured scope."
         },
         {
           "description": "Denies the auth_action command without any pre-configured scope.",
@@ -295,6 +337,12 @@
           "type": "string",
           "const": "deny-cancel-login",
           "markdownDescription": "Denies the cancel_login command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the companion_binding command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-companion-binding",
+          "markdownDescription": "Denies the companion_binding command without any pre-configured scope."
         },
         {
           "description": "Denies the companion_failed command without any pre-configured scope.",
@@ -339,6 +387,12 @@
           "markdownDescription": "Denies the hide_main command without any pre-configured scope."
         },
         {
+          "description": "Denies the navigation_snapshot command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-navigation-snapshot",
+          "markdownDescription": "Denies the navigation_snapshot command without any pre-configured scope."
+        },
+        {
           "description": "Denies the open_external command without any pre-configured scope.",
           "type": "string",
           "const": "deny-open-external",
@@ -363,16 +417,34 @@
           "markdownDescription": "Denies the save_desktop_connection command without any pre-configured scope."
         },
         {
+          "description": "Denies the select_companion_agent command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-select-companion-agent",
+          "markdownDescription": "Denies the select_companion_agent command without any pre-configured scope."
+        },
+        {
           "description": "Denies the set_companion_paused command without any pre-configured scope.",
           "type": "string",
           "const": "deny-set-companion-paused",
           "markdownDescription": "Denies the set_companion_paused command without any pre-configured scope."
         },
         {
+          "description": "Denies the set_companion_previews command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-set-companion-previews",
+          "markdownDescription": "Denies the set_companion_previews command without any pre-configured scope."
+        },
+        {
           "description": "Denies the set_companion_visible command without any pre-configured scope.",
           "type": "string",
           "const": "deny-set-companion-visible",
           "markdownDescription": "Denies the set_companion_visible command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the target_companion_thread command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-target-companion-thread",
+          "markdownDescription": "Denies the target_companion_thread command without any pre-configured scope."
         },
         {
           "description": "Account, local sidecar and companion controls for main only.",

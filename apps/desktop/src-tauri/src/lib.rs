@@ -4,6 +4,8 @@ pub mod auth;
 mod commands;
 mod core_connection;
 pub mod native_login;
+mod navigation;
+mod presence;
 mod sidecar;
 mod windows;
 
@@ -11,6 +13,12 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             commands::hide_main,
+            commands::desktop::companion_binding,
+            commands::desktop::select_companion_agent,
+            commands::desktop::target_companion_thread,
+            commands::desktop::set_companion_previews,
+            commands::desktop::navigation_snapshot,
+            commands::desktop::ack_navigation,
             commands::desktop::desktop_connection,
             commands::desktop::desktop_connection_config,
             commands::desktop::save_desktop_connection,
@@ -45,8 +53,19 @@ pub fn run() {
             let paths = app_paths::AppPaths::resolve(app)?;
             app.manage(auth::AuthController::new(paths.auth()));
             let connection = core_connection::Connection::new(paths.root().to_path_buf());
+            let presence = presence::Presence::new(paths.root().to_path_buf(), connection.clone());
+            let emitter = app.handle().clone();
+            presence.set_notifier(std::sync::Arc::new(move |view| {
+                let _ = emitter.emit_to("main", "companion-binding", view);
+            }));
+            app.manage(presence.clone());
+            app.manage(std::sync::Arc::new(navigation::Navigation::default()));
+            let binding = std::sync::Arc::downgrade(&presence);
             let owner = app.handle().clone();
             connection.set_notifier(std::sync::Arc::new(move |view| {
+                if let Some(presence) = binding.upgrade() {
+                    presence.configuration_changed(view.configuration_id.clone());
+                }
                 let _ = owner.emit_to("main", "desktop-connection", view);
             }));
             app.manage(connection.clone());

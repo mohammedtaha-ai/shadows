@@ -165,6 +165,20 @@ impl Connection {
         }
         self.notify();
     }
+    #[cfg(test)]
+    pub(crate) fn for_binding_test(ready: ReadyConnection) -> Arc<Self> {
+        let directory =
+            std::env::temp_dir().join(format!("unused-binding-{}", uuid::Uuid::new_v4()));
+        let connection = Self::new(directory);
+        {
+            let mut inner = connection.inner.lock().unwrap();
+            inner.view.configuration_id = Some(ready.configuration_id.clone());
+            inner.view.origin = Some(ready.origin.clone());
+            inner.view.state = "ready";
+            inner.ready = Some(ready);
+        }
+        connection
+    }
     pub fn retry(&self) -> ConnectionView {
         if let Some((epoch, config)) = self.begin() {
             let result = launch::ensure_running(&config, &self.root, Duration::from_secs(30));

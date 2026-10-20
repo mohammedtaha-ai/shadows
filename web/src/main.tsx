@@ -10,4 +10,5 @@ void bootApplication(isDesktop(),async ()=>{
 },async ()=>{
   const {mountApplication}=await import('./app-root')
   mountApplication(root)
+  if(isDesktop()){const {connectNavigation}=await import("./desktop/navigation");await connectNavigation()}
 }).catch(()=>{root.textContent='Unable to start AYLUL. Reload to retry.'})

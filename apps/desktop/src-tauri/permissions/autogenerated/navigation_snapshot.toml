@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-navigation-snapshot"
+description = "Enables the navigation_snapshot command without any pre-configured scope."
+commands.allow = ["navigation_snapshot"]
+
+[[permission]]
+identifier = "deny-navigation-snapshot"
+description = "Denies the navigation_snapshot command without any pre-configured scope."
+commands.deny = ["navigation_snapshot"]

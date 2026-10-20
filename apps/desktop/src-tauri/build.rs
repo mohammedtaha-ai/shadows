@@ -2,6 +2,12 @@ fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
             "hide_main",
+            "companion_binding",
+            "select_companion_agent",
+            "target_companion_thread",
+            "set_companion_previews",
+            "navigation_snapshot",
+            "ack_navigation",
             "desktop_connection",
             "desktop_connection_config",
             "save_desktop_connection",

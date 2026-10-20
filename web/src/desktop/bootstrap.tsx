@@ -21,11 +21,17 @@ export async function prepareDesktop():Promise<void>{
   }finally{root.unmount()}
 }
 export async function watchConnection(configurationId:string|null):Promise<()=>void>{
-  return connectionBridge.listen(view=>{
+  let revision=-1
+  const accept=(view:ConnectionView)=>{
+    if(view.revision<=revision)return
+    revision=view.revision
     if(view.configurationId!==configurationId){
       window.location.hash='/settings';window.location.reload()
     }
-  })
+  }
+  const off=await connectionBridge.listen(accept)
+  try{accept(await connectionBridge.snapshot())}catch(error){off();throw error}
+  return off
 }
 export function externalLinks():void{
   document.addEventListener('click',event=>{

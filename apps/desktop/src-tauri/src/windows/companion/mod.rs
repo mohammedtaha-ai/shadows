@@ -12,6 +12,7 @@ pub struct Store {
     origin: Mutex<Option<(i32, i32)>>,
     toggle: Mutex<Option<tauri::menu::MenuItem<tauri::Wry>>>,
     rebuilding: Mutex<bool>,
+    visibility_intent: std::sync::atomic::AtomicU64,
 }
 fn model<T>(app: &tauri::AppHandle, f: impl FnOnce(&mut Model) -> T) -> T {
     f(&mut app
@@ -217,6 +218,9 @@ fn apply_visibility(app: &tauri::AppHandle) -> Result<CompanionState, String> {
     result.map(|_| state)
 }
 pub fn set_visible(app: &tauri::AppHandle, visible: bool) -> Result<CompanionState, String> {
+    app.state::<Store>()
+        .visibility_intent
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     model(app, |m| m.request_visible(visible));
     let retry = visible
         && (app.get_webview_window("companion").is_none()
@@ -267,4 +271,16 @@ pub async fn on_ui<T: Send + 'static>(
     })
     .await
     .map_err(|_| "companion_unavailable".to_string())??
+}
+
+pub fn visibility_token(app: &tauri::AppHandle) -> u64 {
+    app.state::<Store>()
+        .visibility_intent
+        .load(std::sync::atomic::Ordering::SeqCst)
+}
+pub fn show_for_selection(app: &tauri::AppHandle, token: u64) -> Result<(), String> {
+    if visibility_token(app) == token {
+        set_visible(app, true)?;
+    }
+    Ok(())
 }

@@ -1,5 +1,6 @@
 use crate::core_connection::{config::LaunchConfig, Connection, ConnectionView};
 use std::sync::Arc;
+use tauri::Manager;
 
 fn main_only(window: &tauri::WebviewWindow) -> Result<(), String> {
     if window.label() == "main" {
@@ -86,4 +87,81 @@ pub fn open_external(window: tauri::WebviewWindow, url: String) -> Result<(), St
     }
     #[cfg(not(windows))]
     Err("external_open_unavailable".into())
+}
+
+#[tauri::command]
+pub fn companion_binding(
+    window: tauri::WebviewWindow,
+    presence: tauri::State<'_, Arc<crate::presence::Presence>>,
+) -> Result<crate::presence::BindingView, String> {
+    main_only(&window)?;
+    presence.snapshot().map_err(str::to_owned)
+}
+#[tauri::command]
+pub async fn select_companion_agent(
+    window: tauri::WebviewWindow,
+    presence: tauri::State<'_, Arc<crate::presence::Presence>>,
+    agent: Option<String>,
+) -> Result<crate::presence::BindingView, String> {
+    main_only(&window)?;
+    let request = presence.request(None).map_err(str::to_owned)?;
+    let before = presence.view().generation;
+    let token = crate::windows::companion::visibility_token(window.app_handle());
+    let presence = presence.inner().clone();
+    let result = tauri::async_runtime::spawn_blocking(move || presence.select(request, agent))
+        .await
+        .map_err(|_| "companion_core_unavailable")?
+        .map_err(str::to_owned)?;
+    if result.agent.is_some() && result.generation != before {
+        let app = window.app_handle().clone();
+        crate::windows::companion::on_ui(app, move |app| {
+            crate::windows::companion::show_for_selection(app, token)
+        })
+        .await?;
+    }
+    Ok(result)
+}
+#[tauri::command]
+pub async fn target_companion_thread(
+    window: tauri::WebviewWindow,
+    presence: tauri::State<'_, Arc<crate::presence::Presence>>,
+    thread_id: String,
+    expected_generation: u64,
+) -> Result<crate::presence::BindingView, String> {
+    main_only(&window)?;
+    let request = presence
+        .request(Some(expected_generation))
+        .map_err(str::to_owned)?;
+    let presence = presence.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || presence.retarget(request, thread_id))
+        .await
+        .map_err(|_| "companion_core_unavailable")?
+        .map_err(str::to_owned)
+}
+#[tauri::command]
+pub fn set_companion_previews(
+    window: tauri::WebviewWindow,
+    presence: tauri::State<'_, Arc<crate::presence::Presence>>,
+    enabled: bool,
+) -> Result<crate::presence::BindingView, String> {
+    main_only(&window)?;
+    presence.previews(enabled).map_err(str::to_owned)
+}
+#[tauri::command]
+pub fn navigation_snapshot(
+    window: tauri::WebviewWindow,
+    navigation: tauri::State<'_, Arc<crate::navigation::Navigation>>,
+) -> Result<Option<crate::navigation::PendingNavigation>, String> {
+    main_only(&window)?;
+    Ok(navigation.snapshot())
+}
+#[tauri::command]
+pub fn ack_navigation(
+    window: tauri::WebviewWindow,
+    navigation: tauri::State<'_, Arc<crate::navigation::Navigation>>,
+    revision: u64,
+) -> Result<(), String> {
+    main_only(&window)?;
+    navigation.ack(revision);
+    Ok(())
 }
