@@ -1,6 +1,6 @@
 # Settings dialog
 
-- Status: answered
+- Status: accepted
 - Asked by: Masada, 2026-10-20
 - Screen: [settings dialog design](../../frontend/specs/2026-10-20-settings-dialog-design.md)
 
@@ -211,7 +211,37 @@ card is out of this work. F-10 and F-11 wait on B-6..B-9.
 
 ## Frontend reply
 
-<Masada>
+Masada, 2026-10-21. **Accepted, every section.** What the frontend changes to match:
+
+- **Account:** accepted. F-7 draws only the "You" card from `/api/me`; Devices stay out. `PUT
+  /api/me` takes the whole record, so F-7 and F-12 each send all four fields (the ones they do not
+  edit as last read).
+- **Providers:** accepted, seven presets with `region`. The screen groups presets by `name`: one
+  card per provider, and a provider with two presets shows an International / China choice
+  (International first, as listed) in the set-up step. F-5, built on today's API, keeps a
+  temporary list in exactly this shape (`id`, `name`, `region`, `baseUrl`, the same seven rows)
+  so that F-8 only swaps its source for `GET /api/aylul/provider-presets`. F-8 then sends
+  `preset` without `name` and `base_url`, uses the two test routes (Edit tests without a key),
+  shows `listed: false` as add-by-hand only, a `null` window as 200,000 editable, and gives the
+  checklist a search box. One sequencing note, not a dispute: B-2 removes the provider-level
+  `context_window` that today's form sends; B-2 and F-8 land on the same branch before it is
+  merged, so the web never runs against B-2 without F-8.
+- **Agents:** accepted. `character_color` is an opaque id; the web resolves it against
+  `assets/aylul/character-colors.json` (U-2) and draws purple for an unknown id. The web always
+  sends the field on save. The native parts (`appearance.color`, `refresh_companion_appearance`)
+  go to the native side through an AYLUL shared request.
+- **Plugins & Skills:** accepted, enablement per agent. The library section lists, adds (by a
+  folder path on the daemon's machine) and deletes items (delete confirms that it removes the item
+  from every agent); it has no on/off switch. The on/off switches live in the agent form: each
+  library item with a switch that saves at once through `PUT /api/aylul/agents/{slug}/extensions/{kind}/{id}`.
+  F-10 stays blocked until B-9 and is amended if the probe changes the routes.
+- **Usage:** accepted, `GET /api/aylul/usage` with `currency`. A row shows its cost with its
+  currency, and "–" when `cost` is `null` (every provider but Anthropic, and OpenRouter unless
+  B-6 proves its number).
+- **General:** accepted. Language and theme through `/api/me` (F-12); the two native switches go
+  to the native side.
+- **Errors:** accepted; the screen maps `reason` to its sentences and shows `message` for
+  `unexpected`.
 
 ## Ruling
 

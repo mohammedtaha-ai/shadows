@@ -179,24 +179,30 @@ Vitest with happy-dom and the fake daemon (`web/src/app/test-app.tsx`, `@/test/f
   `web/src/app/agents/provider-picker.test.tsx`
 
 **Interfaces:**
-- Produces: `type Region = { id: 'international' | 'china'; label: string; baseUrl: string }`;
-  `PRESETS: { id: string; name: string; regions: Region[] }[]` (the first region is the default)
-  with, in order:
-  `minimax` MiniMax: International `https://api.minimax.io/anthropic`, China
-  `https://api.minimaxi.com/anthropic`; `anthropic` Anthropic: `https://api.anthropic.com`;
-  `deepseek` DeepSeek: `https://api.deepseek.com/anthropic`; `openrouter` OpenRouter:
-  `https://openrouter.ai/api`; `moonshot` Moonshot (Kimi): International
-  `https://api.moonshot.ai/anthropic`, China `https://api.moonshot.cn/anthropic`. A one-URL
-  preset has one region with id `international`. (Spec OPEN: replaced by the backend's list in F-8.)
-  `presetFor(baseUrl: string): { preset: Preset; region: Region } | null` matches any region's URL.
-  `ProviderForm` gains props `preset: Preset | null` and `region: Region['id']`: with a preset,
-  the name is prefilled with the preset's name, the URL is set from the chosen region and its
-  field is not drawn; a preset with two regions draws a `Region` radio group (International,
-  China; International checked for a new provider); with `null` (Custom), name and URL are drawn
-  and required.
+- Produces: `type Preset = { id: string; name: string; region: 'international' | 'china' | null;
+  baseUrl: string }`, the request answer's shape; `PRESETS: Preset[]`, its seven rows in its order:
+  `minimax` MiniMax international `https://api.minimax.io/anthropic`; `minimax-china` MiniMax
+  china `https://api.minimaxi.com/anthropic`; `anthropic` Anthropic null `https://api.anthropic.com`;
+  `deepseek` DeepSeek null `https://api.deepseek.com/anthropic`; `openrouter` OpenRouter null
+  `https://openrouter.ai/api`; `moonshot` Moonshot (Kimi) international
+  `https://api.moonshot.ai/anthropic`; `moonshot-china` Moonshot (Kimi) china
+  `https://api.moonshot.cn/anthropic`. F-8 replaces this constant by the backend's list; nothing
+  else changes then.
+  `presetGroups(presets: Preset[]): { name: string; presets: Preset[] }[]`: one group per `name`,
+  in first-seen order, its presets in list order (International first).
+  `presetFor(baseUrl: string): Preset | null`.
+  `ProviderForm` gains prop `group: { name: string; presets: Preset[] } | null` and its chosen
+  `Preset`: with a group, the name is prefilled with the group's name, the URL is set from the
+  chosen preset and its field is not drawn; a group of two draws a `Region` radio group
+  (International, China; the first checked for a new provider); with `null` (Custom), name and
+  URL are drawn and required. Until F-8, the POST still sends today's `name` and `base_url`.
 
 - [ ] **Step 1: Write the failing tests:**
-  - `search filters the presets and keeps Custom`: type `mini` → cards `MiniMax`, `Custom` only.
+  - `search filters the presets and keeps Custom`: type `mini` → cards `MiniMax`, `Custom` only
+    (one MiniMax card for its two presets).
+  - `presets are grouped by name`: `presetGroups(PRESETS)` names are, in order, `MiniMax`,
+    `Anthropic`, `DeepSeek`, `OpenRouter`, `Moonshot (Kimi)`; MiniMax's presets are
+    `minimax`, `minimax-china`.
   - `no match leaves Custom and says so`: type `zzz` → `Custom` and "No provider matches.".
   - `a preset hides the URL and sends it`: pick MiniMax, Next, type a key and models, Save → the
     `POST /api/aylul/providers` body has `base_url: 'https://api.minimax.io/anthropic'` and
@@ -260,32 +266,34 @@ answer fixes the shapes; each follows the TDD shape above.
 | Task | Builds (spec section) | Needs from the request |
 |---|---|---|
 | F-7 | Account: "You" card (name, what AYLUL calls you). Devices left this plan (spec Account): the account server and device management are a separate piece of work | Account: the person |
-| F-8 | Providers: Label shown as "Provider (Label)", Test connection, model checklist with default and hand-added ids, per-model context window, presets from the backend with their regions (MiniMax and Moonshot: International and China), replacing F-5's `PRESETS` (closes the spec's OPEN) | Providers: label, test, models, presets with regions |
+| F-8 | Providers: Label shown as "Provider (Label)"; `GET /api/aylul/provider-presets` replaces F-5's `PRESETS` (same shape, grouped by name, so the Region choice stays); save sends `preset` without `name`/`base_url`; Test connection through `POST /api/aylul/providers/test` and, on Edit without a key, `POST /api/aylul/providers/{slug}/test`; `reason` mapped to the spec's sentences, `message` for `unexpected`; `listed: false` offers add-by-hand only; model checklist with search, default and hand-added ids; per-model context window (`null` shows 200,000, editable); the provider-level window field goes (B-2). Lands on the same branch as B-2 | Providers (B-1, B-2, B-3) |
 | F-9 | Agents: character colour swatches; steps written below | Agents: character colour |
-| F-10 | Plugins & Skills: the shared library section, listed in the nav, and the agent form's Plugins & Skills picker (tests below) | Plugins & Skills: library and each agent's enabled items |
-| F-11 | Usage section with period picker, by provider and by model, listed in the nav | Usage |
-| F-12 | General: language and theme read and written with the person in Core (`/api/me`, the same in browser and desktop); start with Windows and hide to tray on close through native, desktop only | General; Account: the person |
+| F-10 | Plugins & Skills: the shared library section (list, add by folder path, remove with confirm; no switch), listed in the nav, and the agent form's per-agent switches (tests below) | Plugins & Skills (B-9, after the B-8 probe) |
+| F-11 | Usage section from `GET /api/aylul/usage?from&to` (RFC 3339): period picker, by provider and by model, cost with its `currency` and "–" when `cost` is `null`, listed in the nav | Usage (B-6, B-7) |
+| F-12 | General: language and theme read and written with the person in Core (`/api/me`, whole record on PUT; `theme` default `system`); start with Windows and hide to tray on close through native, desktop only (native request) | Account: the person (B-5); native switches |
 
 ### Task F-10: the agent form's Plugins & Skills picker (part of F-10)
 
-The library section's steps are written with the request's answer; this part's tests are fixed
-now. Field names follow the answer (asked: the library items `{ id, name, description, enabled }`
-and, on `Agent`/`AgentInput`, the ids enabled for that agent).
+The library section's steps are written once B-9 fixes the routes after its probe; this part's
+tests follow the answer's intended routes: `GET /api/aylul/agents/{slug}/extensions` →
+`{ plugins: AgentItem[], skills: AgentItem[] }` (`AgentItem = { id, name, description, enabled }`)
+and `PUT /api/aylul/agents/{slug}/extensions/{kind}/{id}` `{ enabled, command_id }` → `AgentItem`.
 
 **Files** (with the rest of F-10's): Create `web/src/app/agents/agent-extensions.tsx`; Modify
 `web/src/app/agents/agent-settings.tsx` (`AgentForm` holds the part after Character colour),
-`web/src/api/aylul-profiles.ts` (the library query), `web/src/app/agents/contract.yaml`,
+`web/src/api/aylul-profiles.ts` (`agentExtensionsQuery(slug)`, `setAgentExtension(slug, kind, id,
+enabled, commandId)`), `web/src/app/agents/contract.yaml`,
 `docs/frontend/codebase/README.md`. Test: `web/src/app/agents/agent-extensions.test.tsx` (new).
 
 - [ ] **Write the failing tests** in `agent-extensions.test.tsx`:
-  - `the form lists the library's items for this agent`: library with plugin `git` (on) and skill
-    `review` (on); open agent `ay` that enabled `git` → a group `Plugins & Skills` with checkboxes
-    `git` (checked) and `review` (unchecked), each with its description.
-  - `a new agent starts with nothing ticked`: New agent → both unchecked.
-  - `ticking is saved with the form`: tick `review`, Save agent → the PUT body carries both ids
-    for `ay`; before Save no request was sent.
-  - `an item off in the library is shown disabled and kept`: `git` off in the library, enabled for
-    `ay` → `git` unchecked, disabled, with "Off in the library"; Save keeps `git` in the body.
+  - `the form lists the library's items for this agent`: agent `ay` with plugin `git`
+    (enabled) and skill `review` (not) → a group `Plugins & Skills` with switches `git` (on) and
+    `review` (off), each with its description.
+  - `a switch saves at once`: turn `review` on → one `PUT /api/aylul/agents/ay/extensions/skill/review`
+    with `{ enabled: true, command_id }` and no agent PUT; the switch shows on after the answer.
+  - `a failed switch goes back`: the PUT fails → the switch is off again and an error line shows.
+  - `a new agent shows the part after it is created`: New agent → no `Plugins & Skills` group;
+    after Create agent and the form reopening on it → the group with every switch off.
   - `an empty library links to the section`: no items → "No plugins or skills yet." and a link
     that opens the dialog on Plugins & Skills.
 - [ ] **Run** `npx vitest run src/app/agents/agent-extensions.test.tsx` → FAIL; implement; run it

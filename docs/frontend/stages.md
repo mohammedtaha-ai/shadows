@@ -74,7 +74,7 @@ colour's desktop side).
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
 - Touch: to be named with the steps
-- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Account: the person) accepted and built.
+- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Account: the person) accepted; B-5 built.
   Devices left this plan: the account server and device management are a separate piece of work
 - Done when: to be named with the steps
 
@@ -83,7 +83,7 @@ colour's desktop side).
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
 - Touch: to be named with the steps
-- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Providers: label, test, models) accepted and built
+- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Providers) accepted; B-1, B-2, B-3 built (F-8 lands on the same branch as B-2)
 - Done when: to be named with the steps
 
 ### F-9 · Agents: character colour per agent
@@ -93,7 +93,7 @@ colour's desktop side).
   `web/src/app/agents/contract.yaml`; `web/src/app/desktop/contract.yaml`; `web/src/app/sidebar/contract.yaml`
 - Touch: the Files list of Task F-9 in the plan
 - Needs: F-6; `docs/shared/requests/2026-10-20-settings-dialog.md` (Agents: character colour)
-  accepted, built and shown in `api/openapi.json`; U-2 in `docs/aylul/ui/stages.md` (the colour
+  accepted; B-4 built and shown in `api/openapi.json`; U-2 in `docs/aylul/ui/stages.md` (the colour
   table) done
 - Done when: `character-colors.test.ts`, `aylul.test.tsx` and `companion-binding.test.tsx` pass with
   codemap, `npm run typecheck`, `npm run lint`
@@ -103,7 +103,7 @@ colour's desktop side).
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
 - Touch: to be named with the steps
-- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Plugins & Skills) accepted and built
+- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Plugins & Skills) accepted; B-9 built (after the B-8 probe)
 - Done when: to be named with the steps
 
 ### F-11 · Usage section, by provider and by model
@@ -111,7 +111,7 @@ colour's desktop side).
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
 - Touch: to be named with the steps
-- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Usage) accepted and built
+- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Usage) accepted; B-6, B-7 built
 - Done when: to be named with the steps
 
 ### F-12 · General: language and theme in Core with the person; start with Windows and tray native
@@ -119,7 +119,8 @@ colour's desktop side).
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
 - Touch: to be named with the steps
-- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (General) accepted and built
+- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (General) accepted; B-5 built; the native
+  switches through an AYLUL shared request to the native side
 - Done when: to be named with the steps
 
 ### F-14 · Saving the companion agent repaints AYLUL at once

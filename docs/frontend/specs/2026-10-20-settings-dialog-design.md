@@ -129,6 +129,8 @@ The person's own data comes first, then the account state, then only the actions
        `https://api.minimax.io/anthropic`, China `https://api.minimaxi.com/anthropic`; Moonshot
        International `https://api.moonshot.ai/anthropic`, China `https://api.moonshot.cn/anthropic`.
        A preset with one URL shows no region. The list names a China key "MiniMax China (label)".
+       The backend lists one preset per region (`minimax`, `minimax-china`, ...; request answer);
+       the screen groups them by name into one card.
      - The context window comes with each model instead of one number typed for the provider.
        *(needs backend)*
      - Save says how many models it adds ("Add 2 models").
@@ -232,14 +234,14 @@ reading them are Masada's too (Mohammed's ruling, 2026-10-21): U-2 and U-3.
 ### Plugins & Skills
 
 - **One shared library** (Mohammed's ruling, 2026-10-21): this section manages it. Two tabs,
-  Plugins and Skills. Each item has its name, a one-line description and an on/off switch (on:
-  available to agents; off: no agent uses it); **+ Add** installs one into the library.
+  Plugins and Skills. Each item has its name and a one-line description, and **Remove** (confirm:
+  "Remove <name> from the library and from every agent?"). **+ Add** adds one by the path of its
+  folder on the daemon's machine. The library has no on/off switch.
 - **Each agent uses only what the person enabled for that agent.** The agent form (Agents) gains a
-  **Plugins & Skills** part: the library's items that are on, each with a checkbox for this agent,
-  saved with the form. A new agent starts with none ticked. An item switched off in the library
-  shows in the agent form as "Off in the library", unticked and disabled; the agent's choice is
-  kept for when it is switched back on. With an empty library the part says "No plugins or skills
-  yet." with a link that opens this section.
+  **Plugins & Skills** part: every library item with an on/off switch for this agent. A switch
+  saves at once (not with Save agent), since each is its own call. A new agent shows the part
+  only once it is created; it starts with everything off. With an empty library the part says
+  "No plugins or skills yet." with a link that opens this section.
 - *(needs backend: nothing lists, toggles or assigns them today)*
 
 ### Usage
