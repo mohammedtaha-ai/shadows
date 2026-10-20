@@ -1,28 +1,19 @@
-//! One job: choosing what a thread's adapter opens with, by harness kind. A
-//! Planner thread opens in its project folder on the Planner's setup; an AYLUL
-//! thread opens Claude Code on its own profile, in the profile's home, with
-//! none of the Planner's prompt, tools, MCP grant or stage text, loading only
-//! the profile's user settings.
-
+//! Opening an assistant on the agent's provider configuration.
+use super::sessions::{OpenError, Sessions};
+use crate::{
+    CoreError,
+    threads::{ThreadId, TurnContext},
+};
+use shadows_agent::{acp::SessionSetup, policy, profile::ClaudeProfile};
+use shadows_process::ProcessSpec;
 use std::path::PathBuf;
 
-use shadows_agent::acp::SessionSetup;
-use shadows_agent::policy;
-use shadows_agent::profile::ClaudeProfile;
-use shadows_process::ProcessSpec;
-
-use super::sessions::{OpenError, Sessions};
-use crate::threads::{ThreadId, TurnContext};
-
-/// The daemon's `aylul` section, as the core needs it.
 #[derive(Debug, Clone)]
 pub struct AylulConfig {
-    pub profile: ClaudeProfile,
-    /// The slug `Projects::ensure_assistant` gives AYLUL's project.
+    pub home_root: PathBuf,
     pub project_slug: String,
 }
 
-/// What an AYLUL session opens with: nothing of the Planner's.
 pub(super) fn aylul_setup() -> SessionSetup {
     SessionSetup {
         mcp: None,
@@ -33,23 +24,34 @@ pub(super) fn aylul_setup() -> SessionSetup {
     }
 }
 
-/// Where an adapter runs and how it starts.
 pub(super) struct Opening {
     pub(super) cwd: PathBuf,
     pub(super) setup: SessionSetup,
     pub(super) spec: ProcessSpec,
+    pub(super) aylul_models: Option<(Vec<String>, String)>,
 }
 
 impl Sessions {
-    /// The one answer to "can a turn run on `kind` here": AYLUL only with a profile.
-    pub(crate) fn harness_available(&self, kind: &str) -> bool {
-        policy::is_available_with(kind, self.config.aylul.is_some())
+    pub(crate) async fn harness_available(&self, kind: &str) -> Result<bool, CoreError> {
+        let configured = self.config.aylul.is_some() && !self.profiles.agents().await?.is_empty();
+        Ok(policy::is_available_with(kind, configured))
     }
 
-    /// Where the thread's adapter runs and what it opens with. A Planner
-    /// thread: its project folder and the Planner's setup (which issues its
-    /// grant). An AYLUL thread: the profile home and spec carrying the
-    /// profile, refused before any spawn when the key variable is unset.
+    pub(crate) async fn check_context(&self, context: &TurnContext) -> Result<(), CoreError> {
+        if context.harness == policy::AYLUL {
+            let slug = context
+                .profile
+                .as_deref()
+                .ok_or_else(|| CoreError::AylulProfileNotFound("agent required".into()))?;
+            let agent = self.profiles.agent(slug).await?;
+            if agent.deleted {
+                return Err(CoreError::AylulProfileNotFound(slug.into()));
+            }
+            self.profiles.provider(&agent.provider).await?;
+        }
+        Ok(())
+    }
+
     pub(super) async fn opening(
         &self,
         thread: &ThreadId,
@@ -57,31 +59,77 @@ impl Sessions {
     ) -> Result<Opening, OpenError> {
         if context.harness != policy::AYLUL {
             let cwd = workspace(context).map_err(OpenError::Workspace)?;
-            let setup = (self.setups.for_opening(thread, &context.project_id).await)
+            let setup = self
+                .setups
+                .for_opening(thread, &context.project_id)
+                .await
                 .map_err(OpenError::Start)?;
-            let spec = self.adapter.process_spec(&cwd);
-            return Ok(Opening { cwd, setup, spec });
+            return Ok(Opening {
+                spec: self.adapter.process_spec(&cwd),
+                cwd,
+                setup,
+                aylul_models: None,
+            });
         }
-        let config = (self.config.aylul.as_ref()).ok_or(crate::CoreError::AylulNotConfigured)?;
+        self.check_context(context).await?;
+        let config = self
+            .config
+            .aylul
+            .as_ref()
+            .ok_or(CoreError::AylulNotConfigured)?;
+        let slug = context
+            .profile
+            .as_deref()
+            .ok_or(CoreError::AylulNotConfigured)?;
+        let agent = self.profiles.agent(slug).await?;
+        let provider = self.profiles.provider(&agent.provider).await?;
+        let home = config.home_root.join("profiles").join(slug);
+        self.homes
+            .write_models(&home, &provider.models, &agent.default_model)
+            .await?;
         let secrets = self
             .config
             .secrets
             .as_ref()
-            .ok_or(crate::CoreError::SecretsUnavailable)?;
-        let stored = secrets.resolve_env(&config.profile.name).await?;
-        let cwd = config.profile.home.clone();
+            .ok_or(CoreError::SecretsUnavailable)?;
+        let stored = secrets.resolve_env(slug).await?;
+        let scope = format!("provider/{}", provider.slug);
+        let pairs = secrets.resolve_env(&scope).await?;
+        let token = pairs
+            .iter()
+            .find(|(name, _)| name == "PROVIDER_API_KEY")
+            .map(|(_, value)| value.as_str())
+            .filter(|v| !v.is_empty())
+            .ok_or_else(|| CoreError::AylulKeyMissing(provider.slug.clone()))?;
+        let mut env = vec![("ANTHROPIC_BASE_URL".into(), provider.base_url)];
+        for name in [
+            "ANTHROPIC_MODEL",
+            "ANTHROPIC_DEFAULT_OPUS_MODEL",
+            "ANTHROPIC_DEFAULT_SONNET_MODEL",
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+        ] {
+            env.push((name.into(), agent.default_model.clone()));
+        }
+        for name in [
+            "CLAUDE_CODE_MAX_CONTEXT_TOKENS",
+            "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
+        ] {
+            env.push((name.into(), provider.context_window.to_string()));
+        }
+        let profile = ClaudeProfile {
+            name: slug.into(),
+            home: home.clone(),
+            env,
+        };
         let spec = self
             .adapter
-            .process_spec_with(&cwd, Some(&config.profile), &stored)
-            .map_err(|error| match error {
-                shadows_agent::profile::ProfileError::MissingKey(name) => {
-                    crate::CoreError::AylulKeyMissing(name)
-                }
-            })?;
+            .process_spec_with(&home, Some(&profile), &stored, Some(token))
+            .map_err(|_| CoreError::AylulKeyMissing(provider.slug))?;
         Ok(Opening {
-            cwd,
+            cwd: home,
             setup: aylul_setup(),
             spec,
+            aylul_models: Some((provider.models, agent.default_model)),
         })
     }
 }

@@ -30,12 +30,14 @@ export function DeleteThreadDialog({ thread, open, onOpenChange, isCurrent }: {
       pending.current = null
       onOpenChange(false)
       if (current.current) {
-        await navigate({ to: '/projects/$projectId/new', params: { projectId: thread.project_id } })
+        if (thread.profile != null) await navigate({ to: '/aylul/agents/$slug/new', params: { slug: thread.profile } })
+        else await navigate({ to: '/projects/$projectId/new', params: { projectId: thread.project_id } })
       }
       queryClient.setQueryData(threadQuery(thread.id).queryKey, removed)
       queryClient.setQueryData<PlanningThread[]>(threadsQuery(thread.project_id).queryKey,
         (threads) => threads?.filter((t) => t.id !== thread.id))
       void queryClient.invalidateQueries({ queryKey: threadsQuery(thread.project_id).queryKey })
+      if (thread.profile != null) void queryClient.invalidateQueries({ queryKey: ['aylul-agent', thread.profile, 'threads'] })
       void queryClient.invalidateQueries({ queryKey: workflowsKey })
     },
   })

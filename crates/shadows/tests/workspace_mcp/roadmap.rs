@@ -45,7 +45,7 @@ async fn structured(
         .unwrap();
     let thread = core
         .threads()
-        .create("roadmap-thread".into(), &p, "Roadmap", None)
+        .create("roadmap-thread".into(), &p, "Roadmap", None, None)
         .await
         .unwrap()
         .id;

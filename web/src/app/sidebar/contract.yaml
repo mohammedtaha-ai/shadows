@@ -1,6 +1,6 @@
-# Owns the left pane (spec §13.11): the app name, the project tree, the conversations
-# and plans shown under each open project, the Settings link, and deleting a
-# conversation from its row. The one piece of state it keeps is which projects are
+# Owns the left pane (spec §13.11): the workspace menu in its title, the project tree
+# (Shadows) or the agent tree (AYLUL, brain spec §11), the conversations and plans
+# shown under each, the Settings link, and deleting a conversation from its row. The one piece of state it keeps is which projects are
 # open, persisted to localStorage per browser (open-projects).
 #
 # Trap 1: the project in the URL opens by itself whenever the URL comes to it. Folding
@@ -27,6 +27,12 @@ shapes:
     # Anything else in the key reads as null, meaning nothing is stored.
     key: "'shadows.sidebar.open-projects'"
     value: "string[]"
+  WorkspaceStore:
+    # localStorage key "shadows.workspace": "aylul" or anything else (Shadows). Each
+    # workspace's last page is under "shadows.workspace.last.<workspace>". Every read
+    # and write is in try/catch; without storage the choice lasts in memory.
+    key: "'shadows.workspace'"
+    value: "'shadows' | 'aylul'"
 
 
 # ── external types ───────────────────────────────────────────────────────────────
@@ -35,6 +41,7 @@ external:
   Project: "web/src/api/client; id, slug, name, directory"
   PlanningThread: "web/src/api/client; id, project_id, title, removed_at"
   PlanListing: "web/src/api/client; id, plan_id, plan_state, title, state, version"
+  Agent: "web/src/api/aylul-profiles; slug, name, provider, default_model"
 
 
 # ── functions ────────────────────────────────────────────────────────────────────
@@ -42,14 +49,25 @@ external:
 components:
   Sidebar:
     signature: "() => JSX.Element"
-    # The aside: app name, New project button, the project tree, the connection
-    # indicator and the Settings link (marked current on /settings).
+    # The aside: the workspace menu, New project (Shadows) or New agent (AYLUL), the
+    # project or agent tree, the connection indicator and the Settings link (marked
+    # current on /settings).
   ProjectList:
     signature: "() => JSX.Element"
     # Renders nothing until the project list answers; "No projects yet." when it is empty.
   ThreadList:
-    signature: "({ projectId: string, selected?: string }) => JSX.Element"
-    # Conversation links of one project, with a per-row menu whose Delete opens the dialog.
+    signature: "({ projectId: string, selected?: string, profile?: string }) => JSX.Element"
+    # Conversation links of one project, or of one agent when `profile` is given (they all
+    # live in the hidden assistant project), with a per-row menu whose Delete opens the dialog.
+  WorkspaceSwitcher:
+    signature: "({ workspace: Workspace, onSwitch: (next: Workspace) => void }) => JSX.Element"
+    # The title as a menu: Shadows "Plan and build projects" and AYLUL "Your agents and
+    # their conversations", each with a check on the current one.
+  AgentList:
+    signature: "() => JSX.Element"
+    # Live agents laid out like projects: each folds open to its conversations and
+    # "Agent settings"; its + opens a draft under it. "Providers" sits under the list.
+    # Empty states: "Add a provider first", then "Add an agent to start".
   WorkflowList:
     signature: "({ projectId: string, selected?: string }) => JSX.Element"
     # Starts the project's live stream (useProjectEvents) and lists its plans.
@@ -59,6 +77,11 @@ components:
       isCurrent: boolean }) => JSX.Element
 
 hooks:
+  useWorkspace:
+    signature: "() -> { workspace: Workspace; switchTo: (next: Workspace) => void }"
+    # The page decides first: /aylul pages and a thread whose harness is aylul are AYLUL,
+    # other project pages Shadows. Elsewhere the stored choice. switchTo stores the choice
+    # and navigates to that workspace's last page, or its home (/ or /aylul).
   useOpenProjects:
     signature: >-
       (urlProject: string | undefined) -> { isOpen: (id: string) => boolean;
@@ -80,6 +103,15 @@ private_helpers:
   SettingsLink:
     private: true
   PlanRow:
+    private: true
+  AgentRow:
+    # Like ProjectRow: the fold button and the + link to the agent's draft.
+    private: true
+  AgentSettingsLink:
+    private: true
+  ProvidersLink:
+    private: true
+  EmptyHint:
     private: true
 
 
@@ -163,6 +195,26 @@ obligations:
       current on /settings.
     tested_by: none
 
+  - rule: >
+      The workspace title lists both workspaces with their descriptions and a check on the
+      current one; the choice survives a reload.
+    tested_by: [switcher_shows_both_with_check_on_current, switcher_choice_survives_reload]
+
+  - rule: >
+      An AYLUL conversation's URL shows the AYLUL workspace whatever was stored, and
+      switching workspaces navigates to a page of the other one.
+    tested_by: [aylul_thread_url_opens_aylul_workspace, switching_navigates_to_that_workspace]
+
+  - rule: >
+      The Shadows workspace shows projects only, with no AYLUL entry; the AYLUL workspace
+      lists each agent with its own conversations.
+    tested_by: [shadows_workspace_has_no_aylul_entry, agent_list_shows_conversations_per_agent]
+
+  - rule: >
+      With no provider the AYLUL workspace says "Add a provider first"; with providers but
+      no agent, "Add an agent to start".
+    tested_by: [empty_states_guide_to_provider_then_agent]
+
 
 # ── gaps ─────────────────────────────────────────────────────────────────────────
 
@@ -220,7 +272,24 @@ tests:
   - name: "lists active plans and folds the archived ones"
     checks: >
       Only the active plan shows, with "Archived (1)"; opening the group shows the archived one.
-  - name: "sidebar_shows_aylul_entry_and_hides_its_project"
-    checks: >
-      With one ordinary and one assistant project, one "AYLUL" link points to the assistant
-      project's latest conversation, and Projects lists only the ordinary project.
+  - name: switcher_shows_both_with_check_on_current
+    checks: Both items show with their descriptions; Shadows is checked on /.
+    file: web/src/app/agents/aylul.test.tsx
+  - name: switcher_choice_survives_reload
+    checks: After choosing AYLUL and remounting at /, the title reads AYLUL.
+    file: web/src/app/agents/aylul.test.tsx
+  - name: aylul_thread_url_opens_aylul_workspace
+    checks: An aylul thread's URL shows the AYLUL title and New agent.
+    file: web/src/app/agents/aylul.test.tsx
+  - name: switching_navigates_to_that_workspace
+    checks: From an agent page, choosing Shadows navigates to /.
+    file: web/src/app/agents/aylul.test.tsx
+  - name: shadows_workspace_has_no_aylul_entry
+    checks: The Shadows sidebar has no link reading AYLUL.
+    file: web/src/app/agents/aylul.test.tsx
+  - name: agent_list_shows_conversations_per_agent
+    checks: Unfolding an agent shows its conversation, linked under the hidden project.
+    file: web/src/app/agents/aylul.test.tsx
+  - name: empty_states_guide_to_provider_then_agent
+    checks: No provider shows "Add a provider first"; a provider without agents, "Add an agent to start".
+    file: web/src/app/agents/aylul.test.tsx

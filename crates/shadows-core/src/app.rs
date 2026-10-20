@@ -57,6 +57,7 @@ pub struct CoreParts {
 /// The application: every service, built once.
 pub struct AppCore {
     secrets: Arc<Secrets>,
+    profiles: Arc<crate::Profiles>,
     design: Design,
     plans: Plans,
     grants: Grants,
@@ -185,7 +186,9 @@ impl AppCore {
         let stopper = ThreadStopper::new(runtime.clone(), handles.clone(), sessions.clone());
         let threads = Threads::new(storage.clone(), harness.clone(), code.clone(), stopper);
         let events = Events::new(storage.clone(), harness.clone(), bus.clone(), ui.clone());
+        let profiles = sessions.profiles.clone();
         Arc::new(AppCore {
+            profiles,
             secrets,
             design: Design::new(storage.clone(), handles.clone()),
             plans: Plans::new(storage.clone(), handles.clone(), ui.clone()),
@@ -209,6 +212,10 @@ impl AppCore {
 
     pub fn plans(&self) -> &Plans {
         &self.plans
+    }
+
+    pub fn profiles(&self) -> &crate::Profiles {
+        &self.profiles
     }
 
     pub fn secrets(&self) -> &Secrets {

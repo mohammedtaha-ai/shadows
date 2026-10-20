@@ -5,6 +5,8 @@ what can be checked:
 
 | File | Kind | Answers |
 |---|---|---|
+| `crates/shadows-http/src/aylul_profiles.rs` | AYLUL configuration HTTP translation | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-http/src/aylul_profiles_tests.rs` | AYLUL configuration route acceptance tests | `crates/shadows-http/src/aylul_profiles.rs` |
 | this file | written by hand | *Where does my new code go?* The one job each crate and module holds, and the invariants no change may break. |
 | each service's `contract.yaml` | written by hand, next to its code in `crates/shadows-core/src/<service>/` | *What must stay true of this service?* Its methods, obligations, agreements and tests, in the shape of [`contracts/TEMPLATE.yaml`](./contracts/TEMPLATE.yaml). |
 
@@ -42,6 +44,13 @@ pattern to follow, not merely an example.
 
 | Module | Its one job | Reference file |
 |---|---|---|
+| `crates/shadows-core/src/harness/live.rs` | live adapter opening | `crates/shadows-core/src/harness/contract.yaml` |
+| `crates/shadows-core/src/profiles/` | AYLUL agent configuration | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/model.rs` | public configuration metadata | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/providers.rs` | provider mutation rules | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/agents.rs` | agent mutation rules | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/store.rs` | transactional configuration SQL | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/harness/profile_home.rs` | isolated agent home files | `docs/aylul/specs/2026-10-19-aylul-claude-code-brain-design.md` |
 | `crates/shadows-http/src/aylul_env.rs` | AYLUL environment HTTP translation | `crates/shadows-core/src/secrets/contract.yaml` |
 | `crates/shadows-http/src/aylul_env_tests.rs` | AYLUL environment route acceptance tests | `crates/shadows-http/src/aylul_env.rs` |
 | `crates/shadows-agent/src/profile_tests.rs` | isolated profile environment tests | `crates/shadows-agent/src/profile.rs` |
@@ -77,7 +86,7 @@ pattern to follow, not merely an example.
 | `crates/shadows/src/daemon/` | product service composition | `docs/integration/2026-10-19-product-daemon-hermes-design.md` |
 | `crates/shadows/src/daemon/bridge.rs` | bounded Node request ownership | `crates/shadows/src/daemon/bridge.rs` |
 | `crates/shadows/src/daemon/http.rs` | native assistant request translation | `crates/shadows/src/daemon/http.rs` |
-| `crates/shadows/src/aylul.rs` | turning the `aylul` config section into a seeded profile | `crates/shadows/src/aylul.rs` |
+| `crates/shadows/src/aylul.rs` | AYLUL startup configuration | `crates/shadows/src/aylul.rs` |
 | `crates/shadows/src/daemon/descriptor.rs` | private connection descriptor ownership | `crates/shadows/src/daemon/descriptor.rs` |
 | `crates/shadows/src/tracing.rs` | tracing subscriber setup | `crates/shadows/src/tracing.rs` |
 | `crates/shadows-http/src/lib.rs` | the HTTP/SSE surface every client talks to | `crates/shadows-http/src/project.rs` |

@@ -11,12 +11,15 @@ import {
   type SessionChoices,
   type TurnSettings,
   createThread,
+  changeModel,
   openSession,
   startTurn,
 } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { harnessesQuery, planVersionsQuery, plansQuery, projectsQuery, threadsQuery } from '@/api/queries'
 import { tabId } from '@/stream/tab-id'
+import { agentsQuery, providersQuery, agentThreadsQuery, type Provider } from '@/api/aylul-profiles'
+import { ErrorLine } from '../error-line'
 import { policyOf } from '../mode-policy'
 import { carrySend } from './carried-send'
 import { AYLUL_HARNESS, CliMenu } from './cli-picker'
@@ -44,20 +47,36 @@ const DRAFT_TITLE = 'New conversation'
 /** Keyed by project, so a draft never carries its text to another project. */
 export function DraftRoute() {
   const { projectId } = route.useParams()
-  return <Draft key={projectId} projectId={projectId} />
+  const { plan } = route.useSearch()
+  return <Draft key={projectId} projectId={projectId} planId={plan} />
 }
 
-function Draft({ projectId }: { projectId: string }) {
+export function AgentDraftRoute() {
+  const { slug } = getRouteApi('/aylul/agents/$slug/new').useParams()
+  const workspace = useQuery(agentsQuery)
+  const providers = useQuery(providersQuery)
+  const error = workspace.error ?? providers.error
+  if (error) return <ErrorLine error={error} />
+  if (workspace.data === undefined || providers.data === undefined) return <p className="p-8">Loading agent…</p>
+  const agent = workspace.data.agents.find(a => a.slug === slug)
+  const provider = providers.data.find(p => p.slug === agent?.provider)
+  if (agent === undefined || provider === undefined) return <p className="p-8">Agent not found.</p>
+  return <Draft key={slug} projectId={workspace.data.project_id} profile={slug}
+    provider={provider} defaultModel={agent.default_model} agentName={agent.name} />
+}
+
+function Draft({ projectId, planId, profile, provider, defaultModel, agentName }: {
+  projectId: string; planId?: string; profile?: string; provider?: Provider; defaultModel?: string; agentName?: string
+}) {
   const navigate = useNavigate()
-  const { plan: planId } = route.useSearch()
   const project = useQuery(projectsQuery).data?.find((p) => p.id === projectId)
   const [picked, setHarness] = useState(DEFAULT_HARNESS)
   // AYLUL's project runs on `aylul` alone.
-  const harness = project?.assistant === true ? AYLUL_HARNESS : picked
+  const harness = profile !== undefined || project?.assistant === true ? AYLUL_HARNESS : picked
   const label = useQuery(harnessesQuery).data?.find((h) => h.kind === harness)?.label ?? harness
   const allowed = project?.allowed_modes[harness]
-  const session = useMemo(() => draftSession(harness, allowed), [harness, allowed])
-  const draft = useFirstSend(projectId, harness, planId)
+  const session = useMemo(() => draftSession(harness, allowed, provider, defaultModel), [harness, allowed, provider, defaultModel])
+  const draft = useFirstSend(projectId, harness, planId, profile)
 
   const planVersions = useQuery({
     ...planVersionsQuery(planId ?? ''),
@@ -83,9 +102,9 @@ function Draft({ projectId }: { projectId: string }) {
       <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-md">
         <div className="min-w-0">
           <h1 className="truncate text-sm font-medium">New conversation</h1>
-          <StageChip projectId={projectId} />
+          {harness !== AYLUL_HARNESS && <StageChip projectId={projectId} />}
           <p className="truncate text-xs text-faint-foreground">
-            <bdi>{project?.name ?? '…'}</bdi>
+            <bdi>{agentName ?? project?.name ?? '…'}</bdi>
             {project?.assistant === true ? null : ' · Planner'}
           </p>
         </div>
@@ -128,7 +147,7 @@ function Draft({ projectId }: { projectId: string }) {
         </div>
       )}
       <Composer
-        to={{ draft, planId }}
+        to={{ draft, planId, selectableModels: profile !== undefined }}
         harness={harness}
         harnessLabel={label}
         session={session}
@@ -145,13 +164,13 @@ function Draft({ projectId }: { projectId: string }) {
 
 /** What a draft's composer offers before a session exists: the harness's
  * modes as the project allows them, no model chosen and no effort. */
-function draftSession(harness: string, allowed: string[] | undefined): SessionView {
+function draftSession(harness: string, allowed: string[] | undefined, provider?: Provider, defaultModel?: string): SessionView {
   if (allowed === undefined) return { state: 'connecting' }
   const policy = policyOf(harness)
   const choices: SessionChoices = {
     current: {
       mode: policy.initial ?? policy.modes[0]?.id ?? '',
-      model: UNOPENED.id,
+      model: provider === undefined ? UNOPENED.id : defaultModel ?? provider.models[0]!,
       effort: null,
     },
     modes: policy.modes.map((m) => {
@@ -164,7 +183,7 @@ function draftSession(harness: string, allowed: string[] | undefined): SessionVi
         reason: enabled ? null : 'Not allowed in this project',
       }
     }),
-    models: [UNOPENED],
+    models: provider === undefined ? [UNOPENED] : provider.models.map(id => ({ id, label: id, description: null, enabled: true, reason: null })),
     efforts: [],
   }
   return { state: 'ready', choices }
@@ -177,7 +196,7 @@ function draftSession(harness: string, allowed: string[] | undefined): SessionVi
  * thread with its text and error, so a retry never makes a second thread.
  * A person who left the draft while it sent stays where they went: the
  * thread shows in the sidebar, and nothing pulls them back to it. */
-function useFirstSend(projectId: string, harness: string, planId?: string) {
+function useFirstSend(projectId: string, harness: string, planId?: string, profile?: string) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useRef<Attempt | null>(null)
@@ -190,10 +209,11 @@ function useFirstSend(projectId: string, harness: string, planId?: string) {
   }, [])
 
   return async (commandId: string, text: string, chosen: TurnSettings): Promise<string> => {
-    const request = { title: DRAFT_TITLE, harness }
+    const request = { title: DRAFT_TITLE, harness, ...(profile === undefined ? {} : { profile }) }
     create.current = attemptFor(create.current, request)
     const thread = await createThread(projectId, { ...request, command_id: create.current.commandId })
     void queryClient.invalidateQueries({ queryKey: threadsQuery(projectId).queryKey })
+    if (profile !== undefined) void queryClient.invalidateQueries({ queryKey: agentThreadsQuery(profile).queryKey })
     const open = async () => {
       if (!shown.current) return
       await navigate({
@@ -205,7 +225,10 @@ function useFirstSend(projectId: string, harness: string, planId?: string) {
 
     let settings: TurnSettings | null = null
     try {
-      const choices = await openSession(thread.id)
+      let choices = await openSession(thread.id)
+      if (profile !== undefined && chosen.model !== choices.current.model) {
+        choices = await changeModel(thread.id, chosen.model)
+      }
       queryClient.setQueryData(sessionKey(thread.id), choices)
       settings = { mode: chosen.mode, model: choices.current.model, effort: choices.current.effort }
       const operationId = await startTurn(thread.id, commandId, text, settings, {

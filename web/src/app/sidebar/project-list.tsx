@@ -11,7 +11,7 @@ import { ThreadList } from './thread-list'
 import { WorkflowList } from './workflow-list'
 
 export function ProjectList() {
-  // AYLUL's project has its own entry above, not a place among Projects.
+  // The hidden assistant project belongs to the AYLUL workspace.
   const projects = useQuery(projectsQuery).data?.filter((p) => !p.assistant)
   const { projectId, threadId, workflowId } = useParams({ strict: false })
   const { isOpen, toggle } = useOpenProjects(projectId)

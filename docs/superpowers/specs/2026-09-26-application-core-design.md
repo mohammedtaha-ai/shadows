@@ -189,7 +189,7 @@ crates/shadows-core/src/
   command.rs        command identity and idempotency
   db/               the SQLite pool, write transactions, migrations, the durable journal, command replay
   runtime/          the runtime instance and recovery
-  projects/  threads/  turns/  harness/  plans/  grants/  instructions/  events/  code/  design/  secrets/
+  projects/  threads/  turns/  harness/  plans/  grants/  instructions/  events/  code/  design/  secrets/  profiles/
     mod.rs          the service: its public methods
     model.rs        its types (no sqlx; the domain stays pure)
     rules.rs        its checks, where it has any
@@ -214,7 +214,7 @@ them.
 | `Secrets` | encrypted profile environment resolution | AYLUL brain §10; no MCP reader |
 | `Design` | the project design workspace (§18) | nothing: introduced by Stage 1's first Vision browser caller |
 
-`AppCore` now composes eleven services. `core.design()` exposes `Design::vision`
+`AppCore` now composes twelve services. `core.design()` exposes `Design::vision`
 and `Design::edit`; Design owns revision-checked project workspace changes,
 while Events delivers their journal notifications. Later workspace capabilities
 are created when their callers exist.
@@ -537,3 +537,6 @@ Milestone 2.5 is done when:
   - the README maps crates and services, and holds the Architecture Invariants;
   - the generated inventory spans every crate.
 - **This index** gains §14.
+
+AYLUL agent configuration is owned by `profiles` (providers and permanent agent identities);
+credentials stay with `secrets`. See AYLUL brain design section 11.

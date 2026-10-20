@@ -1,38 +1,39 @@
 // One job: the left pane — the app's name, its projects, whether the daemon
 // answers, and the way to the global settings.
 
-import { Link, useLocation } from '@tanstack/react-router'
+import { Link, useLocation, useNavigate } from '@tanstack/react-router'
 import { Plus, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConnectionIndicator } from '../daemon-status'
 import { useOpenNewProject } from '../new-project/open-new-project'
-import { AylulEntry } from './aylul-entry'
+import { AgentList } from './agent-list'
+import { WorkspaceSwitcher } from './workspace-switcher'
+import { useWorkspace } from './workspace'
 import { ProjectList } from './project-list'
 
 export function Sidebar() {
   const openNewProject = useOpenNewProject()
+  const navigate = useNavigate()
+  const { workspace, switchTo } = useWorkspace()
   const onSettings = useLocation().pathname === '/settings'
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <header className="flex items-center justify-between px-4 pt-4 pb-3">
-        <span className="bg-gradient-to-r from-foreground via-foreground to-accent-line bg-clip-text text-sm font-semibold tracking-wide text-transparent">
-          Shadows
-        </span>
+        <WorkspaceSwitcher workspace={workspace} onSwitch={switchTo} />
       </header>
       <div className="px-3 pb-3">
         <Button
           variant="secondary"
           size="sm"
           className="w-full justify-start gap-2 shadow-xs transition-all hover:bg-secondary/90"
-          onClick={openNewProject}
+          onClick={() => workspace === 'aylul' ? void navigate({ to: '/aylul/agents/new' }) : openNewProject()}
         >
           <Plus className="size-4" />
-          New project
+          {workspace === 'aylul' ? 'New agent' : 'New project'}
         </Button>
       </div>
-      <nav aria-label="Projects and conversations" className="flex-1 overflow-y-auto px-2 pb-3">
-        <AylulEntry />
-        <ProjectList />
+      <nav aria-label={workspace === 'aylul' ? 'Agents and conversations' : 'Projects and conversations'} className="flex-1 overflow-y-auto px-2 pb-3">
+        {workspace === 'aylul' ? <AgentList /> : <ProjectList />}
       </nav>
       <footer className="flex items-center justify-between gap-3 border-t border-sidebar-border px-4 py-3">
         <div className="min-w-0">

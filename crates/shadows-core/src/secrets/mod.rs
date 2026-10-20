@@ -5,14 +5,13 @@ mod crypto_tests;
 mod model;
 mod store;
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::CoreError;
 use crate::app::user_command;
 use crate::db::Storage;
 use crypto::Keys;
-pub use model::{EnvEntry, ImportReport, SecretKey};
+pub use model::{EnvEntry, SecretKey};
 
 pub struct Secrets {
     storage: Arc<Storage>,
@@ -25,24 +24,49 @@ impl std::fmt::Debug for Secrets {
     }
 }
 
-/// Also used by the binary when loading `key_env`.
+/// Validate agent variable names before encryption: reserved names are refused.
 pub fn validate_env_name(name: &str) -> Result<(), CoreError> {
+    if reserved_env_name(name) {
+        return Err(CoreError::SecretNameReserved(name.into()));
+    }
+    validate_env_format(name)
+}
+
+/// The name's shape alone. Removal uses it, so a row stored before its name
+/// became reserved can still be removed after the opening names it.
+fn validate_env_format(name: &str) -> Result<(), CoreError> {
     let bytes = name.as_bytes();
     let valid = (1..=128).contains(&bytes.len())
         && (bytes[0].is_ascii_uppercase() || bytes[0] == b'_')
         && bytes
             .iter()
-            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || *b == b'_')
-        && !matches!(
-            name,
-            "CLAUDE_CONFIG_DIR" | "ANTHROPIC_API_KEY" | "ANTHROPIC_AUTH_TOKEN"
-        );
+            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || *b == b'_');
     if valid {
         Ok(())
     } else {
         Err(CoreError::SecretNameInvalid(name.into()))
     }
 }
+
+pub(crate) fn reserved_env_name(name: &str) -> bool {
+    matches!(
+        name,
+        "CLAUDE_CONFIG_DIR"
+            | "ANTHROPIC_API_KEY"
+            | "ANTHROPIC_AUTH_TOKEN"
+            | "ANTHROPIC_BASE_URL"
+            | "ANTHROPIC_MODEL"
+            | "ANTHROPIC_DEFAULT_OPUS_MODEL"
+            | "ANTHROPIC_DEFAULT_SONNET_MODEL"
+            | "ANTHROPIC_DEFAULT_HAIKU_MODEL"
+            | "ANTHROPIC_SMALL_FAST_MODEL"
+            | "ANTHROPIC_CUSTOM_MODEL_OPTION"
+            | "CLAUDE_CODE_MAX_CONTEXT_TOKENS"
+            | "CLAUDE_CODE_AUTO_COMPACT_WINDOW"
+    )
+}
+
+pub(crate) use store::remove_scope_in;
 
 fn validate_value(name: &str, value: &str) -> Result<(), CoreError> {
     if value.is_empty() || value.len() > 32768 || value.contains('\0') {
@@ -79,6 +103,54 @@ impl Secrets {
         name: &str,
         value: &str,
     ) -> Result<EnvEntry, CoreError> {
+        self.set_env_mode(command_id, profile, name, value, false)
+            .await
+    }
+    pub async fn remove_env(
+        &self,
+        command_id: String,
+        profile: &str,
+        name: &str,
+    ) -> Result<(), CoreError> {
+        self.remove_env_mode(command_id, profile, name, false).await
+    }
+    pub async fn set_agent_env(
+        &self,
+        command_id: String,
+        agent: &str,
+        name: &str,
+        value: &str,
+    ) -> Result<EnvEntry, CoreError> {
+        self.set_env_mode(command_id, agent, name, value, true)
+            .await
+    }
+    pub async fn remove_agent_env(
+        &self,
+        command_id: String,
+        agent: &str,
+        name: &str,
+    ) -> Result<(), CoreError> {
+        self.remove_env_mode(command_id, agent, name, true).await
+    }
+    pub async fn list_agent_env(&self, agent: &str) -> Result<Vec<EnvEntry>, CoreError> {
+        let mut conn = self
+            .storage
+            .reader()
+            .acquire()
+            .await
+            .map_err(crate::StorageError::from)?;
+        crate::profiles::require_live_agent_in(&mut conn, agent).await?;
+        self.list_env(agent).await
+    }
+
+    async fn set_env_mode(
+        &self,
+        command_id: String,
+        profile: &str,
+        name: &str,
+        value: &str,
+        agent_only: bool,
+    ) -> Result<EnvEntry, CoreError> {
         let keys = self.keys()?;
         validate_env_name(name)?;
         validate_value(name, value)?;
@@ -91,17 +163,18 @@ impl Secrets {
         );
         let sealed = crypto::seal(&keys.aead, &aad(profile, name), value)
             .map_err(|_| CoreError::SecretsUnavailable)?;
-        Ok(store::set(&self.storage, c, profile, name, sealed).await?)
+        Ok(store::set(&self.storage, c, profile, name, sealed, agent_only).await?)
     }
 
-    pub async fn remove_env(
+    async fn remove_env_mode(
         &self,
         command_id: String,
         profile: &str,
         name: &str,
+        agent_only: bool,
     ) -> Result<(), CoreError> {
         self.keys()?;
-        validate_env_name(name)?;
+        validate_env_format(name)?;
         let c = user_command(
             command_id,
             "secret_env.remove",
@@ -109,30 +182,42 @@ impl Secrets {
                 "profile": profile, "name": name,
             }),
         );
-        Ok(store::remove(&self.storage, c, profile, name).await?)
+        Ok(store::remove(&self.storage, c, profile, name, agent_only).await?)
     }
 
-    pub async fn import_needed(&self, profile: &str) -> Result<bool, CoreError> {
-        self.keys()?;
-        Ok(store::import_needed(&self.storage, profile).await?)
-    }
-
-    pub async fn import_env_once(
+    pub async fn set_provider_key(
         &self,
-        profile: &str,
-        pairs: Vec<(String, String)>,
-    ) -> Result<Option<ImportReport>, CoreError> {
-        let keys = self.keys()?;
-        let mut valid = BTreeMap::new();
-        let mut skipped = Vec::new();
-        for (name, value) in pairs {
-            if validate_env_name(&name).is_err() || validate_value(&name, &value).is_err() {
-                skipped.push(name);
-            } else {
-                valid.insert(name, value);
-            }
-        }
-        Ok(store::import(&self.storage, profile, valid, skipped, keys).await?)
+        command_id: String,
+        provider: &str,
+        value: &str,
+    ) -> Result<EnvEntry, CoreError> {
+        self.set_env(
+            command_id,
+            &format!("provider/{provider}"),
+            "PROVIDER_API_KEY",
+            value,
+        )
+        .await
+    }
+
+    pub async fn remove_provider_key(
+        &self,
+        command_id: String,
+        provider: &str,
+    ) -> Result<(), CoreError> {
+        self.remove_env(
+            command_id,
+            &format!("provider/{provider}"),
+            "PROVIDER_API_KEY",
+        )
+        .await
+    }
+
+    pub async fn provider_key_set(&self, provider: &str) -> Result<bool, CoreError> {
+        Ok(store::list(&self.storage, &format!("provider/{provider}"))
+            .await?
+            .iter()
+            .any(|e| e.name == "PROVIDER_API_KEY"))
     }
 
     pub(crate) async fn resolve_env(
@@ -144,6 +229,9 @@ impl Secrets {
             .await?
             .into_iter()
             .map(|(name, sealed)| {
+                if reserved_env_name(&name) {
+                    return Err(CoreError::SecretNameReserved(name));
+                }
                 let value = crypto::open(&keys.aead, &aad(profile, &name), &sealed)
                     .map_err(|_| CoreError::SecretUnreadable(name.clone()))?;
                 Ok((name, value))

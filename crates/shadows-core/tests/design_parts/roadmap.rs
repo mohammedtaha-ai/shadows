@@ -26,7 +26,7 @@ impl Fixture {
         }
         let thread = core
             .threads()
-            .create("thread".into(), &p, "Roadmap", None)
+            .create("thread".into(), &p, "Roadmap", None, None)
             .await
             .unwrap();
         core.turns()

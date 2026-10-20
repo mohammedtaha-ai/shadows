@@ -20,9 +20,3 @@ pub struct EnvEntry {
     pub name: String,
     pub updated_at: String,
 }
-
-#[derive(Debug, serde::Serialize)]
-pub struct ImportReport {
-    pub stored: usize,
-    pub skipped: Vec<String>,
-}

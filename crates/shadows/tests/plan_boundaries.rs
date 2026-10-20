@@ -98,6 +98,7 @@ async fn a_conversation_can_focus_another_conversations_project_plan() {
             &app.project,
             "Other",
             "claude-code",
+            None,
         )
         .await
         .unwrap();

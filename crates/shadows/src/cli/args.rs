@@ -61,7 +61,7 @@ enum Commands {
             default_values = config::DEFAULT_ALLOWED_ORIGINS,
         )]
         allow_origin: Vec<String>,
-        /// JSON file with AYLUL's section (home_root, key_env, base_url, model).
+        /// JSON file with AYLUL's home_root section.
         #[arg(long, value_parser = parse_harness)]
         aylul_config: Option<PathBuf>,
     },

@@ -137,6 +137,7 @@ shapes:
 
 
 functions:
+  preference_key: The one storage key for per-agent AYLUL model preferences.
   service:
     aylul_profile:
       signature: "(&self) -> Result<&str, CoreError>"
@@ -358,9 +359,9 @@ shared_in_transaction:
 
 obligations:
   - rule: AYLUL resolves encrypted pairs at each spawn; live adapters retain their starting environment.
-    tested_by: [stored_key_reaches_the_adapter, replaced_value_reaches_a_new_adapter]
+    tested_by: [two_agents_share_one_provider_key, settings_json_keeps_other_keys]
   - rule: Missing and unreadable stored keys keep their typed client errors before any spawn.
-    tested_by: [removed_key_is_aylul_key_missing, unreadable_row_is_secret_unreadable]
+    tested_by: [missing_provider_key_is_named, reserved_variable_row_fails_opening]
   - rule: Planner instructions describe whole first maps and person-approved waiver cards; no tool approves a map.
     tested_by: map_propose_before_a_complete_vision_answers_stage_blocked
   - rule: >
@@ -619,30 +620,48 @@ not_the_caller's:
 
 
 tests:
-  - name: aylul_turn_starts_when_configured
+  - name: opening_uses_agent_and_provider
     checks: >
-      tests/aylul_session.rs: a send on an aylul thread reaches the adapter
-      through Turns::send.
-  - name: aylul_is_unavailable_without_a_profile
+      tests/aylul_session/opening.rs: a send on an agent's thread spawns with
+      the agent home as cwd and CLAUDE_CONFIG_DIR, the provider token present,
+      only the user settings source, no append/MCP, one prompt block.
+  - name: two_agents_share_one_provider_key
     checks: >
-      tests/aylul_session.rs: no profile gives HarnessUnavailable, and the list
-      shows aylul available=false, "Coming later".
-  - name: harness_list_names_aylul
+      tests/aylul_session/opening.rs: two agents on one provider both receive
+      the token from the single `provider/<slug>` row.
+  - name: deleted_agent_with_live_adapter_is_not_found
     checks: >
-      tests/aylul_session.rs: with a profile the list has aylul, labelled
-      AYLUL, available.
-  - name: aylul_open_spawns_with_profile_env_and_home_cwd
+      tests/aylul_session/opening.rs: deleting an agent whose thread holds a
+      live adapter makes the next send AYLUL_PROFILE_NOT_FOUND.
+  - name: deleting_last_agent_is_not_found_not_unavailable
     checks: >
-      tests/aylul_session.rs: profile home as cwd and CLAUDE_CONFIG_DIR, token
-      present, only the user settings source, no append/MCP, one prompt block.
-  - name: aylul_open_without_key_refuses_before_spawn
+      tests/aylul_session/opening.rs: with the last agent deleted, opening and
+      sending give AYLUL_PROFILE_NOT_FOUND, not HarnessUnavailable, while the
+      list shows aylul available=false.
+  - name: missing_provider_key_is_named
     checks: >
-      tests/aylul_session.rs: an unset key variable fails the opening, naming
-      the variable.
-  - name: aylul_model_choice_does_not_move_planner_memory
+      tests/aylul_session/opening.rs: a provider with no key fails the opening
+      with AYLUL_KEY_MISSING naming the provider.
+  - name: reserved_variable_row_fails_opening
     checks: >
-      tests/aylul_session.rs: an aylul turn remembers under aylul and leaves
-      claude-code's memory empty.
+      tests/aylul_session/opening.rs: an agent variable row with a reserved
+      name fails the opening with SECRET_NAME_RESERVED naming it.
+  - name: settings_json_keeps_other_keys
+    checks: >
+      tests/aylul_session/homes.rs: the opening writes only availableModels
+      and model, keeping every other key.
+  - name: concurrent_openings_keep_settings_valid
+    checks: >
+      tests/aylul_session/homes.rs: two openings of one agent leave a valid
+      settings.json with the person's keys intact.
+  - name: aylul_choices_have_no_default_model
+    checks: >
+      tests/aylul_session/preferences.rs: AYLUL choices list each provider
+      model once and never `default`.
+  - name: remembered_model_is_per_agent
+    checks: >
+      tests/aylul_session/preferences.rs: a turn, the opening read and
+      change_model use `aylul:<slug>`, leaving claude-code's memory empty.
   - name: absent_and_empty_tool_policies_are_distinct
     checks: None leaves adapter defaults; empty explicitly removes built-in tools.
   - name: a_pending_turn_delivers_the_standards_version_it_recorded
@@ -768,5 +787,10 @@ tests:
 # AYLUL environment resolution belongs to Secrets, not the adapter.
 # Opening decrypts the profile pairs at each spawn; live adapters keep their environment.
 # From<OpenError> preserves Env's AylulKeyMissing/SecretUnreadable/SecretsUnavailable codes.
-# Evidence: stored_key_reaches_the_adapter, replaced_value_reaches_a_new_adapter,
-# removed_key_is_aylul_key_missing, unreadable_row_is_secret_unreadable.
+# Evidence: two_agents_share_one_provider_key, settings_json_keeps_other_keys,
+# missing_provider_key_is_named, reserved_variable_row_fails_opening.
+# live.rs owns adapter opening and cache slot types; sessions.rs owns session leases.
+
+# AYLUL model choices are restricted to provider ids, with default removed and labels equal to ids.
+# The agent and its provider are checked before reusing a cached adapter or checking availability.
+# Only explicit provider keys are sent; daemon-variable fallback and env import are removed.

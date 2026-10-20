@@ -98,7 +98,8 @@ shapes:
   SendTo:
     # Where Send goes: an open thread's next turn, or a draft that makes the thread first.
     values: "{ threadId: string } | { draft: (commandId, text, settings) => Promise<string>;
-      planId?: string }"
+      planId?: string; selectableModels?: boolean }"
+    # selectableModels: an agent draft, whose Model menu works before a session exists.
   Shown:
     # What a harness operational label means to a person (`describeLabel`).
     icon: LucideIcon
@@ -176,6 +177,12 @@ components:
   DraftRoute:
     signature: "() => JSX.Element"
     # Route component for /projects/$projectId/new; keyed by project.
+  AgentDraftRoute:
+    signature: "() => JSX.Element"
+    # Route component for /aylul/agents/$slug/new; keyed by agent. Resolves the live agent,
+    # its provider's models and the hidden assistant project, then a draft whose Model
+    # menu lists exactly those models, the agent's default chosen. A deleted or unknown
+    # agent reads "Agent not found."
   Composer:
     signature: "(props: { to: SendTo; carried?: CarriedSend | null; harness: string; harnessLabel:
       string; session: SessionView; running: Turn | null; directory: string | null | undefined;
@@ -187,7 +194,8 @@ components:
   ComposerBar:
     signature: "(props: { harness: string; harnessLabel: string; session: SessionView; settings:
       TurnSettings | null; onSettings: (next: TurnSettings) => void; changingModel: boolean;
-      sessionless?: boolean; directory: string | null | undefined; note: string | null; ring?:
+      sessionless?: boolean; selectableModels?: boolean; directory: string | null | undefined;
+      note: string | null; ring?:
       ReactNode; opened?: 'model' | 'effort' | null; onOpened?: (opened: 'model' | 'effort' | null)
       => void }) => JSX.Element"
     # The row under the box: Mode, folder, Model, Effort and the ring. Every menu is
@@ -402,16 +410,29 @@ queries_and_mutations:
     signature: "(threadId: string, send: CarriedSend) => void"
     # Module-level map: a draft that failed after its thread existed hands its text here.
   useFirstSend:
-    signature: "(projectId: string, harness: string, planId?: string) => (commandId: string, text:
-      string, chosen: TurnSettings) => Promise<string>"
+    signature: "(projectId: string, harness: string, planId?: string, profile?: string) =>
+      (commandId: string, text: string, chosen: TurnSettings) => Promise<string>"
     private: true
-    # Creates the thread, opens its session, starts the turn, and only then navigates.
+    # Creates the thread (with `profile` under an agent), opens its session, applies the
+    # model chosen in the draft when it differs and takes that answer's effort, starts the
+    # turn, and only then navigates.
     # On a later failure it carries the send to the thread page and rethrows.
 
 
 # ── obligations ──────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: >
+      A draft under an agent keeps the model chosen before the first send: the thread is
+      created with the agent, the session opened, the chosen model applied, and only then
+      the turn sent with it.
+    tested_by: [first_send_keeps_chosen_model]
+
+  - rule: >
+      An AYLUL conversation's header names its agent, or "Deleted agent"; a deleted agent's
+      conversation still shows its history.
+    tested_by: [deleted_agent_conversation_reads]
+
   - rule: >
       A turn's status only moves forward (Pending, Running, one terminal). A snapshot
       read before a turn ended does not bring it back, and a replayed start does not
@@ -1350,3 +1371,10 @@ tests:
     checks: >
       A normal project's header shows its stage; the assistant project's shows no stage
       and never fetches it.
+  # app/agents/aylul.test.tsx
+  - name: first_send_keeps_chosen_model
+    checks: >
+      Choosing fake-small in an agent draft and sending posts the thread with profile and
+      harness aylul, changes the model before the turn, and sends the turn on fake-small.
+  - name: deleted_agent_conversation_reads
+    checks: With no live agent, the conversation shows its history and "Deleted agent".

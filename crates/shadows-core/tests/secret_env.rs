@@ -154,7 +154,7 @@ async fn lower_case_bad_and_reserved_names_are_refused() {
     ] {
         assert!(matches!(
             w.secrets.set_env("a".into(), "aylul", name, VALUE).await,
-            Err(CoreError::SecretNameInvalid(_))
+            Err(CoreError::SecretNameInvalid(_) | CoreError::SecretNameReserved(_))
         ));
     }
 }
@@ -189,89 +189,9 @@ async fn no_key_refuses_every_method() {
         Err(CoreError::SecretsUnavailable)
     ));
     assert!(matches!(
-        service.import_needed("p").await,
-        Err(CoreError::SecretsUnavailable)
-    ));
-    assert!(matches!(
-        service.import_env_once("p", vec![]).await,
-        Err(CoreError::SecretsUnavailable)
-    ));
-    assert!(matches!(
         resolve_secret_env(&service, "p").await,
         Err(CoreError::SecretsUnavailable)
     ));
-}
-
-#[tokio::test]
-async fn import_runs_once_even_after_all_removed() {
-    let w = world().await;
-    assert!(w.secrets.import_needed("aylul").await.unwrap());
-    let pairs = vec![("API_KEY".into(), VALUE.into())];
-    assert_eq!(
-        w.secrets
-            .import_env_once("aylul", pairs.clone())
-            .await
-            .unwrap()
-            .unwrap()
-            .stored,
-        1
-    );
-    w.secrets
-        .remove_env("r".into(), "aylul", "API_KEY")
-        .await
-        .unwrap();
-    let restarted = secrets(w.storage.clone(), Some(SecretKey::from_bytes([7; 32])));
-    assert!(!restarted.import_needed("aylul").await.unwrap());
-    assert!(
-        restarted
-            .import_env_once("aylul", pairs)
-            .await
-            .unwrap()
-            .is_none()
-    );
-    assert!(restarted.list_env("aylul").await.unwrap().is_empty());
-}
-
-#[tokio::test]
-async fn import_skips_bad_names_and_keeps_last_duplicate() {
-    let w = world().await;
-    let report = w
-        .secrets
-        .import_env_once(
-            "aylul",
-            vec![
-                ("API_KEY".into(), VALUE.into()),
-                ("bad".into(), VALUE.into()),
-                ("API_KEY".into(), "last-synthetic".into()),
-            ],
-        )
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(report.stored, 1);
-    assert_eq!(report.skipped, ["bad"]);
-    let pairs = resolve_secret_env(&w.secrets, "aylul").await.unwrap();
-    assert!(pairs[0].1 == "last-synthetic", "last duplicate resolves");
-}
-
-#[tokio::test]
-async fn failed_import_leaves_no_rows_and_no_marker() {
-    let w = world().await;
-    sqlx::query(
-        "CREATE TRIGGER fail_marker BEFORE INSERT ON secret_env_import \
-        BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END",
-    )
-    .execute(w.storage.reader())
-    .await
-    .unwrap();
-    assert!(
-        w.secrets
-            .import_env_once("aylul", vec![("API_KEY".into(), VALUE.into())])
-            .await
-            .is_err()
-    );
-    assert!(w.secrets.list_env("aylul").await.unwrap().is_empty());
-    assert!(w.secrets.import_needed("aylul").await.unwrap());
 }
 
 #[tokio::test]
@@ -292,4 +212,21 @@ async fn value_absent_from_db_wal_shm_and_command_record() {
             assert!(!bytes.windows(VALUE.len()).any(|v| v == VALUE.as_bytes()));
         }
     }
+}
+
+#[tokio::test]
+async fn reserved_name_can_be_removed() {
+    let w = world().await;
+    // A row stored before its name became reserved fails the opening, which
+    // names it; removing it must stay possible.
+    assert!(
+        w.secrets
+            .remove_env("r".into(), "aylul", "ANTHROPIC_BASE_URL")
+            .await
+            .is_ok()
+    );
+    assert!(matches!(
+        w.secrets.remove_env("r2".into(), "aylul", "bad").await,
+        Err(CoreError::SecretNameInvalid(_))
+    ));
 }

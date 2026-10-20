@@ -139,6 +139,7 @@ async fn a_codex_thread_cannot_open_a_session() {
             &app.project,
             "x",
             policy::CODEX,
+            None,
         )
         .await
         .unwrap();

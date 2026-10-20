@@ -17,8 +17,10 @@
 mod assistant;
 mod commands;
 mod context;
+mod live;
 mod model;
 mod offers;
+pub(crate) mod profile_home;
 mod sessions;
 mod settings;
 mod setup;
@@ -61,7 +63,7 @@ impl Harness {
             .config
             .aylul
             .as_ref()
-            .map(|c| c.profile.name.as_str())
+            .map(|_| "aylul")
             .ok_or(CoreError::AylulNotConfigured)
     }
 
@@ -74,7 +76,7 @@ impl Harness {
     pub async fn list(&self) -> Result<Vec<HarnessInfo>, CoreError> {
         let mut list = Vec::new();
         for kind in policy::KNOWN {
-            let available = self.sessions.harness_available(kind);
+            let available = self.sessions.harness_available(kind).await?;
             let remembered = self
                 .storage
                 .remembered_settings(kind)
@@ -96,7 +98,8 @@ impl Harness {
     /// offers. Idempotent: an open session answers what it holds.
     pub async fn open_session(&self, thread: &ThreadId) -> Result<SessionChoices, CoreError> {
         let context = self.storage.turn_context(thread).await?;
-        if !self.sessions.harness_available(&context.harness) {
+        self.sessions.check_context(&context).await?;
+        if !self.sessions.harness_available(&context.harness).await? {
             return Err(CoreError::HarnessUnavailable(context.harness));
         }
         self.sessions.open(thread).await?;
@@ -153,14 +156,18 @@ impl Harness {
     /// Answers the harness kind and the open session.
     async fn open_idle(&self, thread: &ThreadId) -> Result<(String, OpenSession), CoreError> {
         let context = self.storage.turn_context(thread).await?;
-        if !self.sessions.harness_available(&context.harness) {
+        self.sessions.check_context(&context).await?;
+        if !self.sessions.harness_available(&context.harness).await? {
             return Err(CoreError::HarnessUnavailable(context.harness));
         }
         if self.storage.thread_is_busy(thread).await? {
             return Err(StorageError::ThreadBusy.into());
         }
         let opened = self.sessions.open(thread).await?;
-        Ok((context.harness, opened))
+        Ok((
+            preference_key(&context.harness, context.profile.as_deref()),
+            opened,
+        ))
     }
 
     /// The context breakdown of the thread's session, read on demand (spec
@@ -248,5 +255,13 @@ fn refusal(what: &str, id: &str, refused: SettingRefused) -> CoreError {
         SettingRefused::Lease(e @ LeaseError::Closed) => {
             CoreError::HarnessStartFailed(e.to_string())
         }
+    }
+}
+
+pub(crate) fn preference_key(harness: &str, profile: Option<&str>) -> String {
+    if harness == policy::AYLUL {
+        format!("aylul:{}", profile.unwrap_or("aylul"))
+    } else {
+        harness.into()
     }
 }

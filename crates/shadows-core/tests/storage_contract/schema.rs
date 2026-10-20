@@ -36,6 +36,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "agreement",
             "agreement_operation_identity",
             "agreement_version",
+            "aylul_agent",
+            "aylul_provider",
             "code_file",
             "code_setting",
             "code_tag",

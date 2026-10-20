@@ -49,7 +49,7 @@ async fn fixture(config: SessionsConfig) -> Fixture {
         ..ctx
     };
     let thread = storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
         .await
         .unwrap()
         .id;
@@ -277,7 +277,7 @@ async fn second_thread(fx: &Fixture) -> ThreadId {
         request_fingerprint: fingerprint("thread.create", &params),
     };
     fx.storage
-        .create_planning_thread(&ctx, &project, "U", "claude-code")
+        .create_planning_thread(&ctx, &project, "U", "claude-code", None)
         .await
         .unwrap()
         .id

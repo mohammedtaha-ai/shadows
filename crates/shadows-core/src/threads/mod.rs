@@ -30,7 +30,7 @@ pub(crate) use rules::known_harness;
 // What another write calls inside its own transaction (spec §14.6): a turn,
 // an approval or a shown plan appends an entry, and a turn titles its thread
 // after its first message.
-pub(crate) use store::{append_entry_in, title_from_first_message_in};
+pub(crate) use store::{append_entry_in, profile_in, title_from_first_message_in};
 
 use crate::app::user_command;
 use crate::code::Code;
@@ -81,20 +81,38 @@ impl Threads {
         project: &ProjectId,
         title: &str,
         harness: Option<&str>,
+        profile: Option<&str>,
     ) -> Result<PlanningThread, CoreError> {
         let harness = harness.unwrap_or(policy::CLAUDE_CODE);
         known_harness(harness)?;
         if let Ok(found) = self.storage.get_project(project).await {
             harness_fits_project(harness, found.assistant)?;
         }
-        let params = serde_json::json!({
+        if harness != policy::AYLUL && profile.is_some() {
+            return Err(CoreError::ProfileInvalid(
+                "Planner threads cannot name an agent".into(),
+            ));
+        }
+        if harness == policy::AYLUL && profile.is_none() {
+            return Err(CoreError::AylulProfileNotFound("agent required".into()));
+        }
+        let mut params = serde_json::json!({
             "project": project, "title": title, "harness": harness,
         });
+        // Only an agent's thread names one, so a Planner thread's fingerprint
+        // stays what it was before agents existed.
+        if let Some(profile) = profile {
+            params["profile"] = profile.into();
+        }
         let c = user_command(command_id, "thread.create", params);
         Ok(self
             .storage
-            .create_planning_thread(&c, project, title, harness)
+            .create_planning_thread(&c, project, title, harness, profile)
             .await?)
+    }
+
+    pub async fn list_for_profile(&self, slug: &str) -> Result<Vec<PlanningThread>, CoreError> {
+        Ok(self.storage.list_threads_for_profile(slug).await?)
     }
 
     /// Changes the thread's harness before its first turn (spec §12.6):

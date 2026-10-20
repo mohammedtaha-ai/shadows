@@ -12,14 +12,10 @@ mod plan;
 async fn no_get_route_changes_state() {
     use shadows_core::{DesignOp, OutcomeContent, OutcomeId, PartContent, PartId, VisionField};
     let tmp = tempfile::tempdir().unwrap();
+    let home_root = tmp.path().to_owned();
     let config = shadows_core::testing::SessionsConfig {
         aylul: Some(shadows_core::AylulConfig {
-            profile: shadows_core::ClaudeProfile {
-                name: "aylul".into(),
-                home: tmp.path().to_owned(),
-                key_env: "AYLUL_READ_ONLY_TEST_KEY".into(),
-                env: vec![],
-            },
+            home_root: tmp.path().to_owned(),
             project_slug: "aylul".into(),
         }),
         ..acp::test_config()
@@ -27,6 +23,36 @@ async fn no_get_route_changes_state() {
     let a = app::test_app_with(tmp.path(), config, acp::MCP_URL)
         .await
         .owning(tmp);
+    a.core
+        .projects()
+        .ensure_assistant("aylul", "AYLUL", &home_root)
+        .await
+        .unwrap();
+    a.core
+        .profiles()
+        .create_provider(
+            "provider".into(),
+            shadows_core::ProviderInput {
+                name: "Test".into(),
+                base_url: "https://example.com".into(),
+                models: vec!["fake-large".into()],
+                context_window: None,
+            },
+        )
+        .await
+        .unwrap();
+    a.core
+        .profiles()
+        .create_agent(
+            "agent".into(),
+            shadows_core::AgentInput {
+                name: "AYLUL".into(),
+                provider: "test".into(),
+                default_model: "fake-large".into(),
+            },
+        )
+        .await
+        .unwrap();
     a.storage.seed_map_for_tests(&a.project).await.unwrap();
     let part = PartId::generate();
     let outcome = OutcomeId::generate();
@@ -142,6 +168,7 @@ async fn no_get_route_changes_state() {
                 "id" if template.starts_with("/api/threads/") => a.thread.to_string(),
                 "id" if template.starts_with("/api/workflows/") => workflow.to_string(),
                 "id" if template.starts_with("/api/plans/") => version.plan_id.to_string(),
+                "slug" if template.starts_with("/api/aylul/agents/") => "aylul".into(),
                 "agreement" => agreement["agreement_id"].as_str().unwrap().to_string(),
                 "part" => part.to_string(),
                 "outcome" => outcome.to_string(),

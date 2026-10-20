@@ -15,7 +15,7 @@ pub struct ClaudeAdapter {
 
 impl ClaudeAdapter {
     pub fn process_spec(&self, cwd: &Path) -> ProcessSpec {
-        self.process_spec_with(cwd, None, &[])
+        self.process_spec_with(cwd, None, &[], None)
             .expect("no profile means no key to miss")
     }
 
@@ -26,10 +26,11 @@ impl ClaudeAdapter {
         cwd: &Path,
         profile: Option<&ClaudeProfile>,
         stored: &[(String, String)],
+        token: Option<&str>,
     ) -> Result<ProcessSpec, ProfileError> {
         let mut env = environment(&self.agent);
         if let Some(profile) = profile {
-            env.extend(profile.spawn_env_with(stored)?);
+            env.extend(profile.spawn_env_with(stored, token)?);
         }
         Ok(ProcessSpec {
             executable: self.node.clone(),

@@ -256,7 +256,7 @@ async fn seed_thread(runtime: &Runtime) -> shadows_core::ThreadId {
     };
     runtime
         .storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
         .await
         .unwrap()
         .id

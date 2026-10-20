@@ -35,7 +35,7 @@ import { type SessionView, sessionKey } from './use-session'
  * whose `draft` makes the thread first and answers the turn's operation. */
 export type SendTo =
   | { threadId: string }
-  | { draft: (commandId: string, text: string, settings: TurnSettings) => Promise<string>; planId?: string }
+  | { draft: (commandId: string, text: string, settings: TurnSettings) => Promise<string>; planId?: string; selectableModels?: boolean }
 
 const NONE: readonly SlashCommand[] = []
 
@@ -249,7 +249,7 @@ export function Composer({
     !changingEffort &&
     choices !== null &&
     settings !== null &&
-    effortsKnown(choices, settings.model) &&
+    (('draft' in to && to.selectableModels === true) || effortsKnown(choices, settings.model)) &&
     sendable(choices, settings)
 
   const submit = () => {
@@ -356,6 +356,7 @@ export function Composer({
           onSettings={choose}
           changingModel={changing || changingEffort}
           sessionless={threadId === null}
+          selectableModels={'draft' in to && to.selectableModels === true}
           harness={harness}
           directory={directory}
           note={note}

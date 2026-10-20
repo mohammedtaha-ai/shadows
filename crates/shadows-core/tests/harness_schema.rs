@@ -56,6 +56,7 @@ async fn fixture() -> (Fixture, ThreadId) {
             &project.id,
             "T",
             policy::CLAUDE_CODE,
+            None,
         )
         .await
         .unwrap();

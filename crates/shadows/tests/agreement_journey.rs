@@ -98,6 +98,7 @@ async fn two_plans_adopt_independently_and_retain_frozen_pins_after_restart() {
             &a.project,
             "Frontend",
             "claude-code",
+            None,
         )
         .await
         .unwrap()

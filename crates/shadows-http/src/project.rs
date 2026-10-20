@@ -104,6 +104,7 @@ pub(super) struct CreateThread {
     title: String,
     /// The CLI for this conversation; `claude-code` when omitted.
     harness: Option<String>,
+    profile: Option<String>,
 }
 
 /// Creates a planning thread in a project.
@@ -132,7 +133,7 @@ pub(super) struct CreateThread {
 pub(super) async fn create_thread(
     State(s): State<AppState>,
     Path(project_id): Path<ProjectId>,
-    Json(body): Json<CreateThread>,
+    super::aylul_env::EnvJson(body): super::aylul_env::EnvJson<CreateThread>,
 ) -> Result<Json<PlanningThread>, Failure> {
     Ok(Json(
         s.core
@@ -142,6 +143,7 @@ pub(super) async fn create_thread(
                 &project_id,
                 &body.title,
                 body.harness.as_deref(),
+                body.profile.as_deref(),
             )
             .await?,
     ))

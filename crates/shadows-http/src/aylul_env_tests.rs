@@ -4,18 +4,18 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use shadows_core::testing::{LiveHandles, Runtime, Sessions, Storage, acp, secrets};
-use shadows_core::{AppCore, AylulConfig, ClaudeProfile, CoreParts, SecretKey};
+use shadows_core::{AppCore, AylulConfig, CoreParts, SecretKey};
 use tower::ServiceExt;
 
 use crate::AppState;
 
-struct World {
+pub(crate) struct World {
     _tmp: tempfile::TempDir,
-    core: Arc<AppCore>,
+    pub(crate) core: Arc<AppCore>,
     router: axum::Router,
 }
 
-async fn world(configured: bool, key: bool) -> World {
+pub(crate) async fn world(configured: bool, key: bool) -> World {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
     let secrets = secrets(storage.clone(), key.then(|| SecretKey::from_bytes([7; 32])));
@@ -33,12 +33,7 @@ async fn world(configured: bool, key: bool) -> World {
         shadows_core::testing::SessionsConfig {
             secrets: Some(secrets.clone()),
             aylul: configured.then(|| AylulConfig {
-                profile: ClaudeProfile {
-                    name: "aylul".into(),
-                    home: tmp.path().to_owned(),
-                    key_env: "AYLUL_HTTP_TEST_KEY_735".into(),
-                    env: vec![],
-                },
+                home_root: tmp.path().to_owned(),
                 project_slug: "aylul".into(),
             }),
             ..acp::test_config()
@@ -54,6 +49,12 @@ async fn world(configured: bool, key: bool) -> World {
         ui: tokio::sync::broadcast::channel(16).0,
         mcp_url: acp::MCP_URL.into(),
     });
+    if configured {
+        core.projects()
+            .ensure_assistant("aylul", "AYLUL", tmp.path())
+            .await
+            .unwrap();
+    }
     let router = crate::router(
         AppState {
             core: core.clone(),
@@ -69,7 +70,12 @@ async fn world(configured: bool, key: bool) -> World {
     }
 }
 
-async fn request(w: &World, method: &str, path: &str, text: &str) -> (StatusCode, String) {
+pub(crate) async fn request(
+    w: &World,
+    method: &str,
+    path: &str,
+    text: &str,
+) -> (StatusCode, String) {
     let response = w
         .router
         .clone()
@@ -92,12 +98,14 @@ const BODY: &str = r#"{"command_id":"c","value":"synthetic-http-fixture"}"#;
 
 #[tokio::test]
 async fn put_then_list_shows_name_only() {
-    let w = world(true, true).await;
+    let w = agent_world(true, true).await;
     assert_eq!(
-        request(&w, "PUT", "/api/aylul/env/API_KEY", BODY).await.0,
+        request(&w, "PUT", "/api/aylul/agents/aylul/env/API_KEY", BODY)
+            .await
+            .0,
         StatusCode::OK
     );
-    let (status, text) = request(&w, "GET", "/api/aylul/env", "").await;
+    let (status, text) = request(&w, "GET", "/api/aylul/agents/aylul/env", "").await;
     assert_eq!(status, StatusCode::OK);
     let list: Value = serde_json::from_str(&text).unwrap();
     assert_eq!(list[0]["name"], "API_KEY");
@@ -111,8 +119,8 @@ async fn put_then_list_shows_name_only() {
 
 #[tokio::test]
 async fn put_response_has_no_value() {
-    let w = world(true, true).await;
-    let (status, text) = request(&w, "PUT", "/api/aylul/env/API_KEY", BODY).await;
+    let w = agent_world(true, true).await;
+    let (status, text) = request(&w, "PUT", "/api/aylul/agents/aylul/env/API_KEY", BODY).await;
     assert_eq!(status, StatusCode::OK);
     let entry: Value = serde_json::from_str(&text).unwrap();
     assert_eq!(entry.as_object().unwrap().len(), 2);
@@ -124,8 +132,8 @@ async fn put_response_has_no_value() {
 
 #[tokio::test]
 async fn bad_name_is_400() {
-    let w = world(true, true).await;
-    let (status, text) = request(&w, "PUT", "/api/aylul/env/bad", BODY).await;
+    let w = agent_world(true, true).await;
+    let (status, text) = request(&w, "PUT", "/api/aylul/agents/aylul/env/bad", BODY).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(
         serde_json::from_str::<Value>(&text).unwrap()["code"],
@@ -135,12 +143,12 @@ async fn bad_name_is_400() {
 
 #[tokio::test]
 async fn numeric_value_body_error_does_not_echo() {
-    let w = world(true, true).await;
+    let w = agent_world(true, true).await;
     for body in [
         r#"{"command_id":"c","value":918273645}"#,
         r#"{"command_id":"c","value":"synthetic-http-fixture""#,
     ] {
-        let (status, text) = request(&w, "PUT", "/api/aylul/env/API_KEY", body).await;
+        let (status, text) = request(&w, "PUT", "/api/aylul/agents/aylul/env/API_KEY", body).await;
         assert_eq!(status, StatusCode::BAD_REQUEST);
         assert!(!text.contains("918273645"), "numeric input is never echoed");
         assert!(
@@ -155,19 +163,19 @@ async fn numeric_value_body_error_does_not_echo() {
 }
 
 #[tokio::test]
-async fn without_aylul_list_is_404_aylul_not_configured() {
-    let w = world(false, true).await;
-    let (status, text) = request(&w, "GET", "/api/aylul/env", "").await;
+async fn without_agent_list_is_404() {
+    let w = agent_world(false, true).await;
+    let (status, text) = request(&w, "GET", "/api/aylul/agents/aylul/env", "").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(
         serde_json::from_str::<Value>(&text).unwrap()["code"],
-        "AYLUL_NOT_CONFIGURED"
+        "AYLUL_PROFILE_NOT_FOUND"
     );
 }
 
 #[tokio::test]
 async fn turn_without_key_is_aylul_key_missing() {
-    let w = world(true, true).await;
+    let w = agent_world(true, true).await;
     let p = w
         .core
         .projects()
@@ -177,7 +185,7 @@ async fn turn_without_key_is_aylul_key_missing() {
     let t = w
         .core
         .threads()
-        .create("t".into(), &p.id, "talk", Some("aylul"))
+        .create("t".into(), &p.id, "talk", Some("aylul"), Some("aylul"))
         .await
         .unwrap();
     let body = json!({"command_id":"turn", "prompt":"hi", "model":"fake-large",
@@ -187,31 +195,66 @@ async fn turn_without_key_is_aylul_key_missing() {
     assert_eq!(status, StatusCode::CONFLICT);
     let error: Value = serde_json::from_str(&text).unwrap();
     assert_eq!(error["code"], "AYLUL_KEY_MISSING");
-    assert!(
-        error["message"]
-            .as_str()
-            .unwrap()
-            .contains("AYLUL_HTTP_TEST_KEY_735")
-    );
+    assert!(error["message"].as_str().unwrap().contains("test"));
 }
 
 #[tokio::test]
 async fn delete_returns_204_and_no_key_is_503() {
-    let w = world(true, true).await;
+    let w = agent_world(true, true).await;
     assert_eq!(
-        request(&w, "PUT", "/api/aylul/env/API_KEY", BODY).await.0,
+        request(&w, "PUT", "/api/aylul/agents/aylul/env/API_KEY", BODY)
+            .await
+            .0,
         StatusCode::OK
     );
     assert_eq!(
-        request(&w, "DELETE", "/api/aylul/env/API_KEY?command_id=remove", "").await,
+        request(
+            &w,
+            "DELETE",
+            "/api/aylul/agents/aylul/env/API_KEY?command_id=remove",
+            ""
+        )
+        .await,
         (StatusCode::NO_CONTENT, String::new())
     );
     assert!(w.core.secrets().list_env("aylul").await.unwrap().is_empty());
-    let unavailable = world(true, false).await;
-    let (status, text) = request(&unavailable, "GET", "/api/aylul/env", "").await;
+    let unavailable = agent_world(true, false).await;
+    let (status, text) = request(&unavailable, "GET", "/api/aylul/agents/aylul/env", "").await;
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(
         serde_json::from_str::<Value>(&text).unwrap()["code"],
         "SECRETS_UNAVAILABLE"
     );
+}
+
+async fn agent_world(configured: bool, key: bool) -> World {
+    let w = world(configured, key).await;
+    if configured {
+        w.core
+            .profiles()
+            .create_provider(
+                "seed-provider".into(),
+                shadows_core::ProviderInput {
+                    name: "Test".into(),
+                    base_url: "https://example.com".into(),
+                    models: vec!["fake-large".into()],
+                    context_window: None,
+                },
+            )
+            .await
+            .unwrap();
+        w.core
+            .profiles()
+            .create_agent(
+                "seed-agent".into(),
+                shadows_core::AgentInput {
+                    name: "AYLUL".into(),
+                    provider: "test".into(),
+                    default_model: "fake-large".into(),
+                },
+            )
+            .await
+            .unwrap();
+    }
+    w
 }

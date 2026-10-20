@@ -77,7 +77,7 @@ async fn fixture() -> Fixture {
     };
     let thread = runtime
         .storage
-        .create_planning_thread(&tctx, &project.id, "T", "claude-code")
+        .create_planning_thread(&tctx, &project.id, "T", "claude-code", None)
         .await
         .unwrap();
     let sessions = acp::fake_sessions(runtime.storage.clone());

@@ -24,6 +24,14 @@ pub async fn resolve_secret_env(
     service.resolve_env(profile).await
 }
 
+pub fn profiles(
+    storage: Arc<Storage>,
+    _secrets: Arc<crate::Secrets>,
+    home_root: std::path::PathBuf,
+) -> Arc<crate::Profiles> {
+    crate::Profiles::new(storage, Some(home_root), std::sync::Weak::new())
+}
+
 pub mod acp;
 pub mod queue;
 pub mod turn;

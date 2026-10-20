@@ -28,6 +28,7 @@ export function ComposerBar({
   onSettings,
   changingModel,
   sessionless = false,
+  selectableModels = false,
   directory,
   note,
   ring,
@@ -46,6 +47,7 @@ export function ComposerBar({
   /** A draft: no session exists yet, so the model is not chosen until the
    * first message opens one. */
   sessionless?: boolean
+  selectableModels?: boolean
   directory: string | null | undefined
   /** Why the settings moved on their own, if they did. */
   note: string | null
@@ -112,7 +114,7 @@ export function ComposerBar({
                 title="Model"
                 options={choices.models}
                 value={settings.model}
-                disabled={changingModel || sessionless}
+                disabled={changingModel || (sessionless && !selectableModels)}
                 onChange={(model) => onSettings(withModel(choices, settings, model))}
                 {...openAs('model')}
               />
@@ -170,7 +172,7 @@ function Setting({
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger
-        render={<Button variant="ghost" size="xs" title={title} disabled={disabled} />}
+        render={<Button variant="ghost" size="xs" title={title} aria-label={title} disabled={disabled} />}
       >
         {labelOf(options, value)}
         <ChevronDown aria-hidden />

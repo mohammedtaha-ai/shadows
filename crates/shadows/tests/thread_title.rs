@@ -160,6 +160,7 @@ async fn a_plan_thread_keeps_its_plan_title() {
             &app.project,
             "x",
             "claude-code",
+            None,
         )
         .await
         .unwrap()

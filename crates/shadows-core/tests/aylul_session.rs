@@ -1,479 +1,175 @@
-//! AYLUL threads open Claude Code on the profile (home as cwd, profile env, no
-//! Planner prompt, tools or grant) and live only in the AYLUL project.
-//! `fake_acp`'s `report` prompt answers with its cwd, env and session options.
-
-use std::path::Path;
+//! Agent-scoped AYLUL sessions through the real core and synthetic ACP process.
+use serde_json::{Value, json};
+use shadows_core::testing::{self, LiveHandles, Runtime, Sessions, SessionsConfig, Storage, acp};
+use shadows_core::{
+    AgentInput, AppCore, AylulConfig, CoreError, CoreParts, ProviderInput, SecretKey, SendTurn,
+    ThreadEntryKind, ThreadId,
+};
 use std::sync::Arc;
 use std::time::Duration;
-
-use serde_json::Value;
-use shadows_agent::policy;
-use shadows_agent::profile::ClaudeProfile;
-use shadows_core::testing::{LiveHandles, Runtime, Sessions, SessionsConfig, Storage, acp, turn};
-use shadows_core::{AppCore, AylulConfig, CoreParts, ThreadEntryKind, ThreadId};
-use shadows_core::{CoreError, SendTurn};
-
-/// `PATH` is a variable every process has, so the key resolves without
-/// `set_var`; `key_env` names a variable nothing sets for the missing case.
-fn config(home: &Path, key_env: &str) -> AylulConfig {
-    AylulConfig {
-        profile: ClaudeProfile {
-            name: "aylul".into(),
-            home: home.to_path_buf(),
-            key_env: key_env.into(),
-            env: vec![("ANTHROPIC_MODEL".into(), "MiniMax-M3".into())],
-        },
-        project_slug: "aylul".into(),
-    }
-}
 
 struct World {
     _tmp: tempfile::TempDir,
     home: std::path::PathBuf,
     storage: Arc<Storage>,
-    runtime: Arc<Runtime>,
-    sessions: Arc<Sessions>,
     core: Arc<AppCore>,
-    handles: Arc<LiveHandles>,
+    sessions: Arc<Sessions>,
     thread: ThreadId,
 }
 
-async fn env_matches(w: &World, thread: &ThreadId, prompt: &str) -> bool {
-    let op = turn::start_direct(
-        &w.runtime,
-        &w.handles,
-        &w.sessions,
-        &tokio::sync::broadcast::channel(16).0,
-        thread,
-        prompt,
-    )
-    .await
-    .unwrap();
-    for _ in 0..200 {
-        if w.storage
-            .get_operation(&op)
-            .await
-            .unwrap()
-            .finished_at
-            .is_some()
-        {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    let entries = w.storage.list_thread_entries(thread).await.unwrap();
-    let body = &entries
-        .iter()
-        .rev()
-        .find(|e| e.kind == ThreadEntryKind::AgentMessage)
-        .expect("boolean adapter reply")
-        .body;
-    serde_json::from_str::<bool>(body).expect("adapter returns a boolean only")
-}
-
-#[tokio::test]
-async fn stored_key_reaches_the_adapter() {
-    let w = world("AYLUL_TEST_STORED_KEY").await;
-    w.core
-        .secrets()
-        .set_env(
-            "s1".into(),
-            "aylul",
-            "AYLUL_TEST_STORED_KEY",
-            "synthetic-stored-one",
-        )
-        .await
-        .unwrap();
-    assert!(
-        env_matches(&w, &w.thread, "check-env-one").await,
-        "stored key reaches child"
-    );
-}
-
-#[tokio::test]
-async fn replaced_value_reaches_a_new_adapter() {
-    let w = world("AYLUL_TEST_STORED_KEY").await;
-    w.core
-        .secrets()
-        .set_env(
-            "s1".into(),
-            "aylul",
-            "AYLUL_TEST_STORED_KEY",
-            "synthetic-stored-one",
-        )
-        .await
-        .unwrap();
-    assert!(
-        env_matches(&w, &w.thread, "check-env-one").await,
-        "first adapter"
-    );
-    w.core
-        .secrets()
-        .set_env(
-            "s2".into(),
-            "aylul",
-            "AYLUL_TEST_STORED_KEY",
-            "synthetic-stored-two",
-        )
-        .await
-        .unwrap();
-    // A live adapter keeps its starting environment.
-    assert!(
-        env_matches(&w, &w.thread, "check-env-one").await,
-        "existing adapter unchanged"
-    );
-    let project = w.storage.turn_context(&w.thread).await.unwrap().project_id;
-    let next = w
-        .core
-        .threads()
-        .create("next".into(), &project, "next", Some(policy::AYLUL))
-        .await
-        .unwrap();
-    assert!(
-        env_matches(&w, &next.id, "check-env-two").await,
-        "new adapter uses replacement"
-    );
-}
-
-#[tokio::test]
-async fn removed_key_is_aylul_key_missing() {
-    let w = world("AYLUL_TEST_STORED_KEY").await;
-    w.core
-        .secrets()
-        .set_env(
-            "s1".into(),
-            "aylul",
-            "AYLUL_TEST_STORED_KEY",
-            "synthetic-stored-one",
-        )
-        .await
-        .unwrap();
-    w.core
-        .secrets()
-        .remove_env("s2".into(), "aylul", "AYLUL_TEST_STORED_KEY")
-        .await
-        .unwrap();
-    let error = w
-        .core
-        .turns()
-        .send(w.thread.clone(), send("hi"))
-        .await
-        .expect_err("refused");
-    assert!(matches!(error, CoreError::AylulKeyMissing(name) if name == "AYLUL_TEST_STORED_KEY"));
-}
-
-#[tokio::test]
-async fn unreadable_row_is_secret_unreadable() {
-    let w = world("AYLUL_TEST_STORED_KEY").await;
-    w.core
-        .secrets()
-        .set_env(
-            "s1".into(),
-            "aylul",
-            "AYLUL_TEST_STORED_KEY",
-            "synthetic-stored-one",
-        )
-        .await
-        .unwrap();
-    sqlx::query("UPDATE secret_env SET nonce = X'00'")
-        .execute(w.storage.reader())
-        .await
-        .unwrap();
-    let error = w
-        .core
-        .turns()
-        .send(w.thread.clone(), send("hi"))
-        .await
-        .expect_err("refused");
-    assert!(matches!(error, CoreError::SecretUnreadable(name) if name == "AYLUL_TEST_STORED_KEY"));
-}
-
-async fn world(key_env: &str) -> World {
+async fn world() -> World {
     let tmp = tempfile::tempdir().unwrap();
-    let home = tmp.path().join("home");
-    std::fs::create_dir(&home).unwrap();
-    let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let secrets = shadows_core::testing::secrets(
-        storage.clone(),
-        Some(shadows_core::SecretKey::from_bytes([7; 32])),
-    );
+    let root = tmp.path().join("home");
+    std::fs::create_dir_all(&root).unwrap();
+    let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
+    let secrets = testing::secrets(storage.clone(), Some(SecretKey::from_bytes([7; 32])));
     let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
     let sessions = Sessions::new(
         acp::fake_adapter(),
         storage.clone(),
         SessionsConfig {
             secrets: Some(secrets.clone()),
-            aylul: Some(config(&home, key_env)),
+            aylul: Some(AylulConfig {
+                home_root: root.clone(),
+                project_slug: "aylul".into(),
+            }),
             ..acp::test_config()
         },
     );
-    let handles = Arc::new(LiveHandles::default());
     let core = AppCore::assemble(CoreParts {
         secrets,
         storage: storage.clone(),
-        runtime: runtime.clone(),
+        runtime,
         sessions: sessions.clone(),
-        handles: handles.clone(),
-        bus: tokio::sync::broadcast::channel(16).0,
+        handles: Arc::new(LiveHandles::default()),
+        bus: tokio::sync::broadcast::channel(64).0,
         ui: tokio::sync::broadcast::channel(16).0,
         mcp_url: acp::MCP_URL.into(),
     });
-    // Under another slug than the configured one: the project is AYLUL's
-    // because `ensure_assistant` marked it, not because of its slug.
-    let project = core
-        .projects()
-        .ensure_assistant("assistant", "AYLUL", &home)
+    core.projects()
+        .ensure_assistant("aylul", "AYLUL", &root)
         .await
         .unwrap();
+    core.profiles()
+        .create_provider(
+            "provider".into(),
+            ProviderInput {
+                name: "Test".into(),
+                base_url: "https://example.com/anthropic".into(),
+                models: vec!["fake-large".into(), "fake-small".into()],
+                context_window: Some(1_000_000),
+            },
+        )
+        .await
+        .unwrap();
+    core.secrets()
+        .set_provider_key("key".into(), "test", "synthetic-stored-one")
+        .await
+        .unwrap();
+    core.profiles()
+        .create_agent("agent".into(), agent("AYLUL"))
+        .await
+        .unwrap();
+    let project = core.profiles().assistant_project().await.unwrap();
     let thread = core
         .threads()
-        .create("c2".into(), &project.id, "talk", Some(policy::AYLUL))
+        .create(
+            "thread".into(),
+            &project,
+            "Chat",
+            Some("aylul"),
+            Some("aylul"),
+        )
         .await
         .unwrap()
         .id;
     World {
         _tmp: tmp,
-        home,
+        home: root.join("profiles/aylul"),
         storage,
-        runtime,
-        sessions,
         core,
-        handles,
+        sessions,
         thread,
     }
 }
 
-#[tokio::test]
-async fn aylul_open_spawns_with_profile_env_and_home_cwd() {
-    let w = world("PATH").await;
-    let bus = tokio::sync::broadcast::channel(16).0;
-    let op = turn::start_direct(
-        &w.runtime,
-        &w.handles,
-        &w.sessions,
-        &bus,
-        &w.thread,
-        "report",
-    )
-    .await
-    .unwrap();
-    for _ in 0..200 {
-        if w.storage
-            .get_operation(&op)
-            .await
-            .unwrap()
-            .finished_at
-            .is_some()
-        {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
+fn agent(name: &str) -> AgentInput {
+    AgentInput {
+        name: name.into(),
+        provider: "test".into(),
+        default_model: "fake-large".into(),
     }
-    let entries = w.storage.list_thread_entries(&w.thread).await.unwrap();
-    let reply = entries
-        .iter()
-        .rev()
-        .find(|e| e.kind == ThreadEntryKind::AgentMessage)
-        .expect("an agent reply");
-    let report: Value = serde_json::from_str(&reply.body).unwrap();
-    let home = w.home.to_str().unwrap();
-    assert_eq!(report["config_dir"], home);
-    assert_eq!(
-        std::fs::canonicalize(report["cwd"].as_str().unwrap()).unwrap(),
-        std::fs::canonicalize(&w.home).unwrap()
-    );
-    assert_eq!(report["has_token"], true);
-    // No Planner prompt, tools or grant: only the user settings source.
-    assert_eq!(
-        report["options"]["settingSources"],
-        serde_json::json!(["user"])
-    );
-    assert!(report["options"].get("tools").is_none());
-    assert!(report["append"].is_null());
-    assert!(report["mcp"].is_null());
-    // The turn carries only the person's text: no stage line, no context block.
-    assert_eq!(report["blocks"].as_array().map(Vec::len), Some(1));
 }
 
-#[tokio::test]
-async fn aylul_open_without_key_refuses_before_spawn() {
-    let w = world("AYLUL_TEST_KEY_NEVER_SET_7f3").await;
-    let error = match w.sessions.open(&w.thread).await {
-        Err(error) => error,
-        Ok(_) => panic!("opening without a key must be refused"),
-    };
-    assert!(matches!(
-        CoreError::from(error),
-        CoreError::AylulKeyMissing(_)
-    ));
-}
-
-#[tokio::test]
-async fn aylul_model_choice_does_not_move_planner_memory() {
-    let w = world("PATH").await;
-    let settings = turn::default_turn_settings();
-    let mut new = turn::new_turn(&w.thread, &w.runtime, "hi", &settings);
-    new.harness_kind = policy::AYLUL;
-    let command = turn::turn_command("t1", &w.thread, "hi", &settings);
-    w.storage.start_turn(&command, new).await.unwrap();
-    assert_eq!(
-        w.storage.remembered_settings("claude-code").await.unwrap(),
-        None
-    );
-    assert!(
-        w.storage
-            .remembered_settings("aylul")
-            .await
-            .unwrap()
-            .is_some()
-    );
-}
-
-#[tokio::test]
-async fn aylul_harness_only_in_the_aylul_project() {
-    let w = world("PATH").await;
-    let other = tempfile::tempdir().unwrap();
-    let normal = w
+async fn another(w: &World, name: &str) -> ThreadId {
+    let agent = w
         .core
-        .projects()
-        // Holds the configured slug but was never marked: an ordinary project.
+        .profiles()
+        .create_agent(name.into(), agent(name))
+        .await
+        .unwrap();
+    let project = w.core.profiles().assistant_project().await.unwrap();
+    w.core
+        .threads()
         .create(
-            "c3".into(),
-            "aylul",
-            "Normal",
-            other.path().to_str().unwrap(),
+            format!("thread-{name}"),
+            &project,
+            "Chat",
+            Some("aylul"),
+            Some(&agent.slug),
         )
         .await
-        .unwrap();
-    let threads = w.core.threads();
-    assert!(
-        threads
-            .create("c4".into(), &normal.id, "x", Some(policy::AYLUL))
-            .await
-            .is_err()
-    );
-    let plain = threads
-        .create("c5".into(), &normal.id, "x", None)
-        .await
-        .unwrap();
-    let aylul = w.storage.turn_context(&w.thread).await.unwrap().project_id;
-    assert!(
-        threads
-            .create("c6".into(), &aylul, "x", Some(policy::CLAUDE_CODE))
-            .await
-            .is_err()
-    );
-    // A harness change follows the same rule, both ways.
-    assert!(
-        threads
-            .set_harness("c7".into(), &plain.id, policy::AYLUL)
-            .await
-            .is_err()
-    );
-    assert!(
-        threads
-            .set_harness("c8".into(), &w.thread, policy::CLAUDE_CODE)
-            .await
-            .is_err()
-    );
+        .unwrap()
+        .id
 }
 
-fn send(prompt: &str) -> SendTurn {
+fn request(model: &str, effort: &str) -> SendTurn {
     SendTurn {
-        command_id: "send-1".into(),
-        prompt: prompt.into(),
-        model: "fake-large".into(),
+        command_id: uuid::Uuid::new_v4().to_string(),
+        prompt: "report".into(),
+        model: model.into(),
+        effort: Some(effort.into()),
         mode: "acceptEdits".into(),
-        effort: Some("high".into()),
         focus: None,
         plan: None,
         client_tab: None,
     }
 }
 
-#[tokio::test]
-async fn aylul_turn_starts_when_configured() {
-    let w = world("PATH").await;
+async fn reply(w: &World, thread: &ThreadId, model: &str, effort: &str) -> Value {
     let op = w
         .core
         .turns()
-        .send(w.thread.clone(), send("report"))
+        .send(thread.clone(), request(model, effort))
         .await
         .unwrap();
-    for _ in 0..200 {
-        if w.storage
-            .get_operation(&op)
-            .await
-            .unwrap()
-            .finished_at
-            .is_some()
-        {
-            break;
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let op = w.storage.get_operation(&op).await.unwrap();
+            if op.finished_at.is_some() {
+                assert_eq!(op.status_kind, "Completed");
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
         }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    let entries = w.storage.list_thread_entries(&w.thread).await.unwrap();
-    let reply = entries
-        .iter()
-        .find(|e| e.kind == ThreadEntryKind::AgentMessage)
-        .expect("the adapter got a prompt and answered");
-    let report: Value = serde_json::from_str(&reply.body).unwrap();
-    assert_eq!(
-        report["options"]["settingSources"],
-        serde_json::json!(["user"])
-    );
+    })
+    .await
+    .unwrap();
+    let entries = w.core.threads().entries(thread).await.unwrap();
+    serde_json::from_str(
+        &entries
+            .iter()
+            .rev()
+            .find(|e| e.kind == ThreadEntryKind::AgentMessage)
+            .unwrap()
+            .body,
+    )
+    .unwrap()
 }
 
-#[tokio::test]
-async fn aylul_is_unavailable_without_a_profile() {
-    // The thread exists from an earlier run with a profile; this daemon has none.
-    let with = world("PATH").await;
-    let w = World {
-        core: AppCore::assemble(CoreParts {
-            secrets: shadows_core::testing::secrets(with.storage.clone(), None),
-            storage: with.storage.clone(),
-            runtime: with.runtime.clone(),
-            sessions: Sessions::new(
-                acp::fake_adapter(),
-                with.storage.clone(),
-                acp::test_config(),
-            ),
-            handles: with.handles.clone(),
-            bus: tokio::sync::broadcast::channel(16).0,
-            ui: tokio::sync::broadcast::channel(16).0,
-            mcp_url: acp::MCP_URL.into(),
-        }),
-        ..with
-    };
-    let error = w
-        .core
-        .turns()
-        .send(w.thread.clone(), send("hi"))
-        .await
-        .unwrap_err();
-    assert!(
-        matches!(error, CoreError::HarnessUnavailable(_)),
-        "{error:?}"
-    );
-    let aylul = aylul_entry(&w).await;
-    assert_eq!(aylul["available"], false);
-    assert_eq!(aylul["reason"], "Coming later");
-}
-
-#[tokio::test]
-async fn harness_list_names_aylul() {
-    let w = world("PATH").await;
-    let aylul = aylul_entry(&w).await;
-    assert_eq!(aylul["label"], "AYLUL");
-    assert_eq!(aylul["available"], true);
-}
-
-async fn aylul_entry(w: &World) -> Value {
-    let list = serde_json::to_value(w.core.harness().list().await.unwrap()).unwrap();
-    list.as_array()
-        .unwrap()
-        .iter()
-        .find(|h| h["kind"] == "aylul")
-        .unwrap()
-        .clone()
-}
+#[path = "aylul_session/homes.rs"]
+mod homes;
+#[path = "aylul_session/opening.rs"]
+mod opening;
+#[path = "aylul_session/preferences.rs"]
+mod preferences;
