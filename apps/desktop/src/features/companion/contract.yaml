@@ -4,6 +4,8 @@ status: current
 source: apps/desktop/src/features/companion
 responsibility: Present procedural AYLUL with isolated motion and explicit native rendering permission; desktop gestures invoke narrow platform wrappers. Reusable in-window presence owns message lifetime and optional tones. Development studio is separately owned.
 exports:
+  - name: createNativePresentation
+    file: apps/desktop/src/features/companion/native-presentation.ts
   - name: DesktopCompanion
     file: apps/desktop/src/features/companion/DesktopCompanion.tsx
   - name: Companion
@@ -13,6 +15,15 @@ exports:
   - name: renderScene
     file: apps/desktop/src/features/companion/renderer/scene.ts
 obligations:
+  - rule: Desktop status comes from native presence; a plain two-line preview retains its absolute expiry and repeated IDs cannot extend it.
+    tested_by: apps/desktop/tests/companion/live-presence.spec.ts
+    test: native status and a compact plain reply retain their deadlines across repeated events
+  - rule: Native hide stops draws and showing cannot revive an expired preview.
+    tested_by: apps/desktop/tests/companion/live-presence.spec.ts
+    test: native hide stops drawing and showing cannot revive an expired preview
+  - rule: Pause and reduced motion preserve readable status; keyboard opens main and dragging consumes the click.
+    tested_by: apps/desktop/tests/companion/live-presence.spec.ts
+    test: paused and reduced-motion status remains readable, keyboard opens and drag consumes the click
   - rule: Recoverable gesture errors preserve the Canvas and renderer failures report to the native retry owner.
     tested_by: apps/desktop/tests/companion/desktop-window.spec.ts
     test: drawing failure after readiness reports to native recovery owner

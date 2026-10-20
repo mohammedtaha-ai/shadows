@@ -1,3 +1,5 @@
+import {useEffect,useState} from 'react'
+import {isDesktop} from './runtime'
 import {listen} from '@tauri-apps/api/event'
 import {nativeCall} from './native'
 export interface ConversationTarget {projectId:string;threadId:string}
@@ -46,4 +48,13 @@ export function parsePresence(raw:unknown):PresenceProjection{
       !Number.isSafeInteger(preview.expiresAtMs)||preview.expiresAtMs<0)throw Error('companion_presence_invalid')
   }
   return value
+}
+
+export function useCompanionBinding():BindingView|null{
+  const [binding,setBinding]=useState<BindingView|null>(null)
+  useEffect(()=>{
+    if(!isDesktop())return
+    return connectBinding(view=>setBinding(previous=>previous&&previous.revision>=view.revision?previous:view),()=>{})
+  },[])
+  return binding
 }

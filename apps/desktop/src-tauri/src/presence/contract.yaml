@@ -4,6 +4,7 @@ status: current
 source: apps/desktop/src-tauri/src/presence
 responsibility: Observe the explicitly bound companion conversation without mutating Core.
 public_api:
+  PresenceWatcher::wait_ready: Bounded acknowledgement of the exact generation/configuration/thread after snapshot and caught-up; a failed setup never admits or replays a turn.
   PresenceWatcher::replace/stop: One cancellable native read-only feed; binding/configuration/runtime guards are checked again at UI publication.
   Projection::apply: Pure actual-status mapping; terminal states are monotonic; replay never celebrates.
   reply_preview: CommonMark parsing with bounded plain-text extraction; no full reply is retained by the sanitizer.

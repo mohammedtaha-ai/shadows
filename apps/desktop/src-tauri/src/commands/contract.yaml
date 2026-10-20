@@ -4,7 +4,7 @@ status: current
 source: apps/desktop/src-tauri/src/commands
 responsibility: Restrict native account and sidecar actions to main and companion navigation/readiness/drag actions to the owned local surface.
 public_api:
-  companion_binding/select_companion_agent/target_companion_thread/set_companion_previews: Main-only configuration-scoped binding operations; validation reads precede mutation.
+  companion_binding/select_companion_agent/target_companion_thread/set_companion_previews: Main-only configuration-scoped binding operations; validation reads precede mutation; target waits at most two seconds for scoped observer readiness and rechecks generation afterward.
   navigation_snapshot/ack_navigation: Main-only closed pending navigation; exact revision acknowledgement.
   desktop_connection: Main-only verified lifecycle projection.
   desktop_connection_config: Main-only saved nonsecret path references.

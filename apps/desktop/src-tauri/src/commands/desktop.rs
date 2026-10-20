@@ -125,6 +125,7 @@ pub async fn select_companion_agent(
 pub async fn target_companion_thread(
     window: tauri::WebviewWindow,
     presence: tauri::State<'_, Arc<crate::presence::Presence>>,
+    watcher: tauri::State<'_, Arc<crate::presence::watcher::PresenceWatcher>>,
     thread_id: String,
     expected_generation: u64,
 ) -> Result<crate::presence::BindingView, String> {
@@ -133,10 +134,20 @@ pub async fn target_companion_thread(
         .request(Some(expected_generation))
         .map_err(str::to_owned)?;
     let presence = presence.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || presence.retarget(request, thread_id))
+    let current = presence.clone();
+    let result =
+        tauri::async_runtime::spawn_blocking(move || presence.retarget(request, thread_id))
+            .await
+            .map_err(|_| "companion_core_unavailable")?
+            .map_err(str::to_owned)?;
+    watcher
+        .wait_ready(&result, std::time::Duration::from_secs(2))
         .await
-        .map_err(|_| "companion_core_unavailable")?
-        .map_err(str::to_owned)
+        .map_err(str::to_owned)?;
+    if current.view().generation != result.generation {
+        return Err("companion_binding_changed".into());
+    }
+    Ok(result)
 }
 #[tauri::command]
 pub fn set_companion_previews(

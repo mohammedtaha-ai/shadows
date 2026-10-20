@@ -122,6 +122,9 @@ impl Projection {
     pub fn needs_entry(&self, now: u64) -> bool {
         self.previews && self.pending_until.is_some_and(|until| now < until)
     }
+    pub fn reconciled(&self) -> bool {
+        self.live && self.fault.is_none()
+    }
     pub fn value(&self) -> PresenceProjection {
         self.output.clone()
     }

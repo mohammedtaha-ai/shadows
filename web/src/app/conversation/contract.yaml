@@ -21,6 +21,9 @@
 # Trap: `ReplyText` names two components. `entry.tsx` exports a lazy wrapper that
 # shows plain text until the Streamdown chunk lands; `reply-text.tsx` is the renderer.
 
+# Native companion targeting follows explicit Send/Queue or Use with companion only.
+# A created draft thread is targeted before session opening; binding errors remain
+# independent of the command and never replace its idempotency key.
 name: web-conversation
 version: 1
 status: current

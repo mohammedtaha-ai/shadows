@@ -72,3 +72,10 @@ govern live completion; transient turn-end cannot declare success. Metadata
 liveness runs every 10 seconds. Ten failures without caught-up require explicit
 Local Core Retry. Completion recovery makes at most five bounded entry snapshots.
 Native timers clear a preview after eight seconds even when main is hidden.
+
+Task 8: target_companion_thread acknowledges the scoped observer's snapshot and
+caught-up for at most two seconds before returning. The ordinary send helper
+catches that failure independently; it cannot cancel, duplicate or prevent
+the person's command. This closes the fast-first-turn gap without celebrating
+historical replies. A deliberate Retry companion connection uses existing
+retry_desktop_connection, restarting reads against the verified runtime.

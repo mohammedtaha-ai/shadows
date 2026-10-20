@@ -362,3 +362,21 @@ async fn duplicate_sequence_does_not_reconcile_again_and_malformed_frames_fail_c
     assert_eq!(invalid.projection.preview, None);
     watcher.stop();
 }
+
+#[tokio::test]
+async fn explicit_send_can_wait_for_its_scoped_feed_before_a_fast_completion() {
+    let api = Fixture::new().await;
+    let (watcher, mut rx, connection) = watch(&api);
+    let selected = binding(1, THREAD_A, "agent-a");
+    watcher.replace(selected.clone(), connection);
+    watcher
+        .wait_ready(&selected, Duration::from_secs(2))
+        .await
+        .unwrap();
+    api.operation(THREAD_A, "fast", "Completed");
+    api.entry(THREAD_A, "fast", "Fast reply");
+    api.durable(THREAD_A, "fast", "OperationCompleted");
+    let reply = wait(&mut rx, |update| update.projection.preview.is_some()).await;
+    assert_eq!(reply.projection.preview.unwrap().text, "Fast reply");
+    watcher.stop();
+}

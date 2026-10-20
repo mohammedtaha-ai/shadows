@@ -61,9 +61,10 @@ it is that folder's `contract.yaml`.
 
 | File | Its one job | Reference file |
 |---|---|---|
+| `web/src/desktop/companion-send.ts` | Independent companion send targeting | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/presence.ts` | Companion binding bridge | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/navigation.ts` | Closed native navigation delivery | `web/src/desktop/contract.yaml` |
-| `web/src/app/desktop/companion-settings.tsx` | Selected companion agent settings | `web/src/app/desktop/contract.yaml` |
+| `web/src/app/desktop/companion-settings.tsx` | Companion binding controls | `web/src/app/desktop/contract.yaml` |
 | `web/src/desktop/auth.ts` | Account invocation wrappers | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/activity-api.ts` | Sidecar invocation wrappers | `web/src/desktop/contract.yaml` |
 | `web/src/app/desktop/account-panel.tsx` | Account person actions | `web/src/app/desktop/contract.yaml` |

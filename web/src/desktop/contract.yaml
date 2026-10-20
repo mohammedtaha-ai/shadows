@@ -27,3 +27,11 @@ binding:
 navigation:
   parseNavigation: Accept only three closed native destination kinds with validated identities.
   connectNavigation: Listen before snapshot, wait for router readiness, acknowledge only an applied revision.
+
+presence_projection:
+  parsePresence: Validate actual native serialized expression/status/preview bounds; listening is not a presence state.
+  fixture: web/src/test/native-presence.json is regenerated only by write_presence_fixture with UPDATE_NATIVE_FIXTURES=1.
+
+companion_send:
+  noteCompanionSend: Capture selected-agent generation, validate the existing thread profile and attempt native targeting; report a fixed independent issue without throwing into ordinary Send/Queue.
+  useCompanionSendProblem: Read the current thread's binding issue from an in-memory external store.

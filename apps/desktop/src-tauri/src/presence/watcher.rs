@@ -72,6 +72,7 @@ impl Update {
         self.current.load(Ordering::SeqCst) == self.epoch
     }
 }
+type Readiness = Option<(u64, Scope)>;
 type Notify = Arc<dyn Fn(Update) + Send + Sync>;
 #[derive(Clone)]
 struct Request {
@@ -83,6 +84,7 @@ struct Request {
 pub struct PresenceWatcher {
     current: Arc<AtomicU64>,
     requests: watch::Sender<Request>,
+    ready: watch::Receiver<Readiness>,
     last: Mutex<Option<(BindingView, ReadyConnection)>>,
 }
 impl PresenceWatcher {
@@ -101,16 +103,18 @@ impl PresenceWatcher {
             binding: None,
             stopped: PresenceProjection::unbound(),
         });
+        let (ready_updates, ready) = watch::channel(None);
         let generation = current.clone();
         // One manager owns one runner future. Replacing input drops old reads before opening the next stream.
         tauri::async_runtime::spawn(async move {
             loop {
+                ready_updates.send_replace(None);
                 let request = input.borrow_and_update().clone();
                 if let Some((binding, connection)) = request.binding {
                     tokio::select! {
                         biased;
                      result=input.changed()=>{if result.is_err(){break}},
-                     _=run(binding,connection,request.epoch,generation.clone(),notify.clone(),timing.clone())=>{
+                     _=run(binding,connection,request.epoch,generation.clone(),notify.clone(),timing.clone(),ready_updates.clone())=>{
                       if input.changed().await.is_err(){break}
                      }
                     }
@@ -131,8 +135,49 @@ impl PresenceWatcher {
         Arc::new(Self {
             current,
             requests,
+            ready,
             last: Mutex::new(None),
         })
+    }
+    pub async fn wait_ready(
+        &self,
+        binding: &BindingView,
+        timeout: Duration,
+    ) -> Result<(), &'static str> {
+        let epoch = {
+            let last = self.last.lock().unwrap();
+            if last.as_ref().map(|(current, _)| current) != Some(binding) {
+                return Err("companion_binding_changed");
+            }
+            self.current.load(Ordering::SeqCst)
+        };
+        let mut ready = self.ready.clone();
+        tokio::time::timeout(timeout, async {
+            loop {
+                if self.current.load(Ordering::SeqCst) != epoch {
+                    return Err("companion_binding_changed");
+                }
+                if ready.borrow().as_ref().is_some_and(|(observed, scope)| {
+                    *observed == epoch
+                        && scope.generation == binding.generation
+                        && binding.configuration_id.as_deref()
+                            == Some(scope.configuration_id.as_str())
+                        && scope.thread_id
+                            == binding
+                                .target
+                                .as_ref()
+                                .map(|target| target.thread_id.clone())
+                }) {
+                    return Ok(());
+                }
+                ready
+                    .changed()
+                    .await
+                    .map_err(|_| "companion_watch_unavailable")?;
+            }
+        })
+        .await
+        .map_err(|_| "companion_watch_unavailable")?
     }
     pub fn replace(&self, binding: BindingView, connection: ReadyConnection) {
         let mut last = self.last.lock().unwrap();
@@ -192,6 +237,7 @@ struct Session {
     epoch: u64,
     current: Arc<AtomicU64>,
     notify: Notify,
+    ready: watch::Sender<Readiness>,
 }
 impl Session {
     fn apply(&mut self, observation: Observation) {
@@ -203,12 +249,20 @@ impl Session {
             },
             now(),
         );
+        if self.current.load(Ordering::SeqCst) == self.epoch && !self.projection.reconciled() {
+            self.ready.send_replace(None);
+        }
         if projection != before {
             self.publish(projection)
         }
     }
     fn publish(&self, projection: PresenceProjection) {
         if self.current.load(Ordering::SeqCst) == self.epoch {
+            self.ready.send_replace(
+                self.projection
+                    .reconciled()
+                    .then(|| (self.epoch, self.scope.clone())),
+            );
             (self.notify)(Update {
                 guard: None,
                 scope: Some(self.scope.clone()),
@@ -242,6 +296,7 @@ async fn run(
     current: Arc<AtomicU64>,
     notify: Notify,
     timing: Timing,
+    ready: watch::Sender<Readiness>,
 ) {
     let scope = Scope {
         generation: binding.generation,
@@ -259,6 +314,7 @@ async fn run(
         epoch,
         current,
         notify,
+        ready,
     };
     if binding.agent.is_none() {
         state.publish(PresenceProjection::unbound());

@@ -18,6 +18,7 @@ import { type Attempt, attemptFor } from '@/api/command-id'
 import { queuedQuery } from '@/api/queries'
 import { Button } from '@/components/ui/button'
 import type { SlashCommand } from '@/stream/frames'
+import {noteCompanionSend,useCompanionSendProblem} from '@/desktop/companion-send'
 import { tabId } from '@/stream/tab-id'
 import { ErrorLine } from '../error-line'
 import type { CarriedSend } from './carried-send'
@@ -85,6 +86,7 @@ export function Composer({
   onPointed: (done: PointedTask) => void
 }) {
   const threadId = 'threadId' in to ? to.threadId : null
+  const companionProblem=useCompanionSendProblem(threadId)
   const [prompt, setPrompt] = useState(carried?.text ?? '')
   const [carriedError, setCarriedError] = useState(carried?.error ?? null)
   const [continuedPlan, setContinuedPlan] = useState(carried?.planId)
@@ -97,14 +99,13 @@ export function Composer({
   const pending = useRef<Attempt | null>(carried?.attempt ?? null)
 
   const send = useMutation({
-    mutationFn: ({ commandId, text, settings, pointed, planId }: Send) =>
-      'draft' in to
-        ? to.draft(commandId, text, settings)
-        : startTurn(to.threadId, commandId, text, settings, {
-            focus: focusOf(pointed),
-            plan: planId ?? null,
-            clientTab: tabId(),
-          }),
+    mutationFn: async ({ commandId, text, settings, pointed, planId }: Send) =>{
+      if('draft' in to)return to.draft(commandId,text,settings)
+      await noteCompanionSend(to.threadId)
+      return startTurn(to.threadId,commandId,text,settings,{
+        focus:focusOf(pointed),plan:planId??null,clientTab:tabId(),
+      })
+    },
     onSuccess: (operationId, { pointed }) => {
       pending.current = null
       setContinuedPlan(undefined)
@@ -118,12 +119,12 @@ export function Composer({
   // hold (§20.5); it is sent when the turn ends or by Send now.
   const queryClient = useQueryClient()
   const queue = useMutation({
-    mutationFn: ({ commandId, text, settings, pointed, planId }: Send) =>
-      queueMessage(threadId as string, commandId, text, settings, {
-        focus: focusOf(pointed),
-        plan: planId ?? null,
-        clientTab: tabId(),
-      }),
+    mutationFn: async ({commandId,text,settings,pointed,planId}:Send)=>{
+      await noteCompanionSend(threadId as string)
+      return queueMessage(threadId as string,commandId,text,settings,{
+        focus:focusOf(pointed),plan:planId??null,clientTab:tabId(),
+      })
+    },
     // The composer stays open while a turn runs, so it is cleared when Enter
     // queues, not when the answer comes: the next message may be typed by
     // then. A refused queue puts the text back if nothing new was typed.
@@ -365,6 +366,7 @@ export function Composer({
           onOpened={setOpened}
         />
         {error !== null && <ErrorLine error={error} />}
+        {companionProblem&&<p role="status" className="text-xs text-muted-foreground">{companionProblem}</p>}
       </div>
     </div>
   )

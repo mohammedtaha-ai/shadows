@@ -8,6 +8,7 @@ import { agentsQuery } from '@/api/aylul-profiles'
 import type { Plan, PlanTask, PlanningThread, Project, ThreadEntry } from '@/api/client'
 import { harnessesQuery, projectsQuery, threadQuery, threadsQuery } from '@/api/queries'
 import { type PlanShowFrame, type SubagentCard, toLimits } from '@/stream/frames'
+import {UseWithCompanion} from '../desktop/companion-settings'
 import { ErrorLine } from '../error-line'
 import { HeldThreadStream } from '../workflows/plan-frames'
 import { useCarriedSend } from './carried-send'
@@ -146,6 +147,7 @@ function Conversation({
                 locked={c.latest !== null || thread?.forked_from_thread != null}
               />
               <StatusBadge running={c.running} latest={c.latest} />
+              <UseWithCompanion threadId={threadId} profile={thread?.profile??null} harness={harness}/>
             </div>
           </header>
           <StreamBanner

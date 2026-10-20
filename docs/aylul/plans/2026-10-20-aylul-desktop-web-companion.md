@@ -303,6 +303,7 @@ Tests: `terminal_before_final_entry_waits`, `terminal_is_monotonic`, `new_turn_r
 - Modify: `web/src/app/conversation/{draft.tsx,composer.tsx,conversation.tsx,contract.yaml}`, `web/src/desktop/presence.ts`, `web/src/app/desktop/companion-settings.tsx`.
 - Create: `web/src/desktop/companion-send.ts`, `web/src/app/conversation/companion-send.test.tsx`, `apps/desktop/src/features/companion/native-presentation.ts`, `apps/desktop/tests/companion/live-presence.spec.ts`.
 - Modify: `apps/desktop/src/features/companion/{DesktopCompanion.tsx,SpeechBubble.tsx,desktop.css,contract.yaml}`, `apps/desktop/src/platform/{companion.ts,companion-state.ts,contract.yaml}`, `apps/desktop/tests/companion/{native-state.test.ts,desktop-gesture.test.ts,desktop-window.spec.ts}`.
+- Modify native observer readiness: `apps/desktop/src-tauri/src/{commands/desktop.rs,presence/watcher.rs,presence/projection.rs,presence/watcher_tests.rs}` with contracts; target waits briefly for caught-up to close the fast first-turn gap.
 - Update: web desktop contract and both source maps.
 
 **Interfaces:**
@@ -311,7 +312,7 @@ Tests: `terminal_before_final_entry_waits`, `terminal_is_monotonic`, `new_turn_r
 - `Use with companion` explicitly retargets an existing selected-agent thread. Other agents cannot silently replace the selected agent.
 - DesktopCompanion consumes CompanionState's projection and existing native render permission; remove the constant Idle presentation.
 
-- [ ] **Step 1:** Add send-path tests:
+- [x] **Step 1:** Add send-path tests:
 
 ~~~ts
 expect(threadCreateBodies[0].profile).toBe('agent-a')
@@ -323,11 +324,11 @@ expect(navigationOnlyChangedBinding).toBe(false)
 
 Pin the first-send model selection/replay path, existing-thread send, queue, admission failure, unselected agent and a successfully created thread whose subsequent session/turn fails.
 
-- [ ] **Step 2:** Add browser character fixtures: success lasts two seconds, preview expires after eight seconds, repeated ID cannot extend it, hiding through native state stops draws, showing cannot revive an expired preview, paused/reduced motion retains readable status, two-line preview fits compact bounds, Enter/Space opens main, drag does not, and a broken Canvas leaves account/tray controls usable.
-- [ ] **Step 3:** Run `npm --prefix web test -- companion-send first-send` and, from apps/desktop, `npx playwright test tests/companion/live-presence.spec.ts`; expected RED.
-- [ ] **Step 4:** Connect sends and independent binding-error UI, adapt projection/timers by the existing message-slot/scheduler owners, render plain text only and preserve no-activation/drag behavior. No duplicated transcript or new composer is added to the character.
-- [ ] **Step 5:** Run the focused tests, web typecheck/lint, `npm --prefix apps/desktop run build:desktop`, companion unit tests and the desktop-window/native-visibility browser regressions. Expected PASS.
-- [ ] **Step 6:** Commit `feat(companion): react to AYLUL replies and open the bound chat`.
+- [x] **Step 2:** Add browser character fixtures: success lasts two seconds, preview expires after eight seconds, repeated ID cannot extend it, hiding through native state stops draws, showing cannot revive an expired preview, paused/reduced motion retains readable status, two-line preview fits compact bounds, Enter/Space opens main, drag does not, and a broken Canvas leaves account/tray controls usable.
+- [x] **Step 3:** Run `npm --prefix web test -- companion-send first-send` and, from apps/desktop, `npx playwright test tests/companion/live-presence.spec.ts`; expected RED.
+- [x] **Step 4:** Connect sends and independent binding-error UI, adapt projection/timers by the existing message-slot/scheduler owners, render plain text only and preserve no-activation/drag behavior. No duplicated transcript or new composer is added to the character.
+- [x] **Step 5:** Run the focused tests, web typecheck/lint, `npm --prefix apps/desktop run build:desktop`, companion unit tests and the desktop-window/native-visibility browser regressions. Expected PASS.
+- [x] **Step 6:** Commit `feat(companion): react to AYLUL replies and open the bound chat`.
 
 ### Task 9: One full gate and an actual Windows journey
 

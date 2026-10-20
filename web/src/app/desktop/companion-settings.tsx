@@ -1,7 +1,9 @@
 import {useEffect,useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {agentsQuery,providersQuery} from '@/api/aylul-profiles'
-import {connectBinding,selectCompanionAgent,setCompanionPreviews,type BindingView} from '../../desktop/presence'
+import {noteCompanionSend} from '../../desktop/companion-send'
+import {retryConnection} from '../../desktop/native'
+import {connectBinding,useCompanionBinding,selectCompanionAgent,setCompanionPreviews,type BindingView} from '../../desktop/presence'
 export function CompanionSettings(){
   const agents=useQuery(agentsQuery),providers=useQuery(providersQuery)
   const [binding,setBinding]=useState<BindingView|null>(null),[error,setError]=useState<string|null>(null),[busy,setBusy]=useState(false)
@@ -28,10 +30,20 @@ export function CompanionSettings(){
         </option>)}
       </select>
     </label>
+    <button disabled={busy} onClick={()=>{void retryConnection().catch(()=>setError("Unable to retry local Core."))}}>Retry companion connection</button>
     <p className="text-sm text-muted-foreground">This character stays with the selected agent. Opening another conversation does not change it.</p>
     <label className="flex gap-2"><input type="checkbox" checked={binding?.previews??true} disabled={busy||!binding}
       onChange={event=>{void previews(event.target.checked)}}/>Show a short reply preview</label>
     {error&&!binding&&<button disabled={busy} onClick={()=>{void select(null)}}>Clear companion selection</button>}
     {(error||agents.error||providers.error)&&<p role="alert">{error??'Unable to load agents. Character visibility and account actions remain available.'}</p>}
   </div>
+}
+
+export function UseWithCompanion({threadId,profile,harness}:{threadId:string;profile:string|null;harness:string}){
+  const binding=useCompanionBinding()
+  const [busy,setBusy]=useState(false)
+  if(harness!=='aylul'||!profile||binding?.agent!==profile)return null
+  return <button disabled={busy} className="rounded border px-2 py-1 text-xs" onClick={()=>{
+    setBusy(true);void noteCompanionSend(threadId).finally(()=>setBusy(false))
+  }}>Use with companion</button>
 }
