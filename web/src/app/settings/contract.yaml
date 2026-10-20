@@ -43,6 +43,8 @@ components:
     signature: "() => JSX.Element"
   CoreSection:
     signature: "() => JSX.Element"
+  ProvidersSection:
+    signature: "() => JSX.Element"
   ActiveProjects:
     signature: "() => JSX.Element"
     # Reads the code settings; renders the form once they load.
@@ -70,6 +72,10 @@ functions:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: Providers starts on its list; add and edit replace the section body; closing discards the unsaved form. Confirming deletion stays inside the existing settings dialog.
+    tested_by:
+      - "closing mid-form saves nothing"
+      - "provider deletion confirms inside the settings dialog"
   - rule: Character presents visibility, motion and reply preview as switches; Local Core shows its native state above configuration fields in a closed Advanced disclosure.
     tested_by:
       - "character shows three switches"

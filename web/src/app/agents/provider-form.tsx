@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { ErrorLine } from '../error-line'
 import { DeleteZone } from './delete-zone'
 import { Field, TextArea } from './form-field'
+import { presetFor, type PresetGroup } from './provider-presets'
 
 /** The models as typed, one per line, or why they cannot be saved. The daemon
  * checks again; this only spares a round trip. */
@@ -32,13 +33,15 @@ function parseModels(text: string): string[] | string {
   return ids
 }
 
-export function ProviderForm({ provider, onSaved }: {
+export function ProviderForm({ provider, group, onSaved }: {
   provider: Provider | null
+  group: PresetGroup | null
   onSaved: (p: Provider | null) => void
 }) {
   const queryClient = useQueryClient()
   const [name, setName] = useState(provider?.name ?? '')
   const [url, setUrl] = useState(provider?.base_url ?? '')
+  const [preset, setPreset] = useState(presetFor(provider?.base_url ?? '') ?? group?.presets[0] ?? null)
   const [models, setModels] = useState(provider?.models.join('\n') ?? '')
   const [context, setContext] = useState(String(provider?.context_window ?? 200000))
   const [apiKey, setKey] = useState('')
@@ -103,7 +106,7 @@ export function ProviderForm({ provider, onSaved }: {
       return setInvalid('Context window must be a whole number from 1000 to 10000000.')
     }
     setInvalid(null)
-    save.mutate({ name, base_url: url, models: ids, context_window: size })
+    save.mutate({ name: group?.name ?? name, base_url: preset?.baseUrl ?? url, models: ids, context_window: size })
   }
   const busy = save.isPending || removeKey.isPending || remove.isPending
 
@@ -111,15 +114,22 @@ export function ProviderForm({ provider, onSaved }: {
     <div className="space-y-8">
       <form onSubmit={submit} className="space-y-4">
         <fieldset disabled={busy} className="grid gap-4">
-          <Field label="Name">
+          {group ? <h3 className="font-medium">{group.name}</h3> : <Field label="Name">
             <Input aria-label="Provider name" value={name} required placeholder="MiniMax"
               onChange={(e) => setName(e.target.value)} />
-          </Field>
-          <Field label="URL" hint="Anthropic-compatible. http:// only for this machine.">
+          </Field>}
+          {group && group.presets.length > 1 && <fieldset aria-label="Region" role="radiogroup" className="flex gap-4">
+            <legend className="mb-2 text-sm">Region</legend>
+            {group.presets.map(item => <label key={item.id} className="flex gap-2 text-sm">
+              <input type="radio" name="provider-region" aria-label={item.region === 'china' ? 'China' : 'International'} checked={preset?.id === item.id} onChange={() => setPreset(item)} />
+              {item.region === 'china' ? 'China' : 'International'}
+            </label>)}
+          </fieldset>}
+          {!group && <Field label="URL" hint="Anthropic-compatible. http:// only for this machine.">
             <Input aria-label="Provider URL" type="url" value={url} required
               placeholder="https://api.example.com/anthropic" className="font-mono"
               onChange={(e) => setUrl(e.target.value)} />
-          </Field>
+          </Field>}
           <Field
             label={provider?.key_set === true ? 'API key (saved, enter a new one to replace it)' : 'API key'}
             hint="Stored encrypted and never shown again."
@@ -155,6 +165,7 @@ export function ProviderForm({ provider, onSaved }: {
       </form>
       {provider !== null && (
         <DeleteZone
+          inline
           title="Delete provider"
           summary="Only a provider no agent uses can be deleted."
           action={`Delete ${provider.name}?`}

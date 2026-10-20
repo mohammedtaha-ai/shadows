@@ -5,11 +5,11 @@ import { Trash2 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { ErrorLine } from '../error-line'
 
-export function DeleteZone({ title, summary, consequence, action, pending, error, onConfirm }: {
+export function DeleteZone({ title, summary, consequence, action, pending, error, onConfirm, inline = false }: {
   /** "Delete provider". */
   title: string
   /** One line under the title, before anything is clicked. */
@@ -20,9 +20,19 @@ export function DeleteZone({ title, summary, consequence, action, pending, error
   action: string
   pending: boolean
   error: Error | null
+  inline?: boolean
   onConfirm: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const confirmation = <div className="grid gap-4" role={inline ? 'group' : undefined} aria-label={inline ? action : undefined}>
+    {inline ? <><h3 className="font-medium">{action}</h3><p className="text-sm text-muted-foreground">{consequence}</p></> :
+      <DialogHeader><DialogTitle>{action}</DialogTitle><DialogDescription>{consequence}</DialogDescription></DialogHeader>}
+    {error !== null && <ErrorLine error={error} />}
+    <DialogFooter>
+      <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+      <Button type="button" variant="destructive" onClick={onConfirm} disabled={pending}>{pending ? 'Deleting...' : title}</Button>
+    </DialogFooter>
+  </div>
   return (
     <section className="space-y-3 rounded-md border border-destructive-border p-4">
       <div className="flex items-start justify-between gap-4">
@@ -35,23 +45,8 @@ export function DeleteZone({ title, summary, consequence, action, pending, error
           Delete
         </Button>
       </div>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <div className="grid gap-4">
-            <DialogHeader>
-              <DialogTitle>{action}</DialogTitle>
-              <DialogDescription>{consequence}</DialogDescription>
-            </DialogHeader>
-            {error !== null && <ErrorLine error={error} />}
-            <DialogFooter>
-              <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
-              <Button variant="destructive" onClick={onConfirm} disabled={pending}>
-                {pending ? 'Deleting…' : title}
-              </Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {inline ? open && confirmation : <Dialog open={open} onOpenChange={setOpen}><DialogContent>{confirmation}</DialogContent></Dialog>}
+
     </section>
   )
 }

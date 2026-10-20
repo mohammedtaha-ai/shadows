@@ -67,7 +67,7 @@ components:
   AgentList:
     signature: "() => JSX.Element"
     # Live agents laid out like projects: each folds open to its conversations and
-    # "Agent settings"; its + opens a draft under it. "Providers" sits under the list.
+    # "Agent settings"; its + opens a draft under it. Providers are reached through Settings.
     # Empty states: "Add a provider first", then "Add an agent to start".
   WorkflowList:
     signature: "({ projectId: string, selected?: string }) => JSX.Element"
@@ -108,8 +108,6 @@ private_helpers:
     private: true
   AgentSettingsLink:
     private: true
-  ProvidersLink:
-    private: true
   EmptyHint:
     private: true
 
@@ -117,6 +115,8 @@ private_helpers:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: No Providers link sits below the agent tree; the empty provider hint opens the Providers settings section over the current page.
+    tested_by: ["the sidebar has no Providers link", "the AYLUL home's Add a provider opens the dialog on Providers"]
   - rule: >
       The URL's project opens when the URL comes to it. Folding the project that holds the
       open conversation leaves the conversation on screen.

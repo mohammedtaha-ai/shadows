@@ -6,9 +6,10 @@ import { GeneralSection } from './sections/general'
 import { AccountSection } from './sections/account'
 import { CharacterSection } from './sections/character'
 import { CoreSection } from './sections/core'
+import { ProvidersSection } from './sections/providers'
 import { useCloseSettings, useOpenSettings } from './use-settings'
 
-const CONTENT: Partial<Record<SectionId, ComponentType>> = { general: GeneralSection, account: AccountSection, character: CharacterSection, core: CoreSection }
+const CONTENT: Partial<Record<SectionId, ComponentType>> = { general: GeneralSection, account: AccountSection, character: CharacterSection, core: CoreSection, providers: ProvidersSection }
 
 export function SettingsDialog() {
   const { settings } = useSearch({ from: '__root__' })

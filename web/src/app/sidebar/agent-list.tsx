@@ -3,12 +3,13 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useParams } from '@tanstack/react-router'
-import { Bot, ChevronRight, Plus, Server, Settings } from 'lucide-react'
+import { Bot, ChevronRight, Plus, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { type Agent, agentsQuery, providersQuery } from '@/api/aylul-profiles'
 import { threadQuery } from '@/api/queries'
 import { ErrorLine } from '../error-line'
 import { ThreadList } from './thread-list'
+import { useOpenSettings } from '../settings/use-settings'
 
 export function AgentList() {
   const agents = useQuery(agentsQuery)
@@ -25,7 +26,7 @@ export function AgentList() {
       {agents.error !== null && <ErrorLine error={agents.error} />}
       {providers.error !== null && <ErrorLine error={providers.error} />}
       {providers.data?.length === 0 ? (
-        <EmptyHint to="/aylul/providers" action="Add a provider first"
+        <EmptyHint to="providers" action="Add a provider first"
           detail="A provider is the URL, key and models your agents run on." />
       ) : list?.length === 0 ? (
         <EmptyHint to="/aylul/agents/new" action="Add an agent to start"
@@ -49,21 +50,20 @@ export function AgentList() {
           })}
         </ul>
       )}
-      <ProvidersLink />
     </div>
   )
 }
 
 function EmptyHint({ to, action, detail }: {
-  to: '/aylul/providers' | '/aylul/agents/new'
+  to: 'providers' | '/aylul/agents/new'
   action: string
   detail: string
 }) {
+  const openSettings = useOpenSettings()
   return (
     <div className="space-y-0.5 px-2 py-1">
-      <Link to={to} className="text-sm text-sidebar-foreground underline-offset-4 hover:underline">
-        {action}
-      </Link>
+      {to === 'providers' ? <button type="button" className="text-sm text-sidebar-foreground underline-offset-4 hover:underline" onClick={() => openSettings('providers')}>{action}</button> :
+        <Link to={to} className="text-sm text-sidebar-foreground underline-offset-4 hover:underline">{action}</Link>}
       <p className="text-xs text-faint-foreground">{detail}</p>
     </div>
   )
@@ -142,21 +142,3 @@ function AgentSettingsLink({ slug }: { slug: string }) {
   )
 }
 
-/** Providers are shared by every agent, so they sit under the list, not in a row. */
-function ProvidersLink() {
-  const isSelected = useLocation().pathname === '/aylul/providers'
-  return (
-    <Link
-      to="/aylul/providers"
-      aria-current={isSelected ? 'page' : undefined}
-      className={`mt-auto flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
-        isSelected
-          ? 'bg-secondary text-secondary-foreground'
-          : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground'
-      }`}
-    >
-      <Server aria-hidden className="size-4 shrink-0" />
-      Providers
-    </Link>
-  )
-}

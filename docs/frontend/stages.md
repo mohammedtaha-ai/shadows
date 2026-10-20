@@ -53,7 +53,7 @@ colour's desktop side).
 - Done when: `companion-binding.test.tsx` and `core.test.tsx` pass with codemap, typecheck, lint
 
 ### F-5 · Providers live in the dialog, with search and presets
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-5-providers-section-with-search-and-presets
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Providers); `web/src/app/agents/contract.yaml`
 - Touch: the Files list of Task F-5 in the plan

@@ -93,7 +93,8 @@ it is that folder's `contract.yaml`.
 | `web/src/app/agents/form-field.tsx` | Labelled controls drawn for the AYLUL forms | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/home.tsx` | Main pane of the AYLUL workspace when no conversation is open | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/provider-form.tsx` | Form for one provider, its key write-only | `web/src/app/agents/contract.yaml` |
-| `web/src/app/agents/provider-settings.tsx` | Providers page: picks the provider its form edits | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/provider-presets.ts` | Provider preset grouping | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/provider-picker.tsx` | Searchable provider choice | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agreements/agreement-document.ts` | Reads OpenAPI object fields for the editor | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/agreements/agreement-editor.tsx` | Editor for one agreement version | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/agreements/agreements-page.tsx` | Page listing agreement identities with versions | `web/src/app/agreements/contract.yaml` |
@@ -184,6 +185,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/sections/account.tsx` | Account state controls | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/character.tsx` | Character settings content | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/core.tsx` | Local Core settings content | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/providers.tsx` | Provider settings navigation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/account-actions.ts` | Account state action selection | `web/src/app/settings/contract.yaml` |
 | `web/src/app/shell.tsx` | Two-pane frame every screen sits in | `web/src/app/home.tsx` |
 | `web/src/app/sidebar/agent-list.tsx` | Sidebar agent tree with their conversations | `web/src/app/sidebar/contract.yaml` |

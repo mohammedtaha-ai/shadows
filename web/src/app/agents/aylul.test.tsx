@@ -74,24 +74,26 @@ it('agent_list_shows_conversations_per_agent', async () => {
 })
 
 it('provider_form_saves_and_clears_key', async () => {
-  const a = open = await startApp('/aylul/providers', { ...table(),
+  const a = open = await startApp('/aylul?settings=providers', { ...table(),
     'POST /api/aylul/providers': () => Response.json(provider, { status: 201 }),
     'PUT /api/aylul/providers/test/key': () => Response.json({ name: 'PROVIDER_API_KEY', updated_at: 'now' }),
   })
-  await until(() => input('Provider name') !== null)
+  await addProvider(a, 'Custom')
   typeInto(input('Provider name'), 'Test provider')
   typeInto(input('Provider URL'), 'https://example.com')
   typeInto(models(), 'fake-large\nfake-small')
   typeInto(input('API key'), 'synthetic-ui-key')
   act(() => a.button('Save provider')!.click())
   await until(() => a.calls.includes('PUT /api/aylul/providers/test/key'))
-  await until(() => input('API key').value === '')
+  await until(() => document.querySelector('[aria-label="Saved providers"]') !== null)
+  act(() => a.button('Edit')!.click())
+  await until(() => input('API key')?.value === '')
   expect(a.text()).not.toContain('synthetic-ui-key')
 })
 
 it('models_editor_rejects_duplicates_and_default', async () => {
-  const a = open = await startApp('/aylul/providers', table())
-  await until(() => input('Provider name') !== null)
+  const a = open = await startApp('/aylul?settings=providers', table())
+  await addProvider(a, 'Custom')
   typeInto(input('Provider name'), 'Provider')
   typeInto(input('Provider URL'), 'https://example.com')
   for (const value of ['fake-large\nfake-large', 'default']) {
@@ -143,4 +145,105 @@ it('empty_states_guide_to_provider_then_agent', async () => {
   a = open = await startApp('/aylul', { ...table(),
     'GET /api/aylul/agents': { project_id: 'p1', agents: [] } })
   await until(() => a.text().includes('Add an agent to start'))
+})
+
+async function addProvider(a: TestApp, name: string) {
+  await until(() => a.button('Add provider') !== undefined)
+  act(() => a.button('Add provider')!.click())
+  act(() => a.button(name)!.click())
+  act(() => a.button('Next')!.click())
+  await until(() => input('API key') !== null)
+}
+async function savePreset(name: string, china = false) {
+  const a = open = await startApp('/aylul?settings=providers', { ...table(),
+    'POST /api/aylul/providers': () => Response.json(provider, { status: 201 }),
+    'PUT /api/aylul/providers/test/key': () => Response.json({ name: 'PROVIDER_API_KEY', updated_at: 'now' }),
+  })
+  await addProvider(a, name)
+  expect(input('Provider URL')).toBeNull()
+  if (china) {
+    const radio = document.querySelector<HTMLInputElement>('input[aria-label="China"]')!
+    expect(document.querySelector<HTMLInputElement>('input[aria-label="International"]')?.checked).toBe(true)
+    act(() => radio.click())
+  }
+  typeInto(input('API key'), 'synthetic-ui-key'); typeInto(models(), 'model-one')
+  act(() => a.button('Save provider')!.click())
+  await until(() => a.calls.includes('POST /api/aylul/providers'))
+  return a
+}
+it('a preset hides the URL and sends it', async () => {
+  const a = await savePreset('MiniMax')
+  expect(a.bodies).toContainEqual(expect.objectContaining({ name: 'MiniMax', base_url: 'https://api.minimax.io/anthropic' }))
+})
+it('Custom asks for the URL', async () => {
+  const a = open = await startApp('/aylul?settings=providers', table())
+  await addProvider(a, 'Custom')
+  expect(input('Provider URL').required).toBe(true)
+})
+it('MiniMax China sends the China URL', async () => {
+  const a = await savePreset('MiniMax', true)
+  expect(a.bodies).toContainEqual(expect.objectContaining({ base_url: 'https://api.minimaxi.com/anthropic' }))
+})
+it('Moonshot China sends the China URL', async () => {
+  const a = await savePreset('Moonshot (Kimi)', true)
+  expect(a.bodies).toContainEqual(expect.objectContaining({ base_url: 'https://api.moonshot.cn/anthropic' }))
+})
+it('a one-region preset shows no region', async () => {
+  const a = open = await startApp('/aylul?settings=providers', table())
+  await addProvider(a, 'Anthropic')
+  expect(document.querySelector('[aria-label="Region"]')).toBeNull()
+})
+it('Edit keeps the saved region', async () => {
+  const a = open = await startApp('/aylul?settings=providers', { ...table(), 'GET /api/aylul/providers': [{ ...provider, base_url: 'https://api.moonshot.cn/anthropic' }] })
+  await until(() => a.button('Edit') !== undefined)
+  act(() => a.button('Edit')!.click())
+  expect(document.querySelector<HTMLInputElement>('input[aria-label="China"]')?.checked).toBe(true)
+  expect(input('Provider URL')).toBeNull()
+  expect(input('Provider name')).toBeNull()
+})
+it('the list names each provider with its model count', async () => {
+  const a = open = await startApp('/aylul?settings=providers', { ...table(), 'GET /api/aylul/providers': [
+    { ...provider, name: 'MiniMax', models: ['one', 'two', 'three'] }, { ...provider, slug: 'unset', name: 'OpenAI', key_set: false },
+  ] })
+  await until(() => a.button('Set up') !== undefined)
+  const rows = [...document.querySelectorAll('[aria-label="Saved providers"] li')].map(row => [...row.children].map(child => child.textContent).join(' '))
+  expect(rows).toEqual(['MiniMax 3 models connected Edit', 'OpenAI No key not set Set up'])
+})
+it('closing mid-form saves nothing', async () => {
+  const a = open = await startApp('/aylul?settings=providers', table())
+  await addProvider(a, 'Custom'); typeInto(input('API key'), 'unsaved-key')
+  act(() => input('API key').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+  await until(() => document.querySelector('[role="dialog"]') === null)
+  act(() => a.button('Settings')!.click())
+  await until(() => a.button('Providers') !== undefined)
+  act(() => a.button('Providers')!.click())
+  await until(() => document.querySelector('[aria-label="Saved providers"]') !== null)
+  expect(input('API key')).toBeNull()
+  expect(a.calls).not.toContain('POST /api/aylul/providers')
+})
+it('the sidebar has no Providers link', async () => {
+  open = await startApp('/aylul', table())
+  expect([...document.querySelectorAll('aside a, aside button')].some(element => element.textContent?.trim() === 'Providers')).toBe(false)
+})
+it('provider deletion confirms inside the settings dialog', async () => {
+  const a = open = await startApp('/aylul?settings=providers', { ...table(),
+    'DELETE /api/aylul/providers/test': () => new Response(null, { status: 204 }),
+  })
+  await until(() => a.button('Edit') !== undefined)
+  act(() => a.button('Edit')!.click())
+  act(() => a.button('Delete')!.click())
+  expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
+  expect(a.calls).not.toContain('DELETE /api/aylul/providers/test')
+  act(() => a.button('Cancel')!.click())
+  expect(a.calls).not.toContain('DELETE /api/aylul/providers/test')
+  act(() => a.button('Delete')!.click())
+  act(() => a.button('Delete provider')!.click())
+  await until(() => a.calls.includes('DELETE /api/aylul/providers/test'))
+})
+it("the AYLUL home's Add a provider opens the dialog on Providers", async () => {
+  const a = open = await startApp('/aylul', { ...table(), 'GET /api/aylul/providers': [] })
+  await until(() => a.button('Add a provider') !== undefined)
+  act(() => a.button('Add a provider')!.click())
+  await until(() => document.querySelector('[data-slot="dialog-title"]')?.textContent === 'Providers')
+  expect(a.path()).toBe('/aylul')
 })

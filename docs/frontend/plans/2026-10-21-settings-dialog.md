@@ -179,6 +179,8 @@ Vitest with happy-dom and the fake daemon (`web/src/app/test-app.tsx`, `@/test/f
   `/aylul/providers`), `web/src/app/sidebar/agent-list.tsx` (remove `ProvidersLink`; empty hint
   opens the dialog), `web/src/app/agents/home.tsx` and `web/src/app/agents/agent-settings.tsx:95`
   (their provider links open the dialog), `web/src/app/settings/settings-dialog.tsx`
+- Modify (mechanical follow-up): `web/src/app/agents/delete-zone.tsx` (the existing confirmation
+  can render inline in Settings, retaining its text and request without nesting a dialog)
 - Delete: `web/src/app/agents/provider-settings.tsx`
 - Test: `web/src/app/agents/aylul.test.tsx` (provider cases move to the dialog),
   `web/src/app/agents/provider-picker.test.tsx`

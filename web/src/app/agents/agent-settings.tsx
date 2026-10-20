@@ -2,7 +2,7 @@
 // default model, environment and deletion.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, getRouteApi, useNavigate } from '@tanstack/react-router'
+import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useRef, useState } from 'react'
 import {
   type AgentInput, agentsQuery, deleteAgent, providersQuery, saveAgent,
@@ -14,6 +14,7 @@ import { ErrorLine } from '../error-line'
 import { AgentEnv } from './agent-env'
 import { DeleteZone } from './delete-zone'
 import { Field, Select } from './form-field'
+import { useOpenSettings } from '../settings/use-settings'
 
 export function NewAgent() {
   return <AgentPage />
@@ -55,6 +56,7 @@ function AgentPage({ slug }: { slug?: string }) {
 }
 
 function AgentForm({ slug }: { slug?: string }) {
+  const openSettings = useOpenSettings()
   const providers = useQuery(providersQuery)
   const original = useQuery(agentsQuery).data?.agents.find((a) => a.slug === slug)
   const navigate = useNavigate()
@@ -93,9 +95,9 @@ function AgentForm({ slug }: { slug?: string }) {
     return (
       <p className="text-sm text-muted-foreground">
         An agent needs a provider.{' '}
-        <Link to="/aylul/providers" className="text-foreground underline underline-offset-4">
+        <button type="button" onClick={() => openSettings('providers')} className="text-foreground underline underline-offset-4">
           Add a provider first
-        </Link>
+        </button>
       </p>
     )
   }
