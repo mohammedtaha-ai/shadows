@@ -70,7 +70,7 @@ F-14 on the character colour's desktop side).
 - Done when: `aylul.test.tsx` and `agent-env.test.tsx` pass with codemap, typecheck, lint
 
 ### F-7 · Account: the You card
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
 - Touch: to be named with the steps
@@ -80,6 +80,7 @@ F-14 on the character colour's desktop side).
 
 ### F-8 · Providers: label, test connection, model checklist, per-model context, preset regions
 - Status: blocked
+- Blocker: B-1 through B-3 are built, but the plan still contains only F-8's summary row and explicitly defers its steps; Touch and Done when remain unnamed. The task needs its implementation steps, Files list and failing-test acceptance list before execution under the task-scoped TDD rules; the regenerated API also requires mechanical model-shape updates in provider-form.tsx, agent-settings.tsx and conversation/draft.tsx.
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
 - Touch: to be named with the steps
@@ -87,7 +88,7 @@ F-14 on the character colour's desktop side).
 - Done when: to be named with the steps
 
 ### F-9 · Agents: character colour per agent
-- Status: blocked
+- Status: todo
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-9-agents-character-colour-per-agent
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Agents, Character colour);
   `web/src/app/agents/contract.yaml`; `web/src/app/desktop/contract.yaml`; `web/src/app/sidebar/contract.yaml`
