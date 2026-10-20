@@ -4,7 +4,7 @@ test.beforeEach(async({page})=>{
  await page.clock.install({time:new Date('2026-10-20T12:00:00Z')});
  await page.addInitScript(()=>{
   const callbacks=new Map<number,Function>();let next=1,listener=0;
-  let state:any={revision:1,visible:true,renderAllowed:true,paused:false,error:null,presence:{expression:'idle',status:'Ready',preview:null}};
+  let state:any={composer:{open:false,revision:0,scope:null,context:null,agent:null},revision:1,visible:true,renderAllowed:true,paused:false,error:null,presence:{expression:'idle',status:'Ready',preview:null}};
   const calls:string[]=[];let draws=0;
   const clear=CanvasRenderingContext2D.prototype.clearRect;
   CanvasRenderingContext2D.prototype.clearRect=function(...args){draws++;return clear.apply(this,args)};

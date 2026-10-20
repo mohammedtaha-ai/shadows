@@ -61,6 +61,19 @@ pub(super) fn fit(app: &tauri::AppHandle, initial: bool) -> Result<(), String> {
     }
     Ok(())
 }
+pub fn refresh(app: &tauri::AppHandle) -> Result<CompanionState, String> {
+    let owner = app.state::<std::sync::Arc<crate::presence::Presence>>();
+    let (scope, context) = owner.context();
+    let agent = owner.view().agent;
+    if owner.context() != (scope.clone(), context.clone()) {
+        return Ok(snapshot(app));
+    }
+    if snapshot(app).composer.scope != scope {
+        set_input(app, false)?;
+    }
+    model(app, |m| m.composer_context(scope, context, agent));
+    Ok(publish(app))
+}
 pub fn set_input(app: &tauri::AppHandle, open: bool) -> Result<CompanionState, String> {
     let store = app.state::<Store>();
     let current = snapshot(app);

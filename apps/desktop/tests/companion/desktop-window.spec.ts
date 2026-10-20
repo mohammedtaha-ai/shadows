@@ -3,7 +3,7 @@ test.beforeEach(async({page})=>{
   await page.setViewportSize({width:240,height:240});
   await page.addInitScript(()=>{
     const callbacks=new Map<number,Function>();let next=1;
-    const state={revision:1,visible:true,renderAllowed:true,paused:false,error:null};
+    const state={composer:{open:false,revision:0,scope:null,context:null,agent:null},revision:1,visible:true,renderAllowed:true,paused:false,error:null};
     Object.assign(window,{nativeCalls:[],__TAURI_EVENT_PLUGIN_INTERNALS__:{unregisterListener(){}},__TAURI_INTERNALS__:{
       metadata:{currentWindow:{label:'companion'},currentWebview:{label:'companion'}},
       transformCallback(fn:Function){const id=next++;callbacks.set(id,fn);return id},unregisterCallback(id:number){callbacks.delete(id)},

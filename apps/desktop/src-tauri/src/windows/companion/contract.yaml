@@ -4,6 +4,7 @@ status: current
 source: apps/desktop/src-tauri/src/windows/companion
 responsibility: Own the independent local companion window, revisioned rendering permission, physical fitting and no-activation show adapter.
 public_api:
+  input::refresh: Publish native composer scope and context; a changed scope closes editor without activating main.
   input::set_input: Explicit companion-only open grants focus; close restores compact bounds without opening main.
   input::open_bounds/closed_origin: Physical editor geometry preserves the character anchor at the monitor scale.
   Store: Application-owned native model, retained origin, visibility-intent counter and optional tray item.

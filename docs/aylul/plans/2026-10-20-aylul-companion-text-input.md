@@ -253,16 +253,16 @@
   - TS: `export type ComposerView = {open: boolean; revision: number; scope: string | null; context: string | null; agent: string | null}`. `CompanionState` gets `composer: ComposerView`, validated in `acceptState`: strings at most 128 characters, `revision` a safe integer.
   - TS: `export function setCompanionInput(open: boolean): Promise<CompanionState>` and `export function sendFromCompanion(text: string, commandId: string, context: string): Promise<{threadId: string; operationId: string}>`.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - In `native-state.test.ts`: `composer view is validated and never optional`. A state without `composer`, with `open: 'yes'`, or with a 129-character `scope` throws. A valid state round-trips.
   - In `native-acl.test.mjs`: assert that `companion-actions` allows exactly the earlier five plus `companion_input` and `companion_send`, and that `main-actions` does not contain them.
   - In `commands/companion.rs`: add both names to the restriction test as companion-only.
-- [ ] **Step 2: Run** `npm --prefix apps/desktop run test:companion:unit` and `node --test apps/desktop/tests/native-acl.test.mjs`. Expected: FAIL.
-- [ ] **Step 3: Implement the changes.**
+- [x] **Step 2: Run** `npm --prefix apps/desktop run test:companion:unit` and `node --test apps/desktop/tests/native-acl.test.mjs`. Expected: FAIL.
+- [x] **Step 3: Implement the changes.**
   - The Presence notifier in `lib.rs` also refreshes `composer.{scope, context, agent}` and publishes.
   - When `scope` changes while the input is open, call `set_input(false)`.
-- [ ] **Step 4: Run** the Step 2 commands, then `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml companion`. Run them one after another. Expected: PASS.
-- [ ] **Step 5: Update `commands/contract.yaml` and the platform `contract.yaml`,** then commit: `feat(companion): restricted input and send IPC`
+- [x] **Step 4: Run** the Step 2 commands, then `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml companion`. Run them one after another. Expected: PASS.
+- [x] **Step 5: Update `commands/contract.yaml` and the platform `contract.yaml`,** then commit: `feat(companion): restricted input and send IPC`
 
 ### Task 4: The input strip and status toggle
 

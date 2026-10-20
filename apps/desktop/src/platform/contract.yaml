@@ -4,7 +4,9 @@ status: current
 source: apps/desktop/src/platform
 responsibility: Isolate credential-free native companion presentation invocations.
 public_api:
-  acceptState: Validate credential-free native projection and retain the newest safe revision; optional presence for legacy fixtures validates expressions, scalar bounds and absolute expiry.
+  setCompanionInput: Request explicit companion-only open or close and validate the returned native state.
+  sendFromCompanion: Supply only text, command identity and native context; return thread/operation identity.
+  acceptState: Validate required bounded composer fields and credential-free native projection; retain the newest safe revision; optional presence for legacy fixtures validates expressions, scalar bounds and absolute expiry.
   connectCompanion: Subscribe before initial snapshot or readiness; clean late subscriptions and ignore stale replies.
   setCompanionVisible: Request main-only native visibility and validate the returned projection.
   setCompanionPaused: Request main-only native motion pause.
@@ -12,6 +14,9 @@ public_api:
   reportCompanionFailure: Notify the native recovery owner of a fixed local rendering failure without transmitting error text.
   openMainFromCompanion: Request deliberate main navigation from companion.
 obligations:
+  - rule: Composer state is mandatory, bounded and validated before use.
+    tested_by: apps/desktop/tests/companion/native-state.test.ts
+    note: composer view is validated and never optional
   - rule: Older readiness replies cannot reverse newer native state.
     tested_by: apps/desktop/tests/companion/native-state.test.ts
     note: older ready reply cannot reverse newer native hide

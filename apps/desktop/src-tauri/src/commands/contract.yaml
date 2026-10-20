@@ -17,6 +17,7 @@ public_api:
   hide_main: Require main window label; call native hide; return a stable local error without OS details.
   allowed_caller: Explicit per-command window matrix; unknown names and windows are rejected.
   companion_state: Return only the native companion projection to main or companion.
+  companion_send: Companion-only text/command/context admission on a blocking worker; no caller-selected target or endpoint.
   companion_input: Companion-only explicit editor mode change through the UI dispatcher.
   companion_ready: Require the owned companion and initialize its presentation through the UI dispatcher.
   companion_failed: Companion-only fixed rendering-failure report; revoke permission and expose native Retry state.

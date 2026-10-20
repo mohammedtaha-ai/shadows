@@ -47,6 +47,7 @@ pub fn attach_toggle(app: &tauri::AppHandle, item: tauri::menu::MenuItem<tauri::
 }
 fn page_started(app: &tauri::AppHandle) {
     let _ = input::set_input(app, false);
+    let _ = input::refresh(app);
     let generation = model(app, |m| m.begin_document());
     publish(app);
     let app = app.clone();

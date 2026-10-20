@@ -70,6 +70,26 @@ impl Model {
             }
         });
     }
+    pub fn composer_context(
+        &mut self,
+        scope: Option<String>,
+        context: Option<String>,
+        agent: Option<String>,
+    ) {
+        self.change(|v| {
+            if (
+                v.composer.scope.as_ref(),
+                v.composer.context.as_ref(),
+                v.composer.agent.as_ref(),
+            ) != (scope.as_ref(), context.as_ref(), agent.as_ref())
+            {
+                v.composer.scope = scope;
+                v.composer.context = context;
+                v.composer.agent = agent;
+                v.composer.revision += 1;
+            }
+        });
+    }
     pub fn request_visible(&mut self, visible: bool) {
         self.requested = visible;
         if !visible {

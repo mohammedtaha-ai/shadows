@@ -1,7 +1,14 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {acceptState, connectState} from '../../src/platform/companion-state.ts';
-const hidden={revision:8,visible:false,renderAllowed:false,paused:false,error:null};
+const composer={open:false,revision:0,scope:null,context:null,agent:null};
+const hidden={composer,revision:8,visible:false,renderAllowed:false,paused:false,error:null};
+test('composer view is validated and never optional',()=>{
+  const {composer:ignored,...missing}=hidden;
+  assert.throws(()=>acceptState(null,missing));
+  for(const invalid of [{...composer,open:'yes'},{...composer,scope:'x'.repeat(129)},{...composer,revision:-1},{...composer,context:7}])assert.throws(()=>acceptState(null,{...hidden,composer:invalid}));
+  assert.deepEqual(acceptState(null,hidden),hidden);
+});
 const flush=()=>new Promise<void>(resolve=>setImmediate(resolve));
 test('older ready reply cannot reverse newer native hide',async()=>{
   const values:any[]=[]; let listener:(value:unknown)=>void=()=>{}; let resolveReady:(v:unknown)=>void=()=>{};
