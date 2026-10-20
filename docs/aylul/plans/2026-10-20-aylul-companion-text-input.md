@@ -322,7 +322,7 @@
 - Modify: `docs/aylul/codebase/README.md` (rows for `input.rs`, `send.rs`, the composer), `docs/aylul/ui/stages.md`, `docs/aylul/specs/2026-10-20-aylul-desktop-web-companion-design.md` (Status line: implemented through `<sha>`)
 - Create: `docs/evidence/aylul/2026-10-20-companion-text-input.md`
 
-- [ ] **Step 1: Desktop gate,** in the background, in this order, each command after the previous one finishes:
+- [x] **Step 1: Desktop gate,** in the background, in this order, each command after the previous one finishes:
   1. `cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check`
   2. `cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings`
   3. `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`
@@ -330,9 +330,9 @@
   5. `npm --prefix apps/desktop run build:desktop`
 
   Expected: every one exits 0. Record the test counts.
-- [ ] **Step 2: Root gate,** steps 1–5 of `CLAUDE.md`. Core is unchanged, so a pass here proves the branch did not touch it. Also check that `git diff --exit-code main -- crates api` and `git diff --exit-code main -- web ":(exclude)web/src/test/native-presence.json"` are empty.
-- [ ] **Step 3: Rebuild the program under test** with Task 1 Step 5's two commands, run one after the other once the gate has finished. Expected: a fresh `nylra-desktop.exe`.
-- [ ] **Step 4: Native acceptance** on the actual program and the existing database, run with the extended `windows-companion.ps1`. It reruns Task 1's window-focus probe, plus:
+- [x] **Step 2: Root gate,** steps 1–5 of `CLAUDE.md`. Core is unchanged, so a pass here proves the branch did not touch it. Also check that `git diff --exit-code main -- crates api` and `git diff --exit-code main -- web ":(exclude)web/src/test/native-presence.json"` are empty.
+- [x] **Step 3: Rebuild the program under test** with Task 1 Step 5's two commands, run one after the other once the gate has finished. Expected: a fresh `nylra-desktop.exe`.
+- [x] **Step 4: Native acceptance** on the actual program and the existing database, run with the extended `windows-companion.ps1`. It reruns Task 1's window-focus probe, plus:
   - **Typing, now that the input exists:**
     - A status-button click through CDP opens the input.
     - SendKeys types `ab`, and the textarea's value reads `ab`.
@@ -343,4 +343,4 @@
   - One real send from the input to a bound agent; main stays hidden.
 
   Write the outcome to the evidence file. Separate automated fixture results from what only Mohammed's real-provider journey can show.
-- [ ] **Step 5: Update the code map, the stages and the spec Status line,** then commit: `docs(aylul): companion text input delivered`
+- [x] **Step 5: Update the code map, the stages and the spec Status line,** then commit: `docs(aylul): companion text input delivered`

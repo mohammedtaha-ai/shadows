@@ -20,6 +20,8 @@ public_api:
 obligations:
   - rule: First send creates one AYLUL thread, binds before opening session, applies the agent default, then starts one turn; bound sends retain session settings.
     tested_by: [first_send_creates_binds_opens_and_starts_in_order, bound_send_reuses_target_and_keeps_session_settings]
+  - rule: Retry revalidates the captured runtime identity before writing; a replaced listener receives no retry POST.
+    tested_by: uncertain_retry_rechecks_runtime_before_writing
   - rule: Uncertain create reuses its deterministic identity; uncertain turn retries the captured body without session reads.
     tested_by: [uncertain_create_retry_makes_one_thread, uncertain_turn_retry_sends_the_captured_request]
   - rule: Retarget changes draft scope, invalidates retry, and never redirects or lets a late admitted send replace a newer attempt.

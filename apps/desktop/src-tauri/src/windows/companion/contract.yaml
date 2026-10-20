@@ -22,6 +22,8 @@ external_types:
   - tauri::WebviewWindow
   - tauri::Monitor
 obligations:
+  - rule: Closing input restores the valid prior external foreground only while companion still owns focus; main is never a restoration target.
+    tested_by: 'integration: actual-composer-physical-keyboard-and-escape in apps/desktop/tests/companion-native.mjs'
   - rule: Only explicit editor open grants focus; hide closes input and unhide never reopens it.
     tested_by: [windows::companion::state::tests::hide_closes_input_and_unhide_keeps_it_closed, 'integration: apps/desktop/tests/companion-native.mjs']
   - rule: Editor expansion fits the complete rectangle; collapse restores the compact anchor.

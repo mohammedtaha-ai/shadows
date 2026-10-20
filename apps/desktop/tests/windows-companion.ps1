@@ -1,4 +1,4 @@
-param([string]$RunName='independent-companion',[switch]$Profile,[switch]$WebViewOnly,[int]$FocusCycles=10)
+param([string]$RunName='independent-companion',[switch]$Profile,[switch]$WebViewOnly,[int]$FocusCycles=10,[switch]$Typing,[string]$SendMessage='')
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'windows-support.ps1')
 Add-Type -AssemblyName UIAutomationClient
@@ -10,11 +10,13 @@ public class CompanionWin {
  [DllImport("user32.dll")]public static extern bool EnumWindows(EnumProc f,IntPtr p);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)]public static extern int GetWindowTextW(IntPtr h,System.Text.StringBuilder s,int n);
  [DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out Rect r);
+ [DllImport("user32.dll")]public static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int w,int height,uint flags);
  [StructLayout(LayoutKind.Sequential)] public struct Rect {public int L,T,R,B;}
  [DllImport("user32.dll")]public static extern bool GetClientRect(IntPtr h,out Rect r);
  [DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);
  [DllImport("user32.dll")]public static extern bool PostMessageW(IntPtr h,uint m,IntPtr w,IntPtr l);
  [DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr h);
+ [DllImport("user32.dll")]public static extern bool AllowSetForegroundWindow(uint p);
  [DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);
  [DllImport("user32.dll")]public static extern int GetWindowLongW(IntPtr h,int n);
 }
@@ -102,8 +104,18 @@ try {
  TrayItem 'Show AYLUL';foreach($attempt in 1..20){if([CompanionWin]::IsWindowVisible($charH)){break};Start-Sleep -Milliseconds 100};if(![CompanionWin]::IsWindowVisible($charH)){throw 'Tray show failed'}
  $observations.Add(@{Scenario='actual-tray-companion-toggle';Passed=$true})
  }
+ # The full gesture journey opens main; close it again before focus/input checks.
+ [CompanionWin]::PostMessageW($mainH,0x10,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null
+ Start-Sleep -Milliseconds 150
+ $area=[Windows.Forms.Screen]::FromHandle($charH).WorkingArea
+ $edge=GetOwnedRect 'companion'
+ [CompanionWin]::SetWindowPos($charH,[IntPtr]::Zero,($area.Right-$edge.Width-1),($area.Bottom-$edge.Height-1),0,0,0x15)|Out-Null
+ Start-Sleep -Milliseconds 200
  $form=[Windows.Forms.Form]::new();$form.Text='NYLRA owned focus witness';$form.Width=340;$form.Height=100;$form.Show();[Windows.Forms.Application]::DoEvents();[CompanionWin]::SetForegroundWindow($form.Handle)|Out-Null
- $nodeArgs=@((Join-Path $PSScriptRoot 'companion-native.mjs'),'--port',"$port",'--output',(Join-Path $out 'native.json'),'--foreground',"$($form.Handle.ToInt64())",'--pid',"$($process.Id)",'--profile',"$($Profile.IsPresent.ToString().ToLower())",'--cycles',"$FocusCycles",'--companion-hwnd',"$($charH.ToInt64())",'--main-hwnd',"$($mainH.ToInt64())")
+ # CDP does not create an OS input event. The foreground witness grants the
+ # owned app the same foreground eligibility that a physical Ready click gives.
+ [CompanionWin]::AllowSetForegroundWindow([uint32]$process.Id)|Out-Null
+ $nodeArgs=@((Join-Path $PSScriptRoot 'companion-native.mjs'),'--port',"$port",'--output',(Join-Path $out 'native.json'),'--foreground',"$($form.Handle.ToInt64())",'--pid',"$($process.Id)",'--profile',"$($Profile.IsPresent.ToString().ToLower())",'--cycles',"$FocusCycles",'--typing',"$($Typing.IsPresent.ToString().ToLower())",'--message',"$SendMessage",'--area-left',"$($area.Left)",'--area-top',"$($area.Top)",'--area-right',"$($area.Right)",'--area-bottom',"$($area.Bottom)",'--companion-hwnd',"$($charH.ToInt64())",'--main-hwnd',"$($mainH.ToInt64())")
  $nodeStart=[Diagnostics.ProcessStartInfo]::new('node');$nodeStart.UseShellExecute=$false;$nodeStart.CreateNoWindow=$true
  foreach($nodeArg in $nodeArgs){$nodeStart.ArgumentList.Add($nodeArg)}
  $nodeChild=[Diagnostics.Process]::Start($nodeStart)

@@ -154,23 +154,19 @@ impl Presence {
         if inner.send.active.as_ref() == Some(&(scope.clone(), s.command_id.clone())) {
             inner.send.active = None;
         }
+        let definitive = !matches!(
+            result,
+            Err("companion_send_uncertain" | "companion_send_busy" | "companion_core_unavailable")
+        );
         if inner.send.scope.as_deref() == Some(&scope)
             && inner
                 .send
                 .captured
                 .as_ref()
                 .is_some_and(|c| c.command_id == s.command_id)
+            && definitive
         {
-            if result.is_ok()
-                || !matches!(
-                    result,
-                    Err("companion_send_uncertain"
-                        | "companion_send_busy"
-                        | "companion_core_unavailable")
-                )
-            {
-                inner.send.captured = None;
-            }
+            inner.send.captured = None;
         }
         if result.is_ok()
             && inner
@@ -193,6 +189,7 @@ impl Presence {
             )
         };
         if let Some(c) = a.retry {
+            binding::runtime(&c.ready).map_err(|_| "companion_core_unavailable")?;
             return post_turn(&c, timeouts.2);
         }
         let ready = a.request.ready.clone();

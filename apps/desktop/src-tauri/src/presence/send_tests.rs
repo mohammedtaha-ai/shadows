@@ -23,6 +23,7 @@ struct Script {
     removed: bool,
     error: Option<String>,
     settings: bool,
+    runtime_changed: bool,
     turns: std::collections::HashMap<String, Value>,
     gate: Option<(mpsc::Sender<()>, mpsc::Receiver<()>)>,
 }
@@ -93,7 +94,7 @@ impl Api {
                         let mut gate = None;
                         let mut status = 200;
                         let response = if method == "GET" && path == "/api/runtime" {
-                            json!({"configuration_id":CONFIG,"runtime_id":T2})
+                            json!({"configuration_id":CONFIG,"runtime_id":if s.runtime_changed{T1}else{T2}})
                         } else if method == "GET" && path == "/api/aylul/agents" {
                             json!({"project_id":PROJECT,"agents":[{"slug":"agent-a","deleted":false,"default_model":"default-model"},{"slug":"agent-b","deleted":false}]})
                         } else if method == "GET" {
@@ -328,6 +329,23 @@ fn late_old_send_cannot_replace_newer_attempt() {
     assert!(calls
         .iter()
         .any(|c| c.1 == format!("/api/threads/{T1}/turns") && c.2["command_id"] == old_id));
+}
+#[test]
+fn uncertain_retry_rechecks_runtime_before_writing() {
+    let (api, _root, p) = fixture(true);
+    api.state.lock().unwrap().turn_delays = 1;
+    let command = id();
+    assert_eq!(
+        p.send(submission(&p, &command)).unwrap_err(),
+        "companion_send_uncertain"
+    );
+    api.state.lock().unwrap().runtime_changed = true;
+    let before = api.writes().len();
+    assert_eq!(
+        p.send(submission(&p, &command)).unwrap_err(),
+        "companion_core_unavailable"
+    );
+    assert_eq!(api.writes().len(), before);
 }
 #[test]
 fn main_switching_conversation_changes_scope() {

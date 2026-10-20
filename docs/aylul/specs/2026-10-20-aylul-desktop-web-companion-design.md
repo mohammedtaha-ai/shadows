@@ -5,7 +5,11 @@ Status: Initial desktop/presence design implemented through `8bb41fc`. Mohammed
 approved the compact Ready-toggle text-input interaction on 2026-10-20, and on
 the same day approved §8A's native-owned send sequence and the focus probe as
 its first step. The [text-input plan](../plans/2026-10-20-aylul-companion-text-input.md)
-implements §8A and awaits his review; it does not expand the completed initial plan.
+implements §8A, was approved for inline execution, and is implemented through
+`bd1f6ca` plus the final runtime/focus acceptance corrections. Actual-profile
+keyboard and real-assistant reply checks passed; see the
+[text-input evidence](../../evidence/aylul/2026-10-20-companion-text-input.md).
+It does not expand the completed initial plan.
 
 This file owns the replacement of the desktop main interface with `web/`,
 automatic local Core startup for that desktop, and the existing character's
@@ -377,7 +381,9 @@ and input open. No third webview or second independent chat window is required.
 An explicit open action enables keyboard focus and focuses the text input;
 background presence, incoming replies, show/recovery and status updates never
 open input or steal focus. Closing restores the previous non-focusable mode
-without bringing main forward. Native open/close revisions defeat stale results.
+without bringing main forward. If the companion still owns the foreground,
+closing returns focus to the still-valid prior external window; it never
+activates main or steals focus from another app. Native open/close revisions defeat stale results.
 
 The companion is built non-focusable today, and switching one window between
 non-activating and focusable is sensitive on Windows. The first implementation
@@ -444,7 +450,8 @@ owner of turn admission, idempotency and durable history.
 
 One explicit submission has one in-flight attempt. Disable double submission
 and keep the same command/request identities for an unchanged explicit Retry,
-including first-thread creation. A network timeout is an uncertain outcome:
+including first-thread creation. Retry revalidates the captured runtime identity
+before its POST, even if the listener URL has not changed. A network timeout is an uncertain outcome:
 reconcile or retry that same command, never automatically resend with a new ID.
 Closing/hiding input never cancels, duplicates or replays an accepted request.
 If the target already has a running turn, retain text and show that it is busy;

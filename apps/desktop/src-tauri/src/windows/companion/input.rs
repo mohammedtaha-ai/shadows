@@ -6,6 +6,7 @@ use tauri::Manager;
 pub(super) struct Placement {
     closed: Option<(i32, i32)>,
     opened: Option<(i32, i32)>,
+    return_focus: Option<(isize, u32)>,
 }
 pub fn open_bounds(closed: (i32, i32), scale: f64) -> (i32, i32, u32, u32) {
     (
@@ -92,7 +93,11 @@ pub fn set_input(app: &tauri::AppHandle, open: bool) -> Result<CompanionState, S
         .map_err(|_| "companion_position_failed")?;
     if open {
         let rect = open_bounds((pos.x, pos.y), scale);
-        store.input.lock().unwrap().closed = Some((pos.x, pos.y));
+        {
+            let mut placement = store.input.lock().unwrap();
+            placement.closed = Some((pos.x, pos.y));
+            placement.return_focus = super::no_activate::previous_foreground(&w);
+        }
         let result = (|| {
             w.set_size(tauri::PhysicalSize::new(rect.2, rect.3))
                 .map_err(|_| "companion_position_failed")?;
@@ -135,6 +140,8 @@ pub fn set_input(app: &tauri::AppHandle, open: bool) -> Result<CompanionState, S
         w.set_position(tauri::PhysicalPosition::new(origin.0, origin.1))
             .map_err(|_| "companion_position_failed")?;
         fit(app, false)?;
+        let previous = store.input.lock().unwrap().return_focus.take();
+        super::no_activate::restore_foreground(&w, previous);
     }
     model(app, |m| m.input(open));
     Ok(publish(app))
