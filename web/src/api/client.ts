@@ -6,6 +6,7 @@
 // A function is added here the day a screen first calls its route, not before.
 
 import createClient from 'openapi-fetch'
+import {daemonOrigin} from './daemon-origin'
 import { unwrap, unwrapEmpty } from './error'
 import type { components, paths } from './schema'
 
@@ -55,10 +56,7 @@ export type ProjectLink = Schemas['ProjectLink']
 export type CodeSettings = Schemas['CodeSettings']
 
 /** The daemon's origin, without a trailing slash. */
-export const DAEMON_URL = (import.meta.env.VITE_SHADOWS_URL ?? 'http://127.0.0.1:4318').replace(
-  /\/+$/,
-  '',
-)
+export const DAEMON_URL = daemonOrigin()
 
 // `fetch` is looked up on each call rather than captured once here (what
 // openapi-fetch does by default), so a test that stubs it is heard however

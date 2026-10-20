@@ -1,0 +1,10 @@
+name: desktop-native-settings
+version: 1
+status: current
+source: web/src/app/desktop
+responsibility: Present native-only local connection settings in the shared dashboard.
+components:
+  ConnectionSettings: Existing executable/database/configuration references; save or explicit Retry; fixed native errors.
+obligations:
+  - rule: The bootstrap form imports no HTTP consumer; the native owner validates paths and origin.
+    tested_by: apps/desktop/tests/desktop-bootstrap.spec.ts

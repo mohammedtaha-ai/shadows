@@ -1,0 +1,21 @@
+name: desktop-core-connection
+version: 1
+status: current
+source: apps/desktop/src-tauri/src/core_connection
+responsibility: Verify a configured local Core process before exposing its origin to main.
+public_api:
+  Connection: Revisioned unconfigured/starting/ready/failed lifecycle; changed configuration invalidates earlier startup epochs.
+  LaunchConfig: Existing absolute file references plus a literal HTTP loopback origin; normalized nonsecret fields identify the configuration.
+  ensure_running: Serialize starts per configuration; attach only after receipt, OS instance, actual database and HTTP readiness identity agree.
+obligations:
+  - rule: No fresh database fallback, shell command, provider environment inheritance or kill-on-desktop-exit.
+    tested_by: [configuration_rejects_missing_relative_and_remote_paths, desktop_shutdown_does_not_stop_core]
+  - rule: Concurrent starts share one receipt; timeout retains pending process identity so explicit Retry cannot launch another copy.
+    tested_by: [two_concurrent_starts_reuse_one_core, timeout_and_retry_retain_the_pending_process_identity]
+  - rule: PID reuse and an occupied foreign endpoint cannot be accepted as Core.
+    tested_by: [reused_pid_receipt_cannot_attach_to_foreign_port, occupied_foreign_port_never_starts_another_process, live_receipt_cannot_claim_another_database]
+  - rule: Stale completion cannot replace newer state; malformed preferences produce a fixed failure.
+    tested_by: [outdated_startup_result_cannot_replace_new_configuration, corrupt_saved_configuration_is_a_fixed_failure]
+gaps:
+  - at: persistent launch
+    gap: Core distribution packaging is outside this local saved-path slice.

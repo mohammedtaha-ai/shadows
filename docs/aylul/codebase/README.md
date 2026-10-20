@@ -8,6 +8,12 @@ and semantic project-context integration remain future paths.
 
 | Source | Owned job | Contract |
 | --- | --- | --- |
+| `apps/desktop/src-tauri/src/app_paths.rs` | Native storage location | Existing identifier; isolated debug acceptance override |
+| `apps/desktop/src-tauri/src/core_connection/` | Verified local Core lifecycle | Colocated `contract.yaml` |
+| `apps/desktop/src-tauri/src/windows/main_policy.rs` | Shared main response policy | Windows contract |
+| `web/src/desktop/` | Shared dashboard native bootstrap | Colocated `contract.yaml` |
+| `web/src/app/desktop/` | Native connection settings | Colocated `contract.yaml` |
+| `apps/desktop/scripts/` | Shared desktop asset assembly | `apps/desktop/tests/desktop-build.test.mjs` |
 | `packages/hermes-client/` | Portable native Hermes TypeScript HTTP transport consumed as a packed artifact | Colocated `contract.yaml` |
 | `services/assistant/` | Persistent installation-scoped local assistant application | Colocated `contract.yaml` |
 | `apps/desktop/src/features/assistant/` | Source-scoped conversation hook, sidebar, view, bot list and read-only details with visible-panel snapshot polling | Colocated `contract.yaml` |

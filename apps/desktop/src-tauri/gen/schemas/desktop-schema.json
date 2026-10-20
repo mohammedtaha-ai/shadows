@@ -231,6 +231,18 @@
           "markdownDescription": "Enables the companion_state command without any pre-configured scope."
         },
         {
+          "description": "Enables the desktop_connection command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-desktop-connection",
+          "markdownDescription": "Enables the desktop_connection command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the desktop_connection_config command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-desktop-connection-config",
+          "markdownDescription": "Enables the desktop_connection_config command without any pre-configured scope."
+        },
+        {
           "description": "Enables the drag_companion command without any pre-configured scope.",
           "type": "string",
           "const": "allow-drag-companion",
@@ -243,10 +255,28 @@
           "markdownDescription": "Enables the hide_main command without any pre-configured scope."
         },
         {
+          "description": "Enables the open_external command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-open-external",
+          "markdownDescription": "Enables the open_external command without any pre-configured scope."
+        },
+        {
           "description": "Enables the open_main_from_companion command without any pre-configured scope.",
           "type": "string",
           "const": "allow-open-main-from-companion",
           "markdownDescription": "Enables the open_main_from_companion command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the retry_desktop_connection command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-retry-desktop-connection",
+          "markdownDescription": "Enables the retry_desktop_connection command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the save_desktop_connection command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-save-desktop-connection",
+          "markdownDescription": "Enables the save_desktop_connection command without any pre-configured scope."
         },
         {
           "description": "Enables the set_companion_paused command without any pre-configured scope.",
@@ -321,6 +351,18 @@
           "markdownDescription": "Denies the companion_state command without any pre-configured scope."
         },
         {
+          "description": "Denies the desktop_connection command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-desktop-connection",
+          "markdownDescription": "Denies the desktop_connection command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the desktop_connection_config command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-desktop-connection-config",
+          "markdownDescription": "Denies the desktop_connection_config command without any pre-configured scope."
+        },
+        {
           "description": "Denies the drag_companion command without any pre-configured scope.",
           "type": "string",
           "const": "deny-drag-companion",
@@ -333,10 +375,28 @@
           "markdownDescription": "Denies the hide_main command without any pre-configured scope."
         },
         {
+          "description": "Denies the open_external command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-open-external",
+          "markdownDescription": "Denies the open_external command without any pre-configured scope."
+        },
+        {
           "description": "Denies the open_main_from_companion command without any pre-configured scope.",
           "type": "string",
           "const": "deny-open-main-from-companion",
           "markdownDescription": "Denies the open_main_from_companion command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the retry_desktop_connection command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-retry-desktop-connection",
+          "markdownDescription": "Denies the retry_desktop_connection command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the save_desktop_connection command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-save-desktop-connection",
+          "markdownDescription": "Denies the save_desktop_connection command without any pre-configured scope."
         },
         {
           "description": "Denies the set_companion_paused command without any pre-configured scope.",

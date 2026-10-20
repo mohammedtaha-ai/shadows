@@ -8,8 +8,9 @@
 // the project's draft.
 
 import {
-  createRootRoute, createRoute, createRouter, lazyRouteComponent, redirect,
+  createRootRoute, createRoute, createRouter, createHashHistory, lazyRouteComponent, redirect,
 } from '@tanstack/react-router'
+import {isDesktop} from './desktop/runtime'
 import { Home } from './app/home'
 import { storedWorkspace } from './app/sidebar/workspace'
 import { PagePending } from './app/page-pending'
@@ -117,6 +118,7 @@ const agentSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 const agentDraftRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/agents/$slug/new', component: AgentDraftRoute })
 
 export const router = createRouter({
+  ...(isDesktop()?{history:createHashHistory()}:{}),
   defaultPendingComponent: PagePending,
   defaultPendingMs: 150,
   routeTree: rootRoute.addChildren([

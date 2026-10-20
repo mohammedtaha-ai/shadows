@@ -18,6 +18,9 @@ tauri-macros = "=2.6.3"
 tauri-codegen = "=2.6.3"
 tauri-utils = "=2.9.3"
 serde_json = "1"
+dunce = "1"
+shadows-process = { path = "../../../crates/shadows-process" }
+uuid = { version = "1", features = ["v4", "v5"] }
 
 sha2 = "=0.10.9"
 base64 = "=0.22.1"
@@ -26,3 +29,6 @@ windows-sys = { version = "=0.61.2", features = ["Win32_Security_Cryptography", 
 reqwest = { version = "=0.12.28", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde = { version = "1.0.229", features = ["derive"] }
 [workspace]
+
+[dev-dependencies]
+tempfile = "3.27"

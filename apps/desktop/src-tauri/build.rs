@@ -2,6 +2,11 @@ fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
             "hide_main",
+            "desktop_connection",
+            "desktop_connection_config",
+            "save_desktop_connection",
+            "retry_desktop_connection",
+            "open_external",
             "auth_action",
             "cancel_login",
             "aylul_call",

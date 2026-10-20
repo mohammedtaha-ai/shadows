@@ -32,6 +32,7 @@ sandbox/persistence-delta/results/
 # AYLUL's independently built desktop application and local execution records.
 **/node_modules/
 /apps/desktop/dist/
+/apps/desktop/companion-dist/
 /apps/desktop/tests/.runs/
 /apps/desktop/test-results/
 /apps/desktop/playwright-report/

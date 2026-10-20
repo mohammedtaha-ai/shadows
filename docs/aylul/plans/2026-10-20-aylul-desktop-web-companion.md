@@ -47,7 +47,7 @@
 | `apps/desktop/src-tauri/src/navigation.rs` | Pending closed main destination |
 | `web/src/desktop/` | Typed native integration boundary |
 | `web/src/app/desktop/` | Desktop-specific dashboard sections |
-| `apps/desktop/scripts/assemble-desktop.mjs` | Assembly of generated main/companion assets |
+| `apps/desktop/scripts/{assemble-desktop,build-desktop}.mjs` | Assembly of generated main/companion assets |
 | Existing companion feature | Character drawing from the native presentation |
 
 Before the corresponding producer task starts, the controller records the reviewed interfaces below as accepted agreements:
@@ -155,11 +155,11 @@ Check absence of executable/DB paths, args and tokens in the public projection, 
 ### Task 4: Auto-start Core and package the shared dashboard
 
 **Files:**
-- Create native: `apps/desktop/src-tauri/src/core_connection/{mod.rs,config.rs,launch.rs,contract.yaml}`, `apps/desktop/src-tauri/src/commands/desktop.rs`, `apps/desktop/src-tauri/src/windows/main_policy.rs`, `apps/desktop/src-tauri/src/app_paths.rs`.
+- Create native: `apps/desktop/src-tauri/src/core_connection/{mod.rs,config.rs,launch.rs,connection_tests.rs,contract.yaml}`, `apps/desktop/src-tauri/src/commands/desktop.rs`, `apps/desktop/src-tauri/src/windows/main_policy.rs`, `apps/desktop/src-tauri/src/app_paths.rs`.
 - Modify native: `apps/desktop/src-tauri/src/{lib.rs,commands/mod.rs,windows/mod.rs}`, `apps/desktop/src-tauri/{Cargo.toml,Cargo.lock,build.rs,tauri.conf.json}`, `apps/desktop/src-tauri/permissions/companion.toml`, `apps/desktop/src-tauri/capabilities/main.json`.
 - Create web: `web/src/desktop/{runtime.ts,native.ts,bootstrap.tsx,contract.yaml}`, `web/src/api/daemon-origin.ts`, `web/src/app/desktop/connection-settings.tsx`.
-- Create web entry: `web/src/app-root.tsx`; modify `web/src/{main.tsx,router.tsx}`, `web/src/api/client.ts`, `web/vite.config.ts`, `web/{package.json,package-lock.json}`.
-- Create build/tests: `apps/desktop/scripts/assemble-desktop.mjs`, `apps/desktop/tests/desktop-build.test.mjs`, `apps/desktop/tests/desktop-bootstrap.spec.ts`, `web/src/desktop/bootstrap.test.tsx`.
+- Create web entry: `web/src/app-root.tsx`; modify `web/src/{main.tsx,router.tsx,codemap.test.ts}`, `web/src/api/client.ts`, `web/vite.config.ts`, `web/{package.json,package-lock.json}`.
+- Create build/tests: `apps/desktop/scripts/{assemble-desktop,build-desktop}.mjs`, `apps/desktop/tests/desktop-build.test.mjs`, `apps/desktop/tests/desktop-bootstrap.spec.ts`, `web/src/desktop/bootstrap.test.tsx`.
 - Modify: `apps/desktop/{package.json,package-lock.json,vite.config.ts,playwright.config.ts}`.
 - Update: native agreements, changed native contracts, `web/src/api/contract.yaml`, both source maps, `apps/desktop/README.md`.
 
@@ -172,8 +172,8 @@ Check absence of executable/DB paths, args and tokens in the public projection, 
 - Add `npm --prefix apps/desktop run build:desktop`: build web, build companion only, assemble web assets at `dist/index.html` with companion assets at `dist/companion/`. Keep existing companion URL synchronized.
 - Main uses TanStack hash history in native mode; browser uses its existing history. Paths inside the router remain the existing paths.
 
-- [ ] **Step 1:** Add native `connection_tests` for two concurrent starts launching exactly once; malformed/relative/missing paths; stale/reused PID; foreign occupied port; configuration change during startup; a startup exceeding 30 seconds; desktop Quit preserving Core. Validate process image and creation time against Task 3's receipt before readiness is trusted.
-- [ ] **Step 2:** Add bootstrap/build tests:
+- [x] **Step 1:** Add native `connection_tests` for two concurrent starts launching exactly once; malformed/relative/missing paths; stale/reused PID; foreign occupied port; configuration change during startup; a startup exceeding 30 seconds; desktop Quit preserving Core. Validate process image and creation time against Task 3's receipt before readiness is trusted.
+- [x] **Step 2:** Add bootstrap/build tests:
 
 ~~~ts
 expect(apiRequestsBeforeReady).toEqual([])
@@ -186,11 +186,11 @@ expect(unknownAssetResponseIsHtml).toBe(false)
 
 Also assert one failed launch remains failed until Retry; Arabic/spaced paths reach the executable unchanged; native reload restores a thread route; companion entry/ACL still work.
 
-- [ ] **Step 3:** Run `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml connection_tests`, `npm --prefix web test -- desktop/bootstrap`, and `node --test apps/desktop/tests/desktop-build.test.mjs`; expected RED.
-- [ ] **Step 4:** Implement a private startup lock, receipt verification and Task 2's persistent launcher. `AppPaths` defaults to the existing app-data location/identifier. A debug-only `--acceptance-root <absolute existing directory>` selects isolated native preference/auth paths and per-window webview data directories; release code has no such override. Fixture drivers must not install hooks or change personal sidecar state, and must clean only their owned processes after lifetime assertions. Allowlist required OS/home/PATH environment values explicitly; never inherit provider-token variables. Do not add Core/AppCore as a native dependency.
-- [ ] **Step 5:** Implement bootstrap/connection screen, build assembly, hash history and main policy from the measured probe. Use Tauri's local-response CSP hook for the exact selected endpoint, keep native IPC sources, block remote navigation/new windows, and open deliberate validated HTTP(S) external links through a main-only `open_external` command. Saving a changed connection detaches old work and fully reloads main at Settings; old query results/drafts cannot enter the new DB context.
-- [ ] **Step 6:** Run focused tests above, `npm --prefix web run typecheck`, `npm --prefix web run lint`, `npm --prefix apps/desktop run build:desktop`, and native ACL tests. Start the assembled debug application against an isolated real Core/fake-ACP fixture; create an AYLUL conversation, send once, see streamed text and reload the same thread. Record this as synthetic adapter acceptance.
-- [ ] **Step 7:** Commit `feat(desktop): launch Core and load the shared dashboard`.
+- [x] **Step 3:** Run `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml connection_tests`, `npm --prefix web test -- desktop/bootstrap`, and `node --test apps/desktop/tests/desktop-build.test.mjs`; expected RED.
+- [x] **Step 4:** Implement a private startup lock, receipt verification and Task 2's persistent launcher. `AppPaths` defaults to the existing app-data location/identifier. A debug-only `--acceptance-root <absolute existing directory>` selects isolated native preference/auth paths and per-window webview data directories; release code has no such override. Fixture drivers must not install hooks or change personal sidecar state, and must clean only their owned processes after lifetime assertions. Allowlist required OS/home/PATH environment values explicitly; never inherit provider-token variables. Do not add Core/AppCore as a native dependency.
+- [x] **Step 5:** Implement bootstrap/connection screen, build assembly, hash history and main policy from the measured probe. Use Tauri's local-response CSP hook for the exact selected endpoint, keep native IPC sources, block remote navigation/new windows, and open deliberate validated HTTP(S) external links through a main-only `open_external` command. Saving a changed connection detaches old work and fully reloads main at Settings; old query results/drafts cannot enter the new DB context.
+- [x] **Step 6:** Run focused tests above, `npm --prefix web run typecheck`, `npm --prefix web run lint`, `npm --prefix apps/desktop run build:desktop`, and native ACL tests. Start the assembled debug application against an isolated real Core/fake-ACP fixture; create an AYLUL conversation, send once, see streamed text and reload the same thread. Record this as synthetic adapter acceptance.
+- [x] **Step 7:** Commit `feat(desktop): launch Core and load the shared dashboard`.
 
 ### Task 5: Transfer retained native screens, then delete the old main UI
 

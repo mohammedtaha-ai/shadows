@@ -1,20 +1,13 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { RouterProvider } from '@tanstack/react-router'
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { router } from './router'
 import './index.css'
+import {bootApplication,isDesktop} from './desktop/runtime'
 
-/** The app's one QueryClient. */
-const queryClient = new QueryClient()
-
-const root = document.getElementById('root')
-if (root === null) throw new Error('index.html has no #root')
-
-createRoot(root).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  </StrictMode>,
-)
+const root=document.getElementById('root')
+if(!root)throw new Error('index.html has no #root')
+void bootApplication(isDesktop(),async ()=>{
+  const desktop=await import('./desktop/bootstrap')
+  await desktop.prepareDesktop()
+  desktop.externalLinks()
+},async ()=>{
+  const {mountApplication}=await import('./app-root')
+  mountApplication(root)
+}).catch(()=>{root.textContent='Unable to start AYLUL. Reload to retry.'})

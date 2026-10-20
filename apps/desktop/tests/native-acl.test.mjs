@@ -11,7 +11,7 @@ test('generated native permissions grant sidecar access only to main',()=>{
   .flatMap(c=>c.permissions.flatMap(p=>permissions[p]?.commands.allow??[]));
  assert.ok(commands('main').includes('aylul_call'),'main must reach the merged local sidecar');
  assert.ok(commands('main').includes('assistant_call'),'main must reach authenticated assistant HTTP');
- for(const command of ['assistant_local_call','assistant_sources']) {
+ for(const command of ['desktop_connection','desktop_connection_config','save_desktop_connection','retry_desktop_connection','open_external','assistant_local_call','assistant_sources']) {
    assert.ok(commands('main').includes(command),'main must reach local assistant operations');
    assert.ok(!commands('companion').includes(command),'companion must not reach local assistant authority');
  }

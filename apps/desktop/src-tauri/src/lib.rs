@@ -1,6 +1,8 @@
+mod app_paths;
 mod assistant;
 pub mod auth;
 mod commands;
+mod core_connection;
 pub mod native_login;
 mod sidecar;
 mod windows;
@@ -9,6 +11,11 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             commands::hide_main,
+            commands::desktop::desktop_connection,
+            commands::desktop::desktop_connection_config,
+            commands::desktop::save_desktop_connection,
+            commands::desktop::retry_desktop_connection,
+            commands::desktop::open_external,
             commands::auth_action,
             commands::cancel_login,
             commands::aylul_call,
@@ -36,11 +43,25 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            use tauri::Emitter;
             use tauri::Manager;
-            let path = app.path().app_data_dir()?.join("auth-v1.dpapi");
-            app.manage(auth::AuthController::new(path));
+            let paths = app_paths::AppPaths::resolve(app)?;
+            app.manage(auth::AuthController::new(paths.auth()));
+            let connection = core_connection::Connection::new(paths.root().to_path_buf());
+            let owner = app.handle().clone();
+            connection.set_notifier(std::sync::Arc::new(move |view| {
+                let _ = owner.emit_to("main", "desktop-connection", view);
+            }));
+            app.manage(connection.clone());
+            let acceptance = paths.acceptance;
+            app.manage(paths);
+            tauri::async_runtime::spawn_blocking(move || connection.retry());
             app.manage(windows::companion::Store::default());
-            app.manage(std::sync::Arc::new(sidecar::start_default()));
+            app.manage(std::sync::Arc::new(if acceptance {
+                sidecar::SidecarState(None)
+            } else {
+                sidecar::start_default()
+            }));
             windows::setup(app)
         })
         .build(tauri::generate_context!())

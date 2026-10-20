@@ -140,3 +140,25 @@ The main window is the agent workspace: Chats and Bots in one left column, the
 conversation with its composer, and Activity, Settings and the account in the same
 shell. Its gate and the pending hands-on journey are in the
 [agent workspace evidence](../../docs/evidence/aylul/2026-10-19-agent-workspace.md).
+
+## Shared dashboard build
+
+From the repository root, run `npm --prefix apps/desktop run build:desktop`.
+It builds `web/` in desktop mode, builds the independent companion, then assembles
+`apps/desktop/dist/index.html` and `dist/companion/companion.html`.
+Build native with `cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml`.
+The existing application identifier and account storage location are retained.
+
+On first launch supply existing absolute Core/DB/Node/adapter/harness/AYLUL config
+paths and a literal local HTTP address. Core starts automatically after Save.
+Changing that configuration reloads main at Settings. Desktop Quit leaves Core
+running; relaunch verifies its process instance and readiness identity before reuse.
+No provider credentials are stored in the native connection preferences.
+
+Debug acceptance: `--acceptance-root <existing absolute directory>` isolates
+preferences, auth and both WebView profiles; it disables the personal sidecar.
+An explicit debug-only `--acceptance-debug-port <port>` gives main and companion
+separate owned CDP endpoints at port and port+1. Release has no acceptance override.
+The automated test runs only with `AYLUL_RUN_NATIVE=1`:
+`node --test apps/desktop/tests/desktop-bootstrap.spec.ts`.
+It uses an isolated real Core with fake-ACP; this is synthetic adapter acceptance.

@@ -61,7 +61,7 @@ externally_owned:
 # validation of arguments; the daemon owns those rules.
 
 client_core:
-  DAEMON_URL: "string; VITE_SHADOWS_URL or http://127.0.0.1:4318, trailing slashes removed"
+  DAEMON_URL: "string; verified native origin frozen before module import; browser VITE_SHADOWS_URL or http://127.0.0.1:4318"
   client: "openapi-fetch client<paths>; fetch looked up per call"
   subscribeUrl: "(threadId: string, after: number) -> string"
   projectEventsUrl: "(projectId: string, after: number) -> string"

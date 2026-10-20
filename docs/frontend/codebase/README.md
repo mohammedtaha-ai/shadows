@@ -38,6 +38,8 @@ What the code keeps true. Each one was checked by reading the code that enforces
 Each folder below carries a `contract.yaml` next to its code, written to the template
 above. `codemap.test.ts` checks that each one exists.
 
+- `web/src/desktop`
+- `web/src/app/desktop`
 - `web/src/api`
 - `web/src/stream`
 - `web/src/app/agreements`
@@ -59,6 +61,13 @@ it is that folder's `contract.yaml`.
 
 | File | Its one job | Reference file |
 |---|---|---|
+| `web/src/api/daemon-origin.ts` | One-time verified native origin | `web/src/api/contract.yaml` |
+| `web/src/app-root.tsx` | Shared dashboard mounting | `web/src/desktop/contract.yaml` |
+| `web/src/app/desktop/connection-settings.tsx` | Local Core connection form | `web/src/app/desktop/contract.yaml` |
+| `web/src/desktop/runtime.ts` | Readiness ordering | `web/src/desktop/contract.yaml` |
+| `web/src/desktop/native.ts` | Desktop invocation wrappers | `web/src/desktop/contract.yaml` |
+| `web/src/desktop/bootstrap.tsx` | Native startup gate | `web/src/desktop/contract.yaml` |
+| `web/src/desktop/bootstrap.test.tsx` | Readiness ordering fixtures | `web/src/desktop/contract.yaml` |
 | `web/src/api/aylul-profiles.ts` | HTTP calls for AYLUL configuration: providers, agents, keys, variables, agent threads | `web/src/api/contract.yaml` |
 | `web/src/api/client.ts` | The one door to the daemon's HTTP API | `web/src/api/contract.yaml` |
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |

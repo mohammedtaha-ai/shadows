@@ -110,28 +110,55 @@ pub fn setup_companion(app: &tauri::AppHandle) -> Result<(), String> {
             m.initialized = false;
             m.deny_render();
         });
-        let w =
-            WebviewWindowBuilder::new(app, "companion", WebviewUrl::App("companion.html".into()))
-                .title("AYLUL")
-                .inner_size(240., 240.)
-                .visible(false)
-                .focused(false)
-                .focusable(false)
-                .transparent(true)
-                .decorations(false)
-                .shadow(false)
-                .resizable(false)
-                .skip_taskbar(true)
-                .always_on_top(true)
-                .on_page_load(|window, payload| {
-                    if payload.event() == tauri::webview::PageLoadEvent::Started {
-                        let app = window.app_handle().clone();
-                        let owner = app.clone();
-                        let _ = app.run_on_main_thread(move || page_started(&owner));
-                    }
-                })
-                .build()
-                .map_err(|_| "companion_unavailable")?;
+        let mut builder = WebviewWindowBuilder::new(
+            app,
+            "companion",
+            WebviewUrl::App("companion/companion.html".into()),
+        )
+        .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
+        .on_navigation(|url| {
+            (url.scheme() == "tauri"
+                || (url.scheme() == "http" && url.host_str() == Some("tauri.localhost")))
+                && url.path() == "/companion/companion.html"
+        })
+        .on_web_resource_request(|request, response| {
+            super::main_policy::reject_html_fallback(
+                request.uri().path(),
+                "/companion/companion.html",
+                response,
+            );
+        })
+        .title("AYLUL")
+        .inner_size(240., 240.)
+        .visible(false)
+        .focused(false)
+        .focusable(false)
+        .transparent(true)
+        .decorations(false)
+        .shadow(false)
+        .resizable(false)
+        .skip_taskbar(true)
+        .always_on_top(true)
+        .on_page_load(|window, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Started {
+                let app = window.app_handle().clone();
+                let owner = app.clone();
+                let _ = app.run_on_main_thread(move || page_started(&owner));
+            }
+        });
+        if let Some(directory) = app
+            .state::<crate::app_paths::AppPaths>()
+            .webview("companion")
+        {
+            builder = builder.data_directory(directory);
+        }
+        if let Some(args) = app
+            .state::<crate::app_paths::AppPaths>()
+            .browser_args("companion")
+        {
+            builder = builder.additional_browser_args(&args);
+        }
+        let w = builder.build().map_err(|_| "companion_unavailable")?;
         let owner = app.clone();
         w.on_window_event(move |event| match event {
             tauri::WindowEvent::Destroyed => {
