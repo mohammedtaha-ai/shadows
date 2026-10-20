@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Preserve `.mcp.json`. Use `codex/aylul-desktop-web-companion`, inline execution with `superpowers:executing-plans`, one completed-task commit, no reviewer dispatch and no push/merge/deployment.
+- Preserve `.mcp.json`. Use `codex/aylul-desktop-web-companion`, inline execution with `superpowers:executing-plans`, one completed-task commit, one final fresh-context reviewer on this session's model (latest user instruction), and no push/merge/deployment.
 - `web/` is the sole main UI source; companion source remains under `apps/desktop/`. No iframe, duplicated dashboard or second assistant execution path.
 - Use `shadows serve` with explicit absolute executable/configuration paths. No PATH discovery, shell command construction, Hermes startup, automatic DB creation or source/port fallback.
 - Core survives desktop Quit. Existing harness children retain their kill-on-owner-close guarantee. Hook-sidecar lifetime stays unchanged.
@@ -65,7 +65,7 @@ Use each directory's request template. Approval of this plan is the basis for th
 **Files:**
 - Create: `docs/evidence/aylul/2026-10-20-desktop-webview-origin.md`, `docs/evidence/aylul/2026-10-20-desktop-webview-origin.json`.
 - Modify: spec §5's OPEN block.
-- Temporary probe source: `apps/desktop/src-tauri/examples/desktop_origin_probe.rs`, `apps/desktop/tests/desktop-origin-probe.ps1`; generated assets/results under `.superpowers/sdd/2026-10-20-aylul-desktop-web-companion/origin-probe/`. Remove probe source after recording its Git provenance.
+- Temporary probe source: `apps/desktop/src-tauri/examples/desktop_origin_probe.rs`, `apps/desktop/src-tauri/examples/desktop_origin_probe.js`, `apps/desktop/tests/desktop-origin-probe.{ps1,mjs}`; generated assets/results under `.superpowers/sdd/2026-10-20-aylul-desktop-web-companion/origin-probe/`. Remove probe source after recording its Git provenance.
 
 **Interfaces:** Produces evidence values `main_origin: string`, `companion_origin: string`, GET/JSON/SSE results, effective CSP and per-window native-command results. Task 3 consumes the observed main origin; Task 4 consumes the tested CSP/build boundary.
 
@@ -360,7 +360,7 @@ find crates -name '*.rs' -not -path '*/target/*' -print0 \
 ~~~
 
 - [ ] **Step 5:** Run full relevant client/native gates: web gen:api/typecheck/lint/test/build; `npm --prefix apps/desktop run build:desktop`, retained desktop Node tests, companion unit/browser/production tests; native `cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check`, `cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings`, `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`. Sidecar/hook source is unchanged; report that separately rather than inventing a new migration gate.
-- [ ] **Step 6:** Record commands, counts, versions, actual/synthetic/native/provider distinctions, failures and outstanding hardware gaps. Name any source files over 300 lines with their one responsibility. Re-run a failed/newly affected check only after a relevant fix; no second routine whole-branch run and no reviewer.
+- [ ] **Step 6:** Record commands, counts, versions, actual/synthetic/native/provider distinctions, failures and outstanding hardware gaps. Name any source files over 300 lines with their one responsibility. Re-run a failed/newly affected check only after a relevant fix; no second routine whole-branch run; after completion dispatch the final same-model reviewer requested by Mohammed.
 - [ ] **Step 7:** Commit `test(desktop): verify shared dashboard and bound companion journey`. Verify only the preserved `.mcp.json` change remains, report task commits and any pending acceptance, and stop without pushing.
 
 ## Execution notes and technical references
