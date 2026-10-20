@@ -5,7 +5,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Fixing F-1 on branch `fix/draft-mode-kept`.
+Work and improvements continue on branch `improvements`.
 
 ## Tasks
 
