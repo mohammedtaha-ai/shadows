@@ -9,6 +9,7 @@ const run = config.run;
 await mkdir(path.join(run,'project'),{recursive:true});
 const results = { origins:{}, results:{}, coreOrigin:config.coreOrigin };
 const children = [];
+const logs = [];
 const allowedEnv = ['SystemRoot','SystemDrive','ComSpec','PATHEXT','PATH','USERPROFILE','HOME','APPDATA','LOCALAPPDATA','TEMP','TMP'];
 const env = Object.fromEntries(allowedEnv.filter(k => process.env[k]).map(k => [k,process.env[k]]));
 let coreReady = false, starting = false;
@@ -16,6 +17,7 @@ async function startCore() {
   if(starting || !results.origins.main) return;
   starting = true;
   const log = await open(path.join(run,'core.log'),'w');
+  logs.push(log);
   const child = spawn(config.coreExe,['serve','--db',path.join(run,'core.sqlite3'),
     '--bind','127.0.0.1:43381','--node',config.node,'--adapter',config.fake,
     '--harness',config.fake,'--allow-origin',results.origins.main],
@@ -47,13 +49,18 @@ const server = http.createServer(async (req,res) => {
 });
 await new Promise((resolve,reject)=>server.listen(43382,'127.0.0.1',resolve).on('error',reject));
 const nativeLog=await open(path.join(run,'native.log'),'w');
+logs.push(nativeLog);
 const native=spawn(config.nativeExe,[config.collector,config.coreOrigin],
   {env:process.env,windowsHide:true,stdio:['ignore',nativeLog.fd,nativeLog.fd]});
 children.push(native);
+console.log("probe.native.pid",native.pid);
+native.on("exit",(code,signal)=>console.log("probe.native.exit",code,signal));
+native.on("error",error=>console.log("probe.native.error",error.code));
 let failure;
 try {
   for(let n=0;n<180;n++){
     if(results.results.main && results.results.companion) break;
+    if(native.exitCode !== null) break;
     await new Promise(r=>setTimeout(r,500));
   }
   await writeFile(path.join(run,'result.json'),JSON.stringify(results,null,2)+'\n');
@@ -75,5 +82,6 @@ try {
 } catch(e) {failure=e;} finally {
   for(const child of children) child.kill();
   server.close();
+  await Promise.all(logs.map(log=>log.close()));
 }
 if(failure) throw failure;

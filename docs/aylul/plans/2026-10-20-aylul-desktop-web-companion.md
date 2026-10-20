@@ -65,7 +65,7 @@ Use each directory's request template. Approval of this plan is the basis for th
 **Files:**
 - Create: `docs/evidence/aylul/2026-10-20-desktop-webview-origin.md`, `docs/evidence/aylul/2026-10-20-desktop-webview-origin.json`.
 - Modify: spec §5's OPEN block.
-- Temporary probe source: `apps/desktop/src-tauri/examples/desktop_origin_probe.rs`, `apps/desktop/src-tauri/examples/desktop_origin_probe.js`, `apps/desktop/tests/desktop-origin-probe.{ps1,mjs}`; generated assets/results under `.superpowers/sdd/2026-10-20-aylul-desktop-web-companion/origin-probe/`. Remove probe source after recording its Git provenance.
+- Temporary probe source: `apps/desktop/src-tauri/examples/desktop_origin_probe.rs`, `apps/desktop/src-tauri/examples/desktop_origin_probe.js`, `apps/desktop/tests/desktop-origin-probe.{ps1,mjs}`; generated assets/results under `.superpowers/sdd/2026-10-20-aylul-desktop-web-companion/origin-probe/`. Temporarily link the existing resource.lib to examples in `apps/desktop/src-tauri/build.rs`; restore that probe-only hook with source cleanup. Remove probe source after recording its Git provenance.
 
 **Interfaces:** Produces evidence values `main_origin: string`, `companion_origin: string`, GET/JSON/SSE results, effective CSP and per-window native-command results. Task 3 consumes the observed main origin; Task 4 consumes the tested CSP/build boundary.
 
