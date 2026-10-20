@@ -163,7 +163,7 @@ when the window is below 100,000. `write_models` still receives ids.
   feature: infrastructure), `Cargo.toml` only if the workspace entry must gain
   the TLS feature, `crates/shadows-core/src/profiles/{mod.rs,presets.rs,contract.yaml}`,
   `crates/shadows-core/tests/aylul_profiles.rs` (add `mod probe;`),
-  `crates/shadows-core/src/lib.rs`,
+  `crates/shadows-core/src/lib.rs`, `crates/shadows-core/src/harness/{mod.rs,contract.yaml}`,
   `crates/shadows-http/src/{aylul_profiles.rs,aylul_profiles_tests.rs,lib.rs}`,
   `api/openapi.json`, `docs/codebase/README.md`
 
@@ -186,14 +186,20 @@ when the window is below 100,000. `write_models` still receives ids.
   no key is given and none is stored.
 - Neither route writes a row, a command or an event.
 
-**Methods:** `test_provider(ProviderTest)`, `test_saved_provider(slug, Option<String>)`.
+**Methods:** `Profiles::test_provider(ProviderTest)` (the key comes in the request; nothing is
+resolved). `Harness::test_saved_provider(slug, Option<String>)`: the stored-key path lives in
+the harness, because `secrets.resolve_env` may be called only there
+(`secrets/contract.yaml`, not_the_caller's). It resolves scope `provider/<slug>` the way
+`harness/assistant.rs` does at opening, then calls the same probe function in
+`profiles/probe.rs` (`pub(crate) async fn probe(base_url, api_key) -> ProviderTestOutcome`),
+so both paths share one probe. Amended 2026-10-21 after Codex found the conflict.
 Tests point a Custom `base_url` at a local `tokio` listener on `127.0.0.1` that
 answers fixed bodies (the loopback http rule allows it); the preset URLs are
 covered by `listing.rs` unit tests over fixture bodies written from §3.1.
 
 **Contract lines**
-- functions: `test_provider: Ask the provider for the key's models without storing the key.`,
-  `test_saved_provider: Same, with the stored key when none is given.`
+- functions (profiles): `test_provider: Ask the provider for the key's models without storing the key.`
+- functions (harness): `test_saved_provider: Same, with the stored key when none is given.`
 - obligations:
   - rule: The key is never stored, logged or returned, and appears in no outcome text.
     tested_by: [tested_key_is_not_stored_or_echoed]
@@ -208,8 +214,8 @@ covered by `listing.rs` unit tests over fixture bodies written from §3.1.
   - rule: Each preset's answer reads into ids and windows as §3.1 states; OpenRouter keeps tool-capable models only.
     tested_by: [anthropic_list_reads_max_input_tokens, minimax_list_has_no_windows, deepseek_list_reads_context_window, moonshot_list_reads_context_length, openrouter_list_keeps_tool_models]
 - agreements:
-  - between: [test_saved_provider, harness opening]
-    must: Read the provider key from scope provider/<slug>, name PROVIDER_API_KEY.
+  - between: [harness test_saved_provider, harness opening] (in `harness/contract.yaml`)
+    must: Read the provider key from scope provider/<slug>, name PROVIDER_API_KEY, through secrets.resolve_env.
     tested_by: [saved_test_uses_the_stored_key]
 
 **Done when:** the thirteen tests above pass, plus HTTP `provider_test_route_answers_outcome`, plus contracts, codemap and openapi.
