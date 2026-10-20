@@ -12,7 +12,8 @@ Yours:
 - `assets/aylul/` (art, states, animations, candidates)
 - `apps/desktop/src/features/companion/` (AYLUL presence; created by this side)
 - Except, by Mohammed's ruling of 2026-10-21: the colour table `assets/aylul/character-colors.json`
-  and the renderer's palette (`features/companion/renderer/palette.ts`) belong to the AYLUL UI
+  and the renderer's colours (`features/companion/renderer/palette.ts` and the colour values in
+  the other `renderer/` files) belong to the AYLUL UI
   side (U-2, U-3 in `../ui/stages.md`).
 - `docs/aylul/character/` (plans, specs, stages), and the `contract.yaml` files and
   code-map rows of the code above
