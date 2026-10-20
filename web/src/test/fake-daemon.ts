@@ -82,6 +82,17 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
   }
   const connect = 'claude mcp add --transport http shadows http://127.0.0.1:4318/mcp'
   return {
+    'GET /api/aylul/provider-presets': [
+  { id: 'minimax', name: 'MiniMax', region: 'international', base_url: 'https://api.minimax.io/anthropic' },
+  { id: 'minimax-china', name: 'MiniMax', region: 'china', base_url: 'https://api.minimaxi.com/anthropic' },
+  { id: 'anthropic', name: 'Anthropic', region: null, base_url: 'https://api.anthropic.com' },
+  { id: 'deepseek', name: 'DeepSeek', region: null, base_url: 'https://api.deepseek.com/anthropic' },
+  { id: 'openrouter', name: 'OpenRouter', region: null, base_url: 'https://openrouter.ai/api' },
+  { id: 'moonshot', name: 'Moonshot (Kimi)', region: 'international', base_url: 'https://api.moonshot.ai/anthropic' },
+  { id: 'moonshot-china', name: 'Moonshot (Kimi)', region: 'china', base_url: 'https://api.moonshot.cn/anthropic' },
+],
+    'POST /api/aylul/providers/test': { ok: true, listed: false, models: [] },
+    'POST /api/aylul/providers/fixture-provider/test': { ok: true, listed: false, models: [] },
     'GET /api/harnesses': [claudeHarness, codexHarness],
     'GET /api/projects': () => Response.json([project]),
     'GET /api/projects/p1/threads': [threadFixture],

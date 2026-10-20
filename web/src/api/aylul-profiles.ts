@@ -9,6 +9,22 @@ export type ProviderInput = components['schemas']['ProviderInput']
 export type Agent = components['schemas']['Agent']
 export type AgentInput = components['schemas']['AgentInput']
 export type EnvEntry = components['schemas']['EnvEntry']
+export type ProviderPreset = components['schemas']['ProviderPreset']
+export type ProviderTestOutcome = components['schemas']['ProviderTestOutcome']
+export type ProviderTest = components['schemas']['ProviderTest']
+
+export const providerPresetsQuery = queryOptions({
+  queryKey: ['aylul-provider-presets'], staleTime: Infinity,
+  queryFn: () => unwrap(client.GET('/api/aylul/provider-presets')),
+})
+export function testProvider(body: ProviderTest): Promise<ProviderTestOutcome> {
+  return unwrap(client.POST('/api/aylul/providers/test', { body }))
+}
+export function testSavedProvider(slug: string, apiKey: string | null): Promise<ProviderTestOutcome> {
+  return unwrap(client.POST('/api/aylul/providers/{slug}/test', {
+    params: { path: { slug } }, body: apiKey === null ? {} : { api_key: apiKey },
+  }))
+}
 
 export const providersQuery = queryOptions({
   queryKey: ['aylul-providers'], queryFn: () => unwrap(client.GET('/api/aylul/providers')),

@@ -22,7 +22,9 @@ const table = () => ({ ...answers(),
 let open: TestApp | null = null
 afterEach(() => { open?.unmount(); open = null; window.localStorage.clear() })
 const input = (name: string) => document.querySelector<HTMLInputElement>(`input[aria-label="${name}"]`)!
-const models = () => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Models"]')!
+const models = () => document.querySelector<HTMLInputElement>('input[aria-label="Add a model by id"]')!
+function addModel(a: TestApp, id: string) { typeInto(models(), id); act(() => a.button('Add')!.click()) }
+const saveButton = (a: TestApp) => a.button('Save provider') ?? a.buttons('Add 1 models')[0] ?? a.buttons('Add 2 models')[0]
 
 it('switcher_shows_both_with_check_on_current', async () => {
   const a = open = await startApp('/', table())
@@ -81,9 +83,9 @@ it('provider_form_saves_and_clears_key', async () => {
   await addProvider(a, 'Custom')
   typeInto(input('Provider name'), 'Test provider')
   typeInto(input('Provider URL'), 'https://example.com')
-  typeInto(models(), 'fake-large\nfake-small')
+  addModel(a, 'fake-large'); addModel(a, 'fake-small')
   typeInto(input('API key'), 'synthetic-ui-key')
-  act(() => a.button('Save provider')!.click())
+  act(() => saveButton(a)!.click())
   await until(() => a.calls.includes('PUT /api/aylul/providers/fixture-provider/key'))
   await until(() => document.querySelector('[aria-label="Saved providers"]') !== null)
   act(() => a.button('Edit')!.click())
@@ -96,10 +98,10 @@ it('models_editor_rejects_duplicates_and_default', async () => {
   await addProvider(a, 'Custom')
   typeInto(input('Provider name'), 'Provider')
   typeInto(input('Provider URL'), 'https://example.com')
-  for (const value of ['fake-large\nfake-large', 'default']) {
-    typeInto(models(), value)
-    act(() => a.button('Save provider')!.click())
-    await until(() => a.text().includes('Models must'))
+  addModel(a, 'fake-large')
+  for (const value of ['fake-large', 'default']) {
+    addModel(a, value)
+    expect(a.text()).toContain('Models must')
   }
   expect(a.calls).not.toContain('POST /api/aylul/providers')
 })
@@ -166,14 +168,14 @@ async function savePreset(name: string, china = false) {
     expect(document.querySelector<HTMLInputElement>('input[aria-label="International"]')?.checked).toBe(true)
     act(() => radio.click())
   }
-  typeInto(input('API key'), 'synthetic-ui-key'); typeInto(models(), 'model-one')
-  act(() => a.button('Save provider')!.click())
+  typeInto(input('API key'), 'synthetic-ui-key'); addModel(a, 'model-one')
+  act(() => saveButton(a)!.click())
   await until(() => a.calls.includes('POST /api/aylul/providers'))
   return a
 }
 it('a preset hides the URL and sends it', async () => {
   const a = await savePreset('MiniMax')
-  expect(a.bodies).toContainEqual(expect.objectContaining({ name: 'MiniMax', base_url: 'https://api.minimax.io/anthropic' }))
+  expect(a.bodies).toContainEqual(expect.objectContaining({ preset: 'minimax' }))
 })
 it('Custom asks for the URL', async () => {
   const a = open = await startApp('/aylul?settings=providers', table())
@@ -182,11 +184,11 @@ it('Custom asks for the URL', async () => {
 })
 it('MiniMax China sends the China URL', async () => {
   const a = await savePreset('MiniMax', true)
-  expect(a.bodies).toContainEqual(expect.objectContaining({ base_url: 'https://api.minimaxi.com/anthropic' }))
+  expect(a.bodies).toContainEqual(expect.objectContaining({ preset: 'minimax-china' }))
 })
 it('Moonshot China sends the China URL', async () => {
   const a = await savePreset('Moonshot (Kimi)', true)
-  expect(a.bodies).toContainEqual(expect.objectContaining({ base_url: 'https://api.moonshot.cn/anthropic' }))
+  expect(a.bodies).toContainEqual(expect.objectContaining({ preset: 'moonshot-china' }))
 })
 it('a one-region preset shows no region', async () => {
   const a = open = await startApp('/aylul?settings=providers', table())
@@ -194,7 +196,7 @@ it('a one-region preset shows no region', async () => {
   expect(document.querySelector('[aria-label="Region"]')).toBeNull()
 })
 it('Edit keeps the saved region', async () => {
-  const a = open = await startApp('/aylul?settings=providers', { ...table(), 'GET /api/aylul/providers': [{ ...provider, base_url: 'https://api.moonshot.cn/anthropic' }] })
+  const a = open = await startApp('/aylul?settings=providers', { ...table(), 'GET /api/aylul/providers': [{ ...provider, preset: 'moonshot-china', base_url: 'https://api.moonshot.cn/anthropic' }] })
   await until(() => a.button('Edit') !== undefined)
   act(() => a.button('Edit')!.click())
   expect(document.querySelector<HTMLInputElement>('input[aria-label="China"]')?.checked).toBe(true)

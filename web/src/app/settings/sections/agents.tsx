@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
-import { agentsQuery, providersQuery } from '@/api/aylul-profiles'
+import { agentsQuery, providersQuery, providerPresetsQuery } from '@/api/aylul-profiles'
 import { Button } from '@/components/ui/button'
+import { providerTitle } from '../../agents/provider-presets'
 import { AgentForm, DeleteAgent } from '../../agents/agent-settings'
 import { ErrorLine } from '../../error-line'
 import { useOpenSettings } from '../use-settings'
@@ -9,6 +10,7 @@ import { useOpenSettings } from '../use-settings'
 export function AgentsSection() {
   const agents = useQuery(agentsQuery)
   const providers = useQuery(providersQuery)
+  const presets = useQuery(providerPresetsQuery)
   const { agent: slug } = useSearch({ from: '__root__' })
   const open = useOpenSettings()
   const onDone = () => open('agents')
@@ -25,7 +27,7 @@ export function AgentsSection() {
     {live && <ul aria-label="Saved agents" className="divide-y divide-border">
       {live.map(agent => <li key={agent.slug} className="flex flex-wrap items-start gap-3 py-3">
         <span className="flex-1">{agent.name}</span>
-        <span className="text-sm text-muted-foreground">{providers.data?.find(provider => provider.slug === agent.provider)?.name ?? agent.provider}</span>
+        <span className="text-sm text-muted-foreground">{(() => { const provider = providers.data?.find(provider => provider.slug === agent.provider); return provider ? providerTitle(provider, presets.data ?? []) : agent.provider })()}</span>
         <span className="text-xs text-muted-foreground">{agent.default_model}</span>
         <Button type="button" variant="outline" size="sm" onClick={() => open('agents', agent.slug)}>Edit</Button>
         <DeleteAgent compact slug={agent.slug} name={agent.name} onDone={onDone} />

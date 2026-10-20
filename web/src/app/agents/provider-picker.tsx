@@ -1,13 +1,18 @@
+import { useQuery } from '@tanstack/react-query'
+import { providerPresetsQuery } from '@/api/aylul-profiles'
+import { ErrorLine } from '../error-line'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PRESETS, presetGroups, type PresetGroup } from './provider-presets'
+import { presetGroups, type PresetGroup } from './provider-presets'
 
 export function ProviderPicker({ onChoose }: { onChoose: (group: PresetGroup | null) => void }) {
+  const presets = useQuery(providerPresetsQuery)
   const [search, setSearch] = useState('')
   const [picked, setPicked] = useState<PresetGroup | null | undefined>()
-  const groups = presetGroups(PRESETS).filter(group => group.name.toLowerCase().includes(search.trim().toLowerCase()))
+  const groups = presetGroups(presets.data ?? []).filter(group => group.name.toLowerCase().includes(search.trim().toLowerCase()))
   return <div className="space-y-4">
+    {presets.error && <ErrorLine error={presets.error} />}
     <Input aria-label="Search providers" placeholder="Search providers" value={search} onChange={event => setSearch(event.target.value)} />
     <div className="grid grid-cols-2 gap-3">
       {groups.map(group => <button type="button" key={group.name} aria-pressed={picked?.name === group.name}

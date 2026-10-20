@@ -1,15 +1,6 @@
-export type Preset = { id: string; name: string; region: 'international' | 'china' | null; baseUrl: string }
+import type { Provider, ProviderPreset } from '@/api/aylul-profiles'
+export type Preset = ProviderPreset
 export type PresetGroup = { name: string; presets: Preset[] }
-
-export const PRESETS: Preset[] = [
-  { id: 'minimax', name: 'MiniMax', region: 'international', baseUrl: 'https://api.minimax.io/anthropic' },
-  { id: 'minimax-china', name: 'MiniMax', region: 'china', baseUrl: 'https://api.minimaxi.com/anthropic' },
-  { id: 'anthropic', name: 'Anthropic', region: null, baseUrl: 'https://api.anthropic.com' },
-  { id: 'deepseek', name: 'DeepSeek', region: null, baseUrl: 'https://api.deepseek.com/anthropic' },
-  { id: 'openrouter', name: 'OpenRouter', region: null, baseUrl: 'https://openrouter.ai/api' },
-  { id: 'moonshot', name: 'Moonshot (Kimi)', region: 'international', baseUrl: 'https://api.moonshot.ai/anthropic' },
-  { id: 'moonshot-china', name: 'Moonshot (Kimi)', region: 'china', baseUrl: 'https://api.moonshot.cn/anthropic' },
-]
 
 export function presetGroups(presets: Preset[]): PresetGroup[] {
   const groups = new Map<string, PresetGroup>()
@@ -21,6 +12,11 @@ export function presetGroups(presets: Preset[]): PresetGroup[] {
   return [...groups.values()]
 }
 
-export function presetFor(baseUrl: string): Preset | null {
-  return PRESETS.find(preset => preset.baseUrl === baseUrl) ?? null
+export function presetOf(presets: Preset[], provider: Provider): Preset | null {
+  return presets.find(preset => preset.id === provider.preset) ?? null
+}
+export function providerTitle(provider: Provider, presets: Preset[]): string {
+  const preset = presetOf(presets, provider)
+  const name = preset ? `${preset.name}${preset.region === 'china' ? ' China' : ''}` : provider.name
+  return `${name}${provider.label ? ` (${provider.label})` : ''}`
 }

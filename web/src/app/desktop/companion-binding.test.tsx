@@ -9,6 +9,7 @@ const {invoke,listen}=vi.hoisted(()=>({invoke:vi.fn(),listen:vi.fn()}))
 vi.mock('@tauri-apps/api/core',()=>({invoke}))
 vi.mock('@tauri-apps/api/event',()=>({listen}))
 vi.mock('@/api/aylul-profiles',()=>({
+ providerPresetsQuery:{queryKey:['fixture-presets'],queryFn:async()=>[]},
  agentsQuery:{queryKey:['fixture-agents'],queryFn:async()=>({project_id:'project',agents:[
   {slug:'agent-a',name:'AYLUL A',provider:'provider-a',default_model:'fake-large',deleted:false},
   {slug:'deleted',name:'Deleted agent',provider:'provider-a',default_model:'fake-small',deleted:true},

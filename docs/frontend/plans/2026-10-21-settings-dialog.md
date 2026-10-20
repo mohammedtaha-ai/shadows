@@ -357,6 +357,8 @@ gen:api` on this branch and is committed with this task):
 **Files:**
 - Create: `web/src/app/agents/provider-models.tsx` (the model checklist: search, ticks, default,
   per-model window, add by id), `web/src/app/agents/provider-test.ts` (outcome → the line to show)
+- Create (mechanical lint follow-up): `web/src/app/agents/model-picks.ts` holds shared model
+  validation separately from the React component to satisfy Fast Refresh.
 - Modify: `web/src/api/schema.d.ts` (already regenerated; commit it), `web/src/api/aylul-profiles.ts`
   (`providerPresetsQuery`, `testProvider`, `testSavedProvider`, the `ProviderPreset` and
   `ProviderTestOutcome` types), `web/src/app/agents/provider-presets.ts` (the `PRESETS` constant
@@ -374,6 +376,11 @@ gen:api` on this branch and is committed with this task):
   `web/src/app/conversation/companion-send.test.tsx`, `web/src/app/conversation/draft.test.tsx`
   (where they hold a provider fixture: it takes `models: [{ id, context_window }]` and loses
   the provider-level `context_window`)
+- Mechanical follow-ups: `web/src/app/settings/sections/agents.tsx` and
+  `web/src/app/desktop/companion-settings.tsx` use the provider title including its label;
+  `web/src/app/desktop/companion-binding.test.tsx` supplies the preset query in its API mock.
+  Update `web/src/api/contract.yaml`, `web/src/app/settings/contract.yaml` and
+  `web/src/app/desktop/contract.yaml` with the changed folder interfaces.
 
 **Interfaces:**
 - Consumes: the schema types above; `attemptFor` from `@/api/command-id`; `ProviderForm`,

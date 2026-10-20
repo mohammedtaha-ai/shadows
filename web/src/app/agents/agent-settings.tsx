@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useRef, useState } from 'react'
 import {
-  type AgentInput, agentsQuery, deleteAgent, providersQuery, saveAgent,
+  type AgentInput, agentsQuery, deleteAgent, providersQuery, providerPresetsQuery, saveAgent,
 } from '@/api/aylul-profiles'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import { ErrorLine } from '../error-line'
 import { AgentEnv } from './agent-env'
 import { DeleteZone } from './delete-zone'
 import { Field, Select } from './form-field'
+import { providerTitle } from './provider-presets'
 import { useOpenSettings } from '../settings/use-settings'
 
 export function AgentForm({ slug, onDone }: { slug: string | null; onDone: () => void }) {
@@ -25,6 +26,7 @@ export function AgentForm({ slug, onDone }: { slug: string | null; onDone: () =>
 function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void }) {
   const openSettings = useOpenSettings()
   const providers = useQuery(providersQuery)
+  const presets = useQuery(providerPresetsQuery)
   const original = useQuery(agentsQuery).data?.agents.find((a) => a.slug === slug)
   const queryClient = useQueryClient()
   const [edited, setEdited] = useState<AgentInput | null>(null)
@@ -78,7 +80,7 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
               // The default model must be one of the new provider's.
               if (next) setEdited({ ...value, provider: next.slug, default_model: next.models[0]?.id ?? '' })
             }}>
-            {providers.data.map((p) => <option key={p.slug} value={p.slug}>{p.name}</option>)}
+            {providers.data.map((p) => <option key={p.slug} value={p.slug}>{providerTitle(p, presets.data ?? [])}</option>)}
           </Select>
         </Field>
         <Field label="Default model" hint="New conversations start on it; each can switch to another of the provider's models.">

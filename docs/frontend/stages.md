@@ -80,7 +80,7 @@ F-14 on the character colour's desktop side).
   `npm run typecheck`, `npm run lint`
 
 ### F-8 · Providers: label, presets from Core, test connection, model checklist
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-8-providers-label-presets-from-core-test-connection-model-checklist
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Providers); `web/src/app/agents/contract.yaml`;
   the request's Providers answer

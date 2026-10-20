@@ -546,3 +546,7 @@ runtime_readiness:
   consumer: Native Core startup verifies the OS process instance before mounting the web client
 
 profile_schema: Provider models have per-model context windows; generated schema also exposes person, provider tests and opaque agent character_color.
+provider_setup:
+  providerPresetsQuery: "GET /api/aylul/provider-presets; ['aylul-provider-presets']; staleTime Infinity"
+  testProvider: "POST /api/aylul/providers/test with typed key and preset or Custom URL; no command id, no persistence"
+  testSavedProvider: "POST /api/aylul/providers/{slug}/test; omit key to test the stored secret; no secret in query keys"

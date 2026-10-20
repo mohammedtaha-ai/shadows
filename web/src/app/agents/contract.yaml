@@ -28,8 +28,10 @@ components:
     signature: "({ onChoose: (group: PresetGroup | null) => void }) => JSX.Element"
   ProviderForm:
     signature: "({ provider: Provider | null, group: PresetGroup | null, onSaved: (p: Provider | null) => void }) => JSX.Element"
-    # Name, URL, API key (password, write-only, Remove key when one is saved), models one
-    # per line, context window; Delete provider in its danger zone.
+    # Preset/region or Custom URL, label, write-only key tests, model selection;
+    # Delete provider retains inline confirmation.
+  ProviderModels:
+    signature: "({ listed, picked: ModelPick[], onChange }) => JSX.Element; default is picked[0]"
   AgentForm:
     signature: "({ slug: string | null, onDone: () => void }) => JSX.Element"
     # Null creates an agent; a saved agent includes its scoped environment and deletion.
@@ -53,15 +55,19 @@ components:
 pure:
   presetGroups:
     signature: "(presets: Preset[]) => PresetGroup[]; first-seen group order"
-  presetFor:
-    signature: "(baseUrl: string) => Preset | null"
-  parseModels:
-    signature: "(text: string) -> string[] | string"
-    private: true
-    # The ids, one per line or comma, or the reason they cannot be saved: none or more
-    # than 20, `default`, a duplicate, a space or control character, over 128 characters.
+  presetOf:
+    signature: "(presets: Preset[], provider: Provider) => Preset | null; by preset id"
+  providerTitle:
+    signature: "(provider: Provider, presets: Preset[]) => string; preset name, region and optional label"
+  testLine:
+    signature: "(outcome: ProviderTestOutcome, providerName: string) => { kind, text }"
+  modelPicksError:
+    signature: "(picked: ModelPick[]) => string | null; 1..20 unique valid ids and bounded windows"
+    file: web/src/app/agents/model-picks.ts
 
 obligations:
+  - rule: Presets are queried from Core; known providers save only preset and label with ordered model objects. Each chosen model owns its editable context window; the first is default. Stored keys can be tested without revealing them.
+    tested_by: ["presets come from Core, grouped by name", "a preset saves its id, not its URL", "Test connection lists the key's models", "Edit tests with the stored key", "a window out of range is refused"]
   - rule: Presets are grouped by provider name; search keeps Custom visible. Known providers fix the name and URL, with International/China selection where applicable. Custom requires its URL.
     tested_by: ["presets are grouped by name", "search filters the presets and keeps Custom", "a preset hides the URL and sends it", "Custom asks for the URL", "MiniMax China sends the China URL", "Moonshot China sends the China URL", "Edit keeps the saved region"]
   - rule: Provider keys are password inputs and clear after a successful save.

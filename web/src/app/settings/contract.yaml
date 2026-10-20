@@ -45,6 +45,7 @@ components:
     signature: "() => JSX.Element"
   ProvidersSection:
     signature: "() => JSX.Element"
+    note: Provider list titles use Core presets plus region and label; Edit waits for presets to load.
   AgentsSection:
     signature: "() => JSX.Element"
   ActiveProjects:

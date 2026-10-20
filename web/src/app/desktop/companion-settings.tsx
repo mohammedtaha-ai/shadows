@@ -1,11 +1,12 @@
+import { providerTitle } from '../agents/provider-presets'
 import {useEffect,useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
-import {agentsQuery,providersQuery} from '@/api/aylul-profiles'
+import {agentsQuery,providersQuery,providerPresetsQuery} from '@/api/aylul-profiles'
 import {noteCompanionSend} from '../../desktop/companion-send'
 import {retryConnection} from '../../desktop/native'
 import {connectBinding,useCompanionBinding,selectCompanionAgent,setCompanionPreviews,type BindingView} from '../../desktop/presence'
 export function CompanionSettings(){
-  const agents=useQuery(agentsQuery),providers=useQuery(providersQuery)
+  const agents=useQuery(agentsQuery),providers=useQuery(providersQuery),presets=useQuery(providerPresetsQuery)
   const [binding,setBinding]=useState<BindingView|null>(null),[error,setError]=useState<string|null>(null),[busy,setBusy]=useState(false)
   const receive=(view:BindingView)=>setBinding(previous=>previous&&previous.revision>=view.revision?previous:view)
   useEffect(()=>connectBinding(receive,()=>setError('Unable to load companion settings. Please retry.')),[])
@@ -26,7 +27,7 @@ export function CompanionSettings(){
         <option value="">Choose an agent</option>
         {binding?.agent&&agents.data&&!agents.data.agents.some(agent=>agent.slug===binding.agent&&!agent.deleted)&&<option disabled value={binding.agent}>Selected agent unavailable</option>}
         {agents.data?.agents.filter(agent=>!agent.deleted).map(agent=><option key={agent.slug} value={agent.slug}>
-          {agent.name} · {providers.data?.find(provider=>provider.slug===agent.provider)?.name??agent.provider} · {agent.default_model}
+          {agent.name} · {(() => { const provider=providers.data?.find(provider=>provider.slug===agent.provider); return provider?providerTitle(provider,presets.data??[]):agent.provider })()} · {agent.default_model}
         </option>)}
       </select>
     </label>
