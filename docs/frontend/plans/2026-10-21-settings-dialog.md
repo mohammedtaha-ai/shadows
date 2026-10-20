@@ -244,7 +244,116 @@ answer fixes the shapes; each follows the TDD shape above.
 |---|---|---|
 | F-7 | Account: "You" card (name, what AYLUL calls you) and "Devices" with Revoke | Account: the person and their devices |
 | F-8 | Providers: Label shown as "Provider (Label)", Test connection, model checklist with default and hand-added ids, per-model context window, presets from the backend (closes the spec's OPEN) | Providers: label, test, models |
-| F-9 | Agents: character colour swatches (blue, red, green, purple, orange, pink) | Agents: character colour |
+| F-9 | Agents: character colour swatches; steps written below | Agents: character colour |
 | F-10 | Plugins & Skills section, listed in the nav | Plugins & Skills |
 | F-11 | Usage section with period picker, by provider and by model, listed in the nav | Usage |
 | F-12 | General: language, theme, start with Windows, hide to tray on close | General |
+
+### Task F-9: Agents: character colour per agent
+
+Spec: "Character colour" under Agents. Written before the request's answer because the field is
+small; if the answer renames `character_color` or its values, Masada amends this section before
+the task leaves `blocked`.
+
+**Files:**
+- Create: `web/src/app/agents/character-colors.ts`, `web/src/app/agents/color-swatches.tsx`
+- Modify: `web/src/api/schema.d.ts` (only by `npm run gen:api`), `web/src/app/agents/agent-settings.tsx`
+  (`AgentForm`: the field), `web/src/app/settings/sections/agents.tsx` (dot and Companion tag),
+  `web/src/app/desktop/companion-settings.tsx` (the colour line under the picker),
+  `web/src/app/agents/contract.yaml`, `web/src/app/desktop/contract.yaml`,
+  `docs/frontend/codebase/README.md` (rows for the two new files)
+- Test: `web/src/app/agents/character-colors.test.ts` (new), `web/src/app/agents/aylul.test.tsx`
+  (its agent fixtures gain `character_color`), `web/src/app/desktop/companion-binding.test.tsx`
+
+**Interfaces:**
+- Consumes: `Agent['character_color']` and `AgentInput['character_color']` from the regenerated
+  schema; `useCompanionBinding()` and `isDesktop()` from `web/src/desktop/`; `AgentForm` from F-6.
+- Produces, in `character-colors.ts`:
+  - `type CharacterColor = 'blue' | 'red' | 'green' | 'purple' | 'orange' | 'pink'` (equal to the
+    schema's union; a `satisfies` check fails the typecheck if they drift)
+  - `CHARACTER_COLORS: readonly { id: CharacterColor; label: string; swatch: string }[]`, in
+    order: `blue` Blue `#3b82f6`, `red` Red `#ef4444`, `green` Green `#22c55e`, `purple` Purple
+    `#a855f7`, `orange` Orange `#f97316`, `pink` Pink `#ec4899`
+  - `colorOf(value: string | null | undefined): CharacterColor`: the value when known, else `'purple'`
+- Produces, in `color-swatches.tsx`: `ColorSwatches({ value, onChange, disabled }: { value:
+  CharacterColor; onChange: (c: CharacterColor) => void; disabled?: boolean })`, a
+  `role="radiogroup"` named `Character colour` of native radio inputs (visually round swatches,
+  a ring on the checked one, `title` = label); `ColorDot({ color }: { color: CharacterColor })`,
+  an `aria-hidden` dot with `data-color={color}`.
+
+- [ ] **Step 1: Write the failing tests:**
+  - `character-colors.test.ts`, `the six colours keep their order and swatches`: ids equal
+    `['blue','red','green','purple','orange','pink']` and purple's swatch is `#a855f7`;
+    `an unknown or missing colour reads as purple`: `colorOf('teal')`, `colorOf(null)` and
+    `colorOf(undefined)` are `'purple'`, `colorOf('blue')` is `'blue'`.
+  - `aylul.test.tsx`, `a new agent starts on Purple`: open New agent; the radio group
+    `Character colour` holds radios named, in order, Blue Red Green Purple Orange Pink, and only
+    Purple is checked.
+  - `aylul.test.tsx`, `an agent's colour is shown and saved with the form`: agent `ay` with
+    `character_color: 'blue'`; open its form, Blue is checked; click Green, then `Save agent`: the
+    `PUT /api/aylul/agents/ay` body is `{ name: 'ay', provider, default_model,
+    character_color: 'green' }` with the fixture's provider and model; before Save no request
+    was sent.
+  - `aylul.test.tsx`, `the hint says when the colour shows`: desktop fixture with binding agent
+    `ay`: "AYLUL wears this colour now." under `ay`'s swatches; another agent's form: "AYLUL
+    wears this colour when this agent is the companion agent."; browser fixture: "AYLUL wears this
+    colour on the desktop when this agent is the companion agent."
+  - `aylul.test.tsx`, `the list shows each agent's colour and the companion`: two agents, `ay`
+    blue and bound, `zed` pink; `ay`'s row holds `[data-color="blue"]` and the text `Companion`,
+    `zed`'s row `[data-color="pink"]` and no `Companion`. F-6's row-text assertion stays true
+    (the dot has no text; it changes only for the tag).
+  - `companion-binding.test.tsx`, `the picker names the chosen agent's colour`: binding agent
+    `ay` with `character_color: 'blue'`: the text `Character colour: Blue` and
+    `[data-color="blue"]` under the select; no binding: no such line.
+- [ ] **Step 2: Run** `cd web && npx vitest run src/app/agents/character-colors.test.ts
+  src/app/agents/aylul.test.tsx src/app/desktop/companion-binding.test.tsx`; expected: FAIL.
+- [ ] **Step 3: Regenerate** with `npm run gen:api` (only once `api/openapi.json` shows
+  `character_color`); the schema is committed with the task.
+- [ ] **Step 4: Implement.** `AgentForm`'s value gains `character_color: colorOf(original?.character_color)`
+  (purple for a new agent); a `Field label="Character colour"` after Default model holds
+  `ColorSwatches` and the hint line (on the desktop, `useCompanionBinding()?.agent === slug`). The
+  attempt fingerprint covers the new field as it covers the others (an unchanged retry reuses
+  its command id). Nothing is sent to the native shell in this task.
+- [ ] **Step 5: Run** the three files, `src/codemap.test.ts`, `npm run typecheck`, `npm run lint`; PASS.
+- [ ] **Step 6: Commit** `feat(web): each agent picks AYLUL's character colour`.
+
+### Task F-13: A still of the character beside the swatches
+
+**Files:**
+- Create: `web/public/aylul/character/<color>.png`, six files copied unchanged from the stills the
+  character side delivers (one per `CHARACTER_COLORS` id, 192×192, transparent)
+- Modify: `web/src/app/agents/color-swatches.tsx` (the still), `web/src/app/agents/contract.yaml`
+- Test: `web/src/app/agents/aylul.test.tsx`
+
+- [ ] **Step 1: Write the failing test** `the still follows the chosen colour`: open `ay`'s form
+  (blue): an `img` named `AYLUL in Blue` whose `src` ends `/aylul/character/blue.png`, 96×96 CSS
+  px; click Pink: its name is `AYLUL in Pink` and its `src` ends `pink.png`.
+- [ ] **Step 2: Run**; FAIL.
+- [ ] **Step 3: Implement.** The image sits left of the swatch row; the six files are referenced
+  by URL, not imported, so the bundle does not grow.
+- [ ] **Step 4: Run** the file, codemap, typecheck, lint; PASS. Open the form in a browser and
+  compare the six stills with the studio's export (screenshot in the report).
+- [ ] **Step 5: Commit** `feat(web): a still of AYLUL in the chosen colour`.
+
+### Task F-14: Saving the companion agent repaints AYLUL at once
+
+**Files:**
+- Modify: `web/src/desktop/presence.ts` (the native call), `web/src/app/agents/agent-settings.tsx`
+  (`AgentForm`'s `onSuccess`), `web/src/desktop/contract.yaml`
+- Test: `web/src/app/agents/aylul.test.tsx`
+
+**Interfaces:**
+- Consumes: the main-only native command named in the native side's answer (asked as
+  `refresh_companion_appearance`, no arguments, returns the companion state).
+- Produces: `refreshCompanionAppearance(): Promise<void>` in `presence.ts`, through `nativeCall`;
+  a no-op outside the desktop.
+
+- [ ] **Step 1: Write the failing tests:** `saving the companion agent refreshes the character`:
+  desktop, binding agent `ay`; change its colour and Save: one `refresh_companion_appearance`
+  call, after the PUT succeeded; `saving another agent does not`: save `zed`, no call; `a failed
+  refresh does not fail the save`: the call rejects, the form shows no error and the list shows
+  the saved agent (the native 10-second check repaints later).
+- [ ] **Step 2: Run**; FAIL.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** the file, codemap, typecheck, lint; PASS.
+- [ ] **Step 5: Commit** `feat(web): saving the companion agent repaints AYLUL`.

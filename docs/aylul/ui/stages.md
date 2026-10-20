@@ -23,6 +23,21 @@ Full automated gates and actual readiness passed. Mohammed performs the real
 assistant/native acceptance; he explicitly waived the final reviewer.
 See evidence (`docs/evidence/aylul/2026-10-20-desktop-web-companion.md` at `0187365`).
 
+2026-10-21: the character colour per agent (web F-9) needs the companion state to carry the
+colour: U-1 below.
+
+## Tasks
+
+### U-1 · The companion state carries the character colour
+- Status: blocked
+- Plan: docs/aylul/ui/plans/2026-10-21-character-colour.md#task-u-1-the-companion-state-carries-the-character-colour
+- Read: `apps/desktop/src/platform/contract.yaml`; `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Character colour)
+- Touch: `apps/desktop/src/platform/companion-state.ts`, `apps/desktop/src/platform/contract.yaml`,
+  `apps/desktop/tests/companion/native-state.test.ts`, `docs/aylul/ui/stages.md`
+- Needs: the native side's answer naming the `appearance` field of `companion-state` (AYLUL shared
+  request, not yet filed); it may be built before the native side, since a missing field draws purple
+- Done when: `node --test tests/companion/native-state.test.ts` and `npm run build` pass from `apps/desktop/`
+
 ## Done
 
 | Task | Result |

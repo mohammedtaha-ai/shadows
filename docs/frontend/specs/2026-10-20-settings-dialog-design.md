@@ -128,6 +128,75 @@ The person's own data comes first, then the account state, then only the actions
   companion agent: blue, red, green, purple, orange, pink (a row of swatches; purple is today's
   look). *(needs backend: the colour is stored with the agent)*
 
+#### Character colour
+
+**Where the character is drawn today** (studied 2026-10-21):
+
+| Place | How it is drawn | Its colours |
+|---|---|---|
+| Companion window (`apps/desktop/src/app/companion.tsx` → `DesktopCompanion`) | Procedural Canvas 2D: `renderCharacter` in `apps/desktop/src/features/companion/renderer/` draws every frame from code; no image, sprite or video | Literal `rgba(...)`/hex strings in `character.ts`, `eyes.ts`, `crystals.ts`, `hands.ts`, `effects.ts`, `outfits.ts`, `scene.ts`: a violet/fuchsia family (`#a855f7`, `#e879f9`, `#d946ef`, `#c084fc`, `#d8b4fe`, `#9333ea`) and violet-tinted dark cloth (`#43325c` … `#08050d`); gold metal (`#fde047`, `#d97706`); the `blocked` state already swaps the accents to rose (`#f43f5e`), `success` adds gold |
+| In-window presence (`Companion.tsx`) | The same renderer | The same; it is mounted only by the development studio and tests, not by a product window |
+| Development studio (`studio/`) | The same renderer, plus PNG export | The same |
+| Web sidebar (`web/src/app/sidebar/agent-list.tsx`) | **No character.** Each agent row shows the lucide `Bot` icon, tinted `text-accent-line` when it is the open agent | Theme tokens |
+| `assets/aylul/` | No runtime asset: the historical PNGs are archived and the renderer does not load them | – |
+
+No CSS variable reaches the drawing: Canvas takes colours as strings at draw time.
+
+**The approach: a palette passed to the renderer.** The renderer gets one `CharacterColor` per frame
+and reads every accent and cloth tint from a palette for it, instead of literals. Purple's palette
+is today's literals exactly (same pixels). Each other palette is the same tone family in its hue
+(its 500 tone is the glow and the swatch: blue `#3b82f6`, red `#ef4444`, green `#22c55e`, purple
+`#a855f7`, orange `#f97316`, pink `#ec4899`), and the dark cloth tinted toward it. What does not
+change with the palette: gold metal (stud, hoop, `special` outfit), white sparkles, outfit
+accessories' own colours, and the state colours (`blocked` rose, `success` gold), since they are
+signals.
+- Why not the others: a hue filter (`filter: hue-rotate()` on the canvas, or `ctx.filter`) is free
+  to build and cheap on the GPU, but it turns the gold metal and the state colours too (a blue
+  AYLUL's `blocked` would stop being red) and shifts the dark cloth's brightness unevenly per hue.
+  Recoloured assets do not apply: there are no assets. CSS tokens cannot reach a canvas.
+- Cost: no asset work; one palette object per colour in the renderer; no draw call is added, so
+  frame cost is unchanged. The work is a careful pass over the renderer's literals, owned by the
+  character side, with a pixel test that purple is unchanged.
+
+**The picker** (in the agent form, after Default model):
+- A radio group named **Character colour**: six round swatches in the order above, each with its
+  name as its accessible label and as a tooltip; the chosen one has a ring. A new agent starts on
+  Purple. The colour is saved with the rest of the form by **Save agent**, like the other fields.
+- Under it, one line says when the colour shows: "AYLUL wears this colour now." when this agent is
+  the companion agent on this desktop; "AYLUL wears this colour when this agent is the companion
+  agent." when it is not; in the browser, "AYLUL wears this colour on the desktop when this agent
+  is the companion agent." The picker is the same in all three cases: the colour belongs to the
+  agent, not to the companion.
+- The Agents list shows each agent's colour as a small dot before its name, and a **Companion** tag
+  on the companion agent (desktop only).
+- The AYLUL character section shows, under the companion agent picker, "Character colour: <name>"
+  with its dot, for the chosen agent.
+- My call: **the preview** is a small still of the character in the chosen colour beside the
+  swatches, from six PNGs the character studio exports (one per colour). The web client cannot run
+  the desktop renderer (a separate package and owner), so a live preview would mean copying it.
+  Until the six stills exist, no preview is drawn; the live companion is the preview once saved.
+
+**How the colour reaches the companion window.** Core stores the colour on the agent; the web
+client never sends it to the native shell. The native presence already reads the agent from
+Core's agent list when the companion agent is selected and checks it every 10 seconds while bound;
+it reads `character_color` there too and publishes it in the companion state it already sends the
+window (`companion-state`), as `appearance.color`. No bound agent, an unavailable agent, a missing
+field or an unknown value all draw purple. Changing the companion agent repaints at once (selection
+already republishes the state). Saving the companion agent's form calls a main-only native
+command that rereads the agent and republishes, so an edit shows at once rather than after the
+next 10-second check.
+
+**Who builds what:** the web picker, list dot, character-section line and the save-time refresh
+call are this side's (F-9, F-14; the preview F-13); the companion state's parsing in
+`apps/desktop/src/platform/` is the desktop UI's (U-1); the native read and command, and the
+renderer palette with the six stills, belong to the native and character sides and are asked for
+by AYLUL shared requests.
+
+> **OPEN — red and the blocked state.** The `blocked` state turns the accents rose (`#f43f5e`); a
+> red AYLUL's `blocked` then differs from its normal look only by its shake and warning mark.
+> Closed by Mohammed's answer: keep red as is, use another state colour for a red character, or
+> drop red from the six.
+
 ### Plugins & Skills
 
 - Two tabs, Plugins and Skills. Each item has its name, a one-line description and an on/off
