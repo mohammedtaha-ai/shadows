@@ -104,7 +104,9 @@ Vitest with happy-dom and the fake daemon (`web/src/app/test-app.tsx`, `@/test/f
 
 **Files:**
 - Create: `web/src/app/settings/sections/account.tsx`, `web/src/app/settings/account-actions.ts`
-- Modify: `web/src/app/settings/settings-dialog.tsx` (map entry)
+- Modify: `web/src/app/settings/settings-dialog.tsx` (map entry), `web/src/app/desktop/native-settings.tsx`
+  (drop the `AccountPanel` import, its state and its render; F-4 deletes the file),
+  `web/src/app/desktop/native-sections.test.tsx` (its account cases leave)
 - Delete: `web/src/app/desktop/account-panel.tsx`; move `NativeSections`' account state into
   `account.tsx` (character and connection move in F-4)
 - Test: `web/src/app/settings/account-actions.test.ts`, `web/src/app/settings/account.test.tsx`
