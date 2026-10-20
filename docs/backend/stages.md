@@ -39,7 +39,8 @@ never print, log or commit a key).
 - Done when: `model_window_defaults_and_is_bounded`, `model_ids_keep_their_rules`, `migration_gives_models_the_provider_window`, `opening_uses_the_default_models_window`, `auto_compact_window_is_capped_or_omitted`, `removing_an_agents_default_model_is_refused`, `provider_in_use_cannot_be_deleted` pass; contracts and openapi tests pass
 
 ### B-3 · Test a key and list its models
-- Status: todo
+- Status: blocked
+- Blocker: B-3 requires profiles to resolve the saved provider key, but secrets/contract.yaml forbids resolve_env outside the harness; changing this access agreement needs an explicit plan amendment including the secrets contract.
 - Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-3--test-a-key-list-its-models
 - Read: spec §3; docs/evidence/2026-10-21-provider-presets-research.md; crates/shadows-core/src/profiles/contract.yaml; crates/shadows-core/src/secrets/contract.yaml (`resolve_env`)
 - Touch: crates/shadows-core/src/profiles/probe.rs (new), crates/shadows-core/src/profiles/listing.rs (new), crates/shadows-core/tests/aylul_profiles/probe.rs (new), crates/shadows-core/Cargo.toml, Cargo.toml (only the `reqwest` entry), Cargo.lock, crates/shadows-core/src/profiles/mod.rs, crates/shadows-core/src/profiles/presets.rs, crates/shadows-core/src/profiles/contract.yaml, crates/shadows-core/tests/aylul_profiles.rs, crates/shadows-core/src/lib.rs, crates/shadows-http/src/aylul_profiles.rs, crates/shadows-http/src/aylul_profiles_tests.rs, crates/shadows-http/src/lib.rs, api/openapi.json, docs/codebase/README.md
