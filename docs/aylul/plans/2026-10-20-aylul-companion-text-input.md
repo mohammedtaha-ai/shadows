@@ -88,13 +88,13 @@
   - `pub fn set_input(app: &tauri::AppHandle, open: bool) -> Result<CompanionState, String>`
 - Produces, in `commands/companion.rs`: `#[tauri::command] companion_input(window, open: bool) -> Result<CompanionState, String>`, which only the `companion` window may call.
 
-- [ ] **Step 1: Write the failing geometry and state tests** in `input.rs`:
+- [x] **Step 1: Write the failing geometry and state tests** in `input.rs`:
   - `open_bounds_centres_the_character`: `open_bounds((1664, 784), 1.0) == (1636, 784, 296, 320)`. At `scale 1.5`: width 444, height 480, x `1664 - 42`.
   - `open_then_close_restores_exact_origin`: `closed_origin` of `open_bounds((x, y), s)`'s origin equals `(x, y)` for `(1664, 784, 1.0)`, `(-500, 300, 1.25)` and `(0, 0, 2.0)`.
   - `open_at_bottom_right_edge_fits_whole_rectangle`: `fit_companion` applied to `open_bounds((1664, 784), 1.0)` in area `(0, 0, 1920, 1040)` returns a rectangle fully inside the area.
   - In `state.rs`: `hide_closes_input_and_unhide_keeps_it_closed`. A model with `composer.open = true` gets `request_visible(false)`, then `true`. `composer.open` must be false both times, and `revision` must increase.
-- [ ] **Step 2: Run** `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml companion::input`. Expected: FAIL, unresolved `open_bounds`.
-- [ ] **Step 3: Implement `input.rs`, the model changes and the command.**
+- [x] **Step 2: Run** `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml companion::input`. Expected: FAIL, unresolved `open_bounds`.
+- [x] **Step 3: Implement `input.rs`, the model changes and the command.**
   - **Opening:**
     - Store the closed origin.
     - Compute the open bounds and pass them through `placement::fit_companion`.
@@ -106,13 +106,13 @@
   - **Hiding:** `set_visible(false)` calls the close path before `no_activate::hide`.
   - **Threading:** every effect runs through `on_ui`. Each open or close bumps `composer.revision` and publishes.
   - **Fallback:** if `set_focusable` does not clear `WS_EX_NOACTIVATE` on Windows (Step 6 shows this), add the Win32 style toggle beside `show`/`hide` in `no_activate.rs`. Record which path was used in the commit message.
-- [ ] **Step 4: Run** the Step 2 command, then `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml companion_callers_are_restricted`, with `companion_input` added to that test's list as companion-only. Expected: PASS.
-- [ ] **Step 5: Build the program under test,** one command after the other, over the existing cache:
+- [x] **Step 4: Run** the Step 2 command, then `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml companion_callers_are_restricted`, with `companion_input` added to that test's list as companion-only. Expected: PASS.
+- [x] **Step 5: Build the program under test,** one command after the other, over the existing cache:
   1. `npm --prefix apps/desktop run build:desktop`
   2. `cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml`
 
   The debug build embeds `apps/desktop/dist` (`frontendDist`, no `devUrl`), so a probe runs the code it names. Expected: `src-tauri/target/debug/nylra-desktop.exe` is newer than this task's last source edit.
-- [ ] **Step 6: Window-focus probe only.** No input element exists yet, so this step tests focus and window style, not typing.
+- [x] **Step 6: Window-focus probe only.** No input element exists yet, so this step tests focus and window style, not typing.
   - Extend `companion-native.mjs`, started by `windows-companion.ps1`, using its existing CDP `invoke` and focus-witness form:
     1. `invoke(companion, 'companion_input', {open: true})`: the foreground HWND becomes the companion's, `WS_EX_NOACTIVATE` is cleared, the window is 296×320 logical, and main stays hidden.
     2. `invoke(companion, 'companion_input', {open: false})`: `WS_EX_NOACTIVATE` is set again, the size and position are back to the values before step 1, the witness form can take the foreground back, and main is still hidden.
@@ -120,7 +120,7 @@
   - Add `companion_input` to the probe's must-reject-main list.
 
   Expected: every assertion passes. **If any fails, stop:** report it and amend spec §8A before Task 2.
-- [ ] **Step 7: Update `windows/companion/contract.yaml`** with `set_input` and the obligations "only explicit open grants focus" and "hide closes input; unhide does not reopen". Then commit:
+- [x] **Step 7: Update `windows/companion/contract.yaml`** with `set_input` and the obligations "only explicit open grants focus" and "hide closes input; unhide does not reopen". Then commit:
   `git add <files above> && git commit -m "feat(companion): native open/closed input mode with explicit focus"`
 
 ### Task 2: Native send sequence

@@ -384,7 +384,11 @@ non-activating and focusable is sensitive on Windows. The first implementation
 step is a native probe on the actual program: open input takes keyboard focus,
 close returns the window to non-activating, and neither brings main forward.
 If the probe fails, implementation stops and this section is amended before
-any renderer work.
+any renderer work. The 2026-10-20 probe found that `set_focusable(true)` clears
+`WS_EX_NOACTIVATE`, but `set_focus()` sees Tao's cached hidden state after the
+background Win32 show. Explicit editor open therefore synchronizes visibility
+through Tauri `show()` before requesting focus. Background show remains the
+existing no-activation path.
 
 On expansion, retain the character position when the complete open rectangle
 fits; otherwise move only as needed to keep the bubble, Ready and input in the

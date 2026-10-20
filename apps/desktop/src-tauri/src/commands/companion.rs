@@ -3,9 +3,11 @@ use tauri::Manager;
 pub fn allowed_caller(label: &str, command: &str) -> bool {
     match command {
         "companion_state" => matches!(label, "main" | "companion"),
-        "companion_ready" | "companion_failed" | "drag_companion" | "open_main_from_companion" => {
-            label == "companion"
-        }
+        "companion_input"
+        | "companion_ready"
+        | "companion_failed"
+        | "drag_companion"
+        | "open_main_from_companion" => label == "companion",
         "set_companion_visible"
         | "set_companion_paused"
         | "auth_action"
@@ -41,6 +43,17 @@ pub async fn companion_state(window: tauri::WebviewWindow) -> Result<CompanionSt
     guard(&window, "companion_state")?;
     companion::on_ui(window.app_handle().clone(), |app| {
         Ok(companion::snapshot(app))
+    })
+    .await
+}
+#[tauri::command]
+pub async fn companion_input(
+    window: tauri::WebviewWindow,
+    open: bool,
+) -> Result<CompanionState, String> {
+    guard(&window, "companion_input")?;
+    companion::on_ui(window.app_handle().clone(), move |app| {
+        companion::input::set_input(app, open)
     })
     .await
 }
@@ -109,6 +122,7 @@ mod tests {
     fn companion_callers_are_restricted_for_every_operation() {
         for label in ["main", "companion", "unknown"] {
             for name in [
+                "companion_input",
                 "companion_ready",
                 "companion_failed",
                 "companion_state",
@@ -129,7 +143,8 @@ mod tests {
             ] {
                 let expected = match name {
                     "companion_state" => label == "main" || label == "companion",
-                    "companion_ready"
+                    "companion_input"
+                    | "companion_ready"
                     | "companion_failed"
                     | "drag_companion"
                     | "open_main_from_companion" => label == "companion",

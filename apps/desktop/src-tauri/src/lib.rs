@@ -28,6 +28,7 @@ pub fn run() {
             commands::cancel_login,
             commands::aylul_call,
             commands::companion::companion_state,
+            commands::companion::companion_input,
             commands::companion::companion_ready,
             commands::companion::companion_failed,
             commands::companion::set_companion_visible,

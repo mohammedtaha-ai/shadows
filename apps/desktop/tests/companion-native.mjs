@@ -35,7 +35,7 @@ try {
   for(const command of ['auth_action','cancel_login','hide_main','set_companion_visible','set_companion_paused']){
     let denied=false;try{await invoke(companion,command,{action:'status',visible:false,paused:true})}catch{denied=true}assert.ok(denied,`${command} must reject companion`);
   }
-  for(const command of ['companion_ready','companion_failed','drag_companion','open_main_from_companion']){
+  for(const command of ['companion_input','companion_ready','companion_failed','drag_companion','open_main_from_companion']){
     let denied=false;try{await invoke(main,command)}catch{denied=true}assert.ok(denied,`${command} must reject main`);
   }
   report.observations.push({scenario:'actual-native-ipc-scope',passed:true});
@@ -47,6 +47,31 @@ try {
     const after=foreground();report.focusCycles.push({before,after});assert.equal(after,before);
   }
   report.focusCyclesRequested=cycles;
+  // Explicit input alone may activate the existing native surface.
+  const info=()=>JSON.parse(shell(`Add-Type 'using System;using System.Runtime.InteropServices;public class InputWin{[StructLayout(LayoutKind.Sequential)]public struct Rect{public int L,T,R,B;}[DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out Rect r);[DllImport("user32.dll")]public static extern int GetWindowLongW(IntPtr h,int n);[DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);}';$r=[InputWin+Rect]::new();$h=[IntPtr]${Number(args['companion-hwnd'])};[InputWin]::GetWindowRect($h,[ref]$r)|Out-Null;@{x=$r.L;y=$r.T;width=$r.R-$r.L;height=$r.B-$r.T;style=[InputWin]::GetWindowLongW($h,-20);main=[InputWin]::IsWindowVisible([IntPtr]${Number(args['main-hwnd'])})}|ConvertTo-Json -Compress`));
+  const witness=()=>shell(`Add-Type '[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]public struct Unused{public int X;}public class InputFocus{[System.Runtime.InteropServices.DllImport("user32.dll")]public static extern bool SetForegroundWindow(System.IntPtr h);}';[InputFocus]::SetForegroundWindow([IntPtr]${Number(args.foreground)})|Out-Null`);
+  const closed=info();
+  const opened=await invoke(companion,'companion_input',{open:true});
+  assert.equal(opened.composer.open,true);
+  await sleep(200);
+  const openInfo=info(),dpr=await companion.evaluate(()=>devicePixelRatio);
+  report.inputProbe={closed,opened,openInfo,foreground:foreground()};
+  assert.equal(foreground(),Number(args['companion-hwnd']));
+  assert.equal(openInfo.style&0x08000000,0,'open input must clear WS_EX_NOACTIVATE');
+  assert.equal(openInfo.width,Math.round(296*dpr));assert.equal(openInfo.height,Math.round(320*dpr));
+  assert.equal(openInfo.main,false);
+  await invoke(companion,'companion_input',{open:false});await sleep(200);
+  const restored=info();
+  assert.notEqual(restored.style&0x08000000,0,'closed companion must be non-activating');
+  for(const key of ['x','y','width','height'])assert.equal(restored[key],closed[key]);
+  assert.equal(restored.main,false);witness();await sleep(100);
+  assert.equal(foreground(),Number(args.foreground));
+  await invoke(companion,'companion_input',{open:true});
+  await invoke(main,'set_companion_visible',{visible:false});
+  witness();await sleep(100);const beforeShow=foreground();
+  const shown=await invoke(main,'set_companion_visible',{visible:true});
+  assert.equal(shown.composer.open,false);assert.equal(foreground(),beforeShow);
+  report.observations.push({scenario:'explicit-input-focus-and-restored-bounds',passed:true,closed,openInfo,restored});
   // A page-local Canvas failure must be recoverable without restarting the app.
   await companion.evaluate(()=>{CanvasRenderingContext2D.prototype.clearRect=()=>{throw Error('controlled render failure')}});
   await waitState(s=>s.error==='companion_render_failed');

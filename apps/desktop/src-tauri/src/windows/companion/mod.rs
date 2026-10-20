@@ -1,3 +1,4 @@
+pub mod input;
 mod no_activate;
 mod placement;
 pub mod state;
@@ -10,6 +11,7 @@ use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 pub struct Store {
     model: Mutex<Model>,
     origin: Mutex<Option<(i32, i32)>>,
+    input: Mutex<input::Placement>,
     toggle: Mutex<Option<tauri::menu::MenuItem<tauri::Wry>>>,
     rebuilding: Mutex<bool>,
     visibility_intent: std::sync::atomic::AtomicU64,
@@ -44,6 +46,7 @@ pub fn attach_toggle(app: &tauri::AppHandle, item: tauri::menu::MenuItem<tauri::
     publish(app);
 }
 fn page_started(app: &tauri::AppHandle) {
+    let _ = input::set_input(app, false);
     let generation = model(app, |m| m.begin_document());
     publish(app);
     let app = app.clone();
@@ -56,45 +59,7 @@ fn page_started(app: &tauri::AppHandle) {
         });
     });
 }
-fn fit(app: &tauri::AppHandle, initial: bool) -> Result<(), String> {
-    let w = app
-        .get_webview_window("companion")
-        .ok_or("companion_unavailable")?;
-    let size = w.outer_size().map_err(|_| "companion_position_failed")?;
-    let mut monitors = w
-        .available_monitors()
-        .map_err(|_| "companion_position_failed")?;
-    if let Ok(Some(primary)) = w.primary_monitor() {
-        let position = primary.position();
-        monitors.sort_by_key(|m| m.position() != position);
-    }
-    let areas: Vec<_> = monitors
-        .iter()
-        .map(|m| {
-            let a = m.work_area();
-            (a.position.x, a.position.y, a.size.width, a.size.height)
-        })
-        .collect();
-    let origin = if initial {
-        *app.state::<Store>().origin.lock().unwrap()
-    } else {
-        w.outer_position().ok().map(|p| (p.x, p.y))
-    };
-    if let Some((x, y, width, height)) =
-        placement::fit_companion((size.width, size.height), origin, &areas)
-    {
-        if (width, height) != (size.width, size.height) {
-            w.set_size(tauri::PhysicalSize::new(width, height))
-                .map_err(|_| "companion_position_failed")?;
-        }
-        if w.outer_position().ok().map(|p| (p.x, p.y)) != Some((x, y)) {
-            w.set_position(tauri::PhysicalPosition::new(x, y))
-                .map_err(|_| "companion_position_failed")?;
-        }
-        *app.state::<Store>().origin.lock().unwrap() = Some((x, y));
-    }
-    Ok(())
-}
+use input::fit;
 pub fn setup_companion(app: &tauri::AppHandle) -> Result<(), String> {
     let result = (|| {
         if let Some(old) = app.get_webview_window("companion") {
@@ -221,6 +186,9 @@ pub fn set_visible(app: &tauri::AppHandle, visible: bool) -> Result<CompanionSta
     app.state::<Store>()
         .visibility_intent
         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    if !visible {
+        input::set_input(app, false)?;
+    }
     model(app, |m| m.request_visible(visible));
     let retry = visible
         && (app.get_webview_window("companion").is_none()
@@ -242,6 +210,7 @@ pub fn failed(app: &tauri::AppHandle) -> Result<CompanionState, String> {
         .get_webview_window("companion")
         .and_then(|w| w.is_visible().ok())
         .unwrap_or(false);
+    let _ = input::set_input(app, false);
     model(app, |m| m.fail(visible));
     Ok(publish(app))
 }

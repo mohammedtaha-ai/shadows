@@ -29,6 +29,7 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src/features/companion/studio/` | Development-only scenes, controlled simulations and PNG export | Colocated `contract.yaml`; excluded from parent scope |
 | `apps/desktop/src-tauri/src/lib.rs` | Compose native companion and sidecar lifetime | Composition only; behavior owned below |
 | `apps/desktop/src-tauri/src/windows/` | Main/tray lifecycle and physical placement | Colocated `contract.yaml` |
+| `apps/desktop/src-tauri/src/windows/companion/input.rs` | Explicit editor focus with physical bounds | Companion window contract |
 | `apps/desktop/src-tauri/src/windows/companion/` | Independent native companion lifecycle, explicit render permission, no-activation show and complete-rectangle fitting | Colocated `contract.yaml`; excluded from parent scope |
 | `apps/desktop/src-tauri/src/commands/` | Main-only native action IPC boundary | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/native_login/` | Local return/verifier/browser/DPAPI primitives | Colocated `contract.yaml` |
