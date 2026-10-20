@@ -24,6 +24,7 @@ fn agent_row(row: sqlx::sqlite::SqliteRow) -> Agent {
         name: row.get("name"),
         provider: row.get::<Option<String>, _>("provider").unwrap_or_default(),
         default_model: row.get("default_model"),
+        character_color: row.get("character_color"),
         deleted: row.get::<Option<String>, _>("deleted_at").is_some(),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
@@ -240,14 +241,39 @@ pub(crate) async fn require_live_agent_in(
 
 pub(super) async fn save_agent(
     storage: &Storage,
-    command: CommandContext,
+    command_id: String,
     existing: Option<String>,
-    input: AgentInput,
+    mut input: AgentInput,
     root: std::path::PathBuf,
 ) -> Result<String, StorageError> {
     storage
         .write_txn(move |conn| {
             Box::pin(async move {
+                if input.character_color.is_none() {
+                    let stored = if let Some(id) = &existing {
+                        sqlx::query_scalar::<_, String>(
+                            "SELECT character_color FROM aylul_agent WHERE slug=?",
+                        )
+                        .bind(id)
+                        .fetch_optional(&mut *conn)
+                        .await?
+                    } else {
+                        None
+                    };
+                    input.character_color = Some(stored.unwrap_or_else(|| "purple".into()));
+                }
+                let command = match &existing {
+                    Some(id) => crate::app::user_command(
+                        command_id,
+                        "agent.update",
+                        serde_json::json!({"slug":id,"input":input}),
+                    ),
+                    None => crate::app::user_command(
+                        command_id,
+                        "agent.create",
+                        serde_json::json!(input),
+                    ),
+                };
                 if let Some(id) = classify(conn, &command, "Profiles", "aylul").await? {
                     return Ok(id);
                 }
@@ -268,9 +294,11 @@ pub(super) async fn save_agent(
                 let ts = now();
                 sqlx::query(
                     "INSERT INTO aylul_agent
-            (slug,name,provider,default_model,created_at,updated_at) VALUES (?,?,?,?,?,?)
+            (slug,name,provider,default_model,created_at,updated_at,character_color)
+            VALUES (?,?,?,?,?,?,?)
             ON CONFLICT(slug) DO UPDATE SET name=excluded.name, provider=excluded.provider,
-            default_model=excluded.default_model, updated_at=excluded.updated_at",
+            default_model=excluded.default_model, updated_at=excluded.updated_at,
+            character_color=excluded.character_color",
                 )
                 .bind(&id)
                 .bind(&input.name)
@@ -278,6 +306,7 @@ pub(super) async fn save_agent(
                 .bind(&input.default_model)
                 .bind(&ts)
                 .bind(&ts)
+                .bind(&input.character_color)
                 .execute(&mut *conn)
                 .await?;
                 record(conn, &command, &id).await?;

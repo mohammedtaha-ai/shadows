@@ -232,3 +232,50 @@ async fn migration_gives_models_the_provider_window() {
         {"id":"b","context_window":123456}])
     );
 }
+
+#[tokio::test]
+async fn migration_colors_agents_purple() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("colors.db");
+    let pool = SqlitePoolOptions::new()
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+    let migrations = sqlx::migrate!("./migrations")
+        .iter()
+        .filter(|m| m.version < 32)
+        .cloned()
+        .collect();
+    Migrator::with_migrations(migrations)
+        .run(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO aylul_provider
+        (slug,name,base_url,models,context_window,created_at,updated_at)
+        VALUES ('p','P','https://example.test','[]',200000,'old','old')",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO aylul_agent
+        (slug,name,provider,default_model,created_at,updated_at)
+        VALUES ('a','A','p','m','old','old')",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    pool.close().await;
+    let storage = Storage::open(&path).await.unwrap();
+    let color: String =
+        sqlx::query_scalar("SELECT character_color FROM aylul_agent WHERE slug='a'")
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(color, "purple");
+}

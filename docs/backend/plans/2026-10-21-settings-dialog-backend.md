@@ -250,6 +250,14 @@ keep §3's OPEN until Mohammed has their keys.
 - Test: `crates/shadows-core/tests/aylul_profiles/agents.rs`,
   `crates/shadows-core/tests/profile_migration.rs`
 
+**Mechanical follow-ups:** `AgentInput` fixture constructors in
+`crates/shadows-core/tests/{aylul_profiles.rs,aylul_session.rs}`,
+`crates/shadows-http/src/aylul_env_tests.rs`, and
+`crates/shadows/tests/openapi/read_only.rs` supply an absent color.
+The color agreement anchors its unchanged rule to the real `Agent` and
+`AgentInput` symbols: the contract checker accepts Core symbols, not field paths
+or external client labels.
+
 **Shapes:** `Agent.character_color: String` (required);
 `AgentInput.character_color: Option<String>`. OpenAPI shows a string with a
 pattern, not an enum.

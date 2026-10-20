@@ -37,6 +37,7 @@ shapes:
   Agent:
     source: model.rs
     deleted: Permanent identity tombstone
+    character_color: Opaque color id; clients own palettes
 called_by_other_services:
   probe: Harness calls the bounded probe with an explicit resolved provider key.
 functions:
@@ -59,6 +60,12 @@ shared_in_transaction:
   require_live_agent_in: Threads checks creation; Secrets checks agent environment writes inside their transaction.
   require_provider_in: Secrets checks provider existence before storing a provider key.
 obligations:
+  - rule: Color ids are 1..=32 ASCII lowercase letters, digits or hyphens, starting with a letter.
+    tested_by: [color_id_shape_is_checked, unknown_but_well_formed_color_is_kept]
+  - rule: Create defaults to purple; absent on update preserves the stored color before fingerprinting.
+    tested_by: [color_defaults_to_purple, update_without_color_keeps_it]
+  - rule: Existing agents migrate to purple.
+    tested_by: [migration_colors_agents_purple]
   - rule: Probes never store or echo the key or write a command or event.
     tested_by: [tested_key_is_not_stored_or_echoed]
   - rule: 401 and 403 refuse the key; connection failure, timeout and 5xx are unreachable.
@@ -96,6 +103,10 @@ obligations:
   - rule: Command replay requires the same normalized input.
     tested_by: [replay_with_other_input_conflicts]
 agreements:
+  - between: [Agent, AgentInput]
+    must: Core keeps any well-formed id; clients own palettes and draw purple for unknown ids.
+    holds: true
+    tested_by: [unknown_but_well_formed_color_is_kept]
   - between: [delete_provider, secrets::remove_scope_in]
     must: Remove the key with the provider in one write transaction.
     holds: true

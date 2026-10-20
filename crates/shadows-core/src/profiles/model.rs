@@ -27,6 +27,8 @@ pub struct Agent {
     pub name: String,
     pub provider: String,
     pub default_model: String,
+    #[schema(pattern = "^[a-z][a-z0-9-]{0,31}$")]
+    pub character_color: String,
     pub deleted: bool,
     pub created_at: String,
     pub updated_at: String,
@@ -37,6 +39,8 @@ pub struct AgentInput {
     pub name: String,
     pub provider: String,
     pub default_model: String,
+    #[schema(pattern = "^[a-z][a-z0-9-]{0,31}$")]
+    pub character_color: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]

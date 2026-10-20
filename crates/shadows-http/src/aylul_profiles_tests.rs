@@ -31,6 +31,7 @@ async fn seed(w: &World, name: &str) {
         .create_agent(
             format!("seed-{name}"),
             shadows_core::AgentInput {
+                character_color: None,
                 name: name.into(),
                 provider: "test".into(),
                 default_model: "model-a".into(),
@@ -107,10 +108,12 @@ async fn agent_crud_soft_delete() {
     .await;
     assert_eq!(status, 201);
     assert_eq!(a["slug"], "work");
+    assert_eq!(a["character_color"], "purple");
     let (status, list) = call(&w, "GET", "/api/aylul/agents", Value::Null).await;
     assert_eq!(status, 200);
     assert!(list["project_id"].is_string());
     assert_eq!(list["agents"][0]["slug"], "work");
+    assert_eq!(list["agents"][0]["character_color"], "purple");
     assert_eq!(
         call(
             &w,
