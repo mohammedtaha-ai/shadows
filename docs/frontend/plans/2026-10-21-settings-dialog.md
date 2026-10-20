@@ -252,7 +252,7 @@ answer fixes the shapes; each follows the TDD shape above.
 ### Task F-9: Agents: character colour per agent
 
 Spec: "Character colour" under Agents. The colours are dynamic: the web reads them from the one
-colour table, `assets/aylul/character-colors.json` (the character side's file), and treats
+colour table, `assets/aylul/character-colors.json` (created by U-2 in `docs/aylul/ui/stages.md`), and treats
 `character_color` as an opaque id. If the request's answer names the field differently, Masada
 amends this section before the task leaves `blocked`.
 
@@ -271,15 +271,15 @@ amends this section before the task leaves `blocked`.
   (its agent fixtures gain `character_color`), `web/src/app/desktop/companion-binding.test.tsx`
 
 **Interfaces:**
-- Consumes: `assets/aylul/character-colors.json`, an ordered array of `{ id: string; label:
-  string; swatch: string; tones: object }` (the web reads `id`, `label`, `swatch` and ignores
-  `tones`); `Agent['character_color']` and `AgentInput['character_color']` from the regenerated
+- Consumes: `assets/aylul/character-colors.json` from U-2: `{ base: string; colors: { id:
+  string; label: string; swatch: string; tones?: object }[] }` (the web reads `colors[].id`,
+  `label`, `swatch` and ignores `base` and `tones`); `Agent['character_color']` and `AgentInput['character_color']` from the regenerated
   schema (a `string`, no union); `useCompanionBinding()` and `isDesktop()` from `web/src/desktop/`;
   `AgentForm` from F-6.
 - Produces, in `character-colors.ts` (the only web file that imports the table):
   - `type CharacterColor = { id: string; label: string; swatch: string }`
   - `CHARACTER_COLORS: readonly CharacterColor[]`, the table's entries in its order, without `tones`
-  - `DEFAULT_COLOR = 'purple'`
+  - `DEFAULT_COLOR`, the table's `base` id (`'purple'`)
   - `colorOf(id: string | null | undefined): CharacterColor`: the entry with that id, else the
     purple entry
 - Produces, in `color-swatches.tsx`: `ColorSwatches({ value, onChange, disabled }: { value: string;
@@ -289,7 +289,7 @@ amends this section before the task leaves `blocked`.
   is `colorOf(value).id`. `ColorDot({ id }: { id: string | null | undefined })`, an `aria-hidden`
   dot with `data-color={colorOf(id).id}` and that swatch as its colour.
 - No component, test or other file names a colour except the table, `DEFAULT_COLOR` and the order
-  test. Adding a colour is one table entry (character side) plus its id in the order test.
+  test. Adding a colour is one table entry plus its id in the order test.
 
 - [ ] **Step 1: Write the failing tests:**
   - `character-colors.test.ts`, `the table's colours, in order`: `CHARACTER_COLORS.map(c => c.id)`

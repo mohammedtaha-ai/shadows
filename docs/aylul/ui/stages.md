@@ -23,10 +23,18 @@ Full automated gates and actual readiness passed. Mohammed performs the real
 assistant/native acceptance; he explicitly waived the final reviewer.
 See evidence (`docs/evidence/aylul/2026-10-20-desktop-web-companion.md` at `0187365`).
 
-2026-10-21: the character colour per agent (web F-9) needs the companion state to carry the
-colour: U-1 below.
+2026-10-21: the character colour per agent (web F-9). By Mohammed's ruling the colour table and
+the renderer's palette are this side's: U-2 (table) first, since F-9 needs it; then U-1 and U-3.
 
 ## Tasks
+
+### U-2 · One colour table for AYLUL's character, and the palette function
+- Status: todo
+- Plan: docs/aylul/ui/plans/2026-10-21-character-colour.md#task-u-2-the-colour-table-and-the-palette-function
+- Read: `apps/desktop/src/features/companion/contract.yaml`; `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Character colour)
+- Touch: the Files list of Task U-2 in the plan, `docs/aylul/ui/stages.md`
+- Needs: none
+- Done when: `node --test tests/companion/palette.test.ts` and `npm run build` pass from `apps/desktop/`
 
 ### U-1 · The companion state carries the character colour
 - Status: blocked
@@ -37,6 +45,16 @@ colour: U-1 below.
 - Needs: the native side's answer naming the `appearance` field of `companion-state` (AYLUL shared
   request, not yet filed); it may be built before the native side, since a missing field draws purple
 - Done when: `node --test tests/companion/native-state.test.ts` and `npm run build` pass from `apps/desktop/`
+
+### U-3 · The renderer draws in the palette; purple is unchanged
+- Status: todo
+- Plan: docs/aylul/ui/plans/2026-10-21-character-colour.md#task-u-3-the-renderer-draws-in-the-palette-purple-is-unchanged
+- Read: `apps/desktop/src/features/companion/contract.yaml`; the U-2 table in the plan
+- Touch: the Files list of Task U-3 in the plan, `docs/aylul/ui/stages.md`
+- Needs: U-2 and U-1 (it reads `state.color`)
+- Done when: `npx playwright test tests/companion/renderer.spec.ts tests/companion/desktop-window.spec.ts`,
+  `npm run test:companion:unit` and `npm run build` pass from `apps/desktop/`, purple frames equal
+  the recorded hashes, and the report holds the stills of every colour
 
 ## Done
 

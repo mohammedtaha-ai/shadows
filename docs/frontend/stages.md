@@ -92,8 +92,8 @@ colour's desktop side).
   `web/src/app/agents/contract.yaml`; `web/src/app/desktop/contract.yaml`; `web/src/app/sidebar/contract.yaml`
 - Touch: the Files list of Task F-9 in the plan
 - Needs: F-6; `docs/shared/requests/2026-10-20-settings-dialog.md` (Agents: character colour)
-  accepted, built and shown in `api/openapi.json`; `assets/aylul/character-colors.json`
-  delivered by the character side (AYLUL shared request, not yet filed)
+  accepted, built and shown in `api/openapi.json`; U-2 in `docs/aylul/ui/stages.md` (the colour
+  table) done
 - Done when: `character-colors.test.ts`, `aylul.test.tsx` and `companion-binding.test.tsx` pass with
   codemap, `npm run typecheck`, `npm run lint`
 

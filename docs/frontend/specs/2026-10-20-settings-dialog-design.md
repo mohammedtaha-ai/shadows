@@ -146,15 +146,17 @@ No CSS variable reaches the drawing: Canvas takes colours as strings at draw tim
 
 **The approach: one colour table, read by the swatches and the renderer.**
 - **The table** is one data file, `assets/aylul/character-colors.json`, the only place a colour is
-  named. It is an ordered list; each entry is `{ id, label, swatch, tones }`: `id` a short
-  lowercase name (`blue`), `label` its English name, `swatch` the `#rrggbb` the web draws, `tones`
-  the renderer's palette for that colour. The web client and the companion renderer both import
-  this file (two packages, one file; neither copies it). The tone names in `tones` are the
-  character side's call, written in its plan; purple's tones are today's literals exactly (same
-  pixels).
-- **Adding a colour** is one new entry in the table plus its id in the table's order test
-  (`character-colors.test.ts`); every other test iterates the table. No backend, native, web
-  component or renderer code changes.
+  named. Its `colors` list is ordered; each entry is `{ id, label, swatch, tones? }`: `id` a short
+  lowercase name (`blue`), `label` its English name, `swatch` the `#rrggbb` the web draws. The
+  `base` entry (purple) holds the renderer's full palette, today's literals exactly (same
+  pixels); every other entry's palette is derived from it by turning each tone's hue by the
+  swatch's hue difference, keeping its saturation and lightness, and an entry may override single
+  tones after review. The web client and the companion renderer both import this file (two
+  packages, one file; neither copies it). The tone names and the derivation are in the desktop
+  UI plan (`docs/aylul/ui/plans/2026-10-21-character-colour.md`, U-2).
+- **Adding a colour** is one new entry `{ id, label, swatch }` in the table plus its id in the
+  table's order test (`character-colors.test.ts`); every other test iterates the table. No
+  backend, native, web component or renderer code changes.
 - **Ids are opaque everywhere else.** Core stores `character_color` as a string, default
   `"purple"`, with no list of values; the native shell passes it through unread. Each reader
   resolves it against the table, and **an id not in the table draws purple** (and shows the
@@ -171,8 +173,8 @@ No CSS variable reaches the drawing: Canvas takes colours as strings at draw tim
   AYLUL's `blocked` would stop being red) and shifts the dark cloth's brightness unevenly per hue.
   Recoloured assets do not apply: there are no assets. CSS tokens cannot reach a canvas.
 - Cost: no image work; one table entry per colour; no draw call is added, so frame cost is
-  unchanged. The work is one careful pass over the renderer's literals, owned by the character
-  side, with a pixel test that purple is unchanged.
+  unchanged. The work is one careful pass over the renderer's literals (U-3), with a pixel test
+  that purple is unchanged.
 
 **The picker** (in the agent form, after Default model):
 - A radio group named **Character colour**: one round swatch per table entry, in the table's order, each with its
@@ -206,8 +208,8 @@ next 10-second check.
 **Who builds what:** the web picker, list dot, sidebar icon, character-section line and the
 save-time refresh call are this side's (F-9, F-14); the companion state's parsing in
 `apps/desktop/src/platform/` is the desktop UI's (U-1); the native read and command belong to the
-native side; the colour table, its tones and the renderer reading them belong to the character
-side. Both are asked for by AYLUL shared requests.
+native side (an AYLUL shared request). The colour table, its palette function and the renderer
+reading them are Masada's too (Mohammed's ruling, 2026-10-21): U-2 and U-3.
 
 ### Plugins & Skills
 
