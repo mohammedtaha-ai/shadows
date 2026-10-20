@@ -309,10 +309,10 @@
           "markdownDescription": "Enables the target_companion_thread command without any pre-configured scope."
         },
         {
-          "description": "Local companion presentation and explicit main navigation only.",
+          "description": "Local companion presentation, closed navigation and binding-scoped explicit text submission.",
           "type": "string",
           "const": "companion-actions",
-          "markdownDescription": "Local companion presentation and explicit main navigation only."
+          "markdownDescription": "Local companion presentation, closed navigation and binding-scoped explicit text submission."
         },
         {
           "description": "Denies the ack_navigation command without any pre-configured scope.",

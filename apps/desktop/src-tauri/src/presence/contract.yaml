@@ -2,8 +2,10 @@ name: native-companion-binding
 version: 1
 status: current
 source: apps/desktop/src-tauri/src/presence
-responsibility: Observe the explicitly bound companion conversation without mutating Core.
+responsibility: Observe the bound conversation; mutate Core only for an explicit companion submission.
 public_api:
+  send: Admit an explicit context-scoped text submission to the captured Core thread; unchanged uncertain Retry reuses its complete turn body.
+  context: Native opaque draft scope and generation token; own first-send bind preserves scope.
   PresenceWatcher::wait_ready: Bounded acknowledgement of the exact generation/configuration/thread after snapshot and caught-up; a failed setup never admits or replays a turn.
   PresenceWatcher::replace/stop: One cancellable native read-only feed; binding/configuration/runtime guards are checked again at UI publication.
   Projection::apply: Pure actual-status mapping; terminal states are monotonic; replay never celebrates.
@@ -16,6 +18,18 @@ public_api:
   configuration_changed: Clear prior selection before a changed Core configuration can become active.
   destination: Resolve only CompanionSettings, AgentDraft or validated Conversation without creating a thread.
 obligations:
+  - rule: If first creation loses binding publication only to a newer agent or target, the admitted send finishes on its captured created thread with its agent default; configuration or runtime changes still refuse further writes.
+    tested_by: [first_create_finishes_on_captured_thread_after_agent_or_target_switch, first_create_refuses_after_configuration_change, detached_first_create_revalidates_runtime_before_session_write]
+  - rule: Without a superseding selection, first send creates one AYLUL thread, binds before opening session, applies the agent default, then starts one turn; bound sends retain session settings.
+    tested_by: [first_send_creates_binds_opens_and_starts_in_order, bound_send_reuses_target_and_keeps_session_settings]
+  - rule: Explicit unchanged Retry may use a newly native-verified runtime for the same configuration and scope, replaying the captured body without session reads; runtime identity is rechecked and an unverified replaced listener receives no POST.
+    tested_by: [explicit_retry_reconciles_same_configuration_after_verified_runtime_restart, uncertain_retry_rechecks_runtime_before_writing]
+  - rule: Uncertain create reuses its deterministic identity; uncertain turn retries the captured body without session reads.
+    tested_by: [uncertain_create_retry_makes_one_thread, uncertain_turn_retry_sends_the_captured_request]
+  - rule: Retarget changes draft scope, invalidates retry, and never redirects or lets a late admitted send replace a newer attempt.
+    tested_by: [main_switching_conversation_changes_scope, retry_after_main_switches_conversation_is_refused, late_old_send_cannot_replace_newer_attempt, binding_change_mid_send_completes_on_captured_thread]
+  - rule: Stale or malformed submissions perform no writes; removed targets are not replaced; returned errors contain no transport or provider text.
+    tested_by: [stale_context_is_refused_before_any_write, invalid_submissions_send_nothing, removed_target_is_reported_not_replaced, error_codes_map_to_fixed_values]
   - rule: Preferences contain only configuration identity, agent, target IDs and previews; corrupted preferences are not silently overwritten.
     tested_by: [binding_changes_clear_target_and_persist_without_content, corrupt_preferences_fail_without_silently_replacing_them]
   - rule: Old generations and older explicit actions cannot replace newer binding state.

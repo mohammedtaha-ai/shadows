@@ -4,6 +4,16 @@ status: current
 source: apps/desktop/src/features/companion
 responsibility: Present procedural AYLUL with isolated motion and explicit native rendering permission; desktop gestures invoke narrow platform wrappers. Reusable in-window presence owns message lifetime and optional tones. Development studio is separately owned.
 exports:
+  - name: CompanionComposer
+    file: apps/desktop/src/features/companion/CompanionComposer.tsx
+  - name: createDrafts
+    file: apps/desktop/src/features/companion/composer-model.ts
+  - name: nextAttempt
+    file: apps/desktop/src/features/companion/composer-model.ts
+  - name: submitKey
+    file: apps/desktop/src/features/companion/composer-model.ts
+  - name: errorMessage
+    file: apps/desktop/src/features/companion/composer-model.ts
   - name: createNativePresentation
     file: apps/desktop/src/features/companion/native-presentation.ts
   - name: DesktopCompanion
@@ -15,6 +25,24 @@ exports:
   - name: renderScene
     file: apps/desktop/src/features/companion/renderer/scene.ts
 obligations:
+  - rule: An in-flight send keeps the textarea focusable but read-only so Escape can close the editor without changing or cancelling the submission.
+    tested_by: apps/desktop/tests/companion/composer.spec.ts
+    test: pending send retains keyboard focus so Escape can close the editor
+  - rule: Ready is an accessible native editor toggle; artwork alone owns drag and main navigation.
+    tested_by: apps/desktop/tests/companion/composer.spec.ts
+    test: Ready click and keyboard toggle input without main or drag
+  - rule: Uncertain Retry keeps its text read-only and command identity even when a later retry finds Core unavailable.
+    tested_by: apps/desktop/tests/companion/composer.spec.ts
+    test: Core unavailable during Retry keeps the captured text and command locked
+  - rule: Scope changes discard drafts; close and hide retain same-scope text.
+    tested_by: apps/desktop/tests/companion/composer.spec.ts
+    test: draft survives close and hide; switching conversation clears it
+  - rule: Enter sends, Shift Enter inserts newline and IME Enter does not submit.
+    tested_by: apps/desktop/tests/companion/composer.spec.ts
+    test: Shift Enter inserts newline and IME Enter never submits
+  - rule: Pause does not disable typing or sending.
+    tested_by: apps/desktop/tests/companion/composer.spec.ts
+    test: pause does not disable typing or sending and outside click does not close
   - rule: Desktop status comes from native presence; a plain two-line preview retains its absolute expiry and repeated IDs cannot extend it.
     tested_by: apps/desktop/tests/companion/live-presence.spec.ts
     test: native status and a compact plain reply retain their deadlines across repeated events

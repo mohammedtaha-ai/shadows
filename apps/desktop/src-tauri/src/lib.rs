@@ -28,6 +28,8 @@ pub fn run() {
             commands::cancel_login,
             commands::aylul_call,
             commands::companion::companion_state,
+            commands::companion::companion_send,
+            commands::companion::companion_input,
             commands::companion::companion_ready,
             commands::companion::companion_failed,
             commands::companion::set_companion_visible,
@@ -100,6 +102,10 @@ pub fn run() {
                         .and_then(|connection| connection.ready()),
                 );
                 let _ = emitter.emit_to("main", "companion-binding", view);
+                let owner = emitter.clone();
+                let _ = emitter.run_on_main_thread(move || {
+                    let _ = windows::companion::input::refresh(&owner);
+                });
             }));
             app.manage(presence.clone());
             app.manage(std::sync::Arc::new(navigation::Navigation::default()));

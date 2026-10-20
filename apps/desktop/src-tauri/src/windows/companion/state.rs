@@ -1,7 +1,17 @@
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComposerView {
+    pub open: bool,
+    pub revision: u64,
+    pub scope: Option<String>,
+    pub context: Option<String>,
+    pub agent: Option<String>,
+}
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompanionState {
     pub revision: u64,
+    pub composer: ComposerView,
     pub visible: bool,
     pub render_allowed: bool,
     pub paused: bool,
@@ -19,6 +29,7 @@ impl Default for Model {
         Self {
             view: CompanionState {
                 revision: 0,
+                composer: ComposerView::default(),
                 visible: false,
                 render_allowed: false,
                 paused: false,
@@ -51,8 +62,39 @@ impl Model {
         });
         self.generation
     }
+    pub fn input(&mut self, open: bool) {
+        self.change(|v| {
+            if v.composer.open != open {
+                v.composer.open = open;
+                v.composer.revision += 1;
+            }
+        });
+    }
+    pub fn composer_context(
+        &mut self,
+        scope: Option<String>,
+        context: Option<String>,
+        agent: Option<String>,
+    ) {
+        self.change(|v| {
+            if (
+                v.composer.scope.as_ref(),
+                v.composer.context.as_ref(),
+                v.composer.agent.as_ref(),
+            ) != (scope.as_ref(), context.as_ref(), agent.as_ref())
+            {
+                v.composer.scope = scope;
+                v.composer.context = context;
+                v.composer.agent = agent;
+                v.composer.revision += 1;
+            }
+        });
+    }
     pub fn request_visible(&mut self, visible: bool) {
         self.requested = visible;
+        if !visible {
+            self.input(false);
+        }
     }
     pub fn initialize(&mut self, generation: u64) -> bool {
         if generation != self.generation {
@@ -91,6 +133,17 @@ impl Model {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn hide_closes_input_and_unhide_keeps_it_closed() {
+        let mut model = Model::default();
+        model.view.composer.open = true;
+        let before = model.view.revision;
+        model.request_visible(false);
+        assert!(!model.view.composer.open);
+        assert!(model.view.revision > before);
+        model.request_visible(true);
+        assert!(!model.view.composer.open);
+    }
     #[test]
     fn companion_drawing_failure_revokes_permission_and_is_retryable() {
         let mut model = Model::default();

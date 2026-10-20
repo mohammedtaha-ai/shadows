@@ -1,4 +1,4 @@
-param([string]$RunName='independent-companion',[switch]$Profile,[switch]$WebViewOnly,[int]$FocusCycles=10)
+param([string]$RunName='independent-companion',[switch]$Profile,[switch]$WebViewOnly,[int]$FocusCycles=10,[switch]$Typing,[string]$SendMessage='')
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'windows-support.ps1')
 Add-Type -AssemblyName UIAutomationClient
@@ -6,15 +6,35 @@ Add-Type -AssemblyName UIAutomationTypes
 Add-Type @'
 using System;using System.Runtime.InteropServices;
 public class CompanionWin {
+ public delegate bool EnumProc(IntPtr h,IntPtr p);
+ [DllImport("user32.dll")]public static extern bool EnumWindows(EnumProc f,IntPtr p);
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)]public static extern int GetWindowTextW(IntPtr h,System.Text.StringBuilder s,int n);
+ [DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out Rect r);
+ [DllImport("user32.dll")]public static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int w,int height,uint flags);
  [StructLayout(LayoutKind.Sequential)] public struct Rect {public int L,T,R,B;}
  [DllImport("user32.dll")]public static extern bool GetClientRect(IntPtr h,out Rect r);
  [DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);
  [DllImport("user32.dll")]public static extern bool PostMessageW(IntPtr h,uint m,IntPtr w,IntPtr l);
  [DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr h);
+ [DllImport("user32.dll")]public static extern bool AllowSetForegroundWindow(uint p);
  [DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);
  [DllImport("user32.dll")]public static extern int GetWindowLongW(IntPtr h,int n);
 }
 '@
+function GetOwnedRect([string]$role){
+ $rows=[Collections.Generic.List[object]]::new()
+ [CompanionWin]::EnumWindows({param($h,$p)
+  $ownerId=0;[CompanionWin]::GetWindowThreadProcessId($h,[ref]$ownerId)|Out-Null
+  $title=[Text.StringBuilder]::new(256);[CompanionWin]::GetWindowTextW($h,$title,256)|Out-Null
+  if($ownerId -eq $process.Id -and $title.ToString() -eq 'AYLUL'){
+   $r=[CompanionWin+Rect]::new();[CompanionWin]::GetWindowRect($h,[ref]$r)|Out-Null
+   if($r.R -gt $r.L -and $r.B -gt $r.T){$rows.Add([pscustomobject]@{Handle=$h.ToInt64();Left=$r.L;Top=$r.T;Width=$r.R-$r.L;Height=$r.B-$r.T;Area=($r.R-$r.L)*($r.B-$r.T)})}
+  };return $true
+ },[IntPtr]::Zero)|Out-Null
+ # Main is the ordinary application surface; companion is WS_EX_NOACTIVATE.
+ $found=@($rows|Where-Object {(([CompanionWin]::GetWindowLongW([IntPtr]$_.Handle,-20) -band 0x08000000) -ne 0) -eq ($role -eq 'companion')}|Sort-Object Area -Descending)
+ if(!$found.Count){throw "Owned window missing: $role"};return $found[0]
+}
 $out=New-NylraRunDir $RunName
 if(Test-Path (Join-Path $out 'native.json')){throw 'Use a fresh RunName'}
 $observations=[Collections.Generic.List[object]]::new()
@@ -55,8 +75,9 @@ $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=$oldArgs
 $form=$null
 try {
  Start-Sleep -Seconds 4
- $main=Get-N0Rect 'NYLRA';$character=Get-N0Rect 'AYLUL';$mainH=[IntPtr]$main.Handle;$charH=[IntPtr]$character.Handle
+ $main=GetOwnedRect 'main';$character=GetOwnedRect 'companion';$mainH=[IntPtr]$main.Handle;$charH=[IntPtr]$character.Handle
  foreach($handle in @($mainH,$charH)){$ownerId=0;[CompanionWin]::GetWindowThreadProcessId($handle,[ref]$ownerId)|Out-Null;if($ownerId -ne $process.Id){throw 'Window is not owned by this test process'}}
+ foreach($readyAttempt in 1..100){if([CompanionWin]::IsWindowVisible($charH)){break};Start-Sleep -Milliseconds 200}
  if(![CompanionWin]::IsWindowVisible($charH)){throw 'Companion did not become visible'}
  $style=[CompanionWin]::GetWindowLongW($charH,-16);$extended=[CompanionWin]::GetWindowLongW($charH,-20)
  $observations.Add(@{Scenario='native-window-style';Window=$character;Style=$style;ExtendedStyle=$extended})
@@ -72,7 +93,7 @@ try {
  [N0Win]::SetCursorPos($x,$y)|Out-Null;[N0Win]::mouse_event(2,0,0,0,[UIntPtr]::Zero)
  foreach($offset in 1..12){[N0Win]::SetCursorPos(($x-40*$offset),($y-4*$offset))|Out-Null;Start-Sleep -Milliseconds 50}
  [N0Win]::mouse_event(4,0,0,0,[UIntPtr]::Zero);Start-Sleep -Milliseconds 400
- $moved=Get-N0Rect 'AYLUL'
+ $moved=GetOwnedRect 'companion'
  if($moved.Left -eq $character.Left -and $moved.Top -eq $character.Top){throw 'Real native drag did not move companion'}
  if([CompanionWin]::IsWindowVisible($mainH)){throw 'Drag incorrectly opened main'}
  $observations.Add(@{Scenario='actual-native-drag';Passed=$true;Before=$character;After=$moved})
@@ -83,8 +104,18 @@ try {
  TrayItem 'Show AYLUL';foreach($attempt in 1..20){if([CompanionWin]::IsWindowVisible($charH)){break};Start-Sleep -Milliseconds 100};if(![CompanionWin]::IsWindowVisible($charH)){throw 'Tray show failed'}
  $observations.Add(@{Scenario='actual-tray-companion-toggle';Passed=$true})
  }
+ # The full gesture journey opens main; close it again before focus/input checks.
+ [CompanionWin]::PostMessageW($mainH,0x10,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null
+ Start-Sleep -Milliseconds 150
+ $area=[Windows.Forms.Screen]::FromHandle($charH).WorkingArea
+ $edge=GetOwnedRect 'companion'
+ [CompanionWin]::SetWindowPos($charH,[IntPtr]::Zero,($area.Right-$edge.Width-1),($area.Bottom-$edge.Height-1),0,0,0x15)|Out-Null
+ Start-Sleep -Milliseconds 200
  $form=[Windows.Forms.Form]::new();$form.Text='NYLRA owned focus witness';$form.Width=340;$form.Height=100;$form.Show();[Windows.Forms.Application]::DoEvents();[CompanionWin]::SetForegroundWindow($form.Handle)|Out-Null
- $nodeArgs=@((Join-Path $PSScriptRoot 'companion-native.mjs'),'--port',"$port",'--output',(Join-Path $out 'native.json'),'--foreground',"$($form.Handle.ToInt64())",'--pid',"$($process.Id)",'--profile',"$($Profile.IsPresent.ToString().ToLower())",'--cycles',"$FocusCycles")
+ # CDP does not create an OS input event. The foreground witness grants the
+ # owned app the same foreground eligibility that a physical Ready click gives.
+ [CompanionWin]::AllowSetForegroundWindow([uint32]$process.Id)|Out-Null
+ $nodeArgs=@((Join-Path $PSScriptRoot 'companion-native.mjs'),'--port',"$port",'--output',(Join-Path $out 'native.json'),'--foreground',"$($form.Handle.ToInt64())",'--pid',"$($process.Id)",'--profile',"$($Profile.IsPresent.ToString().ToLower())",'--cycles',"$FocusCycles",'--typing',"$($Typing.IsPresent.ToString().ToLower())",'--message',"$SendMessage",'--area-left',"$($area.Left)",'--area-top',"$($area.Top)",'--area-right',"$($area.Right)",'--area-bottom',"$($area.Bottom)",'--companion-hwnd',"$($charH.ToInt64())",'--main-hwnd',"$($mainH.ToInt64())")
  $nodeStart=[Diagnostics.ProcessStartInfo]::new('node');$nodeStart.UseShellExecute=$false;$nodeStart.CreateNoWindow=$true
  foreach($nodeArg in $nodeArgs){$nodeStart.ArgumentList.Add($nodeArg)}
  $nodeChild=[Diagnostics.Process]::Start($nodeStart)

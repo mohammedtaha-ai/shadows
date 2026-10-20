@@ -14,8 +14,16 @@ try {
   for(let i=0;i<40;i++){try{browser=await chromium.connectOverCDP(`http://127.0.0.1:${Number(args.port)}`);break}catch{await sleep(250)}}
   assert.ok(browser,'owned WebView2 endpoint unavailable');
   const context=browser.contexts()[0];
-  const main=context.pages().find(p=>p.url().includes('index.html')||p.url().endsWith('/'));
-  let companion=context.pages().find(p=>p.url().includes('companion.html'));
+  let main,companion;
+  for(let attempt=0;attempt<40;attempt++){
+    for(const page of context.pages()){
+      const label=await page.evaluate(()=>window.__TAURI_INTERNALS__?.metadata?.currentWindow?.label).catch(()=>null);
+      if(label==='main')main=page;
+      if(label==='companion')companion=page;
+    }
+    if(main&&companion)break;
+    await sleep(100);
+  }
   assert.ok(main&&companion,'both native surfaces must exist');
   const invoke=(page,command,payload={})=>page.evaluate(({command,payload})=>window.__TAURI_INTERNALS__.invoke(command,payload),{command,payload});
   const waitState=async(predicate,attempts=60)=>{for(let i=0;i<attempts;i++){const state=await invoke(main,'companion_state');if(predicate(state))return state;await sleep(100)}throw Error('companion state deadline')};
@@ -35,7 +43,7 @@ try {
   for(const command of ['auth_action','cancel_login','hide_main','set_companion_visible','set_companion_paused']){
     let denied=false;try{await invoke(companion,command,{action:'status',visible:false,paused:true})}catch{denied=true}assert.ok(denied,`${command} must reject companion`);
   }
-  for(const command of ['companion_ready','companion_failed','drag_companion','open_main_from_companion']){
+  for(const command of ['companion_send','companion_input','companion_ready','companion_failed','drag_companion','open_main_from_companion']){
     let denied=false;try{await invoke(main,command)}catch{denied=true}assert.ok(denied,`${command} must reject main`);
   }
   report.observations.push({scenario:'actual-native-ipc-scope',passed:true});
@@ -47,6 +55,70 @@ try {
     const after=foreground();report.focusCycles.push({before,after});assert.equal(after,before);
   }
   report.focusCyclesRequested=cycles;
+  // Explicit input alone may activate the existing native surface.
+  const info=()=>JSON.parse(shell(`Add-Type 'using System;using System.Runtime.InteropServices;public class InputWin{[StructLayout(LayoutKind.Sequential)]public struct Rect{public int L,T,R,B;}[DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out Rect r);[DllImport("user32.dll")]public static extern int GetWindowLongW(IntPtr h,int n);[DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);}';$r=[InputWin+Rect]::new();$h=[IntPtr]${Number(args['companion-hwnd'])};[InputWin]::GetWindowRect($h,[ref]$r)|Out-Null;@{x=$r.L;y=$r.T;width=$r.R-$r.L;height=$r.B-$r.T;style=[InputWin]::GetWindowLongW($h,-20);main=[InputWin]::IsWindowVisible([IntPtr]${Number(args['main-hwnd'])})}|ConvertTo-Json -Compress`));
+  const witness=()=>shell(`Add-Type '[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]public struct Unused{public int X;}public class InputFocus{[System.Runtime.InteropServices.DllImport("user32.dll")]public static extern bool SetForegroundWindow(System.IntPtr h);}';[InputFocus]::SetForegroundWindow([IntPtr]${Number(args.foreground)})|Out-Null`);
+  const closed=info();
+  const opened=await invoke(companion,'companion_input',{open:true});
+  assert.equal(opened.composer.open,true);
+  await sleep(200);
+  const openInfo=info(),dpr=await companion.evaluate(()=>devicePixelRatio);
+  report.inputProbe={closed,opened,openInfo,foreground:foreground()};
+  assert.equal(foreground(),Number(args['companion-hwnd']));
+  assert.equal(openInfo.style&0x08000000,0,'open input must clear WS_EX_NOACTIVATE');
+  assert.equal(openInfo.width,Math.round(296*dpr));assert.equal(openInfo.height,Math.round(320*dpr));
+  assert.equal(openInfo.main,false);
+  assert.ok(openInfo.x>=Number(args['area-left'])&&openInfo.y>=Number(args['area-top']));
+  assert.ok(openInfo.x+openInfo.width<=Number(args['area-right'])&&openInfo.y+openInfo.height<=Number(args['area-bottom']));
+  if(args.typing==='true'){
+    await invoke(companion,'companion_input',{open:false});witness();
+    await companion.getByRole('button',{name:'Talk to AYLUL',exact:true}).click();
+    const field=companion.getByRole('textbox',{name:'Message AYLUL',exact:true});
+    await field.waitFor({state:'visible'});await sleep(150);
+    shell("Add-Type -AssemblyName System.Windows.Forms;[Windows.Forms.SendKeys]::SendWait('ab')");
+    assert.equal(await field.inputValue(),'ab','physical keyboard must reach the actual composer');
+    await field.fill('');
+    shell("Add-Type -AssemblyName System.Windows.Forms;[Windows.Forms.SendKeys]::SendWait('{ESC}')");
+    await waitState(s=>!s.composer.open);
+    await sleep(100);assert.equal(foreground(),Number(args.foreground),'Escape restores the prior external app');
+    report.observations.push({scenario:'actual-composer-physical-keyboard-and-escape',passed:true});
+  }
+  await invoke(companion,'companion_input',{open:false});await sleep(200);
+  const restored=info();
+  assert.notEqual(restored.style&0x08000000,0,'closed companion must be non-activating');
+  for(const key of ['x','y','width','height'])assert.equal(restored[key],closed[key]);
+  assert.equal(restored.main,false);witness();await sleep(100);
+  assert.equal(foreground(),Number(args.foreground));
+  await invoke(companion,'companion_input',{open:true});
+  await invoke(main,'set_companion_visible',{visible:false});
+  witness();await sleep(100);const beforeShow=foreground();
+  const shown=await invoke(main,'set_companion_visible',{visible:true});
+  assert.equal(shown.composer.open,false);assert.equal(foreground(),beforeShow);
+  report.observations.push({scenario:'explicit-input-focus-and-restored-bounds',passed:true,closed,openInfo,restored});
+  if(args.message){
+    const bound=await invoke(main,'companion_binding');
+    assert.ok(bound.agent&&bound.target,'real send requires the existing explicit binding');
+    const prior=await companion.locator('canvas').count();assert.equal(prior,1);
+    await companion.getByRole('button',{name:'Talk to AYLUL',exact:true}).click();
+    const field=companion.getByRole('textbox',{name:'Message AYLUL',exact:true});
+    await field.fill(args.message);
+    await companion.getByRole('button',{name:'Send message',exact:true}).click();
+    await field.waitFor({state:'visible'});
+    for(let i=0;i<400;i++){
+      const state=await invoke(main,'companion_state');
+      const value=await field.inputValue();
+      if(!value&&state.presence.preview){
+        report.realSend={passed:true,agent:bound.agent,threadId:bound.target.threadId,previewId:state.presence.preview.id,previewScalars:[...state.presence.preview.text].length};break;
+      }
+      const error=await companion.getByRole('status',{name:'Message status',exact:true}).innerText();
+      if(error&&!['Sending…','AYLUL is answering.'].includes(error))throw Error('real send refused: '+error);
+      await sleep(300);
+    }
+    assert.equal(report.realSend?.passed,true,'real provider completion preview deadline');
+    const afterSend=await invoke(main,'companion_binding');assert.deepEqual(afterSend.target,bound.target);assert.equal(afterSend.agent,bound.agent);
+    assert.equal(info().main,false);await companion.screenshot({path:args.output.replace(/\.json$/, '-real-send.png'),omitBackground:true});
+    await invoke(companion,'companion_input',{open:false});
+  }
   // A page-local Canvas failure must be recoverable without restarting the app.
   await companion.evaluate(()=>{CanvasRenderingContext2D.prototype.clearRect=()=>{throw Error('controlled render failure')}});
   await waitState(s=>s.error==='companion_render_failed');

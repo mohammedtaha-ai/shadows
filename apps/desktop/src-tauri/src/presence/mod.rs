@@ -3,6 +3,11 @@ mod client;
 mod preferences;
 mod preview;
 pub mod projection;
+pub mod send;
+#[cfg(test)]
+mod send_fixture;
+#[cfg(test)]
+mod send_tests;
 #[cfg(test)]
 mod tests;
 pub mod watcher;
@@ -21,6 +26,7 @@ struct Model {
     view: BindingView,
     error: Option<&'static str>,
     ticket: u64,
+    send: send::State,
 }
 pub struct Presence {
     root: PathBuf,
@@ -49,6 +55,7 @@ impl Presence {
             root,
             connection,
             inner: Mutex::new(Model {
+                send: send::State::new(&view),
                 view,
                 error,
                 ticket: 0,
@@ -81,6 +88,7 @@ impl Presence {
             if inner.view.configuration_id == configuration_id {
                 return;
             }
+            let before = inner.view.clone();
             inner.ticket += 1;
             inner.view.revision += 1;
             inner.view.generation += 1;
@@ -88,6 +96,8 @@ impl Presence {
             inner.view.agent = None;
             inner.view.target = None;
             inner.error = preferences::save(&self.root, &inner.view).err();
+            let after = inner.view.clone();
+            inner.send.changed(&before, &after, false);
         }
         self.notify();
     }
@@ -114,6 +124,14 @@ impl Presence {
         request: RequestContext,
         mutate: impl FnOnce(&mut BindingView),
     ) -> Result<BindingView, &'static str> {
+        self.commit_with_origin(request, mutate, false)
+    }
+    fn commit_with_origin(
+        &self,
+        request: RequestContext,
+        mutate: impl FnOnce(&mut BindingView),
+        own_bind: bool,
+    ) -> Result<BindingView, &'static str> {
         let view = {
             let mut inner = self.inner.lock().unwrap();
             if inner.ticket != request.ticket
@@ -132,6 +150,8 @@ impl Presence {
             next.revision += 1;
             preferences::save(&self.root, &next)?;
             inner.error = None;
+            let before = inner.view.clone();
+            inner.send.changed(&before, &next, own_bind);
             inner.view = next.clone();
             next
         };
@@ -177,6 +197,8 @@ impl Presence {
             preferences::save(&self.root, &next)?;
             inner.ticket += 1;
             inner.error = None;
+            let before = inner.view.clone();
+            inner.send.changed(&before, &next, false);
             inner.view = next.clone();
             next
         };

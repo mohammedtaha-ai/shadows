@@ -5,6 +5,13 @@ their task here and set its status. Task shape: [`AGENTS.md`](AGENTS.md#a-task-i
 
 ## Now
 
+Companion text input: all five tasks of the
+[text-input plan](../plans/2026-10-20-aylul-companion-text-input.md) are implemented.
+Ready opens the compact editor; native keyboard/Escape, same-thread real-agent
+reply with hidden main, edge fitting and regression gates passed. Shell/tray
+cleanup details and remaining hardware limits are in the
+[dated evidence](../../evidence/aylul/2026-10-20-companion-text-input.md).
+
 2026-10-20: the desktop main now packages the shared Shadows `web/` dashboard.
 Native account, activity and companion settings live in that main. The retired
 U-W1–U-W4 main UI and its conversation-source selector have been removed.

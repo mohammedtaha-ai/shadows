@@ -5,5 +5,5 @@ commands.allow = ["companion_binding", "select_companion_agent", "target_compani
 
 [[permission]]
 identifier = "companion-actions"
-description = "Local companion presentation and explicit main navigation only."
-commands.allow = ["companion_state", "companion_ready", "companion_failed", "drag_companion", "open_main_from_companion"]
+description = "Local companion presentation, closed navigation and binding-scoped explicit text submission."
+commands.allow = ["companion_send", "companion_input", "companion_state", "companion_ready", "companion_failed", "drag_companion", "open_main_from_companion"]

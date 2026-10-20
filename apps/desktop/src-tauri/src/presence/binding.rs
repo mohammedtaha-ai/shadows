@@ -31,6 +31,8 @@ pub struct Workspace {
 pub struct Agent {
     pub slug: String,
     pub deleted: bool,
+    #[serde(default)]
+    pub default_model: Option<String>,
 }
 #[derive(Deserialize)]
 pub struct Thread {
@@ -68,6 +70,10 @@ pub fn read<T: serde::de::DeserializeOwned>(
     serde_json::from_slice(&bytes).map_err(|_| "companion_response_invalid")
 }
 pub fn workspace(ready: &ReadyConnection) -> Result<Workspace, &'static str> {
+    runtime(ready)?;
+    read(ready, "/api/aylul/agents")
+}
+pub fn runtime(ready: &ReadyConnection) -> Result<(), &'static str> {
     #[derive(Deserialize)]
     struct Identity {
         runtime_id: String,
@@ -79,7 +85,7 @@ pub fn workspace(ready: &ReadyConnection) -> Result<Workspace, &'static str> {
     {
         return Err("companion_core_changed");
     }
-    read(ready, "/api/aylul/agents")
+    Ok(())
 }
 pub fn live_agent(workspace: &Workspace, agent: &str) -> Result<(), &'static str> {
     if workspace
