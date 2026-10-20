@@ -31,7 +31,7 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
   const pending = useRef<Attempt | null>(null)
   const first = providers.data?.[0]
   const value: AgentInput = edited ?? (original === undefined
-    ? { name: '', provider: first?.slug ?? '', default_model: first?.models[0] ?? '' }
+    ? { name: '', provider: first?.slug ?? '', default_model: first?.models[0]?.id ?? '' }
     : { name: original.name, provider: original.provider, default_model: original.default_model })
   const provider = providers.data?.find((p) => p.slug === value.provider)
 
@@ -76,7 +76,7 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
             onChange={(e) => {
               const next = providers.data.find((p) => p.slug === e.target.value)
               // The default model must be one of the new provider's.
-              if (next) setEdited({ ...value, provider: next.slug, default_model: next.models[0] ?? '' })
+              if (next) setEdited({ ...value, provider: next.slug, default_model: next.models[0]?.id ?? '' })
             }}>
             {providers.data.map((p) => <option key={p.slug} value={p.slug}>{p.name}</option>)}
           </Select>
@@ -84,7 +84,7 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
         <Field label="Default model" hint="New conversations start on it; each can switch to another of the provider's models.">
           <Select aria-label="Default model" value={value.default_model} className="font-mono"
             onChange={(e) => setEdited({ ...value, default_model: e.target.value })}>
-            {provider?.models.map((id) => <option key={id} value={id}>{id}</option>)}
+            {provider?.models.map(({ id }) => <option key={id} value={id}>{id}</option>)}
           </Select>
         </Field>
         {save.error !== null && <ErrorLine error={save.error} />}

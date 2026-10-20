@@ -8,10 +8,10 @@ let open: TestApp | null = null
 afterEach(() => { open?.unmount(); open = null })
 const field = (name: string) => document.querySelector<HTMLInputElement>(`input[aria-label="${name}"]`)
 const base = () => ({ ...answers(),
-  'GET /api/aylul/providers': [{ slug: 'test', name: 'Test', base_url: 'https://example.com',
-    models: ['fake-large'], context_window: 200000, key_set: false, created_at: 'now', updated_at: 'now' }],
+  'GET /api/aylul/providers': [{ slug: 'fixture-provider', name: 'Test', base_url: 'https://example.com',
+    models: [{ id: 'fake-large', context_window: 200000 }], key_set: false, created_at: 'now', updated_at: 'now' }],
   'GET /api/aylul/agents': { project_id: 'p1', agents: [{ slug: 'aylul', name: 'AYLUL',
-    provider: 'test', default_model: 'fake-large', deleted: false, created_at: 'now', updated_at: 'now' }] },
+    provider: 'fixture-provider', default_model: 'fake-large', deleted: false, created_at: 'now', updated_at: 'now' }] },
   'GET /api/aylul/agents/aylul/threads': [],
 })
 

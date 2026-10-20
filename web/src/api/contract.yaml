@@ -544,3 +544,5 @@ runtime_readiness:
   route: GET /api/runtime
   response: RuntimeIdentity from generated schema.d.ts, or 404 ErrorBody with RUNTIME_NOT_CONFIGURED without desktop metadata
   consumer: Native Core startup verifies the OS process instance before mounting the web client
+
+profile_schema: Provider models have per-model context windows; generated schema also exposes person, provider tests and opaque agent character_color.

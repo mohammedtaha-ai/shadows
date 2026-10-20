@@ -84,6 +84,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/aylul/provider-presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["provider_presets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/aylul/providers": {
         parameters: {
             query?: never;
@@ -94,6 +110,22 @@ export interface paths {
         get: operations["providers"];
         put?: never;
         post: operations["create_provider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/aylul/providers/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["test_provider"];
         delete?: never;
         options?: never;
         head?: never;
@@ -127,6 +159,22 @@ export interface paths {
         put: operations["set_key"];
         post?: never;
         delete: operations["remove_key"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/aylul/providers/{slug}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["test_saved_provider"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -210,6 +258,22 @@ export interface paths {
          *     remove the server from the person's Claude configuration.
          */
         delete: operations["revoke_grant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["person"];
+        put: operations["set_person"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1325,6 +1389,7 @@ export interface components {
             owns: string;
         };
         Agent: {
+            character_color: string;
             created_at: string;
             default_model: string;
             deleted: boolean;
@@ -1337,6 +1402,7 @@ export interface components {
             command_id: string;
         };
         AgentInput: {
+            character_color?: string | null;
             default_model: string;
             name: string;
             provider: string;
@@ -1961,6 +2027,11 @@ export interface components {
             version?: number | null;
             workflow_id?: null | components["schemas"]["WorkflowId"];
         };
+        ListedModel: {
+            /** Format: int32 */
+            context_window?: number | null;
+            id: string;
+        };
         MandatoryPart: {
             name: string;
             owns: string;
@@ -2086,6 +2157,22 @@ export interface components {
             part: components["schemas"]["Part"];
             plans: components["schemas"]["PlanId"][];
             revision: components["schemas"]["i64"];
+        };
+        Person: {
+            aylul_calls_me?: string | null;
+            language?: string | null;
+            name?: string | null;
+            theme: components["schemas"]["Theme"];
+            updated_at?: string | null;
+        };
+        PersonCommand: components["schemas"]["PersonInput"] & {
+            command_id: string;
+        };
+        PersonInput: {
+            aylul_calls_me?: string | null;
+            language?: string | null;
+            name?: string | null;
+            theme: components["schemas"]["Theme"];
         };
         /** @description One stored version of a plan, as a reader sees it now (§13.2). */
         Plan: {
@@ -2223,6 +2310,8 @@ export interface components {
             status: string;
             title: string;
         };
+        /** @enum {string} */
+        PresetRegion: "international" | "china";
         /** @description One broken or missing thing, named so a person can act on it: tasks as `T4`. */
         Problem: {
             message: string;
@@ -2305,12 +2394,12 @@ export interface components {
         };
         Provider: {
             base_url: string;
-            /** Format: int32 */
-            context_window: number;
             created_at: string;
             key_set: boolean;
-            models: string[];
+            label?: string | null;
+            models: components["schemas"]["ProviderModel"][];
             name: string;
+            preset?: string | null;
             slug: string;
             updated_at: string;
         };
@@ -2318,11 +2407,41 @@ export interface components {
             command_id: string;
         };
         ProviderInput: {
-            base_url: string;
+            base_url?: string | null;
+            label?: string | null;
+            models: components["schemas"]["ProviderModelInput"][];
+            name?: string | null;
+            preset?: string | null;
+        };
+        ProviderModel: {
+            /** Format: int32 */
+            context_window: number;
+            id: string;
+        };
+        ProviderModelInput: {
             /** Format: int32 */
             context_window?: number | null;
-            models: string[];
+            id: string;
+        };
+        ProviderPreset: {
+            base_url: string;
+            id: string;
             name: string;
+            region?: null | components["schemas"]["PresetRegion"];
+        };
+        ProviderTest: {
+            api_key: string;
+            base_url?: string | null;
+            preset?: string | null;
+        };
+        ProviderTestOutcome: {
+            listed: boolean;
+            message?: string | null;
+            models: components["schemas"]["ListedModel"][];
+            ok: boolean;
+            reason?: null | components["schemas"]["TestRefusal"];
+            /** Format: int32 */
+            status?: number | null;
         };
         PutLink: {
             /** @description The idempotency key (spec §13.5), scoped to the project. */
@@ -2399,6 +2518,9 @@ export interface components {
             body: string;
             /** @description The idempotency key (spec §13.5), scoped to the project. */
             command_id: string;
+        };
+        SavedProviderTest: {
+            api_key?: string | null;
         };
         SendNowBody: {
             /** @description The idempotency key (spec §3.2). */
@@ -2522,6 +2644,10 @@ export interface components {
             state: string;
             title: string;
         };
+        /** @enum {string} */
+        TestRefusal: "key_refused" | "unreachable" | "unexpected";
+        /** @enum {string} */
+        Theme: "dark" | "light" | "system";
         ThreadEntry: {
             /**
              * @description Spec §4.2 calls this field's type `Principal`. Milestone 0 uses
@@ -3092,6 +3218,25 @@ export interface operations {
             };
         };
     };
+    provider_presets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderPreset"][];
+                };
+            };
+        };
+    };
     providers: {
         parameters: {
             query?: never;
@@ -3157,6 +3302,37 @@ export interface operations {
                 };
             };
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    test_provider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderTest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderTestOutcome"];
+                };
+            };
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3351,6 +3527,71 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    test_saved_provider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedProviderTest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderTestOutcome"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             404: {
                 headers: {
@@ -3671,6 +3912,80 @@ export interface operations {
                 };
             };
             /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    person: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_person: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonCommand"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             500: {
                 headers: {
                     [name: string]: unknown;

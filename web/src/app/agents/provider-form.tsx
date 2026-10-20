@@ -42,8 +42,7 @@ export function ProviderForm({ provider, group, onSaved }: {
   const [name, setName] = useState(provider?.name ?? '')
   const [url, setUrl] = useState(provider?.base_url ?? '')
   const [preset, setPreset] = useState(presetFor(provider?.base_url ?? '') ?? group?.presets[0] ?? null)
-  const [models, setModels] = useState(provider?.models.join('\n') ?? '')
-  const [context, setContext] = useState(String(provider?.context_window ?? 200000))
+  const [models, setModels] = useState(provider?.models.map(model => model.id).join('\n') ?? '')
   const [apiKey, setKey] = useState('')
   const [invalid, setInvalid] = useState<string | null>(null)
   const pending = useRef<Attempt | null>(null)
@@ -100,13 +99,9 @@ export function ProviderForm({ provider, group, onSaved }: {
   const submit = (e: FormEvent) => {
     e.preventDefault()
     const ids = parseModels(models)
-    const size = Number(context)
     if (typeof ids === 'string') return setInvalid(ids)
-    if (!Number.isInteger(size) || size < 1000 || size > 10_000_000) {
-      return setInvalid('Context window must be a whole number from 1000 to 10000000.')
-    }
     setInvalid(null)
-    save.mutate({ name: group?.name ?? name, base_url: preset?.baseUrl ?? url, models: ids, context_window: size })
+    save.mutate({ name: group?.name ?? name, base_url: preset?.baseUrl ?? url, models: ids.map(id => ({ id })) })
   }
   const busy = save.isPending || removeKey.isPending || remove.isPending
 
@@ -149,10 +144,6 @@ export function ProviderForm({ provider, group, onSaved }: {
           <Field label="Models" hint="One model id per line, as the provider names it. The first is the usual default.">
             <TextArea aria-label="Models" value={models} required spellCheck={false}
               placeholder={'model-large\nmodel-small'} onChange={(e) => setModels(e.target.value)} />
-          </Field>
-          <Field label="Context window" hint="Tokens the provider's models accept.">
-            <Input aria-label="Context window" type="number" inputMode="numeric" value={context}
-              className="w-40" onChange={(e) => setContext(e.target.value)} />
           </Field>
           {invalid !== null && <p role="alert" className="text-xs text-destructive-foreground">{invalid}</p>}
           {save.error !== null && <ErrorLine error={save.error} />}

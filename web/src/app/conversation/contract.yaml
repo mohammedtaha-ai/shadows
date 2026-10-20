@@ -1390,3 +1390,5 @@ tests:
       harness aylul, changes the model before the turn, and sends the turn on fake-small.
   - name: deleted_agent_conversation_reads
     checks: With no live agent, the conversation shows its history and "Deleted agent".
+
+provider_models: Agent drafts project provider model objects into picker choices by id.

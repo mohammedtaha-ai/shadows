@@ -171,7 +171,7 @@ function draftSession(harness: string, allowed: string[] | undefined, provider?:
   const choices: SessionChoices = {
     current: {
       mode: policy.initial ?? policy.modes[0]?.id ?? '',
-      model: provider === undefined ? UNOPENED.id : defaultModel ?? provider.models[0]!,
+      model: provider === undefined ? UNOPENED.id : defaultModel ?? provider.models[0]!.id,
       effort: null,
     },
     modes: policy.modes.map((m) => {
@@ -184,7 +184,7 @@ function draftSession(harness: string, allowed: string[] | undefined, provider?:
         reason: enabled ? null : 'Not allowed in this project',
       }
     }),
-    models: provider === undefined ? [UNOPENED] : provider.models.map(id => ({ id, label: id, description: null, enabled: true, reason: null })),
+    models: provider === undefined ? [UNOPENED] : provider.models.map(({ id }) => ({ id, label: id, description: null, enabled: true, reason: null })),
     efforts: [],
   }
   return { state: 'ready', choices }

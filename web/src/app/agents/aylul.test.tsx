@@ -5,10 +5,10 @@ import { projectFixture, threadFixture, userEntry } from '@/test/contract-fixtur
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, choose, menuItem, startApp, typeInto, until } from '../test-app'
 
-const provider = { slug: 'test', name: 'Test provider', base_url: 'https://example.com',
-  models: ['fake-large', 'fake-small'], context_window: 200000, key_set: true,
+const provider = { slug: 'fixture-provider', name: 'Test provider', base_url: 'https://example.com',
+  models: [{ id: 'fake-large', context_window: 200000 }, { id: 'fake-small', context_window: 200000 }], key_set: true,
   created_at: 'now', updated_at: 'now' }
-const agent = { slug: 'work', name: 'Work', provider: 'test', default_model: 'fake-large',
+const agent = { slug: 'work', name: 'Work', provider: 'fixture-provider', default_model: 'fake-large',
   deleted: false, created_at: 'now', updated_at: 'now' }
 const thread = { ...threadFixture, harness: 'aylul', profile: 'work', title: 'Work chat' }
 const table = () => ({ ...answers(),
@@ -76,7 +76,7 @@ it('agent_list_shows_conversations_per_agent', async () => {
 it('provider_form_saves_and_clears_key', async () => {
   const a = open = await startApp('/aylul?settings=providers', { ...table(),
     'POST /api/aylul/providers': () => Response.json(provider, { status: 201 }),
-    'PUT /api/aylul/providers/test/key': () => Response.json({ name: 'PROVIDER_API_KEY', updated_at: 'now' }),
+    'PUT /api/aylul/providers/fixture-provider/key': () => Response.json({ name: 'PROVIDER_API_KEY', updated_at: 'now' }),
   })
   await addProvider(a, 'Custom')
   typeInto(input('Provider name'), 'Test provider')
@@ -84,7 +84,7 @@ it('provider_form_saves_and_clears_key', async () => {
   typeInto(models(), 'fake-large\nfake-small')
   typeInto(input('API key'), 'synthetic-ui-key')
   act(() => a.button('Save provider')!.click())
-  await until(() => a.calls.includes('PUT /api/aylul/providers/test/key'))
+  await until(() => a.calls.includes('PUT /api/aylul/providers/fixture-provider/key'))
   await until(() => document.querySelector('[aria-label="Saved providers"]') !== null)
   act(() => a.button('Edit')!.click())
   await until(() => input('API key')?.value === '')
@@ -157,7 +157,7 @@ async function addProvider(a: TestApp, name: string) {
 async function savePreset(name: string, china = false) {
   const a = open = await startApp('/aylul?settings=providers', { ...table(),
     'POST /api/aylul/providers': () => Response.json(provider, { status: 201 }),
-    'PUT /api/aylul/providers/test/key': () => Response.json({ name: 'PROVIDER_API_KEY', updated_at: 'now' }),
+    'PUT /api/aylul/providers/fixture-provider/key': () => Response.json({ name: 'PROVIDER_API_KEY', updated_at: 'now' }),
   })
   await addProvider(a, name)
   expect(input('Provider URL')).toBeNull()
@@ -203,7 +203,7 @@ it('Edit keeps the saved region', async () => {
 })
 it('the list names each provider with its model count', async () => {
   const a = open = await startApp('/aylul?settings=providers', { ...table(), 'GET /api/aylul/providers': [
-    { ...provider, name: 'MiniMax', models: ['one', 'two', 'three'] }, { ...provider, slug: 'unset', name: 'OpenAI', key_set: false },
+    { ...provider, name: 'MiniMax', models: [{ id: 'one', context_window: 200000 }, { id: 'two', context_window: 200000 }, { id: 'three', context_window: 200000 }] }, { ...provider, slug: 'unset', name: 'OpenAI', key_set: false },
   ] })
   await until(() => a.button('Set up') !== undefined)
   const rows = [...document.querySelectorAll('[aria-label="Saved providers"] li')].map(row => [...row.children].map(child => child.textContent).join(' '))
@@ -227,18 +227,18 @@ it('the sidebar has no Providers link', async () => {
 })
 it('provider deletion confirms inside the settings dialog', async () => {
   const a = open = await startApp('/aylul?settings=providers', { ...table(),
-    'DELETE /api/aylul/providers/test': () => new Response(null, { status: 204 }),
+    'DELETE /api/aylul/providers/fixture-provider': () => new Response(null, { status: 204 }),
   })
   await until(() => a.button('Edit') !== undefined)
   act(() => a.button('Edit')!.click())
   act(() => a.button('Delete')!.click())
   expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
-  expect(a.calls).not.toContain('DELETE /api/aylul/providers/test')
+  expect(a.calls).not.toContain('DELETE /api/aylul/providers/fixture-provider')
   act(() => a.button('Cancel')!.click())
-  expect(a.calls).not.toContain('DELETE /api/aylul/providers/test')
+  expect(a.calls).not.toContain('DELETE /api/aylul/providers/fixture-provider')
   act(() => a.button('Delete')!.click())
   act(() => a.button('Delete provider')!.click())
-  await until(() => a.calls.includes('DELETE /api/aylul/providers/test'))
+  await until(() => a.calls.includes('DELETE /api/aylul/providers/fixture-provider'))
 })
 it("the AYLUL home's Add a provider opens the dialog on Providers", async () => {
   const a = open = await startApp('/aylul', { ...table(), 'GET /api/aylul/providers': [] })
