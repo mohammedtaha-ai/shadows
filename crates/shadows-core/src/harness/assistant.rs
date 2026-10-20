@@ -133,9 +133,16 @@ impl Sessions {
             .adapter
             .process_spec_with(&home, Some(&profile), &stored, Some(token))
             .map_err(|_| CoreError::AylulKeyMissing(provider.slug))?;
+        let person = self.profiles.person().await?;
+        let mut setup = aylul_setup();
+        if let Some(name) = person.aylul_calls_me.or(person.name) {
+            let quoted = serde_json::to_string(&name)
+                .map_err(|_| CoreError::ProfileInvalid("invalid person name".into()))?;
+            setup.append = Some(format!("Call the person {quoted}."));
+        }
         Ok(Opening {
             cwd: home,
-            setup: aylul_setup(),
+            setup,
             spec,
             aylul_models: Some((models, agent.default_model)),
         })

@@ -2907,6 +2907,88 @@
         ],
         "type": "object"
       },
+      "Person": {
+        "properties": {
+          "aylul_calls_me": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "theme"
+        ],
+        "type": "object"
+      },
+      "PersonCommand": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PersonInput"
+          },
+          {
+            "properties": {
+              "command_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "command_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PersonInput": {
+        "properties": {
+          "aylul_calls_me": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
+          }
+        },
+        "required": [
+          "theme"
+        ],
+        "type": "object"
+      },
       "Plan": {
         "description": "One stored version of a plan, as a reader sees it now (§13.2).",
         "properties": {
@@ -4667,6 +4749,14 @@
           "key_refused",
           "unreachable",
           "unexpected"
+        ],
+        "type": "string"
+      },
+      "Theme": {
+        "enum": [
+          "dark",
+          "light",
+          "system"
         ],
         "type": "string"
       },
@@ -6709,6 +6799,94 @@
         "summary": "Revoke (§13.7): Shadows refuses the grant's token from now on. It does not\nremove the server from the person's Claude configuration.",
         "tags": [
           "grants"
+        ]
+      }
+    },
+    "/api/me": {
+      "get": {
+        "operationId": "person",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Person"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      },
+      "put": {
+        "operationId": "set_person",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Person"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
         ]
       }
     },

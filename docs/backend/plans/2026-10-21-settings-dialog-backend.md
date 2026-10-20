@@ -291,6 +291,9 @@ pattern, not an enum.
   `crates/shadows-http/src/{aylul_profiles.rs,aylul_profiles_tests.rs,lib.rs}`,
   `api/openapi.json`, `docs/codebase/README.md`
 
+**Mechanical follow-up:** `crates/shadows/tests/openapi.rs` adds GET and PUT `/api/me`
+to the explicit route inventory.
+
 **Table:** `aylul_person (id INTEGER PRIMARY KEY CHECK (id = 1), name TEXT,
 aylul_calls_me TEXT, language TEXT, theme TEXT NOT NULL, updated_at TEXT NOT NULL)`.
 

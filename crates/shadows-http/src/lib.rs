@@ -132,6 +132,7 @@ pub fn router(state: AppState, mcp: Router) -> Router {
 fn routes() -> OpenApiRouter<AppState> {
     OpenApiRouter::with_openapi(openapi::base())
         .routes(routes!(runtime::identity))
+        .routes(routes!(aylul_profiles::person, aylul_profiles::set_person))
         .routes(routes!(aylul_profiles::provider_presets))
         .routes(routes!(
             aylul_profiles::test_provider,

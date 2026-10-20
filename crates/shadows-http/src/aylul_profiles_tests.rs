@@ -295,3 +295,38 @@ async fn provider_test_route_answers_outcome() {
         400
     );
 }
+
+#[tokio::test]
+async fn me_round_trips() {
+    let w = world(false, false).await;
+    let (status, p) = call(&w, "GET", "/api/me", Value::Null).await;
+    assert_eq!(status, 200);
+    assert_eq!(
+        p,
+        json!({"name":null,"aylul_calls_me":null,"language":null,
+        "theme":"system","updated_at":null})
+    );
+    let input = json!({"command_id":"person","name":"  Alex  ","aylul_calls_me":"Lex",
+        "language":"en","theme":"dark"});
+    let (status, p) = call(&w, "PUT", "/api/me", input.clone()).await;
+    assert_eq!(status, 200);
+    assert_eq!(p["name"], "Alex");
+    assert_eq!(p["aylul_calls_me"], "Lex");
+    assert_eq!(p["language"], "en");
+    assert_eq!(p["theme"], "dark");
+    assert!(p["updated_at"].is_string());
+    assert_eq!(call(&w, "GET", "/api/me", Value::Null).await.1, p);
+    let mut changed = input.clone();
+    changed["theme"] = "light".into();
+    assert_eq!(call(&w, "PUT", "/api/me", changed).await.0, 409);
+    for (field, value) in [
+        ("theme", "other"),
+        ("name", "bad\nname"),
+        ("language", "bad_tag"),
+    ] {
+        let mut bad = input.clone();
+        bad["command_id"] = field.into();
+        bad[field] = value.into();
+        assert_eq!(call(&w, "PUT", "/api/me", bad).await.0, 400);
+    }
+}

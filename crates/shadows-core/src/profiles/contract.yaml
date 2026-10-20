@@ -8,6 +8,15 @@ shapes:
     storage: Arc<Storage>
     home_root: Optional isolated home root
     sessions: Weak session owner used after deletion commits
+  Person:
+    source: model.rs
+    updated_at: Null before the first write
+  PersonInput:
+    source: model.rs
+    note: Replaces the complete person record
+  Theme:
+    source: model.rs
+    note: Dark, light or system; defaults to system before the first write
   Provider:
     source: model.rs
     preset: Optional compiled preset id
@@ -41,6 +50,8 @@ shapes:
 called_by_other_services:
   probe: Harness calls the bounded probe with an explicit resolved provider key.
 functions:
+  person: Read the person record or its defaults without a write.
+  set_person: Validate and replace the record under one command.
   test_provider: Ask the provider for models using the supplied key without storing it.
   provider_presets: List the compiled presets in their fixed order.
   workspace: Read the hidden project identity with its live agent list.
@@ -60,6 +71,12 @@ shared_in_transaction:
   require_live_agent_in: Threads checks creation; Secrets checks agent environment writes inside their transaction.
   require_provider_in: Secrets checks provider existence before storing a provider key.
 obligations:
+  - rule: Names are trimmed, at most 64 characters, without controls or line breaks; empty is null.
+    tested_by: [person_names_are_checked]
+  - rule: Language is a short tag shape, not a list; theme is dark, light or system.
+    tested_by: [language_tag_shape_is_checked, theme_values_are_checked]
+  - rule: Person replay requires the same normalized input and writes nothing on replay or conflict.
+    tested_by: [person_replay_with_other_input_conflicts]
   - rule: Color ids are 1..=32 ASCII lowercase letters, digits or hyphens, starting with a letter.
     tested_by: [color_id_shape_is_checked, unknown_but_well_formed_color_is_kept]
   - rule: Create defaults to purple; absent on update preserves the stored color before fingerprinting.

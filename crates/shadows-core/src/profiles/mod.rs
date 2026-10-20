@@ -2,6 +2,7 @@
 mod agents;
 mod listing;
 mod model;
+mod person;
 mod presets;
 pub(crate) mod probe;
 mod providers;
@@ -12,7 +13,8 @@ mod store;
 use crate::db::Storage;
 use crate::{CoreError, ProjectId};
 pub use model::{
-    Agent, AgentInput, AgentWorkspace, Provider, ProviderInput, ProviderModel, ProviderModelInput,
+    Agent, AgentInput, AgentWorkspace, Person, PersonInput, Provider, ProviderInput, ProviderModel,
+    ProviderModelInput, Theme,
 };
 use std::path::PathBuf;
 use std::sync::Arc;

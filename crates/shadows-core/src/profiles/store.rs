@@ -372,3 +372,60 @@ pub(super) async fn delete_provider(
         })
         .await
 }
+
+pub(super) async fn person(storage: &Storage) -> Result<super::Person, StorageError> {
+    let row = sqlx::query(
+        "SELECT name,aylul_calls_me,language,theme,updated_at
+        FROM aylul_person WHERE id=1",
+    )
+    .fetch_optional(storage.reader())
+    .await?;
+    match row {
+        None => Ok(super::Person::default()),
+        Some(row) => Ok(super::Person {
+            name: row.get("name"),
+            aylul_calls_me: row.get("aylul_calls_me"),
+            language: row.get("language"),
+            theme: serde_json::from_value(serde_json::Value::String(row.get("theme")))?,
+            updated_at: Some(row.get("updated_at")),
+        }),
+    }
+}
+
+pub(super) async fn save_person(
+    storage: &Storage,
+    command: CommandContext,
+    input: super::PersonInput,
+) -> Result<(), StorageError> {
+    storage
+        .write_txn(move |conn| {
+            Box::pin(async move {
+                if classify(conn, &command, "Profiles", "aylul")
+                    .await?
+                    .is_some()
+                {
+                    return Ok(());
+                }
+                let theme = match input.theme {
+                    super::Theme::Dark => "dark",
+                    super::Theme::Light => "light",
+                    super::Theme::System => "system",
+                };
+                sqlx::query(
+                    "INSERT INTO aylul_person (id,name,aylul_calls_me,language,theme,updated_at)
+            VALUES (1,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,
+            aylul_calls_me=excluded.aylul_calls_me, language=excluded.language,
+            theme=excluded.theme, updated_at=excluded.updated_at",
+                )
+                .bind(input.name)
+                .bind(input.aylul_calls_me)
+                .bind(input.language)
+                .bind(theme)
+                .bind(now())
+                .execute(&mut *conn)
+                .await?;
+                record(conn, &command, "person").await
+            })
+        })
+        .await
+}

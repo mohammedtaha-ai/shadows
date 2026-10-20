@@ -181,3 +181,48 @@ async fn auto_compact_window_is_capped_or_omitted() {
         w.sessions.terminate(&w.thread).await.unwrap();
     }
 }
+
+#[tokio::test]
+async fn opening_names_the_person() {
+    let w = world().await;
+    for (i, calls, expected) in [(0, Some("Lex"), "Lex"), (1, None, "Alex")] {
+        let input = serde_json::from_value(json!({"name":"Alex", "aylul_calls_me":calls,
+            "language":"en", "theme":"dark"}))
+        .unwrap();
+        w.core
+            .profiles()
+            .set_person(format!("person-{i}"), input)
+            .await
+            .unwrap();
+        let report = reply(&w, &w.thread, "fake-large", "high").await;
+        let append = report["append"].as_str().unwrap();
+        assert!(append.contains(expected));
+        assert_eq!(append.lines().count(), 1);
+        let changed = serde_json::from_value(json!({"name":"Alex",
+            "aylul_calls_me":"Changed", "language":"en", "theme":"dark"}))
+        .unwrap();
+        w.core
+            .profiles()
+            .set_person(format!("live-person-{i}"), changed)
+            .await
+            .unwrap();
+        let retained = reply(&w, &w.thread, "fake-large", "high").await;
+        assert_eq!(retained["append"], report["append"]);
+        w.sessions.terminate(&w.thread).await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn opening_without_person_appends_nothing() {
+    let w = world().await;
+    let empty = serde_json::from_value(json!({"name":"  ", "aylul_calls_me":null,
+        "language":null, "theme":"system"}))
+    .unwrap();
+    w.core
+        .profiles()
+        .set_person("empty-person".into(), empty)
+        .await
+        .unwrap();
+    let report = reply(&w, &w.thread, "fake-large", "high").await;
+    assert!(report["append"].is_null());
+}

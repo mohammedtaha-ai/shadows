@@ -49,6 +49,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/profiles/probe.rs` | bounded provider listing requests | `crates/shadows-core/src/profiles/contract.yaml` |
 | `crates/shadows-core/src/profiles/listing.rs` | provider model response parsing | `crates/shadows-core/src/profiles/contract.yaml` |
 | `crates/shadows-core/src/profiles/presets.rs` | compiled provider presets | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/person.rs` | local person record rules | `crates/shadows-core/src/profiles/contract.yaml` |
 | `crates/shadows-core/src/profiles/model.rs` | public configuration metadata | `crates/shadows-core/src/profiles/contract.yaml` |
 | `crates/shadows-core/src/profiles/providers.rs` | provider mutation rules | `crates/shadows-core/src/profiles/contract.yaml` |
 | `crates/shadows-core/src/profiles/agents.rs` | agent mutation rules | `crates/shadows-core/src/profiles/contract.yaml` |

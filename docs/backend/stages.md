@@ -55,7 +55,7 @@ never print, log or commit a key).
 - Done when: `color_id_shape_is_checked`, `unknown_but_well_formed_color_is_kept`, `color_defaults_to_purple`, `update_without_color_keeps_it`, `migration_colors_agents_purple` pass; contracts and openapi pass
 
 ### B-5 · The person (name, what AYLUL calls them, language, theme)
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-5--the-person
 - Read: spec §5; crates/shadows-core/src/profiles/contract.yaml; crates/shadows-core/src/harness/contract.yaml; `aylul_setup` in crates/shadows-core/src/harness/assistant.rs
 - Touch: crates/shadows-core/src/profiles/person.rs (new), crates/shadows-core/migrations/0033_aylul_person.sql (new), crates/shadows-core/tests/aylul_profiles/person.rs (new), crates/shadows-core/src/profiles/mod.rs, crates/shadows-core/src/profiles/model.rs, crates/shadows-core/src/profiles/store.rs, crates/shadows-core/src/profiles/contract.yaml, crates/shadows-core/src/harness/assistant.rs, crates/shadows-core/src/harness/contract.yaml, crates/shadows-core/tests/aylul_profiles.rs, crates/shadows-core/tests/aylul_session/opening.rs, crates/shadows-core/src/lib.rs, crates/shadows-http/src/aylul_profiles.rs, crates/shadows-http/src/aylul_profiles_tests.rs, crates/shadows-http/src/lib.rs, api/openapi.json, docs/codebase/README.md

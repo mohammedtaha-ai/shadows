@@ -6,8 +6,8 @@ use axum::{
     http::StatusCode,
 };
 use shadows_core::{
-    Agent, AgentInput, AgentWorkspace, EnvEntry, PlanningThread, Provider, ProviderInput,
-    ProviderPreset, ProviderTest, ProviderTestOutcome, SavedProviderTest,
+    Agent, AgentInput, AgentWorkspace, EnvEntry, Person, PersonInput, PlanningThread, Provider,
+    ProviderInput, ProviderPreset, ProviderTest, ProviderTestOutcome, SavedProviderTest,
 };
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -234,5 +234,30 @@ pub(super) async fn test_saved_provider(
             .harness()
             .test_saved_provider(&slug, b.api_key)
             .await?,
+    ))
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct PersonCommand {
+    command_id: String,
+    #[serde(flatten)]
+    input: PersonInput,
+}
+
+#[utoipa::path(get, path="/api/me", tag="aylul",
+    responses((status=200,body=Person),(status=500,body=ErrorBody)))]
+pub(super) async fn person(State(s): State<AppState>) -> Result<Json<Person>, Failure> {
+    Ok(Json(s.core.profiles().person().await?))
+}
+
+#[utoipa::path(put, path="/api/me", tag="aylul", request_body=PersonCommand,
+    responses((status=200,body=Person),(status=400,body=ErrorBody),(status=409,body=ErrorBody),
+        (status=500,body=ErrorBody)))]
+pub(super) async fn set_person(
+    State(s): State<AppState>,
+    EnvJson(b): EnvJson<PersonCommand>,
+) -> Result<Json<Person>, Failure> {
+    Ok(Json(
+        s.core.profiles().set_person(b.command_id, b.input).await?,
     ))
 }
