@@ -69,7 +69,7 @@ Use each directory's request template. Approval of this plan is the basis for th
 
 **Interfaces:** Produces evidence values `main_origin: string`, `companion_origin: string`, GET/JSON/SSE results, effective CSP and per-window native-command results. Task 3 consumes the observed main origin; Task 4 consumes the tested CSP/build boundary.
 
-- [ ] **Step 1:** Build a temporary native example with `cargo build --locked --manifest-path apps/desktop/src-tauri/Cargo.toml --example desktop_origin_probe`. Its PowerShell driver reads an explicit `-Config <absolute fixture JSON path>`, assembles the real web build and existing companion as generated local assets, launches an isolated Core/fake-ACP fixture, and collects HTTP Origin and native command results from the two owned windows. Use the existing capability files and local WebviewWindowBuilder/response hook; no extra Cargo workspace or alternate target directory. Commit the short-lived probe source as `test(desktop): add packaged-origin probe`, then run `powershell -NoProfile -File apps/desktop/tests/desktop-origin-probe.ps1 -Config <fixture config>`. Capture these assertions:
+- [x] **Step 1:** Build a temporary native example with `cargo build --locked --manifest-path apps/desktop/src-tauri/Cargo.toml --example desktop_origin_probe`. Its PowerShell driver reads an explicit `-Config <absolute fixture JSON path>`, assembles the real web build and existing companion as generated local assets, launches an isolated Core/fake-ACP fixture, and collects HTTP Origin and native command results from the two owned windows. Use the existing capability files and local WebviewWindowBuilder/response hook; no extra Cargo workspace or alternate target directory. Commit the short-lived probe source as `test(desktop): add packaged-origin probe`, then run `powershell -NoProfile -File apps/desktop/tests/desktop-origin-probe.ps1 -Config <fixture config>`. Capture these assertions:
 
 ~~~ts
 expect(result.get).toBe(200)
@@ -83,10 +83,10 @@ expect(result.nativeOrigin).not.toBe('null')
 
 Record packaged reload/missing-asset behavior and dashboard layout/font/inline-style needs under CSP. Task 4 implements and asserts the final hash-route/missing-asset policy; those screens need not exist in this probe. Measure actual request Origin; do not infer it from the displayed URL.
 
-- [ ] **Step 2:** Exercise selected-endpoint CSP using Tauri's local-resource response hook. Preserve generated script nonces; allow neither script unsafe-inline nor unsafe-eval. A required inline style attribute may be permitted specifically as style-src-attr, with its result recorded.
-- [ ] **Step 3:** PASS requires all assertions and a local packaged main retaining its native ACL. Record raw credential-free results, versions and commands. If it fails, stop dependent tasks and amend the spec for review; never widen origins to wildcard/null.
-- [ ] **Step 4:** Remove temporary source, name the probe-source commit and exact invocation in the evidence, and close the spec OPEN with measured values. If a locked personal executable prevents the probe, report the lock rather than building elsewhere or closing that app.
-- [ ] **Step 5:** Commit `docs: measure packaged desktop origin and Core access`.
+- [x] **Step 2:** Exercise selected-endpoint CSP using Tauri's local-resource response hook. Preserve generated script nonces; allow neither script unsafe-inline nor unsafe-eval. A required inline style attribute may be permitted specifically as style-src-attr, with its result recorded.
+- [x] **Step 3:** PASS requires all assertions and a local packaged main retaining its native ACL. Record raw credential-free results, versions and commands. If it fails, stop dependent tasks and amend the spec for review; never widen origins to wildcard/null.
+- [x] **Step 4:** Remove temporary source, name the probe-source commit and exact invocation in the evidence, and close the spec OPEN with measured values. If a locked personal executable prevents the probe, report the lock rather than building elsewhere or closing that app.
+- [x] **Step 5:** Commit `docs: measure packaged desktop origin and Core access`.
 
 ### Task 2: Launch a persistent daemon without weakening managed children
 

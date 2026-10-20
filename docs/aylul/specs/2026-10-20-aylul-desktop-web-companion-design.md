@@ -168,12 +168,11 @@ selected loopback endpoint. Determine and assert the actual WebView2 origin in
 native acceptance; do not allow wildcard origins, null origins or arbitrary
 remote hosts to make the connection work.
 
-> OPEN: The actual packaged WebView2 Origin and its fetch/EventSource behavior
-> have not been measured for the shared main. Trigger: before enabling the Core
-> origin/CSP changes, run a local Windows probe of packaged GET, JSON mutation
-> and SSE, recording the exact Origin and capability behavior. Close this block
-> with that evidence. If the selected local-asset boundary cannot support them,
-> amend this section for review rather than broadening origin permissions.
+Measured on Windows on 2026-10-20: packaged main and companion send
+`http://tauri.localhost`. GET, JSON and EventSource work with exact origin/CSP
+allowlists; companion main-command access remains denied. See the
+[packaged-origin evidence](../../evidence/aylul/2026-10-20-desktop-webview-origin.md).
+The implementation must preserve that boundary and recheck it on the final main.
 
 Main remains a packaged local webview. External links use a deliberate system
 browser action; block navigation of the privileged surface to remote content.

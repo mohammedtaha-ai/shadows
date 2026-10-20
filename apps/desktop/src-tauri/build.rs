@@ -17,8 +17,5 @@ fn main() {
             "open_main_from_companion",
         ]),
     ))
-    .expect("native build configuration");
-    // Temporary probe: examples need the same Common Controls v6 manifest as bins.
-    #[cfg(windows)]
-    println!("cargo:rustc-link-arg-examples={}/resource.lib", std::env::var("OUT_DIR").unwrap())
+    .expect("native build configuration")
 }
