@@ -1,6 +1,6 @@
 import React from 'react';
 import { aylulMessage, answerRequest, approveRule, dismissRefusal, previewRule,
-  type AylulState, type Pending } from '../../platform/aylul';
+  type AylulState, type Pending } from '../../desktop/activity-api';
 import { RulePreviewGuard, type RulePreview } from './rule-preview';
 
 export function ApprovalsPanel({ state, refresh }: { state: AylulState | null; refresh: () => Promise<void> }) {

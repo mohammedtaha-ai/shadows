@@ -177,24 +177,6 @@
       "description": "Permission identifier",
       "oneOf": [
         {
-          "description": "Enables the assistant_call command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-assistant-call",
-          "markdownDescription": "Enables the assistant_call command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the assistant_local_call command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-assistant-local-call",
-          "markdownDescription": "Enables the assistant_local_call command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the assistant_sources command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-assistant-sources",
-          "markdownDescription": "Enables the assistant_sources command without any pre-configured scope."
-        },
-        {
           "description": "Enables the auth_action command without any pre-configured scope.",
           "type": "string",
           "const": "allow-auth-action",
@@ -295,24 +277,6 @@
           "type": "string",
           "const": "companion-actions",
           "markdownDescription": "Local companion presentation and explicit main navigation only."
-        },
-        {
-          "description": "Denies the assistant_call command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-assistant-call",
-          "markdownDescription": "Denies the assistant_call command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the assistant_local_call command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-assistant-local-call",
-          "markdownDescription": "Denies the assistant_local_call command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the assistant_sources command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-assistant-sources",
-          "markdownDescription": "Denies the assistant_sources command without any pre-configured scope."
         },
         {
           "description": "Denies the auth_action command without any pre-configured scope.",

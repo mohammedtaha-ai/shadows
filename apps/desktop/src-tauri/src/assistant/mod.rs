@@ -1,6 +1,5 @@
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-pub mod local;
 use serde_json::{json, Value};
 
 #[derive(Deserialize, Serialize)]

@@ -199,13 +199,13 @@ Also assert one failed launch remains failed until Retry; Arabic/spaced paths re
 - Create: `web/src/app/desktop/{activity.tsx,native-settings.tsx,companion-controls.tsx,contract.yaml,native-sections.test.tsx,rule-preview.test.ts}`.
 - Modify: `web/src/app/settings/settings-page.tsx`, `web/src/app/sidebar/sidebar.tsx`, `web/src/app/shell.tsx`, `web/src/router.tsx`, `web/src/desktop/native.ts`.
 - Remove old main closure: `apps/desktop/index.html`, `apps/desktop/src/app/{main.tsx,WorkspaceShell.tsx,SettingsPanel.tsx,AssistantLocation.tsx,CompanionControls.tsx,icons.tsx,shell.css,workspace.css}`, `apps/desktop/src/features/assistant/`, `apps/desktop/src/platform/assistant.ts`.
-- Modify native removal: `apps/desktop/src-tauri/src/commands/mod.rs`, `apps/desktop/src-tauri/{build.rs,permissions/companion.toml}`.
+- Modify native removal: retire unused `apps/desktop/src-tauri/src/assistant/local.rs` and its parent declaration/contract; remove the three retired generated assistant permission files; `apps/desktop/src-tauri/src/commands/mod.rs`, `apps/desktop/src-tauri/{build.rs,permissions/companion.toml}`.
 - Update/rehome or remove with their exclusive retired source: `apps/desktop/tests/{approvals-ui.test.mjs,rule-preview.test.ts,assistant-acceptance.mjs,assistant-fixture.tsx,assistant-state.mjs,assistant.html,assistant.vite.config.ts}`, `apps/desktop/tests/companion/{fixture.tsx,shell.spec.ts,workspace.spec.ts,workspace-conversations.spec.ts,assistant-source.spec.ts,production.test.ts}`.
-- Update: package manifests/locks if dependencies become unused, existing app/platform/features contracts, settings/sidebar contracts and both source maps.
+- Update: package manifests/locks if dependencies become unused, existing app/platform/features contracts, settings/sidebar contracts and both source maps. Retire the unreferenced old main `platform/windows.ts` wrapper and empty features contract; add development-only `studio.html`/`src/studio.tsx` and route the default build through shared assembly.
 
 **Interfaces:** Native Settings renders the existing auth actions and independent companion controls. Native-only route `/aylul/activity` consumes the preserved sidecar wrappers. Main hide action uses existing `hide_main`. No cloud/local chat source selector remains.
 
-- [ ] **Step 1:** Write regression assertions using the moved real wrappers:
+- [x] **Step 1:** Write regression assertions using the moved real wrappers:
 
 ~~~ts
 expect(localChatNeedsLogin).toBe(false)
@@ -217,11 +217,11 @@ expect(accountSignOutCalledChatSourceSwitch).toBe(false)
 
 Cases: confirmed enroll/sign-out-all/revoke, cancellable sign-in, account error independent of tray/presence, activity session/project context, missing sidecar, settings_changed/preview_mismatch, and browser absence of native-only navigation.
 
-- [ ] **Step 2:** Run `npm --prefix web test -- native-sections rule-preview`; expected RED.
-- [ ] **Step 3:** Move functional screens/wrappers using provenance-preserving moves; adapt them to shared web primitives. Keep preview-bound approvals and account confirmation behavior. Link the studio only from a separate development entry; production main must not load it.
-- [ ] **Step 4:** Use Serena references/build graph to confirm the old-main removal closure before deleting it. Remove replaced assistant IPC registrations/permissions. Retain native auth internals, companion entry `apps/desktop/src/app/companion.tsx`, companion wrappers, sidecar and externally consumed Hermes packages/services. Rehome useful assertions; remove only tests/fixtures exclusive to the retired chat. Record precise deletions in the commit.
-- [ ] **Step 5:** Run web targeted tests/typecheck/lint, `npm --prefix apps/desktop run build:desktop`, `node --test apps/desktop/tests/native-acl.test.mjs`, companion production tests and focused native auth/command tests. Verify generated module inventory has no old main/Hermes chat source. Expected PASS.
-- [ ] **Step 6:** Commit `refactor(desktop): keep native functions in the shared main UI`.
+- [x] **Step 2:** Run `npm --prefix web test -- native-sections rule-preview`; expected RED.
+- [x] **Step 3:** Move functional screens/wrappers using provenance-preserving moves; adapt them to shared web primitives. Keep preview-bound approvals and account confirmation behavior. Link the studio only from a separate development entry; production main must not load it.
+- [x] **Step 4:** Use Serena references/build graph to confirm the old-main removal closure before deleting it. Remove replaced assistant IPC registrations/permissions. Retain native auth internals, companion entry `apps/desktop/src/app/companion.tsx`, companion wrappers, sidecar and externally consumed Hermes packages/services. Rehome useful assertions; remove only tests/fixtures exclusive to the retired chat. Record precise deletions in the commit.
+- [x] **Step 5:** Run web targeted tests/typecheck/lint, `npm --prefix apps/desktop run build:desktop`, `node --test apps/desktop/tests/native-acl.test.mjs`, companion production tests and focused native auth/command tests. Verify generated module inventory has no old main/Hermes chat source. Expected PASS.
+- [x] **Step 6:** Commit `refactor(desktop): keep native functions in the shared main UI`.
 
 ### Task 6: Persist a changeable agent binding and closed navigation
 

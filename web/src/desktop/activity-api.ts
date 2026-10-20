@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import {nativeCall as invoke} from './native';
 
 export type Step = { at: string; tool: string; target: string; summary: string };
 export type Session = {

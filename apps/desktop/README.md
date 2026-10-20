@@ -162,3 +162,10 @@ separate owned CDP endpoints at port and port+1. Release has no acceptance overr
 The automated test runs only with `AYLUL_RUN_NATIVE=1`:
 `node --test apps/desktop/tests/desktop-bootstrap.spec.ts`.
 It uses an isolated real Core with fake-ACP; this is synthetic adapter acceptance.
+
+Retained account and local activity controls now live in the shared Settings and
+Local activity pages. Account login is independent of local chat. The old
+cloud/local conversation selector and its main IPC handlers are retired.
+`npm --prefix apps/desktop run build` now runs shared desktop assembly.
+For the character-only build use `build:companion`; the development server exposes
+`studio.html` as a separate entry, excluded from all production build inputs.

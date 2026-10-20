@@ -7,7 +7,7 @@ const npm=process.env.npm_execpath;
 if(!npm)throw new Error('Run build:desktop through npm');
 for(const [cwd,args] of [
  [path.resolve(desktop,'../../web'),['run','build','--','--mode','desktop']],
- [desktop,['exec','--','vite','build','--mode','companion']],
+ [desktop,['run','build:companion']],
 ]){
  const result=spawnSync(process.execPath,[npm,...args],{cwd,stdio:'inherit'});
  if(result.status!==0)process.exit(result.status??1);

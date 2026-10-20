@@ -8,6 +8,10 @@ public_api:
   nativeCall: Desktop-only typed invocation; never called from browser startup.
   saveConnection: Persist normalized configuration natively; changed configuration reloads main at Settings.
   watchConnection: Reload main on configuration identity replacement.
+  authAction/cancelLogin: Existing account IPC with credential-free View; no chat-source selection.
+  getState/answerRequest/previewRule/approveRule/dismissRefusal/previewHooks/installHooks: Narrow sidecar method wrappers.
+  connectCompanion/setCompanionVisible/setCompanionPaused: Subscribe-before-snapshot native presentation state; latest revision wins.
+  hideToTray: Preserve native hide failure as a rejected promise.
 obligations:
   - rule: Browser startup mounts without invoking native; desktop sends no API calls before readiness.
     tested_by: web/src/desktop/bootstrap.test.tsx

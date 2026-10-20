@@ -1,4 +1,4 @@
-import type {AuthView,AuthAction} from '../platform/auth';
+import type {AuthView,AuthAction} from '../../desktop/auth';
 type Props={auth:AuthView|null;busy:boolean;loggingIn:boolean;onAction:(action:AuthAction)=>void;onCancel:()=>void};
 export function AccountPanel({auth,busy,loggingIn,onAction,onCancel}:Props){
   const status=busy?(loggingIn?'Complete sign-in in your browser.':'Checking your account…'):auth?.state==='signed_in'?'Signed in':auth?.state==='verification_refused'?'Your session could not be verified. Sign in again or retry.':auth?.state==='unavailable'?'The backend is unavailable. Your device registration is preserved.':auth?.state==='device_revoked'?'This device registration was revoked.':'Signed out';

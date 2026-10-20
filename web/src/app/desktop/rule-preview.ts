@@ -1,4 +1,4 @@
-import type { Plan } from '../../platform/aylul';
+import type { Plan } from '../../desktop/activity-api';
 
 export type RulePreview = Plan & { rule: string };
 

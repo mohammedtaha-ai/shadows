@@ -61,6 +61,16 @@ it is that folder's `contract.yaml`.
 
 | File | Its one job | Reference file |
 |---|---|---|
+| `web/src/desktop/auth.ts` | Account invocation wrappers | `web/src/desktop/contract.yaml` |
+| `web/src/desktop/activity-api.ts` | Sidecar invocation wrappers | `web/src/desktop/contract.yaml` |
+| `web/src/app/desktop/account-panel.tsx` | Account person actions | `web/src/app/desktop/contract.yaml` |
+| `web/src/app/desktop/native-settings.tsx` | Native settings sections | `web/src/app/desktop/contract.yaml` |
+| `web/src/app/desktop/companion-controls.tsx` | Character visibility controls | `web/src/app/desktop/contract.yaml` |
+| `web/src/app/desktop/activity.tsx` | Local activity page | `web/src/app/desktop/contract.yaml` |
+| `web/src/app/desktop/use-activity.ts` | Visible activity polling | `web/src/app/desktop/contract.yaml` |
+| `web/src/app/desktop/sessions-panel.tsx` | Local session presentation | `web/src/app/desktop/contract.yaml` |
+| `web/src/app/desktop/approvals-panel.tsx` | Preview-bound person approvals | `web/src/app/desktop/contract.yaml` |
+| `web/src/app/desktop/rule-preview.ts` | Rule preview identity | `web/src/app/desktop/contract.yaml` |
 | `web/src/api/daemon-origin.ts` | One-time verified native origin | `web/src/api/contract.yaml` |
 | `web/src/app-root.tsx` | Shared dashboard mounting | `web/src/desktop/contract.yaml` |
 | `web/src/app/desktop/connection-settings.tsx` | Local Core connection form | `web/src/app/desktop/contract.yaml` |

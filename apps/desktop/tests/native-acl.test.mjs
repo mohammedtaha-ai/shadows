@@ -10,12 +10,12 @@ test('generated native permissions grant sidecar access only to main',()=>{
  const commands=label=>Object.values(capabilities).filter(c=>c.local&&c.windows.includes(label))
   .flatMap(c=>c.permissions.flatMap(p=>permissions[p]?.commands.allow??[]));
  assert.ok(commands('main').includes('aylul_call'),'main must reach the merged local sidecar');
- assert.ok(commands('main').includes('assistant_call'),'main must reach authenticated assistant HTTP');
- for(const command of ['desktop_connection','desktop_connection_config','save_desktop_connection','retry_desktop_connection','open_external','assistant_local_call','assistant_sources']) {
+ assert.ok(!commands('main').includes('assistant_call'),'retired assistant chat must have no main capability');
+ for(const command of ['desktop_connection','desktop_connection_config','save_desktop_connection','retry_desktop_connection','open_external']) {
    assert.ok(commands('main').includes(command),'main must reach local assistant operations');
    assert.ok(!commands('companion').includes(command),'companion must not reach local assistant authority');
  }
- assert.ok(!commands('companion').includes('assistant_call'),'companion must not send assistant messages');
+ for(const command of ['assistant_call','assistant_local_call','assistant_sources'])assert.ok(!commands('main').includes(command)&&!commands('companion').includes(command),'retired chat commands have no capability');
  assert.ok(commands('main').includes('set_companion_visible'),'main keeps companion controls');
  assert.ok(!commands('companion').includes('aylul_call'),'companion must not approve agent requests');
  assert.ok(!commands('companion').includes('auth_action'),'companion must not receive account authority');

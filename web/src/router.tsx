@@ -27,6 +27,7 @@ const PlanPage = lazyRouteComponent(() => import('./app/workflows/plan-page'), '
 const PlanMapPage = lazyRouteComponent(() => import('./app/workflows/plan-map'), 'PlanMapPage')
 const AgreementsPage = lazyRouteComponent(() => import('./app/agreements/agreements-page'), 'AgreementsPage')
 
+const Activity = lazyRouteComponent(() => import('./app/desktop/activity'), 'Activity')
 const AylulHome = lazyRouteComponent(() => import('./app/agents/home'), 'AylulHome')
 const ProviderSettings = lazyRouteComponent(() => import('./app/agents/provider-settings'), 'ProviderSettings')
 const NewAgent = lazyRouteComponent(() => import('./app/agents/agent-settings'), 'NewAgent')
@@ -117,12 +118,14 @@ const newAgentRoute = createRoute({ getParentRoute: () => rootRoute, path: '/ayl
 const agentSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/agents/$slug/settings', component: AgentSettings })
 const agentDraftRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/agents/$slug/new', component: AgentDraftRoute })
 
+const activityRoute=createRoute({getParentRoute:()=>rootRoute,path:'/aylul/activity',component:Activity})
 export const router = createRouter({
   ...(isDesktop()?{history:createHashHistory()}:{}),
   defaultPendingComponent: PagePending,
   defaultPendingMs: 150,
   routeTree: rootRoute.addChildren([
     homeRoute,
+    activityRoute,
     aylulHomeRoute,
     providersRoute,
     newAgentRoute,

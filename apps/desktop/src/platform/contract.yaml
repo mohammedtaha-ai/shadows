@@ -2,16 +2,8 @@ name: desktop-window-invocation
 version: 1
 status: current
 source: apps/desktop/src/platform
-responsibility: Isolate typed frontend invocations for the native shell, local sidecar and credential-free account projection.
+responsibility: Isolate credential-free native companion presentation invocations.
 public_api:
-  assistant: Typed assistant_call wrappers using backend-generated nylra-v1 0.5 projections; carry no bearer, service key or upstream selector.
-  assistantFor: Capture local installation identity or public remote account/session IDs per request; refuse an absent remote principal and never fail over implicitly.
-  localInstallation: Read credential-free local source identity from the main-only native boundary.
-  getState/answerRequest/previewRule/approveRule/dismissRefusal/previewHooks/installHooks: Invoke aylul_call with one sidecar method each.
-  aylulMessage: Map a stable error code to a sentence; unknown codes to a generic retry.
-  authAction: Invoke only named native account actions; returns AuthView without credentials.
-  cancelLogin: Signal native login cancellation independently of the blocking operation.
-  hideToTray: Invoke hide_main and preserve failure as a rejected Promise for the presentation caller.
   acceptState: Validate credential-free native projection and retain the newest safe revision.
   connectCompanion: Subscribe before initial snapshot or readiness; clean late subscriptions and ignore stale replies.
   setCompanionVisible: Request main-only native visibility and validate the returned projection.
@@ -26,5 +18,3 @@ obligations:
   - rule: Disposed subscribers clean late listeners without readiness or callbacks.
     tested_by: apps/desktop/tests/companion/native-state.test.ts
     note: late subscription after disposal cleans up without readiness or callbacks
-  - rule: The keyboard hide action reaches native hide_main.
-    tested_by: 'integration: apps/desktop/tests/windows-shell.ps1'

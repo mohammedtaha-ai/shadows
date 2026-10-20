@@ -1,5 +1,5 @@
 import React from 'react';
-import { aylulMessage, installHooks, previewHooks, type AylulState, type Plan } from '../../platform/aylul';
+import { aylulMessage, installHooks, previewHooks, type AylulState, type Plan } from '../../desktop/activity-api';
 
 const LABEL = { running: 'Working', waiting: 'Waiting for you', ended: 'Ended' } as const;
 const projectName = (path: string) => path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;

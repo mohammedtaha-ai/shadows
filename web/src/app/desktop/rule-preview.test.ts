@@ -1,6 +1,6 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { RulePreviewGuard } from '../src/features/approvals/rule-preview.ts';
+import { RulePreviewGuard } from './rule-preview';
 
 test('an edit invalidates a preview response still in flight', async () => {
   const guard = new RulePreviewGuard();

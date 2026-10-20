@@ -2,9 +2,28 @@ name: desktop-native-settings
 version: 1
 status: current
 source: web/src/app/desktop
-responsibility: Present native-only local connection settings in the shared dashboard.
+responsibility: Present retained native person actions in the shared dashboard.
 components:
   ConnectionSettings: Existing executable/database/configuration references; save or explicit Retry; fixed native errors.
+  NativeSettings: Desktop-only account, companion and connection sections; account failure never gates chat.
+  AccountPanel: Credential-free native View; confirm new installation, sign-out-all and revoke; independent login cancellation.
+  CompanionControls: Subscribe before snapshot; revisioned visibility and pause; local rendering failure keeps account actions available.
+  Activity: Desktop-only local sessions and approval controls.
+  SessionsPanel: Show session state/project; preview hook settings before confirmed installation.
+  ApprovalsPanel: Show project/session; allow once, deny, preview exact rule, approve or dismiss.
+  RulePreviewGuard: Invalidate edited or stale previews; approve only the captured rule and settings fingerprint.
+  useActivity: Mounted visible-panel sidecar polling through React Query.
 obligations:
   - rule: The bootstrap form imports no HTTP consumer; the native owner validates paths and origin.
     tested_by: apps/desktop/tests/desktop-bootstrap.spec.ts
+  - rule: Account actions retain confirmation/cancellation and cannot switch chat source.
+    tested_by: web/src/app/desktop/native-sections.test.tsx
+  - rule: Companion failure does not disable account; browser exposes no native section or invocation.
+    tested_by: web/src/app/desktop/native-sections.test.tsx
+  - rule: Project and session context precede approval; a missing sidecar needs no login.
+    tested_by: web/src/app/desktop/native-sections.test.tsx
+  - rule: Rule edits discard in-flight previews; settings_changed and preview_mismatch force a fresh preview.
+    tested_by: web/src/app/desktop/rule-preview.test.ts
+gaps:
+  - at: account and hook installation
+    gap: Tests use synthetic native replies; real account surrender and personal hook installation are not part of this acceptance.

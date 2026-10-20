@@ -33,6 +33,8 @@ external:
 # ── functions ────────────────────────────────────────────────────────────────────
 
 components:
+  NativeSettings:
+    signature: "() => JSX.Element | null; desktop-only account/companion/connection sections"
   SettingsPage:
     signature: "() => JSX.Element"
     # The page shell; it renders one section per daemon setting.

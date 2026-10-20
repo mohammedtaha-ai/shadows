@@ -27,3 +27,32 @@ export async function saveConnection(config:LaunchConfig):Promise<void>{
   if(changed){window.location.hash='/settings';window.location.reload()}
 }
 export const openExternal=(url:string)=>nativeCall<void>('open_external',{url})
+
+export interface CompanionState {revision:number;visible:boolean;renderAllowed:boolean;paused:boolean;error:string|null}
+function companionState(value:unknown):CompanionState{
+  if(!value||typeof value!=='object')throw Error('companion_state_invalid')
+  const state=value as CompanionState
+  if(!Number.isSafeInteger(state.revision)||state.revision<0||typeof state.visible!=='boolean'||
+    typeof state.renderAllowed!=='boolean'||typeof state.paused!=='boolean'||
+    (state.error!==null&&typeof state.error!=='string'))throw Error('companion_state_invalid')
+  return state
+}
+export function connectCompanion(receive:(state:CompanionState)=>void,failed:(message:string)=>void):()=>void{
+  let disposed=false,off:(()=>void)|undefined,revision=-1
+  const accept=(value:unknown)=>{
+    if(disposed)return
+    try{
+      const state=companionState(value)
+      if(state.revision>revision){revision=state.revision;receive(state)}
+    }catch{failed('Unable to synchronize AYLUL.')}
+  }
+  void listen<unknown>('companion-state',event=>accept(event.payload)).then(dispose=>{
+    if(disposed){dispose();return}
+    off=dispose
+    return nativeCall('companion_state').then(accept)
+  }).catch(()=>{if(!disposed)failed('Unable to connect to AYLUL.')})
+  return ()=>{disposed=true;off?.()}
+}
+export const setCompanionVisible=async(visible:boolean)=>companionState(await nativeCall('set_companion_visible',{visible}))
+export const setCompanionPaused=async(paused:boolean)=>companionState(await nativeCall('set_companion_paused',{paused}))
+export const hideToTray=()=>nativeCall<void>('hide_main')

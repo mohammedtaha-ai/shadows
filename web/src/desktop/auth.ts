@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import {nativeCall as invoke} from './native';
 export type AuthView = {
   state: 'signed_out' | 'signed_in' | 'verification_refused' | 'unavailable' | 'device_revoked';
   hasEnrollment: boolean;
