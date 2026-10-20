@@ -221,6 +221,14 @@ The Context Compiler derives role-specific `AgentContext` from durable truth und
 
 Use SQLx official migration machinery.
 
+The first Windows profiles database applied migration 0029 with CRLF bytes
+before Git normalized the file to LF. When its recorded checksum exactly matches
+the CRLF variant of the embedded canonical 0029 SQL, supply that source to SQLx
+for validation. Do not rewrite the applied checksum or rerun the migration.
+Fresh databases use canonical LF. All other source/checksum differences still
+fail SQLx validation. `db/embedded_migrations.rs` owns this source selection;
+`tests/profile_migration.rs` covers preservation and strict refusal.
+
 The first migration contains only the first runnable milestone's durable
 requirements: project, planning thread, thread entry, operation, command record,
 runtime instance, and durable event data. Tables for Workflow, Task, Decision,

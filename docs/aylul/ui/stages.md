@@ -5,12 +5,14 @@ their task here and set its status. Task shape: [`AGENTS.md`](AGENTS.md#a-task-i
 
 ## Now
 
-2026-10-19: the human chose the Shadows web client, its settings and Shadows
-core for AYLUL ([brain design](../specs/2026-10-19-aylul-claude-code-brain-design.md)).
-The desktop workspace UI built in U-W1 to U-W4 is no longer the direction. Its
-code stays in `apps/desktop/` until the Shadows web client replaces it; its
-design, plan and mockups were deleted on 2026-10-19 and stay in Git at `226d0a3`.
-The character window keeps its own owner and is not affected.
+2026-10-20: the desktop main now packages the shared Shadows `web/` dashboard.
+Native account, activity and companion settings live in that main. The retired
+U-W1–U-W4 main UI and its conversation-source selector have been removed.
+Tasks 1–8 of the [desktop plan](../plans/2026-10-20-aylul-desktop-web-companion.md)
+are committed. Task 9 prepared the actual program on its existing database.
+Full automated gates and actual readiness passed. Mohammed performs the real
+assistant/native acceptance; he explicitly waived the final reviewer.
+See [evidence](../../evidence/aylul/2026-10-20-desktop-web-companion.md).
 
 ## Done
 

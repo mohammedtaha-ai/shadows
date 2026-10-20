@@ -1,0 +1,73 @@
+{
+  "activePresence": {
+    "expression": "success",
+    "preview": {
+      "expiresAtMs": 10000,
+      "id": "preview-1",
+      "text": "تم تجهيز الرد"
+    },
+    "status": "Reply ready"
+  },
+  "binding": {
+    "agent": "agent-a",
+    "configurationId": "00000000-0000-4000-8000-000000000001",
+    "generation": 2,
+    "previews": true,
+    "revision": 1,
+    "target": null
+  },
+  "companion": {
+    "error": null,
+    "paused": false,
+    "presence": {
+      "expression": "idle",
+      "preview": null,
+      "status": "Choose an agent"
+    },
+    "renderAllowed": false,
+    "revision": 0,
+    "visible": false
+  },
+  "destinations": [
+    {
+      "destination": {
+        "kind": "companionSettings"
+      },
+      "revision": 1
+    },
+    {
+      "destination": {
+        "agent": "agent-a",
+        "kind": "agentDraft"
+      },
+      "revision": 2
+    },
+    {
+      "destination": {
+        "kind": "conversation",
+        "projectId": "00000000-0000-4000-8000-000000000002",
+        "threadId": "00000000-0000-4000-8000-000000000003"
+      },
+      "revision": 3
+    }
+  ],
+  "target": {
+    "agent": "agent-a",
+    "configurationId": "00000000-0000-4000-8000-000000000001",
+    "generation": 3,
+    "previews": true,
+    "revision": 2,
+    "target": {
+      "projectId": "00000000-0000-4000-8000-000000000002",
+      "threadId": "00000000-0000-4000-8000-000000000003"
+    }
+  },
+  "unbound": {
+    "agent": null,
+    "configurationId": "00000000-0000-4000-8000-000000000001",
+    "generation": 1,
+    "previews": true,
+    "revision": 0,
+    "target": null
+  }
+}

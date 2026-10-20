@@ -1,0 +1,41 @@
+name: native-companion-binding
+version: 1
+status: current
+source: apps/desktop/src-tauri/src/presence
+responsibility: Observe the explicitly bound companion conversation without mutating Core.
+public_api:
+  PresenceWatcher::wait_ready: Bounded acknowledgement of the exact generation/configuration/thread after snapshot and caught-up; a failed setup never admits or replays a turn.
+  PresenceWatcher::replace/stop: One cancellable native read-only feed; binding/configuration/runtime guards are checked again at UI publication.
+  Projection::apply: Pure actual-status mapping; terminal states are monotonic; replay never celebrates.
+  reply_preview: CommonMark parsing with bounded plain-text extraction; no full reply is retained by the sanitizer.
+  snapshot: Revisioned credential-free BindingView or fixed preference error.
+  request: Capture verified ReadyConnection, binding generation and ordered explicit-action ticket.
+  select: Validate a live agent from the existing workspace API; changed selection clears target and advances generation.
+  retarget: Validate thread ID, project, AYLUL harness, selected profile and nonremoved status; latest explicit action wins.
+  previews: Persist the person's preview opt-in without conversation content.
+  configuration_changed: Clear prior selection before a changed Core configuration can become active.
+  destination: Resolve only CompanionSettings, AgentDraft or validated Conversation without creating a thread.
+obligations:
+  - rule: Preferences contain only configuration identity, agent, target IDs and previews; corrupted preferences are not silently overwritten.
+    tested_by: [binding_changes_clear_target_and_persist_without_content, corrupt_preferences_fail_without_silently_replacing_them]
+  - rule: Old generations and older explicit actions cannot replace newer binding state.
+    tested_by: [latest_explicit_retarget_wins_and_old_generation_is_rejected, database_change_invalidates_inflight_work_and_clears_selection]
+  - rule: Binding and navigation validation perform reads only against the captured runtime identity.
+    tested_by: [validation_rejects_deleted_unknown_and_wrong_thread, click_destination_is_closed_and_does_not_create_a_thread]
+  - rule: IPC projections are serialized by native code and consumed by JS parity tests.
+    tested_by: [write_presence_fixture, web/src/desktop/native-parity.test.ts]
+  - rule: Subscribe precedes snapshot; replay, duplicate seq, lagged/fatal, EOF, retarget and deletion cannot announce an old completion.
+    tested_by: apps/desktop/src-tauri/src/presence/watcher_tests.rs
+  - rule: Replayed durable frames before caught-up only advance the cursor; one snapshot reconciles them at caught-up.
+    tested_by: replayed_history_reconciles_once_at_caught_up
+  - rule: Read snapshots/liveness complete within 10 seconds; JSON is capped at 16 MiB and SSE input at 1 MiB; only reads retry.
+    tested_by: [oversized_history_and_sse_frames_fail_with_fixed_unavailable_state, sse_header_handshake_has_a_deadline_without_a_total_stream_timeout]
+  - rule: Ten failures without caught-up stop until explicit native Core Retry; metadata checks run every 10 seconds while bound.
+    tested_by: [ten_failures_without_caught_up_require_an_explicit_retry, missing_key_and_removed_target_are_discovered_by_read_only_liveness]
+  - rule: New live completion waits for the greatest matching final AgentMessage ordinal, never fork provenance, tool arguments or user messages.
+    tested_by: [terminal_before_final_entry_waits, fork_provenance_is_not_a_new_reply, greatest_matching_durable_ordinal_wins_and_disabled_previews_stay_empty]
+  - rule: Preview is at most 240 scalars, expires after eight seconds and repeated IDs cannot extend it; success lasts two seconds.
+    tested_by: [unicode_preview_is_bounded, hidden_expiry_does_not_revive_and_repeat_id_cannot_extend_it, state_table_uses_actual_operation_status_and_terminal_precedence]
+gaps:
+  - at: native Windows journey
+    gap: HTTP fixtures prove native feed behavior; actual hidden-main/character rendering acceptance belongs to Tasks 8 and 9.

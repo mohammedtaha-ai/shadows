@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-select-companion-agent"
+description = "Enables the select_companion_agent command without any pre-configured scope."
+commands.allow = ["select_companion_agent"]
+
+[[permission]]
+identifier = "deny-select-companion-agent"
+description = "Denies the select_companion_agent command without any pre-configured scope."
+commands.deny = ["select_companion_agent"]

@@ -64,7 +64,26 @@ enum Commands {
         /// JSON file with AYLUL's home_root section.
         #[arg(long, value_parser = parse_harness)]
         aylul_config: Option<PathBuf>,
+        /// Private launch receipt for the desktop runtime.
+        #[arg(long, requires = "desktop_configuration", value_parser = parse_record)]
+        desktop_record: Option<PathBuf>,
+        #[arg(long, requires = "desktop_record", value_parser = parse_configuration)]
+        desktop_configuration: Option<String>,
     },
+}
+
+fn parse_record(raw: &str) -> Result<PathBuf, String> {
+    let path = PathBuf::from(raw);
+    if path.is_absolute() {
+        Ok(path)
+    } else {
+        Err("desktop record path must be absolute".into())
+    }
+}
+fn parse_configuration(raw: &str) -> Result<String, String> {
+    uuid::Uuid::parse_str(raw)
+        .map(|id| id.to_string())
+        .map_err(|_| "configuration must be a UUID".into())
 }
 
 fn parse_origin(raw: &str) -> Result<String, String> {
@@ -106,6 +125,8 @@ impl Cli {
                 debug,
                 allow_origin,
                 aylul_config,
+                desktop_record,
+                desktop_configuration,
             } => {
                 let data_dir = config::data_dir(&db);
                 // Held until serve returns, so the file log is flushed.
@@ -119,6 +140,12 @@ impl Cli {
                     debug_log: log.as_ref().map(|l| l.path().to_path_buf()),
                     allowed_origins: allow_origin,
                     aylul_config,
+                    desktop_launch: desktop_record.zip(desktop_configuration).map(
+                        |(record_path, configuration_id)| crate::desktop_runtime::DesktopLaunch {
+                            record_path,
+                            configuration_id,
+                        },
+                    ),
                 })
                 .await
             }

@@ -223,6 +223,11 @@ An open stdin that never receives data costs a fixed stall on every turn.
 
 ### Managed-process containment invariant
 
+An independently launched desktop application daemon is not a managed harness
+child. Its explicit `shadows-process::spawn_persistent` path has the separate
+lifetime owned by [AYLUL desktop §5](../../aylul/specs/2026-10-20-aylul-desktop-web-companion-design.md#5-local-daemon-startup-and-connection).
+That path never launches a turn or changes the managed-child invariant below.
+
 A managed child process must not survive loss of its owning Shadows runtime
 indefinitely. `process/` owns this OS-level guarantee for the complete managed
 process tree, including grandchildren.

@@ -1658,6 +1658,7 @@
       "ErrorCode": {
         "description": "Stable codes clients pattern-match on. Never match on human text.\nSpec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.",
         "enum": [
+          "RUNTIME_NOT_CONFIGURED",
           "AYLUL_PROFILE_NOT_FOUND",
           "AYLUL_PROVIDER_NOT_FOUND",
           "PROVIDER_IN_USE",
@@ -3956,6 +3957,21 @@
           "status",
           "outdated",
           "created_at"
+        ],
+        "type": "object"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "configuration_id": {
+            "type": "string"
+          },
+          "runtime_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtime_id",
+          "configuration_id"
         ],
         "type": "object"
       },
@@ -9340,6 +9356,36 @@
         ]
       }
     },
+    "/api/runtime": {
+      "get": {
+        "operationId": "identity",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeIdentity"
+                }
+              }
+            },
+            "description": "The ready desktop runtime identity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "RUNTIME_NOT_CONFIGURED"
+          }
+        },
+        "tags": [
+          "meta"
+        ]
+      }
+    },
     "/api/subscribe": {
       "get": {
         "description": "Two live sources, both taken BEFORE a single journal row is read:\n\n- the storage's committed-sequence signal (spec §2.4: raised after each\n  commit that appended to the journal). A commit that lands while the\n  replay is being read shows up as a pending change, so it cannot fall into\n  the gap between the replay's last read and the live phase.\n- the transient bus, for what is never stored: deltas and turn ends;\n  and beside it the session's options and `plan_show`'s signals.\n\nDurable events reach the client only by reading the journal after\n`last_seq` — in the replay, and again on every signal change in the live\nphase — so each one is sent once, in sequence order, and de-duplication by\n`seq` is structural rather than left to the client. The bus's `Entry` items\nare therefore not forwarded: the same entry arrives as its durable\n`ThreadEntryAppended` event. Bus items for another thread are dropped.",
@@ -10704,7 +10750,7 @@
       "name": "filesystem"
     },
     {
-      "description": "This document",
+      "description": "Protocol document and runtime readiness",
       "name": "meta"
     }
   ]

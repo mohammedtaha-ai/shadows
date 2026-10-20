@@ -4,9 +4,13 @@ status: current
 source: apps/desktop/src-tauri/src/commands
 responsibility: Restrict native account and sidecar actions to main and companion navigation/readiness/drag actions to the owned local surface.
 public_api:
-  assistant_call: Require main; translate the closed Request with captured public account/session IDs through the protected account service on a blocking worker. No URL/key selector or account handle reaches the webview.
-  assistant_local_call: Require main; dispatch a closed local request with captured installation identity on a blocking worker.
-  assistant_sources: Require main; expose local installation identity without the connection capability.
+  companion_binding/select_companion_agent/target_companion_thread/set_companion_previews: Main-only configuration-scoped binding operations; validation reads precede mutation; target waits at most two seconds for scoped observer readiness and rechecks generation afterward.
+  navigation_snapshot/ack_navigation: Main-only closed pending navigation; exact revision acknowledgement.
+  desktop_connection: Main-only verified lifecycle projection.
+  desktop_connection_config: Main-only saved nonsecret path references.
+  save_desktop_connection: Main-only normalized configuration replacement with background startup.
+  retry_desktop_connection: Main-only explicit startup retry.
+  open_external: Main-only validated HTTP(S) link through OS browser.
   aylul_call: Require the main label; relay one listed method to the sidecar on a blocking worker; return its result or a stable code.
   auth_action: Require the main label; execute native auth on a blocking worker; return only View or a stable code.
   cancel_login: Require the main label; signal cancellation without waiting for the account worker.
@@ -18,7 +22,7 @@ public_api:
   set_companion_visible: Main-only visibility request through the native owner.
   set_companion_paused: Main-only pause request through the native owner.
   drag_companion: Companion-only native drag.
-  open_main_from_companion: Companion-only deliberate main navigation.
+  open_main_from_companion: Companion-only deliberate open at validated binding destination; pending request survives webview reload.
 external_types:
   - tauri::WebviewWindow
 obligations:

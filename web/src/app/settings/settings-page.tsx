@@ -2,6 +2,7 @@
 // belong to no one project, one section each. A new setting is one more
 // section here.
 
+import {NativeSettings} from '../desktop/native-settings'
 import { ActiveProjects } from './active-projects'
 
 export function SettingsPage() {
@@ -13,6 +14,7 @@ export function SettingsPage() {
           <p className="text-xs text-faint-foreground">For every project on this machine.</p>
         </header>
         <ActiveProjects />
+        <NativeSettings />
       </div>
     </div>
   )

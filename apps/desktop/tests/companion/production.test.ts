@@ -7,6 +7,7 @@ test("production includes companion and excludes studio modules and remote asset
   const chunks=new Map<string,{ids:string[];imports:string[]}>();
   const htmlFiles:string[]=[];
   const built = await build({
+    mode:"companion",
     logLevel: "silent",
     build: { write: false },
     plugins: [
@@ -37,7 +38,7 @@ test("production includes companion and excludes studio modules and remote asset
     ids.some((id) => id.endsWith("/companion/DesktopCompanion.tsx")),
     "production companion must be bundled",
   );
-  assert.ok(htmlFiles.includes('index.html')&&htmlFiles.includes('companion.html'),'both HTML entries must ship');
+  assert.ok(htmlFiles.includes('companion.html')&&!htmlFiles.includes('index.html'),'companion build is a separate entry');
   const companionChunk=[...chunks.entries()].find(([,chunk])=>chunk.ids.some(id=>id.endsWith('/app/companion.tsx')))?.[0];
   assert.ok(companionChunk);
   const visited=new Set<string>();const graph:string[]=[];

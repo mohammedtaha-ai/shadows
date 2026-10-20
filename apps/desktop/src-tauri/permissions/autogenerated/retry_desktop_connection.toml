@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-retry-desktop-connection"
+description = "Enables the retry_desktop_connection command without any pre-configured scope."
+commands.allow = ["retry_desktop_connection"]
+
+[[permission]]
+identifier = "deny-retry-desktop-connection"
+description = "Denies the retry_desktop_connection command without any pre-configured scope."
+commands.deny = ["retry_desktop_connection"]

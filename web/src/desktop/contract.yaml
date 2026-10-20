@@ -1,0 +1,37 @@
+name: desktop-main-runtime
+version: 1
+status: current
+source: web/src/desktop
+responsibility: Gate shared dashboard mounting on native verified Core readiness.
+public_api:
+  prepareDesktop: Subscribe before snapshot; show connection controls until ready; freeze verified origin before API modules load.
+  nativeCall: Desktop-only typed invocation; never called from browser startup.
+  saveConnection: Persist normalized configuration natively; changed configuration reloads main at Settings.
+  watchConnection: Reload main on configuration identity replacement.
+  authAction/cancelLogin: Existing account IPC with credential-free View; no chat-source selection.
+  getState/answerRequest/previewRule/approveRule/dismissRefusal/previewHooks/installHooks: Narrow sidecar method wrappers.
+  connectCompanion/setCompanionVisible/setCompanionPaused: Subscribe-before-snapshot native presentation state; latest revision wins.
+  hideToTray: Preserve native hide failure as a rejected promise.
+obligations:
+  - rule: Browser startup mounts without invoking native; desktop sends no API calls before readiness.
+    tested_by: web/src/desktop/bootstrap.test.tsx
+  - rule: Older revisions cannot win over events observed before snapshot.
+    tested_by: web/src/desktop/bootstrap.test.tsx
+  - rule: A failed launch waits for explicit Retry.
+    tested_by: web/src/desktop/bootstrap.test.tsx
+
+binding:
+  BindingView: Native revision/generation/configurationId/agent/target/previews; actual Rust fixture owns IPC parity.
+  connectBinding: Subscribe before snapshot; stale revisions and disposed replies are ignored.
+  selectCompanionAgent/targetCompanionThread/setCompanionPreviews: Main-only explicit native mutations.
+navigation:
+  parseNavigation: Accept only three closed native destination kinds with validated identities.
+  connectNavigation: Listen before snapshot, wait for router readiness, acknowledge only an applied revision.
+
+presence_projection:
+  parsePresence: Validate actual native serialized expression/status/preview bounds; listening is not a presence state.
+  fixture: web/src/test/native-presence.json is regenerated only by write_presence_fixture with UPDATE_NATIVE_FIXTURES=1.
+
+companion_send:
+  noteCompanionSend: Capture selected-agent generation, validate the existing thread profile and attempt native targeting; report a fixed independent issue without throwing into ordinary Send/Queue.
+  useCompanionSendProblem: Read the current thread's binding issue from an in-memory external store.

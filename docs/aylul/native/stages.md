@@ -5,10 +5,16 @@ their task here and set its status. Task shape: [`AGENTS.md`](AGENTS.md#a-task-i
 
 ## Now
 
-2026-10-19: AYLUL's brain moves to Claude Code run by Shadows core in the same
-product daemon ([brain design](../specs/2026-10-19-aylul-claude-code-brain-design.md)).
-Its plan and tasks come next. The Hermes work below is done and stays in the
-code; it is no longer the direction.
+2026-10-20: native now starts or verifies the configured local Core, retains its
+process across desktop Quit, hosts the shared dashboard and observes one bound
+AYLUL conversation independently of main. The full native gate passed (80 tests,
+2 ignored). Actual-profile startup now reuses the physical database behind
+Claude Windows path virtualization, preserving provider m and agent ay. A narrow
+SQLx source compatibility fix accepts its original CRLF migration 29 without
+rewriting its record. Mohammed performs provider/tray acceptance and waived
+the final reviewer. See the
+[desktop plan](../plans/2026-10-20-aylul-desktop-web-companion.md) and
+[evidence](../../evidence/aylul/2026-10-20-desktop-web-companion.md).
 
 Done and kept: the product daemon with a local Hermes assistant (D-H1, evidence
 [2026-10-19 local daemon delivery](../../evidence/aylul/2026-10-19-product-daemon-hermes.md))

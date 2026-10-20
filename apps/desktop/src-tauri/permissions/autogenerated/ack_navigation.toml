@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ack-navigation"
+description = "Enables the ack_navigation command without any pre-configured scope."
+commands.allow = ["ack_navigation"]
+
+[[permission]]
+identifier = "deny-ack-navigation"
+description = "Denies the ack_navigation command without any pre-configured scope."
+commands.deny = ["ack_navigation"]

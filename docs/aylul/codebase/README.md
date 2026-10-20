@@ -1,22 +1,30 @@
 # Inspected source map
 
-Updated: 2026-10-19 (normal conversation). Paths below are relative to the
+Updated: 2026-10-20 (shared dashboard and bound companion). Paths below are relative to the
 Shadows repository root. Desktop, hook and sidecar retain independent builds;
-no AYLUL module was added to AppCore. Main and independent companion Windows surfaces with a native
-backend login/conversation consumer, Claude Code hook and local sidecar. Mobile
-and semantic project-context integration remain future paths.
+no AYLUL module was added to AppCore. The main Windows surface hosts `web/`;
+native owns verified Core startup and the independent companion watcher.
+Account login, the Claude Code hook and local sidecar remain native functions.
+Mobile and semantic project-context integration remain future paths.
 
 | Source | Owned job | Contract |
 | --- | --- | --- |
+| `apps/desktop/src-tauri/src/presence/` | Configuration-scoped companion presence | Colocated `contract.yaml` |
+| `apps/desktop/src-tauri/src/navigation.rs` | Closed pending main navigation | `docs/aylul/shared/requests/2026-10-20-companion-binding-presence.md` |
+| `apps/desktop/src-tauri/src/app_paths.rs` | Native storage location | Existing identifier; isolated debug acceptance override |
+| `apps/desktop/src-tauri/src/core_connection/` | Verified local Core lifecycle | Colocated `contract.yaml` |
+| `apps/desktop/src-tauri/src/windows/main_policy.rs` | Shared main response policy | Windows contract |
+| `web/src/desktop/` | Shared dashboard native boundary | Colocated `contract.yaml` |
+| `web/src/app/desktop/` | Native account/activity/character settings | Colocated `contract.yaml` |
+| `apps/desktop/src/studio.tsx` | Separate development character studio | Character studio contract; absent from production inputs |
+| `apps/desktop/scripts/` | Shared desktop asset assembly | `apps/desktop/tests/desktop-build.test.mjs` |
 | `packages/hermes-client/` | Portable native Hermes TypeScript HTTP transport consumed as a packed artifact | Colocated `contract.yaml` |
 | `services/assistant/` | Persistent installation-scoped local assistant application | Colocated `contract.yaml` |
-| `apps/desktop/src/features/assistant/` | Source-scoped conversation hook, sidebar, view, bot list and read-only details with visible-panel snapshot polling | Colocated `contract.yaml` |
-| `apps/desktop/src-tauri/src/assistant/` | Closed native assistant operations through captured local installation or remote account routing | Colocated `contract.yaml` |
+| `apps/desktop/src-tauri/src/assistant/` | Retained native assistant service primitives without main IPC registration | Colocated `contract.yaml` |
 | `apps/desktop/src/api/generated/` | Backend-generated wire artifacts and input hash | Backend TypeBox owner; `provenance.json` |
-| `apps/desktop/src/app/` | Main workspace presentation with explicit assistant source selection | Colocated `contract.yaml` |
-| `apps/desktop/src/platform/` | Typed native invocation wrappers | Colocated `contract.yaml` |
-| `apps/desktop/src/features/` | Local sessions and requests presentation with person actions | Colocated `contract.yaml`; excludes separately owned assistant, companion and studio |
-| `apps/desktop/src/data/aylul-state.ts` | Refresh local sidecar state while the panel is visible | Features contract; presentation polling |
+| `apps/desktop/src/app/` | Independent companion entry | Colocated `contract.yaml` |
+| `apps/desktop/src/platform/` | Typed companion invocation wrappers | Colocated `contract.yaml` |
+| `apps/desktop/src/features/companion/native-presentation.ts` | Absolute-expiry native reply presentation | Companion contract |
 | `apps/desktop/src/features/companion/` | Compact desktop character/gestures plus reusable presence, procedural Canvas renderer and explicit drawing permission | Colocated `contract.yaml`; excludes separately owned studio |
 | `apps/desktop/src/features/companion/studio/` | Development-only scenes, controlled simulations and PNG export | Colocated `contract.yaml`; excluded from parent scope |
 | `apps/desktop/src-tauri/src/lib.rs` | Compose native companion and sidecar lifetime | Composition only; behavior owned below |

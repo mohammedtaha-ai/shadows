@@ -7,6 +7,7 @@ responsibility: >
   actions and recover an inaccessible title bar when an explicit open occurs.
   The companion subdirectory has its own contract and is excluded from this owner.
 public_api:
+  build: Load the shared local dashboard with the configured endpoint in response CSP; reject remote navigation and new windows.
   setup: Build main, close-to-tray handler, left-click open, Open/Show-or-Hide-AYLUL/Quit menu and Ctrl+Alt+Shift+F12; start the separately owned companion without propagating its failure.
   open_main: Unminimize/show; fit inner size to physical work area accounting for frame; recover inaccessible origin; focus after deliberate user action.
   recover_origin: Leave a usable title bar unchanged; otherwise clamp origin within the first available work area.

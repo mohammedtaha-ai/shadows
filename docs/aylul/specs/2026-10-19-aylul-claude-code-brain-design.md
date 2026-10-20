@@ -26,7 +26,8 @@ the same problems the first Shadows UI had:
 Shadows core already streams a turn's events to its web client and offers the
 harness's models, efforts and modes (`shadows-agent` `SessionChoices`). So
 AYLUL reuses Shadows core, its web client and its settings, with Claude Code as
-the brain. The only new presentation work left is the character.
+the brain. The remaining desktop packaging and character-to-agent connection
+are owned by [the desktop and companion design](2026-10-20-aylul-desktop-web-companion-design.md).
 
 The brain must stay independent: if Mohammed's own Claude subscription hits
 its limit, AYLUL keeps working on its own provider and key.

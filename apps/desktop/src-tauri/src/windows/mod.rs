@@ -1,6 +1,7 @@
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::Manager;
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 pub mod companion;
+mod main_policy;
 mod placement;
 
 // Foreground activation is reserved for explicit tray, shortcut and launch actions.
@@ -43,11 +44,7 @@ pub fn open_main(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
 }
 
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let w = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
-        .title("NYLRA")
-        .inner_size(720., 640.)
-        .min_inner_size(400., 400.)
-        .build()?;
+    let w = main_policy::build(app)?;
     let h = w.clone();
     w.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { api, .. } = event {

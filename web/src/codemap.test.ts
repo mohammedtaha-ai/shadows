@@ -19,7 +19,7 @@ interface Row {
   reference: string
 }
 
-const mapText = readFileSync(mapPath, 'utf8')
+const mapText = readFileSync(mapPath, 'utf8').replace(/\r\n/g, '\n')
 
 /** Rows of the ownership table: lines that start `| \`web/src/`. */
 function parseRows(text: string): Row[] {

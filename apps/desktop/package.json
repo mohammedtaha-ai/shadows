@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run build:desktop",
     "test": "node --test \"tests/*.test.*\"",
     "test:companion:browser": "playwright test",
     "test:companion:unit": "node --test tests/companion/model.test.ts tests/companion/geometry.test.ts tests/companion/scheduler.test.ts tests/companion/messages.test.ts tests/companion/contracts.test.ts tests/companion/native-state.test.ts tests/companion/desktop-gesture.test.ts",
-    "test:companion:production": "node --test tests/companion/production.test.ts"
+    "test:companion:production": "node --test tests/companion/production.test.ts",
+    "build:desktop": "node scripts/build-desktop.mjs",
+    "build:companion": "tsc --noEmit && vite build --mode companion"
   },
   "dependencies": {
     "@tauri-apps/api": "2.11.0",

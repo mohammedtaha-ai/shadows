@@ -1,2 +1,8 @@
 import {defineConfig} from 'vite';
-export default defineConfig({build:{rollupOptions:{input:{main:'index.html',companion:'companion.html'}}}});
+export default defineConfig(()=>({
+  base:'./',
+  build:{
+    outDir:'companion-dist',
+    rollupOptions:{input:{companion:'companion.html'}},
+  },
+}));

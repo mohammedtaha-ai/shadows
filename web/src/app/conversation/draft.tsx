@@ -17,6 +17,7 @@ import {
 } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { harnessesQuery, planVersionsQuery, plansQuery, projectsQuery, threadsQuery } from '@/api/queries'
+import {noteCompanionSend} from '@/desktop/companion-send'
 import { tabId } from '@/stream/tab-id'
 import { agentsQuery, providersQuery, agentThreadsQuery, type Provider } from '@/api/aylul-profiles'
 import { ErrorLine } from '../error-line'
@@ -212,6 +213,7 @@ function useFirstSend(projectId: string, harness: string, planId?: string, profi
     const request = { title: DRAFT_TITLE, harness, ...(profile === undefined ? {} : { profile }) }
     create.current = attemptFor(create.current, request)
     const thread = await createThread(projectId, { ...request, command_id: create.current.commandId })
+    await noteCompanionSend(thread.id)
     void queryClient.invalidateQueries({ queryKey: threadsQuery(projectId).queryKey })
     if (profile !== undefined) void queryClient.invalidateQueries({ queryKey: agentThreadsQuery(profile).queryKey })
     const open = async () => {

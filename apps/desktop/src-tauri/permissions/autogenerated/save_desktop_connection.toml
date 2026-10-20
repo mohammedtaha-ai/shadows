@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-save-desktop-connection"
+description = "Enables the save_desktop_connection command without any pre-configured scope."
+commands.allow = ["save_desktop_connection"]
+
+[[permission]]
+identifier = "deny-save-desktop-connection"
+description = "Denies the save_desktop_connection command without any pre-configured scope."
+commands.deny = ["save_desktop_connection"]

@@ -20,7 +20,7 @@ async fn no_get_route_changes_state() {
         }),
         ..acp::test_config()
     };
-    let a = app::test_app_with(tmp.path(), config, acp::MCP_URL)
+    let mut a = app::test_app_with(tmp.path(), config, acp::MCP_URL)
         .await
         .owning(tmp);
     a.core
@@ -139,6 +139,16 @@ async fn no_get_route_changes_state() {
     let mut observer = shadows_core::testing::database_writes(&a.storage)
         .await
         .unwrap();
+    let (status, body) = app::call(&a, "GET", "/api/runtime", None).await;
+    assert_eq!(status, 404, "plain Core has no desktop metadata");
+    assert_eq!(body["code"], "RUNTIME_NOT_CONFIGURED");
+    a.router = a
+        .router
+        .clone()
+        .layer(axum::Extension(shadows_http::RuntimeIdentity {
+            runtime_id: "00000000-0000-4000-8000-000000000303".into(),
+            configuration_id: "00000000-0000-4000-8000-000000000301".into(),
+        }));
     // Prove the detector sees UPDATEs with unchanged row counts.
     let before = observer.version().await.unwrap();
     sqlx::query("UPDATE project SET name='Updated' WHERE id=?")

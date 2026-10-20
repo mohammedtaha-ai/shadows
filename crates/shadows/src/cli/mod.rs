@@ -12,6 +12,11 @@ use shadows_http::AppState;
 /// Binds, prints exactly one address, and serves. Spec §1.0: it never opens a
 /// browser. The user chooses which browser to use.
 pub async fn serve(config: Config) -> anyhow::Result<()> {
+    let desktop = config
+        .desktop_launch
+        .as_ref()
+        .map(|launch| crate::desktop_runtime::DesktopRuntime::claim(launch, config.bind))
+        .transpose()?;
     // Bound first (§14.4): a grant's `claude mcp add` names the address
     // actually bound, which differs from `config.bind` when that asks for port
     // 0, and every Planner session opens with that `/mcp` (§13.8). A daemon
@@ -45,7 +50,11 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {
         core: core.clone(),
-        allowed_origins: config.allowed_origins.clone(),
+        allowed_origins: if desktop.is_some() {
+            crate::desktop_runtime::DesktopRuntime::allowed_origins(config.allowed_origins.clone())
+        } else {
+            config.allowed_origins.clone()
+        },
         shutdown,
     };
 
@@ -58,7 +67,12 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     // The listener keeps accepting until this future returns — axum stops
     // accepting only then — so a turn requested meanwhile is refused by the
     // closed registry, not by the socket.
-    axum::serve(listener, router(state))
+    let mut routes = router(state);
+    if let Some(desktop) = &desktop {
+        desktop.publish(addr, &config.db_path)?;
+        routes = routes.layer(axum::Extension(desktop.identity()));
+    }
+    axum::serve(listener, routes)
         .with_graceful_shutdown(async move {
             if let Err(error) = tokio::signal::ctrl_c().await {
                 // Without a signal there is no way to be asked to stop, and

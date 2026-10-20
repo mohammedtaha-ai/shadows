@@ -38,6 +38,7 @@ shapes:
 # ── external types ───────────────────────────────────────────────────────────────
 
 external:
+  Desktop: "Native-only Local activity link and Hide to tray; failures shown locally"
   Project: "web/src/api/client; id, slug, name, directory"
   PlanningThread: "web/src/api/client; id, project_id, title, removed_at"
   PlanListing: "web/src/api/client; id, plan_id, plan_state, title, state, version"

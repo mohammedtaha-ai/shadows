@@ -1,3 +1,6 @@
+mod persistent;
+pub use persistent::{ProcessIdentity, inspect_process, spawn_persistent};
+
 use std::io;
 use std::path::PathBuf;
 use std::process::Stdio;

@@ -35,6 +35,8 @@ mod openapi;
 mod project;
 mod queue;
 mod roadmap;
+mod runtime;
+pub use runtime::RuntimeIdentity;
 pub mod sse;
 mod thread;
 mod workflow;
@@ -129,6 +131,7 @@ pub fn router(state: AppState, mcp: Router) -> Router {
 /// or miss one it has. Each `routes!` groups the methods of one path.
 fn routes() -> OpenApiRouter<AppState> {
     OpenApiRouter::with_openapi(openapi::base())
+        .routes(routes!(runtime::identity))
         .routes(routes!(
             aylul_profiles::providers,
             aylul_profiles::create_provider

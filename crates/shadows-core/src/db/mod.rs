@@ -13,6 +13,7 @@ use tokio::sync::{Mutex, watch};
 
 pub(crate) mod approval;
 mod command;
+mod embedded_migrations;
 mod error;
 mod journal;
 #[cfg(feature = "test-support")]
@@ -83,7 +84,10 @@ impl Storage {
             .connect_with(opts.clone())
             .await?;
 
-        sqlx::migrate!("./migrations").run(&read).await?;
+        embedded_migrations::for_database(&read)
+            .await?
+            .run(&read)
+            .await?;
 
         let write = SqliteConnection::connect_with(&opts).await?;
         let highest: Option<i64> = sqlx::query_scalar(MAX_SEQ).fetch_one(&read).await?;

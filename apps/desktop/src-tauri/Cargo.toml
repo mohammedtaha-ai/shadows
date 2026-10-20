@@ -18,11 +18,22 @@ tauri-macros = "=2.6.3"
 tauri-codegen = "=2.6.3"
 tauri-utils = "=2.9.3"
 serde_json = "1"
+dunce = "1"
+pulldown-cmark = "=0.13.4"
+eventsource-stream = "=0.2.3"
+futures-util = "0.3"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "net"] }
+shadows-process = { path = "../../../crates/shadows-process" }
+uuid = { version = "1", features = ["v4", "v5"] }
 
 sha2 = "=0.10.9"
 base64 = "=0.22.1"
 url = "=2.5.8"
 windows-sys = { version = "=0.61.2", features = ["Win32_Security_Cryptography", "Win32_Foundation", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_Storage_FileSystem"] }
-reqwest = { version = "=0.12.28", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+reqwest = { version = "=0.12.28", default-features = false, features = ["blocking", "json", "rustls-tls", "stream"] }
 serde = { version = "1.0.229", features = ["derive"] }
 [workspace]
+
+[dev-dependencies]
+tempfile = "3.27"
+axum = "0.8"

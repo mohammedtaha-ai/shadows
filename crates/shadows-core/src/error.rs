@@ -8,6 +8,8 @@ use crate::turns::StartError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
+    /// Desktop identity was not configured; HTTP readiness only.
+    RuntimeNotConfigured,
     AylulProfileNotFound,
     AylulProviderNotFound,
     ProviderInUse,

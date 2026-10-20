@@ -10,7 +10,15 @@ Shadows web client. Hermes is no longer AYLUL's brain. Order of work: brain,
 work profile (watching agents through hooks), personal profile, voice; remote
 alerts later.
 
-- [Brain design](specs/2026-10-19-aylul-claude-code-brain-design.md): the active design.
+- [Brain design](specs/2026-10-19-aylul-claude-code-brain-design.md): the brain, providers and agents.
+- [Desktop and companion design](specs/2026-10-20-aylul-desktop-web-companion-design.md):
+  approved shared web main, automatic local Core startup and a character bound
+  to a changeable agent.
+- [Desktop implementation plan](plans/2026-10-20-aylul-desktop-web-companion.md):
+  packaged dashboard, retained native functions and agent-bound presence;
+  Tasks 1–9 implemented with passed local gates and actual-profile readiness.
+  Mohammed performs the assistant/native journey; final reviewer waived
+  ([evidence](../evidence/aylul/2026-10-20-desktop-web-companion.md)).
 - [Isolated-home probe](../evidence/aylul/2026-10-19-claude-code-isolated-home.md): its measured facts.
 - [Vision](vision.md): the full product idea. Decides nothing.
 - [Laptop hook design](specs/2026-10-13-aylul-hook-laptop-design.md): what AYLUL learns from Claude Code on the laptop.
@@ -21,6 +29,6 @@ alerts later.
 Superseded documents (the Hermes brain, the NYLRA transition, the desktop
 workspace UI, older delivery plans) were deleted on 2026-10-19 and stay in Git
 history at `feat/agent-workspace` commit `226d0a3`. The workspace UI code
-(U-W1 to U-W4) is still in `apps/desktop/` until the Shadows web client
-replaces it. Dated evidence stays under `docs/evidence/aylul/` and
-`docs/evidence/nylra/`.
+(U-W1 to U-W4) has been replaced by the shared `web/` dashboard under the
+approved desktop and companion design above. Dated
+evidence stays under `docs/evidence/aylul/` and `docs/evidence/nylra/`.
