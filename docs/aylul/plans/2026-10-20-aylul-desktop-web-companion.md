@@ -8,7 +8,7 @@
 
 **Tech Stack:** Existing React/TanStack/Vite, Tauri 2.11.5, Rust, axum/utoipa, reqwest; add `eventsource-stream = "=0.2.3"` as SSE infrastructure in the native workspace.
 
-**Spec:** [Approved design](../specs/2026-10-20-aylul-desktop-web-companion-design.md), especially §§5, 7–9. Mohammed approved preparing this plan on 2026-10-20. Plan review is still required before execution.
+**Spec:** [Approved design](../specs/2026-10-20-aylul-desktop-web-companion-design.md), especially §§5, 7–9. Mohammed approved inline execution and a final same-model review on 2026-10-20. Execution is in progress.
 
 ## Global Constraints
 
@@ -98,10 +98,10 @@ Record packaged reload/missing-asset behavior and dashboard layout/font/inline-s
 **Interfaces:**
 - Existing `spawn(ProcessSpec) -> io::Result<ProcessHandle>` is unchanged.
 - Produce `spawn_persistent(spec: ProcessSpec) -> io::Result<ProcessIdentity>` and `inspect_process(pid: u32) -> io::Result<Option<ProcessIdentity>>`.
-- `ProcessIdentity { pid: u32, started_at: u64, executable: PathBuf }`; creation time and image come from the OS, not the caller.
+- `ProcessIdentity { pid: u32, started_at: u64, executable: PathBuf }`; creation time and image come from the OS, not the caller. `is_current(&self) -> io::Result<bool>` centralizes instance comparison for the native receipt consumer.
 - Persistent launch requires both pipe flags false, null stdio, explicit environment, hidden Windows startup and no kill-on-drop containment. It has no turn or harness policy.
 
-- [ ] **Step 1:** Add process-fixture tests with these assertions:
+- [x] **Step 1:** Add process-fixture tests with these assertions:
 
 ~~~rust
 assert_eq!(reported_args, ["C:\\Work Space\\عربي", "& literal"]);
@@ -113,10 +113,10 @@ assert_ne!(identity.started_at, reused_pid_creation_time);
 
 Tests: `persistent_child_survives_launcher_exit`, `persistent_launch_keeps_argument_boundaries`, `persistent_launch_has_explicit_environment`, `persistent_launch_rejects_pipes`, `process_identity_rejects_reused_pid`. Use the existing test-only tree_probe, reporting arguments/allowlisted environment through an owned JSON fixture file rather than piped stdio; explicitly terminate only the fixture PID after assertions.
 
-- [ ] **Step 2:** Run `cargo test -p shadows-process --test persistent`; expected RED for the absent API.
-- [ ] **Step 3:** Implement the persistent path separately from `spawn`; use existing OS/process infrastructure. Add the narrow top-level daemon exception to the indexed §1.5 owner; no harness may call it.
-- [ ] **Step 4:** Run `cargo test -p shadows-process --test persistent --test containment` and `cargo test -p shadows --test codemap`; expected PASS, including existing kill-on-owner-close tests.
-- [ ] **Step 5:** Commit `feat(process): explicit persistent local daemon launch`.
+- [x] **Step 2:** Run `cargo test -p shadows-process --test persistent`; expected RED for the absent API.
+- [x] **Step 3:** Implement the persistent path separately from `spawn`; use existing OS/process infrastructure. Add the narrow top-level daemon exception to the indexed §1.5 owner; no harness may call it.
+- [x] **Step 4:** Run `cargo test -p shadows-process --test persistent --test containment` and `cargo test -p shadows --test codemap`; expected PASS, including existing kill-on-owner-close tests.
+- [x] **Step 5:** Commit `feat(process): explicit persistent local daemon launch`.
 
 ### Task 3: Core runtime identity, private receipt and exact native origin
 
@@ -187,7 +187,7 @@ expect(unknownAssetResponseIsHtml).toBe(false)
 Also assert one failed launch remains failed until Retry; Arabic/spaced paths reach the executable unchanged; native reload restores a thread route; companion entry/ACL still work.
 
 - [ ] **Step 3:** Run `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml connection_tests`, `npm --prefix web test -- desktop/bootstrap`, and `node --test apps/desktop/tests/desktop-build.test.mjs`; expected RED.
-- [ ] **Step 4:** Implement a private startup lock, receipt verification and Task 2's persistent launcher. `AppPaths` defaults to the existing app-data location/identifier. A debug-only `--acceptance-root <absolute existing directory>` selects isolated native preference/auth paths; release code has no such override. Fixture drivers must not install hooks or change personal sidecar state, and must clean only their owned processes after lifetime assertions. Allowlist required OS/home/PATH environment values explicitly; never inherit provider-token variables. Do not add Core/AppCore as a native dependency.
+- [ ] **Step 4:** Implement a private startup lock, receipt verification and Task 2's persistent launcher. `AppPaths` defaults to the existing app-data location/identifier. A debug-only `--acceptance-root <absolute existing directory>` selects isolated native preference/auth paths and per-window webview data directories; release code has no such override. Fixture drivers must not install hooks or change personal sidecar state, and must clean only their owned processes after lifetime assertions. Allowlist required OS/home/PATH environment values explicitly; never inherit provider-token variables. Do not add Core/AppCore as a native dependency.
 - [ ] **Step 5:** Implement bootstrap/connection screen, build assembly, hash history and main policy from the measured probe. Use Tauri's local-response CSP hook for the exact selected endpoint, keep native IPC sources, block remote navigation/new windows, and open deliberate validated HTTP(S) external links through a main-only `open_external` command. Saving a changed connection detaches old work and fully reloads main at Settings; old query results/drafts cannot enter the new DB context.
 - [ ] **Step 6:** Run focused tests above, `npm --prefix web run typecheck`, `npm --prefix web run lint`, `npm --prefix apps/desktop run build:desktop`, and native ACL tests. Start the assembled debug application against an isolated real Core/fake-ACP fixture; create an AYLUL conversation, send once, see streamed text and reload the same thread. Record this as synthetic adapter acceptance.
 - [ ] **Step 7:** Commit `feat(desktop): launch Core and load the shared dashboard`.
@@ -365,7 +365,7 @@ find crates -name '*.rs' -not -path '*/target/*' -print0 \
 
 ## Execution notes and technical references
 
-Do not run this plan before review. Its first task intentionally supplies a measured origin rather than a guessed constant. If that changes the selected architecture, return to the spec; otherwise continue inline in task order.
+Execution was approved on 2026-10-20. Its first task intentionally supplies a measured origin rather than a guessed constant. If that changes the selected architecture, return to the spec; otherwise continue inline in task order.
 
 - [Tauri 2.11.5 local-resource response policy](https://docs.rs/tauri/2.11.5/tauri/webview/struct.WebviewWindowBuilder.html#method.on_web_resource_request): supports modifying local application responses; the probe must establish Windows behavior.
 - [TanStack history types](https://tanstack.com/router/latest/docs/framework/react/guide/history-types): use hash history for the packaged main without changing browser routes.

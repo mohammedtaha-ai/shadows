@@ -15,6 +15,11 @@ workspace = true
 process-wrap = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_System_Threading"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
@@ -31,9 +36,10 @@ required-features = ["test-support"]
 # Compiles in `ProcessHandle::force_termination_failure`, a hook that makes
 # the next `terminate_tree` fail. Enabled for `cargo test` only via the self
 # dev-dependency below, and by `shadows`' own `test-support`; never a default.
-test-support = []
+test-support = ["dep:serde_json"]
 
 [dev-dependencies]
+tempfile = { workspace = true }
 # Enables `test-support` for integration tests (tests/*.rs) without turning
 # it on for `cargo build` or `cargo run`.
 shadows-process = { path = ".", features = ["test-support"] }

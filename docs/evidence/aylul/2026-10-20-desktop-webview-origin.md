@@ -69,6 +69,8 @@ Common Controls v6 functions. Linking that same resource into the example
 resolved the loader failure; the successful probe was rerun without warnings.
 The probe-only hook and sources are removed after this evidence.
 
-Owned Core/native test processes were stopped after each run. No personal
-database/configuration, application process or hook installation was changed.
-The normal web build retains its existing large-chunk warning.
+Owned Core/native test processes were stopped after each run. No personal Core
+database, provider configuration, account action or hook installation was used.
+The probe used the normal Tauri webview cache; final acceptance must additionally
+isolate webview user data through its explicit acceptance root. The normal web
+build retains its existing large-chunk warning.

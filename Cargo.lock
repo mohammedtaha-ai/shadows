@@ -2908,9 +2908,13 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "process-wrap",
+ "serde",
+ "serde_json",
  "shadows-process",
+ "tempfile",
  "tokio",
  "tracing",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
