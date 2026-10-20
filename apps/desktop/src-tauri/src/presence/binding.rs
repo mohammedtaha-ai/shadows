@@ -31,6 +31,8 @@ pub struct Workspace {
 pub struct Agent {
     pub slug: String,
     pub deleted: bool,
+    #[serde(default)]
+    pub default_model: Option<String>,
 }
 #[derive(Deserialize)]
 pub struct Thread {

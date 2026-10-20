@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **Branch:** `codex/aylul-companion-text-input`. Commit once per task, stage files by name, never commit `.mcp.json`. No push and no PR until Mohammed says so.
-- **No Core change:** no Rust change under `crates/`, and no new endpoint. `api/openapi.json` stays unchanged.
+- **No Core change:** no Rust change under `crates/`, and no new endpoint. `api/openapi.json` stays unchanged. The existing native serializer regenerates only `web/src/test/native-presence.json` to include the composer projection; web product code stays unchanged.
 - **Companion source stays in `apps/desktop/src`:** it imports nothing from `web/`, and the renderer makes no `fetch`.
 - **Size:** about 296 logical px wide; the input strip is 80 logical px high. Character and bubble keep their scale. No sidebar, transcript, header, voice or conversation picker.
 - **Defaults and keys:**
@@ -189,7 +189,7 @@
 - Errors are matched on `ErrorBody.code` only; `message` is never logged or returned.
 - After a successful commit, the watcher follows through the existing notifier. Step 7 does not wait on it.
 
-- [ ] **Step 1: Write the failing fixture tests** in `send_tests.rs`. Reuse the `Api` pattern from `binding_tests.rs`, extended so it records each request's method, path and JSON body, and answers from a script:
+- [x] **Step 1: Write the failing fixture tests** in `send_tests.rs`. Reuse the `Api` pattern from `binding_tests.rs`, extended so it records each request's method, path and JSON body, and answers from a script:
   - `first_send_creates_binds_opens_and_starts_in_order`:
     - Called with no target.
     - The recorded paths are exactly `POST /api/projects/P/threads`, `POST /api/threads/T/session`, `PUT /api/threads/T/session/model`, `POST /api/threads/T/turns`, among the GET reads.
@@ -229,12 +229,12 @@
     - The response's `message` string never appears in any `Err` value.
   - `removed_target_is_reported_not_replaced`: when the bound thread has `removed_at` set, the send gives `companion_thread_invalid`. No create POST is made, and the target is unchanged.
   - `invalid_submissions_send_nothing`: empty, whitespace-only and 32 769-byte text, and a non-UUID id. Each gives `companion_send_invalid` with no request at all.
-- [ ] **Step 2: Run** `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml presence::send`. Expected: FAIL, unresolved `send`.
-- [ ] **Step 3: Implement `send.rs`** as described above.
+- [x] **Step 2: Run** `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml presence::send`. Expected: FAIL, unresolved `send`.
+- [x] **Step 3: Implement `send.rs`** as described above.
   - Store the two tokens in `Presence`'s `Model`. Reissue them inside `commit`, `select`, `previews` and `configuration_changed`.
   - Make the HTTP timeouts a field that a test can set.
-- [ ] **Step 4: Run** the Step 2 command, then `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml presence`, so the existing binding and watcher tests stay green. Expected: PASS.
-- [ ] **Step 5: Update `presence/contract.yaml`.**
+- [x] **Step 4: Run** the Step 2 command, then `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml presence`, so the existing binding and watcher tests stay green. Expected: PASS.
+- [x] **Step 5: Update `presence/contract.yaml`.**
   - Replace the `responsibility` wording "without mutating Core" with: "Observe the bound conversation; mutate Core only for an explicit companion submission."
   - Add `send` and `context` to `public_api`.
   - Add obligations naming the twelve tests above.
@@ -330,7 +330,7 @@
   5. `npm --prefix apps/desktop run build:desktop`
 
   Expected: every one exits 0. Record the test counts.
-- [ ] **Step 2: Root gate,** steps 1–5 of `CLAUDE.md`. Core is unchanged, so a pass here proves the branch did not touch it. Also check that `git diff --exit-code main -- crates api web` is empty.
+- [ ] **Step 2: Root gate,** steps 1–5 of `CLAUDE.md`. Core is unchanged, so a pass here proves the branch did not touch it. Also check that `git diff --exit-code main -- crates api` and `git diff --exit-code main -- web ":(exclude)web/src/test/native-presence.json"` are empty.
 - [ ] **Step 3: Rebuild the program under test** with Task 1 Step 5's two commands, run one after the other once the gate has finished. Expected: a fresh `nylra-desktop.exe`.
 - [ ] **Step 4: Native acceptance** on the actual program and the existing database, run with the extended `windows-companion.ps1`. It reruns Task 1's window-focus probe, plus:
   - **Typing, now that the input exists:**

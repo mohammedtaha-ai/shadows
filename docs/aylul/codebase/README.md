@@ -9,6 +9,8 @@ Mobile and semantic project-context integration remain future paths.
 
 | Source | Owned job | Contract |
 | --- | --- | --- |
+| `apps/desktop/src-tauri/src/presence/send.rs` | Explicit companion submission admission | Presence contract |
+| `apps/desktop/src-tauri/src/presence/send_tests.rs` | Submission HTTP fixture checks | Presence contract |
 | `apps/desktop/src-tauri/src/presence/` | Configuration-scoped companion presence | Colocated `contract.yaml` |
 | `apps/desktop/src-tauri/src/navigation.rs` | Closed pending main navigation | `docs/aylul/shared/requests/2026-10-20-companion-binding-presence.md` |
 | `apps/desktop/src-tauri/src/app_paths.rs` | Native storage location | Existing identifier; isolated debug acceptance override |

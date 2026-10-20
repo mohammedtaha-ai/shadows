@@ -17,6 +17,13 @@
     "target": null
   },
   "companion": {
+    "composer": {
+      "agent": null,
+      "context": null,
+      "open": false,
+      "revision": 0,
+      "scope": null
+    },
     "error": null,
     "paused": false,
     "presence": {
