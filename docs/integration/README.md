@@ -9,7 +9,7 @@ document links those owners rather than defining their APIs twice.
   no longer AYLUL's direction.
 - [AYLUL brain](../aylul/specs/2026-10-19-aylul-claude-code-brain-design.md):
   Claude Code in its own home, run by Shadows core in the same daemon.
-- [Daemon delivery evidence](../evidence/aylul/2026-10-19-product-daemon-hermes.md).
+- Daemon delivery evidence (`docs/evidence/aylul/2026-10-19-product-daemon-hermes.md` at `0187365`).
 
 Core web-to-backend requests continue through the existing
 [Core shared-request workflow](../shared/README.md). Do not conflate a

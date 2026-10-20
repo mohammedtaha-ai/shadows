@@ -27,7 +27,7 @@ stopped part way resumes; a foreign or changed file refuses the resume. The
 gate passed 510 Rust tests (one ignored) and 264 Web tests. On the person's
 daemon the structure was written for a real project and the stage moved to
 `roadmap`; the trial found and fixed one defect in the reserved-path check.
-See [the dated record](./evidence/2026-10-12-guided-planning-pr4.md).
+See the dated record (`docs/evidence/2026-10-12-guided-planning-pr4.md` at `0187365`).
 Its limits were no plan gate (PR 5 added it since) and no Linux runtime acceptance.
 
 **§24 authority, §23 PR 3b, is on `main`**, merged through PR #27 as
@@ -36,7 +36,7 @@ the person's request, and its approval reads "Approved by the Planner at
 your request" beside "Approved by you". A first map with waivers is approved
 by the person's button only. The gate passed 490 Rust tests (one ignored)
 and 259 Web tests. See
-[the dated record](./evidence/2026-10-12-guided-planning-pr3b.md).
+the dated record (`docs/evidence/2026-10-12-guided-planning-pr3b.md` at `0187365`).
 
 **Next: §23 PR 3c**, the project switches (connectors, skills, `CLAUDE.md`),
 waits on §24.3's OPEN probe. With it, every §23.9 slice is delivered.
@@ -48,7 +48,7 @@ as one-part cards. Approval is by the person's button only. Waiving
 waived. Maps are versioned, and each part and served goal shows its drift.
 The Project map view shows parts, goal links, folders, starter files and a
 read-only contract. Nothing writes the structure to the project directory yet.
-The [dated record](./evidence/2026-10-12-guided-planning-pr3.md) holds a real
+The dated record (`docs/evidence/2026-10-12-guided-planning-pr3.md` at `0187365`) holds a real
 Planner browser trial on the person's daemon and on an acceptance copy. The
 final Rust gate at `474a5df` passed 481 tests (one ignored); the Web suite
 passed 253 of 253 after the last streaming fix. Limits: no structure on disk,
@@ -79,7 +79,7 @@ it did not rerun the full gate because it made no code changes.
 Post-merge CI on `ced2095` passed the Windows acceptance gate, the Web client
 build gate and the Linux compile gate. Linux runtime acceptance is not claimed.
 The merged branch was deleted locally and from the remote.
-See [the dated record](./evidence/2026-10-10-guided-planning-pr1.md).
+See the dated record (`docs/evidence/2026-10-10-guided-planning-pr1.md` at `0187365`).
 PRs 2 onward and §24 enforcement are not implemented by this slice.
 
 **§23 and §24 are specified, and §23's PR 0 is merged**
@@ -326,7 +326,7 @@ The PR is #4; its execution ledger was removed from the branch before merge.
 (connectors, skills, `CLAUDE.md`). Its [owner](./superpowers/specs/2026-10-08-approval-authority-design.md)
 §24.3 holds the OPEN probe that must close first. PR 3b, PR 4 and PR 5 are
 merged (§23.9).
-The [PR 2 dated evidence](./evidence/2026-10-12-guided-planning-pr2.md)
+The PR 2 dated evidence (`docs/evidence/2026-10-12-guided-planning-pr2.md` at `0187365`)
 records actual Windows/Claude browser acceptance and final gate status.
 PR 1's browser acceptance remains partial as recorded above. §18 Stage 3,
 focused Planner context, has not started and remains later work in the full
@@ -360,7 +360,8 @@ manager and specialized diagrams are still unimplemented.
    migration/stream integration checks, corrected PartEditor retry and ran an
    agent-operated Windows browser trial on an isolated database. Rust passed
    385 tests (one manual backup test ignored by default, separately executed);
-   Web passed 179 tests. The [dated record](./evidence/2026-10-04-planning-workspace-stage-1.md)
+   Web passed 179 tests. The dated record (`docs/evidence/2026-10-04-planning-workspace-stage-1.md`
+   at `0187365`)
    distinguishes the empty actual dev-DB copy from populated synthetic legacy
    fixtures. No separate record of Mohammed's acceptance or a whole-branch
    review was written before the merge.
@@ -371,7 +372,7 @@ manager and specialized diagrams are still unimplemented.
    **402 Rust tests (one ignored) and 187 Web tests**, both clippy modes,
    production build/feature isolation, Rust format/Unicode width, Web
    typecheck/lint/build and generated API consistency. The
-   [dated evidence](./evidence/2026-10-04-cross-plan-links-1b.md) records an
+   dated evidence (`docs/evidence/2026-10-04-cross-plan-links-1b.md` at `0187365`) records an
    isolated Windows production-preview trial with real HTTP/MCP requests,
    reciprocal graph navigation, refused broken-link approval and retained
    state after restart. It does not establish human acceptance, Linux
@@ -383,7 +384,8 @@ manager and specialized diagrams are still unimplemented.
    validation, impact review, exact task pins, HTTP/MCP and browser adoption
    are implemented with migrations 0017/0018. The
    implementation plan, `docs/superpowers/plans/2026-10-04-shared-api-agreements.md` at `92e6dae`,
-   was removed from the tree after the merge. The [dated evidence](./evidence/2026-10-05-shared-api-agreements.md)
+   was removed from the tree after the merge. The dated evidence
+   (`docs/evidence/2026-10-05-shared-api-agreements.md` at `0187365`)
    records 411 Rust tests (one ignored), 188 Web tests, later focused checks,
    the native two-plan journey/restart and migration of an actual dev-DB copy.
    Complete suites were not rerun after the final focused changes: Mohammed

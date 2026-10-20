@@ -5,7 +5,8 @@ This file owns step 2(a) of the first release (the delivery design that named
 it was deleted on 2026-10-19; Git `226d0a3`): what AYLUL desktop learns from
 Claude Code on the same laptop, how the person answers it there, and how a
 permission rule is written. The [code map](../codebase/README.md) owns where
-the code lives. Evidence: [hook probe](../../evidence/nylra/2026-10-13-aylul-hook-probe.md).
+the code lives. Evidence: hook probe (`docs/evidence/nylra/2026-10-13-aylul-hook-probe.md` at
+`0187365`).
 
 ## 1. What step 2(a) delivers
 

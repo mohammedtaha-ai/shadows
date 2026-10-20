@@ -46,15 +46,19 @@ Execution: native, user-approved 2026-10-16. No worktrees.
 - Status: blocked
 - Plan: docs/aylul/character/plans/2026-10-16-aylul-in-window-implementation.md#task-6
 - Read: approved companion spec, code map, and this task in the plan; existing contracts before source edits.
-- Touch: apps/desktop/tests/companion/visual.spec.ts, docs/evidence/nylra/2026-10-16-aylul-in-window-acceptance.md, apps/desktop/tests/windows-shell.ps1, apps/desktop/README.md, assets/aylul/README.md, docs/aylul/codebase/README.md, apps/desktop/src/features/companion/contract.yaml, apps/desktop/src/features/companion/studio/contract.yaml, apps/desktop/src/app/contract.yaml, docs/aylul/character/stages.md, docs/aylul/character/stages.md, companion feature/test files from Tasks 1–5 (formatting and still-direction regression), apps/desktop/playwright.config.ts
+- Touch: apps/desktop/tests/companion/visual.spec.ts, docs/evidence/nylra/2026-10-16-aylul-in-window-acceptance.md at `0187365`, apps/desktop/tests/windows-shell.ps1, apps/desktop/README.md, assets/aylul/README.md, docs/aylul/codebase/README.md, apps/desktop/src/features/companion/contract.yaml, apps/desktop/src/features/companion/studio/contract.yaml, apps/desktop/src/app/contract.yaml, docs/aylul/character/stages.md, docs/aylul/character/stages.md, companion feature/test files from Tasks 1–5 (formatting and still-direction regression), apps/desktop/playwright.config.ts
 - Needs: Task 5 interfaces
 - Done when: task-specific commands and acceptance in the linked plan have observed results; record missing native evidence explicitly.
 
-C-6 implementation and automated/native-shell checks passed; physical WebView suspension/performance, real DPI transitions, native studio download/audio and user visual acceptance remain open. See docs/evidence/nylra/2026-10-16-aylul-in-window-acceptance.md.
+C-6 implementation and automated/native-shell checks passed; physical WebView
+suspension/performance, real DPI transitions, native studio download/audio and user visual
+acceptance remain open. See docs/evidence/nylra/2026-10-16-aylul-in-window-acceptance.md at
+`0187365`.
 
 ## Shared dashboard companion · 2026-10-20
 
-Tasks 6–8 of the [desktop plan](../plans/2026-10-20-aylul-desktop-web-companion.md)
+Tasks 6–8 of the desktop plan (`docs/aylul/plans/2026-10-20-aylul-desktop-web-companion.md` at
+`0187365`)
 implement a changeable selected agent, explicit conversation targeting, native
 background presence and bounded plain reply previews. Ordinary Send/Queue keeps
 its existing command path. Unit and all 41 browser checks passed; the 240px

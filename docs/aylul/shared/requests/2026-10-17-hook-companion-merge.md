@@ -39,4 +39,4 @@ verifies the result with isolated hook/sidecar tests and merged-shell checks.
 
 The human's direct merge request is the acceptance evidence. Local verification
 and its limits are recorded in
-[merge evidence](../../../evidence/nylra/2026-10-17-hook-companion-merge.md).
+merge evidence (`docs/evidence/nylra/2026-10-17-hook-companion-merge.md` at `0187365`).

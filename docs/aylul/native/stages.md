@@ -13,13 +13,14 @@ Claude Windows path virtualization, preserving provider m and agent ay. A narrow
 SQLx source compatibility fix accepts its original CRLF migration 29 without
 rewriting its record. Mohammed performs provider/tray acceptance and waived
 the final reviewer. See the
-[desktop plan](../plans/2026-10-20-aylul-desktop-web-companion.md) and
-[evidence](../../evidence/aylul/2026-10-20-desktop-web-companion.md).
+desktop plan (`docs/aylul/plans/2026-10-20-aylul-desktop-web-companion.md` at `0187365`) and
+evidence (`docs/evidence/aylul/2026-10-20-desktop-web-companion.md` at `0187365`).
 
 Done and kept: the product daemon with a local Hermes assistant (D-H1, evidence
-[2026-10-19 local daemon delivery](../../evidence/aylul/2026-10-19-product-daemon-hermes.md))
+2026-10-19 local daemon delivery (`docs/evidence/aylul/2026-10-19-product-daemon-hermes.md` at
+`0187365`))
 and account-backend chat (H-1, evidence
-[normal chat](../../evidence/aylul/2026-10-19-normal-chat.md)). Their plans were
+normal chat (`docs/evidence/aylul/2026-10-19-normal-chat.md` at `0187365`)). Their plans were
 deleted on 2026-10-19 and stay in Git at `226d0a3`.
 
 Independent companion specification approved by the user on 2026-10-16:
@@ -31,12 +32,12 @@ The accepted cross-side interface is in
 [`2026-10-16-independent-companion-window.md`](../shared/requests/2026-10-16-independent-companion-window.md).
 
 Tasks follow the approved
-[`2026-10-16-independent-companion-implementation.md`](plans/2026-10-16-independent-companion-implementation.md).
+ `docs/aylul/native/plans/2026-10-16-independent-companion-implementation.md` at `0187365`.
 The exact file lists and test assertions live in each task's Files and Steps.
 
 ### N-1 · Own native companion lifecycle and IPC
 - Status: done
-- Plan: docs/aylul/native/plans/2026-10-16-independent-companion-implementation.md#task-1-native-companion-owner-and-restricted-ipc
+- Plan: docs/aylul/native/plans/2026-10-16-independent-companion-implementation.md#task-1-native-companion-owner-and-restricted-ipc at `0187365`
 - Read: approved native spec; windows and commands contracts; code map; accepted independent-companion shared request.
 - Touch: exactly Task 1 Files, including its four named native companion source files and ACL/composition changes.
 - Needs: accepted independent-companion shared request; implementation-plan review.
@@ -44,7 +45,7 @@ The exact file lists and test assertions live in each task's Files and Steps.
 
 ### N-2 · Synchronize native render permission
 - Status: done
-- Plan: docs/aylul/native/plans/2026-10-16-independent-companion-implementation.md#task-2-race-safe-platform-state-and-explicit-animation-permission
+- Plan: docs/aylul/native/plans/2026-10-16-independent-companion-implementation.md#task-2-race-safe-platform-state-and-explicit-animation-permission at `0187365`
 - Read: Task 1 state/commands; platform and companion contracts; approved spec section 4.
 - Touch: exactly Task 2 Files.
 - Needs: N-1 interfaces.
@@ -52,7 +53,7 @@ The exact file lists and test assertions live in each task's Files and Steps.
 
 ### N-3 · Present the independent character and gestures
 - Status: done
-- Plan: docs/aylul/native/plans/2026-10-16-independent-companion-implementation.md#task-3-compact-independent-entry-and-reliable-gestures
+- Plan: docs/aylul/native/plans/2026-10-16-independent-companion-implementation.md#task-3-compact-independent-entry-and-reliable-gestures at `0187365`
 - Read: Task 2 interfaces; companion contract and renderer; approved spec section 3.
 - Touch: exactly Task 3 Files.
 - Needs: N-2 interfaces.
@@ -60,7 +61,7 @@ The exact file lists and test assertions live in each task's Files and Steps.
 
 ### N-4 · Connect main and tray controls
 - Status: done
-- Plan: docs/aylul/native/plans/2026-10-16-independent-companion-implementation.md#task-4-main-controls-and-tray-integration-without-duplicate-animation
+- Plan: docs/aylul/native/plans/2026-10-16-independent-companion-implementation.md#task-4-main-controls-and-tray-integration-without-duplicate-animation at `0187365`
 - Read: Task 1 native owner; Task 2 wrappers; app/windows contracts; accepted shared request.
 - Touch: exactly Task 4 Files.
 - Needs: N-3 surface and N-1/N-2 interfaces.
@@ -68,19 +69,20 @@ The exact file lists and test assertions live in each task's Files and Steps.
 
 ### N-5 · Verify native behavior and record remaining gates
 - Status: done
-- Plan: docs/aylul/native/plans/2026-10-16-independent-companion-implementation.md#task-5-product-native-acceptance-profiling-and-final-review
+- Plan: docs/aylul/native/plans/2026-10-16-independent-companion-implementation.md#task-5-product-native-acceptance-profiling-and-final-review at `0187365`
 - Read: Tasks 1–4 inspected contracts; approved native spec section 6; existing dated Windows evidence.
 - Touch: exactly Task 5 Files, including reproducible fixes inside Tasks 1–4 scopes.
 - Needs: N-4 integrated product.
 - Done when: final checks, actual Windows observations and fresh review are recorded; unperformed or failed device/performance gates remain explicitly open.
 
 Implemented and locally verified 2026-10-17 in debug, per user instruction.
-See [current acceptance](../../evidence/nylra/2026-10-16-independent-companion-acceptance.md)
+See current acceptance (`docs/evidence/nylra/2026-10-16-independent-companion-acceptance.md` at
+`0187365`)
 for exact results and remaining optimized performance, hardware and hit-test gates.
 
 ## Hook merge
 
 The joint human/Claude hook work is merged into this branch; see
-[merge evidence](../../evidence/nylra/2026-10-17-hook-companion-merge.md) and its
+merge evidence (`docs/evidence/nylra/2026-10-17-hook-companion-merge.md` at `0187365`) and its
 [accepted shared request](../shared/requests/2026-10-17-hook-companion-merge.md).
 The cloud relay direction was stopped on 2026-10-18.

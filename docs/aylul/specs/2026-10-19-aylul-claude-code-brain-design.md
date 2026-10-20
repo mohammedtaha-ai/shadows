@@ -3,7 +3,8 @@
 Date: 2026-10-19.
 Status: **Design for review. Nothing implemented.** Decided in conversation
 with Mohammed on 2026-10-19; probe facts are in
-[the isolated-home evidence](../../evidence/aylul/2026-10-19-claude-code-isolated-home.md).
+the isolated-home evidence (`docs/evidence/aylul/2026-10-19-claude-code-isolated-home.md` at
+`0187365`).
 
 This file owns AYLUL's brain and where it runs. It replaces Hermes as AYLUL's
 local brain. It does not change the [vision](../vision.md), the hook/sidecar

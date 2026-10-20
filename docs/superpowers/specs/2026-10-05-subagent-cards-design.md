@@ -4,7 +4,7 @@
 - **Status:** Accepted by Mohammed on 2026-10-05 (the inner tools show only
   inside the card; the card is stored as a conversation entry). Built on
   `next/subagent-cards`.
-- **Evidence:** [`2026-10-05-subagent-over-acp-probe.md`](../../evidence/2026-10-05-subagent-over-acp-probe.md)
+- **Evidence:** `docs/evidence/2026-10-05-subagent-over-acp-probe.md` at `0187365`
   (adapter 0.81.1), and the adapter's `dist/acp-agent.js` (read, not measured).
 - **Related owners:** §12.2 (what a turn's entries are), §2.10 (the thread
   stream), §13.9 (the side panel the plan uses), §19 (a per-project list of

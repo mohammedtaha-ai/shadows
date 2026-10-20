@@ -26,5 +26,5 @@ documentation moves do not invent modules or change their implementation.
 
 AYLUL's desktop code is under `apps/desktop/`; its vision, maps and
 character/native/UI owners are under `docs/aylul/`. Historical acceptance is
-under `docs/evidence/nylra/`. Documents superseded on 2026-10-19 stay in Git at
+under `docs/evidence/nylra/` at `0187365`. Documents superseded on 2026-10-19 stay in Git at
 `226d0a3`.

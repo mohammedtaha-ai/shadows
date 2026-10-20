@@ -14,12 +14,14 @@ alerts later.
 - [Desktop and companion design](specs/2026-10-20-aylul-desktop-web-companion-design.md):
   approved shared web main, automatic local Core startup and a character bound
   to a changeable agent.
-- [Desktop implementation plan](plans/2026-10-20-aylul-desktop-web-companion.md):
+- Desktop implementation plan (`docs/aylul/plans/2026-10-20-aylul-desktop-web-companion.md` at
+  `0187365`):
   packaged dashboard, retained native functions and agent-bound presence;
   Tasks 1–9 implemented with passed local gates and actual-profile readiness.
   Mohammed performs the assistant/native journey; final reviewer waived
-  ([evidence](../evidence/aylul/2026-10-20-desktop-web-companion.md)).
-- [Isolated-home probe](../evidence/aylul/2026-10-19-claude-code-isolated-home.md): its measured facts.
+  (evidence: `docs/evidence/aylul/2026-10-20-desktop-web-companion.md` at `0187365`).
+- Isolated-home probe (`docs/evidence/aylul/2026-10-19-claude-code-isolated-home.md` at `0187365`):
+  its measured facts.
 - [Vision](vision.md): the full product idea. Decides nothing.
 - [Laptop hook design](specs/2026-10-13-aylul-hook-laptop-design.md): what AYLUL learns from Claude Code on the laptop.
 - [Product daemon](../integration/2026-10-19-product-daemon-hermes-design.md): the host process.
@@ -31,4 +33,4 @@ workspace UI, older delivery plans) were deleted on 2026-10-19 and stay in Git
 history at `feat/agent-workspace` commit `226d0a3`. The workspace UI code
 (U-W1 to U-W4) has been replaced by the shared `web/` dashboard under the
 approved desktop and companion design above. Dated
-evidence stays under `docs/evidence/aylul/` and `docs/evidence/nylra/`.
+evidence stays under `docs/evidence/aylul/` at `0187365` and `docs/evidence/nylra/` at `0187365`.

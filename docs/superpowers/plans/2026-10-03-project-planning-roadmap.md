@@ -65,7 +65,7 @@ by focused execution. Prove that loop before specialized visual editors.
 Stage 1 retains simple map/navigation views. Preparation and coordination cost
 count toward success. The person configures many roles but runs only tasks
 that are ready and safe together; no large simultaneous swarm is required. The dated
-[research record](../../evidence/2026-10-03-focused-agent-orchestration.md)
+research record (`docs/evidence/2026-10-03-focused-agent-orchestration.md` at `0187365`)
 separates external reports and inspected code from unmeasured expectations.
 
 ## First release: the smallest complete contract-change journey
@@ -181,24 +181,24 @@ not in a detailed task list written prematurely here.
 
 The Stage 1 implementation plan, `docs/superpowers/plans/2026-10-03-planning-workspace-stage-1.md`
 at `92e6dae`, has been executed; its tests and isolated Windows browser trial are recorded
-in [the dated evidence](../../evidence/2026-10-04-planning-workspace-stage-1.md).
+in the dated evidence (`docs/evidence/2026-10-04-planning-workspace-stage-1.md` at `0187365`).
 The §16 1b implementation plan, `docs/superpowers/plans/2026-10-04-cross-plan-links-1b.md`
 at `92e6dae`, has also been executed; its automated gate and
 isolated Windows trial are recorded in
-[dated evidence](../../evidence/2026-10-04-cross-plan-links-1b.md).
+dated evidence (`docs/evidence/2026-10-04-cross-plan-links-1b.md` at `0187365`).
 The shared API agreement plan, `docs/superpowers/plans/2026-10-04-shared-api-agreements.md`
 at `92e6dae`, has shipped; its remaining completion gate and acceptance limits are recorded
 in §18.7 and [project status](../../status.md).
 The §23 PR 1 plan, `docs/superpowers/plans/2026-10-09-guided-planning-pr1-standards-stage.md`
 at `ced2095`, is merged with partial browser acceptance recorded in its evidence.
 The §23 PR 2 and PR 3 plans, at `50146a9` and `8f6b8e7`, are merged; PR 3's
-record is [dated evidence](../../evidence/2026-10-12-guided-planning-pr3.md).
+record is dated evidence (`docs/evidence/2026-10-12-guided-planning-pr3.md` at `0187365`).
 The PR 3b and PR 4 plans,
 `docs/superpowers/plans/2026-10-12-guided-planning-pr3b-approval-authority.md`
 at `b4a1338` and `docs/superpowers/plans/2026-10-12-guided-planning-pr4-create-structure.md`
 at `9d2a611`, are merged; their records are
-[PR 3b's](../../evidence/2026-10-12-guided-planning-pr3b.md) and
-[PR 4's](../../evidence/2026-10-12-guided-planning-pr4.md) dated evidence.
+PR 3b's (`docs/evidence/2026-10-12-guided-planning-pr3b.md` at `0187365`) and
+PR 4's (`docs/evidence/2026-10-12-guided-planning-pr4.md` at `0187365`) dated evidence.
 The §23 PR 5 plan, `docs/superpowers/plans/2026-10-12-guided-planning-pr5-roadmap-and-plan-gates.md`
 at `8efc34e`, is merged; the plan file was deleted after the merge and its
 record is in `git show 8efc34e`. PR 3c, the project switches, waits on §24.3's

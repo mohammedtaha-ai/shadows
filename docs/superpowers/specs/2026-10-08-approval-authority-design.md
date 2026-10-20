@@ -99,7 +99,7 @@ stop this; this section does, by giving the Planner no hand to send it:
 Losing the shell costs the Planner running commands such as `git log` or a
 build. It plans; reading files is enough for that.
 
-The probe ([evidence](../../evidence/2026-10-12-planner-tool-lock-probe.md),
+The probe (evidence: `docs/evidence/2026-10-12-planner-tool-lock-probe.md` at `0187365`,
 code at `d8d3465`) showed on `claude-agent-acp` 0.81.1: without these options
 the Planner's session held Bash, PowerShell, Write and Edit and the person's
 claude.ai connectors (Google Drive, Claude Docs); with them, in both modes
