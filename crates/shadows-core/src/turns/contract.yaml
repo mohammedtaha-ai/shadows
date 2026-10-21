@@ -321,15 +321,18 @@ functions:
       # On `Prompt` (`prompt.rs`), the one place a turn's blocks are built:
       # the person's text, then the changes since the session last heard, focus,
       # the selected plan and the stage line. A text starting with `/` (after
-      # any leading whitespace) is sent alone, because the adapter runs a
-      # command only as the whole prompt; a `/` further in is text. When it
+      # any leading whitespace) is sent alone and with that whitespace removed,
+      # because the adapter runs a command only as the whole prompt with
+      # nothing before the `/`; a `/` further in is text, and plain text is
+      # sent as typed. When it
       # skipped changes, `withholds` is set, and `spawn.rs` passes it to
       # Harness's `withhold` once the turn has started, so the next normal
       # turn carries them.
     steered:
       signature: "(text: &str, stage: &str) -> String"
       # On `Prompt`, used by `steer.rs`: the stage line follows a steered
-      # message unless it is a command, by the same test as `compose`.
+      # message unless it is a command, by the same test as `compose`; a
+      # command is sent with its leading whitespace removed.
     focus_block:
       signature: "(focus: &Focus, number: u32, title: &str) -> String"
       # On `Prompt`.

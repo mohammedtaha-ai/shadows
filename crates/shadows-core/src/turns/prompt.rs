@@ -40,7 +40,7 @@ impl Prompt {
         } = parts;
         if Self::is_command(&text) {
             return Prompt {
-                text,
+                text: text.trim_start().to_string(),
                 context: Vec::new(),
                 withholds: changes.is_some(),
             };
@@ -60,13 +60,17 @@ impl Prompt {
     }
 
     /// A slash command, even after leading whitespace: a `/` further in is text.
+    /// The adapter runs it only with nothing before the `/`, so a command is
+    /// sent with that whitespace removed.
     fn is_command(text: &str) -> bool {
         text.trim_start().starts_with('/')
     }
 
     /// A steered message is one text: the stage line follows it, unless it is a command.
     pub(super) fn steered(text: &str, stage: &str) -> String {
-        if Self::is_command(text) || stage.is_empty() {
+        if Self::is_command(text) {
+            text.trim_start().to_string()
+        } else if stage.is_empty() {
             text.to_string()
         } else {
             format!("{text}\n\n{stage}")
@@ -116,11 +120,13 @@ mod tests {
         assert!(prompt.withholds);
         assert_eq!(Prompt::steered("/context", "stage"), "/context");
 
-        let indented = Prompt::compose(parts("  \n/context"));
-        assert_eq!(indented.text, "  \n/context");
-        assert!(indented.context.is_empty());
-        assert!(indented.withholds);
-        assert_eq!(Prompt::steered(" /context", "stage"), " /context");
+        for typed in [" /context", "\n/context", "  \n/context"] {
+            let indented = Prompt::compose(parts(typed));
+            assert_eq!(indented.text, "/context", "{typed:?}");
+            assert!(indented.context.is_empty(), "{typed:?}");
+            assert!(indented.withholds, "{typed:?}");
+            assert_eq!(Prompt::steered(typed, "stage"), "/context", "{typed:?}");
+        }
 
         let unchanged = Prompt::compose(PromptParts {
             changes: None,
@@ -135,6 +141,9 @@ mod tests {
         assert_eq!(prompt.context, ["changed", "focus", "plan", "stage"]);
         assert!(!prompt.withholds);
         assert_eq!(Prompt::steered("hello", "stage"), "hello\n\nstage");
+
+        assert_eq!(Prompt::compose(parts("  hello")).text, "  hello");
+        assert_eq!(Prompt::steered("  hello", ""), "  hello");
 
         let path = Prompt::compose(parts("read src/main.rs and a/b"));
         assert_eq!(path.context, ["changed", "focus", "plan", "stage"]);
