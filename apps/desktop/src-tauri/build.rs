@@ -2,6 +2,8 @@ fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
             "hide_main",
+            "desktop_preferences",
+            "set_desktop_preferences",
             "companion_binding",
             "refresh_companion_appearance",
             "select_companion_agent",

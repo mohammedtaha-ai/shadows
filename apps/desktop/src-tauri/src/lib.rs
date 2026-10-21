@@ -13,6 +13,8 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             commands::hide_main,
+            commands::preferences::desktop_preferences,
+            commands::preferences::set_desktop_preferences,
             commands::desktop::companion_binding,
             commands::desktop::refresh_companion_appearance,
             commands::desktop::select_companion_agent,
@@ -38,6 +40,10 @@ pub fn run() {
             commands::companion::drag_companion,
             commands::companion::open_main_from_companion
         ])
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             let _ = windows::open_main(app);
         }))
@@ -54,6 +60,7 @@ pub fn run() {
             use tauri::Emitter;
             use tauri::Manager;
             let paths = app_paths::AppPaths::resolve(app)?;
+            app.manage(windows::preferences::Store::new(paths.root().to_path_buf()));
             app.manage(auth::AuthController::new(paths.auth()));
             app.manage(windows::companion::Store::default());
             let connection = core_connection::Connection::new(paths.root().to_path_buf());

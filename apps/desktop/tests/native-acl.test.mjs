@@ -35,3 +35,19 @@ test('generated native permissions grant sidecar access only to main',()=>{
  assert.ok(!commands('companion').includes('refresh_companion_appearance'));
  assert.ok(permissions['allow-refresh-companion-appearance']?.commands.allow.includes('refresh_companion_appearance'));
  });
+
+test('desktop preferences are granted only to main',()=>{
+ const root=new URL('../src-tauri/gen/schemas/',import.meta.url);
+ const manifests=JSON.parse(readFileSync(new URL('acl-manifests.json',root),'utf8'));
+ const capabilities=JSON.parse(readFileSync(new URL('capabilities.json',root),'utf8'));
+ const permissions=manifests['__app-acl__'].permissions;
+ for(const label of ['main','companion']) {
+  const caps=Object.values(capabilities).filter(c=>c.local&&c.windows.includes(label));
+  const commands=caps.flatMap(c=>c.permissions.flatMap(p=>permissions[p]?.commands.allow??[]));
+  for(const name of ['desktop_preferences','set_desktop_preferences']) {
+   assert.equal(commands.includes(name),label==='main');
+   assert.ok(permissions['allow-'+name.replaceAll('_','-')]?.commands.allow.includes(name));
+  }
+  assert.ok(caps.every(c=>c.permissions.every(p=>!String(p).startsWith('autostart:'))));
+ }
+});

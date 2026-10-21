@@ -17,6 +17,10 @@ Mobile and semantic project-context integration remain future paths.
 | `apps/desktop/src-tauri/src/navigation.rs` | Closed pending main navigation | `docs/aylul/shared/requests/2026-10-20-companion-binding-presence.md` |
 | `apps/desktop/src-tauri/src/app_paths.rs` | Native storage location | Existing identifier; isolated debug acceptance override |
 | `apps/desktop/src-tauri/src/core_connection/` | Verified local Core lifecycle | Colocated `contract.yaml` |
+| `apps/desktop/src-tauri/src/windows/preferences.rs` | Native desktop preference coordination | Windows contract |
+| `apps/desktop/src-tauri/src/windows/preferences_tests.rs` | Desktop preference failure regressions | Windows contract |
+| `apps/desktop/src-tauri/src/commands/preferences.rs` | Main-only desktop preference IPC | Commands contract |
+| `apps/desktop/tests/desktop-preferences.mjs` | Native preference lifecycle acceptance | Windows contract |
 | `apps/desktop/src-tauri/src/windows/main_policy.rs` | Shared main response policy | Windows contract |
 | `web/src/desktop/` | Shared dashboard native boundary | Colocated `contract.yaml` |
 | `web/src/app/desktop/` | Native account/activity/character settings | Colocated `contract.yaml` |
