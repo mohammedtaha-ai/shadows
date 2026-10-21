@@ -816,8 +816,8 @@ amends this section before the task leaves `blocked`.
 
 ### Task F-12: General: person preferences and desktop behaviour
 
-**Review gate:** steps written, waiting for the controller's review. Do not implement until
-released. B-5 supplies the person record; N-7 at `cd7fd94` supplies the two native preferences.
+**Review gate:** released by the controller, 2026-10-22; the light palette needs Mohammed's
+visual check in the app. B-5 supplies the person record; N-7 at `cd7fd94` supplies the two native preferences.
 The accepted native request `docs/aylul/shared/requests/2026-10-21-settings-dialog-native.md`
 owns the camelCase arguments, defaults and failure semantics.
 

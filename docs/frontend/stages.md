@@ -134,8 +134,8 @@ implemented with focused automated checks, as is F-14. F-12's steps await the co
   and unknown-cost handling match the plan; contracts/map and task commit are complete
 
 ### F-12 · General: language and theme in Core with the person; start with Windows and tray native
-- Status: blocked
-- Blocker: steps written, waiting for the controller's review
+- Status: todo
+- Reviewed: steps released by the controller, 2026-10-22
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-12-general-person-preferences-and-desktop-behaviour
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (General);
   `docs/aylul/shared/requests/2026-10-21-settings-dialog-native.md` (accepted);
