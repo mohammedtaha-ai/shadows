@@ -278,8 +278,8 @@ answer fixes the shapes; each follows the TDD shape above.
 | F-7 | Account: "You" card (name, what AYLUL calls you); steps below. Devices left this plan (spec Account): the account server and device management are a separate piece of work | Account: the person (B-5, built) |
 | F-8 | Steps below. Providers: Label shown as "Provider (Label)"; `GET /api/aylul/provider-presets` replaces F-5's `PRESETS` (same shape, grouped by name, so the Region choice stays); save sends `preset` without `name`/`base_url`; Test connection through `POST /api/aylul/providers/test` and, on Edit without a key, `POST /api/aylul/providers/{slug}/test`; `reason` mapped to the spec's sentences, `message` for `unexpected`; `listed: false` offers add-by-hand only; model checklist with search, default and hand-added ids; per-model context window (`null` shows 200,000, editable); the provider-level window field goes (B-2). Lands on the same branch as B-2 | Providers (B-1, B-2, B-3) |
 | F-9 | Agents: character colour swatches; steps written below | Agents: character colour |
-| F-10 | Plugins & Skills: the shared library section (list, add by folder path, remove with confirm; no switch), listed in the nav, and the agent form's per-agent switches (tests below) | Plugins & Skills (B-9, after the B-8 probe) |
-| F-11 | Usage section from `GET /api/aylul/usage?from&to` (RFC 3339): period picker, by provider and by model, cost with its `currency` and "–" when `cost` is `null`, listed in the nav | Usage (B-6, B-7) |
+| F-10 | Shared library management and immediate per-agent switches; full steps below, awaiting controller review | Plugins & Skills (B-9 at `5a34995`, built) |
+| F-11 | Period-based usage tables with a token-comparison bar; full steps below, awaiting controller review | Usage (B-7 at `58b4138`, built) |
 | F-12 | General: language and theme read and written with the person in Core (`/api/me`, whole record on PUT; `theme` default `system`); start with Windows and hide to tray on close through native, desktop only (native request) | Account: the person (B-5); native switches |
 
 ### Task F-7: Account: the You card
@@ -468,32 +468,250 @@ gen:api` on this branch and is committed with this task):
   If `provider-form.tsx` passes 300 lines, the commit says why (the set-up step's one job).
 - [ ] **Step 6: Commit** `feat(web): providers keep a label, test their key and pick their models`.
 
-### Task F-10: the agent form's Plugins & Skills picker (part of F-10)
+### Task F-11: Usage: periods, provider comparison, model totals
 
-The library section's steps are written once B-9 fixes the routes after its probe; this part's
-tests follow the answer's intended routes: `GET /api/aylul/agents/{slug}/extensions` →
-`{ plugins: AgentItem[], skills: AgentItem[] }` (`AgentItem = { id, name, description, enabled }`)
-and `PUT /api/aylul/agents/{slug}/extensions/{kind}/{id}` `{ enabled, command_id }` → `AgentItem`.
+**Review gate:** steps only; keep blocked until the controller approves. B-7 at `58b4138`
+implements the accepted Usage request. The generated schema passed typecheck when these steps
+were written and is included in this documentation commit; do not regenerate it unless the
+canonical OpenAPI changes. No implementation or failing tests are added by this steps commit.
 
-**Files** (with the rest of F-10's): Create `web/src/app/agents/agent-extensions.tsx`; Modify
-`web/src/app/agents/agent-settings.tsx` (`AgentForm` holds the part after Character colour),
-`web/src/api/aylul-profiles.ts` (`agentExtensionsQuery(slug)`, `setAgentExtension(slug, kind, id,
-enabled, commandId)`), `web/src/app/agents/contract.yaml`,
-`docs/frontend/codebase/README.md`. Test: `web/src/app/agents/agent-extensions.test.tsx` (new).
+**Built API:** `GET /api/aylul/usage?from=<RFC3339>&to=<RFC3339>` returns `UsageReport`:
+- `by_provider: ProviderUsage[]`, each with `provider_slug`, `provider_name`, optional nullable
+  `label`, `requests`, `tokens_in`, `tokens_out`, optional nullable `cost` and `currency`.
+- `by_model: ModelUsage[]`, each with `model`, `provider_slug`, the same counts and nullable
+  cost/currency. Both arrays are required. Alias the generated schemas; do not copy their shapes.
+- Core validates `from < to`, normalizes offsets and reads `[from,to)`. It returns 400 for bad
+  periods and an ErrorBody for storage failures. The GET has no command id and writes nothing.
+  Names/labels are historical snapshots; use the report, not the current Providers list. Core
+  already counts recorded invocations and reported token components; do not reinterpret counts.
 
-- [ ] **Write the failing tests** in `agent-extensions.test.tsx`:
-  - `the form lists the library's items for this agent`: agent `ay` with plugin `git`
-    (enabled) and skill `review` (not) → a group `Plugins & Skills` with switches `git` (on) and
-    `review` (off), each with its description.
-  - `a switch saves at once`: turn `review` on → one `PUT /api/aylul/agents/ay/extensions/skill/review`
-    with `{ enabled: true, command_id }` and no agent PUT; the switch shows on after the answer.
-  - `a failed switch goes back`: the PUT fails → the switch is off again and an error line shows.
-  - `a new agent shows the part after it is created`: New agent → no `Plugins & Skills` group;
-    after Create agent and the form reopening on it → the group with every switch off.
-  - `an empty library links to the section`: no items → "No plugins or skills yet." and a link
-    that opens the dialog on Plugins & Skills.
-- [ ] **Run** `npx vitest run src/app/agents/agent-extensions.test.tsx` → FAIL; implement; run it
-  with codemap, typecheck, lint → PASS. Commit with F-10.
+**Files:**
+- Create: `web/src/api/usage.ts`, `web/src/app/settings/sections/usage.tsx`,
+  `web/src/app/settings/usage-period.ts`, `web/src/app/settings/usage-tables.tsx`.
+- Modify: `web/src/app/settings/sections.ts` (make `usage` visible, leave `plugins` unchanged),
+  `web/src/app/settings/settings-dialog.tsx` (map entry), `web/src/test/fake-daemon.ts`
+  (default empty usage report; `Overrides.usage?: Answer`), `web/src/api/contract.yaml`,
+  `web/src/app/settings/contract.yaml`, `docs/frontend/codebase/README.md` (four new rows),
+  `docs/frontend/stages.md` (this task's status).
+- Test: `web/src/app/settings/usage.test.tsx`, `web/src/app/settings/usage-period.test.ts`
+  (new); `web/src/app/settings/settings-dialog.test.tsx` (Usage nav entry; change its old
+  hidden-`usage` fallback case to a genuinely unknown id).
+- `schema.d.ts` is already generated in the steps commit. If canonical API drift requires a
+  new generation that breaks callers, list mechanical fixes before implementing; do not hand-edit it.
+
+**Touch:** exactly the Files list above; no backend, native shell, pricing service or dependency.
+
+**Interfaces and presentation:**
+- `usage.ts`: `type UsageReport/ProviderUsage/ModelUsage = components['schemas'][...]`;
+  `usageQuery(from: string, to: string)` → queryOptions, key `['aylul-usage', from, to]`, calling
+  `client.GET('/api/aylul/usage', { params: { query: { from, to } } })` through `unwrap`.
+- `usage-period.ts`: `type UsagePeriod = '7d' | '30d' | 'month'`;
+  `usageRange(period: UsagePeriod, now: Date): { from: string; to: string }`. Last 7/30 days are
+  rolling 7/30 × 24 hours ending at the captured time. This month starts at 00:00 UTC on its
+  first day and ends at that time; label the picker with a small "Periods use UTC." note.
+  At the exact first instant of a month, advance only `to` by 1 ms so `from < to` stays valid.
+  Serialize with `toISOString()`. These period choices are explicit builder decisions for review.
+- `UsageSection()`: controlled `Period` select with `Last 7 days` (default), `Last 30 days`,
+  `This month`. Capture `new Date(Date.now())` on opening or selecting a period, not on each
+  render; no polling. Use the range in the query key. A new pending period must not show the
+  previous period's rows under its label. Loading, ErrorLine with explicit Retry, and a report
+  whose two arrays are empty ("No usage in this period.") are distinct states.
+- `UsageTables({ report }: { report: UsageReport })`: semantic `By provider` and `By model`
+  tables. Show requests, input/output tokens, total tokens (`tokens_in + tokens_out`), cost
+  and currency. Provider title is `provider_name` plus ` (label)` when present. Model rows use
+  `(provider_slug, model)` identity and join the provider title from `report.by_provider`,
+  falling back to the slug if absent. Preserve backend order; never fetch live providers to
+  rename historical usage. A missing/nullable cost or currency displays "–"; numeric zero with
+  currency is a real zero. Show currency text, never a guessed dollar sign or mixed-currency sum.
+- The provider comparison bar compares **total tokens**, not price. Label it `Tokens compared`;
+  each row has an accessible meter named `Tokens for <provider title>`, value equal to its
+  total tokens, maximum equal to the largest row total (at least 1). Visual width is
+  `100 * total / maxTotal` percent; all-zero rows have width 0. No chart dependency. Explain
+  "Tokens include only reported usage."; do not imply that unreported tokens or unknown costs
+  are measured zero. No client cost estimation, pricing lookup or summing context-window usage.
+
+- [ ] **Step 1: Write the failing tests** (`usage-period.test.ts`, `usage.test.tsx`):
+  - `periods produce bounded UTC ranges`: at `2026-10-21T12:00:00.000Z`, assert 7d starts
+    `2026-10-14T12:00:00.000Z`, 30d starts `2026-09-21T12:00:00.000Z`, month starts
+    `2026-10-01T00:00:00.000Z`, and each ends at the input time. Check year rollover and exact
+    month start (`to` is start +1 ms); all ranges satisfy `from < to`.
+  - `Usage opens with Last 7 days`: open `/?settings=usage`; title Usage, Period value `7d`,
+    UTC note and both table captions. Capture the fake GET's Request URL: its `from`/`to`
+    parse as RFC3339, span 7 days, and occur in the query, with no command id/body or mutation.
+    Read parameters from the Request: `TestApp.calls` intentionally records only paths.
+  - `changing the period fetches its own report`: control `Date.now`, select Last 30 days then
+    This month; assert the exact ranges and separate query-cache entries. Hold the month GET
+    pending: show loading, no stale 30-day rows. A late older response cannot replace the month.
+  - `provider snapshots and labelled keys stay distinct`: two rows with different slugs but
+    the same provider name and labels Work/Home appear separately as `MiniMax (Work)` and
+    `MiniMax (Home)`, even with the current provider renamed/deleted. Assert no provider-list GET.
+  - `provider bars compare total tokens`: inputs `(600,400)` and `(300,200)` produce totals
+    1000/500, meter values 1000/500 with max 1000, and widths 100%/50%. Zero-only rows produce
+    finite width 0 and meter max 1. No requests/tokens are added a second time.
+  - `model rows include their provider`: same model id under two provider slugs remains two
+    rows, named from report snapshots; an unmatched slug displays itself.
+  - `unknown charges are not zero`: null/absent cost or currency renders "–"; `0, 'USD'`
+    renders zero and USD; `0.25, 'USD'` renders that amount and currency. Never add a total
+    across USD and EUR or derive price from tokens.
+  - `empty and failed usage are distinct`: both arrays empty gives the empty sentence;
+    a 500 ErrorBody gives its ErrorLine and Retry, no empty sentence. Retry refetches the same
+    range; after success show rows. A 400 period error is also shown without inventing data.
+  - Update the dialog's nav-order assertions to include Usage after Agents (after Plugins &
+    Skills if F-10 is already built). Unknown ids still fall back to General; desktop-only
+    sections still fall back in the browser. Opening another section closes the usage query's UI.
+- [ ] **Step 2: Run red**, from `web/`: `npx vitest run src/app/settings/usage.test.tsx
+  src/app/settings/usage-period.test.ts src/app/settings/settings-dialog.test.tsx`; observe FAIL.
+- [ ] **Step 3: Implement** only these interfaces and states. Update API/settings contracts and
+  code-map rows in the same commit. Keep existing sections and F-10's review status unchanged.
+- [ ] **Step 4: Run green**, sequentially: those three test files, `npx vitest run
+  src/codemap.test.ts`, `npm run typecheck`, `npm run lint`; all PASS. Never whole suite or cargo.
+- [ ] **Step 5: Set done and commit** `feat(web): usage compares providers and models by period`,
+  stage each file by name, ending `Co-Authored-By: Codex <noreply@openai.com>`.
+
+**Done when:** all named tests/checks pass, Usage is reachable in browser and desktop, all
+periods request real reports, bars compare measured tokens, unknown charges stay unknown,
+contracts/map are current, and the task commit exists. Native/provider billing acceptance is
+not established by fake-daemon tests.
+
+### Task F-10: Plugins & Skills: shared library and immediate agent switches
+
+**Review gate:** steps only; keep blocked until the controller approves. B-9 at `5a34995`
+implements the accepted request after B-8. Use its built schemas and routes, not the older
+intended-route fragment this section replaces. No implementation is authorized by this plan commit.
+
+**Built API:** `ExtensionKind = 'plugin' | 'skill'`; `Item { id, name, description }`;
+`AgentItem = Item & { enabled: boolean }`; `ExtensionLibrary` and `AgentExtensions` each have
+required `plugins` and `skills` arrays. IDs are opaque UUID strings. The library has no enabled
+flag and no switch. All schema aliases come from `components['schemas']`.
+- `GET /api/aylul/extensions` → 200 ExtensionLibrary.
+- `POST /api/aylul/extensions` `{ command_id, kind, path }` → 201 Item; folder is on the
+  daemon's machine. It copies/imports once; metadata contains no path. No URL/Git import.
+- `DELETE /api/aylul/extensions/{kind}/{id}?command_id=...` → 204, removes every agent's assignment.
+- `GET /api/aylul/agents/{slug}/extensions` → 200 AgentExtensions, the entire library with
+  enablement for that agent. New agents begin with everything disabled.
+- `PUT /api/aylul/agents/{slug}/extensions/{kind}/{id}` `{ command_id, enabled }` → 200 AgentItem.
+  Backend validates source/kind (400), missing item/agent (404), duplicate kind/name or conflicting
+  replay (409), storage errors (ErrorBody). No screen error may invent a filesystem diagnosis.
+  Changed assignments apply when the next agent session opens; the UI must not claim to restart
+  or modify a running session. Use the answer's enabled value as the saved result.
+
+**Files:**
+- Create: `web/src/api/extensions.ts`, `web/src/app/settings/sections/plugins.tsx`,
+  `web/src/app/settings/extension-import.tsx`, `web/src/app/settings/extension-list.tsx`,
+  `web/src/app/agents/agent-extensions.tsx`.
+- Modify: `web/src/app/settings/sections.ts` (make `plugins` visible, leave `usage` availability
+  unchanged), `web/src/app/settings/settings-dialog.tsx` (map entry),
+  `web/src/app/agents/agent-settings.tsx` (saved-agent picker after Character colour, outside
+  the Save agent form), `web/src/test/fake-daemon.ts` (empty library and per-agent fixtures),
+  `web/src/api/contract.yaml`, `web/src/app/settings/contract.yaml`,
+  `web/src/app/agents/contract.yaml`, `docs/frontend/codebase/README.md` (five new rows),
+  `docs/frontend/stages.md` (this task's status).
+- Test: `web/src/app/settings/plugins.test.tsx`, `web/src/app/agents/agent-extensions.test.tsx`
+  (new); `web/src/app/settings/settings-dialog.test.tsx` (nav order),
+  `web/src/app/agents/aylul.test.tsx`, `web/src/app/agents/agent-env.test.tsx` (regressions).
+  No generated schema edit is needed unless the canonical API changes after the steps commit.
+
+**Touch:** exactly the Files list above; no Core files, native commands, local filesystem
+access from the browser, dependency, extension execution or global enablement setting.
+
+**Interfaces and presentation:**
+- `extensions.ts`: aliases `ExtensionKind`, `Item`, `AgentItem`, `ExtensionLibrary`,
+  `AgentExtensions`, `ExtensionImport = components['schemas']['Import']`. Use shared `client`,
+  `unwrap` for JSON and `unwrapEmpty` for DELETE 204; callers supply command ids:
+  `extensionsQuery` (key `['aylul-extensions']`),
+  `addExtension(commandId: string, kind: ExtensionKind, path: string): Promise<Item>`,
+  `removeExtension(commandId: string, kind: ExtensionKind, id: string): Promise<void>`,
+  `agentExtensionsQuery(slug: string)` (key `['aylul-agent-extensions', slug]`),
+  `setAgentExtension(slug: string, kind: ExtensionKind, id: string, enabled: boolean,
+  commandId: string): Promise<AgentItem>`.
+- `PluginsSection()`: two accessible tabs Plugins (default) and Skills, showing only the
+  chosen library array via `ExtensionList`. Add replaces the section body with
+  `ExtensionImport({ kind, onDone })` and an accessible Back arrow; no stacked dialog.
+  `ExtensionList({ kind, items })` shows name, one-line description (full text available via
+  title/accessibility) and Remove. Its inline confirmation is exactly
+  `Remove <name> from the library and from every agent?`, with Cancel/Remove.
+- Import form: `Folder path` text input, hint `Folder on the daemon's machine.`, Add button;
+  refuse blank/whitespace before sending. Do not use a browser file picker, fetch Git/URLs,
+  infer metadata from folder names or expose paths outside this input. The active tab fixes
+  kind. On success clear the input, return to the same tab and refresh library/agent queries.
+  Keep the input after failure; retries of the same trimmed path/kind reuse `attemptFor`'s id;
+  a changed path/kind gets a new id. Disable duplicate submissions while pending.
+- Remove is never sent before confirmation. Keep a separate attempt per `(kind,id)`; a failed
+  delete retains its error/confirmation so explicit retry reuses its id. Pending confirmation
+  controls cannot submit twice. Successful add/remove invalidates `['aylul-extensions']` and
+  the whole `['aylul-agent-extensions']` prefix, including cached forms for other agents.
+- `AgentExtensions({ slug }: { slug: string })`: group `Plugins & Skills`, each item's name,
+  description and native checkbox with `role="switch"`. Query only the saved agent's slug.
+  A switch sends its PUT immediately, independently of Save agent. Optimistically display
+  the desired value, disable that row while pending, then accept the returned enabled state;
+  on error restore the last confirmed value and show ErrorLine beside the row. Keep per-item
+  command attempts with `(slug,kind,id,enabled)` fingerprint; unchanged explicit retry reuses
+  its id. Capture the query key/slug for mutation completion, so a late reply cannot write
+  another agent's cache. Reconcile through that agent's scoped query after success.
+- New agent: no picker and no agent-extension GET until creation; current F-6 save returns
+  to the list. Reopening the created agent shows the picker with all items off. Empty saved
+  library: `No plugins or skills yet.` plus a button opening `plugins` in the same settings
+  dialog via `useOpenSettings()`; loading/failure must not masquerade as empty. Failure of this
+  part must leave ordinary agent fields and environment controls usable.
+- Fake defaults: empty library plus empty extension arrays for existing test-agent slugs
+  `work`, `aylul`, `agent-a`; allow per-route overrides in individual tests. Do not implement a
+  second library store in production or force the query to share an origin with another section.
+
+- [ ] **Step 1: Write the failing tests** in `plugins.test.tsx`:
+  - `the library has tabs and no switches`: plugin git and skill review fixtures show names
+    and descriptions under their respective tabs, no library `role="switch"`. Empty selected
+    tab says `No plugins yet.` or `No skills yet.`; both arrays come from one library GET.
+  - `Add imports a folder on the daemon`: choose Skills, Add, enter `C:/skills/review`, submit;
+    one POST body is `{ command_id, kind: 'skill', path: 'C:/skills/review' }`. Before Add no
+    mutation. The 201 answer supplies id/name/description, input clears, Skills list refreshes.
+    Whitespace-only input sends nothing. No native call or filesystem/browser picker is used.
+  - `import retry preserves command identity`: first POST fails 500; typed path remains and
+    ErrorLine shows; same-input retry has identical body/id. Change path then retry: new id.
+    Closing or Back before submit sends nothing; reopening Add starts with an empty input.
+  - `Remove confirms its library-wide effect`: click Remove, assert exact question and only
+    one settings dialog; Cancel sends no DELETE. Confirm sends the item kind/id in the path
+    and `command_id` in query (assert via Request URL), with no JSON body; 204 is success.
+  - `a failed Remove can be retried`: 409/500 ErrorBody stays inline, item remains; explicit
+    retry uses the same command id. Success removes the item and invalidates library plus
+    cached agent-extension queries for two different slugs. No silent automatic mutation retry.
+  - `library load failure is not empty`: 500 displays ErrorLine and Retry; no empty sentence.
+    Retry recovers. Add/Delete refusal messages remain visible without disabling Settings nav.
+- [ ] **Step 2: Write the failing tests** in `agent-extensions.test.tsx`:
+  - `the form lists the library's items for this agent`: saved ay answers plugin git enabled
+    and skill review disabled; group has two labelled switches, correct checked values and
+    descriptions. Another agent's query has a distinct cache key and does not reuse ay's flags.
+  - `a switch saves at once`: turn review on; one PUT to ay/skill/<id> with
+    `{ enabled: true, command_id }`, no agent POST/PUT and no Save agent click. While pending
+    that row is disabled. On answer it reflects the returned enabled value.
+  - `a failed switch goes back`: PUT fails 500, switch returns off, fixed server ErrorLine
+    shows and agent name/environment controls still work; repeat same toggle reuses the
+    original command id. Changing desired enabled state produces a new fingerprint/id.
+  - `late toggles remain scoped`: start ay's PUT, navigate to zed's form before it answers;
+    settle ay's response and assert zed's values/cache are unchanged. Refetch ay to reconcile.
+  - `a new agent shows the part after it is created`: New agent has no group/extension GET;
+    create, return to list, reopen its form: group appears with every library item off.
+  - `an empty library links to the section`: saved agent with both arrays empty displays
+    the exact empty sentence; link opens Plugins & Skills in the same dialog and preserves
+    the underlying route. Failed GET shows ErrorLine instead of that empty sentence.
+  - `library removal clears every agent view`: cache two agents with the same item enabled,
+    remove it from the library, revisit each agent and assert refetched lists omit it.
+  - Update nav assertions: Plugins & Skills appears after Agents, before Usage when Usage is
+    built. Preserve all existing agent-save, environment and dialog dismissal assertions.
+- [ ] **Step 3: Run red**, from `web/`: `npx vitest run src/app/settings/plugins.test.tsx
+  src/app/agents/agent-extensions.test.tsx src/app/settings/settings-dialog.test.tsx
+  src/app/agents/aylul.test.tsx src/app/agents/agent-env.test.tsx`; observe FAIL.
+- [ ] **Step 4: Implement** only the Files/interfaces above; update the three folder contracts
+  and code-map rows. Preserve the live agent form's colour/environment controls and all
+  accepted F-2 through F-9 behaviour. No backend/native or running-session work.
+- [ ] **Step 5: Run green**, sequentially: those five files, `npx vitest run
+  src/codemap.test.ts`, `npm run typecheck`, `npm run lint`; all PASS. Never whole suite or cargo.
+- [ ] **Step 6: Set done and commit** `feat(web): manage shared plugins and skills per agent`,
+  stage each file by name, ending `Co-Authored-By: Codex <noreply@openai.com>`.
+
+**Done when:** library tabs/import/removal and immediate agent switches pass the named tests,
+all mutations use explicit retry-stable command ids, no nested dialogs or global enable switch
+exist, contracts/map are current, and the task commit exists. Synthetic UI checks establish
+frontend requests/presentation, not real extension import/execution on a person's machine.
 
 ### Task F-9: Agents: character colour per agent
 

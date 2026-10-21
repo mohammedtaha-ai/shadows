@@ -6,7 +6,9 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 ## Now
 
 Work and improvements continue on branch `improvements`. The settings dialog,
-F-2 to F-9, is implemented. F-10, F-11, F-12 and F-14 retain their recorded blockers.
+F-2 to F-9, is implemented and accepted by Mohammed in the app. F-10 and F-11 now have
+steps against the built API, waiting for the controller's review. F-12 and F-14 retain
+their recorded blockers.
 
 ## Tasks
 
@@ -103,19 +105,34 @@ F-2 to F-9, is implemented. F-10, F-11, F-12 and F-14 retain their recorded bloc
 
 ### F-10 · Plugins & Skills: the shared library and each agent's picker
 - Status: blocked
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
-- Touch: to be named with the steps
-- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Plugins & Skills) accepted; B-9 built (after the B-8 probe)
-- Done when: to be named with the steps
+- Blocker: steps written, waiting for the controller's review
+- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-10-plugins--skills-shared-library-and-immediate-agent-switches
+- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Plugins & Skills);
+  `docs/shared/requests/2026-10-20-settings-dialog.md` (Plugins & Skills answer);
+  `docs/backend/plans/2026-10-21-settings-dialog-backend.md` (B-9);
+  `web/src/api/contract.yaml`, `web/src/app/settings/contract.yaml`, `web/src/app/agents/contract.yaml`
+- Touch: the Files list of Task F-10 in the plan
+- Needs: F-2, F-6, F-9 (done); accepted request and B-9 at `5a34995` (built);
+  controller approval of these steps before implementation
+- Done when: `plugins.test.tsx`, `agent-extensions.test.tsx`, `settings-dialog.test.tsx`,
+  `aylul.test.tsx`, `agent-env.test.tsx`, codemap, `npm run typecheck` and `npm run lint` pass;
+  library changes refresh all agent views, switches save independently, contracts/map and task
+  commit are complete (full assertions and commands in the plan)
 
 ### F-11 · Usage section, by provider and by model
 - Status: blocked
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
-- Touch: to be named with the steps
-- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (Usage) accepted; B-6, B-7 built
-- Done when: to be named with the steps
+- Blocker: steps written, waiting for the controller's review
+- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-11-usage-periods-provider-comparison-model-totals
+- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Usage);
+  `docs/shared/requests/2026-10-20-settings-dialog.md` (Usage answer);
+  `docs/backend/plans/2026-10-21-settings-dialog-backend.md` (B-7);
+  `web/src/api/contract.yaml`, `web/src/app/settings/contract.yaml`
+- Touch: the Files list of Task F-11 in the plan
+- Needs: F-2 (done); accepted request and B-7 at `58b4138` (built);
+  controller approval of these steps before implementation
+- Done when: `usage.test.tsx`, `usage-period.test.ts`, `settings-dialog.test.tsx`, codemap,
+  `npm run typecheck` and `npm run lint` pass; real period queries, snapshot titles, token bars
+  and unknown-cost handling match the plan; contracts/map and task commit are complete
 
 ### F-12 · General: language and theme in Core with the person; start with Windows and tray native
 - Status: blocked
