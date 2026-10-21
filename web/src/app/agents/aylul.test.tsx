@@ -4,6 +4,8 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { CHARACTER_COLORS, DEFAULT_COLOR, colorOf } from './character-colors'
 
 const colorFixture = vi.hoisted(() => ({ desktop: false, bound: null as string | null }))
+const refreshInvoke = vi.hoisted(() => vi.fn())
+vi.mock('@tauri-apps/api/core', () => ({ invoke: refreshInvoke }))
 vi.mock('@/desktop/runtime', () => ({ isDesktop: () => colorFixture.desktop }))
 vi.mock('@/desktop/presence', async importOriginal => ({
   ...await importOriginal<typeof import('@/desktop/presence')>(),
@@ -28,7 +30,7 @@ const table = () => ({ ...answers(),
   'GET /api/threads/t1': thread,
 })
 let open: TestApp | null = null
-afterEach(() => { open?.unmount(); open = null; window.localStorage.clear(); colorFixture.desktop = false; colorFixture.bound = null })
+afterEach(() => { open?.unmount(); open = null; window.localStorage.clear(); colorFixture.desktop = false; colorFixture.bound = null; refreshInvoke.mockReset() })
 const input = (name: string) => document.querySelector<HTMLInputElement>(`input[aria-label="${name}"]`)!
 const models = () => document.querySelector<HTMLInputElement>('input[aria-label="Add a model by id"]')!
 function addModel(a: TestApp, id: string) { typeInto(models(), id); act(() => a.button('Add')!.click()) }
@@ -416,4 +418,42 @@ it("the sidebar's agent icon wears the agent's colour", async () => {
   expect(a.button('Zed')!.querySelector('[data-color]')?.getAttribute('data-color')).toBe(DEFAULT_COLOR)
   act(() => a.button('Work')!.click())
   expect(icon.getAttribute('data-color')).toBe(first.id)
+})
+
+it('saving the companion agent refreshes the character', async () => {
+  colorFixture.desktop = true; colorFixture.bound = 'work'
+  const trace: string[] = []
+  let current = { ...agent, character_color: DEFAULT_COLOR }
+  refreshInvoke.mockImplementation(async (command: string) => { trace.push(command); return { ok: true } })
+  const a = open = await startApp('/aylul?settings=agents&agent=work', { ...table(),
+    'GET /api/aylul/agents': () => Response.json({ project_id: 'p1', agents: [current] }),
+    'PUT /api/aylul/agents/work': async (request: Request) => { current = { ...current, ...await request.json() }; trace.push('saved'); return Response.json(current) },
+  })
+  await until(() => swatches().length > 0)
+  act(() => colourRadio(CHARACTER_COLORS[0].id).click())
+  expect(refreshInvoke).not.toHaveBeenCalled()
+  act(() => a.button('Save agent')!.click())
+  await until(() => document.querySelector('[aria-label="Saved agents"]') !== null)
+  expect(trace).toEqual(['saved', 'refresh_companion_appearance'])
+  expect(refreshInvoke).toHaveBeenCalledTimes(1)
+  expect(refreshInvoke).toHaveBeenCalledWith('refresh_companion_appearance', undefined)
+})
+it('saving another agent does not', async () => {
+  colorFixture.desktop = true; colorFixture.bound = 'other'
+  const a = open = await startApp('/aylul?settings=agents&agent=work', { ...table(), 'PUT /api/aylul/agents/work': () => Response.json(agent) })
+  await until(() => a.button('Save agent') !== undefined)
+  act(() => a.button('Save agent')!.click())
+  await until(() => document.querySelector('[aria-label="Saved agents"]') !== null)
+  expect(refreshInvoke).not.toHaveBeenCalled()
+})
+it('a failed refresh does not fail the save', async () => {
+  colorFixture.desktop = true; colorFixture.bound = 'work'
+  refreshInvoke.mockRejectedValue(new Error('Core unavailable'))
+  const a = open = await startApp('/aylul?settings=agents&agent=work', { ...table(), 'PUT /api/aylul/agents/work': () => Response.json(agent) })
+  await until(() => a.button('Save agent') !== undefined)
+  act(() => a.button('Save agent')!.click())
+  await until(() => document.querySelector('[aria-label="Saved agents"]') !== null)
+  expect(refreshInvoke).toHaveBeenCalledTimes(1)
+  expect(document.querySelector('[role="alert"]')).toBeNull()
+  expect(a.text()).toContain('Work')
 })

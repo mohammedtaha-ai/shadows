@@ -17,7 +17,7 @@ import { providerTitle } from './provider-presets'
 import { colorOf } from './character-colors'
 import { ColorSwatches } from './color-swatches'
 import { isDesktop } from '@/desktop/runtime'
-import { useCompanionBinding } from '@/desktop/presence'
+import { useCompanionBinding, refreshCompanionAppearance } from '@/desktop/presence'
 import { useOpenSettings } from '../settings/use-settings'
 
 export function AgentForm({ slug, onDone }: { slug: string | null; onDone: () => void }) {
@@ -51,6 +51,9 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
     onSuccess: async () => {
       pending.current = null
       setEdited(null)
+      if(isDesktop() && slug !== null && binding?.agent === slug){
+        try { await refreshCompanionAppearance() } catch { /* Native polling will refresh later. */ }
+      }
       await queryClient.invalidateQueries({ queryKey: agentsQuery.queryKey })
       onDone()
     },

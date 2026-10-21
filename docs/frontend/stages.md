@@ -143,11 +143,12 @@ implemented with focused automated checks. F-12 and F-14 retain their recorded b
 - Done when: to be named with the steps
 
 ### F-14 · Saving the companion agent repaints AYLUL at once
-- Status: blocked
+- Status: done
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-14-saving-the-companion-agent-repaints-aylul-at-once
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Character colour, how it reaches the companion); `web/src/desktop/contract.yaml`
 - Touch: the Files list of Task F-14 in the plan
-- Needs: F-9; the native `refresh_companion_appearance` command (AYLUL shared request, not yet filed) built
+- Needs: F-9 (done); accepted `docs/aylul/shared/requests/2026-10-21-settings-dialog-native.md`;
+  N-6 at `0c4d8c6` (built), refresh returns `{ ok: true }`
 - Done when: `aylul.test.tsx` passes with codemap, typecheck, lint
 
 ### F-15 · A read sent before a save cannot overwrite the saved answer

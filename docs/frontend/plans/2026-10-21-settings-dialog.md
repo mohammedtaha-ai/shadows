@@ -818,12 +818,13 @@ amends this section before the task leaves `blocked`.
 
 **Files:**
 - Modify: `web/src/desktop/presence.ts` (the native call), `web/src/app/agents/agent-settings.tsx`
-  (`AgentForm`'s `onSuccess`), `web/src/desktop/contract.yaml`
+  (`AgentForm`'s `onSuccess`), `web/src/desktop/contract.yaml`,
+  `web/src/app/agents/contract.yaml` (the changed folder's save obligation)
 - Test: `web/src/app/agents/aylul.test.tsx`
 
 **Interfaces:**
-- Consumes: the main-only native command named in the native side's answer (asked as
-  `refresh_companion_appearance`, no arguments, returns the companion state).
+- Consumes: the accepted main-only native command `refresh_companion_appearance`, no arguments,
+  returning exactly `{ ok: true }` (N-6 at `0c4d8c6`); it does not return companion state.
 - Produces: `refreshCompanionAppearance(): Promise<void>` in `presence.ts`, through `nativeCall`;
   a no-op outside the desktop.
 

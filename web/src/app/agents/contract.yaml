@@ -78,6 +78,8 @@ pure:
     file: web/src/app/agents/model-picks.ts
 
 obligations:
+  - rule: A successful save of the desktop's companion agent requests an appearance refresh; other agents and browser saves do not. Failed native refresh is ignored because native polls the agent again.
+    tested_by: ["saving the companion agent refreshes the character", "saving another agent does not", "a failed refresh does not fail the save"]
   - rule: Every saved-agent extension switch saves immediately, independently of Save agent, and accepts the returned enabled value. Failure rolls back its optimistic state; unchanged explicit retry reuses its command id. Pending and late responses stay scoped to their captured agent/item.
     tested_by: ["a switch saves at once", "a failed switch goes back", "late toggles remain scoped"]
   - rule: A new-agent form never queries extensions; reopening the created agent shows the disabled library. Empty saved-agent lists link to Plugins & Skills in the same dialog; failures remain local. Removing a library item invalidates all agents' views.
