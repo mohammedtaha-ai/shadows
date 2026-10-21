@@ -23,6 +23,7 @@ alerts later.
 - Isolated-home probe (`docs/evidence/aylul/2026-10-19-claude-code-isolated-home.md` at `0187365`):
   its measured facts.
 - [Vision](vision.md): the full product idea. Decides nothing.
+- [Future list](future.md): what is meant and not built yet, one line each, linked to the vision.
 - [Laptop hook design](specs/2026-10-13-aylul-hook-laptop-design.md): what AYLUL learns from Claude Code on the laptop.
 - [Product daemon](../integration/2026-10-19-product-daemon-hermes-design.md): the host process.
 - [Code map](codebase/README.md): what each implemented desktop module owns.

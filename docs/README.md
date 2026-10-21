@@ -13,6 +13,7 @@ hook/sidecar, native shell and code intelligence keep their own runtimes.
 | Code intelligence | Independent semantic service and its package/evaluation | [Code intelligence](code-intelligence/README.md) |
 | Integration | Agreements crossing product/runtime boundaries | [Integration](integration/README.md) |
 | Evidence | Dated facts grouped by originating runtime/slice | [Evidence directory](evidence) |
+| Future lists | What is meant and not built yet, one line each; decides nothing | [Shadows](future.md), [AYLUL](aylul/future.md) |
 | Earlier Core decisions | Existing authoritative section owners; amended in place | [Spec index](superpowers/specs/README.md) |
 
 `docs/backend/` and `docs/frontend/` remain specific to Shadows Core and its
