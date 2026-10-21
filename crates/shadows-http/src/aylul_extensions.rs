@@ -25,12 +25,13 @@ pub(super) struct Delete {
     command_id: String,
 }
 
-#[utoipa::path(get,path="/api/aylul/extensions",tag="aylul",
+#[utoipa::path(get,path="/api/aylul/extensions",tag="aylul",operation_id="list_extensions",
     responses((status=200,body=ExtensionLibrary),(status=500,body=ErrorBody)))]
 pub(super) async fn library(State(s): State<AppState>) -> Result<Json<ExtensionLibrary>, Failure> {
     Ok(Json(s.core.profiles().extensions().await?))
 }
-#[utoipa::path(post,path="/api/aylul/extensions",tag="aylul",request_body=Import,
+#[utoipa::path(post,path="/api/aylul/extensions",tag="aylul",operation_id="import_extension",
+    request_body=Import,
     responses((status=201,body=Item),(status=400,body=ErrorBody),(status=409,body=ErrorBody),
         (status=404,body=ErrorBody),(status=500,body=ErrorBody)))]
 pub(super) async fn import(
@@ -48,6 +49,7 @@ pub(super) async fn import(
     ))
 }
 #[utoipa::path(delete,path="/api/aylul/extensions/{kind}/{id}",tag="aylul",
+    operation_id="remove_extension",
     params(("kind"=ExtensionKind,Path),("id"=String,Path),Delete),
     responses((status=204),(status=400,body=ErrorBody),(status=404,body=ErrorBody),
         (status=409,body=ErrorBody),(status=500,body=ErrorBody)))]
@@ -63,6 +65,7 @@ pub(super) async fn remove(
     Ok(StatusCode::NO_CONTENT)
 }
 #[utoipa::path(get,path="/api/aylul/agents/{slug}/extensions",tag="aylul",
+    operation_id="agent_extensions",
     params(("slug"=String,Path)),responses((status=200,body=AgentExtensions),
         (status=404,body=ErrorBody),(status=500,body=ErrorBody)))]
 pub(super) async fn agent(
@@ -72,6 +75,7 @@ pub(super) async fn agent(
     Ok(Json(s.core.profiles().agent_extensions(&slug).await?))
 }
 #[utoipa::path(put,path="/api/aylul/agents/{slug}/extensions/{kind}/{id}",tag="aylul",
+    operation_id="set_agent_extension",
     params(("slug"=String,Path),("kind"=ExtensionKind,Path),("id"=String,Path)),request_body=Toggle,
     responses((status=200,body=AgentItem),(status=400,body=ErrorBody),(status=404,body=ErrorBody),
         (status=409,body=ErrorBody),(status=500,body=ErrorBody)))]

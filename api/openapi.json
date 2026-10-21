@@ -5984,7 +5984,7 @@
     },
     "/api/aylul/agents/{slug}/extensions": {
       "get": {
-        "operationId": "agent",
+        "operationId": "agent_extensions",
         "parameters": [
           {
             "in": "path",
@@ -6034,7 +6034,7 @@
     },
     "/api/aylul/agents/{slug}/extensions/{kind}/{id}": {
       "put": {
-        "operationId": "toggle",
+        "operationId": "set_agent_extension",
         "parameters": [
           {
             "in": "path",
@@ -6173,7 +6173,7 @@
     },
     "/api/aylul/extensions": {
       "get": {
-        "operationId": "library",
+        "operationId": "list_extensions",
         "responses": {
           "200": {
             "content": {
@@ -6201,7 +6201,7 @@
         ]
       },
       "post": {
-        "operationId": "import",
+        "operationId": "import_extension",
         "requestBody": {
           "content": {
             "application/json": {
@@ -6271,7 +6271,7 @@
     },
     "/api/aylul/extensions/{kind}/{id}": {
       "delete": {
-        "operationId": "remove",
+        "operationId": "remove_extension",
         "parameters": [
           {
             "in": "path",

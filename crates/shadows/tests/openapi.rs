@@ -87,6 +87,24 @@ fn the_checked_in_document_matches_the_routes() {
     );
 }
 
+/// The web client's generated types key operations by id, so two routes sharing one id
+/// would give one of them the other's parameters.
+#[test]
+fn every_operation_id_is_unique() {
+    let doc = document();
+    let mut seen = std::collections::BTreeMap::new();
+    for (path, item) in doc["paths"].as_object().unwrap() {
+        for (method, op) in item.as_object().unwrap() {
+            let Some(id) = op["operationId"].as_str() else {
+                continue;
+            };
+            if let Some(first) = seen.insert(id.to_owned(), format!("{method} {path}")) {
+                panic!("operationId `{id}` is used by {first} and {method} {path}");
+            }
+        }
+    }
+}
+
 /// Every route a client needs, by method and path.
 #[test]
 fn the_document_names_every_route() {
