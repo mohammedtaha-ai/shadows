@@ -18,7 +18,7 @@ The settings dialog's backend tasks were delivered by PR #40 (merged at `1a2b601
 ## Tasks
 
 ### B-1 · Probe: `/context` as the conversation's size, and live turn tokens
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-context-meter.md#b-1--probe-context-as-the-conversations-size-and-live-turn-tokens
 - Read: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.8; docs/evidence/2026-10-21-acp-usage-probe.md; the B-6 probe at `0bf351f` (`git show 0bf351f:crates/shadows-agent/src/acp.rs`, `b6_live_usage_probe`); `Sessions::context` in crates/shadows-core/src/harness/context.rs; `parse` in crates/shadows-agent/src/breakdown.rs
 - Touch: crates/shadows-agent/src/acp.rs (probe commit only, reverted in the evidence commit), docs/evidence/2026-10-21-context-meter-probe.md (new), docs/backend/stages.md (this task's Status only)
