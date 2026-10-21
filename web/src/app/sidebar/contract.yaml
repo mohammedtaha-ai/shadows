@@ -1,6 +1,6 @@
 # Owns the left pane (spec §13.11): the workspace menu in its title, the project tree
 # (Shadows) or the agent tree (AYLUL, brain spec §11), the conversations and plans
-# shown under each, the Settings link, and deleting a conversation from its row. The one piece of state it keeps is which projects are
+# shown under each, the Settings button, and deleting a conversation from its row. The one piece of state it keeps is which projects are
 # open, persisted to localStorage per browser (open-projects).
 #
 # Trap 1: the project in the URL opens by itself whenever the URL comes to it. Folding
@@ -51,8 +51,8 @@ components:
   Sidebar:
     signature: "() => JSX.Element"
     # The aside: the workspace menu, New project (Shadows) or New agent (AYLUL), the
-    # project or agent tree, the connection indicator and the Settings link (marked
-    # current on /settings).
+    # project or agent tree, the connection indicator and the Settings button (marked
+    # current while its dialog is open).
   ProjectList:
     signature: "() => JSX.Element"
     # Renders nothing until the project list answers; "No projects yet." when it is empty.
@@ -67,7 +67,7 @@ components:
   AgentList:
     signature: "() => JSX.Element"
     # Live agents laid out like projects: each folds open to its conversations and
-    # "Agent settings"; its + opens a draft under it. "Providers" sits under the list.
+    # "Agent settings"; its + opens a draft under it. Providers are reached through Settings.
     # Empty states: "Add a provider first", then "Add an agent to start".
   WorkflowList:
     signature: "({ projectId: string, selected?: string }) => JSX.Element"
@@ -101,16 +101,12 @@ private_helpers:
   ProjectRow:
     # The fold button and the + link. The button never navigates.
     private: true
-  SettingsLink:
-    private: true
   PlanRow:
     private: true
   AgentRow:
     # Like ProjectRow: the fold button and the + link to the agent's draft.
     private: true
   AgentSettingsLink:
-    private: true
-  ProvidersLink:
     private: true
   EmptyHint:
     private: true
@@ -119,6 +115,12 @@ private_helpers:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: Each agent row's Bot icon uses its shared-table character colour in browser and desktop, including when its row opens; unknown or absent IDs resolve to the base colour.
+    tested_by: ["the sidebar's agent icon wears the agent's colour"]
+  - rule: No Providers link sits below the agent tree; the empty provider hint opens the Providers settings section over the current page.
+    tested_by: ["the sidebar has no Providers link", "the AYLUL home's Add a provider opens the dialog on Providers"]
+  - rule: Agent settings and every New agent entry open the Agents settings section with the selected slug or new; the current page stays in place.
+    tested_by: ["Agent settings opens the dialog on that agent", "New agent opens an empty form"]
   - rule: >
       The URL's project opens when the URL comes to it. Folding the project that holds the
       open conversation leaves the conversation on screen.
@@ -192,9 +194,9 @@ obligations:
       survives Cancel. The test does not exercise the retry.
 
   - rule: >
-      Only the open conversation's row is marked current. The Settings link is marked
-      current on /settings.
-    tested_by: none
+      Only the open conversation's row is marked current. The Settings button is marked
+      current while the settings search key is set; clicking opens General over the current page.
+    tested_by: ["the sidebar's Settings opens the dialog on General"]
 
   - rule: >
       The workspace title lists both workspaces with their descriptions and a check on the

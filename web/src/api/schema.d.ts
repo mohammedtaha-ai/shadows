@@ -68,6 +68,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/aylul/agents/{slug}/extensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["agent_extensions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/aylul/agents/{slug}/extensions/{kind}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["set_agent_extension"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/aylul/agents/{slug}/threads": {
         parameters: {
             query?: never;
@@ -76,6 +108,54 @@ export interface paths {
             cookie?: never;
         };
         get: operations["threads"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/aylul/extensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_extensions"];
+        put?: never;
+        post: operations["import_extension"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/aylul/extensions/{kind}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove_extension"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/aylul/provider-presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["provider_presets"];
         put?: never;
         post?: never;
         delete?: never;
@@ -94,6 +174,22 @@ export interface paths {
         get: operations["providers"];
         put?: never;
         post: operations["create_provider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/aylul/providers/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["test_provider"];
         delete?: never;
         options?: never;
         head?: never;
@@ -127,6 +223,38 @@ export interface paths {
         put: operations["set_key"];
         post?: never;
         delete: operations["remove_key"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/aylul/providers/{slug}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["test_saved_provider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/aylul/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["usage"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -210,6 +338,22 @@ export interface paths {
          *     remove the server from the person's Claude configuration.
          */
         delete: operations["revoke_grant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["person"];
+        put: operations["set_person"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1325,6 +1469,7 @@ export interface components {
             owns: string;
         };
         Agent: {
+            character_color: string;
             created_at: string;
             default_model: string;
             deleted: boolean;
@@ -1336,10 +1481,18 @@ export interface components {
         AgentCommand: components["schemas"]["AgentInput"] & {
             command_id: string;
         };
+        AgentExtensions: {
+            plugins: components["schemas"]["AgentItem"][];
+            skills: components["schemas"]["AgentItem"][];
+        };
         AgentInput: {
+            character_color?: string | null;
             default_model: string;
             name: string;
             provider: string;
+        };
+        AgentItem: components["schemas"]["Item"] & {
+            enabled: boolean;
         };
         AgentWorkspace: {
             agents: components["schemas"]["Agent"][];
@@ -1775,7 +1928,13 @@ export interface components {
          *     Spec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
+        ErrorCode: "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
+        /** @enum {string} */
+        ExtensionKind: "plugin" | "skill";
+        ExtensionLibrary: {
+            plugins: components["schemas"]["Item"][];
+            skills: components["schemas"]["Item"][];
+        };
         /**
          * @description The task a person points at when they send a turn: the task's id, in the
          *     plan version and at the revision they were looking at. It is checked to
@@ -1837,6 +1996,11 @@ export interface components {
             /** @description The project's slug. */
             project: string;
             signature?: string | null;
+        };
+        Import: {
+            command_id: string;
+            kind: components["schemas"]["ExtensionKind"];
+            path: string;
         };
         /** @description How a project's index stands (§15.5). */
         IndexState: {
@@ -1908,6 +2072,11 @@ export interface components {
             /** @description The bearer token, in this answer only; `null` on a replay. */
             token?: string | null;
         };
+        Item: {
+            description: string;
+            id: string;
+            name: string;
+        };
         KeyCommand: {
             command_id: string;
             value: string;
@@ -1961,6 +2130,11 @@ export interface components {
             version?: number | null;
             workflow_id?: null | components["schemas"]["WorkflowId"];
         };
+        ListedModel: {
+            /** Format: int32 */
+            context_window?: number | null;
+            id: string;
+        };
         MandatoryPart: {
             name: string;
             owns: string;
@@ -2002,6 +2176,19 @@ export interface components {
             status: components["schemas"]["ProposalStatus"];
             thread_id: components["schemas"]["ThreadId"];
             waivers: components["schemas"]["ProposedWaiver"][];
+        };
+        ModelUsage: {
+            /** Format: double */
+            cost?: number | null;
+            currency?: string | null;
+            model: string;
+            provider_slug: string;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            tokens_in: number;
+            /** Format: int64 */
+            tokens_out: number;
         };
         /**
          * @description Spec §2.7, §6.14. `thread_id` stays a plain `String` here on purpose: the
@@ -2086,6 +2273,22 @@ export interface components {
             part: components["schemas"]["Part"];
             plans: components["schemas"]["PlanId"][];
             revision: components["schemas"]["i64"];
+        };
+        Person: {
+            aylul_calls_me?: string | null;
+            language?: string | null;
+            name?: string | null;
+            theme: components["schemas"]["Theme"];
+            updated_at?: string | null;
+        };
+        PersonCommand: components["schemas"]["PersonInput"] & {
+            command_id: string;
+        };
+        PersonInput: {
+            aylul_calls_me?: string | null;
+            language?: string | null;
+            name?: string | null;
+            theme: components["schemas"]["Theme"];
         };
         /** @description One stored version of a plan, as a reader sees it now (§13.2). */
         Plan: {
@@ -2223,6 +2426,8 @@ export interface components {
             status: string;
             title: string;
         };
+        /** @enum {string} */
+        PresetRegion: "international" | "china";
         /** @description One broken or missing thing, named so a person can act on it: tasks as `T4`. */
         Problem: {
             message: string;
@@ -2305,12 +2510,12 @@ export interface components {
         };
         Provider: {
             base_url: string;
-            /** Format: int32 */
-            context_window: number;
             created_at: string;
             key_set: boolean;
-            models: string[];
+            label?: string | null;
+            models: components["schemas"]["ProviderModel"][];
             name: string;
+            preset?: string | null;
             slug: string;
             updated_at: string;
         };
@@ -2318,11 +2523,55 @@ export interface components {
             command_id: string;
         };
         ProviderInput: {
-            base_url: string;
+            base_url?: string | null;
+            label?: string | null;
+            models: components["schemas"]["ProviderModelInput"][];
+            name?: string | null;
+            preset?: string | null;
+        };
+        ProviderModel: {
+            /** Format: int32 */
+            context_window: number;
+            id: string;
+        };
+        ProviderModelInput: {
             /** Format: int32 */
             context_window?: number | null;
-            models: string[];
+            id: string;
+        };
+        ProviderPreset: {
+            base_url: string;
+            id: string;
             name: string;
+            region?: null | components["schemas"]["PresetRegion"];
+        };
+        ProviderTest: {
+            api_key: string;
+            base_url?: string | null;
+            preset?: string | null;
+        };
+        ProviderTestOutcome: {
+            listed: boolean;
+            message?: string | null;
+            models: components["schemas"]["ListedModel"][];
+            ok: boolean;
+            reason?: null | components["schemas"]["TestRefusal"];
+            /** Format: int32 */
+            status?: number | null;
+        };
+        ProviderUsage: {
+            /** Format: double */
+            cost?: number | null;
+            currency?: string | null;
+            label?: string | null;
+            provider_name: string;
+            provider_slug: string;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            tokens_in: number;
+            /** Format: int64 */
+            tokens_out: number;
         };
         PutLink: {
             /** @description The idempotency key (spec §13.5), scoped to the project. */
@@ -2399,6 +2648,9 @@ export interface components {
             body: string;
             /** @description The idempotency key (spec §13.5), scoped to the project. */
             command_id: string;
+        };
+        SavedProviderTest: {
+            api_key?: string | null;
         };
         SendNowBody: {
             /** @description The idempotency key (spec §3.2). */
@@ -2522,6 +2774,10 @@ export interface components {
             state: string;
             title: string;
         };
+        /** @enum {string} */
+        TestRefusal: "key_refused" | "unreachable" | "unexpected";
+        /** @enum {string} */
+        Theme: "dark" | "light" | "system";
         ThreadEntry: {
             /**
              * @description Spec §4.2 calls this field's type `Principal`. Milestone 0 uses
@@ -2564,6 +2820,10 @@ export interface components {
         ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "Subagent" | "PermissionRefused" | "PlanView" | "PlanApproved" | "VisionProposal" | "MapProposal" | "RoadmapProposal";
         /** Format: uuid */
         ThreadId: string;
+        Toggle: {
+            command_id: string;
+            enabled: boolean;
+        };
         /**
          * @description The settings a turn runs with (spec §12.7). `effort` is `None` exactly
          *     when the model offers none (§12.4).
@@ -2597,6 +2857,10 @@ export interface components {
             command_id: string;
             /** @description `claude-code` or `codex`. */
             harness: string;
+        };
+        UsageReport: {
+            by_model: components["schemas"]["ModelUsage"][];
+            by_provider: components["schemas"]["ProviderUsage"][];
         };
         VersionLine: {
             change_reason?: string | null;
@@ -3063,6 +3327,102 @@ export interface operations {
             };
         };
     };
+    agent_extensions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentExtensions"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_agent_extension: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                kind: components["schemas"]["ExtensionKind"];
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Toggle"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentItem"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     threads: {
         parameters: {
             query?: never;
@@ -3088,6 +3448,161 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_extensions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtensionLibrary"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    import_extension: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Import"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Item"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    remove_extension: {
+        parameters: {
+            query: {
+                command_id: string;
+            };
+            header?: never;
+            path: {
+                kind: components["schemas"]["ExtensionKind"];
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    provider_presets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderPreset"][];
                 };
             };
         };
@@ -3157,6 +3672,37 @@ export interface operations {
                 };
             };
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    test_provider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderTest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderTestOutcome"];
+                };
+            };
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3377,6 +3923,109 @@ export interface operations {
                 };
             };
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    test_saved_provider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedProviderTest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderTestOutcome"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    usage: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageReport"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3671,6 +4320,80 @@ export interface operations {
                 };
             };
             /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    person: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_person: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonCommand"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             500: {
                 headers: {
                     [name: string]: unknown;

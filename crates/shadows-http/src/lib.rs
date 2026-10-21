@@ -21,6 +21,7 @@
 
 mod agreements;
 mod aylul_env;
+mod aylul_extensions;
 mod aylul_profiles;
 mod code;
 mod conversation;
@@ -132,6 +133,15 @@ pub fn router(state: AppState, mcp: Router) -> Router {
 fn routes() -> OpenApiRouter<AppState> {
     OpenApiRouter::with_openapi(openapi::base())
         .routes(routes!(runtime::identity))
+        .routes(routes!(aylul_profiles::person, aylul_profiles::set_person))
+        .routes(routes!(aylul_profiles::provider_presets))
+        .routes(routes!(aylul_profiles::usage))
+        .routes(routes!(aylul_extensions::library, aylul_extensions::import))
+        .routes(routes!(aylul_extensions::remove))
+        .routes(routes!(aylul_extensions::agent))
+        .routes(routes!(aylul_extensions::toggle))
+        .routes(routes!(aylul_profiles::test_provider))
+        .routes(routes!(aylul_profiles::test_saved_provider))
         .routes(routes!(
             aylul_profiles::providers,
             aylul_profiles::create_provider

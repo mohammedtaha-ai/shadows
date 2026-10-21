@@ -109,12 +109,25 @@ impl Client {
         }
         serde_json::from_slice(&bytes).map_err(|_| Problem::Invalid)
     }
+    #[allow(
+        dead_code,
+        reason = "Preserve the unit-result validation interface for native callers."
+    )]
     pub async fn validate(&self, binding: &BindingView) -> Result<(), Problem> {
+        self.validate_appearance(binding).await.map(|_| ())
+    }
+    pub async fn validate_appearance(
+        &self,
+        binding: &BindingView,
+    ) -> Result<Option<super::CompanionAppearance>, Problem> {
         tokio::time::timeout(self.timeout, self.validate_inner(binding))
             .await
             .map_err(|_| Problem::Transport)?
     }
-    async fn validate_inner(&self, binding: &BindingView) -> Result<(), Problem> {
+    async fn validate_inner(
+        &self,
+        binding: &BindingView,
+    ) -> Result<Option<super::CompanionAppearance>, Problem> {
         #[derive(Deserialize)]
         struct Identity {
             runtime_id: String,
@@ -138,6 +151,8 @@ impl Client {
             slug: String,
             provider: String,
             deleted: bool,
+            #[serde(default)]
+            character_color: Option<String>,
         }
         #[derive(Deserialize)]
         struct Workspace {
@@ -198,7 +213,10 @@ impl Client {
                 return Err(Problem::Thread);
             }
         }
-        Ok(())
+        Ok(agent
+            .character_color
+            .clone()
+            .map(|color| super::CompanionAppearance { color }))
     }
     pub async fn snapshot(&self, thread: &str) -> Result<Snapshot, Problem> {
         tokio::time::timeout(self.timeout, self.snapshot_inner(thread))

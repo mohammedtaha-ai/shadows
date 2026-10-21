@@ -195,7 +195,7 @@ async fn turn_without_key_is_aylul_key_missing() {
     assert_eq!(status, StatusCode::CONFLICT);
     let error: Value = serde_json::from_str(&text).unwrap();
     assert_eq!(error["code"], "AYLUL_KEY_MISSING");
-    assert!(error["message"].as_str().unwrap().contains("test"));
+    assert!(error["message"].as_str().unwrap().contains("test-2"));
 }
 
 #[tokio::test]
@@ -235,10 +235,17 @@ async fn agent_world(configured: bool, key: bool) -> World {
             .create_provider(
                 "seed-provider".into(),
                 shadows_core::ProviderInput {
-                    name: "Test".into(),
-                    base_url: "https://example.com".into(),
-                    models: vec!["fake-large".into()],
-                    context_window: None,
+                    preset: None,
+                    label: None,
+                    name: Some("Test".into()),
+                    base_url: Some("https://example.com".into()),
+                    models: vec!["fake-large".into()]
+                        .into_iter()
+                        .map(|id| shadows_core::ProviderModelInput {
+                            id,
+                            context_window: None,
+                        })
+                        .collect(),
                 },
             )
             .await
@@ -248,8 +255,9 @@ async fn agent_world(configured: bool, key: bool) -> World {
             .create_agent(
                 "seed-agent".into(),
                 shadows_core::AgentInput {
+                    character_color: None,
                     name: "AYLUL".into(),
-                    provider: "test".into(),
+                    provider: "test-2".into(),
                     default_model: "fake-large".into(),
                 },
             )

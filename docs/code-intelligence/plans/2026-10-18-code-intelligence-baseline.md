@@ -31,7 +31,8 @@ its Python 3.13.13 environment, existing Rust toolchain and real TypeScript sour
 
 ## Execution checkpoint - 2026-10-18
 
-[Real-project evidence](../../evidence/code-intelligence/2026-10-18-serena-real-shadows.md)
+Real-project evidence (`docs/evidence/code-intelligence/2026-10-18-serena-real-shadows.md` at
+`0187365`)
 records 29/29 selected local assertions. CI-1 is complete for this sample. CI-2 is
 partial: nested real roots and separate stdio instances were tested; distinct
 worktrees, edited-source freshness and shared-worker lifecycle were not. CI-3 has
@@ -55,7 +56,8 @@ of distinct-worktree isolation. No production code or TDD feature cycle is invol
 
 ## Starting evidence
 
-[2026-10-18 smoke](../../evidence/code-intelligence/2026-10-18-serena-baseline.md) already
+2026-10-18 smoke (`docs/evidence/code-intelligence/2026-10-18-serena-baseline.md` at `0187365`)
+already
 proved one Rust outline/body/reference query, a four-tool advertised surface and
 refusal of an unavailable shell tool. Do not repeat installation or claim that
 this completes the following matrix. `tools.json` and `report.json` are retained

@@ -123,6 +123,8 @@ pub(crate) async fn answer(
                 "effort": s.effort,
                 "mode": s.mode,
                 "config_dir": std::env::var("CLAUDE_CONFIG_DIR").ok(),
+                "context_tokens": std::env::var("CLAUDE_CODE_MAX_CONTEXT_TOKENS").ok(),
+                "compact_window": std::env::var("CLAUDE_CODE_AUTO_COMPACT_WINDOW").ok(),
                 "has_token": std::env::var("ANTHROPIC_AUTH_TOKEN").is_ok_and(|v| !v.is_empty()),
                 "claude": std::env::var("CLAUDE_CODE_EXECUTABLE")
                     .unwrap_or_default(),
@@ -211,6 +213,27 @@ pub(crate) async fn answer(
                 _ => "cancelled".into(),
             };
             chunk(cx, id, "m1", &format!("permission: {chosen}"))?;
+        }
+        "turn-usage" | "turn-usage-second" | "turn-usage-refused" | "turn-usage-cancelled" => {
+            let amount = if prompt == "turn-usage-second" {
+                0.5
+            } else {
+                0.2
+            };
+            for used in [7, 999] {
+                let u = serde_json::from_value(serde_json::json!({
+                    "used":used,"size":200000,"cost":{"amount":amount,"currency":"USD"}
+                }))
+                .unwrap();
+                update(cx, id, SessionUpdate::UsageUpdate(u))?;
+            }
+            if prompt == "turn-usage-refused" {
+                return Ok((StopReason::Refusal, None));
+            }
+            if prompt == "turn-usage-cancelled" {
+                return Ok((StopReason::Cancelled, None));
+            }
+            chunk(cx, id, "m1", "usage")?;
         }
         "usage" => {
             let u = UsageUpdate::new(1234, 200000).meta(

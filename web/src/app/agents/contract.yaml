@@ -1,5 +1,5 @@
-# Owns the AYLUL workspace's pages (brain spec §11): its landing pane, the Providers
-# page, and each agent's page with its environment variables (§10, per agent).
+# Owns the AYLUL workspace's landing pane, provider forms and agent forms with
+# environment variables (§10, per agent). Providers live inside the settings dialog.
 #
 # Trap 1: a provider key and an agent variable are write-only. The daemon answers
 # metadata (`key_set`, names, times) and never a value; these screens keep a typed value
@@ -20,31 +20,40 @@ external:
   EnvEntry: web/src/api/schema.d.ts components.schemas.EnvEntry
 
 components:
+  AgentExtensions:
+    signature: "({ slug: string }) => JSX.Element"
+    note: Saved-agent extension switches live outside the Save agent form; failed extension reads do not disable ordinary fields.
+  ColorSwatches:
+    signature: "({ value: string, onChange: (id: string) => void, disabled?: boolean }) => JSX.Element"
+    note: Radio group in shared table order with per-entry label, title, colour and selected ring.
+  ColorDot:
+    signature: "({ id: string | null | undefined }) => JSX.Element"
+    note: Text-free decorative dot with the resolved colour id.
   AylulHome:
     signature: "() => JSX.Element"
     # /aylul, and / while AYLUL is the stored workspace. With no provider it asks for one;
     # with providers and no agent it asks for an agent.
-  ProviderSettings:
-    signature: "() => JSX.Element"
-    # /aylul/providers: the saved providers (name, URL, model count, whether a key is
-    # saved), a New provider row, and the picked provider's form.
+  ProviderPicker:
+    signature: "({ onChoose: (group: PresetGroup | null) => void }) => JSX.Element"
   ProviderForm:
-    signature: "({ provider: Provider | null, onSaved: (p: Provider | null) => void }) => JSX.Element"
-    # Name, URL, API key (password, write-only, Remove key when one is saved), models one
-    # per line, context window; Delete provider in its danger zone.
-  NewAgent:
-    signature: "() => JSX.Element"
-    # /aylul/agents/new; a saved agent opens its settings.
-  AgentSettings:
-    signature: "() => JSX.Element"
-    # /aylul/agents/$slug/settings: name, provider, default model, the agent's variables,
-    # Delete agent. A deleted agent's page says its conversations stay readable.
+    signature: "({ provider: Provider | null, group: PresetGroup | null, onSaved: (p: Provider | null) => void }) => JSX.Element"
+    # Preset/region or Custom URL, label, write-only key tests, model selection;
+    # Delete provider retains inline confirmation.
+  ProviderModels:
+    signature: "({ listed, picked: ModelPick[], onChange }) => JSX.Element; default is picked[0]"
+  AgentForm:
+    signature: "({ slug: string | null, onDone: () => void }) => JSX.Element"
+    # Null creates an agent; a saved agent includes its scoped environment and deletion.
+    # Successful saves return to the Agents list via onDone, without changing the page.
+  DeleteAgent:
+    signature: "({ slug, name, onDone, compact? }) => JSX.Element"
+    # Reuses the same idempotent deletion from an agent form or list row.
   AgentEnv:
     signature: "({ slug: string }) => JSX.Element"
   DeleteZone:
-    signature: "({ title, summary, consequence, action, pending, error, onConfirm }) => JSX.Element"
-    # The danger zone shared by both forms: deleting is asked in a dialog, whose error
-    # line shows a refusal such as PROVIDER_IN_USE.
+    signature: "({ title, summary, consequence, action, pending, error, onConfirm, inline?, compact? }) => JSX.Element"
+    # The danger zone shared by both forms; inline=true keeps confirmation inside
+    # Settings. Its error line shows a refusal such as PROVIDER_IN_USE.
   Field:
     signature: "({ label, hint?, children }) => JSX.Element"
   Select:
@@ -53,13 +62,34 @@ components:
     signature: "(props: ComponentProps<'textarea'>) => JSX.Element"
 
 pure:
-  parseModels:
-    signature: "(text: string) -> string[] | string"
-    private: true
-    # The ids, one per line or comma, or the reason they cannot be saved: none or more
-    # than 20, `default`, a duplicate, a space or control character, over 128 characters.
+  colorOf:
+    signature: "(id: string | null | undefined) => CharacterColor; unknown or missing ids resolve to the shared table base"
+    file: web/src/app/agents/character-colors.ts
+  presetGroups:
+    signature: "(presets: Preset[]) => PresetGroup[]; first-seen group order"
+  presetOf:
+    signature: "(presets: Preset[], provider: Provider) => Preset | null; by preset id"
+  providerTitle:
+    signature: "(provider: Provider, presets: Preset[]) => string; preset name, region and optional label"
+  testLine:
+    signature: "(outcome: ProviderTestOutcome, providerName: string) => { kind, text }"
+  modelPicksError:
+    signature: "(picked: ModelPick[]) => string | null; 1..20 unique valid ids and bounded windows"
+    file: web/src/app/agents/model-picks.ts
 
 obligations:
+  - rule: A successful save of the desktop's companion agent requests an appearance refresh; other agents and browser saves do not. Failed native refresh is ignored because native polls the agent again.
+    tested_by: ["saving the companion agent refreshes the character", "saving another agent does not", "a failed refresh does not fail the save"]
+  - rule: Every saved-agent extension switch saves immediately, independently of Save agent, and accepts the returned enabled value. Failure rolls back its optimistic state; unchanged explicit retry reuses its command id. Pending and late responses stay scoped to their captured agent/item.
+    tested_by: ["a switch saves at once", "a failed switch goes back", "late toggles remain scoped"]
+  - rule: A new-agent form never queries extensions; reopening the created agent shows the disabled library. Empty saved-agent lists link to Plugins & Skills in the same dialog; failures remain local. Removing a library item invalidates all agents' views.
+    tested_by: ["a new agent shows the part after it is created", "an empty library links to the section", "an extension load failure is local", "library removal clears every agent view"]
+  - rule: Character colours come from the shared character table; each agent form resolves unknown IDs to the base and always saves the chosen id with its other fields. The form states whether the desktop companion currently uses this agent; no native colour mutation is issued here.
+    tested_by: ["the table's colours, in order", "every colour is complete", "a new agent starts on Purple", "an agent's colour is shown and saved with the form", "an id the table does not know shows Purple and is replaced on save", "the hint says when the colour shows"]
+  - rule: Presets are queried from Core; known providers save only preset and label with ordered model objects. Each chosen model owns its editable context window; the first is default. Stored keys can be tested without revealing them.
+    tested_by: ["presets come from Core, grouped by name", "a preset saves its id, not its URL", "Test connection lists the key's models", "Edit tests with the stored key", "a window out of range is refused"]
+  - rule: Presets are grouped by provider name; search keeps Custom visible. Known providers fix the name and URL, with International/China selection where applicable. Custom requires its URL.
+    tested_by: ["presets are grouped by name", "search filters the presets and keeps Custom", "a preset hides the URL and sends it", "Custom asks for the URL", "MiniMax China sends the China URL", "Moonshot China sends the China URL", "Edit keeps the saved region"]
   - rule: Provider keys are password inputs and clear after a successful save.
     tested_by: [provider_form_saves_and_clears_key]
   - rule: The model editor refuses duplicate ids and the reserved default id before sending.
@@ -68,15 +98,15 @@ obligations:
     tested_by: [agent_form_lists_provider_models]
   - rule: Agent variables use scoped query keys and never display stored values.
     tested_by: [lists_names_without_values, adding_clears_the_input, replaces_and_removes_a_variable]
-  - rule: Agent variables live on the agent's page, not on the global Settings page.
-    tested_by: [global_settings_has_no_agent_environment]
+  - rule: Agent variables live on the saved agent form inside Settings; General and new-agent forms never load an agent's environment.
+    tested_by: [general_settings_has_no_agent_environment, lists_names_without_values]
   - rule: Configuration writes apply to the next spawn, including resumed conversations.
     tested_by: none
     note: Forms say this; core session tests own spawn behavior.
   - rule: Empty states guide provider creation before agent creation.
     tested_by: [empty_states_guide_to_provider_then_agent]
-  - rule: Deleting a provider or an agent is confirmed in a dialog first.
-    tested_by: none
+  - rule: Deleting a provider or an agent requires inline confirmation inside Settings; successful agent deletion preserves the current page.
+    tested_by: ["provider deletion confirms inside the settings dialog", "agent deletion confirms inline and preserves the current page"]
     note: The daemon refuses a provider in use with PROVIDER_IN_USE; the dialog shows it.
 
 tests:
@@ -90,9 +120,11 @@ tests:
     checks: A stored variable shows its name, time, Replace and Remove; the value field is a password.
   - name: adding_clears_the_input
     checks: A typed name is uppercased; after a save the value field is empty and the value never shows.
-  - name: global_settings_has_no_agent_environment
-    checks: The global Settings page never asks for agent variables.
+  - name: general_settings_has_no_agent_environment
+    checks: General never asks for agent variables.
   - name: shows_unavailable_error
     checks: SECRETS_UNAVAILABLE on the variable list shows its error line.
   - name: replaces_and_removes_a_variable
     checks: Replace sends the new value for that name; Remove sends one DELETE.
+
+provider_models: Provider models carry id and per-model context_window; the agent selector uses each model id.

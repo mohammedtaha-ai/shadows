@@ -31,6 +31,7 @@ pub enum HarnessEvent {
         size: u64,
         model: Option<String>,
         rate_limit: Option<Value>,
+        cost: Option<UsageCost>,
     },
     Options(Value),
     /// The harness's complete `/` list (§21), sent after the session opens
@@ -196,8 +197,9 @@ pub fn limits_from(rate_limit: &Value, observed_at: &str) -> Option<AccountLimit
 /// What the harness reported about a turn, from its last usage report
 /// (§12.8: only the last is trusted — the first `size` is a guess). Nothing
 /// it did not report is estimated.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct TurnObservation {
+    pub token_usage: Option<TurnUsage>,
     /// The harness session the turn ran in (§12.7 `native_session_id`).
     pub native_session_id: Option<String>,
     pub observed_model: Option<String>,
@@ -213,6 +215,7 @@ impl TurnObservation {
             Some(HarnessEvent::Usage {
                 used, size, model, ..
             }) => Self {
+                token_usage: None,
                 native_session_id: None,
                 observed_model: model.clone(),
                 context_used: Some(*used),
@@ -272,9 +275,32 @@ mod tests {
             size: 0,
             model: None,
             rate_limit: None,
+            cost: None,
         };
         let o = TurnObservation::from_usage(Some(&u));
         assert_eq!((o.context_used, o.context_window), (Some(10), None));
         assert_eq!(TurnObservation::from_usage(None).context_used, None);
     }
+}
+
+/// Cumulative cost reported by a session, distinct from context usage.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct UsageCost {
+    pub amount: f64,
+    pub currency: String,
+}
+
+/// Raw end-turn counters. They do not come from context notifications.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TurnUsage {
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    #[serde(default)]
+    pub cached_read_tokens: u64,
+    #[serde(default)]
+    pub cached_write_tokens: u64,
+    pub total_tokens: u64,
+    #[serde(default)]
+    pub cost: Option<UsageCost>,
 }

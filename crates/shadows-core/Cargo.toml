@@ -12,6 +12,7 @@ doctest = false
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true, features = ["rustls"] }
 aes-gcm = "0.10"
 hkdf = "0.12"
 hmac = "0.12"

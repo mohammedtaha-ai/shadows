@@ -1,5 +1,6 @@
 pub mod companion;
 pub mod desktop;
+pub mod preferences;
 #[tauri::command]
 pub fn hide_main(window: tauri::WebviewWindow) -> Result<(), String> {
     if window.label() != "main" {

@@ -249,7 +249,17 @@ async fn main() -> agent_client_protocol::Result<()> {
                             client_meta,
                         };
                         let (stop, after) = prompts::answer(&cx, turn).await?;
-                        responder.respond(PromptResponse::new(stop))?;
+                        let mut response = PromptResponse::new(stop);
+                        if prompt.starts_with("turn-usage") {
+                            response.usage = Some(
+                                serde_json::from_value(json!({
+                                    "totalTokens":64,"inputTokens":10,"outputTokens":4,
+                                    "cachedReadTokens":20,"cachedWriteTokens":30
+                                }))
+                                .unwrap(),
+                            );
+                        }
+                        responder.respond(response)?;
                         match after {
                             Some(item) => update(&cx, &id, item),
                             None => Ok(()),

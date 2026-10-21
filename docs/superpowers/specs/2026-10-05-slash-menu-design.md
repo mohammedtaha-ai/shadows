@@ -5,7 +5,7 @@
   (`a499a6c`), and amended by his ruling on `/model` after the browser run
   (21.4). Built on `next/slash-menu` and run in the browser against the real
   adapter (2026-10-05).
-- **Evidence:** [`2026-10-05-steering-and-commands-probe.md`](../../evidence/2026-10-05-steering-and-commands-probe.md)
+- **Evidence:** `docs/evidence/2026-10-05-steering-and-commands-probe.md` at `0187365`
   finding 4 (adapter 0.81.1).
 - **Related owners:** §12.4 (choices come from the harness; this section
   follows the same path), §2.10 (the thread stream), §20 (the composer while a

@@ -16,6 +16,7 @@ import {
 } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { queuedQuery } from '@/api/queries'
+import { writeSaved } from '@/api/saved-answer'
 import { Button } from '@/components/ui/button'
 import type { SlashCommand } from '@/stream/frames'
 import {noteCompanionSend,useCompanionSendProblem} from '@/desktop/companion-send'
@@ -190,8 +191,8 @@ export function Composer({
   const switchModel = useMutation({
     // A draft has no session to change: Send opens it.
     mutationFn: ({ threadId, id }: { threadId: string; id: string }) => changeModel(threadId, id),
-    onSuccess: (answer, { threadId, id }) => {
-      queryClient.setQueryData(sessionKey(threadId), answer)
+    onSuccess: async (answer, { threadId, id }) => {
+      await writeSaved(queryClient, sessionKey(threadId), answer)
       // Asked again it would be answered the same: say so rather than ask.
       if (answer.current.model !== id) refuse(`The session kept ${answer.current.model}`, answer)
       // The answer is the effort the move ended at (the remembered one, §12.4);
@@ -214,8 +215,8 @@ export function Composer({
   // the session's effort back, and the error line says why.
   const switchEffort = useMutation({
     mutationFn: ({ threadId, id }: { threadId: string; id: string }) => changeEffort(threadId, id),
-    onSuccess: (answer, { threadId, id }) => {
-      queryClient.setQueryData(sessionKey(threadId), answer)
+    onSuccess: async (answer, { threadId, id }) => {
+      await writeSaved(queryClient, sessionKey(threadId), answer)
       if (answer.current.effort !== id) keepEffort(answer)
     },
     onError: () => keepEffort(),

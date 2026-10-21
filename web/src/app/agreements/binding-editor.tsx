@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { operations as documentOperations } from './agreement-document'
 import { partQuery } from '@/api/queries'
+import { writeSaved } from '@/api/saved-answer'
 export function BindingEditor({ plan, task }: { plan: Plan; task: number }) {
   const client = useQueryClient()
   const [id, setId] = useState('')
@@ -23,9 +24,9 @@ export function BindingEditor({ plan, task }: { plan: Plan; task: number }) {
     const request = pending.current
     await editBindings(plan.id, request.id, request.revision, request.ops)
     return getPlan(plan.id)
-  }, onSuccess: p => {
+  }, onSuccess: async p => {
     pending.current = null
-    client.setQueryData(['workflows', 'plan', plan.id], p)
+    await writeSaved(client, ['workflows', 'plan', plan.id], p)
     void client.invalidateQueries({ queryKey: ['workflows'] })
     void client.invalidateQueries({ queryKey: ['projects', plan.project_id, 'agreement'] })
     void client.invalidateQueries({ queryKey: ['projects', plan.project_id, 'design'] })

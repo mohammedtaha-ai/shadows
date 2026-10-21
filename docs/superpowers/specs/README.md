@@ -46,7 +46,8 @@ design-note, and status narratives.
 
 ## Maintenance rules
 
-Delivery and acceptance details live in [`docs/status.md`](../../status.md).
+Delivered work is recorded in its PR and dated evidence; what is not built yet is in
+[`docs/future.md`](../../future.md).
 The [full delivery roadmap](../plans/2026-10-03-project-planning-roadmap.md)
 retains the later local product, concurrency and company sequence.
 
@@ -57,7 +58,7 @@ retains the later local product, concurrency and company sequence.
 - Every decision lives in exactly one owner file. Another file refers to its
   section number instead of copying or summarising it.
 - Amend an owner file in place. Do not create a competing ADR or design note.
-- `docs/status.md` records current progress and decides nothing.
+- `docs/future.md` lists what is not built yet and decides nothing.
 - `docs/evidence/` contains dated measurements, not design authority. When a
   measurement changes a decision, amend the appropriate owner file.
 - Do not create a design document for a struct shape, library call, test

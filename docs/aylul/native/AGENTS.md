@@ -43,6 +43,11 @@ only through the teacher.
 - Done when: <the test(s) or command that must pass>
 ```
 
+**`stages.md` holds only what is left.** A `done` task stays while its branch is open, so the
+reviewer sees it. When the branch's PR merges, `docs-sync` deletes every `done` task that PR
+delivered, and a plan whose tasks are all done; its commit names the PR, and Git keeps them
+(cite them as "`<path>` at `<commit>`"). No "Done" section is kept.
+
 ## Rules for the builder and the fixer
 
 1. Read this file, then the task, then only what the task's `Read:` names.

@@ -1,12 +1,11 @@
-# Owns the global Settings page (spec §13.11): the daemon's settings that belong to no
-# one project, one section each. The active-projects limit belongs to the
-# code index (§15.6). Agent configuration lives in app/agents.
+# Owns the global Settings dialog: URL-selected sections over the current page.
+# The active-projects limit belongs to the code index (§15.6).
 #
 # Trap: the form keeps the person's typed number until it is saved or the saved value
 # changes while the field is untouched. The save's success clears that edit without
 # checking for a newer one, so an edit typed while the save was in flight is lost.
 #
-# A new setting is one more component rendered by SettingsPage.
+# A new section is one entry in the SettingsDialog content map.
 
 name: web-settings
 version: 1
@@ -33,11 +32,48 @@ external:
 # ── functions ────────────────────────────────────────────────────────────────────
 
 components:
-  NativeSettings:
-    signature: "() => JSX.Element | null; desktop-only account/companion/connection sections"
-  SettingsPage:
+  PluginsSection:
     signature: "() => JSX.Element"
-    # The page shell; it renders one section per daemon setting.
+    note: Accessible Plugins/Skills tabs; Add replaces the body without another dialog.
+  ExtensionImport:
+    signature: "({ kind: ExtensionKind, onDone: () => void }) => JSX.Element"
+  ExtensionList:
+    signature: "({ kind: ExtensionKind, items: Item[] }) => JSX.Element"
+  UsageSection:
+    signature: "() => JSX.Element"
+    note: A captured range per opening/period selection; no old rows during a new pending range.
+  UsageTables:
+    signature: "({ report: UsageReport }) => JSX.Element"
+  SettingsDialog:
+    signature: "() => JSX.Element"
+    # One modal in Shell; section availability follows the runtime.
+  GeneralSection:
+    signature: "() => JSX.Element"
+    note: Active projects stays independent of Core language/theme and desktop-only machine preferences.
+  GeneralPreferences:
+    signature: "() => JSX.Element"
+    note: Uses personQuery/savePerson and writeSaved; latest cached names survive preference-only writes.
+  PersonTheme:
+    signature: "() => null"
+    note: Mounted once in Shell after readiness; root dark class/data-theme follow saved preference or system, with complete effect cleanup.
+  DesktopPreferencesControls:
+    signature: "() => JSX.Element"
+    note: Loads on each desktop General opening; sends flat partial native updates without a Core write.
+  AccountSection:
+    signature: "() => JSX.Element"
+    note: You card works in browser and desktop; native state/actions mount only in desktop.
+  YouCard:
+    signature: "() => JSX.Element"
+  CharacterSection:
+    signature: "() => JSX.Element"
+  CoreSection:
+    signature: "() => JSX.Element"
+  ProvidersSection:
+    signature: "() => JSX.Element"
+    note: Provider list titles use Core presets plus region and label; Edit waits for presets to load.
+  AgentsSection:
+    signature: "() => JSX.Element"
+    note: Each list row shows its resolved colour dot; the bound agent has a Companion tag on desktop only.
   ActiveProjects:
     signature: "() => JSX.Element"
     # Reads the code settings; renders the form once they load.
@@ -47,10 +83,80 @@ private_helpers:
     # The form. `edited` is null until the person types; it then holds their text.
     private: true
 
+hooks:
+  useOpenSettings:
+    signature: "() => (section: SectionId, agent?: string) => void"
+  useCloseSettings:
+    signature: "() => () => void"
+
+functions:
+  usageRange:
+    signature: "(period: UsagePeriod, now: Date) => { from: string; to: string }"
+  accountView:
+    signature: "(auth: AuthView | null, busy: boolean, loggingIn: boolean) => { message: string; actions: AccountAction[] }"
+  visibleSections:
+    signature: "() => typeof SECTIONS"
+  readSettingsSearch:
+    signature: "(search: Record<string, unknown>) => { settings?: SectionId; agent?: string }"
+
 
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: General saves the complete person with retry-stable command identity and latest observed names; unsupported language tags remain unchanged unless a supported choice is selected. Saved answers cancel older reads before cache writes.
+    tested_by: ["General reads and saves the whole person", "an unknown saved language survives a theme-only change", "observed names are preserved while editing preferences", "a failed preference save retains its draft and command", "an old read cannot undo saved preferences"]
+  - rule: Dark/light themes apply through the root attributes and the shared CSS palette; System listens for browser colour-scheme changes while fixed themes do not. Failure without a person leaves the initial theme intact; unmount restores prior attributes and removes listeners.
+    tested_by: ["theme follows the shared person", "System follows the OS and fixed themes do not", "failed person loading preserves the initial theme", "unmount removes System listeners and restores prior attributes"]
+  - rule: Native controls read actual state instead of writing defaults, serialize local updates and accept the full returned object. A failed setter rereads actual values; failed recovery disables controls until explicit read retry. Native and Core errors remain independent; stale effect reads cannot overwrite a later accepted result.
+    tested_by: ["browser General has no native preferences", "desktop defaults come from native without a write", "each switch sends flat partial camelCase arguments", "failed recovery read keeps controls disabled until explicit Retry", "a StrictMode read cannot overwrite accepted desktop preferences", "a failed Core save does not disable or invoke native switches"]
+  - rule: The shared library has no global enablement switch. Add uses a trimmed daemon-side folder path, retains it after failure and reuses unchanged command identities. Back discards unsubmitted input; successful import returns to the selected tab.
+    tested_by: ["the library has tabs and no switches", "Add imports a folder on the daemon", "import retry preserves command identity", "Back discards an unsubmitted import"]
+  - rule: Remove requires inline library-wide confirmation, uses a command id in the DELETE query, accepts 204 and preserves retry identity after failure. Library writes invalidate the library and every agent-extension cache prefix.
+    tested_by: ["Remove confirms its library-wide effect", "a failed Remove can be retried", "library removal clears every agent view"]
+  - rule: Usage queries rolling 7/30-day periods or the person's local calendar month, serialized as UTC RFC3339. Exactly at month start the end advances one millisecond. Requests and cache entries stay scoped to their captured range.
+    tested_by: ["periods produce bounded UTC ranges", "Usage opens with Last 7 days", "changing the period fetches its own report"]
+  - rule: Usage preserves historical provider titles, report ordering and per-provider model identities. Bars compare input plus output tokens; zero totals have finite zero widths. Missing cost or currency displays a dash, never estimated zero or mixed-currency totals.
+    tested_by: ["provider snapshots and labelled keys stay distinct", "provider bars compare total tokens", "model rows include their provider", "unknown charges are not zero"]
+  - rule: Loading, empty and error states are distinct; explicit Retry keeps the same range.
+    tested_by: ["empty and failed usage are distinct", "a refused period is shown without invented rows"]
+  - rule: You edits the person's names; save preserves last-read language and theme. Empty names send null; names over 64 characters or with line breaks are refused locally. Failed saves retain input and unchanged retries reuse their command id.
+    tested_by: ["saving sends the whole record", "an emptied field saves as null", "more than 64 characters is refused before sending", "a failed save keeps the typed values and retries with the same command"]
+  - rule: Browser Account exposes You without native sign-in controls; failed person loads show an error instead of a form.
+    tested_by: ["the browser lists Account with only You", "a failed person load shows an error and no form"]
+  - rule: Agents selects a form through the agent search key; Back and successful save clear that key to show the list without changing the page. Missing or deleted agent IDs show the list with a note. Closing discards unsaved edits.
+    tested_by:
+      - "Agent settings opens the dialog on that agent"
+      - "New agent opens an empty form"
+      - "saving and Back return to the Agents list"
+      - "a deleted agent in the URL shows the list with a note"
+      - "closing an unsaved agent form discards the draft"
+  - rule: Providers starts on its list; add and edit replace the section body; closing discards the unsaved form. Confirming deletion stays inside the existing settings dialog.
+    tested_by:
+      - "closing mid-form saves nothing"
+      - "provider deletion confirms inside the settings dialog"
+  - rule: Character presents visibility, motion and reply preview as switches; Local Core shows its native state above configuration fields in a closed Advanced disclosure.
+    tested_by:
+      - "character shows three switches"
+      - "the Local Core paths are under a closed Advanced"
+  - rule: Account shows only state-appropriate actions; checks status on each opening; pending actions disable every action except independent sign-in cancellation. Global logout and revoke require confirmation.
+    tested_by:
+      - "accountView gives each state its actions"
+      - "an action in progress disables every button"
+      - "the state is checked when the section opens"
+      - "global logout and device revoke retain explicit confirmation"
+      - "sign-in can be cancelled independently of its pending worker"
+  - rule: Settings opens over the current page; Escape or backdrop closes it, clears settings search keys and returns focus to the Settings button.
+    tested_by:
+      - "Escape closes the dialog and keeps the page"
+      - "a backdrop click closes the dialog and keeps the page"
+  - rule: Desktop-only sections are hidden in the browser; unknown or hidden section IDs resolve to General. Plugins and Usage are available in both runtimes.
+    tested_by:
+      - "the dialog lists its sections in three groups"
+      - "a desktop-only section in the browser falls back to General"
+      - "an unknown or hidden section falls back to General"
+  - rule: The legacy /settings URL redirects to the General dialog on the home page.
+    tested_by:
+      - "/settings redirects to the dialog"
   - rule: >
       The limit must be a whole number from 1 to 20. Any other text disables Save and
       shows "A whole number from 1 to 20."

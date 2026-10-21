@@ -4,6 +4,10 @@ status: current
 source: apps/desktop/src/features/companion
 responsibility: Present procedural AYLUL with isolated motion and explicit native rendering permission; desktop gestures invoke narrow platform wrappers. Reusable in-window presence owns message lifetime and optional tones. Development studio is separately owned.
 exports:
+  - name: paletteFor
+    file: apps/desktop/src/features/companion/renderer/palette.ts
+  - name: rgba
+    file: apps/desktop/src/features/companion/renderer/palette.ts
   - name: CompanionComposer
     file: apps/desktop/src/features/companion/CompanionComposer.tsx
   - name: createDrafts
@@ -25,6 +29,21 @@ exports:
   - name: renderScene
     file: apps/desktop/src/features/companion/renderer/scene.ts
 obligations:
+  - rule: Character and scene tones resolve from the frame colour; omitted or unknown colour retains every recorded purple pixel. Each frame shares its palette with the drawing passes; accessory crystal callers that omit the optional palette keep the base tones.
+    tested_by: apps/desktop/tests/companion/renderer.spec.ts
+    test: purple draws today's pixels
+  - rule: Recolouring preserves transparency and visible coverage while blocked rose and success gold remain state signals.
+    tested_by: apps/desktop/tests/companion/renderer.spec.ts
+    test: signals keep their colours in every colour
+  - rule: The desktop companion copies the parsed state's colour into motion input and renders its palette without changing shape, motion or outfit.
+    tested_by: apps/desktop/tests/companion/desktop-window.spec.ts
+    test: the companion window draws the state's colour
+  - rule: The base palette preserves today's exact tones; unknown or missing colour IDs resolve to the same cached base palette.
+    tested_by: apps/desktop/tests/companion/palette.test.ts
+    test: an unknown or missing id draws purple
+  - rule: Each colour derives a complete cached palette by rotating the base hue while preserving saturation and lightness, with explicit tone overrides taking precedence.
+    tested_by: apps/desktop/tests/companion/palette.test.ts
+    test: a derived tone keeps lightness and saturation
   - rule: An in-flight send keeps the textarea focusable but read-only so Escape can close the editor without changing or cancelling the submission.
     tested_by: apps/desktop/tests/companion/composer.spec.ts
     test: pending send retains keyboard focus so Escape can close the editor

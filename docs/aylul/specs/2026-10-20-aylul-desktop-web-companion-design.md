@@ -4,11 +4,12 @@ Date: 2026-10-20.
 Status: Initial desktop/presence design implemented through `8bb41fc`. Mohammed
 approved the compact Ready-toggle text-input interaction on 2026-10-20, and on
 the same day approved §8A's native-owned send sequence and the focus probe as
-its first step. The [text-input plan](../plans/2026-10-20-aylul-companion-text-input.md)
+its first step. The text-input plan (`docs/aylul/plans/2026-10-20-aylul-companion-text-input.md` at
+`0187365`)
 implements §8A, was approved for inline execution, and is implemented through
 `bd1f6ca` plus the final runtime/focus acceptance corrections. Actual-profile
 keyboard and real-assistant reply checks passed; see the
-[text-input evidence](../../evidence/aylul/2026-10-20-companion-text-input.md).
+text-input evidence (`docs/evidence/aylul/2026-10-20-companion-text-input.md` at `0187365`).
 It does not expand the completed initial plan.
 
 This file owns the replacement of the desktop main interface with `web/`,
@@ -181,7 +182,7 @@ remote hosts to make the connection work.
 Measured on Windows on 2026-10-20: packaged main and companion send
 `http://tauri.localhost`. GET, JSON and EventSource work with exact origin/CSP
 allowlists; companion main-command access remains denied. See the
-[packaged-origin evidence](../../evidence/aylul/2026-10-20-desktop-webview-origin.md).
+packaged-origin evidence (`docs/evidence/aylul/2026-10-20-desktop-webview-origin.md` at `0187365`).
 The implementation must preserve that boundary and recheck it on the final main.
 
 Main remains a packaged local webview. External links use a deliberate system

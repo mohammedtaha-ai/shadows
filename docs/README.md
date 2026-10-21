@@ -13,6 +13,7 @@ hook/sidecar, native shell and code intelligence keep their own runtimes.
 | Code intelligence | Independent semantic service and its package/evaluation | [Code intelligence](code-intelligence/README.md) |
 | Integration | Agreements crossing product/runtime boundaries | [Integration](integration/README.md) |
 | Evidence | Dated facts grouped by originating runtime/slice | [Evidence directory](evidence) |
+| Future lists | What is meant and not built yet, one line each; decides nothing | [Shadows](future.md), [AYLUL](aylul/future.md) |
 | Earlier Core decisions | Existing authoritative section owners; amended in place | [Spec index](superpowers/specs/README.md) |
 
 `docs/backend/` and `docs/frontend/` remain specific to Shadows Core and its
@@ -26,5 +27,5 @@ documentation moves do not invent modules or change their implementation.
 
 AYLUL's desktop code is under `apps/desktop/`; its vision, maps and
 character/native/UI owners are under `docs/aylul/`. Historical acceptance is
-under `docs/evidence/nylra/`. Documents superseded on 2026-10-19 stay in Git at
+under `docs/evidence/nylra/` at `0187365`. Documents superseded on 2026-10-19 stay in Git at
 `226d0a3`.

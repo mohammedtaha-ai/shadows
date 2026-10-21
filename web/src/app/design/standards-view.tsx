@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { type EffectiveStandards, type StandardsAdditions, saveStandardsAdditions } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { standardsQuery, stageQuery } from '@/api/queries'
+import { writeSaved } from '@/api/saved-answer'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 
@@ -63,10 +64,10 @@ function Editor({ projectId, saved }: { projectId: string; saved: EffectiveStand
   }
   const save = useMutation({
     mutationFn: ({ commandId, content }: { commandId: string; content: StandardsAdditions }) => saveStandardsAdditions(projectId, commandId, content),
-    onSuccess: version => {
+    onSuccess: async version => {
       pending.current = null
       // Keep a newer save learned through the journal while this response was in flight.
-      client.setQueryData(standardsQuery(projectId).queryKey, (current: EffectiveStandards | undefined) =>
+      await writeSaved<EffectiveStandards>(client, standardsQuery(projectId).queryKey, current =>
         (current?.additions?.number ?? 0) > version.number ? current : { ...(current ?? saved), additions: version })
       void client.invalidateQueries({ queryKey: stageQuery(projectId).queryKey })
     },

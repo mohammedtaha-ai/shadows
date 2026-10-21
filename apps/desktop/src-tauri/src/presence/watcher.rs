@@ -5,7 +5,7 @@ use super::{
     projection::{PresenceProjection, Scope},
 };
 use crate::core_connection::ReadyConnection;
-use feed::run;
+use feed::{run, Outlet};
 use std::{
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -13,7 +13,7 @@ use std::{
     },
     time::Duration,
 };
-use tokio::sync::watch;
+use tokio::sync::{mpsc, oneshot, watch};
 
 #[derive(Clone)]
 pub struct Timing {
@@ -50,14 +50,35 @@ impl Timing {
     }
 }
 type BindingGuard = Option<(u64, Option<String>)>;
+type Acknowledgement = (
+    oneshot::Sender<Result<(), &'static str>>,
+    Result<(), &'static str>,
+);
 pub struct Update {
     guard: BindingGuard,
     pub scope: Option<Scope>,
     pub projection: PresenceProjection,
+    pub appearance: Option<super::CompanionAppearance>,
+    pub republish_only: bool,
+    acknowledgement: Option<Acknowledgement>,
     epoch: u64,
     current: Arc<AtomicU64>,
 }
 impl Update {
+    pub fn acknowledge(&mut self) {
+        if let Some((reply, result)) = self.acknowledgement.take() {
+            let _ = reply.send(if self.is_current() {
+                result
+            } else {
+                Err("companion_binding_changed")
+            });
+        }
+    }
+    #[cfg(test)]
+    pub fn has_acknowledgement(&self) -> bool {
+        self.acknowledgement.is_some()
+    }
+
     pub fn matches_binding(&self, binding: &BindingView) -> bool {
         if let Some(scope) = self.scope.as_ref() {
             return binding.generation == scope.generation
@@ -82,7 +103,15 @@ struct Request {
     binding: Option<(BindingView, ReadyConnection)>,
     stopped: PresenceProjection,
 }
+struct RefreshRequest {
+    guard: (u64, Option<String>),
+    unbound: bool,
+    epoch: u64,
+    reply: oneshot::Sender<Result<(), &'static str>>,
+}
 pub struct PresenceWatcher {
+    refreshes: mpsc::Sender<RefreshRequest>,
+
     current: Arc<AtomicU64>,
     requests: watch::Sender<Request>,
     ready: watch::Receiver<Readiness>,
@@ -106,6 +135,7 @@ impl PresenceWatcher {
         });
         let (ready_updates, ready) = watch::channel(None);
         let generation = current.clone();
+        let (refreshes, mut refresh_input) = mpsc::channel::<RefreshRequest>(16);
         // One manager owns one runner future. Replacing input drops old reads before opening the next stream.
         tauri::async_runtime::spawn(async move {
             loop {
@@ -115,30 +145,77 @@ impl PresenceWatcher {
                     tokio::select! {
                         biased;
                      result=input.changed()=>{if result.is_err(){break}},
-                     _=run(binding,connection,request.epoch,generation.clone(),notify.clone(),timing.clone(),ready_updates.clone())=>{
+                     _=run(binding,connection,Outlet{epoch:request.epoch,current:generation.clone(),notify:notify.clone(),ready:ready_updates.clone()},timing.clone(), &mut refresh_input)=>{
                       if input.changed().await.is_err(){break}
                      }
                     }
                 } else {
                     notify(Update {
-                        guard: request.guard,
+                        guard: request.guard.clone(),
                         scope: None,
-                        projection: request.stopped,
+                        projection: request.stopped.clone(),
+                        appearance: None,
+                        republish_only: false,
+                        acknowledgement: None,
                         epoch: request.epoch,
                         current: generation.clone(),
                     });
-                    if input.changed().await.is_err() {
-                        break;
+                    tokio::select! {
+                        result = input.changed() => { if result.is_err() {break;} }
+                        Some(refresh) = refresh_input.recv() => {
+                            if refresh.epoch != request.epoch {
+                                let _ = refresh.reply.send(Err("companion_binding_changed"));
+                            } else {
+                                notify(Update {
+                                    guard: Some(refresh.guard), scope: None,
+                                    projection: request.stopped.clone(), appearance: None,
+                                    republish_only: true,
+                                    acknowledgement: Some((refresh.reply, if refresh.unbound {Ok(())} else {Err("companion_core_unavailable")})),
+                                    epoch: request.epoch, current: generation.clone(),
+                                });
+                            }
+                        }
                     }
                 }
             }
         });
         Arc::new(Self {
+            refreshes,
             current,
             requests,
             ready,
             last: Mutex::new(None),
         })
+    }
+    pub async fn refresh_appearance(
+        &self,
+        binding: &BindingView,
+    ) -> Result<super::RefreshAppearanceReply, &'static str> {
+        let request = self.requests.borrow().clone();
+        let matches = if let Some((current, _)) = &request.binding {
+            current == binding
+        } else {
+            request.guard.as_ref() == Some(&(binding.generation, binding.configuration_id.clone()))
+                || (request.guard.is_none() && binding.agent.is_none())
+        };
+        if !matches {
+            return Err("companion_binding_changed");
+        }
+        let (reply, result) = oneshot::channel();
+        self.refreshes
+            .send(RefreshRequest {
+                guard: (binding.generation, binding.configuration_id.clone()),
+                unbound: binding.agent.is_none(),
+                epoch: request.epoch,
+                reply,
+            })
+            .await
+            .map_err(|_| "companion_core_unavailable")?;
+        tokio::time::timeout(Duration::from_secs(22), result)
+            .await
+            .map_err(|_| "companion_core_unavailable")?
+            .map_err(|_| "companion_binding_changed")??;
+        Ok(super::RefreshAppearanceReply { ok: true })
     }
     pub async fn wait_ready(
         &self,

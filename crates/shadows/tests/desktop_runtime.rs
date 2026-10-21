@@ -223,7 +223,17 @@ fn runtime_receipt_owner_is_exclusive() {
     let owner = DesktopRuntime::claim(&launch, "127.0.0.1:0".parse().unwrap()).unwrap();
     assert!(DesktopRuntime::claim(&launch, "127.0.0.1:0".parse().unwrap()).is_err());
     drop(owner);
-    assert!(DesktopRuntime::claim(&launch, "127.0.0.1:0".parse().unwrap()).is_ok());
+    // Other tests here spawn `shadows` in parallel. On Unix a child forked in
+    // that moment shares the owner file's flock until it execs, so the release
+    // can trail the drop by a few milliseconds.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while DesktopRuntime::claim(&launch, "127.0.0.1:0".parse().unwrap()).is_err() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the dropped owner never released its claim"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
 }
 
 #[test]

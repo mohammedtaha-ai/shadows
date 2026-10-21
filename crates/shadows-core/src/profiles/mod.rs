@@ -1,17 +1,35 @@
 //! AYLUL agent configuration.
 mod agents;
+pub(crate) mod extension_files;
+mod extension_model;
+mod extension_store;
+mod extensions;
+pub use extension_model::{AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Item};
+mod listing;
 mod model;
+mod person;
+mod usage;
+mod usage_store;
+pub use usage::{ModelUsage, ProviderUsage, UsageReport};
+mod presets;
+pub(crate) mod probe;
 mod providers;
+pub use presets::{PresetRegion, ProviderPreset};
+pub use probe::{ListedModel, ProviderTest, ProviderTestOutcome, SavedProviderTest, TestRefusal};
 mod store;
 
 use crate::db::Storage;
 use crate::{CoreError, ProjectId};
-pub use model::{Agent, AgentInput, AgentWorkspace, Provider, ProviderInput};
+pub use model::{
+    Agent, AgentInput, AgentWorkspace, Person, PersonInput, Provider, ProviderInput, ProviderModel,
+    ProviderModelInput, Theme,
+};
 use std::path::PathBuf;
 use std::sync::Arc;
 pub(crate) use store::{require_live_agent_in, require_provider_in};
 
 pub struct Profiles {
+    extension_lock: Arc<tokio::sync::Mutex<()>>,
     storage: Arc<Storage>,
 
     home_root: Option<PathBuf>,
@@ -25,6 +43,7 @@ impl Profiles {
         sessions: std::sync::Weak<crate::harness::Sessions>,
     ) -> Arc<Self> {
         Arc::new(Self {
+            extension_lock: Arc::default(),
             storage,
             home_root,
             sessions,

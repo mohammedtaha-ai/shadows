@@ -23,6 +23,10 @@ pub const PROJECT: &str = "00000000-0000-4000-8000-000000000003";
 pub const THREAD_A: &str = "00000000-0000-4000-8000-000000000004";
 pub const THREAD_B: &str = "00000000-0000-4000-8000-000000000005";
 pub struct Data {
+    pub colour: Mutex<Option<String>>,
+    pub metadata_delay: AtomicUsize,
+    pub wrong_runtime: AtomicBool,
+    pub offline: AtomicBool,
     pub requests: Mutex<Vec<String>>,
     pub operations: Mutex<HashMap<String, Vec<serde_json::Value>>>,
     pub entries: Mutex<HashMap<String, Vec<serde_json::Value>>>,
@@ -49,6 +53,10 @@ impl Fixture {
         let origin = format!("http://{}", socket.local_addr().unwrap());
         let (events, _) = broadcast::channel(64);
         let data = Arc::new(Data {
+            colour: Mutex::new(None),
+            metadata_delay: AtomicUsize::new(0),
+            wrong_runtime: AtomicBool::new(false),
+            offline: AtomicBool::new(false),
             requests: Mutex::new(vec![]),
             operations: Mutex::new(HashMap::new()),
             entries: Mutex::new(HashMap::new()),
@@ -120,6 +128,19 @@ async fn handle(State(data): State<Arc<Data>>, request: Request) -> Response {
     if request.method() != axum::http::Method::GET {
         return axum::http::StatusCode::METHOD_NOT_ALLOWED.into_response();
     }
+    if data.offline.load(Ordering::SeqCst) {
+        return axum::http::StatusCode::SERVICE_UNAVAILABLE.into_response();
+    }
+    if path == "/api/aylul/agents" {
+        let colour = data.colour.lock().unwrap().clone();
+        let delay = data.metadata_delay.swap(0, Ordering::SeqCst);
+        tokio::time::sleep(std::time::Duration::from_millis(delay as u64)).await;
+        let mut agent = serde_json::json!({"slug":"agent-a","provider":"provider-a","deleted":data.deleted.load(Ordering::SeqCst)});
+        if let Some(colour) = colour {
+            agent["character_color"] = colour.into();
+        }
+        return axum::Json(serde_json::json!({"project_id":PROJECT,"agents":[agent,{"slug":"agent-b","provider":"provider-a","deleted":false,"character_color":"pink"}]})).into_response();
+    }
     if path == "/api/subscribe" {
         if data.stall_headers.load(Ordering::SeqCst) {
             tokio::time::sleep(std::time::Duration::from_secs(60)).await;
@@ -160,7 +181,9 @@ async fn handle(State(data): State<Arc<Data>>, request: Request) -> Response {
             .unwrap();
     }
     let value = match path.as_str() {
-        "/api/runtime" => serde_json::json!({"runtime_id":RUNTIME,"configuration_id":CONFIG}),
+        "/api/runtime" => {
+            serde_json::json!({"runtime_id":if data.wrong_runtime.load(Ordering::SeqCst){"changed"}else{RUNTIME},"configuration_id":CONFIG})
+        }
         "/api/aylul/agents" => {
             serde_json::json!({"project_id":PROJECT,"agents":[{"slug":"agent-a","provider":"provider-a","deleted":data.deleted.load(Ordering::SeqCst)},{"slug":"agent-b","provider":"provider-a","deleted":false}]})
         }

@@ -30,6 +30,8 @@ import {
 } from './contract-fixtures'
 
 export interface Overrides {
+  usage?: Answer
+  person?: Answer
   project?: Project
   entries?: ThreadEntry[]
   operations?: Operation[]
@@ -66,6 +68,7 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
   // Kept as the daemon keeps it: a refetch after a PATCH reads what the PATCH
   // saved, as it does against the real daemon.
   let project = o.project ?? projectFixture
+  let person = { name: null, aylul_calls_me: null, language: null, theme: 'system', updated_at: null }
   let instructions = o.instructions ?? null
   let grants = o.grants ?? []
   let standards: EffectiveStandards = {
@@ -82,6 +85,26 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
   }
   const connect = 'claude mcp add --transport http shadows http://127.0.0.1:4318/mcp'
   return {
+    'GET /api/aylul/extensions': { plugins: [], skills: [] },
+    ...Object.fromEntries(['work', 'aylul', 'agent-a'].map(slug => [`GET /api/aylul/agents/${slug}/extensions`, { plugins: [], skills: [] }])),
+    'GET /api/aylul/usage': o.usage ?? { by_provider: [], by_model: [] },
+    'GET /api/me': o.person ?? (() => Response.json(person)),
+    'PUT /api/me': async (request: Request) => {
+      const { command_id: _command, ...input } = await request.json()
+      person = { ...input, updated_at: '2026-10-21T00:00:00Z' }
+      return Response.json(person)
+    },
+    'GET /api/aylul/provider-presets': [
+  { id: 'minimax', name: 'MiniMax', region: 'international', base_url: 'https://api.minimax.io/anthropic' },
+  { id: 'minimax-china', name: 'MiniMax', region: 'china', base_url: 'https://api.minimaxi.com/anthropic' },
+  { id: 'anthropic', name: 'Anthropic', region: null, base_url: 'https://api.anthropic.com' },
+  { id: 'deepseek', name: 'DeepSeek', region: null, base_url: 'https://api.deepseek.com/anthropic' },
+  { id: 'openrouter', name: 'OpenRouter', region: null, base_url: 'https://openrouter.ai/api' },
+  { id: 'moonshot', name: 'Moonshot (Kimi)', region: 'international', base_url: 'https://api.moonshot.ai/anthropic' },
+  { id: 'moonshot-china', name: 'Moonshot (Kimi)', region: 'china', base_url: 'https://api.moonshot.cn/anthropic' },
+],
+    'POST /api/aylul/providers/test': { ok: true, listed: false, models: [] },
+    'POST /api/aylul/providers/fixture-provider/test': { ok: true, listed: false, models: [] },
     'GET /api/harnesses': [claudeHarness, codexHarness],
     'GET /api/projects': () => Response.json([project]),
     'GET /api/projects/p1/threads': [threadFixture],

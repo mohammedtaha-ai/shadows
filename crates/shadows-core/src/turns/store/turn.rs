@@ -35,6 +35,7 @@ pub struct Dequeue<'a> {
 /// adapter's and the CLI's it runs (§12.2), frozen on the invocation.
 #[derive(Debug, Clone, Copy)]
 pub struct NewTurn<'a> {
+    pub aylul_usage: Option<&'a crate::AylulUsageSnapshot>,
     pub thread_id: &'a ThreadId,
     pub runtime: &'a RuntimeInstanceId,
     pub prompt: &'a str,
@@ -172,6 +173,7 @@ impl Storage {
         ctx: &CommandContext,
         turn: NewTurn<'_>,
     ) -> Result<StartedTurn, StorageError> {
+        let snapshot = turn.aylul_usage.cloned();
         let (ctx, ts) = (ctx.clone(), now());
         let thread = turn.thread_id.clone();
         let runtime = turn.runtime.clone();
@@ -278,6 +280,21 @@ impl Storage {
                     .bind(&ts)
                     .execute(&mut *conn)
                     .await?;
+                    if let Some(snapshot) = &snapshot {
+                        sqlx::query(
+                            "UPDATE agent_invocation SET usage_agent_slug=?,
+                            usage_provider_slug=?,usage_provider_name=?,usage_label=?,usage_preset=?
+                            WHERE operation_id=?",
+                        )
+                        .bind(&snapshot.agent_slug)
+                        .bind(&snapshot.provider_slug)
+                        .bind(&snapshot.provider_name)
+                        .bind(&snapshot.label)
+                        .bind(&snapshot.preset)
+                        .bind(op.as_str())
+                        .execute(&mut *conn)
+                        .await?;
+                    }
                     let profile = crate::threads::profile_in(conn, &thread).await?;
                     let preference = crate::harness::preference_key(kind, profile.as_deref());
                     remember_settings(conn, &preference, &settings, &ts).await?;

@@ -28,15 +28,23 @@ async fn world() -> World {
 
 fn provider(name: &str) -> ProviderInput {
     ProviderInput {
-        name: name.into(),
-        base_url: "https://example.com/anthropic".into(),
-        models: vec!["model-a".into(), "model-b".into()],
-        context_window: None,
+        preset: None,
+        label: None,
+        name: Some(name.into()),
+        base_url: Some("https://example.com/anthropic".into()),
+        models: vec!["model-a".into(), "model-b".into()]
+            .into_iter()
+            .map(|id| shadows_core::ProviderModelInput {
+                id,
+                context_window: None,
+            })
+            .collect(),
     }
 }
 
 fn agent(name: &str) -> AgentInput {
     AgentInput {
+        character_color: None,
         name: name.into(),
         provider: "provider".into(),
         default_model: "model-a".into(),
@@ -60,3 +68,9 @@ mod agents;
 
 #[path = "aylul_profiles/threads.rs"]
 mod threads;
+
+#[path = "aylul_profiles/probe.rs"]
+mod probe;
+
+#[path = "aylul_profiles/person.rs"]
+mod person;

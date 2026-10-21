@@ -28,6 +28,7 @@ pub(super) struct Opening {
     pub(super) cwd: PathBuf,
     pub(super) setup: SessionSetup,
     pub(super) spec: ProcessSpec,
+    pub(super) aylul_usage: Option<super::AylulUsageSnapshot>,
     pub(super) aylul_models: Option<(Vec<String>, String)>,
 }
 
@@ -68,6 +69,7 @@ impl Sessions {
                 spec: self.adapter.process_spec(&cwd),
                 cwd,
                 setup,
+                aylul_usage: None,
                 aylul_models: None,
             });
         }
@@ -84,8 +86,18 @@ impl Sessions {
         let agent = self.profiles.agent(slug).await?;
         let provider = self.profiles.provider(&agent.provider).await?;
         let home = config.home_root.join("profiles").join(slug);
+        let models: Vec<_> = provider.models.iter().map(|m| m.id.clone()).collect();
+        let window = provider
+            .models
+            .iter()
+            .find(|m| m.id == agent.default_model)
+            .ok_or_else(|| CoreError::ProfileInvalid("default model is not offered".into()))?
+            .context_window;
         self.homes
-            .write_models(&home, &provider.models, &agent.default_model)
+            .write_extensions(&self.profiles, &config.home_root, &home, slug)
+            .await?;
+        self.homes
+            .write_models(&home, &models, &agent.default_model)
             .await?;
         let secrets = self
             .config
@@ -101,6 +113,13 @@ impl Sessions {
             .map(|(_, value)| value.as_str())
             .filter(|v| !v.is_empty())
             .ok_or_else(|| CoreError::AylulKeyMissing(provider.slug.clone()))?;
+        let aylul_usage = Some(super::AylulUsageSnapshot {
+            agent_slug: slug.into(),
+            provider_slug: provider.slug.clone(),
+            provider_name: provider.name.clone(),
+            label: provider.label.clone(),
+            preset: provider.preset.clone(),
+        });
         let mut env = vec![("ANTHROPIC_BASE_URL".into(), provider.base_url)];
         for name in [
             "ANTHROPIC_MODEL",
@@ -110,11 +129,12 @@ impl Sessions {
         ] {
             env.push((name.into(), agent.default_model.clone()));
         }
-        for name in [
-            "CLAUDE_CODE_MAX_CONTEXT_TOKENS",
-            "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
-        ] {
-            env.push((name.into(), provider.context_window.to_string()));
+        env.push(("CLAUDE_CODE_MAX_CONTEXT_TOKENS".into(), window.to_string()));
+        if window >= 100_000 {
+            env.push((
+                "CLAUDE_CODE_AUTO_COMPACT_WINDOW".into(),
+                window.min(1_000_000).to_string(),
+            ));
         }
         let profile = ClaudeProfile {
             name: slug.into(),
@@ -125,11 +145,19 @@ impl Sessions {
             .adapter
             .process_spec_with(&home, Some(&profile), &stored, Some(token))
             .map_err(|_| CoreError::AylulKeyMissing(provider.slug))?;
+        let person = self.profiles.person().await?;
+        let mut setup = aylul_setup();
+        if let Some(name) = person.aylul_calls_me.or(person.name) {
+            let quoted = serde_json::to_string(&name)
+                .map_err(|_| CoreError::ProfileInvalid("invalid person name".into()))?;
+            setup.append = Some(format!("Call the person {quoted}."));
+        }
         Ok(Opening {
             cwd: home,
-            setup: aylul_setup(),
+            setup,
             spec,
-            aylul_models: Some((provider.models, agent.default_model)),
+            aylul_usage,
+            aylul_models: Some((models, agent.default_model)),
         })
     }
 }

@@ -15,6 +15,7 @@ import { Home } from './app/home'
 import { storedWorkspace } from './app/sidebar/workspace'
 import { PagePending } from './app/page-pending'
 import { Shell } from './app/shell'
+import { readSettingsSearch } from './app/settings/sections'
 
 // Each page loads when it is first opened, so the first load carries only the
 // shell (vite's 500 kB chunk warning; every new page used to grow one bundle).
@@ -22,19 +23,15 @@ const ConversationRoute = lazyRouteComponent(() => import('./app/conversation/co
 const DraftRoute = lazyRouteComponent(() => import('./app/conversation/draft'), 'DraftRoute')
 const WorkspacePage = lazyRouteComponent(() => import('./app/design/workspace-page'), 'WorkspacePage')
 const ProjectSettings = lazyRouteComponent(() => import('./app/project-settings/project-settings'), 'ProjectSettings')
-const SettingsPage = lazyRouteComponent(() => import('./app/settings/settings-page'), 'SettingsPage')
 const PlanPage = lazyRouteComponent(() => import('./app/workflows/plan-page'), 'PlanPage')
 const PlanMapPage = lazyRouteComponent(() => import('./app/workflows/plan-map'), 'PlanMapPage')
 const AgreementsPage = lazyRouteComponent(() => import('./app/agreements/agreements-page'), 'AgreementsPage')
 
 const Activity = lazyRouteComponent(() => import('./app/desktop/activity'), 'Activity')
 const AylulHome = lazyRouteComponent(() => import('./app/agents/home'), 'AylulHome')
-const ProviderSettings = lazyRouteComponent(() => import('./app/agents/provider-settings'), 'ProviderSettings')
-const NewAgent = lazyRouteComponent(() => import('./app/agents/agent-settings'), 'NewAgent')
-const AgentSettings = lazyRouteComponent(() => import('./app/agents/agent-settings'), 'AgentSettings')
 const AgentDraftRoute = lazyRouteComponent(() => import('./app/conversation/draft'), 'AgentDraftRoute')
 
-const rootRoute = createRootRoute({ component: Shell })
+const rootRoute = createRootRoute({ component: Shell, validateSearch: readSettingsSearch })
 
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -109,13 +106,10 @@ const agreementsRoute = createRoute({
 const appSettingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
-  component: SettingsPage,
+  beforeLoad: () => { throw redirect({ to: '/', search: { settings: 'general' }, replace: true }) },
 })
 
 const aylulHomeRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul', component: AylulHome })
-const providersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/providers', component: ProviderSettings })
-const newAgentRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/agents/new', component: NewAgent })
-const agentSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/agents/$slug/settings', component: AgentSettings })
 const agentDraftRoute = createRoute({ getParentRoute: () => rootRoute, path: '/aylul/agents/$slug/new', component: AgentDraftRoute })
 
 const activityRoute=createRoute({getParentRoute:()=>rootRoute,path:'/aylul/activity',component:Activity})
@@ -127,9 +121,6 @@ export const router = createRouter({
     homeRoute,
     activityRoute,
     aylulHomeRoute,
-    providersRoute,
-    newAgentRoute,
-    agentSettingsRoute,
     agentDraftRoute,
     projectRoute,
     draftRoute,

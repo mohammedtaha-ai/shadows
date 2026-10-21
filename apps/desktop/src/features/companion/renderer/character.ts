@@ -1,3 +1,4 @@
+import { paletteFor, rgba, type Palette } from "./palette.ts";
 import type {
   CharacterFrame,
   CompanionSettings,
@@ -14,6 +15,7 @@ export function renderCharacter(
   ctx: CanvasRenderingContext2D,
   frame: CharacterFrame,
   settings: CompanionSettings,
+  palette: Palette = paletteFor(frame.color),
 ): void {
   const {
     cx,
@@ -76,15 +78,15 @@ export function renderCharacter(
     if (isBlocked) {
       backGlow.addColorStop(0, `rgba(244, 63, 94, ${0.32 * glowIntensity})`);
     } else if (isSuccess) {
-      backGlow.addColorStop(0, `rgba(232, 121, 249, ${0.38 * glowIntensity})`);
+      backGlow.addColorStop(0, rgba(palette.spark, 0.38 * glowIntensity));
       backGlow.addColorStop(
         0.55,
         `rgba(251, 191, 36, ${0.14 * glowIntensity})`,
       );
     } else {
-      backGlow.addColorStop(0, `rgba(168, 85, 247, ${0.32 * glowIntensity})`);
+      backGlow.addColorStop(0, rgba(palette.glow, 0.32 * glowIntensity));
     }
-    backGlow.addColorStop(1, "rgba(168, 85, 247, 0)");
+    backGlow.addColorStop(1, rgba(palette.glow, 0));
     ctx.fillStyle = backGlow;
     ctx.beginPath();
     ctx.arc(0, -10, 135, 0, Math.PI * 2);
@@ -102,7 +104,7 @@ export function renderCharacter(
       ctx.rotate((r === 0 ? 1 : -1) * Math.sin(time * 2 + r) * 0.12);
       ctx.scale(1, 0.28);
       ctx.strokeStyle =
-        r === 0 ? "rgba(232, 121, 249, 0.45)" : "rgba(168, 85, 247, 0.35)";
+        r === 0 ? rgba(palette.spark, 0.45) : rgba(palette.glow, 0.35);
       ctx.lineWidth = 3.5;
       ctx.beginPath();
       ctx.arc(0, 0, 88 + r * 12, Math.PI, Math.PI * 2);
@@ -128,10 +130,10 @@ export function renderCharacter(
     bodyCenterY,
     52,
   );
-  bodyGrad.addColorStop(0, "#2a1f3d"); // 3D Lit spherical highlight
-  bodyGrad.addColorStop(0.45, "#150f21"); // Mid shadow volume
-  bodyGrad.addColorStop(0.82, "#08050d"); // Deep core obsidian
-  bodyGrad.addColorStop(1, "#1e1136"); // Subtle 3D rim bounce at edge
+  bodyGrad.addColorStop(0, palette.bodyLit); // 3D Lit spherical highlight
+  bodyGrad.addColorStop(0.45, palette.bodyMid); // Mid shadow volume
+  bodyGrad.addColorStop(0.82, palette.bodyCore); // Deep core obsidian
+  bodyGrad.addColorStop(1, palette.bodyRim); // Subtle 3D rim bounce at edge
 
   ctx.fillStyle = bodyGrad;
   ctx.beginPath();
@@ -145,8 +147,8 @@ export function renderCharacter(
     0,
     bodyCenterY + 6,
   );
-  aoGrad.addColorStop(0, "rgba(3, 1, 7, 0.85)");
-  aoGrad.addColorStop(1, "rgba(3, 1, 7, 0)");
+  aoGrad.addColorStop(0, rgba(palette.occlusion, 0.85));
+  aoGrad.addColorStop(1, rgba(palette.occlusion, 0));
   ctx.fillStyle = aoGrad;
   ctx.beginPath();
   ctx.ellipse(bodyCenterX, bodyCenterY - 3, 43, 19, 0, Math.PI, Math.PI * 2);
@@ -155,7 +157,7 @@ export function renderCharacter(
   // Crisp 3D Bottom Rim Bounce Light
   ctx.strokeStyle = isBlocked
     ? "rgba(244, 63, 94, 0.4)"
-    : "rgba(168, 85, 247, 0.42)";
+    : rgba(palette.glow, 0.42);
   ctx.lineWidth = 1.8;
   ctx.beginPath();
   ctx.ellipse(
@@ -185,7 +187,7 @@ export function renderCharacter(
   if (!isMiniIcon && depth3D > 0.6) {
     const extX = -lookX * 5.5 * depth3D;
     const extY = -lookY * 3.5 * depth3D - 1.5;
-    ctx.fillStyle = "#120c1c";
+    ctx.fillStyle = palette.extrusion;
     ctx.beginPath();
     ctx.moveTo(topPeakX + extX, topPeakY + extY);
     ctx.bezierCurveTo(
@@ -231,11 +233,11 @@ export function renderCharacter(
     58 + px * 0.2,
     48,
   );
-  hoodGrad.addColorStop(0, "#43325c"); // Brighter 3D top-left key light
-  hoodGrad.addColorStop(0.28, "#2b1f3d"); // Rich sculpted mid-violet
-  hoodGrad.addColorStop(0.68, "#171122"); // Deep shadow fold
-  hoodGrad.addColorStop(0.9, "#100b18"); // Dark obsidian base
-  hoodGrad.addColorStop(1, "#2d1d42"); // Right crystal bounce light
+  hoodGrad.addColorStop(0, palette.hoodLit); // Brighter 3D top-left key light
+  hoodGrad.addColorStop(0.28, palette.hoodMid); // Rich sculpted mid-violet
+  hoodGrad.addColorStop(0.68, palette.hoodFold); // Deep shadow fold
+  hoodGrad.addColorStop(0.9, palette.hoodBase); // Dark obsidian base
+  hoodGrad.addColorStop(1, palette.hoodBounce); // Right crystal bounce light
 
   ctx.fillStyle = hoodGrad;
   ctx.beginPath();
@@ -289,9 +291,9 @@ export function renderCharacter(
       -36 + py * 0.3,
       46,
     );
-    domeHighlight.addColorStop(0, "rgba(216, 180, 254, 0.18)");
-    domeHighlight.addColorStop(0.6, "rgba(168, 85, 247, 0.06)");
-    domeHighlight.addColorStop(1, "rgba(168, 85, 247, 0)");
+    domeHighlight.addColorStop(0, rgba(palette.glowPale, 0.18));
+    domeHighlight.addColorStop(0.6, rgba(palette.glow, 0.06));
+    domeHighlight.addColorStop(1, rgba(palette.glow, 0));
     ctx.fillStyle = domeHighlight;
     ctx.beginPath();
     ctx.arc(-14 + px * 0.3, -36 + py * 0.3, 46, 0, Math.PI * 2);
@@ -306,23 +308,21 @@ export function renderCharacter(
       -42 + py * 0.25,
       44,
     );
-    const bounceCol = isBlocked
-      ? "244, 63, 94"
-      : isSuccess
-        ? "250, 204, 21"
-        : "232, 121, 249";
+    const bounceCol = (alpha: number) => isBlocked
+      ? `rgba(244, 63, 94, ${alpha})`
+      : isSuccess ? `rgba(250, 204, 21, ${alpha})` : rgba(palette.spark, alpha);
     crystalBounce.addColorStop(
       0,
-      `rgba(${bounceCol}, ${0.28 * glowIntensity})`,
+      bounceCol(0.28 * glowIntensity),
     );
-    crystalBounce.addColorStop(1, `rgba(${bounceCol}, 0)`);
+    crystalBounce.addColorStop(1, bounceCol(0));
     ctx.fillStyle = crystalBounce;
     ctx.beginPath();
     ctx.arc(22 + px * 0.25, -42 + py * 0.25, 44, 0, Math.PI * 2);
     ctx.fill();
 
     // Subtle 3D Tailored Cloak Seam Lines curving from peak to brim
-    ctx.strokeStyle = "rgba(12, 8, 20, 0.45)";
+    ctx.strokeStyle = rgba(palette.seamLine, 0.45);
     ctx.lineWidth = 1.4;
     ctx.beginPath();
     ctx.moveTo(topPeakX, topPeakY);
@@ -346,7 +346,7 @@ export function renderCharacter(
 
   // Hood Side Fold Wings (Visible in Left/Right/Up/Down turns)
   if (Math.abs(lookX) > 0.25 || lookY > 0.25) {
-    ctx.fillStyle = "#1b1426";
+    ctx.fillStyle = palette.wing;
     const wingSide = lookX >= 0 ? -1 : 1;
     ctx.beginPath();
     ctx.moveTo(wingSide * 42, -38);
@@ -358,7 +358,7 @@ export function renderCharacter(
   // Outer Rim Highlight on Hood Edge (3D Fresnel Rim Light)
   ctx.strokeStyle = isBlocked
     ? `rgba(251, 113, 133, ${0.48 * glowIntensity})`
-    : `rgba(216, 180, 254, ${0.48 * glowIntensity})`;
+    : rgba(palette.glowPale, 0.48 * glowIntensity);
   ctx.lineWidth = 1.8;
   ctx.beginPath();
   ctx.moveTo(topPeakX, topPeakY);
@@ -373,7 +373,7 @@ export function renderCharacter(
   ctx.stroke();
 
   // Left subtle rim highlight
-  ctx.strokeStyle = "rgba(167, 139, 250, 0.28)";
+  ctx.strokeStyle = rgba(palette.rimLeft, 0.28);
   ctx.lineWidth = 1.3;
   ctx.beginPath();
   ctx.moveTo(topPeakX, topPeakY);
@@ -405,9 +405,9 @@ export function renderCharacter(
     openCenterX,
     openBottomY,
   );
-  bevelGrad.addColorStop(0, "#2e1d3a");
-  bevelGrad.addColorStop(0.5, "#1a1024");
-  bevelGrad.addColorStop(1, "#3b244b");
+  bevelGrad.addColorStop(0, palette.bevelTop);
+  bevelGrad.addColorStop(0.5, palette.bevelMid);
+  bevelGrad.addColorStop(1, palette.bevelBottom);
   ctx.fillStyle = bevelGrad;
   ctx.beginPath();
   ctx.moveTo(openCenterX - openHalfWidth - bevelThickness, openBottomY - 9);
@@ -479,9 +479,9 @@ export function renderCharacter(
     (openTopY + openBottomY) * 0.5,
     54,
   );
-  voidGrad.addColorStop(0, "#0a0513");
-  voidGrad.addColorStop(0.72, "#040208");
-  voidGrad.addColorStop(1, "#150c24");
+  voidGrad.addColorStop(0, palette.voidCore);
+  voidGrad.addColorStop(0.72, palette.voidDeep);
+  voidGrad.addColorStop(1, palette.voidRim);
   ctx.fillStyle = voidGrad;
   ctx.fill();
 
@@ -498,9 +498,9 @@ export function renderCharacter(
       openBottomY,
       44,
     );
-    const innerCol = isBlocked ? "244, 63, 94" : "192, 132, 252";
-    innerBounce.addColorStop(0, `rgba(${innerCol}, ${0.22 * glowIntensity})`);
-    innerBounce.addColorStop(1, `rgba(${innerCol}, 0)`);
+    const innerCol = (alpha: number) => isBlocked ? `rgba(244, 63, 94, ${alpha})` : rgba(palette.glowSoft, alpha);
+    innerBounce.addColorStop(0, innerCol(0.22 * glowIntensity));
+    innerBounce.addColorStop(1, innerCol(0));
     ctx.fillStyle = innerBounce;
     ctx.fillRect(openCenterX - 60, openTopY - 10, 120, 80);
   }
@@ -548,6 +548,7 @@ export function renderCharacter(
     time,
     glowIntensity,
     isMiniIcon,
+    palette,
   );
   drawExpressiveEye3D(
     ctx,
@@ -563,6 +564,7 @@ export function renderCharacter(
     time,
     glowIntensity,
     isMiniIcon,
+    palette,
   );
 
   // Speaking State Cute Little Glowing Mouth Pulse
@@ -570,8 +572,8 @@ export function renderCharacter(
     const mouthOpen = 3.5 + Math.abs(Math.sin(time * 12)) * 4.5;
     ctx.save();
     ctx.translate(eyeBaseX, eyeBaseY + 13);
-    ctx.fillStyle = "#f5d0fe";
-    ctx.shadowColor = "#d946ef";
+    ctx.fillStyle = palette.sparkPale;
+    ctx.shadowColor = palette.sparkDeep;
     ctx.shadowBlur = 10 * glowIntensity;
     ctx.beginPath();
     ctx.arc(0, 0, mouthOpen, 0, Math.PI, false);
@@ -589,9 +591,9 @@ export function renderCharacter(
       openCenterX + 35,
       openBottomY + 14,
     );
-    maskGrad.addColorStop(0, "#1e162e");
-    maskGrad.addColorStop(0.5, "#2d2144");
-    maskGrad.addColorStop(1, "#120d1c");
+    maskGrad.addColorStop(0, palette.maskLit);
+    maskGrad.addColorStop(0.5, palette.maskMid);
+    maskGrad.addColorStop(1, palette.maskDark);
     ctx.fillStyle = maskGrad;
     ctx.beginPath();
     ctx.moveTo(openCenterX - 48, eyeBaseY + 10);
@@ -606,7 +608,7 @@ export function renderCharacter(
     ctx.closePath();
     ctx.fill();
 
-    ctx.strokeStyle = "#c084fc";
+    ctx.strokeStyle = palette.glowSoft;
     ctx.lineWidth = 1.7;
     ctx.beginPath();
     ctx.moveTo(openCenterX - 46, eyeBaseY + 10);
@@ -624,7 +626,7 @@ export function renderCharacter(
 
   // Crisp 3D Inner Hood Rim Highlight Line framing the face cavity
   ctx.save();
-  ctx.strokeStyle = "rgba(200, 145, 220, 0.65)";
+  ctx.strokeStyle = rgba(palette.innerRim, 0.65);
   ctx.lineWidth = 1.9;
   ctx.beginPath();
   ctx.moveTo(openCenterX - openHalfWidth, openBottomY - 10);
@@ -670,6 +672,7 @@ export function renderCharacter(
     lookY * 0.35,
     glowIntensity,
     isBlocked,
+    palette,
   );
   ctx.restore();
 
@@ -704,7 +707,7 @@ export function renderCharacter(
     ctx.rotate(ringTilt);
     ctx.strokeStyle = isBlocked
       ? "rgba(244, 63, 94, 0.38)"
-      : "rgba(192, 132, 252, 0.42)";
+      : rgba(palette.glowSoft, 0.42);
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.ellipse(0, 0, 22, 6.5, 0, Math.PI, Math.PI * 2);
@@ -723,6 +726,7 @@ export function renderCharacter(
     0.18 + lookY * 0.35,
     glowIntensity,
     isBlocked,
+    palette,
   );
 
   // 8C. FRONT HALF OF 3D ORBITAL RING (Drawn IN FRONT OF the 3D Crystal!)
@@ -732,9 +736,9 @@ export function renderCharacter(
     ctx.rotate(ringTilt);
     ctx.strokeStyle = isBlocked
       ? "rgba(253, 164, 175, 0.88)"
-      : "rgba(245, 208, 254, 0.88)";
+      : rgba(palette.sparkPale, 0.88);
     ctx.lineWidth = 2.0;
-    ctx.shadowColor = isBlocked ? "#f43f5e" : "#d946ef";
+    ctx.shadowColor = isBlocked ? "#f43f5e" : palette.sparkDeep;
     ctx.shadowBlur = 10 * glowIntensity;
     ctx.beginPath();
     ctx.ellipse(0, 0, 22, 6.5, 0, 0, Math.PI);
@@ -783,6 +787,7 @@ export function renderCharacter(
       glowIntensity,
       frame.sleepingMarks,
       frame.notificationPulse,
+      palette,
     );
   }
 
@@ -799,6 +804,7 @@ export function renderCharacter(
       time,
       perchingHands,
       glowIntensity,
+      palette,
     );
   }
 

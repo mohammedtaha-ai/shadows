@@ -13,18 +13,8 @@ if(new URLSearchParams(location.search).has('nativeVisibility')) {
     createRoot(document.getElementById('root')!).render(<Fixture/>);
   });
 }
-async function render(expression = "idle", outfit = "default") {
-  try {
-    const { renderCharacter } = await import(
-      /* @vite-ignore */ source + "renderer/character.ts"
-    );
-    const { DEFAULT_SETTINGS } = await import(
-      /* @vite-ignore */ source + "catalog.ts"
-    );
-    const canvas = document.createElement("canvas");
-    canvas.width = canvas.height = 256;
-    const ctx = canvas.getContext("2d")!;
-    const frame = {
+function fixtureFrame(expression = "idle", outfit = "default", color?: string) {
+  return {
       cx: 128,
       cy: 145,
       scale: 0.7,
@@ -35,6 +25,7 @@ async function render(expression = "idle", outfit = "default") {
       earringAngle: 0,
       blinkProgress: 0,
       expression,
+      color,
       outfit,
       mini: false,
       perchingHands: false,
@@ -45,6 +36,27 @@ async function render(expression = "idle", outfit = "default") {
       ],
       notificationPulse: 0,
     };
+}
+async function scene(expression = "idle", color?: string) {
+  const { renderScene } = await import(/* @vite-ignore */ source + "renderer/scene.ts");
+  const { DEFAULT_SETTINGS } = await import(/* @vite-ignore */ source + "catalog.ts");
+  const canvas = document.createElement("canvas"); canvas.width = canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+  renderScene(ctx, { character: fixtureFrame(expression, 'default', color), particles: [{ x: -72, y: -65, z: 0.5, radius: 2, alpha: 0.8, speedY: 1, phase: 0.4 }] }, DEFAULT_SETTINGS);
+  return { image: canvas.toDataURL() };
+}
+async function render(expression = "idle", outfit = "default", color?: string) {
+  try {
+    const { renderCharacter } = await import(
+      /* @vite-ignore */ source + "renderer/character.ts"
+    );
+    const { DEFAULT_SETTINGS } = await import(
+      /* @vite-ignore */ source + "catalog.ts"
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 256;
+    const ctx = canvas.getContext("2d")!;
+    const frame = fixtureFrame(expression, outfit, color);
     renderCharacter(ctx, frame, DEFAULT_SETTINGS);
     const first = canvas.toDataURL();
     const pixels = ctx.getImageData(0, 0, 256, 256).data;
@@ -58,12 +70,14 @@ async function render(expression = "idle", outfit = "default") {
       deterministic: first === canvas.toDataURL(),
       image: first,
       defaults: DEFAULT_SETTINGS,
+      warning: Array.from(ctx.getImageData(168,122,1,1).data),
+      success: Array.from(ctx.getImageData(79,121,1,1).data),
     };
   } catch (error) {
     return { error: String(error) };
   }
 }
-Object.assign(window, { fixture: { render } });
+Object.assign(window, { fixture: { render, scene } });
 if (new URLSearchParams(location.search).has("presence")) {
   Promise.all([
     import("react"),

@@ -47,6 +47,7 @@ pub fn new_turn<'a>(
     settings: &'a TurnSettings,
 ) -> NewTurn<'a> {
     NewTurn {
+        aylul_usage: None,
         thread_id: thread,
         runtime: &runtime.instance_id,
         prompt,

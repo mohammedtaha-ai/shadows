@@ -6,7 +6,8 @@ use axum::{
     http::StatusCode,
 };
 use shadows_core::{
-    Agent, AgentInput, AgentWorkspace, EnvEntry, PlanningThread, Provider, ProviderInput,
+    Agent, AgentInput, AgentWorkspace, EnvEntry, Person, PersonInput, PlanningThread, Provider,
+    ProviderInput, ProviderPreset, ProviderTest, ProviderTestOutcome, SavedProviderTest,
 };
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -179,3 +180,78 @@ pub(super) async fn threads(
 #[cfg(test)]
 #[path = "aylul_profiles_tests.rs"]
 mod tests;
+
+#[utoipa::path(get, path="/api/aylul/provider-presets", tag="aylul",
+    responses((status=200,body=[ProviderPreset])))]
+pub(super) async fn provider_presets(State(s): State<AppState>) -> Json<Vec<ProviderPreset>> {
+    Json(s.core.profiles().provider_presets())
+}
+
+#[utoipa::path(post, path="/api/aylul/providers/test", tag="aylul", request_body=ProviderTest,
+    responses((status=200,body=ProviderTestOutcome),(status=400,body=ErrorBody)))]
+pub(super) async fn test_provider(
+    State(s): State<AppState>,
+    EnvJson(b): EnvJson<ProviderTest>,
+) -> Result<Json<ProviderTestOutcome>, Failure> {
+    Ok(Json(s.core.profiles().test_provider(b).await?))
+}
+
+#[utoipa::path(post, path="/api/aylul/providers/{slug}/test", tag="aylul",
+    params(("slug"=String,Path)), request_body=SavedProviderTest,
+    responses((status=200,body=ProviderTestOutcome),(status=400,body=ErrorBody),
+        (status=404,body=ErrorBody),(status=409,body=ErrorBody),(status=503,body=ErrorBody),
+        (status=500,body=ErrorBody)))]
+pub(super) async fn test_saved_provider(
+    State(s): State<AppState>,
+    Path(slug): Path<String>,
+    EnvJson(b): EnvJson<SavedProviderTest>,
+) -> Result<Json<ProviderTestOutcome>, Failure> {
+    Ok(Json(
+        s.core
+            .harness()
+            .test_saved_provider(&slug, b.api_key)
+            .await?,
+    ))
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct PersonCommand {
+    command_id: String,
+    #[serde(flatten)]
+    input: PersonInput,
+}
+
+#[utoipa::path(get, path="/api/me", tag="aylul",
+    responses((status=200,body=Person),(status=500,body=ErrorBody)))]
+pub(super) async fn person(State(s): State<AppState>) -> Result<Json<Person>, Failure> {
+    Ok(Json(s.core.profiles().person().await?))
+}
+
+#[utoipa::path(put, path="/api/me", tag="aylul", request_body=PersonCommand,
+    responses((status=200,body=Person),(status=400,body=ErrorBody),(status=409,body=ErrorBody),
+        (status=500,body=ErrorBody)))]
+pub(super) async fn set_person(
+    State(s): State<AppState>,
+    EnvJson(b): EnvJson<PersonCommand>,
+) -> Result<Json<Person>, Failure> {
+    Ok(Json(
+        s.core.profiles().set_person(b.command_id, b.input).await?,
+    ))
+}
+
+#[derive(serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(super) struct UsagePeriod {
+    from: String,
+    to: String,
+}
+
+#[utoipa::path(get, path="/api/aylul/usage", tag="aylul", params(UsagePeriod),
+    responses((status=200,body=shadows_core::UsageReport),(status=400,body=ErrorBody),
+        (status=500,body=ErrorBody)))]
+pub(super) async fn usage(
+    State(s): State<AppState>,
+    Query(q): Query<UsagePeriod>,
+) -> Result<Json<shadows_core::UsageReport>, Failure> {
+    Ok(Json(s.core.profiles().usage(&q.from, &q.to).await?))
+}

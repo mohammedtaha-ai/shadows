@@ -11,6 +11,10 @@ leads, rules on disputed requests, and starts new features.
 Yours:
 - `assets/aylul/` (art, states, animations, candidates)
 - `apps/desktop/src/features/companion/` (AYLUL presence; created by this side)
+- Except, by Mohammed's ruling of 2026-10-21: the colour table `assets/aylul/character-colors.json`
+  and the renderer's colours (`features/companion/renderer/palette.ts` and the colour values in
+  the other `renderer/` files) belong to the AYLUL UI
+  side (U-2, U-3 in `../ui/stages.md`).
 - `docs/aylul/character/` (plans, specs, stages), and the `contract.yaml` files and
   code-map rows of the code above
 
@@ -41,6 +45,11 @@ only through the teacher.
 - Needs: <shared request it depends on, or "none">
 - Done when: <the test(s) or command that must pass>
 ```
+
+**`stages.md` holds only what is left.** A `done` task stays while its branch is open, so the
+reviewer sees it. When the branch's PR merges, `docs-sync` deletes every `done` task that PR
+delivered, and a plan whose tasks are all done; its commit names the PR, and Git keeps them
+(cite them as "`<path>` at `<commit>`"). No "Done" section is kept.
 
 ## Rules for the builder and the fixer
 

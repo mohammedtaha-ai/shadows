@@ -1,11 +1,14 @@
+import { providerTitle } from '../agents/provider-presets'
+import { colorOf } from '../agents/character-colors'
+import { ColorDot } from '../agents/color-swatches'
 import {useEffect,useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
-import {agentsQuery,providersQuery} from '@/api/aylul-profiles'
+import {agentsQuery,providersQuery,providerPresetsQuery} from '@/api/aylul-profiles'
 import {noteCompanionSend} from '../../desktop/companion-send'
 import {retryConnection} from '../../desktop/native'
 import {connectBinding,useCompanionBinding,selectCompanionAgent,setCompanionPreviews,type BindingView} from '../../desktop/presence'
 export function CompanionSettings(){
-  const agents=useQuery(agentsQuery),providers=useQuery(providersQuery)
+  const agents=useQuery(agentsQuery),providers=useQuery(providersQuery),presets=useQuery(providerPresetsQuery)
   const [binding,setBinding]=useState<BindingView|null>(null),[error,setError]=useState<string|null>(null),[busy,setBusy]=useState(false)
   const receive=(view:BindingView)=>setBinding(previous=>previous&&previous.revision>=view.revision?previous:view)
   useEffect(()=>connectBinding(receive,()=>setError('Unable to load companion settings. Please retry.')),[])
@@ -26,13 +29,14 @@ export function CompanionSettings(){
         <option value="">Choose an agent</option>
         {binding?.agent&&agents.data&&!agents.data.agents.some(agent=>agent.slug===binding.agent&&!agent.deleted)&&<option disabled value={binding.agent}>Selected agent unavailable</option>}
         {agents.data?.agents.filter(agent=>!agent.deleted).map(agent=><option key={agent.slug} value={agent.slug}>
-          {agent.name} · {providers.data?.find(provider=>provider.slug===agent.provider)?.name??agent.provider} · {agent.default_model}
+          {agent.name} · {(() => { const provider=providers.data?.find(provider=>provider.slug===agent.provider); return provider?providerTitle(provider,presets.data??[]):agent.provider })()} · {agent.default_model}
         </option>)}
       </select>
     </label>
+    {binding?.agent && agents.data?.agents.some(agent=>agent.slug===binding.agent&&!agent.deleted)&&<p className="flex items-center gap-2 text-sm"><ColorDot id={agents.data.agents.find(agent=>agent.slug===binding.agent)?.character_color}/>Character colour: {colorOf(agents.data.agents.find(agent=>agent.slug===binding.agent)?.character_color).label}</p>}
     <button disabled={busy} onClick={()=>{void retryConnection().catch(()=>setError("Unable to retry local Core."))}}>Retry companion connection</button>
     <p className="text-sm text-muted-foreground">This character stays with the selected agent. Opening another conversation does not change it.</p>
-    <label className="flex gap-2"><input type="checkbox" checked={binding?.previews??true} disabled={busy||!binding}
+    <label className="flex gap-2"><input type="checkbox" role="switch" checked={binding?.previews??true} disabled={busy||!binding}
       onChange={event=>{void previews(event.target.checked)}}/>Show a short reply preview</label>
     {error&&!binding&&<button disabled={busy} onClick={()=>{void select(null)}}>Clear companion selection</button>}
     {(error||agents.error||providers.error)&&<p role="alert">{error??'Unable to load agents. Character visibility and account actions remain available.'}</p>}

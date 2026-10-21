@@ -239,3 +239,16 @@ impl Presence {
 }
 #[cfg(test)]
 mod binding_tests;
+
+#[cfg(test)]
+mod appearance_tests;
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompanionAppearance {
+    pub color: String,
+}
+#[derive(Debug, serde::Serialize)]
+pub struct RefreshAppearanceReply {
+    pub ok: bool,
+}

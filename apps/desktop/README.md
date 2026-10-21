@@ -37,7 +37,7 @@ Native account and local activity controls remain in shared Settings and Local
 activity. Account login is independent of local AYLUL chat. The old desktop
 Hermes chat/source selector and its main IPC registration have been removed.
 `packages/hermes-client` and `services/assistant` retain their separate owners.
-Historical [account chat evidence](../../docs/evidence/aylul/2026-10-19-normal-chat.md)
+Historical account chat evidence (`docs/evidence/aylul/2026-10-19-normal-chat.md` at `0187365`)
 records that earlier UI; it does not describe the current composer.
 
 For retained account/hook functions, the existing launcher may set these public
@@ -97,7 +97,7 @@ WebViews; release has no such override. These are not the actual-program trial.
 
 Mohammed requested that the current hands-on trial use the actual executable,
 existing profile/database and real assistant without a copy or synthetic turn.
-Current [desktop evidence](../../docs/evidence/aylul/2026-10-20-desktop-web-companion.md)
+Current desktop evidence (`docs/evidence/aylul/2026-10-20-desktop-web-companion.md` at `0187365`)
 separates passed automated gates and actual-profile readiness from that pending
 human journey. For a read-only readiness check, run:
 
@@ -114,4 +114,5 @@ checksum; other mismatches remain errors.
 
 Earlier physical
 DPI, native hit testing and optimized resource measurements remain open in the
-[independent companion evidence](../../docs/evidence/nylra/2026-10-16-independent-companion-acceptance.md).
+independent companion evidence (`docs/evidence/nylra/2026-10-16-independent-companion-acceptance.md`
+at `0187365`).

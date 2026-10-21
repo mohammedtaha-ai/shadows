@@ -10,7 +10,7 @@ publish = false
 
 [workspace.dependencies]
 anyhow = "1"
-agent-client-protocol = { version = "=2.2.0", features = ["unstable_session_fork"] }
+agent-client-protocol = { version = "=2.2.0", features = ["unstable_session_fork", "unstable_end_turn_token_usage"] }
 axum = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
 # `std::fs::canonicalize` answers `\\?\C:\...` on Windows: a path no person

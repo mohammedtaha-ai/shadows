@@ -31,7 +31,7 @@ async fn two_agents_share_one_provider_key() {
     }
     let rows: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM secret_env
-        WHERE profile='provider/test'",
+        WHERE profile='provider/test-2'",
     )
     .fetch_one(w.storage.reader())
     .await
@@ -106,11 +106,11 @@ async fn missing_provider_key_is_named() {
     let w = world().await;
     w.core
         .secrets()
-        .remove_provider_key("remove".into(), "test")
+        .remove_provider_key("remove".into(), "test-2")
         .await
         .unwrap();
     assert!(matches!(w.core.harness().open_session(&w.thread).await,
-        Err(CoreError::AylulKeyMissing(provider)) if provider == "test"));
+        Err(CoreError::AylulKeyMissing(provider)) if provider == "test-2"));
     assert_eq!(w.sessions.live_count().await, 0);
 }
 
@@ -129,4 +129,100 @@ async fn reserved_variable_row_fails_opening() {
     assert!(matches!(w.core.harness().open_session(&w.thread).await,
         Err(CoreError::SecretNameReserved(name)) if name == "ANTHROPIC_BASE_URL"));
     assert_eq!(w.sessions.live_count().await, 0);
+}
+
+async fn provider_window(w: &World, size: u32) {
+    let input = serde_json::from_value(json!({"preset":"minimax","models":[
+        {"id":"fake-large","context_window":1000},
+        {"id":"fake-small","context_window":size}]}))
+    .unwrap();
+    let mut a = agent("AYLUL");
+    a.default_model = "fake-small".into();
+    w.core
+        .profiles()
+        .update_provider(format!("p-{size}"), "test-2", input)
+        .await
+        .unwrap();
+    w.core
+        .profiles()
+        .update_agent(format!("a-{size}"), "aylul", a)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn opening_uses_the_default_models_window() {
+    let w = world().await;
+    provider_window(&w, 321000).await;
+    let report = reply(&w, &w.thread, "fake-small", "high").await;
+    assert_eq!(report["context_tokens"], "321000");
+    assert_eq!(report["compact_window"], "321000");
+    let settings: Value =
+        serde_json::from_slice(&std::fs::read(w.home.join("settings.json")).unwrap()).unwrap();
+    assert_eq!(
+        settings["availableModels"],
+        json!(["fake-large", "fake-small"])
+    );
+}
+
+#[tokio::test]
+async fn auto_compact_window_is_capped_or_omitted() {
+    let w = world().await;
+    for size in [99999, 100000, 1000001] {
+        provider_window(&w, size).await;
+        let report = reply(&w, &w.thread, "fake-small", "high").await;
+        assert_eq!(report["context_tokens"], size.to_string());
+        let expected = if size < 100000 {
+            Value::Null
+        } else {
+            json!(size.min(1000000).to_string())
+        };
+        assert_eq!(report["compact_window"], expected);
+        w.sessions.terminate(&w.thread).await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn opening_names_the_person() {
+    let w = world().await;
+    for (i, calls, expected) in [(0, Some("Lex"), "Lex"), (1, None, "Alex")] {
+        let input = serde_json::from_value(json!({"name":"Alex", "aylul_calls_me":calls,
+            "language":"en", "theme":"dark"}))
+        .unwrap();
+        w.core
+            .profiles()
+            .set_person(format!("person-{i}"), input)
+            .await
+            .unwrap();
+        let report = reply(&w, &w.thread, "fake-large", "high").await;
+        let append = report["append"].as_str().unwrap();
+        assert!(append.contains(expected));
+        assert_eq!(append.lines().count(), 1);
+        let changed = serde_json::from_value(json!({"name":"Alex",
+            "aylul_calls_me":"Changed", "language":"en", "theme":"dark"}))
+        .unwrap();
+        w.core
+            .profiles()
+            .set_person(format!("live-person-{i}"), changed)
+            .await
+            .unwrap();
+        let retained = reply(&w, &w.thread, "fake-large", "high").await;
+        assert_eq!(retained["append"], report["append"]);
+        w.sessions.terminate(&w.thread).await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn opening_without_person_appends_nothing() {
+    let w = world().await;
+    let empty = serde_json::from_value(json!({"name":"  ", "aylul_calls_me":null,
+        "language":null, "theme":"system"}))
+    .unwrap();
+    w.core
+        .profiles()
+        .set_person("empty-person".into(), empty)
+        .await
+        .unwrap();
+    let report = reply(&w, &w.thread, "fake-large", "high").await;
+    assert!(report["append"].is_null());
 }

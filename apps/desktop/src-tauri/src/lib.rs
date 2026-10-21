@@ -13,7 +13,10 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             commands::hide_main,
+            commands::preferences::desktop_preferences,
+            commands::preferences::set_desktop_preferences,
             commands::desktop::companion_binding,
+            commands::desktop::refresh_companion_appearance,
             commands::desktop::select_companion_agent,
             commands::desktop::target_companion_thread,
             commands::desktop::set_companion_previews,
@@ -37,6 +40,10 @@ pub fn run() {
             commands::companion::drag_companion,
             commands::companion::open_main_from_companion
         ])
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             let _ = windows::open_main(app);
         }))
@@ -53,13 +60,14 @@ pub fn run() {
             use tauri::Emitter;
             use tauri::Manager;
             let paths = app_paths::AppPaths::resolve(app)?;
+            app.manage(windows::preferences::Store::new(paths.root().to_path_buf()));
             app.manage(auth::AuthController::new(paths.auth()));
             app.manage(windows::companion::Store::default());
             let connection = core_connection::Connection::new(paths.root().to_path_buf());
             let presence = presence::Presence::new(paths.root().to_path_buf(), connection.clone());
             let publisher = app.handle().clone();
             let watcher =
-                presence::watcher::PresenceWatcher::new(std::sync::Arc::new(move |update| {
+                presence::watcher::PresenceWatcher::new(std::sync::Arc::new(move |mut update| {
                     let app = publisher.clone();
                     let _ = publisher.run_on_main_thread(move || {
                         if !update.is_current() {
@@ -87,7 +95,16 @@ pub fn run() {
                                 return;
                             }
                         }
-                        windows::companion::present(&app, update.projection);
+                        if update.republish_only {
+                            windows::companion::republish(&app);
+                        } else {
+                            windows::companion::present(
+                                &app,
+                                update.projection.clone(),
+                                update.appearance.clone(),
+                            );
+                        }
+                        update.acknowledge();
                     });
                 }));
             app.manage(watcher.clone());

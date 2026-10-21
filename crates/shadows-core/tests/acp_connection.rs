@@ -54,7 +54,7 @@ async fn a_new_session_answers_its_options_and_a_prompt_streams_then_ends() {
     assert!(opened.session_id.starts_with("fake-"));
     assert!(opened.options.to_string().contains("fake-large"));
     assert_eq!(
-        c.prompt(&opened.session_id, "hi", &[]).await.unwrap(),
+        c.prompt(&opened.session_id, "hi", &[]).await.unwrap().end,
         TurnEnd::Ended
     );
     let events = drain(&mut ev);
@@ -87,7 +87,7 @@ async fn a_cancelled_prompt_answers_cancelled() {
     let turn = tokio::spawn(async move { c2.prompt(&s2, "hang", &[]).await });
     tokio::time::sleep(Duration::from_millis(200)).await;
     c.cancel(&s);
-    assert_eq!(turn.await.unwrap().unwrap(), TurnEnd::Cancelled);
+    assert_eq!(turn.await.unwrap().unwrap().end, TurnEnd::Cancelled);
 }
 
 #[tokio::test]
@@ -149,6 +149,7 @@ async fn usage_carries_context_model_and_rate_limit() {
                 size,
                 model,
                 rate_limit,
+                ..
             } => Some((used, size, model, rate_limit)),
             _ => None,
         })
@@ -206,7 +207,7 @@ async fn a_fork_is_resumed_before_it_is_answered() {
         .unwrap();
     assert_eq!(fork.session_id, format!("fork-of-{src}"));
     assert_eq!(
-        c.prompt(&fork.session_id, "hi", &[]).await.unwrap(),
+        c.prompt(&fork.session_id, "hi", &[]).await.unwrap().end,
         TurnEnd::Ended
     );
 }
@@ -232,7 +233,7 @@ async fn a_refused_prompt_names_the_acp_stop_reason() {
         .unwrap()
         .session_id;
     assert_eq!(
-        c.prompt(&s, "refuse", &[]).await.unwrap(),
+        c.prompt(&s, "refuse", &[]).await.unwrap().end,
         TurnEnd::Refused("max_tokens".into())
     );
 }
@@ -268,7 +269,10 @@ async fn changing_model_adjusts_mode_and_resuming_starts_at_personal_defaults() 
         .unwrap()
         .session_id;
     c.set_option(&s, "model", "fake-small").await.unwrap();
-    assert_eq!(c.prompt(&s, "report", &[]).await.unwrap(), TurnEnd::Ended);
+    assert_eq!(
+        c.prompt(&s, "report", &[]).await.unwrap().end,
+        TurnEnd::Ended
+    );
     let changed = drain(&mut ev)
         .into_iter()
         .find_map(|e| match e {
@@ -304,4 +308,28 @@ async fn changing_model_adjusts_mode_and_resuming_starts_at_personal_defaults() 
     assert_eq!(resumed["model"], "fake-large");
     assert_eq!(resumed["mode"], "auto");
     assert_eq!(resumed["how"], "resume");
+}
+
+#[tokio::test]
+async fn prompt_returns_raw_turn_usage() {
+    let (_h, c, _ev) = open_fake().await;
+    let s = c
+        .start_session(&tmp(), SessionStart::New, &SessionSetup::default())
+        .await
+        .unwrap()
+        .session_id;
+    let r = c.prompt(&s, "turn-usage", &[]).await.unwrap();
+    assert_eq!(r.end, TurnEnd::Ended);
+    let u = r.usage.unwrap();
+    assert_eq!(
+        (
+            u.input_tokens,
+            u.output_tokens,
+            u.cached_read_tokens,
+            u.cached_write_tokens,
+            u.total_tokens
+        ),
+        (10, 4, 20, 30, 64)
+    );
+    assert!(c.prompt(&s, "hi", &[]).await.unwrap().usage.is_none());
 }

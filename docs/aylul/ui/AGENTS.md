@@ -16,6 +16,10 @@ Yours:
 - `apps/desktop/tests/`, `apps/desktop/index.html`
 - `docs/aylul/ui/` (plans, specs, stages), and the `contract.yaml` files and
   code-map rows of the code above
+- the character colour (Mohammed's ruling, 2026-10-21): the colour table
+  `assets/aylul/character-colors.json`, `features/companion/renderer/palette.ts`, and the passes
+  in `features/companion/` that make the renderer draw from that palette (no shape, motion,
+  expression or outfit change)
 
 Not yours: `assets/aylul/` and `features/companion/` (character), `src-tauri/`, `sidecar/`, `hook/` (native); `../shadows-backend` (Hamoud);
 `docs/superpowers/` (history: read it, add nothing new). `docs/aylul/vision.md` is changed
@@ -44,6 +48,11 @@ only through the teacher.
 - Needs: <shared request it depends on, or "none">
 - Done when: <the test(s) or command that must pass>
 ```
+
+**`stages.md` holds only what is left.** A `done` task stays while its branch is open, so the
+reviewer sees it. When the branch's PR merges, `docs-sync` deletes every `done` task that PR
+delivered, and a plan whose tasks are all done; its commit names the PR, and Git keeps them
+(cite them as "`<path>` at `<commit>`"). No "Done" section is kept.
 
 ## Rules for the builder and the fixer
 

@@ -19,6 +19,9 @@ pub fn allowed_caller(label: &str, command: &str) -> bool {
         | "target_companion_thread"
         | "set_companion_previews"
         | "navigation_snapshot"
+        | "desktop_preferences"
+        | "set_desktop_preferences"
+        | "refresh_companion_appearance"
         | "ack_navigation"
         | "hide_main" => label == "main",
         _ => false,
@@ -157,6 +160,9 @@ mod tests {
                 "set_companion_previews",
                 "navigation_snapshot",
                 "ack_navigation",
+                "refresh_companion_appearance",
+                "desktop_preferences",
+                "set_desktop_preferences",
             ] {
                 let expected = match name {
                     "companion_state" => label == "main" || label == "companion",

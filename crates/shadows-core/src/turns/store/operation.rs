@@ -181,6 +181,7 @@ impl Storage {
                 .bind(op_id.as_str())
                 .execute(&mut *conn)
                 .await?;
+                super::usage::record_usage_in(conn, &op_id, seen.token_usage.as_ref(), &ts).await?;
                 let mut event = DurableEvent::new("OperationCompleted", Actor::system());
                 if let Some(invocation) = invocation_of(conn, &op_id).await? {
                     event = event.with_payload(serde_json::json!({ "invocation": invocation }));
@@ -199,6 +200,18 @@ impl Storage {
         stage: FailureStage,
         reason: &str,
     ) -> Result<(), StorageError> {
+        self.mark_operation_failed_with_usage(op_id, stage, reason, None)
+            .await
+    }
+
+    pub async fn mark_operation_failed_with_usage(
+        &self,
+        op_id: &OperationId,
+        stage: FailureStage,
+        reason: &str,
+        usage: Option<&shadows_agent::events::TurnUsage>,
+    ) -> Result<(), StorageError> {
+        let usage = usage.cloned();
         let (op_id, reason, ts) = (op_id.clone(), reason.to_string(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
@@ -222,6 +235,7 @@ impl Storage {
                         found: "already terminal".into(),
                     });
                 }
+                super::usage::record_usage_in(conn, &op_id, usage.as_ref(), &ts).await?;
                 record(
                     conn,
                     &op_id,
@@ -300,6 +314,15 @@ impl Storage {
     /// gone. Spec §2.3. The CAS refuses to overwrite a terminal state, which is
     /// what makes a natural exit win the race (§8.4 case 4 and 5).
     pub async fn mark_operation_cancelled(&self, op_id: &OperationId) -> Result<(), StorageError> {
+        self.mark_operation_cancelled_with_usage(op_id, None).await
+    }
+
+    pub async fn mark_operation_cancelled_with_usage(
+        &self,
+        op_id: &OperationId,
+        usage: Option<&shadows_agent::events::TurnUsage>,
+    ) -> Result<(), StorageError> {
+        let usage = usage.cloned();
         let (op_id, ts) = (op_id.clone(), now());
         self.write_txn(move |conn| {
             Box::pin(async move {
@@ -319,6 +342,7 @@ impl Storage {
                         found: "already terminal".into(),
                     });
                 }
+                super::usage::record_usage_in(conn, &op_id, usage.as_ref(), &ts).await?;
                 record(
                     conn,
                     &op_id,

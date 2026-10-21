@@ -17,6 +17,7 @@
 mod assistant;
 mod commands;
 mod context;
+mod extension_home;
 mod live;
 mod model;
 mod offers;
@@ -36,7 +37,7 @@ use shadows_agent::policy;
 use tokio::sync::broadcast;
 
 pub use assistant::AylulConfig;
-pub use model::{ContextBreakdown, HarnessInfo, RememberedSettings};
+pub use model::{AylulUsageSnapshot, ContextBreakdown, HarnessInfo, RememberedSettings};
 pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig};
 pub use setup::prompt_version;
 // What another write calls inside its own transaction (spec §14.6): a turn
@@ -57,6 +58,35 @@ pub struct Harness {
 }
 
 impl Harness {
+    pub async fn test_saved_provider(
+        &self,
+        slug: &str,
+        api_key: Option<String>,
+    ) -> Result<crate::ProviderTestOutcome, CoreError> {
+        let provider = self.sessions.profiles.provider(slug).await?;
+        let api_key = match api_key {
+            Some(key) => key,
+            None => {
+                let secrets = self
+                    .sessions
+                    .config
+                    .secrets
+                    .as_ref()
+                    .ok_or(CoreError::SecretsUnavailable)?;
+                secrets
+                    .resolve_env(&format!("provider/{slug}"))
+                    .await?
+                    .into_iter()
+                    .find(|(name, _)| name == "PROVIDER_API_KEY")
+                    .map(|(_, key)| key)
+                    .filter(|key| !key.is_empty())
+                    .ok_or_else(|| CoreError::AylulKeyMissing(slug.into()))?
+            }
+        };
+        crate::profiles::probe::validate_key(&api_key)?;
+        Ok(crate::profiles::probe::probe(&provider.base_url, &api_key).await)
+    }
+
     /// The configured AYLUL profile, without exposing its environment.
     pub fn aylul_profile(&self) -> Result<&str, CoreError> {
         self.sessions

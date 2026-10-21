@@ -4,24 +4,26 @@ status: current
 source: web/src/app/desktop
 responsibility: Present retained native person actions in the shared dashboard.
 components:
-  ConnectionSettings: Existing executable/database/configuration references; save or explicit Retry; fixed native errors.
-  NativeSettings: Desktop-only account, companion and connection sections; account failure never gates chat.
-  AccountPanel: Credential-free native View; confirm new installation, sign-out-all and revoke; independent login cancellation.
-  CompanionSettings: Explicit live agent selection with provider/model labels; independent preview preference; stale replies ignored; explicit Local Core retry also restarts the native observer.
+  ConnectionSettings: Revisioned native Core state above a closed Advanced configuration disclosure; save or explicit Retry; fixed native errors. No HTTP consumer, including at bootstrap.
+  CompanionSettings: Explicit live agent selection with provider titles (Core preset/region/label) and model IDs; independent preview preference; stale replies ignored; explicit Local Core retry also restarts the native observer.
   UseWithCompanion: Explicitly target an existing selected-agent thread; never send a turn or change the selected agent.
-  CompanionControls: Subscribe before snapshot; revisioned visibility and pause; local rendering failure keeps account actions available.
+  CompanionControls: Subscribe before snapshot; revisioned visibility and motion switches; explicit Retry after rendering failure.
   Activity: Desktop-only local sessions and approval controls.
   SessionsPanel: Show session state/project; preview hook settings before confirmed installation.
   ApprovalsPanel: Show project/session; allow once, deny, preview exact rule, approve or dismiss.
   RulePreviewGuard: Invalidate edited or stale previews; approve only the captured rule and settings fingerprint.
   useActivity: Mounted visible-panel sidecar polling through React Query.
 obligations:
+  - rule: A bound live agent's resolved character colour appears under the companion selector; absent binding shows no colour line.
+    tested_by: web/src/app/desktop/companion-binding.test.tsx
   - rule: The bootstrap form imports no HTTP consumer; the native owner validates paths and origin.
     tested_by: apps/desktop/tests/desktop-bootstrap.spec.ts
-  - rule: Account actions retain confirmation/cancellation and cannot switch chat source.
+  - rule: Malformed companion updates show a local error.
     tested_by: web/src/app/desktop/native-sections.test.tsx
-  - rule: Companion failure does not disable account; browser exposes no native section or invocation.
-    tested_by: web/src/app/desktop/native-sections.test.tsx
+  - rule: The character's three switches retain explicit native mutations; a later native connection event cannot be overwritten by an older snapshot.
+    tested_by:
+      - web/src/app/desktop/companion-binding.test.tsx
+      - web/src/app/settings/core.test.tsx
   - rule: Project and session context precede approval; a missing sidecar needs no login.
     tested_by: web/src/app/desktop/native-sections.test.tsx
   - rule: Rule edits discard in-flight previews; settings_changed and preview_mismatch force a fresh preview.

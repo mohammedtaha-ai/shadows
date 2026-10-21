@@ -11,7 +11,8 @@
 > | [docs/frontend/codebase/README.md](./docs/frontend/codebase/README.md) | **The frontend code map.** What each file in `web/src` owns; each feature folder's `contract.yaml` sits next to its code. Read before changing `web/`. |
 > | `crates/shadows-core/src/<service>/contract.yaml` | **One contract per service, next to its code**: its methods, obligations, agreements and tests. Read before changing that service. Written to [docs/codebase/contracts/TEMPLATE.yaml](./docs/codebase/contracts/TEMPLATE.yaml). |
 > | [docs/vision.md](./docs/vision.md) | **What Shadows is for and where it is going.** Read before specifying any new milestone. Decides nothing. |
-> | [docs/status.md](./docs/status.md) | Where the project is right now. Decides nothing. |
+> | [docs/future.md](./docs/future.md) · [docs/aylul/future.md](./docs/aylul/future.md) | **What is meant and not built yet**, one line each, linked to the vision. Decides nothing. |
+> | `docs/<side>/stages.md` | **What is left on the current branch**, per side. A finished task leaves when its PR merges; Git keeps it. |
 > | [docs/evidence/](./docs/evidence/) | Dated measurement records. Facts, not decisions. |
 > | [docs/backend/AGENTS.md](./docs/backend/AGENTS.md) · [docs/frontend/AGENTS.md](./docs/frontend/AGENTS.md) | **The two sides.** Hamoud (backend) and Masada (frontend): their domains, tasks in `stages.md`, builders and fixers. |
 > | [docs/shared/README.md](./docs/shared/README.md) | **Shared requests.** How the frontend and backend agree on the API before either writes code. |
@@ -58,7 +59,7 @@
 
 - **Slug:** shadows
 - **Stack:** Rust 1.94+ candidate floor from SQLx 0.9, a Cargo workspace of the crates below, plus a React client in `web/`
-- **Status:** Guided planning through §23 PR 5 (groundwork, standards, vision proposals, project map, §24 authority, structure write, roadmap proposals and plan gates) is on `main`; PR 3c (project switches) waits on §24.3's OPEN probe. See [docs/status.md](./docs/status.md) for delivered features and acceptance limits, [the delivery roadmap](./docs/superpowers/plans/2026-10-03-project-planning-roadmap.md) for the full sequence, and [docs/vision.md](./docs/vision.md) for the product direction.
+- **Status:** Guided planning through §23 PR 5 (groundwork, standards, vision proposals, project map, §24 authority, structure write, roadmap proposals and plan gates) is on `main`; PR 3c (project switches) waits on §24.3's OPEN probe. See each side's `stages.md` for work in flight, [docs/future.md](./docs/future.md) for what is not built yet, [the delivery roadmap](./docs/superpowers/plans/2026-10-03-project-planning-roadmap.md) for the full sequence, and [docs/vision.md](./docs/vision.md) for the product direction.
 - **Purpose:** Local-first AI orchestration layer (planning + workflow + context + execution + verification + continuity). Clean rewrite of `shadow` avoiding patching pattern.
 
 ## Architecture

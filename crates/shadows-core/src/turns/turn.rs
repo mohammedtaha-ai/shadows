@@ -236,6 +236,8 @@ pub(crate) fn watch_turn(
                     }
                 }
             };
+            let token_usage = answer.as_ref().ok().and_then(|r| r.usage.clone());
+            let answer = answer.map(|r| r.end);
             while let Ok(event) = rx.try_recv() {
                 accept(&w, &mut collector, &bus, &mut first, &mut last_usage, event).await;
             }
@@ -289,6 +291,7 @@ pub(crate) fn watch_turn(
                 // unavailable (§12.7 — nothing unreported is estimated).
                 Ok(TurnEnd::Ended) => {
                     let seen = TurnObservation {
+                        token_usage: token_usage.clone(),
                         native_session_id: Some(w.opened.session_id.clone()),
                         ..TurnObservation::from_usage(last_usage.as_ref())
                     };
@@ -302,22 +305,31 @@ pub(crate) fn watch_turn(
                         .await
                 }
                 Ok(TurnEnd::Cancelled) if w.cancel_requested.load(Ordering::SeqCst) => {
-                    w.runtime.storage.mark_operation_cancelled(&w.op_id).await
+                    w.runtime
+                        .storage
+                        .mark_operation_cancelled_with_usage(&w.op_id, token_usage.as_ref())
+                        .await
                 }
                 Ok(TurnEnd::Cancelled) => {
                     w.runtime
                         .storage
-                        .mark_operation_failed(
+                        .mark_operation_failed_with_usage(
                             &w.op_id,
                             FailureStage::Run,
                             "the harness cancelled the turn on its own",
+                            token_usage.as_ref(),
                         )
                         .await
                 }
                 Ok(TurnEnd::Refused(reason)) => {
                     w.runtime
                         .storage
-                        .mark_operation_failed(&w.op_id, FailureStage::Run, &reason)
+                        .mark_operation_failed_with_usage(
+                            &w.op_id,
+                            FailureStage::Run,
+                            &reason,
+                            token_usage.as_ref(),
+                        )
                         .await
                 }
                 Err(AcpError::Closed) => {

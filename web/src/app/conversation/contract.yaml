@@ -417,8 +417,8 @@ queries_and_mutations:
       (commandId: string, text: string, chosen: TurnSettings) => Promise<string>"
     private: true
     # Creates the thread (with `profile` under an agent), opens its session, applies the
-    # model chosen in the draft when it differs and takes that answer's effort, starts the
-    # turn, and only then navigates.
+    # model chosen in the draft when it differs and takes that answer's effort, seeds the
+    # session cache with the chosen mode, starts the turn, and only then navigates.
     # On a later failure it carries the send to the thread page and rethrows.
 
 
@@ -636,6 +636,12 @@ obligations:
     tested_by: "the first message creates the thread, then sends, then opens the thread"
     note: >
       The draft's model is "Set on send" and is disabled until the session opens.
+
+  - rule: >
+      The mode chosen in a draft stays once its thread opens: the session cache the draft
+      seeds carries the mode its first turn ran with, not the one the session opened at, so
+      the thread page shows it and its next turn sends it.
+    tested_by: "the mode chosen in the draft stays on the thread page and runs the second turn"
 
   - rule: >
       A draft whose turn fails after its thread exists carries the text, command and error to
@@ -911,7 +917,7 @@ agreements:
       page's composer takes it as `carried.attempt`.
     tested_by: "carries the selected plan and command into a failed first-send retry"
 
-  - between: [useFirstSend (setQueryData sessionKey), useSession]
+  - between: [useFirstSend (writeSaved sessionKey), useSession]
     must: >
       share one session cache entry, so the thread page does not open the session again
     holds: true
@@ -1251,6 +1257,9 @@ tests:
     # Does not count thread POSTs; the no-second-thread rule is unproven.
   - name: "the first message creates the thread, then sends, then opens the thread"
     checks: "POST thread, session, turn in order; turn body mode auto and model fake-large."
+  - name: "the mode chosen in the draft stays on the thread page and runs the second turn"
+    checks: "Auto chosen in the draft: the thread page shows Auto, not Accept edits; the second
+      turn body carries mode auto."
   - name: "keeps the person where they went"
     checks: "Navigating away mid-send keeps the settings route; turn still starts."
 
@@ -1381,3 +1390,5 @@ tests:
       harness aylul, changes the model before the turn, and sends the turn on fake-small.
   - name: deleted_agent_conversation_reads
     checks: With no live agent, the conversation shows its history and "Deleted agent".
+
+provider_models: Agent drafts project provider model objects into picker choices by id.

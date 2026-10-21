@@ -38,6 +38,6 @@ test('assembly rejects an output inside its source before removing staged data',
 test('production main inventory contains shared dashboard without retired chat or studio',async()=>{
  const modules=JSON.parse(await readFile(new URL('../dist/desktop-modules.json',import.meta.url),'utf8'));
  assert.ok(modules.some(file=>file.endsWith('/web/src/main.tsx')));
- assert.ok(modules.some(file=>file.endsWith('/web/src/app/desktop/native-settings.tsx')));
+ assert.ok(modules.some(file=>file.endsWith('/web/src/app/settings/settings-dialog.tsx')));
  assert.ok(!modules.some(file=>file.includes('/apps/desktop/src/app/main.tsx')||file.includes('/features/assistant/')||file.includes('/hermes-client/')||file.includes('/companion/studio/')||file.includes('/tests/')));
 });

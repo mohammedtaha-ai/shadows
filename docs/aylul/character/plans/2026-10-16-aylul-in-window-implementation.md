@@ -447,7 +447,7 @@ the studio is explicit, and production has no entry/imported studio module.
 ## Task 6: Close visual and Windows acceptance with truthful evidence
 
 **Files:** Create `T/visual.spec.ts`,
-`docs/evidence/nylra/2026-10-16-aylul-in-window-acceptance.md`.
+`docs/evidence/nylra/2026-10-16-aylul-in-window-acceptance.md` at `0187365`.
 Modify `apps/desktop/tests/windows-shell.ps1`, `apps/desktop/README.md`,
 `assets/aylul/README.md`, `docs/aylul/codebase/README.md`, `C/contract.yaml`,
 `C/studio/contract.yaml`, `apps/desktop/src/app/contract.yaml`,

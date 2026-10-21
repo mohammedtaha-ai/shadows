@@ -86,6 +86,10 @@
       },
       "Agent": {
         "properties": {
+          "character_color": {
+            "pattern": "^[a-z][a-z0-9-]{0,31}$",
+            "type": "string"
+          },
           "created_at": {
             "type": "string"
           },
@@ -113,6 +117,7 @@
           "name",
           "provider",
           "default_model",
+          "character_color",
           "deleted",
           "created_at",
           "updated_at"
@@ -137,8 +142,36 @@
           }
         ]
       },
+      "AgentExtensions": {
+        "properties": {
+          "plugins": {
+            "items": {
+              "$ref": "#/components/schemas/AgentItem"
+            },
+            "type": "array"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/AgentItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "plugins",
+          "skills"
+        ],
+        "type": "object"
+      },
       "AgentInput": {
         "properties": {
+          "character_color": {
+            "pattern": "^[a-z][a-z0-9-]{0,31}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "default_model": {
             "type": "string"
           },
@@ -155,6 +188,24 @@
           "default_model"
         ],
         "type": "object"
+      },
+      "AgentItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Item"
+          },
+          {
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "enabled"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "AgentWorkspace": {
         "properties": {
@@ -1658,6 +1709,8 @@
       "ErrorCode": {
         "description": "Stable codes clients pattern-match on. Never match on human text.\nSpec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.",
         "enum": [
+          "EXTENSION_NOT_FOUND",
+          "EXTENSION_NAME_CONFLICT",
           "RUNTIME_NOT_CONFIGURED",
           "AYLUL_PROFILE_NOT_FOUND",
           "AYLUL_PROVIDER_NOT_FOUND",
@@ -1707,6 +1760,34 @@
           "GRANT_INVALID"
         ],
         "type": "string"
+      },
+      "ExtensionKind": {
+        "enum": [
+          "plugin",
+          "skill"
+        ],
+        "type": "string"
+      },
+      "ExtensionLibrary": {
+        "properties": {
+          "plugins": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "plugins",
+          "skills"
+        ],
+        "type": "object"
       },
       "Focus": {
         "description": "The task a person points at when they send a turn: the task's id, in the\nplan version and at the revision they were looking at. It is checked to\nbelong to that version and kept with their message.",
@@ -1892,6 +1973,25 @@
           "line",
           "kind",
           "name"
+        ],
+        "type": "object"
+      },
+      "Import": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ExtensionKind"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "kind",
+          "path"
         ],
         "type": "object"
       },
@@ -2118,6 +2218,25 @@
         ],
         "type": "object"
       },
+      "Item": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "type": "object"
+      },
       "KeyCommand": {
         "properties": {
           "command_id": {
@@ -2316,6 +2435,25 @@
         ],
         "type": "object"
       },
+      "ListedModel": {
+        "properties": {
+          "context_window": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
       "MandatoryPart": {
         "properties": {
           "name": {
@@ -2508,6 +2646,52 @@
           "status",
           "outdated",
           "created_at"
+        ],
+        "type": "object"
+      },
+      "ModelUsage": {
+        "properties": {
+          "cost": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": "string"
+          },
+          "provider_slug": {
+            "type": "string"
+          },
+          "requests": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tokens_in": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tokens_out": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "model",
+          "provider_slug",
+          "requests",
+          "tokens_in",
+          "tokens_out"
         ],
         "type": "object"
       },
@@ -2873,6 +3057,88 @@
           "part",
           "ancestors",
           "plans"
+        ],
+        "type": "object"
+      },
+      "Person": {
+        "properties": {
+          "aylul_calls_me": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "theme"
+        ],
+        "type": "object"
+      },
+      "PersonCommand": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PersonInput"
+          },
+          {
+            "properties": {
+              "command_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "command_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PersonInput": {
+        "properties": {
+          "aylul_calls_me": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
+          }
+        },
+        "required": [
+          "theme"
         ],
         "type": "object"
       },
@@ -3391,6 +3657,13 @@
         ],
         "type": "object"
       },
+      "PresetRegion": {
+        "enum": [
+          "international",
+          "china"
+        ],
+        "type": "string"
+      },
       "Problem": {
         "description": "One broken or missing thing, named so a person can act on it: tasks as `T4`.",
         "properties": {
@@ -3617,25 +3890,32 @@
           "base_url": {
             "type": "string"
           },
-          "context_window": {
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
-          },
           "created_at": {
             "type": "string"
           },
           "key_set": {
             "type": "boolean"
           },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "models": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ProviderModel"
             },
             "type": "array"
           },
           "name": {
             "type": "string"
+          },
+          "preset": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "slug": {
             "type": "string"
@@ -3649,7 +3929,6 @@
           "name",
           "base_url",
           "models",
-          "context_window",
           "key_set",
           "created_at",
           "updated_at"
@@ -3677,8 +3956,60 @@
       "ProviderInput": {
         "properties": {
           "base_url": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderModelInput"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preset": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "models"
+        ],
+        "type": "object"
+      },
+      "ProviderModel": {
+        "properties": {
+          "context_window": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "context_window"
+        ],
+        "type": "object"
+      },
+      "ProviderModelInput": {
+        "properties": {
           "context_window": {
             "format": "int32",
             "minimum": 0,
@@ -3687,20 +4018,162 @@
               "null"
             ]
           },
-          "models": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "name": {
+          "id": {
             "type": "string"
           }
         },
         "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "ProviderPreset": {
+        "properties": {
+          "base_url": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "region": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PresetRegion"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
           "name",
-          "base_url",
-          "models"
+          "base_url"
+        ],
+        "type": "object"
+      },
+      "ProviderTest": {
+        "properties": {
+          "api_key": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preset": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "api_key"
+        ],
+        "type": "object"
+      },
+      "ProviderTestOutcome": {
+        "properties": {
+          "listed": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ListedModel"
+            },
+            "type": "array"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "reason": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TestRefusal"
+              }
+            ]
+          },
+          "status": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "ok",
+          "models",
+          "listed"
+        ],
+        "type": "object"
+      },
+      "ProviderUsage": {
+        "properties": {
+          "cost": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider_name": {
+            "type": "string"
+          },
+          "provider_slug": {
+            "type": "string"
+          },
+          "requests": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tokens_in": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tokens_out": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "provider_slug",
+          "provider_name",
+          "requests",
+          "tokens_in",
+          "tokens_out"
         ],
         "type": "object"
       },
@@ -3994,6 +4467,17 @@
           "command_id",
           "body"
         ],
+        "type": "object"
+      },
+      "SavedProviderTest": {
+        "properties": {
+          "api_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
         "type": "object"
       },
       "SendNowBody": {
@@ -4465,6 +4949,22 @@
         ],
         "type": "object"
       },
+      "TestRefusal": {
+        "enum": [
+          "key_refused",
+          "unreachable",
+          "unexpected"
+        ],
+        "type": "string"
+      },
+      "Theme": {
+        "enum": [
+          "dark",
+          "light",
+          "system"
+        ],
+        "type": "string"
+      },
       "ThreadEntry": {
         "properties": {
           "author": {
@@ -4553,6 +5053,21 @@
         "format": "uuid",
         "type": "string"
       },
+      "Toggle": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "command_id",
+          "enabled"
+        ],
+        "type": "object"
+      },
       "TurnSettings": {
         "description": "The settings a turn runs with (spec §12.7). `effort` is `None` exactly\nwhen the model offers none (§12.4).",
         "properties": {
@@ -4629,6 +5144,27 @@
         "required": [
           "command_id",
           "harness"
+        ],
+        "type": "object"
+      },
+      "UsageReport": {
+        "properties": {
+          "by_model": {
+            "items": {
+              "$ref": "#/components/schemas/ModelUsage"
+            },
+            "type": "array"
+          },
+          "by_provider": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderUsage"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "by_provider",
+          "by_model"
         ],
         "type": "object"
       },
@@ -5446,6 +5982,152 @@
         ]
       }
     },
+    "/api/aylul/agents/{slug}/extensions": {
+      "get": {
+        "operationId": "agent_extensions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentExtensions"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/agents/{slug}/extensions/{kind}/{id}": {
+      "put": {
+        "operationId": "set_agent_extension",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ExtensionKind"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Toggle"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentItem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
     "/api/aylul/agents/{slug}/threads": {
       "get": {
         "operationId": "threads",
@@ -5478,6 +6160,206 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/extensions": {
+      "get": {
+        "operationId": "list_extensions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtensionLibrary"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      },
+      "post": {
+        "operationId": "import_extension",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Import"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/extensions/{kind}/{id}": {
+      "delete": {
+        "operationId": "remove_extension",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ExtensionKind"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/provider-presets": {
+      "get": {
+        "operationId": "provider_presets",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderPreset"
+                  },
+                  "type": "array"
                 }
               }
             },
@@ -5565,6 +6447,46 @@
             "description": ""
           },
           "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/providers/test": {
+      "post": {
+        "operationId": "test_provider",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderTest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderTestOutcome"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
             "content": {
               "application/json": {
                 "schema": {
@@ -5863,6 +6785,154 @@
             "description": ""
           },
           "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/providers/{slug}/test": {
+      "post": {
+        "operationId": "test_saved_provider",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedProviderTest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderTestOutcome"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/usage": {
+      "get": {
+        "operationId": "usage",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageReport"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
             "content": {
               "application/json": {
                 "schema": {
@@ -6232,6 +7302,94 @@
         "summary": "Revoke (§13.7): Shadows refuses the grant's token from now on. It does not\nremove the server from the person's Claude configuration.",
         "tags": [
           "grants"
+        ]
+      }
+    },
+    "/api/me": {
+      "get": {
+        "operationId": "person",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Person"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      },
+      "put": {
+        "operationId": "set_person",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Person"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
         ]
       }
     },

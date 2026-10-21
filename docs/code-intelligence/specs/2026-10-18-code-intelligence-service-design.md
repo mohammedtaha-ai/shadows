@@ -144,7 +144,8 @@ cannot pull in AYLUL assets, the Core database, Hermes or unrelated language ser
 
 ## 8. Serena learning baseline
 
-[The executed baseline](../../evidence/code-intelligence/2026-10-18-serena-baseline.md) proves
+The executed baseline (`docs/evidence/code-intelligence/2026-10-18-serena-baseline.md` at `0187365`)
+proves
 one synthetic Rust lookup/reference path on Windows, not a replacement architecture.
 Serena remains installed at `F:/projects_frok/serena` with a pinned source revision.
 Its live tool schemas/raw outputs are research artifacts outside product source.
@@ -160,7 +161,8 @@ is a measured result, not a product claim assumed by the design.
 
 ### 8.1 Real-project checkpoint and provisional recommendation
 
-[The real Shadows baseline](../../evidence/code-intelligence/2026-10-18-serena-real-shadows.md)
+The real Shadows baseline (`docs/evidence/code-intelligence/2026-10-18-serena-real-shadows.md` at
+`0187365`)
 proved selected Rust/TypeScript outlines, exact bodies, same-name reference
 separation, bounded-result behavior and fixed read-tool scope. Two separately
 owned stdio instances survived peer cancellation/disconnect without Core or AYLUL.

@@ -9,8 +9,9 @@ fn provider_row(row: sqlx::sqlite::SqliteRow) -> Result<Provider, StorageError> 
         slug: row.get("slug"),
         name: row.get("name"),
         base_url: row.get("base_url"),
+        preset: row.get("preset"),
+        label: row.get("label"),
         models: serde_json::from_str(row.get("models"))?,
-        context_window: row.get("context_window"),
         key_set: row.get("key_set"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
@@ -23,6 +24,7 @@ fn agent_row(row: sqlx::sqlite::SqliteRow) -> Agent {
         name: row.get("name"),
         provider: row.get::<Option<String>, _>("provider").unwrap_or_default(),
         default_model: row.get("default_model"),
+        character_color: row.get("character_color"),
         deleted: row.get::<Option<String>, _>("deleted_at").is_some(),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
@@ -107,7 +109,8 @@ async fn slug(
         .bind(&candidate)
         .fetch_one(&mut *conn)
         .await?;
-        if !taken {
+        let reserved = table == "aylul_provider" && candidate == "test";
+        if !taken && !reserved {
             return Ok(candidate);
         }
         let suffix = format!("-{n}");
@@ -163,26 +166,39 @@ pub(super) async fn save_provider(
                 let id = match existing {
                     Some(id) => {
                         require_provider_in(conn, &id).await?;
-                        users(conn, &id, Some(&input.models)).await?;
+                        let ids: Vec<_> = input.models.iter().map(|m| m.id.clone()).collect();
+                        users(conn, &id, Some(&ids)).await?;
                         id
                     }
-                    None => slug(conn, &input.name, "aylul_provider", "provider").await?,
+                    None => {
+                        slug(
+                            conn,
+                            input.name.as_deref().unwrap_or(""),
+                            "aylul_provider",
+                            "provider",
+                        )
+                        .await?
+                    }
                 };
                 let ts = now();
                 sqlx::query(
                     "INSERT INTO aylul_provider
-            (slug,name,base_url,models,context_window,created_at,updated_at) VALUES (?,?,?,?,?,?,?)
+            (slug,name,base_url,models,context_window,created_at,updated_at,preset,label)
+            VALUES (?,?,?,?,?,?,?,?,?)
             ON CONFLICT(slug) DO UPDATE SET name=excluded.name, base_url=excluded.base_url,
             models=excluded.models, context_window=excluded.context_window,
+            preset=excluded.preset, label=excluded.label,
             updated_at=excluded.updated_at",
                 )
                 .bind(&id)
                 .bind(&input.name)
                 .bind(&input.base_url)
                 .bind(serde_json::to_string(&input.models)?)
-                .bind(input.context_window.unwrap_or(200_000))
+                .bind(200_000)
                 .bind(&ts)
                 .bind(&ts)
+                .bind(&input.preset)
+                .bind(&input.label)
                 .execute(&mut *conn)
                 .await?;
                 record(conn, &command, &id).await?;
@@ -201,9 +217,10 @@ pub(crate) async fn require_provider_in(
             .bind(slug)
             .fetch_optional(conn)
             .await?;
-    Ok(serde_json::from_str(&models.ok_or_else(|| {
-        StorageError::AylulProviderNotFound(slug.into())
-    })?)?)
+    let models: Vec<super::ProviderModel> = serde_json::from_str(
+        &models.ok_or_else(|| StorageError::AylulProviderNotFound(slug.into()))?,
+    )?;
+    Ok(models.into_iter().map(|m| m.id).collect())
 }
 
 pub(crate) async fn require_live_agent_in(
@@ -225,14 +242,39 @@ pub(crate) async fn require_live_agent_in(
 
 pub(super) async fn save_agent(
     storage: &Storage,
-    command: CommandContext,
+    command_id: String,
     existing: Option<String>,
-    input: AgentInput,
+    mut input: AgentInput,
     root: std::path::PathBuf,
 ) -> Result<String, StorageError> {
     storage
         .write_txn(move |conn| {
             Box::pin(async move {
+                if input.character_color.is_none() {
+                    let stored = if let Some(id) = &existing {
+                        sqlx::query_scalar::<_, String>(
+                            "SELECT character_color FROM aylul_agent WHERE slug=?",
+                        )
+                        .bind(id)
+                        .fetch_optional(&mut *conn)
+                        .await?
+                    } else {
+                        None
+                    };
+                    input.character_color = Some(stored.unwrap_or_else(|| "purple".into()));
+                }
+                let command = match &existing {
+                    Some(id) => crate::app::user_command(
+                        command_id,
+                        "agent.update",
+                        serde_json::json!({"slug":id,"input":input}),
+                    ),
+                    None => crate::app::user_command(
+                        command_id,
+                        "agent.create",
+                        serde_json::json!(input),
+                    ),
+                };
                 if let Some(id) = classify(conn, &command, "Profiles", "aylul").await? {
                     return Ok(id);
                 }
@@ -253,9 +295,11 @@ pub(super) async fn save_agent(
                 let ts = now();
                 sqlx::query(
                     "INSERT INTO aylul_agent
-            (slug,name,provider,default_model,created_at,updated_at) VALUES (?,?,?,?,?,?)
+            (slug,name,provider,default_model,created_at,updated_at,character_color)
+            VALUES (?,?,?,?,?,?,?)
             ON CONFLICT(slug) DO UPDATE SET name=excluded.name, provider=excluded.provider,
-            default_model=excluded.default_model, updated_at=excluded.updated_at",
+            default_model=excluded.default_model, updated_at=excluded.updated_at,
+            character_color=excluded.character_color",
                 )
                 .bind(&id)
                 .bind(&input.name)
@@ -263,6 +307,7 @@ pub(super) async fn save_agent(
                 .bind(&input.default_model)
                 .bind(&ts)
                 .bind(&ts)
+                .bind(&input.character_color)
                 .execute(&mut *conn)
                 .await?;
                 record(conn, &command, &id).await?;
@@ -295,6 +340,7 @@ pub(super) async fn delete_agent(
                     .execute(&mut *conn)
                     .await?;
                 crate::secrets::remove_scope_in(conn, &slug).await?;
+                remove_agent_extensions_in(conn, &slug).await?;
                 record(conn, &command, &slug).await
             })
         })
@@ -327,4 +373,72 @@ pub(super) async fn delete_provider(
             })
         })
         .await
+}
+
+pub(super) async fn person(storage: &Storage) -> Result<super::Person, StorageError> {
+    let row = sqlx::query(
+        "SELECT name,aylul_calls_me,language,theme,updated_at
+        FROM aylul_person WHERE id=1",
+    )
+    .fetch_optional(storage.reader())
+    .await?;
+    match row {
+        None => Ok(super::Person::default()),
+        Some(row) => Ok(super::Person {
+            name: row.get("name"),
+            aylul_calls_me: row.get("aylul_calls_me"),
+            language: row.get("language"),
+            theme: serde_json::from_value(serde_json::Value::String(row.get("theme")))?,
+            updated_at: Some(row.get("updated_at")),
+        }),
+    }
+}
+
+pub(super) async fn save_person(
+    storage: &Storage,
+    command: CommandContext,
+    input: super::PersonInput,
+) -> Result<(), StorageError> {
+    storage
+        .write_txn(move |conn| {
+            Box::pin(async move {
+                if classify(conn, &command, "Profiles", "aylul")
+                    .await?
+                    .is_some()
+                {
+                    return Ok(());
+                }
+                let theme = match input.theme {
+                    super::Theme::Dark => "dark",
+                    super::Theme::Light => "light",
+                    super::Theme::System => "system",
+                };
+                sqlx::query(
+                    "INSERT INTO aylul_person (id,name,aylul_calls_me,language,theme,updated_at)
+            VALUES (1,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,
+            aylul_calls_me=excluded.aylul_calls_me, language=excluded.language,
+            theme=excluded.theme, updated_at=excluded.updated_at",
+                )
+                .bind(input.name)
+                .bind(input.aylul_calls_me)
+                .bind(input.language)
+                .bind(theme)
+                .bind(now())
+                .execute(&mut *conn)
+                .await?;
+                record(conn, &command, "person").await
+            })
+        })
+        .await
+}
+
+pub(crate) async fn remove_agent_extensions_in(
+    conn: &mut SqliteConnection,
+    slug: &str,
+) -> Result<(), StorageError> {
+    sqlx::query("DELETE FROM aylul_agent_extension WHERE agent_slug=?")
+        .bind(slug)
+        .execute(conn)
+        .await?;
+    Ok(())
 }

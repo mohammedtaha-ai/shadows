@@ -67,8 +67,6 @@ it is that folder's `contract.yaml`.
 | `web/src/app/desktop/companion-settings.tsx` | Companion binding controls | `web/src/app/desktop/contract.yaml` |
 | `web/src/desktop/auth.ts` | Account invocation wrappers | `web/src/desktop/contract.yaml` |
 | `web/src/desktop/activity-api.ts` | Sidecar invocation wrappers | `web/src/desktop/contract.yaml` |
-| `web/src/app/desktop/account-panel.tsx` | Account person actions | `web/src/app/desktop/contract.yaml` |
-| `web/src/app/desktop/native-settings.tsx` | Native settings sections | `web/src/app/desktop/contract.yaml` |
 | `web/src/app/desktop/companion-controls.tsx` | Character visibility controls | `web/src/app/desktop/contract.yaml` |
 | `web/src/app/desktop/activity.tsx` | Local activity page | `web/src/app/desktop/contract.yaml` |
 | `web/src/app/desktop/use-activity.ts` | Visible activity polling | `web/src/app/desktop/contract.yaml` |
@@ -88,14 +86,21 @@ it is that folder's `contract.yaml`.
 | `web/src/api/design.ts` | HTTP calls for the project design workspace | `web/src/api/client.ts` |
 | `web/src/api/error.ts` | Every failed daemon call as one typed error | `web/src/api/contract.yaml` |
 | `web/src/api/queries.ts` | TanStack Query keys for each piece of daemon state | `web/src/api/client.ts` |
+| `web/src/api/saved-answer.ts` | A mutation's answer written to the cache over any earlier read | `web/src/api/contract.yaml` |
 | `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/client.ts` |
 | `web/src/app/agents/agent-env.tsx` | One agent's environment variables, values write-only | `web/src/app/agents/contract.yaml` |
-| `web/src/app/agents/agent-settings.tsx` | One agent's settings page, or a new agent's | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/agent-settings.tsx` | Agent editing form | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/delete-zone.tsx` | Danger zone confirming the deletion of a provider or agent | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/form-field.tsx` | Labelled controls drawn for the AYLUL forms | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/home.tsx` | Main pane of the AYLUL workspace when no conversation is open | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/provider-form.tsx` | Form for one provider, its key write-only | `web/src/app/agents/contract.yaml` |
-| `web/src/app/agents/provider-settings.tsx` | Providers page: picks the provider its form edits | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/provider-presets.ts` | Provider preset grouping | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/provider-picker.tsx` | Searchable provider choice | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/provider-models.tsx` | Provider model selection | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/model-picks.ts` | Provider model validation | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/character-colors.ts` | Shared character colour lookup | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/color-swatches.tsx` | Character colour controls | `web/src/app/agents/contract.yaml` |
+| `web/src/app/agents/provider-test.ts` | Provider test outcome messages | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agreements/agreement-document.ts` | Reads OpenAPI object fields for the editor | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/agreements/agreement-editor.tsx` | Editor for one agreement version | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/agreements/agreements-page.tsx` | Page listing agreement identities with versions | `web/src/app/agreements/contract.yaml` |
@@ -179,7 +184,31 @@ it is that folder's `contract.yaml`.
 | `web/src/app/project-settings/remove-project.tsx` | Danger-zone control that removes the project | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/when.ts` | Formats a stored time for the settings page | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/settings/active-projects.tsx` | Editor for how many projects the index keeps active | `web/src/app/settings/contract.yaml` |
-| `web/src/app/settings/settings-page.tsx` | Global settings page, one section per setting | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/settings-dialog.tsx` | URL-selected settings dialog | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections.ts` | Settings section availability | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/use-settings.ts` | Settings URL navigation hooks | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/general.tsx` | General settings content | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/account.tsx` | Account state controls | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/character.tsx` | Character settings content | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/core.tsx` | Local Core settings content | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/providers.tsx` | Provider settings navigation | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/agents.tsx` | Agent settings navigation | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/account-actions.ts` | Account state action selection | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/you-card.tsx` | Person name editing | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/general-preferences.tsx` | General person preference editing | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/person-theme.tsx` | Person theme synchronization | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/desktop-preferences.tsx` | Native preference controls | `web/src/app/settings/contract.yaml` |
+| `web/src/desktop/preferences.ts` | Desktop preference invocation wrappers | `web/src/desktop/contract.yaml` |
+| `web/src/api/person.ts` | Person HTTP operations | `web/src/api/contract.yaml` |
+| `web/src/api/usage.ts` | Usage report HTTP queries | `web/src/api/contract.yaml` |
+| `web/src/api/extensions.ts` | Extension library HTTP operations | `web/src/api/contract.yaml` |
+| `web/src/app/settings/sections/plugins.tsx` | Extension library navigation | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/extension-import.tsx` | Daemon folder import form | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/extension-list.tsx` | Shared extension removal controls | `web/src/app/settings/contract.yaml` |
+| `web/src/app/agents/agent-extensions.tsx` | Per-agent extension enablement | `web/src/app/agents/contract.yaml` |
+| `web/src/app/settings/sections/usage.tsx` | Usage period selection | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/usage-period.ts` | Usage interval calculation | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/usage-tables.tsx` | Usage report presentation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/shell.tsx` | Two-pane frame every screen sits in | `web/src/app/home.tsx` |
 | `web/src/app/sidebar/agent-list.tsx` | Sidebar agent tree with their conversations | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/delete-thread-dialog.tsx` | Confirms removing a conversation as one command | `web/src/app/sidebar/contract.yaml` |

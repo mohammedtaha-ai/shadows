@@ -55,6 +55,9 @@ source: crates/shadows-core/src/harness
 
 
 shapes:
+  AylulUsageSnapshot:
+    source: model.rs
+    note: Nonsecret provider routing pinned to the actual adapter at opening
   Harness:
     storage: Arc<Storage>
     # The same `Arc` `Turns` holds: one live adapter per thread for both.
@@ -139,6 +142,7 @@ shapes:
 functions:
   preference_key: The one storage key for per-agent AYLUL model preferences.
   service:
+    test_saved_provider: Test with the supplied key or stored key through the shared probe.
     aylul_profile:
       signature: "(&self) -> Result<&str, CoreError>"
       # Configuration-only metadata; absence is AylulNotConfigured.
@@ -241,7 +245,8 @@ functions:
       # assistant.rs, private to harness, called by `open_live`: cwd, session
       # setup and spawn spec. A Planner thread gets its project folder and
       # `for_opening`'s setup; an `aylul` thread the profile home, no
-      # prompt/tools/MCP grant, `settingSources ["user"]`, and the profile's
+      # tools/MCP grant, an optional person-name append, `settingSources ["user"]`,
+      # and the profile's
       # env. OpenError::Env preserves AylulKeyMissing before
       # any spawn, or AylulNotConfigured when no profile exists.
     harness_available:
@@ -358,6 +363,18 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: Actual openings project only enabled managed items; cached adapters are not reconfigured.
+    tested_by: [opening_projects_only_enabled_extensions]
+  - rule: Disabled cached plugins remain explicitly false; user-owned content is preserved.
+    tested_by: [opening_removes_disabled_cached_extensions]
+  - rule: Projection serializes per home and refuses collisions without spawning or replacing user files.
+    tested_by: [extension_projection_is_atomic]
+  - rule: Cached adapters retain their opening provider attribution until reopened.
+    tested_by: [usage_snapshot_survives_provider_changes]
+  - rule: An AYLUL opening appends aylul_calls_me or name, or nothing when neither is set.
+    tested_by: [opening_names_the_person, opening_without_person_appends_nothing]
+  - rule: AYLUL context variables use the default model window; compact is capped or omitted below 100000.
+    tested_by: [opening_uses_the_default_models_window, auto_compact_window_is_capped_or_omitted]
   - rule: AYLUL resolves encrypted pairs at each spawn; live adapters retain their starting environment.
     tested_by: [two_agents_share_one_provider_key, settings_json_keeps_other_keys]
   - rule: Missing and unreadable stored keys keep their typed client errors before any spawn.
@@ -565,6 +582,14 @@ obligations:
 
 
 agreements:
+  - between: [write_extensions, profiles::agent_extensions]
+    must: Snapshot per-agent enablement under the library mutation guard before projecting owned files.
+    holds: true
+    tested_by: [opening_projects_only_enabled_extensions, extension_deletions_remove_enablement_atomically]
+  - between: [test_saved_provider, opening]
+    must: Resolve scope provider/<slug>, name PROVIDER_API_KEY, through secrets.resolve_env.
+    holds: true
+    tested_by: [saved_test_uses_the_stored_key]
   - between: [change_model, turns::send]
     must: >
       refuse while the thread has an open operation: both check
@@ -624,7 +649,7 @@ tests:
     checks: >
       tests/aylul_session/opening.rs: a send on an agent's thread spawns with
       the agent home as cwd and CLAUDE_CONFIG_DIR, the provider token present,
-      only the user settings source, no append/MCP, one prompt block.
+      only the user settings source, no append when no person is set, no MCP, one prompt block.
   - name: two_agents_share_one_provider_key
     checks: >
       tests/aylul_session/opening.rs: two agents on one provider both receive

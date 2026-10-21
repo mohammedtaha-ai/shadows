@@ -76,6 +76,7 @@ impl Sessions {
             setup,
             spec,
             aylul_models,
+            aylul_usage,
         } = self.opening(thread, &context).await?;
         if let Some((models, default)) = &aylul_models {
             if !remembered
@@ -109,6 +110,7 @@ impl Sessions {
                 .map_err(|e| e.to_string())?;
             let opened = OpenSession {
                 session_id: session.session_id,
+                aylul_usage,
                 how,
                 connection,
                 generation: self.generations.fetch_add(1, Ordering::Relaxed),

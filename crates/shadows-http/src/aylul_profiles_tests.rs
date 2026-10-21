@@ -12,7 +12,7 @@ async fn call(w: &World, method: &str, path: &str, body: Value) -> (u16, Value) 
 
 fn provider() -> Value {
     json!({"command_id":"provider","name":"Test","base_url":"https://example.com",
-        "models":["model-a","model-b"],"context_window":200000})
+        "models":[{"id":"model-a","context_window":200000},{"id":"model-b"}]})
 }
 
 async fn seed(w: &World, name: &str) {
@@ -31,8 +31,9 @@ async fn seed(w: &World, name: &str) {
         .create_agent(
             format!("seed-{name}"),
             shadows_core::AgentInput {
+                character_color: None,
                 name: name.into(),
-                provider: "test".into(),
+                provider: "test-2".into(),
                 default_model: "model-a".into(),
             },
         )
@@ -46,10 +47,11 @@ async fn provider_crud_and_key_never_echoed() {
     let (status, p) = call(&w, "POST", "/api/aylul/providers", provider()).await;
     assert_eq!(status, 201);
     assert_eq!(p["key_set"], false);
+    assert_eq!(p["slug"], "test-2");
     let (status, text) = request(
         &w,
         "PUT",
-        "/api/aylul/providers/test/key",
+        "/api/aylul/providers/test-2/key",
         r#"{"command_id":"key","value":"synthetic-route-secret"}"#,
     )
     .await;
@@ -63,14 +65,16 @@ async fn provider_crud_and_key_never_echoed() {
     update["command_id"] = "update".into();
     update["name"] = "Renamed".into();
     assert_eq!(
-        call(&w, "PUT", "/api/aylul/providers/test", update).await.1["slug"],
-        "test"
+        call(&w, "PUT", "/api/aylul/providers/test-2", update)
+            .await
+            .1["slug"],
+        "test-2"
     );
     assert_eq!(
         call(
             &w,
             "DELETE",
-            "/api/aylul/providers/test?command_id=delete",
+            "/api/aylul/providers/test-2?command_id=delete",
             Value::Null
         )
         .await
@@ -85,7 +89,7 @@ async fn key_body_parse_error_does_not_echo() {
     let (status, text) = request(
         &w,
         "PUT",
-        "/api/aylul/providers/test/key",
+        "/api/aylul/providers/test-2/key",
         r#"{"command_id":"key","value":{"secret":"synthetic-do-not-echo"}}"#,
     )
     .await;
@@ -102,15 +106,17 @@ async fn agent_crud_soft_delete() {
         "POST",
         "/api/aylul/agents",
         json!({"command_id":"agent",
-        "name":"Work","provider":"test","default_model":"model-a"}),
+        "name":"Work","provider":"test-2","default_model":"model-a"}),
     )
     .await;
     assert_eq!(status, 201);
     assert_eq!(a["slug"], "work");
+    assert_eq!(a["character_color"], "purple");
     let (status, list) = call(&w, "GET", "/api/aylul/agents", Value::Null).await;
     assert_eq!(status, 200);
     assert!(list["project_id"].is_string());
     assert_eq!(list["agents"][0]["slug"], "work");
+    assert_eq!(list["agents"][0]["character_color"], "purple");
     assert_eq!(
         call(
             &w,
@@ -132,7 +138,7 @@ async fn provider_in_use_is_409() {
     let (status, body) = call(
         &w,
         "DELETE",
-        "/api/aylul/providers/test?command_id=delete",
+        "/api/aylul/providers/test-2?command_id=delete",
         Value::Null,
     )
     .await;
@@ -230,4 +236,141 @@ async fn threads_listed_per_agent() {
             .1,
         json!([])
     );
+}
+
+#[tokio::test]
+async fn provider_presets_route_lists_all() {
+    let w = world(true, true).await;
+    let (status, list) = call(&w, "GET", "/api/aylul/provider-presets", Value::Null).await;
+    assert_eq!(status, 200);
+    assert_eq!(list.as_array().unwrap().len(), 7);
+    assert_eq!(list[0]["id"], "minimax");
+    assert_eq!(list[1]["region"], "china");
+}
+
+#[tokio::test]
+async fn provider_test_route_answers_outcome() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let w = world(true, true).await;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut request = [0; 4096];
+        assert!(socket.read(&mut request).await.unwrap() > 0);
+        socket
+            .write_all(b"HTTP/1.1 401 Refused\r\nContent-Length: 0\r\n\r\n")
+            .await
+            .unwrap();
+    });
+    let (status, r) = call(
+        &w,
+        "POST",
+        "/api/aylul/providers/test",
+        json!({"base_url":url,"api_key":"test-key-not-real"}),
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(r["reason"], "key_refused");
+    server.await.unwrap();
+    assert_eq!(
+        call(&w, "POST", "/api/aylul/providers/missing/test", json!({}))
+            .await
+            .0,
+        404
+    );
+    call(&w, "POST", "/api/aylul/providers", provider()).await;
+    assert_eq!(
+        call(&w, "POST", "/api/aylul/providers/test-2/test", json!({}))
+            .await
+            .0,
+        409
+    );
+    assert_eq!(
+        call(
+            &w,
+            "POST",
+            "/api/aylul/providers/test",
+            json!({"api_key":""})
+        )
+        .await
+        .0,
+        400
+    );
+}
+
+#[tokio::test]
+async fn me_round_trips() {
+    let w = world(false, false).await;
+    let (status, p) = call(&w, "GET", "/api/me", Value::Null).await;
+    assert_eq!(status, 200);
+    assert_eq!(
+        p,
+        json!({"name":null,"aylul_calls_me":null,"language":null,
+        "theme":"system","updated_at":null})
+    );
+    let input = json!({"command_id":"person","name":"  Alex  ","aylul_calls_me":"Lex",
+        "language":"en","theme":"dark"});
+    let (status, p) = call(&w, "PUT", "/api/me", input.clone()).await;
+    assert_eq!(status, 200);
+    assert_eq!(p["name"], "Alex");
+    assert_eq!(p["aylul_calls_me"], "Lex");
+    assert_eq!(p["language"], "en");
+    assert_eq!(p["theme"], "dark");
+    assert!(p["updated_at"].is_string());
+    assert_eq!(call(&w, "GET", "/api/me", Value::Null).await.1, p);
+    let mut changed = input.clone();
+    changed["theme"] = "light".into();
+    assert_eq!(call(&w, "PUT", "/api/me", changed).await.0, 409);
+    for (field, value) in [
+        ("theme", "other"),
+        ("name", "bad\nname"),
+        ("language", "bad_tag"),
+    ] {
+        let mut bad = input.clone();
+        bad["command_id"] = field.into();
+        bad[field] = value.into();
+        assert_eq!(call(&w, "PUT", "/api/me", bad).await.0, 400);
+    }
+}
+
+#[tokio::test]
+async fn reserved_test_path_has_no_mutation_aliases() {
+    let w = world(true, true).await;
+    for method in ["PUT", "DELETE"] {
+        let (status, _) = call(
+            &w,
+            method,
+            "/api/aylul/providers/test?command_id=reserved",
+            json!({}),
+        )
+        .await;
+        assert_eq!(status, 405);
+    }
+}
+
+#[tokio::test]
+async fn usage_route_is_read_only() {
+    let w = world(false, false).await;
+    let p = w.core.profiles().person().await.unwrap();
+    let (status, r) = call(
+        &w,
+        "GET",
+        "/api/aylul/usage?from=2000-01-01T00:00:00Z&to=2100-01-01T00:00:00Z",
+        Value::Null,
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(r, json!({"by_provider":[],"by_model":[]}));
+    assert_eq!(
+        serde_json::to_value(w.core.profiles().person().await.unwrap()).unwrap(),
+        serde_json::to_value(p).unwrap()
+    );
+    for path in [
+        "/api/aylul/usage",
+        "/api/aylul/usage?from=bad&to=bad",
+        "/api/aylul/usage?from=2100-01-01T00:00:00Z&to=2000-01-01T00:00:00Z",
+    ] {
+        assert_eq!(call(&w, "GET", path, Value::Null).await.0, 400);
+    }
 }

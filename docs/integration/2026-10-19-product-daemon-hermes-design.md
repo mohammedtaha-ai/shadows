@@ -1,7 +1,8 @@
 # Product daemon: TypeScript Hermes service
 
 Date: 2026-10-19.
-Status: Implemented locally on 2026-10-19 ([evidence](../evidence/aylul/2026-10-19-product-daemon-hermes.md);
+Status: Implemented locally on 2026-10-19 (evidence:
+`docs/evidence/aylul/2026-10-19-product-daemon-hermes.md` at `0187365`;
 the plan was deleted later that day, Git `226d0a3`).
 
 2026-10-19 amendment: the daemon stays AYLUL's host, but AYLUL's brain is now

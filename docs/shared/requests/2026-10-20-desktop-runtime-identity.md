@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Asked by: Controller for the desktop UI/native integration, 2026-10-20
-- Screen: docs/aylul/plans/2026-10-20-aylul-desktop-web-companion.md#task-3-core-runtime-identity-private-receipt-and-exact-native-origin
+- Screen: docs/aylul/plans/2026-10-20-aylul-desktop-web-companion.md#task-3-core-runtime-identity-private-receipt-and-exact-native-origin at `0187365`
 
 ## Need
 

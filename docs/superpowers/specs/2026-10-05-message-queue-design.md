@@ -4,7 +4,7 @@
 - **Status:** Accepted by Mohammed on 2026-10-05, after an independent review
   (`e94bf08`) and his two rulings in 20.4. Built on `next/polish` and run in
   the browser against the real adapter (2026-10-05).
-- **Evidence:** [`2026-10-05-steering-and-commands-probe.md`](../../evidence/2026-10-05-steering-and-commands-probe.md)
+- **Evidence:** `docs/evidence/2026-10-05-steering-and-commands-probe.md` at `0187365`
   (adapter 0.81.1, Claude Code 2.1.289).
 - **Related owners:** §12.3 and §12.7 (a turn and its one start command),
   §14.9 (`send`'s order), §2.3 (`Cancelled` means confirmed).

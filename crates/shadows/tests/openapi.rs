@@ -87,6 +87,24 @@ fn the_checked_in_document_matches_the_routes() {
     );
 }
 
+/// The web client's generated types key operations by id, so two routes sharing one id
+/// would give one of them the other's parameters.
+#[test]
+fn every_operation_id_is_unique() {
+    let doc = document();
+    let mut seen = std::collections::BTreeMap::new();
+    for (path, item) in doc["paths"].as_object().unwrap() {
+        for (method, op) in item.as_object().unwrap() {
+            let Some(id) = op["operationId"].as_str() else {
+                continue;
+            };
+            if let Some(first) = seen.insert(id.to_owned(), format!("{method} {path}")) {
+                panic!("operationId `{id}` is used by {first} and {method} {path}");
+            }
+        }
+    }
+}
+
 /// Every route a client needs, by method and path.
 #[test]
 fn the_document_names_every_route() {
@@ -108,6 +126,7 @@ fn the_document_names_every_route() {
         [
             "DELETE /api/aylul/agents/{slug}",
             "DELETE /api/aylul/agents/{slug}/env/{name}",
+            "DELETE /api/aylul/extensions/{kind}/{id}",
             "DELETE /api/aylul/providers/{slug}",
             "DELETE /api/aylul/providers/{slug}/key",
             "DELETE /api/mcp-grants/{id}",
@@ -117,11 +136,16 @@ fn the_document_names_every_route() {
             "DELETE /api/threads/{id}/queue/{qid}",
             "GET /api/aylul/agents",
             "GET /api/aylul/agents/{slug}/env",
+            "GET /api/aylul/agents/{slug}/extensions",
             "GET /api/aylul/agents/{slug}/threads",
+            "GET /api/aylul/extensions",
+            "GET /api/aylul/provider-presets",
             "GET /api/aylul/providers",
+            "GET /api/aylul/usage",
             "GET /api/code/settings",
             "GET /api/fs/dirs",
             "GET /api/harnesses",
+            "GET /api/me",
             "GET /api/openapi.json",
             "GET /api/plans/{id}",
             "GET /api/projects",
@@ -160,7 +184,10 @@ fn the_document_names_every_route() {
             "PATCH /api/projects/{id}",
             "PATCH /api/threads/{id}",
             "POST /api/aylul/agents",
+            "POST /api/aylul/extensions",
             "POST /api/aylul/providers",
+            "POST /api/aylul/providers/test",
+            "POST /api/aylul/providers/{slug}/test",
             "POST /api/fs/dirs",
             "POST /api/operations/{id}/stop",
             "POST /api/plans/{id}/archive",
@@ -184,9 +211,11 @@ fn the_document_names_every_route() {
             "POST /api/workflows/{id}/bindings",
             "PUT /api/aylul/agents/{slug}",
             "PUT /api/aylul/agents/{slug}/env/{name}",
+            "PUT /api/aylul/agents/{slug}/extensions/{kind}/{id}",
             "PUT /api/aylul/providers/{slug}",
             "PUT /api/aylul/providers/{slug}/key",
             "PUT /api/code/settings",
+            "PUT /api/me",
             "PUT /api/projects/{id}/agreements/{agreement}",
             "PUT /api/projects/{id}/code/links/{linked}",
             "PUT /api/projects/{id}/planner-instructions",

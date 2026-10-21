@@ -17,6 +17,8 @@ pub struct CompanionState {
     pub paused: bool,
     pub error: Option<String>,
     pub presence: crate::presence::projection::PresenceProjection,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub appearance: Option<crate::presence::CompanionAppearance>,
 }
 pub struct Model {
     pub view: CompanionState,
@@ -29,6 +31,7 @@ impl Default for Model {
         Self {
             view: CompanionState {
                 revision: 0,
+                appearance: None,
                 composer: ComposerView::default(),
                 visible: false,
                 render_allowed: false,
@@ -50,8 +53,15 @@ impl Model {
             self.view.revision += 1;
         }
     }
-    pub fn present(&mut self, presence: crate::presence::projection::PresenceProjection) {
-        self.change(|view| view.presence = presence);
+    pub fn present(
+        &mut self,
+        presence: crate::presence::projection::PresenceProjection,
+        appearance: Option<crate::presence::CompanionAppearance>,
+    ) {
+        self.change(|view| {
+            view.presence = presence;
+            view.appearance = appearance;
+        });
     }
     pub fn begin_document(&mut self) -> u64 {
         self.generation += 1;
@@ -206,13 +216,46 @@ mod presence_tests {
         let mut model = Model::default();
         model.fail(false);
         let error = model.view.error.clone();
-        model.present(crate::presence::projection::PresenceProjection {
-            expression: "success".into(),
-            status: "Reply ready".into(),
-            preview: None,
-        });
+        model.present(
+            crate::presence::projection::PresenceProjection {
+                expression: "success".into(),
+                status: "Reply ready".into(),
+                preview: None,
+            },
+            None,
+        );
         assert!(!model.view.render_allowed);
         assert!(!model.view.visible);
         assert_eq!(model.view.error, error);
+    }
+}
+
+#[cfg(test)]
+mod appearance_tests {
+    use super::*;
+    #[test]
+    fn appearance_changes_revision_without_render_permission() {
+        let mut model = Model::default();
+        model.fail(false);
+        model.pause(true);
+        let before = model.view.clone();
+        let presence = before.presence.clone();
+        model.present(
+            presence.clone(),
+            Some(crate::presence::CompanionAppearance {
+                color: "teal".into(),
+            }),
+        );
+        assert_eq!(model.view.revision, before.revision + 1);
+        assert_eq!(model.view.error, before.error);
+        assert_eq!(model.view.composer, before.composer);
+        assert_eq!(model.view.paused, before.paused);
+        assert!(!model.view.render_allowed);
+        assert!(!model.view.visible);
+        model.present(presence, None);
+        assert!(serde_json::to_value(&model.view)
+            .unwrap()
+            .get("appearance")
+            .is_none());
     }
 }

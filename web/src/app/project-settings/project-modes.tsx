@@ -10,6 +10,7 @@ import { useRef, useState } from 'react'
 import { type Project, setProjectModes } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { harnessesQuery, projectsQuery } from '@/api/queries'
+import { writeSaved } from '@/api/saved-answer'
 import { ErrorLine } from '../error-line'
 import { policyOf } from '../mode-policy'
 
@@ -39,8 +40,8 @@ export function ProjectModes({ project }: { project: Project }) {
     scope: { id: `project-modes-${project.id}` },
     mutationFn: ({ commandId, allowed }: { commandId: string; allowed: Allowed }) =>
       setProjectModes(project.id, commandId, allowed),
-    onSuccess: (saved, { allowed }) => {
-      queryClient.setQueryData<Project[]>(projectsQuery.queryKey, (projects) =>
+    onSuccess: async (saved, { allowed }) => {
+      await writeSaved<Project[]>(queryClient, projectsQuery.queryKey, (projects) =>
         projects?.map((p) => (p.id === saved.id ? saved : p)),
       )
       settle(allowed)

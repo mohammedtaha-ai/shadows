@@ -16,6 +16,7 @@ import {
   startTurn,
 } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
+import { writeSaved } from '@/api/saved-answer'
 import { harnessesQuery, planVersionsQuery, plansQuery, projectsQuery, threadsQuery } from '@/api/queries'
 import {noteCompanionSend} from '@/desktop/companion-send'
 import { tabId } from '@/stream/tab-id'
@@ -171,7 +172,7 @@ function draftSession(harness: string, allowed: string[] | undefined, provider?:
   const choices: SessionChoices = {
     current: {
       mode: policy.initial ?? policy.modes[0]?.id ?? '',
-      model: provider === undefined ? UNOPENED.id : defaultModel ?? provider.models[0]!,
+      model: provider === undefined ? UNOPENED.id : defaultModel ?? provider.models[0]!.id,
       effort: null,
     },
     modes: policy.modes.map((m) => {
@@ -184,7 +185,7 @@ function draftSession(harness: string, allowed: string[] | undefined, provider?:
         reason: enabled ? null : 'Not allowed in this project',
       }
     }),
-    models: provider === undefined ? [UNOPENED] : provider.models.map(id => ({ id, label: id, description: null, enabled: true, reason: null })),
+    models: provider === undefined ? [UNOPENED] : provider.models.map(({ id }) => ({ id, label: id, description: null, enabled: true, reason: null })),
     efforts: [],
   }
   return { state: 'ready', choices }
@@ -231,7 +232,13 @@ function useFirstSend(projectId: string, harness: string, planId?: string, profi
       if (profile !== undefined && chosen.model !== choices.current.model) {
         choices = await changeModel(thread.id, chosen.model)
       }
-      queryClient.setQueryData(sessionKey(thread.id), choices)
+      // The session opens at the policy's mode (§12.4); the turn runs at the
+      // draft's. The thread page's composer starts from this entry, so it
+      // holds the mode the turn ran with, not the one the session opened at.
+      await writeSaved<SessionChoices>(queryClient, sessionKey(thread.id), {
+        ...choices,
+        current: { ...choices.current, mode: chosen.mode },
+      })
       settings = { mode: chosen.mode, model: choices.current.model, effort: choices.current.effort }
       const operationId = await startTurn(thread.id, commandId, text, settings, {
         plan: planId ?? null,

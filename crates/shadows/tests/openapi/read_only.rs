@@ -33,10 +33,17 @@ async fn no_get_route_changes_state() {
         .create_provider(
             "provider".into(),
             shadows_core::ProviderInput {
-                name: "Test".into(),
-                base_url: "https://example.com".into(),
-                models: vec!["fake-large".into()],
-                context_window: None,
+                preset: None,
+                label: None,
+                name: Some("Test".into()),
+                base_url: Some("https://example.com".into()),
+                models: vec!["fake-large".into()]
+                    .into_iter()
+                    .map(|id| shadows_core::ProviderModelInput {
+                        id,
+                        context_window: None,
+                    })
+                    .collect(),
             },
         )
         .await
@@ -46,8 +53,9 @@ async fn no_get_route_changes_state() {
         .create_agent(
             "agent".into(),
             shadows_core::AgentInput {
+                character_color: None,
                 name: "AYLUL".into(),
-                provider: "test".into(),
+                provider: "test-2".into(),
                 default_model: "fake-large".into(),
             },
         )
@@ -188,6 +196,8 @@ async fn no_get_route_changes_state() {
         }
         if template.ends_with("/code/definitions") || template.ends_with("/code/references") {
             path.push_str("?name=unknown");
+        } else if template == "/api/aylul/usage" {
+            path.push_str("?from=2000-01-01T00:00:00Z&to=2100-01-01T00:00:00Z");
         } else if template.ends_with("/code/outline") {
             path.push_str("?path=");
         }

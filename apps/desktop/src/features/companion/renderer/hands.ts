@@ -1,3 +1,4 @@
+import { rgba, type Palette } from "./palette.ts";
 import type {
   CharacterFrame,
   CompanionSettings,
@@ -14,6 +15,7 @@ export function draw3DShadowPaws(
   time: number,
   perchingHands: boolean,
   glowIntensity: number,
+  palette: Palette,
 ): void {
   ctx.save();
   let leftX = -46 + px * 0.35;
@@ -52,14 +54,14 @@ export function draw3DShadowPaws(
 
     // 3D Spherical Paw Shader
     const pawGrad = ctx.createRadialGradient(-3, -3, 1, 0, 0, 12);
-    pawGrad.addColorStop(0, "#4c356e");
-    pawGrad.addColorStop(0.55, "#1d142b");
-    pawGrad.addColorStop(1, "#09060e");
+    pawGrad.addColorStop(0, palette.pawLit);
+    pawGrad.addColorStop(0.55, palette.pawMid);
+    pawGrad.addColorStop(1, palette.pawDark);
 
     ctx.fillStyle = pawGrad;
-    ctx.strokeStyle = `rgba(192, 132, 252, ${0.55 * glowIntensity})`;
+    ctx.strokeStyle = rgba(palette.glowSoft, 0.55 * glowIntensity);
     ctx.lineWidth = 1.4;
-    ctx.shadowColor = "#a855f7";
+    ctx.shadowColor = palette.glow;
     ctx.shadowBlur = 8;
 
     ctx.beginPath();

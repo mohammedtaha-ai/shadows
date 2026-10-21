@@ -40,7 +40,7 @@ function routes(trace:string[],failSession=false){
  const table=answers({start:async(request:Request)=>{trace.push('turn');const body=await request.json();expect(body.model).toBe('fake-small');return Response.json({operation_id:'op1'},{status:202})}})
  table['GET /api/harnesses']=[{...claudeHarness,kind:'aylul',label:'AYLUL'}]
  table['GET /api/projects']=[{...projectFixture,assistant:true,allowed_modes:{aylul:['auto','acceptEdits']}}]
- table['GET /api/aylul/providers']=[{slug:'provider-a',name:'Fixture',base_url:'http://127.0.0.1:1',models:['fake-large','fake-small'],context_window:100000,key_set:true}]
+ table['GET /api/aylul/providers']=[{slug:'provider-a',name:'Fixture',base_url:'http://127.0.0.1:1',models: [{ id: 'fake-large', context_window: 200000 }, { id: 'fake-small', context_window: 200000 }],key_set:true}]
  table['GET /api/aylul/agents']={project_id:'p1',agents:[{slug:'agent-a',name:'Agent A',provider:'provider-a',default_model:'fake-small',deleted:false}]}
  table['GET /api/aylul/agents/agent-a/threads']=[thread]
  table['GET /api/projects/p1/threads']=[thread];table['GET /api/threads/t1']=thread

@@ -6,6 +6,7 @@ import { type FormEvent, useRef, useState } from 'react'
 import { type CodeSettings, setActiveLimit } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { codeSettingsQuery } from '@/api/queries'
+import { writeSaved } from '@/api/saved-answer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ErrorLine } from '../error-line'
@@ -44,10 +45,10 @@ function LimitForm({ saved }: { saved: CodeSettings }) {
   const save = useMutation({
     mutationFn: ({ commandId, limit }: { commandId: string; limit: number }) =>
       setActiveLimit(commandId, limit),
-    onSuccess: (settings) => {
+    onSuccess: async (settings) => {
       pending.current = null
       setEdited(null)
-      queryClient.setQueryData(codeSettingsQuery.queryKey, settings)
+      await writeSaved(queryClient, codeSettingsQuery.queryKey, settings)
     },
   })
 

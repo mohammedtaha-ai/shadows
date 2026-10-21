@@ -1,3 +1,4 @@
+import type { Palette } from "./palette.ts";
 import type {
   CharacterFrame,
   CompanionSettings,
@@ -19,15 +20,16 @@ export function drawExpressiveEye3D(
   time: number,
   glowIntensity: number,
   isMiniIcon: boolean,
+  palette: Palette,
 ): void {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(scaleX, 1);
 
   const isBlocked = state === "blocked";
-  const coreColor = isBlocked ? "#ffe4e6" : "#fdf4ff";
-  const midGlow = isBlocked ? "#fb7185" : "#e879f9";
-  const outerBloom = isBlocked ? "#e11d48" : "#9333ea";
+  const coreColor = isBlocked ? "#ffe4e6" : palette.core;
+  const midGlow = isBlocked ? "#fb7185" : palette.spark;
+  const outerBloom = isBlocked ? "#e11d48" : palette.bloom;
 
   ctx.shadowColor = midGlow;
   ctx.shadowBlur = (isMiniIcon ? 10 : 19) * glowIntensity;
@@ -114,7 +116,7 @@ export function drawExpressiveEye3D(
     outfit === "special";
   if (needsAngledBrow && blinkProgress < 0.5) {
     ctx.shadowBlur = 0;
-    ctx.fillStyle = "#06030b";
+    ctx.fillStyle = palette.brow;
     const browTilt = side === -1 ? 0.38 : -0.38;
     ctx.save();
     ctx.translate(0, -ry * 0.55);

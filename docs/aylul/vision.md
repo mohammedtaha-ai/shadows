@@ -30,6 +30,10 @@ email and music. It must keep working when one agent's subscription runs out.
   executor fixes what is inside its task and reports the rest to the planner;
   the planner adjusts or escalates to Mohammed; when he is away, AYLUL relays
   the question and his answer.
+- **Later, not planned yet (Mohammed, 2026-10-21):** Core gives each AYLUL agent its own
+  MCP tools for AYLUL's screen, the way the Claude desktop app gives Claude Code its tools
+  for the task list and the next-step box: for example, set the character's state, or show
+  a task list in the conversation. It gets its own spec and plan when it is picked up.
 
 The sections below are the original long-form vision. Where they name Hermes,
 a cloud brain, or a separate NYLRA backend, the direction above replaces them.

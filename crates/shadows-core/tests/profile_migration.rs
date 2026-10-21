@@ -54,7 +54,9 @@ async fn windows_profiles_database_reopens_without_reapplying_or_rewriting_migra
     let path = temporary.path().join("existing.sqlite3");
     let pool = database(&path, 29, "").await;
     sqlx::query(
-        "INSERT INTO aylul_provider VALUES ('existing', 'Existing', 'https://example.test',
+        "INSERT INTO aylul_provider
+         (slug,name,base_url,models,context_window,created_at,updated_at)
+         VALUES ('existing', 'Existing', 'https://example.test',
          '[\"model\"]', 200000, '2026-10-19', '2026-10-19')",
     )
     .execute(&pool)
@@ -134,4 +136,146 @@ async fn other_migrations_do_not_receive_the_profiles_compatibility_exception() 
             .to_string()
             .contains("migration 28 was previously applied")
     );
+}
+
+#[tokio::test]
+async fn migration_marks_known_urls_with_their_preset() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("presets.db");
+    let pool = SqlitePoolOptions::new()
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+    let migrations = sqlx::migrate!("./migrations")
+        .iter()
+        .filter(|m| m.version < 30)
+        .cloned()
+        .collect();
+    Migrator::with_migrations(migrations)
+        .run(&pool)
+        .await
+        .unwrap();
+    for (slug, url) in [
+        ("minimax", "https://api.minimax.io/anthropic"),
+        ("custom", "https://custom.test"),
+    ] {
+        sqlx::query(
+            "INSERT INTO aylul_provider
+            (slug,name,base_url,models,context_window,created_at,updated_at)
+            VALUES (?, 'Existing', ?, '[\"m\"]', 123456, 'old', 'old')",
+        )
+        .bind(slug)
+        .bind(url)
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+    pool.close().await;
+    let storage = Storage::open(&path).await.unwrap();
+    let rows: Vec<(String, Option<String>, Option<String>)> =
+        sqlx::query_as("SELECT slug,preset,label FROM aylul_provider ORDER BY slug")
+            .fetch_all(storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(
+        rows,
+        vec![
+            ("custom".into(), None, None),
+            ("minimax".into(), Some("minimax".into()), None)
+        ]
+    );
+}
+
+#[tokio::test]
+async fn migration_gives_models_the_provider_window() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("windows.db");
+    let pool = SqlitePoolOptions::new()
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+    let migrations = sqlx::migrate!("./migrations")
+        .iter()
+        .filter(|m| m.version < 31)
+        .cloned()
+        .collect();
+    Migrator::with_migrations(migrations)
+        .run(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO aylul_provider
+        (slug,name,base_url,models,context_window,created_at,updated_at)
+        VALUES ('p','P','https://example.test','[\"z\",\"a\",\"b\"]',123456,'old','old')",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    pool.close().await;
+    let storage = Storage::open(&path).await.unwrap();
+    let models: String = sqlx::query_scalar("SELECT models FROM aylul_provider WHERE slug='p'")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&models).unwrap(),
+        serde_json::json!([
+        {"id":"z","context_window":123456}, {"id":"a","context_window":123456},
+        {"id":"b","context_window":123456}])
+    );
+}
+
+#[tokio::test]
+async fn migration_colors_agents_purple() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("colors.db");
+    let pool = SqlitePoolOptions::new()
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+    let migrations = sqlx::migrate!("./migrations")
+        .iter()
+        .filter(|m| m.version < 32)
+        .cloned()
+        .collect();
+    Migrator::with_migrations(migrations)
+        .run(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO aylul_provider
+        (slug,name,base_url,models,context_window,created_at,updated_at)
+        VALUES ('p','P','https://example.test','[]',200000,'old','old')",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO aylul_agent
+        (slug,name,provider,default_model,created_at,updated_at)
+        VALUES ('a','A','p','m','old','old')",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    pool.close().await;
+    let storage = Storage::open(&path).await.unwrap();
+    let color: String =
+        sqlx::query_scalar("SELECT character_color FROM aylul_agent WHERE slug='a'")
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(color, "purple");
 }

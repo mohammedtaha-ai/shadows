@@ -54,16 +54,23 @@ async fn world() -> World {
         .create_provider(
             "provider".into(),
             ProviderInput {
-                name: "Test".into(),
-                base_url: "https://example.com/anthropic".into(),
-                models: vec!["fake-large".into(), "fake-small".into()],
-                context_window: Some(1_000_000),
+                preset: None,
+                label: None,
+                name: Some("Test".into()),
+                base_url: Some("https://example.com/anthropic".into()),
+                models: vec!["fake-large".into(), "fake-small".into()]
+                    .into_iter()
+                    .map(|id| shadows_core::ProviderModelInput {
+                        id,
+                        context_window: Some(1_000_000),
+                    })
+                    .collect(),
             },
         )
         .await
         .unwrap();
     core.secrets()
-        .set_provider_key("key".into(), "test", "synthetic-stored-one")
+        .set_provider_key("key".into(), "test-2", "synthetic-stored-one")
         .await
         .unwrap();
     core.profiles()
@@ -95,8 +102,9 @@ async fn world() -> World {
 
 fn agent(name: &str) -> AgentInput {
     AgentInput {
+        character_color: None,
         name: name.into(),
-        provider: "test".into(),
+        provider: "test-2".into(),
         default_model: "fake-large".into(),
     }
 }

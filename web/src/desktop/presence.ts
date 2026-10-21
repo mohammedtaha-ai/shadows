@@ -33,6 +33,10 @@ export const companionBinding=async()=>parseBinding(await nativeCall('companion_
 export const selectCompanionAgent=async(agent:string|null)=>parseBinding(await nativeCall('select_companion_agent',{agent}))
 export const targetCompanionThread=async(threadId:string,expectedGeneration:number)=>parseBinding(await nativeCall('target_companion_thread',{threadId,expectedGeneration}))
 export const setCompanionPreviews=async(enabled:boolean)=>parseBinding(await nativeCall('set_companion_previews',{enabled}))
+export async function refreshCompanionAppearance():Promise<void>{
+  if(!isDesktop())return
+  await nativeCall<{ok:true}>('refresh_companion_appearance')
+}
 
 export interface PresencePreview {id:string;text:string;expiresAtMs:number}
 export interface PresenceProjection {expression:'idle'|'thinking'|'working'|'speaking'|'success'|'blocked';status:string;preview:PresencePreview|null}
