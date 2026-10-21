@@ -1,3 +1,4 @@
+import { paletteFor, rgba, type Palette } from "./palette.ts";
 import type {
   CharacterFrame,
   CompanionSettings,
@@ -17,14 +18,15 @@ export function draw3DHoloPedestal(
   state: Expression,
   glowIntensity: number,
   showPedestal: boolean,
+  palette: Palette,
 ): void {
   ctx.save();
   ctx.translate(x, y);
 
   // Soft ground shadow
   const floorShadow = ctx.createRadialGradient(0, 0, 6, 0, 0, 90);
-  floorShadow.addColorStop(0, "rgba(5, 3, 10, 0.72)");
-  floorShadow.addColorStop(1, "rgba(5, 3, 10, 0)");
+  floorShadow.addColorStop(0, rgba(palette.floor, 0.72));
+  floorShadow.addColorStop(1, rgba(palette.floor, 0));
   ctx.fillStyle = floorShadow;
   ctx.beginPath();
   ctx.ellipse(0, 0, 88, 22, 0, 0, Math.PI * 2);
@@ -44,7 +46,7 @@ export function draw3DHoloPedestal(
       ? `rgba(244, 63, 94, ${0.38 * glowIntensity})`
       : state === "success"
         ? `rgba(251, 191, 36, ${0.42 * glowIntensity})`
-        : `rgba(192, 132, 252, ${0.36 * glowIntensity})`;
+        : rgba(palette.glowSoft, 0.36 * glowIntensity);
 
   // Outer spinning rune ring
   ctx.save();
@@ -61,7 +63,7 @@ export function draw3DHoloPedestal(
   // Inner counter-rotating geometric ring
   ctx.save();
   ctx.rotate(-time * 0.7);
-  ctx.strokeStyle = "rgba(232, 121, 249, 0.28)";
+  ctx.strokeStyle = rgba(palette.spark, 0.28);
   ctx.lineWidth = 1.6;
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -83,8 +85,9 @@ export function renderScene(
   settings: CompanionSettings,
 ): void {
   const f = frame.character;
+  const palette = paletteFor(f.color);
   for (const p of frame.particles) {
-    ctx.fillStyle = `rgba(216,180,254,${p.alpha * (0.35 + p.z * 0.4)})`;
+    ctx.fillStyle = rgba(palette.glowPale, p.alpha * (0.35 + p.z * 0.4));
     ctx.beginPath();
     ctx.arc(
       f.cx + p.x - f.lookX * 18 * p.z + Math.sin(f.time + p.phase) * 8,
@@ -106,6 +109,7 @@ export function renderScene(
       f.expression,
       settings.glowIntensity,
       settings.showPedestal,
+      palette,
     );
-  renderCharacter(ctx, f, settings);
+  renderCharacter(ctx, f, settings, palette);
 }

@@ -1,3 +1,4 @@
+import { rgba, type Palette } from "./palette.ts";
 import type {
   CharacterFrame,
   CompanionSettings,
@@ -38,14 +39,15 @@ export function drawStateEffects(
   glowIntensity: number,
   sleepingMarks: readonly SleepingMark[],
   notificationPulse: number,
+  palette: Palette,
 ): void {
   ctx.save();
 
   if (state === "listening") {
-    ctx.strokeStyle = "#f5d0fe";
+    ctx.strokeStyle = palette.sparkPale;
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
-    ctx.shadowColor = "#d946ef";
+    ctx.shadowColor = palette.sparkDeep;
     ctx.shadowBlur = 10;
     const pulse = Math.sin(time * 10) * 2;
     ctx.beginPath();
@@ -57,10 +59,10 @@ export function drawStateEffects(
   }
 
   if (state === "speaking") {
-    ctx.strokeStyle = "#f0abfc";
+    ctx.strokeStyle = palette.sparkSoft;
     ctx.lineWidth = 2.8;
     ctx.lineCap = "round";
-    ctx.shadowColor = "#e879f9";
+    ctx.shadowColor = palette.spark;
     ctx.shadowBlur = 10;
     for (let i = 0; i < 3; i++) {
       const offset = Math.sin(time * 12 + i) * 2.5;
@@ -76,8 +78,8 @@ export function drawStateEffects(
     ctx.translate(64, -42 + Math.sin(time * 4) * 4);
     ctx.rotate(Math.sin(time * 2.5) * 0.12);
     ctx.font = 'bold 30px "Cairo", sans-serif';
-    ctx.fillStyle = "#e9d5ff";
-    ctx.shadowColor = "#a855f7";
+    ctx.fillStyle = palette.glowMist;
+    ctx.shadowColor = palette.glow;
     ctx.shadowBlur = 14;
     ctx.fillText("?", -8, 10);
     ctx.restore();
@@ -89,9 +91,9 @@ export function drawStateEffects(
       ctx.translate(0, 6 + r * 15);
       ctx.rotate((r % 2 === 0 ? 1 : -1) * Math.sin(time * 2.5 + r) * 0.14);
       ctx.scale(1, 0.28);
-      ctx.strokeStyle = r === 1 ? "#f0abfc" : "#c084fc";
+      ctx.strokeStyle = r === 1 ? palette.sparkSoft : palette.glowSoft;
       ctx.lineWidth = r === 1 ? 3.2 : 2.2;
-      ctx.shadowColor = "#d946ef";
+      ctx.shadowColor = palette.sparkDeep;
       ctx.shadowBlur = 14 * glowIntensity;
       ctx.beginPath();
       const startAng =
@@ -134,8 +136,8 @@ export function drawStateEffects(
   }
 
   if (state === "sleeping") {
-    ctx.fillStyle = "#c4b5fd";
-    ctx.shadowColor = "#818cf8";
+    ctx.fillStyle = palette.sleep;
+    ctx.shadowColor = palette.sleepGlow;
     ctx.shadowBlur = 10;
     sleepingMarks.forEach((z, idx) => {
       const prog = (time * 0.45 + z.offset) % 1;
@@ -151,15 +153,15 @@ export function drawStateEffects(
   if (notificationPulse > 0.01) {
     ctx.save();
     const p = 1 - notificationPulse;
-    ctx.strokeStyle = `rgba(232, 121, 249, ${notificationPulse})`;
+    ctx.strokeStyle = rgba(palette.spark, notificationPulse);
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(0, -10, 65 + p * 75, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.translate(62, -38);
-    ctx.fillStyle = "#a855f7";
-    ctx.strokeStyle = "#f5d0fe";
+    ctx.fillStyle = palette.glow;
+    ctx.strokeStyle = palette.sparkPale;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(0, 0, 14, 0, Math.PI * 2);

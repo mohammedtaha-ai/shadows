@@ -32,7 +32,7 @@ Finished work (the text input, the shared dashboard, U-W1 to U-W3, H-2) is in th
 - Done when: `node --test tests/companion/native-state.test.ts` and `npm run build` pass from `apps/desktop/`
 
 ### U-3 · The renderer draws in the palette; purple is unchanged
-- Status: todo
+- Status: done
 - Plan: docs/aylul/ui/plans/2026-10-21-character-colour.md#task-u-3-the-renderer-draws-in-the-palette-purple-is-unchanged
 - Read: `apps/desktop/src/features/companion/contract.yaml`; the U-2 table in the plan
 - Touch: the Files list of Task U-3 in the plan, `docs/aylul/ui/stages.md`

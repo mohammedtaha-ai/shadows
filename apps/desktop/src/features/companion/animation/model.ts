@@ -169,6 +169,7 @@ export function readFrame(m: MotionModel, input: MotionInput): SceneFrame {
   const direction = DIRECTIONS.find((value) => value.id === input.direction);
   return {
     character: {
+      color: input.color,
       cx:
         input.scene === "window" && input.perch
           ? center.x

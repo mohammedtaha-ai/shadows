@@ -1,10 +1,11 @@
 import {test,expect} from '@playwright/test';
+import {paletteFor} from '../../src/features/companion/renderer/palette.ts';
 test.beforeEach(async({page})=>{
   await page.setViewportSize({width:240,height:240});
   await page.addInitScript(()=>{
     const callbacks=new Map<number,Function>();let next=1;
     const state={composer:{open:false,revision:0,scope:null,context:null,agent:null},revision:1,visible:true,renderAllowed:true,paused:false,error:null};
-    Object.assign(window,{nativeCalls:[],__TAURI_EVENT_PLUGIN_INTERNALS__:{unregisterListener(){}},__TAURI_INTERNALS__:{
+    Object.assign(window,{nativeCalls:[],nativeState:state,__TAURI_EVENT_PLUGIN_INTERNALS__:{unregisterListener(){}},__TAURI_INTERNALS__:{
       metadata:{currentWindow:{label:'companion'},currentWebview:{label:'companion'}},
       transformCallback(fn:Function){const id=next++;callbacks.set(id,fn);return id},unregisterCallback(id:number){callbacks.delete(id)},
       invoke:async(command:string,args:any)=>{
@@ -47,4 +48,21 @@ test('drawing failure after readiness reports to native recovery owner',async({p
   await page.evaluate(()=>{CanvasRenderingContext2D.prototype.clearRect=()=>{throw Error('controlled render failure')}});
   await expect(page.getByRole('alert')).toContainText('unavailable');
   await expect.poll(()=>page.evaluate(()=>(window as any).nativeCalls.includes('companion_failed'))).toBe(true);
+});
+test("the companion window draws the state's colour",async({page})=>{
+  function hue(rgb:number[]){
+    const [r,g,b]=rgb,max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;
+    return d===0?0:((max===r?(g-b)/d:max===g?(b-r)/d+2:(r-g)/d+4)*60+360)%360;
+  }
+  for(const color of ['blue',undefined]){
+    await page.addInitScript(color=>{const state=(window as any).nativeState;if(color)state.appearance={color};else delete state.appearance;},color);
+    await page.goto('/companion.html');await expect(page.locator('canvas')).toBeVisible();
+    const hex=paletteFor(color).glow;
+    const expected=hue([1,3,5].map(start=>parseInt(hex.slice(start,start+2),16)));
+    await expect.poll(async()=>{
+      const pixel=await page.locator('canvas').evaluate((canvas:HTMLCanvasElement)=>Array.from(canvas.getContext('2d')!.getImageData(Math.floor(canvas.width*0.2),Math.floor(canvas.height*0.5),1,1).data));
+      if(pixel[3]<12)return 360;
+      const delta=Math.abs(hue(pixel.slice(0,3))-expected);return Math.min(delta,360-delta);
+    }).toBeLessThanOrEqual(4);
+  }
 });

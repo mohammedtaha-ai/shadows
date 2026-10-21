@@ -59,6 +59,7 @@ export type Particle = Readonly<{
 }>;
 export type SleepingMark = Readonly<{ offset: number; size: number }>;
 export type CharacterFrame = Readonly<{
+  color?: string;
   cx: number;
   cy: number;
   scale: number;
@@ -80,6 +81,7 @@ export type SceneFrame = Readonly<{
   particles: readonly Particle[];
 }>;
 export type MotionInput = Readonly<{
+  color?: string;
   viewport: Viewport;
   presentation: CompanionPresentation;
   settings: CompanionSettings;

@@ -179,6 +179,10 @@ meaning; any id the table does not hold draws purple.
 - Test: `apps/desktop/tests/companion/renderer.spec.ts`, `apps/desktop/tests/companion/desktop-window.spec.ts`
 - Not touched: `renderer/outfits.ts`, `studio/` (an absent `color` is purple, so the studio and its
   PNG export keep drawing today's look)
+- Small follow-up: `drawTrue3DCrystal` also serves the unchanged outfit renderer; its new
+  palette argument is optional and defaults to the base, while character callers pass their
+  resolved palette. Review exports are generated into ignored `output/playwright/character-colours/`
+  by the opt-in `export colour review stills` test in the listed renderer spec.
 
 - [ ] **Step 1: Record today's pixels, before any renderer change.** Add `scene()` to the
   fixture and a spec `record purple frames` (skipped unless `RECORD_PURPLE=1`) that writes, for

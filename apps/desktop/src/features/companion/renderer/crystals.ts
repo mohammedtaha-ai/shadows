@@ -1,3 +1,4 @@
+import { paletteFor, rgba, type Palette } from "./palette.ts";
 import type {
   CharacterFrame,
   CompanionSettings,
@@ -15,11 +16,12 @@ export function drawTrue3DCrystal(
   tiltX: number,
   glowIntensity: number,
   isBlocked: boolean,
+  palette: Palette = paletteFor(undefined),
 ): void {
   ctx.save();
   ctx.translate(x, y);
 
-  const glowCol = isBlocked ? "#f43f5e" : "#d946ef";
+  const glowCol = isBlocked ? "#f43f5e" : palette.sparkDeep;
   ctx.shadowColor = glowCol;
   ctx.shadowBlur = 18 * glowIntensity;
 
@@ -85,8 +87,8 @@ export function drawTrue3DCrystal(
   });
 
   // Palette for 3D crystal facets depending on normal lighting
-  const purpleShadesUpper = ["#fdf4ff", "#f5d0fe", "#e879f9", "#c084fc"];
-  const purpleShadesLower = ["#a855f7", "#9333ea", "#7e22ce", "#581c87"];
+  const purpleShadesUpper = [palette.core, palette.sparkPale, palette.spark, palette.glowSoft];
+  const purpleShadesLower = [palette.glow, palette.bloom, palette.crystalDeep, palette.crystalDark];
   const redShadesUpper = ["#fff1f2", "#fecdd3", "#fda4af", "#fb7185"];
   const redShadesLower = ["#f43f5e", "#e11d48", "#be123c", "#881337"];
 
@@ -129,7 +131,7 @@ export function drawTrue3DCrystal(
     ctx.shadowBlur = 0;
     ctx.strokeStyle = f.isUpper
       ? "rgba(255, 255, 255, 0.78)"
-      : "rgba(240, 171, 252, 0.38)";
+      : rgba(palette.sparkSoft, 0.38);
     ctx.lineWidth = 0.95;
     ctx.stroke();
   });
