@@ -5,10 +5,11 @@
 > task, one commit, its tests green. Read the root `AGENTS.md` "Code structure"
 > first: its strict rule binds every task here.
 
-**Goal:** every rule in the root `AGENTS.md` "Code structure" holds across the
-repository. `AppCore` is the map and the only way in, each service owns its own
-tables and live state, each rule has one owner, and the code is split by job
-into workspaces, crates, services and files.
+**Goal:** Shadows Core becomes a modular monolith, as the root `AGENTS.md`
+"Code structure" describes. `AppCore` is the map and the only way in. Each
+service is its own crate, holding its tables and live state behind a private
+store, and the compiler refuses any reach across. Each rule has one owner. The
+products are separate workspaces.
 
 **Owner of the rules:** the root `AGENTS.md` (identical to `CLAUDE.md`),
 section "Code structure". Where a task changes a decision that an owner spec
@@ -47,6 +48,10 @@ tools.
   its allowlist line. No task adds one.
 
 ## Review focus
+
+0. **A service crate's public surface.** After each move, check that `lib.rs`
+   exports the service, its model types and its `*_in(&mut Tx, …)` methods, and
+   nothing from `store/`.
 
 1. **A transaction that spans two services.** Plan edits append a thread
    entry, removing a project deletes code and grant rows, and an approval checks
@@ -178,11 +183,27 @@ instead. The master-key, desktop-receipt and assistant-bridge rules move into
 Core behind `AppCore` methods. The binary keeps only configuration, tracing,
 binding and signals.
 
-## Phase 3 · One pass per service
+### A-8c · `core-db`, the foundation crate
+New `crates/core-db`: `Storage::open`, the pool, `Tx` (the write transaction
+every store shares), the journal (`append_event`, `MAX_SEQ`, `watch_committed`),
+`classify` and `record_command`, `now`, migrations, and `StorageError`.
+`shadows-core` depends on it. No domain SQL moves into it: `db/approval.rs` and
+`write_observer.rs` stay behind for A-15, A-16 and A-18 to place.
+- Done when: `cargo test --workspace` passes, and `core-db` names no table that
+  a service owns, except in the migrations.
 
-Each task takes one service through R2 to R5 at once:
-- It gets its own store type (`<Service>Store`), which holds only its own tables
-  and replaces `Arc<Storage>` in that service.
+## Phase 3 · One crate per service
+
+Each task moves one service out of `shadows-core` into its own crate,
+`crates/core-<service>`, in the shape the root `AGENTS.md` rule 4 gives, and
+takes it through R2 to R5 at once:
+- Its store becomes private to the crate, which replaces `Arc<Storage>` in that
+  service. From here on the compiler refuses any other crate's SQL on its tables.
+- Its `Cargo.toml` names only `core-db` and the service crates it calls. A cycle
+  fails the build: the task breaks it (by moving the rule to its owner) before
+  the move, never by merging crates.
+- `AppCore::start` builds it and hands it its dependencies. `shadows-core`
+  re-exports the public types the adapters need.
 - Every read of another service's tables becomes a call to that service's
   method.
 - Every cross-service write inside one transaction becomes the owner's
@@ -191,7 +212,8 @@ Each task takes one service through R2 to R5 at once:
 - Its files are split by job, its free `pub fn`s become methods or private
   functions, and its comments lose `§` and history.
 - Its `contract.yaml` gains one entry per module.
-- Its tests are moved next to it, out of `storage_contract/`.
+- Its tests move into its crate's `tests/`, out of `storage_contract/` and
+  the shared test trees, and go through its public API.
 - Its allowlist lines in A-0 are deleted.
 
 The order runs from the leaves up, so each service's dependencies are already
@@ -211,8 +233,9 @@ clean when it is done:
 | A-18 | `turns` | It reaches Sessions only through `Harness`. The "not terminal" status is one store constant. One stop path. One writer of `Interrupted` (recovery moves from `runtime` to `Turns::recover`). |
 | A-19 | `events` + `runtime` + `command` | The plan payload projection moves to `plans`. `runtime` keeps register and stop, and drops `pub storage`. `command` gets its contract, and its free functions become methods. |
 
-When A-19 is done, `Storage` keeps only the pool and the journal, and the A-0
-allowlists for (a) and (b) are empty.
+When A-19 is done, `shadows-core` holds `AppCore` and its wiring only, every
+service is a crate on `core-db`, and the A-0 allowlists for (a) and (b) are
+empty. The compiler now enforces (a). The test keeps (b), (c) and (d).
 
 ## Phase 4 · Adapters and the other crates
 
@@ -240,7 +263,7 @@ allowlists for (a) and (b) are empty.
 ### A-22 · Split the repository by product
 | Workspace | Root | Crates |
 |---|---|---|
-| Core | `crates/` (unchanged path) | `shadows`, `shadows-core`, `shadows-http`, `shadows-mcp` |
+| Core | `crates/` (unchanged path) | `shadows`, `shadows-http`, `shadows-mcp`, `shadows-core` (`AppCore`), `core-db`, every `core-<service>` |
 | Runtime | `runtime/` | `shadows-process` → `runtime-process`, `shadows-agent` → `runtime-acp` (until Phase 6 retires it), `fake-acp`, then `runtime-events`, `runtime-relay`, `runtime-claude` |
 | Code intelligence | `code-intelligence/` | `shadows-index` |
 | AYLUL desktop, hook | `apps/desktop/…` | unchanged |
@@ -305,8 +328,9 @@ are corrected. A-0's list (c) is empty.
 1. **A-0 and A-1 first, A-2 to A-7 next:** about one day. These are the fixes a
    person notices.
 2. **A-8 and A-8b:** about a day.
-3. **A-9 to A-19:** one service per task, about 8 to 10 days of builder time.
-   They run one after another, because each depends on the ones below it.
+3. **A-8c, then A-9 to A-19:** one service crate per task, about 13 to 15 days
+   of builder time. They run one after another, because each depends on the
+   crates below it.
 4. **A-20 to A-23:** about 3 days.
 5. **F-16 and F-17:** can run now, in parallel with the backend: different
    files, no shared request needed. F-18 and F-19 wait for their shared

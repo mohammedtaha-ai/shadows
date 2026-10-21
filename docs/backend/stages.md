@@ -89,81 +89,88 @@ The settings dialog shipped in PR #40 (`1a2b601`). The context-meter probe
 - Touch: crates/shadows/src/, crates/shadows-http/src/ (the moved route), Core methods they need
 - Done when: `cargo test -p shadows` passes; the binary holds only configuration, tracing, binding and signals
 
-### A-9 · One pass: `instructions`
+### A-8c · `core-db`, the foundation crate
 - Status: todo
-- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-8c--core-db-the-foundation-crate
+- Read: root `AGENTS.md` "Code structure"; crates/shadows-core/src/db/
+- Touch: crates/core-db/ (new), crates/shadows-core/src/db/, crates/shadows-core/Cargo.toml, Cargo.toml
+- Done when: `cargo test --workspace` passes, and `core-db` names no service's table outside its migrations
+
+### A-9 · One crate: `instructions`
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-crate-per-service
 - Read: its contract.yaml and its row in the plan's Phase 3 table
-- Touch: crates/shadows-core/src/instructions/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Touch: crates/core-instructions/ (new, from crates/shadows-core/src/instructions/), crates/shadows-core/src/app.rs, Cargo.toml, the callers of what it stops exposing, its tests (moved into its crate)
 - Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
 
-### A-10 · One pass: `secrets`
+### A-10 · One crate: `secrets`
 - Status: todo
-- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-crate-per-service
 - Read: its contract.yaml and its row in the plan's Phase 3 table
-- Touch: crates/shadows-core/src/secrets/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Touch: crates/core-secrets/ (new, from crates/shadows-core/src/secrets/), crates/shadows-core/src/app.rs, Cargo.toml, the callers of what it stops exposing, its tests (moved into its crate)
 - Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
 
-### A-11 · One pass: `projects`
+### A-11 · One crate: `projects`
 - Status: todo
-- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-crate-per-service
 - Read: its contract.yaml and its row in the plan's Phase 3 table
-- Touch: crates/shadows-core/src/projects/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Touch: crates/core-projects/ (new, from crates/shadows-core/src/projects/), crates/shadows-core/src/app.rs, Cargo.toml, the callers of what it stops exposing, its tests (moved into its crate)
 - Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
 
-### A-12 · One pass: `code`
+### A-12 · One crate: `code`
 - Status: todo
-- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-crate-per-service
 - Read: its contract.yaml and its row in the plan's Phase 3 table
-- Touch: crates/shadows-core/src/code/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Touch: crates/core-code/ (new, from crates/shadows-core/src/code/), crates/shadows-core/src/app.rs, Cargo.toml, the callers of what it stops exposing, its tests (moved into its crate)
 - Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
 
-### A-13 · One pass: `grants`
+### A-13 · One crate: `grants`
 - Status: todo
-- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-crate-per-service
 - Read: its contract.yaml and its row in the plan's Phase 3 table
-- Touch: crates/shadows-core/src/grants/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Touch: crates/core-grants/ (new, from crates/shadows-core/src/grants/), crates/shadows-core/src/app.rs, Cargo.toml, the callers of what it stops exposing, its tests (moved into its crate)
 - Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
 
-### A-14 · One pass: `profiles (split by job)`
+### A-14 · One crate each: `profiles`, split into `core-providers`, `core-agents`, `core-extensions`, `core-usage`
 - Status: todo
-- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-crate-per-service
 - Read: its contract.yaml and its row in the plan's Phase 3 table
-- Touch: crates/shadows-core/src/profiles/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Touch: crates/core-{providers,agents,extensions,usage}/ (new, from crates/shadows-core/src/profiles/), crates/shadows-core/src/app.rs, Cargo.toml, the callers of what it stops exposing, its tests (moved into its crate)
 - Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
 
-### A-15 · One pass: `threads`
+### A-15 · One crate: `threads`
 - Status: todo
-- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-crate-per-service
 - Read: its contract.yaml and its row in the plan's Phase 3 table
-- Touch: crates/shadows-core/src/threads/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Touch: crates/core-threads/ (new, from crates/shadows-core/src/threads/), crates/shadows-core/src/app.rs, Cargo.toml, the callers of what it stops exposing, its tests (moved into its crate)
 - Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
 
-### A-16 · One pass: `design + plans`
+### A-16 · One crate each: `design` and `plans`, as `core-design` and `core-plans`
 - Status: todo
-- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-crate-per-service
 - Read: its contract.yaml and its row in the plan's Phase 3 table
-- Touch: crates/shadows-core/src/design/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Touch: crates/core-design/ and crates/core-plans/ (new, from crates/shadows-core/src/{design,plans}/), crates/shadows-core/src/app.rs, Cargo.toml, the callers of what it stops exposing, its tests (moved into its crate)
 - Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
 
-### A-17 · One pass: `harness`
+### A-17 · One crate: `harness`
 - Status: todo
-- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-crate-per-service
 - Read: its contract.yaml and its row in the plan's Phase 3 table
-- Touch: crates/shadows-core/src/harness/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Touch: crates/core-harness/ (new, from crates/shadows-core/src/harness/), crates/shadows-core/src/app.rs, Cargo.toml, the callers of what it stops exposing, its tests (moved into its crate)
 - Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
 
-### A-18 · One pass: `turns`
+### A-18 · One crate: `turns`
 - Status: todo
-- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-crate-per-service
 - Read: its contract.yaml and its row in the plan's Phase 3 table
-- Touch: crates/shadows-core/src/turns/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Touch: crates/core-turns/ (new, from crates/shadows-core/src/turns/), crates/shadows-core/src/app.rs, Cargo.toml, the callers of what it stops exposing, its tests (moved into its crate)
 - Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
 
-### A-19 · One pass: `events + runtime + command`
+### A-19 · One crate each: `events`, `runtime` and `command`
 - Status: todo
-- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-crate-per-service
 - Read: its contract.yaml and its row in the plan's Phase 3 table
-- Touch: crates/shadows-core/src/events/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Touch: crates/core-events/, crates/core-runtime/, crates/core-command/ (new, from crates/shadows-core/src/{events,runtime,command}/), crates/shadows-core/src/app.rs, Cargo.toml, the callers of what it stops exposing, its tests (moved into its crate)
 - Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
 
 ### A-20 · `shadows-http` and `shadows-mcp` split by job

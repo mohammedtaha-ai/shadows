@@ -27,6 +27,7 @@ Where this file and an owner spec disagree, the spec is right and this file is t
 | AYLUL desktop | `apps/desktop/src-tauri/` | The Tauri app ([its instructions](apps/desktop/AGENTS.md)) |
 | AYLUL hook | `apps/desktop/hook/` | The desktop hook |
 | Runtime (planned) | `runtime/` | Our own agent runtime, which replaces ACP step by step. Core calls it as a library. |
+| Code intelligence (planned) | `code-intelligence/` | `shadows-index`, which depends on no Shadows crate |
 
 Each workspace has its own lockfile, `target/` and gate. A crate in one workspace
 never reaches into another's source; it depends on it as a library.
@@ -52,11 +53,31 @@ depends on `shadows-core` only. `shadows-index` depends on no Shadows crate.
 
 ## Code structure
 
+Shadows Core is a **modular monolith**: one binary, built from service crates
+with hard boundaries. The compiler holds the boundaries, not good intentions.
+
+```text
+   adapters      shadows-http · shadows-mcp · shadows (cli)     translate only
+                                  │
+   composition   shadows-core = AppCore                          builds and wires
+                                  │
+   services      core-<service> crates: turns, harness, threads, plans, design, ...
+                 each one: its service, its model, its store (private)
+                                  │
+   foundation    core-db: the pool, the transaction, the journal
+```
+
+Dependencies point down only, and Cargo refuses a cycle. **Today** the services
+are folders inside `shadows-core`; the architecture plan
+([docs/backend/plans/2026-10-21-architecture.md](docs/backend/plans/2026-10-21-architecture.md))
+moves each into its own crate, leaves first. Until a service has moved, its
+folder follows the same rules, enforced by the ratchet test.
+
 > **STRICT RULE: AppCore is the map and the owner. Start there, every time.**
 > Every task in Core begins at `crates/shadows-core/src/app.rs`. `AppCore` names
-> every service, the one job it owns, and its contract. Find the service that
-> owns what you are changing, go to that folder, read its `contract.yaml`, and
-> change only there. You may not:
+> every service, the one job it owns, its crate and its contract. Find the
+> service that owns what you are changing, go to its crate, read its
+> `contract.yaml`, and change only there. You may not:
 > - search the tree to find where something is done, instead of asking `AppCore`;
 > - reach a service, a store, or live state (sessions, running turns) except
 >   through `AppCore` and the service that owns it;
@@ -68,40 +89,45 @@ depends on `shadows-core` only. `shadows-index` depends on no Shadows crate.
 > is a design decision for the controller, never something to improvise. A change
 > that breaks this rule is refused in review, whatever else it gets right.
 
-One runtime object, services as classes, one owner per rule. New code follows
-these rules. Existing code that breaks them is fixed service by service,
-`harness` and `turns` first. Do not copy a violation because it is already there.
-
 1. **One object at runtime.** `AppCore` is built once in `AppCore::start` and is
    the only way in: `app.turns().send(…)`, `app.harness().open(…)`. Every
    service is a struct with private fields, built only inside `AppCore::start`.
-   An adapter sees `AppCore` and nothing else. `app.rs` is the one place the
-   whole application is wired, so it is large by design.
-2. **A service gets what it needs through its constructor.** It is handed its own
-   store and the other services it calls, and the wiring is written once, in
-   `app.rs`. A service never reads another service's tables: it calls that
-   service's method. Live state (sessions, running turns) belongs to exactly one
-   service and is reached through it.
+   An adapter sees `AppCore` and nothing else. `shadows-core` holds `AppCore`
+   and its wiring only, so `app.rs` is large by design.
+2. **A service crate owns its tables and its live state.**
+   - Its store is private to the crate. No other crate can name its SQL, so no
+     other crate reads or writes its tables.
+   - Its constructor receives the other services it calls. Its `Cargo.toml`
+     lists them, which makes its dependencies visible at a glance.
+   - A write that must share a transaction with another service goes through
+     that service's `*_in(&mut Tx, …)` method. `Tx` comes from `core-db`.
+   - Live state (sessions, running turns) belongs to one service, and others
+     reach it through that service's methods.
 3. **One rule, one method, one owner.** A rule such as "what a turn sends to the
    model" is one method on one service. Others supply facts to it and never
    assemble part of the answer. When two paths must give the same answer (open
    and switch, single and batch, Core and web), they are listed in `agreements`
    with the test that holds them.
-4. **A fixed shape per service folder.**
+4. **A fixed shape per service crate.**
    ```text
-   <service>/
-     mod.rs         the service struct and its constructor
-     model.rs       its types; no persistence imports
-     store.rs       its SQL only (or store/ split by domain)
-     <job>.rs       one job's methods (`impl <Service>`) or private parts
+   core-<service>/
+     Cargo.toml     the services it depends on, and core-db
+     src/lib.rs     the service struct, its constructor, its public types
+     src/model.rs   its types; no persistence imports
+     src/store/     its SQL, private to the crate
+     src/<job>.rs   one job's methods (`impl <Service>`) or private parts
      contract.yaml  the contract, per module, traced from the code
+     tests/         its tests, through its public API
    ```
-   No free `pub fn` in a service. A helper is a private function or a method.
+   - A type such as `ThreadId` is owned by its service's crate, and others
+     import it from there. There is no shared grab-bag crate.
+   - No free `pub fn`. A helper is a private function or a method.
 5. **Comments say why, never history.** No "used to", no "before the routes did",
    no spec section numbers in code. The contract and the owner spec carry those.
    A comment that disagrees with the code is a defect in the comment.
-6. **`runtime/` follows the same shape.** One `Runtime` object, crates that talk
-   only through its event types, and one `Runtime` held by Core.
+6. **Products are workspaces.** `runtime/` and `code-intelligence/` follow the
+   same shape: one top object (`Runtime`), crates with private internals, and
+   Core depending on them as libraries.
 
 **A new operation is a new method on one service**, with its line in that
 service's contract, in the same commit. An HTTP route and an MCP tool that do the
