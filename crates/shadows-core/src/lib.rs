@@ -7,7 +7,6 @@ mod error;
 mod events;
 mod grants;
 mod harness;
-mod id;
 mod instructions;
 mod plans;
 mod profiles;
@@ -33,6 +32,7 @@ pub use code::{
 };
 // `StorageError`, `StartError` and `DirectoryError` are what `CoreError`
 // carries, which each adapter maps.
+pub use db::Actor;
 pub use db::StorageError;
 pub use design::StructureWritten;
 pub use design::{
@@ -49,7 +49,7 @@ pub use design::{
 pub use design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub use design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
 pub use error::{CoreError, ErrorCode};
-pub use events::{Actor, Delivery, Events, StoredEvent, Subscription, UiSignal};
+pub use events::{Delivery, Events, StoredEvent, Subscription, UiSignal};
 pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};
 pub use harness::{
     AylulConfig, AylulUsageSnapshot, ContextBreakdown, Harness, HarnessInfo, OpenError,

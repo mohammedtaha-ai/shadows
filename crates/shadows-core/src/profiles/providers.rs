@@ -1,6 +1,7 @@
 //! Provider validation and mutations.
 use super::{Profiles, Provider, ProviderInput, store};
-use crate::{CoreError, app::user_command};
+use crate::CoreError;
+use crate::db::CommandContext;
 
 fn validate(input: &mut ProviderInput) -> Result<(), CoreError> {
     input.name = input.name.take().map(|v| v.trim().to_owned());
@@ -65,7 +66,7 @@ impl Profiles {
         mut input: ProviderInput,
     ) -> Result<Provider, CoreError> {
         validate(&mut input)?;
-        let command = user_command(command_id, "provider.create", serde_json::json!(input));
+        let command = CommandContext::user(command_id, "provider.create", serde_json::json!(input));
         let slug = store::save_provider(&self.storage, command, None, input).await?;
         self.provider(&slug).await
     }
@@ -77,7 +78,7 @@ impl Profiles {
         mut input: ProviderInput,
     ) -> Result<Provider, CoreError> {
         validate(&mut input)?;
-        let command = user_command(
+        let command = CommandContext::user(
             command_id,
             "provider.update",
             serde_json::json!({"slug": slug, "input": input}),
@@ -87,7 +88,7 @@ impl Profiles {
     }
 
     pub async fn delete_provider(&self, command_id: String, slug: &str) -> Result<(), CoreError> {
-        let command = user_command(
+        let command = CommandContext::user(
             command_id,
             "provider.delete",
             serde_json::json!({"slug":slug}),

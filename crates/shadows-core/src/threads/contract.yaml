@@ -268,7 +268,7 @@ enums:
     source: crate::turns::OperationId
     values: []
   Actor:
-    source: crate::events::Actor
+    source: crate::db::Actor
     values: []
   Harness:
     source: crate::harness::Harness

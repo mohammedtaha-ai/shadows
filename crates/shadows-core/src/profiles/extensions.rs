@@ -2,7 +2,8 @@
 use super::{
     AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Item, Profiles, extension_store,
 };
-use crate::{CoreError, app::user_command};
+use crate::CoreError;
+use crate::db::CommandContext;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 
@@ -36,7 +37,7 @@ impl Profiles {
             }
         }
         let locator = format!("{:x}", Sha256::digest(source.to_string_lossy().as_bytes()));
-        let c = user_command(
+        let c = CommandContext::user(
             command_id,
             "extension.add",
             serde_json::json!({"kind":kind,"locator":locator}),
@@ -55,7 +56,7 @@ impl Profiles {
         id: &str,
     ) -> Result<(), CoreError> {
         let _guard = self.extension_guard().await;
-        let c = user_command(
+        let c = CommandContext::user(
             command_id,
             "extension.delete",
             serde_json::json!({"kind":kind,"id":id}),
@@ -75,7 +76,7 @@ impl Profiles {
         enabled: bool,
     ) -> Result<AgentItem, CoreError> {
         let _guard = self.extension_guard().await;
-        let c = user_command(
+        let c = CommandContext::user(
             command_id,
             "extension.toggle",
             serde_json::json!({

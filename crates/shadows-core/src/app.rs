@@ -16,7 +16,6 @@ use shadows_agent::events::HarnessEvent;
 use shadows_process::{ProcessSpec, spawn};
 
 use crate::code::{Code, CodeConfig};
-use crate::command::{CommandContext, fingerprint};
 use crate::db::Storage;
 use crate::design::Design;
 use crate::error::CoreError;
@@ -112,30 +111,6 @@ pub struct StartConfig {
     pub harness_path: PathBuf,
     /// AYLUL's profile; `None` leaves AYLUL absent.
     pub aylul: Option<crate::harness::AylulConfig>,
-}
-
-/// The `CommandContext` a person's command carries: principal `User`, id
-/// `local`, schema version 1, the fingerprint of `params`. The same body the
-/// routes built before the services did, so no fingerprint moves.
-///
-/// Every route that mutates carries the caller's command id (spec §3.2), and
-/// the fingerprint is derived from the same parameters the capability is about
-/// to act on — never supplied by the client, which would let a replay with a
-/// different body claim to be the same command.
-pub(crate) fn user_command(
-    command_id: String,
-    kind: &str,
-    params: serde_json::Value,
-) -> CommandContext {
-    CommandContext {
-        agent: None,
-        principal_kind: "User".into(),
-        principal_id: "local".into(),
-        command_id,
-        command_kind: kind.into(),
-        command_schema_ver: 1,
-        request_fingerprint: fingerprint(kind, &params),
-    }
 }
 
 impl AppCore {

@@ -2,7 +2,7 @@
 
 use sha2::{Digest, Sha256};
 
-use crate::id::newtype_id;
+use crate::db::id::newtype_id;
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 

@@ -7,9 +7,10 @@ use sqlx::SqliteConnection;
 use super::directory::ProjectDirectory;
 use super::model::{Project, ProjectId};
 use crate::code::{delete_code_index_in, delete_code_links_in};
-use crate::command::CommandContext;
+use crate::db::Actor;
+use crate::db::CommandContext;
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
-use crate::events::{Actor, DurableEvent};
+use crate::events::DurableEvent;
 use crate::grants::revoke_project_grants_in;
 use shadows_agent::policy;
 

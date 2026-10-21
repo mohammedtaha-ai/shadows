@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::id::newtype_id;
+use crate::db::id::newtype_id;
 
 use crate::db::{Storage, StorageError};
 

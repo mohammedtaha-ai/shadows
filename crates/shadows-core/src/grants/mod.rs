@@ -22,7 +22,7 @@ pub use model::{Grant, GrantId, GrantKind};
 pub use model::{IssuedGrant, Token, hash_token};
 pub(crate) use store::{bind_draft_ref, check_writer, revoke_project_grants_in};
 
-use crate::app::user_command;
+use crate::db::CommandContext;
 use crate::db::Storage;
 use crate::error::CoreError;
 use crate::projects::ProjectId;
@@ -63,7 +63,7 @@ impl Grants {
         command_id: String,
         project: &ProjectId,
     ) -> Result<IssuedView, CoreError> {
-        let c = user_command(
+        let c = CommandContext::user(
             command_id,
             "McpGrantIssue",
             serde_json::json!({ "project": project }),
@@ -86,7 +86,7 @@ impl Grants {
     /// Revoke (§13.7): "McpGrantRevoke", params { "grant" }. A thread grant
     /// is the Planner's, not the person's, and is not found here.
     pub async fn revoke(&self, command_id: String, grant: &GrantId) -> Result<Grant, CoreError> {
-        let c = user_command(
+        let c = CommandContext::user(
             command_id,
             "McpGrantRevoke",
             serde_json::json!({ "grant": grant }),

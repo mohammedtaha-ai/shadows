@@ -7,15 +7,13 @@
 //! a different one is a different command. A `draft_ref` names one intended
 //! plan, so the same ref with different arguments is a `CommandConflict`.
 
-use crate::turns::OperationId;
-
 /// What a derived id is anchored to.
 #[derive(Debug, Clone, Copy)]
 pub enum Anchor<'a> {
     /// A write carrying `expected_revision`.
     Revision(i64),
     /// `plan_show` or `draft_start` by the internal Planner: its running turn.
-    Operation(&'a OperationId),
+    Operation(&'a str),
     /// `draft_start` by an external agent: the ref `draft_prepare` issued.
     DraftRef(&'a str),
 }

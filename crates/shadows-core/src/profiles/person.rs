@@ -1,6 +1,7 @@
 //! The person's record rules, independent of an account or agent home.
 use super::{Person, PersonInput, Profiles, store};
-use crate::{CoreError, app::user_command};
+use crate::CoreError;
+use crate::db::CommandContext;
 
 fn normalize_name(value: &mut Option<String>) -> Result<(), CoreError> {
     let Some(name) = value.take() else {
@@ -50,7 +51,7 @@ impl Profiles {
         {
             return Err(CoreError::ProfileInvalid("invalid language tag".into()));
         }
-        let command = user_command(command_id, "person.set", serde_json::json!(input));
+        let command = CommandContext::user(command_id, "person.set", serde_json::json!(input));
         store::save_person(&self.storage, command, input).await?;
         self.person().await
     }

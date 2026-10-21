@@ -4,7 +4,8 @@
 
 use super::read::{load_plan, recorded_outcome};
 use super::task::task_numbered;
-use crate::command::{CommandContext, Writer};
+use crate::command::Writer;
+use crate::db::CommandContext;
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::grants::check_writer;
 use crate::plans::conversation::{Place, PlanShown};

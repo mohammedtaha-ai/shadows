@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 pub use model::InstructionsVersion;
 
-use crate::app::user_command;
+use crate::db::CommandContext;
 use crate::db::Storage;
 use crate::error::CoreError;
 use crate::projects::ProjectId;
@@ -43,7 +43,7 @@ impl Instructions {
         body: &str,
     ) -> Result<InstructionsVersion, CoreError> {
         let params = serde_json::json!({ "project": project, "body": body });
-        let c = user_command(command_id, "PlannerInstructionsSave", params);
+        let c = CommandContext::user(command_id, "PlannerInstructionsSave", params);
         Ok(self
             .storage
             .save_planner_instructions(&c, project, body)

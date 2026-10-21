@@ -1,6 +1,6 @@
 //! Transactional SQL for provider configuration.
 use super::{Agent, AgentInput, Provider, ProviderInput};
-use crate::command::CommandContext;
+use crate::db::CommandContext;
 use crate::db::{Storage, StorageError, classify, now, record_command};
 use sqlx::{Row, SqliteConnection};
 
@@ -264,12 +264,12 @@ pub(super) async fn save_agent(
                     input.character_color = Some(stored.unwrap_or_else(|| "purple".into()));
                 }
                 let command = match &existing {
-                    Some(id) => crate::app::user_command(
+                    Some(id) => crate::db::CommandContext::user(
                         command_id,
                         "agent.update",
                         serde_json::json!({"slug":id,"input":input}),
                     ),
-                    None => crate::app::user_command(
+                    None => crate::db::CommandContext::user(
                         command_id,
                         "agent.create",
                         serde_json::json!(input),

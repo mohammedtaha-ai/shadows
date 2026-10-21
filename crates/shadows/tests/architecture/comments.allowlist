@@ -47,7 +47,7 @@ crates/shadows-core/src/app.rs :: AppCore::start comment [8ae80de3a64f652c] #1
 crates/shadows-core/src/app.rs :: AppCore::start comment [93d4c198c5a906f7] #1
 crates/shadows-core/src/app.rs :: AppCore::start comment [d4688ff46f0c44c2] #1
 crates/shadows-core/src/app.rs :: CoreParts comment [c37bd19ab210d40a] #1
-crates/shadows-core/src/app.rs :: module comment [05108dcdf63dfdd6] #1
+crates/shadows-core/src/db/command.rs :: CommandContext comment [05108dcdf63dfdd6] #1
 crates/shadows-core/src/app.rs :: module comment [378a45bda752b6d2] #1
 crates/shadows-core/src/app.rs :: module comment [582d03b6bf7a8438] #1
 crates/shadows-core/src/app.rs :: module comment [783dc5d2f39df956] #1
@@ -89,7 +89,7 @@ crates/shadows-core/src/code/watch.rs :: Run comment [6197935b949418a4] #1
 crates/shadows-core/src/code/watch.rs :: Run comment [b77d0ff09b8b2ad6] #1
 crates/shadows-core/src/code/watch.rs :: module comment [5af58c475528f63a] #1
 crates/shadows-core/src/code/watch.rs :: module comment [74df5b7fd694fe80] #1
-crates/shadows-core/src/command/derive.rs :: module comment [b9d365bc6fb5ddc6] #1
+crates/shadows-core/src/db/derive.rs :: module comment [b9d365bc6fb5ddc6] #1
 crates/shadows-core/src/command/mod.rs :: Writer comment [0e6dd0f7f6f16cba] #1
 crates/shadows-core/src/command/mod.rs :: Writer comment [ffe17d9a67dfc164] #1
 crates/shadows-core/src/command/mod.rs :: module comment [ece2ab1bd4d0e152] #1
@@ -251,9 +251,9 @@ crates/shadows-core/src/harness/store.rs :: module comment [37113d1e3cd0d743] #1
 crates/shadows-core/src/harness/store.rs :: module comment [bfaee1f327e6f615] #1
 crates/shadows-core/src/harness/store.rs :: module comment [daadc91e88828a1f] #1
 crates/shadows-core/src/harness/titles.rs :: module comment [4f97d46854baeea0] #1
-crates/shadows-core/src/id.rs :: module comment [caa7beb94100c9c7] #1
-crates/shadows-core/src/id.rs :: module comment [cee70f439a1892fd] #1
-crates/shadows-core/src/id.rs :: module comment [d4fd1265ff3a0b7e] #1
+crates/shadows-core/src/db/id.rs :: module comment [caa7beb94100c9c7] #1
+crates/shadows-core/src/db/id.rs :: module comment [cee70f439a1892fd] #1
+crates/shadows-core/src/db/id.rs :: module comment [d4fd1265ff3a0b7e] #1
 crates/shadows-core/src/instructions/mod.rs :: module comment [d666ed586afd809c] #1
 crates/shadows-core/src/instructions/model.rs :: module comment [87e53d7e0fbcf6e1] #1
 crates/shadows-core/src/instructions/store.rs :: Storage comment [655e3bafd25f3711] #1

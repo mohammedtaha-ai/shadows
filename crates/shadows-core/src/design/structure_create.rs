@@ -34,8 +34,11 @@ impl Design {
         stop: Option<usize>,
     ) -> Result<StructureWritten, CoreError> {
         let _guard = self.structure_lock.lock().await;
-        let ctx =
-            crate::app::user_command(command, "CreateStructure", serde_json::json!({"project":p}));
+        let ctx = crate::db::CommandContext::user(
+            command,
+            "CreateStructure",
+            serde_json::json!({"project":p}),
+        );
         let mut snapshot = match self.storage.structure_snapshot(&ctx, p).await? {
             Read::Replay(result) => return Ok(result),
             Read::Snapshot(snapshot) => snapshot,

@@ -4,13 +4,14 @@
 //! back from its event, never the plan as it is later. Starting a version is
 //! `draft.rs`; reading one is `read.rs`.
 
+use crate::db::CommandContext;
 use sqlx::SqliteConnection;
 
 use super::plan::require_active;
 use super::plan_event;
 use super::read::{edits_of, load_plan, recorded_outcome};
 use super::task::write_content;
-use crate::command::{CommandContext, Writer};
+use crate::command::Writer;
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::events::DurableEvent;
 use crate::grants::check_writer;

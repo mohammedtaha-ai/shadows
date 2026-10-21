@@ -12,7 +12,11 @@ use super::{
     prompt::Prompt,
     turn::{TurnWatch, persist},
 };
-use crate::{command::CommandContext, db::StorageError, error::CoreError, threads::ThreadEntryId};
+use crate::{
+    db::{CommandContext, StorageError},
+    error::CoreError,
+    threads::ThreadEntryId,
+};
 use shadows_agent::acp::Steer;
 
 /// A Send now for the running turn: `Ok(Some(entry))` is the message steered

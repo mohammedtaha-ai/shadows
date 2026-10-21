@@ -8,12 +8,14 @@
 //! the `draft_intent` rows keyed by it, and a split would leave the check to
 //! be read beside the issue and revocation whose rows it judges.
 
+use crate::db::CommandContext;
 use sqlx::SqliteConnection;
 
 use super::model::{Grant, GrantId, GrantKind, IssuedGrant, Token, hash_token};
-use crate::command::{CommandContext, Writer};
+use crate::command::Writer;
+use crate::db::Actor;
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
-use crate::events::{Actor, DurableEvent};
+use crate::events::DurableEvent;
 use crate::plans::WorkflowId;
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;

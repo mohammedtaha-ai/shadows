@@ -1,6 +1,6 @@
 //! Atomic person approval of a map proposal.
 use super::{map_proposal_shape as shape, map_versions as maps};
-use crate::command::CommandContext;
+use crate::db::CommandContext;
 use crate::db::{Storage, append_event, classify, now, record_command};
 use crate::design::{DesignChange, MapAction, MapPropose, ProposalStatus, map_rules};
 use crate::{PartId, ProjectId, StorageError};

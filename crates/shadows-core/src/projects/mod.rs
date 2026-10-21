@@ -25,8 +25,8 @@ pub use browse::{DirectoryEntry, DirectoryListing};
 pub use directory::{DirectoryError, ProjectDirectory};
 pub use model::{Project, ProjectId};
 
-use crate::app::user_command;
 use crate::code::Code;
+use crate::db::CommandContext;
 use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
 use crate::threads::known_harness;
@@ -76,7 +76,7 @@ impl Projects {
         let params = serde_json::json!({
             "slug": slug, "name": name, "directory": directory.as_str(),
         });
-        let c = user_command(
+        let c = CommandContext::user(
             format!("assistant-project-{slug}"),
             "project.create",
             params,
@@ -103,7 +103,7 @@ impl Projects {
         let params = serde_json::json!({
             "slug": slug, "name": name, "directory": directory.as_str(),
         });
-        let c = user_command(command_id, "project.create", params);
+        let c = CommandContext::user(command_id, "project.create", params);
         let project = self
             .storage
             .create_project(&c, slug, name, &directory, &policy::default_modes())
@@ -144,7 +144,7 @@ impl Projects {
             modes.insert(harness, set);
         }
         let params = serde_json::json!({ "project": project, "allowed_modes": modes });
-        let c = user_command(command_id, "project.modes", params);
+        let c = CommandContext::user(command_id, "project.modes", params);
         Ok(self.storage.set_project_modes(&c, project, &modes).await?)
     }
 
@@ -159,7 +159,7 @@ impl Projects {
         project: &ProjectId,
     ) -> Result<Project, CoreError> {
         let params = serde_json::json!({ "project": project });
-        let c = user_command(command_id, "project.remove", params);
+        let c = CommandContext::user(command_id, "project.remove", params);
         let removed = self.storage.remove_project(&c, project).await?;
         // On its own task: a caller dropped after the commit (a client that
         // hung up) must not leave the removed project's worker running.

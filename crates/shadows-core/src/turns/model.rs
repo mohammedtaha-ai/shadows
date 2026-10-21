@@ -1,4 +1,4 @@
-use crate::id::newtype_id;
+use crate::db::id::newtype_id;
 use crate::plans::{Focus, PlanId};
 use crate::runtime::RuntimeInstanceId;
 use crate::threads::{ThreadEntryId, ThreadId};

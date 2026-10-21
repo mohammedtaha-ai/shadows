@@ -49,9 +49,9 @@ use super::{
     spawn::OnCompleted,
     steer::{SteerRequest, steer},
 };
+use crate::db::Actor;
 use crate::{
     db::StorageError,
-    events::Actor,
     harness::{OpenSession, Sessions},
     runtime::Runtime,
     threads::{NewThreadEntry, ThreadEntryKind, ThreadId},

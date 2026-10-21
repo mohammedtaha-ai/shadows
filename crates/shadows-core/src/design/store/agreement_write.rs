@@ -1,13 +1,15 @@
 //! Serialized agreement starts and Draft content edits.
 use super::{agreements::load, parts};
 use crate::ProjectId;
-use crate::command::{CommandContext, Writer};
+use crate::command::Writer;
+use crate::db::Actor;
+use crate::db::CommandContext;
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::design::AgreementOrigin;
 use crate::design::{
     AgreementContent, AgreementId, AgreementState, AgreementVersion, AgreementWriter,
 };
-use crate::events::{Actor, DurableEvent};
+use crate::events::DurableEvent;
 use sqlx::SqliteConnection;
 
 impl Storage {

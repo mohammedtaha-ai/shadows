@@ -1,10 +1,10 @@
 //! One job: the links and the active limit, as commands (spec §15.6). Each is
-//! a `user_command` with a `CommandId`, written by one store method; a
+//! a `CommandContext::user` with a `CommandId`, written by one store method; a
 //! refusal the store cannot phrase is written here.
 
 use super::Code;
 use super::model::{CodeSettings, ProjectLink};
-use crate::app::user_command;
+use crate::db::CommandContext;
 use crate::error::{CoreError, ErrorCode};
 use crate::projects::ProjectId;
 
@@ -29,7 +29,7 @@ impl Code {
             return Err(invalid("a project cannot be linked to itself".into()));
         }
         let params = serde_json::json!({ "project": project, "linked": linked });
-        let c = user_command(command_id, "ProjectLinkPut", params);
+        let c = CommandContext::user(command_id, "ProjectLinkPut", params);
         match self
             .inner
             .storage
@@ -49,7 +49,7 @@ impl Code {
         linked: &ProjectId,
     ) -> Result<(), CoreError> {
         let params = serde_json::json!({ "project": project, "linked": linked });
-        let c = user_command(command_id, "ProjectLinkRemove", params);
+        let c = CommandContext::user(command_id, "ProjectLinkRemove", params);
         if self
             .inner
             .storage
@@ -84,7 +84,7 @@ impl Code {
             )));
         }
         let params = serde_json::json!({ "active_limit": active_limit });
-        let c = user_command(command_id, "CodeActiveLimitSet", params);
+        let c = CommandContext::user(command_id, "CodeActiveLimitSet", params);
         let storage = &self.inner.storage;
         let set = storage.set_code_active_limit(&c, active_limit).await?;
         let mut active = self.inner.active.lock().await;

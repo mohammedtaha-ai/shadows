@@ -116,7 +116,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: the runtime/type/error/test dependency ledger is complete, each cycle and table has an owner, extraction order is verified, and exact scopes/test commands are recorded for the next preparation tasks
 
 ### A-8d · Foundation inputs carry no service types
-- Status: doing
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-8d
 - Read: the ledger's Foundation table; db/{command,journal,error}.rs; command/; events/model.rs
 - Touch: crates/shadows-core/src/{db,command,events,id.rs}/ and every call site of `user_command`, `append_event` and `Anchor` in crates/shadows-core/src/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md

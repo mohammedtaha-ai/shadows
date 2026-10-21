@@ -3,9 +3,10 @@
 use sqlx::SqliteConnection;
 
 use super::turn::has_open_operation;
-use crate::command::CommandContext;
+use crate::db::Actor;
+use crate::db::CommandContext;
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
-use crate::events::{Actor, DurableEvent};
+use crate::events::DurableEvent;
 use crate::plans::{Focus, PlanId};
 use crate::threads::ThreadId;
 use crate::turns::model::{QueuedMessage, QueuedMessageId};

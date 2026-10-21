@@ -48,9 +48,9 @@ pub(crate) use store::task_of;
 
 use scope::{command, own_thread, refused, writer_of};
 
-use crate::app::user_command;
-use crate::command::derive::{Anchor, derived_id};
-use crate::command::fingerprint;
+use crate::db::CommandContext;
+use crate::db::fingerprint;
+use crate::db::{Anchor, derived_id};
 use crate::db::{Storage, StorageError};
 use crate::error::{CoreError, ErrorCode};
 use crate::events::UiSignal;
@@ -186,7 +186,7 @@ impl Plans {
         let params = serde_json::json!({
             "workflow": workflow, "expected_revision": expected_revision,
         });
-        let c = user_command(command_id, "PlanApprove", params);
+        let c = CommandContext::user(command_id, "PlanApprove", params);
         Ok(self
             .storage
             .approve_plan(&c, workflow, expected_revision)
@@ -205,7 +205,7 @@ impl Plans {
         plan: &PlanId,
     ) -> Result<PlanVersions, CoreError> {
         let params = serde_json::json!({ "plan": plan });
-        let c = user_command(command_id, "PlanArchive", params);
+        let c = CommandContext::user(command_id, "PlanArchive", params);
         Ok(self.storage.archive_plan(&c, plan).await?)
     }
 
@@ -216,7 +216,7 @@ impl Plans {
         plan: &PlanId,
     ) -> Result<PlanVersions, CoreError> {
         let params = serde_json::json!({ "plan": plan });
-        let c = user_command(command_id, "PlanUnarchive", params);
+        let c = CommandContext::user(command_id, "PlanUnarchive", params);
         Ok(self.storage.unarchive_plan(&c, plan).await?)
     }
 
@@ -346,7 +346,7 @@ impl Plans {
         let fp = fingerprint("PlanShow", &params);
         let ctx = command(
             &writer,
-            derived_id(Anchor::Operation(&op), &fp),
+            derived_id(Anchor::Operation(op.as_str()), &fp),
             "PlanShow",
             fp,
         );

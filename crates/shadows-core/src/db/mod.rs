@@ -13,8 +13,10 @@ use tokio::sync::{Mutex, watch};
 
 pub(crate) mod approval;
 mod command;
+mod derive;
 mod embedded_migrations;
 mod error;
+pub(crate) mod id;
 mod journal;
 #[cfg(feature = "test-support")]
 pub(crate) mod write_observer;
@@ -23,10 +25,13 @@ pub use error::StorageError;
 
 // Store helpers every service's write shares inside its one transaction (spec
 // §14.6): the command log and the journal, which belong to no service.
+pub use command::{CommandContext, fingerprint};
 pub(crate) use command::{classify, record_command};
+pub use derive::{Anchor, derived_id};
 pub(crate) use journal::append_event;
 #[cfg(feature = "test-support")]
 pub use journal::append_event_for_test;
+pub use journal::{Actor, Causation, JournalEntry};
 
 pub(crate) const MAX_SEQ: &str = "SELECT MAX(seq) FROM durable_event";
 

@@ -1,6 +1,7 @@
 //! Design's shared-agreement entry points.
 use super::{AgreementContent, AgreementId, AgreementVersion, Design};
-use crate::{CoreError, ErrorCode, ProjectId, StorageError, app::user_command};
+use crate::db::CommandContext;
+use crate::{CoreError, ErrorCode, ProjectId, StorageError};
 
 impl Design {
     pub async fn review_agreement(
@@ -18,7 +19,7 @@ impl Design {
         expected_revision: i64,
         review_id: String,
     ) -> Result<AgreementVersion, CoreError> {
-        let ctx = user_command(
+        let ctx = CommandContext::user(
             command_id,
             "AgreementAgree",
             serde_json::json!({
@@ -55,7 +56,7 @@ impl Design {
     ) -> Result<AgreementVersion, CoreError> {
         let content = content.map(normalize).transpose()?;
         let reason = reason.map(|s| s.trim().to_string());
-        let ctx = user_command(
+        let ctx = CommandContext::user(
             command_id,
             "AgreementStart",
             serde_json::json!({
@@ -77,7 +78,7 @@ impl Design {
         content: AgreementContent,
     ) -> Result<AgreementVersion, CoreError> {
         let content = normalize(content)?;
-        let ctx = user_command(
+        let ctx = CommandContext::user(
             command_id,
             "AgreementEdit",
             serde_json::json!({

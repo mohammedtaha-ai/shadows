@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::id::newtype_id;
+use crate::db::id::newtype_id;
 
 newtype_id! {
     /// Spec §4.1. A project's identity is a UUID, never its directory path:

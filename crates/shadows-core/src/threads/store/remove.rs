@@ -1,9 +1,10 @@
 //! One job: the atomic removal of a planning thread (§16.5).
 
 use super::thread::load_thread;
-use crate::command::CommandContext;
+use crate::db::Actor;
+use crate::db::CommandContext;
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
-use crate::events::{Actor, DurableEvent};
+use crate::events::DurableEvent;
 use crate::grants::revoke_thread_grants_in;
 use crate::threads::{PlanningThread, ThreadId};
 

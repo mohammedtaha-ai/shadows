@@ -30,6 +30,7 @@ pub(crate) use store::check_running_turn_in;
 mod subagents;
 mod turn;
 
+use crate::db::Actor;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
@@ -54,12 +55,11 @@ use store::Dequeue;
 use turn::PlannerTurn;
 pub(crate) use turn::StopOutcome;
 
-use crate::app::{Bus, user_command};
+use crate::app::Bus;
 use crate::code::Code;
-use crate::command::CommandContext;
+use crate::db::CommandContext;
 use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
-use crate::events::Actor;
 use crate::harness::{LeaseError, Sessions};
 use crate::plans::{Focus, PlanId};
 use crate::runtime::Runtime;
@@ -193,7 +193,7 @@ fn start_command(command_id: String, thread: &ThreadId, turn: &SendTurn) -> Comm
     if let Some(plan) = &turn.plan {
         params["plan"] = serde_json::json!(plan);
     }
-    user_command(command_id, "turn.start", params)
+    CommandContext::user(command_id, "turn.start", params)
 }
 
 impl Turns {

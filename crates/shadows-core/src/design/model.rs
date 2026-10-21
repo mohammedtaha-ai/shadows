@@ -2,8 +2,8 @@
 
 pub type DesignRevision = i64;
 
-crate::id::newtype_id!(PartId);
-crate::id::newtype_id!(OutcomeId);
+crate::db::id::newtype_id!(PartId);
+crate::db::id::newtype_id!(OutcomeId);
 
 #[derive(
     Debug,

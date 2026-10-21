@@ -1,6 +1,7 @@
 //! Persist Planner roadmap proposals without approving outcomes.
 use super::roadmap_shape as shape;
-use crate::command::{CommandContext, Writer};
+use crate::command::Writer;
+use crate::db::CommandContext;
 use crate::db::{Storage, append_event, classify, now, record_command};
 use crate::design::{ProposalStatus, RoadmapAction, RoadmapProposal, RoadmapPropose};
 use crate::threads::{NewThreadEntry, ThreadEntryKind, append_entry_in};

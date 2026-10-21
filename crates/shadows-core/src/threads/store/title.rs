@@ -8,8 +8,9 @@
 
 use sqlx::SqliteConnection;
 
+use crate::db::Actor;
 use crate::db::{Storage, StorageError, append_event, now};
-use crate::events::{Actor, DurableEvent};
+use crate::events::DurableEvent;
 use crate::projects::ProjectId;
 use crate::threads::model::{ThreadEntryId, ThreadId};
 use crate::threads::title;

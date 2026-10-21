@@ -1,9 +1,7 @@
 //! Live grant attribution for agreement proposals.
 use super::{AgreementContent, AgreementId, AgreementReview, AgreementVersion, Design};
-use crate::{
-    CoreError, ErrorCode, Grant, GrantKind,
-    command::{CommandContext, Writer, fingerprint},
-};
+use crate::db::{CommandContext, fingerprint};
+use crate::{CoreError, ErrorCode, Grant, GrantKind, command::Writer};
 
 #[derive(Clone)]
 pub(crate) struct AgreementOrigin {

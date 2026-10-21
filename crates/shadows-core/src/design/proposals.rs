@@ -1,14 +1,7 @@
 //! Vision proposal values and the person/Planner entry points (§23.5).
 use super::{Design, DesignChange, VisionField};
-use crate::{
-    CoreError, ErrorCode, Grant, ProjectId, ThreadId,
-    app::user_command,
-    command::{
-        CommandContext, Writer,
-        derive::{Anchor, derived_id},
-        fingerprint,
-    },
-};
+use crate::db::{Anchor, CommandContext, derived_id, fingerprint};
+use crate::{CoreError, ErrorCode, Grant, ProjectId, ThreadId, command::Writer};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -138,7 +131,7 @@ impl Design {
             agent: None,
             principal_kind: kind.into(),
             principal_id: id,
-            command_id: derived_id(Anchor::Operation(&op), &fp),
+            command_id: derived_id(Anchor::Operation(op.as_str()), &fp),
             command_kind: "VisionPropose".into(),
             command_schema_ver: 1,
             request_fingerprint: fp,
@@ -162,7 +155,7 @@ impl Design {
         project: &ProjectId,
         proposal: &str,
     ) -> Result<DesignChange, CoreError> {
-        let ctx = user_command(
+        let ctx = CommandContext::user(
             command_id,
             "VisionProposalApprove",
             serde_json::json!({"project":project,"proposal":proposal}),

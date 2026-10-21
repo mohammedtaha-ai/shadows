@@ -8,8 +8,7 @@ use super::handles::SteerTarget;
 use super::spawn::OnCompleted;
 use super::steer::SteerRequest;
 use super::{NewQueued, OperationId, QueueAnswer, SendTurn, Turns, start_command};
-use crate::app::user_command;
-use crate::command::CommandContext;
+use crate::db::CommandContext;
 use crate::db::StorageError;
 use crate::error::CoreError;
 use crate::threads::{ThreadEntryId, ThreadId};
@@ -39,7 +38,7 @@ impl Turns {
             "focus": turn.focus,
             "plan": turn.plan,
         });
-        let command = user_command(turn.command_id.clone(), "turn.queue", params);
+        let command = CommandContext::user(turn.command_id.clone(), "turn.queue", params);
         let new = || NewQueued {
             prompt: &turn.prompt,
             model: &turn.model,
@@ -82,7 +81,7 @@ impl Turns {
         command_id: String,
     ) -> Result<(), CoreError> {
         let params = serde_json::json!({ "thread_id": thread, "queued_id": id });
-        let command = user_command(command_id, "turn.unqueue", params);
+        let command = CommandContext::user(command_id, "turn.unqueue", params);
         Ok(self.storage.unqueue_message(&command, thread, id).await?)
     }
 }
@@ -113,7 +112,7 @@ impl Turns {
         command_id: String,
     ) -> Result<SentNow, CoreError> {
         let params = serde_json::json!({ "thread_id": thread, "queued_id": id });
-        let command = user_command(command_id, "turn.send_now", params);
+        let command = CommandContext::user(command_id, "turn.send_now", params);
         if let Some(replay) = self.storage.replayed_send_now(&command, thread).await? {
             return Ok(replay);
         }

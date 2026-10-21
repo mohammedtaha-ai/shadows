@@ -5,13 +5,14 @@
 //! Changing a version is `edit.rs`. A start may also tie its plan to parts
 //! (§23.6), in the same transaction.
 
+use crate::db::CommandContext;
 use sqlx::SqliteConnection;
 
 use super::plan::require_active;
 use super::plan_event;
 use super::read::{latest_version, load_plan};
 use super::task::write_content;
-use crate::command::{CommandContext, Writer};
+use crate::command::Writer;
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::design::PartId;
 use crate::grants::{bind_draft_ref, check_writer};

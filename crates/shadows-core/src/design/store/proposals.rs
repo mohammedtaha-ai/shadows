@@ -1,5 +1,6 @@
 //! Recording Planner vision proposals (§23.5).
-use crate::command::{CommandContext, Writer};
+use crate::command::Writer;
+use crate::db::CommandContext;
 use crate::db::{Storage, append_event, classify, now, record_command};
 use crate::design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 use crate::threads::{NewThreadEntry, ThreadEntryKind, append_entry_in};

@@ -7,7 +7,7 @@ use shadows_agent::choices::{Offered, refusal};
 
 use super::Turns;
 use super::store::{Dequeue, NewTurn, StartedTurn};
-use crate::command::CommandContext;
+use crate::db::CommandContext;
 use crate::db::StorageError;
 use crate::error::CoreError;
 use crate::harness::{OpenSession, prompt_version};

@@ -29,17 +29,21 @@ pub struct ApprovedBy {
 }
 
 impl Approver {
-    pub(crate) fn command(&self, kind: &str, params: serde_json::Value) -> super::CommandContext {
+    pub(crate) fn command(
+        &self,
+        kind: &str,
+        params: serde_json::Value,
+    ) -> crate::db::CommandContext {
         let Self::Planner { writer, turn, .. } = self else {
             unreachable!("Planner command construction is core-only")
         };
-        let fp = super::fingerprint(kind, &params);
+        let fp = crate::db::fingerprint(kind, &params);
         let (principal_kind, principal_id) = writer.principal();
-        super::CommandContext {
+        crate::db::CommandContext {
             agent: Some(self.agent()),
             principal_kind: principal_kind.into(),
             principal_id,
-            command_id: super::derive::derived_id(super::derive::Anchor::Operation(turn), &fp),
+            command_id: crate::db::derived_id(crate::db::Anchor::Operation(turn.as_str()), &fp),
             command_kind: kind.into(),
             command_schema_ver: 1,
             request_fingerprint: fp,

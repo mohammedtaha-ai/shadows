@@ -1,6 +1,7 @@
 //! Persist Planner map proposals without approving parts.
 use super::{map_proposal_shape as shape, map_versions as maps};
-use crate::command::{CommandContext, Writer};
+use crate::command::Writer;
+use crate::db::CommandContext;
 use crate::db::{Storage, append_event, classify, now, record_command};
 use crate::design::{MapAction, MapProposal, MapPropose, ProposalStatus};
 use crate::threads::{NewThreadEntry, ThreadEntryKind, append_entry_in};

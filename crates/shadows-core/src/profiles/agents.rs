@@ -1,6 +1,7 @@
 //! Agent validation and mutations.
 use super::{Agent, AgentInput, Profiles, store};
-use crate::{CoreError, app::user_command};
+use crate::CoreError;
+use crate::db::CommandContext;
 
 impl Profiles {
     pub async fn create_agent(
@@ -61,7 +62,8 @@ impl Profiles {
         command_id: String,
         slug: &str,
     ) -> Result<(), CoreError> {
-        let command = user_command(command_id, "agent.delete", serde_json::json!({"slug":slug}));
+        let command =
+            CommandContext::user(command_id, "agent.delete", serde_json::json!({"slug":slug}));
         store::delete_agent(&self.storage, command, slug).await?;
         Ok(())
     }

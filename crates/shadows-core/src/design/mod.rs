@@ -32,7 +32,8 @@ pub(crate) use store::{
 
 use std::sync::Arc;
 
-use crate::{app::user_command, db::Storage, error::CoreError, projects::ProjectId};
+use crate::db::CommandContext;
+use crate::{db::Storage, error::CoreError, projects::ProjectId};
 pub use model::{
     ContractHead, DesignAnchor, DesignChange, DesignOp, DesignRevision, InitialFile, Outcome,
     OutcomeContent, OutcomeId, OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage,
@@ -78,7 +79,7 @@ impl Design {
         content: StandardsAdditions,
     ) -> Result<StandardsAdditionsVersion, CoreError> {
         let params = serde_json::json!({"project": project, "content": content});
-        let ctx = user_command(command_id, "StandardsAdditionsSave", params);
+        let ctx = CommandContext::user(command_id, "StandardsAdditionsSave", params);
         self.storage
             .save_standards_additions(&ctx, project, &content)
             .await
@@ -120,7 +121,7 @@ impl Design {
             "expected_revision": expected_revision,
             "ops": ops
         });
-        let ctx = user_command(command_id, "DesignEdit", params);
+        let ctx = CommandContext::user(command_id, "DesignEdit", params);
         self.storage
             .edit_design(&ctx, project, expected_revision, ops)
             .await

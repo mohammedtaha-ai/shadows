@@ -1,7 +1,8 @@
 //! One job: an operation's state transitions, each written with its journal
 //! event. Reading operations back is `operation_read.rs`.
 
-use crate::events::{Actor, DurableEvent};
+use crate::db::Actor;
+use crate::events::DurableEvent;
 use crate::runtime::RuntimeInstanceId;
 use crate::threads::ThreadId;
 use crate::turns::model::{FailureStage, OperationId};

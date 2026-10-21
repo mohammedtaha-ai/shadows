@@ -32,8 +32,8 @@ pub(crate) use rules::known_harness;
 // after its first message.
 pub(crate) use store::{append_entry_in, profile_in, title_from_first_message_in};
 
-use crate::app::user_command;
 use crate::code::Code;
+use crate::db::CommandContext;
 use crate::db::Storage;
 use crate::error::CoreError;
 use crate::harness::Harness;
@@ -104,7 +104,7 @@ impl Threads {
         if let Some(profile) = profile {
             params["profile"] = profile.into();
         }
-        let c = user_command(command_id, "thread.create", params);
+        let c = CommandContext::user(command_id, "thread.create", params);
         Ok(self
             .storage
             .create_planning_thread(&c, project, title, harness, profile)
@@ -132,7 +132,7 @@ impl Threads {
         }
         let before = context.harness;
         let params = serde_json::json!({ "thread_id": thread, "harness": harness });
-        let c = user_command(command_id, "thread.harness", params);
+        let c = CommandContext::user(command_id, "thread.harness", params);
         let updated = self.storage.set_thread_harness(&c, thread, harness).await?;
         if updated.harness != before
             && let Err(error) = self.harness.close_session(thread).await
@@ -151,7 +151,7 @@ impl Threads {
         at: &ThreadEntryId,
     ) -> Result<PlanningThread, CoreError> {
         let params = serde_json::json!({ "thread_id": thread, "at_entry_id": at });
-        let c = user_command(command_id, "thread.fork", params);
+        let c = CommandContext::user(command_id, "thread.fork", params);
         Ok(self.storage.fork_thread(&c, thread, at).await?)
     }
 
@@ -171,7 +171,7 @@ impl Threads {
         command_id: String,
         thread: &ThreadId,
     ) -> Result<PlanningThread, CoreError> {
-        let c = user_command(
+        let c = CommandContext::user(
             command_id,
             "thread.remove",
             serde_json::json!({ "thread_id": thread }),

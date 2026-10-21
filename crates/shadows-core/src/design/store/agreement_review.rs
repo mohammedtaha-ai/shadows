@@ -4,13 +4,13 @@ use super::{
     agreements::load,
     parts,
 };
+use crate::db::{CommandContext, fingerprint};
 use crate::design::{
     AgreementContent, AgreementId, AgreementParticipantImpact, AgreementPartyReview,
     AgreementReview, AgreementState, AgreementVersion,
 };
 use crate::{
     ProjectId,
-    command::{CommandContext, fingerprint},
     db::{Storage, StorageError, now},
 };
 use serde_json::{Value, json};

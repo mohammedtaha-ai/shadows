@@ -1,3 +1,4 @@
+use crate::db::{Actor, Causation, JournalEntry};
 use crate::plans::{Place, WorkflowId};
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
@@ -11,39 +12,6 @@ use crate::turns::OperationId;
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
 pub struct EventCursor(pub i64);
-
-#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
-pub struct Actor {
-    pub kind: String,
-    pub id: String,
-}
-
-impl Actor {
-    pub fn system() -> Self {
-        Self {
-            kind: "System".into(),
-            id: "daemon".into(),
-        }
-    }
-    pub fn user(id: impl Into<String>) -> Self {
-        Self {
-            kind: "User".into(),
-            id: id.into(),
-        }
-    }
-}
-
-/// `durable_event` carries `causation_kind` and `causation_ref` as a pair:
-/// its own `CHECK ((causation_kind IS NULL) = (causation_ref IS NULL))`
-/// requires both or neither. Modeling them as one `Option<Causation>` here
-/// rather than two independent `Option<String>` fields makes the invalid
-/// state (kind without reference, or reference without kind) unrepresentable
-/// in Rust, instead of merely unrepresentable in the schema.
-#[derive(Debug, Clone)]
-pub struct Causation {
-    pub kind: String,
-    pub reference: String,
-}
 
 #[derive(Debug, Clone)]
 pub struct DurableEvent {
@@ -106,6 +74,23 @@ impl DurableEvent {
     pub fn with_payload(mut self, v: serde_json::Value) -> Self {
         self.payload_json = v.to_string();
         self
+    }
+}
+
+/// The domain-to-column step: this service converts the ids it owns.
+impl From<&DurableEvent> for JournalEntry {
+    fn from(e: &DurableEvent) -> Self {
+        Self {
+            event_id: e.event_id.clone(),
+            kind: e.kind.clone(),
+            project_id: e.project_id.as_ref().map(|i| i.as_str().to_owned()),
+            thread_id: e.thread_id.as_ref().map(|i| i.as_str().to_owned()),
+            operation_id: e.operation_id.as_ref().map(|i| i.as_str().to_owned()),
+            actor: e.actor.clone(),
+            causation: e.causation.clone(),
+            correlation_id: e.correlation_id.clone(),
+            payload_json: e.payload_json.clone(),
+        }
     }
 }
 

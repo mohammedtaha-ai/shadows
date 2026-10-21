@@ -1,9 +1,9 @@
 //! One job: the planning thread types callers meet.
 
+use crate::db::Actor;
 use std::path::PathBuf;
 
-use crate::events::Actor;
-use crate::id::newtype_id;
+use crate::db::id::newtype_id;
 use crate::plans::{TaskId, WorkflowId};
 use crate::projects::ProjectId;
 use crate::turns::OperationId;

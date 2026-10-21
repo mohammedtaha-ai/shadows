@@ -1,6 +1,7 @@
 //! Person adoption of exact agreement versions through the plan edit transaction.
 use super::{EditOutcome, PlanOp, Plans, WorkflowId};
-use crate::{CoreError, ErrorCode, app::user_command, command::Writer};
+use crate::db::CommandContext;
+use crate::{CoreError, ErrorCode, command::Writer};
 
 impl Plans {
     pub async fn edit_bindings(
@@ -19,7 +20,7 @@ impl Plans {
                 message: "this operation changes agreement bindings only".into(),
             });
         }
-        let ctx = user_command(
+        let ctx = CommandContext::user(
             command_id,
             "PlanBindingsEdit",
             serde_json::json!({

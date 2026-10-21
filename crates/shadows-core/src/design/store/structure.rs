@@ -1,9 +1,10 @@
 //! Intent, snapshot and completion records for structure writing.
 use crate::ProjectId;
-use crate::command::CommandContext;
+use crate::db::Actor;
+use crate::db::CommandContext;
 use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
 use crate::design::{PartContent, StructureWritten, map_rules};
-use crate::events::{Actor, DurableEvent};
+use crate::events::DurableEvent;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct FileHash {

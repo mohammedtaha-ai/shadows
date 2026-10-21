@@ -478,7 +478,7 @@ fn derived_ids_carry_their_anchor() {
     );
     let op = OperationId::from_literal("op-1");
     assert_eq!(
-        derived_id(Anchor::Operation(&op), &fp),
+        derived_id(Anchor::Operation(op.as_str()), &fp),
         format!("op:op-1:{}", &fp[..16])
     );
     assert_eq!(derived_id(Anchor::DraftRef("dr-1"), &fp), "ref:dr-1");

@@ -10,9 +10,9 @@ use super::{
     prompt::{Prompt, PromptParts},
     turn::{PlannerTurn, TurnWatch, watch_turn},
 };
+use crate::db::Actor;
 use crate::{
     db::StorageError,
-    events::Actor,
     harness::{OpenSession, Sessions},
     runtime::Runtime,
     threads::ThreadId,

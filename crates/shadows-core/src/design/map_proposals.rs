@@ -1,10 +1,7 @@
 //! Map proposal values and service entry points.
 use super::{Design, DesignChange, PartContent, PartId, ProposalStatus};
-use crate::command::{
-    CommandContext, Writer,
-    derive::{Anchor, derived_id},
-    fingerprint,
-};
+use crate::command::Writer;
+use crate::db::{Anchor, CommandContext, derived_id, fingerprint};
 use crate::{CoreError, ErrorCode, Grant, ProjectId, ThreadId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -113,7 +110,7 @@ impl Design {
             agent: None,
             principal_kind: kind.into(),
             principal_id: id,
-            command_id: derived_id(Anchor::Operation(&turn), &fp),
+            command_id: derived_id(Anchor::Operation(turn.as_str()), &fp),
             command_kind: "MapPropose".into(),
             command_schema_ver: 1,
             request_fingerprint: fp,
@@ -132,7 +129,7 @@ impl Design {
         project: &ProjectId,
         proposal: &str,
     ) -> Result<DesignChange, CoreError> {
-        let ctx = crate::app::user_command(
+        let ctx = crate::db::CommandContext::user(
             command_id,
             "MapProposalApprove",
             serde_json::json!({"project":project,"proposal":proposal}),

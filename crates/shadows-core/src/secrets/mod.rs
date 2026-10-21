@@ -8,7 +8,7 @@ mod store;
 use std::sync::Arc;
 
 use crate::CoreError;
-use crate::app::user_command;
+use crate::db::CommandContext;
 use crate::db::Storage;
 use crypto::Keys;
 pub use model::{EnvEntry, SecretKey};
@@ -154,7 +154,7 @@ impl Secrets {
         let keys = self.keys()?;
         validate_env_name(name)?;
         validate_value(name, value)?;
-        let c = user_command(
+        let c = CommandContext::user(
             command_id,
             "secret_env.set",
             serde_json::json!({
@@ -175,7 +175,7 @@ impl Secrets {
     ) -> Result<(), CoreError> {
         self.keys()?;
         validate_env_format(name)?;
-        let c = user_command(
+        let c = CommandContext::user(
             command_id,
             "secret_env.remove",
             serde_json::json!({

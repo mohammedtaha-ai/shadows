@@ -18,9 +18,7 @@ use std::sync::Arc;
 
 use tokio::sync::broadcast;
 
-#[cfg(feature = "test-support")]
-pub use model::Causation;
-pub use model::{Actor, DurableEvent, EventCursor, UiSignal};
+pub use model::{DurableEvent, EventCursor, UiSignal};
 pub use store::StoredEvent;
 pub use subscription::{Delivery, Subscription};
 
