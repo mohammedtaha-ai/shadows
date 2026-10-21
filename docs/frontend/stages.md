@@ -151,7 +151,7 @@ implemented with focused automated checks. F-12 and F-14 retain their recorded b
 - Done when: `aylul.test.tsx` passes with codemap, typecheck, lint
 
 ### F-15 · A read sent before a save cannot overwrite the saved answer
-- Status: todo
+- Status: done
 - Plan: none; the problem and the fix are here. Found and fixed once in `you-card.tsx` (`79aa898`):
   a query read sent before a mutation answers after it, and its old data overwrites the answer
   the mutation just wrote with `setQueryData`. The screen then shows the old value although Core

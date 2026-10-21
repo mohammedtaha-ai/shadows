@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams, useSearch, useNavigate } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import { listAgreements, getAgreement, startAgreement } from '@/api/client'
+import { writeSaved } from '@/api/saved-answer'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { AgreementEditor } from './agreement-editor'
@@ -29,7 +30,7 @@ function AgreementsView({ projectId, id, number }: { projectId: string; id?: str
       : startAgreement(projectId, command.current.id, { capability: title, purpose: '', behavior: '',
         acceptance: [], parties: [], openapi: { openapi: '3.1.0', info: { title, version: '1' }, paths: {} } })
   }, onSuccess: async v => {
-    client.setQueryData(['projects', projectId, 'agreement', v.agreement_id, undefined], v)
+    await writeSaved(client, ['projects', projectId, 'agreement', v.agreement_id, undefined], v)
     await client.invalidateQueries({ queryKey: ['projects', projectId, 'agreements'] })
     await navigate({ to: '/projects/$projectId/agreements', params: { projectId }, search: { agreement: v.agreement_id } })
     command.current = null

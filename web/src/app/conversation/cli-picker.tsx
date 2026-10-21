@@ -8,6 +8,7 @@ import { useRef } from 'react'
 import { type PlanningThread, setThreadHarness } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { harnessesQuery, threadsQuery } from '@/api/queries'
+import { writeSaved } from '@/api/saved-answer'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -47,9 +48,9 @@ export function CliPicker({
   const change = useMutation({
     mutationFn: ({ commandId, kind }: { commandId: string; kind: string }) =>
       setThreadHarness(threadId, commandId, kind),
-    onSuccess: (thread) => {
+    onSuccess: async (thread) => {
       pending.current = null
-      queryClient.setQueryData<PlanningThread[]>(threadsQuery(projectId).queryKey, (threads) =>
+      await writeSaved<PlanningThread[]>(queryClient, threadsQuery(projectId).queryKey, (threads) =>
         threads?.map((t) => (t.id === thread.id ? thread : t)),
       )
       reopenSession(queryClient, threadId)

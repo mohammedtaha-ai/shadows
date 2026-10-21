@@ -86,6 +86,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/design.ts` | HTTP calls for the project design workspace | `web/src/api/client.ts` |
 | `web/src/api/error.ts` | Every failed daemon call as one typed error | `web/src/api/contract.yaml` |
 | `web/src/api/queries.ts` | TanStack Query keys for each piece of daemon state | `web/src/api/client.ts` |
+| `web/src/api/saved-answer.ts` | A mutation's answer written to the cache over any earlier read | `web/src/api/contract.yaml` |
 | `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/client.ts` |
 | `web/src/app/agents/agent-env.tsx` | One agent's environment variables, values write-only | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/agent-settings.tsx` | Agent editing form | `web/src/app/agents/contract.yaml` |

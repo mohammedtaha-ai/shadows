@@ -9,6 +9,7 @@ import { useRef, useState } from 'react'
 import { type InstructionsVersion, saveInstructions } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { instructionsQuery } from '@/api/queries'
+import { writeSaved } from '@/api/saved-answer'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { when } from './when'
@@ -47,9 +48,9 @@ function Editor({ projectId, saved }: { projectId: string; saved: InstructionsVe
   const save = useMutation({
     mutationFn: ({ commandId, body }: { commandId: string; body: string }) =>
       saveInstructions(projectId, commandId, body),
-    onSuccess: (version) => {
+    onSuccess: async (version) => {
       pending.current = null
-      queryClient.setQueryData(instructionsQuery(projectId).queryKey, version)
+      await writeSaved(queryClient, instructionsQuery(projectId).queryKey, version)
     },
   })
 

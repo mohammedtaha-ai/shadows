@@ -185,6 +185,11 @@ command_ids:
     signature: "(value: unknown) -> string"
     private: true
 
+saved_answers:
+  # saved-answer.ts
+  writeSaved: "<T>(client: QueryClient, queryKey: QueryKey, updater: Updater<T | undefined, T |
+      undefined>) -> Promise<void>; cancels reads of that exact key, then setQueryData"
+
 query_keys:
   # queries.ts: each returns queryOptions unless it is a key or a constant
   projectsQuery: "const; ['projects']; retry 2; polled every 10 s only after a first answer"
@@ -329,6 +334,16 @@ obligations:
     tested_by: "gives a fresh key once the previous attempt is forgotten"
 
   - rule: >
+      A mutation's answer written with `writeSaved` is not overwritten by a read of the same key
+      that was in flight when it was written: that read is cancelled first.
+    tested_by: "a read sent before the save cannot overwrite the saved answer"
+
+  - rule: >
+      `writeSaved` cancels only the exact key it writes; a read under a longer key that shares
+      its prefix keeps fetching and lands.
+    tested_by: "leaves a read under a longer key fetching"
+
+  - rule: >
       subscribeUrl carries thread_id and the resume cursor `after` as query parameters, built
       from DAEMON_URL.
     tested_by: "integration: holds one connection under StrictMode and closes it on unmount"
@@ -453,6 +468,10 @@ not_the_caller's:
   - >
     Add a route here before a screen calls it. The header of client.ts makes that rule.
   - >
+    Write a mutation's answer into the cache with `setQueryData` directly. Use `writeSaved`, so
+    a read sent before the mutation cannot bring the old state back. A cache filled from the
+    stream, or seeded before any read, is not a mutation's answer and keeps `setQueryData`.
+  - >
     Rename a query key in `queries.ts` without finding every invalidation that matches it
     in src/stream and src/app; those matches are by prefix, so a rename stops them silently.
 
@@ -489,6 +508,21 @@ tests:
   - name: gives a fresh key once the previous attempt is forgotten
     checks: >
       With previous null, the same request gets a new commandId.
+
+  # saved-answer.test.ts
+  - name: a read sent before the save cannot overwrite the saved answer
+    checks: >
+      A read held across writeSaved answers the old value after it; the cache keeps the written
+      one. Without the cancel the old value wins, so the test fails.
+
+  - name: applies an updater to what the cache holds
+    checks: >
+      An updater function receives the cached list and its result is stored.
+
+  - name: leaves a read under a longer key fetching
+    checks: >
+      writeSaved on ['projects'] does not cancel a held read of ['projects', 'p1', 'threads'],
+      whose answer lands.
 
   # design.test.ts
   - name: reads each route through the shared client

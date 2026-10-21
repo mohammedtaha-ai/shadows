@@ -917,7 +917,7 @@ agreements:
       page's composer takes it as `carried.attempt`.
     tested_by: "carries the selected plan and command into a failed first-send retry"
 
-  - between: [useFirstSend (setQueryData sessionKey), useSession]
+  - between: [useFirstSend (writeSaved sessionKey), useSession]
     must: >
       share one session cache entry, so the thread page does not open the session again
     holds: true

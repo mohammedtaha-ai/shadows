@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
 import { personQuery, savePerson, type Person } from '@/api/person'
 import { attemptFor, type Attempt } from '@/api/command-id'
+import { writeSaved } from '@/api/saved-answer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ErrorLine } from '../error-line'
@@ -27,9 +28,8 @@ function YouForm({ saved }: { saved: Person | undefined }) {
       return savePerson(pending.current.commandId, input)
     },
     onSuccess: async person => {
-      await queryClient.cancelQueries({ queryKey: personQuery.queryKey })
+      await writeSaved(queryClient, personQuery.queryKey, person)
       pending.current = null
-      queryClient.setQueryData(personQuery.queryKey, person)
       // The query passes the new record to this form a tick later; showing the saved values now,
       // not clearing them, keeps the old name from flashing back in between.
       setEdited({ name: person.name ?? '', calls: person.aylul_calls_me ?? '' })

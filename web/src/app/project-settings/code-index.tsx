@@ -16,6 +16,7 @@ import {
 } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { codeLinksQuery, codeStatusQuery, projectsQuery } from '@/api/queries'
+import { writeSaved } from '@/api/saved-answer'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -119,9 +120,9 @@ function LinkedRow({
   const unlink = useMutation({
     mutationFn: ({ linkedId, commandId }: { linkedId: string; commandId: string }) =>
       removeCodeLink(projectId, linkedId, commandId),
-    onSuccess: () => {
+    onSuccess: async () => {
       pending.current = null
-      queryClient.setQueryData<ProjectLink[]>(codeLinksQuery(projectId).queryKey, (list) =>
+      await writeSaved<ProjectLink[]>(queryClient, codeLinksQuery(projectId).queryKey, (list) =>
         list?.filter((l) => l.linked !== link.linked),
       )
       void queryClient.invalidateQueries({ queryKey: codeLinksQuery(projectId).queryKey })

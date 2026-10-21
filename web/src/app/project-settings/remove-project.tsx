@@ -13,6 +13,7 @@ import { useRef, useState } from 'react'
 import { type Project, removeProject } from '@/api/client'
 import { type Attempt, attemptFor } from '@/api/command-id'
 import { projectsQuery, threadsQuery } from '@/api/queries'
+import { writeSaved } from '@/api/saved-answer'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -90,7 +91,7 @@ function ConfirmRemove({
       settled()
       // Home first, so nothing on screen asks after the project any more.
       await navigate({ to: '/' })
-      queryClient.setQueryData<Project[]>(projectsQuery.queryKey, (list) =>
+      await writeSaved<Project[]>(queryClient, projectsQuery.queryKey, (list) =>
         list?.filter((p) => p.id !== project.id),
       )
       void queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey })
