@@ -49,7 +49,9 @@ Finished work (N-1 to N-5, the hook merge, the 2026-10-20 Core start-up) is in t
   and stale results cannot publish. Presence, companion and command contracts match.
 
 ### N-7 · Start with Windows, and closing the main window hides it or quits
-- Status: todo
+- Status: blocked
+- Blocker: AYLUL PID 39788 locks the desktop debug executable; normal close did not exit.
+  Do not kill it. Native acceptance and the N-6 fix rebuild await its normal exit.
 - Reviewed: steps released by the controller, 2026-10-21
 - Plan: docs/aylul/native/plans/2026-10-21-settings-native.md#task-n-7
 - Read: [the accepted request][settings-request]; native `windows/contract.yaml`,
