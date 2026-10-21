@@ -79,7 +79,7 @@ never print, log or commit a key).
 - Done when: written after B-6
 
 ### B-8 · Probe: skills and plugins under an isolated agent home
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-8--probe-skills-and-plugins-under-an-isolated-home
 - Read: spec §7
 - Touch: docs/evidence/<date>-agent-home-extensions-probe.md (new); probe code reverted

@@ -208,11 +208,14 @@ item no longer enabled leaves the home at the next opening. Enablement rows are
 keyed by agent slug and item id; deleting an agent removes its rows in the same
 write; removing an item from the library removes every agent's enablement of it.
 
-> **OPEN — how Claude Code loads them under `CLAUDE_CONFIG_DIR`.** Whether a
-> skill in `<home>/skills/` and a plugin enabled through `settings.json` load in
-> an ACP session with `settingSources: ["user"]`, and stay invisible to an
-> agent whose home does not enable them, is not known. Closed by B-8, a
-> recorded probe.
+> **CLOSED by B-8, 2026-10-21.** With the pinned runtime and user settings,
+> home A exposed its local skill and plugin command in ACP AvailableCommandsUpdate;
+> home B exposed neither. A directory marketplace declared in extraKnownMarketplaces
+> plus enabledPlugins was sufficient; no install CLI or extra flag was needed.
+> This proves discovery, not arbitrary plugin execution. At the next opening,
+> projection must also disable previously managed plugin ids and remove stale
+> managed files, preserving unrelated user settings. See
+> [raw extension evidence](../../evidence/2026-10-21-agent-home-extensions-probe.md).
 
 ## 8. Out of scope, and what this plan must not break
 
