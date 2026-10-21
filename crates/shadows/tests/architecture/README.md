@@ -19,7 +19,7 @@ comparison. No mutation test edits the real product tree.
 
 ## Checks
 
-- Ownership: `impl Storage` methods are indexed by defining service; calls use
+- Ownership: `impl Storage` methods are indexed by resolved type and defining service; calls use
   imports, renamed imports, reexports, simple type aliases, typed parameters,
   struct fields, local bindings, clone wrappers and declared method returns.
   A known unrelated receiver is not a Storage call just because a name matches.
@@ -33,14 +33,21 @@ comparison. No mutation test edits the real product tree.
   unknown tables, interpolation, unsupported statements and dynamic/indirect
   `sqlx::query*`, `raw_sql` or `QueryBuilder` inputs produce review findings.
   Query aliases, query macros and generic builder paths are checked too.
+  `QueryBuilder::push` inputs require the same classification, including
+  direct calls, local bindings and fluent `push`/`push_bind` chains; bound values
+  do not become dynamic SQL.
+  Each statement in a literal batch must be classified. Quoted identifiers
+  retain their table names without being mistaken for SQL clause keywords.
 - Adapters cannot name/import/call stores or known live registry types.
   A service cannot depend on AppCore. Service constructors (`new`/`start` on
   structs implemented in a service entry module, plus calls to `default`) may
-  only be invoked by the composition root; explicit service struct literals
+  only be invoked by `crates/shadows-core/src/app.rs`; explicit service struct literals
   are checked too. Publicly reexported value types defined in a store file are
   allowed as API values; stores and known registries remain forbidden.
   Existing test-support bypasses are
-  listed individually rather than excluded by filename or cfg.
+  listed individually rather than excluded by filename or cfg. Construction
+  checks also cover Core root files and foundation folders. Extracted services
+  may call their own store; the crate prefix identifies that owner.
 - Free functions with any Rust visibility modifier are findings in service
   modules, including inline modules; impl/trait methods are not free functions.
 - Only parser comment tokens are checked for section signs and history markers.
@@ -66,6 +73,9 @@ baseline includes both observed cross-owner accesses and individually identified
 review cases, including indirect SQL constants and the SQLite migration/schema
 catalog queries whose ownership is not assigned to an application service.
 Public-function and comment baselines preserve existing source-style violations.
+The ownership baseline also names the test-support `profiles` and `secrets`
+constructors in `testing/mod.rs`; review exposed these existing bypasses when
+construction checking was extended beyond service and adapter folders.
 
 Each record is `file :: enclosing symbol + reason [evidence hash] #occurrence`.
 The deterministic hash covers normalized source evidence. Repeated equal

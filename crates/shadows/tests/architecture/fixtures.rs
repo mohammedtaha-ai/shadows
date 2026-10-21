@@ -418,3 +418,160 @@ fn transport_verbs_and_public_dtos_are_not_store_or_sql_access() {
         "transport verbs and exported model types are safe"
     );
 }
+
+#[test]
+fn review_extracted_service_can_call_its_own_store() {
+    let tree = fixture();
+    let root = tree.path();
+    put(root, "crates/core-widgets/contract.yaml", "name: widgets");
+    put(
+        root,
+        "crates/core-widgets/src/lib.rs",
+        "mod store; fn read() { crate::store::get(); }",
+    );
+    put(root, "crates/core-widgets/src/store.rs", "fn get() {}");
+    let before = scanner::scan(root);
+    assert!(
+        !before.get("ownership").is_some_and(|entries| entries
+            .iter()
+            .any(|entry| entry.contains("cross-owner store call"))),
+        "own extracted store is safe: {before:#?}"
+    );
+    put(
+        root,
+        "crates/core-widgets/src/lib.rs",
+        "fn read() { core_projects::store::get(); }",
+    );
+    rejected(root, &before, "ownership");
+}
+
+#[test]
+fn review_each_sql_statement_requires_classification() {
+    let tree = fixture();
+    let root = tree.path();
+    let before = scanner::scan(root);
+    put(
+        root,
+        "crates/shadows-core/src/projects/query.rs",
+        "fn read() { sqlx::raw_sql(\"BEGIN IMMEDIATE; SELECT 1; COMMIT;\"); let _ = \"rollback failed; the connection is poisoned\"; }",
+    );
+    assert!(
+        compare(&scanner::scan(root), &before).is_empty(),
+        "transaction statements are safe and prose is not SQL"
+    );
+    for sql in [
+        "SELECT 1; PRAGMA table_info(project)",
+        "SELECT * FROM project; ATTACH DATABASE 'other.db' AS other",
+    ] {
+        put(
+            root,
+            "crates/shadows-core/src/projects/query.rs",
+            &format!("fn read() {{ sqlx::raw_sql({sql:?}); }}"),
+        );
+        rejected(root, &before, "ownership");
+    }
+}
+
+#[test]
+fn review_core_root_files_cannot_construct_services() {
+    let tree = fixture();
+    let root = tree.path();
+    let before = scanner::scan(root);
+    put(
+        root,
+        "crates/shadows-core/src/rogue.rs",
+        "fn build() { crate::projects::Projects::new(); }",
+    );
+    rejected(root, &before, "ownership");
+}
+
+#[test]
+fn review_quoted_sql_identifiers_are_not_keywords() {
+    let tree = fixture();
+    let root = tree.path();
+    let before = scanner::scan(root);
+    for sql in [
+        "SELECT \"from\", \"join\", 'FROM planning_thread' FROM \"project\"",
+        "SELECT `from`, [join] FROM project",
+        "SELECT \"a\"\"from\" FROM project",
+    ] {
+        put(
+            root,
+            "crates/shadows-core/src/projects/query.rs",
+            &format!("fn read() {{ sqlx::query({sql:?}); }}"),
+        );
+        assert!(
+            compare(&scanner::scan(root), &before).is_empty(),
+            "quoted identifiers are not SQL clauses: {sql}"
+        );
+    }
+    put(
+        root,
+        "crates/shadows-core/src/projects/query.rs",
+        &format!(
+            "fn read() {{ sqlx::query({:?}); }}",
+            "SELECT * FROM \"planning_thread\""
+        ),
+    );
+    let after = rejected(root, &before, "ownership");
+    assert!(
+        after["ownership"]
+            .iter()
+            .any(|entry| entry.contains("SQL table planning_thread belongs to threads")),
+        "quoted table retains its owner: {after:#?}"
+    );
+}
+
+#[test]
+fn review_extracted_storage_methods_keep_their_type_owner() {
+    let tree = fixture();
+    let root = tree.path();
+    for owner in ["widgets", "other"] {
+        put(
+            root,
+            &format!("crates/core-{owner}/contract.yaml"),
+            &format!("name: {owner}"),
+        );
+        put(
+            root,
+            &format!("crates/core-{owner}/src/lib.rs"),
+            "pub struct Storage; impl Storage { pub fn read(&self) {} }",
+        );
+    }
+    let before = scanner::scan(root);
+    for call in ["storage.read()", "Foreign::read(storage)"] {
+        put(
+            root,
+            "crates/core-widgets/src/query.rs",
+            &format!(
+                "use core_other::Storage as Foreign; fn query(storage: &Foreign) {{ {call}; }}"
+            ),
+        );
+        rejected(root, &before, "ownership");
+    }
+}
+
+#[test]
+fn review_dynamic_query_builder_fragments_require_review() {
+    let tree = fixture();
+    let root = tree.path();
+    let before = scanner::scan(root);
+    for source in [
+        "fn read(table: &str) { let mut query = sqlx::QueryBuilder::new(\"SELECT 1\"); query.push(table); }",
+        "use sqlx::QueryBuilder as Builder; fn read(table: &str) { let mut query: Builder<sqlx::Sqlite> = Builder::new(\"SELECT 1\"); query.push(table); }",
+        "fn read(table: &str) { sqlx::QueryBuilder::<sqlx::Sqlite>::new(\"SELECT 1\").push(table); }",
+        "fn read(table: &str) { sqlx::QueryBuilder::<sqlx::Sqlite>::new(\"SELECT 1\").push_bind(1).push(table); }",
+    ] {
+        put(root, "crates/shadows-core/src/projects/query.rs", source);
+        rejected(root, &before, "ownership");
+    }
+    put(
+        root,
+        "crates/shadows-core/src/projects/query.rs",
+        "fn read(value: &str) { let mut query = sqlx::QueryBuilder::new(\"SELECT 1\"); query.push_bind(value); let mut values = Vec::new(); values.push(value); }",
+    );
+    assert!(
+        compare(&scanner::scan(root), &before).is_empty(),
+        "bound values and unrelated push calls are safe"
+    );
+}

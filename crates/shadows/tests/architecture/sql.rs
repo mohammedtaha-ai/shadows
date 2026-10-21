@@ -26,8 +26,22 @@ pub(super) fn statement(sql: &str) -> bool {
         "insert" | "replace" => lower.contains("into"),
         "delete" => lower.contains("from"),
         "update" => lower.contains("set"),
-        "select" | "with" | "pragma" | "create" | "alter" | "drop" | "begin" | "commit"
-        | "rollback" => true,
+        "begin" | "commit" | "rollback" => matches!(
+            lower.split(';').next().unwrap_or("").trim(),
+            "begin"
+                | "begin transaction"
+                | "begin immediate"
+                | "begin exclusive"
+                | "begin deferred"
+                | "begin immediate transaction"
+                | "begin exclusive transaction"
+                | "begin deferred transaction"
+                | "commit"
+                | "commit transaction"
+                | "rollback"
+                | "rollback transaction"
+        ),
+        "select" | "with" | "pragma" | "create" | "alter" | "drop" => true,
         _ => false,
     }
 }
@@ -58,8 +72,13 @@ fn tokens(sql: &str) -> Result<Vec<String>, &'static str> {
                 let end = if ch == '[' { ']' } else { ch };
                 let mut word = String::new();
                 let mut closed = false;
-                for ch in chars.by_ref() {
+                while let Some(ch) = chars.next() {
                     if ch == end {
+                        if end != ']' && chars.peek() == Some(&end) {
+                            chars.next();
+                            word.push(end);
+                            continue;
+                        }
                         closed = true;
                         break;
                     }
@@ -68,7 +87,8 @@ fn tokens(sql: &str) -> Result<Vec<String>, &'static str> {
                 if !closed {
                     return Err("unterminated identifier");
                 }
-                out.push(word.to_lowercase());
+                // Quoted identifiers cannot act as clause keywords.
+                out.push(format!("@{}", word.to_lowercase()));
             }
             '-' if chars.peek() == Some(&'-') => {
                 for ch in chars.by_ref() {
@@ -125,7 +145,14 @@ pub(super) fn check(
             return;
         }
     };
-    if ["with", "pragma", "create", "alter", "drop"].contains(&first.as_str()) {
+    if tokens.split(|token| token == ";").any(|statement| {
+        statement.first().is_some_and(|first| {
+            ![
+                "select", "insert", "replace", "update", "delete", "begin", "commit", "rollback",
+            ]
+            .contains(&first.as_str())
+        })
+    }) {
         review(recorder, "unsupported statement");
         return;
     }
@@ -162,6 +189,7 @@ pub(super) fn check(
         }
         if expects_table {
             let next = tokens.get(i + 1).map(String::as_str).unwrap_or("");
+            let next = next.strip_prefix('@').unwrap_or(next);
             if next == "(" {
                 continue;
             }

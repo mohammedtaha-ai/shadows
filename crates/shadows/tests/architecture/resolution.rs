@@ -9,6 +9,7 @@ pub(super) struct Index {
     aliases: BTreeMap<String, String>,
     fields: BTreeMap<(String, String), String>,
     storage_methods: BTreeMap<String, BTreeSet<String>>,
+    storage_owners: BTreeMap<(String, String), BTreeSet<String>>,
     constructors: BTreeSet<String>,
     returns: BTreeMap<(String, String), String>,
     exports: BTreeSet<String>,
@@ -145,6 +146,7 @@ impl Index {
             aliases: BTreeMap::new(),
             fields: BTreeMap::new(),
             storage_methods: BTreeMap::new(),
+            storage_owners: BTreeMap::new(),
             constructors: BTreeSet::new(),
             returns: BTreeMap::new(),
             exports: BTreeSet::new(),
@@ -241,6 +243,11 @@ impl Index {
                                         .any(|node| node.kind() == "self_parameter")
                                 });
                         if ty.ends_with("::Storage") && has_receiver {
+                            index
+                                .storage_owners
+                                .entry((ty.clone(), method_name.clone()))
+                                .or_default()
+                                .insert(source.owner.clone());
                             index
                                 .storage_methods
                                 .entry(method_name.clone())
@@ -355,6 +362,12 @@ impl Index {
             return Some(self.resolve(source, node, source.text(node)));
         }
         if node.kind() == "generic_type" {
+            if let Some(ty) = node.child_by_field_name("type") {
+                let resolved = self.resolve(source, node, source.text(ty));
+                if resolved == "sqlx::QueryBuilder" {
+                    return Some(resolved);
+                }
+            }
             let arguments = node.child_by_field_name("type_arguments")?;
             return children(arguments)
                 .into_iter()
@@ -444,17 +457,22 @@ impl Index {
                     }
                     let receiver =
                         self.receiver(source, function.child_by_field_name("value")?, depth + 1)?;
+                    if receiver == "sqlx::QueryBuilder"
+                        && ["push", "push_bind"].contains(&source.text(method))
+                    {
+                        return Some(receiver);
+                    }
                     return self
                         .returns
                         .get(&(receiver, source.text(method).to_owned()))
                         .cloned();
                 } else {
-                    let function = source.text(function);
+                    let function = without_generics(source.text(function));
                     if let Some((ty, method)) = function.rsplit_once("::")
                         && ["new", "start", "open", "default", "clone"].contains(&method)
                     {
                         let resolved = self.resolve(source, node, ty);
-                        if self.types.contains_key(&resolved) {
+                        if self.types.contains_key(&resolved) || resolved == "sqlx::QueryBuilder" {
                             return Some(resolved);
                         }
                         if ["Arc", "std::sync::Arc", "Box"].contains(&ty) {
@@ -495,10 +513,9 @@ fn sensitive(path: &str) -> bool {
 }
 
 pub(super) fn check(source: &Source, node: Node<'_>, index: &Index, recorder: &mut Recorder) {
-    if !(source.service || source.adapter) {
-        return;
-    }
-    if node.kind() == "struct_expression"
+    let composition = source.path == "crates/shadows-core/src/app.rs";
+    if !composition
+        && node.kind() == "struct_expression"
         && let Some(ty) = node
             .child_by_field_name("name")
             .and_then(|ty| index.type_of(source, ty))
@@ -510,6 +527,27 @@ pub(super) fn check(source: &Source, node: Node<'_>, index: &Index, recorder: &m
             node,
             &format!("construct {ty} outside composition root"),
         );
+    }
+    if !composition
+        && node.kind() == "call_expression"
+        && let Some(function) = node.child_by_field_name("function")
+        && function.kind() != "field_expression"
+    {
+        let path = index.resolve(source, node, source.text(function));
+        if let Some((ty, method)) = path.rsplit_once("::")
+            && ["new", "start", "default"].contains(&method)
+            && index.constructors.contains(ty)
+        {
+            recorder.at(
+                "ownership",
+                source,
+                node,
+                &format!("construct {ty} outside composition root"),
+            );
+        }
+    }
+    if !(source.service || source.adapter) {
+        return;
     }
     if node.kind() == "macro_invocation"
         && let Some(mac) = node.child_by_field_name("macro")
@@ -580,12 +618,27 @@ pub(super) fn check(source: &Source, node: Node<'_>, index: &Index, recorder: &m
             return;
         };
         let method = source.text(method);
+        if method == "push"
+            && function
+                .child_by_field_name("value")
+                .and_then(|value| index.receiver(source, value, 0))
+                .is_some_and(|ty| ty == "sqlx::QueryBuilder")
+        {
+            let argument = node
+                .child_by_field_name("arguments")
+                .and_then(|args| children(args).first().copied());
+            query_argument(source, argument, recorder, node);
+        }
         if let Some(owners) = index.storage_methods.get(method)
             && !POOL_METHODS.contains(&method)
         {
             let receiver = function
                 .child_by_field_name("value")
                 .and_then(|value| index.receiver(source, value, 0));
+            let owners = receiver
+                .as_ref()
+                .and_then(|ty| index.storage_owners.get(&(ty.clone(), method.to_owned())))
+                .unwrap_or(owners);
             match receiver {
                 Some(ty)
                     if ty.ends_with("::Storage")
@@ -632,32 +685,30 @@ pub(super) fn check(source: &Source, node: Node<'_>, index: &Index, recorder: &m
     } else {
         let call = source.text(function);
         let path = index.resolve(source, node, call);
-        if let Some((ty, method)) = path.rsplit_once("::") {
-            if ["new", "start", "default"].contains(&method) && index.constructors.contains(ty) {
+        if let Some((ty, method)) = path.rsplit_once("::")
+            && ty.ends_with("::Storage")
+            && index.storage_methods.contains_key(method)
+            && !POOL_METHODS.contains(&method)
+        {
+            let owners = index
+                .storage_owners
+                .get(&(ty.to_owned(), method.to_owned()))
+                .unwrap_or(&index.storage_methods[method]);
+            if !owners.contains(&source.owner) || source.adapter {
                 recorder.at(
                     "ownership",
                     source,
                     node,
-                    &format!("construct {ty} outside composition root"),
+                    &format!("Storage::{method} cross-owner associated call"),
                 );
-            }
-            if ty.ends_with("::Storage")
-                && index.storage_methods.contains_key(method)
-                && !POOL_METHODS.contains(&method)
-            {
-                let owners = &index.storage_methods[method];
-                if !owners.contains(&source.owner) || source.adapter {
-                    recorder.at(
-                        "ownership",
-                        source,
-                        node,
-                        &format!("Storage::{method} cross-owner associated call"),
-                    );
-                }
             }
         }
         if path.contains("::store::") {
-            let owner = path.split("::").nth(1).unwrap_or("");
+            let mut parts = path.split("::");
+            let krate = parts.next().unwrap_or("");
+            let owner = krate
+                .strip_prefix("core_")
+                .unwrap_or_else(|| parts.next().unwrap_or(""));
             if source.adapter || (source.service && owner != source.owner) {
                 recorder.at(
                     "ownership",

@@ -171,6 +171,8 @@ crates/shadows-core/src/secrets/store.rs :: remove cross-owner store call shadow
 crates/shadows-core/src/secrets/store.rs :: remove cross-owner store call shadows_core::profiles::store::require_provider_in [4a5cefb883257cd5] #1
 crates/shadows-core/src/secrets/store.rs :: set cross-owner store call shadows_core::profiles::store::require_live_agent_in [42ba19307e91ba84] #1
 crates/shadows-core/src/secrets/store.rs :: set cross-owner store call shadows_core::profiles::store::require_provider_in [4a5cefb883257cd5] #1
+crates/shadows-core/src/testing/mod.rs :: profiles construct shadows_core::profiles::Profiles outside composition root [b9776aa96705a512] #1
+crates/shadows-core/src/testing/mod.rs :: secrets construct shadows_core::secrets::Secrets outside composition root [3080393c1dc7f412] #1
 crates/shadows-core/src/threads/mod.rs :: Threads::create Storage::get_project belongs to projects [bc3b030a18e1b47c] #1
 crates/shadows-core/src/threads/mod.rs :: Threads::operations Storage::list_operations_for_thread belongs to turns [5c4a7ca094c6059d] #1
 crates/shadows-core/src/threads/mod.rs :: Threads::set_harness Storage::get_project belongs to projects [00bb8ae80c8d1c71] #1

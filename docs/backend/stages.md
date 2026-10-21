@@ -27,6 +27,7 @@ are reference material; they do not replace the project's template or code.
 
 ### A-0 · The architecture ratchet test
 - Status: done
+- Review: focused independent review repaired construction coverage, extracted-store ownership and SQL classification; regression fixtures use temporary trees.
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-0--the-architecture-ratchet-test
 - Read: root `AGENTS.md` "Code structure"; AppCore; the plan's A-0 and audit table; owner spec §14.12; docs/codebase/README.md; crates/shadows/Cargo.toml; service contracts reached from AppCore
 - Touch: crates/shadows/tests/architecture/ (new test, fixtures, table owners and baseline files), crates/shadows/Cargo.toml (existing workspace parser dev-dependencies only), Cargo.lock (generated), docs/codebase/README.md (test ownership entry), docs/backend/stages.md (this task), docs/backend/plans/2026-10-21-architecture.md (A-0 clarification only)
