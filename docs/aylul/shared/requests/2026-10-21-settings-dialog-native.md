@@ -1,6 +1,6 @@
 # Settings dialog: character colour and the General switches
 
-- Status: asked
+- Status: accepted
 - Asked by: masada (Desktop UI and web), 2026-10-21
 - Owner: Native scope
 - Serves: docs/frontend/specs/2026-10-20-settings-dialog-design.md (Character colour; General),
@@ -26,9 +26,10 @@ tray instead of quitting.
 
 - The colour is read where the presence already reads the agent (on selection and on the
   10-second check while bound); native keeps no list of colours and never validates the id.
-- Defaults on a fresh install: `launchAtLogin: false`, `closeToTray: false` (today's behaviour).
-  With `closeToTray` on, closing the main window hides it; the tray menu reopens it and its
-  Quit really quits. Both are stored by native on this machine, not in Core.
+- Defaults on a fresh install: `launchAtLogin: false`, `closeToTray: true` (today closing the
+  main window already hides it: `windows/mod.rs` prevents the close and hides).
+  With `closeToTray` on, closing the main window hides it (today's behaviour); with it off, closing
+  the main window quits the desktop. The tray's Quit always quits. Both are stored by native on this machine, not in Core.
 
 ## Errors
 
@@ -41,11 +42,24 @@ tray instead of quitting.
 
 ## Answer
 
-<Native scope: as asked / with a change / not possible, and why.>
+With one change, by the teacher for the native scope (no native lead is running), 2026-10-21:
+`closeToTray` defaults to **true**, because closing the main window already hides it today
+(the asked default `false` would have changed today's behaviour). Everything else as asked:
+
+- `appearance.color`: the presence check in `presence/client.rs` already reads
+  `/api/aylul/agents` for the bound agent; it also reads `character_color` (absent stays absent,
+  never validated), and the companion state carries `appearance: { color }` only while the
+  agent is bound and available.
+- `refresh_companion_appearance`: main only; reruns that check once and republishes.
+- `desktop_preferences` / `set_desktop_preferences`: main only. `launchAtLogin` uses
+  `tauri-plugin-autostart` (infrastructure: the OS login item); `closeToTray` is stored by native
+  in the desktop's app data and read by the main window's close handler.
+- Main only means the companion window's capability does not list them.
 
 ## Reply
 
-<masada: accepted, or what must stay and why.>
+Accepted, 2026-10-21 (the teacher, for the asking side): the `closeToTray: true` default keeps
+today's behaviour, which is what General must show first.
 
 ## Ruling
 
