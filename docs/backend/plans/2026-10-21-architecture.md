@@ -297,6 +297,107 @@ ledger, exact `Touch:` lists and affected test commands are recorded, and the
 controller verifies the proposed graph is acyclic. Until then crate extraction
 is blocked, while A-0 to A-7's independent fixes can proceed.
 
+#### A-8c ledger (controller, 2026-10-22, inspected at `cdc218b`)
+
+Sources:
+- `use crate::…` and inline `crate::…` paths in `crates/shadows-core/src`, with test modules excluded.
+- `crates/shadows/tests/architecture/ownership.allowlist`, which lists the cross-owner SQL, store calls and `Storage` calls.
+- `table-owners.txt`.
+
+These rows are decisions. A builder applies them and does not reopen them. If a row proves wrong in code, the task stops and returns to the controller.
+
+**Foundation (`core-db`, extracted in A-19b; prepared in A-8d).**
+
+| Today | Decision |
+|---|---|
+| `app::user_command` (called by 11 services) | Becomes `CommandContext::user(command_id, kind, params)`. Services stop importing `app`. |
+| `command::{CommandContext, fingerprint, derived_id}` | Move to the foundation, because command persistence needs them. `Anchor::Operation` takes the operation id as `&str`. |
+| `command::{Writer, Approver, ApprovalRequest, ApprovedBy}` | Owned by `grants`. They name `ThreadId` and `ThreadEntryId`, and they are authorization. |
+| `events::{Actor, Causation}` | Move to the foundation. They carry no service types. |
+| `events::DurableEvent` (holds `ProjectId`, `ThreadId`, `OperationId`) | The journal takes a `JournalEntry` whose subject ids are strings. Each service converts its own ids. `DurableEvent`, `UiSignal` and the subscription stay with `events`, which becomes the top read service. The plan payload projection moves to `plans` (A-19). |
+| `app::Bus` | Moves to the foundation as the committed-journal notifier. `turns` and `events` receive it from there. |
+| `id::newtype_id!` | The foundation owns the macro. Each id type stays with its service. There is no shared types crate. |
+| `db::StorageError` | Keeps only database failures: `Unavailable`, `Migration`, `Constraint`, `NotFound`, `TransitionConflict`, `RevisionConflict`, `CommandConflict`, `Json`, `Database`. Every other variant moves to its owner's error in that owner's task: plans gets `PlanInvalid(Problem)`, `PlanLinkInvalid`, `WorkflowFrozen`, `NotLatestVersion`, `PlanArchived`, `TaskNotInPlan`, `ReasonMissing`; grants gets `GrantInvalid`, `GrantScope`; threads gets `HarnessLocked`, `ForkPointNotSupported`; turns gets `ThreadBusy`, `QueuedMessageGone`; profiles gets `Extension*`, `Aylul*`, `ProviderInUse`, `ProfileInvalid`; design gets `StageBlocked`; project removal gets `ProjectHasThreads`. |
+| `error::CoreError` (holds `OpenError`, `DirectoryError`, `StartError`) | `CoreError`, `ErrorCode`, `Refused` and `InvalidCommand` hold no service type. Each `From<ServiceError> for CoreError` lives with that service. At extraction the vocabulary becomes `core-error`, and A-4's single HTTP/MCP mapping stays in `shadows-core`. |
+| `db/approval.rs` | `authorise_in` and `read_in` move to `grants`. Grants reads the request entry through `threads`' `entry_in`. |
+| `db/write_observer.rs` | Follows the foundation under `test-support`. |
+
+**Tables whose owner changes** (A-0's `table-owners.txt` changes in the task named):
+
+| Table | From → to | Task | Why |
+|---|---|---|---|
+| `standards_additions_version` | design → `standards` | A-12b | Harness and turns read standards and sit below design |
+| `aylul_provider` / `aylul_agent` / `aylul_extension` + `aylul_agent_extension` / `aylul_usage` / `aylul_person` | profiles → `providers` / `agents` / `extensions` / `usage` / `person` | A-14 | The five owners A-14 requires |
+| `draft_intent` | plans → grants | A-13 | It is the state behind issuing a draft ref, and plans calls `bind_draft_ref`. Grants stores the workflow as an opaque ref and never imports `WorkflowId`. |
+| `operation` | turns → `operations` | A-17b | Design and plans check a running turn, and turns reads plans for focus. Splitting operation lifecycle from turn sending is the only cut without a callback. |
+| `agent_invocation` | turns → harness | A-17 | It records what context a session heard. Turns writes it through `Harness::record_invocation_in`. |
+| `design_part_plan`, `design_outcome_plan` | design → plans | A-16 | Links from plans to design entities. Design then needs no `PlanId`. |
+| `command_record`, `durable_event` | db → foundation | A-8d / A-19b | — |
+
+**New owners.** These are controller decisions. None of them is a helper or a facade.
+- **`standards`:** the project standards and their additions.
+- **`operations`:** operation rows, `LiveHandles`, the running-turn check, stop, and recovery. Recovery leaves `runtime`, and `runtime` keeps only register and stop.
+- **`project-removal`:** removing a project. Inside one transaction it checks threads, invalidates plan dependencies, cleans code and revokes grants. After the commit it stops the code worker. Every service it touches sits below it, so `projects` stays a lower service. A "renamed registry" would not be an owner. This is a use case with its own rule (`ProjectHasThreads`) and its own test (`project_remove.rs`).
+
+**The service cycles found and how each is cut:**
+
+| Cycle | Cut | Task |
+|---|---|---|
+| projects ↔ code ↔ plans | Removal moves to `project-removal` (A-16b). `code_order` stops joining `operation`/`planning_thread`, and calls `Projects::by_recent_activity()`, which projects computes from the journal (A-11, A-12). The link commands become `Plans::link_projects` / `unlink_projects`, which call code's `put_link_in` / `remove_link_in` and then notify (A-16). | A-11, A-12, A-16, A-16b |
+| projects ↔ threads | `known_harness` and the harness policy move to `projects` | A-11 |
+| secrets ↔ profiles | Secrets stores by scope and checks nothing upward. Setting an agent's or a provider's env becomes `Agents::set_env` / `Providers::set_key`, which check existence and call `Secrets::put_in`. | A-10 creates `put_in`; A-14 moves the callers |
+| profiles ↔ harness | `harness/profile_home.rs` (`seed`) moves to `agents`. Harness asks agents for the home. | A-14 |
+| threads ↔ harness ↔ turns | `Threads::set_harness`'s session close becomes `Harness::set_thread_harness`. `Threads::remove`'s stop, close and revoke become `Turns::remove_thread`. Threads then calls neither. | A-17, A-18 |
+| grants ↔ threads, grants ↔ plans | Grants is above threads. Harness issues the thread grant after checking the thread. `draft_intent` moves to grants with an opaque workflow ref. | A-13 |
+| harness ↔ turns | `agent_invocation` moves to harness. `thread_is_busy` calls `operations`. | A-17, A-17b |
+| design ↔ plans | Plans owns the plan links (above). The design operations that read plan bindings (`agreement_participants_in`, `part_bindings_in`, `check_design_plan`) become `Plans` methods. | A-16 |
+| design/plans ↔ turns | The running-turn checks call `operations`, not turns | A-17b, A-16 |
+| runtime ↔ turns | Recovery becomes `Operations::recover`. `Runtime` drops `pub storage`. | A-17b |
+
+**The resolved graph** (each service may depend only on those listed; `core-db` and `core-error` are implicit). A script checked this graph for cycles at `cdc218b`. Extraction follows this order:
+
+| # | Service | Depends on |
+|---|---|---|
+| 1 | `secrets` | — |
+| 2 | `projects` | — |
+| 3 | `instructions` | projects |
+| 4 | `standards` | projects |
+| 5 | `code` | projects |
+| 6 | `providers` | secrets |
+| 7 | `agents` | providers, secrets, projects |
+| 8 | `extensions` | agents |
+| 9 | `usage` | agents |
+| 10 | `person` | — |
+| 11 | `threads` | projects, code, agents |
+| 12 | `grants` | projects, threads |
+| 13 | `runtime` | — |
+| 14 | `operations` | threads, runtime |
+| 15 | `harness` | threads, grants, operations, agents, providers, extensions, secrets, instructions, standards, projects |
+| 16 | `design` | projects, threads, grants, operations, standards |
+| 17 | `plans` | design, code, grants, threads, operations, projects |
+| 18 | `turns` | harness, operations, threads, grants, plans, design, standards, instructions, usage, runtime, code, projects |
+| 19 | `project-removal` | projects, threads, plans, code, grants |
+| 20 | `events` | harness, plans, projects, threads, turns, operations |
+
+`shadows-core` (`AppCore`) depends on all of them. Adapters depend on `shadows-core` only.
+
+**Preparation order.** The task numbers are not this order. Each task's `Needs:` names the one before it:
+
+A-8d → A-9 → A-10 → A-11 → A-12 → A-12b → A-14 → A-15 → A-13 → A-17b → A-17 → A-16 → A-18 → A-16b → A-19.
+
+**The remaining inspected edges:**
+- **`instructions`:** its SQL reads of `project` become `Projects::require_live_in(tx, id)` (A-9). Its other imports resolve to the foundation.
+- **`projects` → `Code`:** after the removal moves out, projects only stops the code worker for a removed project, and that call now sits in `project-removal`.
+- **`events` → `Harness`, plans and `workflow` SQL:** `events` is the top read service. `read_project_events_after` reads `workflow` through `Plans` (A-19).
+- **Inherent `impl Storage` blocks:** each service task moves its blocks to a private `<Service>Store` type that holds the shared handle. This is Phase 3's rule; no extension traits.
+
+**Tests.**
+- Each service's tests use its public API, through a `test-support` constructor that takes its declared dependencies, plus the foundation's temporary storage. They never use `AppCore`.
+- Tests that cross services stay with `shadows-core` through `testing::app`.
+- Adapter tests stay in `crates/shadows/tests`.
+- Each task's `Done when:` names its test binaries. `cargo test -p shadows --test architecture` and `--test codemap` run in every task.
+- The 27 `CoreParts` files and the 10 `Sessions::new` callers listed in A-8's report move in the task that owns them, and the last one deletes `from_parts`.
+
 ## Phase 3 · Establish each service boundary in place
 
 Each task prepares one service inside `shadows-core`; these are ownership tasks,
@@ -333,9 +434,9 @@ task whose required method, owner or scoped test fixture is missing:
 | A-13 | `grants` | `tools_for(kind)` (A-6); `check_writer` and `bind_draft_ref` become methods |
 | A-14 | `profiles` → `providers`, `agents`, `extensions`, `usage`, `person` | The controller names all five owners in A-8c. Preserve local person reads/updates. One provider test (absorbs `Harness::test_saved_provider`), one preset lookup, one owner of label/name limits; pricing leaves the store. |
 | A-15 | `threads` | Stop and close on removal move to `Turns`, which breaks the Threads ↔ Turns cycle. `db/approval.rs` domain SQL moves to `threads`, `grants` and `turns`. |
-| A-16 | `design` + `plans` (one task: their mutual reach is undone together) | One planner approver, writer resolution, propose pipeline, stage decision, slug/cycle rule and `Constraint → Refused` mapping (A-4). Running-turn checks go through `Turns` with the existing transaction/race guarantees; a renamed `RunningTurns` registry is not another owner. Shared types stay with their actual owner. |
+| A-16 | `design` + `plans` (one task: their mutual reach is undone together) | One planner approver, writer resolution, propose pipeline, stage decision, slug/cycle rule and `Constraint → Refused` mapping (A-4). Running-turn checks go through `operations` (A-8c ledger) with the existing transaction/race guarantees; a renamed registry beside it is not another owner. Shared types stay with their actual owner. |
 | A-17 | `harness` | `Sessions` becomes private to `Harness`. The §14.9 order check stated once. The turn-model rule shared with `prepare_turn`. `titles` calls `Threads`. |
-| A-18 | `turns` | It reaches Sessions only through `Harness`. The "not terminal" status is one store constant. One stop path. One writer of `Interrupted` (recovery moves from `runtime` to `Turns::recover`). |
+| A-18 | `turns` | It reaches Sessions only through `Harness`. The "not terminal" status is one store constant. One stop path. One writer of `Interrupted` (recovery moves from `runtime` to `Operations::recover`, A-17b). |
 | A-19 | `events` + `runtime` + `command` | The plan payload projection moves to `plans`. `runtime` keeps register and stop, and drops `pub storage`. `command` gets its contract, and its free functions become methods. |
 
 When these preparations are done, the services still live in `shadows-core`,

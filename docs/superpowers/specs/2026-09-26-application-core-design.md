@@ -596,6 +596,21 @@ inspected code, reference external types by owner, and distinguish verified
 passing YAML parser do not prove behavior. Preserve useful rationale when
 removing obsolete comments. This amendment is a target, not evidence of delivery.
 
+**2026-10-22, the resolved ledger.** The plan's A-8c ledger records the owners
+and the acyclic extraction order. It adds four owners:
+- `standards`: out of design.
+- `operations`: operation rows, live handles, running-turn checks, stop and
+  recovery, out of turns and runtime.
+- `project-removal`: removing a project across its dependants in one
+  transaction.
+- The five owners out of profiles: providers, agents, extensions, usage and
+  person.
+
+Foundation inputs carry no service types:
+- the journal takes string subject ids;
+- `CommandContext::user` replaces `app::user_command`;
+- `StorageError` keeps only database failures.
+
 The [architecture plan](../../backend/plans/2026-10-21-architecture.md) owns the
 task sequence. Product workspace moves and runtime replacement are separate
 deliveries; neither is required to provide one `AppCore` or private service stores.
