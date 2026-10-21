@@ -98,7 +98,7 @@ crates/shadows-core/src/harness/mod.rs :: Harness::limits_of Storage::turn_conte
 crates/shadows-core/src/harness/mod.rs :: Harness::open_idle Storage::thread_is_busy belongs to turns [8a453cd297f33f2a] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::open_idle Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::open_session Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
-crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::profiles::Profiles outside composition root [35cd744da33a068f] #1
+crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::profiles::Profiles outside composition root [6e9dd15e2248227f] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::current_planner_instructions belongs to instructions [8040624286e419e7] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::latest_invocation_versions belongs to turns [ab2b1b69e7a914ff] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::standards_additions_for_invocation belongs to design [af01db096346f319] #1
@@ -171,7 +171,7 @@ crates/shadows-core/src/secrets/store.rs :: remove cross-owner store call shadow
 crates/shadows-core/src/secrets/store.rs :: remove cross-owner store call shadows_core::profiles::store::require_provider_in [4a5cefb883257cd5] #1
 crates/shadows-core/src/secrets/store.rs :: set cross-owner store call shadows_core::profiles::store::require_live_agent_in [42ba19307e91ba84] #1
 crates/shadows-core/src/secrets/store.rs :: set cross-owner store call shadows_core::profiles::store::require_provider_in [4a5cefb883257cd5] #1
-crates/shadows-core/src/testing/mod.rs :: profiles construct shadows_core::profiles::Profiles outside composition root [b9776aa96705a512] #1
+crates/shadows-core/src/testing/mod.rs :: profiles construct shadows_core::profiles::Profiles outside composition root [32526512da4b79e3] #1
 crates/shadows-core/src/testing/mod.rs :: secrets construct shadows_core::secrets::Secrets outside composition root [3080393c1dc7f412] #1
 crates/shadows-core/src/threads/mod.rs :: Threads::create Storage::get_project belongs to projects [bc3b030a18e1b47c] #1
 crates/shadows-core/src/threads/mod.rs :: Threads::operations Storage::list_operations_for_thread belongs to turns [5c4a7ca094c6059d] #1

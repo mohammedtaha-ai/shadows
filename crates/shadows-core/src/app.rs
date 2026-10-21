@@ -78,9 +78,9 @@ pub struct CoreParts {
 /// The first twelve owners have typed accessors on `AppCore`. `Runtime` is
 /// internal: `start` builds it before assembly, then `Turns` holds the shared
 /// instance for execution and shutdown. There is no `AppCore::runtime` accessor.
-/// `Harness` shares `Sessions`, which constructs `Profiles`; assembly shares
-/// those same profiles with `AppCore`. Startup also constructs a temporary
-/// `Grants` for thread-grant revocation before assembly builds the stored one.
+/// `start` builds `Profiles` and `Grants` once; `Sessions` links itself to the
+/// profiles, `Harness` shares `Sessions`, and the stored `Grants` is the one
+/// that revoked thread grants at startup.
 pub struct AppCore {
     secrets: Arc<Secrets>,
     profiles: Arc<crate::Profiles>,
@@ -146,11 +146,10 @@ impl AppCore {
         let runtime = Arc::new(runtime);
         // Spec §13.7: a Planner's grant lives as long as its adapter, and every
         // adapter of an earlier daemon is gone. Before anything is served.
-        // Through a `Grants` of its own: `assemble` builds the core's after
-        // the sessions, and the revocation keeps its place before them.
-        let revoked = Grants::new(storage.clone(), mcp_url.clone())
-            .revoke_thread_grants()
-            .await?;
+        // The one `Grants`: it revokes here, before the sessions exist, and
+        // then belongs to the core.
+        let grants = Grants::new(storage.clone(), mcp_url.clone());
+        let revoked = grants.revoke_thread_grants().await?;
         tracing::info!(revoked, "recovery.thread_grants_revoked");
 
         let version = harness_version(&config.harness_path).await;
@@ -158,7 +157,11 @@ impl AppCore {
         tracing::info!(adapter_version, claude_version = %version, "harness.versions");
         // Every Planner session opens with the `/mcp` of the address actually
         // bound (§13.8), which differs from the configured one on port 0.
-        let sessions = Sessions::new(
+        let profiles = crate::Profiles::new(
+            storage.clone(),
+            config.aylul.as_ref().map(|c| c.home_root.clone()),
+        );
+        let sessions = Sessions::with_profiles(
             Arc::new(ClaudeAdapter {
                 node: config.node_path.clone(),
                 adapter: config.adapter_path.clone(),
@@ -173,18 +176,23 @@ impl AppCore {
                 aylul: config.aylul.clone(),
                 ..SessionsConfig::default()
             },
+            profiles.clone(),
         );
         let (bus, _) = tokio::sync::broadcast::channel(4096);
-        let core = Self::from_parts(CoreParts {
-            secrets,
-            storage,
-            runtime,
-            sessions,
-            handles: Arc::new(LiveHandles::default()),
-            bus,
-            ui: tokio::sync::broadcast::channel(256).0,
-            mcp_url,
-        });
+        let core = Self::assemble_services(
+            CoreParts {
+                secrets,
+                storage,
+                runtime,
+                sessions,
+                handles: Arc::new(LiveHandles::default()),
+                bus,
+                ui: tokio::sync::broadcast::channel(256).0,
+                mcp_url,
+            },
+            profiles,
+            grants,
+        );
         // §15.8: the active set is chosen and the workers spawned; `serve`
         // waits for no scan. The index never stops the daemon (§15.4).
         if let Err(error) = core.code.start(CodeConfig::default()).await {
@@ -196,6 +204,17 @@ impl AppCore {
     /// The application over parts already built. Tests reach it as
     /// `AppCore::assemble` (`testing`).
     pub(crate) fn from_parts(parts: CoreParts) -> Arc<AppCore> {
+        let profiles = parts.sessions.profiles.clone();
+        let grants = Grants::new(parts.storage.clone(), parts.mcp_url.clone());
+        Self::assemble_services(parts, profiles, grants)
+    }
+
+    /// The services over parts and the two services built before them.
+    fn assemble_services(
+        parts: CoreParts,
+        profiles: Arc<crate::Profiles>,
+        grants: Grants,
+    ) -> Arc<AppCore> {
         let CoreParts {
             secrets,
             storage,
@@ -204,7 +223,7 @@ impl AppCore {
             handles,
             bus,
             ui,
-            mcp_url,
+            mcp_url: _,
         } = parts;
         // Before the three services that hold it to call `touch` (§15.8).
         let code = Code::new(storage.clone());
@@ -212,13 +231,12 @@ impl AppCore {
         let stopper = ThreadStopper::new(runtime.clone(), handles.clone(), sessions.clone());
         let threads = Threads::new(storage.clone(), harness.clone(), code.clone(), stopper);
         let events = Events::new(storage.clone(), harness.clone(), bus.clone(), ui.clone());
-        let profiles = sessions.profiles.clone();
         Arc::new(AppCore {
             profiles,
             secrets,
             design: Design::new(storage.clone(), handles.clone()),
             plans: Plans::new(storage.clone(), handles.clone(), ui.clone()),
-            grants: Grants::new(storage.clone(), mcp_url),
+            grants,
             turns: Turns::new(
                 storage.clone(),
                 runtime,

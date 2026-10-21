@@ -33,21 +33,34 @@ pub struct Profiles {
     storage: Arc<Storage>,
 
     home_root: Option<PathBuf>,
-    sessions: std::sync::Weak<crate::harness::Sessions>,
+    sessions: SessionsLink,
+}
+
+/// The sessions that close an agent's adapters. `Sessions` is built after
+/// `Profiles`, so the link is filled once, by `Sessions`, when it is built.
+#[derive(Default)]
+struct SessionsLink(std::sync::OnceLock<std::sync::Weak<crate::harness::Sessions>>);
+
+impl SessionsLink {
+    fn upgrade(&self) -> Option<Arc<crate::harness::Sessions>> {
+        self.0.get().and_then(std::sync::Weak::upgrade)
+    }
 }
 
 impl Profiles {
-    pub(crate) fn new(
-        storage: Arc<Storage>,
-        home_root: Option<PathBuf>,
-        sessions: std::sync::Weak<crate::harness::Sessions>,
-    ) -> Arc<Self> {
+    pub(crate) fn new(storage: Arc<Storage>, home_root: Option<PathBuf>) -> Arc<Self> {
         Arc::new(Self {
             extension_lock: Arc::default(),
             storage,
             home_root,
-            sessions,
+            sessions: SessionsLink::default(),
         })
+    }
+
+    /// Called once by the `Sessions` built over these profiles; a second
+    /// call keeps the first.
+    pub(crate) fn attach_sessions(&self, sessions: std::sync::Weak<crate::harness::Sessions>) {
+        let _ = self.sessions.0.set(sessions);
     }
 
     pub async fn providers(&self) -> Result<Vec<Provider>, CoreError> {

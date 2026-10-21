@@ -124,15 +124,29 @@ impl Sessions {
         storage: Arc<Storage>,
         config: SessionsConfig,
     ) -> Arc<Self> {
+        let profiles = crate::Profiles::new(
+            storage.clone(),
+            config.aylul.as_ref().map(|c| c.home_root.clone()),
+        );
+        Self::with_profiles(adapter, storage, config, profiles)
+    }
+
+    /// Over `profiles` built by the caller, which this `Sessions` then links
+    /// to itself so a deleted agent's adapters close.
+    pub(crate) fn with_profiles(
+        adapter: Arc<ClaudeAdapter>,
+        storage: Arc<Storage>,
+        config: SessionsConfig,
+        profiles: Arc<crate::Profiles>,
+    ) -> Arc<Self> {
         let period = (config.idle_after / 4)
             .min(Duration::from_secs(60))
             .max(Duration::from_millis(1));
         let sessions = Arc::new_cyclic(|weak| Self {
-            profiles: crate::Profiles::new(
-                storage.clone(),
-                config.aylul.as_ref().map(|c| c.home_root.clone()),
-                weak.clone(),
-            ),
+            profiles: {
+                profiles.attach_sessions(weak.clone());
+                profiles
+            },
             homes: super::profile_home::Homes::default(),
             setups: Setups::new(storage.clone(), config.mcp_url.clone()),
             adapter,

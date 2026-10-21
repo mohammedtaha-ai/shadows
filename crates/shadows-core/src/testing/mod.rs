@@ -29,7 +29,27 @@ pub fn profiles(
     _secrets: Arc<crate::Secrets>,
     home_root: std::path::PathBuf,
 ) -> Arc<crate::Profiles> {
-    crate::Profiles::new(storage, Some(home_root), std::sync::Weak::new())
+    crate::Profiles::new(storage, Some(home_root))
+}
+
+/// The restricted fixture: `AppCore` over a database at `db_path`, built by
+/// `AppCore::start` with no secret key, no AYLUL and executables that do not
+/// exist (their versions are recorded as unknown). A test reaches services
+/// through the accessors only.
+pub async fn app(db_path: std::path::PathBuf) -> anyhow::Result<Arc<AppCore>> {
+    let missing = db_path.with_file_name("absent");
+    AppCore::start(
+        &crate::app::StartConfig {
+            secret_key: None,
+            db_path,
+            node_path: missing.clone(),
+            adapter_path: missing.clone(),
+            harness_path: missing,
+            aylul: None,
+        },
+        "http://127.0.0.1:0/mcp".into(),
+    )
+    .await
 }
 
 pub mod acp;

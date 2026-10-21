@@ -41,7 +41,7 @@ crates/shadows-agent/src/policy.rs :: module comment [c14786d518dee97a] #1
 crates/shadows-core/src/app.rs :: AppCore comment [092405e4799ce6f2] #1
 crates/shadows-core/src/app.rs :: AppCore comment [a3d3bb44c9fd0cdf] #1
 crates/shadows-core/src/app.rs :: AppCore comment [e5322b68a5e815a6] #1
-crates/shadows-core/src/app.rs :: AppCore::from_parts comment [9e74b98b3fd91f2c] #1
+crates/shadows-core/src/app.rs :: AppCore::assemble_services comment [9e74b98b3fd91f2c] #1
 crates/shadows-core/src/app.rs :: AppCore::start comment [7d820f3723980281] #1
 crates/shadows-core/src/app.rs :: AppCore::start comment [8ae80de3a64f652c] #1
 crates/shadows-core/src/app.rs :: AppCore::start comment [93d4c198c5a906f7] #1
