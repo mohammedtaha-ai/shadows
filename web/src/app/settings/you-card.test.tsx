@@ -17,14 +17,29 @@ it('the You card shows the saved names', async () => {
   await open({ 'GET /api/me': person })
   expect(input('Your name').value).toBe('Mohammed'); expect(input('What AYLUL calls you').value).toBe('Abu Taha')
 })
+// A GET after the save must answer what was saved, as Core does; a fixed GET answer would let
+// any refetch put the old name back.
+function stored(initial: typeof person) {
+  let saved = initial
+  return {
+    'GET /api/me': () => Response.json(saved),
+    'PUT /api/me': async (request: Request) => {
+      const { command_id: _command, ...input } = await request.json()
+      saved = { ...input, updated_at: null }
+      return Response.json(saved)
+    },
+  }
+}
 it('saving sends the whole record', async () => {
-  const a = await open({ 'GET /api/me': person })
+  const a = await open(stored(person))
   typeInto(input('What AYLUL calls you'), 'Mo')
   expect(a.calls).not.toContain('PUT /api/me')
   act(() => a.button('Save')!.click())
   await until(() => a.calls.includes('PUT /api/me'))
   expect(a.bodies[0]).toEqual({ command_id: expect.any(String), name: 'Mohammed', aylul_calls_me: 'Mo', language: 'ar', theme: 'dark' })
-  await until(() => a.button('Save')?.disabled === true)
+  // Save is disabled while the PUT is pending too; the save has finished once the fields are
+  // enabled again.
+  await until(() => !input('What AYLUL calls you').disabled && a.button('Save')?.disabled === true)
   expect(input('What AYLUL calls you').value).toBe('Mo')
 })
 it('an emptied field saves as null', async () => {
@@ -63,4 +78,25 @@ it('a failed person load shows an error and no form', async () => {
   const a = app = await startApp('/?settings=account', { ...answers(), 'GET /api/me': () => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'Person unavailable.' }, { status: 500 }) })
   await until(() => a.text().includes('Person unavailable.'))
   expect(input('Your name')).toBeNull()
+})
+it('a read sent before the save cannot bring the old name back', async () => {
+  let release: (() => void) | null = null
+  let reads = 0
+  const a = await open({
+    'GET /api/me': async () => {
+      if (++reads === 2) await new Promise<void>(resolve => { release = resolve })
+      return Response.json(person)
+    },
+    'PUT /api/me': async (request: Request) => {
+      const { command_id: _command, ...input } = await request.json()
+      return Response.json({ ...input, updated_at: null })
+    },
+  })
+  void act(() => a.queryClient.invalidateQueries({ queryKey: ['person'] }))
+  await until(() => release !== null)
+  typeInto(input('What AYLUL calls you'), 'Mo')
+  act(() => a.button('Save')!.click())
+  await until(() => !input('What AYLUL calls you').disabled && a.button('Save')?.disabled === true)
+  await act(async () => { release!(); await new Promise(resolve => setTimeout(resolve, 50)) })
+  expect(input('What AYLUL calls you').value).toBe('Mo')
 })

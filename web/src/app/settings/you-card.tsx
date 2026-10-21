@@ -19,13 +19,20 @@ function YouForm({ saved }: { saved: Person | undefined }) {
   const pending = useRef<Attempt | null>(null)
   const [invalid, setInvalid] = useState<string | null>(null)
   const save = useMutation({
+    // A read sent before the save would answer the old record after it: cancel it, so it cannot
+    // overwrite what was saved.
+    onMutate: () => queryClient.cancelQueries({ queryKey: personQuery.queryKey }),
     mutationFn: (input: Parameters<typeof savePerson>[1]) => {
       pending.current = attemptFor(pending.current, input)
       return savePerson(pending.current.commandId, input)
     },
-    onSuccess: person => {
-      pending.current = null; setEdited(null)
+    onSuccess: async person => {
+      await queryClient.cancelQueries({ queryKey: personQuery.queryKey })
+      pending.current = null
       queryClient.setQueryData(personQuery.queryKey, person)
+      // The query passes the new record to this form a tick later; showing the saved values now,
+      // not clearing them, keeps the old name from flashing back in between.
+      setEdited({ name: person.name ?? '', calls: person.aylul_calls_me ?? '' })
     },
   })
   function submit(event: FormEvent) {
