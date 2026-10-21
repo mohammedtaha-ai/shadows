@@ -4,6 +4,15 @@ version: 1
 status: current
 source: crates/shadows-core/src/profiles
 shapes:
+  UsageReport:
+    source: usage.rs
+    note: Provider and model groups from immutable snapshots
+  ProviderUsage:
+    source: usage.rs
+    cost: Null unless every included row has trusted cost
+  ModelUsage:
+    source: usage.rs
+    note: Grouped by provider slug and model
   Profiles:
     storage: Arc<Storage>
     home_root: Optional isolated home root
@@ -50,6 +59,7 @@ shapes:
 called_by_other_services:
   probe: Harness calls the bounded probe with an explicit resolved provider key.
 functions:
+  usage: Validate a half-open RFC3339 period and aggregate historical measurements.
   person: Read the person record or its defaults without a write.
   set_person: Validate and replace the record under one command.
   test_provider: Ask the provider for models using the supplied key without storing it.
@@ -71,6 +81,12 @@ shared_in_transaction:
   require_live_agent_in: Threads checks creation; Secrets checks agent environment writes inside their transaction.
   require_provider_in: Secrets checks provider existence before storing a provider key.
 obligations:
+  - rule: Input totals include cache reads and writes once; context counters are never summed.
+    tested_by: [usage_counts_cache_once]
+  - rule: Periods are exact half-open UTC intervals with stable group ordering and historical metadata.
+    tested_by: [usage_periods_group_and_sort, usage_snapshot_survives_provider_changes]
+  - rule: Only Anthropic trusted per-turn costs are reported; partial groups have null cost.
+    tested_by: [usage_costs_require_trusted_turn_delta]
   - rule: Provider slug test is reserved for creation; use the next free numeric suffix, leaving agent slugs and existing provider slugs unchanged.
     tested_by: [test_is_a_reserved_provider_slug, existing_test_provider_keeps_its_identity]
   - rule: Names are trimmed, at most 64 characters, without controls or line breaks; empty is null.

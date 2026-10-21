@@ -55,6 +55,9 @@ source: crates/shadows-core/src/harness
 
 
 shapes:
+  AylulUsageSnapshot:
+    source: model.rs
+    note: Nonsecret provider routing pinned to the actual adapter at opening
   Harness:
     storage: Arc<Storage>
     # The same `Arc` `Turns` holds: one live adapter per thread for both.
@@ -360,6 +363,8 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: Cached adapters retain their opening provider attribution until reopened.
+    tested_by: [usage_snapshot_survives_provider_changes]
   - rule: An AYLUL opening appends aylul_calls_me or name, or nothing when neither is set.
     tested_by: [opening_names_the_person, opening_without_person_appends_nothing]
   - rule: AYLUL context variables use the default model window; compact is capped or omitted below 100000.

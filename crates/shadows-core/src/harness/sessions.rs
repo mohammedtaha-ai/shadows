@@ -91,6 +91,7 @@ pub enum LeaseError {
 #[derive(Clone)]
 pub struct OpenSession {
     pub session_id: String,
+    pub aylul_usage: Option<super::AylulUsageSnapshot>,
     pub how: &'static str,
     pub(super) connection: Connection,
     pub(super) generation: u64,

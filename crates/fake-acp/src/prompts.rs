@@ -214,6 +214,27 @@ pub(crate) async fn answer(
             };
             chunk(cx, id, "m1", &format!("permission: {chosen}"))?;
         }
+        "turn-usage" | "turn-usage-second" | "turn-usage-refused" | "turn-usage-cancelled" => {
+            let amount = if prompt == "turn-usage-second" {
+                0.5
+            } else {
+                0.2
+            };
+            for used in [7, 999] {
+                let u = serde_json::from_value(serde_json::json!({
+                    "used":used,"size":200000,"cost":{"amount":amount,"currency":"USD"}
+                }))
+                .unwrap();
+                update(cx, id, SessionUpdate::UsageUpdate(u))?;
+            }
+            if prompt == "turn-usage-refused" {
+                return Ok((StopReason::Refusal, None));
+            }
+            if prompt == "turn-usage-cancelled" {
+                return Ok((StopReason::Cancelled, None));
+            }
+            chunk(cx, id, "m1", "usage")?;
+        }
         "usage" => {
             let u = UsageUpdate::new(1234, 200000).meta(
                 json!({"_claude/model": "fake-large-answering"})

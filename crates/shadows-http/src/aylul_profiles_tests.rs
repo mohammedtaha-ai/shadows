@@ -348,3 +348,29 @@ async fn reserved_test_path_has_no_mutation_aliases() {
         assert_eq!(status, 405);
     }
 }
+
+#[tokio::test]
+async fn usage_route_is_read_only() {
+    let w = world(false, false).await;
+    let p = w.core.profiles().person().await.unwrap();
+    let (status, r) = call(
+        &w,
+        "GET",
+        "/api/aylul/usage?from=2000-01-01T00:00:00Z&to=2100-01-01T00:00:00Z",
+        Value::Null,
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(r, json!({"by_provider":[],"by_model":[]}));
+    assert_eq!(
+        serde_json::to_value(w.core.profiles().person().await.unwrap()).unwrap(),
+        serde_json::to_value(p).unwrap()
+    );
+    for path in [
+        "/api/aylul/usage",
+        "/api/aylul/usage?from=bad&to=bad",
+        "/api/aylul/usage?from=2100-01-01T00:00:00Z&to=2000-01-01T00:00:00Z",
+    ] {
+        assert_eq!(call(&w, "GET", path, Value::Null).await.0, 400);
+    }
+}

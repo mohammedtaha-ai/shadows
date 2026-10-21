@@ -395,6 +395,8 @@ functions:
       signature: "(&self, op_id: &OperationId, expected_runtime: &RuntimeInstanceId) -> Result<(), StorageError>"
     mark_operation_completed:
       signature: "(&self, op_id: &OperationId, outcome: Value, observation: &TurnObservation) -> Result<(), StorageError>"
+    mark_operation_failed_with_usage: Fail atomically with optional measured end-turn usage.
+    mark_operation_cancelled_with_usage: Cancel atomically with optional measured end-turn usage.
     mark_operation_failed:
       signature: "(&self, op_id: &OperationId, stage: FailureStage, reason: &str) -> Result<(), StorageError>"
     request_cancellation:
@@ -489,6 +491,7 @@ enums:
 
 
 shared_in_transaction:
+  record_usage_in: Terminal transitions write the measured AYLUL snapshot inside their own transaction.
   check_running_turn_in: "Design's vision proposal write validates the exact operation is Running in its live thread after replay and before supersession, entry or event writes; db/approval validates the exact Planner operation the same way before an approval or its replay (§24)."
   take_queued_in: "The start of a waiting message (§20.3) and Send now (§20.4): the row is removed inside the same write that commits the turn or the steered entry, so a message is sent once or not at all"
   has_open_operation: "Threads' fork (threads/store/fork.rs fork_thread): a thread with a turn not yet ended cannot be forked, judged inside the fork's own write"
@@ -506,6 +509,10 @@ called_by_other_services:
 
 
 obligations:
+  - rule: Terminal usage and operation state commit together once under the existing claim and CAS.
+    tested_by: [usage_ends_atomically_once]
+  - rule: Cancelled or refused replies keep actual measurements; missing responses remain unknown.
+    tested_by: [usage_refusal_cancel_and_missing_are_honest]
   - rule: >
       Each invocation records the base standards version and the additions
       id selected for the turn. Only started turns count when deciding what

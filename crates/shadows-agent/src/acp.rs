@@ -1,5 +1,11 @@
 //! One ACP client connection to one managed adapter process.
+use super::events::{TurnUsage, UsageCost};
+use super::usage::{SessionCost, cost_delta};
 use std::path::Path;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use agent_client_protocol::schema::{
     MaybeUndefined, ProtocolVersion,
@@ -138,6 +144,13 @@ pub enum AcpError {
 #[derive(Clone)]
 pub struct Connection {
     cx: ConnectionTo<Agent>,
+    costs: Arc<Mutex<HashMap<String, SessionCost>>>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct PromptResult {
+    pub end: TurnEnd,
+    pub usage: Option<TurnUsage>,
 }
 
 impl Connection {
@@ -158,11 +171,22 @@ impl Connection {
         forward_stderr(stderr);
         let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
         let notify = events.clone();
+        let costs: Arc<Mutex<HashMap<String, SessionCost>>> = Arc::default();
+        let dispatch_costs = costs.clone();
         tokio::spawn(async move {
             let _ = Client
                 .builder()
                 .on_receive_notification(
                     async move |n: SessionNotification, _cx| {
+                        if let SessionUpdate::UsageUpdate(u) = &n.update {
+                            let value = serde_json::to_value(&u.cost).unwrap_or(Value::Null);
+                            let mut costs = dispatch_costs.lock().expect("cost ledger");
+                            if let Some(state) = costs.get_mut(&n.session_id.to_string())
+                                && state.active
+                            {
+                                state.current = serde_json::from_value(value).ok();
+                            }
+                        }
                         forward(&notify, n.update);
                         Ok(())
                     },
@@ -207,7 +231,7 @@ impl Connection {
         let request =
             InitializeRequest::new(ProtocolVersion::V1).client_capabilities(capabilities());
         cx.send_request(request).block_task().await.map_err(rpc)?;
-        Ok(Self { cx })
+        Ok(Self { cx, costs })
     }
 
     pub async fn start_session(
@@ -216,6 +240,7 @@ impl Connection {
         how: SessionStart,
         setup: &SessionSetup,
     ) -> Result<Opened, AcpError> {
+        let fresh = matches!(&how, SessionStart::New);
         let (servers, meta) = (setup.mcp_servers(), setup.meta());
         let resume = |id: String| {
             ResumeSessionRequest::new(id, cwd)
@@ -264,6 +289,16 @@ impl Connection {
                 (id, r.config_options)
             }
         };
+        self.costs.lock().expect("cost ledger").insert(
+            session_id.clone(),
+            SessionCost {
+                previous: fresh.then(|| UsageCost {
+                    amount: 0.0,
+                    currency: "USD".into(),
+                }),
+                ..Default::default()
+            },
+        );
         Ok(Opened {
             session_id,
             options: serde_json::to_value(options).unwrap_or(Value::Null),
@@ -296,25 +331,51 @@ impl Connection {
         session: &str,
         text: &str,
         context: &[String],
-    ) -> Result<TurnEnd, AcpError> {
+    ) -> Result<PromptResult, AcpError> {
+        {
+            let mut costs = self.costs.lock().expect("cost ledger");
+            let state = costs.entry(session.into()).or_default();
+            if state.active {
+                return Err(AcpError::Rpc("session prompt already active".into()));
+            }
+            state.current = None;
+            state.active = true;
+        }
         let blocks = std::iter::once(text)
             .chain(context.iter().map(String::as_str))
             .map(|t| ContentBlock::Text(TextContent::new(t)))
             .collect();
-        let r = self
+        let response = self
             .cx
             .send_request(PromptRequest::new(session.to_owned(), blocks))
             .block_task()
-            .await
-            .map_err(rpc)?;
-        Ok(match r.stop_reason {
+            .await;
+        let delta = {
+            let mut costs = self.costs.lock().expect("cost ledger");
+            let state = costs.entry(session.into()).or_default();
+            let delta = cost_delta(state.previous.as_ref(), state.current.as_ref());
+            state.previous = state.current.take();
+            state.active = false;
+            delta
+        };
+        let r = response.map_err(rpc)?;
+        let usage = r
+            .usage
+            .and_then(|u| serde_json::to_value(u).ok())
+            .and_then(|v| serde_json::from_value::<TurnUsage>(v).ok())
+            .map(|mut u| {
+                u.cost = delta;
+                u
+            });
+        let end = match r.stop_reason {
             StopReason::EndTurn => TurnEnd::Ended,
             StopReason::Cancelled => TurnEnd::Cancelled,
             StopReason::MaxTokens => TurnEnd::Refused("max_tokens".into()),
             StopReason::MaxTurnRequests => TurnEnd::Refused("max_turn_requests".into()),
             StopReason::Refusal => TurnEnd::Refused("refusal".into()),
             other => TurnEnd::Refused(format!("{other:?}")),
-        })
+        };
+        Ok(PromptResult { end, usage })
     }
 
     /// Sends `text` into the session's running prompt (§20.4), asking the
@@ -401,6 +462,9 @@ fn forward(events: &impl Fn(HarnessEvent), update: SessionUpdate) {
         SessionUpdate::UsageUpdate(u) => {
             let meta = serde_json::to_value(u.meta).unwrap_or(Value::Null);
             Some(HarnessEvent::Usage {
+                cost: serde_json::to_value(u.cost)
+                    .ok()
+                    .and_then(|v| serde_json::from_value(v).ok()),
                 used: u.used,
                 size: u.size,
                 model: meta
@@ -466,53 +530,5 @@ fn capabilities() -> ClientCapabilities {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn absent_and_empty_tool_policies_are_distinct() {
-        assert!(SessionSetup::default().meta().is_none());
-        let setup = SessionSetup {
-            tools: Some(vec![]),
-            ..Default::default()
-        };
-        let meta = serde_json::to_value(setup.meta().unwrap()).unwrap();
-        assert_eq!(
-            meta["claudeCode"]["options"]["tools"],
-            serde_json::json!([])
-        );
-        assert_eq!(
-            meta["claudeCode"]["options"]["settingSources"],
-            serde_json::json!([])
-        );
-        assert_eq!(meta["claudeCode"]["options"]["strictMcpConfig"], true);
-        let defaults = SessionSetup {
-            allowed_tools: vec!["mcp__shadows__*".into()],
-            ..Default::default()
-        };
-        let meta = serde_json::to_value(defaults.meta().unwrap()).unwrap();
-        assert!(meta["claudeCode"]["options"].get("tools").is_none());
-    }
-
-    #[test]
-    fn aylul_meta_loads_only_user_settings() {
-        let setup = SessionSetup {
-            setting_sources: Some(vec!["user".into()]),
-            ..Default::default()
-        };
-        let meta = serde_json::to_value(setup.meta().unwrap()).unwrap();
-        assert_eq!(
-            meta["claudeCode"]["options"]["settingSources"],
-            serde_json::json!(["user"])
-        );
-        assert!(meta.get("systemPrompt").is_none());
-    }
-
-    #[test]
-    fn a_server_error_mentioning_connection_closed_is_still_an_rpc_error() {
-        let error = agent_client_protocol::Error::new(-32603, "connection closed by policy");
-        assert!(
-            matches!(rpc(error), AcpError::Rpc(message) if message == "connection closed by policy")
-        );
-    }
-}
+#[path = "acp_tests.rs"]
+mod tests;

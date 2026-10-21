@@ -37,7 +37,15 @@ impl Turns {
         let (offered, previous) = self
             .offer_for_model(thread_id, opened, &turn.settings.model)
             .await?;
-        let started = self.start(thread_id, context, turn, &offered).await;
+        let started = self
+            .start(
+                thread_id,
+                context,
+                turn,
+                &offered,
+                opened.aylul_usage.as_ref(),
+            )
+            .await;
         if let Some(previous) = previous
             && !matches!(&started, Ok(s) if !s.replayed)
         {
@@ -54,6 +62,7 @@ impl Turns {
         context: &TurnContext,
         turn: Turn<'_>,
         offered: &Offered,
+        snapshot: Option<&crate::AylulUsageSnapshot>,
     ) -> Result<StartedTurn, CoreError> {
         let Turn {
             command,
@@ -93,6 +102,7 @@ impl Turns {
             .start_turn(
                 command,
                 NewTurn {
+                    aylul_usage: snapshot,
                     thread_id,
                     runtime: &self.runtime.instance_id,
                     prompt,

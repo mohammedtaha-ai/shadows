@@ -36,7 +36,7 @@ use shadows_agent::policy;
 use tokio::sync::broadcast;
 
 pub use assistant::AylulConfig;
-pub use model::{ContextBreakdown, HarnessInfo, RememberedSettings};
+pub use model::{AylulUsageSnapshot, ContextBreakdown, HarnessInfo, RememberedSettings};
 pub use sessions::{LeaseError, OpenError, OpenSession, Sessions, SessionsConfig};
 pub use setup::prompt_version;
 // What another write calls inside its own transaction (spec §14.6): a turn

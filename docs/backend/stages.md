@@ -71,7 +71,7 @@ never print, log or commit a key).
 - Done when: the evidence file records the raw `PromptResponse.usage` and `UsageUpdate.cost` (no key, no prompt text) for one turn on OpenRouter and one on MiniMax, the probe is reverted, and spec §6's OPEN is closed
 
 ### B-7 · Record and report usage
-- Status: todo
+- Status: done
 - Reviewed: steps released by the controller, 2026-10-21
 - Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-7--record-and-report-usage
 - Read: spec section 6; docs/evidence/2026-10-21-acp-usage-probe.md; crates/shadows-core/src/profiles/contract.yaml; crates/shadows-core/src/turns/contract.yaml; crates/shadows-core/src/harness/contract.yaml; docs/codebase/README.md usage/turn/harness owners

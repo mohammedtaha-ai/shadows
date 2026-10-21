@@ -52,7 +52,8 @@ pub use error::{CoreError, ErrorCode};
 pub use events::{Actor, Delivery, Events, StoredEvent, Subscription, UiSignal};
 pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};
 pub use harness::{
-    AylulConfig, ContextBreakdown, Harness, HarnessInfo, OpenError, RememberedSettings,
+    AylulConfig, AylulUsageSnapshot, ContextBreakdown, Harness, HarnessInfo, OpenError,
+    RememberedSettings,
 };
 pub use instructions::{Instructions, InstructionsVersion};
 pub use plans::{
@@ -63,9 +64,10 @@ pub use plans::{
     VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use profiles::{
-    Agent, AgentInput, AgentWorkspace, ListedModel, Person, PersonInput, PresetRegion, Profiles,
-    Provider, ProviderInput, ProviderModel, ProviderModelInput, ProviderPreset, ProviderTest,
-    ProviderTestOutcome, SavedProviderTest, TestRefusal, Theme,
+    Agent, AgentInput, AgentWorkspace, ListedModel, ModelUsage, Person, PersonInput, PresetRegion,
+    Profiles, Provider, ProviderInput, ProviderModel, ProviderModelInput, ProviderPreset,
+    ProviderTest, ProviderTestOutcome, ProviderUsage, SavedProviderTest, TestRefusal, Theme,
+    UsageReport,
 };
 pub use projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,

@@ -50,3 +50,13 @@ pub struct ContextBreakdown {
     #[schema(required)]
     pub(super) reason: Option<String>,
 }
+
+/// Credential-free routing metadata pinned to the actual open adapter.
+#[derive(Debug, Clone)]
+pub struct AylulUsageSnapshot {
+    pub agent_slug: String,
+    pub provider_slug: String,
+    pub provider_name: String,
+    pub label: Option<String>,
+    pub preset: Option<String>,
+}

@@ -28,6 +28,7 @@ pub(super) struct Opening {
     pub(super) cwd: PathBuf,
     pub(super) setup: SessionSetup,
     pub(super) spec: ProcessSpec,
+    pub(super) aylul_usage: Option<super::AylulUsageSnapshot>,
     pub(super) aylul_models: Option<(Vec<String>, String)>,
 }
 
@@ -68,6 +69,7 @@ impl Sessions {
                 spec: self.adapter.process_spec(&cwd),
                 cwd,
                 setup,
+                aylul_usage: None,
                 aylul_models: None,
             });
         }
@@ -108,6 +110,13 @@ impl Sessions {
             .map(|(_, value)| value.as_str())
             .filter(|v| !v.is_empty())
             .ok_or_else(|| CoreError::AylulKeyMissing(provider.slug.clone()))?;
+        let aylul_usage = Some(super::AylulUsageSnapshot {
+            agent_slug: slug.into(),
+            provider_slug: provider.slug.clone(),
+            provider_name: provider.name.clone(),
+            label: provider.label.clone(),
+            preset: provider.preset.clone(),
+        });
         let mut env = vec![("ANTHROPIC_BASE_URL".into(), provider.base_url)];
         for name in [
             "ANTHROPIC_MODEL",
@@ -144,6 +153,7 @@ impl Sessions {
             cwd: home,
             setup,
             spec,
+            aylul_usage,
             aylul_models: Some((models, agent.default_model)),
         })
     }

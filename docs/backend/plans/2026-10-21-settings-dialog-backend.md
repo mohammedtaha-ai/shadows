@@ -338,8 +338,8 @@ spec §6 and writes B-7's contract.
 
 ## B-7 · Record and report usage
 
-**Status:** steps written; blocked pending controller review. No implementation
-is authorized by these steps yet. Needs B-6 done and the accepted request.
+**Status:** Released by the controller, 2026-10-21.
+Needs B-6 done and the accepted request.
 Evidence: [B-6](../../evidence/2026-10-21-acp-usage-probe.md); spec §6.
 
 **Files / Touch (exact files)**
@@ -366,6 +366,16 @@ Evidence: [B-6](../../evidence/2026-10-21-acp-usage-probe.md); spec §6.
   `turns/store/{turn.rs,operation.rs}`'s start/end transactions. If a required
   mechanical caller is absent from this list, add its exact path in this
   section before editing, under the existing small-fix rule. No web/native files.
+
+**Mechanical follow-ups:** `crates/shadows-core/src/testing/turn.rs` adds the
+absent routing snapshot to NewTurn; `crates/shadows-core/src/harness/mod.rs`
+re-exports the snapshot. `crates/shadows/tests/openapi/read_only.rs` supplies the
+new GET's required period for its database-version assertion.
+`crates/shadows-agent/src/{usage.rs,acp_tests.rs}` are new responsibility splits
+from the growing ACP file; `crates/shadows-agent/src/lib.rs` registers usage.
+These are B-7 Touch follow-ups of the changed field, route and file-size rule.
+The timestamp index also covers julianday(recorded_at); the report narrows SQL
+candidates and filters exact RFC3339 fractional boundaries in Rust.
 
 **Interfaces**
 - Keep ACP stop reasons intact. Return a `PromptResult { end: TurnEnd,
@@ -475,7 +485,7 @@ serial, only root target/, no npm/workspace tests or live credentials needed.
 **Done when:** all eight named checks above and the existing turn/cancellation
 checks they touch pass; contracts/codemap/OpenAPI match; counts and cost policy
 match B-6; no secret or path enters usage rows/responses; one task commit after
-controller review releases the blocker. No product code is built by this plan.
+the controller has released the task. Record verification in the task commit.
 
 ## B-8 · Probe: skills and plugins under an isolated home
 

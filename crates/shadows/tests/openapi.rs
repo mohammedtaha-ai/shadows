@@ -120,6 +120,7 @@ fn the_document_names_every_route() {
             "GET /api/aylul/agents/{slug}/threads",
             "GET /api/aylul/provider-presets",
             "GET /api/aylul/providers",
+            "GET /api/aylul/usage",
             "GET /api/code/settings",
             "GET /api/fs/dirs",
             "GET /api/harnesses",

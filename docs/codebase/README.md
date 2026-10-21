@@ -49,6 +49,9 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/profiles/probe.rs` | bounded provider listing requests | `crates/shadows-core/src/profiles/contract.yaml` |
 | `crates/shadows-core/src/profiles/listing.rs` | provider model response parsing | `crates/shadows-core/src/profiles/contract.yaml` |
 | `crates/shadows-core/src/profiles/presets.rs` | compiled provider presets | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/usage.rs` | usage period rules | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/usage_store.rs` | historical usage aggregation | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/turns/store/usage.rs` | atomic turn usage insertion | `crates/shadows-core/src/turns/contract.yaml` |
 | `crates/shadows-core/src/profiles/person.rs` | local person record rules | `crates/shadows-core/src/profiles/contract.yaml` |
 | `crates/shadows-core/src/profiles/model.rs` | public configuration metadata | `crates/shadows-core/src/profiles/contract.yaml` |
 | `crates/shadows-core/src/profiles/providers.rs` | provider mutation rules | `crates/shadows-core/src/profiles/contract.yaml` |
@@ -245,6 +248,12 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/events/model.rs` | the event shapes the product records or signals | `crates/shadows-core/src/events/model.rs` |
 | `crates/shadows-core/src/events/subscription.rs` | one subscriber's replay-then-live stream | `crates/shadows-core/src/events/subscription.rs` |
 | `crates/shadows-agent/src/lib.rs` | the ACP client for a harness adapter | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/usage.rs` | session cost accounting | `crates/shadows-agent/src/events.rs` |
+| `crates/shadows-agent/src/acp_tests.rs` | ACP boundary tests | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/acp.rs` | the ACP client connection to one adapter process | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/events.rs` |
+| `crates/shadows-agent/src/acp_tests.rs` | ACP boundary tests | `crates/shadows-agent/src/acp.rs` |
+| `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/acp.rs` | the ACP client connection to one adapter process | `crates/shadows-agent/src/acp.rs` |
 | `crates/shadows-agent/src/events.rs` | what a harness connection reports | `crates/shadows-agent/src/events.rs` |
 | `crates/shadows-agent/src/policy.rs` | the modes Shadows allows per harness | `crates/shadows-agent/src/policy.rs` |
