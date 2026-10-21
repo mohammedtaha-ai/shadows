@@ -149,3 +149,33 @@ implemented with focused automated checks. F-12 and F-14 retain their recorded b
 - Touch: the Files list of Task F-14 in the plan
 - Needs: F-9; the native `refresh_companion_appearance` command (AYLUL shared request, not yet filed) built
 - Done when: `aylul.test.tsx` passes with codemap, typecheck, lint
+
+### F-15 · A read sent before a save cannot overwrite the saved answer
+- Status: todo
+- Plan: none; the problem and the fix are here. Found and fixed once in `you-card.tsx` (`79aa898`):
+  a query read sent before a mutation answers after it, and its old data overwrites the answer
+  the mutation just wrote with `setQueryData`. The screen then shows the old value although Core
+  saved the new one. `you-card.test.tsx` ("a read sent before the save cannot bring the old name
+  back") reproduces it by holding the second GET across the save.
+- Fix: one function, `writeSaved(client, queryKey, updater)` in a new
+  `web/src/api/saved-answer.ts`, that awaits `client.cancelQueries({ queryKey })` and then calls
+  `client.setQueryData`. Every place below that writes a mutation's answer into the cache uses it
+  (and `you-card.tsx` moves to it too). A place that is not writing a server answer after a
+  mutation (a seeded cache, a list read) is left as it is and named in the report with the reason.
+- Read: `web/src/api/contract.yaml`; `docs/frontend/codebase/README.md`; `web/src/app/settings/you-card.tsx`
+  and its test
+- Touch: `web/src/api/saved-answer.ts` (new), `web/src/api/saved-answer.test.ts` (new),
+  `web/src/api/contract.yaml`, `docs/frontend/codebase/README.md`, `docs/frontend/stages.md`, and
+  only these callers: `web/src/app/settings/you-card.tsx`, `web/src/app/settings/active-projects.tsx`,
+  `web/src/app/agreements/agreements-page.tsx`, `web/src/app/agreements/binding-editor.tsx`,
+  `web/src/app/conversation/cli-picker.tsx`, `web/src/app/conversation/composer.tsx`,
+  `web/src/app/conversation/draft.tsx`, `web/src/app/conversation/use-commands.ts`,
+  `web/src/app/conversation/use-session.ts`, `web/src/app/design/standards-view.tsx`,
+  `web/src/app/project-settings/code-index.tsx`, `web/src/app/project-settings/external-agents.tsx`,
+  `web/src/app/project-settings/instructions-editor.tsx`, `web/src/app/project-settings/project-modes.tsx`,
+  `web/src/app/project-settings/remove-project.tsx`, `web/src/app/sidebar/delete-thread-dialog.tsx`,
+  and the `contract.yaml` of each folder whose rule changes
+- Needs: none
+- Done when: `saved-answer.test.ts` shows a held read cannot overwrite a written answer (and fails
+  without the cancel); `you-card.test.tsx` and the existing tests of every changed caller pass;
+  `npx vitest run src/codemap.test.ts`, `npm run typecheck`, `npm run lint` pass. Not the whole suite.
