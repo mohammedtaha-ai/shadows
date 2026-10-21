@@ -7,13 +7,13 @@
 use super::{
     handles::{LiveHandles, LiveTurn},
     model::{FailureStage, OperationId},
+    prompt::{Prompt, PromptParts},
     turn::{PlannerTurn, TurnWatch, watch_turn},
 };
 use crate::{
     db::StorageError,
     events::Actor,
     harness::{OpenSession, Sessions},
-    plans::{Focus, PlanListing},
     runtime::Runtime,
     threads::ThreadId,
 };
@@ -27,26 +27,6 @@ pub enum StartError {
     RuntimeStopping,
     #[error(transparent)]
     Storage(#[from] StorageError),
-}
-
-/// The context block that tells the Planner which task the person points at
-/// (§13.9): task `number`, titled `title`, as the turn command read it.
-pub fn focus_block(focus: &Focus, number: u32, title: &str) -> String {
-    format!(
-        "[Shadows] The person is pointing at task T{number} (\"{title}\") of plan {}, revision {}. \
-         Read the plan with workflow_get before changing it.",
-        focus.workflow_id, focus.revision
-    )
-}
-
-/// The context block for a person continuing a plan in a new conversation.
-pub fn continue_plan_block(plan: &PlanListing) -> String {
-    format!(
-        "[Shadows] The person opened this conversation to continue the plan \"{}\" \
-         (plan_id {}, latest version workflow_id {}). \
-         Read it with workflow_get before you plan.",
-        plan.title, plan.plan_id, plan.id
-    )
 }
 
 /// Called once a turn's `Completed` is recorded (§20.3): sends the thread's
@@ -106,27 +86,25 @@ impl PlannerTurn {
         );
         // §13.8: what changed since the session last heard, read while this
         // turn is still `Pending` and so not yet its thread's latest.
-        let context = sessions
-            .setups()
-            .context_before_turn(&thread_id, &op_id)
-            .await;
-        let stage = sessions.setups().stage_line(&thread_id).await;
-        let prepared = match (context, stage) {
-            (Ok(context), Ok(stage)) => {
-                (sessions.prepare_turn(&thread_id, &opened, &settings).await).map(|()| {
-                    context
-                        .into_iter()
-                        .chain(focus)
-                        .chain(continue_plan)
-                        .chain(std::iter::once(stage))
-                        .filter(|part| !part.is_empty())
-                        .collect::<Vec<String>>()
+        let facts = sessions.setups().context_facts(&thread_id, &op_id).await;
+        let prepared = match facts {
+            Ok(facts) => (sessions.prepare_turn(&thread_id, &opened, &settings).await).map(|()| {
+                Prompt::compose(PromptParts {
+                    text: prompt,
+                    changes: facts.changes,
+                    stage: facts.stage,
+                    focus,
+                    continue_plan,
                 })
-            }
-            (Err(error), _) | (_, Err(error)) => Err(error.to_string()),
+            }),
+            Err(error) => Err(error.to_string()),
         };
-        let context = match prepared {
-            Ok(context) => context,
+        let Prompt {
+            text: prompt,
+            context,
+            withheld,
+        } = match prepared {
+            Ok(prompt) => prompt,
             Err(reason) => {
                 tracing::info!(parent: &span, %reason, "planner.prepare_refused");
                 sessions.give_back_events(&thread_id, &opened, events).await;
@@ -137,6 +115,8 @@ impl PlannerTurn {
                 return Ok(op_id);
             }
         };
+        // A command skipped the changes: the next normal turn carries them.
+        sessions.setups().withhold(&thread_id, withheld);
         let turn_end_seen = Arc::new(AtomicBool::new(false));
         let cancel_requested = Arc::new(AtomicBool::new(false));
         let (steer, steers) = mpsc::unbounded_channel();

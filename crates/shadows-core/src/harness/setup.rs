@@ -47,6 +47,16 @@ struct Held {
     /// The instructions version its `append` carried.
     instructions: Option<String>,
     standards: Option<String>,
+    /// Changes a command turn skipped; the next normal turn carries them.
+    withheld: Option<String>,
+}
+
+/// What the harness knows about a turn's context. `Turns` decides which of it
+/// the turn sends.
+pub(crate) struct ContextFacts {
+    /// What changed since the session last heard, withheld changes included.
+    pub(crate) changes: Option<String>,
+    pub(crate) stage: String,
 }
 
 pub(crate) struct Setups {
@@ -111,6 +121,7 @@ impl Setups {
                 grant,
                 instructions,
                 standards,
+                withheld: None,
             },
         );
         let mut append = format!("{}\n\n{}", ours(), super::standards::render(&effective));
@@ -126,12 +137,43 @@ impl Setups {
         })
     }
 
+    /// The facts a turn composes its prompt from, read before it is its
+    /// thread's latest.
+    pub(crate) async fn context_facts(
+        &self,
+        thread: &ThreadId,
+        operation: &OperationId,
+    ) -> Result<ContextFacts, StorageError> {
+        let fresh = self.context_before_turn(thread, operation).await?;
+        let withheld = self.lock().get(thread).and_then(|h| h.withheld.clone());
+        let changes = match (withheld, fresh) {
+            (Some(old), Some(new)) => Some(format!(
+                "{old}
+
+{new}"
+            )),
+            (old, new) => old.or(new),
+        };
+        Ok(ContextFacts {
+            changes,
+            stage: self.stage_line(thread).await?,
+        })
+    }
+
+    /// Records the changes a command turn skipped, or clears them once a
+    /// normal turn carried them.
+    pub(crate) fn withhold(&self, thread: &ThreadId, changes: Option<String>) {
+        if let Some(held) = self.lock().get_mut(thread) {
+            held.withheld = changes;
+        }
+    }
+
     /// Before a turn: §13.8's context block when the versions the thread's
     /// latest invocation recorded differ from the current ones. A thread with
     /// none is compared with what its session opened with, unless that
     /// session is a fork's, whose parent holds versions no invocation of this
     /// thread recorded.
-    pub(crate) async fn context_before_turn(
+    async fn context_before_turn(
         &self,
         thread: &ThreadId,
         operation: &OperationId,

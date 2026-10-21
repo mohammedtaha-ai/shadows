@@ -230,11 +230,19 @@ functions:
       signature: "(&self, thread, opened, config_id: &str, value: &str) -> Result<Offered, AcpError>"
     setups:
       signature: "(&self) -> &Setups"
-      # pub(crate): `spawn.rs` reads `context_before_turn` through it.
-    context_before_turn:
-      signature: "(&self, thread: &ThreadId, operation: &OperationId) -> Result<Option<String>, StorageError>"
-      # pub(crate), on `Setups`: §13.8's block of what changed since the
-      # session last heard.
+      # pub(crate): `spawn.rs` reads `context_facts` and calls `withhold`
+      # through it.
+    context_facts:
+      signature: "(&self, thread: &ThreadId, operation: &OperationId) -> Result<ContextFacts, StorageError>"
+      # pub(crate), on `Setups`: only facts, `{ changes, stage }`. `changes` is
+      # §13.8's text of what changed since the session last heard, with any
+      # changes a command turn withheld first. `Turns` (`turns/prompt.rs`)
+      # alone decides which of it a turn sends.
+    withhold:
+      signature: "(&self, thread: &ThreadId, changes: Option<String>)"
+      # pub(crate), on `Setups`: kept with the thread's held session state.
+      # `Turns` sets it when a `/` command skipped the changes and clears it
+      # when a normal turn carried them; a reopened session forgets it.
     stage_line:
       signature: "(&self, thread: &ThreadId) -> Result<String, StorageError>"
       # Setups: the current stage, sent last in new prompts and Send now.

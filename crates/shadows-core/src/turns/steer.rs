@@ -9,6 +9,7 @@ use tokio::sync::oneshot;
 use super::{
     entries::Collector,
     model::QueuedMessageId,
+    prompt::Prompt,
     turn::{TurnWatch, persist},
 };
 use crate::{command::CommandContext, db::StorageError, error::CoreError, threads::ThreadEntryId};
@@ -46,10 +47,7 @@ async fn attempt(
     };
     let connection = w.opened.connection();
     let stage = w.sessions.setups().stage_line(&w.thread_id).await?;
-    let prompt = match stage.is_empty() {
-        true => queued.prompt.clone(),
-        false => format!("{}\n\n{stage}", queued.prompt),
-    };
+    let prompt = Prompt::steered(&queued.prompt, &stage);
     match connection.steer(&w.opened.session_id, &prompt).await {
         Ok(Steer::Injected) => {
             persist(w, collector.cut()).await;

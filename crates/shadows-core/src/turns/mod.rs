@@ -19,6 +19,7 @@
 mod entries;
 mod handles;
 mod model;
+mod prompt;
 mod queue;
 mod record;
 mod shutdown;
@@ -45,8 +46,9 @@ pub use spawn::StartError;
 pub use store::{NewQueued, QueueAnswer};
 pub(crate) use store::{existed, has_open_operation, read_before, record};
 
+use prompt::Prompt;
 use record::Turn;
-use spawn::{PlannerTurnRequest, continue_plan_block, focus_block};
+use spawn::PlannerTurnRequest;
 use store::Dequeue;
 
 use turn::PlannerTurn;
@@ -264,7 +266,7 @@ impl Turns {
                     .await?
                     .into_iter()
                     .find(|plan| &plan.plan_id == plan_id)
-                    .map(|plan| continue_plan_block(&plan))
+                    .map(|plan| Prompt::continue_plan_block(&plan))
                     .ok_or_else(|| crate::error::CoreError::Refused {
                         code: crate::error::ErrorCode::InvalidCommand,
                         message: "the plan is not in this conversation's project".into(),
@@ -323,7 +325,7 @@ impl Turns {
                 settings,
                 focus: focus
                     .zip(started.focus_task)
-                    .map(|(focus, (number, title))| focus_block(&focus, number, &title)),
+                    .map(|(focus, (number, title))| Prompt::focus_block(&focus, number, &title)),
                 continue_plan,
                 client_tab,
                 events,

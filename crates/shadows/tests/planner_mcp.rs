@@ -630,3 +630,22 @@ async fn an_invocation_records_the_prompt_and_instructions_versions() {
     assert_eq!(versions.standards, Some(1));
     assert_eq!(versions.additions, None);
 }
+
+#[tokio::test]
+async fn context_skipped_by_a_command_reaches_the_next_turn() {
+    let l = listening_app().await;
+    report(&l.app).await;
+    let body = "Name every task in Arabic.";
+    save_instructions(&l.app, "i1", body).await;
+
+    // The command goes alone, so the change it would have carried waits.
+    let done = start_and_finish(&l.app, "/context", default_settings()).await;
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+
+    let next = report(&l.app).await;
+    let sent = blocks(&next);
+    assert_eq!(sent.len(), 3, "{sent:?}");
+    assert!(sent[1].starts_with(CHANGED), "{}", sent[1]);
+    assert!(sent[1].ends_with(&format!("\n\n{body}")), "{}", sent[1]);
+    assert_eq!(blocks(&report(&l.app).await).len(), 2, "sent once");
+}

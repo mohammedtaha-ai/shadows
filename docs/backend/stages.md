@@ -42,10 +42,10 @@ are reference material; they do not replace the project's template or code.
 - Done when: `cargo test -p shadows --test architecture` and `--test codemap` pass
 
 ### A-2 · `Turns` owns what a turn sends; `/` commands go alone
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-2--turns-owns-what-a-turn-sends
 - Read: turns/contract.yaml, harness/contract.yaml
-- Touch: crates/shadows-core/src/turns/ (spawn.rs, steer.rs, new prompt.rs), crates/shadows-core/src/harness/setup.rs, both contracts, their tests
+- Touch: crates/shadows-core/src/turns/ (mod.rs, spawn.rs, steer.rs, new prompt.rs), crates/shadows-core/src/harness/setup.rs, both contracts, their tests, crates/shadows/tests/planner_mcp.rs
 - Done when: `a_slash_command_is_sent_as_one_block`, `context_skipped_by_a_command_reaches_the_next_turn` and the planner context tests pass
 
 ### A-3 · The AYLUL window follows the current model
