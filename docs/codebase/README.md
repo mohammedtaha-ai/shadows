@@ -45,6 +45,13 @@ pattern to follow, not merely an example.
 | Module | Its one job | Reference file |
 |---|---|---|
 | `crates/shadows-core/src/harness/live.rs` | live adapter opening | `crates/shadows-core/src/harness/contract.yaml` |
+| `crates/shadows-core/src/profiles/extension_model.rs` | public extension metadata | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/extensions.rs` | extension library service rules | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/extension_files.rs` | bounded library file copies | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/profiles/extension_store.rs` | extension configuration SQL | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/harness/extension_home.rs` | per-agent extension projection | `crates/shadows-core/src/harness/contract.yaml` |
+| `crates/shadows-http/src/aylul_extensions.rs` | extension HTTP translation | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-http/src/aylul_extensions_tests.rs` | extension route acceptance | `crates/shadows-http/src/aylul_extensions.rs` |
 | `crates/shadows-core/src/profiles/` | AYLUL agent configuration | `crates/shadows-core/src/profiles/contract.yaml` |
 | `crates/shadows-core/src/profiles/probe.rs` | bounded provider listing requests | `crates/shadows-core/src/profiles/contract.yaml` |
 | `crates/shadows-core/src/profiles/listing.rs` | provider model response parsing | `crates/shadows-core/src/profiles/contract.yaml` |

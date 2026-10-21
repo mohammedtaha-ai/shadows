@@ -142,6 +142,27 @@
           }
         ]
       },
+      "AgentExtensions": {
+        "properties": {
+          "plugins": {
+            "items": {
+              "$ref": "#/components/schemas/AgentItem"
+            },
+            "type": "array"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/AgentItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "plugins",
+          "skills"
+        ],
+        "type": "object"
+      },
       "AgentInput": {
         "properties": {
           "character_color": {
@@ -167,6 +188,24 @@
           "default_model"
         ],
         "type": "object"
+      },
+      "AgentItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Item"
+          },
+          {
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "enabled"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "AgentWorkspace": {
         "properties": {
@@ -1670,6 +1709,8 @@
       "ErrorCode": {
         "description": "Stable codes clients pattern-match on. Never match on human text.\nSpec §3.4. `Blocked`/`Rejected` are domain outcomes and never appear here.",
         "enum": [
+          "EXTENSION_NOT_FOUND",
+          "EXTENSION_NAME_CONFLICT",
           "RUNTIME_NOT_CONFIGURED",
           "AYLUL_PROFILE_NOT_FOUND",
           "AYLUL_PROVIDER_NOT_FOUND",
@@ -1719,6 +1760,34 @@
           "GRANT_INVALID"
         ],
         "type": "string"
+      },
+      "ExtensionKind": {
+        "enum": [
+          "plugin",
+          "skill"
+        ],
+        "type": "string"
+      },
+      "ExtensionLibrary": {
+        "properties": {
+          "plugins": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "plugins",
+          "skills"
+        ],
+        "type": "object"
       },
       "Focus": {
         "description": "The task a person points at when they send a turn: the task's id, in the\nplan version and at the revision they were looking at. It is checked to\nbelong to that version and kept with their message.",
@@ -1904,6 +1973,25 @@
           "line",
           "kind",
           "name"
+        ],
+        "type": "object"
+      },
+      "Import": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ExtensionKind"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "kind",
+          "path"
         ],
         "type": "object"
       },
@@ -2127,6 +2215,25 @@
         },
         "required": [
           "grant"
+        ],
+        "type": "object"
+      },
+      "Item": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description"
         ],
         "type": "object"
       },
@@ -4946,6 +5053,21 @@
         "format": "uuid",
         "type": "string"
       },
+      "Toggle": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "command_id",
+          "enabled"
+        ],
+        "type": "object"
+      },
       "TurnSettings": {
         "description": "The settings a turn runs with (spec §12.7). `effort` is `None` exactly\nwhen the model offers none (§12.4).",
         "properties": {
@@ -5860,6 +5982,152 @@
         ]
       }
     },
+    "/api/aylul/agents/{slug}/extensions": {
+      "get": {
+        "operationId": "agent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentExtensions"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/agents/{slug}/extensions/{kind}/{id}": {
+      "put": {
+        "operationId": "toggle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ExtensionKind"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Toggle"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentItem"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
     "/api/aylul/agents/{slug}/threads": {
       "get": {
         "operationId": "threads",
@@ -5882,6 +6150,183 @@
                     "$ref": "#/components/schemas/PlanningThread"
                   },
                   "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/extensions": {
+      "get": {
+        "operationId": "library",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtensionLibrary"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      },
+      "post": {
+        "operationId": "import",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Import"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "aylul"
+        ]
+      }
+    },
+    "/api/aylul/extensions/{kind}/{id}": {
+      "delete": {
+        "operationId": "remove",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ExtensionKind"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             },

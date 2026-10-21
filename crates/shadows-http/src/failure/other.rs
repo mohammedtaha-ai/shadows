@@ -23,7 +23,9 @@ impl From<CoreError> for Failure {
     /// `CoreError`, so no status, code or text moves.
     fn from(e: CoreError) -> Self {
         match e {
-            CoreError::AylulProfileNotFound(_)
+            CoreError::ExtensionNotFound
+            | CoreError::ExtensionNameConflict
+            | CoreError::AylulProfileNotFound(_)
             | CoreError::AylulProviderNotFound(_)
             | CoreError::ProviderInUse(_)
             | CoreError::ProfileInvalid(_)
@@ -35,6 +37,12 @@ impl From<CoreError> for Failure {
             | CoreError::AylulKeyMissing(_)
             | CoreError::AylulNotConfigured => {
                 let (status, code) = match &e {
+                    CoreError::ExtensionNotFound => {
+                        (StatusCode::NOT_FOUND, ErrorCode::ExtensionNotFound)
+                    }
+                    CoreError::ExtensionNameConflict => {
+                        (StatusCode::CONFLICT, ErrorCode::ExtensionNameConflict)
+                    }
                     CoreError::AylulProfileNotFound(_) => {
                         (StatusCode::NOT_FOUND, ErrorCode::AylulProfileNotFound)
                     }

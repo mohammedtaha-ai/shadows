@@ -94,6 +94,9 @@ impl Sessions {
             .ok_or_else(|| CoreError::ProfileInvalid("default model is not offered".into()))?
             .context_window;
         self.homes
+            .write_extensions(&self.profiles, &config.home_root, &home, slug)
+            .await?;
+        self.homes
             .write_models(&home, &models, &agent.default_model)
             .await?;
         let secrets = self

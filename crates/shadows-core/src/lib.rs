@@ -64,10 +64,10 @@ pub use plans::{
     VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use profiles::{
-    Agent, AgentInput, AgentWorkspace, ListedModel, ModelUsage, Person, PersonInput, PresetRegion,
-    Profiles, Provider, ProviderInput, ProviderModel, ProviderModelInput, ProviderPreset,
-    ProviderTest, ProviderTestOutcome, ProviderUsage, SavedProviderTest, TestRefusal, Theme,
-    UsageReport,
+    Agent, AgentExtensions, AgentInput, AgentItem, AgentWorkspace, ExtensionKind, ExtensionLibrary,
+    Item, ListedModel, ModelUsage, Person, PersonInput, PresetRegion, Profiles, Provider,
+    ProviderInput, ProviderModel, ProviderModelInput, ProviderPreset, ProviderTest,
+    ProviderTestOutcome, ProviderUsage, SavedProviderTest, TestRefusal, Theme, UsageReport,
 };
 pub use projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,

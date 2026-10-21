@@ -17,6 +17,7 @@
 mod assistant;
 mod commands;
 mod context;
+mod extension_home;
 mod live;
 mod model;
 mod offers;

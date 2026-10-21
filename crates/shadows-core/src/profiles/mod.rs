@@ -1,5 +1,10 @@
 //! AYLUL agent configuration.
 mod agents;
+pub(crate) mod extension_files;
+mod extension_model;
+mod extension_store;
+mod extensions;
+pub use extension_model::{AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Item};
 mod listing;
 mod model;
 mod person;
@@ -24,6 +29,7 @@ use std::sync::Arc;
 pub(crate) use store::{require_live_agent_in, require_provider_in};
 
 pub struct Profiles {
+    extension_lock: Arc<tokio::sync::Mutex<()>>,
     storage: Arc<Storage>,
 
     home_root: Option<PathBuf>,
@@ -37,6 +43,7 @@ impl Profiles {
         sessions: std::sync::Weak<crate::harness::Sessions>,
     ) -> Arc<Self> {
         Arc::new(Self {
+            extension_lock: Arc::default(),
             storage,
             home_root,
             sessions,

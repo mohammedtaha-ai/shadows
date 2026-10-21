@@ -340,6 +340,7 @@ pub(super) async fn delete_agent(
                     .execute(&mut *conn)
                     .await?;
                 crate::secrets::remove_scope_in(conn, &slug).await?;
+                remove_agent_extensions_in(conn, &slug).await?;
                 record(conn, &command, &slug).await
             })
         })
@@ -429,4 +430,15 @@ pub(super) async fn save_person(
             })
         })
         .await
+}
+
+pub(crate) async fn remove_agent_extensions_in(
+    conn: &mut SqliteConnection,
+    slug: &str,
+) -> Result<(), StorageError> {
+    sqlx::query("DELETE FROM aylul_agent_extension WHERE agent_slug=?")
+        .bind(slug)
+        .execute(conn)
+        .await?;
+    Ok(())
 }

@@ -39,7 +39,7 @@ pub(super) struct Homes {
     locks: Mutex<HashMap<PathBuf, Arc<Mutex<()>>>>,
 }
 
-fn check(home: &Path) -> Result<serde_json::Value, CoreError> {
+pub(super) fn check(home: &Path) -> Result<serde_json::Value, CoreError> {
     let bytes = std::fs::read(home.join("settings.json"))
         .map_err(|_| CoreError::ProfileInvalid("cannot read settings.json".into()))?;
     let value: serde_json::Value = serde_json::from_slice(&bytes)
@@ -66,6 +66,15 @@ fn check(home: &Path) -> Result<serde_json::Value, CoreError> {
 }
 
 impl Homes {
+    pub(super) async fn lock_home(
+        &self,
+        home: &Path,
+    ) -> Result<tokio::sync::OwnedMutexGuard<()>, CoreError> {
+        let home = dunce::canonicalize(home)
+            .map_err(|_| CoreError::ProfileInvalid("agent home is unavailable".into()))?;
+        let lock = self.locks.lock().await.entry(home).or_default().clone();
+        Ok(lock.lock_owned().await)
+    }
     pub(super) async fn write_models(
         &self,
         home: &Path,
@@ -74,14 +83,7 @@ impl Homes {
     ) -> Result<(), CoreError> {
         let home = dunce::canonicalize(home)
             .map_err(|_| CoreError::ProfileInvalid("agent home is unavailable".into()))?;
-        let lock = self
-            .locks
-            .lock()
-            .await
-            .entry(home.clone())
-            .or_default()
-            .clone();
-        let _held = lock.lock().await;
+        let _held = self.lock_home(&home).await?;
         let mut value = check(&home)?;
         let models = serde_json::json!(models);
         if value.get("availableModels") == Some(&models)

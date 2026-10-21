@@ -363,6 +363,12 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: Actual openings project only enabled managed items; cached adapters are not reconfigured.
+    tested_by: [opening_projects_only_enabled_extensions]
+  - rule: Disabled cached plugins remain explicitly false; user-owned content is preserved.
+    tested_by: [opening_removes_disabled_cached_extensions]
+  - rule: Projection serializes per home and refuses collisions without spawning or replacing user files.
+    tested_by: [extension_projection_is_atomic]
   - rule: Cached adapters retain their opening provider attribution until reopened.
     tested_by: [usage_snapshot_survives_provider_changes]
   - rule: An AYLUL opening appends aylul_calls_me or name, or nothing when neither is set.
@@ -576,6 +582,10 @@ obligations:
 
 
 agreements:
+  - between: [write_extensions, profiles::agent_extensions]
+    must: Snapshot per-agent enablement under the library mutation guard before projecting owned files.
+    holds: true
+    tested_by: [opening_projects_only_enabled_extensions, extension_deletions_remove_enablement_atomically]
   - between: [test_saved_provider, opening]
     must: Resolve scope provider/<slug>, name PROVIDER_API_KEY, through secrets.resolve_env.
     holds: true

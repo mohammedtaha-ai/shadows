@@ -8,6 +8,8 @@ use crate::turns::StartError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
+    ExtensionNotFound,
+    ExtensionNameConflict,
     /// Desktop identity was not configured; HTTP readiness only.
     RuntimeNotConfigured,
     AylulProfileNotFound,
@@ -80,6 +82,10 @@ pub enum ErrorCode {
 /// MCP — and the codes and texts clients see stay exactly what they were.
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {
+    #[error("extension not found")]
+    ExtensionNotFound,
+    #[error("extension name is already in use")]
+    ExtensionNameConflict,
     #[error("AYLUL agent not found: {0}")]
     AylulProfileNotFound(String),
     #[error("AYLUL provider not found: {0}")]
@@ -136,6 +142,8 @@ pub enum CoreError {
 impl From<StorageError> for CoreError {
     fn from(error: StorageError) -> Self {
         match error {
+            StorageError::ExtensionNotFound => Self::ExtensionNotFound,
+            StorageError::ExtensionNameConflict => Self::ExtensionNameConflict,
             StorageError::AylulProfileNotFound(s) => Self::AylulProfileNotFound(s),
             StorageError::AylulProviderNotFound(s) => Self::AylulProviderNotFound(s),
             StorageError::ProviderInUse(s) => Self::ProviderInUse(s),

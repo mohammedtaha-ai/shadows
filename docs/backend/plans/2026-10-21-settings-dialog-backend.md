@@ -499,7 +499,8 @@ Evidence file naming the probe commit, then the spike goes.
 
 ## B-9 · Plugins and skills: shared library, enabled per agent
 
-**Status:** steps written; blocked pending controller review. Needs B-8 done,
+**Status:** Released by the controller, 2026-10-21.
+Needs B-8 done,
 B-7's migration 0034 allocated, and the accepted request. Evidence:
 [B-8](../../evidence/2026-10-21-agent-home-extensions-probe.md); spec §7.
 
@@ -522,6 +523,23 @@ B-7's migration 0034 allocated, and the accepted request. Evidence:
 - Read profiles/harness/secrets contracts; extension evidence; profile_home.rs's
   per-home serialization and atomic settings replacement; profiles/store.rs's
   agent tombstone transaction. No new dependencies, web or native edits.
+
+**Mechanical error mapping follow-up:** `crates/shadows-core/src/{error.rs,db/error.rs}`
+and `crates/shadows-http/src/failure/{other.rs,storage.rs}` are in B-9 Touch
+for the two typed errors explicitly required below (already in stages Touch).
+`crates/shadows-core/tests/aylul_extensions/{live.rs,home.rs,fixture.rs}`
+split live and home-projection acceptance from local library tests, preserving
+one test target and a dedicated fixture owner; these files are B-9 Touch follow-ups.
+Projection assigns a stable private version derived from each immutable item UUID
+in the copied plugin manifest and marketplace entry, so reimported names cannot
+reuse another item's cached payload. Original library bytes stay unchanged.
+The managed manifest retains disabled plugin names so future openings keep their
+keys false even with old cache data. The shared `remove_agent_extensions_in`
+helper lives in the already-listed `profiles/store.rs`, beside delete_agent:
+the contract checker recognizes shared transaction helpers only in store.rs or
+store/. Other extension SQL remains in extension_store.rs.
+`crates/shadows-mcp/src/refusal.rs` is an exhaustive CoreError mapping follow-up:
+map the two new variants to the same codes without adding MCP tools.
 
 **Interfaces**
 - `ExtensionKind = plugin | skill`; `Item { id, name, description }` and

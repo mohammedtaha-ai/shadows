@@ -105,6 +105,8 @@ impl From<CoreError> for Refusal {
 /// The code HTTP answers the same failure with.
 fn code_of(e: &CoreError) -> ErrorCode {
     match e {
+        CoreError::ExtensionNotFound => ErrorCode::ExtensionNotFound,
+        CoreError::ExtensionNameConflict => ErrorCode::ExtensionNameConflict,
         CoreError::AylulProfileNotFound(_) => ErrorCode::AylulProfileNotFound,
         CoreError::AylulProviderNotFound(_) => ErrorCode::AylulProviderNotFound,
         CoreError::ProviderInUse(_) => ErrorCode::ProviderInUse,
