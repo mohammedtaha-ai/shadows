@@ -140,16 +140,31 @@ impl Session {
         Ok(())
     }
 }
+/// Where one run publishes: its epoch and the channels its updates go out on.
+pub(super) struct Outlet {
+    pub epoch: u64,
+    pub current: Arc<AtomicU64>,
+    pub notify: Notify,
+    pub ready: watch::Sender<Readiness>,
+}
+/// Where the reconnect loop stands: the durable cursor and consecutive failures.
+struct Reconnect {
+    cursor: i64,
+    failures: u32,
+}
 pub(super) async fn run(
     binding: BindingView,
     connection: ReadyConnection,
-    epoch: u64,
-    current: Arc<AtomicU64>,
-    notify: Notify,
+    outlet: Outlet,
     timing: Timing,
-    ready: watch::Sender<Readiness>,
     refreshes: &mut mpsc::Receiver<RefreshRequest>,
 ) {
+    let Outlet {
+        epoch,
+        current,
+        notify,
+        ready,
+    } = outlet;
     let scope = Scope {
         generation: binding.generation,
         configuration_id: connection.configuration_id.clone(),
@@ -181,8 +196,10 @@ pub(super) async fn run(
             return;
         }
     };
-    let mut failures = 0u32;
-    let mut cursor = 0;
+    let mut reconnect = Reconnect {
+        cursor: 0,
+        failures: 0,
+    };
     loop {
         let outcome = match state.metadata(&client, &binding).await {
             Ok(()) => {
@@ -193,14 +210,13 @@ pub(super) async fn run(
                         &binding,
                         &target.thread_id,
                         &mut state,
-                        &mut cursor,
-                        &mut failures,
+                        &mut reconnect,
                         &timing,
                         refreshes,
                     )
                     .await
                 } else {
-                    failures = 0;
+                    reconnect.failures = 0;
                     state.apply(Observation::CaughtUp);
                     state
                         .wait(timing.liveness, refreshes, &client, &binding)
@@ -223,8 +239,8 @@ pub(super) async fn run(
             continue;
         }
         state.apply(Observation::Disconnected);
-        failures += 1;
-        if failures >= 10 {
+        reconnect.failures += 1;
+        if reconnect.failures >= 10 {
             state.apply(Observation::Unavailable(
                 "Unavailable. Retry local Core in Settings.",
             ));
@@ -232,7 +248,7 @@ pub(super) async fn run(
         }
         let delay = timing
             .retry
-            .saturating_mul(1u32 << (failures - 1).min(10))
+            .saturating_mul(1u32 << (reconnect.failures - 1).min(10))
             .min(timing.retry_cap);
         state.wait(delay, refreshes, &client, &binding).await;
     }
@@ -246,11 +262,11 @@ async fn session(
     binding: &BindingView,
     thread: &str,
     state: &mut Session,
-    cursor: &mut i64,
-    failures: &mut u32,
+    reconnect: &mut Reconnect,
     timing: &Timing,
     refreshes: &mut mpsc::Receiver<RefreshRequest>,
 ) -> Result<(), Problem> {
+    let Reconnect { cursor, failures } = reconnect;
     let mut feed = client.subscribe(thread, *cursor).await?;
     // Subscribe before snapshot. Replay is suppressed until this stream's own caught-up.
     state.refresh(client, thread, *cursor, None).await?;

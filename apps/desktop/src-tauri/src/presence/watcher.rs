@@ -5,7 +5,7 @@ use super::{
     projection::{PresenceProjection, Scope},
 };
 use crate::core_connection::ReadyConnection;
-use feed::run;
+use feed::{run, Outlet};
 use std::{
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -50,16 +50,17 @@ impl Timing {
     }
 }
 type BindingGuard = Option<(u64, Option<String>)>;
+type Acknowledgement = (
+    oneshot::Sender<Result<(), &'static str>>,
+    Result<(), &'static str>,
+);
 pub struct Update {
     guard: BindingGuard,
     pub scope: Option<Scope>,
     pub projection: PresenceProjection,
     pub appearance: Option<super::CompanionAppearance>,
     pub republish_only: bool,
-    acknowledgement: Option<(
-        oneshot::Sender<Result<(), &'static str>>,
-        Result<(), &'static str>,
-    )>,
+    acknowledgement: Option<Acknowledgement>,
     epoch: u64,
     current: Arc<AtomicU64>,
 }
@@ -144,7 +145,7 @@ impl PresenceWatcher {
                     tokio::select! {
                         biased;
                      result=input.changed()=>{if result.is_err(){break}},
-                     _=run(binding,connection,request.epoch,generation.clone(),notify.clone(),timing.clone(),ready_updates.clone(), &mut refresh_input)=>{
+                     _=run(binding,connection,Outlet{epoch:request.epoch,current:generation.clone(),notify:notify.clone(),ready:ready_updates.clone()},timing.clone(), &mut refresh_input)=>{
                       if input.changed().await.is_err(){break}
                      }
                     }
