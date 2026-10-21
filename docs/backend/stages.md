@@ -63,7 +63,7 @@ never print, log or commit a key).
 - Done when: `person_names_are_checked`, `language_tag_shape_is_checked`, `theme_values_are_checked`, `person_replay_with_other_input_conflicts`, `opening_names_the_person`, `opening_without_person_appends_nothing`, `me_round_trips` pass; contracts, codemap, openapi pass
 
 ### B-6 · Probe: what the ACP adapter reports of usage
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-6--probe-what-the-adapter-reports-of-usage
 - Read: spec §6; docs/evidence/2026-10-21-provider-presets-research.md ("What Shadows itself can see of usage")
 - Touch: Cargo.toml (probe commit only, reverted), crates/shadows-agent/src/acp.rs (probe commit only, reverted), docs/evidence/<date>-acp-usage-probe.md (new)

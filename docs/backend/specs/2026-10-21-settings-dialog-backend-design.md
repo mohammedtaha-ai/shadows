@@ -187,9 +187,14 @@ Anthropic model name), and `openrouter` if B-6 shows the number is
 OpenRouter's own charge. Mohammed (2026-10-21) set no spending limit on
 probes and live tests.
 
-> **OPEN — what the adapter sends.** Whether the pinned Claude ACP adapter
-> sends `PromptResponse.usage` and `UsageUpdate.cost` is not known. Closed by
-> B-6, a recorded probe; until then no usage task is planned past its contract.
+> **CLOSED by B-6, 2026-10-21.** The pinned adapter sends end-turn
+> input/output/cache counts for OpenRouter and MiniMax. Its cost notification
+> is Claude SDK total_cost_usd, not demonstrated OpenRouter billing: both
+> providers retain null cost/currency. tokens_in includes inputTokens plus
+> cachedReadTokens plus cachedWriteTokens; tokens_out is outputTokens.
+> Record one end-turn result, never sum context usage notifications. Missing
+> usage must remain unknown internally rather than fabricated. See
+> [raw usage evidence](../../evidence/2026-10-21-acp-usage-probe.md).
 
 ## 7. Plugins and skills
 
