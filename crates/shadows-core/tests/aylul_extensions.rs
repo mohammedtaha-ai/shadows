@@ -176,7 +176,7 @@ async fn extension_enablement_is_per_agent() {
     assert_eq!(b["skills"][0]["enabled"], false);
     assert_eq!(b["plugins"][0]["enabled"], false);
     w.core
-        .profiles()
+        .harness()
         .delete_agent("del".into(), "other")
         .await
         .unwrap();
@@ -207,7 +207,7 @@ async fn extension_deletions_remove_enablement_atomically() {
     .unwrap();
     assert!(
         w.core
-            .profiles()
+            .harness()
             .delete_agent("del-agent".into(), "aylul")
             .await
             .is_err()
@@ -229,7 +229,7 @@ async fn extension_deletions_remove_enablement_atomically() {
         .await
         .unwrap();
     w.core
-        .profiles()
+        .harness()
         .delete_agent("del-agent".into(), "aylul")
         .await
         .unwrap();

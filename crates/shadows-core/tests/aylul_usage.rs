@@ -248,7 +248,7 @@ async fn usage_snapshot_survives_provider_changes() {
         .unwrap();
     send(&w, "turn-usage").await;
     w.core
-        .profiles()
+        .harness()
         .delete_agent("delete-agent".into(), "aylul")
         .await
         .unwrap();

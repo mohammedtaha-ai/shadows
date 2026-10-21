@@ -15,11 +15,15 @@ async fn agent_default_must_be_a_provider_model() {
 #[tokio::test]
 async fn deleted_agent_slug_is_never_reused() {
     let w = seeded().await;
+    let core = super::threads::core(&w).await;
     w.profiles
         .create_agent("a".into(), agent("Work"))
         .await
         .unwrap();
-    w.profiles.delete_agent("d".into(), "work").await.unwrap();
+    core.harness()
+        .delete_agent("d".into(), "work")
+        .await
+        .unwrap();
     assert!(w.profiles.agent("work").await.unwrap().deleted);
     assert!(w.profiles.agents().await.unwrap().is_empty());
     assert_eq!(
@@ -30,7 +34,7 @@ async fn deleted_agent_slug_is_never_reused() {
             .slug,
         "work-2"
     );
-    w.profiles
+    core.harness()
         .delete_agent("d2".into(), "work-2")
         .await
         .unwrap();
@@ -44,6 +48,7 @@ async fn deleted_agent_slug_is_never_reused() {
 #[tokio::test]
 async fn delete_agent_removes_its_variables() {
     let w = seeded().await;
+    let core = super::threads::core(&w).await;
     w.profiles
         .create_agent("a".into(), agent("Work"))
         .await
@@ -52,7 +57,10 @@ async fn delete_agent_removes_its_variables() {
         .set_env("s".into(), "work", "EXTRA", "synthetic")
         .await
         .unwrap();
-    w.profiles.delete_agent("d".into(), "work").await.unwrap();
+    core.harness()
+        .delete_agent("d".into(), "work")
+        .await
+        .unwrap();
     assert!(w.secrets.list_env("work").await.unwrap().is_empty());
 }
 

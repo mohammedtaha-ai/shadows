@@ -143,6 +143,14 @@ functions:
   preference_key: The one storage key for per-agent AYLUL model preferences.
   service:
     test_saved_provider: Test with the supplied key or stored key through the shared probe.
+    delete_agent:
+      signature: "(&self, command_id: String, slug: &str) -> Result<(), CoreError>"
+      # The one way an agent is deleted (the HTTP route calls it; no MCP tool
+      # deletes an agent). `Sessions::delete_agent`: `Profiles::delete_stored_agent`
+      # commits the tombstone and removes its variables in one transaction,
+      # then every live adapter of the agent's threads closes (`terminate`);
+      # a failed close is logged (`agent.adapter_close_failed`) and does not
+      # undo the deletion.
     aylul_profile:
       signature: "(&self) -> Result<&str, CoreError>"
       # Configuration-only metadata; absence is AylulNotConfigured.
@@ -299,10 +307,16 @@ functions:
       # Free function in `setup.rs`: the Planner prompt's version a turn's
       # invocation records.
   construction:
+    with_profiles:
+      signature: "(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig, profiles: Arc<Profiles>) -> Arc<Sessions>"
+      # pub(crate): `AppCore::start` builds one on the core's `storage` and
+      # the `Profiles` it built, the instance the core also serves. Sessions
+      # read profiles; profiles hold no reference back. Its idle sweep runs
+      # every idle_after/4, at most 60 s.
     new:
       signature: "(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig) -> Arc<Sessions>"
-      # `AppCore::start` builds one on the core's `storage`; its idle sweep runs every idle_after/4,
-      # at most 60 s.
+      # Test callers only (`testing::Sessions`), until A-9 to A-19 move them
+      # to `AppCore`: `with_profiles` over profiles of its own.
   titles:
     keep_titles:
       signature: "(storage: Arc<Storage>, thread: ThreadId, next: impl Fn(HarnessEvent)) -> impl Fn(HarnessEvent)"
@@ -375,6 +389,14 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: >
+      Deleting an agent is Harness's: the tombstone commits through Profiles,
+      then the agent's live adapters close. Profiles holds no reference to
+      Sessions.
+    tested_by:
+      - deleted_agent_with_live_adapter_is_not_found
+      - deleted_agent_slug_is_never_reused
+      - delete_agent_removes_its_variables
   - rule: Actual openings project only enabled managed items; cached adapters are not reconfigured.
     tested_by: [opening_projects_only_enabled_extensions]
   - rule: Disabled cached plugins remain explicitly false; user-owned content is preserved.

@@ -101,6 +101,13 @@ impl Harness {
         Self { storage, sessions }
     }
 
+    /// Deletes an agent and closes its live adapters (`Sessions::delete_agent`).
+    /// The one way an agent is deleted: its adapters are live state this
+    /// service owns.
+    pub async fn delete_agent(&self, command_id: String, slug: &str) -> Result<(), CoreError> {
+        self.sessions.delete_agent(command_id, slug).await
+    }
+
     /// Every harness Shadows knows, runnable or not, with the model and effort
     /// last used on it and the account limits it last reported.
     pub async fn list(&self) -> Result<Vec<HarnessInfo>, CoreError> {

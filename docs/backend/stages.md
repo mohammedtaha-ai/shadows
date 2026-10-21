@@ -96,7 +96,7 @@ are reference material; they do not replace the project's template or code.
 - Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-8--every-service-is-built-in-appcorestart
 - Read: crates/shadows-core/src/app.rs, harness/sessions.rs, testing/
-- Touch: crates/shadows-core/src/{app.rs,harness/sessions.rs,profiles/mod.rs,testing/}
+- Touch: crates/shadows-core/src/{app.rs,harness/sessions.rs,profiles/,testing/}, the profiles and harness contracts, the HTTP/MCP callers of agent deletion, crates/shadows/tests/architecture/, their tests
 - Done when: affected construction/startup tests pass; services are built once, no service receives AppCore, and a restricted fixture exists; old CoreParts fields remain only for enumerated test callers until their owner tasks migrate them
 
 ### A-8b · The binary has one start and no second surface

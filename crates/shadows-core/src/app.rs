@@ -51,6 +51,9 @@ pub struct CoreParts {
     /// only, never stored.
     pub ui: tokio::sync::broadcast::Sender<UiSignal>,
     /// `http://<bound address>/mcp`: what a grant's `claude mcp add` names.
+    /// Test-only: `assemble` builds its `Grants` over it, while `start`
+    /// builds the one `Grants` itself, before the sessions.
+    #[cfg(feature = "test-support")]
     pub mcp_url: String,
 }
 
@@ -78,9 +81,11 @@ pub struct CoreParts {
 /// The first twelve owners have typed accessors on `AppCore`. `Runtime` is
 /// internal: `start` builds it before assembly, then `Turns` holds the shared
 /// instance for execution and shutdown. There is no `AppCore::runtime` accessor.
-/// `start` builds `Profiles` and `Grants` once; `Sessions` links itself to the
-/// profiles, `Harness` shares `Sessions`, and the stored `Grants` is the one
-/// that revoked thread grants at startup.
+/// `start` builds `Profiles` and `Grants` once. `Sessions` receives those
+/// profiles and holds them one way (deleting an agent is `Harness`'s, since it
+/// closes live adapters); `Harness` shares `Sessions`, and the stored `Grants`
+/// is the one that revoked thread grants at startup. No service receives
+/// `AppCore`.
 pub struct AppCore {
     secrets: Arc<Secrets>,
     profiles: Arc<crate::Profiles>,
@@ -188,6 +193,7 @@ impl AppCore {
                 handles: Arc::new(LiveHandles::default()),
                 bus,
                 ui: tokio::sync::broadcast::channel(256).0,
+                #[cfg(feature = "test-support")]
                 mcp_url,
             },
             profiles,
@@ -202,7 +208,8 @@ impl AppCore {
     }
 
     /// The application over parts already built. Tests reach it as
-    /// `AppCore::assemble` (`testing`).
+    /// `AppCore::assemble` (`testing`); `start` assembles its own.
+    #[cfg(feature = "test-support")]
     pub(crate) fn from_parts(parts: CoreParts) -> Arc<AppCore> {
         let profiles = parts.sessions.profiles.clone();
         let grants = Grants::new(parts.storage.clone(), parts.mcp_url.clone());
@@ -223,7 +230,8 @@ impl AppCore {
             handles,
             bus,
             ui,
-            mcp_url: _,
+            // `mcp_url`, under `test-support`: `grants` was built over it.
+            ..
         } = parts;
         // Before the three services that hold it to call `touch` (§15.8).
         let code = Code::new(storage.clone());

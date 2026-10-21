@@ -98,6 +98,7 @@ crates/shadows-core/src/harness/mod.rs :: Harness::limits_of Storage::turn_conte
 crates/shadows-core/src/harness/mod.rs :: Harness::open_idle Storage::thread_is_busy belongs to turns [8a453cd297f33f2a] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::open_idle Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::open_session Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
+crates/shadows-core/src/harness/sessions.rs :: Sessions::delete_agent Storage::list_threads_for_profile belongs to threads [2e909abbfba98b74] #1
 crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::profiles::Profiles outside composition root [6e9dd15e2248227f] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::current_planner_instructions belongs to instructions [8040624286e419e7] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::latest_invocation_versions belongs to turns [ab2b1b69e7a914ff] #1
@@ -144,7 +145,6 @@ crates/shadows-core/src/plans/store/read.rs :: written_by SQL table agent_invoca
 crates/shadows-core/src/plans/store/read.rs :: written_by SQL table planning_thread belongs to threads [54081ef5986d2963] #1
 crates/shadows-core/src/plans/store/view.rs :: Storage::show_plan cross-owner store call shadows_core::grants::store::check_writer [a000eca87c3e2f49] #1
 crates/shadows-core/src/plans/store/view.rs :: Storage::show_plan cross-owner store call shadows_core::threads::store::entry::append_entry_in [611e232f289650a2] #1
-crates/shadows-core/src/profiles/agents.rs :: Profiles::delete_agent Storage::list_threads_for_profile belongs to threads [2e909abbfba98b74] #1
 crates/shadows-core/src/profiles/listing.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows-core/src/profiles/mod.rs :: Profiles::assistant_project Storage::list_projects belongs to projects [31862bd6de0a707e] #1
 crates/shadows-core/src/profiles/store.rs :: PROVIDER_SELECT SQL table secret_env belongs to secrets [16cfcf542eb57774] #1

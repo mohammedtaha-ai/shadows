@@ -113,7 +113,10 @@ async fn aylul_thread_requires_a_live_agent() {
             .as_deref(),
         Some("work")
     );
-    w.profiles.delete_agent("d".into(), "work").await.unwrap();
+    core.harness()
+        .delete_agent("d".into(), "work")
+        .await
+        .unwrap();
     assert!(
         core.threads()
             .create("t2".into(), &p.id, "Chat", Some("aylul"), Some("work"))

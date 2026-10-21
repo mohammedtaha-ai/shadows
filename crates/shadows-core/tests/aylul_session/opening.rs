@@ -46,7 +46,7 @@ async fn deleted_agent_with_live_adapter_is_not_found() {
     w.core.harness().open_session(&w.thread).await.unwrap();
     assert_eq!(w.sessions.live_count().await, 1);
     w.core
-        .profiles()
+        .harness()
         .delete_agent("delete".into(), "aylul")
         .await
         .unwrap();
@@ -75,7 +75,7 @@ async fn deleting_last_agent_is_not_found_not_unavailable() {
     let w = world().await;
     w.core.harness().open_session(&w.thread).await.unwrap();
     w.core
-        .profiles()
+        .harness()
         .delete_agent("delete".into(), "aylul")
         .await
         .unwrap();

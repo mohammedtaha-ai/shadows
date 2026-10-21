@@ -119,6 +119,9 @@ pub struct Sessions {
 impl Sessions {
     /// Shares the core's `storage`, so the grant events an opening and a
     /// close append raise the committed signal `Events` watches (§13.7).
+    /// Test callers only, over profiles of its own; `start` uses
+    /// `with_profiles`.
+    #[cfg(feature = "test-support")]
     pub fn new(
         adapter: Arc<ClaudeAdapter>,
         storage: Arc<Storage>,
@@ -131,8 +134,8 @@ impl Sessions {
         Self::with_profiles(adapter, storage, config, profiles)
     }
 
-    /// Over `profiles` built by the caller, which this `Sessions` then links
-    /// to itself so a deleted agent's adapters close.
+    /// Over the `profiles` `AppCore::start` built, the one instance the core
+    /// also serves. The dependency points one way: sessions read profiles.
     pub(crate) fn with_profiles(
         adapter: Arc<ClaudeAdapter>,
         storage: Arc<Storage>,
@@ -142,11 +145,8 @@ impl Sessions {
         let period = (config.idle_after / 4)
             .min(Duration::from_secs(60))
             .max(Duration::from_millis(1));
-        let sessions = Arc::new_cyclic(|weak| Self {
-            profiles: {
-                profiles.attach_sessions(weak.clone());
-                profiles
-            },
+        let sessions = Arc::new(Self {
+            profiles,
             homes: super::profile_home::Homes::default(),
             setups: Setups::new(storage.clone(), config.mcp_url.clone()),
             adapter,
@@ -169,6 +169,23 @@ impl Sessions {
             }
         });
         sessions
+    }
+
+    /// Deletes an agent: `Profiles` commits the tombstone, then every live
+    /// adapter of the agent's threads closes. A close that fails is logged and
+    /// does not undo the deletion.
+    pub(crate) async fn delete_agent(
+        &self,
+        command_id: String,
+        slug: &str,
+    ) -> Result<(), crate::CoreError> {
+        self.profiles.delete_stored_agent(command_id, slug).await?;
+        for thread in self.storage.list_threads_for_profile(slug).await? {
+            if let Err(error) = self.terminate(&thread.id).await {
+                tracing::warn!(thread_id=%thread.id, %error, "agent.adapter_close_failed");
+            }
+        }
+        Ok(())
     }
 
     /// Drops what a closed or failed session left: its offer, its `/` list

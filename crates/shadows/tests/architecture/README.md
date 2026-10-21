@@ -39,7 +39,9 @@ comparison. No mutation test edits the real product tree.
   Each statement in a literal batch must be classified. Quoted identifiers
   retain their table names without being mistaken for SQL clause keywords.
 - Adapters cannot name/import/call stores or known live registry types.
-  A service cannot depend on AppCore. Service constructors (`new`/`start` on
+  A service cannot depend on AppCore: any type naming it in service source
+  (a field, a constructor parameter, `Arc<AppCore>`) or an import of it is a
+  finding, and the allowlist holds none. Service constructors (`new`/`start` on
   structs implemented in a service entry module, plus calls to `default`) may
   only be invoked by `crates/shadows-core/src/app.rs`; explicit service struct literals
   are checked too. Publicly reexported value types defined in a store file are

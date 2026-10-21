@@ -122,6 +122,36 @@ fn aliases_do_not_hide_storage_construction_or_appcore_dependencies() {
 }
 
 #[test]
+fn a_service_constructor_or_field_cannot_take_appcore() {
+    let tree = fixture();
+    let root = tree.path();
+    let before = scanner::scan(root);
+    put(
+        root,
+        "crates/shadows-core/src/projects/mod.rs",
+        "pub struct Projects { app: std::sync::Arc<crate::app::AppCore> }\n\
+         impl Projects { pub fn new(app: std::sync::Arc<crate::app::AppCore>) -> Self { Self { app } } }",
+    );
+    let after = rejected(root, &before, "ownership");
+    for symbol in ["Projects", "Projects::new"] {
+        let reason = format!(":: {symbol} service depends on AppCore [");
+        assert!(
+            after["ownership"]
+                .iter()
+                .any(|record| record.contains(&reason)),
+            "missing AppCore dependency in {symbol}: {:#?}",
+            after["ownership"]
+        );
+    }
+    put(
+        root,
+        "crates/shadows-core/src/projects/mod.rs",
+        "pub struct Projects; impl Projects { pub fn new() -> Self { Self } }",
+    );
+    assert!(compare(&scanner::scan(root), &before).is_empty());
+}
+
+#[test]
 fn moved_service_is_discovered_and_still_checked_for_sql() {
     let tree = fixture();
     let root = tree.path();

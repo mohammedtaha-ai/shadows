@@ -165,7 +165,7 @@ pub(super) async fn delete_agent(
     Path(slug): Path<String>,
     Query(q): Query<RemoveCommand>,
 ) -> Result<StatusCode, Failure> {
-    s.core.profiles().delete_agent(q.command_id, &slug).await?;
+    s.core.harness().delete_agent(q.command_id, &slug).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 #[utoipa::path(get, path="/api/aylul/agents/{slug}/threads", tag="aylul",

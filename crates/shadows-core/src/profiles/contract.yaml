@@ -31,7 +31,7 @@ shapes:
   Profiles:
     storage: Arc<Storage>
     home_root: Optional isolated home root
-    sessions: Weak session owner used after deletion commits
+    note: Built once by AppCore::start and handed to Sessions; holds no reference to Sessions
   Person:
     source: model.rs
     updated_at: Null before the first write
@@ -75,6 +75,7 @@ called_by_other_services:
   copy_extension_tree: Harness copies bounded regular library files into a managed snapshot.
   extension_guard: Harness serializes library snapshot projection against library mutations.
   probe: Harness calls the bounded probe with an explicit resolved provider key.
+  delete_stored_agent: Harness (Sessions::delete_agent) commits the tombstone, then closes the agent's live adapters.
 functions:
   extensions: List the shared extension library ordered by name and id.
   add_extension: Import a bounded immutable local copy under one replayable command.
@@ -98,7 +99,7 @@ functions:
   delete_provider: Refuse live users and remove the encrypted key in the same write.
   create_agent: Validate the provider default and seed absent home files before insertion.
   update_agent: Change live configuration while retaining the slug.
-  delete_agent: Keep the identity and remove variables in one transaction, then close its adapters.
+  delete_stored_agent: pub(crate); keep the identity and remove variables in one transaction. Harness::delete_agent is its one caller and closes the adapters after it.
 shared_in_transaction:
   remove_agent_extensions_in: Agent tombstoning removes its enablement in the same write.
   require_live_agent_in: Threads checks creation; Secrets checks agent environment writes inside their transaction.
