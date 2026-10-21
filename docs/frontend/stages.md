@@ -7,7 +7,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 Work and improvements continue on branch `improvements`. The settings dialog,
 F-2 to F-9, is implemented and accepted by Mohammed in the app. F-10 and F-11 are
-implemented with focused automated checks. F-12 and F-14 retain their recorded blockers.
+implemented with focused automated checks, as is F-14. F-12's steps await the controller's review.
 
 ## Tasks
 
@@ -135,12 +135,17 @@ implemented with focused automated checks. F-12 and F-14 retain their recorded b
 
 ### F-12 · General: language and theme in Core with the person; start with Windows and tray native
 - Status: blocked
-- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#tasks-that-wait-on-the-request (its steps are written when the request is answered)
-- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md`
-- Touch: to be named with the steps
-- Needs: `docs/shared/requests/2026-10-20-settings-dialog.md` (General) accepted; B-5 built; the native
-  switches through an AYLUL shared request to the native side
-- Done when: to be named with the steps
+- Blocker: steps written, waiting for the controller's review
+- Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-12-general-person-preferences-and-desktop-behaviour
+- Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (General);
+  `docs/aylul/shared/requests/2026-10-21-settings-dialog-native.md` (accepted);
+  `docs/aylul/native/plans/2026-10-21-settings-native.md` (N-7);
+  `web/src/api/person.ts`, `web/src/api/saved-answer.ts`, settings/desktop contracts and frontend code map
+- Touch: the Files list of Task F-12 in the plan
+- Needs: B-5, N-7 at `cd7fd94`, F-7 and F-15 (built); controller approval of these steps
+- Done when: `general-preferences.test.tsx`, `person-theme.test.tsx`, `desktop-preferences.test.tsx`,
+  `settings-dialog.test.tsx`, `you-card.test.tsx`, `account.test.tsx`, codemap, typecheck and lint pass;
+  complete person writes and actual native state match the plan, with current contracts/map and a task commit
 
 ### F-14 · Saving the companion agent repaints AYLUL at once
 - Status: done

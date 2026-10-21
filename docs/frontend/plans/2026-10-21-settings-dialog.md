@@ -814,6 +814,149 @@ amends this section before the task leaves `blocked`.
   `npm run build`; PASS.
 - [ ] **Step 6: Commit** `feat(web): each agent picks AYLUL's character colour`.
 
+### Task F-12: General: person preferences and desktop behaviour
+
+**Review gate:** steps written, waiting for the controller's review. Do not implement until
+released. B-5 supplies the person record; N-7 at `cd7fd94` supplies the two native preferences.
+The accepted native request `docs/aylul/shared/requests/2026-10-21-settings-dialog-native.md`
+owns the camelCase arguments, defaults and failure semantics.
+
+**Built interfaces:**
+- Reuse `personQuery`, `Person`, `PersonInput`, `savePerson(commandId, input)` from
+  `web/src/api/person.ts`. GET `/api/me` includes names, `language`, `theme`, `updated_at`;
+  PUT takes the whole record plus command id. Preserve last-read `name` and `aylul_calls_me`
+  when changing General preferences; do not send a partial person record. `theme` is
+  `dark | light | system`, default `system`; `language` is an optional nullable opaque tag.
+- `desktop_preferences`, no arguments, main only, returns the full
+  `{ launchAtLogin: boolean, closeToTray: boolean }`. Fresh native state is false/true.
+- `set_desktop_preferences` takes a flat partial object
+  `{ launchAtLogin?: boolean, closeToTray?: boolean }`, not `{ preferences: ... }`, and
+  returns both booleans after saving. Omitted values are retained by native.
+- Fixed native codes are `desktop_preferences_load_failed`,
+  `desktop_preferences_save_failed`, `desktop_preferences_autostart_failed`. An OS/storage
+  failure can require rereading actual native values; do not claim a rollback succeeded.
+  These preferences belong to this machine, never to Core's person or localStorage.
+
+**Files:**
+- Create: `web/src/app/settings/general-preferences.tsx` (person preference form),
+  `web/src/app/settings/person-theme.tsx` (person theme synchronization),
+  `web/src/app/settings/desktop-preferences.tsx` (native switches),
+  `web/src/desktop/preferences.ts` (typed native wrappers).
+- Modify: `web/src/app/settings/sections/general.tsx` (keep Active projects, add the forms),
+  `web/src/app/shell.tsx` (mount PersonTheme once), `web/src/index.css` (light semantic palette,
+  preserve the approved dark palette), `web/src/app/settings/contract.yaml`,
+  `web/src/desktop/contract.yaml`, `docs/frontend/codebase/README.md` (four new source rows),
+  `docs/frontend/stages.md` (this task's status).
+- Test: `web/src/app/settings/general-preferences.test.tsx`,
+  `web/src/app/settings/person-theme.test.tsx`, `web/src/app/settings/desktop-preferences.test.tsx`
+  (new); `web/src/app/settings/settings-dialog.test.tsx`, `web/src/app/settings/you-card.test.tsx`,
+  `web/src/app/settings/account.test.tsx` (regressions).
+- Read: existing person transport, `web/src/api/saved-answer.ts`, native request/N-7 plan,
+  General spec and the settings/desktop contracts. No API regeneration is needed for N-7.
+
+**Touch:** exactly this Files list. No translation catalogue, RTL redesign, native/backend code,
+OS login-item installation, personal preference migration or new dependency.
+
+**Interfaces and presentation for review:**
+- `GeneralPreferences()`: reads the existing person query, edits Language and Theme, and has
+  `Save preferences` (distinct from Active projects' Save). Theme offers System, Dark, Light.
+  Use `attemptFor` over the complete PersonInput; unchanged explicit retries reuse their id.
+  Disable fields while loading/saving; errors keep drafts. Read the latest cached person when
+  submitting so a names update observed while editing is preserved. Write success through
+  `writeSaved(client, personQuery.queryKey, answer)` from F-15, not bare `setQueryData`, then
+  clear the draft. A pre-save GET must not replace that answer. Core has no revision/CAS here;
+  this does not promise conflict-free simultaneous saves by different clients.
+- Language must follow the spec's availability rule: do not offer Arabic before its separate
+  translations/RTL slice exists. Current choices are Default (English, stored null) and English
+  (`en`). An already stored other tag is shown as a disabled current option `Saved (<tag>)`
+  and preserved unless the person selects a supported choice; never silently normalize it to
+  English while saving only Theme. This availability decision is explicit for controller review.
+- The current stylesheet explicitly has one dark palette. Theme must work, not merely save a
+  value: `PersonTheme()` renders no UI, subscribes to `personQuery` in Shell after existing
+  readiness, and applies the resolved theme through the root's `dark` class and
+  `data-theme="dark|light"`. System follows `matchMedia('(prefers-color-scheme: dark)')`, with
+  listener cleanup and immediate response to system changes; fixed themes ignore those changes.
+  Add light values for the existing semantic palette tokens in `index.css`; preserve all dark
+  values and token names, with matching `color-scheme`. No second theme store, pricing/API
+  origin assumption, or theme query in the pre-readiness native bootstrap. A failed person read
+  leaves the existing initial dark fallback intact. Clean DOM attributes/listeners on unmount.
+- `preferences.ts`: `type DesktopPreferences = { launchAtLogin: boolean; closeToTray: boolean }`;
+  `getDesktopPreferences(): Promise<DesktopPreferences>` and
+  `setDesktopPreferences(patch: Partial<DesktopPreferences>): Promise<DesktopPreferences>`
+  through `nativeCall`, with no nesting or snake_case wire fields. Validate both returned
+  booleans; malformed replies follow the same fixed load/save error presentation.
+- `DesktopPreferencesControls()` mounts only when `isDesktop()` in General. Read on each
+  opening; do not write defaults on mount. Two native checkboxes with `role="switch"`, named
+  `Start AYLUL with Windows` and `Closing the window hides it to the tray`. Each saves at once,
+  outside the person Save action; send only the changed key. Disable both while loading or
+  a setter/recovery read is pending, preventing concurrent partial updates from this UI.
+  Accept the returned full object, including the untouched switch. These controls do not
+  invoke companion-window commands, change visibility, or simulate native close behaviour.
+- If a setter fails, show exactly `Could not change this setting.` and reread native
+  preferences before re-enabling the controls, displaying what native actually reports.
+  If reread also fails, retain the last confirmed display, keep switches disabled, and offer
+  `Retry desktop settings` with `Could not load desktop settings.`. Never automatically retry
+  the setter. A first read failure uses that same load message/Retry and no invented defaults.
+  Errors in native controls do not disable Core preferences or Active projects, and vice versa.
+
+- [ ] **Step 1: Write failing tests** in `general-preferences.test.tsx`:
+  - `General reads and saves the whole person`: seed names, language `en`, theme `system`;
+    change Theme to Dark, click Save preferences; one PUT includes both names, `language: 'en'`,
+    `theme: 'dark'`, command id; no PUT before Save. Choosing Default sends language null.
+    An unknown saved language survives a theme-only change, and no enabled Arabic option exists.
+  - `observed names are preserved while editing preferences`: while a theme draft exists,
+    update the shared person cache with names saved from Account; General sends those latest
+    names, not the values captured when the form first opened.
+  - `a failed preference save retains its draft and command`: first PUT 500, error shown,
+    chosen values retained; same retry has identical body/id, changed preference has a new id.
+    Pending saves cannot submit twice; closing or changing sections before Save causes no mutation.
+  - `an old read cannot undo saved preferences`: hold a person GET across PUT; complete
+    PUT and then the stale GET. New language/theme and the shared person cache remain saved,
+    exercising writeSaved cancellation. Loading/error states never become editable fake values.
+- [ ] **Step 2: Write failing tests** in `person-theme.test.tsx`:
+  - `theme follows the shared person`: mount through Shell; Dark/Light set root class/data
+    consistently. A successful General save updates the shared record and root without reload.
+  - `System follows the OS and fixed themes do not`: controlled matchMedia false/true selects
+    light/dark for System; simulated changes apply only in System. Switching to a fixed theme
+    removes that listener. Unmount removes listeners and restores prior DOM attributes.
+  - `failed person loading preserves the initial theme`: read refusal leaves initial dark
+    state intact; no native preference call is made to choose a theme. Theme code never mounts
+    in the local-Core bootstrap. Validate the light token set during the later manual app check;
+    DOM tests alone do not establish colour contrast or visual acceptance.
+- [ ] **Step 3: Write failing tests** in `desktop-preferences.test.tsx`:
+  - `browser General has no native preferences`: no two native switches and no preference
+    invokes; language/theme and Active projects stay present.
+  - `desktop defaults come from native without a write`: held GET keeps controls disabled;
+    resolve false/true, assert unchecked/checked and no setter. Reopening does another read.
+  - `each switch sends flat partial camelCase arguments`: launch toggle sends
+    `set_desktop_preferences`, `{ launchAtLogin: true }`; close toggle sends
+    `{ closeToTray: false }`; no preferences wrapper, snake_case fields or Core PUT. Returned
+    full object controls both states. Both switches remain disabled until completion.
+  - `a failed setter rereads actual native values`: run each fixed save/autostart failure;
+    show the exact change-error sentence, then GET; if actual launch state differs from its
+    pre-save value, show actual native state rather than assuming rollback. No automatic setter
+    replay. Failed recovery read keeps controls disabled until explicit Retry succeeds.
+  - `load failure stays local`: fixed load/autostart failure and malformed reply show the
+    fixed load message and Retry, not raw codes/OS details. Core fields remain usable; retry
+    reads only. A failed Core save likewise never disables or invokes native switches.
+- [ ] **Step 4: Run red**, from `web/`: `npx vitest run
+  src/app/settings/general-preferences.test.tsx src/app/settings/person-theme.test.tsx
+  src/app/settings/desktop-preferences.test.tsx src/app/settings/settings-dialog.test.tsx
+  src/app/settings/you-card.test.tsx src/app/settings/account.test.tsx`; observe FAIL.
+- [ ] **Step 5: Implement** the reviewed Files/interfaces, keep the current Projects card,
+  update settings/desktop contracts and code-map rows. Preserve API transport/readiness and
+  F-15's saved-answer rule. Do not implement translations or make a real OS login-item change.
+- [ ] **Step 6: Run green**, sequentially: those six files, `npx vitest run
+  src/codemap.test.ts`, `npm run typecheck`, `npm run lint`; all PASS. No whole suite or cargo.
+- [ ] **Step 7: Set done and commit** `feat(web): General keeps person and desktop preferences`,
+  stage exact paths, ending `Co-Authored-By: Codex <noreply@openai.com>`.
+
+**Done when:** all named tests/checks pass, Core preferences preserve the complete person
+record and drive the supported theme, native controls reflect the actual machine state with
+independent failures, browser exposes no native switches, contracts/map are current, and the
+task commit exists. Controller acceptance of the light palette and real OS login-item/sign-in
+behaviour remains separate from the synthetic checks. This steps commit builds none of it.
+
 ### Task F-14: Saving the companion agent repaints AYLUL at once
 
 **Files:**
