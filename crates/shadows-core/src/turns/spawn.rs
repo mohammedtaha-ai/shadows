@@ -102,7 +102,7 @@ impl PlannerTurn {
         let Prompt {
             text: prompt,
             context,
-            withheld,
+            withholds,
         } = match prepared {
             Ok(prompt) => prompt,
             Err(reason) => {
@@ -115,8 +115,6 @@ impl PlannerTurn {
                 return Ok(op_id);
             }
         };
-        // A command skipped the changes: the next normal turn carries them.
-        sessions.setups().withhold(&thread_id, withheld);
         let turn_end_seen = Arc::new(AtomicBool::new(false));
         let cancel_requested = Arc::new(AtomicBool::new(false));
         let (steer, steers) = mpsc::unbounded_channel();
@@ -186,6 +184,9 @@ impl PlannerTurn {
                 .await?;
             return Err(e.into());
         }
+        // Only a started turn counts as heard, so the harness learns here
+        // whether this one carried its changes or a command left them waiting.
+        sessions.setups().withhold(&thread_id, withholds);
         watch_turn(
             TurnWatch {
                 op_id: op_id.clone(),

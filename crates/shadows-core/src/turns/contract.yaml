@@ -320,14 +320,16 @@ functions:
       signature: "(parts: PromptParts) -> Prompt"
       # On `Prompt` (`prompt.rs`), the one place a turn's blocks are built:
       # the person's text, then the changes since the session last heard, focus,
-      # the selected plan and the stage line. A text starting with `/` is sent
-      # alone, because the adapter runs a command only as the whole prompt; the
-      # changes it skipped come back as `withheld`, and `spawn.rs` hands them to
-      # Harness's `withhold` so the next normal turn carries them.
+      # the selected plan and the stage line. A text starting with `/` (after
+      # any leading whitespace) is sent alone, because the adapter runs a
+      # command only as the whole prompt; a `/` further in is text. When it
+      # skipped changes, `withholds` is set, and `spawn.rs` passes it to
+      # Harness's `withhold` once the turn has started, so the next normal
+      # turn carries them.
     steered:
       signature: "(text: &str, stage: &str) -> String"
       # On `Prompt`, used by `steer.rs`: the stage line follows a steered
-      # message unless it starts with `/`.
+      # message unless it is a command, by the same test as `compose`.
     focus_block:
       signature: "(focus: &Focus, number: u32, title: &str) -> String"
       # On `Prompt`.
@@ -540,10 +542,12 @@ obligations:
   - rule: >
       A text starting with `/` is the whole prompt: no context block rides
       with it. The changes it skipped are not marked as heard, so the next
-      normal turn carries them once.
+      normal turn carries them once, in their current form, however many
+      commands came between.
     tested_by:
       - a_slash_command_is_sent_as_one_block
       - context_skipped_by_a_command_reaches_the_next_turn
+      - changes_skipped_by_two_commands_reach_the_next_turn_once_and_current
   - rule: >
       A tool is one `ToolCall` entry whose body is its title (§23.8). A
       subagent is one `Subagent` entry carrying its card (§22.2, §23.8): the

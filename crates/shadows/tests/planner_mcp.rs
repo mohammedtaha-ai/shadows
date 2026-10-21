@@ -649,3 +649,25 @@ async fn context_skipped_by_a_command_reaches_the_next_turn() {
     assert!(sent[1].ends_with(&format!("\n\n{body}")), "{}", sent[1]);
     assert_eq!(blocks(&report(&l.app).await).len(), 2, "sent once");
 }
+
+#[tokio::test]
+async fn changes_skipped_by_two_commands_reach_the_next_turn_once_and_current() {
+    let l = listening_app().await;
+    report(&l.app).await;
+    save_instructions(&l.app, "i1", "Name every task in Arabic.").await;
+    let done = start_and_finish(&l.app, "/context", default_settings()).await;
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+    let body = "Name every task in French.";
+    save_instructions(&l.app, "i2", body).await;
+    let done = start_and_finish(&l.app, " /context", default_settings()).await;
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+
+    let next = report(&l.app).await;
+    let sent = blocks(&next);
+    assert_eq!(sent.len(), 3, "{sent:?}");
+    assert!(sent[1].starts_with(CHANGED), "{}", sent[1]);
+    assert_eq!(sent[1].matches(CHANGED).count(), 1, "{}", sent[1]);
+    assert!(sent[1].ends_with(&format!("\n\n{body}")), "{}", sent[1]);
+    assert!(!sent[1].contains("Arabic"), "the stale text: {}", sent[1]);
+    assert_eq!(blocks(&report(&l.app).await).len(), 2, "sent once");
+}

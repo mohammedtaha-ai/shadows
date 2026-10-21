@@ -235,14 +235,18 @@ functions:
     context_facts:
       signature: "(&self, thread: &ThreadId, operation: &OperationId) -> Result<ContextFacts, StorageError>"
       # pub(crate), on `Setups`: only facts, `{ changes, stage }`. `changes` is
-      # §13.8's text of what changed since the session last heard, with any
-      # changes a command turn withheld first. `Turns` (`turns/prompt.rs`)
-      # alone decides which of it a turn sends.
+      # §13.8's text of what changed since the session last heard: compared
+      # with the versions held back by command turns when there are any, else
+      # with the latest started turn's (or the opened session's). Every change
+      # appears once, in its current form. `Turns` (`turns/prompt.rs`) alone
+      # decides which of it a turn sends.
     withhold:
-      signature: "(&self, thread: &ThreadId, changes: Option<String>)"
-      # pub(crate), on `Setups`: kept with the thread's held session state.
-      # `Turns` sets it when a `/` command skipped the changes and clears it
-      # when a normal turn carried them; a reopened session forgets it.
+      signature: "(&self, thread: &ThreadId, skipped: bool)"
+      # pub(crate), on `Setups`: called once the turn has started, since only
+      # a started turn counts as heard. `skipped` (a `/` command went without
+      # its changes) keeps the versions this turn compared with, so the next
+      # turn compares with them too; otherwise they are cleared. Kept with the
+      # thread's held session state: a reopened or forgotten session drops it.
     stage_line:
       signature: "(&self, thread: &ThreadId) -> Result<String, StorageError>"
       # Setups: the current stage, sent last in new prompts and Send now.

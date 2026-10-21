@@ -47,8 +47,22 @@ struct Held {
     /// The instructions version its `append` carried.
     instructions: Option<String>,
     standards: Option<String>,
-    /// Changes a command turn skipped; the next normal turn carries them.
-    withheld: Option<String>,
+    /// What the session heard before the command turns that skipped their
+    /// changes: the next normal turn compares with it, so it carries every
+    /// change since, once, in its current form.
+    withheld: Option<Heard>,
+    /// What this turn compared with, kept until `withhold` learns whether the
+    /// turn carried its changes.
+    pending: Option<Heard>,
+}
+
+/// The versions a session last heard. `None` is unknown, so sent again.
+#[derive(Clone)]
+struct Heard {
+    ours: bool,
+    instructions: Option<Option<String>>,
+    /// The base standards version and the additions id.
+    standards: Option<(Option<i64>, Option<String>)>,
 }
 
 /// What the harness knows about a turn's context. `Turns` decides which of it
@@ -122,6 +136,7 @@ impl Setups {
                 instructions,
                 standards,
                 withheld: None,
+                pending: None,
             },
         );
         let mut append = format!("{}\n\n{}", ours(), super::standards::render(&effective));
@@ -144,35 +159,25 @@ impl Setups {
         thread: &ThreadId,
         operation: &OperationId,
     ) -> Result<ContextFacts, StorageError> {
-        let fresh = self.context_before_turn(thread, operation).await?;
-        let withheld = self.lock().get(thread).and_then(|h| h.withheld.clone());
-        let changes = match (withheld, fresh) {
-            (Some(old), Some(new)) => Some(format!(
-                "{old}
-
-{new}"
-            )),
-            (old, new) => old.or(new),
-        };
         Ok(ContextFacts {
-            changes,
+            changes: self.context_before_turn(thread, operation).await?,
             stage: self.stage_line(thread).await?,
         })
     }
 
-    /// Records the changes a command turn skipped, or clears them once a
-    /// normal turn carried them.
-    pub(crate) fn withhold(&self, thread: &ThreadId, changes: Option<String>) {
+    /// Called once the turn has started, which is when the session hears it.
+    /// `skipped`: a command went without the turn's changes, so they stay
+    /// unheard; otherwise the turn carried them.
+    pub(crate) fn withhold(&self, thread: &ThreadId, skipped: bool) {
         if let Some(held) = self.lock().get_mut(thread) {
-            held.withheld = changes;
+            let pending = held.pending.take();
+            held.withheld = pending.filter(|_| skipped);
         }
     }
 
-    /// Before a turn: §13.8's context block when the versions the thread's
-    /// latest invocation recorded differ from the current ones. A thread with
-    /// none is compared with what its session opened with, unless that
-    /// session is a fork's, whose parent holds versions no invocation of this
-    /// thread recorded.
+    /// Before a turn: the context block of what changed, when the versions
+    /// the session last heard differ from the current ones. Versions held
+    /// back by command turns come first; else the latest started turn's.
     async fn context_before_turn(
         &self,
         thread: &ThreadId,
@@ -182,7 +187,24 @@ impl Setups {
         if context.harness == policy::AYLUL {
             return Ok(None);
         }
-        let latest = self.storage.latest_invocation_versions(thread).await?;
+        let withheld = self.lock().get(thread).and_then(|h| h.withheld.clone());
+        let heard = match withheld {
+            Some(heard) => Some(heard),
+            None => match self.storage.latest_invocation_versions(thread).await? {
+                Some(latest) => Some(Heard {
+                    ours: latest.prompt.as_deref() == Some(prompt_version()),
+                    instructions: Some(latest.instructions),
+                    standards: Some((latest.standards, latest.additions)),
+                }),
+                None => self.heard_first(thread, context.fork_session_id.is_some()),
+            },
+        };
+        let Some(heard) = heard else {
+            return Ok(None);
+        };
+        if let Some(held) = self.lock().get_mut(thread) {
+            held.pending = Some(heard.clone());
+        }
         let current = self
             .storage
             .current_planner_instructions(&context.project_id)
@@ -197,33 +219,12 @@ impl Setups {
             base: base_standards().clone(),
             additions,
         };
-        // `None` for the instructions sent: unknown, so sent again.
-        let (ours_sent, instructions_sent, standards_sent) = match latest {
-            Some(latest) => (
-                latest.prompt.as_deref() == Some(prompt_version()),
-                Some(latest.instructions),
-                latest.standards == Some(effective.base.version)
-                    && latest.additions == additions_id,
-            ),
-            None if context.fork_session_id.is_some() => (false, None, false),
-            None => {
-                let opened = self
-                    .lock()
-                    .get(thread)
-                    .map(|h| (h.instructions.clone(), h.standards.clone()));
-                match opened {
-                    Some((instructions, standards)) => {
-                        (true, Some(instructions), standards == additions_id)
-                    }
-                    None => return Ok(None),
-                }
-            }
-        };
+        let standards_sent = heard.standards == Some((Some(effective.base.version), additions_id));
         let mut parts = Vec::new();
-        if !ours_sent {
+        if !heard.ours {
             parts.push(format!("{OURS}\n\n{}", ours()));
         }
-        if instructions_sent.as_ref() != Some(&current_id) {
+        if heard.instructions.as_ref() != Some(&current_id) {
             parts.push(match body(current.as_ref()) {
                 Some(body) => format!("{CHANGED}\n\n{body}"),
                 None => REMOVED.to_string(),
@@ -236,6 +237,26 @@ impl Setups {
             ));
         }
         Ok((!parts.is_empty()).then(|| parts.join("\n\n")))
+    }
+
+    /// What a thread with no started turn heard: what its session opened
+    /// with, unless that session is a fork's, whose parent holds versions no
+    /// turn of this thread recorded. `None` when there is nothing to compare
+    /// with.
+    fn heard_first(&self, thread: &ThreadId, fork: bool) -> Option<Heard> {
+        if fork {
+            return Some(Heard {
+                ours: false,
+                instructions: None,
+                standards: None,
+            });
+        }
+        let base = base_standards().version;
+        self.lock().get(thread).map(|h| Heard {
+            ours: true,
+            instructions: Some(h.instructions.clone()),
+            standards: Some((Some(base), h.standards.clone())),
+        })
     }
 
     /// The stage line every person's message carries (§23.4).
