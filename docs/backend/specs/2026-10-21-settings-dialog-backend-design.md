@@ -4,7 +4,7 @@
 - Request: [settings dialog](../../shared/requests/2026-10-20-settings-dialog.md)
 - Frontend design: [settings dialog design](../../frontend/specs/2026-10-20-settings-dialog-design.md)
 - Facts: [provider presets research](../../evidence/2026-10-21-provider-presets-research.md)
-- Plan: [settings dialog backend plan](../plans/2026-10-21-settings-dialog-backend.md)
+- Plan: `docs/backend/plans/2026-10-21-settings-dialog-backend.md` at `1a2b601` (delivered by PR #40; the plan is deleted from the tree)
 
 ## What this decides
 

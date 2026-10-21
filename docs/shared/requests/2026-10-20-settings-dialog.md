@@ -3,6 +3,8 @@
 - Status: accepted
 - Asked by: Masada, 2026-10-20
 - Screen: [settings dialog design](../../frontend/specs/2026-10-20-settings-dialog-design.md)
+- Delivered: PR #40, merged at `1a2b601`. Task IDs in this file (B-, F-, U-, N-) name tasks now
+  removed from their stages files; their text is in those files at `1a2b601`.
 
 ## Need
 
@@ -79,7 +81,7 @@ Cost may be `null` when the provider's price is not known; the screen then shows
 ## Backend answer
 
 Hamoud, 2026-10-21. Decisions: [backend spec](../../backend/specs/2026-10-21-settings-dialog-backend-design.md);
-tasks: [backend plan](../../backend/plans/2026-10-21-settings-dialog-backend.md), B-1..B-9 in
+tasks: `docs/backend/plans/2026-10-21-settings-dialog-backend.md` at `1a2b601`, B-1..B-9 in
 [`docs/backend/stages.md`](../../backend/stages.md); facts: [provider research](../../evidence/2026-10-21-provider-presets-research.md).
 Every Core part is the daemon's, in the `profiles` service
 (`crates/shadows-core/src/profiles/contract.yaml`); B-2 and B-5 also touch

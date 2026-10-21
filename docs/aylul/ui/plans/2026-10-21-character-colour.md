@@ -1,6 +1,7 @@
 # Character colour: the colour table, the renderer's palette, the companion state
 
-> **For agentic workers:** the tasks are U-1, U-2 and U-3 in [`../stages.md`](../stages.md); a
+> **For agentic workers:** the tasks are U-1, U-2 and U-3 (U-2 in [`../stages.md`](../stages.md);
+> U-1 and U-3 at `1a2b601`, delivered by PR #40); a
 > `frontend-builder` builds one task. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** AYLUL's character is drawn in the companion agent's colour, from one colour table that

@@ -14,7 +14,7 @@ Yours:
 - Except, by Mohammed's ruling of 2026-10-21: the colour table `assets/aylul/character-colors.json`
   and the renderer's colours (`features/companion/renderer/palette.ts` and the colour values in
   the other `renderer/` files) belong to the AYLUL UI
-  side (U-2, U-3 in `../ui/stages.md`).
+  side (U-2 in `../ui/stages.md`; U-3 at `1a2b601`).
 - `docs/aylul/character/` (plans, specs, stages), and the `contract.yaml` files and
   code-map rows of the code above
 
