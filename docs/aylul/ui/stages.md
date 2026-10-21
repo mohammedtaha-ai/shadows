@@ -22,13 +22,13 @@ Finished work (the text input, the shared dashboard, U-W1 to U-W3, H-2) is in th
 - Done when: `node --test tests/companion/palette.test.ts` and `npm run build` pass from `apps/desktop/`
 
 ### U-1 · The companion state carries the character colour
-- Status: blocked
+- Status: done
 - Plan: docs/aylul/ui/plans/2026-10-21-character-colour.md#task-u-1-the-companion-state-carries-the-character-colour
 - Read: `apps/desktop/src/platform/contract.yaml`; `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Character colour)
 - Touch: `apps/desktop/src/platform/companion-state.ts`, `apps/desktop/src/platform/contract.yaml`,
   `apps/desktop/tests/companion/native-state.test.ts`, `docs/aylul/ui/stages.md`
-- Needs: the native side's answer naming the `appearance` field of `companion-state` (AYLUL shared
-  request, not yet filed); it may be built before the native side, since a missing field draws purple
+- Needs: accepted `docs/aylul/shared/requests/2026-10-21-settings-dialog-native.md`;
+  N-6 at `0c4d8c6` supplies optional `appearance.color` (built)
 - Done when: `node --test tests/companion/native-state.test.ts` and `npm run build` pass from `apps/desktop/`
 
 ### U-3 · The renderer draws in the palette; purple is unchanged

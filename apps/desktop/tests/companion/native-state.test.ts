@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {acceptState, connectState} from '../../src/platform/companion-state.ts';
 const composer={open:false,revision:0,scope:null,context:null,agent:null};
-const hidden={composer,revision:8,visible:false,renderAllowed:false,paused:false,error:null};
+const hidden={composer,revision:8,visible:false,renderAllowed:false,paused:false,error:null,color:'purple'};
 test('composer view is validated and never optional',()=>{
   const {composer:ignored,...missing}=hidden;
   assert.throws(()=>acceptState(null,missing));
@@ -33,4 +33,18 @@ test('listener failure and malformed events never enable drawing',async()=>{
   let receive:(raw:unknown)=>void=()=>{};
   const dispose=connectState({listen:async(fn)=>{receive=fn;return()=>{}},snapshot:async()=>hidden,ready:async()=>hidden},()=>callbacks++,()=>errors++);
   await flush();receive({...hidden,revision:9,renderAllowed:1});assert.equal(callbacks,1);assert.equal(errors,2);dispose();
+});
+test('appearance colour is carried into the state',()=>{
+  for(const color of ['blue','teal'])assert.equal(acceptState(null,{...hidden,appearance:{color}}).color,color);
+});
+test('missing or malformed appearance reads as purple',()=>{
+  for(const appearance of [undefined,null,{color:7},{color:''},{color:'x'.repeat(33)}]){
+    const state=acceptState(null,{...hidden,appearance});
+    assert.equal(state.color,'purple');assert.equal(state.revision,hidden.revision);
+  }
+});
+test('an older revision cannot change the colour',()=>{
+  const current=acceptState(null,{...hidden,revision:5,appearance:{color:'blue'}});
+  assert.strictEqual(acceptState(current,{...hidden,revision:4,appearance:{color:'pink'}}),current);
+  assert.equal(current.color,'blue');
 });
