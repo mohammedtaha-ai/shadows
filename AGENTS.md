@@ -197,6 +197,9 @@ reads a request, calls one method, and shapes the answer.
 
 ## How agents work here
 
+Codex's project roles are in `.codex/agents/`; their dispatch and verification
+protocol is in [`.codex/README.md`](.codex/README.md). Read it before using a role.
+
 - **Start from `AppCore`** (the strict rule above): `app.rs` names the owning
   service, then its `contract.yaml`, then the files it names.
   `docs/codebase/README.md` maps the crates outside Core. Find symbols with the LSP (Rust) or
