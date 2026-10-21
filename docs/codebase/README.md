@@ -300,7 +300,7 @@ file disagrees with either, they are right and this file is the defect.
   failing when they lie. One field that rots silently costs the reader their
   trust in every field beside it.
 - **Built / not-built status.** The tree answers it and
-  [`docs/status.md`](../status.md) narrates progress. A third copy would record
+  each side's `stages.md` lists what is left. A third copy would record
   one fact in three places.
 - **A list of declarations or signatures.** The LSP and `where_is` answer it
   exactly. A generated inventory did this until 2026-10-01, and cost every

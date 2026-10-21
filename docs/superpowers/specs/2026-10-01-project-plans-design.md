@@ -487,5 +487,5 @@ Made in the commit of the step that makes them true:
   threads that are not removed.
 - **§6.8:** a version's lineage is within its plan.
 - **`vision.md` §8:** links here, and its Today line says what exists.
-- **`docs/status.md`:** the lock leaves Next, and so does deleting a
+- **`docs/status.md` (at `8580306`):** the lock leaves Next, and so does deleting a
   conversation.

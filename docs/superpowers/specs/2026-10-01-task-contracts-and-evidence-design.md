@@ -365,7 +365,7 @@ implementation stage that makes each statement true:
   here;
 - **§4, §6 and §7:** decision, packet, run, verification, and review records;
 - **`docs/vision.md`:** Today lines and links to the implemented stages;
-- **`docs/status.md`:** verified progress only.
+- **`docs/future.md`:** a stage's row leaves the list once it is delivered.
 
 This file owns the design in §17. Other documents link here instead of copying
 its decisions.

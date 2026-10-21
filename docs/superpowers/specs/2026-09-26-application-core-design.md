@@ -48,7 +48,7 @@ Out:
 - A crate per service. Services stay folders inside `shadows-core` until their
   boundaries are proven (§14.4, OPEN).
 - The web client. `api/openapi.json` does not change.
-- The deferred items in `docs/status.md`: effort at once, and one lock per
+- The deferred items in `docs/status.md` at `8580306`: effort at once, and one lock per
   session.
 
 ## 14.2 Why, and what large Rust projects do

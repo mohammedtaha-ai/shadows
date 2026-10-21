@@ -252,7 +252,7 @@ current. Their content is not lost: the specs indexed by
 [`README.md`](./README.md) own every
 decision they made, and `docs/evidence/` holds their measurements.
 
-**The five links in `docs/status.md` are amended in place.** `status.md`
+**The five links in `docs/status.md` (at `8580306`) are amended in place.** `status.md`
 points at four of the six by path, at lines 15, 102, 114, 124 and 153. Each
 becomes a reference to the owning spec section, which is where the decision
 actually lives — `§11`, `§13`, `§14`, `§15`, `§16` respectively. This follows

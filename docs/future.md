@@ -2,7 +2,7 @@
 
 What Shadows is meant to do and does not do yet, one line each. It decides nothing and copies
 nothing: each line points to the part of [the vision](./vision.md) that says why, and a feature
-that gets a design points to its owner spec. What is delivered is in [status](./status.md); the
+that gets a design points to its owner spec. What is delivered is in its PR and in Git; the
 order of delivery is in [the delivery roadmap](./superpowers/plans/2026-10-03-project-planning-roadmap.md).
 AYLUL's list is [`aylul/future.md`](./aylul/future.md).
 
@@ -48,10 +48,15 @@ written beyond the vision). A feature leaves this list when it is delivered.
 |---|---|---|---|
 | Teams and companies | A company workspace on a server; roadmap and contracts agreed at the top | idea | [vision §7](./vision.md#7-teams-and-companies--later), [§1.7](./superpowers/specs/2026-09-21-architecture-design.md#17-workspace-authority-and-deployment) |
 | Production operations | Observe the app's AWS environment, propose and verify a remedy within authority | idea | [vision §10](./vision.md#future-production-operations), [§17.12](./superpowers/specs/2026-10-01-task-contracts-and-evidence-design.md#1712-production-operations-extension) |
-| Linux containment | The adapter dies with a crashed daemon on Linux too | idea | [status, standing risks](./status.md#standing-risks) |
+| Linux containment | The adapter dies with a crashed daemon on Linux too | idea | [§1.5 OPEN](./superpowers/specs/2026-09-21-architecture-design.md) |
+
+## Housekeeping
+
+| Task | What it removes | Status | Why |
+|---|---|---|---|
+| Remove mx | Its disabled hook scripts, `mx*` skills, permission lines, the `mxai-knowledge` MCP server and the mx block in the global `CLAUDE.md` | idea | [vision §1](./vision.md#1-the-problem) (memory tools did not help) |
 
 ## Adding to this list
 
 A new idea goes first into [the vision](./vision.md) (its "Adding to this file" rules), then gets
-one row here. A row changes status in place; a delivered feature is removed and recorded in
-[status](./status.md).
+one row here. A row changes status in place; a delivered feature is removed (its PR records it).

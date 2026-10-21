@@ -459,4 +459,4 @@ The run is recorded in `docs/evidence/milestone3/WINDOWS_RUN.md` at `92e6dae`.
   "`shadows-index` knows nothing of SQLite or projects".
 - `vision.md` §2.4's **Today** line; in §9, the "Where is X?" open question,
   which this section answers, and a new one for framework links.
-- `docs/status.md`.
+- `docs/status.md` (at `8580306`; deleted 2026-10-21).

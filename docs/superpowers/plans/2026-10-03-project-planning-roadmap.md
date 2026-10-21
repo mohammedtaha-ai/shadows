@@ -25,7 +25,7 @@ executive manager were claimed to exist. Initial delivery used
 ## Current checkpoint (2026-10-12)
 
 Stages 1–2 and §16 1b are merged into `main`; their acceptance limits remain
-recorded in [project status](../../status.md). Guided planning (§23) now
+recorded in `docs/status.md` at `8580306`. Guided planning (§23) now
 precedes the focused context work of Stage 3: PRs 0–4, with §24 authority
 (PR 3b), and PR 5 (roadmap and plans behind their gates) are merged. §23.9
 owns that delivery sequence; PR 3c waits on §24.3's OPEN probe.
@@ -188,7 +188,7 @@ isolated Windows trial are recorded in
 dated evidence (`docs/evidence/2026-10-04-cross-plan-links-1b.md` at `0187365`).
 The shared API agreement plan, `docs/superpowers/plans/2026-10-04-shared-api-agreements.md`
 at `92e6dae`, has shipped; its remaining completion gate and acceptance limits are recorded
-in §18.7 and [project status](../../status.md).
+in §18.7 and `docs/status.md` at `8580306`.
 The §23 PR 1 plan, `docs/superpowers/plans/2026-10-09-guided-planning-pr1-standards-stage.md`
 at `ced2095`, is merged with partial browser acceptance recorded in its evidence.
 The §23 PR 2 and PR 3 plans, at `50146a9` and `8f6b8e7`, are merged; PR 3's

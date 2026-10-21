@@ -58,6 +58,11 @@ Hamoud writes every task in this shape, so a builder needs no other prompt:
 - Done when: <the test(s) that must pass, by name or command>
 ```
 
+**`stages.md` holds only what is left.** A `done` task stays while its branch is open, so the
+reviewer sees it. When the branch's PR merges, `docs-sync` deletes every `done` task that PR
+delivered, and a plan whose tasks are all done; its commit names the PR, and Git keeps them
+(cite them as "`<path>` at `<commit>`"). No "Done" section is kept.
+
 ## Rules for the builder and the fixer
 
 1. Read this file, then the task, then only what the task's `Read:` names.

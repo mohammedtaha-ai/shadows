@@ -64,6 +64,11 @@ Masada writes every task in this shape, so a builder needs no other prompt:
 - Done when: <the test(s) that must pass, by name or command>
 ```
 
+**`stages.md` holds only what is left.** A `done` task stays while its branch is open, so the
+reviewer sees it. When the branch's PR merges, `docs-sync` deletes every `done` task that PR
+delivered, and a plan whose tasks are all done; its commit names the PR, and Git keeps them
+(cite them as "`<path>` at `<commit>`"). No "Done" section is kept.
+
 A task whose `Needs:` request is not accepted, or whose backend side is not
 built yet, stays `blocked`.
 
