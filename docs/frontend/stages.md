@@ -120,7 +120,7 @@ their recorded blockers.
   commit are complete (full assertions and commands in the plan)
 
 ### F-11 · Usage section, by provider and by model
-- Status: todo
+- Status: done
 - Reviewed: steps released by the controller, 2026-10-21
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-11-usage-periods-provider-comparison-model-totals
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Usage);

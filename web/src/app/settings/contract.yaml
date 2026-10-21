@@ -32,6 +32,11 @@ external:
 # ── functions ────────────────────────────────────────────────────────────────────
 
 components:
+  UsageSection:
+    signature: "() => JSX.Element"
+    note: A captured range per opening/period selection; no old rows during a new pending range.
+  UsageTables:
+    signature: "({ report: UsageReport }) => JSX.Element"
   SettingsDialog:
     signature: "() => JSX.Element"
     # One modal in Shell; section availability follows the runtime.
@@ -68,6 +73,8 @@ hooks:
     signature: "() => () => void"
 
 functions:
+  usageRange:
+    signature: "(period: UsagePeriod, now: Date) => { from: string; to: string }"
   accountView:
     signature: "(auth: AuthView | null, busy: boolean, loggingIn: boolean) => { message: string; actions: AccountAction[] }"
   visibleSections:
@@ -79,6 +86,12 @@ functions:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: Usage queries rolling 7/30-day periods or the person's local calendar month, serialized as UTC RFC3339. Exactly at month start the end advances one millisecond. Requests and cache entries stay scoped to their captured range.
+    tested_by: ["periods produce bounded UTC ranges", "Usage opens with Last 7 days", "changing the period fetches its own report"]
+  - rule: Usage preserves historical provider titles, report ordering and per-provider model identities. Bars compare input plus output tokens; zero totals have finite zero widths. Missing cost or currency displays a dash, never estimated zero or mixed-currency totals.
+    tested_by: ["provider snapshots and labelled keys stay distinct", "provider bars compare total tokens", "model rows include their provider", "unknown charges are not zero"]
+  - rule: Loading, empty and error states are distinct; explicit Retry keeps the same range.
+    tested_by: ["empty and failed usage are distinct", "a refused period is shown without invented rows"]
   - rule: You edits the person's names; save preserves last-read language and theme. Empty names send null; names over 64 characters or with line breaks are refused locally. Failed saves retain input and unchanged retries reuse their command id.
     tested_by: ["saving sends the whole record", "an emptied field saves as null", "more than 64 characters is refused before sending", "a failed save keeps the typed values and retries with the same command"]
   - rule: Browser Account exposes You without native sign-in controls; failed person loads show an error instead of a form.

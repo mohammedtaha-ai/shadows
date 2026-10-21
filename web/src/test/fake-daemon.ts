@@ -30,6 +30,7 @@ import {
 } from './contract-fixtures'
 
 export interface Overrides {
+  usage?: Answer
   person?: Answer
   project?: Project
   entries?: ThreadEntry[]
@@ -84,6 +85,7 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
   }
   const connect = 'claude mcp add --transport http shadows http://127.0.0.1:4318/mcp'
   return {
+    'GET /api/aylul/usage': o.usage ?? { by_provider: [], by_model: [] },
     'GET /api/me': o.person ?? (() => Response.json(person)),
     'PUT /api/me': async (request: Request) => {
       const { command_id: _command, ...input } = await request.json()

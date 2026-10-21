@@ -553,3 +553,5 @@ provider_setup:
 person:
   personQuery: "GET /api/me; ['person']"
   savePerson: "PUT /api/me; whole PersonInput plus caller command id; names and preferences are read from the generated schema"
+usage:
+  usageQuery: "GET /api/aylul/usage with from/to RFC3339 query parameters; ['aylul-usage', from, to]; generated report aliases; explicit retry; no mutation or command id"
