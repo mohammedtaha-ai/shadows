@@ -1,0 +1,319 @@
+{
+ "mode": "api",
+ "model": "nvidia/nemotron-3.5-super-vl:free",
+ "adapter": "claude-agent-acp 0.81.1",
+ "claude": "2.1.306",
+ "started": "2026-10-21T21:08:02.079Z",
+ "sessions": [
+  {
+   "name": "readings",
+   "id": "be828403-ad4a-49f0-9778-50fe38e2d75b",
+   "turns": [
+    {
+     "label": "hello",
+     "blocks": [
+      "Reply with exactly: hello"
+     ],
+     "ms": 3234,
+     "stop": "end_turn",
+     "updates": {
+      "available_commands_update": 2,
+      "usage_update": 3,
+      "agent_thought_chunk": 7,
+      "agent_message_chunk": 1
+     },
+     "usage": [
+      {
+       "used": 0,
+       "size": 200000
+      },
+      {
+       "used": 12659,
+       "size": 200000
+      },
+      {
+       "used": 12659,
+       "size": 1000000
+      }
+     ],
+     "text": "hello"
+    },
+    {
+     "label": "/context",
+     "blocks": [
+      "/context"
+     ],
+     "ms": 4854,
+     "stop": "end_turn",
+     "updates": {
+      "agent_message_chunk": 2
+     },
+     "usage": [],
+     "text": "## Context Usage\n\n**Model:** nvidia/nemotron-3.5-super-vl:free  \n**Tokens:** 18.3k / 1m (2%)\n\n### Estimated usage by category\n\n| Category | Tokens | Percentage |\n|----------|--------|------------|\n| System prompt | 1.9k | 0.2% |\n| System tools | 14.4k | 1.4% |\n| System tools (deferred) | 18.7k | 1.9% |\n| Skills | 2k | 0.2% |\n| Messages | 2 | 0.0% |\n| Free space | 948.7k | 94.9% |\n| Autocompact buffer | 33k | 3.3% |\n\n### Skills\n\n| Skill | Source | Tokens |\n|-------|--------|--------|\n| dataviz | Built-in | ~480 |\n| update-config | Built-in | ~240 |\n| keybindings-help | Built-in | ~80 |\n| code-r"
+    },
+    {
+     "label": "/context",
+     "blocks": [
+      "/context"
+     ],
+     "ms": 2902,
+     "stop": "end_turn",
+     "updates": {
+      "session_info_update": 1,
+      "agent_message_chunk": 2
+     },
+     "usage": [],
+     "text": "## Context Usage\n\n**Model:** nvidia/nemotron-3.5-super-vl:free  \n**Tokens:** 18.7k / 1m (2%)\n\n### Estimated usage by category\n\n| Category | Tokens | Percentage |\n|----------|--------|------------|\n| System prompt | 1.9k | 0.2% |\n| System tools | 14.4k | 1.4% |\n| System tools (deferred) | 18.7k | 1.9% |\n| Skills | 2k | 0.2% |\n| Messages | 445 | 0.0% |\n| Free space | 948.3k | 94.8% |\n| Autocompact buffer | 33k | 3.3% |\n\n### Skills\n\n| Skill | Source | Tokens |\n|-------|--------|--------|\n| dataviz | Built-in | ~480 |\n| update-config | Built-in | ~240 |\n| keybindings-help | Built-in | ~80 |\n| code"
+    },
+    {
+     "label": "ok",
+     "blocks": [
+      "Reply with exactly: ok"
+     ],
+     "ms": 2408,
+     "stop": "end_turn",
+     "updates": {
+      "usage_update": 3,
+      "agent_thought_chunk": 4,
+      "agent_message_chunk": 1
+     },
+     "usage": [
+      {
+       "used": 0,
+       "size": 1000000
+      },
+      {
+       "used": 13562,
+       "size": 1000000
+      },
+      {
+       "used": 13562,
+       "size": 1000000
+      }
+     ],
+     "text": "ok"
+    }
+   ],
+   "transcript": [
+    {
+     "at": "2026-10-21T21:08:06.571Z",
+     "input": 12637,
+     "cache_read": 0,
+     "cache_write": 0,
+     "output": 22
+    },
+    {
+     "at": "2026-10-21T21:08:11.447Z",
+     "local_command": true
+    },
+    {
+     "at": "2026-10-21T21:08:14.353Z",
+     "local_command": true
+    },
+    {
+     "at": "2026-10-21T21:08:16.492Z",
+     "input": 13548,
+     "cache_read": 0,
+     "cache_write": 0,
+     "output": 14
+    }
+   ]
+  },
+  {
+   "name": "control",
+   "id": "7870c814-8e37-4466-b8a3-82287236cbc9",
+   "turns": [
+    {
+     "label": "hello",
+     "blocks": [
+      "Reply with exactly: hello"
+     ],
+     "ms": 2701,
+     "stop": "end_turn",
+     "updates": {
+      "available_commands_update": 2,
+      "usage_update": 3,
+      "agent_thought_chunk": 6,
+      "agent_message_chunk": 1
+     },
+     "usage": [
+      {
+       "used": 0,
+       "size": 1000000
+      },
+      {
+       "used": 12659,
+       "size": 1000000
+      },
+      {
+       "used": 12659,
+       "size": 1000000
+      }
+     ],
+     "text": "hello"
+    },
+    {
+     "label": "ok",
+     "blocks": [
+      "Reply with exactly: ok"
+     ],
+     "ms": 2023,
+     "stop": "end_turn",
+     "updates": {
+      "usage_update": 3,
+      "agent_thought_chunk": 4,
+      "agent_message_chunk": 1,
+      "session_info_update": 1
+     },
+     "usage": [
+      {
+       "used": 0,
+       "size": 1000000
+      },
+      {
+       "used": 12670,
+       "size": 1000000
+      },
+      {
+       "used": 12670,
+       "size": 1000000
+      }
+     ],
+     "text": "ok"
+    }
+   ],
+   "transcript": [
+    {
+     "at": "2026-10-21T21:08:20.236Z",
+     "input": 3965,
+     "cache_read": 8672,
+     "cache_write": 0,
+     "output": 22
+    },
+    {
+     "at": "2026-10-21T21:08:22.089Z",
+     "input": 3984,
+     "cache_read": 8672,
+     "cache_write": 0,
+     "output": 14
+    }
+   ]
+  },
+  {
+   "name": "command-with-block",
+   "id": "31600957-746a-4837-8ab6-44582056410c",
+   "turns": [
+    {
+     "label": "hello",
+     "blocks": [
+      "Reply with exactly: hello"
+     ],
+     "ms": 3587,
+     "stop": "end_turn",
+     "updates": {
+      "available_commands_update": 2,
+      "usage_update": 3,
+      "agent_thought_chunk": 4,
+      "agent_message_chunk": 1
+     },
+     "usage": [
+      {
+       "used": 0,
+       "size": 1000000
+      },
+      {
+       "used": 12651,
+       "size": 1000000
+      },
+      {
+       "used": 12651,
+       "size": 1000000
+      }
+     ],
+     "text": "hello"
+    },
+    {
+     "label": "/context + block",
+     "blocks": [
+      "/context",
+      "[Shadows] Stage: idea."
+     ],
+     "ms": 4801,
+     "stop": "end_turn",
+     "updates": {
+      "usage_update": 3,
+      "agent_thought_chunk": 33,
+      "agent_message_chunk": 21
+     },
+     "usage": [
+      {
+       "used": 0,
+       "size": 1000000
+      },
+      {
+       "used": 12813,
+       "size": 1000000
+      },
+      {
+       "used": 12813,
+       "size": 1000000
+      }
+     ],
+     "text": "Got it — noted: **Shadows**, stage: **idea**.\n\nI'm ready to help whenever you're ready. What would you like to work on — brainstorming scope, sketching out a design, drafting a plan, or something else?Got it — noted: **Shadows**, stage: **idea**.\n\nI'm ready to help whenever you're ready. What would you like to work on — brainstorming scope, sketching out a design, drafting a plan, or something else?"
+    },
+    {
+     "label": "what it saw",
+     "blocks": [
+      "Without using tools: list every user message you have received in this conversation so far, verbatim, one per line."
+     ],
+     "ms": 7986,
+     "stop": "end_turn",
+     "updates": {
+      "session_info_update": 1,
+      "usage_update": 3,
+      "agent_thought_chunk": 299,
+      "agent_message_chunk": 4
+     },
+     "usage": [
+      {
+       "used": 0,
+       "size": 1000000
+      },
+      {
+       "used": 13601,
+       "size": 1000000
+      },
+      {
+       "used": 13601,
+       "size": 1000000
+      }
+     ],
+     "text": "Reply with exactly: hello\n/context [Shadows] Stage: idea."
+    }
+   ],
+   "transcript": [
+    {
+     "at": "2026-10-21T21:08:26.736Z",
+     "input": 3965,
+     "cache_read": 8672,
+     "cache_write": 0,
+     "output": 14
+    },
+    {
+     "at": "2026-10-21T21:08:31.234Z",
+     "input": 3989,
+     "cache_read": 8672,
+     "cache_write": 0,
+     "output": 152
+    },
+    {
+     "at": "2026-10-21T21:08:38.395Z",
+     "input": 4077,
+     "cache_read": 8672,
+     "cache_write": 0,
+     "output": 852
+    }
+   ]
+  }
+ ]
+}
