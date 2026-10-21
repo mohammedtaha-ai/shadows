@@ -116,12 +116,12 @@ are reference material; they do not replace the project's template or code.
 - Done when: the runtime/type/error/test dependency ledger is complete, each cycle and table has an owner, extraction order is verified, and exact scopes/test commands are recorded for the next preparation tasks
 
 ### A-8d · Foundation inputs carry no service types
-- Status: todo
+- Status: doing
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-8d
 - Read: the ledger's Foundation table; db/{command,journal,error}.rs; command/; events/model.rs
-- Touch: crates/shadows-core/src/{db,command,events,id.rs}/ and every call site of `user_command`, `append_event`, `Anchor` and `Bus` in crates/shadows-core/src/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: crates/shadows-core/src/{db,command,events,id.rs}/ and every call site of `user_command`, `append_event` and `Anchor` in crates/shadows-core/src/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
 - Needs: none
-- Done when: `app::user_command` is gone (`CommandContext::user`); the journal takes `JournalEntry` with string ids; `Bus`, `Actor`, `Causation` and `newtype_id!` sit in `db/`; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test storage_contract --test operation_lifecycle --test recovery` and `cargo test -p shadows --test protocol --test resync --test stream_frames` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
+- Done when: `app::user_command` is gone (`CommandContext::user`); the journal takes `JournalEntry` with string ids; `Actor`, `Causation` and `newtype_id!` sit in `db/` (`Bus` stays, see the ledger); its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test storage_contract --test operation_lifecycle --test recovery` and `cargo test -p shadows --test protocol --test resync --test stream_frames` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
 ### A-9 · Prepare the service boundary: instructions
 - Status: blocked
@@ -217,7 +217,7 @@ are reference material; they do not replace the project's template or code.
 - Read: turns/contract.yaml; the ledger
 - Touch: crates/shadows-core/src/turns/, threads/mod.rs (`remove`'s stop, close and revoke move to `Turns::remove_thread`), crates/shadows-http/src/ and crates/shadows-mcp/src/ callers of thread removal, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
 - Needs: A-16
-- Done when: threads calls neither harness nor turns; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows --test core_turns --test message_queue --test planner_turn --test slash_commands --test turn_command --test planner_mcp --test thread_routes` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
+- Done when: threads calls neither harness nor turns; `Bus` is owned by turns and `Events` subscribes through a `Turns` method; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows --test core_turns --test message_queue --test planner_turn --test slash_commands --test turn_command --test planner_mcp --test thread_routes` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
 ### A-16b · Project removal has its own owner
 - Status: blocked
