@@ -2,8 +2,11 @@
 
 **Read this before writing code in `shadows`.**
 
-Core work starts at `crates/shadows-core/src/app.rs`, then the owning service's
-contract and implementation. The rows below describe current files. The target
+Core work starts at [the service table on `AppCore`](../../crates/shadows-core/src/app.rs),
+then the owning service's contract and implementation. That table is the Core
+navigation authority, including internal owners without an accessor. The rows
+below retain checked module coverage; use them to locate modules within the
+owner selected through `AppCore`, or to navigate crates outside Core. The target
 and its staged migration are owned by [section 14.12](../superpowers/specs/2026-09-26-application-core-design.md#1412-service-ownership-and-staged-crate-extraction);
 planned crates are not current owners until their implementation moves.
 

@@ -55,6 +55,32 @@ pub struct CoreParts {
 }
 
 /// The application: every service, built once.
+///
+/// Start here for Core ownership; each source is in the existing `shadows-core`
+/// crate. The contract describes that owner's current methods, rules and tests.
+///
+/// | Service | One job | Source | Contract |
+/// |---|---|---|---|
+/// | `Secrets` | encrypted environment configuration | `crates/shadows-core/src/secrets` | `crates/shadows-core/src/secrets/contract.yaml` |
+/// | `Profiles` | local agent configuration | `crates/shadows-core/src/profiles` | `crates/shadows-core/src/profiles/contract.yaml` |
+/// | `Design` | project design revisions | `crates/shadows-core/src/design` | `crates/shadows-core/src/design/contract.yaml` |
+/// | `Plans` | plan version lifecycle | `crates/shadows-core/src/plans` | `crates/shadows-core/src/plans/contract.yaml` |
+/// | `Grants` | MCP grant lifecycle | `crates/shadows-core/src/grants` | `crates/shadows-core/src/grants/contract.yaml` |
+/// | `Turns` | turn execution lifecycle | `crates/shadows-core/src/turns` | `crates/shadows-core/src/turns/contract.yaml` |
+/// | `Harness` | thread harness sessions | `crates/shadows-core/src/harness` | `crates/shadows-core/src/harness/contract.yaml` |
+/// | `Projects` | project directory registration | `crates/shadows-core/src/projects` | `crates/shadows-core/src/projects/contract.yaml` |
+/// | `Threads` | planning thread records | `crates/shadows-core/src/threads` | `crates/shadows-core/src/threads/contract.yaml` |
+/// | `Instructions` | versioned Planner instructions | `crates/shadows-core/src/instructions` | `crates/shadows-core/src/instructions/contract.yaml` |
+/// | `Events` | thread or project event subscriptions | `crates/shadows-core/src/events` | `crates/shadows-core/src/events/contract.yaml` |
+/// | `Code` | project code indexing | `crates/shadows-core/src/code` | `crates/shadows-core/src/code/contract.yaml` |
+/// | `Runtime` | runtime instance lifecycle | `crates/shadows-core/src/runtime` | `crates/shadows-core/src/runtime/contract.yaml` |
+///
+/// The first twelve owners have typed accessors on `AppCore`. `Runtime` is
+/// internal: `start` builds it before assembly, then `Turns` holds the shared
+/// instance for execution and shutdown. There is no `AppCore::runtime` accessor.
+/// `Harness` shares `Sessions`, which constructs `Profiles`; assembly shares
+/// those same profiles with `AppCore`. Startup also constructs a temporary
+/// `Grants` for thread-grant revocation before assembly builds the stored one.
 pub struct AppCore {
     secrets: Arc<Secrets>,
     profiles: Arc<crate::Profiles>,

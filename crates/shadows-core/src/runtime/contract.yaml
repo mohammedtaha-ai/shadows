@@ -1,0 +1,66 @@
+# Owns the process runtime identity and its persisted lifecycle. AppCore starts
+# Runtime before assembly; Turns holds that shared instance. There is no public
+# AppCore runtime accessor. Storage is already open when Runtime::start is called.
+name: runtime
+version: 1
+status: current
+source: crates/shadows-core/src/runtime
+
+shapes:
+  Runtime:
+    instance_id: RuntimeInstanceId
+    storage: Arc<Storage>
+  ReconcileReport:
+    interrupted: Vec<OperationId>
+    anomalies: Vec<OperationId>
+
+enums:
+  StopKind:
+    values: [Graceful, Escalated]
+
+functions:
+  service:
+    start:
+      signature: "(storage: Arc<Storage>) -> Result<(Self, ReconcileReport), StorageError>"
+      note: Registers this package version, reconciles other runtime owners, then logs the report.
+    stop:
+      signature: "(&self, kind: StopKind) -> Result<(), StorageError>"
+      note: Persists the stop before logging runtime.stop.
+  store:
+    register_runtime_instance:
+      signature: "(&self, version: &str) -> Result<RuntimeInstanceId, StorageError>"
+      note: One write inserts the generated identity and appends RuntimeStarted.
+    stop_runtime_instance:
+      signature: "(&self, id: &RuntimeInstanceId, kind: StopKind) -> Result<(), StorageError>"
+      note: One write checks Graceful, updates an unstopped runtime and appends RuntimeStopped; missing or stopped rows conflict.
+    reconcile_orphans:
+      signature: "(&self, current: &RuntimeInstanceId) -> Result<ReconcileReport, StorageError>"
+      note: One write selects other owners' Pending or Running operations ordered by operation id, transitions them to Interrupted and records events; transition logs follow commit.
+
+obligations:
+  - rule: Recovery selects by runtime ownership, including Escalated or Graceful owners, never by whether the owner recorded a stop.
+    tested_by:
+      - a_lost_runtimes_operations_become_interrupted
+      - an_escalated_shutdowns_operations_are_not_stranded
+      - a_graceful_runtime_owning_unfinished_work_is_reported_as_an_anomaly
+  - rule: Pending and Running operations receive their respective PreviousRuntimeEndedBeforeStart and PreviousRuntimeEndedDuringRun reasons.
+    tested_by: a_lost_runtimes_operations_become_interrupted
+  - rule: Recovery preserves this runtime's own operations.
+    tested_by: the_current_runtimes_own_operations_are_left_alone
+  - rule: Graceful refuses while this owner has Pending or Running work, writes nothing on refusal, and ignores another owner's work; Escalated permits unfinished work.
+    tested_by: graceful_is_refused_while_the_runtime_owns_unfinished_work
+  - rule: Work recovered from a Graceful owner is also reported as an anomaly.
+    tested_by: a_graceful_runtime_owning_unfinished_work_is_reported_as_an_anomaly
+  - rule: Runtime start and stop delegate to the lifecycle store and log only after success.
+    tested_by: none
+    note: Inspected wrapper bodies; the named recovery tests primarily exercise Storage methods, not log delivery or wrapper failure ordering.
+
+not_the_caller's:
+  - Storage opens and migrates the database before Runtime starts.
+  - Turns owns turn execution and drives shutdown of live work before Runtime records its stop.
+
+gaps:
+  - at: Runtime
+    problem: Its public storage field exposes the shared Storage facade instead of a private runtime store.
+  - at: reconcile_orphans
+    problem: The runtime store directly reads and updates operation rows owned by Turns and calls its transition helpers.

@@ -204,23 +204,36 @@ fn registration(root: &Path, sources: &[Source], recorder: &mut Recorder) {
         .iter()
         .find(|source| source.path == format!("{CORE}app.rs"))
         .expect("AppCore source");
-    // Only documentation attached to AppCore is the service map.
-    let declaration = children(app.tree.root_node())
-        .into_iter()
-        .find(|node| node.kind() == "struct_item" && name(app, *node) == "AppCore")
+    // Rust's doc attributes keep block, line and explicit doc forms equivalent.
+    let parsed = syn::parse_file(&app.text).expect("AppCore syntax");
+    let declaration = parsed
+        .items
+        .iter()
+        .find_map(|item| match item {
+            syn::Item::Struct(item) if item.ident == "AppCore" => Some(item),
+            _ => None,
+        })
         .expect("AppCore declaration");
-    let mut previous = declaration.prev_named_sibling();
-    let mut map = String::new();
-    while let Some(node) = previous {
-        if !["line_comment", "block_comment", "attribute_item"].contains(&node.kind()) {
-            break;
-        }
-        if app.text(node).starts_with("///") || app.text(node).starts_with("/**") {
-            map.push_str(app.text(node));
-            map.push('\n');
-        }
-        previous = node.prev_named_sibling();
-    }
+    let map = declaration
+        .attrs
+        .iter()
+        .filter_map(|attribute| {
+            if !attribute.path().is_ident("doc") {
+                return None;
+            }
+            let syn::Meta::NameValue(value) = &attribute.meta else {
+                return None;
+            };
+            let syn::Expr::Lit(value) = &value.value else {
+                return None;
+            };
+            let syn::Lit::Str(value) = &value.lit else {
+                return None;
+            };
+            Some(value.value())
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
     let codemap = std::fs::read_to_string(root.join("docs/codebase/README.md")).expect("code map");
     let mut services = BTreeSet::new();
     for entry in std::fs::read_dir(root.join(CORE)).unwrap() {
@@ -269,14 +282,57 @@ fn registration(root: &Path, sources: &[Source], recorder: &mut Recorder) {
             }
         }
     }
+    let mut registered = BTreeSet::new();
+    for line in map.lines() {
+        let line = line.trim().trim_start_matches('*').trim();
+        if !line.starts_with('|') {
+            continue;
+        }
+        let cells = line
+            .trim_matches('|')
+            .split('|')
+            .map(|cell| cell.trim().trim_matches('`'))
+            .collect::<Vec<_>>();
+        if cells
+            .first()
+            .is_some_and(|cell| *cell == "Service" || cell.starts_with("---"))
+        {
+            continue;
+        }
+        let valid = if let [owner, job, directory, contract] = cells.as_slice() {
+            let known = services.contains(&(directory.to_string(), contract.to_string()));
+            let entry = sources.iter().find(|source| {
+                source.path == format!("{directory}/mod.rs")
+                    || source.path == format!("{directory}/lib.rs")
+            });
+            let declared = entry.is_some_and(|source| {
+                children(source.tree.root_node())
+                    .iter()
+                    .any(|node| node.kind() == "struct_item" && name(source, *node) == *owner)
+            });
+            known
+                && declared
+                && !job.is_empty()
+                && !job
+                    .split(|ch: char| !ch.is_alphabetic())
+                    .any(|word| word.eq_ignore_ascii_case("and"))
+        } else {
+            false
+        };
+        if !valid {
+            recorder.add("registration", &app.path, "invalid AppCore map row", line);
+            continue;
+        }
+        let directory = cells[2].to_string();
+        if !registered.insert(directory) {
+            recorder.add("registration", &app.path, "duplicate AppCore map row", line);
+        }
+    }
     for (directory, contract) in services {
         if !root.join(&contract).is_file() {
             recorder.add("registration", &directory, "missing contract", &contract);
         }
-        if !map
-            .lines()
-            .any(|line| line.contains('|') && line.contains(&contract))
-        {
+        if !registered.contains(&directory) {
             recorder.add(
                 "registration",
                 &directory,

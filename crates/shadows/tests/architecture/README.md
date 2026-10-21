@@ -56,7 +56,13 @@ comparison. No mutation test edits the real product tree.
   history candidates; this is a source-style guard, not commit validation.
 - Every direct service folder under `shadows-core/src` and every extracted
   `crates/core-*/src` is discovered from disk, including empty folders. Each
-  needs its entry contract and an AppCore doc-table row naming that contract.
+  needs its entry contract and an AppCore doc-table row with four cells:
+  service struct name, one nonempty job without the word "and", exact source
+  directory, exact contract path. The struct must exist in that source's entry
+  module. Unknown owners, duplicate rows and malformed rows fail registration.
+  Only Rust documentation attached to AppCore supplies rows; line, block and
+  explicit doc attributes are equivalent. Internal owners need no invented
+  accessor.
   The explicit foundation list (`db`, `command`, `testing`, extracted `core-db`)
   instead needs a code-map row. Future service names have no blanket exemption.
 
@@ -67,8 +73,9 @@ are outside Core's guard. Parse errors fail the test instead of skipping a file.
 ## Existing exceptions and maintenance
 
 The initial baseline records current source at `41738fe`; it fixes none of the
-audited architecture problems. `registration.allowlist` explicitly includes
-the absent AppCore service map (A-1) and runtime's absent contract. The ownership
+audited architecture problems. A-1 resolves all 14 initial registration records with the AppCore service
+map and the existing internal Runtime's current-behavior contract;
+`registration.allowlist` has no remaining exceptions. The ownership
 baseline includes both observed cross-owner accesses and individually identified
 review cases, including indirect SQL constants and the SQLite migration/schema
 catalog queries whose ownership is not assigned to an application service.

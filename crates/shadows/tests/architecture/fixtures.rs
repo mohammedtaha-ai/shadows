@@ -13,7 +13,7 @@ fn fixture() -> tempfile::TempDir {
     put(
         tree.path(),
         "crates/shadows-core/src/app.rs",
-        "/// | Projects | project ownership | crates/shadows-core/src/projects/contract.yaml |\npub struct AppCore;",
+        "/// | Projects | project ownership | crates/shadows-core/src/projects | crates/shadows-core/src/projects/contract.yaml |\npub struct AppCore;",
     );
     put(
         tree.path(),
@@ -146,7 +146,7 @@ fn moved_service_is_discovered_and_still_checked_for_sql() {
     put(
         root,
         "crates/shadows-core/src/app.rs",
-        "/// | Projects | project ownership | crates/core-projects/contract.yaml |\npub struct AppCore;",
+        "/// | Projects | project ownership | crates/core-projects/src | crates/core-projects/contract.yaml |\npub struct AppCore;",
     );
     assert!(
         compare(&scanner::scan(root), &before).is_empty(),
@@ -574,4 +574,62 @@ fn review_dynamic_query_builder_fragments_require_review() {
         compare(&scanner::scan(root), &before).is_empty(),
         "bound values and unrelated push calls are safe"
     );
+}
+
+#[test]
+fn appcore_map_rejects_missing_or_misregistered_owners() {
+    let tree = fixture();
+    let root = tree.path();
+    let before = scanner::scan(root);
+    for row in [
+        "",
+        "| Projects | project ownership | crates/shadows-core/src/projects/contract.yaml |",
+        "| Projects | project ownership | crates/shadows-core/src/db | crates/shadows-core/src/projects/contract.yaml |",
+        "| Projects | project ownership | crates/shadows-core/src/projects | crates/shadows-core/src/db/contract.yaml |",
+        "| Missing | project ownership | crates/shadows-core/src/projects | crates/shadows-core/src/projects/contract.yaml |",
+        "| Projects | reads and writes projects | crates/shadows-core/src/projects | crates/shadows-core/src/projects/contract.yaml |",
+        "| Projects | | crates/shadows-core/src/projects | crates/shadows-core/src/projects/contract.yaml |",
+    ] {
+        put(
+            root,
+            "crates/shadows-core/src/app.rs",
+            &format!("/// {row}\npub struct AppCore;"),
+        );
+        rejected(root, &before, "registration");
+    }
+}
+
+#[test]
+fn appcore_map_rejects_duplicates_and_nonexistent_services() {
+    let tree = fixture();
+    let root = tree.path();
+    let before = scanner::scan(root);
+    let row = "/// | Projects | project ownership | crates/shadows-core/src/projects | crates/shadows-core/src/projects/contract.yaml |\n";
+    put(
+        root,
+        "crates/shadows-core/src/app.rs",
+        &format!("{row}{row}pub struct AppCore;"),
+    );
+    rejected(root, &before, "registration");
+    put(
+        root,
+        "crates/shadows-core/src/app.rs",
+        &format!(
+            "{row}/// | Ghost | absent owner | crates/core-ghost/src | crates/core-ghost/contract.yaml |\npub struct AppCore;"
+        ),
+    );
+    rejected(root, &before, "registration");
+}
+
+#[test]
+fn appcore_map_accepts_internal_owner_in_block_documentation() {
+    let tree = fixture();
+    let root = tree.path();
+    let before = scanner::scan(root);
+    put(
+        root,
+        "crates/shadows-core/src/app.rs",
+        "/** Internal owner; no accessor is promised.\n| Projects | project ownership | crates/shadows-core/src/projects | crates/shadows-core/src/projects/contract.yaml |\n*/\npub struct AppCore;",
+    );
+    assert!(compare(&scanner::scan(root), &before).is_empty());
 }

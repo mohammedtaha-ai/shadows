@@ -35,7 +35,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: `cargo test -p shadows --test architecture` and `cargo test -p shadows --test codemap` pass; fixture mutations prove each rule rejects a new violation and stale allowlist entries fail; fmt and focused architecture clippy pass; report detection limits explicitly
 
 ### A-1 · `AppCore` is the map
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-1--appcore-is-the-map
 - Read: root `AGENTS.md` "Code structure"; crates/shadows-core/src/app.rs
 - Touch: crates/shadows-core/src/app.rs, docs/codebase/README.md, crates/shadows/tests/architecture/, crates/shadows/tests/codemap/
