@@ -338,15 +338,144 @@ spec §6 and writes B-7's contract.
 
 ## B-7 · Record and report usage
 
-Blocked on B-6. Contract to be fixed by its answer. The intended shape, for the
-frontend's planning only:
-- `GET /api/aylul/usage?from=<rfc3339>&to=<rfc3339>` →
+**Status:** steps written; blocked pending controller review. No implementation
+is authorized by these steps yet. Needs B-6 done and the accepted request.
+Evidence: [B-6](../../evidence/2026-10-21-acp-usage-probe.md); spec §6.
+
+**Files / Touch (exact files)**
+- Create: `crates/shadows-core/migrations/0034_aylul_usage.sql`,
+  `crates/shadows-core/src/profiles/usage.rs` (period/report rules),
+  `crates/shadows-core/src/profiles/usage_store.rs` (usage report SQL),
+  `crates/shadows-core/src/turns/store/usage.rs` (turn usage SQL),
+  `crates/shadows-core/tests/aylul_usage.rs` (end-to-end recording/reporting).
+- Modify: `Cargo.toml` (enable only `unstable_end_turn_token_usage` in addition
+  to current ACP features), `crates/shadows-agent/src/{acp.rs,events.rs}`,
+  `crates/fake-acp/src/{main.rs,prompts.rs,session.rs}` (synthetic usage replies),
+  `crates/shadows-core/src/profiles/{mod.rs,contract.yaml}`,
+  `crates/shadows-core/src/turns/{contract.yaml,turn.rs}`,
+  `crates/shadows-core/src/turns/store/{mod.rs,turn.rs,operation.rs}`,
+  `crates/shadows-core/src/harness/{assistant.rs,live.rs,sessions.rs,model.rs,contract.yaml}`,
+  `crates/shadows-core/src/turns/record.rs`,
+  `crates/shadows-core/src/lib.rs`,
+  `crates/shadows-core/tests/acp_connection.rs` (changed prompt result fixture),
+  `crates/shadows-http/src/{aylul_profiles.rs,aylul_profiles_tests.rs,lib.rs}`,
+  `crates/shadows/tests/openapi.rs`, `api/openapi.json`,
+  `docs/codebase/README.md`, `docs/backend/stages.md`.
+- Read before editing: profiles, turns and harness contracts; agent ACP prompt
+  response and UsageUpdate dispatch; `turns/turn.rs`'s terminal ownership;
+  `turns/store/{turn.rs,operation.rs}`'s start/end transactions. If a required
+  mechanical caller is absent from this list, add its exact path in this
+  section before editing, under the existing small-fix rule. No web/native files.
+
+**Interfaces**
+- Keep ACP stop reasons intact. Return a `PromptResult { end: TurnEnd,
+  usage: Option<TurnUsage> }` from `Connection::prompt` instead of discarding
+  PromptResponse.usage. TurnUsage preserves input, output, cache-read,
+  cache-write and total counts. Missing stays None; no context-counter fallback.
+  Notifications remain dispatched before the prompt response is handed over.
+- Carry the last optional cost with the existing usage notification and maintain
+  a session-scoped baseline for the cumulative Claude SDK USD amount. A trusted
+  per-turn cost is the nonnegative final-minus-prior amount, never the full
+  session cumulative amount per turn; missing/reset/decreasing values stay None.
+  Never apply a different session's baseline or a stale notification to a turn.
+- `Profiles::usage(from, to) -> UsageReport`: validate RFC3339 endpoints,
+  normalize to UTC and require from < to. Query a half-open interval [from,to).
+  `GET /api/aylul/usage?from=<rfc3339>&to=<rfc3339>` (tag aylul) returns 200:
   `{ by_provider: [{ provider_slug, provider_name, label, requests, tokens_in,
-  tokens_out, cost: number | null, currency: string | null }], by_model:
-  [{ model, provider_slug, requests, tokens_in, tokens_out, cost, currency }] }`,
-  each list ordered by tokens descending then slug or model.
-- Rows are written in the turn's ending transaction (`turns`), read by
-  `profiles::usage`; a deleted provider's rows keep their slug and name.
+  tokens_out, cost, currency }], by_model: [{ model, provider_slug, requests,
+  tokens_in, tokens_out, cost, currency }] }`. Bad/missing periods are 400;
+  storage failure is the existing 500 ErrorBody. No command and no write on GET.
+- Use u64 counts after checked conversion from SQLite integers. tokens_in is
+  inputTokens + cachedReadTokens + cachedWriteTokens; tokens_out is outputTokens.
+  Never sum UsageUpdate.used (context) or add totalTokens a second time.
+- Only actual terminal AYLUL invocations appear; requests counts those invocations,
+  not provider HTTP calls or context updates. Missing usage remains nullable in
+  storage; token totals sum reported components only (empty sum is zero).
+  Historical pre-migration turns are not backfilled with invented measurements.
+- Cost/currency are null for every preset except anthropic, including both
+  MiniMax regions and OpenRouter. B-6 did not verify OpenRouter billing. For
+  anthropic only, accept a finite nonnegative USD turn delta. A group's cost is
+  null if any included row lacks trusted cost; never display a partial charge
+  as a complete total or mix currencies.
+- Both lists sort by tokens_in + tokens_out descending, then provider_slug;
+  by_model adds model as the final tie-break. Group providers by slug and models
+  by (provider_slug, model). Name/label come from the latest recorded snapshot
+  in the interval, tie-broken by operation id; current provider state is not read.
+
+**Tables / transaction boundaries**
+- Migration 0034 creates `aylul_usage` with operation_id TEXT PRIMARY KEY,
+  thread_id, agent_slug, provider_slug, provider_name, label, preset, model,
+  nullable nonnegative INTEGER input_tokens/output_tokens/cached_read_tokens/
+  cached_write_tokens/total_tokens, nullable cost REAL/currency TEXT,
+  recorded_at TEXT. CHECK cost/currency are both null or both valid; index
+  (recorded_at, provider_slug, model, operation_id). No cascading FK to the
+  mutable provider, agent or thread: historical reports survive deletion.
+- Add nullable AYLUL routing snapshot columns to agent_invocation (agent slug,
+  provider slug/name/label/preset). Opening pins credential-free routing metadata
+  beside OpenSession; record.rs passes that actual adapter snapshot into NewTurn,
+  and start_turn copies it with the requested model in its invocation transaction.
+  Do not rejoin mutable provider/agent configuration at turn end, or attribute a
+  cached adapter to a provider selected only for the next opening. Mechanical
+  NewTurn fixture additions must be enumerated in Touch before editing. No key
+  or path is part of the snapshot; secrets resolution remains in the harness.
+- The winning terminal transaction in operation.rs inserts usage with the
+  operation status/event. Completed, explicitly cancelled and refused replies
+  may carry measured usage; transport loss/forced termination/recovery must not
+  invent tokens or cost. A missing-response row uses the frozen snapshot with
+  unknown components. Preserve the existing terminal CAS/claim arbitration;
+  insert nothing for a loser, replay, pending refusal or non-AYLUL turn.
+- Put insert/read helpers in domain store modules, not db/mod.rs. Failed usage
+  insert must roll back the status/event as well. Do not put a second write after
+  mark_operation_completed/cancelled/failed. Runtime-recovered rows remain
+  unmeasured; do not reinterpret Interrupted as a completed provider request.
+
+**Contract lines**
+- profiles functions: usage; usage_store.rs owns aggregation only. Harness pins
+  the nonsecret adapter routing snapshot and turns stores it; do not reach a
+  different service's store to reconstruct attribution at reporting time.
+- turns shared_in_transaction: record_usage_in in its usage store; describe
+  snapshot-at-start and atomic exactly-once terminal insertion with operation id.
+- harness agreement: end-turn counts travel through the same connection used by
+  turns; context counters remain independent. Update obligations with the named
+  tests below, and map each new module's single responsibility in the code map.
+
+**Failing tests first, with assertions**
+1. `prompt_returns_raw_turn_usage`: fake ACP sends fixed raw counts and two
+   context updates; assert PromptResult keeps each component once, and missing
+   usage stays None. Run it red in acp_connection before changing the adapter.
+2. `usage_counts_cache_once`: input=10, read=20, write=30, output=4, total=64;
+   assert tokens_in=60, tokens_out=4, requests=1 regardless of context updates.
+3. `usage_ends_atomically_once`: observe a completed AYLUL turn, assert one row;
+   replay/competing terminal call adds none. Force the usage insert to fail with
+   a test SQLite trigger; assert terminal status/event also roll back.
+4. `usage_snapshot_survives_provider_changes`: rename/relabel or switch provider
+   after start, then delete the old provider after the turn; assert its original
+   attribution remains, and it is not joined onto today's provider record.
+5. `usage_refusal_cancel_and_missing_are_honest`: synthetic refused/cancelled
+   replies with measured usage count once; no-response cancellation has nullable
+   counters, not fake zero measurements; non-AYLUL/pending refusals add no row.
+6. `usage_costs_require_trusted_turn_delta`: successive cumulative costs 0.2 and
+   0.5 in one Anthropic session yield 0.2 and 0.3, not 0.2 and 0.5; fresh sessions
+   reset baseline. OpenRouter/MiniMax/China/Custom, NaN, negative, reset or missing
+   costs yield null; a mixed known/unknown group also has null cost/currency.
+7. `usage_periods_group_and_sort`: RFC3339 offset normalization, [from,to)
+   endpoints, deterministic ties, two providers sharing one model, metadata
+   snapshots and empty period; assert both empty lists with no records.
+8. HTTP `usage_route_is_read_only`: 200 report, 400 malformed/missing/reversed
+   period, unchanged database version; the GET inventory includes the route.
+
+Run each failing focused test, implement its path, rerun it green. Then:
+`cargo test -p shadows-core --test acp_connection`,
+`cargo test -p shadows-core --test aylul_usage`,
+`cargo test -p shadows-http aylul_profiles`, contracts, codemap,
+`UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`, fmt and clippy for
+changed packages plus fake-acp with its test-support feature. Commands are
+serial, only root target/, no npm/workspace tests or live credentials needed.
+
+**Done when:** all eight named checks above and the existing turn/cancellation
+checks they touch pass; contracts/codemap/OpenAPI match; counts and cost policy
+match B-6; no secret or path enters usage rows/responses; one task commit after
+controller review releases the blocker. No product code is built by this plan.
 
 ## B-8 · Probe: skills and plugins under an isolated home
 
@@ -360,17 +489,180 @@ Evidence file naming the probe commit, then the spike goes.
 
 ## B-9 · Plugins and skills: shared library, enabled per agent
 
-Blocked on B-8 and the request's acceptance. Intended routes, for planning only:
-- `GET /api/aylul/extensions` → `{ plugins: [Item], skills: [Item] }`, the library,
-  `Item = { id, name, description }`, `kind = plugin | skill`.
-- `POST /api/aylul/extensions` `{ kind, path, command_id }` → `201 Item`; `path` is
-  a folder on the daemon's machine, input only, never answered back (spec §8.2).
-- `DELETE /api/aylul/extensions/{kind}/{id}?command_id=` → `204`; removes every
-  agent's enablement in the same write.
-- `GET /api/aylul/agents/{slug}/extensions` → `{ plugins: [AgentItem], skills: [AgentItem] }`,
-  `AgentItem = Item + { enabled }`, the whole library with that agent's switch.
-- `PUT /api/aylul/agents/{slug}/extensions/{kind}/{id}` `{ enabled, command_id }` →
-  `AgentItem`.
-- Obligations to come: an agent's home holds only its enabled items at opening;
-  deleting an agent removes its enablement rows with it (an agreement with
-  `delete_agent`); item ids are machine-independent.
+**Status:** steps written; blocked pending controller review. Needs B-8 done,
+B-7's migration 0034 allocated, and the accepted request. Evidence:
+[B-8](../../evidence/2026-10-21-agent-home-extensions-probe.md); spec §7.
+
+**Files / Touch (exact files)**
+- Create: `crates/shadows-core/migrations/0035_aylul_extensions.sql`,
+  `crates/shadows-core/src/profiles/extensions.rs` (library service rules),
+  `crates/shadows-core/src/profiles/extension_model.rs` (public item shapes),
+  `crates/shadows-core/src/profiles/extension_store.rs` (library SQL),
+  `crates/shadows-core/src/profiles/extension_files.rs` (owned library copies),
+  `crates/shadows-core/src/harness/extension_home.rs` (per-agent projection),
+  `crates/shadows-core/tests/aylul_extensions.rs`,
+  `crates/shadows-http/src/aylul_extensions.rs`,
+  `crates/shadows-http/src/aylul_extensions_tests.rs`.
+- Modify: `crates/shadows-core/src/profiles/{mod.rs,store.rs,contract.yaml}`,
+  `crates/shadows-core/src/harness/{mod.rs,assistant.rs,profile_home.rs,contract.yaml}`,
+  `crates/shadows-core/src/lib.rs`,
+  `crates/shadows-core/tests/aylul_session/{homes.rs,opening.rs}`,
+  `crates/shadows-http/src/lib.rs`, `crates/shadows/tests/openapi.rs`,
+  `api/openapi.json`, `docs/codebase/README.md`, `docs/backend/stages.md`.
+- Read profiles/harness/secrets contracts; extension evidence; profile_home.rs's
+  per-home serialization and atomic settings replacement; profiles/store.rs's
+  agent tombstone transaction. No new dependencies, web or native edits.
+
+**Interfaces**
+- `ExtensionKind = plugin | skill`; `Item { id, name, description }` and
+  `AgentItem = Item + { enabled }`; `ExtensionLibrary { plugins, skills }`,
+  `AgentExtensions { plugins, skills }`. id is a generated UUID string, never
+  a local path or machine-derived identifier. Library listing contains no
+  enabled flag; agent listing contains the entire library with enabled bool.
+- Profiles methods: extensions(), add_extension(command_id, kind, path),
+  delete_extension(command_id, kind, id), agent_extensions(slug),
+  set_agent_extension(command_id, slug, kind, id, enabled). Publish these names
+  and obligations in profiles/contract.yaml; validation and command rules stay
+  in Core. The path is a daemon-side folder input, never echoed in an error,
+  command record payload, response or library metadata. No URL/Git fetching.
+- Routes, all tag aylul:
+  - GET /api/aylul/extensions -> 200 ExtensionLibrary.
+  - POST /api/aylul/extensions { command_id, kind, path } -> 201 Item.
+  - DELETE /api/aylul/extensions/{kind}/{id}?command_id= -> 204.
+  - GET /api/aylul/agents/{slug}/extensions -> 200 AgentExtensions.
+  - PUT /api/aylul/agents/{slug}/extensions/{kind}/{id}
+    { command_id, enabled } -> 200 AgentItem.
+  Bad bodies/kind/source manifests are 400, missing item or deleted/unknown
+  agent 404, replay fingerprint mismatch or duplicate intrinsic kind/name 409;
+  existing storage/unavailable conventions cover 500/503. Add typed
+  ExtensionNotFound and ExtensionNameConflict variants/codes through CoreError,
+  StorageError and failure mappings; use ProfileInvalid for invalid source
+  content, with no filesystem location in the client-facing message. All
+  errors retain ErrorBody. No error handler matches on free-form SQL text.
+- List deterministically by name then id, independently in each kind. Metadata
+  is imported once from SKILL.md frontmatter or .claude-plugin/plugin.json;
+  it is read from the library on later use, not the person's source folder.
+  Require a valid intrinsic Claude skill/plugin name and nonempty description;
+  reject duplicate (kind, intrinsic name) to avoid two commands fighting for one
+  name. A successful import creates one immutable item, disabled for every agent.
+- Normalize inputs before fingerprinting. Import fingerprint is a SHA-256 of
+  kind plus the normalized source locator; never store the plaintext path in the
+  command payload. The immutable tree has a separate content digest. Classify
+  command replay before reopening the source and return the originally recorded
+  Item even after source/item deletion. Reusing that command for another source
+  or kind conflicts; changing files at the same locator does not turn a replay
+  into a new import. A new import command revalidates/copies today's contents.
+  Toggle fingerprints include agent, kind, id and enabled; delete replay is 204.
+
+**Tables / library copy / deletion**
+- Migration 0035 creates aylul_extension(id TEXT PRIMARY KEY, kind TEXT,
+  name TEXT, description TEXT, digest TEXT, created_at TEXT,
+  UNIQUE(kind,name), CHECK kind IN ('plugin','skill')) and
+  aylul_agent_extension(agent_slug TEXT, extension_id TEXT, enabled INTEGER,
+  PRIMARY KEY(agent_slug,extension_id), CHECK enabled IN (0,1), foreign keys
+  to agent/extension as appropriate). Missing enablement means false.
+- extension_store.rs owns all SQL, including remove_agent_extensions_in in
+  the existing delete_agent write (declare shared_in_transaction). Deleting an
+  item removes every enablement row in its own command transaction. The agent
+  tombstone remains; toggle validation rechecks live agent and item inside
+  the same write after replay classification, so deletion races cannot enable
+  a tombstone. No secrets resolution is added outside harness.
+- Copy accepted source trees into daemon-owned home_root/library/<id>/ through
+  a staging directory; use deterministic traversal and SHA-256 (already in
+  Core). Reject symlinks/junctions/reparse points and escapes, nonregular files,
+  invalid manifests and a source containing the destination. Bound imports to
+  10000 files/64 MiB so a folder input cannot exhaust the daemon. Do not follow
+  references to outside files or execute plugin scripts at import. For local
+  plugin payloads retain supported components; copy, do not install from Git.
+- Publish a complete immutable directory before its DB row becomes visible;
+  commit row/command together. A failed DB write cleans only that unreferenced
+  owned directory; an interrupted orphan is inert and may be cleaned on a later
+  import, never exposed as an item. DB deletion is authoritative: stale files
+  are never discoverable by new openings. Defer physical removal while an
+  opening is reading a snapshot, or use copied snapshots so no active reader
+  sees partial content. Never recursively delete a user source folder.
+
+**Projection at the next opening**
+- AYLUL opening reads the library/enablement snapshot through Profiles and
+  serializes projection under the same per-agent home lock as write_models.
+  A cached already-open adapter retains its starting configuration; switches
+  take effect on its next actual open, not on every cached open_session call.
+- extension_home.rs builds a complete daemon-owned snapshot inside the agent
+  home: enabled skills at skills/<intrinsic-name>/SKILL.md, and a local directory
+  marketplace containing only enabled plugin payloads with a valid owner/name
+  manifest and relative plugin sources. Use one stable reserved marketplace
+  name aylul-managed and enabledPlugins <plugin>@aylul-managed keys.
+- Merge only the managed settings keys into settings.json. Retain unrelated
+  env/permissions/model options and user's other marketplace/plugin entries.
+  Record the previously managed names in a daemon-owned manifest; turn removed
+  managed plugin entries explicitly false before removing their payloads.
+  Reconcile their managed installed/cache entries as needed; a warm cache must
+  not resurrect a disabled item. Do not wipe the whole plugins or skills tree.
+  Refuse a pre-existing unowned skill-name or marketplace-name collision rather
+  than overwrite user content. Stage/replace complete files atomically; failed
+  projection refuses the opening and never spawns with mixed enablement.
+- No --plugin-dir flag or global CLI changes: B-8 proved directory sources in
+  extraKnownMarketplaces plus enabledPlugins under settingSources ["user"].
+  Internal paths in settings are runtime configuration, never API metadata.
+  Snapshot generation and enablement revision must be consistent across
+  simultaneous openings/toggles/deletes. Do not update an active adapter's
+  prompt/tools or leak another agent's items through shared plugin caches.
+
+**Contract lines**
+- profiles functions: the five methods above; obligations: machine-independent
+  ids, no returned paths, copied immutable library, replay/conflict rules, whole
+  library per-agent switches; shared_in_transaction remove_agent_extensions_in.
+- harness obligation: only enabled managed items appear at actual opening;
+  toggled-off/deleted items leave the next opening even with a warm cache;
+  preserve unrelated home settings. Agreement with profiles deletion and
+  snapshot read. Tests below own each rule. Add every new module's one-job row.
+
+**Failing tests first, with assertions**
+1. `extension_import_copies_and_redacts_source`: import one synthetic skill
+   and plugin; assert UUID id/name/description only, copied bytes still present
+   after deleting the source, all agents initially disabled, no absolute source
+   in response/command record/error or durable event.
+2. `extension_input_is_contained`: invalid frontmatter/manifest, duplicate
+   intrinsic name, unsupported kind, link/junction escape and over-limit tree
+   fail without a published DB row, command success or partially visible item.
+3. `extension_commands_replay_and_conflict`: same import command returns the
+   same id after source removal and item deletion; changed source locator/kind conflicts;
+   toggle exact replay writes once, changed enabled conflicts; delete replay 204.
+4. `extension_enablement_is_per_agent`: A enables skill+plugin, B enables neither;
+   library lists both without enabled, both agent views list both with different
+   bools. Unknown/deleted agents and mismatched kind/id refuse without writes.
+5. `extension_deletions_remove_enablement_atomically`: delete item -> all agent
+   enablement removed; delete agent -> its rows removed with tombstone. Inject
+   a failing transaction and assert neither half commits; race toggle vs delete
+   never leaves an enabled removed item or a live row under a tombstone.
+6. `opening_projects_only_enabled_extensions`: two homes and copied library;
+   inspect skill files, local marketplace sources and enabledPlugins; each home
+   sees only its enabled payloads, user settings/unowned files preserved.
+7. `opening_removes_disabled_cached_extensions`: seed prior managed plugin
+   installed/cache metadata, toggle off/delete item, reopen; assert managed key
+   false, stale managed commands/skills absent and unrelated cache untouched.
+8. `extension_projection_is_atomic`: parallel opens while enablement changes
+   leave one valid complete snapshot per opening; injected file failure spawns
+   nothing and retains prior valid settings. User-name collisions refuse safely.
+9. HTTP `extension_routes_round_trip`: 201 import, 200 library/agent/toggle,
+   204 delete and replay; 400/404/409 shapes; no machine paths in all answers.
+10. Ignored `live_agent_extension_isolation`: use only an authorized .env key
+    injected into one command; harmless say-hi fixture; ACP commands contain
+    skill/plugin in A and neither in B. Reopen A after disabling both, with its
+    warm cache retained: neither marker may appear. Log only marker presence,
+    versions and outcomes; no model text/keys. This extends the B-8 fresh-home
+    evidence rather than claiming that B-8 tested warm-cache removal.
+
+Run each test red, build its vertical path, run it green. Then
+`cargo test -p shadows-core --test aylul_extensions`,
+`cargo test -p shadows-core --test aylul_session`,
+`cargo test -p shadows-http aylul_extensions`, contracts, codemap,
+`UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`, fmt and focused
+clippy. Run the ignored live check separately with the command-only key policy.
+All cargo commands serial; existing root target/ only; no npm/workspace gate.
+
+**Done when:** the ten checks above pass, the accepted five routes are generated
+in OpenAPI, atomic deletion agreements and code-map rows match implementation,
+no native/web file changes, and the controller has released this task after
+reviewing these steps. A plugin execution/security policy beyond normal local
+Claude loading is not implied by discovery; no remote install is introduced.
