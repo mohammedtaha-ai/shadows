@@ -13,7 +13,11 @@ public_api:
   connectCompanion/setCompanionVisible/setCompanionPaused: Subscribe-before-snapshot native presentation state; latest revision wins.
   hideToTray: Preserve native hide failure as a rejected promise.
   refreshCompanionAppearance: Main-only refresh_companion_appearance returns an acknowledgement { ok: true }; wrapper resolves void and is a no-op in browser.
+  getDesktopPreferences: Main-only desktop_preferences has no wire arguments; validates the full camelCase boolean object without changing OS state.
+  setDesktopPreferences: Main-only set_desktop_preferences receives a flat partial launchAtLogin/closeToTray object; validates the full answer; no frontend defaults are persisted on read.
 obligations:
+  - rule: Native preference wrappers never nest their arguments or send snake_case keys, and malformed answers fail the load/save boundary. Presentation uses fixed messages rather than native/OS details.
+    tested_by: web/src/app/settings/desktop-preferences.test.tsx
   - rule: Saving the bound agent refreshes native appearance only after a successful Core save; an IPC refresh failure cannot fail the save or expose a save error.
     tested_by: web/src/app/agents/aylul.test.tsx
   - rule: Browser startup mounts without invoking native; desktop sends no API calls before readiness.

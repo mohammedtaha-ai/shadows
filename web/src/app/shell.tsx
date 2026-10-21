@@ -6,6 +6,7 @@ import { useProjectEvents } from '@/stream/use-project-events'
 import { NewProjectProvider } from './new-project/new-project-provider'
 import { Sidebar } from './sidebar/sidebar'
 import { SettingsDialog } from './settings/settings-dialog'
+import { PersonTheme } from './settings/person-theme'
 
 export function Shell() {
   const { projectId } = useParams({ strict: false })
@@ -15,6 +16,7 @@ export function Shell() {
     // every movement.
     <MotionConfig reducedMotion="user">
       <NewProjectProvider>
+        <PersonTheme />
         <div className="flex h-dvh overflow-hidden">
           <Sidebar />
           <main className="flex min-w-0 flex-1 flex-col">

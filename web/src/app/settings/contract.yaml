@@ -49,6 +49,16 @@ components:
     # One modal in Shell; section availability follows the runtime.
   GeneralSection:
     signature: "() => JSX.Element"
+    note: Active projects stays independent of Core language/theme and desktop-only machine preferences.
+  GeneralPreferences:
+    signature: "() => JSX.Element"
+    note: Uses personQuery/savePerson and writeSaved; latest cached names survive preference-only writes.
+  PersonTheme:
+    signature: "() => null"
+    note: Mounted once in Shell after readiness; root dark class/data-theme follow saved preference or system, with complete effect cleanup.
+  DesktopPreferencesControls:
+    signature: "() => JSX.Element"
+    note: Loads on each desktop General opening; sends flat partial native updates without a Core write.
   AccountSection:
     signature: "() => JSX.Element"
     note: You card works in browser and desktop; native state/actions mount only in desktop.
@@ -93,6 +103,12 @@ functions:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: General saves the complete person with retry-stable command identity and latest observed names; unsupported language tags remain unchanged unless a supported choice is selected. Saved answers cancel older reads before cache writes.
+    tested_by: ["General reads and saves the whole person", "an unknown saved language survives a theme-only change", "observed names are preserved while editing preferences", "a failed preference save retains its draft and command", "an old read cannot undo saved preferences"]
+  - rule: Dark/light themes apply through the root attributes and the shared CSS palette; System listens for browser colour-scheme changes while fixed themes do not. Failure without a person leaves the initial theme intact; unmount restores prior attributes and removes listeners.
+    tested_by: ["theme follows the shared person", "System follows the OS and fixed themes do not", "failed person loading preserves the initial theme", "unmount removes System listeners and restores prior attributes"]
+  - rule: Native controls read actual state instead of writing defaults, serialize local updates and accept the full returned object. A failed setter rereads actual values; failed recovery disables controls until explicit read retry. Native and Core errors remain independent; stale effect reads cannot overwrite a later accepted result.
+    tested_by: ["browser General has no native preferences", "desktop defaults come from native without a write", "each switch sends flat partial camelCase arguments", "failed recovery read keeps controls disabled until explicit Retry", "a StrictMode read cannot overwrite accepted desktop preferences", "a failed Core save does not disable or invoke native switches"]
   - rule: The shared library has no global enablement switch. Add uses a trimmed daemon-side folder path, retains it after failure and reuses unchanged command identities. Back discards unsubmitted input; successful import returns to the selected tab.
     tested_by: ["the library has tabs and no switches", "Add imports a folder on the daemon", "import retry preserves command identity", "Back discards an unsubmitted import"]
   - rule: Remove requires inline library-wide confirmation, uses a command id in the DELETE query, accepts 204 and preserves retry identity after failure. Library writes invalidate the library and every agent-extension cache prefix.

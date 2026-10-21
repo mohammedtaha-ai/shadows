@@ -195,6 +195,10 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/sections/agents.tsx` | Agent settings navigation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/account-actions.ts` | Account state action selection | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/you-card.tsx` | Person name editing | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/general-preferences.tsx` | General person preference editing | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/person-theme.tsx` | Person theme synchronization | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/desktop-preferences.tsx` | Native preference controls | `web/src/app/settings/contract.yaml` |
+| `web/src/desktop/preferences.ts` | Desktop preference invocation wrappers | `web/src/desktop/contract.yaml` |
 | `web/src/api/person.ts` | Person HTTP operations | `web/src/api/contract.yaml` |
 | `web/src/api/usage.ts` | Usage report HTTP queries | `web/src/api/contract.yaml` |
 | `web/src/api/extensions.ts` | Extension library HTTP operations | `web/src/api/contract.yaml` |

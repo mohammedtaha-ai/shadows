@@ -9,8 +9,8 @@
  *   3. the Tailwind utilities those tokens generate (`bg-sidebar`,
  *      `text-muted-foreground`, `font-serif`, ...).
  *
- * Dark only, for now: `<html class="dark">` is fixed in index.html, so every
- * shadcn `dark:` variant applies and there is no light palette to keep honest.
+ * Dark is the initial fallback. PersonTheme selects the saved light/dark theme,
+ * or follows the system, through the root class and data-theme attribute.
  *
  * Fonts never come from a CDN — the client must work offline against a local
  * daemon. Sans is Geist, bundled through npm; serif (the reply voice) and mono
@@ -60,6 +60,30 @@
     Georgia, serif;
   --typeface-mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas,
     "Liberation Mono", monospace;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --palette-background: #f8f7fb;
+  --palette-sidebar: #f0edf5;
+  --palette-card: #ffffff;
+  --palette-border: #d7d0e0;
+  --palette-input: #ffffff;
+  --palette-text: #241f30;
+  --palette-text-secondary: #5e566e;
+  --palette-text-muted: #6d637b;
+  --palette-accent: #5145a7;
+  --palette-accent-line: #6253bb;
+  --palette-accent-soft: #ede9f7;
+  --palette-accent-softer: #f2eff9;
+  --palette-accent-text: #3e326f;
+  --palette-danger: #b52242;
+  --palette-danger-border: #ecc0cb;
+  --palette-danger-text: #a11535;
+  --palette-success: #137850;
+  --palette-overlay: #17112670;
+  --primary-foreground: #ffffff;
+  --sidebar-primary-foreground: #ffffff;
 }
 
 /* 2. shadcn's tokens, and this product's additions, from the palette. */

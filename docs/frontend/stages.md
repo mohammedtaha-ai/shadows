@@ -7,7 +7,8 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 Work and improvements continue on branch `improvements`. The settings dialog,
 F-2 to F-9, is implemented and accepted by Mohammed in the app. F-10 and F-11 are
-implemented with focused automated checks, as is F-14. F-12's steps await the controller's review.
+implemented with focused automated checks, as are F-12 and F-14. The light palette and real
+desktop login-item behaviour still require their separate app/OS acceptance.
 
 ## Tasks
 
@@ -134,7 +135,7 @@ implemented with focused automated checks, as is F-14. F-12's steps await the co
   and unknown-cost handling match the plan; contracts/map and task commit are complete
 
 ### F-12 · General: language and theme in Core with the person; start with Windows and tray native
-- Status: todo
+- Status: done
 - Reviewed: steps released by the controller, 2026-10-22
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-12-general-person-preferences-and-desktop-behaviour
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (General);
