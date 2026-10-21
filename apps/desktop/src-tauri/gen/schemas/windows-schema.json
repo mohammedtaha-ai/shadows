@@ -267,6 +267,12 @@
           "markdownDescription": "Enables the open_main_from_companion command without any pre-configured scope."
         },
         {
+          "description": "Enables the refresh_companion_appearance command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-refresh-companion-appearance",
+          "markdownDescription": "Enables the refresh_companion_appearance command without any pre-configured scope."
+        },
+        {
           "description": "Enables the retry_desktop_connection command without any pre-configured scope.",
           "type": "string",
           "const": "allow-retry-desktop-connection",
@@ -403,6 +409,12 @@
           "type": "string",
           "const": "deny-open-main-from-companion",
           "markdownDescription": "Denies the open_main_from_companion command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the refresh_companion_appearance command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-refresh-companion-appearance",
+          "markdownDescription": "Denies the refresh_companion_appearance command without any pre-configured scope."
         },
         {
           "description": "Denies the retry_desktop_connection command without any pre-configured scope.",

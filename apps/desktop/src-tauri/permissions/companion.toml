@@ -1,7 +1,7 @@
 [[permission]]
 identifier = "main-actions"
 description = "Account, local sidecar and companion controls for main only."
-commands.allow = ["companion_binding", "select_companion_agent", "target_companion_thread", "set_companion_previews", "navigation_snapshot", "ack_navigation", "desktop_connection", "desktop_connection_config", "save_desktop_connection", "retry_desktop_connection", "open_external", "hide_main", "auth_action", "cancel_login", "aylul_call", "companion_state", "set_companion_visible", "set_companion_paused"]
+commands.allow = ["refresh_companion_appearance", "companion_binding", "select_companion_agent", "target_companion_thread", "set_companion_previews", "navigation_snapshot", "ack_navigation", "desktop_connection", "desktop_connection_config", "save_desktop_connection", "retry_desktop_connection", "open_external", "hide_main", "auth_action", "cancel_login", "aylul_call", "companion_state", "set_companion_visible", "set_companion_paused"]
 
 [[permission]]
 identifier = "companion-actions"

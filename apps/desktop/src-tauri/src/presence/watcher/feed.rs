@@ -1,5 +1,5 @@
 //! One bound conversation's read loop: validate, subscribe, reconcile, project.
-use super::{Notify, Readiness, Timing, Update};
+use super::{Notify, Readiness, RefreshRequest, Timing, Update};
 use crate::{
     core_connection::ReadyConnection,
     presence::{
@@ -16,7 +16,7 @@ use std::{
     },
     time::{SystemTime, UNIX_EPOCH},
 };
-use tokio::sync::watch;
+use tokio::sync::{mpsc, watch};
 
 fn now() -> u64 {
     SystemTime::now()
@@ -26,6 +26,7 @@ fn now() -> u64 {
         .min(u64::MAX as u128) as u64
 }
 struct Session {
+    appearance: Option<crate::presence::CompanionAppearance>,
     scope: Scope,
     projection: Projection,
     epoch: u64,
@@ -36,6 +37,10 @@ struct Session {
 impl Session {
     fn apply(&mut self, observation: Observation) {
         let before = self.projection.value();
+        let cleared = matches!(
+            &observation,
+            Observation::Unavailable(_) | Observation::Disconnected
+        ) && self.appearance.take().is_some();
         let projection = self.projection.apply(
             PresenceInput {
                 scope: self.scope.clone(),
@@ -46,7 +51,7 @@ impl Session {
         if self.current.load(Ordering::SeqCst) == self.epoch && !self.projection.reconciled() {
             self.ready.send_replace(None);
         }
-        if projection != before {
+        if projection != before || cleared {
             self.publish(projection)
         }
     }
@@ -61,9 +66,61 @@ impl Session {
                 guard: None,
                 scope: Some(self.scope.clone()),
                 projection,
+                appearance: self.appearance.clone(),
+                republish_only: false,
+                acknowledgement: None,
                 epoch: self.epoch,
                 current: self.current.clone(),
             });
+        }
+    }
+    async fn metadata(&mut self, client: &Client, binding: &BindingView) -> Result<(), Problem> {
+        let appearance = client.validate_appearance(binding).await?;
+        let changed = self.appearance != appearance;
+        self.appearance = appearance;
+        self.apply(Observation::Ready);
+        if changed {
+            self.publish(self.projection.value());
+        }
+        Ok(())
+    }
+    async fn explicit(&mut self, request: RefreshRequest, client: &Client, binding: &BindingView) {
+        if request.epoch != self.epoch || self.current.load(Ordering::SeqCst) != self.epoch {
+            let _ = request.reply.send(Err("companion_binding_changed"));
+            return;
+        }
+        let result = self.metadata(client, binding).await;
+        if let Err(problem) = result {
+            self.apply(Observation::Unavailable(problem.status()));
+        }
+        (self.notify)(Update {
+            guard: None,
+            scope: Some(self.scope.clone()),
+            projection: self.projection.value(),
+            appearance: self.appearance.clone(),
+            republish_only: false,
+            acknowledgement: Some((
+                request.reply,
+                result.map_err(|_| "companion_core_unavailable"),
+            )),
+            epoch: self.epoch,
+            current: self.current.clone(),
+        });
+    }
+    async fn wait(
+        &mut self,
+        delay: std::time::Duration,
+        refreshes: &mut mpsc::Receiver<RefreshRequest>,
+        client: &Client,
+        binding: &BindingView,
+    ) {
+        let sleep = tokio::time::sleep(delay);
+        tokio::pin!(sleep);
+        loop {
+            tokio::select! {
+                _ = &mut sleep => break,
+                Some(request) = refreshes.recv() => self.explicit(request, client, binding).await,
+            }
         }
     }
     async fn refresh(
@@ -91,6 +148,7 @@ pub(super) async fn run(
     notify: Notify,
     timing: Timing,
     ready: watch::Sender<Readiness>,
+    refreshes: &mut mpsc::Receiver<RefreshRequest>,
 ) {
     let scope = Scope {
         generation: binding.generation,
@@ -103,6 +161,7 @@ pub(super) async fn run(
     };
     let projection = Projection::new(scope.clone(), binding.agent.is_some(), binding.previews);
     let mut state = Session {
+        appearance: None,
         scope,
         projection,
         epoch,
@@ -125,7 +184,7 @@ pub(super) async fn run(
     let mut failures = 0u32;
     let mut cursor = 0;
     loop {
-        let outcome = match client.validate(&binding).await {
+        let outcome = match state.metadata(&client, &binding).await {
             Ok(()) => {
                 state.apply(Observation::Ready);
                 if let Some(target) = binding.target.as_ref() {
@@ -137,12 +196,15 @@ pub(super) async fn run(
                         &mut cursor,
                         &mut failures,
                         &timing,
+                        refreshes,
                     )
                     .await
                 } else {
                     failures = 0;
                     state.apply(Observation::CaughtUp);
-                    tokio::time::sleep(timing.liveness).await;
+                    state
+                        .wait(timing.liveness, refreshes, &client, &binding)
+                        .await;
                     continue;
                 }
             }
@@ -151,11 +213,13 @@ pub(super) async fn run(
         let problem = outcome.err().unwrap_or(Problem::Transport);
         if problem.terminal() {
             state.apply(Observation::Unavailable(problem.status()));
-            return;
+            break;
         }
         if problem != Problem::Transport {
             state.apply(Observation::Unavailable(problem.status()));
-            tokio::time::sleep(timing.liveness).await;
+            state
+                .wait(timing.liveness, refreshes, &client, &binding)
+                .await;
             continue;
         }
         state.apply(Observation::Disconnected);
@@ -164,13 +228,17 @@ pub(super) async fn run(
             state.apply(Observation::Unavailable(
                 "Unavailable. Retry local Core in Settings.",
             ));
-            return;
+            break;
         }
         let delay = timing
             .retry
             .saturating_mul(1u32 << (failures - 1).min(10))
             .min(timing.retry_cap);
-        tokio::time::sleep(delay).await;
+        state.wait(delay, refreshes, &client, &binding).await;
+    }
+    // A stopped observer accepts explicit metadata checks without reopening its feed.
+    while let Some(request) = refreshes.recv().await {
+        state.explicit(request, &client, &binding).await;
     }
 }
 async fn session(
@@ -181,6 +249,7 @@ async fn session(
     cursor: &mut i64,
     failures: &mut u32,
     timing: &Timing,
+    refreshes: &mut mpsc::Receiver<RefreshRequest>,
 ) -> Result<(), Problem> {
     let mut feed = client.subscribe(thread, *cursor).await?;
     // Subscribe before snapshot. Replay is suppressed until this stream's own caught-up.
@@ -198,9 +267,10 @@ async fn session(
     let mut replayed = false;
     loop {
         tokio::select! {
+            Some(request) = refreshes.recv() => state.explicit(request, client, binding).await,
             _ = &mut caught_up_deadline, if !caught_up => return Err(Problem::Transport),
             _ = liveness.tick() => {
-                client.validate(binding).await?;
+                state.metadata(client, binding).await?;
                 state.apply(Observation::Ready);
             }
             _ = ticks.tick() => {

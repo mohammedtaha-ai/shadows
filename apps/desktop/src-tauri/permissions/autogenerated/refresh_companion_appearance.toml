@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-refresh-companion-appearance"
+description = "Enables the refresh_companion_appearance command without any pre-configured scope."
+commands.allow = ["refresh_companion_appearance"]
+
+[[permission]]
+identifier = "deny-refresh-companion-appearance"
+description = "Denies the refresh_companion_appearance command without any pre-configured scope."
+commands.deny = ["refresh_companion_appearance"]

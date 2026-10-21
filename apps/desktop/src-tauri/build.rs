@@ -3,6 +3,7 @@ fn main() {
         tauri_build::AppManifest::new().commands(&[
             "hide_main",
             "companion_binding",
+            "refresh_companion_appearance",
             "select_companion_agent",
             "target_companion_thread",
             "set_companion_previews",

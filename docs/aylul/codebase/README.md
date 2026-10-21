@@ -9,6 +9,7 @@ Mobile and semantic project-context integration remain future paths.
 
 | Source | Owned job | Contract |
 | --- | --- | --- |
+| `apps/desktop/src-tauri/src/presence/appearance_tests.rs` | Opaque companion appearance regressions | Presence contract |
 | `apps/desktop/src-tauri/src/presence/send.rs` | Captured companion submission admission | Presence contract; a newer selection owns binding publication |
 | `apps/desktop/src-tauri/src/presence/send_fixture.rs` | Scripted submission HTTP server | Presence contract; test-only |
 | `apps/desktop/src-tauri/src/presence/send_tests.rs` | Submission admission regressions | Presence contract |

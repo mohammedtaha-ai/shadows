@@ -4,6 +4,9 @@ status: current
 source: apps/desktop/src-tauri/src/presence
 responsibility: Observe the bound conversation; mutate Core only for an explicit companion submission.
 public_api:
+  CompanionAppearance: Opaque agent character colour copied without validation; absent when unbound or unavailable.
+  Client::validate_appearance: Reuse bounded metadata validation to return the optional colour.
+  PresenceWatcher::refresh_appearance: Serialized explicit metadata recheck acknowledged after guarded UI publication; no SSE restart.
   send: Admit an explicit context-scoped text submission to the captured Core thread; unchanged uncertain Retry reuses its complete turn body.
   context: Native opaque draft scope and generation token; own first-send bind preserves scope.
   PresenceWatcher::wait_ready: Bounded acknowledgement of the exact generation/configuration/thread after snapshot and caught-up; a failed setup never admits or replays a turn.
@@ -18,6 +21,12 @@ public_api:
   configuration_changed: Clear prior selection before a changed Core configuration can become active.
   destination: Resolve only CompanionSettings, AgentDraft or validated Conversation without creating a thread.
 obligations:
+  - rule: Selection and periodic metadata checks copy all string colours unchanged; no native palette or persisted colour exists.
+    tested_by: [appearance_check_copies_opaque_colour, appearance_selection_and_liveness_publish_colour]
+  - rule: Unbound, unavailable or disconnected appearance is absent; a later successful check restores it.
+    tested_by: [appearance_unbound_and_unavailable_are_absent, appearance_refresh_failure_is_fixed_and_polling_recovers]
+  - rule: Explicit refresh waits for UI publication, uses reads only, and cannot publish a superseded binding or restart the stream.
+    tested_by: [appearance_refresh_waits_for_recheck_and_publication, appearance_refresh_cannot_publish_a_superseded_binding, appearance_refresh_unbound_republishes_without_core, appearance_refresh_before_the_first_binding_notification_is_unbound_success]
   - rule: If first creation loses binding publication only to a newer agent or target, the admitted send finishes on its captured created thread with its agent default; configuration or runtime changes still refuse further writes.
     tested_by: [first_create_finishes_on_captured_thread_after_agent_or_target_switch, first_create_refuses_after_configuration_change, detached_first_create_revalidates_runtime_before_session_write]
   - rule: Without a superseding selection, first send creates one AYLUL thread, binds before opening session, applies the agent default, then starts one turn; bound sends retain session settings.

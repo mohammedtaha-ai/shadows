@@ -14,6 +14,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::hide_main,
             commands::desktop::companion_binding,
+            commands::desktop::refresh_companion_appearance,
             commands::desktop::select_companion_agent,
             commands::desktop::target_companion_thread,
             commands::desktop::set_companion_previews,
@@ -59,7 +60,7 @@ pub fn run() {
             let presence = presence::Presence::new(paths.root().to_path_buf(), connection.clone());
             let publisher = app.handle().clone();
             let watcher =
-                presence::watcher::PresenceWatcher::new(std::sync::Arc::new(move |update| {
+                presence::watcher::PresenceWatcher::new(std::sync::Arc::new(move |mut update| {
                     let app = publisher.clone();
                     let _ = publisher.run_on_main_thread(move || {
                         if !update.is_current() {
@@ -87,7 +88,16 @@ pub fn run() {
                                 return;
                             }
                         }
-                        windows::companion::present(&app, update.projection);
+                        if update.republish_only {
+                            windows::companion::republish(&app);
+                        } else {
+                            windows::companion::present(
+                                &app,
+                                update.projection.clone(),
+                                update.appearance.clone(),
+                            );
+                        }
+                        update.acknowledge();
                     });
                 }));
             app.manage(watcher.clone());

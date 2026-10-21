@@ -176,3 +176,16 @@ pub fn ack_navigation(
     navigation.ack(revision);
     Ok(())
 }
+
+#[tauri::command]
+pub async fn refresh_companion_appearance(
+    window: tauri::WebviewWindow,
+    presence: tauri::State<'_, Arc<crate::presence::Presence>>,
+    watcher: tauri::State<'_, Arc<crate::presence::watcher::PresenceWatcher>>,
+) -> Result<crate::presence::RefreshAppearanceReply, String> {
+    main_only(&window)?;
+    watcher
+        .refresh_appearance(&presence.view())
+        .await
+        .map_err(str::to_owned)
+}

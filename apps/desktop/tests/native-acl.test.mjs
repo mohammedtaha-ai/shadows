@@ -23,3 +23,15 @@ test('generated native permissions grant sidecar access only to main',()=>{
  assert.ok(!commands('companion').includes('auth_action'),'companion must not receive account authority');
  assert.ok(permissions['allow-aylul-call']?.commands.allow.includes('aylul_call'),'command metadata must be generated');
 });
+
+ test('appearance refresh is granted only to main',()=>{
+ const root=new URL('../src-tauri/gen/schemas/',import.meta.url);
+ const manifests=JSON.parse(readFileSync(new URL('acl-manifests.json',root),'utf8'));
+ const capabilities=JSON.parse(readFileSync(new URL('capabilities.json',root),'utf8'));
+ const permissions=manifests['__app-acl__'].permissions;
+ const commands=label=>Object.values(capabilities).filter(c=>c.local&&c.windows.includes(label))
+  .flatMap(c=>c.permissions.flatMap(p=>permissions[p]?.commands.allow??[]));
+ assert.ok(commands('main').includes('refresh_companion_appearance'));
+ assert.ok(!commands('companion').includes('refresh_companion_appearance'));
+ assert.ok(permissions['allow-refresh-companion-appearance']?.commands.allow.includes('refresh_companion_appearance'));
+ });
