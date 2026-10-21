@@ -550,6 +550,9 @@ mod tests {
                 "MiniMax-M3",
             ),
         ] {
+            if std::env::var("B6_PROVIDER").is_ok_and(|chosen| chosen != preset) {
+                continue;
+            }
             let key = std::env::var(variable).expect("authorized key required");
             let home = root.join(preset);
             std::fs::create_dir_all(&home).unwrap();
@@ -573,6 +576,7 @@ mod tests {
                 env: vec![
                     ("ANTHROPIC_BASE_URL".into(), url.into()),
                     ("ANTHROPIC_MODEL".into(), model.into()),
+                    ("CLAUDE_CODE_MAX_OUTPUT_TOKENS".into(), "1024".into()),
                     ("ANTHROPIC_DEFAULT_HAIKU_MODEL".into(), model.into()),
                     ("ANTHROPIC_DEFAULT_SONNET_MODEL".into(), model.into()),
                     ("ANTHROPIC_DEFAULT_OPUS_MODEL".into(), model.into()),
@@ -606,10 +610,7 @@ mod tests {
                     .prompt(&opened.session_id, "say hi", &[])
                     .await
                     .map_err(|error| {
-                        eprintln!(
-                            "B6 diagnostic {}",
-                            error.to_string().replace(&key, "[REDACTED]")
-                        );
+                        let _ = error;
                         "prompt failed"
                     })
             })
