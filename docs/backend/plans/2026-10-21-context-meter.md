@@ -16,7 +16,8 @@ whether A is safe.
 
 - Live keys: only `OPENROUTER` and `API_KEY_MINIMAX`, in the repository's `.env`.
   Read only its variable names (`cut -d= -f1 .env`). Load it into one command's
-  environment only (`set -a; . ./.env; set +a; cargo test ...`). Never print,
+  environment only, with a read loop. Never use `. ./.env`: the file has no final
+  newline, and sourcing it once echoed part of a key. Never print,
   log, or commit a value. No prompt text and no generated text go into the
   evidence, except the one number asked for in step 6.
 - `shadows.exe` and the AYLUL desktop are running for Mohammed and lock
