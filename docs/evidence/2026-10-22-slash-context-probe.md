@@ -92,6 +92,15 @@ one before it.
 `CLAUDE_CODE_MAX_CONTEXT_TOKENS=200000`, which explains why its totals always
 equalled 200,000.
 
+**5. Does a command after leading whitespace run?** No (`sub`, run at
+2026-10-22, the same probe with three one-block sessions).
+- `" /context"` and `"\n/context"`: a model call is made. The model answers
+  that it cannot run `/context` and should be asked to type it.
+- `"/context"`: the `Context Usage` table comes back, and no model call is made.
+
+So a command must be sent with its leading whitespace removed. Detecting it
+after a trim is not enough.
+
 ## Not established
 
 - Whether a model switch inside one session lowers `used`. No run here switches
