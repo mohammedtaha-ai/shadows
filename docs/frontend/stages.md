@@ -6,8 +6,8 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 ## Now
 
 The settings dialog is delivered by PR #40, merged at `1a2b601`: its tasks F-2 to F-12,
-F-14 and F-15 are in this file at `1a2b601`. No frontend task is open. Still open outside
-any task: the light palette and the real desktop login-item behaviour need their own app
+F-14 and F-15 are in this file at `1a2b601`. The architecture plan's F-16 to F-22
+tasks below remain. Still open outside any task: the light palette and the real desktop login-item behaviour need their own app
 and OS acceptance.
 
 ## Tasks
@@ -76,3 +76,11 @@ and OS acceptance.
 - Touch: web/src (hand-written files)
 - Needs: none
 - Done when: no hand-written comment cites `§` or history; lint and tests pass
+
+### F-22 · Keep the summary ring after breakdown removal
+- Status: blocked
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-7b--remove-the-breakdown-route-after-agreement
+- Read: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.8; web/src/app/conversation/contract.yaml; web/src/api/contract.yaml; docs/shared/README.md
+- Touch: web/src/app/conversation/context-ring.tsx, web/src/api/client.ts, web/src/api/schema.d.ts (generated), both owning contracts, docs/frontend/codebase/README.md; controller enumerates the actual remaining callers and tests before dispatch
+- Needs: accepted shared request naming GET /api/threads/{id}/context removal and the summary-only ring; A-7b's generated OpenAPI; A-2's explicit slash-command path
+- Done when: `npm run gen:api` regenerates the schema; focused tests prove the ring makes no hidden breakdown request, summary usage remains visible and explicit `/context` still sends; typecheck and lint pass; both sides land on the same delivery branch

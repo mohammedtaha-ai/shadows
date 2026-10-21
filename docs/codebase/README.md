@@ -1,7 +1,13 @@
 # Code map
 
-**Read this before writing code in `shadows`.** Two kinds of file, split by
-what can be checked:
+**Read this before writing code in `shadows`.**
+
+Core work starts at `crates/shadows-core/src/app.rs`, then the owning service's
+contract and implementation. The rows below describe current files. The target
+and its staged migration are owned by [section 14.12](../superpowers/specs/2026-09-26-application-core-design.md#1412-service-ownership-and-staged-crate-extraction);
+planned crates are not current owners until their implementation moves.
+
+Two kinds of file, split by what can be checked:
 
 | File | Kind | Answers |
 |---|---|---|
@@ -32,7 +38,10 @@ What the code keeps true, in rust-analyzer's style. Spec §14.6 owns them.
   Shadows crate, nor on a database library; spec §15.2 owns this one.
 - Another service calls a service's `store` only through a function or method
   that store's contract declares, under `shared_in_transaction` (inside one
-  write) or `called_by_other_services`.
+  write) or `called_by_other_services`. These are existing migration exceptions:
+  new cross-service operations use the owner's service API, and each migration
+  removes its old exception. Private stores do not by themselves prevent SQL
+  against another owner's tables on a shared connection.
 
 ## What each crate and module owns
 

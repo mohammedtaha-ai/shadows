@@ -14,6 +14,11 @@
     Mohammed's Windows run (§14.10, item 3).
 - **Builds on:** Milestone 2 (§13), on `main` at `ddcaed5`.
 
+**2026-10-21 amendment:** §14.12 owns the staged service-boundary migration.
+The milestone description below records the established workspace baseline;
+§14.12 supersedes its temporary shared-store permissions as services migrate.
+The current source map and contracts describe what has actually moved.
+
 Milestone 2.5 changes **where the code lives, not what it does.** Shadows
 becomes a Cargo workspace:
 - one `shadows-core` crate holds the whole application behind one object,
@@ -87,9 +92,10 @@ Out:
   need maintenance". Folder names equal crate names. Source: "Large Rust
   Workspaces", 2021.
 
-The lesson: **a crate is the one boundary the compiler enforces.** Folders
-inside a crate, `pub(crate)`, guard tests and allowlists are conventions that
-decay. And a project starts with a large core crate, splitting it only along
+The lesson: **a crate makes a dependency boundary explicit.** Rust also enforces
+private module and field access inside a crate; `pub(crate)` deliberately widens
+access. Neither boundary assigns SQL tables to services. A project starts with
+a large core crate, splitting it only along
 boundaries that have proven themselves, as Codex does, rather than guessing
 them up front.
 
@@ -252,12 +258,11 @@ are created when their callers exist.
   crates yet. A service never reaches into another's `store.rs` or `model.rs`
   privates.
 
-> **OPEN — a crate per service.** Services become their own crates once their
-> types stop forming cycles (`thread` ↔ `workflow`, `thread` ↔ `events`, and
-> `Threads` ↔ `Harness`). **Trigger:** the first milestone that adds a service
-> with no cycle to the rest, which is likely Milestone 5's executors, or a
-> `shadows-core` build time that slows work down. **Why it does not block:**
-> the adapter boundary, which is the one that hurt, is enforced now.
+> **OPEN — extraction readiness.** §14.12 selects service crates as the target.
+> **Trigger:** A-8c's type/runtime/test dependency ledger is resolved, private
+> service stores replace domain `impl Storage` blocks, and the extraction
+> graph is acyclic. **Why it does not block:** behavior fixes and boundary
+> preparation run in the existing crate; extraction waits for these proofs.
 
 ## 14.5 Adapters
 
@@ -316,12 +321,15 @@ not unify dev-dependency features into a normal build, so:
   that already proves `test-support` never reaches the shipped binary
   (`cargo tree -e features,no-dev`).
 
-**What the compiler cannot see:** inside `shadows-core`, one service reaching
-into another's private module. There, `pub(crate)` is a convention. Two things
-cover it:
+**What privacy does not establish:** Rust enforces private module access, but
+`pub(crate)` permits access throughout the crate, and a shared SQL connection
+can execute queries against any table regardless of the query's module. Three
+things cover ownership beyond those language visibility rules:
 - each service's `contract.yaml` names its public methods and its
   `not_the_caller's`;
 - review reads it.
+- the architecture ratchet checks cross-owner calls and direct SQL, including
+  after extraction into separate crates (§14.12).
 
 That is the price of keeping the services in one crate for now (§14.4, OPEN).
 
@@ -346,12 +354,10 @@ declared in the owning service's contract under `called_by_other_services`,
 with who calls it and why; `contracts.rs` refuses a declared name that is not
 in that service's folder.
 
-> **OPEN — the cross-service store calls become service methods.** Each name
-> under `called_by_other_services` is a call into another service's store, which
-> a crate boundary would refuse. **Trigger:** the first milestone that splits
-> a service into its own crate (§14.4, OPEN); then each becomes a method of the
-> owning service. **Why it does not block:** the services share one crate, and
-> the contracts name every such call.
+The shared-store permissions above describe the migration baseline, not a new
+extension point. §14.12 requires these calls to become service methods while
+the services are still in `shadows-core`. The ratchet permits only enumerated
+existing exceptions and removes them as their callers migrate.
 
 **Architecture Invariants** are written into `docs/codebase/README.md`, in
 rust-analyzer's style, one line each:
@@ -540,3 +546,56 @@ Milestone 2.5 is done when:
 
 AYLUL agent configuration is owned by `profiles` (providers and permanent agent identities);
 credentials stay with `secrets`. See AYLUL brain design section 11.
+
+## 14.12 Service ownership and staged crate extraction
+
+The selected style is a modular monolith with explicit service objects. One
+`AppCore` owns construction and shutdown for one Core runtime. Its typed
+accessors are the entry for adapters; services receive only their specific
+dependencies through constructors. No service receives `AppCore`, a service
+locator, or a callback that retrieves arbitrary services. `Arc` clones share
+the same instance and state. Composition uses concrete structs; traits are
+introduced only for a real interchangeable boundary, not for every class.
+
+Each service owns its rules, model, private store and live state. Other services
+call its methods. A cross-service write calls the owner's `*_in(&mut Tx, ...)`
+inside the caller's single transaction, with no nested commit or premature
+notification. Cross-service operations preserve atomicity, command identity,
+replay/conflict behavior, ordering and cancellation recovery. `AppCore` wires
+these owners; it does not accumulate their business rules.
+
+Preparation happens in place before physical extraction:
+
+1. Register actual owners/accessors/contracts in `AppCore` and enforce a
+   shrinking list of existing exceptions with the architecture ratchet.
+2. Resolve runtime, public-type, error and test dependency cycles explicitly.
+   The controller records owners and the extraction order in the architecture
+   plan before any crate move; the compiler is a check, not a design algorithm.
+3. Replace domain `impl Storage` methods with private service stores while
+   `Storage` is still local to `shadows-core`. Use one database pool/transaction
+   owner. Move direct cross-owner SQL behind the owning service's method.
+4. Extract the prepared database foundation, whose inputs and failures have
+   no dependency on domain services. Preserve the existing SQLx transaction
+   mechanism. Database-only test observation follows it under `test-support`.
+5. Extract service crates in the verified order, preserving their public APIs
+   and updating callers, contracts, maps, manifests and tests in the same task.
+   Service-local tests exercise that service; application integration tests
+   exercise `AppCore`. No lower crate requires the composition root to exist.
+
+Rust privacy protects private stores and Cargo rejects crate cycles. Neither
+prevents arbitrary SQL against another service's tables through a shared
+connection. Keep SQL ownership and adapter-access checks after extraction;
+moving a file cannot clear a violation. Test fixtures for the guard must include
+cross-owner SQL and a service moved out of `shadows-core`.
+
+The source-contract template remains the repository's existing template. Keep
+one entry contract per service, with sections for its modules; add a subordinate
+contract only when it has an independently owned boundary. Contracts describe
+inspected code, reference external types by owner, and distinguish verified
+`gaps` from `open_questions`. Tests and code establish truth; comments and a
+passing YAML parser do not prove behavior. Preserve useful rationale when
+removing obsolete comments. This amendment is a target, not evidence of delivery.
+
+The [architecture plan](../../backend/plans/2026-10-21-architecture.md) owns the
+task sequence. Product workspace moves and runtime replacement are separate
+deliveries; neither is required to provide one `AppCore` or private service stores.

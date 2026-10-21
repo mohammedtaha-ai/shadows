@@ -70,8 +70,10 @@ with hard boundaries. The compiler holds the boundaries, not good intentions.
 Dependencies point down only, and Cargo refuses a cycle. **Today** the services
 are folders inside `shadows-core`; the architecture plan
 ([docs/backend/plans/2026-10-21-architecture.md](docs/backend/plans/2026-10-21-architecture.md))
-moves each into its own crate, leaves first. Until a service has moved, its
-folder follows the same rules, enforced by the ratchet test.
+first establishes private service stores and explicit dependencies in place,
+then extracts crates in the verified dependency order. A task number is not
+proof of that order. Until a service has moved, its folder follows the same
+ownership rules, enforced by module privacy and the architecture ratchet.
 
 > **STRICT RULE: AppCore is the map and the owner. Start there, every time.**
 > Every task in Core begins at `crates/shadows-core/src/app.rs`. `AppCore` names
@@ -93,10 +95,14 @@ folder follows the same rules, enforced by the ratchet test.
    the only way in: `app.turns().send(…)`, `app.harness().open(…)`. Every
    service is a struct with private fields, built only inside `AppCore::start`.
    An adapter sees `AppCore` and nothing else. `shadows-core` holds `AppCore`
-   and its wiring only, so `app.rs` is large by design.
+   and its wiring only in the target structure, so `app.rs` is large by design.
+   Adapters receive `Arc<AppCore>`; services receive only their declared
+   dependencies, never `AppCore`, a global registry, or a back-reference to it.
 2. **A service crate owns its tables and its live state.**
-   - Its store is private to the crate. No other crate can name its SQL, so no
-     other crate reads or writes its tables.
+   - Its store is private to the service. Rust privacy prevents callers from
+     accessing that store; it does not understand SQL table ownership on a
+     shared database connection. The architecture ratchet and review also
+     check direct SQL and cross-service queries, before and after extraction.
    - Its constructor receives the other services it calls. Its `Cargo.toml`
      lists them, which makes its dependencies visible at a glance.
    - A write that must share a transaction with another service goes through
@@ -116,7 +122,7 @@ folder follows the same rules, enforced by the ratchet test.
      src/model.rs   its types; no persistence imports
      src/store/     its SQL, private to the crate
      src/<job>.rs   one job's methods (`impl <Service>`) or private parts
-     contract.yaml  the contract, per module, traced from the code
+     contract.yaml  the service contract, with sections for its modules
      tests/         its tests, through its public API
    ```
    - A type such as `ThreadId` is owned by its service's crate, and others
