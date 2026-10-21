@@ -307,6 +307,10 @@ impl Connection {
             .block_task()
             .await
             .map_err(rpc)?;
+        eprintln!(
+            "B6 prompt_usage {}",
+            serde_json::to_string(&r.usage).unwrap()
+        );
         Ok(match r.stop_reason {
             StopReason::EndTurn => TurnEnd::Ended,
             StopReason::Cancelled => TurnEnd::Cancelled,
@@ -399,6 +403,11 @@ fn forward(events: &impl Fn(HarnessEvent), update: SessionUpdate) {
             })
         }
         SessionUpdate::UsageUpdate(u) => {
+            eprintln!(
+                "B6 usage_update {}",
+                serde_json::json!({
+                "used":u.used,"size":u.size,"cost":u.cost})
+            );
             let meta = serde_json::to_value(u.meta).unwrap_or(Value::Null);
             Some(HarnessEvent::Usage {
                 used: u.used,
@@ -514,5 +523,97 @@ mod tests {
         assert!(
             matches!(rpc(error), AcpError::Rpc(message) if message == "connection closed by policy")
         );
+    }
+    #[tokio::test]
+    #[ignore = "authorized live usage probe; removed after evidence"]
+    async fn b6_live_usage_probe() {
+        use crate::{claude::ClaudeAdapter, profile::ClaudeProfile};
+        use std::time::{Duration, SystemTime, UNIX_EPOCH};
+        let root = std::env::temp_dir().join(format!(
+            "shadows-b6-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        for (preset, variable, url, model) in [
+            (
+                "openrouter",
+                "OPENROUTER",
+                "https://openrouter.ai/api",
+                "openai/gpt-4.1-mini",
+            ),
+            (
+                "minimax",
+                "API_KEY_MINIMAX",
+                "https://api.minimax.io/anthropic",
+                "MiniMax-M3",
+            ),
+        ] {
+            let key = std::env::var(variable).expect("authorized key required");
+            let home = root.join(preset);
+            std::fs::create_dir_all(&home).unwrap();
+            std::fs::write(
+                home.join(".claude.json"),
+                r#"{"hasCompletedOnboarding":true}"#,
+            )
+            .unwrap();
+            let adapter = ClaudeAdapter {
+                node: r"C:\Program Files\nodejs\node.exe".into(),
+                adapter: std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../harness/claude/node_modules/@agentclientprotocol")
+                    .join("claude-agent-acp/dist/index.js"),
+                agent: r"C:\Users\Mohammed\.local\bin\claude.exe".into(),
+                adapter_version: "0.81.1".into(),
+                agent_version: "2.1.303".into(),
+            };
+            let profile = ClaudeProfile {
+                name: preset.into(),
+                home: home.clone(),
+                env: vec![
+                    ("ANTHROPIC_BASE_URL".into(), url.into()),
+                    ("ANTHROPIC_MODEL".into(), model.into()),
+                    ("ANTHROPIC_DEFAULT_HAIKU_MODEL".into(), model.into()),
+                    ("ANTHROPIC_DEFAULT_SONNET_MODEL".into(), model.into()),
+                    ("ANTHROPIC_DEFAULT_OPUS_MODEL".into(), model.into()),
+                    (
+                        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC".into(),
+                        "1".into(),
+                    ),
+                ],
+            };
+            let spec = adapter
+                .process_spec_with(&home, Some(&profile), &[], Some(&key))
+                .unwrap();
+            eprintln!("B6 provider={preset} model={model}");
+            let mut handle = shadows_process::spawn(spec).unwrap();
+            let result = tokio::time::timeout(Duration::from_secs(180), async {
+                let connection = Connection::open(&mut handle, |_| {})
+                    .await
+                    .map_err(|_| "initialize failed")?;
+                let opened = connection
+                    .start_session(
+                        &home,
+                        SessionStart::New,
+                        &SessionSetup {
+                            setting_sources: Some(vec!["user".into()]),
+                            ..Default::default()
+                        },
+                    )
+                    .await
+                    .map_err(|_| "session open failed")?;
+                connection
+                    .prompt(&opened.session_id, "say hi", &[])
+                    .await
+                    .map_err(|_| "prompt failed")
+            })
+            .await;
+            handle.terminate_tree().unwrap();
+            eprintln!("B6 result={result:?}");
+            assert!(
+                matches!(result, Ok(Ok(TurnEnd::Ended))),
+                "live turn did not end"
+            );
+        }
     }
 }
