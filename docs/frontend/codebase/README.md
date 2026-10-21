@@ -196,6 +196,11 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/you-card.tsx` | Person name editing | `web/src/app/settings/contract.yaml` |
 | `web/src/api/person.ts` | Person HTTP operations | `web/src/api/contract.yaml` |
 | `web/src/api/usage.ts` | Usage report HTTP queries | `web/src/api/contract.yaml` |
+| `web/src/api/extensions.ts` | Extension library HTTP operations | `web/src/api/contract.yaml` |
+| `web/src/app/settings/sections/plugins.tsx` | Extension library navigation | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/extension-import.tsx` | Daemon folder import form | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/extension-list.tsx` | Shared extension removal controls | `web/src/app/settings/contract.yaml` |
+| `web/src/app/agents/agent-extensions.tsx` | Per-agent extension enablement | `web/src/app/agents/contract.yaml` |
 | `web/src/app/settings/sections/usage.tsx` | Usage period selection | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/usage-period.ts` | Usage interval calculation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/usage-tables.tsx` | Usage report presentation | `web/src/app/settings/contract.yaml` |

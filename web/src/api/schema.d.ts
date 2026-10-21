@@ -75,7 +75,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["agent"];
+        get: operations["agent_extensions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -92,7 +92,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["toggle"];
+        put: operations["set_agent_extension"];
         post?: never;
         delete?: never;
         options?: never;
@@ -123,9 +123,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["library"];
+        get: operations["list_extensions"];
         put?: never;
-        post: operations["import"];
+        post: operations["import_extension"];
         delete?: never;
         options?: never;
         head?: never;
@@ -142,7 +142,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["remove"];
+        delete: operations["remove_extension"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3327,7 +3327,7 @@ export interface operations {
             };
         };
     };
-    agent: {
+    agent_extensions: {
         parameters: {
             query?: never;
             header?: never;
@@ -3364,7 +3364,7 @@ export interface operations {
             };
         };
     };
-    toggle: {
+    set_agent_extension: {
         parameters: {
             query?: never;
             header?: never;
@@ -3452,7 +3452,7 @@ export interface operations {
             };
         };
     };
-    library: {
+    list_extensions: {
         parameters: {
             query?: never;
             header?: never;
@@ -3479,7 +3479,7 @@ export interface operations {
             };
         };
     };
-    import: {
+    import_extension: {
         parameters: {
             query?: never;
             header?: never;
@@ -3534,7 +3534,7 @@ export interface operations {
             };
         };
     };
-    remove: {
+    remove_extension: {
         parameters: {
             query: {
                 command_id: string;

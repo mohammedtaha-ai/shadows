@@ -20,6 +20,9 @@ external:
   EnvEntry: web/src/api/schema.d.ts components.schemas.EnvEntry
 
 components:
+  AgentExtensions:
+    signature: "({ slug: string }) => JSX.Element"
+    note: Saved-agent extension switches live outside the Save agent form; failed extension reads do not disable ordinary fields.
   ColorSwatches:
     signature: "({ value: string, onChange: (id: string) => void, disabled?: boolean }) => JSX.Element"
     note: Radio group in shared table order with per-entry label, title, colour and selected ring.
@@ -75,6 +78,10 @@ pure:
     file: web/src/app/agents/model-picks.ts
 
 obligations:
+  - rule: Every saved-agent extension switch saves immediately, independently of Save agent, and accepts the returned enabled value. Failure rolls back its optimistic state; unchanged explicit retry reuses its command id. Pending and late responses stay scoped to their captured agent/item.
+    tested_by: ["a switch saves at once", "a failed switch goes back", "late toggles remain scoped"]
+  - rule: A new-agent form never queries extensions; reopening the created agent shows the disabled library. Empty saved-agent lists link to Plugins & Skills in the same dialog; failures remain local. Removing a library item invalidates all agents' views.
+    tested_by: ["a new agent shows the part after it is created", "an empty library links to the section", "an extension load failure is local", "library removal clears every agent view"]
   - rule: Character colours come from the shared character table; each agent form resolves unknown IDs to the base and always saves the chosen id with its other fields. The form states whether the desktop companion currently uses this agent; no native colour mutation is issued here.
     tested_by: ["the table's colours, in order", "every colour is complete", "a new agent starts on Purple", "an agent's colour is shown and saved with the form", "an id the table does not know shows Purple and is replaced on save", "the hint says when the colour shows"]
   - rule: Presets are queried from Core; known providers save only preset and label with ordered model objects. Each chosen model owns its editable context window; the first is default. Stored keys can be tested without revealing them.

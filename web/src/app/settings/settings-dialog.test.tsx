@@ -38,7 +38,7 @@ describe('settings', () => {
     act(() => app.button('Settings')?.click())
     await until(() => document.querySelector('[role="dialog"]') !== null)
     const nav = document.querySelector('nav[aria-label="Settings sections"]')
-    expect([...nav!.querySelectorAll('h2, button')].map(element => element.textContent).join(' ')).toBe('You Account General AI Providers Agents Usage This machine AYLUL character Local Core')
+    expect([...nav!.querySelectorAll('h2, button')].map(element => element.textContent).join(' ')).toBe('You Account General AI Providers Agents Plugins & Skills Usage This machine AYLUL character Local Core')
   })
 
   it('Escape closes the dialog and keeps the page', async () => {

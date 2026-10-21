@@ -555,3 +555,9 @@ person:
   savePerson: "PUT /api/me; whole PersonInput plus caller command id; names and preferences are read from the generated schema"
 usage:
   usageQuery: "GET /api/aylul/usage with from/to RFC3339 query parameters; ['aylul-usage', from, to]; generated report aliases; explicit retry; no mutation or command id"
+extensions:
+  extensionsQuery: "GET /api/aylul/extensions; ['aylul-extensions']; generated ExtensionLibrary"
+  addExtension: "POST /api/aylul/extensions with caller command_id, kind, daemon folder path; resolves Item"
+  removeExtension: "DELETE /api/aylul/extensions/{kind}/{id} with command_id query; unwrapEmpty handles 204"
+  agentExtensionsQuery: "GET /api/aylul/agents/{slug}/extensions; ['aylul-agent-extensions', slug]"
+  setAgentExtension: "PUT /api/aylul/agents/{slug}/extensions/{kind}/{id} with caller command_id and enabled; resolves AgentItem; no automatic mutation retry"

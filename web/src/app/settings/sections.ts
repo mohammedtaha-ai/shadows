@@ -14,7 +14,7 @@ export const SECTIONS: { id: SectionId; label: string; group: 'You' | 'AI' | 'Th
 ]
 
 export function visibleSections() {
-  return SECTIONS.filter(section => (!section.desktopOnly || isDesktop()) && section.id !== 'plugins')
+  return SECTIONS.filter(section => !section.desktopOnly || isDesktop())
 }
 
 export function readSettingsSearch(search: Record<string, unknown>): { settings?: SectionId; agent?: string } {

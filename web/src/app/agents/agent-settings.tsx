@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ErrorLine } from '../error-line'
 import { AgentEnv } from './agent-env'
+import { AgentExtensions } from './agent-extensions'
 import { DeleteZone } from './delete-zone'
 import { Field, Select } from './form-field'
 import { providerTitle } from './provider-presets'
@@ -23,7 +24,7 @@ export function AgentForm({ slug, onDone }: { slug: string | null; onDone: () =>
   const agent = useQuery(agentsQuery).data?.agents.find(agent => agent.slug === slug)
   return <div className="space-y-6">
     <AgentFields slug={slug} onDone={onDone} />
-    {slug !== null && agent && <><AgentEnv slug={slug} /><DeleteAgent slug={slug} name={agent.name} onDone={onDone} /></>}
+    {slug !== null && agent && <><AgentExtensions slug={slug} /><AgentEnv slug={slug} /><DeleteAgent slug={slug} name={agent.name} onDone={onDone} /></>}
   </div>
 }
 

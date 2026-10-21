@@ -32,6 +32,13 @@ external:
 # ── functions ────────────────────────────────────────────────────────────────────
 
 components:
+  PluginsSection:
+    signature: "() => JSX.Element"
+    note: Accessible Plugins/Skills tabs; Add replaces the body without another dialog.
+  ExtensionImport:
+    signature: "({ kind: ExtensionKind, onDone: () => void }) => JSX.Element"
+  ExtensionList:
+    signature: "({ kind: ExtensionKind, items: Item[] }) => JSX.Element"
   UsageSection:
     signature: "() => JSX.Element"
     note: A captured range per opening/period selection; no old rows during a new pending range.
@@ -86,6 +93,10 @@ functions:
 # ── obligations ──────────────────────────────────────────────────────────────────
 
 obligations:
+  - rule: The shared library has no global enablement switch. Add uses a trimmed daemon-side folder path, retains it after failure and reuses unchanged command identities. Back discards unsubmitted input; successful import returns to the selected tab.
+    tested_by: ["the library has tabs and no switches", "Add imports a folder on the daemon", "import retry preserves command identity", "Back discards an unsubmitted import"]
+  - rule: Remove requires inline library-wide confirmation, uses a command id in the DELETE query, accepts 204 and preserves retry identity after failure. Library writes invalidate the library and every agent-extension cache prefix.
+    tested_by: ["Remove confirms its library-wide effect", "a failed Remove can be retried", "library removal clears every agent view"]
   - rule: Usage queries rolling 7/30-day periods or the person's local calendar month, serialized as UTC RFC3339. Exactly at month start the end advances one millisecond. Requests and cache entries stay scoped to their captured range.
     tested_by: ["periods produce bounded UTC ranges", "Usage opens with Last 7 days", "changing the period fetches its own report"]
   - rule: Usage preserves historical provider titles, report ordering and per-provider model identities. Bars compare input plus output tokens; zero totals have finite zero widths. Missing cost or currency displays a dash, never estimated zero or mixed-currency totals.
@@ -122,7 +133,7 @@ obligations:
     tested_by:
       - "Escape closes the dialog and keeps the page"
       - "a backdrop click closes the dialog and keeps the page"
-  - rule: Desktop-only sections are hidden in the browser; unknown or hidden section IDs resolve to General. Plugins and Usage wait for their implementation.
+  - rule: Desktop-only sections are hidden in the browser; unknown or hidden section IDs resolve to General. Plugins and Usage are available in both runtimes.
     tested_by:
       - "the dialog lists its sections in three groups"
       - "a desktop-only section in the browser falls back to General"
