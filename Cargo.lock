@@ -3137,6 +3137,7 @@ dependencies = [
  "shadows-mcp",
  "shadows-process",
  "sqlx",
+ "syn 2.0.119",
  "tempfile",
  "thiserror",
  "time",
@@ -3146,6 +3147,8 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "tree-sitter",
+ "tree-sitter-rust",
  "uuid",
  "windows-sys 0.61.2",
 ]

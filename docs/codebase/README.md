@@ -27,6 +27,11 @@ server is connected, answer it from the code.
 
 ## Architecture Invariants
 
+`crates/shadows/tests/architecture/` owns the shrinking source-ownership ratchet.
+Its [README](../../crates/shadows/tests/architecture/README.md) describes the
+checks, explicit review cases, fixture mutations and baseline maintenance.
+Run it with `cargo test -p shadows --test architecture`.
+
 What the code keeps true, in rust-analyzer's style. Spec §14.6 owns them.
 
 - `shadows-http` knows HTTP; nothing below it does. `shadows-core`,

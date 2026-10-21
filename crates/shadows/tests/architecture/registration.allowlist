@@ -1,0 +1,15 @@
+# Existing source exceptions at 41738fe. Remove records when their violations are fixed.
+crates/shadows-core/src/code :: missing AppCore map row [bac3c1256e2302f8] #1
+crates/shadows-core/src/design :: missing AppCore map row [af838f2ded8064ff] #1
+crates/shadows-core/src/events :: missing AppCore map row [dc690bb8d2a33ca8] #1
+crates/shadows-core/src/grants :: missing AppCore map row [5ef7b3d50bb492c2] #1
+crates/shadows-core/src/harness :: missing AppCore map row [57ccbc59e42dbe03] #1
+crates/shadows-core/src/instructions :: missing AppCore map row [11d7fdb363bae430] #1
+crates/shadows-core/src/plans :: missing AppCore map row [a86460b93c2d1c5b] #1
+crates/shadows-core/src/profiles :: missing AppCore map row [542570faba7995a7] #1
+crates/shadows-core/src/projects :: missing AppCore map row [b8a4475404621fff] #1
+crates/shadows-core/src/runtime :: missing AppCore map row [afbce91a34ce0ffb] #1
+crates/shadows-core/src/runtime :: missing contract [afbce91a34ce0ffb] #1
+crates/shadows-core/src/secrets :: missing AppCore map row [c893e8b558f750a6] #1
+crates/shadows-core/src/threads :: missing AppCore map row [11aa898c3cc7f1a6] #1
+crates/shadows-core/src/turns :: missing AppCore map row [e6a0136aa359c65b] #1

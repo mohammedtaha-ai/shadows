@@ -26,11 +26,12 @@ are reference material; they do not replace the project's template or code.
 ## Tasks
 
 ### A-0 · The architecture ratchet test
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#a-0--the-architecture-ratchet-test
-- Read: root `AGENTS.md` "Code structure"; the plan's audit table
-- Touch: crates/shadows/tests/architecture/ (new)
-- Done when: `cargo test -p shadows --test architecture` passes, and fails on one added violation of each kind
+- Read: root `AGENTS.md` "Code structure"; AppCore; the plan's A-0 and audit table; owner spec §14.12; docs/codebase/README.md; crates/shadows/Cargo.toml; service contracts reached from AppCore
+- Touch: crates/shadows/tests/architecture/ (new test, fixtures, table owners and baseline files), crates/shadows/Cargo.toml (existing workspace parser dev-dependencies only), Cargo.lock (generated), docs/codebase/README.md (test ownership entry), docs/backend/stages.md (this task), docs/backend/plans/2026-10-21-architecture.md (A-0 clarification only)
+- Needs: none; controller scoped this task at 41738fe. A-1's missing service map is an explicit baseline violation, not a reason to skip map checks. Do not implement A-1 here.
+- Done when: `cargo test -p shadows --test architecture` and `cargo test -p shadows --test codemap` pass; fixture mutations prove each rule rejects a new violation and stale allowlist entries fail; fmt and focused architecture clippy pass; report detection limits explicitly
 
 ### A-1 · `AppCore` is the map
 - Status: todo

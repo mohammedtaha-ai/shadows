@@ -142,6 +142,15 @@ shrink.
   tree, and fails when one new violation of each kind is added (checked by hand
   and reverted).
 
+Execution clarification: exercise mutations on temporary fixture trees with the
+same scanner and baseline comparison used for the real repository; never edit
+live product files merely to demonstrate rejection. Include stale-entry rejection,
+aliased imports, SQL across owners and discovery of an extracted service. Missing
+A-1 map rows are explicit existing violations until A-1 adds the real map. A-0
+may add the existing workspace Rust parser as a dev-dependency to `shadows`;
+no new parser library or product dependency is needed. Unknown ownership or
+unsupported SQL must be reported explicitly, never treated as a proven clean path.
+
 ### A-1 · `AppCore` is the map
 The doc comment on `AppCore` in `app.rs` becomes the service table: one line per
 service, with its name, its one job (no "and"), and its `contract.yaml` path.
