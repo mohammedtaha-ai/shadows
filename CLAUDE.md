@@ -52,6 +52,22 @@ depends on `shadows-core` only. `shadows-index` depends on no Shadows crate.
 
 ## Code structure
 
+> **STRICT RULE: AppCore is the map and the owner. Start there, every time.**
+> Every task in Core begins at `crates/shadows-core/src/app.rs`. `AppCore` names
+> every service, the one job it owns, and its contract. Find the service that
+> owns what you are changing, go to that folder, read its `contract.yaml`, and
+> change only there. You may not:
+> - search the tree to find where something is done, instead of asking `AppCore`;
+> - reach a service, a store, or live state (sessions, running turns) except
+>   through `AppCore` and the service that owns it;
+> - add a second way in: a second composition root, a second HTTP surface, or a
+>   helper another service calls directly;
+> - put a rule in a second place because the owner was hard to find.
+>
+> If no service in `AppCore` owns what you need, **stop and report**. A new owner
+> is a design decision for the controller, never something to improvise. A change
+> that breaks this rule is refused in review, whatever else it gets right.
+
 One runtime object, services as classes, one owner per rule. New code follows
 these rules. Existing code that breaks them is fixed service by service,
 `harness` and `turns` first. Do not copy a violation because it is already there.
@@ -59,7 +75,8 @@ these rules. Existing code that breaks them is fixed service by service,
 1. **One object at runtime.** `AppCore` is built once in `AppCore::start` and is
    the only way in: `app.turns().send(…)`, `app.harness().open(…)`. Every
    service is a struct with private fields, built only inside `AppCore::start`.
-   An adapter sees `AppCore` and nothing else.
+   An adapter sees `AppCore` and nothing else. `app.rs` is the one place the
+   whole application is wired, so it is large by design.
 2. **A service gets what it needs through its constructor.** It is handed its own
    store and the other services it calls, and the wiring is written once, in
    `app.rs`. A service never reads another service's tables: it calls that
@@ -73,10 +90,10 @@ these rules. Existing code that breaks them is fixed service by service,
 4. **A fixed shape per service folder.**
    ```text
    <service>/
-     mod.rs         the service: its public methods only
+     mod.rs         the service struct and its constructor
      model.rs       its types; no persistence imports
      store.rs       its SQL only (or store/ split by domain)
-     <part>.rs      private parts of the service
+     <job>.rs       one job's methods (`impl <Service>`) or private parts
      contract.yaml  the contract, per module, traced from the code
    ```
    No free `pub fn` in a service. A helper is a private function or a method.
@@ -114,9 +131,13 @@ reads a request, calls one method, and shapes the answer.
   aes-gcm, hkdf, hmac, keyring; no custom ORM, migration engine or crypto. Parsing,
   validation and domain rules are written here (`parse_dotenv` is ours, not
   `dotenvy`). A new dependency's commit says which of the two it is.
-- **A file earns its size.** Past 300 lines, the commit that grows it names the
-  file's one job. At 500 lines it splits, by responsibility: name each new file's
-  job without "and". No `helpers.rs` or `utils.rs`.
+- **A file earns its size by having one job, not by its line count.** A file of
+  1000 lines that does one clear thing stays whole. A file that mixes jobs
+  splits, however short it is: name each part's job without "and". No
+  `helpers.rs` or `utils.rs`, and no file that collects unrelated things, such as
+  every service's tests in one file: tests live with the thing they test. The
+  same holds at every level: a service with two jobs becomes two services, and
+  likewise a crate or a workspace.
 - **Watch the accretion points:** `shadows-core/src/db/mod.rs`, `shadows-http`, and
   `shadows-core/tests/storage_contract/`. They split by domain, never into a second facade.
 - **Domain stays pure:** `model.rs` has no persistence imports (`sqlx`, `Row`, `Sqlite*`, `Pg*`).
@@ -144,8 +165,9 @@ reads a request, calls one method, and shapes the answer.
 
 ## How agents work here
 
-- **Start from the map:** `docs/codebase/README.md`, then the module's
-  `contract.yaml`, then the files they name. Find symbols with the LSP (Rust) or
+- **Start from `AppCore`** (the strict rule above): `app.rs` names the owning
+  service, then its `contract.yaml`, then the files it names.
+  `docs/codebase/README.md` maps the crates outside Core. Find symbols with the LSP (Rust) or
   Serena (TypeScript), never with text search. Grep is for docs, config and log text.
 - **A change to a module updates its contract in the same commit.**
 - **Compose a dispatch once.** Task, interfaces, rulings and constraints go in the

@@ -5,41 +5,194 @@ This file tracks the existing Shadows Core backend only. See
 
 ## Now
 
-Branch `context-meter`: the composer's Context ring shows the size of the
-conversation, not the last model call (Mohammed's ruling, 2026-10-21;
-[plan](plans/2026-10-21-context-meter.md), owner spec harness controls §12.8).
-B-1 is a probe and changes nothing the frontend sees. B-2 waits for B-1 and for
-a shared request to be `accepted`.
-Live keys: only `OPENROUTER` and `API_KEY_MINIMAX`, in `.env`. Read only the
-variable names, never the values, and never print, log or commit a key.
+Branch `context-meter`: the architecture restructuring
+([plan](plans/2026-10-21-architecture.md)). The rules are the root
+`AGENTS.md` "Code structure", and its strict rule binds every task: start at
+`AppCore`, work only in the owning service. Tasks run in the order below. Each
+one keeps every existing test green and deletes its lines from the A-0
+allowlists. Live keys: only `OPENROUTER` and `API_KEY_MINIMAX`, read with a
+loop, never `. ./.env`, never printed or committed.
 
-The settings dialog's backend tasks were delivered by PR #40 (merged at `1a2b601`).
+The settings dialog shipped in PR #40 (`1a2b601`). The context-meter probe
+(B-1) is in Git at `e0478f7`; its corrections are A-7.
 
 ## Tasks
 
-### B-1 · Probe: `/context` as the conversation's size, and live turn tokens
-- Status: done
-- Plan: docs/backend/plans/2026-10-21-context-meter.md#b-1--probe-context-as-the-conversations-size-and-live-turn-tokens
-- Read: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.8; docs/evidence/2026-10-21-acp-usage-probe.md; the B-6 probe at `0bf351f` (`git show 0bf351f:crates/shadows-agent/src/acp.rs`, `b6_live_usage_probe`); `Sessions::context` in crates/shadows-core/src/harness/context.rs; `parse` in crates/shadows-agent/src/breakdown.rs
-- Touch: crates/shadows-agent/src/acp.rs (probe commit only, reverted in the evidence commit), docs/evidence/2026-10-21-context-meter-probe.md (new), docs/backend/stages.md (this task's Status only)
-- Needs: nothing. Uses `OPENROUTER` and `API_KEY_MINIMAX` from `.env`, loaded into the one cargo command's environment. Build only `-p shadows-agent`: `target/debug/shadows.exe` is locked by Mohammed's running Core, so stop and report if a build needs it. Do not stop `shadows.exe` or `nylra-desktop.exe`.
-- Done when: `set -a; . ./.env; set +a; cargo test -p shadows-agent --lib b1_context_meter_probe -- --ignored --nocapture` has run every step of the plan. The evidence file records the raw figures and answers Q1-Q4, with no key, prompt text or generated text except step 6's number, and names the probe commit. After the evidence commit, `git diff 1a2b601 -- crates/shadows-agent/src/acp.rs` is empty.
+### A-0 · The architecture ratchet test
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-0--the-architecture-ratchet-test
+- Read: root `AGENTS.md` "Code structure"; the plan's audit table
+- Touch: crates/shadows/tests/architecture/ (new)
+- Done when: `cargo test -p shadows --test architecture` passes, and fails on one added violation of each kind
 
-### B-2 · The ring shows the conversation's size
-- Status: blocked (B-1 refused option A: `/context` does not measure the conversation on OpenRouter or MiniMax; see §12.8 as amended)
-- Plan: docs/backend/plans/2026-10-21-context-meter.md#b-2--the-ring-shows-the-conversations-size
-- Read: §12.8 as amended after B-1
-- Touch: none until Mohammed rules on what replaces option A
+### A-1 · `AppCore` is the map
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-1--appcore-is-the-map
+- Read: root `AGENTS.md` "Code structure"; crates/shadows-core/src/app.rs
+- Touch: crates/shadows-core/src/app.rs, docs/codebase/README.md, crates/shadows/tests/architecture/
+- Done when: `cargo test -p shadows --test architecture` and `--test codemap` pass
+
+### A-2 · `Turns` owns what a turn sends; `/` commands go alone
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-2--turns-owns-what-a-turn-sends
+- Read: turns/contract.yaml, harness/contract.yaml
+- Touch: crates/shadows-core/src/turns/ (spawn.rs, steer.rs, new prompt.rs), crates/shadows-core/src/harness/setup.rs, both contracts, their tests
+- Done when: `a_slash_command_is_sent_as_one_block`, `context_skipped_by_a_command_reaches_the_next_turn` and the planner context tests pass
+
+### A-3 · The AYLUL window follows the current model
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-3--the-aylul-window-follows-the-current-model
+- Read: harness/contract.yaml
+- Touch: crates/shadows-core/src/harness/ (assistant.rs, live.rs, settings.rs), harness/contract.yaml, its tests
+- Done when: `switching_model_uses_the_new_models_window` and the agreement test pass
+
+### A-4 · One error mapping for HTTP and MCP
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-4--one-error-mapping-for-http-and-mcp
+- Read: crates/shadows-core/src/error.rs
+- Touch: crates/shadows-core/src/error.rs, crates/shadows-http/src/failure/, crates/shadows-mcp/src/refusal.rs, their tests
+- Done when: the table test over every `CoreError` variant passes through both adapters
+
+### A-5 · ACP connection safety
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-5--acp-connection-safety
+- Read: crates/shadows-agent/src/acp.rs
+- Touch: crates/shadows-agent/src/acp.rs, crates/shadows-agent/src/usage.rs, their tests
+- Done when: `a_dropped_prompt_frees_the_session` passes; stderr is logged by length only
+
+### A-6 · The Planner approve tools match the spec
+- Status: blocked
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-6--the-planner-approve-tools-match-the-spec
+- Read: §13.2 of its owner spec; crates/shadows-mcp/src/server.rs
+- Touch: the wrong side only (spec or code), plus `Grants::tools_for`
 - Needs: Mohammed's ruling
-- Done when: written after the ruling
+- Done when: the MCP tool-list tests pass against the ruling
 
-### B-3 · Probe: does a `/context` reading reach the model
-- Status: blocked (waits for Mohammed's go)
-- Plan: §12.8's OPEN block, its trigger
-- Read: docs/evidence/2026-10-21-context-meter-probe.md; the B-1 probe at `ce8fa7a`
-- Touch: crates/shadows-agent/src/acp.rs (probe commit only, reverted), docs/evidence/2026-10-21-context-reading-control-probe.md (new), docs/backend/stages.md (this task's Status only)
-- Needs: Mohammed's go. Load the keys with a read loop, never `. ./.env` (the file has no final newline, and sourcing it once echoed part of a key)
-- Done when: two OpenRouter `openai/gpt-4.1-mini` sessions run the same three turns, one with two `/context` readings before each turn and one without. The evidence records each turn's `PromptResult.usage` for both sessions, and the probe is reverted
+### A-7 · Context-meter records corrected
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-7--the-context-meter-records-corrected
+- Read: docs/evidence/2026-10-21-context-meter-probe.md; §12.8
+- Touch: that evidence file, docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.8, the breakdown route and its web caller
+- Done when: §12.8's OPEN is closed; the breakdown route's tests are removed and the rest pass
+
+### A-8 · Every service is built in `AppCore::start`
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-8--every-service-is-built-in-appcorestart
+- Read: crates/shadows-core/src/app.rs, harness/sessions.rs, testing/
+- Touch: crates/shadows-core/src/{app.rs,harness/sessions.rs,profiles/mod.rs,testing/}
+- Done when: `cargo test --workspace` passes; `CoreParts` holds only `AppCore` and the database
+
+### A-8b · The binary has one start and no second surface
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-8b--the-binary-has-one-start-and-no-second-surface
+- Read: crates/shadows/src/{cli,daemon}/
+- Touch: crates/shadows/src/, crates/shadows-http/src/ (the moved route), Core methods they need
+- Done when: `cargo test -p shadows` passes; the binary holds only configuration, tracing, binding and signals
+
+### A-9 · One pass: `instructions`
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Read: its contract.yaml and its row in the plan's Phase 3 table
+- Touch: crates/shadows-core/src/instructions/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
+
+### A-10 · One pass: `secrets`
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Read: its contract.yaml and its row in the plan's Phase 3 table
+- Touch: crates/shadows-core/src/secrets/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
+
+### A-11 · One pass: `projects`
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Read: its contract.yaml and its row in the plan's Phase 3 table
+- Touch: crates/shadows-core/src/projects/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
+
+### A-12 · One pass: `code`
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Read: its contract.yaml and its row in the plan's Phase 3 table
+- Touch: crates/shadows-core/src/code/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
+
+### A-13 · One pass: `grants`
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Read: its contract.yaml and its row in the plan's Phase 3 table
+- Touch: crates/shadows-core/src/grants/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
+
+### A-14 · One pass: `profiles (split by job)`
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Read: its contract.yaml and its row in the plan's Phase 3 table
+- Touch: crates/shadows-core/src/profiles/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
+
+### A-15 · One pass: `threads`
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Read: its contract.yaml and its row in the plan's Phase 3 table
+- Touch: crates/shadows-core/src/threads/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
+
+### A-16 · One pass: `design + plans`
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Read: its contract.yaml and its row in the plan's Phase 3 table
+- Touch: crates/shadows-core/src/design/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
+
+### A-17 · One pass: `harness`
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Read: its contract.yaml and its row in the plan's Phase 3 table
+- Touch: crates/shadows-core/src/harness/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
+
+### A-18 · One pass: `turns`
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Read: its contract.yaml and its row in the plan's Phase 3 table
+- Touch: crates/shadows-core/src/turns/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
+
+### A-19 · One pass: `events + runtime + command`
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--one-pass-per-service
+- Read: its contract.yaml and its row in the plan's Phase 3 table
+- Touch: crates/shadows-core/src/events/ and the callers of what it stops exposing, its tests (moved from storage_contract/)
+- Done when: `cargo test --workspace` passes and its A-0 allowlist lines are gone
+
+### A-20 · `shadows-http` and `shadows-mcp` split by job
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-20--shadows-http-and-shadows-mcp-split-by-job
+- Read: the plan section
+- Touch: crates/shadows-http/src/, crates/shadows-mcp/src/
+- Done when: `cargo test -p shadows-http -p shadows-mcp -p shadows` passes; `api/` unchanged
+
+### A-21 · `shadows-agent` and `shadows-process` split by job
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-21--shadows-agent-and-shadows-process-split-by-job
+- Read: the plan section
+- Touch: crates/shadows-agent/src/, crates/shadows-process/src/, crates/fake-acp/src/
+- Done when: `cargo test --workspace` passes
+
+### A-22 · Split the repository into workspaces
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-22--split-the-repository-by-product
+- Read: the plan section; CLAUDE.md "Workspaces"
+- Touch: runtime/ and code-intelligence/ (new), Cargo.toml, CLAUDE.md, AGENTS.md, docs/codebase/README.md, the codemap test, .github/workflows/ci.yml
+- Done when: each workspace's gate passes from its own root
+
+### A-23 · No `§` and no history in code
+- Status: todo
+- Plan: docs/backend/plans/2026-10-21-architecture.md#a-23--no--and-no-history-in-code
+- Read: A-0's list (c)
+- Touch: every remaining file on that list
+- Done when: A-0's list (c) is empty
 
 ### B-A2 · Prepare Core's scoped context contract
 - Status: stopped (2026-10-19: its Hermes integration plan was deleted, Git `226d0a3`; AYLUL's work profile will define its own need)
