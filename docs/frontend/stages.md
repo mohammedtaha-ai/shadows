@@ -104,8 +104,8 @@ their recorded blockers.
   codemap, `npm run typecheck`, `npm run lint`
 
 ### F-10 · Plugins & Skills: the shared library and each agent's picker
-- Status: blocked
-- Blocker: steps written, waiting for the controller's review
+- Status: todo
+- Reviewed: steps released by the controller, 2026-10-21
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-10-plugins--skills-shared-library-and-immediate-agent-switches
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Plugins & Skills);
   `docs/shared/requests/2026-10-20-settings-dialog.md` (Plugins & Skills answer);
@@ -120,8 +120,8 @@ their recorded blockers.
   commit are complete (full assertions and commands in the plan)
 
 ### F-11 · Usage section, by provider and by model
-- Status: blocked
-- Blocker: steps written, waiting for the controller's review
+- Status: todo
+- Reviewed: steps released by the controller, 2026-10-21
 - Plan: docs/frontend/plans/2026-10-21-settings-dialog.md#task-f-11-usage-periods-provider-comparison-model-totals
 - Read: `docs/frontend/specs/2026-10-20-settings-dialog-design.md` (Usage);
   `docs/shared/requests/2026-10-20-settings-dialog.md` (Usage answer);

@@ -470,7 +470,7 @@ gen:api` on this branch and is committed with this task):
 
 ### Task F-11: Usage: periods, provider comparison, model totals
 
-**Review gate:** steps only; keep blocked until the controller approves. B-7 at `58b4138`
+**Review gate:** released by the controller, 2026-10-21. B-7 at `58b4138`
 implements the accepted Usage request. The generated schema passed typecheck when these steps
 were written and is included in this documentation commit; do not regenerate it unless the
 canonical OpenAPI changes. No implementation or failing tests are added by this steps commit.
@@ -507,10 +507,11 @@ canonical OpenAPI changes. No implementation or failing tests are added by this 
   `client.GET('/api/aylul/usage', { params: { query: { from, to } } })` through `unwrap`.
 - `usage-period.ts`: `type UsagePeriod = '7d' | '30d' | 'month'`;
   `usageRange(period: UsagePeriod, now: Date): { from: string; to: string }`. Last 7/30 days are
-  rolling 7/30 × 24 hours ending at the captured time. This month starts at 00:00 UTC on its
-  first day and ends at that time; label the picker with a small "Periods use UTC." note.
+  rolling 7/30 × 24 hours ending at the captured time. This month starts at local midnight on
+  its first day (`new Date(year, month, 1)` in the person's time zone) and ends at that time
+  (controller's call, 2026-10-21: a month is the person's month, not UTC's). No UTC note.
   At the exact first instant of a month, advance only `to` by 1 ms so `from < to` stays valid.
-  Serialize with `toISOString()`. These period choices are explicit builder decisions for review.
+  Serialize with `toISOString()`. These period choices were reviewed and released by the controller.
 - `UsageSection()`: controlled `Period` select with `Last 7 days` (default), `Last 30 days`,
   `This month`. Capture `new Date(Date.now())` on opening or selecting a period, not on each
   render; no polling. Use the range in the query key. A new pending period must not show the
@@ -532,11 +533,11 @@ canonical OpenAPI changes. No implementation or failing tests are added by this 
 
 - [ ] **Step 1: Write the failing tests** (`usage-period.test.ts`, `usage.test.tsx`):
   - `periods produce bounded UTC ranges`: at `2026-10-21T12:00:00.000Z`, assert 7d starts
-    `2026-10-14T12:00:00.000Z`, 30d starts `2026-09-21T12:00:00.000Z`, month starts
-    `2026-10-01T00:00:00.000Z`, and each ends at the input time. Check year rollover and exact
+    `2026-10-14T12:00:00.000Z`, 30d starts `2026-09-21T12:00:00.000Z`, month starts at
+    `new Date(2026, 9, 1).toISOString()` (local midnight), and each ends at the input time. Check year rollover and exact
     month start (`to` is start +1 ms); all ranges satisfy `from < to`.
-  - `Usage opens with Last 7 days`: open `/?settings=usage`; title Usage, Period value `7d`,
-    UTC note and both table captions. Capture the fake GET's Request URL: its `from`/`to`
+  - `Usage opens with Last 7 days`: open `/?settings=usage`; title Usage, Period value `7d`
+    and both table captions. Capture the fake GET's Request URL: its `from`/`to`
     parse as RFC3339, span 7 days, and occur in the query, with no command id/body or mutation.
     Read parameters from the Request: `TestApp.calls` intentionally records only paths.
   - `changing the period fetches its own report`: control `Date.now`, select Last 30 days then
@@ -575,7 +576,7 @@ not established by fake-daemon tests.
 
 ### Task F-10: Plugins & Skills: shared library and immediate agent switches
 
-**Review gate:** steps only; keep blocked until the controller approves. B-9 at `5a34995`
+**Review gate:** released by the controller, 2026-10-21. B-9 at `5a34995`
 implements the accepted request after B-8. Use its built schemas and routes, not the older
 intended-route fragment this section replaces. No implementation is authorized by this plan commit.
 
