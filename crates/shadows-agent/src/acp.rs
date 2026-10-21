@@ -515,4 +515,154 @@ mod tests {
             matches!(rpc(error), AcpError::Rpc(message) if message == "connection closed by policy")
         );
     }
+    #[tokio::test]
+    #[ignore = "authorized live extension isolation probe; removed after evidence"]
+    async fn b8_live_extensions_probe() {
+        use crate::{claude::ClaudeAdapter, profile::ClaudeProfile};
+        use std::time::{Duration, SystemTime, UNIX_EPOCH};
+        let root = std::env::temp_dir().join(format!(
+            "shadows-b8-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        let market = root.join("marketplace");
+        let plugin = market.join("plugins/b8-plugin");
+        for folder in [
+            market.join(".claude-plugin"),
+            plugin.join(".claude-plugin"),
+            plugin.join("commands"),
+        ] {
+            std::fs::create_dir_all(folder).unwrap();
+        }
+        std::fs::write(
+            market.join(".claude-plugin/marketplace.json"),
+            r#"{"name":"b8-market","owner":{"name":"Shadows probe"},"plugins":[
+                {"name":"b8-plugin","source":"./plugins/b8-plugin"}]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            plugin.join(".claude-plugin/plugin.json"),
+            r#"{"name":"b8-plugin","version":"1.0.0","description":"Probe greeting"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            plugin.join("commands/hello.md"),
+            "---\ndescription: Probe greeting\n---\nsay hi\n",
+        )
+        .unwrap();
+        for label in ["a", "b"] {
+            let home = root.join(label);
+            std::fs::create_dir_all(&home).unwrap();
+            std::fs::write(
+                home.join(".claude.json"),
+                r#"{"hasCompletedOnboarding":true}"#,
+            )
+            .unwrap();
+            if label == "a" {
+                let skill = home.join("skills/b8-skill");
+                std::fs::create_dir_all(&skill).unwrap();
+                std::fs::write(
+                    skill.join("SKILL.md"),
+                    "---\nname: b8-skill\ndescription: Probe greeting\n---\nsay hi\n",
+                )
+                .unwrap();
+                std::fs::write(
+                    home.join("settings.json"),
+                    serde_json::to_vec(&serde_json::json!({
+                        "extraKnownMarketplaces":{"b8-market":{"source":{
+                            "source":"directory","path":market}}},
+                        "enabledPlugins":{"b8-plugin@b8-market":true}
+                    }))
+                    .unwrap(),
+                )
+                .unwrap();
+            }
+            let adapter = ClaudeAdapter {
+                node: r"C:\Program Files\nodejs\node.exe".into(),
+                adapter: std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../harness/claude/node_modules/@agentclientprotocol")
+                    .join("claude-agent-acp/dist/index.js"),
+                agent: r"C:\Users\Mohammed\.local\bin\claude.exe".into(),
+                adapter_version: "0.81.1".into(),
+                agent_version: "2.1.303".into(),
+            };
+            let key = std::env::var("API_KEY_MINIMAX").expect("authorized key required");
+            let model = "MiniMax-M3";
+            let profile = ClaudeProfile {
+                name: label.into(),
+                home: home.clone(),
+                env: vec![
+                    (
+                        "ANTHROPIC_BASE_URL".into(),
+                        "https://api.minimax.io/anthropic".into(),
+                    ),
+                    ("ANTHROPIC_MODEL".into(), model.into()),
+                    ("ANTHROPIC_DEFAULT_HAIKU_MODEL".into(), model.into()),
+                    ("ANTHROPIC_DEFAULT_SONNET_MODEL".into(), model.into()),
+                    ("ANTHROPIC_DEFAULT_OPUS_MODEL".into(), model.into()),
+                    ("CLAUDE_CODE_MAX_OUTPUT_TOKENS".into(), "1024".into()),
+                    (
+                        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC".into(),
+                        "1".into(),
+                    ),
+                ],
+            };
+            let mut handle = shadows_process::spawn(
+                adapter
+                    .process_spec_with(&home, Some(&profile), &[], Some(&key))
+                    .unwrap(),
+            )
+            .unwrap();
+            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+            let result = tokio::time::timeout(Duration::from_secs(120), async {
+                let c = Connection::open(&mut handle, move |event| {
+                    if let HarnessEvent::Commands(commands) = event {
+                        let _ = tx.send(commands.into_iter().map(|c| c.name).collect::<Vec<_>>());
+                    }
+                })
+                .await
+                .map_err(|_| "initialize failed")?;
+                let session = c
+                    .start_session(
+                        &home,
+                        SessionStart::New,
+                        &SessionSetup {
+                            setting_sources: Some(vec!["user".into()]),
+                            ..Default::default()
+                        },
+                    )
+                    .await
+                    .map_err(|_| "opening failed")?;
+                c.prompt(&session.session_id, "say hi", &[])
+                    .await
+                    .map_err(|_| "prompt failed")
+            })
+            .await;
+            handle.terminate_tree().unwrap();
+            let mut commands = Vec::new();
+            while let Ok(list) = rx.try_recv() {
+                commands = list;
+            }
+            let markers: Vec<_> = commands.iter().filter(|c| c.starts_with("b8-")).collect();
+            eprintln!("B8 home={label} result={result:?} markers={markers:?}");
+            assert!(
+                matches!(result, Ok(Ok(TurnEnd::Ended))),
+                "probe turn did not complete"
+            );
+            if label == "a" {
+                assert!(
+                    commands.iter().any(|c| c == "b8-skill"),
+                    "home A skill absent"
+                );
+                assert!(
+                    commands.iter().any(|c| c == "b8-plugin:hello"),
+                    "home A plugin absent"
+                );
+            } else {
+                assert!(markers.is_empty(), "home B inherited an extension");
+            }
+        }
+    }
 }
