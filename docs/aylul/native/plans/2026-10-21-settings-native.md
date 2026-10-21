@@ -6,8 +6,8 @@
 [Accepted settings request](../../shared/requests/2026-10-21-settings-dialog-native.md).
 Its Answer is binding. In particular, `closeToTray` defaults to true.
 
-**Constraints:** Work on `improvements`; no worktree, branch switch or push. These are execution
-steps awaiting controller review, not authorization to implement. Keep Core, sidecar, renderer and
+**Constraints:** Work on `improvements`; no worktree, branch switch or push. Released by the controller,
+2026-10-21. Keep Core, sidecar, renderer and
 web ownership intact. Use the desktop's independent Cargo manifest and existing debug cache.
 Update each changed module's contract with its methods, obligations and named regressions.
 Run only focused checks while building. Commands below are for implementation, not this
@@ -264,13 +264,13 @@ plugin above; it has no dependency on N-6, Core preferences, or a new backend en
   node $driver --pid <desktop-pid> --main-port <port> --companion-port <next-port>
   ```
 
-  Substitute the actual PID/ports. Separately verify enabling/disabling through the real Windows
-  login item, recording its prior state and restoring it in `finally`; app-data isolation does
-  not isolate OS registration. Confirm the registered executable path and real sign-in launch.
-  Report real sign-in acceptance as unverified if no sign-out/sign-in was performed. Do not
+  Substitute the actual PID/ports. Do NOT enable or disable the real Windows login item in this
+  run: it changes the person's own system settings, so the controller reserves it for Mohammed's
+  acceptance (controller's ruling, 2026-10-21). Report real login registration and sign-in
+  launch as unverified, for Mohammed. Do not
   infer native behavior from fake adapter tests. Keep logs/results in the implementation report.
 - [ ] **Step 6: Done when** focused checks and actual close/tray/IPC acceptance pass, OS login
-  registration is verified with prior state restored, and contracts/code map match the behavior.
+  registration is left to Mohammed and reported as such, and contracts/code map match the behavior.
   Report any unperformed Windows sign-in journey explicitly. Set N-7's status and commit exact
   files.
 

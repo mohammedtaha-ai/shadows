@@ -14,8 +14,8 @@ Finished work (N-1 to N-5, the hook merge, the 2026-10-20 Core start-up) is in t
 ## Tasks
 
 ### N-6 · The companion wears its agent's colour, refreshed on save
-- Status: blocked
-- Blocker: steps written, waiting for the controller's review
+- Status: todo
+- Reviewed: steps released by the controller, 2026-10-21
 - Plan: docs/aylul/native/plans/2026-10-21-settings-native.md#task-n-6
 - Read: [the accepted request][settings-request]; native `presence/contract.yaml`,
   `windows/contract.yaml`, `windows/companion/contract.yaml`, `commands/contract.yaml`;
@@ -44,8 +44,8 @@ Finished work (N-1 to N-5, the hook merge, the 2026-10-20 Core start-up) is in t
   and stale results cannot publish. Presence, companion and command contracts match.
 
 ### N-7 · Start with Windows, and closing the main window hides it or quits
-- Status: blocked
-- Blocker: steps written, waiting for the controller's review
+- Status: todo
+- Reviewed: steps released by the controller, 2026-10-21
 - Plan: docs/aylul/native/plans/2026-10-21-settings-native.md#task-n-7
 - Read: [the accepted request][settings-request]; native `windows/contract.yaml`,
   `commands/contract.yaml`; docs/aylul/codebase/README.md
