@@ -71,8 +71,8 @@ never print, log or commit a key).
 - Done when: the evidence file records the raw `PromptResponse.usage` and `UsageUpdate.cost` (no key, no prompt text) for one turn on OpenRouter and one on MiniMax, the probe is reverted, and spec §6's OPEN is closed
 
 ### B-7 · Record and report usage
-- Status: blocked
-- Blocker: steps written, waiting for the controller's review
+- Status: todo
+- Reviewed: steps released by the controller, 2026-10-21
 - Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-7--record-and-report-usage
 - Read: spec section 6; docs/evidence/2026-10-21-acp-usage-probe.md; crates/shadows-core/src/profiles/contract.yaml; crates/shadows-core/src/turns/contract.yaml; crates/shadows-core/src/harness/contract.yaml; docs/codebase/README.md usage/turn/harness owners
 - Touch: Cargo.toml, crates/shadows-agent/src/acp.rs, crates/shadows-agent/src/events.rs, crates/fake-acp/src/main.rs, crates/fake-acp/src/prompts.rs, crates/fake-acp/src/session.rs, crates/shadows-core/migrations/0034_aylul_usage.sql (new), crates/shadows-core/src/profiles/usage.rs (new), crates/shadows-core/src/profiles/usage_store.rs (new), crates/shadows-core/src/profiles/mod.rs, crates/shadows-core/src/profiles/contract.yaml, crates/shadows-core/src/turns/store/usage.rs (new), crates/shadows-core/src/turns/store/mod.rs, crates/shadows-core/src/turns/store/turn.rs, crates/shadows-core/src/turns/store/operation.rs, crates/shadows-core/src/turns/turn.rs, crates/shadows-core/src/turns/record.rs, crates/shadows-core/src/turns/contract.yaml, crates/shadows-core/src/harness/assistant.rs, crates/shadows-core/src/harness/live.rs, crates/shadows-core/src/harness/sessions.rs, crates/shadows-core/src/harness/model.rs, crates/shadows-core/src/harness/contract.yaml, crates/shadows-core/src/lib.rs, crates/shadows-core/tests/aylul_usage.rs (new), crates/shadows-core/tests/acp_connection.rs, crates/shadows-http/src/aylul_profiles.rs, crates/shadows-http/src/aylul_profiles_tests.rs, crates/shadows-http/src/lib.rs, crates/shadows/tests/openapi.rs, api/openapi.json, docs/codebase/README.md, docs/backend/stages.md
@@ -88,8 +88,8 @@ never print, log or commit a key).
 - Done when: the evidence file says whether a skill and a local plugin load in an ACP session under `CLAUDE_CONFIG_DIR`, and whether one agent's home can enable an item another agent's home does not, and spec §7's OPEN is closed
 
 ### B-9 · Plugins and skills: shared library, enabled per agent
-- Status: blocked
-- Blocker: steps written, waiting for the controller's review
+- Status: todo
+- Reviewed: steps released by the controller, 2026-10-21
 - Plan: docs/backend/plans/2026-10-21-settings-dialog-backend.md#b-9--plugins-and-skills-shared-library-enabled-per-agent
 - Read: spec section 7; docs/evidence/2026-10-21-agent-home-extensions-probe.md; crates/shadows-core/src/profiles/contract.yaml; crates/shadows-core/src/harness/contract.yaml; crates/shadows-core/src/secrets/contract.yaml; docs/codebase/README.md profile/home owners
 - Touch: crates/shadows-core/migrations/0035_aylul_extensions.sql (new), crates/shadows-core/src/profiles/extensions.rs (new), crates/shadows-core/src/profiles/extension_model.rs (new), crates/shadows-core/src/profiles/extension_store.rs (new), crates/shadows-core/src/profiles/extension_files.rs (new), crates/shadows-core/src/profiles/mod.rs, crates/shadows-core/src/profiles/store.rs, crates/shadows-core/src/profiles/contract.yaml, crates/shadows-core/src/harness/extension_home.rs (new), crates/shadows-core/src/harness/mod.rs, crates/shadows-core/src/harness/assistant.rs, crates/shadows-core/src/harness/profile_home.rs, crates/shadows-core/src/harness/contract.yaml, crates/shadows-core/src/lib.rs, crates/shadows-core/src/error.rs, crates/shadows-core/src/db/error.rs, crates/shadows-http/src/failure/other.rs, crates/shadows-http/src/failure/storage.rs, crates/shadows-core/tests/aylul_extensions.rs (new), crates/shadows-core/tests/aylul_session/homes.rs, crates/shadows-core/tests/aylul_session/opening.rs, crates/shadows-http/src/aylul_extensions.rs (new), crates/shadows-http/src/aylul_extensions_tests.rs (new), crates/shadows-http/src/lib.rs, crates/shadows/tests/openapi.rs, api/openapi.json, docs/codebase/README.md, docs/backend/stages.md
