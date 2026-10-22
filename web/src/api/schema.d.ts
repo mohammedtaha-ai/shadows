@@ -1675,7 +1675,7 @@ export interface components {
             label: string;
             reason: string | null;
         };
-        /** @description The code index's settings (§15.6). */
+        /** @description The code index's settings. */
         CodeSettings: {
             /**
              * Format: int32
@@ -1988,7 +1988,7 @@ export interface components {
             kind: string;
             /** Format: int32 */
             line: number;
-            /** @description `Some("name")` on every `references` hit: matched by name only (§15.5). */
+            /** @description `Some("name")` on every `references` hit: matched by name only. */
             matched_by?: string | null;
             name: string;
             /** @description Relative to the project's folder, with '/'. */
@@ -2002,7 +2002,7 @@ export interface components {
             kind: components["schemas"]["ExtensionKind"];
             path: string;
         };
-        /** @description How a project's index stands (§15.5). */
+        /** @description How a project's index stands. */
         IndexState: {
             /** @enum {string} */
             state: "ready";
@@ -2029,7 +2029,7 @@ export interface components {
         };
         /**
          * @description One saved version of a project's instructions. `id` is what an
-         *     `agent_invocation` records (§13.15); a client sees the number instead.
+         *     `agent_invocation` records; a client sees the number instead.
          */
         InstructionsVersion: {
             body: string;
@@ -2462,7 +2462,7 @@ export interface components {
         /** Format: uuid */
         ProjectId: string;
         /**
-         * @description A project reading another's index (§15.6). One way: `project` reads
+         * @description A project reading another's index. One way: `project` reads
          *     `linked`, never the reverse.
          */
         ProjectLink: {
@@ -2781,7 +2781,7 @@ export interface components {
         ThreadEntry: {
             /**
              * @description Spec §4.2 calls this field's type `Principal`. Milestone 0 uses
-             *     `events::Actor`, which already has exactly this shape (`kind` + `id`) and
+             *     `db::Actor`, which already has exactly this shape (`kind` + `id`) and
              *     already answers "who did this" for durable events. Declaring a second
              *     identical struct would record one decision twice, which this project's
              *     documentation rules forbid. See the note in §4.2.
