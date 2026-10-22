@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 use sqlx::SqliteConnection;
 
+use super::Projects;
 use super::directory::ProjectDirectory;
 use super::model::{Project, ProjectId};
 use crate::code::{delete_code_index_in, delete_code_links_in};
@@ -378,4 +379,21 @@ async fn load_project(
     .ok_or(StorageError::NotFound("project"))?;
     let modes = project_modes(conn, id).await?;
     Ok(project(row, modes))
+}
+
+impl Projects {
+    /// Proves `project` is live inside the caller's transaction or connection:
+    /// `NotFound("project")` for an unknown or removed one. The one liveness
+    /// check other services use instead of reading the `project` table.
+    pub(crate) async fn require_live_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+    ) -> Result<(), StorageError> {
+        let known: Option<i64> =
+            sqlx::query_scalar("SELECT 1 FROM project WHERE id = ? AND removed_at IS NULL")
+                .bind(project.as_str())
+                .fetch_optional(&mut *conn)
+                .await?;
+        known.map(|_| ()).ok_or(StorageError::NotFound("project"))
+    }
 }

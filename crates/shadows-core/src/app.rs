@@ -141,6 +141,7 @@ impl AppCore {
             storage.clone(),
             config.aylul.as_ref().map(|c| c.home_root.clone()),
         );
+        let instructions = Instructions::new(storage.clone());
         let sessions = Sessions::with_profiles(
             Arc::new(ClaudeAdapter {
                 node: config.node_path.clone(),
@@ -157,6 +158,7 @@ impl AppCore {
                 ..SessionsConfig::default()
             },
             profiles.clone(),
+            instructions.clone(),
         );
         let (bus, _) = tokio::sync::broadcast::channel(4096);
         let core = Self::assemble_services(
@@ -173,6 +175,7 @@ impl AppCore {
             },
             profiles,
             grants,
+            instructions,
         );
         // §15.8: the active set is chosen and the workers spawned; `serve`
         // waits for no scan. The index never stops the daemon (§15.4).
@@ -188,7 +191,8 @@ impl AppCore {
     pub(crate) fn from_parts(parts: CoreParts) -> Arc<AppCore> {
         let profiles = parts.sessions.profiles.clone();
         let grants = Grants::new(parts.storage.clone(), parts.mcp_url.clone());
-        Self::assemble_services(parts, profiles, grants)
+        let instructions = Instructions::new(parts.storage.clone());
+        Self::assemble_services(parts, profiles, grants, instructions)
     }
 
     /// The services over parts and the two services built before them.
@@ -196,6 +200,7 @@ impl AppCore {
         parts: CoreParts,
         profiles: Arc<crate::Profiles>,
         grants: Grants,
+        instructions: Instructions,
     ) -> Arc<AppCore> {
         let CoreParts {
             secrets,
@@ -227,11 +232,12 @@ impl AppCore {
                 handles,
                 bus.clone(),
                 code.clone(),
+                instructions.clone(),
             ),
             harness,
             projects: Projects::new(storage.clone(), code.clone()),
             threads,
-            instructions: Instructions::new(storage.clone()),
+            instructions,
             events,
             code,
         })

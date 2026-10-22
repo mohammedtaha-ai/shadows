@@ -601,8 +601,9 @@ async fn an_invocation_records_the_prompt_and_instructions_versions() {
     save_instructions(&l.app, "i1", "Plan small.").await;
     let current = l
         .app
-        .storage
-        .current_planner_instructions(&l.app.project)
+        .core
+        .instructions()
+        .current(&l.app.project)
         .await
         .unwrap()
         .unwrap();

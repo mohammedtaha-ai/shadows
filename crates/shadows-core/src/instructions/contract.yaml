@@ -10,7 +10,7 @@
 # Trap: saving tells no running Planner anything. A turn records the version
 # it ran under (`instructions_version` on its invocation, Turns), and the
 # session is told what changed before its next turn (Harness' `Setups`),
-# never mid-turn. Both read `current_planner_instructions` directly.
+# never mid-turn. Both hold an `Instructions` handle and call `current`.
 # Trap: `id` is `#[serde(skip)]`: a client sees `number`, `body` and
 # `created_at` only.
 
@@ -22,6 +22,10 @@ source: crates/shadows-core/src/instructions
 
 shapes:
   Instructions:
+    # Cloneable: Turns and Harness (`Setups`) are handed one by `AppCore::start`.
+    store: InstructionsStore
+  InstructionsStore:
+    # Private to the service; holds the shared storage handle.
     storage: Arc<Storage>
   InstructionsVersion:
     # What an `agent_invocation` records; never serialized.
@@ -40,17 +44,17 @@ functions:
     save:
       signature: "(&self, command_id: String, project: &ProjectId, body: &str) -> Result<InstructionsVersion, CoreError>"
       # "PlannerInstructionsSave", principal User/local, schema 1, params
-      # { project, body } → `save_planner_instructions`. Refusals: NotFound
+      # { project, body } → `InstructionsStore::save`. Refusals: NotFound
       # (no such project); CommandConflict.
   store:
-    save_planner_instructions:
+    save:
       signature: "(&self, ctx: &CommandContext, project: &ProjectId, body: &str) -> Result<InstructionsVersion, StorageError>"
       # One write: classify (scope Project; a replay answers the version it
-      # saved) → the project must exist → MAX(number)+1 → the row →
+      # saved) → `Projects::require_live_in` → MAX(number)+1 → the row →
       # `PlannerInstructionsSaved` { number } → record_command.
-    current_planner_instructions:
+    current:
       signature: "(&self, project: &ProjectId) -> Result<Option<InstructionsVersion>, StorageError>"
-      # Also read by Turns (`record`) and Harness (`Setups`). None for a
+      # Reached by Turns and Harness through `Instructions::current`. None for a
       # removed project, as for an unknown one (§4.2).
     load_version:
       signature: "(conn, id: &str) -> Result<InstructionsVersion, StorageError>"
@@ -70,7 +74,7 @@ enums:
 
 
 called_by_other_services:
-  current_planner_instructions: "Turns (turns/mod.rs record) and Harness (harness/setup.rs Setups::for_opening, context_before_turn): the version a turn records, and the instructions a session opens with or is told changed (§13.8)"
+  current: "Turns (turns/record.rs) and Harness (harness/setup.rs Setups::for_opening, context_before_turn), through the `Instructions` handle `AppCore::start` gives them: the version a turn records, and the instructions a session opens with or is told changed (§13.8)"
 
 
 obligations:

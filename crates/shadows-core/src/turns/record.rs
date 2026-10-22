@@ -89,9 +89,7 @@ impl Turns {
             adapter.agent.to_string_lossy().into_owned(),
         );
         // §13.8: recorded so a later turn tells the session only what changed.
-        let instructions = (self.storage)
-            .current_planner_instructions(&context.project_id)
-            .await?;
+        let instructions = self.instructions.current(&context.project_id).await?;
         let additions = self
             .storage
             .current_standards_additions(&context.project_id)

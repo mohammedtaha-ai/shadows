@@ -97,22 +97,19 @@ crates/shadows-core/src/harness/mod.rs :: Harness::context Storage::turn_context
 crates/shadows-core/src/harness/mod.rs :: Harness::limits_of Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::open_idle Storage::thread_is_busy belongs to turns [8a453cd297f33f2a] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::open_idle Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
+crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::instructions::Instructions outside composition root [daa13b010d06c56f] #1
 crates/shadows-core/src/harness/mod.rs :: Harness::open_session Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/harness/sessions.rs :: Sessions::delete_agent Storage::list_threads_for_profile belongs to threads [2e909abbfba98b74] #1
 crates/shadows-core/src/harness/sessions.rs :: Sessions::new construct shadows_core::profiles::Profiles outside composition root [6e9dd15e2248227f] #1
-crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::current_planner_instructions belongs to instructions [8040624286e419e7] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::latest_invocation_versions belongs to turns [ab2b1b69e7a914ff] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::standards_additions_for_invocation belongs to design [af01db096346f319] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::context_before_turn Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
-crates/shadows-core/src/harness/setup.rs :: Setups::for_opening Storage::current_planner_instructions belongs to instructions [8e603af7c8fe75ca] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::for_opening Storage::current_standards_additions belongs to design [9bec136dd360fc0a] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::for_opening Storage::issue_thread_grant belongs to grants [78f1bb2eace18ef6] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::forget Storage::revoke_thread_grant belongs to grants [32fd61864ad5e9c3] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::stage_line Storage::project_stage belongs to design [2eec35a57c9c632f] #1
 crates/shadows-core/src/harness/setup.rs :: Setups::stage_line Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/harness/titles.rs :: keep_titles Storage::title_from_harness belongs to threads [de9e2676b0e2addd] #1
-crates/shadows-core/src/instructions/store.rs :: Storage::current_planner_instructions SQL table project belongs to projects [9ceae05b50d0b770] #1
-crates/shadows-core/src/instructions/store.rs :: Storage::save_planner_instructions SQL table project belongs to projects [f64d9359f0ec141b] #1
 crates/shadows-core/src/plans/mod.rs :: Plans::approve_as_planner Storage::turn_context belongs to threads [6029f6ac35f59dba] #1
 crates/shadows-core/src/plans/mod.rs :: Plans::prepare_draft Storage::prepare_draft belongs to grants [19508bfedb3c08d5] #1
 crates/shadows-core/src/plans/store/bindings.rs :: validate cross-owner store call shadows_core::design::store::agreement_binding::check_agreement_binding_in [de3faaaebba280a8] #1
@@ -188,7 +185,6 @@ crates/shadows-core/src/threads/title.rs :: tests name resolution review: glob i
 crates/shadows-core/src/turns/entries.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
 crates/shadows-core/src/turns/mod.rs :: Turns::send_with Storage::list_plans belongs to plans [7c2e971023ae016a] #1
 crates/shadows-core/src/turns/mod.rs :: Turns::send_with Storage::turn_context belongs to threads [11c0a5ed9f661928] #1
-crates/shadows-core/src/turns/record.rs :: Turns::start Storage::current_planner_instructions belongs to instructions [8d5baebcc9ca5aee] #1
 crates/shadows-core/src/turns/record.rs :: Turns::start Storage::current_standards_additions belongs to design [283f59f2b717eb27] #1
 crates/shadows-core/src/turns/record.rs :: Turns::start Storage::get_project belongs to projects [00bb8ae80c8d1c71] #1
 crates/shadows-core/src/turns/store/operation.rs :: insert_pending SQL table runtime_instance belongs to runtime [a8a3048c43c686b3] #1

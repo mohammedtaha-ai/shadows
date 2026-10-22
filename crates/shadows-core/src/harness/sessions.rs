@@ -131,7 +131,8 @@ impl Sessions {
             storage.clone(),
             config.aylul.as_ref().map(|c| c.home_root.clone()),
         );
-        Self::with_profiles(adapter, storage, config, profiles)
+        let instructions = crate::Instructions::new(storage.clone());
+        Self::with_profiles(adapter, storage, config, profiles, instructions)
     }
 
     /// Over the `profiles` `AppCore::start` built, the one instance the core
@@ -141,6 +142,7 @@ impl Sessions {
         storage: Arc<Storage>,
         config: SessionsConfig,
         profiles: Arc<crate::Profiles>,
+        instructions: crate::Instructions,
     ) -> Arc<Self> {
         let period = (config.idle_after / 4)
             .min(Duration::from_secs(60))
@@ -148,7 +150,7 @@ impl Sessions {
         let sessions = Arc::new(Self {
             profiles,
             homes: super::profile_home::Homes::default(),
-            setups: Setups::new(storage.clone(), config.mcp_url.clone()),
+            setups: Setups::new(storage.clone(), instructions, config.mcp_url.clone()),
             adapter,
             storage,
             config,

@@ -19,7 +19,7 @@
 # `remove` is a soft remove (§4.2): the row stays, since the journal
 # references it ON DELETE RESTRICT, and `removed_at` is set. Every read of a
 # project (`get_project`, `list_projects`, `live_project`, and the direct
-# reads in Threads, Grants, Instructions and Code) leaves a removed one out,
+# reads in Threads, Grants and Code; Instructions calls `require_live_in`) leaves a removed one out,
 # so it answers NotFound everywhere; its slug stays taken. One write takes
 # the index, the links both ways and the live project grants with it.
 #
@@ -173,6 +173,11 @@ functions:
       # Plans' `notify_project_dependencies_in`, Code's
       # `delete_code_index_in` and `delete_code_links_in`, Grants'
       # `revoke_project_grants_in` → `ProjectRemoved` → record_command.
+    require_live_in:
+      signature: "(conn: &mut SqliteConnection, project: &ProjectId) -> Result<(), StorageError>"
+      # An associated function in the caller's transaction or connection:
+      # NotFound("project") unless the row exists with `removed_at` NULL.
+      # Instructions' save and current call it instead of reading `project`.
     live_project:
       signature: "(conn, id: &ProjectId) -> Result<(), StorageError>"
       private: true
@@ -196,6 +201,7 @@ enums:
 
 
 called_by_other_services:
+  require_live_in: "Instructions (instructions/store.rs save and current): the liveness check inside its own write or read"
   get_project: "Turns (turns/mod.rs record, the mode check), Harness (harness/mod.rs choices), Code (status, scan), and Events (events/mod.rs subscribe_project): a live project; Events refuses unknown or removed projects before opening its stream (§16.8)"
 
 

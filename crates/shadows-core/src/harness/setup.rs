@@ -15,8 +15,9 @@ use sha2::{Digest, Sha256};
 
 use crate::db::{Storage, StorageError};
 use crate::design::{EffectiveStandards, base_standards};
+use crate::error::CoreError;
 use crate::grants::GrantId;
-use crate::instructions::InstructionsVersion;
+use crate::instructions::{Instructions, InstructionsVersion};
 use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 use crate::turns::OperationId;
@@ -75,14 +76,20 @@ pub(crate) struct ContextFacts {
 
 pub(crate) struct Setups {
     storage: Arc<Storage>,
+    instructions: Instructions,
     mcp_url: Option<String>,
     held: Mutex<HashMap<ThreadId, Held>>,
 }
 
 impl Setups {
-    pub(crate) fn new(storage: Arc<Storage>, mcp_url: Option<String>) -> Self {
+    pub(crate) fn new(
+        storage: Arc<Storage>,
+        instructions: Instructions,
+        mcp_url: Option<String>,
+    ) -> Self {
         Self {
             storage,
+            instructions,
             mcp_url,
             held: Mutex::new(HashMap::new()),
         }
@@ -98,8 +105,8 @@ impl Setups {
     ) -> Result<SessionSetup, String> {
         self.forget(thread).await;
         let current = self
-            .storage
-            .current_planner_instructions(project)
+            .instructions
+            .current(project)
             .await
             .map_err(|e| e.to_string())?;
         let additions = self
@@ -158,7 +165,7 @@ impl Setups {
         &self,
         thread: &ThreadId,
         operation: &OperationId,
-    ) -> Result<ContextFacts, StorageError> {
+    ) -> Result<ContextFacts, CoreError> {
         Ok(ContextFacts {
             changes: self.context_before_turn(thread, operation).await?,
             stage: self.stage_line(thread).await?,
@@ -182,7 +189,7 @@ impl Setups {
         &self,
         thread: &ThreadId,
         operation: &OperationId,
-    ) -> Result<Option<String>, StorageError> {
+    ) -> Result<Option<String>, CoreError> {
         let context = self.storage.turn_context(thread).await?;
         if context.harness == policy::AYLUL {
             return Ok(None);
@@ -205,10 +212,7 @@ impl Setups {
         if let Some(held) = self.lock().get_mut(thread) {
             held.pending = Some(heard.clone());
         }
-        let current = self
-            .storage
-            .current_planner_instructions(&context.project_id)
-            .await?;
+        let current = self.instructions.current(&context.project_id).await?;
         let current_id = current.as_ref().map(|v| v.id.clone());
         let additions = self
             .storage

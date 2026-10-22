@@ -1,7 +1,7 @@
 //! One job: the instructions type callers meet.
 
 /// One saved version of a project's instructions. `id` is what an
-/// `agent_invocation` records (§13.15); a client sees the number instead.
+/// `agent_invocation` records; a client sees the number instead.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 pub struct InstructionsVersion {
     #[serde(skip)]

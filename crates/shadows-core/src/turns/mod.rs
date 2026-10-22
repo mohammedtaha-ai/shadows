@@ -59,6 +59,7 @@ use crate::code::Code;
 use crate::db::{Actor, CommandContext, Storage, StorageError};
 use crate::error::CoreError;
 use crate::harness::{LeaseError, Sessions};
+use crate::instructions::Instructions;
 use crate::plans::{Focus, PlanId};
 use crate::runtime::Runtime;
 use crate::runtime::StopKind;
@@ -87,6 +88,7 @@ pub struct Turns {
     handles: Arc<LiveHandles>,
     bus: Bus,
     code: Code,
+    instructions: Instructions,
 }
 
 /// The narrow turn control that thread removal needs. It owns no session
@@ -202,6 +204,7 @@ impl Turns {
         handles: Arc<LiveHandles>,
         bus: Bus,
         code: Code,
+        instructions: Instructions,
     ) -> Self {
         Self {
             storage,
@@ -210,6 +213,7 @@ impl Turns {
             handles,
             bus,
             code,
+            instructions,
         }
     }
 

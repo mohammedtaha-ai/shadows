@@ -253,10 +253,6 @@ crates/shadows-core/src/harness/store.rs :: module comment [37113d1e3cd0d743] #1
 crates/shadows-core/src/harness/store.rs :: module comment [bfaee1f327e6f615] #1
 crates/shadows-core/src/harness/store.rs :: module comment [daadc91e88828a1f] #1
 crates/shadows-core/src/harness/titles.rs :: module comment [4f97d46854baeea0] #1
-crates/shadows-core/src/instructions/mod.rs :: module comment [d666ed586afd809c] #1
-crates/shadows-core/src/instructions/model.rs :: module comment [87e53d7e0fbcf6e1] #1
-crates/shadows-core/src/instructions/store.rs :: Storage comment [655e3bafd25f3711] #1
-crates/shadows-core/src/instructions/store.rs :: module comment [e0a4acb7ac26f844] #1
 crates/shadows-core/src/lib.rs :: module comment [04abfa35ce5effcc] #1
 crates/shadows-core/src/lib.rs :: module comment [d2a6576d29cde6e6] #1
 crates/shadows-core/src/plans/conversation.rs :: module comment [5dabbe398912c506] #1
