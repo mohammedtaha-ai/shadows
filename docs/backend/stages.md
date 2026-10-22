@@ -124,10 +124,10 @@ are reference material; they do not replace the project's template or code.
 - Done when: `app::user_command` is gone (`CommandContext::user`); the journal takes `JournalEntry` with string ids; `Actor`, `Causation` and `newtype_id!` sit in `db/` (`Bus` stays, see the ledger); its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test storage_contract --test operation_lifecycle --test recovery` and `cargo test -p shadows --test protocol --test resync --test stream_frames` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
 ### A-9 · Prepare the service boundary: instructions
-- Status: blocked
+- Status: todo
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-9
 - Read: instructions/contract.yaml; the ledger
-- Touch: crates/shadows-core/src/instructions/, crates/shadows-core/src/projects/ (the new `require_live_in`), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: crates/shadows-core/src/instructions/, crates/shadows-core/src/projects/ (the new `require_live_in`), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-8d
 - Done when: its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows --test planner_instructions` and `cargo test -p shadows-core --test project_contract` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
@@ -135,7 +135,7 @@ are reference material; they do not replace the project's template or code.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-10
 - Read: secrets/contract.yaml; the ledger
-- Touch: crates/shadows-core/src/secrets/ (the new `put_in`; the upward checks stay until A-14), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: crates/shadows-core/src/secrets/ (the new `put_in`; the upward checks stay until A-14), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-9
 - Done when: its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test secret_env --test aylul_profiles` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
@@ -143,7 +143,7 @@ are reference material; they do not replace the project's template or code.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-11
 - Read: projects/contract.yaml, threads/rules.rs; the ledger
-- Touch: crates/shadows-core/src/projects/, crates/shadows-core/src/threads/rules.rs (`known_harness` moves to projects) and its callers, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: crates/shadows-core/src/projects/, crates/shadows-core/src/threads/rules.rs (`known_harness` moves to projects) and its callers, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-10
 - Done when: `Projects::by_recent_activity` exists; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test project_contract --test project_assistant` and `cargo test -p shadows --test project_directory --test project_assistant_route --test project_remove --test thread_contract` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
@@ -151,7 +151,7 @@ are reference material; they do not replace the project's template or code.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-12
 - Read: code/contract.yaml; the ledger
-- Touch: crates/shadows-core/src/code/ (link writes become `put_link_in`/`remove_link_in`; the plans notification stays at the call site until A-16), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: crates/shadows-core/src/code/ (link writes become `put_link_in`/`remove_link_in`; the plans notification stays at the call site until A-16), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-11
 - Done when: `code_order` calls `Projects::by_recent_activity`; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test code_index` and `cargo test -p shadows --test code_scope` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
@@ -159,7 +159,7 @@ are reference material; they do not replace the project's template or code.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-12b
 - Read: design/standards.rs, design/store/standards.rs, design/contract.yaml; the ledger
-- Touch: new crates/shadows-core/src/standards/, crates/shadows-core/src/design/{standards.rs,store/standards.rs,mod.rs}, the callers in harness/ and turns/, crates/shadows-http/src/design.rs (the standards route), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: new crates/shadows-core/src/standards/, crates/shadows-core/src/design/{standards.rs,store/standards.rs,mod.rs}, the callers in harness/ and turns/, crates/shadows-http/src/design.rs (the standards route), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-12
 - Done when: `standards_additions_version` is owned by `standards`; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test design_vision` and `cargo test -p shadows --test design_routes --test planner_mcp` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
@@ -167,7 +167,7 @@ are reference material; they do not replace the project's template or code.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-14
 - Read: profiles/contract.yaml, harness/profile_home.rs; the ledger
-- Touch: crates/shadows-core/src/profiles/ split into crates/shadows-core/src/{providers,agents,extensions,usage,person}/, harness/profile_home.rs (moves to agents), secrets/ (upward checks go), the callers in threads/, turns/store/usage.rs and harness/, crates/shadows-http/src/aylul_*.rs, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: crates/shadows-core/src/profiles/ split into crates/shadows-core/src/{providers,agents,extensions,usage,person}/, harness/profile_home.rs (moves to agents), secrets/ (upward checks go), the callers in threads/, turns/store/usage.rs and harness/, crates/shadows-http/src/aylul_*.rs, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-12b
 - Done when: its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test aylul_profiles --test aylul_extensions --test aylul_usage --test profile_migration --test secret_env --test aylul_session` and `cargo test -p shadows-http --lib` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
@@ -175,7 +175,7 @@ are reference material; they do not replace the project's template or code.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-15
 - Read: threads/contract.yaml; the ledger
-- Touch: crates/shadows-core/src/threads/ and the `append_entry_in`/`profile_in`/`title_from_*` call sites in design/, plans/, turns/, harness/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: crates/shadows-core/src/threads/ and the `append_entry_in`/`profile_in`/`title_from_*` call sites in design/, plans/, turns/, harness/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-14
 - Done when: its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test thread_session` and `cargo test -p shadows --test thread_contract --test thread_routes --test thread_title --test fork` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
@@ -183,7 +183,7 @@ are reference material; they do not replace the project's template or code.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-13
 - Read: grants/contract.yaml, command/approver.rs, db/approval.rs; the ledger
-- Touch: crates/shadows-core/src/grants/, command/approver.rs and db/approval.rs (move to grants), the `check_writer`/`bind_draft_ref`/`issue_thread_grant` call sites in design/, plans/, harness/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: crates/shadows-core/src/grants/, command/approver.rs and db/approval.rs (move to grants), the `check_writer`/`bind_draft_ref`/`issue_thread_grant` call sites in design/, plans/, harness/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-15; A-6 for the tool policy
 - Done when: `draft_intent` is owned by grants with an opaque workflow ref; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows --test grants --test plan_grants --test agreement_mcp --test planner_mcp` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
@@ -191,7 +191,7 @@ are reference material; they do not replace the project's template or code.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-17b
 - Read: turns/contract.yaml, runtime/contract.yaml; the ledger
-- Touch: new crates/shadows-core/src/operations/, crates/shadows-core/src/turns/{handles.rs,shutdown.rs,store/operation*.rs,store/transition.rs}, runtime/, the running-turn call sites in design/, plans/, threads/, harness/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: new crates/shadows-core/src/operations/, crates/shadows-core/src/turns/{handles.rs,shutdown.rs,store/operation*.rs,store/transition.rs}, runtime/, the running-turn call sites in design/, plans/, threads/, harness/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-13
 - Done when: recovery is `Operations::recover`; `Runtime` has no `pub storage`; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test operation_lifecycle --test recovery` and `cargo test -p shadows --test shutdown --test core_turns --test message_queue` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
@@ -199,7 +199,7 @@ are reference material; they do not replace the project's template or code.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-17
 - Read: harness/contract.yaml; the ledger
-- Touch: crates/shadows-core/src/harness/, threads/mod.rs (`set_harness` close moves to `Harness::set_thread_harness`), the `agent_invocation` writers in turns/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: crates/shadows-core/src/harness/, threads/mod.rs (`set_harness` close moves to `Harness::set_thread_harness`), the `agent_invocation` writers in turns/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-17b
 - Done when: `Sessions` is private to `Harness`; `agent_invocation` is owned by harness; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test sessions --test aylul_session --test harness_schema --test acp_connection --test thread_session` and `cargo test -p shadows --test core_harness --test harness_choices --test harness_config --test harness_effort --test harness_observation --test slash_commands` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
@@ -207,7 +207,7 @@ are reference material; they do not replace the project's template or code.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-16
 - Read: design/contract.yaml, plans/contract.yaml; the ledger
-- Touch: crates/shadows-core/src/{design,plans}/, crates/shadows-core/src/code/ (the link commands move to `Plans`), crates/shadows-http/src/{design.rs,plans*.rs} and crates/shadows-mcp/src/ for the moved methods, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: crates/shadows-core/src/{design,plans}/, crates/shadows-core/src/code/ (the link commands move to `Plans`), crates/shadows-http/src/{design.rs,plans*.rs} and crates/shadows-mcp/src/ for the moved methods, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-17
 - Done when: design imports no plans type; `design_part_plan`/`design_outcome_plan` are owned by plans; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test agreement_bindings --test agreement_lifecycle --test agreement_review --test agreement_validation --test design_outcomes --test design_parts --test design_vision --test design_migration --test cross_plan_links --test cross_plan_resolution --test cross_plan_views --test plan_migration --test workflow_rules --test planner_isolation` and `cargo test -p shadows --test agreement_journey --test agreement_mcp --test agreement_routes --test design_routes --test core_plans --test cross_plan_mcp --test plan_boundaries --test plan_in_conversation --test plan_map --test plan_routes --test plan_storage --test project_plans --test planner_mcp --test workspace_mcp` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
@@ -215,7 +215,7 @@ are reference material; they do not replace the project's template or code.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-18
 - Read: turns/contract.yaml; the ledger
-- Touch: crates/shadows-core/src/turns/, threads/mod.rs (`remove`'s stop, close and revoke move to `Turns::remove_thread`), crates/shadows-http/src/ and crates/shadows-mcp/src/ callers of thread removal, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: crates/shadows-core/src/turns/, threads/mod.rs (`remove`'s stop, close and revoke move to `Turns::remove_thread`), crates/shadows-http/src/ and crates/shadows-mcp/src/ callers of thread removal, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-16
 - Done when: threads calls neither harness nor turns; `Bus` is owned by turns and `Events` subscribes through a `Turns` method; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows --test core_turns --test message_queue --test planner_turn --test slash_commands --test turn_command --test planner_mcp --test thread_routes` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
@@ -223,7 +223,7 @@ are reference material; they do not replace the project's template or code.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-16b
 - Read: projects/contract.yaml; the ledger's `project-removal` row
-- Touch: new crates/shadows-core/src/project_removal/, crates/shadows-core/src/projects/, the project-removal route in crates/shadows-http/src/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: new crates/shadows-core/src/project_removal/, crates/shadows-core/src/projects/, the project-removal route in crates/shadows-http/src/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-18
 - Done when: projects calls no code, plans, grants or threads; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows --test project_remove` and `cargo test -p shadows-core --test project_contract` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
@@ -231,7 +231,7 @@ are reference material; they do not replace the project's template or code.
 - Status: blocked
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-19
 - Read: events/, runtime/, command/ contracts; the ledger
-- Touch: crates/shadows-core/src/{events,runtime,command}/, plans/ (the payload projection moves in), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md
+- Touch: crates/shadows-core/src/{events,runtime,command}/, plans/ (the payload projection moves in), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
 - Needs: A-16b
 - Done when: the A-0 cross-owner allowlists are empty, or each remaining line is named in this task's report with its owner; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows --test project_events --test resync --test stream_frames --test protocol` and `cargo test -p shadows-core --test recovery` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
