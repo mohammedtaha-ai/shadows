@@ -296,11 +296,10 @@ are reference material; they do not replace the project's template or code.
 - Done when: A-0's list (c) is empty
 
 ### B-10 · A conversation keeps its mode
-- Status: blocked
-- Blocker: Touch must include crates/shadows-http/src/lib.rs::routes to register the new mode route in the canonical HTTP/OpenAPI route table; harness.rs alone cannot expose it.
+- Status: todo
 - Plan: none. Owner spec: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.4 ("The mode is remembered per conversation"); request docs/shared/requests/2026-10-22-remembered-mode.md (accepted)
 - Read: harness/contract.yaml, harness/store.rs, harness/settings.rs, crates/shadows-agent/src/policy.rs; the request
-- Touch: crates/shadows-core/src/harness/ (store, settings, the new command, contract.yaml), a migration under crates/shadows-core/src/db/ for the per-conversation mode row, crates/shadows-http/src/harness.rs (the route), api/openapi.json (regenerated), the threads removal/fork call sites that must remove or copy the row, crates/shadows/tests/ (new acceptance tests), docs/codebase/README.md
+- Touch: crates/shadows-core/src/harness/ (store, settings, the new command, contract.yaml), a migration under crates/shadows-core/src/db/ for the per-conversation mode row, crates/shadows-http/src/harness.rs (the route), crates/shadows-http/src/lib.rs (`routes`, the route's registration line only), api/openapi.json (regenerated), the threads removal/fork call sites that must remove or copy the row, crates/shadows/tests/ (new acceptance tests), docs/codebase/README.md
 - Needs: A-17 (the harness boundary is reshaped there)
 - Done when: picking Auto without sending, then reopening the session and restarting Core, answers Auto; a mode the project disallows is refused before anything is written; a disallowed remembered mode falls back to the policy default on open; a running turn keeps its mode and the new one applies to the next turn; one conversation's mode does not reach another; a fork copies it; a replay with a different mode is `CommandConflict`; `cargo test -p shadows --test openapi` and the new tests pass
 
