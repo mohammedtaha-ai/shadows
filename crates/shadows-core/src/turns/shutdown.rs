@@ -1,5 +1,5 @@
 //! One job: bring every turn this runtime owns to a terminal state at shutdown,
-//! and record only the stop kind that is true (spec §8.5).
+//! and record only the stop kind that is true.
 //!
 //! Shutdown reuses the cancellation path; there is no drain mode. What it adds
 //! is the part a single `stop` cannot see: that *every* operation this runtime
@@ -12,7 +12,7 @@
 //! Anything short of that records `Escalated`, which claims nothing: a failed
 //! termination, a storage error, the confirmation bound running out, or a
 //! second stop signal. Operations left non-terminal become `Interrupted` at the
-//! next startup (§8.6), never `Cancelled`.
+//! next startup, never `Cancelled`.
 
 use std::future::Future;
 use std::sync::Arc;
@@ -30,38 +30,45 @@ use crate::runtime::StopKind;
 /// records the stop. Answers the kind actually recorded.
 ///
 /// `escalate` is the second stop signal. When it fires the runtime stops
-/// waiting for confirmation and records `Escalated` (§8.5); a future that
+/// waiting for confirmation and records `Escalated`; a future that
 /// never completes means there is no second signal to wait for.
-pub async fn shut_down(
-    runtime: Arc<Runtime>,
-    handles: Arc<LiveHandles>,
-    sessions: Arc<Sessions>,
-    confirm_within: Duration,
-    escalate: impl Future<Output = ()>,
-) -> Result<StopKind, StorageError> {
-    let confirmed = tokio::select! {
-        confirmed = tokio::time::timeout(
-            confirm_within,
-            terminate_all(&runtime, &handles, &sessions),
-        ) => {
-            match confirmed {
-                Ok(confirmed) => confirmed,
-                Err(_elapsed) => {
-                    log_unconfirmed(
-                        &runtime,
-                        "shutdown.unconfirmed: the confirmation bound ran out",
-                    )
-                    .await;
-                    false
+impl PlannerTurn {
+    pub async fn shut_down(
+        runtime: Arc<Runtime>,
+        storage: Arc<crate::db::Storage>,
+        operations: crate::operations::Operations,
+        handles: Arc<LiveHandles>,
+        sessions: Arc<Sessions>,
+        confirm_within: Duration,
+        escalate: impl Future<Output = ()>,
+    ) -> Result<StopKind, StorageError> {
+        let confirmed = tokio::select! {
+            confirmed = tokio::time::timeout(
+                confirm_within,
+                terminate_all(&runtime, &storage, &operations, &handles, &sessions),
+            ) => {
+                match confirmed {
+                    Ok(confirmed) => confirmed,
+                    Err(_elapsed) => {
+                        log_unconfirmed(
+                            &runtime,
+                            &operations,
+                            "shutdown.unconfirmed: the confirmation bound ran out",
+                        )
+                        .await;
+                        false
+                    }
                 }
             }
-        }
-        () = escalate => {
-            log_unconfirmed(&runtime, "shutdown.escalated: a second stop signal").await;
-            false
-        }
-    };
-    record(&runtime, confirmed).await
+            () = escalate => {
+                log_unconfirmed(
+                    &runtime, &operations, "shutdown.escalated: a second stop signal",
+                ).await;
+                false
+            }
+        };
+        record(&runtime, &operations, confirmed).await
+    }
 }
 
 /// Closes the registry, stops every turn it held, and waits for the durable
@@ -70,6 +77,8 @@ pub async fn shut_down(
 /// bound over a tree that is known to be alive.
 async fn terminate_all(
     runtime: &Arc<Runtime>,
+    storage: &Arc<crate::db::Storage>,
+    operations: &crate::operations::Operations,
     handles: &Arc<LiveHandles>,
     sessions: &Arc<Sessions>,
 ) -> bool {
@@ -78,7 +87,7 @@ async fn terminate_all(
     let mut confirmed = true;
     for op_id in live {
         match PlannerTurn::stop(
-            runtime.clone(),
+            storage.clone(),
             handles.clone(),
             sessions.clone(),
             &op_id,
@@ -103,7 +112,7 @@ async fn terminate_all(
     if !confirmed {
         return false;
     }
-    match all_owned_terminal(runtime).await {
+    match all_owned_terminal(runtime, storage, operations).await {
         Ok(()) => true,
         Err(error) => {
             tracing::error!(%error, "shutdown.confirmation_unreadable");
@@ -117,11 +126,14 @@ async fn terminate_all(
 /// signal is the wake-up. The receiver is taken before the first read and
 /// `changed` marks each value seen as it returns, so a transition that commits
 /// during a read shows as a change rather than falling between two reads.
-async fn all_owned_terminal(runtime: &Runtime) -> Result<(), StorageError> {
-    let mut committed = runtime.storage.watch_committed();
+async fn all_owned_terminal(
+    runtime: &Runtime,
+    storage: &crate::db::Storage,
+    operations: &crate::operations::Operations,
+) -> Result<(), StorageError> {
+    let mut committed = storage.watch_committed();
     loop {
-        let live = runtime
-            .storage
+        let live = operations
             .non_terminal_operations_owned_by(&runtime.instance_id)
             .await?;
         if live.is_empty() {
@@ -137,9 +149,12 @@ async fn all_owned_terminal(runtime: &Runtime) -> Result<(), StorageError> {
 
 /// Names the operations a shutdown is leaving non-terminal, so the log says
 /// which turns the next startup will record as `Interrupted`.
-async fn log_unconfirmed(runtime: &Runtime, message: &'static str) {
-    match runtime
-        .storage
+async fn log_unconfirmed(
+    runtime: &Runtime,
+    operations: &crate::operations::Operations,
+    message: &'static str,
+) {
+    match operations
         .non_terminal_operations_owned_by(&runtime.instance_id)
         .await
     {
@@ -154,9 +169,16 @@ async fn log_unconfirmed(runtime: &Runtime, message: &'static str) {
 /// Writes `Graceful` when every termination was confirmed — and storage checks
 /// that claim again inside the write, so a turn that slipped past the registry
 /// still cannot be covered by it. Anything else is `Escalated`.
-async fn record(runtime: &Runtime, confirmed: bool) -> Result<StopKind, StorageError> {
+async fn record(
+    runtime: &Runtime,
+    operations: &crate::operations::Operations,
+    confirmed: bool,
+) -> Result<StopKind, StorageError> {
     if confirmed {
-        match runtime.stop(StopKind::Graceful).await {
+        match operations
+            .stop_runtime(&runtime.instance_id, StopKind::Graceful)
+            .await
+        {
             Ok(()) => return Ok(StopKind::Graceful),
             Err(error @ StorageError::TransitionConflict { .. }) => {
                 tracing::error!(%error, "shutdown.graceful_refused");
@@ -164,6 +186,8 @@ async fn record(runtime: &Runtime, confirmed: bool) -> Result<StopKind, StorageE
             Err(error) => return Err(error),
         }
     }
-    runtime.stop(StopKind::Escalated).await?;
+    operations
+        .stop_runtime(&runtime.instance_id, StopKind::Escalated)
+        .await?;
     Ok(StopKind::Escalated)
 }

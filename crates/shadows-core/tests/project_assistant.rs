@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use shadows_core::testing::{LiveHandles, Runtime, Storage, acp};
+use shadows_core::testing::{LiveHandles, Storage, acp};
 use shadows_core::{AppCore, CoreParts};
 
 #[tokio::test]
@@ -13,9 +13,15 @@ async fn ensure_assistant_is_idempotent() {
     std::fs::create_dir(&home).unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
-        runtime: Arc::new(Runtime::start(storage.clone()).await.unwrap().0),
+        runtime: Arc::new(
+            shadows_core::AppCore::runtime_for_tests(storage.clone())
+                .await
+                .unwrap()
+                .0,
+        ),
         sessions: acp::fake_sessions(storage.clone()),
         handles: Arc::new(LiveHandles::default()),
         bus: tokio::sync::broadcast::channel(16).0,
@@ -55,9 +61,15 @@ async fn ensure_assistant_recreates_a_removed_assistant_project() {
     std::fs::create_dir(&home).unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
-        runtime: Arc::new(Runtime::start(storage.clone()).await.unwrap().0),
+        runtime: Arc::new(
+            shadows_core::AppCore::runtime_for_tests(storage.clone())
+                .await
+                .unwrap()
+                .0,
+        ),
         sessions: acp::fake_sessions(storage.clone()),
         handles: Arc::new(LiveHandles::default()),
         bus: tokio::sync::broadcast::channel(16).0,

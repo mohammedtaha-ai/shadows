@@ -152,16 +152,19 @@ async fn deletion_waits_for_a_committed_turn_before_live_registration() {
                         .remove("remove-pending".into(), &app.thread)
                         .await
                         .unwrap();
-                    (removed, app.storage.get_operation(&op).await.unwrap())
+                    (
+                        removed,
+                        shadows_core::Turns::get_operation_for_test(&app.storage, &op)
+                            .await
+                            .unwrap(),
+                    )
                 },
                 async {
                     // Keep preparation suspended until Stop actually requests
                     // cancellation. Merely waiting for removed_at lets this
                     // test finish preparation before Stop looks for the turn.
                     loop {
-                        if app
-                            .storage
-                            .get_operation(&op)
+                        if shadows_core::Turns::get_operation_for_test(&app.storage, &op)
                             .await
                             .unwrap()
                             .cancel_requested_at
@@ -173,6 +176,7 @@ async fn deletion_waits_for_a_committed_turn_before_live_registration() {
                     }
                     PlannerTurn::start(
                         app.runtime.clone(),
+                        app.runtime.storage_for_test(),
                         app.handles.clone(),
                         app.sessions.clone(),
                         opened,

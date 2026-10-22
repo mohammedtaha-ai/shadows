@@ -43,7 +43,7 @@ async fn attempt(
     command: &CommandContext,
     row: &QueuedMessageId,
 ) -> SteerAnswer {
-    let storage = &w.runtime.storage;
+    let storage = &w.storage;
     // The watcher steers one message at a time, so a row taken since the
     // caller read it is seen here, before a second copy reaches the adapter.
     let Some(queued) = storage.queued_message(&w.thread_id, row).await? else {

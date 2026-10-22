@@ -77,9 +77,7 @@ async fn one_command_writes_entry_operation_invocation_and_record_together() {
         entries[0].operation_id.as_ref(),
         Some(&started.operation_id)
     );
-    let ops = app
-        .storage
-        .list_operations_for_thread(&app.thread)
+    let ops = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
         .await
         .unwrap();
     assert_eq!(ops[0].status_kind, "Pending");
@@ -125,18 +123,20 @@ async fn the_invocation_is_frozen_below_the_application() {
 async fn a_replayed_turn_start_starts_nothing_and_returns_the_first_operation() {
     let app = test_app().await;
     let first = start(&app, "t1", "hello", &small_edits()).await.unwrap();
-    app.storage
-        .mark_operation_failed(&first.operation_id, FailureStage::Prepare, "test")
-        .await
-        .unwrap();
+    shadows_core::Turns::mark_operation_failed_for_test(
+        &app.storage,
+        &first.operation_id,
+        FailureStage::Prepare,
+        "test",
+    )
+    .await
+    .unwrap();
     let again = start(&app, "t1", "hello", &small_edits()).await.unwrap();
     assert!(again.replayed);
     assert_eq!(again.operation_id, first.operation_id);
     assert_eq!(again.entry_id, first.entry_id);
     assert_eq!(entries(&app).await.len(), 1);
-    let ops = app
-        .storage
-        .list_operations_for_thread(&app.thread)
+    let ops = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
         .await
         .unwrap();
     assert_eq!(ops.len(), 1);
@@ -384,9 +384,7 @@ async fn a_model_without_efforts_runs_with_none() {
         (r["model"].as_str(), r["effort"].is_null()),
         (Some("fake-tiny"), true)
     );
-    let ops = app
-        .storage
-        .list_operations_for_thread(&app.thread)
+    let ops = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
         .await
         .unwrap();
     assert!(
@@ -563,7 +561,7 @@ async fn a_stop_while_pending_cancels_the_turn_before_its_prompt() {
     let started = start(&app, "t1", "hello", &settings).await.unwrap();
     let op = started.operation_id;
     let stop = PlannerTurn::stop(
-        app.runtime.clone(),
+        app.runtime.storage_for_test(),
         app.handles.clone(),
         app.sessions.clone(),
         &op,
@@ -574,6 +572,7 @@ async fn a_stop_while_pending_cancels_the_turn_before_its_prompt() {
     assert_eq!(stop, StopOutcome::NotLive);
     PlannerTurn::start(
         app.runtime.clone(),
+        app.runtime.storage_for_test(),
         app.handles.clone(),
         app.sessions.clone(),
         opened,

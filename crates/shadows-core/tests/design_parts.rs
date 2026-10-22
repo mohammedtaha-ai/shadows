@@ -1,4 +1,4 @@
-use shadows_core::testing::{LiveHandles, Runtime, Storage, acp};
+use shadows_core::testing::{LiveHandles, Storage, acp};
 use shadows_core::{
     AcceptanceItem, AppCore, CoreError, CoreParts, DesignAnchor, DesignOp, DraftStart, PartContent,
     PartId, PlanEdit, PlanOp, ProjectId, StorageError, TaskContent,
@@ -21,8 +21,14 @@ mod structure;
 
 async fn core_at(path: &std::path::Path) -> Arc<AppCore> {
     let storage = Arc::new(Storage::open(path).await.unwrap());
-    let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
+    let runtime = Arc::new(
+        shadows_core::AppCore::runtime_for_tests(storage.clone())
+            .await
+            .unwrap()
+            .0,
+    );
     AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime,

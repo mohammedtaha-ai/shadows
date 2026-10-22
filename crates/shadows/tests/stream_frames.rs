@@ -16,7 +16,6 @@ use axum::http::Request;
 use serde_json::Value;
 use shadows::cli::router;
 use shadows_core::testing::LiveHandles;
-use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
 use shadows_core::testing::{CommandContext, fingerprint};
 use shadows_core::{AppCore, CoreParts};
@@ -33,12 +32,15 @@ use shadows_core::testing::acp;
 async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let runtime_id = runtime.instance_id.clone();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (_stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             storage: storage.clone(),
             runtime: Arc::new(runtime),
@@ -83,10 +85,10 @@ async fn durable_frames_name_their_operation_and_thread_and_caught_up_is_json() 
     )
     .await
     .unwrap();
-    let op = storage
-        .create_pending_operation(&thread.id, &runtime_id)
-        .await
-        .unwrap();
+    let op =
+        shadows_core::Turns::create_pending_operation_for_test(&storage, &thread.id, &runtime_id)
+            .await
+            .unwrap();
 
     let response = app
         .oneshot(

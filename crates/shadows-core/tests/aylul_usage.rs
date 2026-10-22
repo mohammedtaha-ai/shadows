@@ -1,6 +1,6 @@
 //! Agent-scoped AYLUL sessions through the real core and synthetic ACP process.
 use serde_json::{Value, json};
-use shadows_core::testing::{self, LiveHandles, Runtime, Sessions, SessionsConfig, Storage, acp};
+use shadows_core::testing::{self, LiveHandles, Sessions, SessionsConfig, Storage, acp};
 use shadows_core::{
     AgentInput, AppCore, AylulConfig, CoreError, CoreParts, OperationId, ProviderInput, SecretKey,
     SendTurn, ThreadId,
@@ -22,7 +22,12 @@ async fn world() -> World {
     std::fs::create_dir_all(&root).unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
     let secrets = testing::secrets(storage.clone(), Some(SecretKey::from_bytes([7; 32])));
-    let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
+    let runtime = Arc::new(
+        shadows_core::AppCore::runtime_for_tests(storage.clone())
+            .await
+            .unwrap()
+            .0,
+    );
     let sessions = Sessions::new(
         acp::fake_adapter(),
         storage.clone(),
@@ -36,6 +41,7 @@ async fn world() -> World {
         },
     );
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets,
         storage: storage.clone(),
         runtime,
@@ -126,7 +132,9 @@ async fn send(w: &World, prompt: &str) -> OperationId {
     let op = w.core.turns().send(w.thread.clone(), input).await.unwrap();
     tokio::time::timeout(Duration::from_secs(20), async {
         loop {
-            let row = w.storage.get_operation(&op).await.unwrap();
+            let row = shadows_core::Turns::get_operation_for_test(&w.storage, &op)
+                .await
+                .unwrap();
             if row.finished_at.is_some() {
                 break;
             }
@@ -196,7 +204,10 @@ async fn usage_ends_atomically_once() {
     .unwrap();
     tokio::time::sleep(Duration::from_millis(100)).await;
     assert_eq!(
-        w.storage.get_operation(&op).await.unwrap().status_kind,
+        shadows_core::Turns::get_operation_for_test(&w.storage, &op)
+            .await
+            .unwrap()
+            .status_kind,
         "Running"
     );
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM aylul_usage")
@@ -217,13 +228,11 @@ async fn usage_ends_atomically_once() {
         .await
         .unwrap();
     let seen = shadows_agent::events::TurnObservation::default();
-    w.storage
-        .mark_operation_completed(&op, json!({}), &seen)
+    shadows_core::Turns::mark_operation_completed_for_test(&w.storage, &op, json!({}), &seen)
         .await
         .unwrap();
     assert!(
-        w.storage
-            .mark_operation_completed(&op, json!({}), &seen)
+        shadows_core::Turns::mark_operation_completed_for_test(&w.storage, &op, json!({}), &seen)
             .await
             .is_err()
     );
@@ -278,19 +287,31 @@ async fn usage_refusal_cancel_and_missing_are_honest() {
             .await
             .unwrap();
     assert_eq!(missing, 1);
-    let runtime = Runtime::start(w.storage.clone()).await.unwrap().0;
-    let pending = w
-        .storage
-        .create_pending_operation(&w.thread, &runtime.instance_id)
+    let runtime = shadows_core::AppCore::runtime_for_tests(w.storage.clone())
+        .await
+        .unwrap()
+        .0;
+    let pending = shadows_core::Turns::create_pending_operation_for_test(
+        &w.storage,
+        &w.thread,
+        &runtime.instance_id,
+    )
+    .await
+    .unwrap();
+    shadows_core::Turns::mark_operation_cancelled_for_test(&w.storage, &pending)
         .await
         .unwrap();
-    w.storage.mark_operation_cancelled(&pending).await.unwrap();
     assert_eq!(report(&w).await["by_provider"][0]["requests"], 3);
     let mut input = request("fake-large", "high");
     input.prompt = "ignore-cancel".into();
     let forced = w.core.turns().send(w.thread.clone(), input).await.unwrap();
     tokio::time::timeout(Duration::from_secs(10), async {
-        while w.storage.get_operation(&forced).await.unwrap().status_kind != "Running" {
+        while shadows_core::Turns::get_operation_for_test(&w.storage, &forced)
+            .await
+            .unwrap()
+            .status_kind
+            != "Running"
+        {
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
     })
@@ -298,7 +319,10 @@ async fn usage_refusal_cancel_and_missing_are_honest() {
     .unwrap();
     w.core.turns().stop(&forced).await.unwrap();
     assert_eq!(
-        w.storage.get_operation(&forced).await.unwrap().status_kind,
+        shadows_core::Turns::get_operation_for_test(&w.storage, &forced)
+            .await
+            .unwrap()
+            .status_kind,
         "Cancelled"
     );
     let unknown: Option<i64> =

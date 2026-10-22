@@ -48,7 +48,7 @@ pub(super) async fn list_operations(
     State(s): State<AppState>,
     Path(thread_id): Path<ThreadId>,
 ) -> Result<Json<Vec<Operation>>, Failure> {
-    Ok(Json(s.core.threads().operations(&thread_id).await?))
+    Ok(Json(s.core.turns().operations(&thread_id).await?))
 }
 
 /// Starts a turn as one command (spec §12.7).

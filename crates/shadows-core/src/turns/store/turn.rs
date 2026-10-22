@@ -7,12 +7,12 @@
 
 use sqlx::SqliteConnection;
 
-use super::operation::insert_pending;
 use crate::db::{
     Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
 };
 use crate::events::DurableEvent;
 use crate::harness::remember_settings;
+use crate::operations::Operations;
 use crate::plans::Focus;
 use crate::plans::task_of;
 use crate::runtime::RuntimeInstanceId;
@@ -120,56 +120,6 @@ async fn focused(
         .ok_or_else(|| StorageError::TaskNotInPlan("the chosen task is not in that plan".into()))
 }
 
-/// Whether the thread has a turn that has not reached a terminal status.
-pub(crate) async fn has_open_operation(
-    conn: &mut SqliteConnection,
-    thread: &ThreadId,
-) -> Result<bool, StorageError> {
-    let found: Option<i64> = sqlx::query_scalar(
-        "SELECT 1 FROM operation
-          WHERE thread_id = ?
-            AND status_kind NOT IN ('Completed','Failed','Cancelled','Interrupted')
-          LIMIT 1",
-    )
-    .bind(thread.as_str())
-    .fetch_optional(&mut *conn)
-    .await?;
-    Ok(found.is_some())
-}
-
-/// Checks a Planner card's exact running turn inside the card write.
-pub(crate) async fn check_running_turn_in(
-    conn: &mut SqliteConnection,
-    thread: &ThreadId,
-    operation: &OperationId,
-) -> Result<(), StorageError> {
-    crate::turns::Turns::require_running_in(conn, thread, operation.as_str()).await
-}
-
-impl crate::turns::Turns {
-    /// Checks a Planner card's exact running turn inside the card write.
-    pub(crate) async fn require_running_in(
-        conn: &mut SqliteConnection,
-        thread: &ThreadId,
-        operation: &str,
-    ) -> Result<(), StorageError> {
-        let found: Option<i64> = sqlx::query_scalar(
-            "SELECT 1 FROM operation o
-         WHERE o.id=? AND o.thread_id=? AND o.status_kind='Running' ",
-        )
-        .bind(operation)
-        .bind(thread.as_str())
-        .fetch_optional(&mut *conn)
-        .await?;
-        if found.is_none() || !Threads::is_live_in(conn, thread).await? {
-            return Err(StorageError::Constraint(
-                "the proposal's turn is no longer running".into(),
-            ));
-        }
-        Ok(())
-    }
-}
-
 impl Storage {
     /// §12.7's one transaction. A replay found inside it answers the recorded
     /// ids with `replayed: true`, so two concurrent first requests produce
@@ -210,7 +160,7 @@ impl Storage {
                         return Ok((recorded(&outcome)?, None));
                     }
                     crate::threads::Threads::require_live_in(conn, &thread).await?;
-                    if has_open_operation(conn, &thread).await? {
+                    if Operations::has_open_in(conn, &thread).await? {
                         return Err(StorageError::ThreadBusy);
                     }
                     if let Some((id, _)) = &dequeue {
@@ -228,7 +178,8 @@ impl Storage {
                     });
                     let refs: Vec<EntryRef> = refs.collect();
                     let op = OperationId::generate();
-                    let transition = insert_pending(conn, &op, &thread, &runtime, &ts).await?;
+                    let transition =
+                        Operations::insert_pending_in(conn, &op, &thread, &runtime, &ts).await?;
                     let entry = Threads::append_entry_in(
                         conn,
                         &thread,
@@ -373,45 +324,27 @@ impl Storage {
     ) -> Result<Option<InvocationVersions>, StorageError> {
         let mut conn = self.reader().begin().await?;
         let operations = Threads::user_operations_in(&mut conn, thread).await?;
-        type Row = (
-            String,
-            Option<String>,
-            Option<String>,
-            Option<i64>,
-            Option<String>,
-        );
-        let rows: Vec<Row> = sqlx::query_as(
-            "SELECT o.id,i.prompt_version,i.planner_instructions_version_id,
-                    i.standards_version,i.standards_additions_version_id
-               FROM agent_invocation i JOIN operation o ON o.id=i.operation_id
-              WHERE o.thread_id=? AND o.started_at IS NOT NULL ORDER BY o.id",
-        )
-        .bind(thread.as_str())
-        .fetch_all(&mut *conn)
-        .await?;
-        let mut delivered: std::collections::HashMap<_, _> = rows
-            .into_iter()
-            .map(|(id, prompt, instructions, standards, additions)| {
-                (
-                    id,
-                    InvocationVersions {
-                        prompt,
-                        instructions,
-                        standards,
-                        additions,
-                    },
-                )
-            })
-            .collect();
-        Ok(operations
-            .into_iter()
-            .find_map(|operation| delivered.remove(&operation)))
-    }
-
-    /// Whether the thread has a turn that has not ended: checked before a new
-    /// turn touches the thread's session, and again inside `start_turn`.
-    pub async fn thread_is_busy(&self, thread: &ThreadId) -> Result<bool, StorageError> {
-        let mut conn = self.reader().acquire().await?;
-        has_open_operation(&mut conn, thread).await
+        let started: std::collections::HashSet<_> =
+            Operations::started_for_thread_in(&mut conn, thread)
+                .await?
+                .into_iter()
+                .collect();
+        for operation in operations {
+            if !started.contains(&operation) {
+                continue;
+            }
+            let row: Option<InvocationVersions> = sqlx::query_as(
+                "SELECT prompt_version AS prompt, planner_instructions_version_id AS instructions,
+                        standards_version AS standards, standards_additions_version_id AS additions
+                   FROM agent_invocation WHERE operation_id=?",
+            )
+            .bind(&operation)
+            .fetch_optional(&mut *conn)
+            .await?;
+            if row.is_some() {
+                return Ok(row);
+            }
+        }
+        Ok(None)
     }
 }

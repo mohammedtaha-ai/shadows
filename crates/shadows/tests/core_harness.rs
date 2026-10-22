@@ -81,10 +81,13 @@ async fn change_model_is_refused_while_another_holds_the_session() {
 #[tokio::test]
 async fn change_model_on_a_busy_thread_opens_no_session() {
     let app = test_app().await;
-    app.storage
-        .create_pending_operation(&app.thread, &app.runtime.instance_id)
-        .await
-        .unwrap();
+    shadows_core::Turns::create_pending_operation_for_test(
+        &app.storage,
+        &app.thread,
+        &app.runtime.instance_id,
+    )
+    .await
+    .unwrap();
     let (s, b) = put_model(&app, app.thread.as_str(), "fake-small").await;
     assert_eq!((s, b["code"].as_str()), (409, Some("THREAD_BUSY")), "{b}");
     assert_eq!(app.sessions.live_count().await, 0, "no session was opened");

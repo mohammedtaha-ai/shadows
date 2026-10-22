@@ -2,7 +2,7 @@
 //! drives below the services, the fake adapter and the paths that belong to
 //! this crate. Compiled only with `test-support`, which a crate enables only in
 //! its `[dev-dependencies]` (spec §14.6): a normal build that names
-//! `shadows_core::testing` does not compile.
+//! `crate::testing` does not compile.
 //!
 //! `acp` builds sessions over the fake adapter, and `turn` starts a Planner
 //! turn without HTTP; both were fixture copies in two test crates.
@@ -129,7 +129,7 @@ pub use crate::plans::for_tests::{Applied, apply, approval_problems, edit_proble
 pub use crate::turns::LiveHandles;
 pub use crate::turns::for_tests::{
     Dequeue, FailureStage, InvocationVersions, NewTurn, PlannerTurn, PlannerTurnRequest,
-    StartedTurn, StopOutcome, shut_down,
+    StartedTurn, StopOutcome,
 };
 
 /// Storage, the runtime and the sessions, which the storage, recovery and
@@ -144,8 +144,9 @@ pub use crate::events::{DurableEvent, EventCursor};
 pub use crate::grants::Writer;
 pub use crate::grants::{IssuedGrant, Token};
 pub use crate::harness::{LeaseError, OpenSession, Sessions, SessionsConfig, prompt_version};
+pub use crate::operations::ReconcileReport;
 pub use crate::projects::ProjectDirectory;
-pub use crate::runtime::{ReconcileReport, Runtime};
+pub use crate::runtime::Runtime;
 pub use crate::threads::{NewThreadEntry, TurnContext};
 
 impl crate::code::Code {

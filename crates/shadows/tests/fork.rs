@@ -185,7 +185,7 @@ async fn a_stopped_last_turn_is_not_a_fork_point() {
     let op = start_settled(&app, "hang").await;
     wait_for_delta(&mut rx).await;
     PlannerTurn::stop(
-        app.runtime.clone(),
+        app.runtime.storage_for_test(),
         app.handles.clone(),
         app.sessions.clone(),
         &op,

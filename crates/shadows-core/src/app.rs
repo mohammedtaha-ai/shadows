@@ -25,6 +25,7 @@ use crate::extensions::Extensions;
 use crate::grants::Grants;
 use crate::harness::{Harness, Sessions, SessionsConfig};
 use crate::instructions::Instructions;
+use crate::operations::Operations;
 use crate::person::PersonSettings;
 use crate::plans::Plans;
 use crate::projects::Projects;
@@ -48,6 +49,7 @@ pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEve
 pub struct CoreParts {
     pub secrets: Arc<Secrets>,
     pub storage: Arc<Storage>,
+    pub operations: Operations,
     pub runtime: Arc<Runtime>,
     pub sessions: Arc<Sessions>,
     pub handles: Arc<LiveHandles>,
@@ -109,6 +111,10 @@ pub struct CoreParts {
          grant authorization | \
          `crates/shadows-core/src/grants` | \
          `crates/shadows-core/src/grants/contract.yaml` |"]
+#[doc = " | `Operations` | \
+         durable operation lifecycle | \
+         `crates/shadows-core/src/operations` | \
+         `crates/shadows-core/src/operations/contract.yaml` |"]
 #[doc = " | `Turns` | \
          turn execution lifecycle | \
          `crates/shadows-core/src/turns` | \
@@ -162,6 +168,7 @@ pub struct AppCore {
     design: Design,
     plans: Plans,
     grants: Grants,
+    operations: Operations,
     turns: Turns,
     harness: Arc<Harness>,
     projects: Projects,
@@ -227,8 +234,10 @@ impl AppCore {
     pub async fn start(config: &StartConfig, mcp_url: String) -> anyhow::Result<Arc<AppCore>> {
         let storage = Arc::new(Storage::open(&config.db_path).await?);
         let secrets = Secrets::new(storage.clone(), config.secret_key.clone());
-        // `Runtime::start` logs recovery (`recovery.reconcile`).
-        let (runtime, _report) = Runtime::start(storage.clone()).await?;
+        // Recover durable work before grants, sessions or callers can accept new turns.
+        let runtime = Runtime::start(storage.clone()).await?;
+        let operations = Operations::new(storage.clone());
+        operations.recover(&runtime.instance_id).await?;
         let runtime = Arc::new(runtime);
         // Spec §13.7: a Planner's grant lives as long as its adapter, and every
         // adapter of an earlier daemon is gone. Before anything is served.
@@ -276,6 +285,7 @@ impl AppCore {
             CoreParts {
                 secrets,
                 storage,
+                operations,
                 runtime,
                 sessions,
                 handles: Arc::new(LiveHandles::default()),
@@ -322,6 +332,7 @@ impl AppCore {
         let CoreParts {
             secrets,
             storage,
+            operations,
             runtime,
             sessions,
             handles,
@@ -335,10 +346,11 @@ impl AppCore {
         let code = Code::new(storage.clone(), projects.clone());
         let harness = Arc::new(Harness::new(
             storage.clone(),
+            operations.clone(),
             sessions.clone(),
             projects.clone(),
         ));
-        let stopper = ThreadStopper::new(runtime.clone(), handles.clone(), sessions.clone());
+        let stopper = ThreadStopper::new(storage.clone(), handles.clone(), sessions.clone());
         let threads = Threads::new(
             storage.clone(),
             harness.clone(),
@@ -366,11 +378,18 @@ impl AppCore {
             usage: Usage::new(storage.clone()),
             person,
             secrets,
-            design: Design::new(storage.clone(), handles.clone()),
-            plans: Plans::new(storage.clone(), grants.clone(), handles.clone(), ui.clone()),
+            design: Design::new(storage.clone(), operations.clone()),
+            plans: Plans::new(
+                storage.clone(),
+                grants.clone(),
+                operations.clone(),
+                handles.clone(),
+                ui.clone(),
+            ),
             grants,
             turns: Turns::new(
                 storage.clone(),
+                operations.clone(),
                 runtime,
                 sessions.clone(),
                 handles,
@@ -380,6 +399,7 @@ impl AppCore {
                 standards.clone(),
                 projects.clone(),
             ),
+            operations,
             harness,
             projects: projects.with_code(code.clone()),
             threads,
@@ -433,6 +453,10 @@ impl AppCore {
 
     pub fn grants(&self) -> &Grants {
         &self.grants
+    }
+
+    pub fn operations(&self) -> &Operations {
+        &self.operations
     }
 
     pub fn turns(&self) -> &Turns {
@@ -551,5 +575,21 @@ pub fn adapter_version(adapter_entry: &Path) -> String {
 impl AppCore {
     pub fn grants_for_tests(storage: Arc<Storage>, mcp_url: String) -> Grants {
         Grants::new(storage, mcp_url)
+    }
+}
+
+#[cfg(feature = "test-support")]
+impl AppCore {
+    pub fn operations_for_tests(storage: Arc<Storage>) -> Operations {
+        Operations::new(storage)
+    }
+    pub async fn runtime_for_tests(
+        storage: Arc<Storage>,
+    ) -> Result<(Runtime, crate::operations::ReconcileReport), crate::StorageError> {
+        let runtime = Runtime::start(storage.clone()).await?;
+        let report = Operations::new(storage)
+            .recover(&runtime.instance_id)
+            .await?;
+        Ok((runtime, report))
     }
 }

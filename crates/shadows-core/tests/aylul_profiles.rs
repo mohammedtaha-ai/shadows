@@ -33,8 +33,10 @@ async fn app(
     secrets: &Arc<shadows_core::Secrets>,
     root: &std::path::Path,
 ) -> Arc<shadows_core::AppCore> {
-    use shadows_core::testing::{LiveHandles, Runtime, Sessions, SessionsConfig};
-    let (runtime, _) = Runtime::start(storage.clone()).await.unwrap();
+    use shadows_core::testing::{LiveHandles, Sessions, SessionsConfig};
+    let (runtime, _) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     std::fs::create_dir_all(root).unwrap();
     let sessions = Sessions::new(
         Arc::new(shadows_agent::claude::ClaudeAdapter {
@@ -55,6 +57,7 @@ async fn app(
         },
     );
     shadows_core::AppCore::assemble(shadows_core::CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         storage: storage.clone(),
         secrets: secrets.clone(),
         runtime: Arc::new(runtime),

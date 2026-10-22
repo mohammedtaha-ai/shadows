@@ -72,14 +72,14 @@ impl Design {
                 message: "approval needs a Planner's conversation".into(),
             });
         };
-        let turn = self
-            .handles
-            .running_for(thread)
-            .await
-            .ok_or_else(|| CoreError::Refused {
-                code: ErrorCode::InvalidCommand,
-                message: "no turn is running".into(),
-            })?;
+        let turn =
+            self.operations
+                .running_for(thread)
+                .await?
+                .ok_or_else(|| CoreError::Refused {
+                    code: ErrorCode::InvalidCommand,
+                    message: "no turn is running".into(),
+                })?;
         let harness = crate::threads::Threads::turn_context_in(
             &mut *self
                 .storage
@@ -127,9 +127,9 @@ impl Design {
             });
         };
         let op = self
-            .handles
+            .operations
             .running_for(thread)
-            .await
+            .await?
             .ok_or_else(|| CoreError::Refused {
                 code: ErrorCode::InvalidCommand,
                 message: "no turn is running for this conversation".into(),

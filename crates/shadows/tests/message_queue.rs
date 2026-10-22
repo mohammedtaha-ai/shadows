@@ -120,11 +120,10 @@ async fn a_busy_thread_queues_and_remove_answers_gone_the_second_time() {
 
 async fn until_ops(app: &app::App, n: usize) -> Vec<shadows_core::Operation> {
     for _ in 0..500 {
-        let ops = app
-            .storage
-            .list_operations_for_thread(&app.thread)
-            .await
-            .unwrap();
+        let ops =
+            shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
+                .await
+                .unwrap();
         if ops.len() >= n && ops.iter().all(|o| o.finished_at.is_some()) {
             return ops;
         }
@@ -244,9 +243,7 @@ async fn stop_leaves_the_queue_and_starts_nothing() {
 
     let ops = until_ops(&app, 1).await;
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-    let after = app
-        .storage
-        .list_operations_for_thread(&app.thread)
+    let after = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
         .await
         .unwrap();
     assert_eq!(after.len(), 1, "{ops:?}");

@@ -301,7 +301,10 @@ async fn projects_are_ordered_by_the_newest_operation_in_the_journal() {
         "a thread with no operation must not move its project"
     );
 
-    let runtime = storage.register_runtime_instance("test").await.unwrap();
+    let runtime =
+        shadows_core::testing::Runtime::register_runtime_instance_for_test(&storage, "test")
+            .await
+            .unwrap();
     let thread_params = serde_json::json!({ "thread": "t" });
     let thread = shadows_core::Threads::create_planning_thread_for_test(
         &storage,
@@ -313,8 +316,7 @@ async fn projects_are_ordered_by_the_newest_operation_in_the_journal() {
     )
     .await
     .unwrap();
-    storage
-        .create_pending_operation(&thread.id, &runtime)
+    shadows_core::Turns::create_pending_operation_for_test(&storage, &thread.id, &runtime)
         .await
         .unwrap();
     assert_eq!(order().await, created);

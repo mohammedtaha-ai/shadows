@@ -1,5 +1,5 @@
 use serde_json::json;
-use shadows_core::testing::{LiveHandles, Runtime, Storage, acp};
+use shadows_core::testing::{LiveHandles, Storage, acp};
 use shadows_core::{
     AgreementContent, AgreementParty, AgreementRole, AgreementState, AppCore, CoreError, CoreParts,
     DesignOp, PartContent, PartId, StorageError,
@@ -11,9 +11,15 @@ async fn agreement_review_detects_stale_part_and_agrees_without_implicit_adoptio
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("review.db")).await.unwrap());
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
-        runtime: Arc::new(Runtime::start(storage.clone()).await.unwrap().0),
+        runtime: Arc::new(
+            shadows_core::AppCore::runtime_for_tests(storage.clone())
+                .await
+                .unwrap()
+                .0,
+        ),
         sessions: acp::fake_sessions(storage.clone()),
         handles: Arc::new(LiveHandles::default()),
         bus: tokio::sync::broadcast::channel(32).0,

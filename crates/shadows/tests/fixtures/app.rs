@@ -117,7 +117,9 @@ pub async fn test_app_unseeded_with(dir: &Path, config: SessionsConfig, mcp_url:
 async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bool) -> App {
     let db = dir.join("s.sqlite3");
     let storage = Arc::new(Storage::open(&db).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let runtime = Arc::new(runtime);
     let project = shadows_core::testing::create_project(
         &storage,
@@ -161,6 +163,7 @@ async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bo
     let (ui, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets,
         storage: storage.clone(),
         runtime: runtime.clone(),
@@ -195,8 +198,10 @@ async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bo
 /// Stops the daemon as `serve` does on a signal, so the directory can be
 /// opened again by `test_app_at`.
 pub async fn shut_down_app(app: App) {
-    shadows_core::testing::shut_down(
+    shadows_core::testing::PlannerTurn::shut_down(
         app.runtime.clone(),
+        app.runtime.storage_for_test(),
+        shadows_core::AppCore::operations_for_tests(app.runtime.storage_for_test()),
         app.handles.clone(),
         app.sessions.clone(),
         Duration::from_secs(5),
@@ -334,7 +339,9 @@ pub async fn start_and_finish(app: &App, prompt: &str, settings: Value) -> Opera
 
 pub async fn wait_terminal(app: &App, op: &OperationId) -> Operation {
     for _ in 0..200 {
-        let loaded = app.storage.get_operation(op).await.unwrap();
+        let loaded = shadows_core::Turns::get_operation_for_test(&app.storage, op)
+            .await
+            .unwrap();
         if loaded.finished_at.is_some() {
             return loaded;
         }

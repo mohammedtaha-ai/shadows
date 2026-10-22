@@ -13,17 +13,17 @@ pub(crate) struct LiveTurn {
     /// The session the prompt runs on: Stop cancels on it, and terminates
     /// its adapter — never one that replaced it.
     pub(crate) session: OpenSession,
-    /// The tab that sent the turn (§13.9): transport state, kept here only,
+    /// The tab that sent the turn: transport state, kept here only,
     /// never stored.
     pub(crate) client_tab: Option<String>,
     pub(crate) turn_end_seen: Arc<AtomicBool>,
     pub(crate) cancel_requested: Arc<AtomicBool>,
-    /// Where Send now hands the watcher a message the adapter took (§20.4).
+    /// Where Send now hands the watcher a message the adapter took.
     pub(crate) steer: mpsc::UnboundedSender<SteerRequest>,
     pub(crate) span: tracing::Span,
 }
 
-/// What Send now needs of the running turn of a thread (§20.4).
+/// What Send now needs of the running turn of a thread.
 pub(crate) struct SteerTarget {
     pub(crate) cancel_requested: Arc<AtomicBool>,
     pub(crate) steer: mpsc::UnboundedSender<SteerRequest>,
@@ -63,12 +63,14 @@ impl LiveHandles {
         r.turns.keys().cloned().collect()
     }
     /// The turn running on `thread`, if one is: what the Planner's
-    /// `draft_start` anchors its derived command id to (spec §13.5).
+    /// `draft_start` anchors its derived command id to.
+    #[cfg(feature = "test-support")]
     pub async fn running_for(&self, thread: &ThreadId) -> Option<OperationId> {
         self.running_turn(thread).await.map(|(op, _)| op)
     }
     /// As `running_for`, with the tab that sent the turn: whom `plan_show`
-    /// signals (spec §13.9).
+    /// signals.
+    #[cfg(feature = "test-support")]
     pub async fn running_turn(&self, thread: &ThreadId) -> Option<(OperationId, Option<String>)> {
         let r = self.0.lock().await;
         r.turns
@@ -76,7 +78,7 @@ impl LiveHandles {
             .find(|(_, turn)| &turn.thread_id == thread)
             .map(|(op, turn)| (op.clone(), turn.client_tab.clone()))
     }
-    /// The running turn of `thread`, as Send now reaches it (§20.4).
+    /// The running turn of `thread`, as Send now reaches it.
     pub(crate) async fn steer_target(&self, thread: &ThreadId) -> Option<SteerTarget> {
         let r = self.0.lock().await;
         r.turns
@@ -94,9 +96,20 @@ impl LiveHandles {
     pub async fn contains(&self, op: &OperationId) -> bool {
         self.0.lock().await.turns.contains_key(op)
     }
-    /// What shutdown does first (§8.5): closes the registry to new turns.
+    /// What shutdown does first: closes the registry to new turns.
     #[cfg(feature = "test-support")]
     pub async fn close_for_test(&self) {
         self.close().await;
+    }
+}
+
+impl LiveHandles {
+    pub(crate) async fn client_tab_for(&self, op: &OperationId) -> Option<String> {
+        self.0
+            .lock()
+            .await
+            .turns
+            .get(op)
+            .and_then(|turn| turn.client_tab.clone())
     }
 }

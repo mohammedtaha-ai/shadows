@@ -85,14 +85,14 @@ impl Design {
                 message: "map_propose needs a Planner's conversation".into(),
             });
         };
-        let turn = self
-            .handles
-            .running_for(thread)
-            .await
-            .ok_or_else(|| CoreError::Refused {
-                code: ErrorCode::InvalidCommand,
-                message: "no turn is running".into(),
-            })?;
+        let turn =
+            self.operations
+                .running_for(thread)
+                .await?
+                .ok_or_else(|| CoreError::Refused {
+                    code: ErrorCode::InvalidCommand,
+                    message: "no turn is running".into(),
+                })?;
         for part in &mut args.parts {
             super::map_rules::normalise(&mut part.content).map_err(|message| {
                 CoreError::Refused {

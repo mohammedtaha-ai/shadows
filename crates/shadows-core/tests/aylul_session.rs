@@ -1,6 +1,6 @@
 //! Agent-scoped AYLUL sessions through the real core and synthetic ACP process.
 use serde_json::{Value, json};
-use shadows_core::testing::{self, LiveHandles, Runtime, Sessions, SessionsConfig, Storage, acp};
+use shadows_core::testing::{self, LiveHandles, Sessions, SessionsConfig, Storage, acp};
 use shadows_core::{
     AgentInput, AppCore, AylulConfig, CoreError, CoreParts, ProviderInput, SecretKey, SendTurn,
     ThreadEntryKind, ThreadId,
@@ -23,7 +23,12 @@ async fn world() -> World {
     std::fs::create_dir_all(&root).unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
     let secrets = testing::secrets(storage.clone(), Some(SecretKey::from_bytes([7; 32])));
-    let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
+    let runtime = Arc::new(
+        shadows_core::AppCore::runtime_for_tests(storage.clone())
+            .await
+            .unwrap()
+            .0,
+    );
     let sessions = Sessions::new(
         acp::fake_adapter(),
         storage.clone(),
@@ -37,6 +42,7 @@ async fn world() -> World {
         },
     );
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets,
         storage: storage.clone(),
         runtime,
@@ -153,7 +159,9 @@ async fn reply(w: &World, thread: &ThreadId, model: &str, effort: &str) -> Value
         .unwrap();
     tokio::time::timeout(Duration::from_secs(15), async {
         loop {
-            let op = w.storage.get_operation(&op).await.unwrap();
+            let op = shadows_core::Turns::get_operation_for_test(&w.storage, &op)
+                .await
+                .unwrap();
             if op.finished_at.is_some() {
                 assert_eq!(op.status_kind, "Completed");
                 break;

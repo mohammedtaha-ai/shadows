@@ -2,11 +2,11 @@
 
 use sqlx::SqliteConnection;
 
-use super::turn::has_open_operation;
 use crate::db::{
     Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
 };
 use crate::events::DurableEvent;
+use crate::operations::Operations;
 use crate::plans::{Focus, PlanId};
 use crate::threads::ThreadId;
 use crate::turns::model::{QueuedMessage, QueuedMessageId};
@@ -135,7 +135,7 @@ impl Storage {
                     return Ok(QueueAnswer::Waiting(serde_json::from_str(&outcome)?));
                 }
                 crate::threads::Threads::require_live_in(conn, &thread).await?;
-                if !has_open_operation(conn, &thread).await? {
+                if !Operations::has_open_in(conn, &thread).await? {
                     return Ok(QueueAnswer::Idle);
                 }
                 let position: i64 = sqlx::query_scalar(

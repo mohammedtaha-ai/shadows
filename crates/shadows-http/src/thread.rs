@@ -143,8 +143,8 @@ pub(super) async fn fork_thread(
 ) -> Result<(StatusCode, Json<PlanningThread>), Failure> {
     let fork = s
         .core
-        .threads()
-        .fork(body.command_id, &thread, &body.at_entry_id)
+        .operations()
+        .fork_thread(body.command_id, &thread, &body.at_entry_id)
         .await?;
     Ok((StatusCode::CREATED, Json(fork)))
 }

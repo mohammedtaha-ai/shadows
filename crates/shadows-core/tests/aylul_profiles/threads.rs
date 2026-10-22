@@ -263,8 +263,8 @@ async fn fork_keeps_profile() {
         .await
         .unwrap();
     let fork = core
-        .threads()
-        .fork("fork".into(), &t.id, &entry.id)
+        .operations()
+        .fork_thread("fork".into(), &t.id, &entry.id)
         .await
         .unwrap();
     assert_eq!(fork.profile.as_deref(), Some("work"));

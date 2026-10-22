@@ -52,7 +52,9 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
     let tmp = tempfile::tempdir().unwrap();
     let db = tmp.path().join("s.sqlite3");
     let storage = Arc::new(shadows_core::testing::Storage::open(&db).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let runtime = Arc::new(runtime);
 
     let params = json!({ "slug": "demo" });
@@ -99,6 +101,7 @@ async fn test_app_with(adapter: Arc<ClaudeAdapter>) -> App {
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let router = router(AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             storage,
             runtime: runtime.clone(),
@@ -160,7 +163,10 @@ async fn start_prompt(app: &App, prompt: &str) -> OperationId {
 
 async fn wait_terminal(app: &App, op: &OperationId) -> Operation {
     for _ in 0..200 {
-        let loaded = app.runtime.storage.get_operation(op).await.unwrap();
+        let loaded =
+            shadows_core::Turns::get_operation_for_test(&app.runtime.storage_for_test(), op)
+                .await
+                .unwrap();
         if loaded.finished_at.is_some() {
             return loaded;
         }
@@ -171,10 +177,7 @@ async fn wait_terminal(app: &App, op: &OperationId) -> Operation {
 
 async fn wait_running(app: &App, op: &OperationId) {
     for _ in 0..200 {
-        if app
-            .runtime
-            .storage
-            .get_operation(op)
+        if shadows_core::Turns::get_operation_for_test(&app.runtime.storage_for_test(), op)
             .await
             .unwrap()
             .status_kind
@@ -188,14 +191,17 @@ async fn wait_running(app: &App, op: &OperationId) {
 }
 
 async fn entries(app: &App) -> Vec<ThreadEntry> {
-    shadows_core::Threads::list_thread_entries_for_test(&app.runtime.storage, &app.thread)
-        .await
-        .unwrap()
+    shadows_core::Threads::list_thread_entries_for_test(
+        &app.runtime.storage_for_test(),
+        &app.thread,
+    )
+    .await
+    .unwrap()
 }
 
 async fn stop(app: &App, op: &OperationId) -> StopOutcome {
     PlannerTurn::stop(
-        app.runtime.clone(),
+        app.runtime.storage_for_test(),
         app.handles.clone(),
         app.sessions.clone(),
         op,
@@ -252,11 +258,12 @@ async fn a_turn_streams_and_stores_one_entry_per_message() {
 async fn the_first_turn_records_the_session_and_the_next_resumes_it() {
     let app = test_app().await;
     wait_terminal(&app, &start_prompt(&app, "hi").await).await;
-    let session = shadows_core::Threads::turn_context_for_test(&app.runtime.storage, &app.thread)
-        .await
-        .unwrap()
-        .harness_session_id
-        .unwrap();
+    let session =
+        shadows_core::Threads::turn_context_for_test(&app.runtime.storage_for_test(), &app.thread)
+            .await
+            .unwrap()
+            .harness_session_id
+            .unwrap();
     app.sessions.terminate(&app.thread).await.unwrap();
     let op = start_prompt(&app, "report").await;
     wait_terminal(&app, &op).await;
@@ -355,12 +362,12 @@ async fn a_turn_whose_adapter_cannot_start_writes_nothing() {
         (502, Some("HARNESS_START_FAILED"))
     );
     assert!(entries(&app).await.is_empty());
-    let operations = app
-        .runtime
-        .storage
-        .list_operations_for_thread(&app.thread)
-        .await
-        .unwrap();
+    let operations = shadows_core::Turns::list_operations_for_thread_for_test(
+        &app.runtime.storage_for_test(),
+        &app.thread,
+    )
+    .await
+    .unwrap();
     assert!(operations.is_empty(), "{operations:?}");
 }
 
@@ -370,21 +377,26 @@ async fn a_turn_whose_adapter_cannot_start_writes_nothing() {
 #[tokio::test]
 async fn stop_without_a_live_turn_records_the_request_and_stays_non_terminal() {
     let app = test_app().await;
-    let op = app
-        .runtime
-        .storage
-        .create_pending_operation(&app.thread, &app.runtime.instance_id)
-        .await
-        .unwrap();
-    app.runtime
-        .storage
-        .mark_operation_started(&op, &app.runtime.instance_id)
-        .await
-        .unwrap();
+    let op = shadows_core::Turns::create_pending_operation_for_test(
+        &app.runtime.storage_for_test(),
+        &app.thread,
+        &app.runtime.instance_id,
+    )
+    .await
+    .unwrap();
+    shadows_core::Turns::mark_operation_started_for_test(
+        &app.runtime.storage_for_test(),
+        &op,
+        &app.runtime.instance_id,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(stop(&app, &op).await, StopOutcome::NotLive);
 
-    let loaded = app.runtime.storage.get_operation(&op).await.unwrap();
+    let loaded = shadows_core::Turns::get_operation_for_test(&app.runtime.storage_for_test(), &op)
+        .await
+        .unwrap();
     assert_eq!(loaded.status_kind, "Running");
     assert!(loaded.cancel_requested_at.is_some());
     assert!(loaded.finished_at.is_none());
@@ -405,7 +417,9 @@ async fn unconfirmed_termination_keeps_the_registration_and_leaves_the_operation
 
     assert_eq!(stop(&app, &op).await, StopOutcome::TerminationFailed);
 
-    let loaded = app.runtime.storage.get_operation(&op).await.unwrap();
+    let loaded = shadows_core::Turns::get_operation_for_test(&app.runtime.storage_for_test(), &op)
+        .await
+        .unwrap();
     assert_eq!(loaded.status_kind, "Running");
     assert!(loaded.cancel_requested_at.is_some());
     assert!(loaded.finished_at.is_none());

@@ -35,7 +35,8 @@ impl Storage {
                             .await?;
                     return Ok(serde_json::from_str(&json)?);
                 }
-                crate::turns::check_running_turn_in(conn, thread, &turn).await?;
+                crate::operations::Operations::require_running_in(conn, thread, turn.as_str())
+                    .await?;
                 shape::require_structure(conn, &p).await?;
                 let revision: i64 = sqlx::query_scalar(
                     "SELECT roadmap_revision FROM design_workspace WHERE project_id=?",

@@ -443,7 +443,9 @@ async fn changed_instructions_reach_the_next_turn_once_as_a_context_block() {
     let l = listening_app().await;
     let running = start_settled(&l.app, "wait-for-release").await;
     for _ in 0..200 {
-        let op = l.app.storage.get_operation(&running).await.unwrap();
+        let op = shadows_core::Turns::get_operation_for_test(&l.app.storage, &running)
+            .await
+            .unwrap();
         if op.status_kind == "Running" {
             break;
         }

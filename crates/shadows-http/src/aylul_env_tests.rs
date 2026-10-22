@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use shadows_core::testing::{LiveHandles, Runtime, Sessions, Storage, acp, secrets};
+use shadows_core::testing::{LiveHandles, Sessions, Storage, acp, secrets};
 use shadows_core::{AppCore, AylulConfig, CoreParts, SecretKey};
 use tower::ServiceExt;
 
@@ -40,8 +40,14 @@ pub(crate) async fn world(configured: bool, key: bool) -> World {
         },
     );
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets,
-        runtime: Arc::new(Runtime::start(storage.clone()).await.unwrap().0),
+        runtime: Arc::new(
+            shadows_core::AppCore::runtime_for_tests(storage.clone())
+                .await
+                .unwrap()
+                .0,
+        ),
         storage,
         sessions,
         handles: Arc::new(LiveHandles::default()),

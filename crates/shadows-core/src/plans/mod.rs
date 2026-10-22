@@ -68,6 +68,7 @@ pub(crate) mod for_tests {
 pub struct Plans {
     storage: Arc<Storage>,
     grants: crate::grants::Grants,
+    operations: crate::operations::Operations,
     handles: Arc<LiveHandles>,
     ui: tokio::sync::broadcast::Sender<UiSignal>,
 }
@@ -117,14 +118,14 @@ impl Plans {
         if plan.project_id != grant.project_id {
             return Err(crate::StorageError::NotFound("workflow").into());
         }
-        let turn = self
-            .handles
-            .running_for(thread)
-            .await
-            .ok_or_else(|| CoreError::Refused {
-                code: crate::ErrorCode::InvalidCommand,
-                message: "no turn is running".into(),
-            })?;
+        let turn =
+            self.operations
+                .running_for(thread)
+                .await?
+                .ok_or_else(|| CoreError::Refused {
+                    code: crate::ErrorCode::InvalidCommand,
+                    message: "no turn is running".into(),
+                })?;
         let harness = crate::threads::Threads::turn_context_in(
             &mut *self
                 .storage
@@ -158,12 +159,14 @@ impl Plans {
     pub(crate) fn new(
         storage: Arc<Storage>,
         grants: crate::grants::Grants,
+        operations: crate::operations::Operations,
         handles: Arc<LiveHandles>,
         ui: tokio::sync::broadcast::Sender<UiSignal>,
     ) -> Self {
         Self {
             storage,
             grants,
+            operations,
             handles,
             ui,
         }
@@ -317,7 +320,7 @@ impl Plans {
         let writer = writer_of(grant)?;
         // A Planner's edit names the turn it was made in, when one is running.
         let turn = match grant.kind {
-            GrantKind::Thread => self.handles.running_for(own_thread(grant)?).await,
+            GrantKind::Thread => self.operations.running_for(own_thread(grant)?).await?,
             GrantKind::Project => None,
         };
         let expected = args.expected_revision;
@@ -340,12 +343,13 @@ impl Plans {
             .in_scope(grant, args.workflow_id.as_ref(), false)
             .await?;
         let thread = own_thread(grant)?;
-        let (op, tab) = (self.handles.running_turn(thread).await).ok_or_else(|| {
+        let op = self.operations.running_for(thread).await?.ok_or_else(|| {
             refused(
                 ErrorCode::InvalidCommand,
                 "no turn is running for this conversation",
             )
         })?;
+        let tab = self.handles.client_tab_for(&op).await;
         let writer = writer_of(grant)?;
         let params =
             json!({ "workflow": plan.id, "task_number": args.task_number, "place": args.place });

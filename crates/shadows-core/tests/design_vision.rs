@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use shadows_core::testing::{LiveHandles, Runtime, Storage, acp};
+use shadows_core::testing::{LiveHandles, Storage, acp};
 use shadows_core::{
     AdditionalPart, AppCore, CoreError, CoreParts, DesignOp, ProjectId, StandardRule,
     StandardsAdditions, StorageError, VisionContent,
@@ -35,8 +35,14 @@ async fn vision_edit_is_atomic_replayable_and_revision_checked() {
             .await
             .unwrap(),
     );
-    let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
+    let runtime = Arc::new(
+        shadows_core::AppCore::runtime_for_tests(storage.clone())
+            .await
+            .unwrap()
+            .0,
+    );
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime,

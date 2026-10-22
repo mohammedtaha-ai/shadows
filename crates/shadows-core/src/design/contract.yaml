@@ -1,3 +1,4 @@
+# Running authority is read through Operations; transaction guards remain in the caller snapshot.
 # Grant authority calls use Grants methods; refusing writes promote GrantsError through write_txn_as.
 # Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns project design edits (§18.2, §18.10–18.11), first called by person HTTP.
@@ -31,7 +32,7 @@ shapes:
     missing: Vec<String>
   Design:
     storage: Arc<Storage>
-    handles: Arc<LiveHandles>
+    operations: Operations
   AgreementContent:
     capability: String
     purpose: String

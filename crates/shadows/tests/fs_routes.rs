@@ -12,7 +12,6 @@ use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use shadows::cli::router;
 use shadows_core::testing::LiveHandles;
-use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::AppState;
@@ -22,11 +21,14 @@ use shadows_core::testing::acp;
 
 async fn app(tmp: &Path) -> (Router, tokio::sync::watch::Sender<bool>) {
     let storage = Arc::new(Storage::open(&tmp.join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             sessions: acp::fake_sessions(storage.clone()),
             storage,

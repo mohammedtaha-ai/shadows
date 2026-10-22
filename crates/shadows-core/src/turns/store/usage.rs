@@ -10,11 +10,12 @@ pub(crate) async fn record_usage_in(
     usage: Option<&TurnUsage>,
     ts: &str,
 ) -> Result<(), StorageError> {
+    let Some(thread_id) = crate::operations::Operations::started_thread_in(conn, op).await? else {
+        return Ok(());
+    };
     let row = sqlx::query(
-        "SELECT i.*, o.thread_id FROM agent_invocation i
-        JOIN operation o ON o.id=i.operation_id WHERE i.operation_id=?
-        AND i.harness_kind='aylul' AND i.usage_provider_slug IS NOT NULL
-        AND o.started_at IS NOT NULL",
+        "SELECT i.* FROM agent_invocation i WHERE i.operation_id=?
+        AND i.harness_kind='aylul' AND i.usage_provider_slug IS NOT NULL",
     )
     .bind(op.as_str())
     .fetch_optional(&mut *conn)
@@ -24,7 +25,7 @@ pub(crate) async fn record_usage_in(
     };
     let record = UsageRecord {
         operation_id: op.as_str().to_owned(),
-        thread_id: row.get("thread_id"),
+        thread_id,
         agent_slug: row.get("usage_agent_slug"),
         provider_slug: row.get("usage_provider_slug"),
         provider_name: row.get("usage_provider_name"),

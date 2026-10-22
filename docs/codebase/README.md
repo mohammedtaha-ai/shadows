@@ -184,9 +184,15 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/threads/title.rs` | the text a title taken from a conversation may read | `crates/shadows-core/src/threads/title.rs` |
 | `crates/shadows-core/src/threads/store/` | private ThreadsStore persistence | `crates/shadows-core/src/threads/store/thread.rs` |
 | `crates/shadows-core/src/threads/store/remove.rs` | atomic removal of a planning thread | `crates/shadows-core/src/threads/store/remove.rs` |
+| `crates/shadows-core/src/operations/` | durable operation lifecycle | `crates/shadows-core/src/operations/contract.yaml` |
+| `crates/shadows-core/src/operations/model.rs` | durable operation values | `crates/shadows-core/src/operations/contract.yaml` |
+| `crates/shadows-core/src/operations/store/` | private operation persistence | `crates/shadows-core/src/operations/contract.yaml` |
+| `crates/shadows-core/src/operations/fork.rs` | transactional fork eligibility | `crates/shadows-core/src/operations/contract.yaml` |
+| `crates/shadows-core/src/operations/testing.rs` | test-only runtime stop entry | `crates/shadows-core/src/operations/contract.yaml` |
+| `crates/shadows-core/src/turns/testing.rs` | test-only lifecycle composition | `crates/shadows-core/src/turns/contract.yaml` |
 | `crates/shadows-core/src/turns/` | Planner turns, from start to stop | `crates/shadows-core/src/turns/mod.rs` |
 | `crates/shadows-core/src/turns/model.rs` | the operation types callers meet | `crates/shadows-core/src/turns/model.rs` |
-| `crates/shadows-core/src/turns/store/` | turns' SQLite queries | `crates/shadows-core/src/turns/store/turn.rs` |
+| `crates/shadows-core/src/turns/store/` | turn command persistence | `crates/shadows-core/src/turns/store/turn.rs` |
 | `crates/shadows-core/src/turns/store/queue.rs` | the queue's SQLite queries | `crates/shadows-core/src/turns/store/queue.rs` |
 | `crates/shadows-core/src/turns/store/steer.rs` | recording a steered message | `crates/shadows-core/src/turns/store/steer.rs` |
 | `crates/shadows-core/src/turns/queue.rs` | the waiting messages of a conversation | `crates/shadows-core/src/turns/queue.rs` |

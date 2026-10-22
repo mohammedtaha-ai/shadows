@@ -37,7 +37,9 @@ fn ctx(id: &str, kind: &str) -> CommandContext {
 async fn fixture() -> (Fixture, ThreadId) {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let dir = ProjectDirectory::resolve(tmp.path()).unwrap();
     let project = shadows_core::testing::create_project(
         &storage,
@@ -104,10 +106,13 @@ async fn a_thread_defaults_to_claude_code_and_its_harness_locks_at_its_first_ope
     )
     .await
     .unwrap();
-    fx.storage
-        .create_pending_operation(&thread, &fx.runtime.instance_id)
-        .await
-        .unwrap();
+    shadows_core::Turns::create_pending_operation_for_test(
+        &fx.storage,
+        &thread,
+        &fx.runtime.instance_id,
+    )
+    .await
+    .unwrap();
     let locked = shadows_core::Threads::set_thread_harness_for_test(
         &fx.storage,
         &ctx("h3", "thread.harness"),
@@ -136,10 +141,13 @@ async fn a_thread_defaults_to_claude_code_and_its_harness_locks_at_its_first_ope
 #[tokio::test]
 async fn the_lock_holds_below_the_application() {
     let (fx, thread) = fixture().await;
-    fx.storage
-        .create_pending_operation(&thread, &fx.runtime.instance_id)
-        .await
-        .unwrap();
+    shadows_core::Turns::create_pending_operation_for_test(
+        &fx.storage,
+        &thread,
+        &fx.runtime.instance_id,
+    )
+    .await
+    .unwrap();
     let raw = sqlx::query("UPDATE planning_thread SET harness_kind = 'codex' WHERE id = ?")
         .bind(thread.as_str())
         .execute(fx.storage.reader())
@@ -178,11 +186,13 @@ async fn a_project_is_created_with_the_policy_modes_and_they_can_be_replaced() {
 #[tokio::test]
 async fn an_entry_can_name_its_operation_and_old_entries_name_none() {
     let (fx, thread) = fixture().await;
-    let op = fx
-        .storage
-        .create_pending_operation(&thread, &fx.runtime.instance_id)
-        .await
-        .unwrap();
+    let op = shadows_core::Turns::create_pending_operation_for_test(
+        &fx.storage,
+        &thread,
+        &fx.runtime.instance_id,
+    )
+    .await
+    .unwrap();
     let e = shadows_core::Threads::append_thread_entry_for_test(
         &fx.storage,
         &thread,

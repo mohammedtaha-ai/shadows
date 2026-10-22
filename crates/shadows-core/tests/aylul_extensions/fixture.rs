@@ -1,7 +1,7 @@
 //! Agent-scoped AYLUL sessions through the real core and synthetic ACP process.
 use serde_json::json;
 use shadows_core::ExtensionKind;
-use shadows_core::testing::{self, LiveHandles, Runtime, Sessions, SessionsConfig, Storage, acp};
+use shadows_core::testing::{self, LiveHandles, Sessions, SessionsConfig, Storage, acp};
 use shadows_core::{
     AgentInput, AppCore, AylulConfig, CoreParts, ProviderInput, SecretKey, ThreadId,
 };
@@ -21,7 +21,12 @@ pub(super) async fn world() -> World {
     std::fs::create_dir_all(&root).unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("test.db")).await.unwrap());
     let secrets = testing::secrets(storage.clone(), Some(SecretKey::from_bytes([7; 32])));
-    let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
+    let runtime = Arc::new(
+        shadows_core::AppCore::runtime_for_tests(storage.clone())
+            .await
+            .unwrap()
+            .0,
+    );
     let sessions = Sessions::new(
         acp::fake_adapter(),
         storage.clone(),
@@ -35,6 +40,7 @@ pub(super) async fn world() -> World {
         },
     );
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets,
         storage: storage.clone(),
         runtime,

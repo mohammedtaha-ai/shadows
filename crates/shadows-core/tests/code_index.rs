@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_core::testing::{
-    CommandContext, ProjectDirectory, Runtime, Sessions, Storage, acp, fingerprint,
+    CommandContext, ProjectDirectory, Sessions, Storage, acp, fingerprint,
 };
 use shadows_core::{AppCore, Asker, CodeConfig, CoreParts, IndexState, ProjectId};
 
@@ -85,8 +85,11 @@ async fn core_over(storage: Arc<Storage>) -> Arc<AppCore> {
         adapter_version: "none".into(),
         agent_version: "none".into(),
     });
-    let (runtime, _) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime: Arc::new(runtime),

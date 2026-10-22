@@ -44,7 +44,7 @@ impl Design {
     async fn agreement_origin(&self, grant: &Grant) -> Result<AgreementOrigin, CoreError> {
         let writer = writer(grant)?;
         let operation = match &writer {
-            Writer::Planner { thread, .. } => self.handles.running_for(thread).await,
+            Writer::Planner { thread, .. } => self.operations.running_for(thread).await?,
             _ => None,
         };
         Ok(AgreementOrigin { writer, operation })

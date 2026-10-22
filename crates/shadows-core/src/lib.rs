@@ -9,6 +9,7 @@ mod extensions;
 mod grants;
 mod harness;
 mod instructions;
+mod operations;
 mod person;
 mod plans;
 mod projects;
@@ -62,6 +63,7 @@ pub use harness::{
     RememberedSettings,
 };
 pub use instructions::{Instructions, InstructionsVersion};
+pub use operations::Operations;
 pub use person::{Person, PersonInput, PersonSettings, Theme};
 pub use plans::{
     AcceptanceItem, AgreementBinding, Approved, BindingParticipant, DraftStart, DraftStarted,

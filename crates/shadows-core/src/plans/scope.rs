@@ -91,7 +91,7 @@ impl Plans {
                 ),
             ));
         }
-        let op = self.handles.running_for(thread).await.ok_or_else(|| {
+        let op = self.operations.running_for(thread).await?.ok_or_else(|| {
             refused(
                 ErrorCode::InvalidCommand,
                 "no turn is running for this conversation",

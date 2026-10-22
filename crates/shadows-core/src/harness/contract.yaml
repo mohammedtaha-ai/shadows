@@ -1,3 +1,4 @@
+# Running authority is read through Operations; transaction guards remain in the caller snapshot.
 # Setups receives Grants from AppCore. Thread liveness and ownership are checked in the grant-issuing write.
 # Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns the harnesses and each thread's open session (spec §12.2–§12.4, §12.8,
@@ -636,7 +637,7 @@ agreements:
       the session's lease before changing it
     holds: true
     why: >
-      Both call `Storage::thread_is_busy` (`has_open_operation` on a read
+      Both call `Operations::thread_is_busy` (`Operations::has_open_in` on a read
       connection) after `Sessions::harness_available` (`aylul` only with a
       profile) and before `Sessions::open`,
       and both change the session only while holding `lease_events`, mapping

@@ -194,3 +194,18 @@ impl Threads {
         Ok((ThreadId::from_stored(thread), ordinal))
     }
 }
+
+impl Threads {
+    pub(crate) async fn fork_operation_in(
+        conn: &mut SqliteConnection,
+        source: &ThreadId,
+        at: &ThreadEntryId,
+    ) -> Result<Option<String>, StorageError> {
+        sqlx::query_scalar("SELECT operation_id FROM thread_entry WHERE id=? AND thread_id=?")
+            .bind(at.as_str())
+            .bind(source.as_str())
+            .fetch_optional(conn)
+            .await?
+            .ok_or(StorageError::NotFound("thread_entry"))
+    }
+}

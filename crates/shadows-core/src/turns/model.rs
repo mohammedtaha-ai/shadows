@@ -3,12 +3,7 @@ use crate::plans::{Focus, PlanId};
 use crate::runtime::RuntimeInstanceId;
 use crate::threads::{ThreadEntryId, ThreadId};
 
-newtype_id! {
-    /// Spec §4.1. This and `RuntimeInstanceId` are the pair that first sat
-    /// adjacent in one call — `mark_operation_started(op_id, expected_runtime)` —
-    /// where two `String`s compiled cleanly when swapped.
-    OperationId
-}
+pub use crate::operations::OperationId;
 
 newtype_id! {
     /// Spec §20.2: a message written while a turn ran, waiting to be sent.

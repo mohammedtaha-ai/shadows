@@ -52,7 +52,6 @@ use super::{
 use crate::{
     db::{Actor, StorageError},
     harness::{OpenSession, Sessions},
-    runtime::Runtime,
     threads::{NewThreadEntry, ThreadEntryKind, ThreadId},
 };
 use shadows_agent::{
@@ -80,7 +79,7 @@ pub enum StopOutcome {
 
 pub(crate) struct TurnWatch {
     pub op_id: OperationId,
-    pub runtime: Arc<Runtime>,
+    pub storage: Arc<crate::db::Storage>,
     pub handles: Arc<LiveHandles>,
     pub sessions: Arc<Sessions>,
     pub opened: OpenSession,
@@ -126,7 +125,6 @@ pub(super) async fn persist(w: &TurnWatch, entries: Vec<Durable>) {
         let (thread, operation) = (w.thread_id.clone(), w.op_id.clone());
         let ts = crate::db::now();
         if let Err(error) = w
-            .runtime
             .storage
             .write_txn(move |conn| {
                 Box::pin(async move {
@@ -172,7 +170,7 @@ async fn accept(
             .as_ref()
             .and_then(|r| limits_from(r, &now_rfc3339()));
         if let Some(limits) = limits
-            && let Err(error) = w.runtime.storage.record_limits(&w.harness, &limits).await
+            && let Err(error) = w.storage.record_limits(&w.harness, &limits).await
         {
             tracing::error!(%error, "planner.record_limits_failed");
         }
@@ -278,7 +276,6 @@ pub(crate) fn watch_turn(
             if answer.is_ok() && w.opened.how != "resume" {
                 let (thread, session) = (w.thread_id.clone(), w.opened.session_id.clone());
                 if let Err(error) = w
-                    .runtime
                     .storage
                     .write_txn(move |conn| {
                         Box::pin(async move {
@@ -311,62 +308,68 @@ pub(crate) fn watch_turn(
                         native_session_id: Some(w.opened.session_id.clone()),
                         ..TurnObservation::from_usage(last_usage.as_ref())
                     };
-                    w.runtime
-                        .storage
-                        .mark_operation_completed(
-                            &w.op_id,
-                            serde_json::json!({ "stop_reason": "end_turn" }),
-                            &seen,
-                        )
-                        .await
+                    super::store::TurnsStore {
+                        storage: &w.storage,
+                    }
+                    .mark_operation_completed(
+                        &w.op_id,
+                        serde_json::json!({ "stop_reason": "end_turn" }),
+                        &seen,
+                    )
+                    .await
                 }
                 Ok(TurnEnd::Cancelled) if w.cancel_requested.load(Ordering::SeqCst) => {
-                    w.runtime
-                        .storage
-                        .mark_operation_cancelled_with_usage(&w.op_id, token_usage.as_ref())
-                        .await
+                    super::store::TurnsStore {
+                        storage: &w.storage,
+                    }
+                    .mark_operation_cancelled_with_usage(&w.op_id, token_usage.as_ref())
+                    .await
                 }
                 Ok(TurnEnd::Cancelled) => {
-                    w.runtime
-                        .storage
-                        .mark_operation_failed_with_usage(
-                            &w.op_id,
-                            FailureStage::Run,
-                            "the harness cancelled the turn on its own",
-                            token_usage.as_ref(),
-                        )
-                        .await
+                    super::store::TurnsStore {
+                        storage: &w.storage,
+                    }
+                    .mark_operation_failed_with_usage(
+                        &w.op_id,
+                        FailureStage::Run,
+                        "the harness cancelled the turn on its own",
+                        token_usage.as_ref(),
+                    )
+                    .await
                 }
                 Ok(TurnEnd::Refused(reason)) => {
-                    w.runtime
-                        .storage
-                        .mark_operation_failed_with_usage(
-                            &w.op_id,
-                            FailureStage::Run,
-                            &reason,
-                            token_usage.as_ref(),
-                        )
-                        .await
+                    super::store::TurnsStore {
+                        storage: &w.storage,
+                    }
+                    .mark_operation_failed_with_usage(
+                        &w.op_id,
+                        FailureStage::Run,
+                        &reason,
+                        token_usage.as_ref(),
+                    )
+                    .await
                 }
                 Err(AcpError::Closed) => {
                     if let Err(error) = w.sessions.terminate_adapter(&w.thread_id, &w.opened).await
                     {
                         tracing::error!(%error, "planner.dead_adapter_cleanup_failed");
                     }
-                    w.runtime
-                        .storage
-                        .mark_operation_failed(
-                            &w.op_id,
-                            FailureStage::Run,
-                            "the harness exited during the turn",
-                        )
-                        .await
+                    super::store::TurnsStore {
+                        storage: &w.storage,
+                    }
+                    .mark_operation_failed(
+                        &w.op_id,
+                        FailureStage::Run,
+                        "the harness exited during the turn",
+                    )
+                    .await
                 }
                 Err(AcpError::Rpc(reason)) => {
-                    w.runtime
-                        .storage
-                        .mark_operation_failed(&w.op_id, FailureStage::Run, &reason)
-                        .await
+                    super::store::TurnsStore {
+                        storage: &w.storage,
+                    }
+                    .mark_operation_failed(&w.op_id, FailureStage::Run, &reason)
+                    .await
                 }
             };
             let completed = ended && result.is_ok();
@@ -383,14 +386,13 @@ pub(crate) fn watch_turn(
 
 impl PlannerTurn {
     pub async fn stop(
-        runtime: Arc<Runtime>,
+        storage: Arc<crate::db::Storage>,
         handles: Arc<LiveHandles>,
         sessions: Arc<Sessions>,
         op_id: &OperationId,
         requester: Actor,
     ) -> Result<StopOutcome, StorageError> {
-        runtime
-            .storage
+        super::store::TurnsStore { storage: &storage }
             .request_cancellation(op_id, requester)
             .await?;
         let Some((thread_id, session, flag, ended, span)) = ({
@@ -433,7 +435,9 @@ impl PlannerTurn {
             return Ok(StopOutcome::TerminationFailed);
         }
         tracing::info!(parent: &span, "planner.stop: the harness did not confirm; tree reaped");
-        runtime.storage.mark_operation_cancelled(op_id).await?;
+        super::store::TurnsStore { storage: &storage }
+            .mark_operation_cancelled(op_id)
+            .await?;
         Ok(StopOutcome::Cancelled)
     }
 }

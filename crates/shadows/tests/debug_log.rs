@@ -80,7 +80,7 @@ async fn debug_mode_writes_a_run_to_a_file_under_the_data_dir() {
     // adapter and its log shows the tree reaped.
     let stopped = start(&daemon, &thread, "ignore-cancel").await;
     PlannerTurn::stop(
-        daemon.runtime.clone(),
+        daemon.runtime.storage_for_test(),
         daemon.handles.clone(),
         daemon.sessions.clone(),
         &stopped,
@@ -194,7 +194,9 @@ struct Daemon {
 
 async fn app_state(tmp: &tempfile::TempDir) -> (Daemon, tokio::sync::watch::Sender<bool>) {
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let runtime = Arc::new(runtime);
     let handles = Arc::new(LiveHandles::default());
     let sessions = acp::fake_sessions(storage.clone());
@@ -204,6 +206,7 @@ async fn app_state(tmp: &tempfile::TempDir) -> (Daemon, tokio::sync::watch::Send
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let state = AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             storage,
             runtime: runtime.clone(),
@@ -238,7 +241,7 @@ async fn seed_thread(runtime: &Runtime) -> shadows_core::ThreadId {
         request_fingerprint: fingerprint("project.create", &params),
     };
     let project = shadows_core::testing::create_project(
-        &runtime.storage,
+        &runtime.storage_for_test(),
         &ctx,
         "demo",
         "Demo",
@@ -254,7 +257,7 @@ async fn seed_thread(runtime: &Runtime) -> shadows_core::ThreadId {
         ..ctx
     };
     shadows_core::Threads::create_planning_thread_for_test(
-        &runtime.storage,
+        &runtime.storage_for_test(),
         &tctx,
         &project.id,
         "T",
@@ -268,7 +271,10 @@ async fn seed_thread(runtime: &Runtime) -> shadows_core::ThreadId {
 
 async fn wait_for_terminal(runtime: &Runtime, op: &OperationId) {
     for _ in 0..100 {
-        let status = runtime.storage.get_operation(op).await.unwrap().status_kind;
+        let status = shadows_core::Turns::get_operation_for_test(&runtime.storage_for_test(), op)
+            .await
+            .unwrap()
+            .status_kind;
         if status != "Pending" && status != "Running" {
             return;
         }

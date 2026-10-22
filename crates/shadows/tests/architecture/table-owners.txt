@@ -33,7 +33,7 @@ harness_limit :: harness
 harness_model_effort :: harness
 harness_preference :: harness
 mcp_grant :: grants
-operation :: turns
+operation :: operations
 plan :: plans
 planner_instructions_version :: instructions
 planning_thread :: threads

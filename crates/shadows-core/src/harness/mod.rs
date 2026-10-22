@@ -56,6 +56,7 @@ use crate::threads::ThreadId;
 /// Harness: what storage holds, and the sessions each open thread has.
 pub struct Harness {
     storage: Arc<Storage>,
+    operations: crate::operations::Operations,
     sessions: Arc<Sessions>,
     projects: Projects,
 }
@@ -71,9 +72,15 @@ impl Harness {
             .ok_or(CoreError::AylulNotConfigured)
     }
 
-    pub(crate) fn new(storage: Arc<Storage>, sessions: Arc<Sessions>, projects: Projects) -> Self {
+    pub(crate) fn new(
+        storage: Arc<Storage>,
+        operations: crate::operations::Operations,
+        sessions: Arc<Sessions>,
+        projects: Projects,
+    ) -> Self {
         Self {
             storage,
+            operations,
             sessions,
             projects,
         }
@@ -203,7 +210,7 @@ impl Harness {
         if !self.sessions.harness_available(&context.harness).await? {
             return Err(CoreError::HarnessUnavailable(context.harness));
         }
-        if self.storage.thread_is_busy(thread).await? {
+        if self.operations.thread_is_busy(thread).await? {
             return Err(StorageError::ThreadBusy.into());
         }
         let opened = self.sessions.open(thread).await?;

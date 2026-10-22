@@ -375,11 +375,12 @@ async fn operation_transitions_reach_their_threads_stream() {
     let (_project, thread) = seed(&storage).await;
     let live = Live::start(storage.clone()).await;
     let runtime = &live.runtime.instance_id;
-    let op = storage
-        .create_pending_operation(&thread.id, runtime)
+    let op = shadows_core::Turns::create_pending_operation_for_test(&storage, &thread.id, runtime)
         .await
         .unwrap();
-    storage.mark_operation_started(&op, runtime).await.unwrap();
+    shadows_core::Turns::mark_operation_started_for_test(&storage, &op, runtime)
+        .await
+        .unwrap();
 
     let mut stream = live.open(&thread.id).await;
     let replayed = stream.read_until("event: caught-up").await;
@@ -388,10 +389,14 @@ async fn operation_transitions_reach_their_threads_stream() {
         "the start replays on the thread's stream: {replayed}"
     );
 
-    storage
-        .mark_operation_completed(&op, serde_json::json!({}), &Default::default())
-        .await
-        .unwrap();
+    shadows_core::Turns::mark_operation_completed_for_test(
+        &storage,
+        &op,
+        serde_json::json!({}),
+        &Default::default(),
+    )
+    .await
+    .unwrap();
     let text = stream.read_until("OperationCompleted").await;
     assert_eq!(
         durable_kinds(&text).last().map(String::as_str),
@@ -424,12 +429,15 @@ struct Live {
 
 impl Live {
     async fn start(storage: Arc<Storage>) -> Self {
-        let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+        let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+            .await
+            .unwrap();
         let runtime = Arc::new(runtime);
         let (bus, _) = tokio::sync::broadcast::channel(64);
         let (stopping, shutdown) = tokio::sync::watch::channel(false);
         let state = AppState {
             core: AppCore::assemble(CoreParts {
+                operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
                 secrets: shadows_core::testing::secrets(storage.clone(), None),
                 sessions: acp::fake_sessions(storage.clone()),
                 storage,

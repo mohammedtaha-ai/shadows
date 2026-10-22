@@ -34,7 +34,7 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
         request_fingerprint: fingerprint("project.create", &params),
     };
     let project = shadows_core::testing::create_project(
-        &runtime.storage,
+        &runtime.storage_for_test(),
         &ctx,
         slug,
         slug,
@@ -50,7 +50,7 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
         ..ctx
     };
     shadows_core::Threads::create_planning_thread_for_test(
-        &runtime.storage,
+        &runtime.storage_for_test(),
         &tctx,
         &project.id,
         "T",
@@ -64,7 +64,9 @@ async fn project_with_thread(runtime: &Runtime, slug: &str, dir: &Path) -> Threa
 
 async fn wait_for_status(runtime: &Runtime, op: &OperationId, wanted: &str) -> Operation {
     for _ in 0..200 {
-        let loaded = runtime.storage.get_operation(op).await.unwrap();
+        let loaded = shadows_core::Turns::get_operation_for_test(&runtime.storage_for_test(), op)
+            .await
+            .unwrap();
         if loaded.status_kind == wanted {
             return loaded;
         }
@@ -109,14 +111,16 @@ async fn stopping_one_turn_leaves_a_concurrent_turn_running_to_completion() {
     std::fs::create_dir(&stopped_dir).unwrap();
     std::fs::create_dir(&kept_dir).unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage)
+        .await
+        .unwrap();
     let runtime = Arc::new(runtime);
     let stopped_thread = project_with_thread(&runtime, "one", &stopped_dir).await;
     let kept_thread = project_with_thread(&runtime, "two", &kept_dir).await;
 
     let handles = Arc::new(LiveHandles::default());
     let (bus, _rx) = tokio::sync::broadcast::channel(64);
-    let sessions = acp::fake_sessions(runtime.storage.clone());
+    let sessions = acp::fake_sessions(runtime.storage_for_test().clone());
     let start = async |thread: &ThreadId, prompt: &str| {
         turn::start_direct(&runtime, &handles, &sessions, &bus, thread, prompt)
             .await
@@ -132,7 +136,7 @@ async fn stopping_one_turn_leaves_a_concurrent_turn_running_to_completion() {
     let kept_pid = sessions.pid(&kept_thread).await.expect("live");
 
     let outcome = PlannerTurn::stop(
-        runtime.clone(),
+        runtime.storage_for_test(),
         handles.clone(),
         sessions.clone(),
         &stopped,
@@ -146,7 +150,9 @@ async fn stopping_one_turn_leaves_a_concurrent_turn_running_to_completion() {
         !is_alive(stopped_pid),
         "the stopped turn's process survived"
     );
-    let other = runtime.storage.get_operation(&kept).await.unwrap();
+    let other = shadows_core::Turns::get_operation_for_test(&runtime.storage_for_test(), &kept)
+        .await
+        .unwrap();
     assert_eq!(
         other.status_kind, "Running",
         "stopping one turn ended another"

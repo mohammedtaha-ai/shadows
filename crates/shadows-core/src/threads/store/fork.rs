@@ -7,15 +7,15 @@
 
 use sqlx::SqliteConnection;
 
-use crate::db::{Actor, CommandContext, StorageError, append_event, classify, now, record_command};
+use crate::db::{Actor, CommandContext, StorageError, append_event, record_command};
 use crate::threads::model::{PlanningThread, ThreadEntryId, ThreadId};
-use crate::turns::has_open_operation;
 
 /// The session to fork, when `at` is a valid fork point of `source`.
 async fn fork_point(
     conn: &mut SqliteConnection,
     source: &ThreadId,
     at: &ThreadEntryId,
+    completed: bool,
 ) -> Result<(i64, String), crate::threads::ThreadsError> {
     let entry: Option<(i64, Option<String>)> = sqlx::query_as(
         "SELECT ordinal, operation_id FROM thread_entry WHERE id = ? AND thread_id = ?",
@@ -24,130 +24,104 @@ async fn fork_point(
     .bind(source.as_str())
     .fetch_optional(&mut *conn)
     .await?;
-    let (ordinal, operation) = entry.ok_or(StorageError::NotFound("thread_entry"))?;
+    let (ordinal, _operation) = entry.ok_or(StorageError::NotFound("thread_entry"))?;
     let (last, session): (i64, Option<String>) = sqlx::query_as(
         "SELECT next_entry_ordinal - 1, harness_session_id FROM planning_thread WHERE id = ?",
     )
     .bind(source.as_str())
     .fetch_one(&mut *conn)
     .await?;
-    let completed = match &operation {
-        Some(op) => {
-            let status: Option<String> =
-                sqlx::query_scalar("SELECT status_kind FROM operation WHERE id = ?")
-                    .bind(op)
-                    .fetch_optional(&mut *conn)
-                    .await?;
-            status.as_deref() == Some("Completed")
-        }
-        None => false,
-    };
     match session {
         Some(session) if ordinal == last && completed => Ok((ordinal, session)),
         _ => Err(crate::threads::ThreadsError::ForkPointNotSupported),
     }
 }
 
-impl super::ThreadsStore {
+impl crate::threads::Threads {
     /// Creates, as one command, a thread in the source's project on its
     /// harness, holding copies of the source's entries up to `at_entry`
     /// under new ids and ordinals, and naming the source, the entry and the
     /// source's harness session. Copied entries keep their `operation_id`
     /// and refs: provenance, read-only. The source is not changed. A replay
     /// answers the fork already made.
-    pub(in crate::threads) async fn fork_thread(
-        &self,
+    pub(crate) async fn fork_in(
+        conn: &mut SqliteConnection,
         ctx: &CommandContext,
         source: &ThreadId,
-        at_entry: &ThreadEntryId,
+        at: &ThreadEntryId,
+        completed: bool,
+        ts: &str,
     ) -> Result<PlanningThread, crate::threads::ThreadsError> {
-        let (ctx, source, at, ts) = (ctx.clone(), source.clone(), at_entry.clone(), now());
-        self.storage
-            .write_txn_as(move |conn| {
-                Box::pin(async move {
-                    if let Some(id) = classify(conn, &ctx, "Thread", source.as_str()).await? {
-                        return Ok(super::ThreadsStore::load_thread(
-                            conn,
-                            &ThreadId::from_stored(id),
-                        )
-                        .await?);
-                    }
-                    let original = super::ThreadsStore::load_thread(conn, &source).await?;
-                    if original.removed_at.is_some() {
-                        return Err(StorageError::NotFound("planning_thread").into());
-                    }
-                    if has_open_operation(conn, &source).await? {
-                        return Err(StorageError::ThreadBusy.into());
-                    }
-                    let (upto, session) = fork_point(conn, &source, &at).await?;
-                    let id = ThreadId::generate();
-                    // The fork's title keeps its source's `title_source`:
-                    // a name a person gave is still theirs, and the harness may
-                    // title the fork's own session as it would its source's.
-                    let title = format!("{} (fork)", original.title);
-                    sqlx::query(
-                        "INSERT INTO planning_thread
+        let original = super::ThreadsStore::load_thread(conn, source).await?;
+        if original.removed_at.is_some() {
+            return Err(StorageError::NotFound("planning_thread").into());
+        }
+        let (upto, session) = fork_point(conn, source, at, completed).await?;
+        let id = ThreadId::generate();
+        // The fork's title keeps its source's `title_source`:
+        // a name a person gave is still theirs, and the harness may
+        // title the fork's own session as it would its source's.
+        let title = format!("{} (fork)", original.title);
+        sqlx::query(
+            "INSERT INTO planning_thread
                        (id, project_id, title, title_source, status, next_entry_ordinal,
                         harness_kind, forked_from_thread, forked_from_entry, fork_session_id,
                         created_at, profile)
                      VALUES (?,?,?, (SELECT title_source FROM planning_thread WHERE id = ?),
                              'Open', ?, ?, ?, ?, ?, ?, ?)",
-                    )
-                    .bind(id.as_str())
-                    .bind(original.project_id.as_str())
-                    .bind(&title)
-                    .bind(source.as_str())
-                    .bind(upto + 1)
-                    .bind(&original.harness)
-                    .bind(source.as_str())
-                    .bind(at.as_str())
-                    .bind(&session)
-                    .bind(&ts)
-                    .bind(&original.profile)
-                    .execute(&mut *conn)
-                    .await?;
-                    append_event(
-                        conn,
-                        crate::db::JournalEntry {
-                            event_id: uuid::Uuid::new_v4().to_string(),
-                            kind: "PlanningThreadCreated".into(),
-                            actor: Actor::user(&ctx.principal_id),
-                            causation: None,
-                            correlation_id: None,
-                            project_id: Some(original.project_id.as_str().to_owned()),
-                            thread_id: Some(id.as_str().to_owned()),
-                            operation_id: None,
-                            payload_json: serde_json::json!({
-                                "title": title,
-                                "harness": original.harness,
-                                "forked_from_thread": source.as_str(),
-                                "forked_from_entry": at.as_str(),
-                            })
-                            .to_string(),
-                        },
-                        &ts,
-                    )
-                    .await?;
-                    let copied = copy_entries(conn, &source, &id, upto, &ts).await?;
-                    sqlx::query("UPDATE planning_thread SET next_entry_ordinal = ? WHERE id = ?")
-                        .bind(copied + 1)
-                        .bind(id.as_str())
-                        .execute(&mut *conn)
-                        .await?;
-                    record_command(
-                        conn,
-                        &ctx,
-                        "Thread",
-                        source.as_str(),
-                        "PlanningThread",
-                        id.as_str(),
-                        &ts,
-                    )
-                    .await?;
-                    Ok(super::ThreadsStore::load_thread(conn, &id).await?)
+        )
+        .bind(id.as_str())
+        .bind(original.project_id.as_str())
+        .bind(&title)
+        .bind(source.as_str())
+        .bind(upto + 1)
+        .bind(&original.harness)
+        .bind(source.as_str())
+        .bind(at.as_str())
+        .bind(&session)
+        .bind(ts)
+        .bind(&original.profile)
+        .execute(&mut *conn)
+        .await?;
+        append_event(
+            conn,
+            crate::db::JournalEntry {
+                event_id: uuid::Uuid::new_v4().to_string(),
+                kind: "PlanningThreadCreated".into(),
+                actor: Actor::user(&ctx.principal_id),
+                causation: None,
+                correlation_id: None,
+                project_id: Some(original.project_id.as_str().to_owned()),
+                thread_id: Some(id.as_str().to_owned()),
+                operation_id: None,
+                payload_json: serde_json::json!({
+                    "title": title,
+                    "harness": original.harness,
+                    "forked_from_thread": source.as_str(),
+                    "forked_from_entry": at.as_str(),
                 })
-            })
-            .await
+                .to_string(),
+            },
+            ts,
+        )
+        .await?;
+        let copied = copy_entries(conn, source, &id, upto, ts).await?;
+        sqlx::query("UPDATE planning_thread SET next_entry_ordinal = ? WHERE id = ?")
+            .bind(copied + 1)
+            .bind(id.as_str())
+            .execute(&mut *conn)
+            .await?;
+        record_command(
+            conn,
+            ctx,
+            "Thread",
+            source.as_str(),
+            "PlanningThread",
+            id.as_str(),
+            ts,
+        )
+        .await?;
+        Ok(super::ThreadsStore::load_thread(conn, &id).await?)
     }
 }
 

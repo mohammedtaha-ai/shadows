@@ -63,7 +63,12 @@ async fn start(app: &App, body: Value) -> OperationId {
 
 async fn wait_running(app: &App, op: &OperationId) {
     for _ in 0..200 {
-        if app.storage.get_operation(op).await.unwrap().status_kind == "Running" {
+        if shadows_core::Turns::get_operation_for_test(&app.storage, op)
+            .await
+            .unwrap()
+            .status_kind
+            == "Running"
+        {
             return;
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
@@ -175,11 +180,9 @@ async fn a_focus_on_a_task_of_another_plan_is_refused() {
     .await;
     assert_eq!(answer["message"], "the chosen task is not in that plan");
     assert_eq!(entries(&l.app).await.len(), before, "nothing was written");
-    let turns = l
-        .app
-        .storage
-        .list_operations_for_thread(&l.app.thread)
-        .await;
+    let turns =
+        shadows_core::Turns::list_operations_for_thread_for_test(&l.app.storage, &l.app.thread)
+            .await;
     assert!(turns.unwrap().is_empty());
 }
 

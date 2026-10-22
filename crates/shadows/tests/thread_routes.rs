@@ -71,7 +71,10 @@ async fn a_deleted_conversation_is_gone_but_readable() {
     assert_eq!(status, 200, "{removed}");
     assert!(removed["removed_at"].is_string());
     assert_eq!(
-        app.storage.get_operation(&op).await.unwrap().status_kind,
+        shadows_core::Turns::get_operation_for_test(&app.storage, &op)
+            .await
+            .unwrap()
+            .status_kind,
         "Cancelled"
     );
     assert_eq!(app.sessions.live_count().await, 0);

@@ -1,3 +1,4 @@
+# Running authority is read through Operations; transaction guards remain in the caller snapshot.
 # Grant authority calls use Grants methods; refusing writes promote GrantsError through write_txn_as.
 # Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns plan versions under the rules of spec §13: every read, start, edit,
@@ -36,7 +37,8 @@ shapes:
   Plans:
     storage: Arc<Storage>
     grants: Grants
-    handles: Arc<LiveHandles>
+    operations: Operations
+    handles: Arc<LiveHandles> # Transport tab lookup only; running authority is durable.
     # Live only: a `plan_show` signal nobody receives is not a failure.
     ui: broadcast::Sender<UiSignal>
   DraftStart:
@@ -637,7 +639,7 @@ not_the_caller's:
 
 open_questions:
   - >
-      `show` reads the running turn from `LiveHandles::running_turn` before its
+      `show` reads the running turn from `Operations::running_for` before its
       write; whether a turn that ends between that read and `show_plan`'s
       transaction can still receive a card anchored to it is decided by the
       operation store and the turn's end (Turns), not here.

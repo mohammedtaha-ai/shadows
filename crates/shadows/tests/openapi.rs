@@ -22,7 +22,6 @@ use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
 use shadows::cli::router;
 use shadows_core::testing::LiveHandles;
-use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_http::{AppState, openapi_document};
@@ -287,11 +286,14 @@ fn ids_errors_and_the_stream_are_described_as_clients_rely_on() {
 async fn the_document_is_served_and_every_path_it_names_is_routed() {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (_stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             sessions: acp::fake_sessions(storage.clone()),
             storage,

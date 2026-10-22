@@ -7,7 +7,7 @@ mod cross_plan;
 
 #[tokio::test]
 async fn binding_storage_checks_agreed_party_and_exact_operations_atomically() {
-    use shadows_core::testing::{LiveHandles, Runtime, Writer, acp};
+    use shadows_core::testing::{LiveHandles, Writer, acp};
     use shadows_core::{
         AgreementContent, AgreementParty, AgreementRole, AppCore, CoreParts, DesignOp, PartContent,
         PartId, WorkflowId,
@@ -16,9 +16,15 @@ async fn binding_storage_checks_agreed_party_and_exact_operations_atomically() {
     let (tmp, storage) = cross_plan::fixture().await;
     let storage = Arc::new(storage);
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
-        runtime: Arc::new(Runtime::start(storage.clone()).await.unwrap().0),
+        runtime: Arc::new(
+            shadows_core::AppCore::runtime_for_tests(storage.clone())
+                .await
+                .unwrap()
+                .0,
+        ),
         sessions: acp::fake_sessions(storage.clone()),
         handles: Arc::new(LiveHandles::default()),
         bus: tokio::sync::broadcast::channel(32).0,

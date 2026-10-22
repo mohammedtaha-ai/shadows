@@ -13,15 +13,22 @@ impl Turns {
         conn: &mut SqliteConnection,
         operation: &OperationId,
     ) -> Result<EffectiveStandards, StorageError> {
-        let row: Option<(String, Option<String>)> = sqlx::query_as(
-            "SELECT o.thread_id,i.standards_additions_version_id
-             FROM operation o JOIN agent_invocation i ON i.operation_id=o.id
-             WHERE o.id=?",
+        let operation_row = crate::operations::Operations::get_operation_in(conn, operation)
+            .await
+            .map_err(|error| match error {
+                StorageError::NotFound(_) => StorageError::NotFound("invocation"),
+                other => other,
+            })?;
+        let thread = operation_row
+            .thread_id
+            .ok_or(StorageError::NotFound("invocation"))?;
+        let pin: Option<Option<String>> = sqlx::query_scalar(
+            "SELECT standards_additions_version_id FROM agent_invocation WHERE operation_id=?",
         )
         .bind(operation.as_str())
         .fetch_optional(&mut *conn)
         .await?;
-        let (thread, pin) = row.ok_or(StorageError::NotFound("invocation"))?;
+        let pin = pin.ok_or(StorageError::NotFound("invocation"))?;
         let project = crate::threads::Threads::project_in(
             conn,
             &crate::threads::ThreadId::from_stored(thread),
@@ -150,7 +157,7 @@ mod tests {
             Turns::standards_for_invocation_in(&mut conn, &OperationId::generate()).await,
             Err(StorageError::NotFound("invocation"))
         ));
-        Storage::mark_operation_failed(
+        crate::turns::Turns::mark_operation_failed_for_test(
             &turns.storage,
             &started.operation_id,
             crate::turns::model::FailureStage::Prepare,

@@ -18,11 +18,11 @@ use shadows_agent::events::HarnessEvent;
 use shadows_core::StartError;
 use shadows_core::StopKind;
 use shadows_core::ThreadId;
+use shadows_core::testing::LiveHandles;
 use shadows_core::testing::Runtime;
 use shadows_core::testing::Sessions;
 use shadows_core::testing::Storage;
 use shadows_core::testing::{CommandContext, fingerprint};
-use shadows_core::testing::{LiveHandles, shut_down};
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
 use shadows_http::AppState;
@@ -45,7 +45,9 @@ struct Fixture {
 async fn fixture() -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage)
+        .await
+        .unwrap();
     let runtime = Arc::new(runtime);
 
     let params = serde_json::json!({ "slug": "demo" });
@@ -59,7 +61,7 @@ async fn fixture() -> Fixture {
         request_fingerprint: fingerprint("project.create", &params),
     };
     let project = shadows_core::testing::create_project(
-        &runtime.storage,
+        &runtime.storage_for_test(),
         &ctx,
         "demo",
         "Demo",
@@ -75,7 +77,7 @@ async fn fixture() -> Fixture {
         ..ctx
     };
     let thread = shadows_core::Threads::create_planning_thread_for_test(
-        &runtime.storage,
+        &runtime.storage_for_test(),
         &tctx,
         &project.id,
         "T",
@@ -84,7 +86,7 @@ async fn fixture() -> Fixture {
     )
     .await
     .unwrap();
-    let sessions = acp::fake_sessions(runtime.storage.clone());
+    let sessions = acp::fake_sessions(runtime.storage_for_test().clone());
     Fixture {
         _tmp: tmp,
         runtime,
@@ -113,8 +115,10 @@ impl Fixture {
         confirm_within: Duration,
         escalate: impl Future<Output = ()>,
     ) -> StopKind {
-        shut_down(
+        shadows_core::testing::PlannerTurn::shut_down(
             self.runtime.clone(),
+            self.runtime.storage_for_test(),
+            shadows_core::AppCore::operations_for_tests(self.runtime.storage_for_test()),
             self.handles.clone(),
             self.sessions.clone(),
             confirm_within,
@@ -125,7 +129,9 @@ impl Fixture {
     }
 
     async fn operation(&self, op: &OperationId) -> Operation {
-        self.runtime.storage.get_operation(op).await.unwrap()
+        shadows_core::Turns::get_operation_for_test(&self.runtime.storage_for_test(), op)
+            .await
+            .unwrap()
     }
 
     /// What the runtime row says, read back rather than trusted from the
@@ -133,7 +139,7 @@ impl Fixture {
     async fn recorded_stop_kind(&self) -> Option<String> {
         sqlx::query_scalar("SELECT stop_kind FROM runtime_instance WHERE id = ?")
             .bind(self.runtime.instance_id.as_str())
-            .fetch_one(self.runtime.storage.reader())
+            .fetch_one(self.runtime.storage_for_test().reader())
             .await
             .unwrap()
     }
@@ -280,12 +286,13 @@ async fn a_termination_failure_during_shutdown_is_escalated_and_never_cancelled(
 #[tokio::test]
 async fn unconfirmed_work_is_escalated_when_the_bound_runs_out() {
     let f = fixture().await;
-    let pending = f
-        .runtime
-        .storage
-        .create_pending_operation(&f.thread, &f.runtime.instance_id)
-        .await
-        .unwrap();
+    let pending = shadows_core::Turns::create_pending_operation_for_test(
+        &f.runtime.storage_for_test(),
+        &f.thread,
+        &f.runtime.instance_id,
+    )
+    .await
+    .unwrap();
 
     let kind = tokio::time::timeout(
         Duration::from_secs(10),
@@ -304,12 +311,13 @@ async fn unconfirmed_work_is_escalated_when_the_bound_runs_out() {
 #[tokio::test]
 async fn a_second_stop_signal_escalates_at_once() {
     let f = fixture().await;
-    let pending = f
-        .runtime
-        .storage
-        .create_pending_operation(&f.thread, &f.runtime.instance_id)
-        .await
-        .unwrap();
+    let pending = shadows_core::Turns::create_pending_operation_for_test(
+        &f.runtime.storage_for_test(),
+        &f.thread,
+        &f.runtime.instance_id,
+    )
+    .await
+    .unwrap();
     let (signal, second) = tokio::sync::oneshot::channel::<()>();
     let second = async move {
         let _ = second.await;
@@ -347,11 +355,12 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
         matches!(refused, Err(StartError::RuntimeStopping)),
         "got {refused:?}"
     );
-    let stored = f
-        .runtime
-        .storage
-        .create_pending_operation(&f.thread, &f.runtime.instance_id)
-        .await;
+    let stored = shadows_core::Turns::create_pending_operation_for_test(
+        &f.runtime.storage_for_test(),
+        &f.thread,
+        &f.runtime.instance_id,
+    )
+    .await;
     assert!(
         stored.is_err(),
         "storage must not create an operation for a stopped runtime"
@@ -360,8 +369,9 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
     let (_stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
-            secrets: shadows_core::testing::secrets(f.runtime.storage.clone(), None),
-            storage: f.runtime.storage.clone(),
+            operations: shadows_core::AppCore::operations_for_tests(f.runtime.storage_for_test()),
+            secrets: shadows_core::testing::secrets(f.runtime.storage_for_test().clone(), None),
+            storage: f.runtime.storage_for_test().clone(),
             runtime: f.runtime.clone(),
             sessions: f.sessions.clone(),
             handles: f.handles.clone(),
@@ -391,16 +401,18 @@ async fn a_turn_requested_after_shutdown_began_is_refused() {
     let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(body["code"], "RUNTIME_STOPPING", "{body}");
 
-    let operations = f
-        .runtime
-        .storage
-        .list_operations_for_thread(&f.thread)
-        .await
-        .unwrap();
+    let operations = shadows_core::Turns::list_operations_for_thread_for_test(
+        &f.runtime.storage_for_test(),
+        &f.thread,
+    )
+    .await
+    .unwrap();
     assert!(operations.is_empty(), "{operations:?}");
-    let entries =
-        shadows_core::Threads::list_thread_entries_for_test(&f.runtime.storage, &f.thread)
-            .await
-            .unwrap();
+    let entries = shadows_core::Threads::list_thread_entries_for_test(
+        &f.runtime.storage_for_test(),
+        &f.thread,
+    )
+    .await
+    .unwrap();
     assert!(entries.is_empty(), "a refused turn records no prompt");
 }

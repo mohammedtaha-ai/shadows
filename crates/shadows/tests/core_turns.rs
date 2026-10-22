@@ -37,9 +37,7 @@ async fn turn_start_replays_after_the_move() {
     let (s2, again) = http_start(&app, &thread, turn("same", "hello")).await;
     assert_eq!((s1, s2), (202, 202), "{first} {again}");
     assert_eq!(first["operation_id"], again["operation_id"]);
-    let ops = app
-        .storage
-        .list_operations_for_thread(&app.thread)
+    let ops = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
         .await
         .unwrap();
     assert_eq!(ops.len(), 1, "one command, one turn");
@@ -72,10 +70,13 @@ async fn a_second_start_while_busy_is_thread_busy() {
 #[tokio::test]
 async fn a_busy_thread_is_refused_before_its_session_opens() {
     let app = test_app().await;
-    app.storage
-        .create_pending_operation(&app.thread, &app.runtime.instance_id)
-        .await
-        .unwrap();
+    shadows_core::Turns::create_pending_operation_for_test(
+        &app.storage,
+        &app.thread,
+        &app.runtime.instance_id,
+    )
+    .await
+    .unwrap();
     let body = json!({ "command_id": "t1", "prompt": "hi", "model": "fake-small",
         "mode": "acceptEdits", "effort": "high" });
     let (s, b) = http_start(&app, app.thread.as_str(), body).await;
@@ -135,9 +136,7 @@ async fn a_replay_found_by_the_transaction_gives_the_session_back() {
     assert!(breakdown["categories"].is_array(), "{breakdown}");
     assert_eq!((s1, s2), (202, 202), "{first} {again}");
     assert_eq!(first["operation_id"], again["operation_id"]);
-    let ops = app
-        .storage
-        .list_operations_for_thread(&app.thread)
+    let ops = shadows_core::Turns::list_operations_for_thread_for_test(&app.storage, &app.thread)
         .await
         .unwrap();
     assert_eq!(ops.len(), 2, "the settled turn and one raced turn");

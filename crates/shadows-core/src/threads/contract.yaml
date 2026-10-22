@@ -1,6 +1,7 @@
 # Owns the planning threads and what they recorded (spec §4.2, §6.5, §12.6,
 # §12.9, §14.4): creating a thread, the harness it runs on, forking it, and
-# reading its entries and operations. Its store also owns the thread row's
+# reading its entries. Operations owns fork eligibility; Turns composes operation listings.
+# Its store also owns the thread row's
 # session id, its title after creation, and a thread's entries, which other
 # services write.
 #
@@ -18,7 +19,7 @@
 # the fork's own write: the entry is the source's last, it names an
 # operation, that operation is Completed, and the source has a harness
 # session; and the source has no operation not yet ended
-# (`turns::has_open_operation`). The fork copies entries up to that point
+# (`Operations::has_open_in`). The fork copies entries up to that point
 # under new ids and ordinals, keeps their `operation_id` and refs, and names
 # the source's session, which its first opening forks.
 #
@@ -65,7 +66,7 @@ dependencies:
   agents: crates/shadows-core/src/agents/contract.yaml
 
 # Deferred by the A-15 rulings: session close (A-17), removal effects (A-18),
-# operation checks/listing (A-17b), and model id imports (A-19).
+# model id imports (A-19).
 # Other services use associated Threads::*_in methods in their existing snapshot.
 # All journal writes use foundation JournalEntry values, with string subject ids.
 # HarnessLocked and ForkPointNotSupported map beside ThreadsError to CoreError::Refused;
@@ -177,17 +178,9 @@ functions:
       # "thread.harness", params
       # { thread_id, harness } → `set_thread_harness` (HarnessLocked,
       # CommandConflict) → close the session when the harness moved.
-    fork:
-      signature: "(&self, command_id: String, thread: &ThreadId, at: &ThreadEntryId) -> Result<PlanningThread, CoreError>"
-      # "thread.fork", params { thread_id, at_entry_id } → `fork_thread`.
-      # Refusals: NotFound (thread, or an entry not the source's);
-      # ThreadBusy; ForkPointNotSupported; CommandConflict.
     entries:
       signature: "(&self, thread: &ThreadId) -> Result<Vec<ThreadEntry>, CoreError>"
       # In ordinal order.
-    operations:
-      signature: "(&self, thread: &ThreadId) -> Result<Vec<Operation>, CoreError>"
-      # Turns' `list_operations_for_thread`: newest first.
     remove:
       signature: "(&self, command_id: String, thread: &ThreadId) -> Result<PlanningThread, CoreError>"
       # One storage write removes and revokes; then Stop waits for the turn;
@@ -236,13 +229,11 @@ functions:
       # Test-only write around `append_entry_in`; no command.
     list_thread_entries:
       signature: "(&self, thread_id: &ThreadId) -> Result<Vec<ThreadEntry>, StorageError>"
-    fork_thread:
-      signature: "(&self, ctx, source, at_entry) -> Result<PlanningThread, ThreadsError>"
-      # One write: classify (scope Thread, the source) → load and refuse removed → busy →
-      # fork_point → the row → `PlanningThreadCreated` with the fork's
-      # provenance → copy_entries → next ordinal → record_command.
+    fork_in:
+      signature: "(conn, ctx, source, at, completed, ts) -> Result<PlanningThread, ThreadsError>"
+      note: Caller Operations owns replay and operation eligibility; this method writes the fork and copied entries without committing.
     fork_point:
-      signature: "(conn, source, at) -> Result<(i64, String), ThreadsError>"
+      signature: "(conn, source, at, completed) -> Result<(i64, String), ThreadsError>"
       private: true
     copy_entries:
       signature: "(conn, source, fork, upto, ts) -> Result<i64, StorageError>"
@@ -324,12 +315,14 @@ enums:
 
 
 shared_in_transaction:
+  fork_in: Operations owns replay and eligibility, then calls this thread mutation in the same transaction.
   entry_in: "Grants reads retained approval entry identity and ordinal in the caller snapshot."
   request_entry_in: "Grants reads the latest user request for an opaque turn ref inside approval writes."
   harness_in: "Grants reads a retained thread's harness in its project during approval authorization."
   get_in: Plans reads retained thread metadata for historical attribution.
   project_in: Turns and Grants read the thread's owning project in their transaction.
-  is_live_in: Turns checks thread liveness with the exact running operation.
+  fork_operation_in: Operations reads the source-scoped entry operation before checking completion.
+  is_live_in: Operations checks thread liveness with the exact running operation.
   require_live_in: Grants and Turns refuse removed or missing threads before writes.
   turn_context_in: Harness, Turns, Design and Plans read thread facts in one snapshot.
   list_for_profile_in: Harness finds a deleted agent's live thread adapters.
@@ -507,7 +500,7 @@ not_the_caller's:
       Close the thread's session after a harness change, or reach `Sessions`
       for it; `set_harness` does, through `Harness`.
   - >
-      Judge a fork point or a busy source; `fork_thread` does inside its own
+      Judge operation eligibility for a fork; `Operations::fork_thread` does inside its own
       write.
 
 

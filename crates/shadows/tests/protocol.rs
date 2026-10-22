@@ -18,7 +18,6 @@ use shadows_core::OperationId;
 use shadows_core::RuntimeInstanceId;
 use shadows_core::ThreadId;
 use shadows_core::testing::LiveHandles;
-use shadows_core::testing::Runtime;
 use shadows_core::testing::Sessions;
 use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
@@ -40,7 +39,9 @@ struct Fixture {
 async fn fixture() -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let runtime_id = runtime.instance_id.clone();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
@@ -48,6 +49,7 @@ async fn fixture() -> Fixture {
     let sessions = acp::fake_sessions(storage.clone());
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             storage: storage.clone(),
             runtime: Arc::new(runtime),
@@ -208,11 +210,12 @@ async fn thread_routes_create_list_and_run_a_turn_to_its_entries() {
     // The turn ends on its own; wait for the operation row to say so.
     let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
     loop {
-        let op = f
-            .storage
-            .get_operation(&OperationId::from_literal(op_id))
-            .await
-            .unwrap();
+        let op = shadows_core::Turns::get_operation_for_test(
+            &f.storage,
+            &OperationId::from_literal(op_id),
+        )
+        .await
+        .unwrap();
         if op.finished_at.is_some() {
             assert_eq!(op.status_kind, "Completed", "{op:?}");
             break;
@@ -305,30 +308,29 @@ async fn a_threads_operations_are_listed_newest_first_with_their_status() {
     }
     let (thread, other) = (&threads[0], &threads[1]);
 
-    let first = f
-        .storage
-        .create_pending_operation(thread, &f.runtime)
+    let first =
+        shadows_core::Turns::create_pending_operation_for_test(&f.storage, thread, &f.runtime)
+            .await
+            .unwrap();
+    shadows_core::Turns::mark_operation_started_for_test(&f.storage, &first, &f.runtime)
         .await
         .unwrap();
-    f.storage
-        .mark_operation_started(&first, &f.runtime)
+    shadows_core::Turns::mark_operation_completed_for_test(
+        &f.storage,
+        &first,
+        json!({}),
+        &Default::default(),
+    )
+    .await
+    .unwrap();
+    shadows_core::Turns::create_pending_operation_for_test(&f.storage, other, &f.runtime)
         .await
         .unwrap();
-    f.storage
-        .mark_operation_completed(&first, json!({}), &Default::default())
-        .await
-        .unwrap();
-    f.storage
-        .create_pending_operation(other, &f.runtime)
-        .await
-        .unwrap();
-    let second = f
-        .storage
-        .create_pending_operation(thread, &f.runtime)
-        .await
-        .unwrap();
-    f.storage
-        .mark_operation_started(&second, &f.runtime)
+    let second =
+        shadows_core::Turns::create_pending_operation_for_test(&f.storage, thread, &f.runtime)
+            .await
+            .unwrap();
+    shadows_core::Turns::mark_operation_started_for_test(&f.storage, &second, &f.runtime)
         .await
         .unwrap();
 
@@ -404,7 +406,12 @@ async fn a_stop_whose_termination_fails_answers_500_and_cancels_nothing() {
     assert_eq!(status, StatusCode::ACCEPTED, "{started}");
     let op = OperationId::from_literal(started["operation_id"].as_str().unwrap());
     for _ in 0..200 {
-        if f.storage.get_operation(&op).await.unwrap().status_kind == "Running" {
+        if shadows_core::Turns::get_operation_for_test(&f.storage, &op)
+            .await
+            .unwrap()
+            .status_kind
+            == "Running"
+        {
             break;
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -423,7 +430,10 @@ async fn a_stop_whose_termination_fails_answers_500_and_cancels_nothing() {
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
     assert_eq!(body["code"], "PROCESS_TERMINATION_FAILED", "{body}");
     assert_eq!(
-        f.storage.get_operation(&op).await.unwrap().status_kind,
+        shadows_core::Turns::get_operation_for_test(&f.storage, &op)
+            .await
+            .unwrap()
+            .status_kind,
         "Running"
     );
 }

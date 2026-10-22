@@ -1,4 +1,4 @@
-# require_running_in reads the exact running operation plus Threads liveness in the caller transaction; approval writers call it before Grants provenance.
+# Durable operation rows and transitions belong to Operations; Turns composes invocation and usage writes.
 # Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns starting and stopping a Planner turn (spec §12.3, §12.7, §14.4): the
 # "turn.start" command from its replay to its run, Stop as the local user, and
@@ -27,18 +27,41 @@
 # Trap: the early busy check is not redundant with the lease. The lease waits
 # (context_wait + cancel_wait + 1s) before answering Busy, and a turn whose
 # watcher gave the events back but whose ending is not yet recorded holds no
-# lease: only `thread_is_busy` refuses a start there before the session's
+# lease: only `Operations::thread_is_busy` refuses a start there before the session's
 # model is changed.
 
 name: turns
 version: 1
 status: current
 source: crates/shadows-core/src/turns
+modules:
+  mod.rs: turn execution boundary
+  handles.rs: live turn registry
+  model.rs: turn transport values
+  prompt.rs: prompt composition
+  queue.rs: queue orchestration
+  record.rs: start validation
+  shutdown.rs: live shutdown orchestration
+  spawn.rs: live registration
+  steer.rs: steering orchestration
+  turn.rs: live completion arbitration
+  entries.rs: harness entry collection
+  subagents.rs: subagent card collection
+  testing.rs: test-only lifecycle composition
+  store/mod.rs: private TurnsStore handle
+  store/operation.rs: atomic terminal composition
+  store/operation_read.rs: invocation-enriched operation reads
+  store/turn.rs: turn command persistence
+  store/queue.rs: queue persistence
+  store/steer.rs: steer persistence
+  store/standards.rs: invocation standards reads
+  store/usage.rs: terminal usage composition
 
 
 shapes:
   Turns:
     storage: Arc<Storage>
+    operations: Operations
     # Owns the operations: its `instance_id` goes on every new one.
     runtime: Arc<Runtime>
     # Harness's. Every call a turn makes on it (`prepare_turn`,
@@ -55,7 +78,7 @@ shapes:
     standards: Standards
   ThreadStopper:
     # Narrow handle built at composition, held by Threads.
-    runtime: Arc<Runtime>
+    storage: Arc<Storage>
     handles: Arc<LiveHandles>
     sessions: Arc<Sessions>
   SendTurn:
@@ -220,9 +243,8 @@ shapes:
 
 
 functions:
-  authority_reads:
-    require_running_in: "(conn, thread: &ThreadId, operation: &str) -> Result<(), StorageError>"
   service:
+    operations: "(&self, thread) -> Result<Vec<Operation>, CoreError>; Operations rows enriched with invocation reads"
     stop_running:
       signature: "(&self, thread: &ThreadId) -> Result<StopOutcome, StorageError>"
       # On ThreadStopper: finds the durable Pending or Running turn, including
@@ -299,13 +321,6 @@ functions:
       signature: "(&self, bound: Duration, second_signal: impl Future<Output = ()>) -> Result<StopKind, StorageError>"
       # pub(crate): `AppCore::shut_down`'s only path.
   steps:
-    record:
-      signature: "(&self, thread_id, opened, context, turn: Turn) -> Result<StartedTurn, CoreError>"
-      # In `record.rs`, with `start`, `offer_for_model` and `set_model_back`.
-      private: true
-      # `offer_for_model`, then `start`; when `start` answers anything but a
-      # new turn (a refusal, an error, a replay found by the transaction) and
-      # the model was set for it, `set_model_back`.
     start:
       signature: "(&self, thread_id, context, turn: Turn, offered: &Offered) -> Result<StartedTurn, CoreError>"
       private: true
@@ -346,7 +361,7 @@ functions:
       # On `Prompt`.
   live:
     start:
-      signature: "(runtime, handles, sessions, opened, request: PlannerTurnRequest, bus) -> Result<OperationId, StartError>"
+      signature: "(runtime, storage, handles, sessions, opened, request: PlannerTurnRequest, bus) -> Result<OperationId, StartError>"
       # Prepare (context, settings) → register → re-read the cancel request →
       # mark Running → watch. A refused prepare is Failed { Prepare }.
     watch_turn:
@@ -385,25 +400,18 @@ functions:
       # not confirm within `cancel_wait`.
     shut_down:
       signature: "(runtime, handles, sessions, bound: Duration, second_signal) -> Result<StopKind, StorageError>"
-      # Free function in `shutdown.rs`, behind `Turns::shut_down`; tests call
+      # PlannerTurn method in `shutdown.rs`, behind `Turns::shut_down`; tests call
       # it directly through `testing`.
   registry_for_plans:
-    # `LiveHandles` methods `Plans` reads (plans/scope.rs, plans/mod.rs):
-    # not a store, so not under `called_by_other_services`, but the same kind
-    # of cross-service call (§14.6).
-    running_for:
-      signature: "(&self, thread: &ThreadId) -> Option<OperationId>"
-      # The running turn a Planner's `draft_start` anchors its derived
-      # command id to (§13.5).
-    running_turn:
-      signature: "(&self, thread: &ThreadId) -> Option<(OperationId, Option<String>)>"
-      # With the sending tab: whom `plan_show` signals (§13.9).
+    client_tab_for: "(&self, operation) -> Option<String>; transport tab only, never running authority"
   registry:
     # `LiveHandles` methods only Turns calls (and `testing`), never Plans.
     is_closed:
       signature: "(&self) -> bool"
       # `send` refuses a new turn once shutdown closed it.
   for_tests:
+    running_for: Live registration inspection, compiled only with test-support.
+    running_turn: Live registration plus tab inspection, compiled only with test-support.
     # Behind `test-support`, reached through `testing`.
     contains:
       signature: "(&self, op: &OperationId) -> bool"
@@ -411,7 +419,8 @@ functions:
       signature: "(&self)"
     create_pending_operation:
       signature: "(&self, thread_id: &ThreadId, runtime_instance_id: &RuntimeInstanceId) -> Result<OperationId, StorageError>"
-  operation_store:
+  lifecycle_composition:
+    # TurnsStore composes Operations transitions with invocation observations and usage.
     # The operation's lifecycle. Only the turn machinery calls these in the
     # product (`spawn.rs`, `turn.rs`, `shutdown.rs`), except the two named
     # under `called_by_other_services`; storage tests drive them directly.
@@ -428,9 +437,6 @@ functions:
       # The first step of `PlannerTurn::stop`, before the registry is read.
     mark_operation_cancelled:
       signature: "(&self, op_id: &OperationId) -> Result<(), StorageError>"
-    non_terminal_operations_owned_by:
-      signature: "(&self, runtime: &RuntimeInstanceId) -> Result<Vec<OperationId>, StorageError>"
-      # Pending or Running under this runtime: what shutdown must stop.
     list_operations_for_thread:
       signature: "(&self, thread_id: &ThreadId) -> Result<Vec<Operation>, StorageError>"
     latest_invocation_versions:
@@ -446,12 +452,6 @@ functions:
       # after the turn's command is recorded, both in this one write.
     replayed_turn:
       signature: "(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<Option<StartedTurn>, StorageError>"
-    thread_is_busy:
-      signature: "(&self, thread: &ThreadId) -> Result<bool, StorageError>"
-    has_open_operation:
-      signature: "(conn, thread: &ThreadId) -> Result<bool, StorageError>"
-      # Any operation of the thread not Completed, Failed, Cancelled or
-      # Interrupted.
     queue_message:
       signature: "(&self, ctx: &CommandContext, thread: &ThreadId, new: NewQueued<'_>) -> Result<QueueAnswer, StorageError>"
       # A replay answers the message as first answered; a removed thread is
@@ -485,14 +485,6 @@ functions:
       # names an operation, Steered when it names an entry.
     get_operation:
       signature: "(&self, op_id: &OperationId) -> Result<Operation, StorageError>"
-    read_before:
-      signature: "(conn, op_id: &OperationId) -> Result<Option<Before>, StorageError>"
-    existed:
-      signature: "(before: Option<Before>) -> Result<Before, StorageError>"
-    record:
-      signature: "(conn, op_id, before: Before, to: &str, event: DurableEvent, ts: &str) -> Result<Transition, StorageError>"
-
-
 enums:
   Focus:
     source: crate::plans::Focus
@@ -515,23 +507,13 @@ enums:
 
 
 shared_in_transaction:
-  require_running_in: "Design and Plans approval writes check the exact running turn in the same transaction."
   standards_for_invocation_in: "Harness resolves the selected additions in its read snapshot; missing invocation or removed project is NotFound(invocation), a missing/foreign version is NotFound(invocation standards additions), and no pin means base only. The planning_thread read remains until A-17."
   record_usage_in: Terminal transitions read the invocation snapshot and record it through Usage::record_in inside their own transaction.
-  check_running_turn_in: "Design's vision proposal write validates the exact operation is Running in its live thread after replay and before supersession, entry or event writes; Design and Plans use Turns::require_running_in before Grants validates approval provenance or replay (§24)."
   take_queued_in: "The start of a waiting message (§20.3) and Send now (§20.4): the row is removed inside the same write that commits the turn or the steered entry, so a message is sent once or not at all"
-  has_open_operation: "Threads' fork (threads/store/fork.rs fork_thread): a thread with a turn not yet ended cannot be forked, judged inside the fork's own write"
-  read_before: "Runtime recovery (runtime/store.rs reconcile_orphans): reads each orphan's status and thread inside the write that marks it Interrupted"
-  existed: "Runtime recovery (runtime/store.rs reconcile_orphans): the orphan read by read_before existed when its compare-and-swap matched"
-  record: "Runtime recovery (runtime/store.rs reconcile_orphans): each OperationInterrupted event is journaled in the same write as its row, and logged after commit"
-  with_detail: "Runtime recovery (runtime/store.rs reconcile_orphans): the Transition `record` answered carries the interrupt reason into its log line, set inside the same write"
-  log: "Runtime recovery (runtime/store.rs reconcile_orphans): each recorded Transition's `operation.transition.committed` line, written after COMMIT, never inside the transaction (spec §8.7)"
 
 
 called_by_other_services:
-  thread_is_busy: "Harness (harness/mod.rs change_model): the early busy check, after availability and before the session is touched (§14.9); `send` makes the same check in Turns"
   latest_invocation_versions: "Harness (harness/setup.rs context_before_turn): the prompt, instructions and standards versions the last started turn ran under, so the session hears only changes (§13.8, §23.4)"
-  list_operations_for_thread: "Threads (threads/mod.rs operations): a thread's operation list, which §14.4 gives to Threads"
 
 
 obligations:
@@ -630,7 +612,7 @@ obligations:
       - a_turn_on_a_codex_thread_is_harness_unavailable
 
   - rule: >
-      Busy, early. `send` checks `thread_is_busy` after the harness and
+      Busy, early. `send` checks `Operations::thread_is_busy` after the harness and
       before `Sessions::open`: a thread with an operation not yet ended is
       ThreadBusy without an adapter being opened, leased or its model set.
       No caller performs this check; `send` does.
@@ -725,7 +707,7 @@ obligations:
 
 
 agreements:
-  - between: [thread_is_busy, start_turn]
+  - between: [Operations::thread_is_busy, start_turn]
     must: >
       judge a thread busy identically: the early check and the transaction's
       check refuse the same threads
@@ -792,7 +774,7 @@ agreements:
 
 not_the_caller's:
   - >
-      Check `thread_is_busy`, or open or lease a session, before `send`:
+      Check `Operations::thread_is_busy`, or open or lease a session, before `send`:
       `send` does all three, in the only safe order.
   - >
       Build the "turn.start" command or fingerprint it; `send` does, from the

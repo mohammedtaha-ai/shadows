@@ -31,7 +31,6 @@ use crate::db::{CommandContext, Storage};
 use crate::error::CoreError;
 use crate::harness::Harness;
 use crate::projects::{ProjectId, Projects};
-use crate::turns::Operation;
 use crate::turns::{StopOutcome, ThreadStopper};
 pub(crate) use error::ThreadsError;
 use store::ThreadsStore;
@@ -136,31 +135,9 @@ impl Threads {
         Ok(updated)
     }
 
-    /// Forks the thread from its last completed entry:
-    /// "thread.fork", params { "thread_id", "at_entry_id" }.
-    pub async fn fork(
-        &self,
-        command_id: String,
-        thread: &ThreadId,
-        at: &ThreadEntryId,
-    ) -> Result<PlanningThread, CoreError> {
-        let params = serde_json::json!({ "thread_id": thread, "at_entry_id": at });
-        let c = CommandContext::user(command_id, "thread.fork", params);
-        Ok(self.store.fork_thread(&c, thread, at).await?)
-    }
-
     /// A thread's entries in ordinal order.
     pub async fn entries(&self, thread: &ThreadId) -> Result<Vec<ThreadEntry>, CoreError> {
         Ok(self.store.list_thread_entries(thread).await?)
-    }
-
-    /// A thread's operations — its turns — newest first, each as it now stands.
-    pub async fn operations(&self, thread: &ThreadId) -> Result<Vec<Operation>, CoreError> {
-        Ok(self
-            .store
-            .storage
-            .list_operations_for_thread(thread)
-            .await?)
     }
 
     /// Remove first, then stop the turn, then close its adapter.

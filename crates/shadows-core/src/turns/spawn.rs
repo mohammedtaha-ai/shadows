@@ -59,6 +59,7 @@ pub struct PlannerTurnRequest {
 impl PlannerTurn {
     pub async fn start(
         runtime: Arc<Runtime>,
+        storage: Arc<crate::db::Storage>,
         handles: Arc<LiveHandles>,
         sessions: Arc<Sessions>,
         opened: OpenSession,
@@ -107,8 +108,7 @@ impl PlannerTurn {
             Err(reason) => {
                 tracing::info!(parent: &span, %reason, "planner.prepare_refused");
                 sessions.give_back_events(&thread_id, &opened, events).await;
-                runtime
-                    .storage
+                (super::store::TurnsStore { storage: &storage })
                     .mark_operation_failed(&op_id, FailureStage::Prepare, &reason)
                     .await?;
                 return Ok(op_id);
@@ -133,18 +133,18 @@ impl PlannerTurn {
             .await
         {
             sessions.give_back_events(&thread_id, &opened, events).await;
-            runtime
-                .storage
+            (super::store::TurnsStore { storage: &storage })
                 .request_cancellation(&op_id, Actor::system())
                 .await?;
-            runtime.storage.mark_operation_cancelled(&op_id).await?;
+            (super::store::TurnsStore { storage: &storage })
+                .mark_operation_cancelled(&op_id)
+                .await?;
             return Err(StartError::RuntimeStopping);
         }
         // A Stop that came while the turn was `Pending` recorded its request
         // and found nothing registered to cancel. Read after registering, so
         // either that Stop saw the registration or this read sees its request.
-        let asked = runtime
-            .storage
+        let asked = (super::store::TurnsStore { storage: &storage })
             .get_operation(&op_id)
             .await
             .map(|op| op.cancel_requested_at.is_some());
@@ -158,27 +158,26 @@ impl PlannerTurn {
             return match asked {
                 Ok(_) => {
                     tracing::info!(parent: &span, "planner.stopped_before_prompt");
-                    runtime.storage.mark_operation_cancelled(&op_id).await?;
+                    (super::store::TurnsStore { storage: &storage })
+                        .mark_operation_cancelled(&op_id)
+                        .await?;
                     Ok(op_id)
                 }
                 Err(e) => {
-                    runtime
-                        .storage
+                    (super::store::TurnsStore { storage: &storage })
                         .mark_operation_failed(&op_id, FailureStage::Prepare, &e.to_string())
                         .await?;
                     Err(e.into())
                 }
             };
         }
-        if let Err(e) = runtime
-            .storage
+        if let Err(e) = (super::store::TurnsStore { storage: &storage })
             .mark_operation_started(&op_id, &runtime.instance_id)
             .await
         {
             handles.claim(&op_id).await;
             sessions.give_back_events(&thread_id, &opened, events).await;
-            runtime
-                .storage
+            (super::store::TurnsStore { storage: &storage })
                 .mark_operation_failed(&op_id, FailureStage::Prepare, &e.to_string())
                 .await?;
             return Err(e.into());
@@ -189,7 +188,7 @@ impl PlannerTurn {
         watch_turn(
             TurnWatch {
                 op_id: op_id.clone(),
-                runtime,
+                storage,
                 handles,
                 sessions,
                 opened,

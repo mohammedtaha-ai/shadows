@@ -1,6 +1,4 @@
-use shadows_core::testing::{
-    CommandContext, LiveHandles, Runtime, Storage, Writer, acp, fingerprint,
-};
+use shadows_core::testing::{CommandContext, LiveHandles, Storage, Writer, acp, fingerprint};
 use shadows_core::{
     AcceptanceItem, AppCore, CoreParts, DesignAnchor, DesignOp, OutcomeContent, OutcomeId,
     PartContent, PartId, PlanOp, ProjectId, TaskContent,
@@ -21,8 +19,14 @@ fn ctx(writer: &Writer, id: &str, kind: &str) -> CommandContext {
 }
 async fn fixture(path: &std::path::Path) -> (Arc<Storage>, Arc<AppCore>) {
     let storage = Arc::new(Storage::open(path).await.unwrap());
-    let runtime = Arc::new(Runtime::start(storage.clone()).await.unwrap().0);
+    let runtime = Arc::new(
+        shadows_core::AppCore::runtime_for_tests(storage.clone())
+            .await
+            .unwrap()
+            .0,
+    );
     let core = AppCore::assemble(CoreParts {
+        operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
         secrets: shadows_core::testing::secrets(storage.clone(), None),
         storage: storage.clone(),
         runtime,

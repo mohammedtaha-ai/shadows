@@ -46,21 +46,24 @@ async fn seed_operation(
 #[tokio::test]
 async fn a_lost_runtimes_operations_become_interrupted() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
 
-    let old = storage
-        .register_runtime_instance("0.1.0-old")
-        .await
-        .unwrap();
+    let old =
+        shadows_core::testing::Runtime::register_runtime_instance_for_test(&storage, "0.1.0-old")
+            .await
+            .unwrap();
     seed_operation(&storage, "op-pending", &old, "Pending").await;
     seed_operation(&storage, "op-running", &old, "Running").await;
     // `old` is never stopped: it was lost.
 
-    let new = storage
-        .register_runtime_instance("0.1.0-new")
+    let new =
+        shadows_core::testing::Runtime::register_runtime_instance_for_test(&storage, "0.1.0-new")
+            .await
+            .unwrap();
+    let report = shadows_core::AppCore::operations_for_tests(storage.clone())
+        .recover_for_test(&new)
         .await
         .unwrap();
-    let report = storage.reconcile_orphans(&new).await.unwrap();
 
     assert_eq!(report.interrupted.len(), 2);
     assert!(report.anomalies.is_empty());
@@ -86,23 +89,26 @@ async fn a_lost_runtimes_operations_become_interrupted() {
 #[tokio::test]
 async fn an_escalated_shutdowns_operations_are_not_stranded() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
 
-    let old = storage
-        .register_runtime_instance("0.1.0-old")
-        .await
-        .unwrap();
+    let old =
+        shadows_core::testing::Runtime::register_runtime_instance_for_test(&storage, "0.1.0-old")
+            .await
+            .unwrap();
     seed_operation(&storage, "op-abandoned", &old, "Running").await;
-    storage
-        .stop_runtime_instance(&old, StopKind::Escalated)
+    shadows_core::AppCore::operations_for_tests(storage.clone())
+        .stop_runtime_instance_for_test(&old, StopKind::Escalated)
         .await
         .unwrap();
 
-    let new = storage
-        .register_runtime_instance("0.1.0-new")
+    let new =
+        shadows_core::testing::Runtime::register_runtime_instance_for_test(&storage, "0.1.0-new")
+            .await
+            .unwrap();
+    let report = shadows_core::AppCore::operations_for_tests(storage.clone())
+        .recover_for_test(&new)
         .await
         .unwrap();
-    let report = storage.reconcile_orphans(&new).await.unwrap();
 
     let interrupted: Vec<&str> = report.interrupted.iter().map(|i| i.as_str()).collect();
     assert_eq!(interrupted, vec!["op-abandoned"]);
@@ -124,12 +130,12 @@ async fn an_escalated_shutdowns_operations_are_not_stranded() {
 #[tokio::test]
 async fn a_graceful_runtime_owning_unfinished_work_is_reported_as_an_anomaly() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
 
-    let old = storage
-        .register_runtime_instance("0.1.0-old")
-        .await
-        .unwrap();
+    let old =
+        shadows_core::testing::Runtime::register_runtime_instance_for_test(&storage, "0.1.0-old")
+            .await
+            .unwrap();
     seed_operation(&storage, "op-leaked", &old, "Running").await;
     let old_id = old.as_str().to_string();
     storage
@@ -148,11 +154,14 @@ async fn a_graceful_runtime_owning_unfinished_work_is_reported_as_an_anomaly() {
         .await
         .unwrap();
 
-    let new = storage
-        .register_runtime_instance("0.1.0-new")
+    let new =
+        shadows_core::testing::Runtime::register_runtime_instance_for_test(&storage, "0.1.0-new")
+            .await
+            .unwrap();
+    let report = shadows_core::AppCore::operations_for_tests(storage.clone())
+        .recover_for_test(&new)
         .await
         .unwrap();
-    let report = storage.reconcile_orphans(&new).await.unwrap();
 
     assert_eq!(
         report.interrupted,
@@ -169,14 +178,20 @@ async fn a_graceful_runtime_owning_unfinished_work_is_reported_as_an_anomaly() {
 #[tokio::test]
 async fn graceful_is_refused_while_the_runtime_owns_unfinished_work() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
 
-    let busy = storage.register_runtime_instance("0.1.0").await.unwrap();
-    let idle = storage.register_runtime_instance("0.1.0").await.unwrap();
+    let busy =
+        shadows_core::testing::Runtime::register_runtime_instance_for_test(&storage, "0.1.0")
+            .await
+            .unwrap();
+    let idle =
+        shadows_core::testing::Runtime::register_runtime_instance_for_test(&storage, "0.1.0")
+            .await
+            .unwrap();
     seed_operation(&storage, "op-running", &busy, "Running").await;
 
-    let refused = storage
-        .stop_runtime_instance(&busy, StopKind::Graceful)
+    let refused = shadows_core::AppCore::operations_for_tests(storage.clone())
+        .stop_runtime_instance_for_test(&busy, StopKind::Graceful)
         .await;
     assert!(
         matches!(
@@ -193,12 +208,12 @@ async fn graceful_is_refused_while_the_runtime_owns_unfinished_work() {
             .unwrap();
     assert_eq!(stopped, None, "a refused stop writes nothing");
 
-    storage
-        .stop_runtime_instance(&busy, StopKind::Escalated)
+    shadows_core::AppCore::operations_for_tests(storage.clone())
+        .stop_runtime_instance_for_test(&busy, StopKind::Escalated)
         .await
         .expect("Escalated claims nothing and is never refused for unfinished work");
-    storage
-        .stop_runtime_instance(&idle, StopKind::Graceful)
+    shadows_core::AppCore::operations_for_tests(storage.clone())
+        .stop_runtime_instance_for_test(&idle, StopKind::Graceful)
         .await
         .expect("`idle` owns no unfinished work; `busy`'s Running row is not its own");
 }
@@ -207,12 +222,17 @@ async fn graceful_is_refused_while_the_runtime_owns_unfinished_work() {
 #[tokio::test]
 async fn the_current_runtimes_own_operations_are_left_alone() {
     let tmp = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
 
-    let me = storage.register_runtime_instance("0.1.0").await.unwrap();
+    let me = shadows_core::testing::Runtime::register_runtime_instance_for_test(&storage, "0.1.0")
+        .await
+        .unwrap();
     seed_operation(&storage, "op-mine", &me, "Running").await;
 
-    let report = storage.reconcile_orphans(&me).await.unwrap();
+    let report = shadows_core::AppCore::operations_for_tests(storage.clone())
+        .recover_for_test(&me)
+        .await
+        .unwrap();
     assert!(report.interrupted.is_empty());
     let status: String = sqlx::query_scalar("SELECT status_kind FROM operation WHERE id='op-mine'")
         .fetch_one(storage.reader())
@@ -235,7 +255,7 @@ struct Daemon {
 impl Daemon {
     async fn start(db: &std::path::Path) -> Self {
         let storage = std::sync::Arc::new(Storage::open(db).await.unwrap());
-        let (runtime, _report) = shadows_core::testing::Runtime::start(storage.clone())
+        let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
             .await
             .unwrap();
         Daemon {
@@ -259,11 +279,14 @@ impl Daemon {
         .await
         .unwrap();
         for _ in 0..200 {
-            let loaded = self.runtime.storage.get_operation(&op).await.unwrap();
+            let loaded =
+                shadows_core::Turns::get_operation_for_test(&self.runtime.storage_for_test(), &op)
+                    .await
+                    .unwrap();
             if loaded.finished_at.is_some() {
                 assert_eq!(loaded.status_kind, "Completed", "{loaded:?}");
                 let entries = shadows_core::Threads::list_thread_entries_for_test(
-                    &self.runtime.storage,
+                    &self.runtime.storage_for_test(),
                     thread,
                 )
                 .await
@@ -276,8 +299,10 @@ impl Daemon {
     }
 
     async fn stop(self) {
-        let kind = shadows_core::testing::shut_down(
-            self.runtime,
+        let kind = shadows_core::testing::PlannerTurn::shut_down(
+            self.runtime.clone(),
+            self.runtime.storage_for_test(),
+            shadows_core::AppCore::operations_for_tests(self.runtime.storage_for_test()),
             self.handles,
             self.sessions.clone(),
             std::time::Duration::from_secs(10),
@@ -316,7 +341,7 @@ async fn after_a_restart_the_next_turn_resumes_the_recorded_session() {
         ),
     };
     let dir = shadows_core::testing::ProjectDirectory::resolve(tmp.path()).unwrap();
-    let storage = &first.runtime.storage;
+    let storage = &first.runtime.storage_for_test();
     let project = shadows_core::testing::create_project(
         storage,
         &ctx("c1", "project.create"),

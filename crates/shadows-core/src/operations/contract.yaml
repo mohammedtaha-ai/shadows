@@ -1,0 +1,108 @@
+# Owns durable operation rows, lifecycle transitions, crash recovery and fork eligibility.
+# Live turns, cancellation effects, invocation observations and usage composition belong to Turns.
+# Every *_in writes in its caller's transaction; only a committed Transition is logged.
+name: operations
+version: 1
+status: current
+source: crates/shadows-core/src/operations
+modules:
+  mod.rs: durable lifecycle boundary
+  model.rs: durable operation values
+  fork.rs: fork eligibility transaction
+  testing.rs: test-only runtime stop entry
+  store/mod.rs: private persistence handle
+  store/checks.rs: transaction-local operation checks
+  store/read.rs: durable lifecycle reads
+  store/lifecycle.rs: lifecycle compare-and-swap transitions
+  store/recovery.rs: orphan reconciliation
+  store/runtime_stop.rs: durable shutdown claim
+  store/transition.rs: transition journal records
+shapes:
+  Operations:
+    store: Arc<OperationsStore>
+  OperationsStore:
+    storage: Arc<Storage>
+  OperationRecord:
+    id: OperationId
+    thread_id: Option<String>
+    runtime_instance_id: RuntimeInstanceId
+    status_kind: String
+    kind: String
+    outcome_json: Option<String>
+    failure_stage: Option<String>
+    failure_reason: Option<String>
+    interrupt_reason: Option<String>
+    cancel_requested_at: Option<String>
+    created_at: String
+    started_at: Option<String>
+    finished_at: Option<String>
+  ReconcileReport:
+    interrupted: Vec<OperationId>
+    anomalies: Vec<OperationId>
+dependencies:
+  threads: crates/shadows-core/src/threads/contract.yaml
+  runtime: crates/shadows-core/src/runtime/contract.yaml
+functions:
+  service:
+    recover_for_test: Test-support entry for explicitly testing recovery against a chosen runtime.
+    recover: "(&self, current: &RuntimeInstanceId) -> Result<ReconcileReport, StorageError>"
+    fork_thread: "(&self, command_id, thread, at) -> Result<PlanningThread, CoreError>"
+    thread_is_busy: "(&self, thread) -> Result<bool, StorageError>"
+    running_for: "(&self, thread) -> Result<Option<OperationId>, StorageError>"
+    non_terminal_operations_owned_by: "(&self, runtime) -> Result<Vec<OperationId>, StorageError>"
+    stop_runtime: "(&self, runtime, kind) -> Result<(), StorageError>; checks owned work then Runtime::stop_in in one transaction"
+  transaction_writes:
+    insert_pending_in: Checks Runtime::require_active_in before inserting Pending and its event.
+    started_in: Compares Pending and the exact runtime before recording Running.
+    completed_in: Compares Running and records Completed with the caller-composed invocation payload.
+    failed_in: Compares Pending or Running and records the supplied stage and reason.
+    cancelled_in: Compares Pending or Running; caller must confirm execution ended first.
+    request_cancellation_in: Records a request without ending the operation; repeated requests are idempotent.
+  transaction_reads:
+    has_open_in: Any thread operation outside Completed, Failed, Cancelled or Interrupted.
+    require_running_in: Exact Running operation plus Threads liveness in the caller's snapshot.
+    require_status_in: Exact status or TransitionConflict.
+    require_unfinished_in: Pending or Running or TransitionConflict.
+    completed_in_snapshot: Whether the exact operation is Completed in the fork transaction.
+    running_for_in: Running operation on the thread, ordered by id.
+    get_operation_in: Durable operation columns only.
+    list_operations_for_thread_in: Durable rows ordered by OperationCreated journal sequence descending.
+    started_thread_in: Retained thread of an operation with started_at set.
+    started_for_thread_in: Started operation ids in stable id order.
+obligations:
+  - rule: Lifecycle writes and events commit atomically; a terminal operation cannot transition again.
+    tested_by: every_transition_appends_its_event_atomically
+  - rule: Recovery interrupts other runtime owners including Escalated owners and reports Graceful anomalies.
+    tested_by: a_lost_runtimes_operations_become_interrupted
+  - rule: Graceful is refused while this runtime owns unfinished operations.
+    tested_by: graceful_is_refused_while_the_runtime_owns_unfinished_work
+  - rule: Fork replay precedes eligibility checks; a busy source refuses before its fork point is read.
+    tested_by: fork_while_a_turn_runs_is_thread_busy_and_a_replay_returns_the_same_fork
+not_the_caller's:
+  - Query operation rows outside this owner or infer execution stopped from a cancellation request.
+  - Log a transition before the caller's transaction commits.
+
+shared_in_transaction:
+  cancelled_in: Turns records cancellation after confirmed execution end.
+  completed_in: Turns adds invocation payload and usage in the same terminal transaction.
+  completed_in_snapshot: Fork checks the source entry operation in its transaction.
+  existed: Internal matched-row validation for transition persistence.
+  failed_in: Turns records failure with usage in its terminal transaction.
+  get_operation_in: Turns reads durable facts before adding invocation metadata.
+  has_open_in: Turns queue and start enforce thread busyness in the write transaction.
+  insert_pending_in: Turns commits Pending with the user entry and command record.
+  list_operations_for_thread_in: Turns composes the invocation-enriched listing from durable rows.
+  log: Caller logs the transition only after commit.
+  read_before: Internal transition snapshot under the write lock.
+  record: Internal operation event journaling in the same transaction.
+  request_cancellation_in: Turns records the request before checking the live handle.
+  require_running_in: Design and Plans check authority before provenance in their write.
+  require_status_in: Turns checks Running before writing observations.
+  require_unfinished_in: Turns checks terminal eligibility before writing usage.
+  running_for_in: Service read in the caller snapshot.
+  started_for_thread_in: Turns composes delivered invocation versions in one read snapshot.
+  started_in: Turns records Running after registering its live handle.
+  started_thread_in: Turns composes usage with durable started-thread facts.
+  recover: AppCore reconciles other runtime owners before accepting work.
+  stop_runtime: Shutdown checks unfinished work and writes the runtime stop atomically.
+  with_detail: Internal transition log detail.

@@ -41,7 +41,7 @@ pub use model::{
 
 pub struct Design {
     storage: Arc<Storage>,
-    handles: Arc<crate::turns::LiveHandles>,
+    operations: crate::operations::Operations,
     structure_lock: tokio::sync::Mutex<()>,
 }
 pub use agreement::{
@@ -64,10 +64,10 @@ impl Design {
         Ok(self.storage.project_stage(project).await?)
     }
 
-    pub(crate) fn new(storage: Arc<Storage>, handles: Arc<crate::turns::LiveHandles>) -> Self {
+    pub(crate) fn new(storage: Arc<Storage>, operations: crate::operations::Operations) -> Self {
         Self {
             storage,
-            handles,
+            operations,
             structure_lock: tokio::sync::Mutex::new(()),
         }
     }

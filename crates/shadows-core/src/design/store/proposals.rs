@@ -39,7 +39,8 @@ impl Storage {
                             .await?;
                     return Ok(serde_json::from_str(&json)?);
                 }
-                crate::turns::check_running_turn_in(conn, thread, &turn).await?;
+                crate::operations::Operations::require_running_in(conn, thread, turn.as_str())
+                    .await?;
                 let content = super::proposal_read::live_vision(conn, &project).await?;
                 let (field, old_text, expected_item_revision) = validate(&args, &content)?;
                 if let Some(replaces) = &args.replaces {

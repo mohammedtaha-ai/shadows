@@ -13,7 +13,7 @@
 //! turns, `entries` turns harness events into entries, `subagents` gathers a
 //! subagent's calls into its card (§22), `shutdown` stops every
 //! turn when the runtime stops (§8.5), `model` holds the operation types and
-//! `store` the queries. All are private: a caller starts or stops a turn
+//! `store` the turn queries. All are private: a caller starts or stops a turn
 //! through `Turns` only.
 
 mod entries;
@@ -26,8 +26,9 @@ mod shutdown;
 mod spawn;
 mod steer;
 mod store;
-pub(crate) use store::check_running_turn_in;
 mod subagents;
+#[cfg(feature = "test-support")]
+mod testing;
 mod turn;
 
 use std::future::Future;
@@ -41,10 +42,7 @@ pub use model::{
     InvocationView, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SentNow,
 };
 pub use spawn::StartError;
-// What another write calls inside its own transaction (spec §14.6):
-// forking checks for an open turn, recovery records its transitions.
 pub use store::{NewQueued, QueueAnswer};
-pub(crate) use store::{existed, has_open_operation, read_before, record};
 
 use prompt::Prompt;
 use record::Turn;
@@ -73,7 +71,6 @@ use crate::threads::ThreadId;
 #[cfg(feature = "test-support")]
 pub(crate) mod for_tests {
     pub use super::model::FailureStage;
-    pub use super::shutdown::shut_down;
     pub use super::spawn::PlannerTurnRequest;
     pub use super::store::{Dequeue, InvocationVersions, NewTurn, StartedTurn};
     pub use super::turn::{PlannerTurn, StopOutcome};
@@ -85,6 +82,7 @@ pub(crate) mod for_tests {
 #[derive(Clone)]
 pub struct Turns {
     storage: Arc<Storage>,
+    operations: crate::operations::Operations,
     runtime: Arc<Runtime>,
     sessions: Arc<Sessions>,
     handles: Arc<LiveHandles>,
@@ -99,19 +97,19 @@ pub struct Turns {
 /// slot; Stop may take that slot while the turn records its ending.
 #[derive(Clone)]
 pub(crate) struct ThreadStopper {
-    runtime: Arc<Runtime>,
+    storage: Arc<Storage>,
     handles: Arc<LiveHandles>,
     sessions: Arc<Sessions>,
 }
 
 impl ThreadStopper {
     pub(crate) fn new(
-        runtime: Arc<Runtime>,
+        storage: Arc<Storage>,
         handles: Arc<LiveHandles>,
         sessions: Arc<Sessions>,
     ) -> Self {
         Self {
-            runtime,
+            storage,
             handles,
             sessions,
         }
@@ -124,19 +122,18 @@ impl ThreadStopper {
         // A turn commits Pending before it registers a live handle. Removal
         // must also stop that gap, and wait for the durable terminal write
         // when a live watcher is still finishing after Stop answers.
-        let Some(op) = self
-            .runtime
-            .storage
-            .list_operations_for_thread(thread)
-            .await?
-            .into_iter()
-            .find(|op| matches!(op.status_kind.as_str(), "Pending" | "Running"))
-        else {
+        let Some(op) = (store::TurnsStore {
+            storage: &self.storage,
+        })
+        .list_operations_for_thread(thread)
+        .await?
+        .into_iter()
+        .find(|op| matches!(op.status_kind.as_str(), "Pending" | "Running")) else {
             return Ok(StopOutcome::NotLive);
         };
-        let mut committed = self.runtime.storage.watch_committed();
+        let mut committed = self.storage.watch_committed();
         let outcome = PlannerTurn::stop(
-            self.runtime.clone(),
+            self.storage.clone(),
             self.handles.clone(),
             self.sessions.clone(),
             &op.id,
@@ -146,13 +143,13 @@ impl ThreadStopper {
         if outcome == StopOutcome::TerminationFailed {
             return Ok(outcome);
         }
-        while self
-            .runtime
-            .storage
-            .get_operation(&op.id)
-            .await?
-            .finished_at
-            .is_none()
+        while (store::TurnsStore {
+            storage: &self.storage,
+        })
+        .get_operation(&op.id)
+        .await?
+        .finished_at
+        .is_none()
         {
             committed.changed().await.map_err(|_| {
                 StorageError::Unavailable("storage closed while stopping a turn".into())
@@ -205,6 +202,7 @@ impl Turns {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         storage: Arc<Storage>,
+        operations: crate::operations::Operations,
         runtime: Arc<Runtime>,
         sessions: Arc<Sessions>,
         handles: Arc<LiveHandles>,
@@ -216,6 +214,7 @@ impl Turns {
     ) -> Self {
         Self {
             storage,
+            operations,
             runtime,
             sessions,
             handles,
@@ -301,7 +300,7 @@ impl Turns {
         }
         // Checked before the session is touched: setting a model below would
         // change the session a running turn is using.
-        if self.storage.thread_is_busy(&thread_id).await? {
+        if self.operations.thread_is_busy(&thread_id).await? {
             return Err(StorageError::ThreadBusy.into());
         }
         // The checks passed: a turn starts in this project, which is used (§15.6).
@@ -335,6 +334,7 @@ impl Turns {
         };
         Ok(PlannerTurn::start(
             self.runtime.clone(),
+            self.storage.clone(),
             self.handles.clone(),
             self.sessions.clone(),
             opened,
@@ -362,7 +362,7 @@ impl Turns {
     /// `TerminationFailed`, and the operation is not `Cancelled`.
     pub async fn stop(&self, op: &OperationId) -> Result<Operation, CoreError> {
         let outcome = PlannerTurn::stop(
-            self.runtime.clone(),
+            self.storage.clone(),
             self.handles.clone(),
             self.sessions.clone(),
             op,
@@ -372,7 +372,11 @@ impl Turns {
         if outcome == StopOutcome::TerminationFailed {
             return Err(CoreError::TerminationFailed);
         }
-        Ok(self.storage.get_operation(op).await?)
+        Ok((store::TurnsStore {
+            storage: &self.storage,
+        })
+        .get_operation(op)
+        .await?)
     }
 
     /// §8.5, unchanged: every running turn is stopped and every adapter
@@ -382,13 +386,25 @@ impl Turns {
         bound: Duration,
         second_signal: impl Future<Output = ()>,
     ) -> Result<StopKind, StorageError> {
-        shutdown::shut_down(
+        PlannerTurn::shut_down(
             self.runtime.clone(),
+            self.storage.clone(),
+            self.operations.clone(),
             self.handles.clone(),
             self.sessions.clone(),
             bound,
             second_signal,
         )
         .await
+    }
+}
+
+impl Turns {
+    pub async fn operations(&self, thread: &ThreadId) -> Result<Vec<Operation>, CoreError> {
+        Ok((store::TurnsStore {
+            storage: &self.storage,
+        })
+        .list_operations_for_thread(thread)
+        .await?)
     }
 }

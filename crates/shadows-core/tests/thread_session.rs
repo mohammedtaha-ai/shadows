@@ -33,7 +33,9 @@ struct Fixture {
 async fn fixture() -> (Fixture, ThreadId, ThreadId) {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let ctx = |id: &str, kind: &str| CommandContext {
         agent: None,
         principal_kind: "User".into(),
@@ -96,7 +98,10 @@ impl Fixture {
 
     async fn wait_for_terminal(&self, op: &OperationId) -> String {
         for _ in 0..200 {
-            let status = self.runtime.storage.get_operation(op).await.unwrap();
+            let status =
+                shadows_core::Turns::get_operation_for_test(&self.runtime.storage_for_test(), op)
+                    .await
+                    .unwrap();
             if status.finished_at.is_some() {
                 return status.status_kind;
             }
@@ -110,10 +115,12 @@ impl Fixture {
     async fn session_of_a_turn(&self, thread: &ThreadId) -> (String, String) {
         let op = self.start(thread, "report").await;
         assert_eq!(self.wait_for_terminal(&op).await, "Completed");
-        let entries =
-            shadows_core::Threads::list_thread_entries_for_test(&self.runtime.storage, thread)
-                .await
-                .unwrap();
+        let entries = shadows_core::Threads::list_thread_entries_for_test(
+            &self.runtime.storage_for_test(),
+            thread,
+        )
+        .await
+        .unwrap();
         let reply = entries
             .iter()
             .rev()
@@ -127,7 +134,7 @@ impl Fixture {
     }
 
     async fn recorded(&self, thread: &ThreadId) -> Option<String> {
-        shadows_core::Threads::turn_context_for_test(&self.runtime.storage, thread)
+        shadows_core::Threads::turn_context_for_test(&self.runtime.storage_for_test(), thread)
             .await
             .unwrap()
             .harness_session_id
@@ -168,7 +175,7 @@ async fn a_first_turn_stopped_by_termination_records_no_session() {
 
     let hung = f.start(&thread, "ignore-cancel").await;
     let outcome = PlannerTurn::stop(
-        f.runtime.clone(),
+        f.runtime.storage_for_test(),
         f.handles.clone(),
         f.sessions.clone(),
         &hung,

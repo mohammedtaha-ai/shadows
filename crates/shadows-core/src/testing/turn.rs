@@ -83,7 +83,7 @@ pub async fn start_direct(
     let id = format!("direct-{}", NEXT.fetch_add(1, Ordering::SeqCst));
     let command = turn_command(&id, thread, prompt, &settings);
     let started = match runtime
-        .storage
+        .storage_for_test()
         .start_turn(&command, new_turn(thread, runtime, prompt, &settings))
         .await
     {
@@ -98,6 +98,7 @@ pub async fn start_direct(
     };
     PlannerTurn::start(
         runtime.clone(),
+        runtime.storage_for_test(),
         handles.clone(),
         sessions.clone(),
         opened,

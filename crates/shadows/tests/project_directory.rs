@@ -13,7 +13,6 @@ use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use shadows::cli::router;
 use shadows_core::testing::LiveHandles;
-use shadows_core::testing::Runtime;
 use shadows_core::testing::Storage;
 use shadows_core::{AppCore, CoreParts};
 use shadows_core::{Operation, OperationId};
@@ -23,11 +22,14 @@ use tower::ServiceExt;
 use shadows_core::testing::acp;
 
 async fn app(storage: Arc<Storage>) -> (Router, tokio::sync::watch::Sender<bool>) {
-    let (runtime, _report) = Runtime::start(storage.clone()).await.unwrap();
+    let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
+        .await
+        .unwrap();
     let (bus, _) = tokio::sync::broadcast::channel(64);
     let (stopping, shutdown) = tokio::sync::watch::channel(false);
     let app = router(AppState {
         core: AppCore::assemble(CoreParts {
+            operations: shadows_core::AppCore::operations_for_tests(storage.clone()),
             secrets: shadows_core::testing::secrets(storage.clone(), None),
             sessions: acp::fake_sessions(storage.clone()),
             storage,
@@ -75,10 +77,12 @@ async fn create_project(app: &Router, command_id: &str, directory: &str) -> (Sta
     .await
 }
 
-async fn wait_for_terminal(storage: &Storage, op: &str) -> Operation {
+async fn wait_for_terminal(storage: &Arc<Storage>, op: &str) -> Operation {
     let op = OperationId::from_literal(op);
     for _ in 0..200 {
-        let loaded = storage.get_operation(&op).await.unwrap();
+        let loaded = shadows_core::Turns::get_operation_for_test(storage, &op)
+            .await
+            .unwrap();
         if loaded.finished_at.is_some() {
             return loaded;
         }
