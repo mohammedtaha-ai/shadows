@@ -1,7 +1,8 @@
 //! Transactional map snapshots and per-part review baselines.
 #[cfg(feature = "test-support")]
 use crate::db::{Storage, now};
-use crate::design::{EffectiveStandards, PartContent, VisionContent, map_rules, standards};
+use crate::design::{PartContent, VisionContent, map_rules};
+use crate::standards::{EffectiveStandards, Standards};
 use crate::{ProjectId, StorageError};
 use sqlx::{FromRow, SqliteConnection};
 use std::collections::{BTreeMap, BTreeSet};
@@ -34,8 +35,8 @@ pub(super) async fn effective(
     p: &ProjectId,
 ) -> Result<EffectiveStandards, StorageError> {
     Ok(EffectiveStandards {
-        base: standards::base().clone(),
-        additions: super::standards::current_in(conn, p).await?,
+        base: Standards::base().clone(),
+        additions: Standards::current_in(conn, p).await?,
     })
 }
 

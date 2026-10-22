@@ -14,13 +14,13 @@ use std::sync::{Arc, Mutex, OnceLock};
 use sha2::{Digest, Sha256};
 
 use crate::db::{Storage, StorageError};
-use crate::design::{EffectiveStandards, base_standards};
 use crate::error::CoreError;
 use crate::grants::GrantId;
 use crate::instructions::{Instructions, InstructionsVersion};
 use crate::projects::ProjectId;
+use crate::standards::{EffectiveStandards, Standards};
 use crate::threads::ThreadId;
-use crate::turns::OperationId;
+use crate::turns::{OperationId, Turns};
 use shadows_agent::acp::{McpServerSpec, SessionSetup};
 use shadows_agent::policy;
 
@@ -109,14 +109,19 @@ impl Setups {
             .current(project)
             .await
             .map_err(|e| e.to_string())?;
-        let additions = self
+        let mut snapshot = self
             .storage
-            .current_standards_additions(project)
+            .reader()
+            .begin()
             .await
             .map_err(|e| e.to_string())?;
+        let additions = Standards::current_in(&mut snapshot, project)
+            .await
+            .map_err(|e| e.to_string())?;
+        snapshot.commit().await.map_err(|e| e.to_string())?;
         let standards = additions.as_ref().map(|v| v.id.clone());
         let effective = EffectiveStandards {
-            base: base_standards().clone(),
+            base: Standards::base().clone(),
             additions,
         };
         let (grant, mcp) = match &self.mcp_url {
@@ -214,15 +219,15 @@ impl Setups {
         }
         let current = self.instructions.current(&context.project_id).await?;
         let current_id = current.as_ref().map(|v| v.id.clone());
-        let additions = self
+        let mut snapshot = self
             .storage
-            .standards_additions_for_invocation(operation)
-            .await?;
-        let additions_id = additions.as_ref().map(|v| v.id.clone());
-        let effective = EffectiveStandards {
-            base: base_standards().clone(),
-            additions,
-        };
+            .reader()
+            .begin()
+            .await
+            .map_err(StorageError::from)?;
+        let effective = Turns::standards_for_invocation_in(&mut snapshot, operation).await?;
+        snapshot.commit().await.map_err(StorageError::from)?;
+        let additions_id = effective.additions.as_ref().map(|v| v.id.clone());
         let standards_sent = heard.standards == Some((Some(effective.base.version), additions_id));
         let mut parts = Vec::new();
         if !heard.ours {
@@ -255,7 +260,7 @@ impl Setups {
                 standards: None,
             });
         }
-        let base = base_standards().version;
+        let base = Standards::base().version;
         self.lock().get(thread).map(|h| Heard {
             ours: true,
             instructions: Some(h.instructions.clone()),

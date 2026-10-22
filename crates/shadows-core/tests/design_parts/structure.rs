@@ -162,7 +162,7 @@ async fn an_unapproved_map_or_missing_kind_refuses() {
         .execute(storage.reader())
         .await
         .unwrap();
-    core.design()
+    core.standards()
         .save_standards_additions(
             "extra".into(),
             &p,

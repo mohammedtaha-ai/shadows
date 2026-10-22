@@ -421,6 +421,8 @@ obligations:
       The Planner's tools stay the one mcp__shadows__* pattern (§24.2).
     tested_by: a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval
   - rule: >
+      Standards::current_in supplies opening additions; Turns::standards_for_invocation_in
+      resolves the recorded pin through Standards in one read snapshot.
       Effective standards reach the session at opening, then once after each
       base or additions version change, between turns. A fork receives them
       even before it has an invocation of its own. Every person's prompt ends

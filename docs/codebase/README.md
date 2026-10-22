@@ -249,9 +249,13 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/design/workspace.rs` | a grant's read-only view of its project workspace | `crates/shadows-core/src/design/workspace.rs` |
 | `crates/shadows-core/src/design/outcomes.rs` | outcome service entry points | `crates/shadows-core/src/design/outcomes.rs` |
 | `crates/shadows-core/src/design/ops.rs` | normalization of workspace edits | `crates/shadows-core/src/design/ops.rs` |
-| `crates/shadows-core/src/design/standards.rs` | compiled-in standards with project additions | `crates/shadows-core/src/design/standards.rs` |
+| `crates/shadows-core/src/standards/` | project standards versions | `crates/shadows-core/src/standards/contract.yaml` |
+| `crates/shadows-core/src/standards/model.rs` | public standards values | `crates/shadows-core/src/standards/contract.yaml` |
+| `crates/shadows-core/src/standards/base.rs` | bundled base parsing | `crates/shadows-core/src/standards/contract.yaml` |
+| `crates/shadows-core/src/standards/validation.rs` | project additions validation | `crates/shadows-core/src/standards/contract.yaml` |
 | `crates/shadows-core/src/design/stage.rs` | a project's stage from its workspace | `crates/shadows-core/src/design/stage.rs` |
-| `crates/shadows-core/src/design/store/standards.rs` | versioned standards additions | `crates/shadows-core/src/design/store/standards.rs` |
+| `crates/shadows-core/src/standards/store.rs` | immutable additions persistence | `crates/shadows-core/src/standards/contract.yaml` |
+| `crates/shadows-core/src/turns/store/standards.rs` | invocation standards selection | `crates/shadows-core/src/turns/contract.yaml` |
 | `crates/shadows-core/src/design/store/stage.rs` | reading a project's stage inputs | `crates/shadows-core/src/design/store/stage.rs` |
 | `crates/shadows-core/src/design/store/outcomes.rs` | snapshot reads of outcomes | `crates/shadows-core/src/design/store/outcomes.rs` |
 | `crates/shadows-core/src/design/store/outcome_edit.rs` | transactional outcome mutations | `crates/shadows-core/src/design/store/outcome_edit.rs` |

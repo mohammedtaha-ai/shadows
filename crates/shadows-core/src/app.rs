@@ -28,6 +28,7 @@ use crate::projects::Projects;
 use crate::runtime::Runtime;
 use crate::runtime::StopKind;
 use crate::secrets::{SecretKey, Secrets};
+use crate::standards::Standards;
 use crate::threads::{ThreadId, Threads};
 use crate::turns::{LiveHandles, OperationId, ThreadStopper, Turns};
 
@@ -65,6 +66,7 @@ pub struct CoreParts {
 /// |---|---|---|---|
 /// | `Secrets` | encrypted environment configuration | `crates/shadows-core/src/secrets` | `crates/shadows-core/src/secrets/contract.yaml` |
 /// | `Profiles` | local agent configuration | `crates/shadows-core/src/profiles` | `crates/shadows-core/src/profiles/contract.yaml` |
+/// | `Standards` | project standards versions | `crates/shadows-core/src/standards` | `crates/shadows-core/src/standards/contract.yaml` |
 /// | `Design` | project design revisions | `crates/shadows-core/src/design` | `crates/shadows-core/src/design/contract.yaml` |
 /// | `Plans` | plan version lifecycle | `crates/shadows-core/src/plans` | `crates/shadows-core/src/plans/contract.yaml` |
 /// | `Grants` | MCP grant lifecycle | `crates/shadows-core/src/grants` | `crates/shadows-core/src/grants/contract.yaml` |
@@ -77,7 +79,7 @@ pub struct CoreParts {
 /// | `Code` | project code indexing | `crates/shadows-core/src/code` | `crates/shadows-core/src/code/contract.yaml` |
 /// | `Runtime` | runtime instance lifecycle | `crates/shadows-core/src/runtime` | `crates/shadows-core/src/runtime/contract.yaml` |
 ///
-/// The first twelve owners have typed accessors on `AppCore`. `Runtime` is
+/// The first thirteen owners have typed accessors on `AppCore`. `Runtime` is
 /// internal: `start` builds it before assembly, then `Turns` holds the shared
 /// instance for execution and shutdown. There is no `AppCore::runtime` accessor.
 /// `start` builds `Profiles` and `Grants` once. `Sessions` receives those
@@ -96,6 +98,7 @@ pub struct AppCore {
     projects: Projects,
     threads: Threads,
     instructions: Instructions,
+    standards: Standards,
     events: Events,
     code: Code,
 }
@@ -145,6 +148,7 @@ impl AppCore {
             projects.clone(),
         );
         let instructions = Instructions::new(storage.clone());
+        let standards = Standards::new(storage.clone());
         let sessions = Sessions::with_profiles(
             Arc::new(ClaudeAdapter {
                 node: config.node_path.clone(),
@@ -179,6 +183,7 @@ impl AppCore {
             profiles,
             grants,
             instructions,
+            standards,
             projects,
         );
         // §15.8: the active set is chosen and the workers spawned; `serve`
@@ -197,15 +202,17 @@ impl AppCore {
         let grants = Grants::new(parts.storage.clone(), parts.mcp_url.clone());
         let instructions = Instructions::new(parts.storage.clone());
         let projects = Projects::new(parts.storage.clone());
-        Self::assemble_services(parts, profiles, grants, instructions, projects)
+        let standards = Standards::new(parts.storage.clone());
+        Self::assemble_services(parts, profiles, grants, instructions, standards, projects)
     }
 
-    /// The services over parts and the three services built before them.
+    /// The services over parts and the owners built before assembly.
     fn assemble_services(
         parts: CoreParts,
         profiles: Arc<crate::Profiles>,
         grants: Grants,
         instructions: Instructions,
+        standards: Standards,
         projects: Projects,
     ) -> Arc<AppCore> {
         let CoreParts {
@@ -256,12 +263,14 @@ impl AppCore {
                 bus.clone(),
                 code.clone(),
                 instructions.clone(),
+                standards.clone(),
                 projects.clone(),
             ),
             harness,
             projects: projects.with_code(code.clone()),
             threads,
             instructions,
+            standards,
             events,
             code,
         })
@@ -277,6 +286,15 @@ impl AppCore {
 
     pub fn secrets(&self) -> &Secrets {
         &self.secrets
+    }
+
+    #[cfg(feature = "test-support")]
+    pub fn standards_for_tests(storage: Arc<Storage>) -> Standards {
+        Standards::new(storage)
+    }
+
+    pub fn standards(&self) -> &Standards {
+        &self.standards
     }
 
     pub fn design(&self) -> &Design {

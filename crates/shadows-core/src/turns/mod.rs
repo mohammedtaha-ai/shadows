@@ -64,6 +64,7 @@ use crate::plans::{Focus, PlanId};
 use crate::projects::Projects;
 use crate::runtime::Runtime;
 use crate::runtime::StopKind;
+use crate::standards::Standards;
 use crate::threads::ThreadId;
 
 /// What the turn machinery needs for tests that drive it below `Turns`:
@@ -90,6 +91,7 @@ pub struct Turns {
     bus: Bus,
     code: Code,
     instructions: Instructions,
+    standards: Standards,
     projects: Projects,
 }
 
@@ -209,6 +211,7 @@ impl Turns {
         bus: Bus,
         code: Code,
         instructions: Instructions,
+        standards: Standards,
         projects: Projects,
     ) -> Self {
         Self {
@@ -219,6 +222,7 @@ impl Turns {
             bus,
             code,
             instructions,
+            standards,
             projects,
         }
     }

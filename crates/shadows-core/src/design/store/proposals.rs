@@ -145,7 +145,7 @@ impl Storage {
                 .bind(&p.text)
                 .bind(&p.old_text)
                 .bind(p.expected_item_revision)
-                .bind(super::super::standards::base().version)
+                .bind(crate::standards::Standards::base().version)
                 .bind(turn.as_str())
                 .bind(&ts)
                 .bind(project.as_str())

@@ -44,7 +44,7 @@ queued_message :: turns
 runtime_instance :: runtime
 secret_env :: secrets
 secret_env_import :: secrets
-standards_additions_version :: design
+standards_additions_version :: standards
 task :: plans
 task_agreement_binding :: plans
 task_parent :: plans

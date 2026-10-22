@@ -93,14 +93,12 @@ crates/shadows-core/src/design/model.rs :: module comment [ad7e66d843aaba80] #1
 crates/shadows-core/src/design/proposals.rs :: module comment [a3fd8b92575d5b6f] #1
 crates/shadows-core/src/design/roadmap_proposals.rs :: module comment [f247157bdf50f681] #1
 crates/shadows-core/src/design/stage.rs :: module comment [315e2870cad38a0c] #1
-crates/shadows-core/src/design/standards.rs :: module comment [68bfc354258f4f23] #1
 crates/shadows-core/src/design/store/proposal_approval.rs :: module comment [780b986448c9442f] #1
 crates/shadows-core/src/design/store/proposal_read.rs :: module comment [45779cc5b3767f51] #1
 crates/shadows-core/src/design/store/proposals.rs :: module comment [8ea8eed81e716832] #1
 crates/shadows-core/src/design/store/roadmap_gate.rs :: module comment [af2313774ad008a0] #1
 crates/shadows-core/src/design/store/roadmap_shape.rs :: module comment [173dfd8bfb773f99] #1
 crates/shadows-core/src/design/store/roadmap_shape.rs :: module comment [208c5911e61eb644] #1
-crates/shadows-core/src/design/store/standards.rs :: module comment [69ed26c8563ce048] #1
 crates/shadows-core/src/design/store/vision_versions.rs :: module comment [70df0407d818767a] #1
 crates/shadows-core/src/design/vision_items.rs :: module comment [53e6845b7547d8fa] #1
 crates/shadows-core/src/design/workspace.rs :: Design comment [504f24d8fb4f8835] #1

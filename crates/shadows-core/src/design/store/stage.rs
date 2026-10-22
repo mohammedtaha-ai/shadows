@@ -1,8 +1,9 @@
 //! Reading every stage input in one consistent project snapshot.
 
 use crate::db::{Storage, StorageError};
-use crate::design::{EffectiveStandards, PartContent, StageView, VisionContent, stage, standards};
+use crate::design::{PartContent, StageView, VisionContent, stage};
 use crate::projects::ProjectId;
+use crate::standards::{EffectiveStandards, Standards};
 
 impl Storage {
     pub async fn project_stage(&self, project: &ProjectId) -> Result<StageView, StorageError> {
@@ -35,8 +36,8 @@ impl Storage {
             .filter_map(|p| p.kind)
             .collect();
         let effective = EffectiveStandards {
-            base: standards::base().clone(),
-            additions: super::standards::current_in(&mut tx, project).await?,
+            base: Standards::base().clone(),
+            additions: Standards::current_in(&mut tx, project).await?,
         };
         let waived = super::map_versions::waived(&mut tx, project).await?;
         let required: Vec<_> = effective

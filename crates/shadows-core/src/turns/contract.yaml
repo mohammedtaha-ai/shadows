@@ -50,6 +50,7 @@ shapes:
     bus: Bus
     # A clone of the core's `Code`: `send` touches the thread's project (§15.6).
     code: Code
+    standards: Standards
   ThreadStopper:
     # Narrow handle built at composition, held by Threads.
     runtime: Arc<Runtime>
@@ -510,6 +511,7 @@ enums:
 
 
 shared_in_transaction:
+  standards_for_invocation_in: "Harness resolves the selected additions in its read snapshot; missing invocation or removed project is NotFound(invocation), a missing/foreign version is NotFound(invocation standards additions), and no pin means base only. The planning_thread read remains until A-17."
   record_usage_in: Terminal transitions write the measured AYLUL snapshot inside their own transaction.
   check_running_turn_in: "Design's vision proposal write validates the exact operation is Running in its live thread after replay and before supersession, entry or event writes; db/approval validates the exact Planner operation the same way before an approval or its replay (§24)."
   take_queued_in: "The start of a waiting message (§20.3) and Send now (§20.4): the row is removed inside the same write that commits the turn or the steered entry, so a message is sent once or not at all"
@@ -796,6 +798,8 @@ not_the_caller's:
 
 
 tests:
+  - name: invocation_standards_preserve_pins_nulls_and_missing_results
+    checks: An old pin stays exact; a null pin stays base only; foreign pins, unknown operations and removed projects keep their refusal taxonomy.
   - name: waiting_messages_keep_their_order_and_a_removed_one_is_gone
     checks: >
       While a turn is open at the store, two queued messages list in

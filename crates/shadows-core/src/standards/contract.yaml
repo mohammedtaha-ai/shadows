@@ -1,0 +1,135 @@
+# Owns the bundled base standards and immutable project additions.
+# Project liveness is checked through Projects in the caller's snapshot.
+# Invocation selection belongs to Turns; this service loads only its own versions.
+# A replay precedes validation and liveness so removal cannot change its result.
+name: standards
+version: 1
+status: current
+source: crates/shadows-core/src/standards
+
+modules:
+  mod.rs: standards command boundary
+  model.rs: public standards values
+  base.rs: bundled base parsing
+  validation.rs: additions validation
+  store.rs: immutable additions persistence
+
+dependencies:
+  projects: crates/shadows-core/src/projects/contract.yaml
+
+shapes:
+  Standards:
+    store: StandardsStore
+  StandardsStore:
+    storage: Arc<Storage> # Private to standards; shares the existing pool.
+  MandatoryPart:
+    name: String
+    owns: String
+    waivable: bool
+  StandardRule:
+    id: String
+    text: String
+    parts: Vec<String>
+  ContractTemplate:
+    rules: Vec<String>
+    shape: Vec<String>
+  BaseStandards:
+    version: i64
+    parts: Vec<MandatoryPart>
+    rules: Vec<StandardRule>
+    contract_template: ContractTemplate
+  AdditionalPart:
+    name: String
+    owns: String
+  StandardsAdditions:
+    rules: Vec<StandardRule>
+    parts: Vec<AdditionalPart>
+  StandardsAdditionsVersion:
+    id: String # Internal provenance only; serde skips it in public JSON.
+    number: i64
+    content: StandardsAdditions
+    created_at: String
+  EffectiveStandards:
+    base: BaseStandards
+    additions: Option<StandardsAdditionsVersion>
+
+functions:
+  service:
+    new:
+      signature: "crate-private: (storage: Arc<Storage>) -> Standards"
+    base:
+      signature: "() -> &'static BaseStandards"
+    current:
+      signature: "(&self, project: &ProjectId) -> Result<Option<StandardsAdditionsVersion>, CoreError>"
+      # A live project without saves has None; unknown/removed projects refuse.
+    standards:
+      signature: "(&self, project: &ProjectId) -> Result<EffectiveStandards, CoreError>"
+      # Unknown/removed projects refuse; a live project without saves has null additions.
+    save_standards_additions:
+      signature: "(&self, command_id: String, project: &ProjectId, content: StandardsAdditions) -> Result<StandardsAdditionsVersion, CoreError>"
+      # StandardsAdditionsSave, User/local, schema 1, Project scope; exact typed fingerprint.
+      # InvalidCommand for invalid additions; command conflicts preserve their taxonomy.
+  validation:
+    validate:
+      signature: "(additions: &StandardsAdditions) -> Result<(), String>"
+      private: true
+  snapshot:
+    current_in:
+      signature: "(conn: &mut SqliteConnection, project: &ProjectId) -> Result<Option<StandardsAdditionsVersion>, StorageError>"
+      # Checks liveness and selects the highest number in the same snapshot.
+    load_version_in:
+      signature: "(conn: &mut SqliteConnection, project: &ProjectId, id: &str) -> Result<StandardsAdditionsVersion, StorageError>"
+      # Only that project's immutable version; NotFound("standards additions") otherwise.
+  store:
+    save_standards_additions:
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, content: &StandardsAdditions) -> Result<StandardsAdditionsVersion, StorageError>"
+      private: true
+      # classify/replay, validation, live project, checked next number, row, event, command.
+    load_version:
+      signature: "(conn: &mut SqliteConnection, id: &str) -> Result<StandardsAdditionsVersion, StorageError>"
+      private: true
+      # Command replay loads its recorded result, including after project removal.
+
+shared_in_transaction:
+  current_in: "Design stage/map reads and Harness opening use the caller's snapshot."
+  load_version_in: "Design map proposals and Turns' invocation lookup load a project-scoped pin."
+
+called_by_other_services:
+  current: "Turns records the latest additions at turn start."
+  base: "Design, Harness and Turns read the compiled immutable base."
+
+obligations:
+  - rule: >
+      Compiled-in base rules cannot be edited through any route or tool. Additions
+      cannot repeat a mandatory part or refer to an unknown one. Invalid saves
+      produce no version/event; valid saves have consecutive explicit numbers.
+    tested_by: [the_base_standards_parse_with_the_four_mandatory_parts, additions_cannot_repeat_a_base_part_or_name_an_unknown_one]
+  - rule: >
+      Save replay returns the original version including its internal id, even
+      after a newer save or project removal. Reused command identity conflicts.
+      A journal failure rolls back version, command and event together.
+    tested_by: [each_additions_save_is_a_new_version_and_a_replay_saves_nothing, standards_saves_are_atomic_and_survive_restart]
+  - rule: >
+      HTTP omits additions row id, translates InvalidCommand to 422, and publishes
+      ProjectStandardsSaved with the number only. A replay emits no second event.
+    tested_by: standards_routes_read_the_base_and_save_additions
+
+not_the_caller's:
+  - Read standards_additions_version directly or select the latest when a pin is absent.
+  - Rebuild the save fingerprint, validate additions or assign version numbers.
+
+tests:
+  - name: the_base_standards_parse_with_the_four_mandatory_parts
+    checks: Four parts with explicit waiver flags, S rules, contract shape.
+  - name: standards_without_additions_are_the_base
+    checks: Base-only live project and missing-project read refusals.
+  - name: each_additions_save_is_a_new_version_and_a_replay_saves_nothing
+    checks: Version order, exact replay, identity conflict, removed-project behavior.
+  - name: additions_cannot_repeat_a_base_part_or_name_an_unknown_one
+    checks: Base collision, invalid names and IDs, unknown rule parts, blank text.
+  - name: standards_saves_are_atomic_and_survive_restart
+    checks: Competing saves, late journal rollback, retry, reopened version and events.
+  - name: standards_routes_read_the_base_and_save_additions
+    checks: Actual routes, private id, invalid save, replay event, missing-project status.
+  - name: additions_reads_keep_the_snapshot_and_scope_versions_to_the_project
+    checks: A captured read retains liveness and version after save/removal; missing or foreign versions refuse; removed-project replay returns its original version.

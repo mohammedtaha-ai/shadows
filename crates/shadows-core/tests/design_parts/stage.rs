@@ -138,7 +138,7 @@ async fn an_added_part_is_mandatory_for_the_stage() {
         }],
         rules: vec![],
     };
-    core.design()
+    core.standards()
         .save_standards_additions("b".into(), &p, content)
         .await
         .unwrap();

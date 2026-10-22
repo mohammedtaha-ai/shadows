@@ -1,5 +1,6 @@
 //! Pure map ownership, dependency and coverage rules.
-use super::{EffectiveStandards, PartContent, VisionContent};
+use super::{PartContent, VisionContent};
+use crate::standards::EffectiveStandards;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) struct MapPart<'a> {
@@ -294,7 +295,7 @@ mod tests {
                 content: &content,
             }];
             let standards = EffectiveStandards {
-                base: super::super::standards::base().clone(),
+                base: crate::standards::Standards::base().clone(),
                 additions: None,
             };
             assert_eq!(

@@ -26,7 +26,6 @@ mod roadmap_seed;
 mod roadmap_shape;
 pub(crate) use roadmap_gate::{link_plan_parts_in, plan_has_part_in, require_roadmap_in};
 mod stage;
-mod standards;
 pub(super) mod structure;
 mod vision;
 mod vision_versions;

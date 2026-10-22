@@ -156,7 +156,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: `code_order` calls `Projects::by_recent_activity`; its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test code_index` and `cargo test -p shadows --test code_scope` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
 ### A-12b · Prepare the service boundary: standards (out of design)
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-12b
 - Read: design/standards.rs, design/store/standards.rs, design/contract.yaml; the ledger
 - Touch: new crates/shadows-core/src/standards/, crates/shadows-core/src/design/{standards.rs,store/standards.rs,mod.rs}, the callers in harness/ and turns/, crates/shadows-core/src/turns/store/ (the invocation-pinned lookup: `agent_invocation` and `operation` belong to turns until A-17, so which standards version an operation heard is read there and `Standards` loads that version; any cross-owner line it still needs stays in the allowlist, named for A-17), crates/shadows-http/src/design.rs (the standards route), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)

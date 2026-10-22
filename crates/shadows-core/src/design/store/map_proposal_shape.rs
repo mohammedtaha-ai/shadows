@@ -1,6 +1,7 @@
 //! Assemble a proposed map against current parts without writing.
 use super::map_versions::{MapRow, contents, views};
-use crate::design::{EffectiveStandards, MapAction, MapPropose, map_rules};
+use crate::design::{MapAction, MapPropose, map_rules};
+use crate::standards::{EffectiveStandards, Standards};
 use crate::{PartContent, ProjectId, StorageError, VisionContent};
 
 pub(super) fn complete(vision: &VisionContent) -> Result<(), StorageError> {
@@ -158,7 +159,7 @@ pub(super) async fn pinned(
     standards.base.version = base;
     standards.additions = match id {
         None => None,
-        Some(id) => Some(super::standards::load_version(conn, &id).await?),
+        Some(id) => Some(Standards::load_version_in(conn, p, &id).await?),
     };
     Ok(standards)
 }

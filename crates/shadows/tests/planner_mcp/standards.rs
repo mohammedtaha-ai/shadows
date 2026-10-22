@@ -85,8 +85,9 @@ async fn a_pending_turn_delivers_the_standards_version_it_recorded() {
         .unwrap();
     save_additions(app, "s1", "billing").await;
     let first = app
-        .storage
-        .current_standards_additions(&app.project)
+        .core
+        .standards()
+        .current(&app.project)
         .await
         .unwrap()
         .unwrap();

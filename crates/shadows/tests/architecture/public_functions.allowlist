@@ -15,8 +15,6 @@ crates/shadows-core/src/design/ops.rs :: normalize free public function [738a419
 crates/shadows-core/src/design/proposals.rs :: core_error free public function [8056d5e01c1ae9a8] #1
 crates/shadows-core/src/design/stage.rs :: compute free public function [beb941b936ad38eb] #1
 crates/shadows-core/src/design/stage.rs :: line free public function [b4a627f985bc69ad] #1
-crates/shadows-core/src/design/standards.rs :: base free public function [4fe9b6d479c86a03] #1
-crates/shadows-core/src/design/standards.rs :: validate free public function [b881778668290693] #1
 crates/shadows-core/src/design/store/agreement_binding.rs :: check_agreement_binding_in free public function [bea9edbf7f0f41e7] #1
 crates/shadows-core/src/design/store/agreement_write.rs :: record free public function [0b28bb9d3802df19] #1
 crates/shadows-core/src/design/store/agreement_write.rs :: replay free public function [30ef9ae4872d5e08] #1
@@ -56,8 +54,6 @@ crates/shadows-core/src/design/store/roadmap_shape.rs :: part_snapshot free publ
 crates/shadows-core/src/design/store/roadmap_shape.rs :: part_snapshots free public function [747298c7f12b896f] #1
 crates/shadows-core/src/design/store/roadmap_shape.rs :: require_structure free public function [b55cd6048cbd2ddd] #1
 crates/shadows-core/src/design/store/roadmap_shape.rs :: validate free public function [4e05f42586a3c01e] #1
-crates/shadows-core/src/design/store/standards.rs :: current_in free public function [a986c581b7324220] #1
-crates/shadows-core/src/design/store/standards.rs :: load_version free public function [eb5fa6d9315142fa] #1
 crates/shadows-core/src/design/store/vision_versions.rs :: insert_version free public function [29bbf037aab0b51a] #1
 crates/shadows-core/src/design/structure.rs :: render free public function [1f478c6cfea833a0] #1
 crates/shadows-core/src/design/structure.rs :: sha256_hex free public function [ed1c6806d21dd142] #1

@@ -13,6 +13,7 @@ mod profiles;
 mod projects;
 mod runtime;
 mod secrets;
+mod standards;
 #[cfg(feature = "test-support")]
 pub mod testing;
 mod threads;
@@ -36,15 +37,13 @@ pub use db::Actor;
 pub use db::StorageError;
 pub use design::StructureWritten;
 pub use design::{
-    AdditionalPart, AgreementContent, AgreementId, AgreementIssue, AgreementParticipantImpact,
-    AgreementParty, AgreementPartyReview, AgreementReview, AgreementRole, AgreementState,
-    AgreementVersion, AgreementWriter, BaseStandards, ContractHead, ContractTemplate, Design,
-    DesignAnchor, DesignChange, DesignOp, DesignRevision, EffectiveStandards, InitialFile,
-    MandatoryPart, MapAction, MapProposal, MapPropose, Outcome, OutcomeContent, OutcomeId,
+    AgreementContent, AgreementId, AgreementIssue, AgreementParticipantImpact, AgreementParty,
+    AgreementPartyReview, AgreementReview, AgreementRole, AgreementState, AgreementVersion,
+    AgreementWriter, ContractHead, Design, DesignAnchor, DesignChange, DesignOp, DesignRevision,
+    InitialFile, MapAction, MapProposal, MapPropose, Outcome, OutcomeContent, OutcomeId,
     OutcomePage, OutcomeView, Part, PartContent, PartId, PartPage, PartView, PartWaiver,
-    ProposedPart, ProposedWaiver, Stage, StageView, StandardRule, StandardsAdditions,
-    StandardsAdditionsVersion, VisionContent, VisionField, VisionItem, VisionView, WorkspaceView,
-    base_standards,
+    ProposedPart, ProposedWaiver, Stage, StageView, VisionContent, VisionField, VisionItem,
+    VisionView, WorkspaceView,
 };
 pub use design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub use design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
@@ -86,3 +85,8 @@ pub use turns::{
 // `shadows-agent` (spec §14.3, §14.6 #1); the schema name is unchanged.
 pub use shadows_agent::choices::SessionChoices;
 pub use shadows_agent::profile::ClaudeProfile;
+
+pub use standards::{
+    AdditionalPart, BaseStandards, ContractTemplate, EffectiveStandards, MandatoryPart,
+    StandardRule, Standards, StandardsAdditions, StandardsAdditionsVersion,
+};

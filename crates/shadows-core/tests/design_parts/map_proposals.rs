@@ -396,7 +396,7 @@ async fn a_second_add_with_the_same_identity_is_refused_at_approval() {
 async fn proposals_pin_the_turns_standards_not_newer_additions() {
     let f = Fixture::new().await;
     f.core
-        .design()
+        .standards()
         .save_standards_additions(
             "new-standards".into(),
             &f.p,

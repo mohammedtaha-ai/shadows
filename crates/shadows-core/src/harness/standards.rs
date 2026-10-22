@@ -1,6 +1,6 @@
 //! One job: rendering effective standards for the Planner (§23.4).
 
-use crate::design::EffectiveStandards;
+use crate::standards::EffectiveStandards;
 
 pub(super) fn render(s: &EffectiveStandards) -> String {
     let additions = s.additions.as_ref();

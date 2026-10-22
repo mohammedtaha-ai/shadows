@@ -228,7 +228,7 @@ pub(super) async fn get_standards(
     State(s): State<AppState>,
     Path(project): Path<ProjectId>,
 ) -> Result<Json<EffectiveStandards>, Failure> {
-    Ok(Json(s.core.design().standards(&project).await?))
+    Ok(Json(s.core.standards().standards(&project).await?))
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -250,7 +250,7 @@ pub(super) async fn save_standards_additions(
 ) -> Result<Json<StandardsAdditionsVersion>, Failure> {
     Ok(Json(
         s.core
-            .design()
+            .standards()
             .save_standards_additions(body.command_id, &project, body.content)
             .await?,
     ))
