@@ -295,6 +295,14 @@ are reference material; they do not replace the project's template or code.
 - Needs: A-17 (the harness boundary is reshaped there)
 - Done when: picking Auto without sending, then reopening the session and restarting Core, answers Auto; a mode the project disallows is refused before anything is written; a disallowed remembered mode falls back to the policy default on open; a running turn keeps its mode and the new one applies to the next turn; one conversation's mode does not reach another; a fork copies it; a replay with a different mode is `CommandConflict`; `cargo test -p shadows --test openapi` and the new tests pass
 
+### B-11 · Images in a message
+- Status: blocked
+- Plan: none. Owner specs: docs/superpowers/specs/2026-09-21-domain-model-design.md §4.2 "Attachment", §12.11; request docs/shared/requests/2026-10-22-image-attachments.md (accepted)
+- Read: threads/contract.yaml, turns/contract.yaml (prompt composition), harness/contract.yaml, crates/shadows-agent/src/acp.rs (`Connection::prompt`, steering, `initialize`); the request
+- Touch: crates/shadows-core/src/threads/ (attachment record, bytes, upload/read, removal, fork), a migration under crates/shadows-core/src/db/, crates/shadows-core/src/turns/ (ids in turn/queue/steer commands and fingerprints; neutral image blocks in `Prompt::compose`), crates/shadows-core/src/harness/ (capabilities in the session answer), crates/shadows-agent/src/ (neutral blocks to ACP image blocks; keep `promptCapabilities`), crates/shadows-http/src/ (the two routes, the new fields), api/openapi.json (regenerated), crates/shadows/tests/ (new acceptance tests), docs/codebase/README.md
+- Needs: A-18 (turns is reshaped there); B-10 is independent
+- Done when: an uploaded PNG is refused when its bytes are not an image and over the limit; a turn with text plus two images sends the text and both images in order to the fake ACP agent (exact blocks asserted); an image-only turn works; an id from another thread is refused before anything is written; a replay with other ids is `CommandConflict`; a queued and a steered message keep their images; a fork copies the references; removing the thread removes the bytes; a harness without image capability refuses with its reason; no ACP type appears in HTTP or stored entries; `cargo test -p shadows --test openapi` and the new tests pass
+
 ### B-A2 · Prepare Core's scoped context contract
 - Status: stopped (2026-10-19: its Hermes integration plan was deleted, Git `226d0a3`; AYLUL's work profile will define its own need)
 - Plan: none

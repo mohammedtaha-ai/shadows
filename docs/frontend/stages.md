@@ -92,3 +92,19 @@ and OS acceptance.
 - Touch: `web/src/app/conversation/` (the mode choice, its tests, its `contract.yaml`), `web/src/api/` (the new call, regenerated `schema.d.ts` via `npm run gen:api`)
 - Needs: B-10
 - Done when: choosing Auto calls `PUT /api/threads/{id}/session/mode` at once and the menu shows Core's answer; after navigating away and back, and after a remount with a fresh QueryClient, the menu shows Auto; a refusal keeps Core's mode and shows its message; the draft still starts at the policy default; the tests pass with `npm run typecheck` and `npm run lint`
+
+### F-24 · The `+` menu: Slash commands and Plugins
+- Status: todo
+- Plan: none. Owner specs: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.11 ("The `+` menu"), docs/superpowers/specs/2026-10-05-slash-menu-design.md; request docs/shared/requests/2026-10-22-image-attachments.md (accepted)
+- Read: `web/src/app/conversation/contract.yaml`; `composer-bar.tsx` (the disabled `+`), `composer.tsx` (the `/` menu), the Plugins & Skills settings entry point
+- Touch: `web/src/app/conversation/` (the menu, its tests, its `contract.yaml`)
+- Needs: none (no backend change)
+- Done when: `+` opens a menu; Slash commands opens the existing `/` menu with the same list; Plugins opens the conversation's AYLUL agent's Plugins & Skills settings and is absent in a project conversation; Add photos is shown disabled with "Comes with F-25" until F-25; keyboard (Enter, arrows, Escape) works; the tests pass with `npm run typecheck` and `npm run lint`
+
+### F-25 · Paste, drop and pick images, and send them
+- Status: blocked
+- Plan: none. Owner specs: §4.2 "Attachment", §12.11; request docs/shared/requests/2026-10-22-image-attachments.md (accepted)
+- Read: `web/src/app/conversation/contract.yaml`; `composer.tsx`, `composer-bar.tsx`, `draft.tsx`, `web/src/api/client.ts`
+- Touch: `web/src/app/conversation/` (paste, drop, picker, thumbnails, sending, the transcript's images, tests, `contract.yaml`), `web/src/api/` (the calls; `schema.d.ts` via `npm run gen:api`)
+- Needs: B-11, F-24
+- Done when: Ctrl+V of a screenshot, a drop and Add photos (Ctrl+U) each upload at once and show a thumbnail with remove; ordinary text paste is unchanged; Send waits for uploads and sends the ids in order; an image-only message sends; a failed upload or a refused send keeps the text and images and shows Core's reason; Add photos and paste are disabled with the reason when `capabilities.image` is false; the draft's first send keeps its images; the transcript shows a message's images; the tests pass with `npm run typecheck` and `npm run lint`

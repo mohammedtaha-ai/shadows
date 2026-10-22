@@ -531,6 +531,42 @@ digest of arbitrary raw JSON bytes.
 
 Not every command creates an `Operation`.
 
+### Attachment
+
+(Added 2026-10-22, Mohammed's ruling: a person pastes or picks images for a message, and
+`Threads` owns them.)
+
+```rust
+struct Attachment {
+    id: AttachmentId,          // opaque, owned by threads
+    thread_id: ThreadId,
+    media_type: String,        // image/png, image/jpeg, image/gif, image/webp first
+    byte_len: u64,
+    sha256: [u8; 32],
+    name: Option<String>,      // the file name the person gave, display only
+    created_at: Timestamp,
+}
+```
+
+- **Owner:** `Threads`. It stores the bytes and the record; no other service writes them.
+- **Upload is its own command** (`POST /api/threads/{id}/attachments`, a `CommandId`, the
+  bytes). It checks the media type by content, not by name, and a size limit; it answers
+  the `AttachmentId`. An attachment is immutable: a new paste is a new attachment.
+- **A message names its attachments in order.** A turn start, a queued message and a
+  steered message carry `attachments: [AttachmentId]` beside their text; the ids are part
+  of the command fingerprint, and each must belong to the same thread. The user entry
+  records them, so the transcript shows them and a fork copies the references.
+- **A message may be image-only.** Empty text with at least one attachment is a message.
+- **Backend-neutral input.** `Turns`' prompt composition stays the one place that builds
+  the model's input; it builds neutral blocks (text, image) from the entry. The ACP
+  adapter alone turns them into ACP content blocks, so `runtime/` later reads the same
+  blocks. No HTTP shape and no stored entry holds an ACP type.
+- **Capability is the harness's answer.** Core keeps the prompt capabilities the harness
+  reports when its session starts; when it does not accept images, an attachment-bearing
+  turn is refused before anything is written, with that reason.
+- **Removed with the thread.** Removing a thread removes its attachments' bytes.
+- **Later, not now:** files other than images, attaching a folder, and connectors.
+
 ---
 
 ## 4.3 Core invariants

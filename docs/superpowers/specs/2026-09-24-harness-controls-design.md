@@ -598,6 +598,16 @@ Matches the mockup agreed on 2026-09-24:
 - **Opening a conversation** opens its session. Until the answer arrives the bar reads "Connecting to Claude Code…"; a failure shows the daemon's message and a retry. Never a spinner without words.
 - **Header:** CLI picker (`cli-picker.tsx`). Unavailable harnesses shown disabled as "coming". Changeable until the first turn, then shown with a lock.
 - **Under the message box**, flat, no border (`composer-bar.tsx`): left `+`, mode, folder; right model, effort, context ring. Every menu is built from the session's answer. Modes the project does not allow are shown disabled with the reason. Each mode carries one line saying what it lets the harness do; for Accept edits, that it edits, creates and deletes files in the project folder without asking and other commands are refused (§12.5). Choosing a model sets it at once (§12.7): the effort menu waits for the answer and then shows that model's efforts, at the effort the model route's answer reports (its remembered one, else the one the adapter carried over, §12.4) — an `options` frame streamed during the move may still carry the previous effort and does not settle it; a refusal puts the session's model back and shows the harness's message. Choosing an effort sets it at once too; a refusal puts the session's effort back and shows the message on the error line. When the observed model differs from the requested one, the reply shows both.
+- **The `+` menu** (amended 2026-10-22): it opens a menu with **Add photos** (also
+  Ctrl+U), **Slash commands** and **Plugins**. Add photos opens the file picker for
+  images; pasting an image into the message box or dropping one on it does the same.
+  Each image uploads at once (§4.2 Attachment) and shows as a thumbnail above the text
+  with a remove button and its upload state; Send waits for uploads and sends their ids
+  in order; a failed upload keeps the text and the other images and says why. Slash
+  commands opens the same `/` menu (§21), with the same list. Plugins opens the Plugins &
+  Skills settings of the conversation's AYLUL agent; in a project conversation it is
+  absent until Shadows has its own plugins. Add folder and Connectors are not shown until
+  they are designed.
 - **Context ring** (`context-ring.tsx`): §12.8's two levels; hover or click opens it at any time.
 - **Message actions** (`message-actions.tsx`): copy on every message, fork on the last one when the thread is idle; fork opens the new thread.
 - **A refused permission** renders as a quiet line: what was asked, that `acceptEdits` refused it, and that `auto` would allow it.
