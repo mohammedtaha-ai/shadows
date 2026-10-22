@@ -181,14 +181,14 @@ impl ProjectsStore {
             .await
     }
 
-    /// The project, NotFound once removed (§4.2).
+    /// The project, NotFound once removed.
     pub(super) async fn get(&self, id: &ProjectId) -> Result<Project, StorageError> {
         let mut conn = self.storage.reader().acquire().await?;
         Projects::require_live_in(&mut conn, id).await?;
         load_project(&mut conn, id).await
     }
 
-    /// Removes the project (§4.2, §15.4): it stays a row, since the journal
+    /// Removes the project: it stays a row, since the journal
     /// references it, but is read nowhere again. Refused while it holds a
     /// planning thread. One write: its index, its links both ways and its
     /// live project grants go with it. A replay answers the project as the
@@ -244,7 +244,7 @@ impl ProjectsStore {
     }
 
     /// Replaces the modes the project allows for each harness named in
-    /// `modes` (spec §12.5); harnesses not named keep theirs. An idempotent
+    /// `modes`; harnesses not named keep theirs. An idempotent
     /// command: a replay answers the project as it now stands. The caller
     /// checks every mode is in its harness's policy.
     pub(super) async fn set_modes(

@@ -1,6 +1,6 @@
 //! One job: the directories on this machine a project may own.
 //!
-//! Spec §1: only the daemon can see the machine's disk, so the check that a
+//! Only the daemon can see the machine's disk, so the check that a
 //! path names a real directory, and the form in which it is stored and shown,
 //! is made here, once, before anything records it. Nothing here knows about
 //! HTTP; `shadows-http` maps [`DirectoryError`] to a status and a stable code.
@@ -61,7 +61,7 @@ impl DirectoryError {
 /// needed — see `dunce` in `Cargo.toml`.
 ///
 /// It says nothing about *later*: a directory can be deleted after it was
-/// chosen, which is why a turn checks again before it spawns (spec §8.3).
+/// chosen, which is why a turn checks again before it spawns.
 ///
 /// [`resolve`]: ProjectDirectory::resolve
 #[derive(Debug, Clone, PartialEq, Eq)]

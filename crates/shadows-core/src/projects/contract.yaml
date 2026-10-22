@@ -43,6 +43,10 @@ shapes:
     # the readers hold (`Projects::new`); `with_code` gives it to the one
     # `AppCore` serves, because Code reads projects and so is built over the
     # copy without it. Goes with removal in the project-removal task.
+    # Trap: `create` and `remove` on a copy without it skip the touch and the
+    # forget silently, so only `AppCore::projects()` may call them; the
+    # services hold the copy for reads (`get`, `by_slug`, `allowed_modes`,
+    # `harness_fits`) only.
     code: Option<Code>
   Project:
     id: ProjectId
@@ -88,14 +92,24 @@ functions:
   service:
     list:
       signature: "(&self) -> Result<Vec<Project>, CoreError>"
-      # Oldest first by the `ProjectCreated` event's seq. Also read by
-      # Profiles (`assistant_project`).
+      # Oldest first by the `ProjectCreated` event's seq.
     get:
       signature: "(&self, id: &ProjectId) -> Result<Project, CoreError>"
-      # NotFound for a removed project. Read by Turns (a turn's mode check),
-      # Harness (`choices`), Code (`status`, a scan), Events
-      # (`subscribe_project` refuses unknown or removed projects) and
-      # `harness_fits`.
+      # NotFound for a removed project. Read by Code (`status`, a scan),
+      # Events (`subscribe_project` refuses unknown or removed projects),
+      # `allowed_modes` and `harness_fits`.
+    by_slug:
+      signature: "(&self, slug: &str) -> Result<Option<Project>, CoreError>"
+      # crate-visible. The live project holding `slug`, assistant or not;
+      # `None` when none does. The one slug lookup: `ensure_assistant` and
+      # Profiles (`assistant_project`, which keeps it only when `assistant`).
+    allowed_modes:
+      signature: "(&self, project: &ProjectId, harness: &str) -> Result<Vec<String>, CoreError>"
+      # crate-visible. The modes the live project allows for `harness`;
+      # empty when it names none. NotFound for a removed project. The one
+      # rule for both readers: Turns (a turn's mode check, ModeNotAllowed
+      # unless it contains the mode) and Harness (`choices`, what a client
+      # is offered).
     by_recent_activity:
       signature: "(&self) -> Result<Vec<Project>, CoreError>"
       # Live projects, most recently used first, from the journal alone: the
@@ -108,7 +122,7 @@ functions:
       # calls it.
     ensure_assistant:
       signature: "(&self, slug: &str, name: &str, directory: &Path) -> Result<Project, CoreError>"
-      # AYLUL's project. A live project already holding `slug` is returned
+      # AYLUL's project. A live project already holding `slug` (`by_slug`) is returned
       # as is (never claimed unless it is already `assistant`); else created
       # as "project.create" with a fixed command id over the resolved
       # directory, then marked by the store's `mark_assistant`. Idempotent.
@@ -236,8 +250,9 @@ enums:
 
 called_by_other_services:
   require_live_in: "Instructions (instructions/store.rs save and current): the liveness check inside its own write or read"
-  get: "Turns (turns/record.rs, the mode check), Harness (harness/mod.rs choices), Code (status, scan), and Events (events/mod.rs subscribe_project): a live project; Events refuses unknown or removed projects before opening its stream (§16.8)"
-  list: "Profiles (assistant_project): the live project marked assistant"
+  get: "Code (status, scan) and Events (events/mod.rs subscribe_project): a live project; Events refuses unknown or removed projects before opening its stream (§16.8)"
+  by_slug: "Profiles (assistant_project): the live project `aylul`, kept only when marked assistant"
+  allowed_modes: "Turns (turns/record.rs, the mode check) and Harness (harness/mod.rs choices): the modes a project allows for a harness"
   by_recent_activity: "Code (start order), from the code task on"
   known_harness: "Threads (create, set_harness): the one rule for a known harness"
   harness_fits: "Threads (create, set_harness): the rule that AYLUL runs only in the AYLUL project"
@@ -343,7 +358,11 @@ obligations:
   - rule: >
       Recent activity is read from the journal alone: a project whose thread
       started the newest operation is first; with no operation, the newest
-      project is.
+      project is. A thread with no operation moves nothing; a removed
+      thread's operation still counts; a fork counts for its source's
+      project, since fork journals `PlanningThreadCreated` with it. Both
+      subqueries are index searches (`idx_event_thread`,
+      `idx_event_project`), so no journal-wide scan per project.
     tested_by: projects_are_ordered_by_the_newest_operation_in_the_journal
 
   - rule: >
@@ -450,8 +469,9 @@ tests:
     checks: Two projects whose created_at text sorts backwards list in creation order.
   - name: projects_are_ordered_by_the_newest_operation_in_the_journal
     checks: >
-      Two projects list newest first; after a pending operation on the older
-      one's thread it is first.
+      Two projects list newest first, still after an idle thread on the
+      older one; after a pending operation on the older one's thread it is
+      first, and stays first once that thread is removed.
   - name: a_listing_holds_subdirectories_sorted_without_case_and_flags_hidden_ones
     checks: >
       Four directories and a file list as .hidden, alpha, beta, Zeta with

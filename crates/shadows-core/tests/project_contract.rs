@@ -251,7 +251,8 @@ async fn projects_are_listed_in_creation_order_whatever_their_timestamp_text() {
 
 /// Projects come back most recently used first, read from the journal: a new
 /// project is ahead of an older one until the older one's thread starts an
-/// operation.
+/// operation. A thread with no operation moves nothing, and a removed thread's
+/// operation still counts, as the order over the thread rows did.
 #[tokio::test]
 async fn projects_are_ordered_by_the_newest_operation_in_the_journal() {
     let tmp = tempfile::tempdir().unwrap();
@@ -283,6 +284,23 @@ async fn projects_are_ordered_by_the_newest_operation_in_the_journal() {
     };
     assert_eq!(order().await, vec![created[1].clone(), created[0].clone()]);
 
+    let idle_params = serde_json::json!({ "thread": "idle" });
+    storage
+        .create_planning_thread(
+            &ctx_kind("idle", "thread.create", &idle_params),
+            &created[0],
+            "Idle",
+            "claude-code",
+            None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        order().await,
+        vec![created[1].clone(), created[0].clone()],
+        "a thread with no operation must not move its project"
+    );
+
     let runtime = storage.register_runtime_instance("test").await.unwrap();
     let thread_params = serde_json::json!({ "thread": "t" });
     let thread = storage
@@ -300,4 +318,15 @@ async fn projects_are_ordered_by_the_newest_operation_in_the_journal() {
         .await
         .unwrap();
     assert_eq!(order().await, created);
+
+    let remove_params = serde_json::json!({ "thread": thread.id });
+    storage
+        .remove_thread(&ctx_kind("rm", "thread.remove", &remove_params), &thread.id)
+        .await
+        .unwrap();
+    assert_eq!(
+        order().await,
+        created,
+        "a removed thread's operation must still count"
+    );
 }

@@ -1,5 +1,5 @@
-//! One job: the projects and the folders a person picks them from (spec §4,
-//! §11.1, §12.5, §14.4) — the `Projects` service.
+//! One job: the projects and the folders a person picks them from — the
+//! `Projects` service.
 //!
 //! A project's directory is resolved (absolute, canonical, a directory)
 //! before the fingerprint is taken, so two spellings of one folder are one
@@ -67,6 +67,28 @@ impl Projects {
         Ok(self.store.get(id).await?)
     }
 
+    /// The live project `slug`, whether or not it is AYLUL's. `None` when no
+    /// live project holds it.
+    pub(crate) async fn by_slug(&self, slug: &str) -> Result<Option<Project>, CoreError> {
+        Ok(self
+            .store
+            .list()
+            .await?
+            .into_iter()
+            .find(|p| p.slug == slug))
+    }
+
+    /// The modes `project` allows for `harness`; empty when it names none,
+    /// so no turn may start on that harness.
+    pub(crate) async fn allowed_modes(
+        &self,
+        project: &ProjectId,
+        harness: &str,
+    ) -> Result<Vec<String>, CoreError> {
+        let mut found = self.get(project).await?;
+        Ok(found.allowed_modes.remove(harness).unwrap_or_default())
+    }
+
     /// Live projects, most recently used first: by the newest
     /// operation among their threads, or by their creation for one with none.
     /// Computed from the journal, so no caller joins another service's table.
@@ -84,10 +106,7 @@ impl Projects {
         name: &str,
         directory: &Path,
     ) -> Result<Project, CoreError> {
-        if let Some(found) = (self.store.list().await?)
-            .into_iter()
-            .find(|p| p.slug == slug)
-        {
+        if let Some(found) = self.by_slug(slug).await? {
             if !found.assistant {
                 tracing::warn!(slug, "projects.assistant_slug_taken");
             }
@@ -134,14 +153,14 @@ impl Projects {
             .store
             .create(&c, slug, name, &directory, &policy::default_modes())
             .await?;
-        // A created project is a used one (§15.6); a replay touches it again.
+        // A created project is a used one; a replay touches it again.
         if let Some(code) = &self.code {
             code.touch(&project.id).await;
         }
         Ok(project)
     }
 
-    /// Sets the modes the project allows, per harness (spec §12.5): every
+    /// Sets the modes the project allows, per harness: every
     /// harness known and every mode in its policy, each list deduplicated and
     /// sorted. "project.modes", params { "project", "allowed_modes" }.
     pub async fn set_modes(
@@ -176,7 +195,7 @@ impl Projects {
         Ok(self.store.set_modes(&c, project, &modes).await?)
     }
 
-    /// Removes a project that holds no planning thread (§4.2, §15.4):
+    /// Removes a project that holds no planning thread:
     /// "project.remove", params { "project" }. Its index, its links both ways
     /// and its live project grants go in the same write; then the code index
     /// forgets it, which never fails the removal. A replay answers the

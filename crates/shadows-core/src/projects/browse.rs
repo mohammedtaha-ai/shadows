@@ -1,6 +1,6 @@
 //! One job: showing a person the directories they can choose a project from.
 //!
-//! Spec §1: choosing or creating a project directory is a daemon route, because
+//! Choosing or creating a project directory is a daemon route, because
 //! only the daemon can see the machine's disk. This is the disk side of those
 //! routes — listing one directory's subdirectories, the roots to start from,
 //! and creating one new directory to choose. It blocks on the filesystem, so

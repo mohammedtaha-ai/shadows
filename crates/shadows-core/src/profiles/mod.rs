@@ -85,10 +85,9 @@ impl Profiles {
 
     pub async fn assistant_project(&self) -> Result<ProjectId, CoreError> {
         self.projects
-            .list()
+            .by_slug("aylul")
             .await?
-            .into_iter()
-            .find(|p| p.slug == "aylul" && p.assistant)
+            .filter(|p| p.assistant)
             .map(|p| p.id)
             .ok_or(CoreError::AylulNotConfigured)
     }

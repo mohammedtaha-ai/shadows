@@ -270,12 +270,10 @@ impl Harness {
         offered: &Offered,
     ) -> Result<SessionChoices, CoreError> {
         let context = self.storage.turn_context(thread).await?;
-        let project = self.projects.get(&context.project_id).await?;
-        let allowed = project
-            .allowed_modes
-            .get(&context.harness)
-            .cloned()
-            .unwrap_or_default();
+        let allowed = self
+            .projects
+            .allowed_modes(&context.project_id, &context.harness)
+            .await?;
         Ok(for_client(offered, &context.harness, &allowed))
     }
 }
