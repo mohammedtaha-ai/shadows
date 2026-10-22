@@ -149,6 +149,7 @@ are reference material; they do not replace the project's template or code.
 
 ### A-12 · Prepare the service boundary: code
 - Status: blocked
+- Blocker: Code's selected_project_in resolves a live project slug inside Plans' caller snapshot, but Projects has no transaction-scoped slug lookup (by_slug/get use their own reader connections). Removing Code's project-table reads while preserving that snapshot requires a Projects method in projects/{mod,store}.rs, outside Touch; expand that scope before dispatch.
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-12
 - Read: code/contract.yaml; the ledger
 - Touch: crates/shadows-core/src/code/ (link writes become `put_link_in`/`remove_link_in`; the plans notification stays at the call site until A-16), crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
