@@ -297,6 +297,7 @@ are reference material; they do not replace the project's template or code.
 
 ### B-10 · A conversation keeps its mode
 - Status: blocked
+- Blocker: Touch must include crates/shadows-http/src/lib.rs::routes to register the new mode route in the canonical HTTP/OpenAPI route table; harness.rs alone cannot expose it.
 - Plan: none. Owner spec: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.4 ("The mode is remembered per conversation"); request docs/shared/requests/2026-10-22-remembered-mode.md (accepted)
 - Read: harness/contract.yaml, harness/store.rs, harness/settings.rs, crates/shadows-agent/src/policy.rs; the request
 - Touch: crates/shadows-core/src/harness/ (store, settings, the new command, contract.yaml), a migration under crates/shadows-core/src/db/ for the per-conversation mode row, crates/shadows-http/src/harness.rs (the route), api/openapi.json (regenerated), the threads removal/fork call sites that must remove or copy the row, crates/shadows/tests/ (new acceptance tests), docs/codebase/README.md
