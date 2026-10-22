@@ -1,5 +1,4 @@
 # Existing source exceptions at 41738fe. Remove records when their violations are fixed.
-
 crates/shadows-core/src/code/scan.rs :: folder_exists free public function [14c342e1ae669b17] #1
 crates/shadows-core/src/code/scan.rs :: keeps free public function [48ce1ff44e91cfec] #1
 crates/shadows-core/src/code/scan.rs :: kept_now free public function [2d9d7a1864c7a5b1] #1

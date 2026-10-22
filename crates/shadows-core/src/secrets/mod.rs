@@ -17,6 +17,22 @@ pub struct Secrets {
     keys: Option<Keys>,
 }
 
+/// A value sealed for one profile and name. Its fields are private, so the
+/// row it is stored in is the one its associated data names.
+pub(crate) struct SealedEnv {
+    profile: String,
+    name: String,
+    sealed: Sealed,
+    value_mac: String,
+}
+
+impl SealedEnv {
+    /// The keyed fingerprint of the clear value, for a command record.
+    pub(crate) fn value_mac(&self) -> &str {
+        &self.value_mac
+    }
+}
+
 impl std::fmt::Debug for Secrets {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Secrets(..)")
@@ -89,38 +105,53 @@ impl Secrets {
     }
 
     /// The scope a provider key is stored under.
-    pub fn provider_scope(provider: &str) -> String {
+    pub(crate) fn provider_scope(provider: &str) -> String {
         format!("{PROVIDER_SCOPE_PREFIX}{provider}")
     }
 
-    /// Validates a value and encrypts it for `profile`/`name`.
-    fn seal_value(&self, profile: &str, name: &str, value: &str) -> Result<Sealed, CoreError> {
-        validate_env_name(name)?;
-        validate_value(name, value)?;
-        crypto::seal(&self.keys()?.aead, &aad(profile, name), value)
-            .map_err(|_| CoreError::SecretsUnavailable)
-    }
-
-    /// Stores one value inside the caller's transaction. The caller owns the
-    /// existence check of the scope and the command record.
-    pub async fn put_in(
+    /// Checks the key, the name and the value, then encrypts the value for
+    /// `profile`/`name`. Runs before the write transaction, so a refused value
+    /// never reaches one and the transaction sees only database failures.
+    pub(crate) fn seal(
         &self,
-        conn: &mut sqlx::SqliteConnection,
         profile: &str,
         name: &str,
         value: &str,
-        ts: &str,
-    ) -> Result<EnvEntry, CoreError> {
-        let sealed = self.seal_value(profile, name, value)?;
-        store::SecretsStore::upsert(conn, profile, name, sealed, ts).await?;
-        Ok(EnvEntry {
+    ) -> Result<SealedEnv, CoreError> {
+        let keys = self.keys()?;
+        validate_env_name(name)?;
+        validate_value(name, value)?;
+        let sealed = crypto::seal(&keys.aead, &aad(profile, name), value)
+            .map_err(|_| CoreError::SecretsUnavailable)?;
+        Ok(SealedEnv {
+            profile: profile.into(),
             name: name.into(),
+            sealed,
+            value_mac: keys.value_mac(value),
+        })
+    }
+
+    /// Stores one sealed value inside the caller's transaction. The caller
+    /// owns the existence check of the scope and the command record.
+    #[expect(
+        dead_code,
+        reason = "the agent and provider owners call it once they hold their env writes"
+    )]
+    pub(crate) async fn put_in(
+        &self,
+        conn: &mut sqlx::SqliteConnection,
+        value: SealedEnv,
+        ts: &str,
+    ) -> Result<EnvEntry, crate::StorageError> {
+        store::SecretsStore::upsert(conn, &value, ts).await?;
+        Ok(EnvEntry {
+            name: value.name,
             updated_at: ts.into(),
         })
     }
 
     /// Removes every value of one scope inside the caller's transaction.
-    pub async fn remove_scope_in(
+    pub(crate) async fn remove_scope_in(
         &self,
         conn: &mut sqlx::SqliteConnection,
         scope: &str,
@@ -200,16 +231,15 @@ impl Secrets {
         value: &str,
         agent_only: bool,
     ) -> Result<EnvEntry, CoreError> {
-        let keys = self.keys()?;
-        let sealed = self.seal_value(profile, name, value)?;
+        let sealed = self.seal(profile, name, value)?;
         let c = CommandContext::user(
             command_id,
             "secret_env.set",
             serde_json::json!({
-                "profile": profile, "name": name, "value_mac": keys.value_mac(value),
+                "profile": profile, "name": name, "value_mac": sealed.value_mac(),
             }),
         );
-        Ok(self.store.set(c, profile, name, sealed, agent_only).await?)
+        Ok(self.store.set(c, sealed, agent_only).await?)
     }
 
     async fn remove_env_mode(

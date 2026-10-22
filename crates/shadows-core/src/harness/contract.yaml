@@ -621,7 +621,7 @@ agreements:
     holds: true
     tested_by: [opening_projects_only_enabled_extensions, extension_deletions_remove_enablement_atomically]
   - between: [test_saved_provider, opening]
-    must: Resolve scope provider/<slug>, name PROVIDER_API_KEY, through secrets.resolve_env.
+    must: Resolve the provider key through Secrets::resolve_provider_key, which owns its scope and name; a missing or empty key is AylulKeyMissing.
     holds: true
     tested_by: [saved_test_uses_the_stored_key]
   - between: [change_model, turns::send]

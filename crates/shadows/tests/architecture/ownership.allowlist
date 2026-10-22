@@ -1,5 +1,4 @@
 # Existing source exceptions at 41738fe. Remove records when their violations are fixed.
-
 crates/shadows-core/src/code/mod.rs :: Code::status Storage::get_project belongs to projects [77615c63e9d2122e] #1
 crates/shadows-core/src/code/scan.rs :: Code::scan_project Storage::get_project belongs to projects [93039fa8f3d6c67a] #1
 crates/shadows-core/src/code/store/links.rs :: Storage::code_links SQL review: dynamic or indirect query [d874049232479323] #1

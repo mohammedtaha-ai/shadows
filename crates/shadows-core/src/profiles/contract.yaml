@@ -88,9 +88,9 @@ functions:
   test_provider: Ask the provider for models using the supplied key without storing it.
   provider_presets: List the compiled presets in their fixed order.
   workspace: Read the hidden project identity with its live agent list.
-  new: Construct configuration over the shared storage.
-  providers: List providers in creation order with slug tie break.
-  provider: Read provider metadata including key presence.
+  new: Construct configuration over the shared storage and the Secrets service it asks for key presence and scope removal.
+  providers: List providers in creation order with slug tie break; key_set comes from Secrets::provider_key_set.
+  provider: Read provider metadata; key_set comes from Secrets::provider_key_set, never a join on secret_env.
   agents: List live agents in creation order with slug tie break.
   agent: Read an agent including a tombstone.
   assistant_project: Resolve the hidden assistant project id.
@@ -176,7 +176,7 @@ agreements:
     must: Core keeps any well-formed id; clients own palettes and draw purple for unknown ids.
     holds: true
     tested_by: [unknown_but_well_formed_color_is_kept]
-  - between: [delete_provider, secrets::remove_scope_in]
+  - between: [delete_provider, Secrets::remove_scope_in]
     must: Remove the key with the provider in one write transaction.
     holds: true
     tested_by: [delete_provider_removes_its_key]
