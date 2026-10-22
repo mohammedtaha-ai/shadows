@@ -123,6 +123,8 @@ are reference material; they do not replace the project's template or code.
 - Needs: none
 - Done when: `app::user_command` is gone (`CommandContext::user`); the journal takes `JournalEntry` with string ids; `Actor`, `Causation` and `newtype_id!` sit in `db/` (`Bus` stays, see the ledger); its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test storage_contract --test operation_lifecycle --test recovery` and `cargo test -p shadows --test protocol --test resync --test stream_frames` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
+> **Standing Touch rule for every remaining preparation task (controller, 2026-10-22).** When a task needs to read another owner's table, it may add a read-only method or associated `Owner::*_in(conn, …)` function to that owner (its `mod.rs`, store and `contract.yaml`), shaped like `Projects::require_live_in`, with one query per rule and no change to that owner's writes or behaviour. It is in Touch without a new ruling; the report names each one added.
+
 ### A-9 · Prepare the service boundary: instructions
 - Status: done
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-9
@@ -185,8 +187,7 @@ are reference material; they do not replace the project's template or code.
 - Done when: its domain methods no longer extend `Storage`; the resolved allowlist lines are deleted; `cargo test -p shadows --test architecture --test codemap` and `cargo test -p shadows-core --test thread_session` and `cargo test -p shadows --test thread_contract --test thread_routes --test thread_title --test fork` pass; clippy with and without `test-support` is clean for the touched crates; no crate move
 
 ### A-13 · Prepare the service boundary: grants
-- Status: blocked
-- Blocker: Required `Threads::entry_in` is absent (Rust LSP verified); replacing the approval reads needs new transaction-local Threads read methods and its contract, outside A-13 Touch. Controller must authorize those paths and methods before dispatch.
+- Status: todo
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-13
 - Read: grants/contract.yaml, command/approver.rs, db/approval.rs; the ledger
 - Touch: crates/shadows-core/src/grants/, command/approver.rs and db/approval.rs (move to grants), the `check_writer`/`bind_draft_ref`/`issue_thread_grant` call sites in design/, plans/, harness/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
