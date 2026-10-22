@@ -268,8 +268,29 @@ current value stands; so a model never used starts at the effort the adapter
 reports for it: `medium` in a new session, and inside a session the effort it
 last had, which the adapter carries over to a model that offers it (same
 evidence file, §3). `GET /api/harnesses` answers the remembered model and that
-model's remembered effort. The mode is not remembered: every new conversation
-starts at the policy's default.
+model's remembered effort.
+
+**The mode is remembered per conversation** (amended 2026-10-22, Mohammed: picking Auto
+and then reloading or leaving the conversation must not bring Accept edits back). A
+mode is a permission decision for one conversation, so it is not carried across
+conversations like the model and effort above:
+
+- A new conversation, the draft included, starts at the policy's default (§12.4); a fork
+  starts at its source conversation's remembered mode.
+- Picking a mode is a command of its own on the conversation's harness
+  (`PUT /api/threads/{id}/session/mode` with a `CommandId` and the mode id). Core checks
+  the mode against the harness's policy and the project's allowed modes (§12.5) before it
+  writes, records it for that conversation, and sets it on the open session when no turn
+  is running; during a running turn it is recorded and set before the next turn. It
+  answers the session's choices, so the client shows Core's value, not its own guess.
+- A turn start that carries a mode records it in its own transaction, as it does for the
+  model and effort.
+- When a conversation's session opens or reopens, its remembered mode is set after the
+  model and effort. A remembered mode the policy no longer has, or the project no longer
+  allows, is dropped and the policy's default stands; the client is told which mode the
+  session holds.
+- The record belongs to `Harness` (the conversation's harness, §12.6), one row per
+  conversation, removed with the conversation.
 
 **The harness list** itself — which CLIs exist, which run — is Shadows': Claude
 Code (available when its three paths are configured), Codex (not yet).
