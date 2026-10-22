@@ -1,9 +1,7 @@
 //! One job: recording a steered message (spec §20.4).
 
 use super::queue::{SCOPE, event, take_queued_in};
-use crate::db::Actor;
-use crate::db::CommandContext;
-use crate::db::{Storage, StorageError, classify, now, record_command};
+use crate::db::{Actor, CommandContext, Storage, StorageError, classify, now, record_command};
 use crate::threads::{NewThreadEntry, ThreadEntryId, ThreadEntryKind, ThreadId, append_entry_in};
 use crate::turns::model::{OperationId, QueuedMessageId, SentNow};
 

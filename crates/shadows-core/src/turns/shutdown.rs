@@ -14,14 +14,13 @@
 //! second stop signal. Operations left non-terminal become `Interrupted` at the
 //! next startup (§8.6), never `Cancelled`.
 
-use crate::db::Actor;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
 use super::handles::LiveHandles;
 use super::turn::{PlannerTurn, StopOutcome};
-use crate::db::StorageError;
+use crate::db::{Actor, StorageError};
 use crate::harness::Sessions;
 use crate::runtime::Runtime;
 use crate::runtime::StopKind;

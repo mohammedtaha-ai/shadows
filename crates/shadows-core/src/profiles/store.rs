@@ -1,7 +1,6 @@
 //! Transactional SQL for provider configuration.
 use super::{Agent, AgentInput, Provider, ProviderInput};
-use crate::db::CommandContext;
-use crate::db::{Storage, StorageError, classify, now, record_command};
+use crate::db::{CommandContext, Storage, StorageError, classify, now, record_command};
 use sqlx::{Row, SqliteConnection};
 
 fn provider_row(row: sqlx::sqlite::SqliteRow) -> Result<Provider, StorageError> {

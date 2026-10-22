@@ -1,8 +1,8 @@
 //! Atomic workspace edits with immutable command results.
 
-use crate::db::Actor;
-use crate::db::CommandContext;
-use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
+use crate::db::{
+    Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
+};
 use crate::design::{DesignAnchor, DesignChange, DesignOp, VisionContent, VisionView};
 use crate::events::DurableEvent;
 use crate::projects::ProjectId;

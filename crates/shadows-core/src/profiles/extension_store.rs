@@ -1,9 +1,6 @@
 //! Transactional extension library metadata and per-agent enablement.
 use super::{AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Item, extension_files};
-use crate::{
-    db::CommandContext,
-    db::{Storage, StorageError, classify, now, record_command},
-};
+use crate::db::{CommandContext, Storage, StorageError, classify, now, record_command};
 use sqlx::{Row, SqliteConnection};
 use std::path::PathBuf;
 

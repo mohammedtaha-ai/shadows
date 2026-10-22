@@ -1,0 +1,169 @@
+# The foundation: what belongs to no service. Every service's write records its
+# command and appends its event through these, inside its own transaction.
+#
+# This contract covers the four modules that carry no service type:
+# `command.rs` (a command's identity, its replay check and its record),
+# `derive.rs` (the command ids Shadows derives), `journal.rs` (the journal's
+# append) and `id.rs` (the id newtype pattern). `Storage` itself (`mod.rs`),
+# `approval.rs`, `error.rs`, `embedded_migrations.rs` and `write_observer.rs`
+# are not described here yet.
+#
+# Trap: nothing here may import a service type. A subject id reaches the
+# journal as a string (`JournalEntry`), converted by the service that owns it;
+# an operation id reaches `Anchor::Operation` as `&str`.
+
+name: db
+version: 1
+status: current
+source: crates/shadows-core/src/db
+
+
+shapes:
+  CommandContext:
+    # Everything needed to decide whether a submission is new, a replay, or
+    # a conflict. `agent` is set for a Planner's command, `None` for a person's.
+    agent: Option<String>
+    principal_kind: String
+    principal_id: String
+    command_id: String
+    command_kind: String
+    command_schema_ver: i64
+    request_fingerprint: String
+  Anchor:
+    Revision: i64
+    Operation: "&str"
+    DraftRef: "&str"
+  Actor:
+    kind: String
+    id: String
+  Causation:
+    # One `Option<Causation>` on an event, because `durable_event` requires
+    # `causation_kind` and `causation_ref` both or neither.
+    kind: String
+    reference: String
+  JournalEntry:
+    # Subject ids are strings: the service that owns an id converts it.
+    event_id: String
+    kind: String
+    project_id: Option<String>
+    thread_id: Option<String>
+    operation_id: Option<String>
+    actor: Actor
+    causation: Option<Causation>
+    correlation_id: Option<String>
+    payload_json: String
+
+
+functions:
+  command:
+    user:
+      signature: "CommandContext::user(command_id: String, kind: &str, params: Value) -> CommandContext"
+      # pub(crate). A person's command: agent None, principal `User`/`local`,
+      # schema version 1, `fingerprint(kind, &params)`.
+    fingerprint:
+      signature: "(command_kind: &str, params: &Value) -> String"
+      # Lowercase hex SHA-256 of the kind, one NUL byte, then the canonical
+      # params: object keys sorted, each key JSON-escaped, arrays in order,
+      # scalars as serde_json prints them.
+    classify:
+      signature: "(conn, ctx: &CommandContext, scope_kind: &str, scope_key: &str) -> Result<Option<String>, StorageError>"
+      # pub(crate). Reads `command_record` by principal, scope and command id.
+      # None when new; Some(outcome_ref) when kind, schema version and
+      # fingerprint all match (NotFound("outcome_ref") if the row has none);
+      # otherwise CommandConflict.
+    record_command:
+      signature: "(conn, ctx, scope_kind, scope_key, entity_kind, outcome_ref, ts) -> Result<(), StorageError>"
+      # pub(crate). Inserts one `command_record` row, outcome_kind 'Entity';
+      # audit_principal is "user:local" and audit_agent the agent when the
+      # command has one, both NULL otherwise.
+  derive:
+    derived_id:
+      signature: "(anchor: Anchor<'_>, fingerprint: &str) -> String"
+      # `rev:<n>:<16 hex>`, `op:<operation id>:<16 hex>` or `ref:<draft_ref>`,
+      # the hex being the fingerprint's first sixteen characters (all of it
+      # when shorter). A draft ref carries no fingerprint, so the same ref with
+      # different arguments is a CommandConflict.
+  journal:
+    system:
+      signature: "Actor::system() -> Actor"
+      # kind "System", id "daemon".
+    user:
+      signature: "Actor::user(id: impl Into<String>) -> Actor"
+      # kind "User".
+    append_event:
+      signature: "(conn, event: impl Into<JournalEntry>, now: &str) -> Result<i64, StorageError>"
+      # pub(crate). Inserts one `durable_event` row with every JournalEntry
+      # field and `created_at = now`; answers its `seq`. Called inside the
+      # transaction that writes the state the event describes.
+    append_event_for_test:
+      signature: "(conn, event: impl Into<JournalEntry>, now: &str) -> Result<i64, StorageError>"
+      # test-support only: `append_event` without a state write.
+  id:
+    newtype_id:
+      signature: "macro newtype_id!($(#[meta])* Name)"
+      # pub(crate). A String-backed id with `generate` (v4 UUID), `as_str`,
+      # pub(crate) `from_stored`, test-support `from_literal`, Display, Serialize,
+      # Deserialize and a UUID-string OpenAPI schema. No From<String>, Deref,
+      # AsRef<str> or Default. Each id type is declared by its own service.
+
+
+enums:
+  StorageError:
+    source: crate::db::StorageError
+    values: []
+
+
+obligations:
+  - rule: >
+      The fingerprint ignores object key order, depends on the command kind
+      and on every value, and a key cannot impersonate the separator structure.
+    tested_by:
+      - the_fingerprint_ignores_key_order_but_not_command_kind
+      - the_fingerprint_does_not_let_a_key_impersonate_the_separator_structure
+      - the_fingerprint_changes_when_a_value_changes
+  - rule: >
+      A recorded command replays only with an equal kind, schema version and
+      fingerprint; any difference under the same id is CommandConflict.
+    tested_by:
+      - replaying_an_identical_command_returns_the_stored_outcome
+      - the_same_command_id_with_a_different_request_is_a_conflict
+      - the_same_command_id_under_a_different_schema_version_is_a_conflict
+  - rule: >
+      The commands a person and the Planner send record the principal, kind,
+      schema version and fingerprint their parameters give.
+    tested_by:
+      - grant_command_fingerprints_do_not_move
+      - project_thread_and_instructions_command_fingerprints_do_not_move
+      - plan_command_fingerprints_do_not_move
+      - turn_command_fingerprints_do_not_move
+  - rule: A derived id carries its anchor and the fingerprint's first sixteen characters, a draft ref none.
+    tested_by: derived_ids_carry_their_anchor
+  - rule: >
+      `append_event` writes the event's causation and correlation, and the
+      committed signal moves only when its transaction commits.
+    tested_by:
+      - event_provenance_round_trips_through_append_event
+      - the_committed_signal_moves_on_commit_and_never_on_rollback
+
+
+tests:
+  - name: the_fingerprint_ignores_key_order_but_not_command_kind
+    checks: Reordered keys hash equal; a different kind does not.
+  - name: the_fingerprint_does_not_let_a_key_impersonate_the_separator_structure
+    checks: '{"a":1,"bc":2} and {"a:1,bc":2} hash differently.'
+  - name: the_fingerprint_changes_when_a_value_changes
+    checks: One changed value changes the hash.
+  - name: replaying_an_identical_command_returns_the_stored_outcome
+    checks: An identical project.create replays its outcome.
+  - name: the_same_command_id_with_a_different_request_is_a_conflict
+    checks: The same id with other params is CommandConflict.
+  - name: the_same_command_id_under_a_different_schema_version_is_a_conflict
+    checks: The same id and params under schema version 2 is CommandConflict.
+  - name: grant_command_fingerprints_do_not_move
+    checks: The command log rows of a grant issue and revoke equal the pinned principal, kind, version and fingerprint.
+  - name: derived_ids_carry_their_anchor
+    checks: rev, op and ref ids have their exact text.
+  - name: event_provenance_round_trips_through_append_event
+    checks: causation_kind, causation_ref and correlation_id are stored.
+  - name: the_committed_signal_moves_on_commit_and_never_on_rollback
+    checks: A rolled-back append is not signalled; a committed one is, with its seq.

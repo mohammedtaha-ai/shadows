@@ -1,7 +1,6 @@
 //! Atomic approval of a roadmap proposal by the person or at their request.
 use super::{outcome_edit, roadmap_proposal_read as read};
-use crate::db::CommandContext;
-use crate::db::{Storage, append_event, classify, now, record_command};
+use crate::db::{CommandContext, Storage, append_event, classify, now, record_command};
 use crate::design::{
     DesignChange, DesignOp, OutcomeId, ProposalStatus, ProposedOutcome, RoadmapAction,
     RoadmapProposal,

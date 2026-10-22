@@ -191,7 +191,7 @@ enums:
     source: crate::db::StorageError
     values: []
   CommandContext:
-    source: crate::command::CommandContext
+    source: crate::db::CommandContext
     values: []
 
 

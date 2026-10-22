@@ -4,8 +4,7 @@ use sqlx::SqliteConnection;
 
 use super::EnvEntry;
 use super::crypto::Sealed;
-use crate::db::CommandContext;
-use crate::db::{Storage, StorageError, classify, now, record_command};
+use crate::db::{CommandContext, Storage, StorageError, classify, now, record_command};
 
 pub(super) async fn list(storage: &Storage, profile: &str) -> Result<Vec<EnvEntry>, StorageError> {
     let rows: Vec<(String, String)> =

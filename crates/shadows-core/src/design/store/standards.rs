@@ -1,8 +1,8 @@
 //! Versioned project additions to compiled-in standards (§23.2).
 
-use crate::db::Actor;
-use crate::db::CommandContext;
-use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
+use crate::db::{
+    Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
+};
 use crate::design::{StandardsAdditions, StandardsAdditionsVersion, standards};
 use crate::events::DurableEvent;
 use crate::projects::ProjectId;

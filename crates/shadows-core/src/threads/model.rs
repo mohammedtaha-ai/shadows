@@ -1,8 +1,8 @@
 //! One job: the planning thread types callers meet.
 
-use crate::db::Actor;
 use std::path::PathBuf;
 
+use crate::db::Actor;
 use crate::db::id::newtype_id;
 use crate::plans::{TaskId, WorkflowId};
 use crate::projects::ProjectId;
@@ -86,7 +86,7 @@ pub struct ThreadEntry {
     pub ordinal: i64,
     pub kind: ThreadEntryKind,
     /// Spec §4.2 calls this field's type `Principal`. Milestone 0 uses
-    /// `events::Actor`, which already has exactly this shape (`kind` + `id`) and
+    /// `db::Actor`, which already has exactly this shape (`kind` + `id`) and
     /// already answers "who did this" for durable events. Declaring a second
     /// identical struct would record one decision twice, which this project's
     /// documentation rules forbid. See the note in §4.2.

@@ -1,5 +1,6 @@
 //! Approval provenance derived by the core from the authenticated call path.
 use super::Writer;
+use crate::db::{Anchor, CommandContext, derived_id, fingerprint};
 use crate::{Actor, OperationId, ThreadEntryId, ThreadId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -29,21 +30,17 @@ pub struct ApprovedBy {
 }
 
 impl Approver {
-    pub(crate) fn command(
-        &self,
-        kind: &str,
-        params: serde_json::Value,
-    ) -> crate::db::CommandContext {
+    pub(crate) fn command(&self, kind: &str, params: serde_json::Value) -> CommandContext {
         let Self::Planner { writer, turn, .. } = self else {
             unreachable!("Planner command construction is core-only")
         };
-        let fp = crate::db::fingerprint(kind, &params);
+        let fp = fingerprint(kind, &params);
         let (principal_kind, principal_id) = writer.principal();
-        crate::db::CommandContext {
+        CommandContext {
             agent: Some(self.agent()),
             principal_kind: principal_kind.into(),
             principal_id,
-            command_id: crate::db::derived_id(crate::db::Anchor::Operation(turn.as_str()), &fp),
+            command_id: derived_id(Anchor::Operation(turn.as_str()), &fp),
             command_kind: kind.into(),
             command_schema_ver: 1,
             request_fingerprint: fp,

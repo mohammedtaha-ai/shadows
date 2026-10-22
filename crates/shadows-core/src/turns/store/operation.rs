@@ -1,7 +1,7 @@
 //! One job: an operation's state transitions, each written with its journal
 //! event. Reading operations back is `operation_read.rs`.
 
-use crate::db::Actor;
+use crate::db::{Actor, Storage, StorageError, now};
 use crate::events::DurableEvent;
 use crate::runtime::RuntimeInstanceId;
 use crate::threads::ThreadId;
@@ -11,7 +11,6 @@ use sqlx::SqliteConnection;
 
 use super::operation_read::invocation_of;
 use super::transition::{Before, Transition, existed, read_before, record};
-use crate::db::{Storage, StorageError, now};
 use shadows_agent::events::TurnObservation;
 
 /// Inserts a `Pending` operation and its `OperationCreated` event inside the

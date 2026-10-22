@@ -8,8 +8,7 @@ mod store;
 use std::sync::Arc;
 
 use crate::CoreError;
-use crate::db::CommandContext;
-use crate::db::Storage;
+use crate::db::{CommandContext, Storage};
 use crypto::Keys;
 pub use model::{EnvEntry, SecretKey};
 

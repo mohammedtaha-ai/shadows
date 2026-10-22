@@ -4,8 +4,7 @@ use std::collections::BTreeSet;
 
 use sqlx::SqliteConnection;
 
-use crate::db::Actor;
-use crate::db::{StorageError, append_event};
+use crate::db::{Actor, StorageError, append_event};
 use crate::events::DurableEvent;
 use crate::plans::{Link, PlanId, TaskParent};
 use crate::projects::ProjectId;

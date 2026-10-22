@@ -3,9 +3,9 @@
 use sqlx::SqliteConnection;
 
 use super::read::{parse_plan_state, parse_state, written_by};
-use crate::db::Actor;
-use crate::db::CommandContext;
-use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
+use crate::db::{
+    Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
+};
 use crate::events::DurableEvent;
 use crate::plans::model::{PlanId, PlanState, PlanVersions, VersionLine, WorkflowId};
 use crate::projects::ProjectId;

@@ -117,7 +117,7 @@ impl Design {
         project: &ProjectId,
         proposal: &str,
     ) -> Result<DesignChange, CoreError> {
-        let ctx = crate::db::CommandContext::user(
+        let ctx = CommandContext::user(
             command_id,
             "RoadmapProposalApprove",
             serde_json::json!({"project":project,"proposal":proposal}),

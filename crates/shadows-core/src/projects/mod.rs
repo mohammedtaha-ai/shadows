@@ -26,8 +26,7 @@ pub use directory::{DirectoryError, ProjectDirectory};
 pub use model::{Project, ProjectId};
 
 use crate::code::Code;
-use crate::db::CommandContext;
-use crate::db::{Storage, StorageError};
+use crate::db::{CommandContext, Storage, StorageError};
 use crate::error::CoreError;
 use crate::threads::known_harness;
 

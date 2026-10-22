@@ -11,8 +11,7 @@ use std::sync::Arc;
 
 pub use model::InstructionsVersion;
 
-use crate::db::CommandContext;
-use crate::db::Storage;
+use crate::db::{CommandContext, Storage};
 use crate::error::CoreError;
 use crate::projects::ProjectId;
 

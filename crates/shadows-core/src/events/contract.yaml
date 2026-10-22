@@ -91,12 +91,6 @@ shapes:
     causation: Option<Causation>
     correlation_id: Option<String>
     payload_json: String
-  Actor:
-    kind: String
-    id: String
-  Causation:
-    kind: String
-    reference: String
   UiSignal:
     # Live only: never stored, never replayed.
     thread_id: ThreadId
@@ -169,12 +163,10 @@ functions:
     with_correlation:
       signature: "(self, id) -> Self"
       # test-support only.
-    system:
-      signature: "() -> Actor"
-      # On `Actor`.
-    user:
-      signature: "(id: impl Into<String>) -> Actor"
-      # On `Actor`.
+    into_journal_entry:
+      signature: "impl From<&DurableEvent> for JournalEntry"
+      # What `db::append_event` takes: every field carried over, the typed
+      # subject ids as their strings, so the journal names no service type.
   store:
     read_project_events_after:
       signature: "(&self, cursor: EventCursor, project: &ProjectId, limit: i64) -> Result<Vec<StoredEvent>, StorageError>"
@@ -201,6 +193,15 @@ enums:
     values: []
   StorageError:
     source: crate::db::StorageError
+    values: []
+  Actor:
+    source: crate::db::Actor
+    values: []
+  Causation:
+    source: crate::db::Causation
+    values: []
+  JournalEntry:
+    source: crate::db::JournalEntry
     values: []
   Harness:
     source: crate::harness::Harness

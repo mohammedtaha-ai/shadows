@@ -1,8 +1,8 @@
 //! Intent, snapshot and completion records for structure writing.
 use crate::ProjectId;
-use crate::db::Actor;
-use crate::db::CommandContext;
-use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
+use crate::db::{
+    Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
+};
 use crate::design::{PartContent, StructureWritten, map_rules};
 use crate::events::DurableEvent;
 

@@ -48,10 +48,7 @@ pub(crate) use store::task_of;
 
 use scope::{command, own_thread, refused, writer_of};
 
-use crate::db::CommandContext;
-use crate::db::fingerprint;
-use crate::db::{Anchor, derived_id};
-use crate::db::{Storage, StorageError};
+use crate::db::{Anchor, CommandContext, Storage, StorageError, derived_id, fingerprint};
 use crate::error::{CoreError, ErrorCode};
 use crate::events::UiSignal;
 use crate::grants::{Grant, GrantKind};

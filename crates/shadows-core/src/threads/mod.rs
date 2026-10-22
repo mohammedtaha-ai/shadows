@@ -33,8 +33,7 @@ pub(crate) use rules::known_harness;
 pub(crate) use store::{append_entry_in, profile_in, title_from_first_message_in};
 
 use crate::code::Code;
-use crate::db::CommandContext;
-use crate::db::Storage;
+use crate::db::{CommandContext, Storage};
 use crate::error::CoreError;
 use crate::harness::Harness;
 use crate::projects::ProjectId;

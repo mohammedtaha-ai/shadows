@@ -22,8 +22,7 @@ pub use model::{Grant, GrantId, GrantKind};
 pub use model::{IssuedGrant, Token, hash_token};
 pub(crate) use store::{bind_draft_ref, check_writer, revoke_project_grants_in};
 
-use crate::db::CommandContext;
-use crate::db::Storage;
+use crate::db::{CommandContext, Storage};
 use crate::error::CoreError;
 use crate::projects::ProjectId;
 

@@ -1,6 +1,5 @@
 //! Person approval of one vision proposal (§23.5).
-use crate::db::CommandContext;
-use crate::db::{Storage, append_event, classify, now, record_command};
+use crate::db::{CommandContext, Storage, append_event, classify, now, record_command};
 use crate::design::{ProposalStatus, VisionAction};
 use crate::{DesignChange, DesignOp, ProjectId, StorageError, VisionContent};
 

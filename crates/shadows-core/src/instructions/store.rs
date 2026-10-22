@@ -6,9 +6,9 @@
 use sqlx::SqliteConnection;
 
 use super::model::InstructionsVersion;
-use crate::db::Actor;
-use crate::db::CommandContext;
-use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
+use crate::db::{
+    Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
+};
 use crate::events::DurableEvent;
 use crate::projects::ProjectId;
 

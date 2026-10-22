@@ -2,9 +2,9 @@
 use super::{agreements::load, parts};
 use crate::ProjectId;
 use crate::command::Writer;
-use crate::db::Actor;
-use crate::db::CommandContext;
-use crate::db::{Storage, StorageError, append_event, classify, now, record_command};
+use crate::db::{
+    Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
+};
 use crate::design::AgreementOrigin;
 use crate::design::{
     AgreementContent, AgreementId, AgreementState, AgreementVersion, AgreementWriter,

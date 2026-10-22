@@ -4,14 +4,11 @@ use super::{
     agreements::load,
     parts,
 };
-use crate::db::{CommandContext, fingerprint};
+use crate::ProjectId;
+use crate::db::{CommandContext, Storage, StorageError, fingerprint, now};
 use crate::design::{
     AgreementContent, AgreementId, AgreementParticipantImpact, AgreementPartyReview,
     AgreementReview, AgreementState, AgreementVersion,
-};
-use crate::{
-    ProjectId,
-    db::{Storage, StorageError, now},
 };
 use serde_json::{Value, json};
 use sqlx::SqliteConnection;

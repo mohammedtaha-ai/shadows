@@ -2,10 +2,10 @@
 //! route does (spec §12.7) — the operation is committed by
 //! `Storage::start_turn`, then `PlannerTurn::start` runs it.
 
-use crate::db::{CommandContext, fingerprint};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::db::{CommandContext, fingerprint};
 use crate::harness::Sessions;
 use crate::runtime::Runtime;
 use crate::threads::ThreadId;
