@@ -209,6 +209,7 @@ are reference material; they do not replace the project's template or code.
 
 ### A-17 · Prepare the service boundary: harness
 - Status: blocked
+- Blocker: `harness/setup.rs::Setups::stage_line` reads Design through `Storage::project_stage` (an A-17 allowlist record), but the ledger forbids a Harness -> Design dependency. Turns sits above both; resolving this requires moving stage composition for normal and steered prompts into Turns (`spawn.rs`, `steer.rs`, and their shared stage method), beyond the allowed invocation writers and caller/import/constructor-only edits. The standing read-only lookup rule cannot authorize that orchestration move; the controller must expand Touch before A-17 can resolve this record without changing prompt behaviour.
 - Plan: docs/backend/plans/2026-10-21-architecture.md#phase-3--establish-each-service-boundary-in-place and its "A-8c ledger" rows for A-17
 - Read: harness/contract.yaml; the ledger
 - Touch: crates/shadows-core/src/harness/, threads/mod.rs (`set_harness` close moves to `Harness::set_thread_harness`), the `agent_invocation` writers in turns/, crates/shadows-core/src/app.rs, crates/shadows/tests/architecture/ (allowlists, table-owners.txt), docs/codebase/README.md; and, for every method this task moves to its owner, each caller's call site and import, the constructor parameter that hands that caller the owner (wired in `app.rs`), and the tests that call it (call-site changes only, no other edit in those files); docs/backend/stages.md (this task's Status)
