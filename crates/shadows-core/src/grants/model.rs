@@ -1,4 +1,4 @@
-//! One job: a grant's types (spec §13.7) — who may do what on `/mcp`.
+//! Grant values describe who may do what on `/mcp` without exposing bearer tokens.
 
 use sha2::{Digest, Sha256};
 
@@ -7,7 +7,7 @@ use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 
 newtype_id! {
-    /// Spec §13.7. A thread grant (the internal Planner) or a project grant
+    /// A thread grant (the internal Planner) or a project grant
     /// (an external agent); its token is stored only as a hash.
     GrantId
 }

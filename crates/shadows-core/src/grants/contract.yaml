@@ -80,7 +80,7 @@ shapes:
 
 modules:
   mod.rs: grant service boundary
-  model.rs: grant values
+  model.rs: grant values without clear bearer serialization
   writer.rs: authenticated writer values
   approver.rs: approval provenance values
   approval.rs: transaction-local approval authority

@@ -130,10 +130,6 @@ crates/shadows-core/src/events/subscription.rs :: Subscription::live comment [bd
 crates/shadows-core/src/events/subscription.rs :: Subscription::read_journal comment [a18d984e0e44da62] #1
 crates/shadows-core/src/events/subscription.rs :: module comment [30c330a8eb8b2904] #1
 crates/shadows-core/src/events/subscription.rs :: module comment [4bf5602c685feecf] #1
-# A-13: retained grant model schema descriptions preserve the unchanged API artifact.
-crates/shadows-core/src/grants/model.rs :: module comment [1a46d386b7d427c7] #1
-# A-13: retained grant model schema descriptions preserve the unchanged API artifact.
-crates/shadows-core/src/grants/model.rs :: module comment [60a546f031a3ae48] #1
 crates/shadows-core/src/harness/commands.rs :: Commands comment [ec0000e7e2b607c3] #1
 crates/shadows-core/src/harness/commands.rs :: module comment [d8f8756d8e6f11ef] #1
 crates/shadows-core/src/harness/context.rs :: module comment [171fbb0c63362e44] #1
