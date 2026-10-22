@@ -7,7 +7,7 @@
 
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { choice, completedOperation, fakeChoices, threadFixture } from '@/test/contract-fixtures'
+import { choice, completedOperation, fakeChoices, projectFixture, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, choose, menuItem, startApp, typeInto, until } from '../test-app'
 
@@ -34,6 +34,70 @@ const textarea = (app: TestApp) => {
 
 const turnStarts = (app: TestApp) =>
   app.calls.filter((c) => c === 'POST /api/threads/t1/turns').length
+
+it('Add shows disabled photos with its reason and omits project Plugins, folders and connectors', async () => {
+  const app = await start('/projects/p1/threads/t1', answers())
+  await until(ready(app))
+  act(() => app.button('Add')!.click())
+  await until(() => menuItem('Add photos') !== undefined)
+  expect(menuItem('Add photos')?.getAttribute('aria-disabled')).toBe('true')
+  expect(menuItem('Add photos')?.textContent).toContain('Comes with F-25')
+  expect(menuItem('Slash commands')).toBeDefined()
+  expect(menuItem('Plugins')).toBeUndefined()
+  expect(menuItem('Add folder')).toBeUndefined()
+  expect(menuItem('Connectors')).toBeUndefined()
+  act(() => menuItem('Add photos')!.click())
+  expect(document.querySelector('input[type="file"]')).toBeNull()
+  expect(turnStarts(app)).toBe(0)
+})
+
+it('Add opens with Enter, arrows reach Slash commands and Escape returns to Message', async () => {
+  const app = await start('/projects/p1/threads/t1', answers())
+  await until(ready(app))
+  const trigger = app.button('Add')!
+  const key = (element: Element, value: string) => act(() => {
+    element.dispatchEvent(new KeyboardEvent('keydown', { key: value, bubbles: true }))
+    element.dispatchEvent(new KeyboardEvent('keyup', { key: value, bubbles: true }))
+  })
+  act(() => trigger.focus())
+  key(trigger, 'Enter')
+  await until(() => menuItem('Slash commands') !== undefined)
+  key(document.activeElement!, 'ArrowDown')
+  await until(() => document.activeElement === menuItem('Slash commands'))
+  key(document.activeElement!, 'Escape')
+  await until(() => document.querySelector('[role="menu"]') === null)
+  await until(() => document.activeElement === textarea(app))
+  expect(textarea(app).value).toBe('')
+  expect(turnStarts(app)).toBe(0)
+})
+
+it('Plugins opens this conversations AYLUL agent settings and closing returns to Message', async () => {
+  const thread = { ...threadFixture, harness: 'aylul', profile: 'work' }
+  const agent = { slug: 'work', name: 'Work', provider: 'fixture-provider', default_model: 'fake-large', deleted: false, created_at: 'now', updated_at: 'now' }
+  const app = await start('/projects/p1/threads/t1', {
+    ...answers(),
+    'GET /api/projects': [{ ...projectFixture, assistant: true }],
+    'GET /api/projects/p1/threads': [thread],
+    'GET /api/threads/t1': thread,
+    'GET /api/aylul/agents': { project_id: 'p1', agents: [{ ...agent, slug: 'other', name: 'Other' }, agent] },
+    'GET /api/aylul/providers': [{ slug: 'fixture-provider', name: 'Fixture provider', base_url: 'https://example.com', models: [{ id: 'fake-large', context_window: 200000 }], key_set: true, created_at: 'now', updated_at: 'now' }],
+    'GET /api/aylul/agents/work/env': [],
+  })
+  await until(() => app.text().includes('Work') && app.button('Add') !== undefined)
+  const box = textarea(app)
+  typeInto(box, 'Keep this message')
+  await choose(app, 'Add', 'Plugins')
+  await until(() => document.querySelector('[role="group"][aria-label="Plugins & Skills"]') !== null)
+  expect(new URLSearchParams(window.location.search).get('settings')).toBe('agents')
+  expect(new URLSearchParams(window.location.search).get('agent')).toBe('work')
+  expect(document.querySelector<HTMLInputElement>('input[aria-label="Agent name"]')?.value).toBe('Work')
+  expect(app.calls).toContain('GET /api/aylul/agents/work/extensions')
+  expect(app.calls).not.toContain('GET /api/aylul/agents/other/extensions')
+  act(() => app.button('Close')!.click())
+  await until(() => document.querySelector('[role="dialog"]') === null)
+  await until(() => document.activeElement === box)
+  expect(box.value).toBe('Keep this message')
+})
 
 describe('the composer bar', () => {
   it('says it is connecting, then builds every menu from the session', async () => {

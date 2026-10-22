@@ -2,6 +2,7 @@
 // Send, and Stop while a turn runs.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearch } from '@tanstack/react-router'
 import { ArrowUp, Square } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import {
@@ -22,6 +23,7 @@ import type { SlashCommand } from '@/stream/frames'
 import {noteCompanionSend,useCompanionSendProblem} from '@/desktop/companion-send'
 import { tabId } from '@/stream/tab-id'
 import { ErrorLine } from '../error-line'
+import { useOpenSettings } from '../settings/use-settings'
 import type { CarriedSend } from './carried-send'
 import { AYLUL_HARNESS } from './cli-picker'
 import { ComposerBar } from './composer-bar'
@@ -63,6 +65,7 @@ export function Composer({
   onStarted,
   pointed,
   onPointed,
+  agentProfile,
 }: {
   to: SendTo
   /** A draft's first message whose turn failed once its thread existed: its
@@ -85,7 +88,20 @@ export function Composer({
   pointed: PointedTask | null
   /** Clears the chip: pressed ×, or the turn that carried it started. */
   onPointed: (done: PointedTask) => void
+  /** The live AYLUL agent whose settings belong to this conversation. */
+  agentProfile?: string
 }) {
+  const messageBox = useRef<HTMLTextAreaElement | null>(null)
+  const returnFromPlugins = useRef(false)
+  const { settings: settingsSection } = useSearch({ from: '__root__' })
+  const openSettings = useOpenSettings()
+  useEffect(() => {
+    if (settingsSection !== undefined || !returnFromPlugins.current) return
+    returnFromPlugins.current = false
+    // The dialog restores focus during its close; the message box follows it.
+    const frame = requestAnimationFrame(() => messageBox.current?.focus())
+    return () => cancelAnimationFrame(frame)
+  }, [settingsSection])
   const threadId = 'threadId' in to ? to.threadId : null
   const companionProblem=useCompanionSendProblem(threadId)
   const [prompt, setPrompt] = useState(carried?.text ?? '')
@@ -144,10 +160,13 @@ export function Composer({
   const [hint, setHint] = useState<{ text: string; hint: string } | null>(null)
   // `model` and `effort` act through the pickers, never as text (§21.4).
   const [opened, setOpened] = useState<'model' | 'effort' | null>(null)
-  const matches = slashMatches(commands, prompt)
-  const menu = matches !== null && matches.length > 0 && dismissed !== prompt ? matches : null
+  const [slashFromMenu, setSlashFromMenu] = useState(false)
+  const matches = slashMatches(commands, slashFromMenu ? '/' : prompt)
+  const menu = matches !== null && matches.length > 0 && (slashFromMenu || dismissed !== prompt)
+    ? matches : null
   const at = Math.min(highlighted, (menu?.length ?? 1) - 1)
   const pick = (command: SlashCommand) => {
+    setSlashFromMenu(false)
     setHighlighted(0)
     if (command.name === 'model' || command.name === 'effort') {
       setPrompt('')
@@ -259,6 +278,7 @@ export function Composer({
     if (command !== null) return act(command)
     const text = prompt.trim()
     if (text === '' || !ready || settings === null || send.isPending || queue.isPending) return
+    setSlashFromMenu(false)
     // The focus is part of the command (§13.10): pointing elsewhere is a new one.
     setCarriedError(null)
     switchEffort.reset()
@@ -279,9 +299,11 @@ export function Composer({
         <div className="flex items-end gap-2 rounded-xl border border-accent-line/40 bg-input-background p-2.5 shadow-xs transition-all duration-150 focus-within:border-accent-line focus-within:ring-2 focus-within:ring-accent-line/30 focus-within:shadow-md">
           <div className="relative flex-1">
             <textarea
+              ref={messageBox}
               value={prompt}
               onChange={(e) => {
                 pending.current = null
+                setSlashFromMenu(false)
                 setPrompt(e.target.value)
                 // Any change reopens a dismissed menu if the text still qualifies.
                 setHighlighted(0)
@@ -297,7 +319,10 @@ export function Composer({
                     ArrowUp: () => setHighlighted((at - 1 + menu.length) % menu.length),
                     Tab: () => pick(menu[at]),
                     Enter: () => pick(menu[at]),
-                    Escape: () => setDismissed(prompt),
+                    Escape: () => {
+                      setSlashFromMenu(false)
+                      setDismissed(prompt)
+                    },
                   }
                   const key = keys[e.key]
                   if (key !== undefined) {
@@ -365,6 +390,17 @@ export function Composer({
           ring={ring}
           opened={opened}
           onOpened={setOpened}
+          messageBox={messageBox}
+          onSlashCommands={() => {
+            setHighlighted(0)
+            setDismissed(null)
+            setHint(null)
+            setSlashFromMenu(true)
+          }}
+          onPlugins={harness === AYLUL_HARNESS && agentProfile !== undefined ? () => {
+            returnFromPlugins.current = true
+            openSettings('agents', agentProfile)
+          } : undefined}
         />
         {error !== null && <ErrorLine error={error} />}
         {companionProblem&&<p role="status" className="text-xs text-muted-foreground">{companionProblem}</p>}

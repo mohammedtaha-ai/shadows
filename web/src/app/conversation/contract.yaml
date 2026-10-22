@@ -189,7 +189,7 @@ components:
   Composer:
     signature: "(props: { to: SendTo; carried?: CarriedSend | null; harness: string; harnessLabel:
       string; session: SessionView; running: Turn | null; directory: string | null | undefined;
-      known: boolean; commands?: readonly SlashCommand[]; ring?: ReactNode; onStarted: (operationId:
+      known: boolean; commands?: readonly SlashCommand[]; agentProfile?: string; ring?: ReactNode; onStarted: (operationId:
       string) => void; pointed: PointedTask | null; onPointed: (done: PointedTask) => void }) =>
       JSX.Element"
     # Send, queue (while a turn runs) and Stop. Send waits for `known` and for the
@@ -200,8 +200,9 @@ components:
       sessionless?: boolean; selectableModels?: boolean; directory: string | null | undefined;
       note: string | null; ring?:
       ReactNode; opened?: 'model' | 'effort' | null; onOpened?: (opened: 'model' | 'effort' | null)
-      => void }) => JSX.Element"
-    # The row under the box: Mode, folder, Model, Effort and the ring. Every menu is
+      => void; onSlashCommands: () => void; onPlugins?: () => void;
+      messageBox: RefObject<HTMLTextAreaElement | null> }) => JSX.Element"
+    # The row under the box: Add, Mode, folder, Model, Effort and the ring. Every setting menu is
     # built from the session's choices. The effort menu is disabled until the session
     # holds the chosen model.
   Setting:
@@ -572,6 +573,8 @@ obligations:
 
   - rule: >
       The slash menu opens on a text that is only a slash and a word, and lists the matches.
+      Add > Slash commands opens that same menu with the whole current harness list, leaving
+      the message unchanged until a command is picked. A text change resumes filtering.
       Arrows move, Tab and Enter pick, Escape dismisses it until the text changes, and a click
       picks. A newline in the text closes it. A pick writes "/name " and shows its hint.
       Enter while a turn runs picks and does not queue.
@@ -588,6 +591,19 @@ obligations:
       - "an empty list opens nothing"
       - "with no match the menu closes and Enter sends"
       - "picking model from the menu opens the model picker"
+      - "Slash commands from Add opens the same list and returns focus to Message"
+      - "Escape after opening Slash commands preserves the message and allows reopening"
+      - "Slash commands from Add uses the latest harness list and adds no commands"
+
+  - rule: >
+      Add opens a Base UI dropdown. Add photos is disabled with Comes with F-25; folders
+      and connectors are absent. Plugins is present only for the conversation's live AYLUL
+      agent and opens that agent's settings, including Plugins & Skills. Dismissing Add or
+      closing settings returns focus to Message.
+    tested_by:
+      - "Add shows disabled photos with its reason and omits project Plugins, folders and connectors"
+      - "Add opens with Enter, arrows reach Slash commands and Escape returns to Message"
+      - "Plugins opens this conversations AYLUL agent settings and closing returns to Message"
 
   - rule: >
       A session that is still opening shows a word, not a spinner. A failed opening shows the
