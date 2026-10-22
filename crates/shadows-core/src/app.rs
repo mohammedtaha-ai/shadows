@@ -148,7 +148,7 @@ pub struct CoreParts {
          `crates/shadows-core/src/runtime` | \
          `crates/shadows-core/src/runtime/contract.yaml` |"]
 ///
-/// The first seventeen owners have typed accessors on `AppCore`. `Runtime` is
+/// Every owner except `Runtime` has a typed accessor on `AppCore`. `Runtime` is
 /// internal: `start` builds it before assembly, then `Turns` holds the shared
 /// instance for execution and shutdown. There is no `AppCore::runtime` accessor.
 /// `start` builds the AYLUL configuration owners (`AylulOwners`) and `Grants`

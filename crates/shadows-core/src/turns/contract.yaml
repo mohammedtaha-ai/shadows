@@ -50,7 +50,7 @@ modules:
   testing.rs: test-only lifecycle composition
   store/mod.rs: private TurnsStore handle
   store/operation.rs: atomic terminal composition
-  store/operation_read.rs: invocation-enriched operation reads
+  store/operation_read.rs: invocation-enriched operation reads with batched metadata in one snapshot
   store/turn.rs: turn command persistence
   store/queue.rs: queue persistence
   store/steer.rs: steer persistence
@@ -785,6 +785,8 @@ not_the_caller's:
 
 
 tests:
+  - name: listing_keeps_order_and_missing_invocations_without_other_threads
+    checks: A batched listing preserves newest-first order and missing invocations, excluding other threads.
   - name: invocation_standards_preserve_pins_nulls_and_missing_results
     checks: An old pin stays exact; a null pin stays base only; foreign pins, unknown operations and removed projects keep their refusal taxonomy.
   - name: waiting_messages_keep_their_order_and_a_removed_one_is_gone
