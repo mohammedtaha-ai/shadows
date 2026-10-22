@@ -67,6 +67,7 @@ pub(crate) mod for_tests {
 /// `plan_show` anchor to, and the live-only signal `plan_show` sends (§13.9).
 pub struct Plans {
     storage: Arc<Storage>,
+    grants: crate::grants::Grants,
     handles: Arc<LiveHandles>,
     ui: tokio::sync::broadcast::Sender<UiSignal>,
 }
@@ -106,7 +107,7 @@ impl Plans {
         expected_revision: i64,
     ) -> Result<Approved, CoreError> {
         let writer = scope::writer_of(grant)?;
-        let crate::command::Writer::Planner { thread, .. } = &writer else {
+        let crate::grants::Writer::Planner { thread, .. } = &writer else {
             return Err(CoreError::Refused {
                 code: crate::ErrorCode::GrantScope,
                 message: "approval needs a Planner's conversation".into(),
@@ -135,19 +136,18 @@ impl Plans {
         )
         .await?
         .harness;
-        let approver = crate::command::Approver::Planner {
+        let approver = crate::grants::Approver::Planner {
             writer,
-            turn,
+            turn: turn.to_string(),
             harness,
         };
         let ctx = approver.command(
             "PlanApprove",
             serde_json::json!({"workflow":workflow,"expected_revision":expected_revision}),
         );
-        Ok(self
-            .storage
+        self.storage
             .approve_plan_with(&ctx, workflow, expected_revision, &approver)
-            .await?)
+            .await
     }
 
     /// Active plans with latest metadata and counted links in either direction.
@@ -157,11 +157,13 @@ impl Plans {
 
     pub(crate) fn new(
         storage: Arc<Storage>,
+        grants: crate::grants::Grants,
         handles: Arc<LiveHandles>,
         ui: tokio::sync::broadcast::Sender<UiSignal>,
     ) -> Self {
         Self {
             storage,
+            grants,
             handles,
             ui,
         }
@@ -179,7 +181,7 @@ impl Plans {
 
     /// One plan version, as a person reads it.
     pub async fn get(&self, workflow: &WorkflowId) -> Result<Plan, CoreError> {
-        Ok(self.storage.get_plan(workflow).await?)
+        self.storage.get_plan(workflow).await
     }
 
     /// A person's approval (§13.2): "PlanApprove", params { "workflow",
@@ -194,10 +196,9 @@ impl Plans {
             "workflow": workflow, "expected_revision": expected_revision,
         });
         let c = CommandContext::user(command_id, "PlanApprove", params);
-        Ok(self
-            .storage
+        self.storage
             .approve_plan(&c, workflow, expected_revision)
-            .await?)
+            .await
     }
 
     /// One plan with every version, oldest first (§16.10).
@@ -234,10 +235,9 @@ impl Plans {
         archived: bool,
         project: Option<&str>,
     ) -> Result<Vec<PlanListing>, CoreError> {
-        Ok(self
-            .storage
+        self.storage
             .list_plans_scoped(&grant.project_id, archived, project)
-            .await?)
+            .await
     }
 
     /// `workflow_get`: a plan version the grant reaches.
@@ -254,10 +254,10 @@ impl Plans {
                     "name the plan version with workflow_id",
                 )
             })?;
-            return Ok(self
+            return self
                 .storage
                 .get_plan_scoped(id, Some(&grant.project_id), Some(project))
-                .await?);
+                .await;
         }
         self.in_scope(grant, named, false).await
     }
@@ -283,7 +283,7 @@ impl Plans {
 
     /// `draft_prepare`: a new `draft_ref` for the grant.
     pub async fn prepare_draft(&self, grant: &Grant) -> Result<String, CoreError> {
-        Ok(self.storage.prepare_draft(&grant.id).await?)
+        self.grants.prepare_draft(&grant.id).await
     }
 
     /// `draft_start`: the Planner's in its own thread, an external agent's
@@ -327,10 +327,9 @@ impl Plans {
             .command_id
             .unwrap_or_else(|| derived_id(Anchor::Revision(expected), &fp));
         let ctx = command(&writer, id, "PlanEdit", fp);
-        Ok(self
-            .storage
+        self.storage
             .edit_plan(&ctx, &writer, turn.as_ref(), &plan.id, expected, &args.ops)
-            .await?)
+            .await
     }
 
     /// `plan_show` (§13.9): records the card, under the running turn's

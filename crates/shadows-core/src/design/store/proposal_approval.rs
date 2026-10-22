@@ -9,14 +9,24 @@ impl Storage {
         ctx: &CommandContext,
         project: &ProjectId,
         proposal: &str,
-        approver: &crate::command::Approver,
-    ) -> Result<DesignChange, StorageError> {
+        approver: &crate::grants::Approver,
+    ) -> Result<DesignChange, crate::CoreError> {
         let (mut ctx, project, proposal, ts) =
             (ctx.clone(), project.clone(), proposal.to_string(), now());
         let approver = approver.clone();
-        self.write_txn(move |conn| {
+        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
             Box::pin(async move {
-                let request = crate::db::approval::authorise_in(conn, &approver, &project).await?;
+                if let crate::grants::Approver::Planner {
+                    writer: writer @ crate::grants::Writer::Planner { thread, .. },
+                    turn,
+                    ..
+                } = &approver
+                {
+                    crate::grants::Grants::check_writer(conn, writer, &project).await?;
+                    crate::turns::Turns::require_running_in(conn, thread, turn).await?;
+                }
+                let request =
+                    crate::grants::Grants::authorise_in(conn, &approver, &project).await?;
                 ctx.agent = Some(approver.agent());
                 if let Some(id) = classify(conn, &ctx, "Project", project.as_str()).await? {
                     let json: String = sqlx::query_scalar(
@@ -46,12 +56,14 @@ impl Storage {
                     ProposalStatus::Superseded => {
                         return Err(StorageError::Constraint(
                             "this proposal was superseded".into(),
-                        ));
+                        )
+                        .into());
                     }
                     ProposalStatus::Approved => {
                         return Err(StorageError::Constraint(
                             "this proposal was already approved".into(),
-                        ));
+                        )
+                        .into());
                     }
                     ProposalStatus::Pending => {}
                 }
@@ -59,7 +71,8 @@ impl Storage {
                     return Err(StorageError::Constraint(format!(
                         "{} changed after this proposal; ask the Planner to propose again",
                         p.item_id.as_deref().unwrap_or_default()
-                    )));
+                    ))
+                    .into());
                 }
                 let new_id = if p.action == VisionAction::Add {
                     Some(

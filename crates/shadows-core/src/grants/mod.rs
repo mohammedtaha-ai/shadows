@@ -1,26 +1,23 @@
-//! One job: MCP grants, from issue to revocation (spec §13.7) — the `Grants`
-//! service.
-//!
-//! A person issues and revokes an external agent's project grant over HTTP;
-//! `/mcp` asks `authorize` of every request; startup revokes every thread
-//! grant an earlier daemon left live. A token is shown once, in the answer
-//! that issues it, and stored only as its hash.
-//!
-//! `model` holds the types, `store` the queries. Both are private: a caller
-//! reaches a grant through `Grants` only. The two checks a plan write runs
-//! inside its own transaction, `check_writer` and `bind_draft_ref`, are the
-//! crate's, declared in `contract.yaml` under `shared_in_transaction`.
+//! Grant authorization, approval provenance and draft references.
 
+mod approver;
+mod error;
 mod model;
+mod writer;
+pub use approver::{ApprovalRequest, ApprovedBy, Approver};
+pub use error::GrantsError;
+pub use writer::Writer;
+mod approval;
 mod store;
-pub(crate) use store::revoke_thread_grants_in;
+#[cfg(feature = "test-support")]
+mod testing;
+mod tools;
 
 use std::sync::Arc;
 
 pub use model::{Grant, GrantId, GrantKind};
 #[cfg(feature = "test-support")]
-pub use model::{IssuedGrant, Token, hash_token};
-pub(crate) use store::{bind_draft_ref, check_writer, revoke_project_grants_in};
+pub use model::{IssuedGrant, Token};
 
 use crate::db::{CommandContext, Storage};
 use crate::error::CoreError;
@@ -28,8 +25,9 @@ use crate::projects::ProjectId;
 
 /// Grants: what storage holds, and the `/mcp` address a `claude mcp add`
 /// line names.
+#[derive(Clone)]
 pub struct Grants {
-    storage: Arc<Storage>,
+    store: store::GrantsStore,
     /// `http://<bound address>/mcp`.
     mcp_url: String,
 }
@@ -45,17 +43,18 @@ pub struct IssuedView {
 
 impl Grants {
     pub(crate) fn new(storage: Arc<Storage>, mcp_url: String) -> Self {
-        Self { storage, mcp_url }
+        Self {
+            store: store::GrantsStore::with_storage(storage),
+            mcp_url,
+        }
     }
 
     /// A project's grants for external agents, revoked ones included, newest
     /// first. Never a token.
     pub async fn list(&self, project: &ProjectId) -> Result<Vec<Grant>, CoreError> {
-        Ok(self.storage.list_project_grants(project).await?)
+        Ok(self.store.list_project_grants(project).await?)
     }
-
-    /// Connect (§13.7): "McpGrantIssue", params { "project" }. `command` is
-    /// the `claude mcp add` line for this daemon's `/mcp`, present only when
+    /// Issues the grant with the `claude mcp add` line for this daemon's `/mcp`, present only when
     /// the token is.
     pub async fn issue(
         &self,
@@ -67,7 +66,7 @@ impl Grants {
             "McpGrantIssue",
             serde_json::json!({ "project": project }),
         );
-        let issued = self.storage.issue_project_grant(&c, project).await?;
+        let issued = self.store.issue_project_grant(&c, project).await?;
         let command = issued.token.as_ref().map(|token| {
             format!(
                 "claude mcp add --transport http shadows {} --header \"Authorization: Bearer {}\"",
@@ -81,28 +80,40 @@ impl Grants {
             command,
         })
     }
-
-    /// Revoke (§13.7): "McpGrantRevoke", params { "grant" }. A thread grant
-    /// is the Planner's, not the person's, and is not found here.
+    /// A thread grant is the Planner's, not the person's, and is not found here.
     pub async fn revoke(&self, command_id: String, grant: &GrantId) -> Result<Grant, CoreError> {
         let c = CommandContext::user(
             command_id,
             "McpGrantRevoke",
             serde_json::json!({ "grant": grant }),
         );
-        Ok(self.storage.revoke_grant(&c, grant).await?)
+        Ok(self.store.revoke_grant(&c, grant).await?)
     }
-
-    /// The bearer check (§13.6): the live grant `token` answers to, found by
-    /// its hash; `Ok(None)` for an unknown or revoked token.
+    /// Resolves a bearer by its hash; unknown or revoked tokens return none.
     pub async fn authorize(&self, token: &str) -> Result<Option<Grant>, CoreError> {
-        Ok(self.storage.grant_for_token(token).await?)
+        Ok(self.store.grant_for_token(token).await?)
     }
-
-    /// Startup (§13.7): every thread grant still live belongs to an adapter
-    /// of an earlier daemon. Answers how many it revoked; project grants are
-    /// the person's, and survive.
+    /// Revokes every live thread grant during startup; project grants survive.
     pub async fn revoke_thread_grants(&self) -> Result<u64, CoreError> {
-        Ok(self.storage.revoke_all_thread_grants().await?)
+        Ok(self.store.revoke_all_thread_grants().await?)
+    }
+}
+
+impl Grants {
+    pub(crate) async fn issue_thread_grant_in(
+        conn: &mut sqlx::SqliteConnection,
+        project: &ProjectId,
+        thread: &crate::threads::ThreadId,
+    ) -> Result<(Grant, model::Token), crate::db::StorageError> {
+        store::GrantsStore::issue_thread_grant_in(conn, project, thread).await
+    }
+    pub(crate) async fn revoke_thread_grant(
+        &self,
+        id: &GrantId,
+    ) -> Result<(), crate::db::StorageError> {
+        self.store.revoke_thread_grant(id).await
+    }
+    pub async fn prepare_draft(&self, grant: &GrantId) -> Result<String, CoreError> {
+        Ok(self.store.prepare_draft(grant).await?)
     }
 }

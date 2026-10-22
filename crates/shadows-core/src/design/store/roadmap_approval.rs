@@ -15,13 +15,22 @@ impl Storage {
         ctx: &CommandContext,
         p: &ProjectId,
         id: &str,
-        approver: &crate::command::Approver,
-    ) -> Result<DesignChange, StorageError> {
+        approver: &crate::grants::Approver,
+    ) -> Result<DesignChange, crate::CoreError> {
         let (mut ctx, p, id, ts) = (ctx.clone(), p.clone(), id.to_owned(), now());
         let approver = approver.clone();
-        self.write_txn(move |conn| {
+        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
             Box::pin(async move {
-                let request = crate::db::approval::authorise_in(conn, &approver, &p).await?;
+                if let crate::grants::Approver::Planner {
+                    writer: writer @ crate::grants::Writer::Planner { thread, .. },
+                    turn,
+                    ..
+                } = &approver
+                {
+                    crate::grants::Grants::check_writer(conn, writer, &p).await?;
+                    crate::turns::Turns::require_running_in(conn, thread, turn).await?;
+                }
+                let request = crate::grants::Grants::authorise_in(conn, &approver, &p).await?;
                 ctx.agent = Some(approver.agent());
                 if let Some(result) = classify(conn, &ctx, "Project", p.as_str()).await? {
                     let json: String = sqlx::query_scalar(
@@ -39,12 +48,14 @@ impl Storage {
                     return Err(StorageError::Constraint(
                         "proposal is approved or superseded; ask the Planner to propose again"
                             .into(),
-                    ));
+                    )
+                    .into());
                 }
                 if proposal.outdated {
                     return Err(StorageError::StageBlocked(
                         "proposal outdated; propose again".into(),
-                    ));
+                    )
+                    .into());
                 }
                 let mut changed = BTreeSet::new();
                 write(conn, &p, &proposal, &mut changed).await?;

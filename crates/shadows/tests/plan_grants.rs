@@ -3,7 +3,6 @@
 //! draft refs an external agent starts plans with.
 
 use serde_json::json;
-use shadows_core::StorageError;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::Writer;
 use shadows_core::testing::{Anchor, derived_id};
@@ -30,7 +29,7 @@ async fn external_start(
     plan: Option<&shadows_core::PlanId>,
     draft_ref: Option<&str>,
     command: &str,
-) -> Result<DraftStarted, StorageError> {
+) -> Result<DraftStarted, shadows_core::CoreError> {
     app.storage
         .start_draft(
             &writer_ctx(external, command, "DraftStart", json!({ "r": draft_ref })),
@@ -123,7 +122,13 @@ async fn a_draft_ref_binds_in_both_paths() {
     )
     .await;
     assert!(
-        matches!(outside, Err(StorageError::GrantScope)),
+        matches!(
+            outside,
+            Err(shadows_core::CoreError::Refused {
+                code: shadows_core::ErrorCode::GrantScope,
+                ..
+            })
+        ),
         "{outside:?}"
     );
 
@@ -142,7 +147,13 @@ async fn a_draft_ref_binds_in_both_paths() {
         )
         .await;
         assert!(
-            matches!(refused, Err(StorageError::GrantScope)),
+            matches!(
+                refused,
+                Err(shadows_core::CoreError::Refused {
+                    code: shadows_core::ErrorCode::GrantScope,
+                    ..
+                })
+            ),
             "{refused:?}"
         );
     }
@@ -204,7 +215,13 @@ async fn an_edit_by_a_revoked_grant_writes_nothing() {
         )
         .await;
     assert!(
-        matches!(refused, Err(StorageError::GrantInvalid)),
+        matches!(
+            refused,
+            Err(shadows_core::CoreError::Refused {
+                code: shadows_core::ErrorCode::GrantInvalid,
+                ..
+            })
+        ),
         "{refused:?}"
     );
     assert_eq!(revision(&app, &v1).await, 0);
@@ -245,7 +262,13 @@ async fn a_planner_grant_writes_only_in_its_own_project() {
         )
         .await;
     assert!(
-        matches!(refused, Err(StorageError::GrantScope)),
+        matches!(
+            refused,
+            Err(shadows_core::CoreError::Refused {
+                code: shadows_core::ErrorCode::GrantScope,
+                ..
+            })
+        ),
         "{refused:?}"
     );
 
@@ -355,7 +378,13 @@ async fn external_draft_starts_require_a_draft_ref() {
     )
     .await;
     assert!(
-        matches!(scratch, Err(StorageError::GrantScope)),
+        matches!(
+            scratch,
+            Err(shadows_core::CoreError::Refused {
+                code: shadows_core::ErrorCode::GrantScope,
+                ..
+            })
+        ),
         "{scratch:?}"
     );
 
@@ -371,7 +400,13 @@ async fn external_draft_starts_require_a_draft_ref() {
     )
     .await;
     assert!(
-        matches!(in_plan, Err(StorageError::GrantScope)),
+        matches!(
+            in_plan,
+            Err(shadows_core::CoreError::Refused {
+                code: shadows_core::ErrorCode::GrantScope,
+                ..
+            })
+        ),
         "{in_plan:?}"
     );
     assert_eq!(

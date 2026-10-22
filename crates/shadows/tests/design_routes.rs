@@ -106,7 +106,9 @@ async fn map_proposal_routes_list_and_approve() {
         .await
         .unwrap();
     let op = app::start_settled(&app, "hang").await;
-    let (grant, _) = app.storage.issue_thread_grant(&app.thread).await.unwrap();
+    let (grant, _) = shadows_core::Grants::issue_thread_grant_for_test(&app.storage, &app.thread)
+        .await
+        .unwrap();
     let parts: Vec<_> = ["backend", "database", "api"]
         .into_iter()
         .map(|kind| {
@@ -190,7 +192,9 @@ async fn vision_proposal_routes_list_and_approve() {
         }
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
     }
-    let (grant, _) = app.storage.issue_thread_grant(&app.thread).await.unwrap();
+    let (grant, _) = shadows_core::Grants::issue_thread_grant_for_test(&app.storage, &app.thread)
+        .await
+        .unwrap();
     let p = app
         .core
         .design()

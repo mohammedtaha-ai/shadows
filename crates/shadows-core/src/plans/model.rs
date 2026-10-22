@@ -198,7 +198,7 @@ pub struct LastEdit {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct Plan {
     #[serde(default)]
-    pub approved_by: Option<crate::command::ApprovedBy>,
+    pub approved_by: Option<crate::grants::ApprovedBy>,
     pub id: WorkflowId,
     pub plan_id: PlanId,
     pub plan_state: PlanState,

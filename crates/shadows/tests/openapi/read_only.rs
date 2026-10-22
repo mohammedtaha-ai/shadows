@@ -121,7 +121,9 @@ async fn no_get_route_changes_state() {
         }
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
     }
-    let (grant, _) = a.storage.issue_thread_grant(&a.thread).await.unwrap();
+    let (grant, _) = shadows_core::Grants::issue_thread_grant_for_test(&a.storage, &a.thread)
+        .await
+        .unwrap();
     a.core
         .design()
         .propose_vision(

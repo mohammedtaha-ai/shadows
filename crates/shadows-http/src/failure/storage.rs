@@ -65,16 +65,6 @@ impl From<StorageError> for Failure {
                     },
                 };
             }
-            // A grant refusal answers an MCP tool call (§13.10); a route has
-            // no grant, so one reaching here is the daemon's own defect.
-            StorageError::GrantInvalid | StorageError::GrantScope => {
-                tracing::error!(error = %e, "http.grant_refusal_on_route");
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    ErrorCode::StorageUnavailable,
-                    "the daemon refused its own request",
-                )
-            }
             StorageError::TaskNotInPlan(_) => {
                 return own(StatusCode::UNPROCESSABLE_ENTITY, ErrorCode::InvalidCommand);
             }

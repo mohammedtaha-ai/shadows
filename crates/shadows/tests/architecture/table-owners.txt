@@ -27,7 +27,7 @@ design_structure_write :: design
 design_vision_proposal :: design
 design_vision_version :: design
 design_workspace :: design
-draft_intent :: plans
+draft_intent :: grants
 durable_event :: db
 harness_limit :: harness
 harness_model_effort :: harness

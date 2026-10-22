@@ -66,7 +66,7 @@ impl Token {
 
     /// What storage keeps in its place.
     pub fn hash(&self) -> String {
-        hash_token(&self.0)
+        Self::hash_token(&self.0)
     }
 }
 
@@ -79,8 +79,10 @@ impl std::fmt::Debug for Token {
 /// The SHA-256 of a raw token, as lowercase hex: the only form of it stored.
 /// A token carries 244 random bits, so an unsalted fast hash is enough — no
 /// dictionary reaches it.
-pub fn hash_token(raw: &str) -> String {
-    format!("{:x}", Sha256::digest(raw.as_bytes()))
+impl Token {
+    pub fn hash_token(raw: &str) -> String {
+        format!("{:x}", Sha256::digest(raw.as_bytes()))
+    }
 }
 
 /// What issuing answers. `token` is `Some` on the first issue only: a replay

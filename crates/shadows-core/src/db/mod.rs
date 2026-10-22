@@ -11,7 +11,6 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Connection, SqliteConnection, SqlitePool};
 use tokio::sync::{Mutex, watch};
 
-pub(crate) mod approval;
 mod command;
 mod derive;
 mod embedded_migrations;

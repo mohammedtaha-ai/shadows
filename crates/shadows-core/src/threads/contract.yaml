@@ -204,6 +204,9 @@ functions:
       signature: "(s: &str) -> Option<ThreadEntryKind>"
       # The inverse of `as_str`; `None` for text no variant names.
   store:
+    entry_in: "(conn, id: &ThreadEntryId) -> Result<(ThreadId, i64), StorageError>"
+    request_entry_in: "(conn, thread: &ThreadId, turn: &str) -> Result<Option<ThreadEntryId>, StorageError>"
+    harness_in: "(conn, thread: &ThreadId, project: &ProjectId) -> Result<String, StorageError>"
     create_planning_thread:
       signature: "(&self, ctx, project_id, title, harness, profile) -> Result<PlanningThread, CoreError>"
       # One write: classify (scope Project) → insert_thread → record_command.
@@ -321,6 +324,9 @@ enums:
 
 
 shared_in_transaction:
+  entry_in: "Grants reads retained approval entry identity and ordinal in the caller snapshot."
+  request_entry_in: "Grants reads the latest user request for an opaque turn ref inside approval writes."
+  harness_in: "Grants reads a retained thread's harness in its project during approval authorization."
   get_in: Plans reads retained thread metadata for historical attribution.
   project_in: Turns and Grants read the thread's owning project in their transaction.
   is_live_in: Turns checks thread liveness with the exact running operation.

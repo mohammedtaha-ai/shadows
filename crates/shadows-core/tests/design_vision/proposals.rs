@@ -37,7 +37,9 @@ impl Fixture {
         let storage = Storage::open(&tmp.path().join("standards.sqlite3"))
             .await
             .unwrap();
-        let (grant, _) = storage.issue_thread_grant(&thread.id).await.unwrap();
+        let (grant, _) = shadows_core::Grants::issue_thread_grant_for_test(&storage, &thread.id)
+            .await
+            .unwrap();
         Self {
             _tmp: tmp,
             core,
@@ -129,7 +131,7 @@ async fn refused_authority(end_turn: bool) {
             thread: thread.clone(),
             grant: f.grant.id.clone(),
         },
-        turn,
+        turn: turn.to_string(),
         harness: "claude-code".into(),
     };
     assert!(
@@ -498,7 +500,9 @@ async fn a_proposal_names_a_known_item_and_carries_text() {
         .create("idle".into(), &f.p, "Idle", None, None)
         .await
         .unwrap();
-    let (grant, _) = f.storage.issue_thread_grant(&t.id).await.unwrap();
+    let (grant, _) = shadows_core::Grants::issue_thread_grant_for_test(&f.storage, &t.id)
+        .await
+        .unwrap();
     assert!(
         f.core
             .design()

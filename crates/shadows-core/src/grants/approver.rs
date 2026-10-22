@@ -1,7 +1,8 @@
 //! Approval provenance derived by the core from the authenticated call path.
 use super::Writer;
+use crate::db::Actor;
 use crate::db::{Anchor, CommandContext, derived_id, fingerprint};
-use crate::{Actor, OperationId, ThreadEntryId, ThreadId};
+use crate::threads::{ThreadEntryId, ThreadId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -10,7 +11,7 @@ pub enum Approver {
     Person,
     Planner {
         writer: Writer,
-        turn: OperationId,
+        turn: String,
         harness: String,
     },
 }

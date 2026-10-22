@@ -1,7 +1,7 @@
 //! Vision proposal values and the person/Planner entry points (§23.5).
 use super::{Design, DesignChange, VisionField};
 use crate::db::{Anchor, CommandContext, derived_id, fingerprint};
-use crate::{CoreError, ErrorCode, Grant, ProjectId, ThreadId, command::Writer};
+use crate::{CoreError, ErrorCode, Grant, ProjectId, ThreadId, grants::Writer};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -25,7 +25,7 @@ pub enum ProposalStatus {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct VisionProposal {
     #[serde(default)]
-    pub approved_by: Option<crate::command::ApprovedBy>,
+    pub approved_by: Option<crate::grants::ApprovedBy>,
     pub id: String,
     pub thread_id: ThreadId,
     pub action: VisionAction,
@@ -48,13 +48,15 @@ pub struct VisionPropose {
     pub replaces: Option<String>,
 }
 
-pub(super) fn core_error(e: crate::StorageError) -> CoreError {
-    match e {
-        crate::StorageError::Constraint(message) => CoreError::Refused {
-            code: ErrorCode::InvalidCommand,
-            message,
-        },
-        other => other.into(),
+impl Design {
+    pub(super) fn core_error(e: impl Into<CoreError>) -> CoreError {
+        match e.into() {
+            CoreError::Storage(crate::StorageError::Constraint(message)) => CoreError::Refused {
+                code: ErrorCode::InvalidCommand,
+                message,
+            },
+            other => other,
+        }
     }
 }
 
@@ -62,7 +64,7 @@ impl Design {
     pub(super) async fn planner_approver(
         &self,
         grant: &Grant,
-    ) -> Result<crate::command::Approver, CoreError> {
+    ) -> Result<crate::grants::Approver, CoreError> {
         let writer = super::agreement_scope::writer(grant)?;
         let Writer::Planner { thread, .. } = &writer else {
             return Err(CoreError::Refused {
@@ -89,9 +91,9 @@ impl Design {
         )
         .await?
         .harness;
-        Ok(crate::command::Approver::Planner {
+        Ok(crate::grants::Approver::Planner {
             writer,
-            turn,
+            turn: turn.to_string(),
             harness,
         })
     }
@@ -109,7 +111,7 @@ impl Design {
         self.storage
             .approve_vision_proposal_in(&ctx, &grant.project_id, proposal, &approver)
             .await
-            .map_err(core_error)
+            .map_err(Self::core_error)
     }
 
     pub async fn propose_vision(
@@ -149,7 +151,7 @@ impl Design {
         self.storage
             .propose_vision_in(&ctx, &writer, &grant.project_id, &op, args)
             .await
-            .map_err(core_error)
+            .map_err(Self::core_error)
     }
 
     pub async fn vision_proposals(
@@ -171,8 +173,8 @@ impl Design {
             serde_json::json!({"project":project,"proposal":proposal}),
         );
         self.storage
-            .approve_vision_proposal_in(&ctx, project, proposal, &crate::command::Approver::Person)
+            .approve_vision_proposal_in(&ctx, project, proposal, &crate::grants::Approver::Person)
             .await
-            .map_err(core_error)
+            .map_err(Self::core_error)
     }
 }

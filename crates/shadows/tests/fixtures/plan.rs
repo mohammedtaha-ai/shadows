@@ -119,11 +119,18 @@ pub async fn issue_grant(
     thread: Option<&ThreadId>,
 ) -> (GrantId, String) {
     let (grant, token) = match (kind, thread) {
-        ("thread", Some(thread)) => app.storage.issue_thread_grant(thread).await.unwrap(),
+        ("thread", Some(thread)) => {
+            shadows_core::Grants::issue_thread_grant_for_test(&app.storage, thread)
+                .await
+                .unwrap()
+        }
         ("project", None) => {
             let command = format!("grant-{}", uuid::Uuid::new_v4());
             let c = writer_ctx(&Writer::Person, &command, "McpGrantIssue", json!({}));
-            let issued = app.storage.issue_project_grant(&c, project).await.unwrap();
+            let issued =
+                shadows_core::Grants::issue_project_grant_for_test(&app.storage, &c, project)
+                    .await
+                    .unwrap();
             (
                 issued.grant,
                 issued.token.expect("a new grant shows its token"),

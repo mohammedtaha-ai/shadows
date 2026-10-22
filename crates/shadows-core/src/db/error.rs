@@ -37,12 +37,6 @@ pub enum StorageError {
     /// §16.7: a new task link names an unavailable or unreachable parent.
     #[error("{0}")]
     PlanLinkInvalid(String),
-    /// Spec §13.7: the writer's grant is unknown or revoked.
-    #[error("the grant is unknown or revoked")]
-    GrantInvalid,
-    /// Spec §13.6: the plan, thread or draft ref is outside the writer's grant.
-    #[error("outside what the grant allows")]
-    GrantScope,
     /// Spec §13.9: a task named by a focus or by `plan_show` is not in that
     /// plan version. The text says which.
     #[error("{0}")]

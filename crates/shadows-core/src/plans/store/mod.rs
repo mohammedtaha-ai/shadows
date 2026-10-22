@@ -27,8 +27,8 @@ pub(crate) use notifications::notify_project_dependencies_in;
 pub(crate) use plan::check_design_plan;
 pub(crate) use task::task_of;
 
-use crate::command::Writer;
 use crate::events::DurableEvent;
+use crate::grants::Writer;
 use crate::projects::ProjectId;
 use crate::turns::OperationId;
 

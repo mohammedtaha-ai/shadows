@@ -1,7 +1,6 @@
 mod agents;
 mod app;
 mod code;
-mod command;
 mod db;
 mod design;
 mod error;
@@ -22,7 +21,7 @@ pub mod testing;
 mod threads;
 mod turns;
 mod usage;
-pub use command::{ApprovalRequest, ApprovedBy, Approver, Writer};
+pub use grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
 
 // The public surface (spec §14.4, §14.6): the application, its failure, the
 // services, and every type an adapter names or serializes. Storage, the
@@ -57,7 +56,7 @@ pub use events::{Delivery, Events, StoredEvent, Subscription, UiSignal};
 pub use extensions::{
     AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Extensions, Item,
 };
-pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};
+pub use grants::{Grant, GrantId, GrantKind, Grants, GrantsError, IssuedView};
 pub use harness::{
     AylulConfig, AylulUsageSnapshot, ContextBreakdown, Harness, HarnessInfo, OpenError,
     RememberedSettings,

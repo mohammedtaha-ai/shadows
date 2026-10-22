@@ -1,7 +1,7 @@
 //! Roadmap proposal values and service entry points (§23.5).
 use super::{Design, DesignChange, OutcomeContent, OutcomeId, PartId, ProposalStatus};
-use crate::command::Writer;
 use crate::db::{Anchor, CommandContext, derived_id, fingerprint};
+use crate::grants::Writer;
 use crate::{CoreError, ErrorCode, Grant, ProjectId, ThreadId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -45,7 +45,7 @@ pub struct RoadmapPropose {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RoadmapProposal {
     #[serde(default)]
-    pub approved_by: Option<crate::command::ApprovedBy>,
+    pub approved_by: Option<crate::grants::ApprovedBy>,
     pub id: String,
     pub thread_id: ThreadId,
     pub action: RoadmapAction,
@@ -101,7 +101,7 @@ impl Design {
         self.storage
             .propose_roadmap_in(&ctx, &writer, &grant.project_id, &turn, args)
             .await
-            .map_err(super::proposals::core_error)
+            .map_err(Self::core_error)
     }
 
     pub async fn roadmap_proposals(
@@ -123,9 +123,9 @@ impl Design {
             serde_json::json!({"project":project,"proposal":proposal}),
         );
         self.storage
-            .approve_roadmap_proposal_in(&ctx, project, proposal, &crate::command::Approver::Person)
+            .approve_roadmap_proposal_in(&ctx, project, proposal, &crate::grants::Approver::Person)
             .await
-            .map_err(super::proposals::core_error)
+            .map_err(Self::core_error)
     }
 
     pub async fn approve_roadmap_proposal_as_planner(
@@ -141,6 +141,6 @@ impl Design {
         self.storage
             .approve_roadmap_proposal_in(&ctx, &grant.project_id, proposal, &approver)
             .await
-            .map_err(super::proposals::core_error)
+            .map_err(Self::core_error)
     }
 }

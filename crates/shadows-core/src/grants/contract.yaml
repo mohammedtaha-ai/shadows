@@ -1,4 +1,3 @@
-# Thread grant issue reads live thread ownership through Threads in its write transaction.
 # Owns MCP grants from issue to revocation (spec §13.7): a person's issue and
 # revoke of an external agent's project grant, the bearer check `/mcp` asks of
 # every request, and startup's revocation of every thread grant an earlier
@@ -15,22 +14,36 @@
 # and `check_writer` inside each plan write's own transaction, so a write that
 # began before a revocation does not commit after it.
 #
-# Trap: thread grants are the Planner's, not the person's. The planner's
-# sessions issue and revoke each one on `Storage` (`issue_thread_grant`,
-# `revoke_thread_grant`), not through `Grants`; the only `Grants` method that
-# touches them is startup's `revoke_thread_grants`. `revoke` refuses one as not
-# found, and `list` never shows one. Trap: `IssuedView` carries a bearer
-# token; it has no Debug on purpose.
+# Harness checks thread liveness and reads its project in the same write that
+# issues a thread grant. Grant refusals are GrantsError, promoted to CoreError
+# without changing transport codes or messages. Draft workflow references are opaque.
 
 name: grants
 version: 1
 status: current
 source: crates/shadows-core/src/grants
 
+owns_tables: [mcp_grant, draft_intent]
+
 
 shapes:
+  Writer:
+    Person: unit
+    Planner: "{ thread: ThreadId, grant: GrantId }"
+    External: "{ grant: GrantId }"
+  Approver:
+    Person: unit
+    Planner: "{ writer: Writer, turn: String, harness: String }"
+  ApprovalRequest:
+    thread_id: ThreadId
+    entry_id: ThreadEntryId
+    ordinal: i64
+  ApprovedBy:
+    principal: String
+    agent: String
+    request: Option<ApprovalRequest>
   Grants:
-    storage: Arc<Storage>
+    store: GrantsStore
     # `http://<bound address>/mcp`, from `CoreParts::mcp_url`: what `issue`'s
     # `command` names. It differs from the configured address on port 0.
     mcp_url: String
@@ -65,8 +78,23 @@ shapes:
     token: Option<Token>
 
 
+modules:
+  mod.rs: grant service boundary
+  model.rs: grant values
+  writer.rs: authenticated writer values
+  approver.rs: approval provenance values
+  approval.rs: transaction-local approval authority
+  error.rs: grant refusal mapping
+  store.rs: grant persistence
+  tools.rs: grant tool policy
+  testing.rs: test-only grant entry points
+
 functions:
   reads:
+    tools_for:
+      signature: "(kind: GrantKind) -> &'static [&'static str]"
+    read_in:
+      signature: "(conn, principal, agent, request) -> Result<Option<ApprovedBy>, StorageError>"
     list:
       signature: "(&self, project: &ProjectId) -> Result<Vec<Grant>, CoreError>"
       # Project grants only, revoked ones included, newest first by the seq of
@@ -76,6 +104,11 @@ functions:
       # Looks up `hash_token(token)` among rows with `revoked_at IS NULL`;
       # `Ok(None)` for an unknown or revoked token.
   writes:
+    prepare_draft:
+      signature: "(&self, grant: &GrantId) -> Result<String, CoreError>"
+    authorise_in:
+      signature: "(conn, approver: &Approver, project: &ProjectId) -> Result<Option<ThreadEntryId>, GrantsError>"
+      # Callers check the running turn between the writer check and this provenance check.
     issue:
       signature: "(&self, command_id: String, project: &ProjectId) -> Result<IssuedView, CoreError>"
       # "McpGrantIssue", params { project }, principal User/local, scope
@@ -105,8 +138,8 @@ functions:
   store:
     issue_project_grant:
       signature: "(&self, ctx: &CommandContext, project: &ProjectId) -> Result<IssuedGrant, StorageError>"
-    issue_thread_grant:
-      signature: "(&self, thread: &ThreadId) -> Result<(Grant, Token), StorageError>"
+    issue_thread_grant_in:
+      signature: "(conn, project: &ProjectId, thread: &ThreadId) -> Result<(Grant, Token), StorageError>"
       # No command: Harness' `Setups::for_opening` issues it for a live
       # thread's session. A removed thread cannot receive a new grant.
     revoke_grant:
@@ -122,7 +155,7 @@ functions:
       signature: "(&self, project: &ProjectId) -> Result<Vec<Grant>, StorageError>"
       # None for a removed project, as for an unknown one (§4.2).
     prepare_draft:
-      signature: "(&self, grant: &GrantId) -> Result<String, StorageError>"
+      signature: "(&self, grant: &GrantId) -> Result<String, GrantsError>"
       # A new `dr-<uuid>` for a live project grant, good for an hour; never
       # deduplicated. GrantScope for a live thread grant, GrantInvalid for a
       # revoked or unknown one.
@@ -142,14 +175,14 @@ functions:
       signature: "(conn, thread: &ThreadId, actor: Actor, ts: &str) -> Result<(), StorageError>"
       # Every live Planner grant of the thread, inside its removal write.
     check_writer:
-      signature: "(conn, writer: &Writer, project: &ProjectId) -> Result<(), StorageError>"
+      signature: "(conn, writer: &Writer, project: &ProjectId) -> Result<(), GrantsError>"
       # Ok for a person. GrantInvalid for an unknown or revoked grant;
       # GrantScope when a Planner's grant is not a thread grant of its own
       # thread in `project`, or an external grant is not a project grant of
       # `project`. Which of the project's plans a Planner reaches is Plans'
       # `in_scope` (§16.4), not this check.
     bind_draft_ref:
-      signature: "(conn, writer: &Writer, draft_ref: &str, workflow: &WorkflowId, project: &ProjectId, ts: &str) -> Result<(), StorageError>"
+      signature: "(conn, writer: &Writer, draft_ref: &str, workflow: &str, project: &ProjectId, ts: &str) -> Result<(), GrantsError>"
       # GrantScope for a writer with no grant (a person). Otherwise GrantScope
       # unless exactly one `draft_intent` row of the writer's grant was bound
       # — unused and unexpired (by `julianday`), or already bound to this
@@ -164,7 +197,7 @@ enums:
     source: crate::threads::ThreadId
     values: []
   Writer:
-    source: crate::command::Writer
+    source: crate::grants::Writer
     values: []
   CoreError:
     source: crate::error::CoreError
@@ -185,7 +218,7 @@ shared_in_transaction:
 
 
 called_by_other_services:
-  issue_thread_grant: "Harness (harness/setup.rs Setups::for_opening): a session's opening issues the thread's Planner grant, whose token its MCP setup carries (§13.7, §13.8)"
+  issue_thread_grant_in: "Harness (harness/setup.rs Setups::for_opening): a session's opening issues the thread's Planner grant, whose token its MCP setup carries (§13.7, §13.8)"
   revoke_thread_grant: "Harness (harness/setup.rs Setups::forget): a session's opening revokes the thread's previous grant, and its closing revokes the one it held (§13.7)"
   prepare_draft: "Plans (plans/mod.rs Plans::prepare_draft): the `draft_prepare` tool asks for a new draft_ref bound to the caller's grant (§13.5)"
 

@@ -1,3 +1,4 @@
+# require_running_in reads the exact running operation plus Threads liveness in the caller transaction; approval writers call it before Grants provenance.
 # Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns starting and stopping a Planner turn (spec §12.3, §12.7, §14.4): the
 # "turn.start" command from its replay to its run, Stop as the local user, and
@@ -219,6 +220,8 @@ shapes:
 
 
 functions:
+  authority_reads:
+    require_running_in: "(conn, thread: &ThreadId, operation: &str) -> Result<(), StorageError>"
   service:
     stop_running:
       signature: "(&self, thread: &ThreadId) -> Result<StopOutcome, StorageError>"
@@ -512,9 +515,10 @@ enums:
 
 
 shared_in_transaction:
+  require_running_in: "Design and Plans approval writes check the exact running turn in the same transaction."
   standards_for_invocation_in: "Harness resolves the selected additions in its read snapshot; missing invocation or removed project is NotFound(invocation), a missing/foreign version is NotFound(invocation standards additions), and no pin means base only. The planning_thread read remains until A-17."
   record_usage_in: Terminal transitions read the invocation snapshot and record it through Usage::record_in inside their own transaction.
-  check_running_turn_in: "Design's vision proposal write validates the exact operation is Running in its live thread after replay and before supersession, entry or event writes; db/approval validates the exact Planner operation the same way before an approval or its replay (§24)."
+  check_running_turn_in: "Design's vision proposal write validates the exact operation is Running in its live thread after replay and before supersession, entry or event writes; Design and Plans use Turns::require_running_in before Grants validates approval provenance or replay (§24)."
   take_queued_in: "The start of a waiting message (§20.3) and Send now (§20.4): the row is removed inside the same write that commits the turn or the steered entry, so a message is sent once or not at all"
   has_open_operation: "Threads' fork (threads/store/fork.rs fork_thread): a thread with a turn not yet ended cannot be forked, judged inside the fork's own write"
   read_before: "Runtime recovery (runtime/store.rs reconcile_orphans): reads each orphan's status and thread inside the write that marks it Interrupted"

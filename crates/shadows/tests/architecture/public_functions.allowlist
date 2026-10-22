@@ -1,8 +1,8 @@
 # Existing source exceptions at 41738fe. Remove records when their violations are fixed.
+# A-16: retained design and plan public helpers follow their owner preparation.
 crates/shadows-core/src/design/agreement_scope.rs :: writer free public function [5413d43e50fe1ba8] #1
 crates/shadows-core/src/design/agreement_validation.rs :: assign_operation_ids free public function [9605bb48ba3d56eb] #1
 crates/shadows-core/src/design/agreement_validation.rs :: operation_ids free public function [eaa5a6f857f0ce71] #1
-crates/shadows-core/src/design/agreements.rs :: map_error free public function [c7edcebd5d522b8d] #1
 crates/shadows-core/src/design/agreements.rs :: normalize free public function [9ca983b3dd6c129e] #1
 crates/shadows-core/src/design/map_rules.rs :: check_reserved free public function [1a55f0ae0216e169] #1
 crates/shadows-core/src/design/map_rules.rs :: check_shape free public function [32e7c48e6949989c] #1
@@ -12,7 +12,6 @@ crates/shadows-core/src/design/map_rules.rs :: normalise free public function [f
 crates/shadows-core/src/design/map_rules.rs :: normalise_folder free public function [8e4aebf1706a253d] #1
 crates/shadows-core/src/design/map_rules.rs :: unserved_goals free public function [919deeae62eac7fa] #1
 crates/shadows-core/src/design/ops.rs :: normalize free public function [738a419adc0382f7] #1
-crates/shadows-core/src/design/proposals.rs :: core_error free public function [8056d5e01c1ae9a8] #1
 crates/shadows-core/src/design/stage.rs :: compute free public function [beb941b936ad38eb] #1
 crates/shadows-core/src/design/stage.rs :: line free public function [b4a627f985bc69ad] #1
 crates/shadows-core/src/design/store/agreement_binding.rs :: check_agreement_binding_in free public function [bea9edbf7f0f41e7] #1
@@ -63,11 +62,6 @@ crates/shadows-core/src/design/structure_write.rs :: root free public function [
 crates/shadows-core/src/design/structure_write.rs :: write free public function [4189f875074162ed] #1
 crates/shadows-core/src/design/vision_items.rs :: apply free public function [d07cf5006b0b3656] #1
 crates/shadows-core/src/design/vision_items.rs :: next_id free public function [77c86926c37f5b6c] #1
-crates/shadows-core/src/grants/model.rs :: hash_token free public function [299949753c3609f6] #1
-crates/shadows-core/src/grants/store.rs :: bind_draft_ref free public function [d04b3cda61b0388a] #1
-crates/shadows-core/src/grants/store.rs :: check_writer free public function [bda15c2eab3363ae] #1
-crates/shadows-core/src/grants/store.rs :: revoke_project_grants_in free public function [869e894571162404] #1
-crates/shadows-core/src/grants/store.rs :: revoke_thread_grants_in free public function [41e55a6b470da445] #1
 crates/shadows-core/src/harness/assistant.rs :: aylul_setup free public function [39ed8bdf7bde7090] #1
 crates/shadows-core/src/harness/commands.rs :: keep_commands free public function [bc22670371be6c60] #1
 crates/shadows-core/src/harness/mod.rs :: preference_key free public function [18e6dc122adcd0ae] #1
@@ -138,6 +132,7 @@ crates/shadows-core/src/turns/store/queue.rs :: take_queued_in free public funct
 crates/shadows-core/src/turns/store/transition.rs :: existed free public function [9ae91f736805f92e] #1
 crates/shadows-core/src/turns/store/transition.rs :: read_before free public function [8e1051b2ddb51e0f] #1
 crates/shadows-core/src/turns/store/transition.rs :: record free public function [74c5bc72ae1237da] #1
+# A-17b: the retained turn authority shim follows Operations preparation.
 crates/shadows-core/src/turns/store/turn.rs :: check_running_turn_in free public function [a70b97e3d415ffff] #1
 crates/shadows-core/src/turns/store/turn.rs :: has_open_operation free public function [e8f9d113985dc62e] #1
 crates/shadows-core/src/turns/store/usage.rs :: record_usage_in free public function [428d0364c5dcfb09] #1

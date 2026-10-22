@@ -43,7 +43,7 @@ async fn view(
 ) -> Result<MapProposal, StorageError> {
     let vision = super::proposal_read::live_vision(conn, p).await?;
     let mut proposal: MapProposal = serde_json::from_str(&row.payload_json)?;
-    proposal.approved_by = crate::db::approval::read_in(
+    proposal.approved_by = crate::grants::Grants::read_in(
         conn,
         row.approved_principal,
         row.approved_agent,

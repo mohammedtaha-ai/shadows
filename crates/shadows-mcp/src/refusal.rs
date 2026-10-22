@@ -57,15 +57,6 @@ impl From<StorageError> for Refusal {
                     .collect::<Vec<_>>()
                     .join("; "),
             ),
-            StorageError::GrantInvalid => Self::new(
-                ErrorCode::GrantInvalid,
-                "this grant was revoked while the call ran; nothing was changed",
-            ),
-            StorageError::GrantScope => Self::scope(
-                "outside what this grant allows: plan writes stay in its own project; \
-                 workflow_list and workflow_get can read an explicitly linked project; \
-                 draft_ref starts a plan only within the hour after draft_prepare",
-            ),
             StorageError::CommandConflict => Self::new(
                 ErrorCode::CommandConflict,
                 "this command id, or this draft_ref, already did something different; \
@@ -96,6 +87,19 @@ impl From<CoreError> for Refusal {
     fn from(e: CoreError) -> Self {
         match e {
             CoreError::Storage(e) | CoreError::Start(StartError::Storage(e)) => e.into(),
+            CoreError::Refused {
+                code: ErrorCode::GrantInvalid,
+                message,
+            } if message == "the grant is unknown or revoked" => Self::new(
+                ErrorCode::GrantInvalid,
+                "this grant was revoked while the call ran; nothing was changed",
+            ),
+            CoreError::Refused {
+                code: ErrorCode::GrantScope,
+                message,
+            } if message == "outside what the grant allows" => Self::scope(
+                "outside what this grant allows: plan writes stay in its own project; workflow_list and workflow_get can read an explicitly linked project; draft_ref starts a plan only within the hour after draft_prepare",
+            ),
             CoreError::Refused { code, message } => Self::new(code, message),
             other => Self::new(code_of(&other), other.to_string()),
         }

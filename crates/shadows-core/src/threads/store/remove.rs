@@ -1,7 +1,7 @@
 //! One job: the atomic removal of a planning thread.
 
 use crate::db::{Actor, CommandContext, StorageError, append_event, classify, now, record_command};
-use crate::grants::revoke_thread_grants_in;
+use crate::grants::Grants;
 use crate::threads::{PlanningThread, ThreadId};
 
 impl super::ThreadsStore {
@@ -33,7 +33,7 @@ impl super::ThreadsStore {
                         .execute(&mut *conn)
                         .await?;
                     let actor = Actor::user(&ctx.principal_id);
-                    revoke_thread_grants_in(conn, &thread, actor.clone(), &ts).await?;
+                    Grants::revoke_thread_grants_in(conn, &thread, actor.clone(), &ts).await?;
                     append_event(
                         conn,
                         crate::db::JournalEntry {

@@ -27,7 +27,7 @@ impl Row {
         content: &VisionContent,
     ) -> Result<VisionProposal, StorageError> {
         let mut p = VisionProposal {
-            approved_by: crate::db::approval::read_in(
+            approved_by: crate::grants::Grants::read_in(
                 conn,
                 self.approved_principal,
                 self.approved_agent,

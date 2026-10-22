@@ -1,3 +1,4 @@
+# Grant authority calls use Grants methods; refusing writes promote GrantsError through write_txn_as.
 # Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns project design edits (§18.2, §18.10–18.11), first called by person HTTP.
 # Reads lazily return an empty revision-zero vision for a live project.
@@ -47,7 +48,7 @@ shapes:
     text: Option<String>
     replaces: Option<String>
   VisionProposal:
-    approved_by: "Option<crate::command::ApprovedBy>; provenance on approved proposals only"
+    approved_by: "Option<crate::grants::ApprovedBy>; provenance on approved proposals only"
     id: String
     thread_id: ThreadId
     action: VisionAction
@@ -244,11 +245,11 @@ functions:
       # validate client UUID references. Other text remains exact.
   store:
     propose_map_in:
-      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: MapPropose) -> Result<MapProposal, StorageError>"
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: MapPropose) -> Result<MapProposal, CoreError>"
     list_map_proposals:
       signature: "(&self, project: &ProjectId) -> Result<Vec<MapProposal>, StorageError>"
     approve_map_proposal_in:
-      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, StorageError>"
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, CoreError>"
     seed_map_for_tests:
       signature: "test-support only: (&self, project: &ProjectId) -> Result<(), StorageError>"
     seed_roadmap_for_tests:
@@ -256,22 +257,22 @@ functions:
     link_plan_part_for_tests:
       signature: "test-support only: (&self, project: &ProjectId, plan: &PlanId, part: &PartId) -> Result<(), StorageError>"
     propose_roadmap_in:
-      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: RoadmapPropose) -> Result<RoadmapProposal, StorageError>"
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: RoadmapPropose) -> Result<RoadmapProposal, CoreError>"
     list_roadmap_proposals:
       signature: "(&self, project: &ProjectId) -> Result<Vec<RoadmapProposal>, StorageError>"
     approve_roadmap_proposal_in:
-      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, StorageError>"
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, CoreError>"
     propose_vision_in:
-      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: VisionPropose) -> Result<VisionProposal, StorageError>"
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: VisionPropose) -> Result<VisionProposal, CoreError>"
     list_vision_proposals:
       signature: "(&self, project: &ProjectId) -> Result<Vec<VisionProposal>, StorageError>"
     approve_vision_proposal_in:
-      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, StorageError>"
+      signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, CoreError>"
     project_stage:
       signature: "(&self, project: &ProjectId) -> Result<StageView, StorageError>"
       # Vision, top-level parts and additions all share one read transaction.
     check_agreement_grant:
-      signature: "(&self, writer: &Writer, project: &ProjectId) -> Result<(), StorageError>"
+      signature: "(&self, writer: &Writer, project: &ProjectId) -> Result<(), CoreError>"
     review_design_agreement:
       signature: "(&self, project: &ProjectId, id: &AgreementId) -> Result<AgreementReview, StorageError>"
     agree_design_agreement:
@@ -281,9 +282,9 @@ functions:
     design_agreement:
       signature: "(&self, project: &ProjectId, id: &AgreementId, version: Option<i64>) -> Result<AgreementVersion, StorageError>"
     start_design_agreement:
-      signature: "(&self, ctx: &CommandContext, origin: Option<&AgreementOrigin>, project: &ProjectId, id: Option<&AgreementId>, content: Option<AgreementContent>, reason: Option<String>) -> Result<AgreementVersion, StorageError>"
+      signature: "(&self, ctx: &CommandContext, origin: Option<&AgreementOrigin>, project: &ProjectId, id: Option<&AgreementId>, content: Option<AgreementContent>, reason: Option<String>) -> Result<AgreementVersion, CoreError>"
     edit_design_agreement:
-      signature: "(&self, ctx: &CommandContext, origin: Option<&AgreementOrigin>, project: &ProjectId, id: &AgreementId, version: i64, expected_revision: i64, content: AgreementContent) -> Result<AgreementVersion, StorageError>"
+      signature: "(&self, ctx: &CommandContext, origin: Option<&AgreementOrigin>, project: &ProjectId, id: &AgreementId, version: i64, expected_revision: i64, content: AgreementContent) -> Result<AgreementVersion, CoreError>"
     design_outcome:
       signature: "(&self, project: &ProjectId, id: &OutcomeId) -> Result<OutcomeView, StorageError>"
       # One snapshot, iterative root-first ancestors, unique stable-ID associations.

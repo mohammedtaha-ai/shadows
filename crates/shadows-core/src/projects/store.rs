@@ -13,7 +13,7 @@ use crate::db::{
     Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
 };
 use crate::events::DurableEvent;
-use crate::grants::revoke_project_grants_in;
+use crate::grants::Grants;
 use shadows_agent::policy;
 
 /// The service's SQL, over the shared storage handle.
@@ -233,7 +233,7 @@ impl ProjectsStore {
                     crate::plans::notify_project_dependencies_in(conn, &id, &actor, &ts).await?;
                     Code::delete_code_index_in(conn, &id).await?;
                     Code::delete_code_links_in(conn, &id).await?;
-                    revoke_project_grants_in(conn, &id, actor.clone(), &ts).await?;
+                    Grants::revoke_project_grants_in(conn, &id, actor.clone(), &ts).await?;
                     append_event(
                         conn,
                         &DurableEvent::new("ProjectRemoved", actor).with_project(&id),

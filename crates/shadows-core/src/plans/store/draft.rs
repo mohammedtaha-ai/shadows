@@ -11,12 +11,12 @@ use super::plan::require_active;
 use super::plan_event;
 use super::read::{latest_version, load_plan};
 use super::task::write_content;
-use crate::command::Writer;
 use crate::db::{
     CommandContext, Storage, StorageError, append_event, classify, now, record_command,
 };
 use crate::design::PartId;
-use crate::grants::{bind_draft_ref, check_writer};
+use crate::grants::Grants;
+use crate::grants::Writer;
 use crate::plans::model::{DraftStarted, PlanContent, PlanId, WorkflowId, WorkflowState};
 use crate::plans::rules::Problem;
 use crate::projects::ProjectId;
@@ -46,16 +46,16 @@ impl Storage {
         operation: Option<&OperationId>,
         draft_ref: Option<&str>,
         parts: &[PartId],
-    ) -> Result<DraftStarted, StorageError> {
+    ) -> Result<DraftStarted, crate::CoreError> {
         let (ctx, writer, project, ts) = (ctx.clone(), writer.clone(), project.clone(), now());
         let (plan, source, operation) = (plan.cloned(), source.cloned(), operation.cloned());
         let fresh = fresh.map(|(t, g)| (t.to_string(), g.to_string()));
         let reason = reason.map(str::to_string);
         let draft_ref = draft_ref.map(str::to_string);
         let parts = parts.to_vec();
-        self.write_txn(move |conn| {
+        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
             Box::pin(async move {
-                check_writer(conn, &writer, &project).await?;
+                Grants::check_writer(conn, &writer, &project).await?;
                 if let Some(plan) = &plan {
                     plan_in(conn, plan, &project).await?;
                 }
@@ -64,7 +64,7 @@ impl Storage {
                     None => ("Project", project.as_str()),
                 };
                 if let Some(id) = recorded(conn, &ctx, scope, &project).await? {
-                    return started(conn, &WorkflowId::from_stored(id)).await;
+                    return Ok(started(conn, &WorkflowId::from_stored(id)).await?);
                 }
                 crate::design::require_roadmap_in(conn, &project).await?;
                 if let Some(plan) = &plan {
@@ -83,13 +83,13 @@ impl Storage {
                     && let Some(latest) = &latest
                     && &latest.id != source
                 {
-                    return Err(StorageError::NotLatestVersion(latest.id.clone()));
+                    return Err(StorageError::NotLatestVersion(latest.id.clone()).into());
                 }
                 if matches!(writer, Writer::External { .. })
                     && draft_ref.is_none()
                     && !matches!(&latest, Some(plan) if plan.state == WorkflowState::Draft)
                 {
-                    return Err(StorageError::GrantScope);
+                    return Err(crate::grants::GrantsError::GrantScope.into());
                 }
                 let by = Writing {
                     writer: &writer,
@@ -131,11 +131,12 @@ impl Storage {
                     (None, None) => {
                         return Err(StorageError::PlanInvalid(vec![Problem {
                             message: "a plan's first version needs a title and a goal".into(),
-                        }]));
+                        }])
+                        .into());
                     }
                 };
                 if let Some(r) = &draft_ref {
-                    bind_draft_ref(conn, &writer, r, &id, &project, &ts).await?;
+                    Grants::bind_draft_ref(conn, &writer, r, id.as_str(), &project, &ts).await?;
                 }
                 let started = started(conn, &id).await?;
                 crate::design::link_plan_parts_in(conn, &project, &started.plan_id, &parts).await?;
@@ -181,7 +182,7 @@ async fn plan_in(
     conn: &mut SqliteConnection,
     plan: &PlanId,
     project: &ProjectId,
-) -> Result<(), StorageError> {
+) -> Result<(), crate::CoreError> {
     let of: String = sqlx::query_scalar("SELECT project_id FROM plan WHERE id = ?")
         .bind(plan.as_str())
         .fetch_optional(&mut *conn)
@@ -190,7 +191,7 @@ async fn plan_in(
     if of == project.as_str() {
         Ok(())
     } else {
-        Err(StorageError::GrantScope)
+        Err(crate::grants::GrantsError::GrantScope.into())
     }
 }
 

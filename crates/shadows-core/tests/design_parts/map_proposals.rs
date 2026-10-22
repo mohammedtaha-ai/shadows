@@ -45,7 +45,9 @@ impl Fixture {
             .await
             .unwrap();
         let storage = Storage::open(&path).await.unwrap();
-        let (grant, _) = storage.issue_thread_grant(&thread.id).await.unwrap();
+        let (grant, _) = shadows_core::Grants::issue_thread_grant_for_test(&storage, &thread.id)
+            .await
+            .unwrap();
         Self {
             _tmp: tmp,
             storage,

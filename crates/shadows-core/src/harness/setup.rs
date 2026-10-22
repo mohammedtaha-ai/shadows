@@ -77,6 +77,7 @@ pub(crate) struct ContextFacts {
 pub(crate) struct Setups {
     storage: Arc<Storage>,
     instructions: Instructions,
+    grants: crate::grants::Grants,
     mcp_url: Option<String>,
     held: Mutex<HashMap<ThreadId, Held>>,
 }
@@ -86,10 +87,12 @@ impl Setups {
         storage: Arc<Storage>,
         instructions: Instructions,
         mcp_url: Option<String>,
+        grants: crate::grants::Grants,
     ) -> Self {
         Self {
             storage,
             instructions,
+            grants,
             mcp_url,
             held: Mutex::new(HashMap::new()),
         }
@@ -126,9 +129,23 @@ impl Setups {
         };
         let (grant, mcp) = match &self.mcp_url {
             Some(url) => {
+                let thread = thread.clone();
                 let (grant, token) = self
                     .storage
-                    .issue_thread_grant(thread)
+                    .write_txn(move |conn| {
+                        Box::pin(async move {
+                            crate::threads::Threads::require_live_in(conn, &thread)
+                                .await
+                                .map_err(|e| match e {
+                                    StorageError::NotFound(_) => StorageError::NotFound("thread"),
+                                    other => other,
+                                })?;
+                            let project =
+                                crate::threads::Threads::project_in(conn, &thread).await?;
+                            crate::grants::Grants::issue_thread_grant_in(conn, &project, &thread)
+                                .await
+                        })
+                    })
                     .await
                     .map_err(|e| e.to_string())?;
                 let spec = McpServerSpec {
@@ -301,7 +318,7 @@ impl Setups {
     pub(crate) async fn forget(&self, thread: &ThreadId) {
         let held = self.lock().remove(thread);
         if let Some(grant) = held.and_then(|h| h.grant)
-            && let Err(error) = self.storage.revoke_thread_grant(&grant).await
+            && let Err(error) = self.grants.revoke_thread_grant(&grant).await
         {
             tracing::error!(thread_id = %thread, %error, "planner.grant_revoke_failed");
         }

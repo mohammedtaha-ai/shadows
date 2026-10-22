@@ -157,12 +157,18 @@ async fn a_frozen_versions_cross_links_refuse_every_database_write() {
             vec![link.clone()]
         );
     }
-    let issued = storage
-        .issue_project_grant(&command("copy-grant"), &ProjectId::from_literal("p"))
+    let storage = std::sync::Arc::new(storage);
+    let issued = shadows_core::Grants::issue_project_grant_for_test(
+        &storage,
+        &command("copy-grant"),
+        &ProjectId::from_literal("p"),
+    )
+    .await
+    .unwrap();
+    let grant = issued.grant.id;
+    let draft_ref = shadows_core::Grants::prepare_draft_for_test(&storage, &grant)
         .await
         .unwrap();
-    let grant = issued.grant.id;
-    let draft_ref = storage.prepare_draft(&grant).await.unwrap();
     let mut context = command("copy-links");
     context.principal_kind = "Grant".into();
     context.principal_id = grant.to_string();

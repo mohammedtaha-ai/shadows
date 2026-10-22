@@ -138,7 +138,11 @@ impl Sessions {
             crate::testing::projects(storage.clone()),
         );
         let instructions = crate::Instructions::new(storage.clone());
-        Self::with_owners(adapter, storage, config, owners, instructions)
+        let grants = crate::app::AppCore::grants_for_tests(
+            storage.clone(),
+            config.mcp_url.clone().unwrap_or_default(),
+        );
+        Self::with_owners(adapter, storage, config, owners, instructions, grants)
     }
 
     /// Over the configuration owners `AppCore::start` built, the instances the core
@@ -149,6 +153,7 @@ impl Sessions {
         config: SessionsConfig,
         owners: crate::app::AylulOwners,
         instructions: crate::Instructions,
+        grants: crate::grants::Grants,
     ) -> Arc<Self> {
         let period = (config.idle_after / 4)
             .min(Duration::from_secs(60))
@@ -156,7 +161,12 @@ impl Sessions {
         let sessions = Arc::new(Self {
             owners,
             homes: super::profile_home::Homes::default(),
-            setups: Setups::new(storage.clone(), instructions, config.mcp_url.clone()),
+            setups: Setups::new(
+                storage.clone(),
+                instructions,
+                config.mcp_url.clone(),
+                grants,
+            ),
             adapter,
             storage,
             config,

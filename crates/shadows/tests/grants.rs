@@ -6,8 +6,8 @@
 use serde_json::{Value, json};
 use shadows_core::GrantKind;
 use shadows_core::StorageError;
+use shadows_core::testing::Token;
 use shadows_core::testing::Writer;
-use shadows_core::testing::hash_token;
 use shadows_core::{DraftStarted, GrantId};
 
 use shadows_core::testing::acp;
@@ -60,13 +60,18 @@ async fn cells_holding(app: &App, needle: &str) -> Vec<String> {
 #[tokio::test]
 async fn a_token_is_stored_only_as_its_hash() {
     let app = test_app().await;
-    let issued = app
-        .storage
-        .issue_project_grant(&issue_ctx("g1"), &app.project)
-        .await
-        .unwrap();
+    let issued = shadows_core::Grants::issue_project_grant_for_test(
+        &app.storage,
+        &issue_ctx("g1"),
+        &app.project,
+    )
+    .await
+    .unwrap();
     let project_token = issued.token.expect("the first issue shows the token");
-    let (thread_grant, thread_token) = app.storage.issue_thread_grant(&app.thread).await.unwrap();
+    let (thread_grant, thread_token) =
+        shadows_core::Grants::issue_thread_grant_for_test(&app.storage, &app.thread)
+            .await
+            .unwrap();
     assert_eq!(issued.grant.kind, GrantKind::Project);
     assert_eq!(issued.grant.thread_id, None);
     assert_eq!(thread_grant.kind, GrantKind::Thread);
@@ -92,16 +97,20 @@ async fn a_token_is_stored_only_as_its_hash() {
             .fetch_one(app.storage.reader())
             .await
             .unwrap();
-        assert_eq!(stored, hash_token(token.as_str()));
+        assert_eq!(stored, Token::hash_token(token.as_str()));
         assert_eq!(stored, token.hash());
         assert_eq!(
-            app.storage.grant_for_token(token.as_str()).await.unwrap(),
+            shadows_core::Grants::grant_for_token_for_test(&app.storage, token.as_str())
+                .await
+                .unwrap(),
             Some(grant.clone())
         );
     }
     assert_ne!(project_token.as_str(), thread_token.as_str());
     assert_eq!(
-        app.storage.grant_for_token("shd_unknown").await.unwrap(),
+        shadows_core::Grants::grant_for_token_for_test(&app.storage, "shd_unknown")
+            .await
+            .unwrap(),
         None
     );
 }
@@ -109,47 +118,58 @@ async fn a_token_is_stored_only_as_its_hash() {
 #[tokio::test]
 async fn a_revoked_grant_no_longer_resolves() {
     let app = test_app().await;
-    let issued = app
-        .storage
-        .issue_project_grant(&issue_ctx("g1"), &app.project)
-        .await
-        .unwrap();
+    let issued = shadows_core::Grants::issue_project_grant_for_test(
+        &app.storage,
+        &issue_ctx("g1"),
+        &app.project,
+    )
+    .await
+    .unwrap();
     let token = issued.token.unwrap();
-    let revoked = app
-        .storage
-        .revoke_grant(&ctx("r1", "McpGrantRevoke"), &issued.grant.id)
-        .await
-        .unwrap();
+    let revoked = shadows_core::Grants::revoke_grant_for_test(
+        &app.storage,
+        &ctx("r1", "McpGrantRevoke"),
+        &issued.grant.id,
+    )
+    .await
+    .unwrap();
     assert!(revoked.revoked_at.is_some());
     assert_eq!(
-        app.storage.grant_for_token(token.as_str()).await.unwrap(),
+        shadows_core::Grants::grant_for_token_for_test(&app.storage, token.as_str())
+            .await
+            .unwrap(),
         None
     );
     // A replay answers the same revoked grant.
-    let again = app
-        .storage
-        .revoke_grant(&ctx("r1", "McpGrantRevoke"), &issued.grant.id)
-        .await
-        .unwrap();
+    let again = shadows_core::Grants::revoke_grant_for_test(
+        &app.storage,
+        &ctx("r1", "McpGrantRevoke"),
+        &issued.grant.id,
+    )
+    .await
+    .unwrap();
     assert_eq!(again, revoked);
 
-    let (thread_grant, thread_token) = app.storage.issue_thread_grant(&app.thread).await.unwrap();
-    app.storage
-        .revoke_thread_grant(&thread_grant.id)
+    let (thread_grant, thread_token) =
+        shadows_core::Grants::issue_thread_grant_for_test(&app.storage, &app.thread)
+            .await
+            .unwrap();
+    shadows_core::Grants::revoke_thread_grant_for_test(&app.storage, &thread_grant.id)
         .await
         .unwrap();
     assert_eq!(
-        app.storage
-            .grant_for_token(thread_token.as_str())
+        shadows_core::Grants::grant_for_token_for_test(&app.storage, thread_token.as_str())
             .await
             .unwrap(),
         None
     );
     // The person's revoke is for project grants: the Planner's is not theirs.
-    let refused = app
-        .storage
-        .revoke_grant(&ctx("r2", "McpGrantRevoke"), &thread_grant.id)
-        .await;
+    let refused = shadows_core::Grants::revoke_grant_for_test(
+        &app.storage,
+        &ctx("r2", "McpGrantRevoke"),
+        &thread_grant.id,
+    )
+    .await;
     assert!(
         matches!(refused, Err(StorageError::NotFound(_))),
         "{refused:?}"
@@ -186,7 +206,8 @@ async fn a_replayed_issue_does_not_show_the_token_again() {
 
     // Storage answers a replay the same way: the grant, no token.
     let g3 = issue_ctx("g3");
-    let issue = || app.storage.issue_project_grant(&g3, &app.project);
+    let issue =
+        || shadows_core::Grants::issue_project_grant_for_test(&app.storage, &g3, &app.project);
     let issued = issue().await.unwrap();
     assert!(issued.token.is_some());
     let replayed = issue().await.unwrap();
@@ -212,7 +233,12 @@ async fn a_grant_is_revoked_by_delete_with_its_command_id_in_the_query() {
     assert_eq!((status, &replay), (200, &revoked));
 
     let token = issued["token"].as_str().unwrap();
-    assert_eq!(app.storage.grant_for_token(token).await.unwrap(), None);
+    assert_eq!(
+        shadows_core::Grants::grant_for_token_for_test(&app.storage, token)
+            .await
+            .unwrap(),
+        None
+    );
 
     let unknown = "/api/mcp-grants/00000000-0000-4000-8000-000000000000?command_id=r2";
     let (status, body) = call(&app, "DELETE", unknown, None).await;
@@ -238,9 +264,11 @@ async fn grant_events_never_carry_the_token() {
     )
     .await;
     assert!(revoked["revoked_at"].is_string());
-    let (thread_grant, thread_token) = app.storage.issue_thread_grant(&app.thread).await.unwrap();
-    app.storage
-        .revoke_thread_grant(&thread_grant.id)
+    let (thread_grant, thread_token) =
+        shadows_core::Grants::issue_thread_grant_for_test(&app.storage, &app.thread)
+            .await
+            .unwrap();
+    shadows_core::Grants::revoke_thread_grant_for_test(&app.storage, &thread_grant.id)
         .await
         .unwrap();
 
@@ -283,7 +311,7 @@ async fn grant_events_never_carry_the_token() {
         .unwrap();
     for token in [project_token.as_str(), thread_token.as_str()] {
         assert!(every.iter().all(|p| !p.contains(token)), "{token}");
-        assert!(every.iter().all(|p| !p.contains(&hash_token(token))));
+        assert!(every.iter().all(|p| !p.contains(&Token::hash_token(token))));
     }
 }
 
@@ -296,35 +324,55 @@ async fn startup_revokes_every_thread_grant_and_keeps_project_grants() {
         serde_json::from_value::<shadows_core::ThreadId>(second_thread["id"].clone()).unwrap();
     let mut thread_tokens = Vec::new();
     for thread in [&app.thread, &second_thread, &other_thread] {
-        thread_tokens.push(app.storage.issue_thread_grant(thread).await.unwrap().1);
+        thread_tokens.push(
+            shadows_core::Grants::issue_thread_grant_for_test(&app.storage, thread)
+                .await
+                .unwrap()
+                .1,
+        );
     }
-    let project = app
-        .storage
-        .issue_project_grant(&issue_ctx("g1"), &app.project)
-        .await
-        .unwrap();
+    let project = shadows_core::Grants::issue_project_grant_for_test(
+        &app.storage,
+        &issue_ctx("g1"),
+        &app.project,
+    )
+    .await
+    .unwrap();
     let project_token = project.token.unwrap();
 
-    assert_eq!(app.storage.revoke_all_thread_grants().await.unwrap(), 3);
+    assert_eq!(
+        shadows_core::Grants::revoke_all_thread_grants_for_test(&app.storage)
+            .await
+            .unwrap(),
+        3
+    );
     for token in &thread_tokens {
         assert_eq!(
-            app.storage.grant_for_token(token.as_str()).await.unwrap(),
+            shadows_core::Grants::grant_for_token_for_test(&app.storage, token.as_str())
+                .await
+                .unwrap(),
             None
         );
     }
     assert_eq!(
-        app.storage
-            .grant_for_token(project_token.as_str())
+        shadows_core::Grants::grant_for_token_for_test(&app.storage, project_token.as_str())
             .await
             .unwrap(),
         Some(project.grant.clone())
     );
     assert_eq!(
-        app.storage.list_project_grants(&app.project).await.unwrap(),
+        shadows_core::Grants::list_project_grants_for_test(&app.storage, &app.project)
+            .await
+            .unwrap(),
         vec![project.grant]
     );
     // Nothing left to revoke: a second start revokes none.
-    assert_eq!(app.storage.revoke_all_thread_grants().await.unwrap(), 0);
+    assert_eq!(
+        shadows_core::Grants::revoke_all_thread_grants_for_test(&app.storage)
+            .await
+            .unwrap(),
+        0
+    );
 }
 
 /// An external start from scratch under `grant` with `draft_ref`. Each new
@@ -334,7 +382,7 @@ async fn start(
     grant: &GrantId,
     command: &str,
     draft_ref: &str,
-) -> Result<DraftStarted, StorageError> {
+) -> Result<DraftStarted, shadows_core::CoreError> {
     let writer = Writer::External {
         grant: grant.clone(),
     };
@@ -359,22 +407,28 @@ async fn start(
 #[tokio::test]
 async fn a_draft_ref_expires_and_belongs_to_its_grant() {
     let app = test_app().await;
-    let mine = app
-        .storage
-        .issue_project_grant(&issue_ctx("g1"), &app.project)
-        .await
-        .unwrap()
-        .grant
-        .id;
-    let theirs = app
-        .storage
-        .issue_project_grant(&issue_ctx("g2"), &app.project)
-        .await
-        .unwrap()
-        .grant
-        .id;
+    let mine = shadows_core::Grants::issue_project_grant_for_test(
+        &app.storage,
+        &issue_ctx("g1"),
+        &app.project,
+    )
+    .await
+    .unwrap()
+    .grant
+    .id;
+    let theirs = shadows_core::Grants::issue_project_grant_for_test(
+        &app.storage,
+        &issue_ctx("g2"),
+        &app.project,
+    )
+    .await
+    .unwrap()
+    .grant
+    .id;
     // Issued unused, for an hour, to the grant that asked.
-    let fresh = app.storage.prepare_draft(&mine).await.unwrap();
+    let fresh = shadows_core::Grants::prepare_draft_for_test(&app.storage, &mine)
+        .await
+        .unwrap();
     assert_eq!(draft_ref_binding(&app, &fresh).await, None);
     let (created, expires): (String, String) =
         sqlx::query_as("SELECT created_at, expires_at FROM draft_intent WHERE draft_ref = ?")
@@ -387,7 +441,12 @@ async fn a_draft_ref_expires_and_belongs_to_its_grant() {
     };
     assert_eq!(parse(&expires) - parse(&created), time::Duration::HOUR);
     // Not deduplicated: a second call is a second ref.
-    assert_ne!(app.storage.prepare_draft(&mine).await.unwrap(), fresh);
+    assert_ne!(
+        shadows_core::Grants::prepare_draft_for_test(&app.storage, &mine)
+            .await
+            .unwrap(),
+        fresh
+    );
 
     // Another grant's ref, an unknown one, and an expired one start nothing.
     let expired = insert_draft_ref(&app, &mine, &an_hour_ago()).await;
@@ -398,7 +457,13 @@ async fn a_draft_ref_expires_and_belongs_to_its_grant() {
     ] {
         let refused = start(&app, grant, command, draft_ref).await;
         assert!(
-            matches!(refused, Err(StorageError::GrantScope)),
+            matches!(
+                refused,
+                Err(shadows_core::CoreError::Refused {
+                    code: shadows_core::ErrorCode::GrantScope,
+                    ..
+                })
+            ),
             "{command}: {refused:?}"
         );
     }
@@ -429,7 +494,13 @@ async fn a_draft_ref_expires_and_belongs_to_its_grant() {
     );
     let second = start(&app, &mine, "c-second", &fresh).await;
     assert!(
-        matches!(second, Err(StorageError::GrantScope)),
+        matches!(
+            second,
+            Err(shadows_core::CoreError::Refused {
+                code: shadows_core::ErrorCode::GrantScope,
+                ..
+            })
+        ),
         "{second:?}"
     );
     assert_eq!(
@@ -438,19 +509,26 @@ async fn a_draft_ref_expires_and_belongs_to_its_grant() {
     );
 
     // Only a live project grant prepares a draft.
-    let (thread_grant, _) = app.storage.issue_thread_grant(&app.thread).await.unwrap();
-    let planner = app.storage.prepare_draft(&thread_grant.id).await;
+    let (thread_grant, _) =
+        shadows_core::Grants::issue_thread_grant_for_test(&app.storage, &app.thread)
+            .await
+            .unwrap();
+    let planner =
+        shadows_core::Grants::prepare_draft_for_test(&app.storage, &thread_grant.id).await;
     assert!(
-        matches!(planner, Err(StorageError::GrantScope)),
+        matches!(planner, Err(shadows_core::GrantsError::GrantScope)),
         "{planner:?}"
     );
-    app.storage
-        .revoke_grant(&ctx("r1", "McpGrantRevoke"), &theirs)
-        .await
-        .unwrap();
-    let revoked = app.storage.prepare_draft(&theirs).await;
+    shadows_core::Grants::revoke_grant_for_test(
+        &app.storage,
+        &ctx("r1", "McpGrantRevoke"),
+        &theirs,
+    )
+    .await
+    .unwrap();
+    let revoked = shadows_core::Grants::prepare_draft_for_test(&app.storage, &theirs).await;
     assert!(
-        matches!(revoked, Err(StorageError::GrantInvalid)),
+        matches!(revoked, Err(shadows_core::GrantsError::GrantInvalid)),
         "{revoked:?}"
     );
 }
@@ -473,11 +551,10 @@ async fn a_thread_grant_cannot_name_a_thread_of_another_project() {
         "refused for another reason: {error}"
     );
     // Issued through the API, a thread grant takes its thread's own project.
-    let (grant, _) = app
-        .storage
-        .issue_thread_grant(&foreign_thread)
-        .await
-        .unwrap();
+    let (grant, _) =
+        shadows_core::Grants::issue_thread_grant_for_test(&app.storage, &foreign_thread)
+            .await
+            .unwrap();
     assert_ne!(grant.project_id, app.project);
 }
 

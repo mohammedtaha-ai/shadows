@@ -1,7 +1,7 @@
 //! Recording Planner vision proposals (§23.5).
-use crate::command::Writer;
 use crate::db::{CommandContext, Storage, append_event, classify, now, record_command};
 use crate::design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
+use crate::grants::Writer;
 use crate::threads::{NewThreadEntry, ThreadEntryKind, Threads};
 use crate::{OperationId, ProjectId, StorageError, VisionContent, VisionField};
 
@@ -13,7 +13,7 @@ impl Storage {
         project: &ProjectId,
         turn: &OperationId,
         args: VisionPropose,
-    ) -> Result<VisionProposal, StorageError> {
+    ) -> Result<VisionProposal, crate::CoreError> {
         let (ctx, writer, project, turn, ts) = (
             ctx.clone(),
             writer.clone(),
@@ -21,12 +21,12 @@ impl Storage {
             turn.clone(),
             now(),
         );
-        self.write_txn(move |conn| {
+        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
             Box::pin(async move {
                 let Writer::Planner { thread, .. } = &writer else {
-                    return Err(StorageError::GrantScope);
+                    return Err(crate::grants::GrantsError::GrantScope.into());
                 };
-                crate::grants::check_writer(conn, &writer, &project).await?;
+                crate::grants::Grants::check_writer(conn, &writer, &project).await?;
                 if let Some(id) = classify(conn, &ctx, "Thread", thread.as_str()).await? {
                     let entry: String = sqlx::query_scalar(
                         "SELECT entry_id FROM design_vision_proposal WHERE id=?",
@@ -48,7 +48,8 @@ impl Storage {
                     if old.status != ProposalStatus::Pending {
                         return Err(StorageError::Constraint(
                             "only a pending proposal can be replaced".into(),
-                        ));
+                        )
+                        .into());
                     }
                     sqlx::query(
                         "UPDATE design_vision_proposal SET status='Superseded'

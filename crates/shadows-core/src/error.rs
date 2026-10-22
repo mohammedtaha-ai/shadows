@@ -161,3 +161,14 @@ impl From<OpenError> for CoreError {
         }
     }
 }
+
+impl From<sqlx::Error> for CoreError {
+    fn from(error: sqlx::Error) -> Self {
+        StorageError::from(error).into()
+    }
+}
+impl From<serde_json::Error> for CoreError {
+    fn from(error: serde_json::Error) -> Self {
+        StorageError::from(error).into()
+    }
+}

@@ -47,12 +47,14 @@ async fn two_starts_make_one_draft() {
 async fn a_new_version_needs_its_reason() {
     let app = test_app().await;
     let v1 = approved_v1(&app).await;
-    let grant = app
-        .storage
-        .issue_project_grant(&ctx("g1", "McpGrantIssue"), &app.project)
-        .await
-        .unwrap()
-        .grant;
+    let grant = shadows_core::Grants::issue_project_grant_for_test(
+        &app.storage,
+        &ctx("g1", "McpGrantIssue"),
+        &app.project,
+    )
+    .await
+    .unwrap()
+    .grant;
     let plan_id = app.storage.get_plan(&v1).await.unwrap().plan_id;
     let plans = app.core.plans();
     let start = |reason: Option<&'static str>| {

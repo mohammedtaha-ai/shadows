@@ -1,8 +1,8 @@
 //! Persist Planner roadmap proposals without approving outcomes.
 use super::roadmap_shape as shape;
-use crate::command::Writer;
 use crate::db::{CommandContext, Storage, append_event, classify, now, record_command};
 use crate::design::{ProposalStatus, RoadmapAction, RoadmapProposal, RoadmapPropose};
+use crate::grants::Writer;
 use crate::threads::{NewThreadEntry, ThreadEntryKind, Threads};
 use crate::{OperationId, ProjectId, StorageError};
 
@@ -14,15 +14,15 @@ impl Storage {
         p: &ProjectId,
         turn: &OperationId,
         mut args: RoadmapPropose,
-    ) -> Result<RoadmapProposal, StorageError> {
+    ) -> Result<RoadmapProposal, crate::CoreError> {
         let (ctx, writer, p, turn, ts) =
             (ctx.clone(), writer.clone(), p.clone(), turn.clone(), now());
-        self.write_txn(move |conn| {
+        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
             Box::pin(async move {
                 let Writer::Planner { thread, .. } = &writer else {
-                    return Err(StorageError::GrantScope);
+                    return Err(crate::grants::GrantsError::GrantScope.into());
                 };
-                crate::grants::check_writer(conn, &writer, &p).await?;
+                crate::grants::Grants::check_writer(conn, &writer, &p).await?;
                 if let Some(id) = classify(conn, &ctx, "Thread", thread.as_str()).await? {
                     let entry: String = sqlx::query_scalar(
                         "SELECT entry_id FROM design_roadmap_proposal WHERE id=?",
@@ -46,12 +46,14 @@ impl Storage {
                 if args.action == RoadmapAction::First && revision != 0 {
                     return Err(StorageError::Constraint(
                         "a roadmap is approved; propose a change".into(),
-                    ));
+                    )
+                    .into());
                 }
                 if args.action != RoadmapAction::First && revision == 0 {
                     return Err(StorageError::StageBlocked(
                         "no roadmap yet: propose the first roadmap".into(),
-                    ));
+                    )
+                    .into());
                 }
                 shape::validate(&mut args)?;
                 let expected_parts = shape::part_snapshots(conn, &p, &args).await?;

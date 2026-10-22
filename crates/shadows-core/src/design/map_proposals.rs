@@ -1,7 +1,7 @@
 //! Map proposal values and service entry points.
 use super::{Design, DesignChange, PartContent, PartId, ProposalStatus};
-use crate::command::Writer;
 use crate::db::{Anchor, CommandContext, derived_id, fingerprint};
+use crate::grants::Writer;
 use crate::{CoreError, ErrorCode, Grant, ProjectId, ThreadId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -43,7 +43,7 @@ pub struct MapPropose {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MapProposal {
     #[serde(default)]
-    pub approved_by: Option<crate::command::ApprovedBy>,
+    pub approved_by: Option<crate::grants::ApprovedBy>,
     pub id: String,
     pub thread_id: ThreadId,
     pub action: MapAction,
@@ -70,7 +70,7 @@ impl Design {
         self.storage
             .approve_map_proposal_in(&ctx, &grant.project_id, proposal, &approver)
             .await
-            .map_err(super::proposals::core_error)
+            .map_err(Self::core_error)
     }
 
     pub async fn propose_map(
@@ -118,7 +118,7 @@ impl Design {
         self.storage
             .propose_map_in(&ctx, &writer, &grant.project_id, &turn, args)
             .await
-            .map_err(super::proposals::core_error)
+            .map_err(Self::core_error)
     }
     pub async fn map_proposals(&self, project: &ProjectId) -> Result<Vec<MapProposal>, CoreError> {
         Ok(self.storage.list_map_proposals(project).await?)
@@ -135,8 +135,8 @@ impl Design {
             serde_json::json!({"project":project,"proposal":proposal}),
         );
         self.storage
-            .approve_map_proposal_in(&ctx, project, proposal, &crate::command::Approver::Person)
+            .approve_map_proposal_in(&ctx, project, proposal, &crate::grants::Approver::Person)
             .await
-            .map_err(super::proposals::core_error)
+            .map_err(Self::core_error)
     }
 }

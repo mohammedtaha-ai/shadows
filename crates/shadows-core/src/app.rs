@@ -78,7 +78,7 @@ pub struct CoreParts {
 /// | `Standards` | project standards versions | `crates/shadows-core/src/standards` | `crates/shadows-core/src/standards/contract.yaml` |
 /// | `Design` | project design revisions | `crates/shadows-core/src/design` | `crates/shadows-core/src/design/contract.yaml` |
 /// | `Plans` | plan version lifecycle | `crates/shadows-core/src/plans` | `crates/shadows-core/src/plans/contract.yaml` |
-/// | `Grants` | MCP grant lifecycle | `crates/shadows-core/src/grants` | `crates/shadows-core/src/grants/contract.yaml` |
+/// | `Grants` | grant authorization | `crates/shadows-core/src/grants` | `crates/shadows-core/src/grants/contract.yaml` |
 /// | `Turns` | turn execution lifecycle | `crates/shadows-core/src/turns` | `crates/shadows-core/src/turns/contract.yaml` |
 /// | `Harness` | thread harness sessions | `crates/shadows-core/src/harness` | `crates/shadows-core/src/harness/contract.yaml` |
 /// | `Projects` | project directory registration | `crates/shadows-core/src/projects` | `crates/shadows-core/src/projects/contract.yaml` |
@@ -215,6 +215,7 @@ impl AppCore {
             },
             owners.clone(),
             instructions.clone(),
+            grants.clone(),
         );
         let (bus, _) = tokio::sync::broadcast::channel(4096);
         let core = Self::assemble_services(
@@ -312,7 +313,7 @@ impl AppCore {
             person,
             secrets,
             design: Design::new(storage.clone(), handles.clone()),
-            plans: Plans::new(storage.clone(), handles.clone(), ui.clone()),
+            plans: Plans::new(storage.clone(), grants.clone(), handles.clone(), ui.clone()),
             grants,
             turns: Turns::new(
                 storage.clone(),
@@ -490,4 +491,11 @@ pub fn adapter_version(adapter_entry: &Path) -> String {
         .and_then(|contents| serde_json::from_slice::<serde_json::Value>(&contents).ok())
         .and_then(|package| package.get("version")?.as_str().map(str::to_string))
         .unwrap_or_else(|| "unknown".to_string())
+}
+
+#[cfg(feature = "test-support")]
+impl AppCore {
+    pub fn grants_for_tests(storage: Arc<Storage>, mcp_url: String) -> Grants {
+        Grants::new(storage, mcp_url)
+    }
 }

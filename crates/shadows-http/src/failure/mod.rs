@@ -140,6 +140,21 @@ impl Failure {
     /// A refusal whose code and text a service wrote. A fixed thread harness
     /// conflicts with the thread's state; other refusals are invalid requests.
     pub(super) fn refused(code: ErrorCode, message: String) -> Self {
+        if matches!(code, ErrorCode::GrantInvalid | ErrorCode::GrantScope)
+            && matches!(
+                message.as_str(),
+                "the grant is unknown or revoked" | "outside what the grant allows"
+            )
+        {
+            tracing::error!(%message, "http.grant_refusal_on_route");
+            return Failure {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                code: ErrorCode::StorageUnavailable,
+                message: "the daemon refused its own request".into(),
+                cause: Some(message),
+                detail: Detail::default(),
+            };
+        }
         Failure {
             status: match code {
                 ErrorCode::HarnessLocked => StatusCode::CONFLICT,

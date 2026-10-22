@@ -1,8 +1,8 @@
 //! Persist Planner map proposals without approving parts.
 use super::{map_proposal_shape as shape, map_versions as maps};
-use crate::command::Writer;
 use crate::db::{CommandContext, Storage, append_event, classify, now, record_command};
 use crate::design::{MapAction, MapProposal, MapPropose, ProposalStatus};
+use crate::grants::Writer;
 use crate::threads::{NewThreadEntry, ThreadEntryKind, Threads};
 use crate::{OperationId, ProjectId, StorageError};
 use std::collections::BTreeMap;
@@ -15,15 +15,15 @@ impl Storage {
         p: &ProjectId,
         turn: &OperationId,
         mut args: MapPropose,
-    ) -> Result<MapProposal, StorageError> {
+    ) -> Result<MapProposal, crate::CoreError> {
         let (ctx, writer, p, turn, ts) =
             (ctx.clone(), writer.clone(), p.clone(), turn.clone(), now());
-        self.write_txn(move |conn| {
+        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
             Box::pin(async move {
                 let Writer::Planner { thread, .. } = &writer else {
-                    return Err(StorageError::GrantScope);
+                    return Err(crate::grants::GrantsError::GrantScope.into());
                 };
-                crate::grants::check_writer(conn, &writer, &p).await?;
+                crate::grants::Grants::check_writer(conn, &writer, &p).await?;
                 if let Some(id) = classify(conn, &ctx, "Thread", thread.as_str()).await? {
                     let entry: String =
                         sqlx::query_scalar("SELECT entry_id FROM design_map_proposal WHERE id=?")
@@ -47,12 +47,14 @@ impl Storage {
                 if args.action == MapAction::First && m != 0 {
                     return Err(StorageError::Constraint(
                         "a map is approved; propose a change".into(),
-                    ));
+                    )
+                    .into());
                 }
                 if args.action != MapAction::First && m == 0 {
                     return Err(StorageError::StageBlocked(
                         "no map yet: propose the first map".into(),
-                    ));
+                    )
+                    .into());
                 }
                 let standards = shape::pinned(conn, &p, &turn).await?;
                 shape::validate_args(&mut args, &standards)?;
@@ -64,7 +66,8 @@ impl Storage {
                     if previous.status != ProposalStatus::Pending {
                         return Err(StorageError::Constraint(
                             "only a pending proposal can be replaced".into(),
-                        ));
+                        )
+                        .into());
                     }
                     sqlx::query(
                         "UPDATE design_map_proposal SET status='Superseded'

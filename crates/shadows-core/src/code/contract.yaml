@@ -1,3 +1,4 @@
+# selected_project_in promotes reach refusals as CoreError::Refused with GrantScope; Code does not depend on Grants.
 # Owns the code index (spec §15.4–§15.6): walking a project's folder into
 # `code_file` and `code_tag`, keeping that copy true while the project is
 # one of the most recently used, and answering three questions from it —

@@ -93,7 +93,10 @@ async fn draft(
         .await
         .unwrap()
         .id;
-    let grant = storage.issue_thread_grant(&thread).await.unwrap().0;
+    let grant = shadows_core::Grants::issue_thread_grant_for_test(storage, &thread)
+        .await
+        .unwrap()
+        .0;
     let writer = Writer::Planner {
         thread: thread.clone(),
         grant: grant.id,

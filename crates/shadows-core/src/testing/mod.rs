@@ -136,13 +136,13 @@ pub use crate::turns::for_tests::{
 /// session tests open directly and `CoreParts` is built from. Private to the
 /// crate everywhere else (§14.6).
 pub use crate::app::{Bus, adapter_version};
-pub use crate::command::Writer;
 pub use crate::db::{
     Anchor, Causation, CommandContext, JournalEntry, Storage, append_event_for_test, derived_id,
     fingerprint,
 };
 pub use crate::events::{DurableEvent, EventCursor};
-pub use crate::grants::{IssuedGrant, Token, hash_token};
+pub use crate::grants::Writer;
+pub use crate::grants::{IssuedGrant, Token};
 pub use crate::harness::{LeaseError, OpenSession, Sessions, SessionsConfig, prompt_version};
 pub use crate::projects::ProjectDirectory;
 pub use crate::runtime::{ReconcileReport, Runtime};

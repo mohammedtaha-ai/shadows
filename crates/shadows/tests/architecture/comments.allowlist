@@ -49,19 +49,14 @@ crates/shadows-core/src/app.rs :: CoreParts comment [c37bd19ab210d40a] #1
 crates/shadows-core/src/app.rs :: module comment [378a45bda752b6d2] #1
 crates/shadows-core/src/app.rs :: module comment [582d03b6bf7a8438] #1
 crates/shadows-core/src/app.rs :: module comment [783dc5d2f39df956] #1
-crates/shadows-core/src/command/mod.rs :: Writer comment [0e6dd0f7f6f16cba] #1
-crates/shadows-core/src/command/mod.rs :: Writer comment [ffe17d9a67dfc164] #1
-crates/shadows-core/src/command/mod.rs :: module comment [ece2ab1bd4d0e152] #1
 crates/shadows-core/src/db/command.rs :: module comment [18f0fbd096726450] #1
 crates/shadows-core/src/db/command.rs :: module comment [ef5afd335a262a71] #1
 crates/shadows-core/src/db/derive.rs :: module comment [b9d365bc6fb5ddc6] #1
 crates/shadows-core/src/db/error.rs :: StorageError comment [391eda2fc297ef65] #1
 crates/shadows-core/src/db/error.rs :: StorageError comment [461ccfb1d28b764e] #1
-crates/shadows-core/src/db/error.rs :: StorageError comment [4905fceaafe25d0e] #1
 crates/shadows-core/src/db/error.rs :: StorageError comment [4af4d39ea2b34086] #1
 crates/shadows-core/src/db/error.rs :: StorageError comment [5f9aae40cbad8e13] #1
 crates/shadows-core/src/db/error.rs :: StorageError comment [76d74ff8e5798a30] #1
-crates/shadows-core/src/db/error.rs :: StorageError comment [825afcf0c8c9f560] #1
 crates/shadows-core/src/db/error.rs :: StorageError comment [8a089c422d2e67d4] #1
 crates/shadows-core/src/db/error.rs :: StorageError comment [c364d44e7c6f6a12] #1
 crates/shadows-core/src/db/error.rs :: StorageError comment [d745c510aea3a014] #1
@@ -135,26 +130,10 @@ crates/shadows-core/src/events/subscription.rs :: Subscription::live comment [bd
 crates/shadows-core/src/events/subscription.rs :: Subscription::read_journal comment [a18d984e0e44da62] #1
 crates/shadows-core/src/events/subscription.rs :: module comment [30c330a8eb8b2904] #1
 crates/shadows-core/src/events/subscription.rs :: module comment [4bf5602c685feecf] #1
-crates/shadows-core/src/grants/mod.rs :: Grants comment [2345f941f77e0fa8] #1
-crates/shadows-core/src/grants/mod.rs :: Grants comment [39c6bdd4793d121c] #1
-crates/shadows-core/src/grants/mod.rs :: Grants comment [dd0fc082875646f3] #1
-crates/shadows-core/src/grants/mod.rs :: Grants comment [f3f6244263ff349e] #1
-crates/shadows-core/src/grants/mod.rs :: module comment [5122575739bd38ba] #1
+# A-13: retained grant model schema descriptions preserve the unchanged API artifact.
 crates/shadows-core/src/grants/model.rs :: module comment [1a46d386b7d427c7] #1
+# A-13: retained grant model schema descriptions preserve the unchanged API artifact.
 crates/shadows-core/src/grants/model.rs :: module comment [60a546f031a3ae48] #1
-crates/shadows-core/src/grants/store.rs :: Storage comment [05239b9641093b5a] #1
-crates/shadows-core/src/grants/store.rs :: Storage comment [45fb350ead4ec457] #1
-crates/shadows-core/src/grants/store.rs :: Storage comment [a8c4f7f2b4945690] #1
-crates/shadows-core/src/grants/store.rs :: Storage comment [abd9f2d4712311b8] #1
-crates/shadows-core/src/grants/store.rs :: Storage comment [bb1b410986fe6445] #1
-crates/shadows-core/src/grants/store.rs :: Storage comment [dd68ae99cdc5b0e4] #1
-crates/shadows-core/src/grants/store.rs :: Storage comment [df1158f27bcb0ee9] #1
-crates/shadows-core/src/grants/store.rs :: Storage comment [f6c4c0a562682ff8] #1
-crates/shadows-core/src/grants/store.rs :: module comment [5ace7dd39ec8fd3a] #1
-crates/shadows-core/src/grants/store.rs :: module comment [70d177045cebe8a4] #1
-crates/shadows-core/src/grants/store.rs :: module comment [96195947cdb92670] #1
-crates/shadows-core/src/grants/store.rs :: module comment [9bbf3dda73ccc5ff] #1
-crates/shadows-core/src/grants/store.rs :: module comment [b520f00811c81266] #1
 crates/shadows-core/src/harness/commands.rs :: Commands comment [ec0000e7e2b607c3] #1
 crates/shadows-core/src/harness/commands.rs :: module comment [d8f8756d8e6f11ef] #1
 crates/shadows-core/src/harness/context.rs :: module comment [171fbb0c63362e44] #1
@@ -482,7 +461,6 @@ crates/shadows-http/src/failure/mod.rs :: module comment [0ed8646843f445bb] #1
 crates/shadows-http/src/failure/mod.rs :: module comment [65975f2e0b893008] #1
 crates/shadows-http/src/failure/mod.rs :: module comment [7f93399438684633] #1
 crates/shadows-http/src/failure/mod.rs :: module comment [c471bd60eea517e9] #1
-crates/shadows-http/src/failure/storage.rs :: Failure::from comment [b739bbb5c1984b1e] #1
 crates/shadows-http/src/fs.rs :: module comment [65b5f0353a6334a2] #1
 crates/shadows-http/src/fs.rs :: module comment [9ae95c0a4a63be9f] #1
 crates/shadows-http/src/grants.rs :: IssueGrant comment [05d9a3f0c2cf6a88] #1
@@ -561,7 +539,6 @@ crates/shadows-mcp/src/refusal.rs :: Refusal comment [d17ba5d10032030b] #1
 crates/shadows-mcp/src/refusal.rs :: Refusal comment [feaf1761f1cf0cc4] #1
 crates/shadows-mcp/src/refusal.rs :: module comment [73e99feb25204df2] #1
 crates/shadows-mcp/src/server.rs :: module comment [6d86a60d102e7dcd] #1
-crates/shadows-mcp/src/server.rs :: module comment [9b073af7077ca82e] #1
 crates/shadows-mcp/src/tools.rs :: module comment [094d4135ad661df5] #1
 crates/shadows-mcp/src/tools.rs :: module comment [bef7b704f10b76ee] #1
 crates/shadows-mcp/src/workspace_tools.rs :: module comment [5a35d089ca01c7e2] #1

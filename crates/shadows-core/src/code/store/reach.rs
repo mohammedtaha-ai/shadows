@@ -38,18 +38,24 @@ impl Code {
         conn: &mut SqliteConnection,
         origin: &ProjectId,
         slug: Option<&str>,
-    ) -> Result<ProjectId, StorageError> {
+    ) -> Result<ProjectId, crate::CoreError> {
         let selected = match slug {
             None => origin.clone(),
             Some(slug) => {
                 Projects::by_slug_in(conn, slug)
                     .await?
-                    .ok_or(StorageError::GrantScope)?
+                    .ok_or(crate::CoreError::Refused {
+                        code: crate::ErrorCode::GrantScope,
+                        message: "outside what the grant allows".into(),
+                    })?
                     .id
             }
         };
         if !Self::project_reachable_in(conn, origin, &selected).await? {
-            return Err(StorageError::GrantScope);
+            return Err(crate::CoreError::Refused {
+                code: crate::ErrorCode::GrantScope,
+                message: "outside what the grant allows".into(),
+            });
         }
         Ok(selected)
     }
@@ -113,7 +119,10 @@ mod tests {
         );
         assert!(matches!(
             Code::selected_project_in(&mut snapshot, &home.id, Some("linked")).await,
-            Err(crate::db::StorageError::GrantScope)
+            Err(crate::CoreError::Refused {
+                code: crate::ErrorCode::GrantScope,
+                ..
+            })
         ));
         snapshot.commit().await.unwrap();
         let replay = code

@@ -63,11 +63,11 @@ pub(super) async fn load(
 impl Storage {
     pub async fn check_agreement_grant(
         &self,
-        writer: &crate::command::Writer,
+        writer: &crate::grants::Writer,
         project: &ProjectId,
-    ) -> Result<(), StorageError> {
+    ) -> Result<(), crate::CoreError> {
         let mut tx = self.reader().begin().await?;
-        crate::grants::check_writer(&mut tx, writer, project).await?;
+        crate::grants::Grants::check_writer(&mut tx, writer, project).await?;
         tx.commit().await?;
         Ok(())
     }

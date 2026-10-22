@@ -45,7 +45,9 @@ impl Fixture {
             )
             .await
             .unwrap();
-        let (grant, _) = storage.issue_thread_grant(&thread.id).await.unwrap();
+        let (grant, _) = shadows_core::Grants::issue_thread_grant_for_test(&storage, &thread.id)
+            .await
+            .unwrap();
         let parts = core
             .design()
             .parts(&p, None, None)

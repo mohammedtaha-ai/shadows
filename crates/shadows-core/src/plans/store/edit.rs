@@ -10,12 +10,12 @@ use super::plan::require_active;
 use super::plan_event;
 use super::read::{edits_of, load_plan, recorded_outcome};
 use super::task::write_content;
-use crate::command::Writer;
 use crate::db::{
     CommandContext, Storage, StorageError, append_event, classify, now, record_command,
 };
 use crate::events::DurableEvent;
-use crate::grants::check_writer;
+use crate::grants::Grants;
+use crate::grants::Writer;
 use crate::plans::model::{Approved, EditOutcome, PlanId, WorkflowId, WorkflowState, WrittenBy};
 use crate::plans::ops::{PlanOp, apply};
 use crate::projects::ProjectId;
@@ -35,7 +35,7 @@ impl Storage {
         workflow: &WorkflowId,
         expected_revision: i64,
         ops: &[PlanOp],
-    ) -> Result<EditOutcome, StorageError> {
+    ) -> Result<EditOutcome, crate::CoreError> {
         let (ctx, writer, workflow, ops, ts) = (
             ctx.clone(),
             writer.clone(),
@@ -44,12 +44,12 @@ impl Storage {
             now(),
         );
         let operation = operation.cloned();
-        self.write_txn(move |conn| {
+        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
             Box::pin(async move {
                 let (_, project) = owner(conn, &workflow).await?;
-                check_writer(conn, &writer, &project).await?;
+                Grants::check_writer(conn, &writer, &project).await?;
                 if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await? {
-                    return recorded_outcome(conn, &event).await;
+                    return recorded_outcome(conn, &event).await.map_err(Into::into);
                 }
                 crate::design::require_roadmap_in(conn, &project).await?;
                 let plan = load_plan(conn, &workflow, None).await?;
@@ -123,12 +123,12 @@ impl Storage {
         ctx: &CommandContext,
         workflow: &WorkflowId,
         expected_revision: i64,
-    ) -> Result<Approved, StorageError> {
+    ) -> Result<Approved, crate::CoreError> {
         self.approve_plan_with(
             ctx,
             workflow,
             expected_revision,
-            &crate::command::Approver::Person,
+            &crate::grants::Approver::Person,
         )
         .await
     }
@@ -138,17 +138,27 @@ impl Storage {
         ctx: &CommandContext,
         workflow: &WorkflowId,
         expected_revision: i64,
-        approver: &crate::command::Approver,
-    ) -> Result<Approved, StorageError> {
+        approver: &crate::grants::Approver,
+    ) -> Result<Approved, crate::CoreError> {
         let (mut ctx, workflow, ts) = (ctx.clone(), workflow.clone(), now());
         let approver = approver.clone();
-        self.write_txn(move |conn| {
+        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
             Box::pin(async move {
                 let (_, project) = owner(conn, &workflow).await?;
-                let request = crate::db::approval::authorise_in(conn, &approver, &project).await?;
+                if let crate::grants::Approver::Planner {
+                    writer: writer @ crate::grants::Writer::Planner { thread, .. },
+                    turn,
+                    ..
+                } = &approver
+                {
+                    crate::grants::Grants::check_writer(conn, writer, &project).await?;
+                    crate::turns::Turns::require_running_in(conn, thread, turn).await?;
+                }
+                let request =
+                    crate::grants::Grants::authorise_in(conn, &approver, &project).await?;
                 ctx.agent = Some(approver.agent());
                 if let Some(event) = classify(conn, &ctx, "Workflow", workflow.as_str()).await? {
-                    return recorded_outcome(conn, &event).await;
+                    return recorded_outcome(conn, &event).await.map_err(Into::into);
                 }
                 crate::design::require_roadmap_in(conn, &project).await?;
                 let plan = load_plan(conn, &workflow, None).await?;
@@ -167,12 +177,13 @@ impl Storage {
                         "plan has no part: link it to a part on the Project map page, \
                          or start it with parts"
                             .into(),
-                    ));
+                    )
+                    .into());
                 }
                 let blockers = plan.blockers;
                 super::bindings::validate(conn, &project, &plan.bindings).await?;
                 if !blockers.is_empty() {
-                    return Err(StorageError::PlanInvalid(blockers));
+                    return Err(StorageError::PlanInvalid(blockers).into());
                 }
                 sqlx::query(
                     "UPDATE workflow SET state = 'Frozen', frozen_at = ?, updated_at = ?,
@@ -197,7 +208,7 @@ impl Storage {
                 };
                 if let Some(thread) = thread {
                     let body = match &approver {
-                        crate::command::Approver::Person => {
+                        crate::grants::Approver::Person => {
                             format!("Plan v{} approved", plan.version)
                         }
                         _ => format!(

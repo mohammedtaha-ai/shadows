@@ -1,3 +1,4 @@
+# Setups receives Grants from AppCore. Thread liveness and ownership are checked in the grant-issuing write.
 # Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns the harnesses and each thread's open session (spec §12.2–§12.4, §12.8,
 # §14.4): the harness list, opening a thread's session and answering its
@@ -36,8 +37,8 @@
 # Trap: the lease answers Busy only after (context_wait + cancel_wait + 1s);
 # while a turn runs, the early check is what answers at once.
 # Trap: an opening issues the thread's MCP grant (`Setups::for_opening`, on
-# `Storage::issue_thread_grant`) and every close revokes it (`Setups::forget`).
-# Those are Grants' rows written from here, not through `Grants`.
+# `Grants::issue_thread_grant_in`) and every close revokes it (`Setups::forget`).
+# Grants owns those rows; Harness supplies checked thread ownership in its write.
 # Trap: a harness title is taken off the connection in its dispatch, never
 # from a turn's events: it arrives after the turn has ended. Threads' store
 # owns whether it replaces the title.
@@ -308,7 +309,7 @@ functions:
       # invocation records.
   construction:
     with_owners:
-      signature: "(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig, owners: AylulOwners, instructions: Instructions) -> Arc<Sessions>"
+      signature: "(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig, owners: AylulOwners, instructions: Instructions, grants: Grants) -> Arc<Sessions>"
       # pub(crate): `AppCore::start` builds one on the core's `storage` and
       # the AYLUL configuration owners it built (providers, agents, extensions,
       # person), the instances the core also serves. Sessions read them; they

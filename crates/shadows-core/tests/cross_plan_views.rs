@@ -227,13 +227,16 @@ async fn a_frozen_sources_preview_follows_the_targets_new_version() {
         .unwrap();
     let before = storage.get_plan(&source).await.unwrap().content();
     let project = ProjectId::from_literal("p");
-    let grant = storage
-        .issue_project_grant(&command("grant"), &project)
+    let storage = std::sync::Arc::new(storage);
+    let grant =
+        shadows_core::Grants::issue_project_grant_for_test(&storage, &command("grant"), &project)
+            .await
+            .unwrap()
+            .grant
+            .id;
+    let draft_ref = shadows_core::Grants::prepare_draft_for_test(&storage, &grant)
         .await
-        .unwrap()
-        .grant
-        .id;
-    let draft_ref = storage.prepare_draft(&grant).await.unwrap();
+        .unwrap();
     let mut ctx = command(&draft_ref);
     ctx.principal_kind = "Grant".into();
     ctx.principal_id = grant.to_string();

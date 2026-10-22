@@ -17,7 +17,7 @@ use crate::projects::ProjectId;
 use crate::threads::ThreadId;
 
 impl Storage {
-    pub async fn get_plan(&self, workflow: &WorkflowId) -> Result<Plan, StorageError> {
+    pub async fn get_plan(&self, workflow: &WorkflowId) -> Result<Plan, crate::CoreError> {
         self.get_plan_scoped(workflow, None, None).await
     }
 
@@ -26,8 +26,8 @@ impl Storage {
         workflow: &WorkflowId,
         origin: Option<&ProjectId>,
         project: Option<&str>,
-    ) -> Result<Plan, StorageError> {
-        let mut snapshot = self.reader().begin().await?;
+    ) -> Result<Plan, crate::CoreError> {
+        let mut snapshot = self.reader().begin().await.map_err(StorageError::from)?;
         if let Some(origin) = origin {
             let selected =
                 crate::code::Code::selected_project_in(&mut snapshot, origin, project).await?;
@@ -36,14 +36,15 @@ impl Storage {
             )
             .bind(workflow.as_str())
             .fetch_optional(&mut *snapshot)
-            .await?;
+            .await
+            .map_err(StorageError::from)?;
             if owner.as_deref() != Some(selected.as_str()) {
-                return Err(StorageError::GrantScope);
+                return Err(crate::grants::GrantsError::GrantScope.into());
             }
         }
         let mut plan = load_plan(&mut snapshot, workflow, origin).await?;
         plan.linked_tasks = super::linked::read(&mut snapshot, &plan, origin).await?;
-        snapshot.commit().await?;
+        snapshot.commit().await.map_err(StorageError::from)?;
         Ok(plan)
     }
 
@@ -52,12 +53,12 @@ impl Storage {
         origin: &ProjectId,
         archived: bool,
         project: Option<&str>,
-    ) -> Result<Vec<PlanListing>, StorageError> {
-        let mut snapshot = self.reader().begin().await?;
+    ) -> Result<Vec<PlanListing>, crate::CoreError> {
+        let mut snapshot = self.reader().begin().await.map_err(StorageError::from)?;
         let selected =
             crate::code::Code::selected_project_in(&mut snapshot, origin, project).await?;
         let plans = listings(&mut snapshot, &selected, archived).await?;
-        snapshot.commit().await?;
+        snapshot.commit().await.map_err(StorageError::from)?;
         Ok(plans)
     }
 
@@ -250,7 +251,7 @@ pub(super) async fn load_plan(
                 .bind(id.as_str())
                 .fetch_one(&mut *conn)
                 .await?;
-            crate::db::approval::read_in(conn, principal, agent, request).await?
+            crate::grants::Grants::read_in(conn, principal, agent, request).await?
         },
         id: id.clone(),
         plan_id: PlanId::from_stored(plan_id),

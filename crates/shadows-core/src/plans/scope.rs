@@ -8,9 +8,9 @@ use serde_json::json;
 use super::model::{DraftStarted, Plan, PlanId, WorkflowId};
 use super::rules::Problem;
 use super::{DraftStart, Plans};
-use crate::command::Writer;
 use crate::db::{Anchor, CommandContext, StorageError, derived_id, fingerprint};
 use crate::error::{CoreError, ErrorCode};
+use crate::grants::Writer;
 use crate::grants::{Grant, GrantKind};
 use crate::threads::ThreadId;
 
@@ -31,7 +31,13 @@ impl Plans {
             .get_plan_scoped(&id, Some(&grant.project_id), None)
             .await
         {
-            Err(StorageError::NotFound(_) | StorageError::GrantScope) => {
+            Err(
+                CoreError::Storage(StorageError::NotFound(_))
+                | CoreError::Refused {
+                    code: ErrorCode::GrantScope,
+                    ..
+                },
+            ) => {
                 return Err(scope("that plan is not in this grant's project"));
             }
             result => result?,
@@ -113,8 +119,7 @@ impl Plans {
         } else {
             None
         };
-        Ok(self
-            .storage
+        self.storage
             .start_draft(
                 &ctx,
                 &writer,
@@ -127,7 +132,7 @@ impl Plans {
                 None,
                 &args.parts,
             )
-            .await?)
+            .await
     }
 
     async fn plan_in_project(
@@ -202,7 +207,7 @@ impl Plans {
                 .into());
             }
         };
-        Ok(storage
+        storage
             .start_draft(
                 &ctx,
                 &writer,
@@ -215,7 +220,7 @@ impl Plans {
                 Some(draft_ref),
                 &args.parts,
             )
-            .await?)
+            .await
     }
 }
 
@@ -245,7 +250,7 @@ pub(super) fn own_thread(grant: &Grant) -> Result<&ThreadId, CoreError> {
     grant
         .thread_id
         .as_ref()
-        .ok_or_else(|| StorageError::GrantScope.into())
+        .ok_or_else(|| crate::grants::GrantsError::GrantScope.into())
 }
 
 /// Who writes under `grant`: the Planner as its thread, an external agent as

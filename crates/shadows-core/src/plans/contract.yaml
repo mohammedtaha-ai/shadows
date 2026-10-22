@@ -1,3 +1,4 @@
+# Grant authority calls use Grants methods; refusing writes promote GrantsError through write_txn_as.
 # Thread facts and entries are accessed through Threads::*_in in the caller's snapshot.
 # Owns plan versions under the rules of spec §13: every read, start, edit,
 # showing and approval of a plan ends in a `Plans` method, whether a person
@@ -34,6 +35,7 @@ shapes:
     operations: Vec<String>
   Plans:
     storage: Arc<Storage>
+    grants: Grants
     handles: Arc<LiveHandles>
     # Live only: a `plan_show` signal nobody receives is not a failure.
     ui: broadcast::Sender<UiSignal>
@@ -72,7 +74,7 @@ shapes:
     # Never serialized or recorded: true when the call replayed a recorded one.
     replayed: bool
   Plan:
-    approved_by: "Option<crate::command::ApprovedBy>; provenance of the frozen version"
+    approved_by: "Option<crate::grants::ApprovedBy>; provenance of the frozen version"
     bindings: Vec<AgreementBinding>
     # Derived latest dependency previews, excluded from canonical PlanContent.
     # MCP omits unreachable incoming previews and redacts outgoing metadata.
@@ -319,24 +321,24 @@ functions:
     # through Grants' `check_writer`; `approve_plan` is the person's and
     # takes none.
     list_plans: "(&self, project: &ProjectId, archived: bool) -> Result<Vec<PlanListing>, StorageError>"
-    get_plan: "(&self, workflow: &WorkflowId) -> Result<Plan, StorageError>"
+    get_plan: "(&self, workflow: &WorkflowId) -> Result<Plan, CoreError>"
     plan_map: "(&self, project: &ProjectId) -> Result<PlanMap, StorageError>"
-    get_plan_scoped: "(&self, workflow: &WorkflowId, origin: Option<&ProjectId>, project: Option<&str>) -> Result<Plan, StorageError>"
-    list_plans_scoped: "(&self, origin: &ProjectId, archived: bool, project: Option<&str>) -> Result<Vec<PlanListing>, StorageError>"
+    get_plan_scoped: "(&self, workflow: &WorkflowId, origin: Option<&ProjectId>, project: Option<&str>) -> Result<Plan, CoreError>"
+    list_plans_scoped: "(&self, origin: &ProjectId, archived: bool, project: Option<&str>) -> Result<Vec<PlanListing>, CoreError>"
     get_plan_versions: "(&self, plan: &PlanId) -> Result<PlanVersions, StorageError>"
     archive_plan: "(&self, ctx: &CommandContext, plan: &PlanId) -> Result<PlanVersions, StorageError>"
     unarchive_plan: "(&self, ctx: &CommandContext, plan: &PlanId) -> Result<PlanVersions, StorageError>"
-    edit_plan: "(&self, ctx: &CommandContext, writer: &Writer, operation: Option<&OperationId>, workflow: &WorkflowId, expected_revision: i64, ops: &[PlanOp]) -> Result<EditOutcome, StorageError>"
+    edit_plan: "(&self, ctx: &CommandContext, writer: &Writer, operation: Option<&OperationId>, workflow: &WorkflowId, expected_revision: i64, ops: &[PlanOp]) -> Result<EditOutcome, CoreError>"
     approve_plan:
-      signature: "(&self, ctx: &CommandContext, workflow: &WorkflowId, expected_revision: i64) -> Result<Approved, StorageError>"
+      signature: "(&self, ctx: &CommandContext, workflow: &WorkflowId, expected_revision: i64) -> Result<Approved, CoreError>"
       # Its PlanApproved entry goes to the version's `written_by_thread` when
       # that thread is not removed, else nowhere; `WorkflowFrozen` names that
       # thread, or none (§16.3).
     approve_plan_with:
-      signature: "(&self, ctx: &CommandContext, workflow: &WorkflowId, expected_revision: i64, approver: &Approver) -> Result<Approved, StorageError>"
+      signature: "(&self, ctx: &CommandContext, workflow: &WorkflowId, expected_revision: i64, approver: &Approver) -> Result<Approved, CoreError>"
       # Authority, request message, freeze, attributed event and command audit share one write.
     start_draft:
-      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, plan: Option<&PlanId>, source: Option<&WorkflowId>, fresh: Option<(&str, &str)>, reason: Option<&str>, operation: Option<&OperationId>, draft_ref: Option<&str>, parts: &[PartId]) -> Result<DraftStarted, StorageError>"
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, plan: Option<&PlanId>, source: Option<&WorkflowId>, fresh: Option<(&str, &str)>, reason: Option<&str>, operation: Option<&OperationId>, draft_ref: Option<&str>, parts: &[PartId]) -> Result<DraftStarted, CoreError>"
       # No plan: a new Active `plan` row and its v1 from `fresh`, in the same
       # transaction. A plan (of `project`, else GrantScope): its Draft, else
       # its next version from the latest, which needs a non-blank `reason`
@@ -347,7 +349,7 @@ functions:
       # `NotLatestVersion`, checked after the replay. The version records its
       # writer: a Planner's thread and `operation`, an external grant. A start
       # refused by `workflow_one_draft` answers the plan's Draft.
-    show_plan: "(&self, ctx: &CommandContext, writer: &Writer, turn: &OperationId, workflow: &WorkflowId, task_number: Option<u32>, place: Place) -> Result<PlanShown, StorageError>"
+    show_plan: "(&self, ctx: &CommandContext, writer: &Writer, turn: &OperationId, workflow: &WorkflowId, task_number: Option<u32>, place: Place) -> Result<PlanShown, CoreError>"
     thread_plan:
       signature: "(&self, thread: &ThreadId) -> Result<Option<WorkflowId>, StorageError>"
       # Test-support only: the latest version of the first plan the thread
@@ -379,7 +381,7 @@ enums:
     source: crate::error::CoreError
     values: []
   Writer:
-    source: crate::command::Writer
+    source: crate::grants::Writer
     values: []
 
 

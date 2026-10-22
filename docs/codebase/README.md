@@ -105,8 +105,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/secrets/store.rs` | encrypted environment SQL | `crates/shadows-core/src/secrets/store.rs` |
 | `crates/shadows-core/src/secrets/crypto.rs` | authenticated environment encryption | `crates/shadows-core/src/secrets/crypto.rs` |
 | `crates/shadows-core/src/secrets/crypto_tests.rs` | envelope integrity tests | `crates/shadows-core/src/secrets/crypto_tests.rs` |
-| `crates/shadows-core/src/command/approver.rs` | approval provenance values | `docs/superpowers/specs/2026-10-08-approval-authority-design.md` |
-| `crates/shadows-core/src/db/approval.rs` | transaction-local approval provenance | `docs/superpowers/specs/2026-10-08-approval-authority-design.md` |
+| `crates/shadows-core/src/grants/approval.rs` | transaction-local approval provenance | `docs/superpowers/specs/2026-10-08-approval-authority-design.md` |
 | `crates/shadows-core/src/db/write_observer.rs` | test-only committed-write observation | `crates/shadows/tests/openapi/read_only.rs` |
 | `crates/shadows-core/src/design/map_proposals.rs` | map proposal service entry points | `crates/shadows-core/src/design/contract.yaml` |
 | `crates/shadows-core/src/design/store/map_proposals.rs` | recording map proposals | `crates/shadows-core/src/design/contract.yaml` |
@@ -164,7 +163,6 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/lib.rs` | the application behind `AppCore` | `crates/shadows-core/src/app.rs` |
 | `crates/shadows-core/src/app.rs` | the application's composition root | `crates/shadows-core/src/app.rs` |
 | `crates/shadows-core/src/error.rs` | the stable failure taxonomy clients match on | `crates/shadows-core/src/error.rs` |
-| `crates/shadows-core/src/command/` | who writes or approves a plan | `crates/shadows-core/src/command/mod.rs` |
 | `crates/shadows-core/src/db/command.rs` | external-command identity for idempotency | `crates/shadows-core/src/db/contract.yaml` |
 | `crates/shadows-core/src/db/derive.rs` | command ids Shadows derives when a caller names none | `crates/shadows-core/src/db/contract.yaml` |
 | `crates/shadows-core/src/db/journal.rs` | appending to the durable journal | `crates/shadows-core/src/db/contract.yaml` |
@@ -234,7 +232,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-core/src/plans/rules.rs` | what makes a plan invalid or unready | `crates/shadows-core/src/plans/rules.rs` |
 | `crates/shadows-core/src/plans/scope.rs` | plan calls made under an MCP grant | `crates/shadows-core/src/plans/scope.rs` |
 | `crates/shadows-core/src/plans/conversation.rs` | the plan in the conversation | `crates/shadows-core/src/plans/conversation.rs` |
-| `crates/shadows-core/src/grants/` | MCP grants, from issue to revocation | `crates/shadows-core/src/grants/mod.rs` |
+| `crates/shadows-core/src/grants/` | grant authorization | `crates/shadows-core/src/grants/mod.rs` |
 | `crates/shadows-core/src/grants/model.rs` | the grant types callers meet | `crates/shadows-core/src/grants/model.rs` |
 | `crates/shadows-core/src/grants/store.rs` | an MCP grant's rows, from issue to revocation | `crates/shadows-core/src/grants/store.rs` |
 | `crates/shadows-core/src/instructions/` | a project's numbered Planner instructions | `crates/shadows-core/src/instructions/mod.rs` |
@@ -344,3 +342,9 @@ file disagrees with either, they are right and this file is the defect.
   change a regeneration step.
 - **Explanations of declarations.** Those live as doc comments on the
   declarations themselves.
+
+| `crates/shadows-core/src/grants/writer.rs` | authenticated writer values | `crates/shadows-core/src/grants/contract.yaml` |
+| `crates/shadows-core/src/grants/approver.rs` | approval provenance values | `crates/shadows-core/src/grants/contract.yaml` |
+| `crates/shadows-core/src/grants/error.rs` | grant refusal mapping | `crates/shadows-core/src/grants/contract.yaml` |
+| `crates/shadows-core/src/grants/tools.rs` | grant tool policy | `crates/shadows-core/src/grants/contract.yaml` |
+| `crates/shadows-core/src/grants/testing.rs` | test-only grant entry points | `crates/shadows-core/src/grants/contract.yaml` |

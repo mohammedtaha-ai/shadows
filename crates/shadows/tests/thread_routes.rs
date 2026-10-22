@@ -89,7 +89,10 @@ async fn a_deleted_conversation_is_gone_but_readable() {
 
     assert!(matches!(
         attempted,
-        Err(shadows_core::StorageError::GrantInvalid)
+        Err(shadows_core::CoreError::Refused {
+            code: shadows_core::ErrorCode::GrantInvalid,
+            ..
+        })
     ));
     assert_eq!(
         app.storage
@@ -100,7 +103,7 @@ async fn a_deleted_conversation_is_gone_but_readable() {
         1
     );
     assert!(matches!(
-        app.storage.issue_thread_grant(&app.thread).await,
+        shadows_core::Grants::issue_thread_grant_for_test(&app.storage, &app.thread).await,
         Err(shadows_core::StorageError::NotFound(_))
     ));
     let plans: Vec<Value> =

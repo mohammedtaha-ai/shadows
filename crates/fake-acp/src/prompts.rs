@@ -114,7 +114,7 @@ pub(crate) async fn answer(
                 .setup
                 .bearer
                 .as_deref()
-                .map(shadows_core::testing::hash_token);
+                .map(shadows_core::testing::Token::hash_token);
             let text = json!({
                 "cwd": s.cwd,
                 "session": id,

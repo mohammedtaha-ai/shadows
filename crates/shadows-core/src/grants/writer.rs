@@ -1,22 +1,21 @@
 use crate::db::Actor;
 use crate::grants::GrantId;
 use crate::threads::ThreadId;
-
-pub mod approver;
-pub use approver::{ApprovalRequest, ApprovedBy, Approver};
-
-/// Who writes a plan (spec §13.5), and so the principal its commands are
-/// recorded under.
+/// The authenticated principal recorded for each write.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Writer {
-    /// A person adopting an agreement through Plans' HTTP entry point (§18.8).
     Person,
     /// The internal Planner of `thread`, holding `grant`. Its principal is the
     /// thread, not the grant: the grant is replaced whenever an adapter opens,
     /// and a retry after a resume must still find the first result.
-    Planner { thread: ThreadId, grant: GrantId },
+    Planner {
+        thread: ThreadId,
+        grant: GrantId,
+    },
     /// An external agent holding a project grant.
-    External { grant: GrantId },
+    External {
+        grant: GrantId,
+    },
 }
 
 impl Writer {
@@ -37,8 +36,6 @@ impl Writer {
             id,
         }
     }
-
-    /// The grant a write must find valid and in scope (§13.7); none for a person.
     pub fn grant(&self) -> Option<&GrantId> {
         match self {
             Writer::Person => None,

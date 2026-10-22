@@ -30,7 +30,7 @@ impl Design {
         self.storage
             .agree_design_agreement(&ctx, project, id, expected_revision, review_id)
             .await
-            .map_err(map_error)
+            .map_err(Self::map_error)
     }
     pub async fn agreements(
         &self,
@@ -66,7 +66,7 @@ impl Design {
         self.storage
             .start_design_agreement(&ctx, None, project, id, content, reason)
             .await
-            .map_err(map_error)
+            .map_err(Self::map_error)
     }
     pub async fn edit_agreement(
         &self,
@@ -90,7 +90,7 @@ impl Design {
         self.storage
             .edit_design_agreement(&ctx, None, project, id, version, expected_revision, content)
             .await
-            .map_err(map_error)
+            .map_err(Self::map_error)
     }
 }
 
@@ -104,12 +104,14 @@ pub(super) fn normalize(mut content: AgreementContent) -> Result<AgreementConten
     }
     Ok(content)
 }
-pub(super) fn map_error(error: StorageError) -> CoreError {
-    match error {
-        StorageError::Constraint(message) => CoreError::Refused {
-            code: ErrorCode::InvalidCommand,
-            message,
-        },
-        other => other.into(),
+impl Design {
+    pub(super) fn map_error(error: impl Into<CoreError>) -> CoreError {
+        match error.into() {
+            CoreError::Storage(StorageError::Constraint(message)) => CoreError::Refused {
+                code: ErrorCode::InvalidCommand,
+                message,
+            },
+            other => other,
+        }
     }
 }

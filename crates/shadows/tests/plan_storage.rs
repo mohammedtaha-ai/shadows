@@ -178,7 +178,7 @@ async fn an_edit_on_a_stale_revision_is_refused_with_the_current_one_and_a_summa
         .await
         .unwrap_err();
     match refused {
-        StorageError::RevisionConflict { current, summary } => {
+        shadows_core::CoreError::Storage(StorageError::RevisionConflict { current, summary }) => {
             assert_eq!(current, 1);
             assert_eq!(summary, first.summary);
         }
@@ -259,7 +259,12 @@ async fn the_same_explicit_command_id_with_different_ops_is_a_command_conflict()
         )
         .await;
     assert!(
-        matches!(conflict, Err(StorageError::CommandConflict)),
+        matches!(
+            conflict,
+            Err(shadows_core::CoreError::Storage(
+                StorageError::CommandConflict
+            ))
+        ),
         "{conflict:?}"
     );
 }
@@ -281,7 +286,9 @@ async fn an_invalid_edit_writes_nothing() {
         )
         .await;
     match refused {
-        Err(StorageError::PlanInvalid(problems)) => assert!(!problems.is_empty()),
+        Err(shadows_core::CoreError::Storage(StorageError::PlanInvalid(problems))) => {
+            assert!(!problems.is_empty())
+        }
         other => panic!("expected PlanInvalid, got {other:?}"),
     }
     assert_eq!(revision(&app, &v1).await, 0);
@@ -309,7 +316,12 @@ async fn a_frozen_version_refuses_edits() {
         )
         .await;
     assert!(
-        matches!(refused, Err(StorageError::WorkflowFrozen)),
+        matches!(
+            refused,
+            Err(shadows_core::CoreError::Storage(
+                StorageError::WorkflowFrozen
+            ))
+        ),
         "{refused:?}"
     );
 }
@@ -363,7 +375,7 @@ async fn approval_with_blockers_is_refused_with_the_list() {
         .approve_plan(&ctx("approve-1", "PlanApprove"), &v1, 0)
         .await;
     match refused {
-        Err(StorageError::PlanInvalid(problems)) => {
+        Err(shadows_core::CoreError::Storage(StorageError::PlanInvalid(problems))) => {
             let plan = app.storage.get_plan(&v1).await.unwrap();
             assert_eq!(problems, plan.blockers);
             assert_eq!(plan.state, WorkflowState::Draft);

@@ -4,11 +4,11 @@
 
 use super::read::{load_plan, recorded_outcome};
 use super::task::task_numbered;
-use crate::command::Writer;
 use crate::db::{
     CommandContext, Storage, StorageError, append_event, classify, now, record_command,
 };
-use crate::grants::check_writer;
+use crate::grants::Grants;
+use crate::grants::Writer;
 use crate::plans::conversation::{Place, PlanShown};
 use crate::plans::model::WorkflowId;
 use crate::threads::{EntryRef, NewThreadEntry, ThreadEntryKind, Threads};
@@ -27,7 +27,7 @@ impl Storage {
         workflow: &WorkflowId,
         task_number: Option<u32>,
         place: Place,
-    ) -> Result<PlanShown, StorageError> {
+    ) -> Result<PlanShown, crate::CoreError> {
         let (ctx, writer, turn, workflow, ts) = (
             ctx.clone(),
             writer.clone(),
@@ -35,15 +35,15 @@ impl Storage {
             workflow.clone(),
             now(),
         );
-        self.write_txn(move |conn| {
+        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
             Box::pin(async move {
                 let plan = load_plan(conn, &workflow, None).await?;
                 // The card goes in the Planner's own conversation (§13.9).
                 let Writer::Planner { thread, .. } = &writer else {
-                    return Err(StorageError::GrantScope);
+                    return Err(crate::grants::GrantsError::GrantScope.into());
                 };
                 let thread = thread.clone();
-                check_writer(conn, &writer, &plan.project_id).await?;
+                Grants::check_writer(conn, &writer, &plan.project_id).await?;
                 if let Some(event) = classify(conn, &ctx, "Thread", thread.as_str()).await? {
                     let recorded: PlanShown = recorded_outcome(conn, &event).await?;
                     return Ok(PlanShown {

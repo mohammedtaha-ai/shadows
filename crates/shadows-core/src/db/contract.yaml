@@ -1,3 +1,4 @@
+# GrantInvalid and GrantScope belong to GrantsError; approval provenance belongs to Grants.
 # HarnessLocked and ForkPointNotSupported belong to ThreadsError, mapped by Threads.
 # The foundation: what belongs to no service. Every service's write records its
 # command and appends its event through these, inside its own transaction.
@@ -6,7 +7,7 @@
 # `command.rs` (a command's identity, its replay check and its record),
 # `derive.rs` (the command ids Shadows derives), `journal.rs` (the journal's
 # append), `id.rs` (the id newtype pattern) and `mod.rs` (Storage).
-# `approval.rs`, `error.rs`, `embedded_migrations.rs` and `write_observer.rs`
+# `error.rs`, `embedded_migrations.rs` and `write_observer.rs`
 # are not described here yet. The newtype_id macro generates String-backed UUID
 # ids with generate/as_str/from_stored, test-support from_literal, Display,
 # Serialize, Deserialize and OpenAPI schema; each service declares its own ids.

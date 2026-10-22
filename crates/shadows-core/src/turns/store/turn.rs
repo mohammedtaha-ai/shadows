@@ -143,20 +143,31 @@ pub(crate) async fn check_running_turn_in(
     thread: &ThreadId,
     operation: &OperationId,
 ) -> Result<(), StorageError> {
-    let found: Option<i64> = sqlx::query_scalar(
-        "SELECT 1 FROM operation o
+    crate::turns::Turns::require_running_in(conn, thread, operation.as_str()).await
+}
+
+impl crate::turns::Turns {
+    /// Checks a Planner card's exact running turn inside the card write.
+    pub(crate) async fn require_running_in(
+        conn: &mut SqliteConnection,
+        thread: &ThreadId,
+        operation: &str,
+    ) -> Result<(), StorageError> {
+        let found: Option<i64> = sqlx::query_scalar(
+            "SELECT 1 FROM operation o
          WHERE o.id=? AND o.thread_id=? AND o.status_kind='Running' ",
-    )
-    .bind(operation.as_str())
-    .bind(thread.as_str())
-    .fetch_optional(&mut *conn)
-    .await?;
-    if found.is_none() || !Threads::is_live_in(conn, thread).await? {
-        return Err(StorageError::Constraint(
-            "the proposal's turn is no longer running".into(),
-        ));
+        )
+        .bind(operation)
+        .bind(thread.as_str())
+        .fetch_optional(&mut *conn)
+        .await?;
+        if found.is_none() || !Threads::is_live_in(conn, thread).await? {
+            return Err(StorageError::Constraint(
+                "the proposal's turn is no longer running".into(),
+            ));
+        }
+        Ok(())
     }
-    Ok(())
 }
 
 impl Storage {

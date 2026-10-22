@@ -11,13 +11,22 @@ impl Storage {
         ctx: &CommandContext,
         p: &ProjectId,
         id: &str,
-        approver: &crate::command::Approver,
-    ) -> Result<DesignChange, StorageError> {
+        approver: &crate::grants::Approver,
+    ) -> Result<DesignChange, crate::CoreError> {
         let (mut ctx, p, id, ts) = (ctx.clone(), p.clone(), id.to_owned(), now());
         let approver = approver.clone();
-        self.write_txn(move |conn| {
+        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
             Box::pin(async move {
-                let request = crate::db::approval::authorise_in(conn, &approver, &p).await?;
+                if let crate::grants::Approver::Planner {
+                    writer: writer @ crate::grants::Writer::Planner { thread, .. },
+                    turn,
+                    ..
+                } = &approver
+                {
+                    crate::grants::Grants::check_writer(conn, writer, &p).await?;
+                    crate::turns::Turns::require_running_in(conn, thread, turn).await?;
+                }
+                let request = crate::grants::Grants::authorise_in(conn, &approver, &p).await?;
                 ctx.agent = Some(approver.agent());
                 if let Some(result) = classify(conn, &ctx, "Project", p.as_str()).await? {
                     let json: String = sqlx::query_scalar(
@@ -31,20 +40,22 @@ impl Storage {
                 }
                 let vision = super::proposal_read::live_vision(conn, &p).await?;
                 let proposal = super::map_proposal_read::load(conn, &p, &id).await?;
-                if matches!(approver, crate::command::Approver::Planner { .. })
+                if matches!(approver, crate::grants::Approver::Planner { .. })
                     && proposal.action == MapAction::First
                     && !proposal.waivers.is_empty()
                 {
                     return Err(StorageError::Constraint(
                         "a first map with waivers is approved by the person's button".into(),
-                    ));
+                    )
+                    .into());
                 }
                 if proposal.status != ProposalStatus::Pending || proposal.outdated {
                     return Err(StorageError::Constraint(
                         "proposal is approved, superseded or outdated; \
                      ask the Planner to propose again"
                             .into(),
-                    ));
+                    )
+                    .into());
                 }
                 shape::complete(&vision)?;
                 let mut args = MapPropose {
@@ -77,7 +88,8 @@ impl Storage {
                     return Err(StorageError::StageBlocked(format!(
                         "missing part: {}",
                         missing.join(", ")
-                    )));
+                    ))
+                    .into());
                 }
                 if args.action == MapAction::First {
                     let unserved = map_rules::unserved_goals(&parts, &vision);
@@ -85,13 +97,15 @@ impl Storage {
                         return Err(StorageError::StageBlocked(format!(
                             "unserved goals: {}",
                             unserved.join(", ")
-                        )));
+                        ))
+                        .into());
                     }
                     if !old_rows.is_empty() {
                         return Err(StorageError::Constraint(
                             "existing legacy parts need explicit adoption before a first map"
                                 .into(),
-                        ));
+                        )
+                        .into());
                     }
                 }
                 let mut changed = BTreeSet::new();

@@ -1,7 +1,7 @@
 //! Person adoption of exact agreement versions through the plan edit transaction.
 use super::{EditOutcome, PlanOp, Plans, WorkflowId};
 use crate::db::CommandContext;
-use crate::{CoreError, ErrorCode, command::Writer};
+use crate::{CoreError, ErrorCode, grants::Writer};
 
 impl Plans {
     pub async fn edit_bindings(
@@ -38,11 +38,13 @@ impl Plans {
             )
             .await
             .map_err(|e| match e {
-                crate::StorageError::Constraint(message) => CoreError::Refused {
-                    code: ErrorCode::InvalidCommand,
-                    message,
-                },
-                other => other.into(),
+                CoreError::Storage(crate::StorageError::Constraint(message)) => {
+                    CoreError::Refused {
+                        code: ErrorCode::InvalidCommand,
+                        message,
+                    }
+                }
+                other => other,
             })
     }
 }

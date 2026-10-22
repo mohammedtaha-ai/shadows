@@ -1,7 +1,6 @@
 //! Serialized agreement starts and Draft content edits.
 use super::{agreements::load, parts};
 use crate::ProjectId;
-use crate::command::Writer;
 use crate::db::{
     Actor, CommandContext, Storage, StorageError, append_event, classify, now, record_command,
 };
@@ -10,6 +9,7 @@ use crate::design::{
     AgreementContent, AgreementId, AgreementState, AgreementVersion, AgreementWriter,
 };
 use crate::events::DurableEvent;
+use crate::grants::Writer;
 use sqlx::SqliteConnection;
 
 impl Storage {
@@ -21,13 +21,13 @@ impl Storage {
         id: Option<&AgreementId>,
         content: Option<AgreementContent>,
         reason: Option<String>,
-    ) -> Result<AgreementVersion, StorageError> {
+    ) -> Result<AgreementVersion, crate::CoreError> {
         let (ctx, project, id, ts) = (ctx.clone(), project.clone(), id.cloned(), now());
         let origin = origin.cloned();
-        self.write_txn(move |conn| {
+        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
             Box::pin(async move {
                 if let Some(origin) = &origin {
-                    crate::grants::check_writer(conn, &origin.writer, &project).await?;
+                    crate::grants::Grants::check_writer(conn, &origin.writer, &project).await?;
                 }
                 if let Some(result) = replay(conn, &ctx, &project).await? {
                     return Ok(result);
@@ -46,10 +46,11 @@ impl Storage {
                                 false,
                                 origin.as_ref(),
                             )
-                            .await;
+                            .await
+                            .map_err(Into::into);
                         }
                         if reason.as_deref().is_none_or(|s| s.trim().is_empty()) {
-                            return Err(StorageError::ReasonMissing);
+                            return Err(StorageError::ReasonMissing.into());
                         }
                         let version = prior.version.checked_add(1).ok_or_else(|| {
                             StorageError::Unavailable("agreement versions exhausted".into())
@@ -100,7 +101,9 @@ impl Storage {
                 .execute(&mut *conn)
                 .await?;
                 let result = load(conn, &project, &id, Some(version)).await?;
-                record(conn, &ctx, &project, &result, &ts, true, origin.as_ref()).await
+                record(conn, &ctx, &project, &result, &ts, true, origin.as_ref())
+                    .await
+                    .map_err(Into::into)
             })
         })
         .await
@@ -118,13 +121,13 @@ impl Storage {
         version: i64,
         expected_revision: i64,
         content: AgreementContent,
-    ) -> Result<AgreementVersion, StorageError> {
+    ) -> Result<AgreementVersion, crate::CoreError> {
         let (ctx, project, id, ts) = (ctx.clone(), project.clone(), id.clone(), now());
         let origin = origin.cloned();
-        self.write_txn(move |conn| {
+        self.write_txn_as::<_, _, crate::CoreError>(move |conn| {
             Box::pin(async move {
                 if let Some(origin) = &origin {
-                    crate::grants::check_writer(conn, &origin.writer, &project).await?;
+                    crate::grants::Grants::check_writer(conn, &origin.writer, &project).await?;
                 }
                 if let Some(result) = replay(conn, &ctx, &project).await? {
                     return Ok(result);
@@ -135,18 +138,21 @@ impl Storage {
                     return Err(StorageError::Constraint(format!(
                         "v{version} is no longer the Draft; read v{}",
                         current.version
-                    )));
+                    ))
+                    .into());
                 }
                 if current.state != AgreementState::Draft {
                     return Err(StorageError::Constraint(
                         "Agreed version is read only; start a Draft".into(),
-                    ));
+                    )
+                    .into());
                 }
                 if current.revision != expected_revision {
                     return Err(StorageError::RevisionConflict {
                         current: current.revision,
                         summary: "agreement Draft changed".into(),
-                    });
+                    }
+                    .into());
                 }
                 let mut content = content.clone();
                 super::super::agreement_validation::assign_operation_ids(&mut content);
@@ -162,7 +168,9 @@ impl Storage {
                 .execute(&mut *conn)
                 .await?;
                 let result = load(conn, &project, &id, Some(current.version)).await?;
-                record(conn, &ctx, &project, &result, &ts, true, origin.as_ref()).await
+                record(conn, &ctx, &project, &result, &ts, true, origin.as_ref())
+                    .await
+                    .map_err(Into::into)
             })
         })
         .await

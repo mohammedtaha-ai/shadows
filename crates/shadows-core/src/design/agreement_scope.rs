@@ -1,7 +1,7 @@
 //! Live grant attribution for agreement proposals.
 use super::{AgreementContent, AgreementId, AgreementReview, AgreementVersion, Design};
 use crate::db::{CommandContext, fingerprint};
-use crate::{CoreError, ErrorCode, Grant, GrantKind, command::Writer};
+use crate::{CoreError, ErrorCode, Grant, GrantKind, grants::Writer};
 
 #[derive(Clone)]
 pub(crate) struct AgreementOrigin {
@@ -104,7 +104,7 @@ impl Design {
                 reason,
             )
             .await
-            .map_err(super::agreements::map_error)
+            .map_err(Self::map_error)
     }
     pub async fn edit_agreement_for(
         &self,
@@ -136,6 +136,6 @@ impl Design {
                 content,
             )
             .await
-            .map_err(super::agreements::map_error)
+            .map_err(Self::map_error)
     }
 }

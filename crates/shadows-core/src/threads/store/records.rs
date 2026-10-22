@@ -148,3 +148,41 @@ impl Threads {
             == 1)
     }
 }
+
+impl Threads {
+    /// The harness of a retained thread in the requested project.
+    pub(crate) async fn harness_in(
+        conn: &mut SqliteConnection,
+        thread: &ThreadId,
+        project: &ProjectId,
+    ) -> Result<String, StorageError> {
+        Ok(sqlx::query_scalar(
+            "SELECT harness_kind FROM planning_thread WHERE id=? AND project_id=?",
+        )
+        .bind(thread.as_str())
+        .bind(project.as_str())
+        .fetch_one(conn)
+        .await?)
+    }
+    /// The latest user request recorded for the opaque turn reference.
+    pub(crate) async fn request_entry_in(
+        conn: &mut SqliteConnection,
+        thread: &ThreadId,
+        turn: &str,
+    ) -> Result<Option<ThreadEntryId>, StorageError> {
+        let id: Option<String> = sqlx::query_scalar("SELECT id FROM thread_entry WHERE thread_id=? AND operation_id=? AND kind='UserMessage' ORDER BY ordinal DESC LIMIT 1").bind(thread.as_str()).bind(turn).fetch_optional(conn).await?;
+        Ok(id.map(ThreadEntryId::from_stored))
+    }
+    /// Immutable entry provenance in the caller's snapshot.
+    pub(crate) async fn entry_in(
+        conn: &mut SqliteConnection,
+        id: &ThreadEntryId,
+    ) -> Result<(ThreadId, i64), StorageError> {
+        let (thread, ordinal): (String, i64) =
+            sqlx::query_as("SELECT thread_id,ordinal FROM thread_entry WHERE id=?")
+                .bind(id.as_str())
+                .fetch_one(conn)
+                .await?;
+        Ok((ThreadId::from_stored(thread), ordinal))
+    }
+}
