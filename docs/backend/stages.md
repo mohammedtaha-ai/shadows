@@ -296,11 +296,11 @@ are reference material; they do not replace the project's template or code.
 - Done when: A-0's list (c) is empty
 
 ### B-10 · A conversation keeps its mode
-- Status: blocked
-- Blocker: Touch must permit the new migration in crates/shadows-core/migrations/; src/db/embedded_migrations.rs loads that directory with sqlx::migrate!("./migrations"), not src/db/.
+- Status: todo
 - Plan: none. Owner spec: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.4 ("The mode is remembered per conversation"); request docs/shared/requests/2026-10-22-remembered-mode.md (accepted)
 - Read: harness/contract.yaml, harness/store.rs, harness/settings.rs, crates/shadows-agent/src/policy.rs; the request
-- Touch: crates/shadows-core/src/harness/ (store, settings, the new command, contract.yaml), a migration under crates/shadows-core/src/db/ for the per-conversation mode row, crates/shadows-http/src/harness.rs (the route), crates/shadows-http/src/lib.rs (`routes`, the route's registration line only), api/openapi.json (regenerated), the threads removal/fork call sites that must remove or copy the row, crates/shadows/tests/ (new acceptance tests), docs/codebase/README.md
+- Touch: crates/shadows-core/src/harness/ (store, settings, the new command, contract.yaml), one new migration file in crates/shadows-core/migrations/ for the per-conversation mode row, crates/shadows-http/src/harness.rs (the route), crates/shadows-http/src/lib.rs (`routes`, the route's registration line only), api/openapi.json (regenerated), the threads removal/fork call sites that must remove or copy the row, crates/shadows/tests/ (new acceptance tests), docs/codebase/README.md
+- Ruling (controller, 2026-10-23, on two scope blockers): Touch also covers every registration line the new route, migration and table need (the `routes` table, migrations, table-owners.txt, app.rs wiring, the architecture and contract fixtures that list routes or tables). A missing registration file of this kind is a small gap: fix it and report it, do not block.
 - Needs: A-17 (the harness boundary is reshaped there)
 - Done when: picking Auto without sending, then reopening the session and restarting Core, answers Auto; a mode the project disallows is refused before anything is written; a disallowed remembered mode falls back to the policy default on open; a running turn keeps its mode and the new one applies to the next turn; one conversation's mode does not reach another; a fork copies it; a replay with a different mode is `CommandConflict`; `cargo test -p shadows --test openapi` and the new tests pass
 
