@@ -49,7 +49,7 @@ async fn world() -> World {
         .ensure_assistant("aylul", "AYLUL", &root)
         .await
         .unwrap();
-    core.profiles()
+    core.providers()
         .create_provider(
             "provider".into(),
             ProviderInput {
@@ -68,15 +68,15 @@ async fn world() -> World {
         )
         .await
         .unwrap();
-    core.secrets()
-        .set_provider_key("key".into(), "test-2", "synthetic-stored-one")
+    core.providers()
+        .set_key("key".into(), "test-2", "synthetic-stored-one")
         .await
         .unwrap();
-    core.profiles()
+    core.agents()
         .create_agent("agent".into(), agent("AYLUL"))
         .await
         .unwrap();
-    let project = core.profiles().assistant_project().await.unwrap();
+    let project = core.agents().assistant_project().await.unwrap();
     let thread = core
         .threads()
         .create(
@@ -141,7 +141,7 @@ async fn send(w: &World, prompt: &str) -> OperationId {
 async fn report(w: &World) -> serde_json::Value {
     serde_json::to_value(
         w.core
-            .profiles()
+            .usage()
             .usage("2000-01-01T00:00:00Z", "2100-01-01T00:00:00Z")
             .await
             .unwrap(),
@@ -242,7 +242,7 @@ async fn usage_snapshot_survives_provider_changes() {
         "base_url":"https://other.test","models":[{"id":"fake-large"},{"id":"fake-small"}]}))
     .unwrap();
     w.core
-        .profiles()
+        .agents()
         .update_provider("rename".into(), "test-2", p)
         .await
         .unwrap();
@@ -253,7 +253,7 @@ async fn usage_snapshot_survives_provider_changes() {
         .await
         .unwrap();
     w.core
-        .profiles()
+        .agents()
         .delete_provider("delete-provider".into(), "test-2")
         .await
         .unwrap();
@@ -318,7 +318,7 @@ async fn usage_costs_require_trusted_turn_delta() {
         "models":[{"id":"fake-large"},{"id":"fake-small"}]}))
     .unwrap();
     w.core
-        .profiles()
+        .agents()
         .update_provider("anthropic".into(), "test-2", p)
         .await
         .unwrap();
@@ -372,7 +372,7 @@ async fn usage_periods_group_and_sort() {
     }
     let r = serde_json::to_value(
         w.core
-            .profiles()
+            .usage()
             .usage("2026-10-21T03:00:00+03:00", "2026-10-21T01:00:00Z")
             .await
             .unwrap(),
@@ -389,7 +389,7 @@ async fn usage_periods_group_and_sort() {
         ("2026-10-21T00:00:00Z", "2026-10-20T00:00:00Z"),
     ] {
         assert!(matches!(
-            w.core.profiles().usage(from, to).await,
+            w.core.usage().usage(from, to).await,
             Err(CoreError::ProfileInvalid(_))
         ));
     }

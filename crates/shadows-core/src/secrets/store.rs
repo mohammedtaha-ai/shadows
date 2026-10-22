@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use futures_core::future::BoxFuture;
 use sqlx::SqliteConnection;
 
 use super::crypto::Sealed;
@@ -58,13 +59,7 @@ impl SecretsStore {
             .collect())
     }
 
-    /// Whether the agent is live, read outside any write.
-    pub(super) async fn require_live_agent(&self, agent: &str) -> Result<(), StorageError> {
-        let mut conn = self.storage.reader().acquire().await?;
-        crate::profiles::require_live_agent_in(&mut conn, agent).await
-    }
-
-    pub(super) async fn upsert(
+    async fn upsert(
         conn: &mut SqliteConnection,
         value: &SealedEnv,
         ts: &str,
@@ -92,98 +87,55 @@ impl SecretsStore {
         Ok(())
     }
 
-    /// The user-facing writes check that the owner of the scope still exists.
-    /// `Secrets::put_in` callers check their own owner instead.
-    async fn require_scope_owner(
+    /// One write on the shared connection.
+    pub(super) async fn write<F, T>(&self, f: F) -> Result<T, StorageError>
+    where
+        F: for<'a> FnOnce(&'a mut SqliteConnection) -> BoxFuture<'a, Result<T, StorageError>>,
+    {
+        self.storage.write_txn(f).await
+    }
+
+    /// The recorded outcome when `ctx` replays a command on `scope` (`profile/name`).
+    pub(super) async fn replayed_in(
         conn: &mut SqliteConnection,
-        profile: &str,
-        agent_only: bool,
-    ) -> Result<(), StorageError> {
-        if agent_only {
-            crate::profiles::require_live_agent_in(conn, profile).await?;
-        }
-        if let Some(provider) = profile.strip_prefix(super::PROVIDER_SCOPE_PREFIX) {
-            crate::profiles::require_provider_in(conn, provider).await?;
-        }
-        Ok(())
+        ctx: &CommandContext,
+        scope: &str,
+    ) -> Result<Option<String>, StorageError> {
+        classify(conn, ctx, COMMAND_SCOPE, scope).await
     }
 
-    pub(super) async fn set(
-        &self,
-        ctx: CommandContext,
+    pub(super) async fn put_in(
+        conn: &mut SqliteConnection,
+        ctx: &CommandContext,
         value: SealedEnv,
-        agent_only: bool,
     ) -> Result<EnvEntry, StorageError> {
-        self.storage
-            .write_txn(move |conn| {
-                Box::pin(async move {
-                    let scope = format!("{}/{}", value.profile, value.name);
-                    if let Some(outcome) = classify(conn, &ctx, COMMAND_SCOPE, &scope).await? {
-                        return serde_json::from_str(&outcome).map_err(|_| {
-                            StorageError::Unavailable("invalid secret outcome".into())
-                        });
-                    }
-                    Self::require_scope_owner(conn, &value.profile, agent_only).await?;
-                    let ts = now();
-                    Self::upsert(conn, &value, &ts).await?;
-                    let entry = EnvEntry {
-                        name: value.name,
-                        updated_at: ts.clone(),
-                    };
-                    let outcome = serde_json::to_string(&entry).expect("metadata serializes");
-                    record_command(
-                        conn,
-                        &ctx,
-                        COMMAND_SCOPE,
-                        &scope,
-                        RECORD_KIND,
-                        &outcome,
-                        &ts,
-                    )
-                    .await?;
-                    Ok(entry)
-                })
-            })
-            .await
+        let scope = format!("{}/{}", value.profile, value.name);
+        let ts = now();
+        Self::upsert(conn, &value, &ts).await?;
+        let entry = EnvEntry {
+            name: value.name,
+            updated_at: ts.clone(),
+        };
+        let outcome = serde_json::to_string(&entry).expect("metadata serializes");
+        record_command(conn, ctx, COMMAND_SCOPE, &scope, RECORD_KIND, &outcome, &ts).await?;
+        Ok(entry)
     }
 
-    pub(super) async fn remove(
-        &self,
-        ctx: CommandContext,
+    pub(super) async fn delete_in(
+        conn: &mut SqliteConnection,
+        ctx: &CommandContext,
         profile: &str,
         name: &str,
-        agent_only: bool,
     ) -> Result<(), StorageError> {
-        let (profile, name) = (profile.to_owned(), name.to_owned());
-        self.storage
-            .write_txn(move |conn| {
-                Box::pin(async move {
-                    let scope = format!("{profile}/{name}");
-                    if classify(conn, &ctx, COMMAND_SCOPE, &scope).await?.is_some() {
-                        return Ok(());
-                    }
-                    Self::require_scope_owner(conn, &profile, agent_only).await?;
-                    sqlx::query("DELETE FROM secret_env WHERE profile = ? AND name = ?")
-                        .bind(&profile)
-                        .bind(&name)
-                        .execute(&mut *conn)
-                        .await?;
-                    let ts = now();
-                    let outcome = serde_json::json!({"name": name, "updated_at": ts}).to_string();
-                    record_command(
-                        conn,
-                        &ctx,
-                        COMMAND_SCOPE,
-                        &scope,
-                        RECORD_KIND,
-                        &outcome,
-                        &ts,
-                    )
-                    .await?;
-                    Ok(())
-                })
-            })
-            .await
+        let scope = format!("{profile}/{name}");
+        sqlx::query("DELETE FROM secret_env WHERE profile = ? AND name = ?")
+            .bind(profile)
+            .bind(name)
+            .execute(&mut *conn)
+            .await?;
+        let ts = now();
+        let outcome = serde_json::json!({"name": name, "updated_at": ts}).to_string();
+        record_command(conn, ctx, COMMAND_SCOPE, &scope, RECORD_KIND, &outcome, &ts).await
     }
 
     pub(super) async fn remove_scope_in(

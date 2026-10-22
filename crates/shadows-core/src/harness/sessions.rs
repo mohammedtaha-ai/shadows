@@ -104,7 +104,7 @@ impl OpenSession {
 }
 
 pub struct Sessions {
-    pub(crate) profiles: Arc<crate::Profiles>,
+    pub(crate) owners: crate::app::AylulOwners,
     pub(super) homes: super::profile_home::Homes,
     pub(super) adapter: Arc<ClaudeAdapter>,
     pub(super) storage: Arc<Storage>,
@@ -119,8 +119,8 @@ pub struct Sessions {
 impl Sessions {
     /// Shares the core's `storage`, so the grant events an opening and a
     /// close append raise the committed signal `Events` watches (§13.7).
-    /// Test callers only, over profiles of its own; `start` uses
-    /// `with_profiles`.
+    /// Test callers only, over configuration owners of its own; `start` uses
+    /// `with_owners`.
     #[cfg(feature = "test-support")]
     pub fn new(
         adapter: Arc<ClaudeAdapter>,
@@ -131,30 +131,30 @@ impl Sessions {
             .secrets
             .clone()
             .unwrap_or_else(|| crate::Secrets::new(storage.clone(), None));
-        let profiles = crate::Profiles::new(
+        let owners = crate::app::AylulOwners::build(
             storage.clone(),
             secrets,
             config.aylul.as_ref().map(|c| c.home_root.clone()),
             crate::testing::projects(storage.clone()),
         );
         let instructions = crate::Instructions::new(storage.clone());
-        Self::with_profiles(adapter, storage, config, profiles, instructions)
+        Self::with_owners(adapter, storage, config, owners, instructions)
     }
 
-    /// Over the `profiles` `AppCore::start` built, the one instance the core
-    /// also serves. The dependency points one way: sessions read profiles.
-    pub(crate) fn with_profiles(
+    /// Over the configuration owners `AppCore::start` built, the instances the core
+    /// also serves. The dependency points one way: sessions read them.
+    pub(crate) fn with_owners(
         adapter: Arc<ClaudeAdapter>,
         storage: Arc<Storage>,
         config: SessionsConfig,
-        profiles: Arc<crate::Profiles>,
+        owners: crate::app::AylulOwners,
         instructions: crate::Instructions,
     ) -> Arc<Self> {
         let period = (config.idle_after / 4)
             .min(Duration::from_secs(60))
             .max(Duration::from_millis(1));
         let sessions = Arc::new(Self {
-            profiles,
+            owners,
             homes: super::profile_home::Homes::default(),
             setups: Setups::new(storage.clone(), instructions, config.mcp_url.clone()),
             adapter,
@@ -179,15 +179,9 @@ impl Sessions {
         sessions
     }
 
-    /// Deletes an agent: `Profiles` commits the tombstone, then every live
-    /// adapter of the agent's threads closes. A close that fails is logged and
-    /// does not undo the deletion.
-    pub(crate) async fn delete_agent(
-        &self,
-        command_id: String,
-        slug: &str,
-    ) -> Result<(), crate::CoreError> {
-        self.profiles.delete_stored_agent(command_id, slug).await?;
+    /// Closes every live adapter of a deleted agent's threads. A close that fails is
+    /// logged and does not undo the deletion.
+    pub(crate) async fn close_agent(&self, slug: &str) -> Result<(), crate::CoreError> {
         for thread in self.storage.list_threads_for_profile(slug).await? {
             if let Err(error) = self.terminate(&thread.id).await {
                 tracing::warn!(thread_id=%thread.id, %error, "agent.adapter_close_failed");

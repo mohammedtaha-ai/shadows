@@ -48,7 +48,7 @@ pub(super) async fn world() -> World {
         .ensure_assistant("aylul", "AYLUL", &root)
         .await
         .unwrap();
-    core.profiles()
+    core.providers()
         .create_provider(
             "provider".into(),
             ProviderInput {
@@ -67,15 +67,15 @@ pub(super) async fn world() -> World {
         )
         .await
         .unwrap();
-    core.secrets()
-        .set_provider_key("key".into(), "test-2", "synthetic-stored-one")
+    core.providers()
+        .set_key("key".into(), "test-2", "synthetic-stored-one")
         .await
         .unwrap();
-    core.profiles()
+    core.agents()
         .create_agent("agent".into(), agent("AYLUL"))
         .await
         .unwrap();
-    let project = core.profiles().assistant_project().await.unwrap();
+    let project = core.agents().assistant_project().await.unwrap();
     let thread = core
         .threads()
         .create(

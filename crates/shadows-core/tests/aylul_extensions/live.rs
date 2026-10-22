@@ -102,7 +102,7 @@ async fn commands(home: &std::path::Path) -> Vec<String> {
 async fn live_agent_extension_isolation() {
     let w = world().await;
     w.core
-        .profiles()
+        .agents()
         .create_agent("b".into(), agent("Other"))
         .await
         .unwrap();
@@ -114,12 +114,12 @@ async fn live_agent_extension_isolation() {
         let src = source(&w, kind, name);
         let item = w
             .core
-            .profiles()
+            .extensions()
             .add_extension(name.into(), kind, &src)
             .await
             .unwrap();
         w.core
-            .profiles()
+            .extensions()
             .set_agent_extension(format!("on-{name}"), "aylul", kind, &item.id, true)
             .await
             .unwrap();
@@ -135,7 +135,7 @@ async fn live_agent_extension_isolation() {
     assert!(!b.iter().any(|c| c.starts_with("live-")));
     for (kind, id) in items {
         w.core
-            .profiles()
+            .extensions()
             .set_agent_extension(format!("off-{id}"), "aylul", kind, &id, false)
             .await
             .unwrap();

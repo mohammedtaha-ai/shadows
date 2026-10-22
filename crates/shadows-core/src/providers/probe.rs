@@ -1,8 +1,7 @@
 //! Bounded outbound provider tests; keys and provider response text never enter diagnostics.
 use super::{
-    Profiles,
-    listing::{self, Format},
-    presets,
+    Providers,
+    listing::{Format, Page},
 };
 use crate::CoreError;
 use std::time::Duration;
@@ -78,28 +77,46 @@ impl ProviderTestOutcome {
         }
     }
 }
-impl Profiles {
+impl Providers {
     pub async fn test_provider(
         &self,
         input: ProviderTest,
     ) -> Result<ProviderTestOutcome, CoreError> {
         let base_url = match (input.preset, input.base_url) {
             (Some(id), None) => {
-                presets::all()
-                    .into_iter()
-                    .find(|p| p.id == id)
+                Self::preset(&id)
                     .ok_or_else(|| CoreError::ProfileInvalid("unknown provider preset".into()))?
                     .base_url
             }
             (None, Some(url)) => url.trim().to_owned(),
             _ => return Err(CoreError::ProfileInvalid("choose one preset or URL".into())),
         };
-        super::providers::validate_url(&base_url)?;
+        Self::validate_url(&base_url)?;
         validate_key(&input.api_key)?;
-        Ok(probe(&base_url, &input.api_key).await)
+        Ok(ProviderTestOutcome::probe(&base_url, &input.api_key).await)
+    }
+
+    /// Tests a saved provider with `api_key`, or with its stored key when none is given.
+    pub async fn test_saved_provider(
+        &self,
+        slug: &str,
+        api_key: Option<String>,
+    ) -> Result<ProviderTestOutcome, CoreError> {
+        let provider = self.provider(slug).await?;
+        let api_key = match api_key {
+            Some(key) => key,
+            None => self
+                .secrets
+                .resolve_provider_key(slug)
+                .await?
+                .ok_or_else(|| CoreError::AylulKeyMissing(slug.into()))?,
+        };
+        validate_key(&api_key)?;
+        Ok(ProviderTestOutcome::probe(&provider.base_url, &api_key).await)
     }
 }
-pub(crate) fn validate_key(key: &str) -> Result<(), CoreError> {
+
+fn validate_key(key: &str) -> Result<(), CoreError> {
     if key.trim().is_empty() {
         return Err(CoreError::ProfileInvalid("empty provider key".into()));
     }
@@ -108,11 +125,14 @@ pub(crate) fn validate_key(key: &str) -> Result<(), CoreError> {
 
 const LIMIT: usize = 8 * 1024 * 1024;
 
-pub(crate) async fn probe(base_url: &str, api_key: &str) -> ProviderTestOutcome {
-    match tokio::time::timeout(Duration::from_secs(10), run(base_url, api_key)).await {
-        Ok(Ok(result)) => result,
-        Ok(Err(result)) => result,
-        Err(_) => ProviderTestOutcome::refused(TestRefusal::Unreachable, None),
+impl ProviderTestOutcome {
+    /// One bounded listing request; the key and the response text never leave it.
+    async fn probe(base_url: &str, api_key: &str) -> Self {
+        match tokio::time::timeout(Duration::from_secs(10), run(base_url, api_key)).await {
+            Ok(Ok(result)) => result,
+            Ok(Err(result)) => result,
+            Err(_) => Self::refused(TestRefusal::Unreachable, None),
+        }
     }
 }
 
@@ -189,8 +209,8 @@ async fn run(base_url: &str, key: &str) -> ProbeResult<ProviderTestOutcome> {
         .timeout(Duration::from_secs(10))
         .build()
         .map_err(|_| ProviderTestOutcome::refused(TestRefusal::Unreachable, None))?;
-    let preset = presets::all().into_iter().find(|p| p.base_url == base_url);
-    let config = preset.as_ref().map(|p| presets::listing(&p.id));
+    let preset = Providers::preset_at(base_url);
+    let config = preset.as_ref().map(|p| Providers::preset_listing(&p.id));
     let (url, format, check) = config.unwrap_or_else(|| {
         (
             format!("{}/v1/models", base_url.trim_end_matches('/')),
@@ -218,7 +238,7 @@ async fn run(base_url: &str, key: &str) -> ProbeResult<ProviderTestOutcome> {
         if status == 404 {
             return Ok(ProviderTestOutcome::success(vec![], false, 404));
         }
-        let page = listing::parse(&body, format)
+        let page = Page::parse(&body, format)
             .map_err(|_| ProviderTestOutcome::refused(TestRefusal::Unexpected, Some(status)))?;
         for model in page.models {
             if model.id.contains(key) {

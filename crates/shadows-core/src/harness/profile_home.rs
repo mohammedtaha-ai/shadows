@@ -1,71 +1,44 @@
-//! Seeding isolated agent homes without replacing user files.
+//! Serialized writes to an agent home's settings at opening.
 use crate::CoreError;
-use crate::db::StorageError;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub(crate) fn seed(home: &Path) -> Result<(), StorageError> {
-    std::fs::create_dir_all(home).map_err(|_| StorageError::Unavailable("agent home".into()))?;
-    for (name, content) in [
-        (
-            "CLAUDE.md",
-            include_str!("../../assets/aylul-profile/CLAUDE.md"),
-        ),
-        (
-            "settings.json",
-            include_str!("../../assets/aylul-profile/settings.json"),
-        ),
-    ] {
-        match std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(home.join(name))
-        {
-            Ok(mut file) => file
-                .write_all(content.as_bytes())
-                .map_err(|_| StorageError::Unavailable("agent home write".into()))?,
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-            Err(_) => return Err(StorageError::Unavailable("agent home write".into())),
-        }
-    }
-    Ok(())
-}
-
 #[derive(Default)]
 pub(super) struct Homes {
     locks: Mutex<HashMap<PathBuf, Arc<Mutex<()>>>>,
 }
 
-pub(super) fn check(home: &Path) -> Result<serde_json::Value, CoreError> {
-    let bytes = std::fs::read(home.join("settings.json"))
-        .map_err(|_| CoreError::ProfileInvalid("cannot read settings.json".into()))?;
-    let value: serde_json::Value = serde_json::from_slice(&bytes)
-        .map_err(|_| CoreError::ProfileInvalid("invalid settings.json".into()))?;
-    let object = value
-        .as_object()
-        .ok_or_else(|| CoreError::ProfileInvalid("settings.json must be an object".into()))?;
-    if object.contains_key("modelOverrides") {
-        return Err(CoreError::ProfileInvalid(
-            "settings.json modelOverrides is refused".into(),
-        ));
-    }
-    if let Some(env) = object.get("env") {
-        let env = env.as_object().ok_or_else(|| {
-            CoreError::ProfileInvalid("settings.json env must be an object".into())
-        })?;
-        for name in env.keys() {
-            if crate::secrets::reserved_env_name(name) {
-                return Err(CoreError::SecretNameReserved(name.clone()));
+impl Homes {
+    /// The home's settings, refusing what would override the routing Core sets.
+    pub(super) fn check(home: &Path) -> Result<serde_json::Value, CoreError> {
+        let bytes = std::fs::read(home.join("settings.json"))
+            .map_err(|_| CoreError::ProfileInvalid("cannot read settings.json".into()))?;
+        let value: serde_json::Value = serde_json::from_slice(&bytes)
+            .map_err(|_| CoreError::ProfileInvalid("invalid settings.json".into()))?;
+        let object = value
+            .as_object()
+            .ok_or_else(|| CoreError::ProfileInvalid("settings.json must be an object".into()))?;
+        if object.contains_key("modelOverrides") {
+            return Err(CoreError::ProfileInvalid(
+                "settings.json modelOverrides is refused".into(),
+            ));
+        }
+        if let Some(env) = object.get("env") {
+            let env = env.as_object().ok_or_else(|| {
+                CoreError::ProfileInvalid("settings.json env must be an object".into())
+            })?;
+            for name in env.keys() {
+                if crate::secrets::reserved_env_name(name) {
+                    return Err(CoreError::SecretNameReserved(name.clone()));
+                }
             }
         }
+        Ok(value)
     }
-    Ok(value)
-}
 
-impl Homes {
     pub(super) async fn lock_home(
         &self,
         home: &Path,
@@ -84,7 +57,7 @@ impl Homes {
         let home = dunce::canonicalize(home)
             .map_err(|_| CoreError::ProfileInvalid("agent home is unavailable".into()))?;
         let _held = self.lock_home(&home).await?;
-        let mut value = check(&home)?;
+        let mut value = Self::check(&home)?;
         let models = serde_json::json!(models);
         if value.get("availableModels") == Some(&models)
             && value.get("model").and_then(|v| v.as_str()) == Some(default)

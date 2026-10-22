@@ -36,7 +36,7 @@ pub(super) struct RemoveCommand {
 #[utoipa::path(get, path="/api/aylul/providers", tag="aylul",
     responses((status=200,body=[Provider]),(status=500,body=ErrorBody)))]
 pub(super) async fn providers(State(s): State<AppState>) -> Result<Json<Vec<Provider>>, Failure> {
-    Ok(Json(s.core.profiles().providers().await?))
+    Ok(Json(s.core.providers().providers().await?))
 }
 #[utoipa::path(post, path="/api/aylul/providers", tag="aylul", request_body=ProviderCommand,
     responses((status=201,body=Provider),(status=400,body=ErrorBody),(status=409,body=ErrorBody),
@@ -49,7 +49,7 @@ pub(super) async fn create_provider(
         StatusCode::CREATED,
         Json(
             s.core
-                .profiles()
+                .providers()
                 .create_provider(b.command_id, b.input)
                 .await?,
         ),
@@ -66,7 +66,7 @@ pub(super) async fn update_provider(
 ) -> Result<Json<Provider>, Failure> {
     Ok(Json(
         s.core
-            .profiles()
+            .agents()
             .update_provider(b.command_id, &slug, b.input)
             .await?,
     ))
@@ -80,10 +80,7 @@ pub(super) async fn delete_provider(
     Path(slug): Path<String>,
     Query(q): Query<RemoveCommand>,
 ) -> Result<StatusCode, Failure> {
-    s.core
-        .profiles()
-        .delete_provider(q.command_id, &slug)
-        .await?;
+    s.core.agents().delete_provider(q.command_id, &slug).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 #[utoipa::path(put, path="/api/aylul/providers/{slug}/key", tag="aylul",
@@ -97,8 +94,8 @@ pub(super) async fn set_key(
 ) -> Result<Json<EnvEntry>, Failure> {
     Ok(Json(
         s.core
-            .secrets()
-            .set_provider_key(b.command_id, &slug, &b.value)
+            .providers()
+            .set_key(b.command_id, &slug, &b.value)
             .await?,
     ))
 }
@@ -111,17 +108,14 @@ pub(super) async fn remove_key(
     Path(slug): Path<String>,
     Query(q): Query<RemoveCommand>,
 ) -> Result<StatusCode, Failure> {
-    s.core
-        .secrets()
-        .remove_provider_key(q.command_id, &slug)
-        .await?;
+    s.core.providers().remove_key(q.command_id, &slug).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 #[utoipa::path(get, path="/api/aylul/agents", tag="aylul",
     responses((status=200,body=AgentWorkspace),(status=404,body=ErrorBody),
         (status=500,body=ErrorBody)))]
 pub(super) async fn agents(State(s): State<AppState>) -> Result<Json<AgentWorkspace>, Failure> {
-    Ok(Json(s.core.profiles().workspace().await?))
+    Ok(Json(s.core.agents().workspace().await?))
 }
 #[utoipa::path(post, path="/api/aylul/agents", tag="aylul",request_body=AgentCommand,
     responses((status=201,body=Agent),(status=400,body=ErrorBody),(status=404,body=ErrorBody),
@@ -132,12 +126,7 @@ pub(super) async fn create_agent(
 ) -> Result<(StatusCode, Json<Agent>), Failure> {
     Ok((
         StatusCode::CREATED,
-        Json(
-            s.core
-                .profiles()
-                .create_agent(b.command_id, b.input)
-                .await?,
-        ),
+        Json(s.core.agents().create_agent(b.command_id, b.input).await?),
     ))
 }
 #[utoipa::path(put, path="/api/aylul/agents/{slug}", tag="aylul",
@@ -151,7 +140,7 @@ pub(super) async fn update_agent(
 ) -> Result<Json<Agent>, Failure> {
     Ok(Json(
         s.core
-            .profiles()
+            .agents()
             .update_agent(b.command_id, &slug, b.input)
             .await?,
     ))
@@ -184,7 +173,7 @@ mod tests;
 #[utoipa::path(get, path="/api/aylul/provider-presets", tag="aylul",
     responses((status=200,body=[ProviderPreset])))]
 pub(super) async fn provider_presets(State(s): State<AppState>) -> Json<Vec<ProviderPreset>> {
-    Json(s.core.profiles().provider_presets())
+    Json(s.core.providers().provider_presets())
 }
 
 #[utoipa::path(post, path="/api/aylul/providers/test", tag="aylul", request_body=ProviderTest,
@@ -193,7 +182,7 @@ pub(super) async fn test_provider(
     State(s): State<AppState>,
     EnvJson(b): EnvJson<ProviderTest>,
 ) -> Result<Json<ProviderTestOutcome>, Failure> {
-    Ok(Json(s.core.profiles().test_provider(b).await?))
+    Ok(Json(s.core.providers().test_provider(b).await?))
 }
 
 #[utoipa::path(post, path="/api/aylul/providers/{slug}/test", tag="aylul",
@@ -208,7 +197,7 @@ pub(super) async fn test_saved_provider(
 ) -> Result<Json<ProviderTestOutcome>, Failure> {
     Ok(Json(
         s.core
-            .harness()
+            .providers()
             .test_saved_provider(&slug, b.api_key)
             .await?,
     ))
@@ -224,7 +213,7 @@ pub(super) struct PersonCommand {
 #[utoipa::path(get, path="/api/me", tag="aylul",
     responses((status=200,body=Person),(status=500,body=ErrorBody)))]
 pub(super) async fn person(State(s): State<AppState>) -> Result<Json<Person>, Failure> {
-    Ok(Json(s.core.profiles().person().await?))
+    Ok(Json(s.core.person().person().await?))
 }
 
 #[utoipa::path(put, path="/api/me", tag="aylul", request_body=PersonCommand,
@@ -235,7 +224,7 @@ pub(super) async fn set_person(
     EnvJson(b): EnvJson<PersonCommand>,
 ) -> Result<Json<Person>, Failure> {
     Ok(Json(
-        s.core.profiles().set_person(b.command_id, b.input).await?,
+        s.core.person().set_person(b.command_id, b.input).await?,
     ))
 }
 
@@ -253,5 +242,5 @@ pub(super) async fn usage(
     State(s): State<AppState>,
     Query(q): Query<UsagePeriod>,
 ) -> Result<Json<shadows_core::UsageReport>, Failure> {
-    Ok(Json(s.core.profiles().usage(&q.from, &q.to).await?))
+    Ok(Json(s.core.usage().usage(&q.from, &q.to).await?))
 }

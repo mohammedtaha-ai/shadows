@@ -105,8 +105,8 @@ async fn deleting_last_agent_is_not_found_not_unavailable() {
 async fn missing_provider_key_is_named() {
     let w = world().await;
     w.core
-        .secrets()
-        .remove_provider_key("remove".into(), "test-2")
+        .providers()
+        .remove_key("remove".into(), "test-2")
         .await
         .unwrap();
     assert!(matches!(w.core.harness().open_session(&w.thread).await,
@@ -139,12 +139,12 @@ async fn provider_window(w: &World, size: u32) {
     let mut a = agent("AYLUL");
     a.default_model = "fake-small".into();
     w.core
-        .profiles()
+        .agents()
         .update_provider(format!("p-{size}"), "test-2", input)
         .await
         .unwrap();
     w.core
-        .profiles()
+        .agents()
         .update_agent(format!("a-{size}"), "aylul", a)
         .await
         .unwrap();
@@ -190,7 +190,7 @@ async fn opening_names_the_person() {
             "language":"en", "theme":"dark"}))
         .unwrap();
         w.core
-            .profiles()
+            .person()
             .set_person(format!("person-{i}"), input)
             .await
             .unwrap();
@@ -202,7 +202,7 @@ async fn opening_names_the_person() {
             "aylul_calls_me":"Changed", "language":"en", "theme":"dark"}))
         .unwrap();
         w.core
-            .profiles()
+            .person()
             .set_person(format!("live-person-{i}"), changed)
             .await
             .unwrap();
@@ -219,7 +219,7 @@ async fn opening_without_person_appends_nothing() {
         "language":null, "theme":"system"}))
     .unwrap();
     w.core
-        .profiles()
+        .person()
         .set_person("empty-person".into(), empty)
         .await
         .unwrap();

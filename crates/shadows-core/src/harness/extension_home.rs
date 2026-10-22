@@ -1,7 +1,7 @@
 //! Project the enabled library into one isolated agent home at opening.
-use super::profile_home::{Homes, check};
-use crate::profiles::extension_files::copy_extension_tree;
-use crate::{CoreError, Item, Profiles};
+use super::profile_home::Homes;
+use crate::extensions::Extensions;
+use crate::{CoreError, Item};
 use serde_json::json;
 use std::{io::Write, path::Path};
 
@@ -59,7 +59,7 @@ fn copy(root: &Path, stage: &Path, item: &Item) -> Result<(), CoreError> {
     if uuid::Uuid::parse_str(&item.id).is_err() || !safe_name(&item.name) {
         return Err(invalid());
     }
-    copy_extension_tree(&root.join("library").join(&item.id), stage)?;
+    Extensions::copy_tree(&root.join("library").join(&item.id), stage)?;
     Ok(())
 }
 fn project(
@@ -68,7 +68,7 @@ fn project(
     skills: Vec<Item>,
     plugins: Vec<Item>,
 ) -> Result<(), CoreError> {
-    let mut settings = check(home)?;
+    let mut settings = Homes::check(home)?;
     let settings_path = home.join("settings.json");
     let prior_settings = std::fs::read(&settings_path).map_err(|_| invalid())?;
     let manifest_path = home.join(".aylul-extensions.json");
@@ -273,14 +273,14 @@ fn project(
 impl Homes {
     pub(super) async fn write_extensions(
         &self,
-        profiles: &Profiles,
+        extensions: &Extensions,
         root: &Path,
         home: &Path,
         slug: &str,
     ) -> Result<(), CoreError> {
-        let _library = profiles.extension_guard().await;
+        let _library = extensions.extension_guard().await;
         let _home = self.lock_home(home).await?;
-        let items = profiles.agent_extensions(slug).await?;
+        let items = extensions.agent_extensions(slug).await?;
         let skills = items
             .skills
             .into_iter()

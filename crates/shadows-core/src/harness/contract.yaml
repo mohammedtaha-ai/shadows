@@ -142,15 +142,14 @@ shapes:
 functions:
   preference_key: The one storage key for per-agent AYLUL model preferences.
   service:
-    test_saved_provider: Test with the supplied key or stored key through the shared probe.
     delete_agent:
       signature: "(&self, command_id: String, slug: &str) -> Result<(), CoreError>"
       # The one way an agent is deleted (the HTTP route calls it; no MCP tool
-      # deletes an agent). `Sessions::delete_agent`: `Profiles::delete_stored_agent`
-      # commits the tombstone and removes its variables in one transaction,
-      # then every live adapter of the agent's threads closes (`terminate`);
-      # a failed close is logged (`agent.adapter_close_failed`) and does not
-      # undo the deletion.
+      # deletes an agent). One write runs `Agents::delete_in` (its command, the
+      # tombstone and its variables) and `Extensions::remove_agent_in` (its
+      # switches); after commit `Sessions::close_agent` closes every live adapter
+      # of the agent's threads (`terminate`); a failed close is logged
+      # (`agent.adapter_close_failed`) and does not undo the deletion.
     aylul_profile:
       signature: "(&self) -> Result<&str, CoreError>"
       # Configuration-only metadata; absence is AylulNotConfigured.
@@ -307,16 +306,17 @@ functions:
       # Free function in `setup.rs`: the Planner prompt's version a turn's
       # invocation records.
   construction:
-    with_profiles:
-      signature: "(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig, profiles: Arc<Profiles>) -> Arc<Sessions>"
+    with_owners:
+      signature: "(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig, owners: AylulOwners, instructions: Instructions) -> Arc<Sessions>"
       # pub(crate): `AppCore::start` builds one on the core's `storage` and
-      # the `Profiles` it built, the instance the core also serves. Sessions
-      # read profiles; profiles hold no reference back. Its idle sweep runs
-      # every idle_after/4, at most 60 s.
+      # the AYLUL configuration owners it built (providers, agents, extensions,
+      # person), the instances the core also serves. Sessions read them; they
+      # hold no reference back. An opening asks `Agents::home` for the home.
+      # Its idle sweep runs every idle_after/4, at most 60 s.
     new:
       signature: "(adapter: Arc<ClaudeAdapter>, storage: Arc<Storage>, config: SessionsConfig) -> Arc<Sessions>"
       # Test callers only (`testing::Sessions`), until A-9 to A-19 move them
-      # to `AppCore`: `with_profiles` over profiles of its own.
+      # to `AppCore`: `with_owners` over `AylulOwners::build` of its own.
   titles:
     keep_titles:
       signature: "(storage: Arc<Storage>, thread: ThreadId, next: impl Fn(HarnessEvent)) -> impl Fn(HarnessEvent)"
@@ -390,8 +390,9 @@ shared_in_transaction:
 
 obligations:
   - rule: >
-      Deleting an agent is Harness's: the tombstone commits through Profiles,
-      then the agent's live adapters close. Profiles holds no reference to
+      Deleting an agent is Harness's: the tombstone, its variables and its
+      extension switches commit in one write through Agents and Extensions,
+      then the agent's live adapters close. Neither owner holds a reference to
       Sessions.
     tested_by:
       - deleted_agent_with_live_adapter_is_not_found
@@ -618,11 +619,11 @@ obligations:
 
 
 agreements:
-  - between: [write_extensions, profiles::agent_extensions]
+  - between: [write_extensions, extensions::agent_extensions]
     must: Snapshot per-agent enablement under the library mutation guard before projecting owned files.
     holds: true
     tested_by: [opening_projects_only_enabled_extensions, extension_deletions_remove_enablement_atomically]
-  - between: [test_saved_provider, opening]
+  - between: [providers::test_saved_provider, opening]
     must: Resolve the provider key through Secrets::resolve_provider_key, which owns its scope and name; a missing or empty key is AylulKeyMissing.
     holds: true
     tested_by: [saved_test_uses_the_stored_key]

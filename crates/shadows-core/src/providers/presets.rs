@@ -1,5 +1,6 @@
 //! Compiled provider presets in product order.
-use super::Profiles;
+use super::Providers;
+use super::listing::Format;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PresetRegion {
@@ -15,7 +16,7 @@ pub struct ProviderPreset {
     pub base_url: String,
 }
 
-pub(super) fn all() -> Vec<ProviderPreset> {
+fn all() -> Vec<ProviderPreset> {
     [
         (
             "minimax",
@@ -65,14 +66,28 @@ pub(super) fn all() -> Vec<ProviderPreset> {
     .collect()
 }
 
-impl Profiles {
+impl Providers {
     pub fn provider_presets(&self) -> Vec<ProviderPreset> {
         all()
     }
+
+    /// The one lookup of a preset by id.
+    pub(super) fn preset(id: &str) -> Option<ProviderPreset> {
+        all().into_iter().find(|p| p.id == id)
+    }
+
+    /// The preset whose URL is exactly `base_url`, which decides how it is listed.
+    pub(super) fn preset_at(base_url: &str) -> Option<ProviderPreset> {
+        all().into_iter().find(|p| p.base_url == base_url)
+    }
+
+    /// Where a preset lists its models, its format, and its key check, if any.
+    pub(super) fn preset_listing(id: &str) -> (String, Format, Option<String>) {
+        listing(id)
+    }
 }
 
-pub(super) fn listing(id: &str) -> (String, super::listing::Format, Option<String>) {
-    use super::listing::Format;
+fn listing(id: &str) -> (String, Format, Option<String>) {
     let (url, format) = match id {
         "minimax" => (
             "https://api.minimax.io/anthropic/v1/models?limit=100",

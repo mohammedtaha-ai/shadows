@@ -115,6 +115,12 @@ functions:
       signature: "(&self, f: F) -> Result<T, StorageError>"
       # Serializes BEGIN IMMEDIATE writes; commits on success, rolls back on error,
       # recovers abandoned transactions on entry and publishes only after commit.
+      # A thin call to write_txn_as with E = StorageError.
+    write_txn_as:
+      signature: "(&self, f: F) -> Result<T, E> where E: From<StorageError>"
+      # The one implementation of the serialized write: a closure refuses with its
+      # owner's error and the transaction still rolls back; recovery, rollback and
+      # the committed-journal publish are the same path as write_txn.
 
 
 

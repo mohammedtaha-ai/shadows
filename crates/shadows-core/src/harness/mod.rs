@@ -21,7 +21,7 @@ mod extension_home;
 mod live;
 mod model;
 mod offers;
-pub(crate) mod profile_home;
+mod profile_home;
 mod sessions;
 mod settings;
 mod setup;
@@ -49,6 +49,7 @@ use settings::SettingRefused;
 
 use crate::db::{Storage, StorageError};
 use crate::error::CoreError;
+use crate::extensions::Extensions;
 use crate::projects::Projects;
 use crate::threads::ThreadId;
 
@@ -60,31 +61,6 @@ pub struct Harness {
 }
 
 impl Harness {
-    pub async fn test_saved_provider(
-        &self,
-        slug: &str,
-        api_key: Option<String>,
-    ) -> Result<crate::ProviderTestOutcome, CoreError> {
-        let provider = self.sessions.profiles.provider(slug).await?;
-        let api_key = match api_key {
-            Some(key) => key,
-            None => {
-                let secrets = self
-                    .sessions
-                    .config
-                    .secrets
-                    .as_ref()
-                    .ok_or(CoreError::SecretsUnavailable)?;
-                secrets
-                    .resolve_provider_key(slug)
-                    .await?
-                    .ok_or_else(|| CoreError::AylulKeyMissing(slug.into()))?
-            }
-        };
-        crate::profiles::probe::validate_key(&api_key)?;
-        Ok(crate::profiles::probe::probe(&provider.base_url, &api_key).await)
-    }
-
     /// The configured AYLUL profile, without exposing its environment.
     pub fn aylul_profile(&self) -> Result<&str, CoreError> {
         self.sessions
@@ -103,11 +79,21 @@ impl Harness {
         }
     }
 
-    /// Deletes an agent and closes its live adapters (`Sessions::delete_agent`).
-    /// The one way an agent is deleted: its adapters are live state this
-    /// service owns.
+    /// Deletes an agent and closes its live adapters. The one way an agent is
+    /// deleted: its adapters are live state this service owns. The tombstone, its
+    /// variables and its extension switches go in one write, before any close.
     pub async fn delete_agent(&self, command_id: String, slug: &str) -> Result<(), CoreError> {
-        self.sessions.delete_agent(command_id, slug).await
+        let agents = self.sessions.owners.agents.clone();
+        let owned = slug.to_owned();
+        self.storage
+            .write_txn_as(move |conn| {
+                Box::pin(async move {
+                    agents.delete_in(conn, command_id, &owned).await?;
+                    Ok::<_, CoreError>(Extensions::remove_agent_in(conn, &owned).await?)
+                })
+            })
+            .await?;
+        self.sessions.close_agent(slug).await
     }
 
     /// Every harness Shadows knows, runnable or not, with the model and effort

@@ -1,0 +1,137 @@
+# Owns AYLUL provider configuration: the models a provider offers, its compiled
+# presets, its key (through Secrets) and the bounded outbound provider tests.
+# It depends on Secrets only, so it never reads aylul_agent: whether an agent still
+# uses a provider or a model is an Agents rule, and Agents runs provider updates and
+# deletions, calling update_in and delete_in inside its write.
+# A provider key is written only after this service checks the provider exists, in
+# the same write; Secrets stores by scope and checks nothing upward.
+name: providers
+version: 1
+status: current
+source: crates/shadows-core/src/providers
+
+modules:
+  mod.rs: provider reads, creation, keys and the in-transaction methods
+  model.rs: public provider metadata
+  validation.rs: provider input rules
+  presets.rs: compiled provider presets
+  probe.rs: bounded provider listing requests
+  listing.rs: provider model response parsing
+  slug.rs: generated slug shape
+  error.rs: provider refusals
+  store.rs: provider SQL
+
+dependencies:
+  secrets: crates/shadows-core/src/secrets/contract.yaml
+
+shapes:
+  Providers:
+    store: private ProvidersStore over the shared storage handle
+    secrets: Arc<Secrets>
+  ProvidersStore:
+    storage: Arc<Storage> # Private to providers; shares the existing pool.
+  ProvidersError:
+    NotFound: String # AylulProviderNotFound for a caller
+    Storage: StorageError
+  SlugBase:
+    note: Lowercase ASCII base of at most 29 characters starting with a letter; candidates add -n within 32
+  Provider:
+    preset: Optional compiled preset id
+    label: Optional trimmed label
+    key_set: Metadata only; no key value
+  ProviderInput:
+    note: Replaces the whole configuration
+  ProviderModel:
+    context_window: Required per-model window
+  ProviderModelInput:
+    context_window: Optional; defaults to 200000
+  ProviderTest:
+    api_key: Input only; Debug redacted
+  SavedProviderTest:
+    api_key: Optional replacement; Debug redacted
+  ProviderTestOutcome:
+    message: Core-owned text; never a provider response body
+  ListedModel:
+    context_window: Optional provider-reported window
+  TestRefusal:
+    values: KeyRefused, Unreachable, Unexpected
+  ProviderPreset:
+    note: Compiled in; no row
+  PresetRegion:
+    values: International, China
+
+functions:
+  new: "crate-private: (storage: Arc<Storage>, secrets: Arc<Secrets>) -> Arc<Providers>"
+  providers: List providers in creation order with slug tie break; key_set comes from Secrets::provider_key_set.
+  provider: Read provider metadata; key_set comes from Secrets::provider_key_set, never a join on secret_env.
+  create_provider: Validate and insert a provider with an immutable generated slug under one replayable command.
+  set_key: Seal the key, then in one write replay or check the provider exists and store it through Secrets::put_in.
+  remove_key: In one write replay or check the provider exists and remove the key through Secrets::remove_in.
+  provider_presets: List the compiled presets in their fixed order.
+  test_provider: Ask the provider for models using the supplied key without storing it.
+  test_saved_provider: Test a saved provider with the supplied key, or its stored key; a missing key is AylulKeyMissing.
+  validated: crate-private; the one provider input rule, which Agents::update_provider applies before its write.
+  preset: private; the one preset lookup by id.
+  preset_at: private; the preset whose URL is exactly the base URL, which decides its listing.
+  preset_listing: private; where a preset lists its models.
+  validate_url: private; https, or http on a loopback host, without credentials or controls.
+  models_in: crate-private; a provider's model ids in the caller's write, refusing an unknown provider.
+  update_in: crate-private; replace a known provider in the caller's write.
+  delete_in: crate-private; remove a known provider and its key scope in the caller's write.
+
+called_by_other_services:
+  validated: Agents::update_provider normalizes the input before its write.
+  models_in: Agents proves a provider exists and offers a model inside its write.
+  update_in: Agents::update_provider writes the provider after its in-use check.
+  delete_in: Agents::delete_provider removes the provider after its in-use check.
+  SlugBase: Agents generates agent slugs with the same shape.
+
+shared_in_transaction: {}
+
+obligations:
+  - rule: Probes never store or echo the key or write a command or event.
+    tested_by: [tested_key_is_not_stored_or_echoed]
+  - rule: 401 and 403 refuse the key; connection failure, timeout and 5xx are unreachable.
+    tested_by: [refused_key_reads_key_refused, unreachable_host_reads_unreachable, probe_timeout_is_unreachable]
+  - rule: Other statuses and malformed or oversized bodies are unexpected; redirects are not followed.
+    tested_by: [odd_status_reads_unexpected, redirect_is_not_followed, oversized_body_is_unexpected]
+  - rule: A Custom 404 is successful with listed false; valid models sort by id.
+    tested_by: [custom_without_model_list_is_ok_unlisted]
+  - rule: Each listing reads its window field; OpenRouter keeps tool models only.
+    tested_by: [anthropic_list_reads_max_input_tokens, minimax_list_has_no_windows, deepseek_list_reads_context_window, moonshot_list_reads_context_length, openrouter_list_keeps_tool_models]
+  - rule: New probes require exactly one valid preset or URL and a nonempty key.
+    tested_by: [invalid_probe_input_is_refused]
+  - rule: A saved test uses the stored key unless one is supplied, writes nothing, and names a missing key.
+    tested_by: [saved_test_uses_the_stored_key]
+  - rule: Each model window defaults to 200000 and is within 1000..=10000000.
+    tested_by: [model_window_defaults_and_is_bounded]
+  - rule: Model ids stay unique, 1..=20 per provider, and never default.
+    tested_by: [model_ids_keep_their_rules]
+  - rule: Migration gives each model its provider window in array order.
+    tested_by: [migration_gives_models_the_provider_window]
+  - rule: A preset supplies the name and URL; differing input is refused.
+    tested_by: [preset_supplies_url_and_name, preset_with_other_url_is_refused]
+  - rule: Custom requires a name and a valid URL.
+    tested_by: [custom_requires_name_and_url]
+  - rule: Labels are trimmed, at most 64 characters, without controls; empty is null.
+    tested_by: [label_is_trimmed_and_empty_is_null]
+  - rule: Unknown presets are refused; China presets carry China hosts.
+    tested_by: [unknown_preset_is_refused, china_presets_use_china_hosts]
+  - rule: Presets list in fixed order; known stored URLs migrate to their preset.
+    tested_by: [presets_list_in_fixed_order, migration_marks_known_urls_with_their_preset]
+  - rule: Provider credentials are never returned as provider metadata.
+    tested_by: [provider_key_is_write_only]
+  - rule: Provider slug test is reserved for creation; use the next free numeric suffix, leaving existing provider slugs unchanged.
+    tested_by: [test_is_a_reserved_provider_slug, existing_test_provider_keeps_its_identity]
+  - rule: Command replay requires the same normalized input.
+    tested_by: [replay_with_other_input_conflicts]
+
+agreements:
+  - between: [test_provider, test_saved_provider]
+    must: Validate the key and probe through the same bounded ProviderTestOutcome::probe.
+    holds: true
+    tested_by: [tested_key_is_not_stored_or_echoed, saved_test_uses_the_stored_key]
+  - between: [delete_in, secrets::remove_scope_in]
+    must: Remove the key with the provider in one write transaction.
+    holds: true
+    tested_by: [delete_provider_removes_its_key]

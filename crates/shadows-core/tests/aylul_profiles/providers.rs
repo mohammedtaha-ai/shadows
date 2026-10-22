@@ -11,7 +11,8 @@ async fn provider_slug_rules() {
         (3, "Work", "work"),
     ] {
         assert_eq!(
-            w.profiles
+            w.app
+                .providers()
                 .create_provider(format!("p{i}"), provider(name))
                 .await
                 .unwrap()
@@ -20,7 +21,8 @@ async fn provider_slug_rules() {
         );
     }
     let p = w
-        .profiles
+        .app
+        .providers()
         .create_provider("long".into(), provider(&"a".repeat(40)))
         .await
         .unwrap();
@@ -46,7 +48,8 @@ async fn invalid_provider_input_is_refused() {
             })
             .collect();
         assert!(
-            w.profiles
+            w.app
+                .providers()
                 .create_provider(uuid::Uuid::new_v4().to_string(), input)
                 .await
                 .is_err()
@@ -61,7 +64,8 @@ async fn invalid_provider_input_is_refused() {
         let mut input = provider("Bad");
         input.base_url = Some(url.into());
         assert!(
-            w.profiles
+            w.app
+                .providers()
                 .create_provider(uuid::Uuid::new_v4().to_string(), input)
                 .await
                 .is_err()
@@ -71,7 +75,8 @@ async fn invalid_provider_input_is_refused() {
         let mut input = provider("Bad");
         input.models[0].context_window = Some(size);
         assert!(
-            w.profiles
+            w.app
+                .providers()
                 .create_provider(uuid::Uuid::new_v4().to_string(), input)
                 .await
                 .is_err()
@@ -80,7 +85,8 @@ async fn invalid_provider_input_is_refused() {
     let mut input = provider("Local");
     input.base_url = Some("http://localhost:8000".into());
     assert!(
-        w.profiles
+        w.app
+            .providers()
             .create_provider("local".into(), input)
             .await
             .is_ok()
@@ -90,12 +96,13 @@ async fn invalid_provider_input_is_refused() {
 #[tokio::test]
 async fn provider_in_use_cannot_be_deleted() {
     let w = seeded().await;
-    w.profiles
+    w.app
+        .agents()
         .create_agent("a".into(), agent("Work"))
         .await
         .unwrap();
     assert!(matches!(
-        w.profiles.delete_provider("d".into(), "provider").await,
+        w.app.agents().delete_provider("d".into(), "provider").await,
         Err(CoreError::ProviderInUse(_))
     ));
 }
@@ -103,7 +110,8 @@ async fn provider_in_use_cannot_be_deleted() {
 #[tokio::test]
 async fn removing_an_agents_default_model_is_refused() {
     let w = seeded().await;
-    w.profiles
+    w.app
+        .agents()
         .create_agent("a".into(), agent("Work"))
         .await
         .unwrap();
@@ -113,7 +121,8 @@ async fn removing_an_agents_default_model_is_refused() {
         context_window: None,
     }];
     assert!(matches!(
-        w.profiles
+        w.app
+            .agents()
             .update_provider("u".into(), "provider", input)
             .await,
         Err(CoreError::ProviderInUse(_))
@@ -123,11 +132,13 @@ async fn removing_an_agents_default_model_is_refused() {
 #[tokio::test]
 async fn delete_provider_removes_its_key() {
     let w = seeded().await;
-    w.secrets
-        .set_provider_key("s".into(), "provider", "synthetic")
+    w.app
+        .providers()
+        .set_key("s".into(), "provider", "synthetic")
         .await
         .unwrap();
-    w.profiles
+    w.app
+        .agents()
         .delete_provider("d".into(), "provider")
         .await
         .unwrap();
@@ -142,19 +153,21 @@ async fn delete_provider_removes_its_key() {
 #[tokio::test]
 async fn provider_key_is_write_only() {
     let w = seeded().await;
-    w.secrets
-        .set_provider_key("s".into(), "provider", "synthetic-provider-secret")
+    w.app
+        .providers()
+        .set_key("s".into(), "provider", "synthetic-provider-secret")
         .await
         .unwrap();
-    let p = w.profiles.provider("provider").await.unwrap();
+    let p = w.app.providers().provider("provider").await.unwrap();
     assert!(p.key_set);
     assert!(
         !serde_json::to_string(&p)
             .unwrap()
             .contains("synthetic-provider-secret")
     );
-    w.secrets
-        .remove_provider_key("r".into(), "provider")
+    w.app
+        .providers()
+        .remove_key("r".into(), "provider")
         .await
         .unwrap();
     assert!(!w.secrets.provider_key_set("provider").await.unwrap());
@@ -164,13 +177,15 @@ async fn provider_key_is_write_only() {
 async fn replay_with_other_input_conflicts() {
     let w = seeded().await;
     let replay = w
-        .profiles
+        .app
+        .providers()
         .create_provider("p".into(), provider("Provider"))
         .await
         .unwrap();
     assert_eq!(replay.slug, "provider");
     assert!(matches!(
-        w.profiles
+        w.app
+            .providers()
             .create_provider("p".into(), provider("Other"))
             .await,
         Err(CoreError::Storage(
@@ -187,7 +202,8 @@ async fn preset_supplies_url_and_name() {
     }))
     .unwrap();
     let p = w
-        .profiles
+        .app
+        .providers()
         .create_provider("preset".into(), input)
         .await
         .unwrap();
@@ -199,7 +215,8 @@ async fn preset_supplies_url_and_name() {
 async fn presets_list_in_fixed_order() {
     let w = world().await;
     let ids: Vec<_> = w
-        .profiles
+        .app
+        .providers()
         .provider_presets()
         .into_iter()
         .map(|p| p.id)
@@ -221,7 +238,7 @@ async fn presets_list_in_fixed_order() {
 #[tokio::test]
 async fn china_presets_use_china_hosts() {
     let w = world().await;
-    let presets = w.profiles.provider_presets();
+    let presets = w.app.providers().provider_presets();
     assert_eq!(presets[1].base_url, "https://api.minimaxi.com/anthropic");
     assert_eq!(presets[6].base_url, "https://api.moonshot.cn/anthropic");
     assert_eq!(
@@ -234,7 +251,7 @@ async fn refused(value: serde_json::Value) {
     let w = world().await;
     let input = serde_json::from_value(value).unwrap();
     assert!(matches!(
-        w.profiles.create_provider("bad".into(), input).await,
+        w.app.providers().create_provider("bad".into(), input).await,
         Err(CoreError::ProfileInvalid(_))
     ));
 }
@@ -272,7 +289,8 @@ async fn label_is_trimmed_and_empty_is_null() {
             "preset":"minimax","models":[{"id":"m"}],"label":label}))
         .unwrap();
         let p = w
-            .profiles
+            .app
+            .providers()
             .create_provider(format!("p{i}"), input)
             .await
             .unwrap();
@@ -292,7 +310,8 @@ async fn model_window_defaults_and_is_bounded() {
         }))
         .unwrap();
         let p = w
-            .profiles
+            .app
+            .providers()
             .create_provider(format!("w{i}"), input)
             .await
             .unwrap();
@@ -338,20 +357,23 @@ async fn test_is_a_reserved_provider_slug() {
         ("occupied", "Test-2", "test-2-2"),
     ] {
         let p = w
-            .profiles
+            .app
+            .providers()
             .create_provider(command.into(), provider(name))
             .await
             .unwrap();
         assert_eq!(p.slug, expected);
     }
     let replay = w
-        .profiles
+        .app
+        .providers()
         .create_provider("first".into(), provider("Test"))
         .await
         .unwrap();
     assert_eq!(replay.slug, "test-2");
     let renamed = w
-        .profiles
+        .app
+        .agents()
         .update_provider("rename".into(), "test-2", provider("Renamed"))
         .await
         .unwrap();
@@ -359,7 +381,8 @@ async fn test_is_a_reserved_provider_slug() {
     let mut a = agent("Test");
     a.provider = "test-2".into();
     assert_eq!(
-        w.profiles
+        w.app
+            .agents()
             .create_agent("agent".into(), a)
             .await
             .unwrap()
@@ -372,7 +395,8 @@ async fn test_is_a_reserved_provider_slug() {
 async fn existing_test_provider_keeps_its_identity() {
     let w = world().await;
     let p = w
-        .profiles
+        .app
+        .providers()
         .create_provider("p".into(), provider("Legacy"))
         .await
         .unwrap();
@@ -382,13 +406,18 @@ async fn existing_test_provider_keeps_its_identity() {
         .await
         .unwrap();
     let p = w
-        .profiles
+        .app
+        .agents()
         .update_provider("u".into(), "test", provider("Renamed"))
         .await
         .unwrap();
     assert_eq!(p.slug, "test");
-    assert_eq!(w.profiles.provider("test").await.unwrap().name, "Renamed");
-    w.profiles
+    assert_eq!(
+        w.app.providers().provider("test").await.unwrap().name,
+        "Renamed"
+    );
+    w.app
+        .agents()
         .delete_provider("d".into(), "test")
         .await
         .unwrap();

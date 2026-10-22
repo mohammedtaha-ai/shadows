@@ -5,7 +5,8 @@ use super::*;
 async fn aylul_harness_only_in_the_aylul_project() {
     let w = seeded().await;
     let core = core(&w).await;
-    w.profiles
+    w.app
+        .agents()
         .create_agent("agent".into(), agent("Work"))
         .await
         .unwrap();
@@ -45,38 +46,7 @@ async fn aylul_harness_only_in_the_aylul_project() {
 }
 
 pub(super) async fn core(w: &World) -> Arc<shadows_core::AppCore> {
-    use shadows_core::testing::{LiveHandles, Runtime, Sessions, SessionsConfig};
-    let (runtime, _) = Runtime::start(w.storage.clone()).await.unwrap();
-    let root = w._tmp.path().join("home");
-    std::fs::create_dir_all(&root).unwrap();
-    let sessions = Sessions::new(
-        Arc::new(shadows_agent::claude::ClaudeAdapter {
-            node: std::env::current_exe().unwrap(),
-            adapter: "unused.js".into(),
-            agent: std::env::current_exe().unwrap(),
-            adapter_version: "fixture".into(),
-            agent_version: "fixture".into(),
-        }),
-        w.storage.clone(),
-        SessionsConfig {
-            secrets: Some(w.secrets.clone()),
-            aylul: Some(shadows_core::AylulConfig {
-                project_slug: "aylul".into(),
-                home_root: root.clone(),
-            }),
-            ..Default::default()
-        },
-    );
-    shadows_core::AppCore::assemble(shadows_core::CoreParts {
-        storage: w.storage.clone(),
-        secrets: w.secrets.clone(),
-        runtime: Arc::new(runtime),
-        sessions,
-        handles: Arc::new(LiveHandles::default()),
-        bus: tokio::sync::broadcast::channel(16).0,
-        ui: tokio::sync::broadcast::channel(16).0,
-        mcp_url: "".into(),
-    })
+    w.app.clone()
 }
 
 #[tokio::test]
@@ -94,7 +64,8 @@ async fn aylul_thread_requires_a_live_agent() {
             .await
             .is_err()
     );
-    w.profiles
+    w.app
+        .agents()
         .create_agent("a".into(), agent("Work"))
         .await
         .unwrap();
@@ -157,7 +128,8 @@ async fn threads_list_by_profile_only() {
         .await
         .unwrap();
     for name in ["Work", "Personal"] {
-        w.profiles
+        w.app
+            .agents()
             .create_agent(name.into(), agent(name))
             .await
             .unwrap();
@@ -253,7 +225,8 @@ async fn fork_keeps_profile() {
         .ensure_assistant("aylul", "AYLUL", &w._tmp.path().join("home"))
         .await
         .unwrap();
-    w.profiles
+    w.app
+        .agents()
         .create_agent("a".into(), agent("Work"))
         .await
         .unwrap();

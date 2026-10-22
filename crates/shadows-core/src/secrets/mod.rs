@@ -33,6 +33,19 @@ impl SealedEnv {
     }
 }
 
+/// One sealed value under its user command, ready for a write transaction.
+pub(crate) struct EnvWrite {
+    command: CommandContext,
+    value: SealedEnv,
+}
+
+/// One removal under its user command, ready for a write transaction.
+pub(crate) struct EnvRemoval {
+    command: CommandContext,
+    profile: String,
+    name: String,
+}
+
 impl std::fmt::Debug for Secrets {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Secrets(..)")
@@ -131,23 +144,120 @@ impl Secrets {
         })
     }
 
-    /// Stores one sealed value inside the caller's transaction. The caller
-    /// owns the existence check of the scope and the command record.
-    #[expect(
-        dead_code,
-        reason = "the agent and provider owners call it once they hold their env writes"
-    )]
-    pub(crate) async fn put_in(
+    /// Seals `value` for `profile`/`name` under its `secret_env.set` command, before
+    /// any transaction, so a refused value never reaches one.
+    pub(crate) fn env_write(
         &self,
-        conn: &mut sqlx::SqliteConnection,
-        value: SealedEnv,
-        ts: &str,
-    ) -> Result<EnvEntry, crate::StorageError> {
-        store::SecretsStore::upsert(conn, &value, ts).await?;
-        Ok(EnvEntry {
-            name: value.name,
-            updated_at: ts.into(),
+        command_id: String,
+        profile: &str,
+        name: &str,
+        value: &str,
+    ) -> Result<EnvWrite, CoreError> {
+        let value = self.seal(profile, name, value)?;
+        let command = CommandContext::user(
+            command_id,
+            "secret_env.set",
+            serde_json::json!({
+                "profile": profile, "name": name, "value_mac": value.value_mac(),
+            }),
+        );
+        Ok(EnvWrite { command, value })
+    }
+
+    /// The provider key write: its scope and name are this service's.
+    pub(crate) fn provider_key_write(
+        &self,
+        command_id: String,
+        provider: &str,
+        value: &str,
+    ) -> Result<EnvWrite, CoreError> {
+        let scope = Self::provider_scope(provider);
+        self.env_write(command_id, &scope, PROVIDER_KEY_NAME, value)
+    }
+
+    /// Checks the key and the name's shape, and builds the `secret_env.remove` command.
+    pub(crate) fn env_removal(
+        &self,
+        command_id: String,
+        profile: &str,
+        name: &str,
+    ) -> Result<EnvRemoval, CoreError> {
+        self.keys()?;
+        validate_env_format(name)?;
+        let command = CommandContext::user(
+            command_id,
+            "secret_env.remove",
+            serde_json::json!({
+                "profile": profile, "name": name,
+            }),
+        );
+        Ok(EnvRemoval {
+            command,
+            profile: profile.into(),
+            name: name.into(),
         })
+    }
+
+    /// The provider key removal.
+    pub(crate) fn provider_key_removal(
+        &self,
+        command_id: String,
+        provider: &str,
+    ) -> Result<EnvRemoval, CoreError> {
+        let scope = Self::provider_scope(provider);
+        self.env_removal(command_id, &scope, PROVIDER_KEY_NAME)
+    }
+
+    /// The recorded entry when `write` replays a command, inside the caller's write.
+    /// A replay answers before the caller checks its owner, so removal cannot change it.
+    pub(crate) async fn replayed_write_in(
+        conn: &mut sqlx::SqliteConnection,
+        write: &EnvWrite,
+    ) -> Result<Option<EnvEntry>, crate::StorageError> {
+        let scope = format!("{}/{}", write.value.profile, write.value.name);
+        store::SecretsStore::replayed_in(conn, &write.command, &scope)
+            .await?
+            .map(|outcome| {
+                serde_json::from_str(&outcome)
+                    .map_err(|_| crate::StorageError::Unavailable("invalid secret outcome".into()))
+            })
+            .transpose()
+    }
+
+    /// Stores one sealed value and records its command inside the caller's write. The
+    /// caller asked `replayed_write_in` and checked the scope's owner first.
+    pub(crate) async fn put_in(
+        conn: &mut sqlx::SqliteConnection,
+        write: EnvWrite,
+    ) -> Result<EnvEntry, crate::StorageError> {
+        store::SecretsStore::put_in(conn, &write.command, write.value).await
+    }
+
+    /// Whether `removal` replays a command, inside the caller's write.
+    pub(crate) async fn replayed_removal_in(
+        conn: &mut sqlx::SqliteConnection,
+        removal: &EnvRemoval,
+    ) -> Result<bool, crate::StorageError> {
+        let scope = format!("{}/{}", removal.profile, removal.name);
+        Ok(
+            store::SecretsStore::replayed_in(conn, &removal.command, &scope)
+                .await?
+                .is_some(),
+        )
+    }
+
+    /// Removes one value and records its command inside the caller's write. The caller
+    /// asked `replayed_removal_in` and checked the scope's owner first.
+    pub(crate) async fn remove_in(
+        conn: &mut sqlx::SqliteConnection,
+        removal: EnvRemoval,
+    ) -> Result<(), crate::StorageError> {
+        let EnvRemoval {
+            command,
+            profile,
+            name,
+        } = removal;
+        store::SecretsStore::delete_in(conn, &command, &profile, &name).await
     }
 
     /// Removes every value of one scope inside the caller's transaction.
@@ -182,6 +292,8 @@ impl Secrets {
         Ok(self.store.list(profile).await?)
     }
 
+    /// Stores one value of any scope. Owner checks belong to the scope's owner, which
+    /// writes through `put_in` instead.
     pub async fn set_env(
         &self,
         command_id: String,
@@ -189,104 +301,39 @@ impl Secrets {
         name: &str,
         value: &str,
     ) -> Result<EnvEntry, CoreError> {
-        self.set_env_mode(command_id, profile, name, value, false)
-            .await
+        let write = self.env_write(command_id, profile, name, value)?;
+        Ok(self
+            .store
+            .write(move |conn| {
+                Box::pin(async move {
+                    if let Some(entry) = Self::replayed_write_in(conn, &write).await? {
+                        return Ok(entry);
+                    }
+                    Self::put_in(conn, write).await
+                })
+            })
+            .await?)
     }
+
+    /// Removes one value of any scope; a replay removes nothing again.
     pub async fn remove_env(
         &self,
         command_id: String,
         profile: &str,
         name: &str,
     ) -> Result<(), CoreError> {
-        self.remove_env_mode(command_id, profile, name, false).await
-    }
-    pub async fn set_agent_env(
-        &self,
-        command_id: String,
-        agent: &str,
-        name: &str,
-        value: &str,
-    ) -> Result<EnvEntry, CoreError> {
-        self.set_env_mode(command_id, agent, name, value, true)
-            .await
-    }
-    pub async fn remove_agent_env(
-        &self,
-        command_id: String,
-        agent: &str,
-        name: &str,
-    ) -> Result<(), CoreError> {
-        self.remove_env_mode(command_id, agent, name, true).await
-    }
-    pub async fn list_agent_env(&self, agent: &str) -> Result<Vec<EnvEntry>, CoreError> {
-        self.store.require_live_agent(agent).await?;
-        self.list_env(agent).await
-    }
-
-    async fn set_env_mode(
-        &self,
-        command_id: String,
-        profile: &str,
-        name: &str,
-        value: &str,
-        agent_only: bool,
-    ) -> Result<EnvEntry, CoreError> {
-        let sealed = self.seal(profile, name, value)?;
-        let c = CommandContext::user(
-            command_id,
-            "secret_env.set",
-            serde_json::json!({
-                "profile": profile, "name": name, "value_mac": sealed.value_mac(),
-            }),
-        );
-        Ok(self.store.set(c, sealed, agent_only).await?)
-    }
-
-    async fn remove_env_mode(
-        &self,
-        command_id: String,
-        profile: &str,
-        name: &str,
-        agent_only: bool,
-    ) -> Result<(), CoreError> {
-        self.keys()?;
-        validate_env_format(name)?;
-        let c = CommandContext::user(
-            command_id,
-            "secret_env.remove",
-            serde_json::json!({
-                "profile": profile, "name": name,
-            }),
-        );
-        Ok(self.store.remove(c, profile, name, agent_only).await?)
-    }
-
-    pub async fn set_provider_key(
-        &self,
-        command_id: String,
-        provider: &str,
-        value: &str,
-    ) -> Result<EnvEntry, CoreError> {
-        self.set_env(
-            command_id,
-            &Self::provider_scope(provider),
-            PROVIDER_KEY_NAME,
-            value,
-        )
-        .await
-    }
-
-    pub async fn remove_provider_key(
-        &self,
-        command_id: String,
-        provider: &str,
-    ) -> Result<(), CoreError> {
-        self.remove_env(
-            command_id,
-            &Self::provider_scope(provider),
-            PROVIDER_KEY_NAME,
-        )
-        .await
+        let removal = self.env_removal(command_id, profile, name)?;
+        Ok(self
+            .store
+            .write(move |conn| {
+                Box::pin(async move {
+                    if Self::replayed_removal_in(conn, &removal).await? {
+                        return Ok(());
+                    }
+                    Self::remove_in(conn, removal).await
+                })
+            })
+            .await?)
     }
 
     pub async fn provider_key_set(&self, provider: &str) -> Result<bool, CoreError> {

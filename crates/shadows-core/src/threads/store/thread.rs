@@ -22,7 +22,7 @@ impl Storage {
         title: &str,
         harness: &str,
         profile: Option<&str>,
-    ) -> Result<PlanningThread, StorageError> {
+    ) -> Result<PlanningThread, crate::CoreError> {
         let (ctx, project_id, title, harness, ts) = (
             ctx.clone(),
             project_id.clone(),
@@ -31,14 +31,14 @@ impl Storage {
             now(),
         );
         let profile = profile.map(str::to_owned);
-        self.write_txn(move |conn| {
+        self.write_txn_as(move |conn| {
             Box::pin(async move {
                 let scope_key = project_id.as_str().to_string();
                 if let Some(id) = classify(conn, &ctx, "Project", &scope_key).await? {
-                    return load_thread(conn, &ThreadId::from_stored(id)).await;
+                    return Ok(load_thread(conn, &ThreadId::from_stored(id)).await?);
                 }
                 if let Some(profile) = &profile {
-                    crate::profiles::require_live_agent_in(conn, profile).await?;
+                    crate::agents::Agents::require_live_in(conn, profile).await?;
                 }
                 let actor = Actor::user(&ctx.principal_id);
                 let id = insert_thread(
@@ -55,7 +55,8 @@ impl Storage {
                     .bind(&profile)
                     .bind(id.as_str())
                     .execute(&mut *conn)
-                    .await?;
+                    .await
+                    .map_err(StorageError::from)?;
                 record_command(
                     conn,
                     &ctx,
@@ -66,7 +67,7 @@ impl Storage {
                     &ts,
                 )
                 .await?;
-                load_thread(conn, &id).await
+                Ok(load_thread(conn, &id).await?)
             })
         })
         .await

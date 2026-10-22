@@ -10,7 +10,7 @@ fn input() -> Value {
 async fn person_names_are_checked() {
     let w = world().await;
     assert_eq!(
-        serde_json::to_value(w.profiles.person().await.unwrap()).unwrap(),
+        serde_json::to_value(w.app.person().person().await.unwrap()).unwrap(),
         json!({"name":null,"aylul_calls_me":null,"language":null,"theme":"system",
             "updated_at":null})
     );
@@ -25,7 +25,8 @@ async fn person_names_are_checked() {
             let mut v = input();
             v[field] = name.into();
             let p = w
-                .profiles
+                .app
+                .person()
                 .set_person(
                     uuid::Uuid::new_v4().to_string(),
                     serde_json::from_value(v).unwrap(),
@@ -44,7 +45,8 @@ async fn person_names_are_checked() {
             let mut v = input();
             v[field] = name.into();
             assert!(matches!(
-                w.profiles
+                w.app
+                    .person()
                     .set_person(
                         uuid::Uuid::new_v4().to_string(),
                         serde_json::from_value(v).unwrap()
@@ -63,7 +65,8 @@ async fn language_tag_shape_is_checked() {
         let mut v = input();
         v["language"] = tag.into();
         let p = w
-            .profiles
+            .app
+            .person()
             .set_person(
                 uuid::Uuid::new_v4().to_string(),
                 serde_json::from_value(v).unwrap(),
@@ -86,7 +89,8 @@ async fn language_tag_shape_is_checked() {
         let mut v = input();
         v["language"] = tag.into();
         assert!(matches!(
-            w.profiles
+            w.app
+                .person()
                 .set_person(
                     uuid::Uuid::new_v4().to_string(),
                     serde_json::from_value(v).unwrap()
@@ -104,7 +108,8 @@ async fn theme_values_are_checked() {
         let mut v = input();
         v["theme"] = theme.into();
         let p = w
-            .profiles
+            .app
+            .person()
             .set_person(theme.into(), serde_json::from_value(v).unwrap())
             .await
             .unwrap();
@@ -121,7 +126,8 @@ async fn person_replay_with_other_input_conflicts() {
     let mut v = input();
     v["name"] = "  Alex  ".into();
     let p = w
-        .profiles
+        .app
+        .person()
         .set_person("p".into(), serde_json::from_value(v.clone()).unwrap())
         .await
         .unwrap();
@@ -129,7 +135,8 @@ async fn person_replay_with_other_input_conflicts() {
     let mut writes = testing::database_writes(&w.storage).await.unwrap();
     let before = writes.version().await.unwrap();
     let replay = w
-        .profiles
+        .app
+        .person()
         .set_person("p".into(), serde_json::from_value(v.clone()).unwrap())
         .await
         .unwrap();
@@ -146,7 +153,8 @@ async fn person_replay_with_other_input_conflicts() {
         let mut changed = v.clone();
         changed[field] = value.into();
         assert!(matches!(
-            w.profiles
+            w.app
+                .person()
                 .set_person("p".into(), serde_json::from_value(changed).unwrap())
                 .await,
             Err(CoreError::Storage(
@@ -155,11 +163,12 @@ async fn person_replay_with_other_input_conflicts() {
         ));
     }
     assert_eq!(writes.version().await.unwrap(), before);
-    w.profiles
+    w.app
+        .person()
         .set_person("clear".into(), serde_json::from_value(input()).unwrap())
         .await
         .unwrap();
-    assert!(w.profiles.person().await.unwrap().name.is_none());
+    assert!(w.app.person().person().await.unwrap().name.is_none());
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM aylul_person")
         .fetch_one(w.storage.reader())
         .await

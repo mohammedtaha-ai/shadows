@@ -4,18 +4,6 @@ use crate::plans::{PlanId, Problem, WorkflowId};
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
-    #[error("extension not found")]
-    ExtensionNotFound,
-    #[error("extension name is already in use")]
-    ExtensionNameConflict,
-    #[error("AYLUL agent not found: {0}")]
-    AylulProfileNotFound(String),
-    #[error("AYLUL provider not found: {0}")]
-    AylulProviderNotFound(String),
-    #[error("provider is used by: {0}")]
-    ProviderInUse(String),
-    #[error("invalid profile: {0}")]
-    ProfileInvalid(String),
     #[error("{0}")]
     StageBlocked(String),
     #[error("storage is unavailable: {0}")]

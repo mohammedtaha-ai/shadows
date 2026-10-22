@@ -19,12 +19,6 @@ impl From<StorageError> for Failure {
             detail: Detail::default(),
         };
         let (status, code, message) = match &e {
-            StorageError::ExtensionNotFound => {
-                return own(StatusCode::NOT_FOUND, ErrorCode::ExtensionNotFound);
-            }
-            StorageError::ExtensionNameConflict => {
-                return own(StatusCode::CONFLICT, ErrorCode::ExtensionNameConflict);
-            }
             StorageError::StageBlocked(_) => {
                 return own(StatusCode::CONFLICT, ErrorCode::StageBlocked);
             }

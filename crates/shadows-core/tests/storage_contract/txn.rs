@@ -9,6 +9,75 @@ use shadows_core::testing::DurableEvent;
 use shadows_core::testing::Storage;
 use sqlx::Connection;
 
+#[tokio::test]
+async fn owner_error_rolls_back_and_the_next_write_succeeds() {
+    #[derive(Debug)]
+    enum OwnerError {
+        Storage(shadows_core::StorageError),
+        Refused,
+    }
+    impl From<shadows_core::StorageError> for OwnerError {
+        fn from(error: shadows_core::StorageError) -> Self {
+            Self::Storage(error)
+        }
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap();
+    let committed = storage.watch_committed();
+    let outcome = storage
+        .write_txn_as(|conn| {
+            Box::pin(async move {
+                sqlx::query(
+                    "INSERT INTO project (id,slug,name,directory,created_at)
+                     VALUES ('p-owner','owner','Owner','/d','2026-10-22T00:00:00Z')",
+                )
+                .execute(&mut *conn)
+                .await
+                .map_err(shadows_core::StorageError::from)?;
+                shadows_core::testing::append_event_for_test(
+                    conn,
+                    &DurableEvent::new("ProjectCreated", Actor::system())
+                        .with_project(&ProjectId::from_literal("p-owner")),
+                    "2026-10-22T00:00:00Z",
+                )
+                .await?;
+                Err::<(), _>(OwnerError::Refused)
+            })
+        })
+        .await;
+    assert!(matches!(outcome, Err(OwnerError::Refused)));
+    for table in ["project", "durable_event"] {
+        let count: i64 =
+            sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT COUNT(*) FROM {table}")))
+                .fetch_one(storage.reader())
+                .await
+                .unwrap();
+        assert_eq!(count, 0, "owner refusal must roll back {table}");
+    }
+    assert!(
+        !committed.has_changed().unwrap(),
+        "rollback must not publish"
+    );
+    let outcome: Result<(), OwnerError> = storage
+        .write_txn_as(|conn| {
+            Box::pin(async move {
+                sqlx::query(
+                    "INSERT INTO project (id,slug,name,directory,created_at)
+                     VALUES ('p-next','next','Next','/d','2026-10-22T00:00:00Z')",
+                )
+                .execute(conn)
+                .await
+                .map_err(shadows_core::StorageError::from)?;
+                Ok(())
+            })
+        })
+        .await;
+    if let Err(OwnerError::Storage(error)) = &outcome {
+        panic!("the next write must succeed: {error}");
+    }
+    assert!(outcome.is_ok(), "the next write must succeed");
+}
+
 /// Spec §2.4 and cross-cutting rule 5: state and event commit together or not
 /// at all. A live publication failure must never roll back committed truth, and
 /// a rolled-back transaction must leave no event behind.

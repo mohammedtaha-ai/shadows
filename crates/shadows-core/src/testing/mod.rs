@@ -24,15 +24,6 @@ pub async fn resolve_secret_env(
     service.resolve_env(profile).await
 }
 
-pub fn profiles(
-    storage: Arc<Storage>,
-    secrets: Arc<crate::Secrets>,
-    home_root: std::path::PathBuf,
-) -> Arc<crate::Profiles> {
-    let projects = projects(storage.clone());
-    crate::Profiles::new(storage, secrets, Some(home_root), projects)
-}
-
 /// The projects service over `storage`, for a test that has no `AppCore`.
 pub fn projects(storage: Arc<Storage>) -> crate::Projects {
     crate::Projects::new(storage)

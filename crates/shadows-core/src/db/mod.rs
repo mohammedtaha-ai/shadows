@@ -174,6 +174,15 @@ impl Storage {
     where
         F: for<'a> FnOnce(&'a mut SqliteConnection) -> BoxFuture<'a, Result<T, StorageError>>,
     {
+        self.write_txn_as(f).await
+    }
+
+    /// Runs an owner's write on the same serialized connection and rollback path.
+    pub async fn write_txn_as<F, T, E>(&self, f: F) -> Result<T, E>
+    where
+        F: for<'a> FnOnce(&'a mut SqliteConnection) -> BoxFuture<'a, Result<T, E>>,
+        E: From<StorageError>,
+    {
         use sqlx::Executor;
         let mut guard = self.write.lock().await;
 
@@ -190,7 +199,7 @@ impl Storage {
                         "failed to roll back a recovered transaction; the write \
                          connection may be poisoned"
                     );
-                    return Err(e.into());
+                    return Err(StorageError::from(e).into());
                 }
             }
         }
@@ -201,11 +210,19 @@ impl Storage {
         // took effect on the connection before we lost the chance to observe
         // its result.
         guard.txn_open = true;
-        guard.conn.execute("BEGIN IMMEDIATE").await?;
+        guard
+            .conn
+            .execute("BEGIN IMMEDIATE")
+            .await
+            .map_err(StorageError::from)?;
 
         match f(&mut guard.conn).await {
             Ok(v) => {
-                guard.conn.execute("COMMIT").await?;
+                guard
+                    .conn
+                    .execute("COMMIT")
+                    .await
+                    .map_err(StorageError::from)?;
                 guard.txn_open = false;
                 self.publish_committed(&mut guard.conn).await;
                 Ok(v)

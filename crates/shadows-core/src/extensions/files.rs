@@ -1,14 +1,13 @@
 //! Bounded immutable library copies, without executing imported components.
-use super::{ExtensionKind, Item};
-use crate::db::StorageError;
+use super::{ExtensionKind, Extensions, ExtensionsError, Item};
 use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-fn invalid() -> StorageError {
-    StorageError::ProfileInvalid("invalid extension source".into())
+fn invalid() -> ExtensionsError {
+    ExtensionsError::Invalid("invalid extension source".into())
 }
-fn checked(path: &Path) -> Result<std::fs::Metadata, StorageError> {
+fn checked(path: &Path) -> Result<std::fs::Metadata, ExtensionsError> {
     let meta = std::fs::symlink_metadata(path).map_err(|_| invalid())?;
     #[cfg(windows)]
     {
@@ -29,7 +28,7 @@ fn files(
     size: &mut usize,
     visited: &mut usize,
     depth: usize,
-) -> Result<(), StorageError> {
+) -> Result<(), ExtensionsError> {
     *visited += 1;
     if *visited > 20000 || depth > 256 {
         return Err(invalid());
@@ -76,7 +75,7 @@ fn name_valid(name: &str) -> bool {
         && b.iter()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == b'-')
 }
-fn metadata(root: &Path, kind: ExtensionKind, id: &str) -> Result<Item, StorageError> {
+fn metadata(root: &Path, kind: ExtensionKind, id: &str) -> Result<Item, ExtensionsError> {
     let (name, description) = match kind {
         ExtensionKind::Plugin => {
             let value: serde_json::Value = serde_json::from_slice(
@@ -114,12 +113,34 @@ fn metadata(root: &Path, kind: ExtensionKind, id: &str) -> Result<Item, StorageE
     })
 }
 
-pub(super) fn publish(
+impl Extensions {
+    /// Copies a bounded source into the library under `id`, answering its metadata and digest.
+    pub(super) fn publish(
+        source: &Path,
+        library: &Path,
+        kind: ExtensionKind,
+        id: &str,
+    ) -> Result<(Item, String), ExtensionsError> {
+        publish(source, library, kind, id)
+    }
+
+    /// Copies one library item's regular files into a managed snapshot.
+    pub(crate) fn copy_tree(source: &Path, target: &Path) -> Result<(), ExtensionsError> {
+        copy_tree(source, target)
+    }
+
+    /// Metadata deletion is authoritative; failed cleanup leaves only an inert owned copy.
+    pub(super) fn retire(library: &Path, id: &str) {
+        retire(library, id)
+    }
+}
+
+fn publish(
     source: &Path,
     library: &Path,
     kind: ExtensionKind,
     id: &str,
-) -> Result<(Item, String), StorageError> {
+) -> Result<(Item, String), ExtensionsError> {
     for ancestor in source.ancestors() {
         if ancestor.exists() {
             checked(ancestor)?;
@@ -158,7 +179,7 @@ pub(super) fn publish(
     result
 }
 
-pub(crate) fn copy_extension_tree(source: &Path, target: &Path) -> Result<(), StorageError> {
+fn copy_tree(source: &Path, target: &Path) -> Result<(), ExtensionsError> {
     let mut entries = Vec::new();
     files(source, source, &mut entries, &mut 0, &mut 0, 0)?;
     std::fs::create_dir_all(target).map_err(|_| invalid())?;
@@ -170,8 +191,7 @@ pub(crate) fn copy_extension_tree(source: &Path, target: &Path) -> Result<(), St
     Ok(())
 }
 
-/// Metadata deletion is authoritative; failed cleanup leaves only an inert owned copy.
-pub(super) fn retire(library: &Path, id: &str) {
+fn retire(library: &Path, id: &str) {
     if uuid::Uuid::parse_str(id).is_err() {
         return;
     }

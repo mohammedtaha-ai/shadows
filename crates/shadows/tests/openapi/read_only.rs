@@ -29,7 +29,7 @@ async fn no_get_route_changes_state() {
         .await
         .unwrap();
     a.core
-        .profiles()
+        .providers()
         .create_provider(
             "provider".into(),
             shadows_core::ProviderInput {
@@ -49,7 +49,7 @@ async fn no_get_route_changes_state() {
         .await
         .unwrap();
     a.core
-        .profiles()
+        .agents()
         .create_agent(
             "agent".into(),
             shadows_core::AgentInput {

@@ -14,7 +14,7 @@ Two kinds of file, split by what can be checked:
 
 | File | Kind | Answers |
 |---|---|---|
-| `crates/shadows-http/src/aylul_profiles.rs` | AYLUL configuration HTTP translation | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-http/src/aylul_profiles.rs` | AYLUL configuration HTTP translation | `crates/shadows-core/src/providers/contract.yaml` |
 | `crates/shadows-http/src/aylul_profiles_tests.rs` | AYLUL configuration route acceptance tests | `crates/shadows-http/src/aylul_profiles.rs` |
 | this file | written by hand | *Where does my new code go?* The one job each crate and module holds, and the invariants no change may break. |
 | each service's `contract.yaml` | written by hand, next to its code in `crates/shadows-core/src/<service>/` | *What must stay true of this service?* Its methods, obligations, agreements and tests, in the shape of [`contracts/TEMPLATE.yaml`](./contracts/TEMPLATE.yaml). |
@@ -62,26 +62,37 @@ pattern to follow, not merely an example.
 | Module | Its one job | Reference file |
 |---|---|---|
 | `crates/shadows-core/src/harness/live.rs` | live adapter opening | `crates/shadows-core/src/harness/contract.yaml` |
-| `crates/shadows-core/src/profiles/extension_model.rs` | public extension metadata | `crates/shadows-core/src/profiles/contract.yaml` |
-| `crates/shadows-core/src/profiles/extensions.rs` | extension library service rules | `crates/shadows-core/src/profiles/contract.yaml` |
-| `crates/shadows-core/src/profiles/extension_files.rs` | bounded library file copies | `crates/shadows-core/src/profiles/contract.yaml` |
-| `crates/shadows-core/src/profiles/extension_store.rs` | extension configuration SQL | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-core/src/providers/` | AYLUL provider configuration | `crates/shadows-core/src/providers/contract.yaml` |
+| `crates/shadows-core/src/providers/model.rs` | public provider metadata | `crates/shadows-core/src/providers/contract.yaml` |
+| `crates/shadows-core/src/providers/validation.rs` | provider input rules | `crates/shadows-core/src/providers/contract.yaml` |
+| `crates/shadows-core/src/providers/presets.rs` | compiled provider presets | `crates/shadows-core/src/providers/contract.yaml` |
+| `crates/shadows-core/src/providers/probe.rs` | bounded provider listing requests | `crates/shadows-core/src/providers/contract.yaml` |
+| `crates/shadows-core/src/providers/listing.rs` | provider model response parsing | `crates/shadows-core/src/providers/contract.yaml` |
+| `crates/shadows-core/src/providers/slug.rs` | generated configuration slug shape | `crates/shadows-core/src/providers/contract.yaml` |
+| `crates/shadows-core/src/providers/error.rs` | provider refusals | `crates/shadows-core/src/providers/contract.yaml` |
+| `crates/shadows-core/src/providers/store.rs` | provider configuration SQL | `crates/shadows-core/src/providers/contract.yaml` |
+| `crates/shadows-core/src/agents/` | permanent AYLUL agent identities | `crates/shadows-core/src/agents/contract.yaml` |
+| `crates/shadows-core/src/agents/model.rs` | public agent metadata | `crates/shadows-core/src/agents/contract.yaml` |
+| `crates/shadows-core/src/agents/home.rs` | agent home seeding | `crates/shadows-core/src/agents/contract.yaml` |
+| `crates/shadows-core/src/agents/error.rs` | agent refusals | `crates/shadows-core/src/agents/contract.yaml` |
+| `crates/shadows-core/src/agents/store.rs` | agent identity SQL | `crates/shadows-core/src/agents/contract.yaml` |
+| `crates/shadows-core/src/extensions/` | the shared extension library | `crates/shadows-core/src/extensions/contract.yaml` |
+| `crates/shadows-core/src/extensions/model.rs` | public extension metadata | `crates/shadows-core/src/extensions/contract.yaml` |
+| `crates/shadows-core/src/extensions/files.rs` | bounded library file copies | `crates/shadows-core/src/extensions/contract.yaml` |
+| `crates/shadows-core/src/extensions/error.rs` | extension library refusals | `crates/shadows-core/src/extensions/contract.yaml` |
+| `crates/shadows-core/src/extensions/store.rs` | extension configuration SQL | `crates/shadows-core/src/extensions/contract.yaml` |
+| `crates/shadows-core/src/usage/` | measured AYLUL usage | `crates/shadows-core/src/usage/contract.yaml` |
+| `crates/shadows-core/src/usage/model.rs` | usage report shapes | `crates/shadows-core/src/usage/contract.yaml` |
+| `crates/shadows-core/src/usage/report.rs` | historical usage aggregation | `crates/shadows-core/src/usage/contract.yaml` |
+| `crates/shadows-core/src/usage/store.rs` | usage row SQL | `crates/shadows-core/src/usage/contract.yaml` |
+| `crates/shadows-core/src/person/` | the local person record | `crates/shadows-core/src/person/contract.yaml` |
+| `crates/shadows-core/src/person/model.rs` | public person record | `crates/shadows-core/src/person/contract.yaml` |
+| `crates/shadows-core/src/person/store.rs` | person record SQL | `crates/shadows-core/src/person/contract.yaml` |
 | `crates/shadows-core/src/harness/extension_home.rs` | per-agent extension projection | `crates/shadows-core/src/harness/contract.yaml` |
-| `crates/shadows-http/src/aylul_extensions.rs` | extension HTTP translation | `crates/shadows-core/src/profiles/contract.yaml` |
+| `crates/shadows-http/src/aylul_extensions.rs` | extension HTTP translation | `crates/shadows-core/src/extensions/contract.yaml` |
 | `crates/shadows-http/src/aylul_extensions_tests.rs` | extension route acceptance | `crates/shadows-http/src/aylul_extensions.rs` |
-| `crates/shadows-core/src/profiles/` | AYLUL agent configuration | `crates/shadows-core/src/profiles/contract.yaml` |
-| `crates/shadows-core/src/profiles/probe.rs` | bounded provider listing requests | `crates/shadows-core/src/profiles/contract.yaml` |
-| `crates/shadows-core/src/profiles/listing.rs` | provider model response parsing | `crates/shadows-core/src/profiles/contract.yaml` |
-| `crates/shadows-core/src/profiles/presets.rs` | compiled provider presets | `crates/shadows-core/src/profiles/contract.yaml` |
-| `crates/shadows-core/src/profiles/usage.rs` | usage period rules | `crates/shadows-core/src/profiles/contract.yaml` |
-| `crates/shadows-core/src/profiles/usage_store.rs` | historical usage aggregation | `crates/shadows-core/src/profiles/contract.yaml` |
 | `crates/shadows-core/src/turns/store/usage.rs` | atomic turn usage insertion | `crates/shadows-core/src/turns/contract.yaml` |
-| `crates/shadows-core/src/profiles/person.rs` | local person record rules | `crates/shadows-core/src/profiles/contract.yaml` |
-| `crates/shadows-core/src/profiles/model.rs` | public configuration metadata | `crates/shadows-core/src/profiles/contract.yaml` |
-| `crates/shadows-core/src/profiles/providers.rs` | provider mutation rules | `crates/shadows-core/src/profiles/contract.yaml` |
-| `crates/shadows-core/src/profiles/agents.rs` | agent mutation rules | `crates/shadows-core/src/profiles/contract.yaml` |
-| `crates/shadows-core/src/profiles/store.rs` | transactional configuration SQL | `crates/shadows-core/src/profiles/contract.yaml` |
-| `crates/shadows-core/src/harness/profile_home.rs` | isolated agent home files | `docs/aylul/specs/2026-10-19-aylul-claude-code-brain-design.md` |
+| `crates/shadows-core/src/harness/profile_home.rs` | serialized agent home settings writes | `docs/aylul/specs/2026-10-19-aylul-claude-code-brain-design.md` |
 | `crates/shadows-http/src/aylul_env.rs` | AYLUL environment HTTP translation | `crates/shadows-core/src/secrets/contract.yaml` |
 | `crates/shadows-http/src/aylul_env_tests.rs` | AYLUL environment route acceptance tests | `crates/shadows-http/src/aylul_env.rs` |
 | `crates/shadows-agent/src/profile_tests.rs` | isolated profile environment tests | `crates/shadows-agent/src/profile.rs` |

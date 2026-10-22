@@ -142,12 +142,6 @@ pub enum CoreError {
 impl From<StorageError> for CoreError {
     fn from(error: StorageError) -> Self {
         match error {
-            StorageError::ExtensionNotFound => Self::ExtensionNotFound,
-            StorageError::ExtensionNameConflict => Self::ExtensionNameConflict,
-            StorageError::AylulProfileNotFound(s) => Self::AylulProfileNotFound(s),
-            StorageError::AylulProviderNotFound(s) => Self::AylulProviderNotFound(s),
-            StorageError::ProviderInUse(s) => Self::ProviderInUse(s),
-            StorageError::ProfileInvalid(s) => Self::ProfileInvalid(s),
             StorageError::PlanArchived(_) | StorageError::PlanLinkInvalid(_) => Self::Refused {
                 code: ErrorCode::InvalidCommand,
                 message: error.to_string(),

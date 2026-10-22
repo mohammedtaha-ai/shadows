@@ -1,19 +1,44 @@
-//! Shared library service rules and command normalization.
-use super::{
-    AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Item, Profiles, extension_store,
-};
-use crate::CoreError;
-use crate::db::CommandContext;
-use sha2::{Digest, Sha256};
-use std::path::{Path, PathBuf};
+//! The shared extension library and each agent's switches over it.
+mod error;
+mod files;
+mod model;
+mod store;
 
-impl Profiles {
+pub(crate) use error::ExtensionsError;
+pub use model::{AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Item};
+
+use crate::CoreError;
+use crate::db::{CommandContext, Storage};
+use sha2::{Digest, Sha256};
+use sqlx::SqliteConnection;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use store::ExtensionsStore;
+
+pub struct Extensions {
+    store: ExtensionsStore,
+    /// Serializes library mutations against the harness's snapshot projection.
+    lock: Arc<tokio::sync::Mutex<()>>,
+    home_root: Option<PathBuf>,
+}
+
+impl Extensions {
+    pub(crate) fn new(storage: Arc<Storage>, home_root: Option<PathBuf>) -> Arc<Self> {
+        Arc::new(Self {
+            store: ExtensionsStore::new(storage),
+            lock: Arc::default(),
+            home_root,
+        })
+    }
+
     pub async fn extensions(&self) -> Result<ExtensionLibrary, CoreError> {
-        Ok(extension_store::library(&self.storage).await?)
+        Ok(self.store.library().await?)
     }
+
     pub async fn agent_extensions(&self, slug: &str) -> Result<AgentExtensions, CoreError> {
-        Ok(extension_store::agent_library(&self.storage, slug).await?)
+        Ok(self.store.agent_library(slug).await?)
     }
+
     pub async fn add_extension(
         &self,
         command_id: String,
@@ -47,8 +72,9 @@ impl Profiles {
             .as_ref()
             .ok_or(CoreError::AylulNotConfigured)?
             .join("library");
-        Ok(extension_store::add(&self.storage, c, kind, source, root).await?)
+        Ok(self.store.add(c, kind, source, root).await?)
     }
+
     pub async fn delete_extension(
         &self,
         command_id: String,
@@ -61,12 +87,13 @@ impl Profiles {
             "extension.delete",
             serde_json::json!({"kind":kind,"id":id}),
         );
-        extension_store::remove(&self.storage, c, kind, id).await?;
+        self.store.remove(c, kind, id).await?;
         if let Some(root) = &self.home_root {
-            super::extension_files::retire(&root.join("library"), id);
+            Self::retire(&root.join("library"), id);
         }
         Ok(())
     }
+
     pub async fn set_agent_extension(
         &self,
         command_id: String,
@@ -82,9 +109,19 @@ impl Profiles {
             serde_json::json!({
             "slug":slug,"kind":kind,"id":id,"enabled":enabled}),
         );
-        Ok(extension_store::toggle(&self.storage, c, slug, kind, id, enabled).await?)
+        Ok(self.store.toggle(c, slug, kind, id, enabled).await?)
     }
+
+    /// Held while the harness projects the library into a home.
     pub(crate) async fn extension_guard(&self) -> tokio::sync::OwnedMutexGuard<()> {
-        self.extension_lock.clone().lock_owned().await
+        self.lock.clone().lock_owned().await
+    }
+
+    /// Removes every switch of an agent inside the caller's write.
+    pub(crate) async fn remove_agent_in(
+        conn: &mut SqliteConnection,
+        slug: &str,
+    ) -> Result<(), ExtensionsError> {
+        ExtensionsStore::remove_agent_in(conn, slug).await
     }
 }

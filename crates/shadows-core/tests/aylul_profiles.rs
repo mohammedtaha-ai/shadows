@@ -6,7 +6,7 @@ struct World {
     _tmp: tempfile::TempDir,
     storage: Arc<testing::Storage>,
     secrets: Arc<shadows_core::Secrets>,
-    profiles: Arc<shadows_core::Profiles>,
+    app: Arc<shadows_core::AppCore>,
 }
 
 async fn world() -> World {
@@ -17,13 +17,53 @@ async fn world() -> World {
             .unwrap(),
     );
     let secrets = testing::secrets(storage.clone(), Some(SecretKey::from_bytes([7; 32])));
-    let profiles = testing::profiles(storage.clone(), secrets.clone(), tmp.path().join("home"));
+    let app = app(&storage, &secrets, &tmp.path().join("home")).await;
     World {
         _tmp: tmp,
         storage,
         secrets,
-        profiles,
+        app,
     }
+}
+
+/// The core over the world's storage and secrets, with an AYLUL home and an
+/// adapter no test starts.
+async fn app(
+    storage: &Arc<testing::Storage>,
+    secrets: &Arc<shadows_core::Secrets>,
+    root: &std::path::Path,
+) -> Arc<shadows_core::AppCore> {
+    use shadows_core::testing::{LiveHandles, Runtime, Sessions, SessionsConfig};
+    let (runtime, _) = Runtime::start(storage.clone()).await.unwrap();
+    std::fs::create_dir_all(root).unwrap();
+    let sessions = Sessions::new(
+        Arc::new(shadows_agent::claude::ClaudeAdapter {
+            node: std::env::current_exe().unwrap(),
+            adapter: "unused.js".into(),
+            agent: std::env::current_exe().unwrap(),
+            adapter_version: "fixture".into(),
+            agent_version: "fixture".into(),
+        }),
+        storage.clone(),
+        SessionsConfig {
+            secrets: Some(secrets.clone()),
+            aylul: Some(shadows_core::AylulConfig {
+                project_slug: "aylul".into(),
+                home_root: root.to_path_buf(),
+            }),
+            ..Default::default()
+        },
+    );
+    shadows_core::AppCore::assemble(shadows_core::CoreParts {
+        storage: storage.clone(),
+        secrets: secrets.clone(),
+        runtime: Arc::new(runtime),
+        sessions,
+        handles: Arc::new(LiveHandles::default()),
+        bus: tokio::sync::broadcast::channel(16).0,
+        ui: tokio::sync::broadcast::channel(16).0,
+        mcp_url: "".into(),
+    })
 }
 
 fn provider(name: &str) -> ProviderInput {
@@ -53,7 +93,8 @@ fn agent(name: &str) -> AgentInput {
 
 async fn seeded() -> World {
     let w = world().await;
-    w.profiles
+    w.app
+        .providers()
         .create_provider("p".into(), provider("Provider"))
         .await
         .unwrap();

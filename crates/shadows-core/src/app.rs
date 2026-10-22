@@ -15,22 +15,27 @@ use shadows_agent::claude::ClaudeAdapter;
 use shadows_agent::events::HarnessEvent;
 use shadows_process::{ProcessSpec, spawn};
 
+use crate::agents::Agents;
 use crate::code::{Code, CodeConfig};
 use crate::db::Storage;
 use crate::design::Design;
 use crate::error::CoreError;
 use crate::events::{Events, UiSignal};
+use crate::extensions::Extensions;
 use crate::grants::Grants;
 use crate::harness::{Harness, Sessions, SessionsConfig};
 use crate::instructions::Instructions;
+use crate::person::PersonSettings;
 use crate::plans::Plans;
 use crate::projects::Projects;
+use crate::providers::Providers;
 use crate::runtime::Runtime;
 use crate::runtime::StopKind;
 use crate::secrets::{SecretKey, Secrets};
 use crate::standards::Standards;
 use crate::threads::{ThreadId, Threads};
 use crate::turns::{LiveHandles, OperationId, ThreadStopper, Turns};
+use crate::usage::Usage;
 
 /// A running turn's live harness events, for every live subscriber.
 pub type Bus = tokio::sync::broadcast::Sender<(ThreadId, OperationId, HarnessEvent)>;
@@ -65,7 +70,11 @@ pub struct CoreParts {
 /// | Service | One job | Source | Contract |
 /// |---|---|---|---|
 /// | `Secrets` | encrypted environment configuration | `crates/shadows-core/src/secrets` | `crates/shadows-core/src/secrets/contract.yaml` |
-/// | `Profiles` | local agent configuration | `crates/shadows-core/src/profiles` | `crates/shadows-core/src/profiles/contract.yaml` |
+/// | `Providers` | AYLUL provider configuration | `crates/shadows-core/src/providers` | `crates/shadows-core/src/providers/contract.yaml` |
+/// | `Agents` | permanent AYLUL agent identities | `crates/shadows-core/src/agents` | `crates/shadows-core/src/agents/contract.yaml` |
+/// | `Extensions` | the shared extension library | `crates/shadows-core/src/extensions` | `crates/shadows-core/src/extensions/contract.yaml` |
+/// | `Usage` | measured AYLUL usage | `crates/shadows-core/src/usage` | `crates/shadows-core/src/usage/contract.yaml` |
+/// | `PersonSettings` | the local person record | `crates/shadows-core/src/person` | `crates/shadows-core/src/person/contract.yaml` |
 /// | `Standards` | project standards versions | `crates/shadows-core/src/standards` | `crates/shadows-core/src/standards/contract.yaml` |
 /// | `Design` | project design revisions | `crates/shadows-core/src/design` | `crates/shadows-core/src/design/contract.yaml` |
 /// | `Plans` | plan version lifecycle | `crates/shadows-core/src/plans` | `crates/shadows-core/src/plans/contract.yaml` |
@@ -79,17 +88,21 @@ pub struct CoreParts {
 /// | `Code` | project code indexing | `crates/shadows-core/src/code` | `crates/shadows-core/src/code/contract.yaml` |
 /// | `Runtime` | runtime instance lifecycle | `crates/shadows-core/src/runtime` | `crates/shadows-core/src/runtime/contract.yaml` |
 ///
-/// The first thirteen owners have typed accessors on `AppCore`. `Runtime` is
+/// The first seventeen owners have typed accessors on `AppCore`. `Runtime` is
 /// internal: `start` builds it before assembly, then `Turns` holds the shared
 /// instance for execution and shutdown. There is no `AppCore::runtime` accessor.
-/// `start` builds `Profiles` and `Grants` once. `Sessions` receives those
-/// profiles and holds them one way (deleting an agent is `Harness`'s, since it
-/// closes live adapters); `Harness` shares `Sessions`, and the stored `Grants`
-/// is the one that revoked thread grants at startup. No service receives
-/// `AppCore`.
+/// `start` builds the AYLUL configuration owners (`AylulOwners`) and `Grants`
+/// once. `Sessions` receives those owners and holds them one way (deleting an
+/// agent is `Harness`'s, since it closes live adapters); `Harness` shares
+/// `Sessions`, and the stored `Grants` is the one that revoked thread grants at
+/// startup. No service receives `AppCore`.
 pub struct AppCore {
     secrets: Arc<Secrets>,
-    profiles: Arc<crate::Profiles>,
+    providers: Arc<Providers>,
+    agents: Arc<Agents>,
+    extensions: Arc<Extensions>,
+    usage: Usage,
+    person: PersonSettings,
     design: Design,
     plans: Plans,
     grants: Grants,
@@ -101,6 +114,40 @@ pub struct AppCore {
     standards: Standards,
     events: Events,
     code: Code,
+}
+
+/// The AYLUL configuration owners an opening reads, built in one place so `start`
+/// and the test-only sessions wire them the same way.
+#[derive(Clone)]
+pub(crate) struct AylulOwners {
+    pub(crate) providers: Arc<Providers>,
+    pub(crate) agents: Arc<Agents>,
+    pub(crate) extensions: Arc<Extensions>,
+    pub(crate) person: PersonSettings,
+}
+
+impl AylulOwners {
+    pub(crate) fn build(
+        storage: Arc<Storage>,
+        secrets: Arc<Secrets>,
+        home_root: Option<PathBuf>,
+        projects: Projects,
+    ) -> Self {
+        let providers = Providers::new(storage.clone(), secrets.clone());
+        let agents = Agents::new(
+            storage.clone(),
+            providers.clone(),
+            secrets,
+            projects,
+            home_root.clone(),
+        );
+        Self {
+            providers,
+            agents,
+            extensions: Extensions::new(storage.clone(), home_root),
+            person: PersonSettings::new(storage),
+        }
+    }
 }
 
 /// What `start` needs from the binary's `Config`: the database path, node,
@@ -141,7 +188,7 @@ impl AppCore {
         // Every Planner session opens with the `/mcp` of the address actually
         // bound (§13.8), which differs from the configured one on port 0.
         let projects = Projects::new(storage.clone());
-        let profiles = crate::Profiles::new(
+        let owners = AylulOwners::build(
             storage.clone(),
             secrets.clone(),
             config.aylul.as_ref().map(|c| c.home_root.clone()),
@@ -149,7 +196,7 @@ impl AppCore {
         );
         let instructions = Instructions::new(storage.clone());
         let standards = Standards::new(storage.clone());
-        let sessions = Sessions::with_profiles(
+        let sessions = Sessions::with_owners(
             Arc::new(ClaudeAdapter {
                 node: config.node_path.clone(),
                 adapter: config.adapter_path.clone(),
@@ -164,7 +211,7 @@ impl AppCore {
                 aylul: config.aylul.clone(),
                 ..SessionsConfig::default()
             },
-            profiles.clone(),
+            owners.clone(),
             instructions.clone(),
         );
         let (bus, _) = tokio::sync::broadcast::channel(4096);
@@ -180,7 +227,7 @@ impl AppCore {
                 #[cfg(feature = "test-support")]
                 mcp_url,
             },
-            profiles,
+            owners,
             grants,
             instructions,
             standards,
@@ -198,18 +245,18 @@ impl AppCore {
     /// `AppCore::assemble` (`testing`); `start` assembles its own.
     #[cfg(feature = "test-support")]
     pub(crate) fn from_parts(parts: CoreParts) -> Arc<AppCore> {
-        let profiles = parts.sessions.profiles.clone();
+        let owners = parts.sessions.owners.clone();
         let grants = Grants::new(parts.storage.clone(), parts.mcp_url.clone());
         let instructions = Instructions::new(parts.storage.clone());
         let projects = Projects::new(parts.storage.clone());
         let standards = Standards::new(parts.storage.clone());
-        Self::assemble_services(parts, profiles, grants, instructions, standards, projects)
+        Self::assemble_services(parts, owners, grants, instructions, standards, projects)
     }
 
     /// The services over parts and the owners built before assembly.
     fn assemble_services(
         parts: CoreParts,
-        profiles: Arc<crate::Profiles>,
+        owners: AylulOwners,
         grants: Grants,
         instructions: Instructions,
         standards: Standards,
@@ -249,8 +296,18 @@ impl AppCore {
             bus.clone(),
             ui.clone(),
         );
+        let AylulOwners {
+            providers,
+            agents,
+            extensions,
+            person,
+        } = owners;
         Arc::new(AppCore {
-            profiles,
+            providers,
+            agents,
+            extensions,
+            usage: Usage::new(storage.clone()),
+            person,
             secrets,
             design: Design::new(storage.clone(), handles.clone()),
             plans: Plans::new(storage.clone(), handles.clone(), ui.clone()),
@@ -280,8 +337,24 @@ impl AppCore {
         &self.plans
     }
 
-    pub fn profiles(&self) -> &crate::Profiles {
-        &self.profiles
+    pub fn providers(&self) -> &Providers {
+        &self.providers
+    }
+
+    pub fn agents(&self) -> &Agents {
+        &self.agents
+    }
+
+    pub fn extensions(&self) -> &Extensions {
+        &self.extensions
+    }
+
+    pub fn usage(&self) -> &Usage {
+        &self.usage
+    }
+
+    pub fn person(&self) -> &PersonSettings {
+        &self.person
     }
 
     pub fn secrets(&self) -> &Secrets {

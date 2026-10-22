@@ -45,7 +45,7 @@ pub(super) async fn list(
     State(s): State<AppState>,
     Path(slug): Path<String>,
 ) -> Result<Json<Vec<EnvEntry>>, Failure> {
-    Ok(Json(s.core.secrets().list_agent_env(&slug).await?))
+    Ok(Json(s.core.agents().list_env(&slug).await?))
 }
 
 #[utoipa::path(put, path = "/api/aylul/agents/{slug}/env/{name}", tag = "aylul",
@@ -66,8 +66,8 @@ pub(super) async fn set(
 ) -> Result<Json<EnvEntry>, Failure> {
     Ok(Json(
         s.core
-            .secrets()
-            .set_agent_env(body.command_id, &slug, &name, &body.value)
+            .agents()
+            .set_env(body.command_id, &slug, &name, &body.value)
             .await?,
     ))
 }
@@ -88,8 +88,8 @@ pub(super) async fn remove(
     Query(query): Query<RemoveEnv>,
 ) -> Result<StatusCode, Failure> {
     s.core
-        .secrets()
-        .remove_agent_env(query.command_id, &slug, &name)
+        .agents()
+        .remove_env(query.command_id, &slug, &name)
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }

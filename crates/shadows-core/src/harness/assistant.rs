@@ -34,7 +34,8 @@ pub(super) struct Opening {
 
 impl Sessions {
     pub(crate) async fn harness_available(&self, kind: &str) -> Result<bool, CoreError> {
-        let configured = self.config.aylul.is_some() && !self.profiles.agents().await?.is_empty();
+        let configured =
+            self.config.aylul.is_some() && !self.owners.agents.agents().await?.is_empty();
         Ok(policy::is_available_with(kind, configured))
     }
 
@@ -44,11 +45,11 @@ impl Sessions {
                 .profile
                 .as_deref()
                 .ok_or_else(|| CoreError::AylulProfileNotFound("agent required".into()))?;
-            let agent = self.profiles.agent(slug).await?;
+            let agent = self.owners.agents.agent(slug).await?;
             if agent.deleted {
                 return Err(CoreError::AylulProfileNotFound(slug.into()));
             }
-            self.profiles.provider(&agent.provider).await?;
+            self.owners.providers.provider(&agent.provider).await?;
         }
         Ok(())
     }
@@ -83,9 +84,9 @@ impl Sessions {
             .profile
             .as_deref()
             .ok_or(CoreError::AylulNotConfigured)?;
-        let agent = self.profiles.agent(slug).await?;
-        let provider = self.profiles.provider(&agent.provider).await?;
-        let home = config.home_root.join("profiles").join(slug);
+        let agent = self.owners.agents.agent(slug).await?;
+        let provider = self.owners.providers.provider(&agent.provider).await?;
+        let home = self.owners.agents.home(slug)?;
         let models: Vec<_> = provider.models.iter().map(|m| m.id.clone()).collect();
         let window = provider
             .models
@@ -94,7 +95,7 @@ impl Sessions {
             .ok_or_else(|| CoreError::ProfileInvalid("default model is not offered".into()))?
             .context_window;
         self.homes
-            .write_extensions(&self.profiles, &config.home_root, &home, slug)
+            .write_extensions(&self.owners.extensions, &config.home_root, &home, slug)
             .await?;
         self.homes
             .write_models(&home, &models, &agent.default_model)
@@ -141,7 +142,7 @@ impl Sessions {
             .adapter
             .process_spec_with(&home, Some(&profile), &stored, Some(token.as_str()))
             .map_err(|_| CoreError::AylulKeyMissing(provider.slug))?;
-        let person = self.profiles.person().await?;
+        let person = self.owners.person.person().await?;
         let mut setup = aylul_setup();
         if let Some(name) = person.aylul_calls_me.or(person.name) {
             let quoted = serde_json::to_string(&name)

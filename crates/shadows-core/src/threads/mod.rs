@@ -101,10 +101,9 @@ impl Threads {
             params["profile"] = profile.into();
         }
         let c = CommandContext::user(command_id, "thread.create", params);
-        Ok(self
-            .storage
+        self.storage
             .create_planning_thread(&c, project, title, harness, profile)
-            .await?)
+            .await
     }
 
     pub async fn list_for_profile(&self, slug: &str) -> Result<Vec<PlanningThread>, CoreError> {

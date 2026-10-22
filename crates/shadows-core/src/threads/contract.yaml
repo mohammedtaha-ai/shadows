@@ -279,7 +279,7 @@ shared_in_transaction:
 
 
 called_by_other_services:
-  list_threads_for_profile: Profiles closes live adapters after soft deletion.
+  list_threads_for_profile: Harness closes live adapters after an agent is deleted.
   turn_context: "Harness (harness/mod.rs open_session, change_model, context, choices, limits_of; harness/sessions.rs open_live; harness/setup.rs context_before_turn) and Turns (turns/mod.rs send): the thread's project and harness, read before any session or turn work; NotFound for an unknown thread"
   append_thread_entry: "Turns (turns/turn.rs persist): a turn's watcher appends the agent's entries as they arrive, each in its own write"
   record_harness_session: "Turns (turns/turn.rs watch_turn): the watcher records the session id the harness answered, once, while it is NULL"

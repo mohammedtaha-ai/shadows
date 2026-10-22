@@ -15,7 +15,13 @@ pub(super) struct Page {
     pub after: Option<String>,
 }
 
-pub(super) fn parse(body: &[u8], format: Format) -> Result<Page, ()> {
+impl Page {
+    pub(super) fn parse(body: &[u8], format: Format) -> Result<Page, ()> {
+        parse(body, format)
+    }
+}
+
+fn parse(body: &[u8], format: Format) -> Result<Page, ()> {
     let value: serde_json::Value = serde_json::from_slice(body).map_err(|_| ())?;
     let rows = value.get("data").and_then(|v| v.as_array()).ok_or(())?;
     let mut models = Vec::new();
@@ -70,7 +76,7 @@ pub(super) fn parse(body: &[u8], format: Format) -> Result<Page, ()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{Format, ListedModel, parse};
     fn listing(format: Format, row: serde_json::Value) -> ListedModel {
         parse(
             &serde_json::to_vec(&serde_json::json!({"data":[row]})).unwrap(),

@@ -1,3 +1,4 @@
+mod agents;
 mod app;
 mod code;
 mod command;
@@ -5,12 +6,14 @@ mod db;
 mod design;
 mod error;
 mod events;
+mod extensions;
 mod grants;
 mod harness;
 mod instructions;
+mod person;
 mod plans;
-mod profiles;
 mod projects;
+mod providers;
 mod runtime;
 mod secrets;
 mod standards;
@@ -18,6 +21,7 @@ mod standards;
 pub mod testing;
 mod threads;
 mod turns;
+mod usage;
 pub use command::{ApprovalRequest, ApprovedBy, Approver, Writer};
 
 // The public surface (spec §14.4, §14.6): the application, its failure, the
@@ -33,6 +37,7 @@ pub use code::{
 };
 // `StorageError`, `StartError` and `DirectoryError` are what `CoreError`
 // carries, which each adapter maps.
+pub use agents::{Agent, AgentInput, AgentWorkspace, Agents};
 pub use db::Actor;
 pub use db::StorageError;
 pub use design::StructureWritten;
@@ -49,12 +54,16 @@ pub use design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub use design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
 pub use error::{CoreError, ErrorCode};
 pub use events::{Delivery, Events, StoredEvent, Subscription, UiSignal};
+pub use extensions::{
+    AgentExtensions, AgentItem, ExtensionKind, ExtensionLibrary, Extensions, Item,
+};
 pub use grants::{Grant, GrantId, GrantKind, Grants, IssuedView};
 pub use harness::{
     AylulConfig, AylulUsageSnapshot, ContextBreakdown, Harness, HarnessInfo, OpenError,
     RememberedSettings,
 };
 pub use instructions::{Instructions, InstructionsVersion};
+pub use person::{Person, PersonInput, PersonSettings, Theme};
 pub use plans::{
     AcceptanceItem, AgreementBinding, Approved, BindingParticipant, DraftStart, DraftStarted,
     EditOutcome, Focus, LastEdit, Link, LinkKind, LinkedTask, MapLink, MapPlan, Place, Plan,
@@ -62,14 +71,12 @@ pub use plans::{
     PlanTask, PlanVersions, Plans, Problem, TaskContent, TaskId, TaskParent, TaskPreview,
     VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
-pub use profiles::{
-    Agent, AgentExtensions, AgentInput, AgentItem, AgentWorkspace, ExtensionKind, ExtensionLibrary,
-    Item, ListedModel, ModelUsage, Person, PersonInput, PresetRegion, Profiles, Provider,
-    ProviderInput, ProviderModel, ProviderModelInput, ProviderPreset, ProviderTest,
-    ProviderTestOutcome, ProviderUsage, SavedProviderTest, TestRefusal, Theme, UsageReport,
-};
 pub use projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
+};
+pub use providers::{
+    ListedModel, PresetRegion, Provider, ProviderInput, ProviderModel, ProviderModelInput,
+    ProviderPreset, ProviderTest, ProviderTestOutcome, Providers, SavedProviderTest, TestRefusal,
 };
 pub use runtime::{RuntimeInstanceId, StopKind};
 pub use secrets::{EnvEntry, SecretKey, Secrets, validate_env_name};
@@ -80,6 +87,7 @@ pub use turns::{
     InvocationView, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SendTurn,
     SentNow, StartError, Turns,
 };
+pub use usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
 // `Harness`'s session methods answer `shadows-agent`'s `SessionChoices`, which
 // `shadows-http` serializes. Re-exported so no adapter depends on
 // `shadows-agent` (spec §14.3, §14.6 #1); the schema name is unchanged.

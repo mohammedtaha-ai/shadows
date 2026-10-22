@@ -16,9 +16,9 @@ fn provider() -> Value {
 }
 
 async fn seed(w: &World, name: &str) {
-    if w.core.profiles().providers().await.unwrap().is_empty() {
+    if w.core.providers().providers().await.unwrap().is_empty() {
         w.core
-            .profiles()
+            .providers()
             .create_provider(
                 "seed-provider".into(),
                 serde_json::from_value(provider()).unwrap(),
@@ -27,7 +27,7 @@ async fn seed(w: &World, name: &str) {
             .unwrap();
     }
     w.core
-        .profiles()
+        .agents()
         .create_agent(
             format!("seed-{name}"),
             shadows_core::AgentInput {
@@ -128,7 +128,7 @@ async fn agent_crud_soft_delete() {
         .0,
         204
     );
-    assert!(w.core.profiles().agent("work").await.unwrap().deleted);
+    assert!(w.core.agents().agent("work").await.unwrap().deleted);
 }
 
 #[tokio::test]
@@ -198,7 +198,7 @@ async fn reserved_name_is_409() {
 async fn thread_create_with_profile() {
     let w = world(true, true).await;
     seed(&w, "Work").await;
-    let project = w.core.profiles().assistant_project().await.unwrap();
+    let project = w.core.agents().assistant_project().await.unwrap();
     let (status, t) = call(
         &w,
         "POST",
@@ -215,7 +215,7 @@ async fn threads_listed_per_agent() {
     let w = world(true, true).await;
     seed(&w, "Work").await;
     seed(&w, "Personal").await;
-    let project = w.core.profiles().assistant_project().await.unwrap();
+    let project = w.core.agents().assistant_project().await.unwrap();
     w.core
         .threads()
         .create(
@@ -352,7 +352,7 @@ async fn reserved_test_path_has_no_mutation_aliases() {
 #[tokio::test]
 async fn usage_route_is_read_only() {
     let w = world(false, false).await;
-    let p = w.core.profiles().person().await.unwrap();
+    let p = w.core.person().person().await.unwrap();
     let (status, r) = call(
         &w,
         "GET",
@@ -363,7 +363,7 @@ async fn usage_route_is_read_only() {
     assert_eq!(status, 200);
     assert_eq!(r, json!({"by_provider":[],"by_model":[]}));
     assert_eq!(
-        serde_json::to_value(w.core.profiles().person().await.unwrap()).unwrap(),
+        serde_json::to_value(w.core.person().person().await.unwrap()).unwrap(),
         serde_json::to_value(p).unwrap()
     );
     for path in [

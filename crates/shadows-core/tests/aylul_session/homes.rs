@@ -65,7 +65,7 @@ async fn settings_json_keeps_other_keys() {
 async fn concurrent_openings_keep_settings_valid() {
     let w = world().await;
     settings(&w, json!({"permissions":{"allow":["Read"]}}));
-    let project = w.core.profiles().assistant_project().await.unwrap();
+    let project = w.core.agents().assistant_project().await.unwrap();
     let other = w
         .core
         .threads()

@@ -15,7 +15,7 @@ async fn extension_import_copies_and_redacts_source() {
         let path = source(&w, kind, name);
         let item = w
             .core
-            .profiles()
+            .extensions()
             .add_extension(name.into(), kind, &path)
             .await
             .unwrap();
@@ -29,10 +29,10 @@ async fn extension_import_copies_and_redacts_source() {
         std::fs::remove_dir_all(&path).unwrap();
         assert!(w._tmp.path().join("home/library").join(&item.id).exists());
     }
-    let library = serde_json::to_value(w.core.profiles().extensions().await.unwrap()).unwrap();
+    let library = serde_json::to_value(w.core.extensions().extensions().await.unwrap()).unwrap();
     assert!(library["skills"][0].get("enabled").is_none());
     let view =
-        serde_json::to_value(w.core.profiles().agent_extensions("aylul").await.unwrap()).unwrap();
+        serde_json::to_value(w.core.extensions().agent_extensions("aylul").await.unwrap()).unwrap();
     assert_eq!(view["skills"][0]["enabled"], false);
     let records: Vec<String> = sqlx::query_scalar("SELECT outcome_ref FROM command_record")
         .fetch_all(w.storage.reader())
@@ -51,13 +51,13 @@ async fn extension_commands_replay_and_conflict() {
     let src = source(&w, ExtensionKind::Skill, "replay-skill");
     let item = w
         .core
-        .profiles()
+        .extensions()
         .add_extension("add".into(), ExtensionKind::Skill, &src)
         .await
         .unwrap();
     let mut writes = testing::database_writes(&w.storage).await.unwrap();
     w.core
-        .profiles()
+        .extensions()
         .set_agent_extension(
             "toggle".into(),
             "aylul",
@@ -69,7 +69,7 @@ async fn extension_commands_replay_and_conflict() {
         .unwrap();
     let before = writes.version().await.unwrap();
     w.core
-        .profiles()
+        .extensions()
         .set_agent_extension(
             "toggle".into(),
             "aylul",
@@ -82,7 +82,7 @@ async fn extension_commands_replay_and_conflict() {
     assert_eq!(before, writes.version().await.unwrap());
     assert!(matches!(
         w.core
-            .profiles()
+            .extensions()
             .set_agent_extension(
                 "toggle".into(),
                 "aylul",
@@ -96,19 +96,19 @@ async fn extension_commands_replay_and_conflict() {
         ))
     ));
     w.core
-        .profiles()
+        .extensions()
         .delete_extension("delete".into(), ExtensionKind::Skill, &item.id)
         .await
         .unwrap();
     w.core
-        .profiles()
+        .extensions()
         .delete_extension("delete".into(), ExtensionKind::Skill, &item.id)
         .await
         .unwrap();
     std::fs::remove_dir_all(&src).unwrap();
     assert_eq!(
         w.core
-            .profiles()
+            .extensions()
             .add_extension("add".into(), ExtensionKind::Skill, &src)
             .await
             .unwrap()
@@ -117,14 +117,14 @@ async fn extension_commands_replay_and_conflict() {
     );
     assert!(
         w.core
-            .profiles()
+            .extensions()
             .add_extension("add".into(), ExtensionKind::Plugin, &src)
             .await
             .is_err()
     );
     assert!(
         w.core
-            .profiles()
+            .extensions()
             .add_extension(
                 "add".into(),
                 ExtensionKind::Skill,
@@ -139,7 +139,7 @@ async fn extension_commands_replay_and_conflict() {
 async fn extension_enablement_is_per_agent() {
     let w = world().await;
     w.core
-        .profiles()
+        .agents()
         .create_agent("b".into(), agent("Other"))
         .await
         .unwrap();
@@ -150,27 +150,27 @@ async fn extension_enablement_is_per_agent() {
         let src = source(&w, kind, name);
         let item = w
             .core
-            .profiles()
+            .extensions()
             .add_extension(name.into(), kind, &src)
             .await
             .unwrap();
         w.core
-            .profiles()
+            .extensions()
             .set_agent_extension(format!("enable-{name}"), "aylul", kind, &item.id, true)
             .await
             .unwrap();
         assert!(
             w.core
-                .profiles()
+                .extensions()
                 .set_agent_extension("bad".into(), "absent", kind, &item.id, true)
                 .await
                 .is_err()
         );
     }
     let a =
-        serde_json::to_value(w.core.profiles().agent_extensions("aylul").await.unwrap()).unwrap();
+        serde_json::to_value(w.core.extensions().agent_extensions("aylul").await.unwrap()).unwrap();
     let b =
-        serde_json::to_value(w.core.profiles().agent_extensions("other").await.unwrap()).unwrap();
+        serde_json::to_value(w.core.extensions().agent_extensions("other").await.unwrap()).unwrap();
     assert_eq!(a["skills"][0]["enabled"], true);
     assert_eq!(a["plugins"][0]["enabled"], true);
     assert_eq!(b["skills"][0]["enabled"], false);
@@ -180,7 +180,7 @@ async fn extension_enablement_is_per_agent() {
         .delete_agent("del".into(), "other")
         .await
         .unwrap();
-    assert!(w.core.profiles().agent_extensions("other").await.is_err());
+    assert!(w.core.extensions().agent_extensions("other").await.is_err());
 }
 
 #[tokio::test]
@@ -189,12 +189,12 @@ async fn extension_deletions_remove_enablement_atomically() {
     let src = source(&w, ExtensionKind::Skill, "delete-skill");
     let i = w
         .core
-        .profiles()
+        .extensions()
         .add_extension("add".into(), ExtensionKind::Skill, &src)
         .await
         .unwrap();
     w.core
-        .profiles()
+        .extensions()
         .set_agent_extension("enable".into(), "aylul", ExtensionKind::Skill, &i.id, true)
         .await
         .unwrap();
@@ -212,16 +212,16 @@ async fn extension_deletions_remove_enablement_atomically() {
             .await
             .is_err()
     );
-    assert!(!w.core.profiles().agent("aylul").await.unwrap().deleted);
+    assert!(!w.core.agents().agent("aylul").await.unwrap().deleted);
     assert!(
         w.core
-            .profiles()
+            .extensions()
             .delete_extension("del-item".into(), ExtensionKind::Skill, &i.id)
             .await
             .is_err()
     );
     assert_eq!(
-        w.core.profiles().extensions().await.unwrap().skills.len(),
+        w.core.extensions().extensions().await.unwrap().skills.len(),
         1
     );
     sqlx::query("DROP TRIGGER reject_delete")
@@ -240,19 +240,19 @@ async fn extension_deletions_remove_enablement_atomically() {
     assert_eq!(count, 0);
     assert!(
         w.core
-            .profiles()
+            .extensions()
             .set_agent_extension("race".into(), "aylul", ExtensionKind::Skill, &i.id, true)
             .await
             .is_err()
     );
     for name in ["Other", "Third"] {
         w.core
-            .profiles()
+            .agents()
             .create_agent(format!("agent-{name}"), agent(name))
             .await
             .unwrap();
         w.core
-            .profiles()
+            .extensions()
             .set_agent_extension(
                 format!("enable-{name}"),
                 &name.to_ascii_lowercase(),
@@ -264,13 +264,13 @@ async fn extension_deletions_remove_enablement_atomically() {
             .unwrap();
     }
     w.core
-        .profiles()
+        .extensions()
         .delete_extension("del-item".into(), ExtensionKind::Skill, &i.id)
         .await
         .unwrap();
     assert!(
         w.core
-            .profiles()
+            .extensions()
             .extensions()
             .await
             .unwrap()
@@ -291,7 +291,7 @@ async fn extension_input_is_contained() {
     std::fs::create_dir(&invalid).unwrap();
     assert!(
         w.core
-            .profiles()
+            .extensions()
             .add_extension("invalid".into(), ExtensionKind::Skill, &invalid)
             .await
             .is_err()
@@ -299,20 +299,20 @@ async fn extension_input_is_contained() {
     let src = source(&w, ExtensionKind::Skill, "bounded-skill");
     let i = w
         .core
-        .profiles()
+        .extensions()
         .add_extension("ok".into(), ExtensionKind::Skill, &src)
         .await
         .unwrap();
     assert!(matches!(
         w.core
-            .profiles()
+            .extensions()
             .add_extension("duplicate".into(), ExtensionKind::Skill, &src)
             .await,
         Err(CoreError::ExtensionNameConflict)
     ));
     assert!(matches!(
         w.core
-            .profiles()
+            .extensions()
             .set_agent_extension(
                 "wrong-kind".into(),
                 "aylul",
@@ -328,20 +328,20 @@ async fn extension_input_is_contained() {
     file.set_len(64 * 1024 * 1024 + 1).unwrap();
     assert!(
         w.core
-            .profiles()
+            .extensions()
             .add_extension("large".into(), ExtensionKind::Skill, &oversized)
             .await
             .is_err()
     );
     assert!(
         w.core
-            .profiles()
+            .extensions()
             .add_extension("ancestor".into(), ExtensionKind::Skill, w._tmp.path())
             .await
             .is_err()
     );
     assert_eq!(
-        w.core.profiles().extensions().await.unwrap().skills.len(),
+        w.core.extensions().extensions().await.unwrap().skills.len(),
         1
     );
     #[cfg(windows)]
@@ -367,7 +367,7 @@ async fn extension_input_is_contained() {
         assert!(process.wait().await.unwrap().success());
         assert!(
             w.core
-                .profiles()
+                .extensions()
                 .add_extension("junction".into(), ExtensionKind::Skill, &junction)
                 .await
                 .is_err()

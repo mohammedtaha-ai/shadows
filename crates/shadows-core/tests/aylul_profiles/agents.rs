@@ -7,7 +7,7 @@ async fn agent_default_must_be_a_provider_model() {
     let mut input = agent("Work");
     input.default_model = "missing".into();
     assert!(matches!(
-        w.profiles.create_agent("a".into(), input).await,
+        w.app.agents().create_agent("a".into(), input).await,
         Err(CoreError::ProfileInvalid(_))
     ));
 }
@@ -16,7 +16,8 @@ async fn agent_default_must_be_a_provider_model() {
 async fn deleted_agent_slug_is_never_reused() {
     let w = seeded().await;
     let core = super::threads::core(&w).await;
-    w.profiles
+    w.app
+        .agents()
         .create_agent("a".into(), agent("Work"))
         .await
         .unwrap();
@@ -24,10 +25,11 @@ async fn deleted_agent_slug_is_never_reused() {
         .delete_agent("d".into(), "work")
         .await
         .unwrap();
-    assert!(w.profiles.agent("work").await.unwrap().deleted);
-    assert!(w.profiles.agents().await.unwrap().is_empty());
+    assert!(w.app.agents().agent("work").await.unwrap().deleted);
+    assert!(w.app.agents().agents().await.unwrap().is_empty());
     assert_eq!(
-        w.profiles
+        w.app
+            .agents()
             .create_agent("a2".into(), agent("Work"))
             .await
             .unwrap()
@@ -38,18 +40,20 @@ async fn deleted_agent_slug_is_never_reused() {
         .delete_agent("d2".into(), "work-2")
         .await
         .unwrap();
-    w.profiles
+    w.app
+        .agents()
         .delete_provider("dp".into(), "provider")
         .await
         .unwrap();
-    assert!(w.profiles.agent("work").await.unwrap().deleted);
+    assert!(w.app.agents().agent("work").await.unwrap().deleted);
 }
 
 #[tokio::test]
 async fn delete_agent_removes_its_variables() {
     let w = seeded().await;
     let core = super::threads::core(&w).await;
-    w.profiles
+    w.app
+        .agents()
         .create_agent("a".into(), agent("Work"))
         .await
         .unwrap();
@@ -87,7 +91,8 @@ async fn reserved_agent_variable_is_refused() {
 async fn color_defaults_to_purple() {
     let w = seeded().await;
     let a = w
-        .profiles
+        .app
+        .agents()
         .create_agent("a".into(), agent("Work"))
         .await
         .unwrap();
@@ -105,7 +110,7 @@ async fn colored_agent(
     let input = serde_json::from_value(serde_json::json!({"name":"Work", "provider":"provider",
         "default_model":"model-a", "character_color":color}))
     .unwrap();
-    w.profiles.create_agent(command.into(), input).await
+    w.app.agents().create_agent(command.into(), input).await
 }
 
 #[tokio::test]
@@ -146,7 +151,8 @@ async fn update_without_color_keeps_it() {
     let w = seeded().await;
     colored_agent(&w, "future-color", "a").await.unwrap();
     let a = w
-        .profiles
+        .app
+        .agents()
         .update_agent("u".into(), "work", agent("Work"))
         .await
         .unwrap();
@@ -157,7 +163,8 @@ async fn update_without_color_keeps_it() {
     let explicit = serde_json::from_value(serde_json::json!({"name":"Work", "provider":"provider",
         "default_model":"model-a", "character_color":"future-color"}))
     .unwrap();
-    w.profiles
+    w.app
+        .agents()
         .update_agent("u".into(), "work", explicit)
         .await
         .unwrap();
@@ -166,7 +173,10 @@ async fn update_without_color_keeps_it() {
         "default_model":"model-a", "character_color":"other-color"}))
         .unwrap();
     assert!(matches!(
-        w.profiles.update_agent("u".into(), "work", different).await,
+        w.app
+            .agents()
+            .update_agent("u".into(), "work", different)
+            .await,
         Err(CoreError::Storage(
             shadows_core::StorageError::CommandConflict
         ))

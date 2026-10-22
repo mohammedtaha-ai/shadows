@@ -231,7 +231,7 @@ async fn agent_world(configured: bool, key: bool) -> World {
     let w = world(configured, key).await;
     if configured {
         w.core
-            .profiles()
+            .providers()
             .create_provider(
                 "seed-provider".into(),
                 shadows_core::ProviderInput {
@@ -251,7 +251,7 @@ async fn agent_world(configured: bool, key: bool) -> World {
             .await
             .unwrap();
         w.core
-            .profiles()
+            .agents()
             .create_agent(
                 "seed-agent".into(),
                 shadows_core::AgentInput {

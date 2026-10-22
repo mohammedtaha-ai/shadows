@@ -102,7 +102,7 @@ functions:
       signature: "(&self, slug: &str) -> Result<Option<Project>, CoreError>"
       # crate-visible. The live project holding `slug`, assistant or not;
       # `None` when none does. The one slug lookup: `ensure_assistant` and
-      # Profiles (`assistant_project`, which keeps it only when `assistant`).
+      # Agents (`assistant_project`, which keeps it only when `assistant`).
     allowed_modes:
       signature: "(&self, project: &ProjectId, harness: &str) -> Result<Vec<String>, CoreError>"
       # crate-visible. The modes the live project allows for `harness`;
@@ -266,7 +266,7 @@ shared_in_transaction:
 called_by_other_services:
   require_live_in: "Instructions (save/current) and Code (link writes, file writes, reach): liveness in the caller's transaction or snapshot"
   get: "Code (status, scan) and Events (events/mod.rs subscribe_project): a live project; Events refuses unknown or removed projects before opening its stream (§16.8)"
-  by_slug: "Profiles (assistant_project): the live project `aylul`, kept only when marked assistant"
+  by_slug: "Agents (assistant_project): the live project `aylul`, kept only when marked assistant"
   allowed_modes: "Turns (turns/record.rs, the mode check) and Harness (harness/mod.rs choices): the modes a project allows for a harness"
   by_recent_activity: "Code::code_order: startup order, filtered to projects with a directory"
   known_harness: "Threads (create, set_harness): the one rule for a known harness"
