@@ -1,4 +1,4 @@
-// One job: the flat row under the message box (spec §12.11) — on the left
+// One job: the flat row under the message box — on the left
 // `+`, mode and folder; on the right model, effort and the context ring —
 // every menu built from what the harness session offers.
 
@@ -46,7 +46,7 @@ export function ComposerBar({
   /** `null` until the session has answered. */
   settings: TurnSettings | null
   onSettings: (next: TurnSettings) => void
-  /** The session is being set to a picked model or effort (spec §12.7). */
+  /** The session is being set to a picked model or effort. */
   changingModel: boolean
   /** A draft: no session exists yet, so the model is not chosen until the
    * first message opens one. */
@@ -56,7 +56,7 @@ export function ComposerBar({
   /** Why the settings moved on their own, if they did. */
   note: string | null
   ring?: ReactNode
-  /** The picker `/model` or `/effort` opened (§21.4), until it closes. */
+  /** The picker `/model` or `/effort` opened, until it closes. */
   opened?: 'model' | 'effort' | null
   onOpened?: (opened: 'model' | 'effort' | null) => void
   onSlashCommands: () => void

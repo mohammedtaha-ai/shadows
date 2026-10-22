@@ -599,11 +599,13 @@ obligations:
       Add opens a Base UI dropdown. Add photos is disabled with Comes with F-25; folders
       and connectors are absent. Plugins is present only for the conversation's live AYLUL
       agent and opens that agent's settings, including Plugins & Skills. Dismissing Add or
-      closing settings returns focus to Message.
+      closing settings returns focus to Message after the dialog unmounts, so its exit
+      animation cannot restore focus to the sidebar afterward. Disabled Add items remain
+      keyboard focusable so their reason can be read.
     tested_by:
       - "Add shows disabled photos with its reason and omits project Plugins, folders and connectors"
       - "Add opens with Enter, arrows reach Slash commands and Escape returns to Message"
-      - "Plugins opens this conversations AYLUL agent settings and closing returns to Message"
+      - "Plugins opens this conversations AYLUL agent settings and closing with %s returns to Message"
 
   - rule: >
       A session that is still opening shows a word, not a spinner. A failed opening shows the

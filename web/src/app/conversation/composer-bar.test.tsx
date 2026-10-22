@@ -56,12 +56,20 @@ it('Add opens with Enter, arrows reach Slash commands and Escape returns to Mess
   await until(ready(app))
   const trigger = app.button('Add')!
   const key = (element: Element, value: string) => act(() => {
-    element.dispatchEvent(new KeyboardEvent('keydown', { key: value, bubbles: true }))
-    element.dispatchEvent(new KeyboardEvent('keyup', { key: value, bubbles: true }))
+    const down = new KeyboardEvent('keydown', { key: value, bubbles: true, cancelable: true })
+    element.dispatchEvent(down)
+    // happy-dom dispatches keys without the browser's native button activation.
+    if (value === 'Enter' && element instanceof HTMLButtonElement && !down.defaultPrevented) {
+      element.click()
+    }
+    element.dispatchEvent(new KeyboardEvent('keyup', { key: value, bubbles: true, cancelable: true }))
   })
   act(() => trigger.focus())
   key(trigger, 'Enter')
   await until(() => menuItem('Slash commands') !== undefined)
+  key(document.activeElement!, 'ArrowDown')
+  // Disabled menu items stay focusable so their reason can be read.
+  await until(() => document.activeElement === menuItem('Add photos'))
   key(document.activeElement!, 'ArrowDown')
   await until(() => document.activeElement === menuItem('Slash commands'))
   key(document.activeElement!, 'Escape')
@@ -71,7 +79,7 @@ it('Add opens with Enter, arrows reach Slash commands and Escape returns to Mess
   expect(turnStarts(app)).toBe(0)
 })
 
-it('Plugins opens this conversations AYLUL agent settings and closing returns to Message', async () => {
+it.each(['Close', 'Escape'])('Plugins opens this conversations AYLUL agent settings and closing with %s returns to Message', async (closeWith) => {
   const thread = { ...threadFixture, harness: 'aylul', profile: 'work' }
   const agent = { slug: 'work', name: 'Work', provider: 'fixture-provider', default_model: 'fake-large', deleted: false, created_at: 'now', updated_at: 'now' }
   const app = await start('/projects/p1/threads/t1', {
@@ -93,7 +101,19 @@ it('Plugins opens this conversations AYLUL agent settings and closing returns to
   expect(document.querySelector<HTMLInputElement>('input[aria-label="Agent name"]')?.value).toBe('Work')
   expect(app.calls).toContain('GET /api/aylul/agents/work/extensions')
   expect(app.calls).not.toContain('GET /api/aylul/agents/other/extensions')
-  act(() => app.button('Close')!.click())
+  const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
+  let finishExit!: () => void
+  const finished = new Promise<void>((resolve) => { finishExit = resolve })
+  // Model an exit animation lasting beyond the composer's first animation frame.
+  Object.defineProperty(dialog, 'getAnimations', { value: () => [{ finished }] })
+  act(() => {
+    if (closeWith === 'Close') app.button('Close')!.click()
+    else dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+  })
+  await until(() => !new URLSearchParams(window.location.search).has('settings'))
+  await act(async () => { await new Promise<void>((resolve) => requestAnimationFrame(() => resolve())) })
+  expect(document.querySelector('[role="dialog"]')).toBe(dialog)
+  act(() => finishExit())
   await until(() => document.querySelector('[role="dialog"]') === null)
   await until(() => document.activeElement === box)
   expect(box.value).toBe('Keep this message')

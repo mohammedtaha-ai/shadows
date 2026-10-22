@@ -94,7 +94,7 @@ and OS acceptance.
 - Done when: choosing Auto calls `PUT /api/threads/{id}/session/mode` at once and the menu shows Core's answer; after navigating away and back, and after a remount with a fresh QueryClient, the menu shows Auto; a refusal keeps Core's mode and shows its message; the draft still starts at the policy default; the tests pass with `npm run typecheck` and `npm run lint`
 
 ### F-24 · The `+` menu: Slash commands and Plugins
-- Status: done
+- Status: done (reviewed: 150 conversation tests, typecheck and lint pass; browser acceptance not run)
 - Plan: none. Owner specs: docs/superpowers/specs/2026-09-24-harness-controls-design.md §12.11 ("The `+` menu"), docs/superpowers/specs/2026-10-05-slash-menu-design.md; request docs/shared/requests/2026-10-22-image-attachments.md (accepted)
 - Read: `web/src/app/conversation/contract.yaml`; `composer-bar.tsx` (the disabled `+`), `composer.tsx` (the `/` menu), the Plugins & Skills settings entry point
 - Touch: `web/src/app/conversation/` (the menu, its tests, its `contract.yaml`)

@@ -79,12 +79,12 @@ export function Composer({
   directory: string | null | undefined
   /** Whether a turn is running is known yet; Send waits for it. */
   known: boolean
-  /** The harness's `/` list (§21); none opens no menu. */
+  /** The harness's `/` list; none opens no menu. */
   commands?: readonly SlashCommand[]
   ring?: ReactNode
   /** The start route answered: the turn exists before its events arrive. */
   onStarted: (operationId: string) => void
-  /** The task the person points at (§13.9), sent with the next turn. */
+  /** The task the person points at, sent with the next turn. */
   pointed: PointedTask | null
   /** Clears the chip: pressed ×, or the turn that carried it started. */
   onPointed: (done: PointedTask) => void
@@ -97,10 +97,24 @@ export function Composer({
   const openSettings = useOpenSettings()
   useEffect(() => {
     if (settingsSection !== undefined || !returnFromPlugins.current) return
-    returnFromPlugins.current = false
-    // The dialog restores focus during its close; the message box follows it.
-    const frame = requestAnimationFrame(() => messageBox.current?.focus())
-    return () => cancelAnimationFrame(frame)
+    let frame: number | undefined
+    // The dialog restores focus on unmount, after its exit animation. Waiting for
+    // removal keeps that restoration from taking focus back from the message box.
+    const observer = new MutationObserver(restore)
+    function restore() {
+      if (document.querySelector('[role="dialog"]') !== null) return
+      observer.disconnect()
+      frame = requestAnimationFrame(() => {
+        returnFromPlugins.current = false
+        messageBox.current?.focus()
+      })
+    }
+    observer.observe(document.body, { childList: true, subtree: true })
+    restore()
+    return () => {
+      observer.disconnect()
+      if (frame !== undefined) cancelAnimationFrame(frame)
+    }
   }, [settingsSection])
   const threadId = 'threadId' in to ? to.threadId : null
   const companionProblem=useCompanionSendProblem(threadId)
@@ -109,7 +123,7 @@ export function Composer({
   const [continuedPlan, setContinuedPlan] = useState(carried?.planId)
   const planId = 'draft' in to ? to.planId : continuedPlan
 
-  // The command id belongs to a pending send (spec §12.7): made when Send is
+  // The command id belongs to a pending send: made when Send is
   // pressed with no pending send, reused by a retry of that same send, and
   // dropped when it succeeds or when the prompt or a setting changes, so a
   // changed request is a new command rather than a COMMAND_CONFLICT.
@@ -133,7 +147,7 @@ export function Composer({
   })
 
   // While a turn runs Enter queues the message with the settings the menus
-  // hold (§20.5); it is sent when the turn ends or by Send now.
+  // hold; it is sent when the turn ends or by Send now.
   const queryClient = useQueryClient()
   const queue = useMutation({
     mutationFn: async ({commandId,text,settings,pointed,planId}:Send)=>{
@@ -152,13 +166,13 @@ export function Composer({
     onError: (_error, { text }) => setPrompt((now) => (now === '' ? text : now)),
   })
 
-  // The `/` menu (§21.4): open while the whole text is `/name`; Escape closes
+  // The `/` menu: open while the whole text is `/name`; Escape closes
   // it on one text, and any change reopens it. A picked entry's hint shows
   // after the caret until the text changes.
   const [highlighted, setHighlighted] = useState(0)
   const [dismissed, setDismissed] = useState<string | null>(null)
   const [hint, setHint] = useState<{ text: string; hint: string } | null>(null)
-  // `model` and `effort` act through the pickers, never as text (§21.4).
+  // `model` and `effort` act through the pickers, never as text.
   const [opened, setOpened] = useState<'model' | 'effort' | null>(null)
   const [slashFromMenu, setSlashFromMenu] = useState(false)
   const matches = slashMatches(commands, slashFromMenu ? '/' : prompt)
@@ -203,7 +217,7 @@ export function Composer({
   })
   const stop = useMutation({ mutationFn: stopTurn })
 
-  // Spec §12.7: a picked model is set on the session at once, so its efforts
+  // A picked model is set on the session at once, so its efforts
   // are known before Send. The answer is the session's new choices; a refusal
   // puts the session's model back and says why. A turn's session is not
   // changed while it runs: the change is asked once the turn has ended.
@@ -214,7 +228,7 @@ export function Composer({
       await writeSaved(queryClient, sessionKey(threadId), answer)
       // Asked again it would be answered the same: say so rather than ask.
       if (answer.current.model !== id) refuse(`The session kept ${answer.current.model}`, answer)
-      // The answer is the effort the move ended at (the remembered one, §12.4);
+      // The answer is the effort the move ended at (the remembered one);
       // a report streamed during the move may still carry the previous one.
       else keepEffort(answer)
     },
@@ -279,7 +293,7 @@ export function Composer({
     const text = prompt.trim()
     if (text === '' || !ready || settings === null || send.isPending || queue.isPending) return
     setSlashFromMenu(false)
-    // The focus is part of the command (§13.10): pointing elsewhere is a new one.
+    // The focus is part of the command: pointing elsewhere is a new one.
     setCarriedError(null)
     switchEffort.reset()
     pending.current = attemptFor(pending.current, { text, settings, focus: focusOf(pointed), ...(planId === undefined ? {} : { plan: planId }) })
@@ -470,7 +484,7 @@ function useTurnSettings(
   }
 }
 
-/** What the turn sends: the task's id, never its number (§13.10). */
+/** What the turn sends: the task's id, never its number. */
 function focusOf(pointed: PointedTask | null): Focus | null {
   if (pointed === null) return null
   return { workflow_id: pointed.workflowId, task_id: pointed.task.id, revision: pointed.revision }
