@@ -276,8 +276,8 @@ impl Harness {
         Ok(())
     }
 
-    /// The context breakdown of the thread's session, read on demand (spec
-    /// ): the categories, or none with the reason. Nothing is written.
+    /// The context breakdown of the thread's session, read on demand:
+    /// the categories, or none with the reason. Nothing is written.
     pub async fn context(&self, thread: &ThreadId) -> Result<ContextBreakdown, CoreError> {
         crate::threads::Threads::turn_context_in(
             &mut *self

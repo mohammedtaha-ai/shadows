@@ -308,6 +308,14 @@ functions:
       signature: "(&self, bound: Duration, second_signal: impl Future<Output = ()>) -> Result<StopKind, StorageError>"
       # pub(crate): `AppCore::shut_down`'s only path.
   steps:
+    stage_line:
+      signature: "(storage: &Storage, thread: &ThreadId) -> Result<String, StorageError>"
+      private: true
+      # One snapshot reads the thread and Design's stage line; AYLUL carries no line.
+    invocation_context:
+      signature: "(storage: &Storage, thread: &ThreadId, operation: &OperationId) -> InvocationContext"
+      private: true
+      # Composes delivered versions and pinned standards for Harness without an upward call.
     start:
       signature: "(&self, thread_id, context, turn: Turn, offered: &Offered) -> Result<StartedTurn, CoreError>"
       private: true

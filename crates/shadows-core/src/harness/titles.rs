@@ -1,5 +1,4 @@
-//! One job: giving the titles a session's harness sends to its thread
-//!.
+//! One job: giving the titles a session's harness sends to its thread.
 //!
 //! The adapter generates a title after the turn has answered, so it arrives
 //! when no turn reads the thread's events. It is taken off the connection

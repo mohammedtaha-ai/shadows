@@ -63,7 +63,7 @@ modules:
   context.rs: on-demand context breakdown
   extension_home.rs: enabled extension projection
   live.rs: adapter cache opening
-  offers.rs: live option offers
+  offers.rs: synchronous option offer dispatch
   profile_home.rs: serialized home settings writes
   sessions.rs: private adapter lifecycle
   settings.rs: session option changes
@@ -83,7 +83,7 @@ source: crates/shadows-core/src/harness
 shapes:
   InvocationContext:
     source: setup.rs
-    note: Turns supplies composed latest versions and pinned standards as deferred read results.
+    note: Turns supplies read results; private setup applies errors only when their context is needed.
   InvocationView:
     source: model.rs
     note: Requested and observed harness metadata; unknown fields stay null.
@@ -121,7 +121,7 @@ shapes:
     # The effort remembered for `model`, None when no turn on it had one.
     effort: Option<String>
   Remembered:
-    # pub(super), in `store.rs`: everything a harness remembers.
+    # Private to harness, in store/preferences.rs: everything a harness remembers.
     model: Option<String>
     # Per model, its last turn's effort. Unordered: read by key only.
     efforts: HashMap<String, String>
@@ -314,9 +314,9 @@ functions:
       # env. OpenError::Env preserves AylulKeyMissing before
       # any spawn, or AylulNotConfigured when no profile exists.
     harness_available:
-      signature: "(&self, kind: &str) -> bool"
-      # pub(crate), assistant.rs: `policy::is_available_with` with whether a
-      # profile is configured. The one availability check `list`,
+      signature: "(&self, kind: &str) -> Result<bool, CoreError>"
+      # Harness delegates to private Sessions in assistant.rs, checking whether a
+      # profile is configured with `policy::is_available_with`. Shared by `list`,
       # `open_session`, `open_idle` and `Turns::send` share.
     change_model:
       signature: "(&self, thread, opened, model: &str, effort: Option<&str>) -> Result<Offered, SettingRefused>"
@@ -329,7 +329,7 @@ functions:
       # pub(crate), on `Sessions`, called by `Harness::change_effort` only.
     prepare_turn:
       signature: "(&self, thread, opened, settings: &TurnSettings) -> Result<(), String>"
-      # pub(crate): sets the turn's model, effort and mode, one call per value
+      # Harness delegates to private Sessions: sets model, effort and mode, one call per value
       # that differs; `Err` names the refused setting in the harness's words.
     mark_answered:
       signature: "(&self, thread, opened)"

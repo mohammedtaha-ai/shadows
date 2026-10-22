@@ -80,9 +80,8 @@ impl Offers {
 
 /// Forwards a connection's events to `to`, recording every options update
 /// on the way: the harness sends them between turns too, when nobody reads
-/// the thread's event channel. It runs in the connection's own dispatch, not
-/// as a task of its own: a relay task let a turn's last update, received
-/// before the prompt's answer, reach `to` only after the turn had ended.
+/// the thread's event channel. Synchronous dispatch keeps each options update
+/// ahead of the prompt answer, so a turn reads its final offer before ending.
 /// `to` closes when the connection drops this.
 impl Offers {
     pub(super) fn intercept(

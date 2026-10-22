@@ -307,7 +307,7 @@ impl Setups {
     }
 }
 
-/// : built-in tools permitted in every Planner session.
+/// Built-in tools permitted in every Planner session.
 pub const PLANNER_TOOLS: [&str; 8] = [
     "Read",
     "Grep",

@@ -205,7 +205,7 @@ functions:
       # Updates and journals the thread row; maps the trigger refusal to HarnessLocked.
     turn_context:
       signature: "(&self, thread_id: &ThreadId) -> Result<TurnContext, StorageError>"
-      # Private wrapper for set_harness and test fixtures; delegates to turn_context_in.
+      # Test-support wrapper for fixtures; delegates to turn_context_in.
     record_harness_session:
       signature: "(&self, thread_id, session_id) -> Result<bool, StorageError>"
       # Written once through record_harness_session_in: only while NULL; no command or event.
